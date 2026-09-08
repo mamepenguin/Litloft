@@ -1166,13 +1166,40 @@ only two:
 
 | Canvas | Kinds | What is in it |
 |---|---|---|
-| **Viewer** | video, audio, `.loft`, PDF, archive, image | the viewer, and what belongs to that viewer alone — a media file's description, its long AI summary, and the transcript when the reader has put it below the player |
 | **Document** | a Markdown note, and the HTML preview that borrows its single scroll | the Knowledge editor, with the note's own chrome in the page row (save dot, view-mode switch, click-to-edit filename) |
+| **Viewer** | **everything else** | the viewer, and what belongs to that viewer alone — a media file's description, its long AI summary, and the transcript when the reader has put it below the player |
 
 **The viewer has the column to itself**, rather than sitting at the top of one
 column with metadata stacked under it, where its height is whatever is left over.
-Plain text, subtitles, the Office formats and unrecognised types keep the stacked
-layout: a text file has no viewer whose height is being squeezed.
+
+- **On the canonical surface the shell carries every kind, and the table above is
+  read as a default with one exception rather than as two lists.** It was two
+  lists — media, then PDF, archives and images, each added by name as it was
+  looked at — and what that produced was not a decision about the kinds outside
+  it but a *fallthrough*: an `.xlsx` had no inspector and no way to open one, and
+  neither did `text/plain`, which was the largest group left behind and does have
+  a viewer. A predicate whose answer is "the ones somebody remembered" is wrong
+  again the next time a mime is classified into a new kind.
+- **A kind with no viewer is not an exception to this.** The *cannot be shown*
+  panel and its download are what goes in the canvas, and the reason the page is
+  worth having is the same one: the title, tags, relations and comments belong in
+  the inspector whether or not anything can be drawn beside them.
+- **The exceptions are named where they are actually exceptional**, and they are
+  not all the same shape — listed rather than counted, because a count is a claim
+  about completeness:
+  - `usesDocumentShell(mime, editorEnabled)` — which canvas goes inside the
+    shell, the editor's single scroll or a viewer.
+  - `viewerTakesCanvasFloor(fileType, mime)` — whether the viewer gets a floor
+    under it, and the allowlist inside it is where "which viewers have I actually
+    looked at" is written down for that question.
+  - **The surface, which is not a predicate at all**: a `FileDetailSurface` the
+    caller declares, honoured by one line inside `ridesFileDetailShell` and set
+    to `"collection"` at exactly one call site (`FileDetailFullScreen`). The
+    collection route keeps the stacked layout deliberately — the canonical URL is
+    a file's address, so a second inspector on the theatre route would be work to
+    throw away — but nothing in this file decides that, so a second caller
+    passing `"collection"` would move a page off the shell with no predicate to
+    notice.
 
 ### Inspector column (document layout)
 

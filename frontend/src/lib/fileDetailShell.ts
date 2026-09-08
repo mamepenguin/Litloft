@@ -1,18 +1,18 @@
 import { playerKind } from "./playerKind";
 
 /**
- * Does this file bring its own page row?
+ * Is the document form — the Knowledge editor's single scroll — what
+ * this file's canvas holds?
  *
- * Markdown notes and HTML previews ride `FileDetailShell`, which draws
- * the page row itself because it also owns the inspector toggle that
- * sits in it. Every other type gets the row from its host. A host that
- * draws one anyway ends up with two breadcrumbs and, on a phone, two
- * back controls.
- *
- * This predicate used to be written out at each of the three places
- * that need it, with a comment at one of them asking the other two to
- * stay in lockstep. They did not: the fullscreen host never had it at
- * all. One function instead, so there is nothing to keep in step.
+ * Narrower than `ridesFileDetailShell` and it has to stay that way. The
+ * shell draws the page row for whatever rides it, and on the canonical
+ * surface that is every kind; this asks the separate question of which
+ * *canvas* goes inside it. Who draws the row is the other predicate's
+ * answer, at each of the two hosts that still ask
+ * (`FileDetailContainer`, `FileDetailFullScreen`) — written out at each
+ * of them once, with a comment asking the others to stay in lockstep,
+ * until they did not and the fullscreen host turned out never to have
+ * had it at all.
  *
  * @param mimeType  The file's mime type, or undefined before it resolves.
  * @param knowledgeEditorEnabled  The drive's `knowledge` / `editor`
@@ -48,46 +48,14 @@ export function usesDocumentShell(
 export type FileDetailSurface = "canonical" | "collection";
 
 /**
- * File kinds routed through `FileDetailShell` on the canonical surface.
- *
- * Media joined in 2026-09, then PDF, archives and images: the shell is
- * what gives a kind a page row, an inspector and a tab strip. They join
- * by being added here — one list, so a kind cannot be routed through the
- * shell by the layout while a host still draws it a second page row.
- *
- * What the last three had before was one column with the viewer at the
- * top and everything else stacked under it, which is how a 190-page
- * archive ended up with 100px of viewer and 440px of metadata: the
- * viewer's height came from its own contents, so the more there was to
- * read the less of it was on screen. On the shell the viewer is the
- * canvas and the metadata is the inspector, and neither can push the
- * other.
- *
- * Not a `playerKind` question any more. That answers "which player
- * plays this", and a PDF has none — the two agreed only while the shell
- * was for media.
- */
-function ridesShellAsViewer(
-  fileType: string | undefined,
-  mimeType: string | undefined,
-): boolean {
-  if (playerKind({ file_type: fileType, mime_type: mimeType }) !== null) {
-    return true;
-  }
-  if (mimeType === "application/pdf") return true;
-  return fileType === "archive" || fileType === "image";
-}
-
-/**
  * Mimes whose viewer gets a floor, named rather than matched.
  *
- * `startsWith("text/")` was the first spelling and it was two mistakes.
- * It is unreachable — plain text does not ride the shell at all, so the
- * branch never fired and the claim that a short text file gets a floor
- * was never true — and it was a trap for whoever makes it reachable:
- * `text/html` is also `text/`, and `text/html` is rendered in
- * `HtmlPreview`'s sandboxed iframe, which is exactly what the rule
- * below forbids putting a floor near.
+ * `startsWith("text/")` was the first spelling, and the list replaced
+ * it. The prefix reaches every `text/*` that is not the document form —
+ * `text/plain` and `text/vtt` among them — and would hand each of them a
+ * floor of 70% of the canvas on the strength of the name alone. The one
+ * member it does *not* reach is `text/html`, which takes
+ * `usesDocumentShell` and never arrives at the canvas branch at all.
  *
  * A prefix match answers "does this name look like the family I had in
  * mind", which is a guess. The list answers "is this one of the viewers
@@ -108,9 +76,16 @@ const FLOORED_MIMES: ReadonlySet<string> = new Set(["application/pdf"]);
  * height, and the measurement is cheap; what is not cheap is what the
  * floor sits next to. A cross-origin iframe or a `<video>` under a
  * containment context renders its subtree rotated and spinning on iOS
- * Safari, and while the floor no longer establishes one, the two lists
- * are kept in step deliberately — this predicate is the place where
- * "which viewers have I actually looked at" is written down.
+ * Safari, and while the floor no longer establishes one, this list is
+ * where "which viewers have I actually looked at" is written down for
+ * *this* question — `ridesFileDetailShell` stopped being a list of
+ * kinds, so it no longer carries any. Other per-viewer facts live with
+ * whoever needs them (`ShellLayout` gives only an image the folder
+ * arrows; `FileDetailContainer` gives only a player's description to the
+ * canvas); this one is not a register of them. A kind absent from here
+ * rides the shell and gets no floor, which is the safe half: a viewer
+ * that is a short panel keeps its own height, exactly as it did on the
+ * old stack.
  *
  * Images are excluded for a different reason: `FilePreview` already
  * gives them `max-h-[70vh]`, so a floor would add white space around a
@@ -130,10 +105,41 @@ export function viewerTakesCanvasFloor(
 /**
  * Does this file's detail page ride `FileDetailShell` on this surface?
  *
+ * **On the canonical surface, every kind does.** The shell is what gives
+ * a file a page row, an inspector and a tab strip, and "opening a file"
+ * has one skeleton — that was the redesign's Phase 2 and this is the
+ * rest of it.
+ *
+ * It used to be a list of kinds: media, then PDF, archives and images,
+ * each added by name as it was looked at. What that produced was not a
+ * decision about the kinds left out but a **fallthrough** — whatever
+ * nobody had got to yet kept the old vertical stack, and the largest
+ * group in it was not the Office files it was noticed on but
+ * `text/plain`, which has a perfectly good viewer. A predicate whose
+ * answer is "the ones somebody remembered" is a list that will be wrong
+ * again the next time a mime is classified into a new kind.
+ *
+ * So the question is now the surface, and the kinds that are special are
+ * named where they are actually special: `usesDocumentShell` for the
+ * two that want the single-scroll document form, and
+ * `viewerTakesCanvasFloor` for the two whose viewer gets a floor.
+ *
  * The document half is surface-independent: a Markdown note has drawn
  * its own row on both surfaces since long before this, and taking that
- * away would be a regression rather than a scoping decision. The viewer
- * half is canonical-only, per `FileDetailSurface`.
+ * away would be a regression rather than a scoping decision. Everything
+ * else is canonical-only, per `FileDetailSurface` — the collection route
+ * keeps its stack, deliberately, and that is the surface the
+ * related-files list's second column is still measured on.
+ *
+ * `fileType` is read for one thing only, and it is not a kind test: it
+ * is undefined exactly while the file has not resolved, and a file that
+ * does not exist yet has no shell. Every kind that already rode the
+ * shell answered "no" here during its fetch, so the new ones do too.
+ * The one place that is observable is `FileDetailContainer`'s
+ * `scrollRoot`, which reads this before the loading early-return —
+ * "yes" would hand `useCompanionMetrics` a null root for the whole
+ * fetch instead of the host's element. The hosts guard their own
+ * loading state and never reach the branch.
  */
 export function ridesFileDetailShell(args: {
   surface: FileDetailSurface;
@@ -143,5 +149,5 @@ export function ridesFileDetailShell(args: {
 }): boolean {
   if (usesDocumentShell(args.mimeType, args.knowledgeEditorEnabled)) return true;
   if (args.surface !== "canonical") return false;
-  return ridesShellAsViewer(args.fileType, args.mimeType);
+  return args.fileType !== undefined;
 }

@@ -8,6 +8,7 @@
  */
 import { describe, it, expect } from "vitest";
 
+import type { FileType } from "@/types";
 import { ridesFileDetailShell, usesDocumentShell } from "../fileDetailShell";
 
 describe("usesDocumentShell", () => {
@@ -136,24 +137,104 @@ describe("ridesFileDetailShell", () => {
     }
   });
 
-  it("still leaves the kinds nobody has moved to their host", () => {
-    // Plain text and the office formats keep the stacked layout: §7
-    // named three viewers, and a text file has no viewer whose height is
-    // being squeezed. They are Phase 4's.
-    expect(canonical({ mimeType: "text/plain", fileType: "document" })).toBe(
-      false,
-    );
-    expect(
-      canonical({
-        mimeType:
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        fileType: "document",
-      }),
-    ).toBe(false);
+  it("routes the kinds that were only ever a fallthrough as well", () => {
+    // These used to keep the stacked layout, and the reason given was
+    // that §7 named three viewers. That was a description of who had
+    // been looked at, not a decision about these: an `.xlsx` had no
+    // inspector and no way to open one, and neither did `text/plain`,
+    // which was the biggest group left behind and does have a viewer.
+    // The shell is the skeleton for opening a file, so the surface
+    // decides and there is no list to be absent from.
+    for (const mimeType of [
+      "text/plain",
+      "application/json",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "application/octet-stream",
+    ]) {
+      expect(canonical({ mimeType, fileType: "document" }), mimeType).toBe(true);
+      expect(collection({ mimeType, fileType: "document" }), mimeType).toBe(
+        false,
+      );
+    }
   });
 
-  it("says no before the file has resolved", () => {
+  it("leaves no file_type off the shell", () => {
+    // Enumerated over the union rather than over the kinds anyone
+    // happened to think of, which is how `subtitle` and `other` came to
+    // be on the old vertical stack without a decision being made about
+    // either.
+    //
+    // **What enforces the enumeration is `tsc`, not this test.** The
+    // mapped type below is what makes a `FileType` added or removed a
+    // compile error (`TS2741` / `TS2353`) — measured, both directions,
+    // and `pnpm test` stays green through both. `pnpm typecheck` runs
+    // it locally and CI runs `tsc --noEmit`. The `toHaveLength` beside
+    // the table is **not** the guard: it counts the literal four lines
+    // above it, so it can only ever agree with itself. It is here as
+    // the follow-up — once `tsc` has forced the table to change, the
+    // count has to be moved by hand, which is the moment somebody reads
+    // this comment.
+    //
+    // What this test *does* check at runtime is the answer for each
+    // representative mime, which is the part `tsc` cannot see.
+    const REPRESENTATIVE: { [K in FileType]: string } = {
+      video: "video/mp4",
+      image: "image/jpeg",
+      audio: "audio/mpeg",
+      document: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      archive: "application/zip",
+      subtitle: "text/vtt",
+      other: "application/octet-stream",
+    };
+    expect(Object.keys(REPRESENTATIVE)).toHaveLength(7);
+    for (const [fileType, mimeType] of Object.entries(REPRESENTATIVE)) {
+      expect(canonical({ mimeType, fileType }), fileType).toBe(true);
+    }
+  });
+
+  it("answers by the surface, not by the kind", () => {
+    // The property that replaced the list, stated so a future kind
+    // cannot be silently left out of it: given a resolved file, the only
+    // thing that changes the answer on the canonical surface is the
+    // document form, which is `true` on both surfaces anyway.
+    //
+    // The expected side is written out. It was `kinds.map(() => true)`,
+    // which is detector rule 5 in its purest form — both sides derived
+    // from `kinds`, so deleting a row shrank them together and the
+    // suite stayed green having measured less. A row removed now leaves
+    // eight `true`s against seven answers.
+    const kinds = [
+      { mimeType: "video/mp4", fileType: "video" },
+      { mimeType: "application/pdf", fileType: "document" },
+      { mimeType: "image/heic", fileType: "image" },
+      { mimeType: "application/zip", fileType: "archive" },
+      { mimeType: "text/plain", fileType: "document" },
+      { mimeType: "audio/mpeg", fileType: "audio" },
+      { mimeType: "application/octet-stream", fileType: "other" },
+      { mimeType: undefined, fileType: "other" },
+    ];
+    expect(kinds.map(canonical)).toEqual([
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+    ]);
+  });
+
+  it("says no before the file has resolved, so the host keeps drawing the row", () => {
+    // `fileType` is undefined exactly while the fetch is out. Answering
+    // "yes" there takes the page row off the host for the whole of the
+    // load and hands it back after, which is the jump the host draws its
+    // row early to avoid — and it is why `ridesFileDetailShell` still
+    // takes a `fileType` it otherwise has no use for.
     expect(canonical({})).toBe(false);
     expect(collection({})).toBe(false);
+    expect(canonical({ mimeType: "application/pdf" })).toBe(false);
   });
 });

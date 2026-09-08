@@ -9,10 +9,8 @@ import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { ImageGallery } from "@/components/ImageGallery";
 import { useFileNav } from "@/hooks/useFileNav";
 import { FileNavProvider } from "@/lib/fileNavContext";
-import { usePolicy } from "@/hooks/usePolicy";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getFile } from "@/lib/api";
-import { ridesFileDetailShell } from "@/lib/fileDetailShell";
 import { resolveFileNavOrdering } from "@/lib/fileNavOrdering";
 import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
@@ -87,24 +85,6 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   const file = state.status === "loaded" ? state.file : null;
 
-  // A file that rides `FileDetailShell` draws its own page row, because
-  // the shell also owns the inspector toggle that sits in it. This host
-  // must not draw a second one. This is the canonical surface, so every
-  // kind that has been moved onto the shell rides it here.
-  //
-  // `usePolicy` is fail-open: it reports enabled during both the initial
-  // load and the 30s-TTL background refetch. Only `enabled` is read, so
-  // the periodic refetch cannot flip the branch out from under an open
-  // editor — which would unmount the textarea and re-fire every child
-  // effect, the observed 30-second reload-while-typing bug.
-  const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
-  const contentBringsItsOwnRow = ridesFileDetailShell({
-    surface: "canonical",
-    mimeType: file?.mime_type,
-    fileType: file?.file_type,
-    knowledgeEditorEnabled: knowledgeEditorPolicy.enabled,
-  });
-
   // Drive arrow-key navigation through useFileNav (PR-2). selectFile
   // swaps ``?file=id`` so FileDetailContent re-mounts with the
   // neighbor's id. Sort / order from the URL keep the nav order in
@@ -158,23 +138,20 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
     );
   }
 
-  const title = file?.title || file?.filename || "";
-
   return (
     <>
       <PaneShell
-        // The document shell draws its own copy of this row, inspector
-        // toggle and all, so handing it a second one would stack two
-        // identical bars.
-        chrome={
-          contentBringsItsOwnRow ? undefined : (
-            <FileDetailChrome
-              drive={drive}
-              folderPath={file?.folder_path}
-              title={title}
-            />
-          )
-        }
+        // No chrome from this host, ever. `FileDetailShell` draws the
+        // row, inspector toggle and all, and on the canonical surface —
+        // which is the only surface this host is — every resolved file
+        // now rides it. Handing PaneShell a second row would stack two
+        // identical bars, which is what a `ridesFileDetailShell` branch
+        // here used to prevent; with the predicate answering "yes" for
+        // every kind, the other half of that branch became unreachable
+        // and a conditional that cannot take one of its paths is a claim
+        // that it can. The loading and error states above still draw the
+        // row, because there is no shell mounted yet to draw it.
+        chrome={undefined}
         scrollRef={setScrollRootCb}
       >
         {/* Published rather than passed down: the page row that draws
