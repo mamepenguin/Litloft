@@ -45,3 +45,7 @@ next-env.d.ts
 
 # generated: merged translation files (built by scripts/merge-addon-messages.mjs)
 /src/messages/
+
+# generated: the compiled stylesheet the layout fixture links
+# (built by e2e-layout/build-fixture-css.ts)
+/e2e-layout/fixtures/globals.built.css

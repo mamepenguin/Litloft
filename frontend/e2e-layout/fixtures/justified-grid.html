@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>justified grid — layout fixture</title>
+    <!--
+      The compiled globals.css, built by ../build-fixture-css.ts.
+
+      This page carries no <style> block of its own on purpose. Every
+      declaration a cell obeys has to have come out of the app's own
+      stylesheet, or the measurement is a test of the fixture.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The cell shapes the app puts inside `.justified-grid`, written out as
+      the element type, the exact class list, the attributes and the
+      descendant tree the component renders.
+
+      A browser suite can only see a selector that matches the markup in
+      front of it, so this table decides the whole reach of
+      `justified-grid.spec.ts`. Its three axes each cost something when they
+      were missing: a class list (`.justified-grid-cell.opacity-50.select-none`
+      — cut a file in a folder grid), an attribute
+      (`.justified-grid-cell[draggable]`, which React writes on every photo
+      cell, `"false"` included), and a descendant
+      (`:has(.justified-grid-name)`, `:has(> a[download])`).
+
+      **What the rows cover, exactly.** Every distinct class list the cell can
+      carry — six for `JustifiedFileCell`, two for `ArchiveEntryCard` — and
+      every element, attribute and class either component can put inside a
+      cell. They are **not** the cross product of those with the wrapper
+      states: `selectable` with something already selected can pair the
+      select-mode wrapper with any of the four `draggable` class lists, and
+      only one of those eight pairings has a row. One pairing is missing
+      outright and is named rather than drawn: `CollectionDetail` renders the
+      wrapper as a `<div>` through `useFileNavigationOverride` with no
+      checkbox beside it.
+
+      **This table is not the components' own; it is a second copy.**
+      `justifiedGridFixtureParity.test.tsx` declares one render state per row,
+      renders it, and requires the row to match — so a row deleted from here
+      is red, a row invented here is red, and a class, attribute or element
+      that appears on either side alone is red. Editing one side alone does
+      not compile.
+
+      `children` is the tree the builder nests, in order, and it is compared
+      **exactly**: same count, same order, same parentage. A node written
+      without a `children` key is a deliberate stop — its own subtree is not
+      compared, which here is only the lucide icon inside the archive's
+      download link and the check mark's `<path>`. The exactness is what
+      makes a deletion here fail; a subset check let three of them through.
+
+      `attrs` is compared exactly too: the rendered element may carry no
+      attribute this table does not name, apart from `class`. A value of
+      `"*"` means "present, any value" — `data-flip-key` carries a file id,
+      `style` carries the cell's own ratio, `aria-label` the filename.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "browsing": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative select-none",
+          "attrs": {
+            "draggable": "true",
+            "data-flip-key": "*",
+            "style": "*"
+          },
+          "children": [
+            {
+              "tag": "a",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated",
+              "attrs": {
+                "href": "*",
+                "aria-label": "*"
+              },
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": {
+                    "src": "*",
+                    "alt": "",
+                    "draggable": "false",
+                    "loading": "lazy"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "justified-grid-name",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "browsingCut": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative opacity-50 select-none",
+          "attrs": {
+            "draggable": "true",
+            "data-flip-key": "*",
+            "style": "*"
+          },
+          "children": [
+            {
+              "tag": "a",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated",
+              "attrs": {
+                "href": "*",
+                "aria-label": "*"
+              },
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": {
+                    "src": "*",
+                    "alt": "",
+                    "draggable": "false",
+                    "loading": "lazy"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "justified-grid-name",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "browsingDragging": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative opacity-40 select-none",
+          "attrs": {
+            "draggable": "true",
+            "data-flip-key": "*",
+            "style": "*"
+          },
+          "children": [
+            {
+              "tag": "a",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated",
+              "attrs": {
+                "href": "*",
+                "aria-label": "*"
+              },
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": {
+                    "src": "*",
+                    "alt": "",
+                    "draggable": "false",
+                    "loading": "lazy"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "justified-grid-name",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "browsingDraggingCut": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative opacity-40 opacity-50 select-none",
+          "attrs": {
+            "draggable": "true",
+            "data-flip-key": "*",
+            "style": "*"
+          },
+          "children": [
+            {
+              "tag": "a",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated",
+              "attrs": {
+                "href": "*",
+                "aria-label": "*"
+              },
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": {
+                    "src": "*",
+                    "alt": "",
+                    "draggable": "false",
+                    "loading": "lazy"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "justified-grid-name",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "selecting": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative",
+          "attrs": {
+            "draggable": "false",
+            "data-flip-key": "*",
+            "style": "*"
+          },
+          "children": [
+            {
+              "tag": "div",
+              "class": "absolute top-2 left-2 z-10",
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "flex h-5 w-5 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none border-text-muted/50 bg-black/40",
+                  "attrs": {
+                    "aria-hidden": "true"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated cursor-pointer select-none",
+              "attrs": {
+                "aria-label": "*",
+                "role": "button",
+                "tabindex": "0"
+              },
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": {
+                    "src": "*",
+                    "alt": "",
+                    "draggable": "false",
+                    "loading": "lazy"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "justified-grid-name",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "selectingCut": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative opacity-50",
+          "attrs": {
+            "draggable": "false",
+            "data-flip-key": "*",
+            "style": "*"
+          },
+          "children": [
+            {
+              "tag": "div",
+              "class": "absolute top-2 left-2 z-10",
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "flex h-5 w-5 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none border-text-muted/50 bg-black/40",
+                  "attrs": {
+                    "aria-hidden": "true"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated cursor-pointer select-none",
+              "attrs": {
+                "aria-label": "*",
+                "role": "button",
+                "tabindex": "0"
+              },
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": {
+                    "src": "*",
+                    "alt": "",
+                    "draggable": "false",
+                    "loading": "lazy"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "justified-grid-name",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "selected": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative select-none",
+          "attrs": {
+            "draggable": "true",
+            "data-flip-key": "*",
+            "style": "*"
+          },
+          "children": [
+            {
+              "tag": "div",
+              "class": "absolute top-2 left-2 z-10",
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "flex h-5 w-5 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none border-accent bg-accent text-white",
+                  "attrs": {
+                    "aria-hidden": "true"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": ""
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated cursor-pointer select-none ring-2 ring-accent",
+              "attrs": {
+                "aria-label": "*",
+                "role": "button",
+                "tabindex": "0"
+              },
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": {
+                    "src": "*",
+                    "alt": "",
+                    "draggable": "false",
+                    "loading": "lazy"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "justified-grid-name",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "linkedOnly": {
+          "source": "JustifiedFileCell",
+          "tag": "div",
+          "class": "justified-grid-cell relative",
+          "attrs": {
+            "data-flip-key": "*",
+            "style": "*"
+          },
+          "children": [
+            {
+              "tag": "a",
+              "class": "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated",
+              "attrs": {
+                "href": "*",
+                "aria-label": "*"
+              },
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": {
+                    "src": "*",
+                    "alt": "",
+                    "draggable": "false",
+                    "loading": "lazy"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "justified-grid-name",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "archiveOpenable": {
+          "source": "ArchiveEntryCard",
+          "tag": "button",
+          "class": "justified-grid-cell relative overflow-hidden rounded-xl bg-bg-card cursor-pointer transition-colors hover:bg-bg-elevated",
+          "attrs": {
+            "type": "button",
+            "style": "*"
+          },
+          "children": [
+            {
+              "tag": "div",
+              "class": "relative h-full w-full",
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "flex h-full w-full items-center justify-center",
+                  "children": [
+                    {
+                      "tag": "img",
+                      "class": "h-full w-full object-cover",
+                      "attrs": {
+                        "src": "*",
+                        "alt": "*"
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "class": "absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent px-2 py-1 text-left text-xs text-white",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "archiveDeadEnd": {
+          "source": "ArchiveEntryCard",
+          "tag": "div",
+          "class": "justified-grid-cell relative overflow-hidden rounded-xl bg-bg-card",
+          "attrs": {
+            "style": "*"
+          },
+          "children": [
+            {
+              "tag": "a",
+              "class": "absolute right-1 top-1 z-10 flex items-center justify-center rounded-lg p-2 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11",
+              "attrs": {
+                "href": "*",
+                "download": "*",
+                "aria-label": "*"
+              }
+            },
+            {
+              "tag": "div",
+              "class": "relative h-full w-full",
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "flex h-full w-full items-center justify-center",
+                  "children": [
+                    {
+                      "tag": "img",
+                      "class": "h-full w-full object-cover",
+                      "attrs": {
+                        "src": "*",
+                        "alt": "*"
+                      },
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "tag": "p",
+                  "class": "absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/70 to-transparent px-2 py-1 text-left text-xs text-white",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      }
+    </script>
+
+    <!-- The width the grid is laid out at. The spec sets it per case;
+         `.justified-grid-host` establishes the container the row height
+         switches on, so this is the only free variable in the page. -->
+    <div id="frame"></div>
+
+    <script>
+      // A 1x1 transparent GIF. The cell's shape comes from `--jg-ratio`
+      // and `object-fit: cover`, never from the picture's own size, so
+      // the smallest decodable image is the honest one to use — and it
+      // needs no network, which is what lets this page run off file://.
+      const PIXEL =
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+      const SHAPES = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      /** Attributes the builder writes itself; the table only asks for them. */
+      const OWN_ATTRS = new Set(["style", "data-flip-key", "href", "src", "alt"]);
+
+      const build = (spec) => {
+        const el = document.createElement(spec.tag);
+        el.setAttribute("class", spec.class);
+        if (spec.tag === "img") {
+          el.src = PIXEL;
+          el.alt = "";
+        }
+        if (spec.tag === "a") el.href = "#";
+        for (const [name, value] of Object.entries(spec.attrs ?? {})) {
+          if (value === "*") {
+            if (!OWN_ATTRS.has(name)) el.setAttribute(name, "");
+          } else {
+            el.setAttribute(name, value);
+          }
+        }
+        for (const child of spec.children ?? []) el.append(build(child));
+        return el;
+      };
+
+      /**
+       * One cell of the named shape, built from the table above and
+       * nothing else — so a shape that drifts from the table cannot be
+       * drawn, and the table is the only thing the parity test has to
+       * keep honest.
+       */
+      const buildCell = (shape, ratio, index, flip) => {
+        const spec = SHAPES[shape];
+        if (!spec) throw new Error(`no such cell shape: ${shape}`);
+        const cell = build(spec);
+        cell.style.setProperty("--jg-ratio", String(ratio));
+        if (spec.attrs?.["data-flip-key"]) cell.dataset.flipKey = `p${index}`;
+        cell.dataset.shape = shape;
+        if (flip) cell.dataset.flip = flip;
+        return cell;
+      };
+
+      /**
+       * The grid, at a chosen width and in a viewport that could contain
+       * it.
+       *
+       * The viewport matters: a rule keyed to `@media (max-width: …)`
+       * rather than to the container is invisible to a suite that leaves
+       * the window at its default 1280px while laying out a 420px grid,
+       * and 420px is a phone. Sizing the window to the grid means the
+       * narrow cases are measured in a window a phone could have.
+       */
+      window.buildGrid = ({ ratios, width, flip, shapes }) => {
+        const frame = document.getElementById("frame");
+        frame.style.width = `${width}px`;
+        frame.replaceChildren();
+
+        const host = document.createElement("div");
+        host.className = "justified-grid-host";
+        const grid = document.createElement("div");
+        grid.className = "justified-grid";
+
+        ratios.forEach((ratio, i) => {
+          grid.append(buildCell(shapes?.[i] ?? "browsing", ratio, i, flip));
+        });
+
+        const tail = document.createElement("div");
+        tail.className = "justified-grid-tail";
+        tail.setAttribute("aria-hidden", "true");
+        grid.append(tail);
+
+        host.append(grid);
+        frame.append(host);
+      };
+
+      /** `class` rather than `className`: an SVG's is not a string. */
+      const treeOf = (el) => ({
+        tag: el.tagName.toLowerCase(),
+        class: el.getAttribute("class") ?? "",
+        children: Array.from(el.children).map(treeOf),
+      });
+
+      /**
+       * Every cell's realized box, plus the ratio it was asked for and
+       * the markup it was built as.
+       *
+       * `getBoundingClientRect` rather than `offsetWidth`: the layout
+       * engine resolves flex to a fraction of a pixel and the integer
+       * accessors would hand the spec a rounding error to explain away.
+       */
+      window.measureCells = () =>
+        Array.from(document.querySelectorAll(".justified-grid-cell")).map(
+          (cell) => {
+            const rect = cell.getBoundingClientRect();
+            return {
+              ratio: Number(
+                getComputedStyle(cell).getPropertyValue("--jg-ratio"),
+              ),
+              shape: cell.dataset.shape,
+              tree: treeOf(cell),
+              attrs: Object.fromEntries(
+                Array.from(cell.attributes).map((a) => [a.name, a.value]),
+              ),
+              width: rect.width,
+              height: rect.height,
+              top: rect.top,
+              left: rect.left,
+            };
+          },
+        );
+
+      /** The grid's own content box — what a line has to add up to. */
+      window.measureGrid = () => {
+        const grid = document.querySelector(".justified-grid");
+        const style = getComputedStyle(grid);
+        return {
+          width: grid.getBoundingClientRect().width,
+          gap: parseFloat(style.columnGap),
+        };
+      };
+
+      /** The resolved transition on the first cell, in its `data-flip` state. */
+      window.measureFlip = () => {
+        const style = getComputedStyle(
+          document.querySelector(".justified-grid-cell"),
+        );
+        return {
+          transitionProperty: style.transitionProperty,
+          transitionDuration: style.transitionDuration,
+          transitionTimingFunction: style.transitionTimingFunction,
+          transformOrigin: style.transformOrigin,
+        };
+      };
+    </script>
+  </body>
+</html>

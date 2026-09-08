@@ -177,16 +177,123 @@ pnpm test:e2e --reporter=html
 pnpm test:e2e:report
 ```
 
+### Layout invariants, which are a separate suite
+
+`frontend/e2e-layout/` is also Playwright, and has nothing else in common with
+the eleven specs above. It opens a **static page off `file://`** — no app, no
+backend, no drives — carrying the app's own compiled `globals.css` and a row of
+hand-placed cells with known `--jg-ratio` values, and measures the boxes
+Chromium produces.
+
+```bash
+cd frontend
+pnpm test:e2e:layout          # 26 tests, ~2.5s, browser already installed
+```
+
+The CI job around it has finished **under a minute in every run**, with the
+ceiling at 57s on a cold cache — 25s of which was the Chromium download. Only
+`bootstrap` and `mcp-server` are cheaper; `frontend` and the two Docker jobs are
+minutes.
+
+**The stable part is the test step: 6-7s in every run so far** (6 at 22 tests,
+7 at 26). Everything else is preamble — checkout, `setup-node`, `pnpm install`, and the apt half of
+`playwright install --with-deps`, which runs on a cache hit too — and that is
+where the run-to-run spread lives. It is spread, not one step: between two warm
+runs that differed by 9s, apt carried 5 of them, `setup-node` 2, and six of the
+eight steps moved. Read the current figures from the job rather than from here;
+these are the runs on one branch, and the runner varies.
+
+It has its own config (`playwright-layout.config.ts`) so that neither run can
+pull the other in, and its `globalSetup` compiles `src/app/globals.css` into the
+sheet the fixture links, so there is no build step to forget. **It is the one
+job in CI that starts a browser** — `frontend (layout invariants in a browser)`.
+
+Why it exists: jsdom lays nothing out. Every `getBoundingClientRect()` in
+`justifiedGrid.test.tsx` returns zeros, so a cell drawn at the wrong aspect
+ratio measures exactly like one drawn at the right one, and what that file
+settled for instead is reading `globals.css` as a string and checking the
+declarations are present. In #200 that was measured and found wanting: the
+defect came back in full by appending one line to the end of the stylesheet, and
+every suite stayed green through two rounds of review. **Text matching cannot
+verify a layout.** A later rule at any specificity, an `@media` / `@container` /
+`@layer` block, or an inline style each override a declaration that is still,
+textually, right where the assertion looks for it.
+
+What it holds today, all of it measured rather than matched:
+
+- a justified cell's realized aspect ratio equals its `--jg-ratio`, at five grid
+  widths;
+- the `max-height` ceiling — a cell that reaches it keeps its width and gives up
+  its ratio;
+- the row height the container query picks, and the 40rem boundary it picks it
+  at, read as a length;
+- that every line but the last ends flush with the grid, and that the last one
+  stays at its bases — which is where `.justified-grid-tail`'s `flex-grow: 9999`
+  becomes visible as a number;
+- the `[data-flip]` transition Chromium resolves, against the hook's own
+  `FLIP_DURATION_MS`;
+- all of the above **once per declared cell shape** — every class list the cell
+  can carry (six for `JustifiedFileCell`, two for `ArchiveEntryCard`), and
+  every element, attribute and class either component puts inside a cell.
+
+This last is the axis that decides what a selector can reach, and it has cost
+three rounds of findings, because a browser suite sees only the markup the
+fixture writes. Each of these breaks a shipped cell and was green while the
+fixture drew less than the app does: `button.justified-grid-cell`,
+`.justified-grid-cell.overflow-hidden`, `.justified-grid-cell.select-none`,
+`.justified-grid-cell.opacity-50.select-none` (cut a file in a folder grid),
+`.justified-grid-cell[draggable]` (React writes it on every photo cell,
+`"false"` included), `:has(.justified-grid-name)`, `:has(> a[download])`.
+
+The rows are **not** the cross product of the class axis with the wrapper
+states, and the two things that leaves out are named in the fixture's own
+table rather than left to be discovered.
+
+The fixture's fidelity is itself asserted, in the other suite.
+`src/components/__tests__/justifiedGridFixtureParity.test.tsx` declares one
+render state per row, renders it, and requires the row to match — element, class
+list, attributes and descendant tree, all compared exhaustively. It is a parity
+test rather than one table read twice: one side is a React render, the other
+hand-written HTML.
+
+**The shape of that comparison is the part to keep.** It compared a flattened
+token vocabulary once, and two rows went missing from the table without either
+side noticing — every token still appeared somewhere, so the sets stayed equal.
+That is detector rule 5: an expected value built out of the observation catches
+wrong values and unregistered additions but cannot catch a deletion. Expected
+sets are declared per state now, and every looser variant of the comparison that
+was tried let a deletion through — a subset check on children let three, a subset
+check on attributes let one more. Thirty-two mutations on both sides, all
+killed.
+
+**What it cannot see, because there is no app in it:** the forced reflow
+(`void grid.offsetWidth`) between `useJustifiedFlip`'s invert and play, the
+hook's settle timing, its rect rounding, its unmount cleanup, and the FLIP
+wiring itself. Those are jsdom's, by postcondition, in
+`useJustifiedFlip.test.tsx`. An inline `style` written by a component rather
+than by the fixture is in the same class. A green tick here says nothing about
+any of them.
+
+**And the case list is finite.** The fixture sizes the window to the grid, so a
+`@media` rule keyed to a phone width is now tested at a phone width; but a query
+keyed outside the range the tested widths imply — `@container justified-grid
+(min-width: 1500px)`, past the widest grid here — is unreachable and survives.
+Adding a width is how that closes, not prose. Likewise the parity test knows the
+two components that write a `.justified-grid-cell` today; a third would arrive
+unnoticed until someone gave it a row in the table.
+
 ### Why e2e is not in CI
 
 Deliberate, and worth restating before anyone "fixes" it:
 
 - `playwright.config.ts` declares no `webServer`. The suite expects a live stack
   already answering on `localhost:3000`.
-- The specs read the real library through `/api/drives` and **skip themselves
-  when no drive answers** (`test.skip(() => !driveName)`). A CI run without
-  seeded drives would skip almost everything and report green — the exact
-  "passed, therefore fine" failure this CI exists to remove.
+- Ten of the eleven read the real library through `/api/drives` and **skip
+  themselves when no drive answers** (`test.skip(() => !driveName)`). A CI run
+  without seeded drives would skip almost everything and report green — the
+  exact "passed, therefore fine" failure this CI exists to remove. The
+  eleventh, `source-capture.spec.ts`, carries no guard and would go red
+  instead. Neither result is a check.
 - Several assertions are written against a Japanese UI (`browse.spec.ts` expects
   `main h1` to contain `ドライブ`) while `defaultLocale` is `en`. The suite
   assumes a developer's own environment, not a clean one.
@@ -195,6 +302,10 @@ The e2e sources are not unguarded: `tsc --noEmit` and `eslint` both cover
 `frontend/e2e/`, so type and syntax rot is caught. Putting the suite in CI needs
 a compose profile that seeds a fixture drive first; that is its own piece of
 work, not a workflow edit.
+
+This reasoning is about **these eleven specs**, not about browsers. The layout
+suite above runs in CI precisely because it shares none of the three problems:
+nothing to serve, nothing to seed, and nothing to skip.
 
 ## Coverage
 
@@ -337,6 +448,7 @@ every pull request and on pushes to the default branch.
 |---|---|
 | `frontend` | `setup-addons.sh`, install, merge translations, the collection check below, then `pnpm test`, `tsc --noEmit`, `pnpm lint` |
 | `frontend (shuffled order)` | the same suite under `--sequence.shuffle`. Required since 2026-09 — when it is red, reproduce with its seed rather than re-running; see below |
+| `frontend (layout invariants in a browser)` | `frontend/e2e-layout/` under Chromium — the geometry jsdom cannot see. Not required yet; see below |
 | `mcp-server` | `pnpm test`, `tsc --noEmit` |
 | `backend` | `backend/Dockerfile.test` built and run |
 | `bootstrap` | `pytest tests/test_configure.py` on a bare Python 3.12 |
@@ -425,8 +537,12 @@ neither.
 ### Branch protection
 
 Core's `develop` carries **classic branch protection** (the
-`branches/*/protection` API, not a ruleset) listing all eight of core's job
-names as required status checks. `frontend (shuffled order)` joined the list in
+`branches/*/protection` API, not a ruleset) listing eight of core's nine job
+names as required status checks. The ninth,
+`frontend (layout invariants in a browser)`, is not on the list yet: it has no
+run history here, and the same argument that kept `frontend (shuffled order)`
+off at first applies until it has one. Adding it is a protection edit, not a
+workflow edit. `frontend (shuffled order)` joined the list in
 2026-09; the reasoning is below, because a check that runs the suite in a
 different order each time is an unusual thing to make mandatory and the case
 for it is not the one first expected. The four addon repositories' `main`
