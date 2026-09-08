@@ -24,6 +24,14 @@ import { CollectionPicker } from "./CollectionPicker";
 /** Must match the menu's `w-40`; used to decide which side it opens on. */
 const MENU_WIDTH_PX = 160;
 
+/**
+ * Must match the menu's `mt-1` / `mb-1`. The gap is part of the room the
+ * menu needs, so it belongs inside the comparison: without it a menu whose
+ * height lands in the last 4px of the space below is kept downward and its
+ * final pixels sit past the edge.
+ */
+const MENU_GAP_PX = 4;
+
 interface FileActionsProps {
   file: FileItem;
   onUpdate?: () => void;
@@ -60,31 +68,32 @@ export function FileActions({
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  // The menu hangs to the left of the trigger, which only works while the
-  // trigger sits near its column's right edge. It does not in a wrapped
-  // action row or a narrow pane, where the menu would spill over whatever is
-  // to the left. Measured on open rather than guessed from a breakpoint,
-  // because what matters is the enclosing column, not the viewport.
-  const [alignLeft, setAlignLeft] = useState(false);
-  // Same measurement in the other axis, and for the same reason: the menu
-  // hangs below the trigger, which only works while the trigger has the
-  // menu's own height beneath it. In the Bottom Sheet's resting strip
-  // (`fixed bottom-0`, DESIGN.md §Layering) it has none, so a menu that
-  // only ever opened downward was drawn entirely below the viewport.
-  // Measured against the rendered menu rather than a breakpoint or a
+  // Which corner of the trigger the menu hangs from, on both axes.
+  //
+  // Both are measured against the menu's first clipping ancestor, falling
+  // back to the visual viewport when it has none: what bounds the menu is
+  // the enclosing column, not the window — and where the window is the
+  // bound, the visual viewport is the part of it an on-screen keyboard or
+  // a collapsing URL bar leaves visible. Hanging below and to one side is
+  // right wherever the trigger has the room; in the Bottom Sheet's resting
+  // strip (`fixed bottom-0`, DESIGN.md §Layering) it has none below, so a
+  // menu that only ever opened downward was drawn below the viewport.
+  //
+  // Measured against the rendered box rather than a breakpoint or a
   // guessed row count, because the menu's height is the addon slot's to
   // change and no constant here would follow it.
+  //
+  // Neither flag is cleared when the menu closes: the error toast hangs
+  // off the same trigger and is raised after the menu has gone, so a reset
+  // would put the message in the corner the menu was not allowed to use.
+  // Both are re-derived on every open, so a stale value never outlives one
+  // paint.
+  const [alignLeft, setAlignLeft] = useState(false);
   const [openUp, setOpenUp] = useState(false);
   const menuBoxRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     if (!menuOpen) {
-      // `openUp` is not cleared beside it: the error toast hangs off the
-      // same trigger and is raised after the menu has gone, so on the
-      // resting strip it would be drawn off-screen exactly as the menu
-      // was. It is re-measured on every open, so a stale value never
-      // outlives one paint.
-      setAlignLeft(false);
       // The flag belongs to a subtree that only exists while the menu is
       // open, and it is set by an addon in another repository. Clearing it
       // here means a caller that forgets `onDialogOpenChange(false)` cannot
@@ -92,34 +101,69 @@ export function FileActions({
       setAddonDialogOpen(false);
       return;
     }
-    const trigger = menuRef.current;
-    if (!trigger) return;
 
-    const triggerRect = trigger.getBoundingClientRect();
-    let boundsLeft = 0;
-    for (let el = trigger.parentElement; el; el = el.parentElement) {
-      const { overflowX, overflowY } = getComputedStyle(el);
-      const clips = /auto|scroll|hidden/.test(overflowX + overflowY);
-      if (clips) {
-        boundsLeft = el.getBoundingClientRect().left;
-        break;
-      }
-    }
-    setAlignLeft(triggerRect.right - MENU_WIDTH_PX < boundsLeft);
+    const measure = () => {
+      const trigger = menuRef.current;
+      const menuBox = menuBoxRef.current;
+      if (!trigger || !menuBox) return;
 
-    // Reads the box that was just rendered, before the browser paints
-    // it. Which direction that render used does not matter: the menu's
-    // height is the same either way, and `triggerRect` is the wrapper's,
-    // which the menu does not move. Flips only when the space above is
-    // the better of the two, so a trigger with room for neither keeps
-    // the downward direction the menu reads as everywhere else.
-    const menuBox = menuBoxRef.current;
-    if (menuBox) {
+      const triggerRect = trigger.getBoundingClientRect();
       const menuHeight = menuBox.getBoundingClientRect().height;
-      const spaceBelow = window.innerHeight - triggerRect.bottom;
-      const spaceAbove = triggerRect.top;
-      setOpenUp(menuHeight > spaceBelow && spaceAbove > spaceBelow);
-    }
+
+      let bounds: { left: number; top: number; bottom: number } | null = null;
+      for (let el = trigger.parentElement; el; el = el.parentElement) {
+        const { overflowX, overflowY } = getComputedStyle(el);
+        const clips = /auto|scroll|hidden/.test(overflowX + overflowY);
+        if (clips) {
+          const rect = el.getBoundingClientRect();
+          bounds = { left: rect.left, top: rect.top, bottom: rect.bottom };
+          break;
+        }
+      }
+      // `window.innerHeight` is the layout viewport, which the keyboard
+      // does not move; `visualViewport` is what is actually on screen.
+      const frame = bounds ?? {
+        left: 0,
+        top: 0,
+        bottom: window.visualViewport?.height ?? window.innerHeight,
+      };
+
+      setAlignLeft(triggerRect.right - MENU_WIDTH_PX < frame.left);
+
+      // `triggerRect` is the wrapper's, which the menu — being absolute,
+      // out of flow — does not move, and the menu's height is the same
+      // whichever direction it is drawn in. So the reading does not depend
+      // on the answer it feeds.
+      //
+      // The gap is counted once. `mt-1` and `mb-1` are the same 4px, so it
+      // cancels out of `spaceAbove > spaceBelow` and decides only whether
+      // the menu fits below at all. Flips only when the space above is the
+      // better of the two, so a trigger with room for neither keeps the
+      // downward direction the menu reads as everywhere else.
+      const spaceBelow = frame.bottom - triggerRect.bottom;
+      const spaceAbove = triggerRect.top - frame.top;
+      setOpenUp(
+        menuHeight + MENU_GAP_PX > spaceBelow && spaceAbove > spaceBelow,
+      );
+    };
+
+    measure();
+
+    // The height is not settled on the commit that opens the menu.
+    // `AddonSlot` resolves a dynamic `import()` inside an effect and
+    // renders null until it lands, so the first open after a page load
+    // sees a menu with no addon rows in it — the same wrong number the
+    // guessed row count would have given. Following the box is what makes
+    // measuring it worth anything.
+    //
+    // Flipping cannot re-enter this: `bottom-full mb-1` and `top-full
+    // mt-1` move the menu, they do not resize it, and a ResizeObserver
+    // reports a changed box rather than a changed position.
+    const menuBox = menuBoxRef.current;
+    if (!menuBox || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(menuBox);
+    return () => observer.disconnect();
   }, [menuOpen]);
 
   const anyDialogOpen =
@@ -332,9 +376,14 @@ export function FileActions({
 
         {error && (
           <div
-            className={`absolute right-0 z-30 whitespace-nowrap rounded-2xl bg-danger px-3 py-1.5 text-xs text-white ${
+            /* Both axes follow the menu's, per DESIGN.md §Context Menus /
+               Dropdowns. This box does not wrap, so its width is whatever
+               the message is: on a trigger near its column's left edge a
+               `right-0` toast crosses exactly the edge `alignLeft` exists
+               to keep the menu inside. */
+            className={`absolute z-30 whitespace-nowrap rounded-2xl bg-danger px-3 py-1.5 text-xs text-white ${
               openUp ? "bottom-full mb-1" : "top-full mt-1"
-            }`}
+            } ${alignLeft ? "left-0" : "right-0"}`}
           >
             {error}
           </div>

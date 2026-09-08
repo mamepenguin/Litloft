@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>file actions menu — layout fixture</title>
+    <!--
+      The compiled globals.css, built by ../build-fixture-css.ts. No
+      <style> of its own, like the other fixtures: every declaration
+      measured here has to have come out of the app's own stylesheet, or
+      the measurement is a test of this page.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The class lists `FileActions` draws, written out, plus the strip
+      `MobileInspectorSheet` draws them inside at rest.
+
+      `top-full mt-1` and `bottom-full mb-1` are the two answers the
+      component's measurement chooses between, and `left-0` / `right-0`
+      the two on the other axis. What the spec measures is where each of
+      them actually puts the box; `fileActionsMenuFixtureParity.test.tsx`
+      renders the real components and fails if any list here drifts from
+      what they emit.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "wrapper": "relative",
+        "trigger": "inline-flex items-center justify-center rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11",
+        "menuBase": "absolute z-30 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg",
+        "menuItem": "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 disabled:hover:bg-transparent text-text-muted hover:bg-bg-elevated hover:text-text-primary",
+        "toastBase": "absolute z-30 whitespace-nowrap rounded-2xl bg-danger px-3 py-1.5 text-xs text-white",
+        "down": "top-full mt-1",
+        "up": "bottom-full mb-1",
+        "right": "right-0",
+        "left": "left-0",
+        "strip": "fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2 border-t border-bg-border bg-bg-card px-4",
+        "stripHeightPx": 56
+      }
+    </script>
+
+    <div id="frame"></div>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      const GLYPH =
+        '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">' +
+        '<circle cx="8" cy="3" r="1.5" /><circle cx="8" cy="8" r="1.5" />' +
+        '<circle cx="8" cy="13" r="1.5" /></svg>';
+
+      /** The `.relative` wrapper, its trigger, and whichever popups a case asks for. */
+      function anchor({ direction, align, items, error, toastAlign }) {
+        const wrapper = document.createElement("div");
+        wrapper.className = SPEC.wrapper;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = SPEC.trigger;
+        button.setAttribute("aria-label", "File actions");
+        button.innerHTML = GLYPH;
+        wrapper.append(button);
+
+        if (items) {
+          const menu = document.createElement("div");
+          menu.setAttribute("role", "menu");
+          menu.className = `${SPEC.menuBase} ${SPEC[direction]} ${SPEC[align]}`;
+          for (let i = 0; i < items; i++) {
+            const row = document.createElement("button");
+            row.type = "button";
+            row.setAttribute("role", "menuitem");
+            row.className = SPEC.menuItem;
+            row.textContent = `Item ${i + 1}`;
+            menu.append(row);
+          }
+          wrapper.append(menu);
+        }
+
+        if (error) {
+          const toast = document.createElement("div");
+          toast.id = "toast";
+          toast.className = `${SPEC.toastBase} ${SPEC[direction]} ${
+            SPEC[toastAlign ?? align]
+          }`;
+          toast.textContent = error;
+          wrapper.append(toast);
+        }
+
+        return wrapper;
+      }
+
+      /**
+       * The Bottom Sheet at rest: a 56px strip on the viewport floor, the
+       * file's name, and the `⋮` at the right end of it.
+       *
+       * This is the surface the whole decision exists for. `fixed
+       * bottom-0` means the trigger's bottom edge is a few pixels from
+       * the viewport's, so a menu hung downward has nowhere to go.
+       *
+       * The strip's other occupant — the file's name — is left out. It
+       * decides where along the row the `⋮` sits, and nothing measured
+       * here is about that; the horizontal axis is measured in the column
+       * cases instead. Leaving it in would put a class list in this
+       * fixture that the parity test cannot reach without mounting the
+       * whole file-detail container.
+       */
+      window.buildStrip = ({ direction, items }) => {
+        const frame = document.getElementById("frame");
+        frame.replaceChildren();
+
+        const strip = document.createElement("div");
+        strip.className = SPEC.strip;
+        strip.style.height = `${SPEC.stripHeightPx}px`;
+
+        strip.append(anchor({ direction, align: "right", items }));
+
+        frame.append(strip);
+      };
+
+      /**
+       * A trigger near the left edge of a narrow scrolling column.
+       *
+       * `overflow: auto` is what makes the column a clipping ancestor,
+       * which is the frame both axes of the decision resolve against.
+       */
+      window.buildColumn = ({
+        direction,
+        align,
+        toastAlign,
+        items,
+        error,
+        left,
+        width,
+      }) => {
+        const frame = document.getElementById("frame");
+        frame.replaceChildren();
+
+        const column = document.createElement("div");
+        column.id = "column";
+        column.className = "overflow-auto";
+        column.style.position = "absolute";
+        column.style.top = "200px";
+        column.style.left = `${left}px`;
+        column.style.width = `${width}px`;
+        column.style.height = "300px";
+
+        const row = document.createElement("div");
+        row.className = "flex items-center";
+        row.append(anchor({ direction, align, toastAlign, items, error }));
+        column.append(row);
+        frame.append(column);
+      };
+
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          top: r.top,
+          bottom: r.bottom,
+          left: r.left,
+          right: r.right,
+          height: r.height,
+          width: r.width,
+        };
+      };
+
+      window.measureAnchor = () => {
+        const column = document.getElementById("column");
+        const menu = document.querySelector('[role="menu"]');
+        const toast = document.getElementById("toast");
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          trigger: box(document.querySelector("button[aria-label]")),
+          column: column ? box(column) : null,
+          menu: menu ? box(menu) : null,
+          toast: toast ? box(toast) : null,
+        };
+      };
+    </script>
+  </body>
+</html>

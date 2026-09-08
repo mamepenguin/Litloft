@@ -81,6 +81,13 @@ const REQUIRED = [
   // this fails at `globalSetup` instead, with the sheet named.
   "max-h-\\[70vh\\]",
   ".sticky",
+  // `file-actions-menu.spec.ts` measures which side of a trigger a popup
+  // lands on. These two utilities *are* the answer it measures: without
+  // them both boxes sit at the wrapper's own origin, every case reads the
+  // same numbers, and half of them pass for that reason.
+  ".top-full",
+  ".bottom-full",
+  ".whitespace-nowrap",
 ];
 
 /**
