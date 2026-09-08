@@ -224,13 +224,21 @@ jobs:
     # hand-placed row of cells, and asserts the boxes Chromium produces.
     #
     # A browser suite can only see a selector that matches the markup in
-    # front of it, so the fixture writes every cell shape the app ships —
-    # JustifiedFileCell in each of its states, and ArchiveEntryCard's
-    # <button>. That is not a detail: while it drew one shape,
-    # `button.justified-grid-cell`, `.justified-grid-cell.overflow-hidden`
-    # and `.justified-grid-cell.select-none` each broke a shipped cell and
-    # stayed green. The class lists are kept honest from the jsdom side, by
-    # justifiedGridFixtureParity.test.tsx in the `frontend` job above.
+    # front of it, so the fixture draws from a declared table of cell
+    # shapes: every class list the cell can carry (six for
+    # JustifiedFileCell, two for ArchiveEntryCard), and every element,
+    # attribute and class either component puts inside a cell. Not the
+    # cross product of those with the wrapper states — see the table's own
+    # note for what is left out.
+    #
+    # That table is not decoration. Each of these broke a shipped cell and
+    # stayed green while the fixture drew less than the app does:
+    # `button.justified-grid-cell`, `.justified-grid-cell.overflow-hidden`,
+    # `.justified-grid-cell.select-none`,
+    # `.justified-grid-cell.opacity-50.select-none`,
+    # `.justified-grid-cell[draggable]`, `:has(.justified-grid-name)`,
+    # `:has(> a[download])`. The table is kept honest from the jsdom side by
+    # justifiedGridFixtureParity.test.tsx, in the `frontend` job above.
     #
     # It is deliberately NOT the eleven specs under `frontend/e2e/` — twelve
     # files, of which helpers.ts is not a spec; `playwright test --list` says

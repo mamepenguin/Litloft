@@ -23,16 +23,21 @@
  * the CI job checks out without submodules and never runs
  * `setup-addons.sh` — no addon writes a rule the justified grid reads.
  *
- * `@tailwindcss/cli` is pinned exactly while its two neighbours in
- * package.json float on `^4`, which is an asymmetry that can produce a
- * skew: `pnpm update` moves `tailwindcss` and `@tailwindcss/postcss` to the
- * next minor and leaves the CLI behind, after which the sheet measured here
- * is emitted by a different compiler from the one that builds the app —
- * different preflight, possibly different `@container` or `aspect-ratio`
- * output — and the claim above quietly stops being true. `assertSameCompiler`
- * is what re-checks it; the exact pin is what makes the check meaningful,
- * since floating the CLI would let pnpm resolve it ahead of the other two
- * rather than in step with them.
+ * `@tailwindcss/cli` carries the same `^4` as `tailwindcss` and
+ * `@tailwindcss/postcss` deliberately. The three publish in lockstep at
+ * identical version numbers, so one range for all three is what makes
+ * `pnpm update` move them together; an exact pin on this one would have
+ * meant an update moving the other two and leaving the fixture's compiler
+ * behind, after which the sheet measured here is emitted by a different
+ * Tailwind from the one that builds the app — different preflight,
+ * possibly different `@container` or `aspect-ratio` output — and the claim
+ * above quietly stops being true.
+ *
+ * `assertSameCompiler` is the guard, and it is not redundant with the
+ * ranges: nothing enforces that Tailwind keeps publishing the three
+ * together, and a `resolutions`/`overrides` entry or a partial update can
+ * separate them at any time. Nothing else in the repository would notice —
+ * the `REQUIRED` needles below are all version-insensitive.
  */
 
 import { execFileSync } from "node:child_process";

@@ -187,17 +187,21 @@ Chromium produces.
 
 ```bash
 cd frontend
-pnpm test:e2e:layout          # 22 tests, ~2.5s, browser already installed
+pnpm test:e2e:layout          # 26 tests, ~2.5s, browser already installed
 ```
 
-The CI job around it measured **57s cold, and 38s and 48s over two warm runs.**
-Cold is the first run, which had to download Chromium — 25s of it. Warm is a
-cache hit, where `playwright install --with-deps chromium` still runs apt and
-takes 11-16s; that variation between two otherwise identical runs is where the
-10s spread comes from, and it is the runner's, not the suite's. The tests
-themselves are 6s in all three. It is the cheapest job in the workflow after
-`bootstrap` (12-16s) and `mcp-server` (19-21s), against ~2m for
-`production images` and ~5m for `frontend`.
+The CI job around it has finished **under a minute in every run**, with the
+ceiling at 57s on a cold cache — 25s of which was the Chromium download. Only
+`bootstrap` and `mcp-server` are cheaper; `frontend` and the two Docker jobs are
+minutes.
+
+**The stable part is the test step: 6s in every run so far.** Everything else is
+preamble — checkout, `setup-node`, `pnpm install`, and the apt half of
+`playwright install --with-deps`, which runs on a cache hit too — and that is
+where the run-to-run spread lives. It is spread, not one step: between two warm
+runs that differed by 9s, apt carried 5 of them, `setup-node` 2, and six of the
+eight steps moved. Read the current figures from the job rather than from here;
+these are the runs on one branch, and the runner varies.
 
 It has its own config (`playwright-layout.config.ts`) so that neither run can
 pull the other in, and its `globalSetup` compiles `src/app/globals.css` into the
@@ -228,21 +232,39 @@ What it holds today, all of it measured rather than matched:
   becomes visible as a number;
 - the `[data-flip]` transition Chromium resolves, against the hook's own
   `FLIP_DURATION_MS`;
-- all of the above **once per cell shape the app ships** —
-  `JustifiedFileCell` in each of its four states and `ArchiveEntryCard`'s
-  `<button>` and dead-end `<div>`. This is the axis that decides what a
-  selector can reach: a browser suite sees only markup the fixture writes, and
-  while the fixture drew one shape, `button.justified-grid-cell`,
-  `.justified-grid-cell.overflow-hidden` and `.justified-grid-cell.select-none`
-  all broke shipped cells while staying green.
+- all of the above **once per declared cell shape** — every class list the cell
+  can carry (six for `JustifiedFileCell`, two for `ArchiveEntryCard`), and
+  every element, attribute and class either component puts inside a cell.
+
+This last is the axis that decides what a selector can reach, and it has cost
+three rounds of findings, because a browser suite sees only the markup the
+fixture writes. Each of these breaks a shipped cell and was green while the
+fixture drew less than the app does: `button.justified-grid-cell`,
+`.justified-grid-cell.overflow-hidden`, `.justified-grid-cell.select-none`,
+`.justified-grid-cell.opacity-50.select-none` (cut a file in a folder grid),
+`.justified-grid-cell[draggable]` (React writes it on every photo cell,
+`"false"` included), `:has(.justified-grid-name)`, `:has(> a[download])`.
+
+The rows are **not** the cross product of the class axis with the wrapper
+states, and the two things that leaves out are named in the fixture's own
+table rather than left to be discovered.
 
 The fixture's fidelity is itself asserted, in the other suite.
-`src/components/__tests__/justifiedGridFixtureParity.test.tsx` renders both
-components over every reachable combination of the props that decide a cell's
-class, and compares the result to the JSON table the fixture builds from. It is
-a parity test rather than one table read twice — one side is a React render, the
-other is hand-written HTML — so drift in **either** direction is red: eleven
-mutations, on both sides, all killed.
+`src/components/__tests__/justifiedGridFixtureParity.test.tsx` declares one
+render state per row, renders it, and requires the row to match — element, class
+list, attributes and descendant tree, all compared exhaustively. It is a parity
+test rather than one table read twice: one side is a React render, the other
+hand-written HTML.
+
+**The shape of that comparison is the part to keep.** It compared a flattened
+token vocabulary once, and two rows went missing from the table without either
+side noticing — every token still appeared somewhere, so the sets stayed equal.
+That is detector rule 5: an expected value built out of the observation catches
+wrong values and unregistered additions but cannot catch a deletion. Expected
+sets are declared per state now, and every looser variant of the comparison that
+was tried let a deletion through — a subset check on children let three, a subset
+check on attributes let one more. Thirty-two mutations on both sides, all
+killed.
 
 **What it cannot see, because there is no app in it:** the forced reflow
 (`void grid.offsetWidth`) between `useJustifiedFlip`'s invert and play, the

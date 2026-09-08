@@ -76,7 +76,7 @@ importers:
         specifier: ^1.58.2
         version: 1.58.2
       '@tailwindcss/cli':
-        specifier: 4.2.2
+        specifier: ^4
         version: 4.2.2
       '@tailwindcss/postcss':
         specifier: ^4

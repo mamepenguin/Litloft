@@ -26,12 +26,14 @@
  * resolves to.
  *
  * That reaches a selector only if the selector matches markup the fixture
- * writes, so the fixture writes **every cell shape the app ships** —
- * `JustifiedFileCell` in each of its states, and `ArchiveEntryCard`'s
- * `<button>` and dead-end `<div>`. The class lists come from the table in
- * the fixture, and `justifiedGridFixtureParity.test.tsx` renders both
- * components over every reachable combination of their props and fails if
- * that table and the components come apart in either direction.
+ * writes, which is why the fixture draws from a declared table of cell
+ * shapes rather than one cell of its own: every class list the cell can
+ * carry (six for `JustifiedFileCell`, two for `ArchiveEntryCard`), and
+ * every element, attribute and class either component puts inside a cell.
+ * `justifiedGridFixtureParity.test.tsx` renders one declared state per row
+ * and fails if the table and the components come apart in either
+ * direction — a deleted row included, which is the failure the earlier
+ * vocabulary comparison could not see.
  *
  * ## What it cannot see
  *
@@ -52,10 +54,12 @@
  * keyed to a phone width is tested at a phone width — but a viewport
  * query outside the range the widths imply is.
  *
- * **Only the cell element is pinned exhaustively.** The parity test
- * enumerates every class the two components can put on a
- * `.justified-grid-cell`; the descendant chain is pinned only in the
- * shapes drawn here. And nothing detects a *third* caller appearing: the
+ * **The rows are not the cross product.** `selectable` with something
+ * already selected can pair the select-mode wrapper with any of the four
+ * `draggable` class lists, and one of those eight pairings has a row. One
+ * pairing is named rather than drawn: `CollectionDetail` renders the
+ * wrapper as a `<div>` through `useFileNavigationOverride`, with no
+ * checkbox beside it. And nothing detects a *third* caller appearing — the
  * parity test knows about the two that exist.
  */
 
@@ -69,12 +73,13 @@ import { FLIP_DURATION_MS } from "../src/hooks/useJustifiedFlip";
 const FIXTURE_FILE = resolve(__dirname, "fixtures", "justified-grid.html");
 const FIXTURE = pathToFileURL(FIXTURE_FILE).href;
 
-type ShapeSpec = {
-  source: string;
+type Markup = {
   tag: string;
   class: string;
-  chain: { tag: string; class: string }[];
+  attrs?: Record<string, string>;
+  children?: Markup[];
 };
+type ShapeSpec = Markup & { source: string };
 
 /**
  * The cell shapes the fixture declares, read out of the page itself.
@@ -89,8 +94,8 @@ const SHAPES: Record<string, ShapeSpec> = JSON.parse(
   )![1],
 );
 
-/** `JustifiedFileCell` in four states, `ArchiveEntryCard` in two. */
-const SHAPE_COUNT = 6;
+/** Eight for `JustifiedFileCell`, two for `ArchiveEntryCard`. */
+const SHAPE_COUNT = 10;
 
 const JG_GAP = 8;
 const JG_ROW_H_NARROW = 120;
@@ -103,12 +108,13 @@ const JG_TAIL_GROW = 9999;
 
 const ceilingAt = (rowH: number) => rowH * JG_MAX_STRETCH;
 
+type Tree = { tag: string; class: string; children: Tree[] };
+
 type Cell = {
   ratio: number;
   shape: string;
-  tag: string;
-  className: string;
-  chain: { tag: string; className: string }[];
+  tree: Tree;
+  attrs: Record<string, string>;
   width: number;
   height: number;
   top: number;
@@ -124,7 +130,6 @@ type GridSpec = {
 
 declare global {
   interface Window {
-    fixtureMarkup: () => Record<string, ShapeSpec>;
     buildGrid: (spec: GridSpec) => void;
     measureCells: () => Cell[];
     measureGrid: () => { width: number; gap: number };
@@ -207,15 +212,28 @@ async function layout(page: import("@playwright/test").Page, spec: GridSpec) {
   return page.evaluate(() => window.measureCells());
 }
 
-/** The cell was built as the shape the fixture's table declares. */
+/**
+ * The cell was built as the shape the fixture's table declares.
+ *
+ * A guard on the builder, not a second reading of the components — the
+ * builder builds from this same table, and it is
+ * `justifiedGridFixtureParity.test.tsx` that holds the table against what
+ * `JustifiedFileCell` and `ArchiveEntryCard` actually render.
+ */
+const declaredTree = (spec: Markup): Tree => ({
+  tag: spec.tag,
+  class: spec.class,
+  children: (spec.children ?? []).map(declaredTree),
+});
+
 function expectShape(cell: Cell, shape: string) {
   const spec = SHAPES[shape];
   expect(cell.shape).toBe(shape);
-  expect(cell.tag).toBe(spec.tag);
-  expect(cell.className).toBe(spec.class);
-  expect(cell.chain).toEqual(
-    spec.chain.map((link) => ({ tag: link.tag, className: link.class })),
-  );
+  expect(cell.tree).toEqual(declaredTree(spec));
+  for (const [name, value] of Object.entries(spec.attrs ?? {})) {
+    expect(cell.attrs, `${shape}: [${name}]`).toHaveProperty(name);
+    if (value !== "*") expect(cell.attrs[name]).toBe(value);
+  }
 }
 
 test.beforeEach(async ({ page }) => {
@@ -310,20 +328,23 @@ test.describe("a cell is the shape of its own ratio", () => {
 });
 
 /**
- * The same invariant, once per cell shape the app ships.
+ * The same invariant, once per declared cell shape.
  *
- * This is the axis #200's review left open and the one that made three
- * further CSS-only bypasses survive: a selector naming an element type or
- * a class the fixture did not happen to write is unreachable, however
- * correct the geometry assertions are. `button.justified-grid-cell`,
- * `.justified-grid-cell.overflow-hidden` and `.justified-grid-cell.select-none`
- * are all real markup, and all three went green against a fixture that
- * only ever drew `<div class="justified-grid-cell relative">`.
+ * This is the axis that decides what a selector can reach, and it has cost
+ * three rounds of findings: a selector naming an element type, a class, an
+ * attribute or a descendant the fixture did not happen to write is
+ * unreachable, however correct the geometry assertions are.
+ * `button.justified-grid-cell`, `.justified-grid-cell.overflow-hidden`,
+ * `.justified-grid-cell.select-none`,
+ * `.justified-grid-cell.opacity-50.select-none`,
+ * `.justified-grid-cell[draggable]`, `:has(.justified-grid-name)` and
+ * `:has(> a[download])` are all real markup, and every one of them was
+ * green against a fixture that drew less than the app does.
  *
  * One width is enough here: the shapes differ in markup, not in geometry,
  * so the width sweep above stays on the common shape.
  */
-test.describe("every cell shape the app ships", () => {
+test.describe("every declared cell shape", () => {
   test("is exactly the set this file tests", () => {
     expect(Object.keys(SHAPES)).toHaveLength(SHAPE_COUNT);
   });
