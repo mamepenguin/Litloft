@@ -3,12 +3,11 @@ import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
-import { compile } from "tailwindcss";
+import { __unstable__loadDesignSystem, compile } from "tailwindcss";
 
 import {
   classAttributeSpans,
   classConstSpans,
-  stringLiterals,
   stripComments,
 } from "./helpers/sourceScan";
 import { addonPresent } from "./helpers/addonPresent";
@@ -39,6 +38,10 @@ import { addonPresent } from "./helpers/addonPresent";
  * `sourceScan`'s attribute spans *and* its `*_CLASS` constant spans, so a
  * recipe hoisted out of JSX into a constant stays inside the population.
  *
+ * The roots are pinned by `EXPECTED_ROOTS` and the files inside them by
+ * `ANCHORS`, because "no class list pairs the two" is also what a scan that
+ * walked nothing reports.
+ *
  * ## What it cannot cover
  *
  * - **An addon whose submodule is not checked out is not scanned.** A clone
@@ -51,7 +54,10 @@ import { addonPresent } from "./helpers/addonPresent";
  *   too, once this file has reached core's `develop`.
  * - **A class list assembled at runtime** — from props, from a lookup keyed by
  *   a variable, from a constant not named `*_CLASS(ES)` — is invisible to any
- *   source scan. This is a static-text rule, not a rendered-DOM one.
+ *   source scan. This is a static-text rule, not a rendered-DOM one. A literal
+ *   the author typed is *not* one of these, wherever in the value it sits:
+ *   `classTokens` descends into template interpolations for exactly that
+ *   reason.
  * - **Branches inside one class list are read as one list.** `cn(a ? "block"
  *   : "flex", "line-clamp-2")` is flagged, and so would a hypothetical
  *   `cond ? "block" : "line-clamp-2"` be, where the two can never apply
@@ -80,6 +86,29 @@ const SOURCE_ROOTS = [
 ];
 
 /**
+ * The roots this scan must actually walk, declared rather than counted.
+ *
+ * `ANCHORS` below cannot carry this: an anchor is a file that writes a clamp
+ * today, and `cloud-sync` ships a frontend and writes none — so the root with
+ * no anchor is exactly the one that could leave the glob unnoticed, and did:
+ * narrowing the `readdirSync` filter by `&& e.name !== "cloud-sync"` left the
+ * suite green. The day a sync status card grows a `line-clamp-2` it would have
+ * been in a root nothing was watching.
+ *
+ * So the roots are named here, and an addon's root is dropped only when its
+ * submodule is not checked out. `addons/<name>` and not `<name>/frontend`,
+ * because that is the granularity `addonPresent` tests and the granularity a
+ * non-recursive clone works at.
+ */
+const EXPECTED_ROOTS = [
+  "frontend/src",
+  "addons/cloud-sync/frontend",
+  "addons/intelligence/frontend",
+  "addons/knowledge/frontend",
+  "addons/media_import/frontend",
+].filter((root) => addonPresent(REPO_ROOT, root));
+
+/**
  * Every utility Tailwind 4.2.2 compiles to a bare `display` declaration.
  *
  * **Enumerated, not counted.** The list is written out because a scan that
@@ -88,11 +117,11 @@ const SOURCE_ROOTS = [
  * in this file checks how long this array is — a length is a claim about
  * completeness that goes stale silently, and the enumeration is the claim.
  *
- * Read out of the pinned Tailwind's own static-utility table rather than
- * recalled:
- *
- *     grep -o '"[a-z-]\{2,\}",\[\["display","[a-z- ]*"\]\]' \
- *       node_modules/tailwindcss/dist/chunk-F4544Y4M.mjs
+ * It is not left to a reader to keep true, either: "the display enumeration
+ * matches Tailwind's own" below compiles the pinned Tailwind's entire utility
+ * roster and asserts this array is exactly the part of it that sets a
+ * `display`. Deleting an entry, misspelling one, or an upgrade that adds one
+ * all turn that red.
  *
  * Two other places in that build emit a `display`, and neither belongs here:
  * `line-clamp-<n>` itself, and `line-clamp-none`, which is the clamp's own
@@ -175,16 +204,109 @@ function isLineClamp(token: string): boolean {
 }
 
 /**
+ * Every piece of literal text in a source span, template interpolations
+ * included.
+ *
+ * `sourceScan`'s `stringLiterals` returns a backtick span **whole**, `${…}`
+ * and all, which is right for its own callers and wrong here: splitting that
+ * on whitespace yields `"block"` with its quote characters still attached, and
+ * a set lookup for `block` misses it. So a `display` written inside an
+ * interpolation — ``className={`line-clamp-2 ${wide ? "block" : "inline"}`}``
+ * — was invisible, and silently: the token stream is `line-clamp-2`, `${wide`,
+ * `?`, `"block"`, `:`, `"inline"}`, nothing matches, nothing is reported.
+ *
+ * That is not an exotic shape. It is the tree's most common `className` form,
+ * and a conditional `block` added to an element that already clamps is the
+ * cheapest way for this whole defect to come back.
+ *
+ * This walker descends instead: quoted literals are taken as one piece,
+ * template text is cut at each `${`, and the expression inside is scanned by
+ * the same three rules, to any depth. What comes out for the case above is
+ * `line-clamp-2`, `block`, `inline` — the tokens as the author wrote them.
+ */
+function literalChunks(src: string): string[] {
+  const out: string[] = [];
+  let i = 0;
+
+  const readQuoted = (quote: string): void => {
+    i += 1;
+    const start = i;
+    while (i < src.length && src[i] !== quote) {
+      if (src[i] === "\\") i += 1;
+      i += 1;
+    }
+    out.push(src.slice(start, i));
+    i += 1;
+  };
+
+  const readTemplate = (): void => {
+    i += 1;
+    let start = i;
+    while (i < src.length && src[i] !== "`") {
+      if (src[i] === "\\") {
+        i += 2;
+        continue;
+      }
+      if (src[i] === "$" && src[i + 1] === "{") {
+        out.push(src.slice(start, i));
+        i += 2;
+        readExpression();
+        start = i;
+        continue;
+      }
+      i += 1;
+    }
+    out.push(src.slice(start, i));
+    i += 1;
+  };
+
+  // Runs from just after a `${` to its matching `}`. Quotes and nested
+  // templates are consumed by their own readers, so a `}` inside a string
+  // cannot close the interpolation early.
+  const readExpression = (): void => {
+    let depth = 1;
+    while (i < src.length) {
+      const c = src[i];
+      if (c === '"' || c === "'") {
+        readQuoted(c);
+        continue;
+      }
+      if (c === "`") {
+        readTemplate();
+        continue;
+      }
+      if (c === "{") depth += 1;
+      else if (c === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          i += 1;
+          return;
+        }
+      }
+      i += 1;
+    }
+  };
+
+  while (i < src.length) {
+    const c = src[i];
+    if (c === '"' || c === "'") readQuoted(c);
+    else if (c === "`") readTemplate();
+    else i += 1;
+  }
+  return out;
+}
+
+/**
  * The class tokens inside one `className` value.
  *
  * A value is source text, not a string: it may be a `cn(...)` call, a
- * ternary, or a template literal with interpolations. Reading its string
- * literals and splitting those on whitespace takes every token the author
- * wrote literally, and yields only junk (never a false utility name) for the
- * expression fragments between them.
+ * ternary, or a template literal with interpolations. Taking every literal
+ * chunk and splitting those on whitespace gives every token the author wrote
+ * literally, and only junk — never a false utility name — for the expression
+ * fragments between them.
  */
 function classTokens(value: string): string[] {
-  return stringLiterals(value)
+  return literalChunks(value)
     .flatMap((literal) => literal.split(/\s+/))
     .filter(Boolean);
 }
@@ -237,9 +359,13 @@ const CLASS_LISTS = FILES.flatMap((f) => classListsIn(f.rel, f.body));
  * Declared, not derived from the walk: "no class list pairs the two" is also
  * true of a scan that reached no class list at all, and the walk crosses four
  * addon repositories whose checkouts can be missing and a symlink directory it
- * deliberately skips. Each path here is a place a `line-clamp-*` is written
- * today, one per source root, so a walk that loses a root fails by name
- * instead of passing by emptiness.
+ * deliberately skips.
+ *
+ * Each path here is a place a `line-clamp-*` is written today, which is a
+ * different claim from covering every root — `cloud-sync` writes no clamp, so
+ * it can carry no anchor. `EXPECTED_ROOTS` is what pins the roots; these pin
+ * that class lists are being read out of the files inside them, in core and in
+ * an addon, from an attribute and from a `*_CLASS` constant.
  *
  * An addon path is dropped when its submodule is not checked out — an absent
  * addon is absent, not compliant.
@@ -254,6 +380,18 @@ const ANCHORS = [
 ].filter((p) => addonPresent(REPO_ROOT, p));
 
 describe("no display utility shares a class list with a line clamp", () => {
+  it("walked every source root it claims to walk, and no other", () => {
+    const rootOf = (rel: string) =>
+      EXPECTED_ROOTS.find((root) => rel.startsWith(`${root}/`));
+    // Both directions. A root that contributed nothing has left the glob;
+    // a file under no declared root means a new addon frontend appeared and
+    // the declaration above has not caught up with it.
+    expect([...new Set(FILES.map((f) => rootOf(f.rel)))].sort()).toEqual(
+      [...EXPECTED_ROOTS].sort(),
+    );
+    expect(FILES.filter((f) => !rootOf(f.rel)).map((f) => f.rel)).toEqual([]);
+  });
+
   it("scanned the files it claims to be scanning", () => {
     const clamped = new Set(
       CLASS_LISTS.filter((c) => c.tokens.some(isLineClamp)).map((c) => c.rel),
@@ -280,37 +418,66 @@ describe("no display utility shares a class list with a line clamp", () => {
  * The enumeration, checked against the compiler that decides it.
  *
  * `DISPLAY_UTILITIES` is a hand-written list, and a hand-written list is
- * exactly the thing that can be shortened by one entry and stay green: delete
- * `hidden` from it and every assertion above still passes, because
- * `it.each(DISPLAY_UTILITIES)` shrinks along with it and the tree happens to
- * hold no `hidden` beside a clamp today. That is detector rule 5 — the
- * expectation must not be derived from the same observation it checks.
+ * exactly the thing that can be shortened by one entry and stay green:
+ * `it.each(DISPLAY_UTILITIES)` shrinks along with the array, so the population
+ * walks back and the suite reports fewer tests, all passing. That is detector
+ * rule 5 — the expectation must not be derived from the same observation it
+ * checks. **Measured, on the first round of this file: 13 of the 21 entries
+ * could be deleted with everything green**, because the only oracle was the
+ * utilities the tree happens to write and the tree writes none of those
+ * thirteen.
  *
- * So the second side is Tailwind itself. Every distinct utility written
- * anywhere in the scanned tree is handed to the pinned compiler, and the ones
- * it turns into a `display` declaration are compared against the ones this
- * file's recogniser accepts. Two implementations, one question. Deleting a
- * member the tree uses breaks it; adding a member Tailwind does not treat as
- * a display breaks it; and a utility nobody has written yet is out of scope
- * on both sides at once, which is the honest extent of the claim.
+ * So the second side is Tailwind's own answer to the same question, twice
+ * over:
+ *
+ * 1. **Completeness.** `__unstable__loadDesignSystem().getClassList()` is the
+ *    compiler's full roster of utility names — the one Tailwind's editor
+ *    tooling completes from. Compiling all of it and keeping the rules that
+ *    carry a `display` yields the set this file is claiming to enumerate, from
+ *    an implementation that is not this file. Deleting any entry is red;
+ *    misspelling one is red; a Tailwind upgrade that adds a display utility is
+ *    red the day it lands, not the day someone writes it.
+ * 2. **The tree's own spellings.** The roster holds bare utility names, so it
+ *    says nothing about `[display:flex]`, `!hidden` or `sm:block`. Every
+ *    distinct token the scanned tree writes is therefore put through the
+ *    compiler as well, and compared against the recogniser. That is where a
+ *    variant or arbitrary-property spelling the recogniser mishandles shows up.
  *
  * The compiler is asked about **base utilities only** — variants are stripped
  * first — so what it emits is a flat rule per candidate and the reading needs
  * no CSS parser beyond brace counting.
  */
 describe("the display enumeration matches Tailwind's own", () => {
+  const req = createRequire(import.meta.url);
+  const entry = req.resolve("tailwindcss/index.css");
+  const base = dirname(entry);
+  const loadStylesheet = async (id: string) => {
+    const path = id === "tailwindcss" ? entry : req.resolve(id);
+    return { path, base: dirname(path), content: readFileSync(path, "utf8") };
+  };
+
+  /** Every utility name the pinned compiler knows about. */
+  async function everyKnownUtility(): Promise<string[]> {
+    const design = await __unstable__loadDesignSystem(readFileSync(entry, "utf8"), {
+      base,
+      loadStylesheet,
+    });
+    const names = design.getClassList().map(([name]: [string, unknown]) => name);
+    // A roster this walk failed to read would make every comparison below
+    // trivially agree. It is five figures on 4.2.2; assert it is a roster and
+    // not a handful, without pinning a number that a minor release moves.
+    expect(names).toContain("line-clamp-2");
+    expect(names).toContain("sr-only");
+    return names;
+  }
+
   /** The `display`-emitting subset of `candidates`, according to Tailwind. */
   async function displayUtilitiesPerTailwind(
     candidates: string[],
   ): Promise<Set<string>> {
-    const req = createRequire(import.meta.url);
-    const entry = req.resolve("tailwindcss/index.css");
     const compiler = await compile('@import "tailwindcss";', {
-      base: dirname(entry),
-      loadStylesheet: async (id: string) => {
-        const path = id === "tailwindcss" ? entry : req.resolve(id);
-        return { path, base: dirname(path), content: readFileSync(path, "utf8") };
-      },
+      base,
+      loadStylesheet,
     });
     const css = compiler.build(candidates);
 
@@ -348,6 +515,20 @@ describe("the display enumeration matches Tailwind's own", () => {
     }
     return out;
   }
+
+  it("is exactly the set Tailwind gives a bare display to", async () => {
+    const perTailwind = await displayUtilitiesPerTailwind(
+      await everyKnownUtility(),
+    );
+    // The clamps set a `display` of their own — that is the mechanism this
+    // whole file is about — and `line-clamp-none` is the sanctioned release
+    // valve. Neither is a foreign `display` overriding a clamp, so both are
+    // out of the comparison rather than out of the recogniser by accident.
+    const oracle = [...perTailwind]
+      .filter((name) => !name.startsWith("line-clamp-"))
+      .sort();
+    expect([...DISPLAY_UTILITIES].sort()).toEqual(oracle);
+  }, 60_000);
 
   it("agrees on every utility this tree actually writes", async () => {
     const written = [
@@ -457,5 +638,41 @@ describe("the recogniser", () => {
       hoisted[0].tokens.some(isLineClamp) &&
         hoisted[0].tokens.some(isDisplayUtility),
     ).toBe(true);
+  });
+});
+
+/**
+ * This file's own class names must not reach the shipped stylesheet.
+ *
+ * Tailwind auto-detects its sources by walking out from `globals.css` and
+ * scanning everything under `frontend/` that `.gitignore` does not exclude —
+ * `src/__tests__` included, and it does not strip comments. So the
+ * enumeration above, the case table below it and the prose around both are
+ * candidates, and every utility named here got a rule in the sheet every
+ * viewer loads, `not-sr-only` among them, out of a docstring sentence. The
+ * `@source not` line in `globals.css` is what stops it, and it grows more
+ * load-bearing with every case added here.
+ *
+ * **This does not recompile the stylesheet** — it checks the declaration is
+ * there and still points at this file, which is the realistic decay (the line
+ * deleted, or this file renamed and the line left behind). Recompiling from
+ * vitest means shelling out to the Tailwind CLI on every run, and
+ * `tailwind-scans-addons.test.ts` declined that for the same reason. The way
+ * to re-measure the bytes is in the comment beside the directive.
+ */
+describe("the detector keeps out of the stylesheet", () => {
+  it("is excluded from Tailwind's source scan by name", () => {
+    const globals = readFileSync(
+      resolve(REPO_ROOT, "frontend/src/app/globals.css"),
+      "utf8",
+    );
+    const declared = /@source\s+not\s+"([^"]+)"/g;
+    const excluded = [...globals.matchAll(declared)].map((m) =>
+      resolve(REPO_ROOT, "frontend/src/app", m[1]),
+    );
+    // Resolved to a path rather than matched as a string, so renaming this
+    // file breaks it instead of leaving a directive pointing at nothing —
+    // Tailwind says nothing about a `@source not` that matches no file.
+    expect(excluded).toContain(SELF);
   });
 });

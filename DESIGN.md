@@ -650,8 +650,13 @@ with a **border in the accent colour**, never a fill.
   MiniPlayer); dense list rows and inline cards stay flat.
 - Hover changes the surface colour only. **Never expand or darken the shadow on
   hover, and never use `scale()`.**
-- **A card's name clamps to two lines**, `line-clamp-2`, and the file grids that
-  are not `FileCard` — trash, missing — clamp to the same two.
+- **A card that clamps its name clamps it to two lines.** Not every card
+  clamps, and this does not ask them to: `FolderCard` and `ArchiveEntryCard`
+  cut theirs to one line with `truncate`, and `JustifiedFileCell` draws its
+  name as an overlay governed by `.justified-grid-name` in `globals.css`. The
+  rule is for the cards that reach for `line-clamp-*` — `FileCard`, the trash
+  and missing grids and `media_import`'s `WatchCard` are the ones that do
+  today — and it is that they do not each pick a different number.
 - **Nothing else in that class list may set a `display`.** `line-clamp-*`
   compiles to `display: -webkit-box` plus `-webkit-line-clamp`, and the clamp is
   a property of that box: any other `display` utility on the same element
