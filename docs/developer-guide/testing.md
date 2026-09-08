@@ -195,8 +195,8 @@ ceiling at 57s on a cold cache — 25s of which was the Chromium download. Only
 `bootstrap` and `mcp-server` are cheaper; `frontend` and the two Docker jobs are
 minutes.
 
-**The stable part is the test step: 6s in every run so far.** Everything else is
-preamble — checkout, `setup-node`, `pnpm install`, and the apt half of
+**The stable part is the test step: 6-7s in every run so far** (6 at 22 tests,
+7 at 26). Everything else is preamble — checkout, `setup-node`, `pnpm install`, and the apt half of
 `playwright install --with-deps`, which runs on a cache hit too — and that is
 where the run-to-run spread lives. It is spread, not one step: between two warm
 runs that differed by 9s, apt carried 5 of them, `setup-node` 2, and six of the
