@@ -98,9 +98,13 @@ q = session.query(File).filter(active_file_filter())
 ### Thumbnails
 
 - Video thumbnails: ffmpeg's `thumbnail=300` filter picks a representative frame after skipping the first 10%.
-- Image thumbnails: Pillow resize.
-- HEIC: **Pillow with pillow-heif**, never ffmpeg (ffmpeg lacks libheif and produces black thumbnails).
-- All thumbnails: 320x180 JPEG.
+- Image thumbnails: ffmpeg, fitted inside a 320x320 box at the picture's own proportions. No padding, and never scaled up into the box — a picture smaller than 320px is stored at its own size.
+- HEIC: **Pillow with pillow-heif**, never ffmpeg (ffmpeg lacks libheif and produces black thumbnails). Same box.
+- PDF thumbnails: the first page letterboxed onto a 320x180 white frame, which is kept — a portrait page cropped to 16:9 is a band of body text.
+- Video thumbnails stay letterboxed onto a 320x180 black frame.
+- All thumbnails: JPEG, 320px on the long edge.
+- Thumbnails written before the picture box are replaced as each drive is scanned, one file at a time (`_is_letterboxed_image_thumbnail`). Both shapes render correctly, so a half-migrated drive is not a broken one. A file that is missing from disk keeps its old thumbnail until it comes back — there is no source to regenerate from.
+- `GET /api/files/{id}/thumbnail` sends `Cache-Control: no-cache`, because the bytes behind that URL change when a thumbnail is regenerated and the URL does not. A browser that cached a thumbnail *before* that header existed will keep painting the old one until its own heuristic freshness runs out; one hard reload clears it.
 
 ### Markdown frontmatter helpers
 

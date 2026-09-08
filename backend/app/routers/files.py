@@ -1132,7 +1132,18 @@ def get_thumbnail(
             str(config.THUMBNAILS_DIR / file.thumbnail_path), config.DATA_DIR
         )
         if thumb_path.exists():
-            return FastAPIFileResponse(str(thumb_path), media_type="image/jpeg")
+            # Revalidate, do not re-download. A thumbnail is regenerated
+            # under a URL that never changes — the picture box replacing
+            # the old letterboxed frame is one occasion, an edited file
+            # another — and without this a browser applies heuristic
+            # freshness and keeps painting the copy it already has. The
+            # strong ETag `FileResponse` derives from the file makes the
+            # revalidation a 304 with no body.
+            return FastAPIFileResponse(
+                str(thumb_path),
+                media_type="image/jpeg",
+                headers={"Cache-Control": "no-cache"},
+            )
 
     if PLACEHOLDER_THUMBNAIL.exists():
         return FastAPIFileResponse(

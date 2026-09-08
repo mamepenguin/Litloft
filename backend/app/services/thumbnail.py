@@ -155,6 +155,14 @@ def has_video_stream(media_path: str) -> bool | None:
 CANDIDATE_SCALE_FILTER = "scale=320:180:force_original_aspect_ratio=decrease"
 SCALE_FILTER = f"{CANDIDATE_SCALE_FILTER},pad=320:180:(ow-iw)/2:(oh-ih)/2"
 
+# The longest edge a picture thumbnail is allowed, in either direction.
+#
+# A picture keeps its own proportions and is not padded onto a frame, so
+# the box is square and only one of the two edges reaches it. 320 is the
+# same number the video frame uses for its width, so a landscape picture
+# is stored at exactly the size it was before.
+IMAGE_THUMBNAIL_BOX = 320
+
 SEEK_MIN = 2.0
 SEEK_MAX = 60.0
 SHORT_VIDEO_THRESHOLD = 10.0
@@ -358,6 +366,34 @@ def generate_thumbnail(video_path: str, output_path: str) -> bool:
     return _run_ffmpeg_thumbnail(video_path, output_path, fallback_seek, SCALE_FILTER)
 
 
+def image_scale_filter(box: int = IMAGE_THUMBNAIL_BOX) -> str:
+    """Fit a picture inside a square box without padding or upscaling.
+
+    ``min(box,iw)`` rather than a bare ``box``: ``decrease`` fits the
+    picture inside whatever box it is given, and a box larger than the
+    source is still a box it will grow into. Taking the minimum on each
+    edge first makes the box no larger than the picture, so a small
+    picture is stored at its own size.
+    """
+    return (
+        f"scale='min({box},iw)':'min({box},ih)'"
+        ":force_original_aspect_ratio=decrease"
+    )
+
+
+def image_thumbnail_size(width: int, height: int, box: int = IMAGE_THUMBNAIL_BOX):
+    """The size ``image_scale_filter`` produces for a source of this size.
+
+    A second implementation of the same arithmetic, so a caller can ask
+    what a thumbnail *should* measure without opening one. ``scale``
+    rounds each edge to an integer, so this rounds the same way.
+    """
+    if width <= 0 or height <= 0:
+        return None
+    scale = min(box / width, box / height, 1.0)
+    return max(1, round(width * scale)), max(1, round(height * scale))
+
+
 def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
     from app.services.heic import is_heic_file
 
@@ -374,8 +410,7 @@ def generate_image_thumbnail(image_path: str, output_path: str) -> bool:
                 "-i", image_path,
                 "-frames:v", "1",
                 "-vf",
-                "scale=320:180:force_original_aspect_ratio=decrease,"
-                "pad=320:180:(ow-iw)/2:(oh-ih)/2",
+                image_scale_filter(),
                 "-q:v", "2",
                 "-y",
                 output_path,
@@ -417,6 +452,14 @@ def generate_pdf_thumbnail(pdf_path: str, output_path: str) -> bool:
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
         img.thumbnail((320, 180))
 
+        # A page keeps its frame, where a picture does not.
+        #
+        # The white is the page's own margin continued to the edge of the
+        # card, and it is what makes a first page read as a page. Fitting
+        # the sheet to its own proportions instead would leave the card
+        # cropping a portrait page to 16:9, which is a band of body text
+        # with no edges in it — recognisable as neither the document nor
+        # a picture of one.
         thumb_w, thumb_h = img.size
         canvas = Image.new("RGB", (320, 180), (255, 255, 255))
         canvas.paste(img, ((320 - thumb_w) // 2, (180 - thumb_h) // 2))
@@ -456,14 +499,12 @@ def _generate_heic_thumbnail(image_path: str, output_path: str) -> bool:
 
         with Image.open(image_path) as img:
             oriented = ImageOps.exif_transpose(img)
-            oriented.thumbnail((320, 180))
-
-            thumb_w, thumb_h = oriented.size
-            canvas = Image.new("RGB", (320, 180), (0, 0, 0))
-            offset_x = (320 - thumb_w) // 2
-            offset_y = (180 - thumb_h) // 2
-            canvas.paste(oriented, (offset_x, offset_y))
-            canvas.save(output_path, format="JPEG", quality=85, exif=b"")
+            # ``thumbnail`` fits inside the box and never grows, which is
+            # what ``image_scale_filter`` arranges on the ffmpeg side.
+            oriented.thumbnail((IMAGE_THUMBNAIL_BOX, IMAGE_THUMBNAIL_BOX))
+            oriented.convert("RGB").save(
+                output_path, format="JPEG", quality=85, exif=b""
+            )
 
         return output.exists()
     except Exception as e:

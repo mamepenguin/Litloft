@@ -248,3 +248,68 @@ class TestBackfillMangledTitles:
         database._backfill_mangled_titles(engine)
 
         assert self._titles(engine) == ["Some Title"]
+
+
+class TestLetterboxedThumbnailDetection:
+    """Which stored picture thumbnails the scan replaces as it walks a drive.
+
+    The replacement is gradual on purpose — a library does not stop to
+    regenerate everything — so the question is asked per file and has to
+    be both cheap and exact. Cheap: the stored dimensions answer it
+    without opening anything for the pictures that need no work. Exact: a
+    thumbnail that is already right must never be rewritten, or the scan
+    regenerates the same files forever.
+    """
+
+    def _record(self, tmp_path, monkeypatch, size, thumb_size):
+        from PIL import Image
+
+        monkeypatch.setattr(config, "THUMBNAILS_DIR", tmp_path)
+        if thumb_size is not None:
+            Image.new("RGB", thumb_size, (10, 10, 10)).save(tmp_path / "t.jpg")
+        return File(
+            filename="p.jpg",
+            title="p",
+            drive="d",
+            folder_path="",
+            file_path="p.jpg",
+            file_size=1,
+            file_type="image",
+            mime_type="image/jpeg",
+            thumbnail_path="t.jpg" if thumb_size else None,
+            image_width=size[0],
+            image_height=size[1],
+        )
+
+    def test_a_portrait_still_stored_as_a_landscape_frame_is_replaced(
+        self, tmp_path, monkeypatch
+    ):
+        record = self._record(tmp_path, monkeypatch, (768, 1024), (320, 180))
+        assert scanner_module._is_letterboxed_image_thumbnail(record) is True
+
+    def test_a_portrait_already_at_its_own_shape_is_left_alone(
+        self, tmp_path, monkeypatch
+    ):
+        record = self._record(tmp_path, monkeypatch, (768, 1024), (240, 320))
+        assert scanner_module._is_letterboxed_image_thumbnail(record) is False
+
+    def test_a_sixteen_by_nine_picture_is_never_replaced(self, tmp_path, monkeypatch):
+        # Its old thumbnail and its new one are the same bytes: the frame
+        # it was padded onto was its own shape. Replacing it would be work
+        # that repeats on every scan and changes nothing.
+        record = self._record(tmp_path, monkeypatch, (1920, 1080), (320, 180))
+        assert scanner_module._is_letterboxed_image_thumbnail(record) is False
+
+    def test_a_picture_with_no_stored_dimensions_is_left_alone(
+        self, tmp_path, monkeypatch
+    ):
+        record = self._record(tmp_path, monkeypatch, (768, 1024), (320, 180))
+        record.image_width = None
+        record.image_height = None
+        assert scanner_module._is_letterboxed_image_thumbnail(record) is False
+
+    def test_a_missing_thumbnail_file_is_not_a_letterbox(self, tmp_path, monkeypatch):
+        # The relocation branch above it already regenerates this case,
+        # and answering True here would make both branches fire.
+        record = self._record(tmp_path, monkeypatch, (768, 1024), None)
+        assert scanner_module._is_letterboxed_image_thumbnail(record) is False

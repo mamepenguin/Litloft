@@ -20,8 +20,19 @@ from app.config import DATA_DIR
   representative candidate. Analyze the unpadded video region and retry later
   when at least 50% of its pixels are near one dominant color. Keep retries
   bounded and use the least-uniform candidate if every candidate is rejected.
-- Image: resize via Pillow. HEIC must be generated through Pillow rather than ffmpeg.
-- All thumbnails are 320x180 JPEG.
+- Image: fit inside a 320x320 box through ffmpeg, keeping the picture's own
+  proportions and never growing it into the box. No padding — the consumer
+  crops (`object-fit: cover` in a 16:9 card) or lays out at the real ratio (the
+  justified grid). HEIC must be generated through Pillow rather than ffmpeg,
+  fitted to the same box.
+- PDF: still letterboxed onto a 320x180 **white** frame. The white is the page's
+  margin continued to the card edge; cropping a portrait page to 16:9 leaves a
+  band of body text with no edges in it.
+- Video: still letterboxed onto a 320x180 **black** frame. A video card is a
+  fixed 16:9 frame so the padding is invisible inside it, and the
+  candidate-rejection analysis reads the unpadded region.
+- JPEG throughout. 320 is the long edge everywhere; only the video and PDF
+  frames are a fixed 320x180.
 
 ## Concurrency control patterns
 - ZIP extraction: `asyncio.Semaphore(3)` to cap concurrent extractions.

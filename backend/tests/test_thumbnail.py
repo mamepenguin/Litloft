@@ -7,6 +7,7 @@ from app.services import thumbnail as thumbnail_service
 
 from app.services.thumbnail import (
     generate_image_thumbnail,
+    generate_pdf_thumbnail,
     generate_thumbnail,
     get_media_chapters,
     get_video_duration,
@@ -474,3 +475,94 @@ class TestNonUtf8SubprocessOutput:
         generate_image_thumbnail("/fake/image.jpg", output)
 
         assert mock_run.call_args.kwargs["errors"] == "replace"
+
+
+class TestPictureThumbnailBox:
+    """A picture keeps its own shape; a frame keeps its frame.
+
+    The box is square and the picture is fitted inside it, so a portrait
+    reaches 320 on the tall edge instead of being letterboxed into a
+    landscape frame. Video and PDF are deliberately not part of that, and
+    two of the tests below exist to say so rather than to describe the
+    change.
+    """
+
+    SHAPES = [
+        # (source, expected thumbnail)
+        ((768, 1024), (240, 320)),
+        ((1920, 1080), (320, 180)),
+        ((1000, 1000), (320, 320)),
+        ((3000, 1000), (320, 107)),
+        ((1600, 900), (320, 180)),
+    ]
+
+    def test_the_filter_pads_nothing(self):
+        vf = thumbnail_service.image_scale_filter()
+        assert "pad=" not in vf
+        # The box is taken against the source on each edge, which is what
+        # keeps a small picture at its own size.
+        assert "min(320,iw)" in vf
+        assert "min(320,ih)" in vf
+
+    @pytest.mark.parametrize("source,expected", SHAPES)
+    def test_ffmpeg_produces_the_size_the_arithmetic_predicts(
+        self, source, expected, tmp_path
+    ):
+        """The parity pair: two implementations of one box.
+
+        ``image_thumbnail_size`` is arithmetic in Python and the filter is
+        resolved by ffmpeg. The scanner's migration test asks the first
+        what the second would produce, so a drift between them would make
+        it regenerate the wrong files, or none.
+        """
+        path = tmp_path / "photo.jpg"
+        Image.new("RGB", source, (200, 80, 40)).save(path)
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_image_thumbnail(str(path), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == expected
+        assert thumbnail_service.image_thumbnail_size(*source) == expected
+
+    def test_a_picture_smaller_than_the_box_is_not_grown_into_it(self, tmp_path):
+        # The letterboxed frame had to be filled, so a 64px icon was
+        # scaled up to 180 and stored as interpolation. Fitting inside the
+        # box has no frame to fill.
+        path = tmp_path / "icon.png"
+        Image.new("RGB", (64, 64), (10, 10, 10)).save(path)
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_image_thumbnail(str(path), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == (64, 64)
+
+    def test_a_video_frame_still_gets_its_letterbox(self, tmp_path):
+        # Not an oversight and not collateral: a video card is a fixed
+        # 16:9 frame, the padding is invisible inside it, and the
+        # candidate-rejection analysis upstream reads the unpadded frame.
+        candidate = tmp_path / "frame.png"
+        Image.new("RGB", (80, 180), (220, 30, 30)).save(candidate)
+        output = tmp_path / "thumb.jpg"
+
+        assert thumbnail_service._finalize_video_thumbnail(candidate, str(output))
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == (320, 180)
+        assert "pad=320:180" in thumbnail_service.SCALE_FILTER
+
+    def test_a_page_still_gets_its_white_frame(self, tmp_path):
+        pytest.importorskip("fitz")
+        import fitz
+
+        pdf = tmp_path / "doc.pdf"
+        document = fitz.open()
+        document.new_page(width=595, height=842)  # A4 portrait
+        document.save(str(pdf))
+        document.close()
+        output = tmp_path / "thumb.jpg"
+
+        assert generate_pdf_thumbnail(str(pdf), str(output)) is True
+        with Image.open(output) as thumbnail:
+            assert thumbnail.size == (320, 180)
+            # White to the edge, not the picture's own shape: a portrait
+            # page cropped to 16:9 is a band of body text with no edges.
+            assert thumbnail.getpixel((2, 90)) == (255, 255, 255)
