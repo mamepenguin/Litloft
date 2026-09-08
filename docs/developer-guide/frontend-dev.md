@@ -161,7 +161,12 @@ Most state is server-fetched. Client state is small: theme, autoplay, view mode 
 - `vitest 3.x` only — vitest 4 has a rolldown native-bindings issue that breaks our test runner.
 - `jsdom 25.x` only — jsdom 29 breaks ESM compatibility with our setup.
 - Component tests live next to the component (`Button.test.tsx`).
-- Integration tests live under `e2e/` and use Playwright.
+- Integration tests live under `e2e/` and use Playwright. They need a live stack
+  and are not in CI.
+- Layout invariants live under `e2e-layout/` and are also Playwright, against a
+  static fixture with no app behind it — jsdom lays nothing out, so anything
+  about a box's realized size or shape has to be asserted there. It is in CI
+  (`pnpm test:e2e:layout`); see [testing.md](testing.md).
 
 ## Build
 

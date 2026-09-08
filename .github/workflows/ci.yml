@@ -204,6 +204,78 @@ jobs:
         run: pnpm exec vitest run --sequence.shuffle
         working-directory: frontend
 
+  frontend-layout:
+    # The one job in this file that starts a browser.
+    #
+    # It exists because the suites above cannot see a layout at all. jsdom
+    # lays nothing out, so `getBoundingClientRect()` returns zeros there and
+    # a cell drawn at the wrong aspect ratio measures exactly like one drawn
+    # at the right one. What the vitest side settled for instead is text: it
+    # reads globals.css as a string and checks the declarations are present.
+    # In #200 that was measured and found wanting — the defect came back in
+    # full by appending one line to the end of the stylesheet, and every
+    # suite stayed green through two rounds of review. **Text matching
+    # cannot verify a layout.** A later rule at any specificity, an
+    # `@media` / `@container` / `@layer` block, or an inline style each
+    # override a declaration that is still, textually, right there.
+    #
+    # So this measures instead. `frontend/e2e-layout/` opens a static page
+    # off `file://` that carries the app's own compiled globals.css and a
+    # hand-placed row of cells, and asserts the boxes Chromium produces.
+    #
+    # It is deliberately NOT the twelve specs under `frontend/e2e/`. Those
+    # need a live stack on localhost:3000 and a seeded library, and they
+    # skip themselves when no drive answers — in CI they would report green
+    # having run almost nothing, which is the exact failure this workflow
+    # exists to remove. See docs/developer-guide/testing.md, "Why e2e is not
+    # in CI". The two runs get two Playwright configs so that neither can
+    # pull the other in.
+    #
+    # No submodules and no setup-addons.sh: the fixture links a sheet
+    # compiled from src/app/globals.css, and its `@source "../addons"` names
+    # the gitignored symlink directory, which Tailwind skips silently when
+    # absent. No addon writes a rule the justified grid reads.
+    name: frontend (layout invariants in a browser)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      # Keyed on the lockfile because that is what pins @playwright/test,
+      # and a browser build only matches the version that downloaded it.
+      - name: Cache the Chromium build
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+
+      # Chromium alone. The invariants here are flex geometry and resolved
+      # transitions, not rendering differences between engines, and adding
+      # two more browsers would triple the job for a question it is not
+      # asking.
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: frontend
+
+      # globalSetup compiles src/app/globals.css into the sheet the fixture
+      # links, so there is no separate build step to forget.
+      - name: Test the layout invariants
+        run: pnpm test:e2e:layout
+        working-directory: frontend
+
   mcp-server:
     name: mcp-server (vitest / tsc)
     runs-on: ubuntu-latest

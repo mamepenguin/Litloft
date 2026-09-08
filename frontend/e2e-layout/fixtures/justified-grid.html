@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>justified grid — layout fixture</title>
+    <!--
+      The compiled globals.css, built by ../build-fixture-css.mjs.
+
+      This page carries no <style> block of its own on purpose. Every
+      declaration a cell obeys has to have come out of the app's own
+      stylesheet, or the measurement below is a test of the fixture.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!-- The width the grid is laid out at. The spec sets it per case;
+         `.justified-grid-host` establishes the container the row height
+         switches on, so this is the only free variable in the page. -->
+    <div id="frame"></div>
+
+    <script>
+      // A 1x1 transparent GIF. The cell's shape comes from `--jg-ratio`
+      // and `object-fit: cover`, never from the picture's own size, so
+      // the smallest decodable image is the honest one to use — and it
+      // needs no network, which is what lets this page run off file://.
+      const PIXEL =
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+      /**
+       * The markup `JustifiedFileCell` renders, by hand.
+       *
+       * Kept in the same shape as the component — `justified-grid-cell
+       * relative` on the cell, the `group relative block h-full w-full`
+       * anchor inside it, the `h-full w-full object-cover` image, and the
+       * `justified-grid-tail` after the last cell — because half of what
+       * the CSS says is about which element carries which class. A
+       * fixture that simplified the tree would stop being able to see a
+       * selector aimed at the inner wrapper.
+       */
+      window.buildGrid = ({ ratios, width, flip }) => {
+        const frame = document.getElementById("frame");
+        frame.style.width = `${width}px`;
+        frame.replaceChildren();
+
+        const host = document.createElement("div");
+        host.className = "justified-grid-host";
+        const grid = document.createElement("div");
+        grid.className = "justified-grid";
+
+        ratios.forEach((ratio, i) => {
+          const cell = document.createElement("div");
+          cell.className = "justified-grid-cell relative";
+          cell.style.setProperty("--jg-ratio", String(ratio));
+          cell.dataset.flipKey = `p${i}`;
+          if (flip) cell.dataset.flip = flip;
+
+          const link = document.createElement("a");
+          link.className =
+            "group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated";
+          link.href = "#";
+
+          const img = document.createElement("img");
+          img.className = "h-full w-full object-cover";
+          img.src = PIXEL;
+          img.alt = "";
+
+          link.append(img);
+          cell.append(link);
+          grid.append(cell);
+        });
+
+        const tail = document.createElement("div");
+        tail.className = "justified-grid-tail";
+        tail.setAttribute("aria-hidden", "true");
+        grid.append(tail);
+
+        host.append(grid);
+        frame.append(host);
+      };
+
+      /**
+       * Every cell's realized box, plus the ratio it was asked for.
+       *
+       * `getBoundingClientRect` rather than `offsetWidth`: the layout
+       * engine resolves flex to a fraction of a pixel and the integer
+       * accessors would hand the spec a rounding error to explain away.
+       */
+      window.measureCells = () =>
+        Array.from(document.querySelectorAll(".justified-grid-cell")).map(
+          (cell) => {
+            const rect = cell.getBoundingClientRect();
+            return {
+              ratio: Number(
+                getComputedStyle(cell).getPropertyValue("--jg-ratio"),
+              ),
+              width: rect.width,
+              height: rect.height,
+              top: rect.top,
+              left: rect.left,
+            };
+          },
+        );
+
+      /** The grid's own content box — what a line has to add up to. */
+      window.measureGrid = () => {
+        const grid = document.querySelector(".justified-grid");
+        const style = getComputedStyle(grid);
+        return {
+          width: grid.getBoundingClientRect().width,
+          gap: parseFloat(style.columnGap),
+        };
+      };
+
+      /** The resolved transition on the first cell, in its `data-flip` state. */
+      window.measureFlip = () => {
+        const style = getComputedStyle(
+          document.querySelector(".justified-grid-cell"),
+        );
+        return {
+          transitionProperty: style.transitionProperty,
+          transitionDuration: style.transitionDuration,
+          transitionTimingFunction: style.transitionTimingFunction,
+          transformOrigin: style.transformOrigin,
+        };
+      };
+    </script>
+  </body>
+</html>
