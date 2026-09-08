@@ -66,10 +66,17 @@ describe("AudioPlayer", () => {
     expect(audio?.getAttribute("src")).toBe("/api/files/audio-1/stream");
   });
 
-  it("displays filename and file size", () => {
-    render(<AudioPlayer file={mockFile} />);
+  it("displays the filename, and no size under it", () => {
+    // The size was here, and it was the defect: this is a name with its
+    // first fact beneath it, so `lib/primaryMeta.ts` governs it, and for
+    // audio that table says `none`. The length is on the transport bar
+    // of the <audio> below and in the inspector; the size on a `.loft`
+    // reference is the pointer's, which is how a 23-minute track was
+    // labelled "83 B". The composition is asserted next to the rest of
+    // the rule in `primaryMetaRendering.test.tsx`.
+    const { container } = render(<AudioPlayer file={mockFile} />);
     expect(screen.getByText("song.mp3")).toBeInTheDocument();
-    expect(screen.getByText("4.8 MB")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("4.8 MB");
   });
 
   it("renders file type icon", () => {

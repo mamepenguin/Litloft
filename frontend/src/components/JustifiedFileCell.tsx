@@ -4,6 +4,7 @@ import { memo } from "react";
 import type { FileItem } from "@/types";
 import { getThumbnailUrl } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
+import { hasKnownLength } from "@/lib/primaryMeta";
 import { OFFICE_MIMES } from "@/lib/officeFiles";
 import { justifiedRatio } from "@/lib/justifiedGrid";
 import { useFileCardLink } from "@/hooks/useFileCardLink";
@@ -148,12 +149,11 @@ function JustifiedFileCellImpl({
             and no test can, so the invariant is kept by not having the
             element. The duration badge below is the half of the video
             answer that costs nothing. */}
-        {(file.file_type === "video" || file.file_type === "audio") &&
-          file.duration != null && (
-            <span className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
-              {formatDuration(file.duration)}
-            </span>
-          )}
+        {hasKnownLength(file) && (
+          <span className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
+            {formatDuration(file.duration)}
+          </span>
+        )}
         {/*
           The name is the only meta a justified cell carries, and it is
           hidden until asked for: the cells are unequal widths, so a

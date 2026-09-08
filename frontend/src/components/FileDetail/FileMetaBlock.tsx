@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode, RefObject } from "react";
-import { primaryMetaParts } from "@/lib/primaryMeta";
+import { primaryMetaLine } from "@/lib/primaryMeta";
 import type { MediaController } from "@/lib/mediaController";
 import type { FileItem } from "@/types";
 import { FileActionRow } from "./FileActionRow";
@@ -80,7 +80,7 @@ export function FileMetaBlock({
   // nothing, which is how "23:58 · 83 B" becomes "23:58" and an image
   // gains its dimensions. Shared with the trash and missing cards,
   // which have no badge either.
-  const parts = primaryMetaParts(file);
+  const metaLine = primaryMetaLine(file);
 
   return (
     <div className="mt-4">
@@ -104,8 +104,8 @@ export function FileMetaBlock({
               there is a gap between
               the title and the description standing in for a fact
               nobody has (原則 1). */}
-          {parts.length > 0 && (
-            <div className="mt-1 text-xs text-text-muted">{parts.join(" · ")}</div>
+          {metaLine !== null && (
+            <div className="mt-1 text-xs text-text-muted">{metaLine}</div>
           )}
           {!hoistDescription && (
             <FileDescription

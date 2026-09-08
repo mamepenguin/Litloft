@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import { getThumbnailUrl } from "@/lib/api";
-import { primaryMetaParts } from "@/lib/primaryMeta";
+import { primaryMetaLine } from "@/lib/primaryMeta";
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
@@ -72,7 +72,7 @@ export function MissingFileGrid({
             file.file_type === "video" ||
             file.file_type === "image";
           const selected = isSelected?.(file.id);
-          const metaParts = primaryMetaParts(file);
+          const metaLine = primaryMetaLine(file);
 
           return (
             <div
@@ -160,24 +160,29 @@ export function MissingFileGrid({
                 <h3 className="line-clamp-2 text-sm font-semibold text-text-muted">
                   {file.title}
                 </h3>
-                <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
-                  {/* No badge on this card either — see `TrashFileGrid`
-                      — so the length goes on the line. Both halves are
-                      optional here, so the separator belongs to neither
-                      of them and is drawn only where it has something
-                      on each side. */}
-                  {metaParts.length > 0 && (
-                    <span className="tabular-nums">{metaParts.join(" · ")}</span>
-                  )}
-                  {file.missing_since && (
-                    <>
-                      {metaParts.length > 0 && <span className="opacity-40">·</span>}
-                      <span className="tabular-nums">
-                        {formatRelativeDate(file.missing_since)}
-                      </span>
-                    </>
-                  )}
-                </div>
+                {/* No badge on this card either — see `TrashFileGrid` —
+                    so the length goes on the line. Unlike the trash
+                    card, *both* halves here are optional: the sibling
+                    grid draws its date unconditionally, this one guards
+                    `missing_since`. So the separator belongs to neither
+                    of them, and the line itself is not drawn when
+                    neither half is there — an empty row of the same
+                    height is the thing `DESIGN.md` says not to draw. */}
+                {(metaLine !== null || file.missing_since) && (
+                  <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
+                    {metaLine !== null && (
+                      <span className="tabular-nums">{metaLine}</span>
+                    )}
+                    {file.missing_since && (
+                      <>
+                        {metaLine !== null && <span className="opacity-40">·</span>}
+                        <span className="tabular-nums">
+                          {formatRelativeDate(file.missing_since)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {/* See `TrashFileGrid` for why this is in the footer with a
                     word on it rather than an unlabelled glyph over the

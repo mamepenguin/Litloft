@@ -34,18 +34,34 @@ import { formatDuration, formatFileSize } from "./format";
  * and it is the one thing to settle before handing this table to a new
  * surface. The callers split on it, and on nothing else:
  *
- * - `FileCard`, `FileListRow`, `TrashFileList` and `MissingFileList`
- *   draw it as a badge on the thumbnail, all four under
- *   `hasKnownLength`, so their meta row never repeats it.
- * - `FileMetaBlock`, `TrashFileGrid` and `MissingFileGrid` have no badge
- *   to put it on, so they draw the length themselves at the head of the
- *   line this rule finishes — `primaryMetaParts` below. On a trash card
- *   that is not an oversight to correct by adding a badge: the corner
- *   `FileCard` puts the length in (`bottom-2 right-2`) is already the
- *   deadline's, which is the fact that surface exists to say.
+ * - **It says the length elsewhere already.** `FileCard`, `FileListRow`,
+ *   `TrashFileList` and `MissingFileList` put it on a thumbnail badge,
+ *   under `hasKnownLength`; `AudioPlayer` has the transport bar of an
+ *   `<audio controls>`. These call `primaryMetaText`, and for video and
+ *   audio it correctly gives them nothing to add.
+ * - **It has nowhere else to say it.** `FileMetaBlock`, `TrashFileGrid`,
+ *   `MissingFileGrid` and the duplicates panel's file row draw the
+ *   length themselves at the head of the line this rule finishes —
+ *   `primaryMetaLine` below. On a trash card that is not an oversight to
+ *   correct by adding a badge: the corner `FileCard` puts the length in
+ *   (`bottom-2 right-2`) is already the deadline's, which is the fact
+ *   that surface exists to say.
  *
- * On all of them the video branch is `none` for the same reason, and
- * where the length was never probed none of them substitutes the size.
+ * `JustifiedFileCell` is the one surface that draws a badge and no meta
+ * line at all — its cells are unequal widths, so a caption would not
+ * line up into a column. It takes `hasKnownLength` and nothing else.
+ *
+ * On every one of them the video branch is `none` for the same reason,
+ * and where the length was never probed none of them substitutes the
+ * size.
+ *
+ * What is **not** covered by this table is a quantity that is not a fact
+ * about one file: disk and cache usage (`admin/page.tsx`), a duplicate
+ * group's wasted bytes, a "too large to preview" warning
+ * (`TextPreview`), an entry inside an archive, and the size on
+ * `FilePreview`'s no-preview panel, which qualifies the Download button
+ * beside it and which `playerKind` makes unreachable for video and
+ * audio anyway.
  */
 export type PrimaryMeta =
   | { kind: "none" }
@@ -103,17 +119,23 @@ export function primaryMetaText(file: FileItem): string | null {
 }
 
 /**
- * The whole first line, for a surface that has no badge to hang a
- * length on: the length where it is known, then whatever the rule adds.
+ * The whole first line, for a surface that has no other place to put a
+ * length: the length where it is known, otherwise whatever the table
+ * adds, and `null` where the file has neither.
  *
- * Empty is a real answer, and the caller is expected to draw nothing at
+ * **One string, never two.** The two halves are mutually exclusive by
+ * construction — `hasKnownLength` is true only for the kinds
+ * `primaryMeta` answers `none` for — so this returns a value rather than
+ * a list, and no caller carries a separator that could never be reached.
+ * An earlier version returned an array and joined it with `" · "`; the
+ * join was dead code that read as if it were load-bearing.
+ *
+ * `null` is a real answer, and the caller is expected to draw nothing at
  * all rather than an empty line — a video whose length was never probed
- * has neither part, and on a folder of `.loft` references that is most
+ * has neither half, and on a folder of `.loft` references that is most
  * of them.
  */
-export function primaryMetaParts(file: FileItem): string[] {
-  return [
-    hasKnownLength(file) ? formatDuration(file.duration) : null,
-    primaryMetaText(file),
-  ].filter((part): part is string => part !== null);
+export function primaryMetaLine(file: FileItem): string | null {
+  if (hasKnownLength(file)) return formatDuration(file.duration);
+  return primaryMetaText(file);
 }

@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { getDaysRemaining } from "@/lib/trash";
 import { getThumbnailUrl } from "@/lib/api";
-import { primaryMetaParts } from "@/lib/primaryMeta";
+import { primaryMetaLine } from "@/lib/primaryMeta";
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
@@ -90,7 +90,7 @@ export function TrashFileGrid({
           // length is drawn on the meta line itself, ahead of whatever
           // `lib/primaryMeta.ts` adds — the same shape the file page
           // uses, and for the same reason.
-          const metaParts = primaryMetaParts(file);
+          const metaLine = primaryMetaLine(file);
 
           return (
             <div
@@ -189,9 +189,9 @@ export function TrashFileGrid({
                   {file.title}
                 </h3>
                 <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
-                  {metaParts.length > 0 && (
+                  {metaLine !== null && (
                     <>
-                      <span className="tabular-nums">{metaParts.join(" · ")}</span>
+                      <span className="tabular-nums">{metaLine}</span>
                       <span className="opacity-40">·</span>
                     </>
                   )}

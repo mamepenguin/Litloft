@@ -99,6 +99,7 @@ Litloft draws **its own control bar** over the video frame. The same bar, gestur
 
 Audio keeps the browser's own `<audio controls>` bar rather than Litloft's — there is no frame to draw over.
 
+- **The panel says the filename and nothing under it.** A name with a fact beneath it is governed by [the table in *File browsing*](file-browsing.md#file-grid-and-list-modes), and for audio that table's answer is *nothing*: the length is already on the transport bar directly below, and the size on a reference file is the pointer's — this panel used to read "83 B" under the name of a 23-minute track while the inspector correctly said "23:58".
 - Resume from last position and `last_played_at` updated on open.
 - Media session for OS controls. Title and subtitle come from Litloft's own metadata (file title, folder path); the artwork is the file's Litloft thumbnail, not embedded ID3 art.
 - Cast button and an autoplay toggle sit below the player.

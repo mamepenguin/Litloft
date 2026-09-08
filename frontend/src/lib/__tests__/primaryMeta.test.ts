@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   primaryMeta,
   primaryMetaText,
-  primaryMetaParts,
+  primaryMetaLine,
   hasKnownLength,
   formatDimensions,
 } from "@/lib/primaryMeta";
@@ -157,42 +157,58 @@ describe("hasKnownLength", () => {
   });
 });
 
-describe("primaryMetaParts", () => {
-  it("leads with the length on a surface that has no badge for it", () => {
-    expect(primaryMetaParts(file({ file_type: "video", duration: 1438 }))).toEqual([
-      "23:58",
-    ]);
-    expect(primaryMetaParts(file({ file_type: "audio", duration: 1438 }))).toEqual([
-      "23:58",
-    ]);
-  });
+/**
+ * What the badgeless surfaces draw, declared per kind rather than
+ * bounded. An earlier version asserted
+ * `primaryMetaParts(...).length <= 1`, which stays green if the function
+ * returns nothing for every kind — a bound, not an expectation
+ * (detector rule 1 / 5).
+ */
+const EXPECTED_LINE: {
+  [K in FileType]: { probed: string | null; unprobed: string | null };
+} = {
+  video: { probed: "23:58", unprobed: null },
+  audio: { probed: "23:58", unprobed: null },
+  image: { probed: "1920 × 1080", unprobed: null },
+  document: { probed: "83 B", unprobed: "83 B" },
+  archive: { probed: "83 B", unprobed: "83 B" },
+  subtitle: { probed: "83 B", unprobed: "83 B" },
+  other: { probed: "83 B", unprobed: "83 B" },
+};
 
-  it("is empty — not a size — for a video whose length was never probed", () => {
-    // The caller draws no line at all on this. Falling back to the size
-    // here is the "83 B" the whole rule exists to stop.
-    expect(primaryMetaParts(file({ file_type: "video" }))).toEqual([]);
-  });
-
-  it("carries the rule's own answer for the kinds that have one", () => {
-    expect(primaryMetaParts(file({ file_type: "document", file_size: 25437 }))).toEqual([
-      "24.8 KB",
-    ]);
-    expect(
-      primaryMetaParts(file({ file_type: "image", image_width: 1920, image_height: 1080 })),
-    ).toEqual(["1920 × 1080"]);
-    expect(primaryMetaParts(file({ file_type: "image" }))).toEqual([]);
-  });
-
-  it("never puts a length and a size on the same line", () => {
-    // The two are mutually exclusive by construction — a kind with a
-    // length has no first metadatum — and a line reading
-    // "23:58 · 83 B" is precisely the defect that was reported.
-    for (const file_type of Object.keys(EXPECTED) as FileType[]) {
-      const probed =
-        file_type === "image" ? { image_width: 1920, image_height: 1080 } : {};
+describe("primaryMetaLine", () => {
+  it.each(Object.entries(EXPECTED_LINE) as [FileType, { probed: string | null; unprobed: string | null }][])(
+    "gives a %s exactly one answer, or none",
+    (file_type, expected) => {
       expect(
-        primaryMetaParts(file({ file_type, duration: 1438, ...probed })).length,
-      ).toBeLessThanOrEqual(1);
+        primaryMetaLine(
+          file({
+            file_type,
+            duration: 1438,
+            image_width: 1920,
+            image_height: 1080,
+          }),
+        ),
+      ).toBe(expected.probed);
+      expect(primaryMetaLine(file({ file_type }))).toBe(expected.unprobed);
+    },
+  );
+
+  it("covers every file type there is", () => {
+    expect(Object.keys(EXPECTED_LINE)).toHaveLength(7);
+  });
+
+  it("returns a value, so no caller can carry a separator it never reaches", () => {
+    // The length and the table's answer are mutually exclusive by
+    // construction: `hasKnownLength` is true only for the kinds
+    // `primaryMeta` answers `none` for. Returning an array and joining
+    // it with " · " made that invariant something a reader had to take
+    // on trust, and the join was dead code that read as load-bearing.
+    for (const file_type of Object.keys(EXPECTED) as FileType[]) {
+      const line = primaryMetaLine(
+        file({ file_type, duration: 1438, image_width: 1920, image_height: 1080 }),
+      );
+      expect(line === null || !line.includes(" · ")).toBe(true);
     }
   });
 });

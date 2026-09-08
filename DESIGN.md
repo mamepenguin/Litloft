@@ -664,22 +664,42 @@ a reader would use to tell this file from the one beside it?*
 | image | its dimensions, `1920 × 1080` |
 | everything else | its size |
 
-- **One table, seven surfaces.** A rule written down and read by one caller is
-  indistinguishable from no rule: `FileCard` alone obeyed it for a while, and a
-  list row, a detail page and the four trash / missing forms went on labelling a
-  19-minute video "83 B".
+- **One table, and every surface that draws a file's name with a fact under it.**
+  Named rather than counted, because a count is a claim about completeness and
+  two of them were wrong before this list existed: `FileCard`, `FileListRow`,
+  `FileMetaBlock`, `TrashFileList`, `TrashFileGrid`, `MissingFileList`,
+  `MissingFileGrid`, `AudioPlayer`, and the duplicates panel's file row.
+  `JustifiedFileCell` draws a badge and no meta line, so it takes
+  `hasKnownLength` and nothing else. A rule written down and read by one caller
+  is indistinguishable from no rule: `FileCard` alone obeyed it for a while, and
+  every other surface went on labelling a 19-minute video "83 B".
+- **A viewer is one of these surfaces.** The audio panel is a filename with a
+  fact beneath it, so it reads the same table, and the answer for audio is to
+  draw nothing — the length is on the `<audio controls>` transport bar below it.
+  Being in the viewer column rather than the inspector does not make it a
+  different question.
+- **What the table does not cover** is a quantity that is not a fact about one
+  file: disk and cache usage, a duplicate group's wasted bytes, a "too large to
+  preview" warning, an entry inside an archive, and the size beside
+  `FilePreview`'s Download button, which `playerKind` puts out of reach of video
+  and audio anyway.
 - **The size is not a neutral default.** On a `.loft` reference row `file_size`
   is the pointer's, not the media's, so for video and audio it is not merely
   redundant but false.
 - **Where the length goes is the surface's business, not the table's**, and it
   is the one thing to check before handing the table to a new surface. A
-  surface with a badge (`FileCard`, `FileListRow`, `TrashFileList`,
-  `MissingFileList`, all four under `hasKnownLength`) has already said the
-  length. A surface without one (`FileMetaBlock`, `TrashFileGrid`,
-  `MissingFileGrid`) draws it at the head of the line the table finishes —
-  `primaryMetaParts`. The video row of the table is `none` on all seven for
-  the same reason; taking that to mean "draw nothing" on a badgeless card
-  would delete the length from it entirely.
+  surface that says it elsewhere — a thumbnail badge (`FileCard`,
+  `FileListRow`, `JustifiedFileCell`, `TrashFileList`, `MissingFileList`, all
+  five under `hasKnownLength`) or a transport bar (`AudioPlayer`) — asks only
+  `primaryMetaText`. A surface with nowhere else to put it (`FileMetaBlock`,
+  `TrashFileGrid`, `MissingFileGrid`, the duplicates row) draws it at the head
+  of the line the table finishes — `primaryMetaLine`. The video row of the
+  table is `none` everywhere for the same reason; taking that to mean "draw
+  nothing" on a badgeless card would delete the length from it entirely.
+- **`primaryMetaLine` returns one string, never two.** The length and the
+  table's answer are mutually exclusive by construction, so the shape says so
+  rather than a comment saying so. An earlier version returned a list and
+  joined it with a separator that nothing could ever reach.
 - **A missing badge is not always an omission to correct.** The corner
   `FileCard` puts the length in, `bottom-2 right-2`, is the deadline's on a
   trash card and the neighbour of the *missing* mark on a missing one. Those
