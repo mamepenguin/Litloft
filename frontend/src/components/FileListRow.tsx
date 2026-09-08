@@ -7,7 +7,8 @@ import { useTranslations } from "next-intl";
 import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { getThumbnailUrl } from "@/lib/api";
 import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
-import { formatDuration, formatFileSize } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
+import { primaryMetaText } from "@/lib/primaryMeta";
 import type { FileItem, FileItemWithMatch } from "@/types";
 import { OFFICE_MIMES } from "@/lib/officeFiles";
 
@@ -94,6 +95,12 @@ function FileListRowImpl({
   const hasDuration =
     (file.file_type === "video" || file.file_type === "audio") && file.duration != null;
   const isCutFile = clipboard.isCut(file.id);
+  // The same rule the cards lead with, and for the same reason: this
+  // row draws the length on its own thumbnail badge above, under the
+  // identical `duration != null`, so for video and audio the size is
+  // both redundant and — on a `.loft` reference row — false.
+  // `lib/primaryMeta.ts`.
+  const primaryText = primaryMetaText(file);
 
   const fileTypeLabel: Record<string, string> = {
     video: t("typeVideo"),
@@ -157,9 +164,11 @@ function FileListRowImpl({
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
             {file.title}
           </span>
-          <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
-            {formatFileSize(file.file_size)}
-          </span>
+          {primaryText !== null && (
+            <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
+              {primaryText}
+            </span>
+          )}
           <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
             {formatRelativeDate(file.updated_at)}
           </span>
@@ -173,8 +182,12 @@ function FileListRowImpl({
               {file.filename.split(".").pop()}
             </span>
           )}
-          <span className="flex-shrink-0 sm:hidden">{formatFileSize(file.file_size)}</span>
-          <span className="flex-shrink-0 opacity-40 sm:hidden">·</span>
+          {primaryText !== null && (
+            <>
+              <span className="flex-shrink-0 sm:hidden">{primaryText}</span>
+              <span className="flex-shrink-0 opacity-40 sm:hidden">·</span>
+            </>
+          )}
           <span className="flex-shrink-0 sm:hidden">{formatRelativeDate(file.updated_at)}</span>
           {file.tags.length > 0 && (
             <>

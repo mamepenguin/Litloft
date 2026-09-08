@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { cardPrimaryMeta, formatDimensions } from "@/lib/cardPrimaryMeta";
+import { primaryMeta, primaryMetaText, formatDimensions } from "@/lib/primaryMeta";
 import type { FileItem, FileType } from "@/types";
 
 const file = (overrides: Partial<FileItem> = {}): FileItem => ({
@@ -47,13 +47,13 @@ const EXPECTED: { [K in FileType]: "none" | "size" | "dimensions" } = {
   other: "size",
 };
 
-describe("cardPrimaryMeta", () => {
+describe("primaryMeta", () => {
   it.each(Object.entries(EXPECTED) as [FileType, string][])(
     "leads a %s card with its %s",
     (file_type, expected) => {
       const probed =
         file_type === "image" ? { image_width: 1920, image_height: 1080 } : {};
-      expect(cardPrimaryMeta(file({ file_type, ...probed })).kind).toBe(expected);
+      expect(primaryMeta(file({ file_type, ...probed })).kind).toBe(expected);
     },
   );
 
@@ -67,18 +67,18 @@ describe("cardPrimaryMeta", () => {
     // differently for a reason invisible to the reader. Measured on
     // 2026-09: 3 of 1063 active images have no dimensions, all of them
     // broken JPEGs — the branch is walked, not theoretical.
-    expect(cardPrimaryMeta(file({ file_type: "image" })).kind).toBe("none");
+    expect(primaryMeta(file({ file_type: "image" })).kind).toBe("none");
     expect(
-      cardPrimaryMeta(file({ file_type: "image", image_width: 1920 })).kind,
+      primaryMeta(file({ file_type: "image", image_width: 1920 })).kind,
     ).toBe("none");
     expect(
-      cardPrimaryMeta(file({ file_type: "image", image_height: 1080 })).kind,
+      primaryMeta(file({ file_type: "image", image_height: 1080 })).kind,
     ).toBe("none");
   });
 
   it("carries the dimensions through when they are known", () => {
     expect(
-      cardPrimaryMeta(
+      primaryMeta(
         file({ file_type: "image", image_width: 1920, image_height: 1080 }),
       ),
     ).toEqual({ kind: "dimensions", width: 1920, height: 1080 });
@@ -89,7 +89,7 @@ describe("cardPrimaryMeta", () => {
     // size is the number that would be wrong — a `.loft` reference file
     // reports the pointer's size, which is how D-3 got "19 minutes,
     // 83 B".
-    expect(cardPrimaryMeta(file({ file_type: "video", duration: null })).kind).toBe(
+    expect(primaryMeta(file({ file_type: "video", duration: null })).kind).toBe(
       "none",
     );
   });
@@ -99,5 +99,38 @@ describe("formatDimensions", () => {
   it("uses the multiplication sign, not a letter", () => {
     expect(formatDimensions(1920, 1080)).toBe("1920 × 1080");
     expect(formatDimensions(1920, 1080)).not.toContain("x");
+  });
+});
+
+describe("primaryMetaText", () => {
+  it("renders each branch of the table, and null for the silent one", () => {
+    expect(primaryMetaText(file({ file_type: "document", file_size: 25437 }))).toBe(
+      "24.8 KB",
+    );
+    expect(
+      primaryMetaText(
+        file({ file_type: "image", image_width: 1920, image_height: 1080 }),
+      ),
+    ).toBe("1920 × 1080");
+    expect(primaryMetaText(file({ file_type: "video" }))).toBeNull();
+  });
+
+  it("never substitutes the size for dimensions it does not have", () => {
+    // The whole point of the null: a caller that treated it as "fall
+    // back to something" would put two different first facts on two
+    // image rows for a reason the reader cannot see.
+    expect(primaryMetaText(file({ file_type: "image", file_size: 2295580 }))).toBeNull();
+  });
+
+  it("agrees with the rule it renders, for every file type", () => {
+    // The adapter is the only thing three surfaces call, so a branch
+    // that drifted from `primaryMeta` would be invisible in the table
+    // test above.
+    for (const file_type of Object.keys(EXPECTED) as FileType[]) {
+      const probed =
+        file_type === "image" ? { image_width: 1920, image_height: 1080 } : {};
+      const f = file({ file_type, ...probed });
+      expect(primaryMetaText(f) === null).toBe(primaryMeta(f).kind === "none");
+    }
   });
 });

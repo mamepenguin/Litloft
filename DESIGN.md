@@ -651,6 +651,42 @@ with a **border in the accent colour**, never a fill.
 - Hover changes the surface colour only. **Never expand or darken the shadow on
   hover, and never use `scale()`.**
 
+### The first fact under a file's name
+
+What a card, a list row and the file page each say first about a file is one
+rule, in one table: `frontend/src/lib/primaryMeta.ts`. Not a list of exceptions
+but a question asked of the kind — *what has this surface not already said, that
+a reader would use to tell this file from the one beside it?*
+
+| Kind | First metadatum |
+|---|---|
+| video, audio | none |
+| image | its dimensions, `1920 × 1080` |
+| everything else | its size |
+
+- **One table, three surfaces.** A rule written down and read by one caller is
+  indistinguishable from no rule: `FileCard` alone obeyed it for a while, and a
+  list row and a detail page went on labelling a 19-minute video "83 B".
+- **The size is not a neutral default.** On a `.loft` reference row `file_size`
+  is the pointer's, not the media's, so for video and audio it is not merely
+  redundant but false.
+- **Where the length goes is the surface's business, not the table's.** A card
+  and a list row have a thumbnail and put it on a badge; the file page has none,
+  so it draws the length at the head of the same line. The video row of the
+  table is `none` on all three for the same reason.
+- **A kind gets one answer, not two.** An image whose dimensions were never
+  probed does *not* fall back to its size — a fallback stops "kind → first
+  metadatum" being a function, and two image cards would then describe
+  themselves differently for a reason the reader cannot see.
+- **Nothing is drawn where nothing is known.** Where a surface has neither a
+  length nor anything the table adds, it draws no line at all rather than an
+  empty one.
+- **This is not the `deriveListMeta` question.** That one asks whether a column
+  *varies* across the loaded rows and drops it where it does not; this one asks
+  whether a fact belongs to the kind at all. Uniformity cannot detect wrongness,
+  so the size column is not gated on it — sixty rows differing in their sizes
+  are still sixty wrong sizes. Kind first, variation second.
+
 ### Inputs
 
 - Radius `rounded-2xl`; border `border border-bg-border` or
