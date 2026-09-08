@@ -28,7 +28,14 @@
         "wrapper": "max-h-[70vh] overflow-x-auto overflow-y-auto",
         "headCell": "sticky top-0 z-10 whitespace-nowrap bg-bg-card px-4 py-2 text-center text-sm font-medium text-text-primary",
         "rowHeadCell": "sticky top-0 z-10 whitespace-nowrap bg-bg-card py-2 pr-6 text-left text-xs font-semibold tracking-wide text-text-muted",
-        "table": "min-w-full border-collapse text-sm"
+        "table": "min-w-full border-collapse text-sm",
+        "driveRow": "border-t border-bg-border",
+        "driveNameCell": "whitespace-nowrap py-3 pr-6 text-xs font-semibold tracking-wide text-text-muted",
+        "driveToggleCell": "px-4 py-3 text-center",
+        "driveToggle": "h-4 w-4 cursor-pointer accent-accent",
+        "featureNameCell": "whitespace-nowrap py-2 pr-6 pl-4",
+        "featureToggleCell": "px-4 py-2 text-center",
+        "featureSwitch": "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-focus-ring focus:ring-offset-2 bg-accent-teal"
       }
     </script>
 
@@ -40,14 +47,17 @@
       );
 
       /**
-       * The table at a chosen size, with a chosen number of drive rows.
+       * The table at a chosen size, in the app's own row shape.
        *
-       * `rows` is the free variable that decides whether the cap bites:
-       * the app's own table is 548px at four drives, which fits inside
-       * 70% of a desktop window and does not scroll, and the point of
-       * the cap is what happens when it does not fit.
+       * Not `rows` identical rows: the section emits a drive row and then
+       * one sub-row per feature the drive has enabled, and the two are
+       * different heights (`py-3` against `py-2`, a 16px checkbox against
+       * a 24px switch). Four drives with two features each is twelve rows
+       * and 548px, which is the number every claim about this table is
+       * arithmetic on — twelve uniform rows measure 588px and would make
+       * all of them wrong by 40px.
        */
-      window.buildPolicyTable = ({ width, rows, columns }) => {
+      window.buildPolicyTable = ({ width, drives, featuresPerDrive, columns }) => {
         const frame = document.getElementById("frame");
         frame.style.width = `${width}px`;
         frame.replaceChildren();
@@ -77,24 +87,59 @@
         table.append(thead);
 
         const tbody = document.createElement("tbody");
-        for (let r = 0; r < rows; r++) {
+        for (let d = 0; d < drives; d++) {
           const tr = document.createElement("tr");
-          tr.className = "border-t border-bg-border";
+          tr.className = SPEC.driveRow;
           const td = document.createElement("td");
-          td.className =
-            "whitespace-nowrap py-3 pr-6 text-xs font-semibold tracking-wide text-text-muted";
-          td.textContent = `Drive ${r + 1}`;
+          td.className = SPEC.driveNameCell;
+          td.textContent = `Drive ${d + 1}`;
           tr.append(td);
           for (let c = 0; c < columns; c++) {
             const cell = document.createElement("td");
-            cell.className = "px-4 py-3 text-center";
+            cell.className = SPEC.driveToggleCell;
             const box = document.createElement("input");
             box.type = "checkbox";
-            box.className = "h-4 w-4 cursor-pointer accent-accent";
+            box.className = SPEC.driveToggle;
             cell.append(box);
             tr.append(cell);
           }
           tbody.append(tr);
+
+          for (let f = 0; f < featuresPerDrive; f++) {
+            const sub = document.createElement("tr");
+            const name = document.createElement("td");
+            name.className = SPEC.featureNameCell;
+            const row = document.createElement("div");
+            row.className = "flex items-center gap-2";
+            const arrow = document.createElement("span");
+            arrow.className = "text-text-muted";
+            arrow.textContent = "\u21b3";
+            const label = document.createElement("span");
+            label.className = "text-sm text-text-primary";
+            label.textContent = `Feature ${f + 1}`;
+            row.append(arrow, label);
+            name.append(row);
+            sub.append(name);
+            for (let c = 0; c < columns; c++) {
+              const cell = document.createElement("td");
+              // Only the addon's own column carries the switch; the rest
+              // are the empty cells the section renders.
+              if (c === 0) {
+                cell.className = SPEC.featureToggleCell;
+                const sw = document.createElement("button");
+                sw.type = "button";
+                sw.setAttribute("role", "switch");
+                sw.className = SPEC.featureSwitch;
+                const knob = document.createElement("span");
+                knob.className =
+                  "inline-block h-4 w-4 rounded-full bg-white shadow transition-transform translate-x-6";
+                sw.append(knob);
+                cell.append(sw);
+              }
+              sub.append(cell);
+            }
+            tbody.append(sub);
+          }
         }
         table.append(tbody);
         wrapper.append(table);
@@ -118,6 +163,11 @@
         wrapper.scrollTop = scrollTop ?? 0;
         const box = wrapper.getBoundingClientRect();
         return {
+          // The cap, and the box it actually resolved to. They are not
+          // the same number and conflating them is what made the earlier
+          // cases wrong: `max-height` is a ceiling, so a table shorter
+          // than it leaves the box at the table's own height.
+          capPx: Number.parseFloat(getComputedStyle(wrapper).maxHeight),
           wrapperHeight: wrapper.clientHeight,
           tableHeight: table.getBoundingClientRect().height,
           scrollsVertically: wrapper.scrollHeight > wrapper.clientHeight + 1,

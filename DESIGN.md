@@ -959,9 +959,16 @@ other one.
   wrapper with `overflow-x: auto` is already one in both axes — a sticky head
   inside an unbounded one sticks to a box that never scrolls and does nothing.
   Measured: 290px above the viewport, i.e. gone. Cap the wrapper (`70vh`) so it
-  becomes a real scrollport. The cap only bites when the table is longer than
-  it, so the inner scrollbar — and the swipe it could trap on a phone — appears
-  only in the case that needs the headings.
+  becomes a real scrollport.
+- **The cap is a trade, and where it falls is arithmetic, not a promise about
+  phones.** The wrapper scrolls wherever the table is taller than 70% of the
+  viewport. For the addon-policy table that is 548px at four drives, so it
+  scrolls below a 783px viewport and not above one — **every phone is below**,
+  and there a phone gets a nested scroller in both axes at once. What it buys
+  is the headings, without which four columns of checkboxes are unlabelled.
+  State the boundary; do not say "the scrollbar does not appear", which is true
+  only of the window the number was taken in. `DESIGN.md` §8.5 already carries
+  #201's correction of the same mistake.
 - **`sticky` goes on the `th`, not the `tr`**, which is not a positioned box in
   most engines, and the cells need their own background or the rows travel
   visibly underneath them.

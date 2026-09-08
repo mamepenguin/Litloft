@@ -119,7 +119,12 @@ describe("AddonPolicyStep", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("intelligence").length).toBeGreaterThan(0);
+      // `toHaveLength(2)`, not a bound: `getByText` used to throw on a
+      // second match, so the diff that introduced a legend had to loosen
+      // this — and `>= 1` is green for any number of copies, which is the
+      // one thing this file is about. Two: the legend names the addon
+      // once, the drive's row names it once.
+      expect(screen.getAllByText("intelligence")).toHaveLength(2);
     });
 
     const toggle = screen.getAllByRole("checkbox")[0];
@@ -246,5 +251,78 @@ describe("AddonPolicyStep says each addon's description once", () => {
       expect(screen.getAllByRole("checkbox")).toHaveLength(3);
     });
     expect(screen.getAllByText(/no description/i)).toHaveLength(1);
+  });
+});
+
+
+describe("AddonPolicyStep explains only controls that are on the page", () => {
+  it("draws no legend when there is no drive to switch anything on", async () => {
+    // `drives` really can be empty: `SetupWizard` starts it there and
+    // leaves it there when the drive probe returns nothing, which is the
+    // path `DriveStep`'s mount guidance exists for. A card of addon
+    // descriptions above "you can skip this" explains four controls that
+    // are not on the page — the rule the settings side already follows
+    // and `DESIGN.md` now states.
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        addons: {
+          intelligence: { scope: "drive", description: "Semantic search and AI summaries." },
+        },
+        slots: {},
+      }),
+    );
+    const { container } = render(
+      <AddonPolicyStep
+        drives={[]}
+        value={{}}
+        onChange={vi.fn()}
+        onNext={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    // The step's own "nothing to configure" line, which is what stands
+    // in for the cards when there is no drive.
+    await waitFor(() => {
+      expect(
+        screen.getByText("You can skip and configure later."),
+      ).toBeInTheDocument();
+    });
+    expect(container.querySelectorAll("dl")).toHaveLength(0);
+    expect(screen.queryByText("Semantic search and AI summaries.")).toBeNull();
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+  });
+
+  it("gives the legend a heading, so it is not a drive card without a name", async () => {
+    // Before it had one it was `rounded-xl border border-bg-border
+    // bg-bg-card p-5` — the drive card's own class list — carrying the
+    // same four addon names in the same order, directly above the real
+    // cards. Asserted as "it is not that surface" as well as "it has a
+    // name", because either alone leaves the confusion.
+    mockFetch.mockResolvedValue(
+      jsonResponse({ addons: { intelligence: { scope: "drive" } }, slots: {} }),
+    );
+    const { container } = render(
+      <AddonPolicyStep
+        drives={[{ name: "main", path: "/data/main", access_group: "default" }]}
+        value={{}}
+        onChange={vi.fn()}
+        onNext={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    });
+
+    const legend = container.querySelector("dl")!.closest("section")!;
+    expect(legend.querySelector("h3")!.textContent).toBeTruthy();
+    expect(legend.className).not.toContain("bg-bg-card");
+    // And the drive's own card still has its name, so the two are told
+    // apart by more than the wording of one of them.
+    const driveHeading = Array.from(container.querySelectorAll("h3")).find(
+      (h) => h.textContent === "main",
+    );
+    expect(driveHeading).toBeDefined();
   });
 });

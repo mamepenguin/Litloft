@@ -267,12 +267,20 @@ export function AddonPolicySection(): React.ReactElement {
             // unbounded the head stayed 290px above the viewport; bounded,
             // it sits at the wrapper's top edge through a 500px scroll.
             //
-            // The cap only bites when the table is longer than it, which is
-            // the case that needs the headings — at four drives the table is
-            // 548px against a 604px box, so there is no inner scrollbar to
-            // trap a phone's swipe. The alternative, sticking to the page,
-            // needs this element not to be a scrollport, and it has to be
-            // one: the columns run off a narrow screen.
+            // The mechanism, and not a promise about any particular
+            // screen: the table is capped at 70% of the viewport and
+            // scrolls inside that cap wherever it is taller. Which
+            // screens those are is arithmetic on the table's own height,
+            // and the height is a function of how many drives there are
+            // — at four it is 548px, so the wrapper scrolls below a
+            // 783px viewport and does not above it. **Every phone is
+            // below that**, so a phone gets a nested scroller in both
+            // axes; what it buys there is the headings, which are what
+            // the four checkbox columns are unreadable without.
+            //
+            // The alternative, sticking to the page, needs this element
+            // not to be a scrollport, and it has to be one: the columns
+            // run off a narrow screen.
             className="max-h-[70vh] overflow-x-auto overflow-y-auto"
             tabIndex={0}
             role="region"
@@ -349,22 +357,15 @@ export function AddonPolicySection(): React.ReactElement {
                           >
                             {/* The name of the thing goes in the row-header
                               column, under the drive it belongs to; the
-                              switch goes in its addon's column, centred like
-                              the checkbox directly above it. Both used to sit
-                              together in the addon's cell, which widened that
-                              cell by the length of the description and left
-                              the switch under a neighbouring column's
-                              heading — the reading this layout is here to
-                              fix. */}
+                              switch goes in its addon's column, centred
+                              like the checkbox directly above it, which
+                              is what says which column governs it. */}
                             {/* The name of the feature, and nothing else.
                               What it does and what happens when it is
                               turned off are the same words on every
-                              drive's row, so they are said once, under
-                              the table — see `FeatureLegend`. Before
-                              that, one paragraph appeared four times in
-                              a 186px column and the table was 1152px
-                              tall; without them it is 548px, which is
-                              less than a viewport. */}
+                              drive's row, so `legendEntries` collects
+                              them and the `<dl>` below the table says
+                              each once. */}
                             <td className="whitespace-nowrap py-2 pr-6 pl-4">
                               <div className="flex items-center gap-2">
                                 <span

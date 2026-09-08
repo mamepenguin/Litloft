@@ -1098,6 +1098,7 @@
     "addonPolicy": {
       "title": "Addon policy",
       "description": "Enable per-drive addons. You can change this later.",
+      "legendTitle": "What these addons are",
       "skipDescription": "You can skip and configure later.",
       "skipNote": "You can skip this step and decide later from /admin.",
       "noDescription": "(No description for this addon)"

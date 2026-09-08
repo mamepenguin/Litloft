@@ -150,21 +150,38 @@ export function AddonPolicyStep({
         {tAddon("skipNote")}
       </div>
 
-      {addons.length > 0 && (
-        // What each addon is, once, before the drives it can be turned on
-        // for. Above the cards rather than inside them: the reader needs
-        // it to decide, and the decision is repeated per drive while the
-        // description is not.
-        <dl className="space-y-3 rounded-xl border border-bg-border bg-bg-card p-5">
-          {addons.map((addon) => (
-            <div key={addon.name}>
-              <dt className="font-medium text-text-primary">{addon.name}</dt>
-              <dd className="text-xs text-text-muted">
-                {addon.description ?? tAddon("noDescription")}
-              </dd>
-            </div>
-          ))}
-        </dl>
+      {/* What each addon is, once, before the drives it can be turned on
+          for. Above the cards rather than inside them: the reader needs it
+          to decide, and the decision is repeated per drive while the
+          description is not.
+          
+          Gated on the same pair as the cards below. A list explaining
+          controls that are not on the page is the "heading for a thing
+          that does not exist" the redesign's first principle rejects, and
+          `drives` really can be empty — the wizard starts it there and
+          leaves it there when the drive probe finds nothing, which is the
+          mount-guidance path.
+          
+          Titled, and not on `bg-bg-card` with a border. Untitled and with
+          the drive cards' own surface it read as a drive card that had
+          lost its name, or as a fifth drive: the same four addon names in
+          the same order, one card above the real ones. */}
+      {drives.length > 0 && addons.length > 0 && (
+        <section className="rounded-xl bg-warm-light/30 p-5">
+          <h3 className="mb-3 text-sm font-semibold text-text-muted">
+            {tAddon("legendTitle")}
+          </h3>
+          <dl className="space-y-3">
+            {addons.map((addon) => (
+              <div key={addon.name}>
+                <dt className="font-medium text-text-primary">{addon.name}</dt>
+                <dd className="text-xs text-text-muted">
+                  {addon.description ?? tAddon("noDescription")}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       )}
 
       {drives.length > 0 && addons.length > 0 ? (

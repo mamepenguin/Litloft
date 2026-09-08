@@ -62,7 +62,24 @@ function setup() {
     }
     if (url === "/api/addons/status") {
       return Promise.resolve(
-        jsonResponse({ addons: { intelligence: { scope: "drive" } }, slots: {} }),
+        jsonResponse({
+          addons: {
+            intelligence: {
+              scope: "drive",
+              // A feature, so the sub-row exists: its own height is half
+              // of what makes the app's table 548px, and the fixture
+              // cannot draw it from a table that has never seen one.
+              policy_features: [
+                {
+                  name: "transcription_cloud",
+                  default: true,
+                  i18n_key: "intelligence.policyFeatures.transcriptionCloud",
+                },
+              ],
+            },
+          },
+          slots: {},
+        }),
       );
     }
     return Promise.resolve(jsonResponse({ ok: true }));
@@ -73,31 +90,48 @@ const tokens = (className: string) => className.split(/\s+/).filter(Boolean);
 const normalise = (className: string) => tokens(className).sort().join(" ");
 
 describe("the addon-policy layout fixture's class lists", () => {
-  it("declares exactly the four the section renders", async () => {
+  it("declares every class list the section renders, and no others", async () => {
     setup();
     render(<AddonPolicySection />);
     await waitFor(() =>
-      expect(screen.getByRole("table")).toBeInTheDocument(),
+      expect(screen.getByRole("switch")).toBeInTheDocument(),
     );
 
     const table = screen.getByRole("table");
-    const wrapper = table.parentElement!;
-    const heads = Array.from(table.querySelectorAll("thead th"));
+    const rows = Array.from(table.querySelectorAll("tbody tr"));
+    const driveRow = rows[0]!;
+    const featureRow = rows[1]!;
 
     // Sorted before comparing: the order utilities are written in is not
     // a property of anything, and pinning it would make a reorder red for
     // no reason. Which utilities are present is the property.
-    expect(normalise(wrapper.className)).toBe(normalise(SPEC.wrapper));
-    expect(normalise(table.className)).toBe(normalise(SPEC.table));
-    expect(normalise(heads[0]!.className)).toBe(normalise(SPEC.rowHeadCell));
-    expect(normalise(heads[1]!.className)).toBe(normalise(SPEC.headCell));
+    //
+    // The body rows are here and not only the head because the fixture's
+    // table has to be the *height* the app's is — 548px at four drives —
+    // and that height is these paddings and this switch. Twelve uniform
+    // rows measured 588px, which would have made every claim arithmetic
+    // on the wrong number by 40px.
+    const rendered: Record<string, string> = {
+      wrapper: table.parentElement!.className,
+      table: table.className,
+      rowHeadCell: table.querySelectorAll("thead th")[0]!.className,
+      headCell: table.querySelectorAll("thead th")[1]!.className,
+      driveRow: driveRow.className,
+      driveNameCell: driveRow.querySelectorAll("td")[0]!.className,
+      driveToggleCell: driveRow.querySelectorAll("td")[1]!.className,
+      driveToggle: driveRow.querySelector("input")!.className,
+      featureNameCell: featureRow.querySelectorAll("td")[0]!.className,
+      featureToggleCell: featureRow.querySelector("td:has(> [role='switch'])")!
+        .className,
+      featureSwitch: featureRow.querySelector('[role="switch"]')!.className,
+    };
 
-    expect(Object.keys(SPEC).sort()).toEqual([
-      "headCell",
-      "rowHeadCell",
-      "table",
-      "wrapper",
-    ]);
+    // Both directions, as sets: a key the fixture invents and a class
+    // list the section changed are each red.
+    expect(Object.keys(SPEC).sort()).toEqual(Object.keys(rendered).sort());
+    for (const [key, className] of Object.entries(rendered)) {
+      expect(normalise(className), key).toBe(normalise(SPEC[key]!));
+    }
   });
 
   it("keeps the two halves of the mechanism, named", async () => {

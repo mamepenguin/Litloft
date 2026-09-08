@@ -15,7 +15,7 @@ Lists every drive in `drives.json`. Per row:
 - **Name** — the URL slug. Renaming changes the URL; existing watch history etc. are not orphaned because they reference `file_id`, not the drive name. Pinned folders, however, are keyed by drive name and lose their pin on rename.
 - **Path** — container path. Changes are validated: the path must exist inside the backend container and not be the root `/`. Mismatch → inline error.
 - **Access group** — optional protection label. Adding or changing this requires a matching `passwords.json` entry to keep someone able to unlock the drive.
-- **Addon policy** — opens an inline matrix of toggles for each enabled addon (see *AddonPolicy* below). For addons with sub-feature flags, an expandable row lists each flag.
+- **Addon policy** — an inline matrix of toggles for each enabled addon (see *AddonPolicy* below). An addon that declares sub-feature flags gets one extra row per flag, under the drive, whenever it is on for that drive.
 
 Add a drive with the `+` button. Validation runs before save; on success the file is written atomically (`.tmp` + rename) and a `data/restart_pending` flag is set. The dashboard banner reminds you to restart.
 
@@ -42,7 +42,9 @@ The setup wizard enforces that at least one password covers every group; the set
 A matrix of `drives × addons`. Each cell:
 
 - A simple `bool` for addons without sub-features.
-- An expandable row of `feature: bool` toggles for addons that declare them.
+- An extra row per `feature: bool` an addon declares, under the drive it belongs
+  to, whenever that addon is on for the drive. There is nothing to expand — the
+  rows are simply there, and turning the addon off takes them away.
 
 **Each explanation is written once, under the table, not on every row.** A
 sub-feature's description is a property of the feature and says nothing about
@@ -53,13 +55,19 @@ the feature's name and its switch; what it does, and what happens after you
 turn it off, are in the list below the table, once per feature, and only for
 features the table is currently showing a row for.
 
-**The column headings stay put while you scroll the table.** With several
-drives the checkboxes outlive their headings, and an unlabelled column of
-checkboxes says nothing. The table gets a height cap of 70% of the window and
-scrolls inside it, which only happens when it is longer than that — with four
-drives it is not, and there is no inner scrollbar to catch a phone's swipe.
+**The table is capped at 70% of the window and scrolls inside that cap, with
+the column headings pinned to its top.** With several drives the checkboxes
+otherwise outlive their headings, and an unlabelled column of checkboxes says
+nothing.
 
-Saving writes the policy into the corresponding drive's `addons` field in `drives.json`. The intelligence addon, for example, exposes `transcription_cloud` and `rag` flags — useful when you want a *Private* drive to opt out of cloud transcription and Ask while keeping local indexing.
+Whether you see that inner scroll is arithmetic: with four drives the table is
+548px, so it scrolls inside the cap on any window shorter than about 783px and
+sits still on anything taller. **On a phone it always scrolls** — and it scrolls
+sideways at the same time, since four addon columns do not fit either. That is
+the trade: a scroller inside the page, in exchange for headings that are still
+there when you reach the fourth drive.
+
+Saving writes the policy into the corresponding drive's `addons` field in `drives.json`. The intelligence addon, for example, declares `transcription_cloud` and `chapter_suggestions` — useful when you want a *Private* drive to opt out of sending audio to a cloud transcriber while keeping local indexing. (Ask is *not* one of these: it is the addon's own `features.rag` config flag, not a per-drive policy feature, so it has no column here.)
 
 Unspecified keys are *graceful-degradation*: the addon's default applies. To force a feature off explicitly, toggle it visibly to off.
 

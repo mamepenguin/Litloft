@@ -465,6 +465,50 @@ describe("AddonPolicySection says each explanation once", () => {
     expect(screen.queryAllByText(LABEL)).toHaveLength(0);
   });
 
+  it("names the addon on each legend entry", async () => {
+    // The only thing tying an entry to the column it explains: the rows
+    // draw `↳ <feature label>` and no addon name, so with two addons
+    // declaring a same-named feature the legend would be two entries a
+    // reader cannot tell apart. Measured before this case existed:
+    // blanking the addon label left all 98 jsdom tests green.
+    setupDrives(threeDrives);
+    render(<AddonPolicySection />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("switch")).toHaveLength(3);
+    });
+    const entries = Array.from(document.querySelectorAll("dt"));
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.textContent).toContain("intelligence");
+    expect(entries[0]!.textContent).toContain(LABEL);
+  });
+
+  it("draws no empty rule under the table when nothing declares a feature", async () => {
+    // `intelligence` is the only addon in the tree that declares
+    // `policy_features`, so every install without it takes this path. The
+    // `<dl>` carries `border-t` and `mt-6`, so an unguarded one is a
+    // stray rule under the table on all of them.
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/admin/config/addon-policy") {
+        return Promise.resolve(jsonResponse({ main: { knowledge: true } }));
+      }
+      if (url === "/api/addons/status") {
+        return Promise.resolve(
+          jsonResponse({ addons: { knowledge: { scope: "drive" } }, slots: {} }),
+        );
+      }
+      return Promise.resolve(jsonResponse({ ok: true }));
+    });
+    const { container } = render(<AddonPolicySection />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("columnheader", { name: "knowledge" }),
+      ).toBeInTheDocument(),
+    );
+    expect(container.querySelectorAll("dl")).toHaveLength(0);
+  });
+
   it("keeps the warning out of it while every drive has the feature on", async () => {
     setupDrives(threeDrives);
     render(<AddonPolicySection />);
