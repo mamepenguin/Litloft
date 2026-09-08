@@ -1098,6 +1098,7 @@
     "addonPolicy": {
       "title": "アドオン設定",
       "description": "ドライブごとにアドオンを有効化できます。あとで変更可能です。",
+      "legendTitle": "アドオンの説明",
       "skipDescription": "今は設定せずに次へ進めます。",
       "skipNote": "今は決めずに進めて構いません。あとで/adminから変更できます。",
       "noDescription": "（このアドオンの説明はありません）"

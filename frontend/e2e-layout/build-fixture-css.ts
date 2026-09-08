@@ -75,6 +75,12 @@ const REQUIRED = [
   // and be caught only by the spec — the failure this list exists to
   // pre-empt, one step later.
   "@container related-files",
+  // `addon-policy.spec.ts` measures a sticky heading. Without the
+  // utilities that make it one, the fixture lays out a plain table and
+  // the cases go red naming positions rather than the missing sheet —
+  // this fails at `globalSetup` instead, with the sheet named.
+  "max-h-\\[70vh\\]",
+  ".sticky",
 ];
 
 /**

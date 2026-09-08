@@ -42,7 +42,6 @@ interface AddonRowProps {
   drive: string;
   addon: AddonStatusEntry;
   enabled: boolean;
-  noDescription: string;
   onToggle: () => void;
 }
 
@@ -50,7 +49,6 @@ function AddonRow({
   drive,
   addon,
   enabled,
-  noDescription,
   onToggle,
 }: AddonRowProps): React.ReactElement {
   return (
@@ -74,13 +72,15 @@ function AddonRow({
           }`}
         />
       </span>
-      <span className="flex-1">
-        <span className="block font-medium text-text-primary">
-          {addon.name}
-        </span>
-        <span className="block text-xs text-text-muted">
-          {addon.description ?? noDescription}
-        </span>
+      {/* The name, and nothing under it. What the addon does is the
+          same sentence on every drive's card — four drives gave four
+          copies of each of the four descriptions, sixteen paragraphs
+          saying four things — so it is said once, in the list above.
+          Same rule as the settings table's feature legend and as
+          `lib/listMeta.ts`: a line whose words do not change from row to
+          row is not telling the reader which row they are on. */}
+      <span className="flex-1 font-medium text-text-primary">
+        {addon.name}
       </span>
     </label>
   );
@@ -150,6 +150,40 @@ export function AddonPolicyStep({
         {tAddon("skipNote")}
       </div>
 
+      {/* What each addon is, once, before the drives it can be turned on
+          for. Above the cards rather than inside them: the reader needs it
+          to decide, and the decision is repeated per drive while the
+          description is not.
+          
+          Gated on the same pair as the cards below. A list explaining
+          controls that are not on the page is the "heading for a thing
+          that does not exist" the redesign's first principle rejects, and
+          `drives` really can be empty — the wizard starts it there and
+          leaves it there when the drive probe finds nothing, which is the
+          mount-guidance path.
+          
+          Titled, and not on `bg-bg-card` with a border. Untitled and with
+          the drive cards' own surface it read as a drive card that had
+          lost its name, or as a fifth drive: the same four addon names in
+          the same order, one card above the real ones. */}
+      {drives.length > 0 && addons.length > 0 && (
+        <section className="rounded-xl bg-warm-light/30 p-5">
+          <h3 className="mb-3 text-sm font-semibold text-text-muted">
+            {tAddon("legendTitle")}
+          </h3>
+          <dl className="space-y-3">
+            {addons.map((addon) => (
+              <div key={addon.name}>
+                <dt className="font-medium text-text-primary">{addon.name}</dt>
+                <dd className="text-xs text-text-muted">
+                  {addon.description ?? tAddon("noDescription")}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+
       {drives.length > 0 && addons.length > 0 ? (
         <div className="space-y-4">
           {drives.map((drive) => (
@@ -167,7 +201,6 @@ export function AddonPolicyStep({
                     drive={drive.name}
                     addon={addon}
                     enabled={readToggle(value, drive.name, addon.name)}
-                    noDescription={tAddon("noDescription")}
                     onToggle={() => toggle(drive.name, addon.name)}
                   />
                 ))}

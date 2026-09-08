@@ -934,6 +934,45 @@ grid.
 - Mobile (`max-width: 767px`): `font-size: 0.93em`. Do not reflow — horizontal
   scroll is preferred to structure loss.
 
+### A control table: say each explanation once, and keep the headings
+
+The listings' rule — *draw a column only where its values differ*
+(`lib/listMeta.ts`) — is not about listings. It is about repetition, and a
+table of settings repeats harder: the drive axis multiplies everything on the
+other one.
+
+- **A line whose words do not change from row to row is not telling the reader
+  which row they are on.** What varies per row is the control; the sentence
+  explaining what the control does is a property of the column, so it goes
+  once, below the table, and the row keeps the control and its name. Measured
+  on `/admin/settings`: one help paragraph rendered four times, wrapped into a
+  186px column, and the table stood 1152px against an 863px viewport. Saying it
+  once left 548px.
+- **Conditional does not mean per-row.** A warning drawn only for switches that
+  are off still says the same words on every row that draws it. It belongs in
+  the same place, shown when any row is in that state.
+- **A legend entry for a control nobody can see is a heading for a thing that
+  does not exist**, which the redesign's first principle rejects. Derive the
+  entries from the rows the table is actually showing.
+- **Column headings are `sticky top-0` inside a bounded scroller, not the
+  page.** `position: sticky` resolves against the nearest scrollport, and a
+  wrapper with `overflow-x: auto` is already one in both axes — a sticky head
+  inside an unbounded one sticks to a box that never scrolls and does nothing.
+  Measured: 290px above the viewport, i.e. gone. Cap the wrapper (`70vh`) so it
+  becomes a real scrollport.
+- **The cap is a trade, and where it falls is arithmetic, not a promise about
+  phones.** The wrapper scrolls wherever the table is taller than 70% of the
+  viewport. For the addon-policy table that is 548px at four drives, so it
+  scrolls below a 783px viewport and not above one — **every phone is below**,
+  and there a phone gets a nested scroller in both axes at once. What it buys
+  is the headings, without which four columns of checkboxes are unlabelled.
+  State the boundary; do not say "the scrollbar does not appear", which is true
+  only of the window the number was taken in. `DESIGN.md` §8.5 already carries
+  #201's correction of the same mistake.
+- **`sticky` goes on the `th`, not the `tr`**, which is not a positioned box in
+  most engines, and the cells need their own background or the rows travel
+  visibly underneath them.
+
 ### Search result timestamp pills
 
 - **`text-text-muted`** with `hover:bg-accent/10` — not `text-accent`, and
