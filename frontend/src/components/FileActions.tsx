@@ -66,9 +66,24 @@ export function FileActions({
   // to the left. Measured on open rather than guessed from a breakpoint,
   // because what matters is the enclosing column, not the viewport.
   const [alignLeft, setAlignLeft] = useState(false);
+  // Same measurement in the other axis, and for the same reason: the menu
+  // hangs below the trigger, which only works while the trigger has the
+  // menu's own height beneath it. In the Bottom Sheet's resting strip
+  // (`fixed bottom-0`, DESIGN.md §Layering) it has none, so a menu that
+  // only ever opened downward was drawn entirely below the viewport.
+  // Measured against the rendered menu rather than a breakpoint or a
+  // guessed row count, because the menu's height is the addon slot's to
+  // change and no constant here would follow it.
+  const [openUp, setOpenUp] = useState(false);
+  const menuBoxRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     if (!menuOpen) {
+      // `openUp` is not cleared beside it: the error toast hangs off the
+      // same trigger and is raised after the menu has gone, so on the
+      // resting strip it would be drawn off-screen exactly as the menu
+      // was. It is re-measured on every open, so a stale value never
+      // outlives one paint.
       setAlignLeft(false);
       // The flag belongs to a subtree that only exists while the menu is
       // open, and it is set by an addon in another repository. Clearing it
@@ -91,6 +106,20 @@ export function FileActions({
       }
     }
     setAlignLeft(triggerRect.right - MENU_WIDTH_PX < boundsLeft);
+
+    // Reads the box that was just rendered, before the browser paints
+    // it. Which direction that render used does not matter: the menu's
+    // height is the same either way, and `triggerRect` is the wrapper's,
+    // which the menu does not move. Flips only when the space above is
+    // the better of the two, so a trigger with room for neither keeps
+    // the downward direction the menu reads as everywhere else.
+    const menuBox = menuBoxRef.current;
+    if (menuBox) {
+      const menuHeight = menuBox.getBoundingClientRect().height;
+      const spaceBelow = window.innerHeight - triggerRect.bottom;
+      const spaceAbove = triggerRect.top;
+      setOpenUp(menuHeight > spaceBelow && spaceAbove > spaceBelow);
+    }
   }, [menuOpen]);
 
   const anyDialogOpen =
@@ -246,10 +275,11 @@ export function FileActions({
 
         {menuOpen && (
           <div
+            ref={menuBoxRef}
             role="menu"
-            className={`absolute top-full z-30 mt-1 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg ${
-              alignLeft ? "left-0" : "right-0"
-            }`}
+            className={`absolute z-30 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg ${
+              openUp ? "bottom-full mb-1" : "top-full mt-1"
+            } ${alignLeft ? "left-0" : "right-0"}`}
           >
             {menuItems.map((item) => (
               <ActionMenuItem
@@ -301,7 +331,11 @@ export function FileActions({
         )}
 
         {error && (
-          <div className="absolute right-0 top-full z-30 mt-1 whitespace-nowrap rounded-2xl bg-danger px-3 py-1.5 text-xs text-white">
+          <div
+            className={`absolute right-0 z-30 whitespace-nowrap rounded-2xl bg-danger px-3 py-1.5 text-xs text-white ${
+              openUp ? "bottom-full mb-1" : "top-full mt-1"
+            }`}
+          >
             {error}
           </div>
         )}

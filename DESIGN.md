@@ -814,6 +814,18 @@ by the file, not by the layout.
 
 Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
 
+- **A dropdown anchored to a control measures both axes before it commits to a
+  direction.** Hanging below and to one side is right wherever the trigger has
+  the room; on the Bottom Sheet's resting strip (`fixed bottom-0`, §Layering)
+  there is none below it, and a menu that could only open downward was drawn
+  entirely off-screen. Measure the rendered box — not a breakpoint, and not a
+  row count, which the addon slot in the menu is free to change — and flip only
+  when the other side is the better of the two, so a trigger with room for
+  neither keeps the direction the menu reads as everywhere else.
+- **Anything else anchored to the same trigger flips with it**, including an
+  error raised after the menu has closed. One direction per trigger, or the
+  message lands where the menu was not allowed to.
+
 ### Layering
 
 Stacking is tiered. Pick the tier by what the element *is*, not by picking a

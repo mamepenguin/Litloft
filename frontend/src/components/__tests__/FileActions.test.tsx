@@ -289,6 +289,79 @@ describe("FileActions menu alignment", () => {
   });
 });
 
+describe("FileActions menu direction", () => {
+  /**
+   * The menu hangs below the trigger, which needs the menu's own height
+   * beneath it. In the Bottom Sheet's resting strip (`fixed bottom-0`)
+   * there is none, and the menu was drawn below the viewport.
+   *
+   * jsdom lays nothing out, so both boxes are stated rather than
+   * measured — this pins the decision, not the geometry. The geometry it
+   * decides on is a real browser's.
+   */
+  function mountWithBoxes(
+    trigger: { top: number; bottom: number },
+    menuHeight: number,
+  ) {
+    const original = Element.prototype.getBoundingClientRect;
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        if ((this as HTMLElement).classList.contains("relative")) {
+          return {
+            left: 300,
+            right: 328,
+            top: trigger.top,
+            bottom: trigger.bottom,
+          } as DOMRect;
+        }
+        if (this.getAttribute("role") === "menu") {
+          return { height: menuHeight } as DOMRect;
+        }
+        return original.call(this);
+      },
+    );
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function openAndRead(): string {
+    fireEvent.click(screen.getByLabelText("File actions"));
+    return screen.getByRole("menu").className;
+  }
+
+  it("opens downward when the menu fits below the trigger", () => {
+    // window.innerHeight is 768 in jsdom: 640px of room under the trigger.
+    mountWithBoxes({ top: 100, bottom: 128 }, 200);
+    renderWithStack(<FileActions file={mockFile} />);
+
+    const className = openAndRead();
+    expect(className.includes("top-full")).toBe(true);
+    expect(className.includes("bottom-full")).toBe(false);
+  });
+
+  it("opens upward from the resting strip, where nothing fits below", () => {
+    // The 56px strip sits on the viewport floor: 20px of room under it.
+    mountWithBoxes({ top: 712, bottom: 748 }, 200);
+    renderWithStack(<FileActions file={mockFile} />);
+
+    const className = openAndRead();
+    expect(className.includes("bottom-full")).toBe(true);
+    expect(className.includes("top-full")).toBe(false);
+  });
+
+  it("stays downward when neither side has room", () => {
+    // Taller than the viewport: flipping trades 730px of room for 10px.
+    mountWithBoxes({ top: 10, bottom: 38 }, 900);
+    renderWithStack(<FileActions file={mockFile} />);
+
+    const className = openAndRead();
+    expect(className.includes("top-full")).toBe(true);
+    expect(className.includes("bottom-full")).toBe(false);
+  });
+});
+
 describe("FileActions file-actions-menu slot", () => {
   beforeEach(() => {
     slotCalls.props = [];
