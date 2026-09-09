@@ -22,7 +22,7 @@
  * fine one; that nothing is drawn between them or after them on a coarse
  * pointer, so the row's own spacing is not added to theirs; that the
  * trailing padding survives at the `sm` breakpoint, where `sm:p-2` and
- * `pointer-coarse:pr-0` set the same property and only the emitted order
+ * `.pointer-coarse\:pr-0` set the same property and only the emitted order
  * decides which wins; that the file rows and the folder rows end at the
  * same place, which is what keeps the two `⋮` columns lined up; that a
  * fine pointer measures the row it measured before the change, box for
@@ -125,7 +125,7 @@ const MORE_FINE_PX = 24;
  * is the width every number in the report was taken at. 288 is the same
  * row on a 320px screen — the narrowest this app is drawn on, and the
  * width at which the name has least to give. 700 is above the `sm`
- * breakpoint, which is not decoration: `sm:p-2` and `pointer-coarse:pr-0`
+ * breakpoint, which is not decoration: `.sm\:p-2` and `.pointer-coarse\:pr-0`
  * set the same property from two single-class rules, so which one wins is
  * decided by the order Tailwind emits them and by nothing in either class
  * list. A suite that only ran under `sm` would never ask.

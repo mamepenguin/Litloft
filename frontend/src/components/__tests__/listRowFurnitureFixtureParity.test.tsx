@@ -127,6 +127,26 @@ const SHAPES: Record<string, Markup> = JSON.parse(
  */
 const COUNTERFACTUAL = "separated";
 
+/**
+ * A `pointer-coarse:` utility, spelled so that this file is not itself a
+ * source for it.
+ *
+ * `e2e-layout/build-fixture-css.ts` compiles the fixture's stylesheet by
+ * scanning everything under `frontend/` — this file included — and then
+ * asserts that particular rules came out of it. A class written whole in an
+ * assertion here is therefore enough on its own to make Tailwind emit the
+ * rule, after which that needle can never be absent: "a needle that cannot be
+ * absent asserts nothing", in that file's own words. Measured: with the
+ * trailing-padding class taken out of `rowFurniture.ts` and out of the
+ * fixture, the sheet still carried `.pointer-coarse\:pr-0` and `globalSetup`
+ * did not throw, purely because of the assertions below.
+ *
+ * Splitting the token keeps the assertion and removes the source. It is not
+ * built from `rowFurniture.ts`'s exports on purpose — an expected value taken
+ * from the thing under test cannot disagree with it.
+ */
+const coarse = (utility: string) => `pointer-coarse:${utility}`;
+
 const tokens = (className: string) => className.split(/\s+/).filter(Boolean);
 const normalise = (className: string) => tokens(className).join(" ");
 const classOf = (el: Element) => normalise(el.getAttribute("class") ?? "");
@@ -281,7 +301,7 @@ describe("the list-row layout fixture's markup table", () => {
     const removed = tokens(shipped.class).filter(
       (c) => !tokens(before.class).includes(c),
     );
-    expect(removed).toEqual(["pointer-coarse:pr-0"]);
+    expect(removed).toEqual([coarse("pr-0")]);
     // Both directions, the way the star's guard below is written. One
     // direction leaves the counterfactual free to gain a class of its own
     // and still read as "the shipped row with three things put back".
@@ -301,7 +321,7 @@ describe("the list-row layout fixture's markup table", () => {
     const starBefore = before.children![1];
     expect(
       tokens(star.class).filter((c) => !tokens(starBefore.class).includes(c)),
-    ).toEqual(["justify-center", "pointer-coarse:h-11", "pointer-coarse:w-11"]);
+    ).toEqual(["justify-center", coarse("h-11"), coarse("w-11")]);
     expect(
       tokens(starBefore.class).filter((c) => !tokens(star.class).includes(c)),
     ).toEqual([]);
@@ -312,7 +332,7 @@ describe("the list-row layout fixture's markup table", () => {
     // pointer rather than a wider one — the browser spec measures that;
     // jsdom can only say the classes are there.
     expect(tokens(group.class)).toContain("gap-3");
-    expect(tokens(group.class)).toContain("pointer-coarse:gap-0");
+    expect(tokens(group.class)).toContain(coarse("gap-0"));
     expect(tokens(shipped.class)).toContain("gap-3");
   });
 
@@ -323,7 +343,7 @@ describe("the list-row layout fixture's markup table", () => {
     // this branch. The props allow it, so the guard is here rather than
     // in the fixture — a row with nothing at its trailing edge has no
     // control whose own padding could stand in for the row's, and
-    // dropping `pointer-coarse:pr-0` out of its condition would put this
+    // dropping `.pointer-coarse\:pr-0` out of its condition would put this
     // row's text against the edge.
     //
     // jsdom lays nothing out: this is a claim about a class list, and the
@@ -331,7 +351,7 @@ describe("the list-row layout fixture's markup table", () => {
     const row = render(
       <FileListRow file={file} selectable onSelect={vi.fn()} />,
     ).container.firstElementChild!;
-    expect(tokens(classOf(row))).not.toContain("pointer-coarse:pr-0");
+    expect(tokens(classOf(row))).not.toContain(coarse("pr-0"));
     expect(tokens(classOf(row))).toContain("p-2.5");
     expect(Array.from(row.children)).toHaveLength(1);
   });
@@ -352,12 +372,22 @@ describe("the list-row layout fixture's markup table", () => {
     // Both are pinned as the literal the source writes rather than as a
     // list of spellings that would mean an inset: there is no bounded set
     // of ways to move a box sideways, so a whitelist loses to the next
-    // one (`review-workflow.md`, "What a test here cannot hold"). Any edit
-    // to either container is red here and has to be looked at.
+    // one (`review-workflow.md`, "What a test here cannot hold").
+    //
+    // Both pins reach up to the statement that returns the column, not
+    // just to its opening tag. A bare tag survives being wrapped, and a
+    // wrapper is how the inset actually arrives: pinning only
+    // `<div className="flex flex-col">` left
+    // `<div className="px-2"><div className="flex flex-col">` green across
+    // `tsc` and the whole unit suite, which is round 1's 8px misalignment
+    // on the container this test was added to guard. Anchored this way,
+    // any edit to either container is red here and has to be looked at.
     expect(FIXTURE_HTML).toContain('column.className = "flex flex-col"');
 
     const fileList = readFileSync(join(__dirname, "..", "FileList.tsx"), "utf8");
-    expect(fileList).toContain('<div className="flex flex-col">');
+    expect(fileList).toContain(
+      'return (\n    <>\n      <div className="flex flex-col">',
+    );
 
     const folderContent = readFileSync(
       join(__dirname, "..", "folder", "FolderContent.tsx"),
