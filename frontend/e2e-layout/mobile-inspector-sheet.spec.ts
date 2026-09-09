@@ -49,9 +49,11 @@
  * shorter here than on a phone. Nothing below asserts its height.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { declareEach, expectDistinct } from "../src/test/declareEach";
 
 const FIXTURE = pathToFileURL(
   resolve(__dirname, "fixtures", "mobile-inspector-sheet.html"),
@@ -89,6 +91,18 @@ const HEIGHTS = [
 
 expect(SNAPS).toHaveLength(2);
 expect(HEIGHTS).toHaveLength(4);
+// ...and they are four different heights and two different snaps. A table
+// walked back in distinctness rather than in length — four rows all at
+// 667 — keeps every count in this file and measures one viewport four
+// times, which is the shape the whole `HEIGHTS` list exists to avoid.
+expect(expectDistinct(HEIGHTS.map((h) => h.height))).toEqual({
+  unique: 4,
+  total: 4,
+});
+expect(expectDistinct(SNAPS.map((s) => s.snap))).toEqual({
+  unique: 2,
+  total: 2,
+});
 
 /** Every combination, so no case can quietly cover one height and one snap. */
 const CASES = HEIGHTS.flatMap(({ height, label: hLabel }) =>
@@ -186,32 +200,54 @@ type Case = (typeof CASES)[number];
  * Pinning `CASES.length` does not observe a loop: `for (… of
  * CASES.slice(0, 1))` dropped seven of these cases and the suite reported
  * green, because nothing compared the tests that exist against the
- * population they were meant to come from. Two of the loops were worse —
- * they ran inside a single test, where a `slice` does not even change the
- * count.
+ * population they were meant to come from.
  *
- * So every case goes through `eachCase`, which pushes its id **and**
- * registers the test in the same two lines. A `slice`, a `break` or a
- * `continue` anywhere in that loop shortens this array, and the guard at
- * the bottom of the file compares it against the cross product of
- * `GROUPS` and `CASES` — recomputed from the two declarations rather than
- * from the array itself, so the expected side does not move with the
- * loop. Same recipe as `mobileInspectorSheetFixtureParity.test.tsx`.
+ * Two repairs before this one left a seam and both were measured to drop
+ * 18 of these cases with the register green — see `declareEach`, which
+ * now does the registering itself and is held by its own unit test.
+ * Nothing here builds a title or calls `test`; this file supplies the
+ * population and the bodies.
+ *
+ * `every group ran at every case` then compares the register against the
+ * cross product of `GROUPS` and `CASES`, rebuilt from the two
+ * declarations rather than from the register, so the expected side does
+ * not follow a loop that has been walked back. `expectDistinct` beside
+ * each declaration covers the other direction — a population shrunk in
+ * distinctness rather than in length.
+ *
+ * `declareEach`'s docstring carries what none of this sees. Do not
+ * restate those limits more strongly here.
  */
+const caseId = (group: string, c: Case) => `${group} — ${c.height}px at ${c.sLabel}`;
+
 const registered: string[] = [];
 
-const caseId = (group: string, c: Case) => `${group} — ${c.height}px at ${c.sLabel}`;
+/**
+ * Playwright's `test`, narrowed to the two arguments the helper uses.
+ *
+ * `test` is a callable with a dozen properties hanging off it and several
+ * overloads; this is the one signature `declareEach` needs, so the helper
+ * infers a body type instead of the details overload.
+ */
+const registerCase: (
+  title: string,
+  body: (args: { page: Page }) => Promise<void>,
+) => void = test;
 
 function eachCase(
   group: string,
-  body: (page: import("@playwright/test").Page, c: Case) => Promise<void>,
+  body: (page: Page, c: Case) => Promise<void>,
 ): void {
-  for (const c of CASES) {
-    registered.push(caseId(group, c));
-    test(`${c.height}px (${c.hLabel}) at ${c.sLabel}`, async ({ page }) => {
-      await body(page, c);
-    });
-  }
+  // `registerCase` is handed to the helper rather than called here, so
+  // there is no per-case callback with a registration inside it for a
+  // condition to sit in front of.
+  registered.push(
+    ...declareEach(CASES, registerCase, (c) => ({
+      title: `${c.height}px (${c.hLabel}) at ${c.sLabel}`,
+      id: caseId(group, c),
+      body: async ({ page }: { page: Page }) => body(page, c),
+    })),
+  );
 }
 
 /**
@@ -232,6 +268,9 @@ const GROUPS = [
   "replaced: an unbounded scroller ends a whole overhang below the screen",
 ] as const;
 expect(GROUPS).toHaveLength(9);
+// Nine *different* groups: a list with a name repeated would build an
+// expected register that a duplicated describe satisfies.
+expect(expectDistinct(GROUPS)).toEqual({ unique: 9, total: 9 });
 
 test.beforeEach(async ({ page }) => {
   await page.goto(FIXTURE);

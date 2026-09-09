@@ -9,8 +9,10 @@ import {
   SHEET_SNAP_FULL,
   SHEET_SNAP_HALF,
   SHEET_SNAP_PEEK,
+  SHEET_SNAP_POINTS,
   isSheetExpanded,
 } from "@/components/MobileInspectorSheet";
+import { declareEach, expectDistinct } from "@/test/declareEach";
 
 /**
  * The sheet rests, it does not close.
@@ -37,6 +39,16 @@ function renderSheet(
   );
   return { ...utils, onSnapChange };
 }
+
+/**
+ * vitest's `it`, narrowed to the two arguments the helper uses.
+ *
+ * `it` is overloaded (options objects, `.each`, modifiers), so handing it
+ * over unnarrowed makes the helper infer the options overload rather than
+ * a test body.
+ */
+const registerCase: (title: string, body: () => void | Promise<void>) => void =
+  it;
 
 describe("MobileInspectorSheet", () => {
   it("shows the peek row at rest", () => {
@@ -85,15 +97,32 @@ describe("MobileInspectorSheet", () => {
   // reached by scrolling back to it. That is the confirmed trade
   // (`DESIGN.md` §Layering), and this is the fact it rests on, stated
   // where it can fail.
-  for (const snap of [SHEET_SNAP_HALF, SHEET_SNAP_FULL]) {
-    it(`draws no resting strip at ${snap}, so the actions are not also below`, async () => {
+  // Every snap the sheet gives vaul, from `SHEET_SNAP_POINTS` rather than
+  // from an array written here: the inline `[half, full]` this replaces
+  // could be walked back to one entry — half the claim gone, suite green
+  // — and a third snap point would have been added to the sheet without
+  // ever being asked this question. `declareEach` records what was
+  // declared; the case below compares it with the population.
+  const declaredSnaps = declareEach(SHEET_SNAP_POINTS, registerCase, (snap) => ({
+    title: `draws no resting strip at ${snap}, so the actions are not also below`,
+    id: String(snap),
+    body: async () => {
       renderSheet(snap);
       await screen.findByTestId("mobile-inspector-sheet");
 
       expect(screen.queryByTestId("mobile-inspector-peek")).toBeNull();
       expect(screen.queryByTestId("peek-content")).toBeNull();
+    },
+  }));
+
+  it("asks that of every snap point the sheet has", () => {
+    expect(declaredSnaps).toEqual(SHEET_SNAP_POINTS.map(String));
+    // And they are different snaps, not one repeated.
+    expect(expectDistinct(declaredSnaps)).toEqual({
+      unique: SHEET_SNAP_POINTS.length,
+      total: SHEET_SNAP_POINTS.length,
     });
-  }
+  });
 
   it("draws it at rest and nowhere else, which is the whole of that rule", () => {
     // Both halves in one place: a component that rendered the strip at

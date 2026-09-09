@@ -8,8 +8,10 @@ import {
   SHEET_PEEK_PX,
   SHEET_SNAP_FULL,
   SHEET_SNAP_HALF,
+  SHEET_SNAP_POINTS,
   SHEET_VISIBLE_HEIGHT,
 } from "@/components/MobileInspectorSheet";
+import { declareEach, expectDistinct } from "@/test/declareEach";
 import {
   CANVAS_PADDING_REM,
   COLUMN_REM,
@@ -124,6 +126,16 @@ describe("§8.5 widths", () => {
   });
 });
 
+/**
+ * vitest's `it`, narrowed to the two arguments the helper uses.
+ *
+ * `it` is overloaded (options objects, `.each`, modifiers), so handing it
+ * over unnarrowed makes the helper infer the options overload rather than
+ * a test body.
+ */
+const registerCase: (title: string, body: () => void | Promise<void>) => void =
+  it;
+
 describe("§Layering sheet states", () => {
   const design = () => readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
 
@@ -186,17 +198,29 @@ describe("§Layering sheet states", () => {
     return Number(match![1]);
   };
 
-  // Both snaps, declared. One row would leave the other's arithmetic
-  // unread, and the two differ only in the number that is easiest to
-  // copy from the wrong place.
+  // Both snaps, and the population is the sheet's own snap points rather
+  // than a length written here: a third snap added to `SHEET_SNAP_POINTS`
+  // — which unit D is expected to do — makes this red until the table
+  // grows a row for it. `toHaveLength(2)` could not say that, and it read
+  // the literal three lines above it rather than the loop below.
   const ROWS = [
     { state: "half", snap: SHEET_SNAP_HALF },
     { state: "full", snap: SHEET_SNAP_FULL },
   ];
-  expect(ROWS).toHaveLength(2);
+  expect(ROWS.map((row) => row.snap)).toEqual(SHEET_SNAP_POINTS);
+  expect(expectDistinct(ROWS.map((row) => row.state))).toEqual({
+    unique: 2,
+    total: 2,
+  });
 
-  for (const { state, snap } of ROWS) {
-    it(`states ${state}'s height as the subtraction the code performs`, () => {
+  // What the loop below actually declared. `expect(ROWS).toHaveLength(2)`
+  // did not observe it: `if (state === "full") continue;` as the loop's
+  // first statement left 12 of 13 cases green with the `full` row's
+  // arithmetic unread. See `declareEach`.
+  const declaredRows = declareEach(ROWS, registerCase, ({ state, snap }) => ({
+    title: `states ${state}'s height as the subtraction the code performs`,
+    id: state,
+    body: () => {
       const cell = heightCell(state);
       const parsed = cell.match(
         /`(\d+)vh`\s*less\s*`vh × \(1 − ([\d.]+)\)`\s*=\s*\*\*(\d+)vh\*\*/,
@@ -223,8 +247,13 @@ describe("§Layering sheet states", () => {
       expect(documentedVisible).toBe(
         documentedDrawer - Math.round((1 - snap) * 100),
       );
-    });
-  }
+    },
+  }));
+
+  it("evaluates a row for every snap the sheet has", () => {
+    // The register against the declaration, not against itself.
+    expect(declaredRows).toEqual(ROWS.map((row) => row.state));
+  });
 
   it("says out loud that the snap is not the height", () => {
     // The sentence under the table is what stops the next reader

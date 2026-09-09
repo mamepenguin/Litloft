@@ -179,9 +179,13 @@ describe("the sheet's own chrome", () => {
     // The fixture's own nesting is not reachable from this file: it is
     // JavaScript in `fixtures/mobile-inspector-sheet.html` that nothing
     // here executes. Measured: rebuilding the fixture to append them as
-    // siblings left every case in this file green and turned 29 browser
-    // cases red, so the fixture's half is held by the browser suite. Do
-    // not read this case as covering it.
+    // siblings left every case in this file green and turned the browser
+    // cases that measure that nesting red, so the fixture's half is held
+    // by the browser suite. Do not read this case as covering it.
+    //
+    // No count here. The one that was written down was taken before the
+    // same commit grew the browser suite, so it was stale in the act of
+    // being recorded, and nothing would ever have gone red over it.
     const { visible, scroller } = renderSheet(SHEET_SNAP_FULL);
     expect(visible).toContainElement(scroller);
     expect(scroller).toContainElement(screen.getByTestId("sheet-child"));
