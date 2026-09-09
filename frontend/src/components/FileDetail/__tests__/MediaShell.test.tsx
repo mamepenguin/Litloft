@@ -994,17 +994,70 @@ describe("the sheet's half, derived from the player", () => {
    * Sharing one case between them would let two of the three be deleted.
    */
   const VIEWPORT_CHANNELS = [
-    { what: "a window resize", fire: (_: EventTarget) => window.dispatchEvent(new Event("resize")) },
+    {
+      what: "a window resize",
+      fire: (_: EventTarget) => window.dispatchEvent(new Event("resize")),
+      dispatches: "window:resize",
+    },
     {
       what: "a rotation",
       fire: (_: EventTarget) => window.dispatchEvent(new Event("orientationchange")),
+      dispatches: "window:orientationchange",
     },
     {
       what: "the visual viewport",
       fire: (target: EventTarget) => target.dispatchEvent(new Event("resize")),
+      dispatches: "visualViewport:resize",
     },
   ] as const;
   expect(VIEWPORT_CHANNELS).toHaveLength(3);
+  // Three distinct signatures, so the guard below can tell the three
+  // apart at all: two channels sharing one would let either stand in for
+  // the other with the dispatch check still green.
+  expect(new Set(VIEWPORT_CHANNELS.map((c) => c.dispatches)).size).toBe(3);
+
+  /**
+   * The event a case actually put on a target, read off the DOM.
+   *
+   * `dispatches` above is the declaration; this is the observation, and
+   * they are produced by different things — one is a string in this
+   * file, the other is what a listener on the target saw. Without it,
+   * both sides of the register guard are recomputed from the same two
+   * arrays and **which channel a case fires never enters the check**:
+   * measured, with a `<video>`-remounting `key` on `orientationchange`
+   * in the tree, having every case fire `resize` instead of its own
+   * channel left the whole suite green.
+   *
+   * Listening rather than wrapping `fire`: a listener sees the event
+   * whatever route it arrived by, where a wrapper only sees calls that
+   * went through the wrapper.
+   */
+  function recordDispatches(vvTarget: EventTarget): {
+    signatures: string[];
+    restore: () => void;
+  } {
+    const signatures: string[] = [];
+    const types = [
+      ...new Set(VIEWPORT_CHANNELS.map((c) => c.dispatches.split(":")[1])),
+    ];
+    const targets: [string, EventTarget][] = [
+      ["window", window],
+      ["visualViewport", vvTarget],
+    ];
+    const listeners = targets.flatMap(([name, target]) =>
+      types.map((type) => {
+        const listener = () => signatures.push(`${name}:${type}`);
+        target.addEventListener(type, listener);
+        return () => target.removeEventListener(type, listener);
+      }),
+    );
+    return {
+      signatures,
+      restore: () => {
+        for (const off of listeners) off();
+      },
+    };
+  }
 
   /**
    * Every group that walks the channels, by name.
@@ -1026,11 +1079,19 @@ describe("the sheet's half, derived from the player", () => {
    * loop that runs inside one `it()` is worse still: a `slice` there does
    * not even change the count, so the identity group was shortened to one
    * channel with a `<video>`-remounting `key` in the tree and all 5,909
-   * tests stayed green. So every channel case goes through `eachChannel`,
-   * which registers the test and **then** records it — recorded first, a
-   * `continue` between the two lines drops the registration and leaves
-   * the record; recorded last, anything that skips the push has already
-   * skipped the `it()`.
+   * tests stayed green. So every case that walks the three window
+   * channels goes through `eachChannel`, which registers the test and
+   * **then** records it — recorded first, a `continue` between the two
+   * lines drops the registration and leaves the record. Recorded last, a
+   * skipped push leaves the register short of the declarations and the
+   * guard red, and anything that skips the `it()` takes its push with it;
+   * the two directions are caught by different halves, not by one
+   * impossibility.
+   *
+   * The `ResizeObserver` cases are the fourth channel and cannot be
+   * fired off the window, so they are two hand-written `it()`s. They get
+   * their own declared register below rather than sitting outside every
+   * guard, where deleting one would be silent.
    *
    * This is the shape `e2e-layout/mobile-inspector-sheet.spec.ts` uses,
    * and its limit is the same: the expected set is written in this file,
@@ -1044,48 +1105,83 @@ describe("the sheet's half, derived from the player", () => {
 
   function eachChannel(
     group: string,
-    body: (channel: (typeof VIEWPORT_CHANNELS)[number]) => Promise<void>,
+    body: (
+      channel: (typeof VIEWPORT_CHANNELS)[number],
+      vvTarget: EventTarget,
+    ) => Promise<void>,
   ): void {
     for (const channel of VIEWPORT_CHANNELS) {
       it(channelCaseId(group, channel.what), async () => {
-        await body(channel);
+        // The stub and the recorder belong to the helper, not to the
+        // body: the listener has to be on the visual viewport before
+        // anything renders, and a body that installed its own could
+        // observe a different target from the one it fired at.
+        const vv = stubVisualViewport();
+        const seen = recordDispatches(vv.target);
+        try {
+          await body(channel, vv.target);
+        } finally {
+          seen.restore();
+          vv.restore();
+        }
+        // The dispatch, against the declaration — this is what the
+        // register cannot see. A body handed some other channel, or one
+        // that fires nothing at all, disagrees here even though its name
+        // and its registration are untouched.
+        expect(seen.signatures).toEqual([channel.dispatches]);
       });
       registeredChannelCases.push(channelCaseId(group, channel.what));
     }
   }
 
-  eachChannel(CHANNEL_GROUPS[0], async (channel) => {
-    const vv = stubVisualViewport();
-    try {
-      stubPlayerBox(PLAYER_BOTTOM);
-      await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
-      const drawer = await openSheet();
-      const before = roomOnScreen(drawer);
-      expect(before).toBeCloseTo(VIEWPORT_HEIGHT - PLAYER_BOTTOM, 0);
+  /**
+   * The fourth channel's two cases, by name.
+   *
+   * A `ResizeObserver` is fired through a stub's recorded callbacks
+   * rather than off a target, so these cannot go through `eachChannel`
+   * and each group spells its own out. Declared here so that deleting
+   * one disagrees with something.
+   */
+  const RESIZE_OBSERVER_CASES = [
+    "re-derives when the player's own box changes",
+    "keeps the player element when the player's own box changes",
+  ] as const;
+  expect(RESIZE_OBSERVER_CASES).toHaveLength(2);
 
-      // The window grows; the player does not move. The room under it
-      // is therefore larger, and the sheet takes exactly that room —
-      // which is the claim, restated at the new window rather than
-      // compared against the old number.
-      setViewportHeight(VIEWPORT_HEIGHT + URL_BAR_PX);
-      act(() => {
-        channel.fire(vv.target);
-      });
+  const registeredResizeObserverCases: string[] = [];
 
-      await waitFor(() => {
-        expect(
-          roomOnScreen(screen.getByTestId("mobile-inspector-sheet")),
-        ).toBeCloseTo(window.innerHeight - PLAYER_BOTTOM, 0);
-      });
+  function resizeObserverCase(name: string, body: () => Promise<void>): void {
+    it(name, body);
+    registeredResizeObserverCases.push(name);
+  }
+
+  eachChannel(CHANNEL_GROUPS[0], async (channel, vvTarget) => {
+    stubPlayerBox(PLAYER_BOTTOM);
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+    const drawer = await openSheet();
+    const before = roomOnScreen(drawer);
+    expect(before).toBeCloseTo(VIEWPORT_HEIGHT - PLAYER_BOTTOM, 0);
+
+    // The window grows; the player does not move. The room under it
+    // is therefore larger, and the sheet takes exactly that room —
+    // which is the claim, restated at the new window rather than
+    // compared against the old number.
+    setViewportHeight(VIEWPORT_HEIGHT + URL_BAR_PX);
+    act(() => {
+      channel.fire(vvTarget);
+    });
+
+    await waitFor(() => {
       expect(
         roomOnScreen(screen.getByTestId("mobile-inspector-sheet")),
-      ).toBeGreaterThan(before);
-    } finally {
-      vv.restore();
-    }
+      ).toBeCloseTo(window.innerHeight - PLAYER_BOTTOM, 0);
+    });
+    expect(
+      roomOnScreen(screen.getByTestId("mobile-inspector-sheet")),
+    ).toBeGreaterThan(before);
   });
 
-  it("re-derives when the player's own box changes", async () => {
+  resizeObserverCase(RESIZE_OBSERVER_CASES[0], async () => {
     // The other channel, and the one the window's events cannot cover: a
     // `.loft` frame resolving its ratio, or `--rail-avail` moving the
     // width cap, changes the player's height without changing the
@@ -1102,7 +1198,15 @@ describe("the sheet's half, derived from the player", () => {
       const watchingThePlayer = watching(ro.instances, player);
       // The player wrapper, not some ancestor: an observer on the page
       // would fire for reasons that have nothing to do with the video.
-      expect(watchingThePlayer.length).toBeGreaterThan(0);
+      //
+      // Declared, not a lower bound. Two hooks point an observer at this
+      // wrapper — `useSheetHalfSnap` and `useCompanionMetrics`'s rail
+      // observer — and `watching` counts every instance ever built at
+      // it, released ones included, so the number is a property of this
+      // page rather than of this hook. A `>= 1` here stays green when
+      // the hook under test stops observing the wrapper at all, which is
+      // the failure the line exists to catch.
+      expect(watchingThePlayer.length).toBe(3);
 
       stubPlayerBox(PLAYER_BOTTOM * 1.5);
       act(() => {
@@ -1144,7 +1248,11 @@ describe("the sheet's half, derived from the player", () => {
         watching(ro.instances, player).filter((i) => !i.disconnected).length;
       const built = () => watching(ro.instances, player).length;
       const liveAtRest = live();
-      expect(liveAtRest).toBeGreaterThan(0);
+      // Declared for the same reason as the count above, and a different
+      // number because this one is live rather than built: of the three
+      // instances pointed at this wrapper, one has already been released
+      // by the effect that built it re-running.
+      expect(liveAtRest).toBe(2);
 
       // A viewport change re-runs the effect, which is the commonest way
       // a second observer is built on the same still-mounted page.
@@ -1213,33 +1321,31 @@ describe("the sheet's half, derived from the player", () => {
    * One case per channel, through `eachChannel`, rather than one case
    * walking them: measured, with that same `key` in the tree, a walk cut
    * to a single channel left the whole suite green because nothing
-   * compared the channels that ran against the ones declared. The
-   * `ResizeObserver` is the fourth channel and cannot be fired off the
-   * window, so it has its own case below.
+   * compared the channels that ran against the ones declared — and
+   * measured again, one round later, with every case firing `resize`
+   * under its own name, which is why `eachChannel` now watches the
+   * target as well as the register. The `ResizeObserver` is the fourth
+   * channel and cannot be fired off the window, so it has its own case
+   * below.
    */
-  eachChannel(CHANNEL_GROUPS[1], async (channel) => {
-    const vv = stubVisualViewport();
-    try {
-      stubPlayerBox(PLAYER_BOTTOM);
-      await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
-      const player = screen.getByTestId("file-preview");
+  eachChannel(CHANNEL_GROUPS[1], async (channel, vvTarget) => {
+    stubPlayerBox(PLAYER_BOTTOM);
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+    const player = screen.getByTestId("file-preview");
 
-      // The raise itself, which re-renders this subtree for its own
-      // reason and so has to hold before the channel is fired at all.
-      await openSheet();
-      expect(screen.getByTestId("file-preview")).toBe(player);
+    // The raise itself, which re-renders this subtree for its own
+    // reason and so has to hold before the channel is fired at all.
+    await openSheet();
+    expect(screen.getByTestId("file-preview")).toBe(player);
 
-      setViewportHeight(window.innerHeight + 1);
-      act(() => {
-        channel.fire(vv.target);
-      });
-      expect(screen.getByTestId("file-preview")).toBe(player);
-    } finally {
-      vv.restore();
-    }
+    setViewportHeight(window.innerHeight + 1);
+    act(() => {
+      channel.fire(vvTarget);
+    });
+    expect(screen.getByTestId("file-preview")).toBe(player);
   });
 
-  it("keeps the player element when the player's own box changes", async () => {
+  resizeObserverCase(RESIZE_OBSERVER_CASES[1], async () => {
     const ro = stubResizeObserver();
     try {
       stubPlayerBox(PLAYER_BOTTOM);
@@ -1251,12 +1357,11 @@ describe("the sheet's half, derived from the player", () => {
       await openSheet();
 
       const watchers = watching(ro.instances, wrapper);
-      // More than one hook on this page observes this wrapper, so this
-      // does not pin the sheet's own observer — what it pins is that the
-      // loop below fires something at all. With nothing watching the
-      // wrapper the leg asserts an identity across an event that never
-      // happened.
-      expect(watchers.length).toBeGreaterThan(0);
+      // Declared rather than bounded below, for the reason the sibling
+      // case above gives: `>= 1` cannot tell "the sheet's observer went"
+      // from "somebody else's is still there", and it is the exact line
+      // that let an observer moved off this wrapper survive.
+      expect(watchers.length).toBe(3);
 
       stubPlayerBox(PLAYER_BOTTOM * 1.2);
       act(() => {
@@ -1273,11 +1378,18 @@ describe("the sheet's half, derived from the player", () => {
     // recomputed from the two declarations rather than read off the
     // register — so a `slice` in either loop is red, and so is dropping
     // a group.
+    //
+    // What this cannot see is which channel each case fired; the
+    // register is built from the same declarations it is compared
+    // against. That is asserted inside each case instead, against a
+    // listener on the target (`recordDispatches`).
     expect(registeredChannelCases).toEqual(
       CHANNEL_GROUPS.flatMap((group) =>
         VIEWPORT_CHANNELS.map((c) => channelCaseId(group, c.what)),
       ),
     );
+    // And the fourth channel's two, which are hand-written.
+    expect(registeredResizeObserverCases).toEqual([...RESIZE_OBSERVER_CASES]);
   });
 });
 

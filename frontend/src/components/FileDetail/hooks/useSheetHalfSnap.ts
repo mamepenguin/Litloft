@@ -32,16 +32,28 @@ import { useViewportHeight } from "@/hooks/useViewportHeight";
  * which is the canvas's sibling, and `MediaShell.test.tsx` pins the
  * player's element identity across every one of these channels.
  *
- * The player is `position: sticky; top: 0` inside the canvas on a phone
- * (`globals.css`, `[data-sheet-snap] .media-detail-player`), and the
- * stylesheet takes the host's top padding off on that surface so the
- * wrapper starts at the scrollport's own top edge. It therefore has
- * nowhere to travel before it pins: its bottom edge is the same viewport
- * coordinate however far the page has been scrolled, which is what makes
- * one measurement good for the whole of a scroll rather than only for
- * the top of it. With that padding back the wrapper drifts by it, and a
- * measurement taken while scrolled would put the sheet's top edge that
- * far over the player once the reader scrolled back.
+ * **The snap is solved once and held for the whole of a scroll**, so
+ * what it needs from the player is that measuring it later would not
+ * give a different answer. The player is `position: sticky; top: 0`
+ * inside the canvas on a phone (`globals.css`,
+ * `[data-sheet-snap] .media-detail-player`), and the stylesheet takes
+ * the host's top padding off on that surface so the wrapper starts at
+ * the scrollport's own top edge — it has nowhere to travel *before* it
+ * pins, which is the drift that would matter. With that padding back the
+ * wrapper starts that far down and a measurement taken while scrolled
+ * would put the sheet's top edge that far over the player once the
+ * reader scrolled back.
+ *
+ * It is not motionless, though. Sticky travels only inside its
+ * containing block, so a player taller than the canvas can show is
+ * pulled up with the page's last line at the end of a scroll. The
+ * direction is what makes that safe: the edge only ever rises, so the
+ * room under it only ever grows, and a snap solved before the rise is a
+ * sheet that takes less room than it could rather than one reaching over
+ * the player. `e2e-layout/mobile-inspector-sheet.spec.ts` measures the
+ * travel and re-solves this arithmetic from the travelled edge at every
+ * viewport it draws, so a shape where the two answers actually diverge
+ * is red rather than silent.
  *
  * @param playerRef The player wrapper — `.media-detail-player`, which is
  *   the box that sticks, and therefore the box that has to stay clear.

@@ -1250,14 +1250,23 @@ div[data-citation-section-path]:not(tr) {
 /* The player starts at the scrollport's own top edge, so it has nowhere
    to travel before it pins.
 
-   The host's padding is what would give it that travel: the wrapper is
-   the host's first child, so a top padding puts it that far below the
+   **This follows the sticky rule above, and so has the same scope: every
+   phone file page with a canvas viewer.** `FileDetailCanvas` and
+   `MediaCanvas` are what draw this host, and each of them puts the
+   player wrapper inside it on every branch they return, so a top padding
+   here gives a sticky box travel in front of it wherever the rule
+   applies — two bottom edges, one before it pins and one after —
+   whether or not anything on the page reads them. The sheet's `half`
+   (`useSheetHalfSnap`) is one consumer of the pinned edge rather than
+   the reason for it: solved while scrolled and then scrolled back, its
+   top edge lands over the player by exactly this padding. Narrowing the
+   selector to the surfaces that hook runs on would leave the other
+   sticky wrappers with travel for no reason.
+
+   The mechanism, since the selector does not show it: the wrapper is the
+   host's first child, so a top padding puts it that far below the
    scrollport and `top: 0` only catches it once the reader has scrolled
-   past it. A sticky box with travel in front of it has two bottom edges
-   — one before it pins and one after — and the sheet's `half` is solved
-   from whichever of them was current when it was measured
-   (`useSheetHalfSnap`). Measured while scrolled and then scrolled back,
-   the sheet's top edge lands over the player by exactly this padding.
+   past it.
 
    Zero here rather than a smaller value: the video against the page row
    is the arrangement a sticky player wants, and any non-zero amount is

@@ -123,10 +123,13 @@ const ITEM_COUNTS = [1, 7, 14];
  * Recorded **after** the `test()` it claims, not before. Recorded first, a
  * `continue` between the two lines drops the registration and leaves the
  * record — measured at 198 browser cases falling to 196 passed, 0 failed,
- * with the guard below still green. Recorded last, anything that skips the
- * push has already skipped the `test()`, and anything that skips the
- * `test()` skips the push. Same order as
- * `mobile-inspector-sheet.spec.ts`'s `eachCase`.
+ * with the guard below still green. Recorded last, a skipped push leaves
+ * this array short of the declarations and the guard red, and anything
+ * that skips the `test()` takes its push with it: two directions caught
+ * by two different halves, not by one impossibility — a `continue`
+ * between the `test()` and the push really does skip only the push, and
+ * is caught by the disagreement rather than being unreachable. Same order
+ * as `mobile-inspector-sheet.spec.ts`'s `eachCase`.
  *
  * Its honest limit is unchanged and is the sibling fixture's too
  * (`justified-grid.spec.ts`, "is exactly the set this file tests"): the

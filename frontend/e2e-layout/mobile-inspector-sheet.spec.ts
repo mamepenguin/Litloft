@@ -245,21 +245,55 @@ type Case = (typeof CASES)[number];
  * `continue`, a `throw` or a conditional between the two lines drops the
  * registration and leaves the record — measured, in the version this
  * replaces, at 45 browser cases lost with the guard still green. Recorded
- * last, anything that skips the push has already skipped the `test()`,
- * and anything that skips the `test()` skips the push. The guard at the
- * bottom of the file compares this array against the cross product of the
- * group lists and the case lists, recomputed from the declarations rather
- * than from the array itself, so the expected side does not move with the
- * loop.
+ * last, a skipped push leaves the register short of the declarations and
+ * the guard red, and anything that skips the `test()` takes its push with
+ * it — two directions caught by two different halves, not by one
+ * impossibility. The guard at the bottom of the file compares this array
+ * against the cross product of the group lists and the case lists,
+ * recomputed from the declarations rather than from the array itself, so
+ * the expected side does not move with the loop.
  *
- * What it still cannot see is `test.skip` in place of `test`, which
- * registers a case that does not run. Nothing in a register can: the
- * runner's own report is where that shows.
+ * What a register cannot see at all is which case a body was actually
+ * handed: both of its sides come from the same declarations, so a helper
+ * passing every body the same case keeps every name and every record.
+ * That is why both helpers below end by reading what the page was
+ * actually driven to and comparing it against the case they registered.
+ *
+ * What neither can see is `test.skip` in place of `test`, which
+ * registers a case that does not run. The runner's own report is where
+ * that shows.
  */
 const registered: string[] = [];
 
 const caseKey = (c: Case) => `${c.width}x${c.height} at ${c.sLabel}`;
 const caseId = (group: string, c: Case) => `${group} — ${caseKey(c)}`;
+
+/**
+ * The case a body was actually driven at, read back off the browser.
+ *
+ * The viewport is Chromium's own `innerWidth` / `innerHeight` rather
+ * than Playwright's record of what was asked for, and the snap is the
+ * variable the fixture wrote on the drawer it last built. Every body in
+ * this file builds at its case's own snap — the ones that build twice
+ * build twice at it — so the last sheet standing is the case's.
+ */
+async function droveViewport(
+  page: import("@playwright/test").Page,
+): Promise<{ width: number; height: number; snap: number }> {
+  return page.evaluate(() => {
+    const drawer = document.querySelector<HTMLElement>(
+      "[data-testid='mobile-inspector-sheet']",
+    )!;
+    const offset = Number.parseFloat(
+      getComputedStyle(drawer).getPropertyValue("--snap-point-height"),
+    );
+    return {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      snap: 1 - offset / window.innerHeight,
+    };
+  });
+}
 
 function eachCase(
   group: string,
@@ -270,6 +304,16 @@ function eachCase(
       page,
     }) => {
       await body(page, c);
+
+      // What the body drove, against what it was registered for. The
+      // register above cannot ask this — it is built from the same two
+      // declarations it is compared against — so a helper handing every
+      // body `CASES[0]` collapses ten cases onto one with every name and
+      // every record intact.
+      const drove = await droveViewport(page);
+      expect(drove.width).toBe(c.width);
+      expect(drove.height).toBe(c.height);
+      expect(drove.snap).toBeCloseTo(c.snap, 3);
     });
     registered.push(caseId(group, c));
   }
@@ -626,16 +670,30 @@ expect(PLAYER_CASES.filter((c) => c.outcome === "capped")).toHaveLength(5);
 expect(PLAYER_CASES.filter((c) => c.outcome === "fallback")).toHaveLength(1);
 
 /**
- * The cases where the player is pulled up at the end of the scroll.
+ * The cases where the player is pulled up at the end of the scroll, and
+ * by how far.
  *
  * Sticky travels only inside its containing block, so a player taller
  * than what the canvas can show is dragged up by the page's last line.
  * Declared rather than derived from the outcome: it is a different
  * condition from either bound — the canvas's own visible height against
  * the player's — and the two only happen to coincide on this list.
+ *
+ * **The distance is declared too, not just the direction.** A
+ * `toBeLessThan` is satisfied by one pixel of travel as readily as by
+ * the whole player, and the whole reason the travel is harmless is a
+ * magnitude: the room it opens under the player stays below the floor
+ * beneath which `halfSnapUnderPlayer` hands back the fixed fraction, so
+ * the snap solved at the top of the page is still the snap the bottom of
+ * the page would have produced. That is asserted directly below as well
+ * — a bound that moves with the viewport and the player rather than with
+ * this table — but a bare direction here would let the number this file
+ * measures move to anything at all in silence.
  */
-const TRAVELS = ["667x375 × a framed player"];
-expect(TRAVELS).toHaveLength(1);
+const TRAVEL_PX: Record<string, number> = {
+  "667x375 × a framed player": 88,
+};
+expect(Object.keys(TRAVEL_PX)).toHaveLength(1);
 
 /**
  * A phone's URL bar, as an input.
@@ -672,6 +730,33 @@ function eachPlayerCase(
       page,
     }) => {
       await body(page, c);
+
+      // The page the body actually drew, against the case it was
+      // registered for — the viewport from Chromium and the player's
+      // kind from the element the fixture built. A `PlayerCase` is a
+      // viewport crossed with a player, so those two readings name it
+      // completely: handing every body `PLAYER_CASES[0]` would collapse
+      // all forty onto one page and leave the register untouched, and
+      // every row of this file's measurements with it.
+      //
+      // The snap is not read here, unlike `eachCase`: these groups build
+      // deliberately at `full` and at the fixed fraction as well as at
+      // the derived snap, so the last sheet standing is not the case's.
+      const drove = await page.evaluate(() => {
+        const player = document.querySelector<HTMLElement>(
+          "[data-testid='media-detail-player']",
+        )!;
+        return {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          framed: player.dataset.framed === "true",
+        };
+      });
+      expect(drove).toEqual({
+        width: c.width,
+        height: c.height,
+        framed: c.framed,
+      });
     });
     registered.push(playerCaseId(group, c));
   }
@@ -841,13 +926,31 @@ test.describe(PLAYER_GROUPS[1], () => {
       scrollCanvasTo: TO_THE_END,
     });
 
-    if (TRAVELS.includes(playerKey(c.width, c.height, c.pLabel))) {
+    const travel = TRAVEL_PX[playerKey(c.width, c.height, c.pLabel)];
+    if (travel !== undefined) {
       // Bounded by its containing block: a player taller than what the
-      // canvas can show is pulled up with the page's last line.
-      expect(scrolled.playerBottom).toBeLessThan(top.playerBottom);
+      // canvas can show is pulled up with the page's last line, by this
+      // much and not merely upwards.
+      expect(top.playerBottom - scrolled.playerBottom).toBeCloseTo(travel, 0);
     } else {
       expect(scrolled.playerBottom).toBeCloseTo(top.playerBottom, 0);
     }
+
+    // **The hazard itself**, which neither branch above reaches: the app
+    // solves `half` once, at the top of the page, and goes on holding
+    // that number for the whole of a scroll. So the question is not how
+    // far the edge moved but whether the edge it moved to would have
+    // produced a different snap — and where it would not, the number in
+    // force is not stale in any way a reader can see. On the travelling
+    // pair this is the arithmetic that makes 88px harmless, stated where
+    // a viewport or a player shape that lifted the room over the floor
+    // would be red instead of silent.
+    expect(
+      halfSnapUnderPlayer({
+        viewportHeight: c.height,
+        playerBottom: scrolled.playerBottom,
+      }) ?? SHEET_SNAP_HALF_FALLBACK,
+    ).toBeCloseTo(top.derived, 5);
 
     await expectSheetUnderPlayer(page, c, { m: scrolled.m });
   });
