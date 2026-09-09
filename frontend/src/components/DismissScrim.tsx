@@ -90,9 +90,14 @@ export const DISMISS_SCRIM_ATTR = "data-dismiss-scrim";
  *
  * The arming press is compared by identity rather than counted, so
  * arming from inside that press's own dispatch cannot abandon itself.
- * (The DOM copies a node's listener list before invoking it, so a
- * listener added during dispatch does not run for that event — this does
- * not rely on that.)
+ *
+ * That is belt and braces, and the braces cannot be observed: the DOM
+ * copies a node's listener list before invoking it, so a listener added
+ * during a dispatch never runs for that dispatch, and no input can tell
+ * the two apart. Deleting the identity comparison leaves every test in
+ * this repository green — not a gap in coverage, a redundancy by
+ * construction. It stays because it is one comparison and it says what
+ * the code means; nothing here claims it is load-bearing.
  */
 let disarm: (() => void) | null = null;
 

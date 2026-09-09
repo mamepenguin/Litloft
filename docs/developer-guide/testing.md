@@ -486,6 +486,17 @@ and a loop toggle that one test switches off and the next expects on. The
 fix is never to reorder; it is to give the block its own setup, or to clear
 the store in `beforeEach`.
 
+The third one this job found was not `localStorage`, and it did not take a
+per-block fix: it was module-scope state inside a component
+(`DismissScrim`'s press-in-flight and armed click-swallow), reached by a
+test that pressed without lifting. State a component keeps for the life of
+a file cannot be cleared by the block that happens to notice — every file
+that renders it is exposed — so it is ended centrally instead, by the
+`pointercancel` the *Library constraints* list above describes. Read that
+bullet before writing a `beforeEach` for anything of this shape; a per-file
+copy of it was deliberately removed, because the file that keeps one is the
+file that cannot notice the shared clean-up disappearing.
+
 The `frontend (shuffled order)` CI job runs this on every pull request so
 the next one does not have to be found by hand.
 

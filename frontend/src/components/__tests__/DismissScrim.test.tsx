@@ -183,6 +183,11 @@ describe("DismissScrim", () => {
     // path. Its own killer used to be `ContextMenu`'s row-click, by
     // accident; the harness now abandons every armed swallow between
     // tests, so that accident is gone and this is what is left.
+    //
+    // What it holds: that the listener is registered, and on which event.
+    // What it does not: the identity check inside it, which is redundant
+    // with the DOM's own listener-list copy and cannot be distinguished
+    // from it by any input — see `swallowTheClickThisPressProduces`.
     const page = pageUnderneath();
     function Caller(): React.ReactElement {
       const [open, setOpen] = useState(true);
