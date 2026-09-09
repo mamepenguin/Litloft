@@ -12,6 +12,8 @@
     "refresh": "Refresh",
     "seeAll": "See all",
     "seeAllCount": "See all ({count})",
+    "showMoreCount": "Show more ({count})",
+    "showLess": "Show less",
     "download": "Download",
     "rename": "Rename",
     "move": "Move",

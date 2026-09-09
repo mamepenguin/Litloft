@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Folder, History, Clock, Star, ThumbsUp, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, Folder as FolderType, PaginatedResponse, WatchHistoryItem } from "@/types";
@@ -37,13 +36,72 @@ interface SectionState {
    *
    * `getDriveFiles` returns it in `meta.total` and the row shows at most
    * `SECTION_LIMIT` of them, so this is the only thing that can say how
-   * much is past the edge. `undefined` while loading, and after a failed
-   * fetch — where it is moot, since a row with no files does not render.
-   * `CarouselSection` falls back to an unqualified "See all" either way,
-   * rather than claiming a number it does not have.
+   * much is past the edge. `undefined` while loading, and after a fetch
+   * that failed with nothing already in the row — where it is moot, since
+   * a row with no files does not render. A fetch that fails over a row
+   * that has files keeps that row's own total rather than dropping it.
+   * `CarouselSection` falls back to an unqualified "See all" when it is
+   * absent, rather than claiming a number it does not have.
    */
   total?: number;
   loading: boolean;
+}
+
+/**
+ * The identity every response on this page carries: **which drive it was
+ * made for, and which request made it.** Both, because they answer
+ * different questions and each leaves a case open on its own.
+ *
+ * The drive alone cannot separate two visits to one drive.
+ * `/drive/[name]` renders this component with no `key`, so one instance
+ * survives A → B → A and the first visit's request settles on the third
+ * render still naming the drive in front of you.
+ *
+ * The request alone cannot catch a callback captured on one drive and
+ * invoked after the page has moved. `handleCreateFolder` awaits
+ * `createFolder`, then calls a `refreshFolders` still closed over the
+ * drive it was armed on: that issues a **brand-new** `getFolders` for the
+ * drive that was left, which mints the newest id and so passes any test
+ * of "is this the latest request". `useFolderCardRename`'s commit, the
+ * drag `onComplete`, `FolderContextMenu`'s `onUpdate` and `onFileAction`
+ * on the carousels and the file listing all have that shape.
+ *
+ * The identity travels with the response rather than being read where the
+ * response is applied, so a caller added later has nothing to remember:
+ * neither `applyFileSections` nor `applyFolders` can be reached without a
+ * batch, and a batch cannot be built without both fields.
+ */
+interface ResponseIdentity {
+  /** The drive the request was made for, read off the closure that made it. */
+  drive: string;
+  requestId: number;
+}
+
+/**
+ * One `getDriveFiles` batch.
+ *
+ * The entrances are the page's fetch effect; `refetchAllSections` as
+ * `onFileAction` on each of the three carousels and on the file
+ * listing; and `refetchAllSections` inside `refreshPage`, which the
+ * WebSocket subscription below fires with no user action at all.
+ *
+ * `Promise.allSettled` means this resolves even when every request in it
+ * failed, so "the batch arrived" is not "the batch delivered anything" —
+ * see `applyFileSections`.
+ */
+interface FileSectionsBatch extends ResponseIdentity {
+  results: PromiseSettledResult<PaginatedResponse>[];
+}
+
+/**
+ * One `getFolders` response.
+ *
+ * `folders` is `null` when the request failed, which leaves the grid
+ * holding what it had — the same outcome the swallowed error had
+ * before, now expressed as a response rather than as an early return.
+ */
+interface FoldersBatch extends ResponseIdentity {
+  folders: FolderType[] | null;
 }
 
 const SECTION_LIMIT = 12;
@@ -64,6 +122,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const [liked, setLiked] = useState<SectionState>({ files: [], loading: true });
   const [folders, setFolders] = useState<FolderType[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
+  const [foldersExpanded, setFoldersExpanded] = useState(false);
+  const folderGridId = useId();
   const [pinnedPaths, setPinnedPaths] = useState<Set<string>>(new Set());
   const [menuTarget, setMenuTarget] = useState<FolderType | null>(null);
   const { ref: folderGridRef, columns } = useCardColumns();
@@ -72,15 +132,77 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const emptySelection = useMemo(() => new Set<string>(), []);
   const refreshTree = useTreeRefresh();
 
-  const refreshFolders = useCallback(async () => {
+  // The drive the page is showing, as opposed to the drive any given
+  // request was made for. Read only after an `await`, so the effect that
+  // maintains it has always run by then.
+  const shownDriveRef = useRef(driveName);
+  useEffect(() => {
+    shownDriveRef.current = driveName;
+  }, [driveName]);
+
+  // Which request each of this page's streams of responses is waiting on.
+  // `++ref.current` mints the id of a new request; the `applied` ref
+  // beside it records the id of the last response that actually wrote
+  // something.
+  //
+  // **Newest applied, not newest dispatched.** Dropping everything that
+  // is not the newest request in flight means a refresh cancels the page
+  // load's own fetch before anyone knows whether the refresh will deliver
+  // — and when it does not, the good response is already gone and nothing
+  // re-requests it. For the grid that ends at `foldersLoading === false`
+  // with `folders === []`, which the section's render gate reads as "this
+  // drive has no folders" and removes the section outright; for the rows
+  // it leaves all three empty for the rest of the visit. Comparing
+  // against what has landed instead means a superseded request can be
+  // briefly visible but can never be the last word, and a request that
+  // delivers nothing takes nothing with it.
+  //
+  // Same pattern as `useInfiniteScroll`'s `fetchIdRef`, with that one
+  // difference. The streams are separate because they are separate
+  // resources: a folder refresh must not supersede a row refetch that the
+  // same WebSocket event started.
+  const fileSectionsRequestRef = useRef(0);
+  const fileSectionsAppliedRef = useRef(0);
+  const foldersRequestRef = useRef(0);
+  const foldersAppliedRef = useRef(0);
+  // Bumped by the fetch effect alone. The pin set and the watch rows
+  // are read only there, so a page load is the unit of identity for
+  // them, and `handleTogglePin` — which updates the set it fetched
+  // rather than replacing it — is answering that same load.
+  const pageLoadRef = useRef(0);
+
+  const applyFolders = useCallback((batch: FoldersBatch) => {
+    if (batch.drive !== shownDriveRef.current) return;
+    if (batch.requestId < foldersAppliedRef.current) return;
+    // A failed request leaves the grid holding what it had, and leaves
+    // the stream to whatever is still in flight — which is why this
+    // returns before claiming the stream rather than after.
+    //
+    // "What it had" is this drive's list and nothing else, because the
+    // reset effect empties `folders` when the drive changes — not the
+    // fetch effect, which also runs when the nickname settles. That is
+    // the scoping, and it is in the state rather than here: this branch
+    // is reached with the drive already checked, but a *check* is what
+    // the previous five rounds each had one of.
+    if (batch.folders === null) return;
+    foldersAppliedRef.current = batch.requestId;
+    setFolders(batch.folders);
+  }, []);
+
+  const fetchFolders = useCallback(async (): Promise<FoldersBatch> => {
+    const requestId = ++foldersRequestRef.current;
+    const drive = driveName;
     try {
-      const updated = await getFolders(driveName);
-      setFolders(updated);
+      return { drive, requestId, folders: await getFolders(drive) };
     } catch {
-      // ignore
+      return { drive, requestId, folders: null };
     }
+  }, [driveName]);
+
+  const refreshFolders = useCallback(async () => {
+    applyFolders(await fetchFolders());
     refreshTree();
-  }, [driveName, refreshTree]);
+  }, [applyFolders, fetchFolders, refreshTree]);
 
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -107,12 +229,31 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       return;
     }
     setFolderError(null);
+
+    // A guard, not a reset, and it guards on the **drive**.
+    //
+    // The reset effect above blanks this field when the drive changes,
+    // which scopes every synchronous writer — including the two
+    // `setFolderError` calls a few lines up. What it cannot scope is
+    // this continuation: it lands after that reset, when the field
+    // legitimately holds the next drive's half-typed name, so closing it
+    // or writing an error into it there would take something that
+    // belongs to the drive in front of you.
+    //
+    // `shownDriveRef`, not `pageLoadRef`. The page-load id bumps for
+    // every dependency the fetch effect has — `nickname` among them — so
+    // it says "something re-fetched", not "the drive changed", and
+    // gating on it suppressed a create's own outcome on the drive it was
+    // made for. The condition this needs is the drive, and that is what
+    // it now asks.
     try {
       await createFolder(driveName, "", name);
-      cancelCreateFolder();
+      if (shownDriveRef.current === driveName) cancelCreateFolder();
+      // Not gated: the grid answers to its own request identity, and the
+      // tree below it should learn about the folder either way.
       await refreshFolders();
     } catch {
-      setFolderError(tf("createFailed"));
+      if (shownDriveRef.current === driveName) setFolderError(tf("createFailed"));
     }
   }, [newFolderName, tf, driveName, cancelCreateFolder, refreshFolders]);
 
@@ -149,34 +290,169 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     },
   });
 
-  const applyFileSections = useCallback((results: PromiseSettledResult<PaginatedResponse>[]) => {
-    const section = (result: PromiseSettledResult<PaginatedResponse>): SectionState =>
+  const applyFileSections = useCallback((batch: FileSectionsBatch) => {
+    // The guard sits here rather than in each caller: this is where a
+    // response becomes what the page shows, and a batch cannot reach it
+    // without carrying both halves of its identity.
+    if (batch.drive !== shownDriveRef.current) return;
+    if (batch.requestId < fileSectionsAppliedRef.current) return;
+
+    const { results } = batch;
+
+    // `Promise.allSettled` resolves even when all three requests failed,
+    // so a batch arriving is not a batch delivering. One that delivered
+    // nothing still clears the skeleton — a first load that fails must
+    // not leave it spinning — but it must not claim the stream, or it
+    // would discard the response still in flight that can.
+    if (results.some((result) => result.status === "fulfilled")) {
+      fileSectionsAppliedRef.current = batch.requestId;
+    }
+    // A failed request leaves the row holding what it had, the same way a
+    // failed `getFolders` leaves the grid holding its list. Writing an
+    // empty row instead would let a refresh that delivered nothing erase
+    // one that did — on the first load there is nothing to keep, so the
+    // row still ends up empty and out of the skeleton.
+    const section = (
+      result: PromiseSettledResult<PaginatedResponse>,
+      previous: SectionState,
+    ): SectionState =>
       result.status === "fulfilled"
         ? {
             files: result.value.data,
             total: result.value.meta.total,
             loading: false,
           }
-        : { files: [], loading: false };
+        : { ...previous, loading: false };
 
-    setRecent(section(results[0]));
-    setFavorites(section(results[1]));
-    setLiked(section(results[2]));
+    setRecent((previous) => section(results[0], previous));
+    setFavorites((previous) => section(results[1], previous));
+    setLiked((previous) => section(results[2], previous));
   }, []);
 
-  const fetchFileSections = useCallback((): Promise<PromiseSettledResult<PaginatedResponse>[]> => {
-    return Promise.allSettled([
-      getDriveFiles(driveName, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-      getDriveFiles(driveName, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-      getDriveFiles(driveName, { liked: true, sort: "liked_at", order: "desc", limit: SECTION_LIMIT }),
+  const fetchFileSections = useCallback(async (): Promise<FileSectionsBatch> => {
+    const requestId = ++fileSectionsRequestRef.current;
+    const drive = driveName;
+    const results = await Promise.allSettled([
+      getDriveFiles(drive, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(drive, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(drive, { liked: true, sort: "liked_at", order: "desc", limit: SECTION_LIMIT }),
     ]);
+    return { drive, requestId, results };
   }, [driveName]);
+
+  /**
+   * The drive-owned state this effect drops when the drive changes.
+   *
+   * Enumerated rather than described as "everything", because it is not
+   * everything and a claim of completeness here is what sent the last
+   * round looking in the wrong place:
+   *
+   * - `folders` — the grid would otherwise draw the previous drive's
+   *   cards the moment `foldersLoading` cleared.
+   * - `foldersExpanded` — one drive's expansion would decide how the
+   *   next one opens.
+   * - the create field (`creatingFolder` / `newFolderName` /
+   *   `folderError`) — it would otherwise arrive holding a name typed
+   *   somewhere else, or an "Invalid folder name" raised there.
+   * - `menuTarget` and the context menu's open state — the menu would
+   *   stay open over a folder the page has left (measured: it does), and
+   *   `useContextMenu`'s 500 ms long-press timer is not cancelled on a
+   *   drive change, so one begun before the navigation can reopen it
+   *   after.
+   *
+   *   `FolderContextMenu` draws nothing unless *both* are set, and of the
+   *   two lines only `setMenuTarget(null)` is independently observable:
+   *   with the target gone the menu is already inert, so deleting
+   *   `closeFolderMenu()` on its own changes nothing on screen and no
+   *   case fails (measured — it is a declared survivor). It stays because
+   *   leaving `useContextMenu` resting "open" across a drive it is not
+   *   about is a state no reader of `folderMenuState.open` alone should
+   *   have to know is a lie.
+   *
+   * **What this effect does not cover**, and why it is not a hole this
+   * PR opened — each measured against `origin/develop` and reproducing
+   * there:
+   *
+   * - `recent` / `favorites` / `liked` are blanked by the fetch effect,
+   *   which also runs when the nickname settles, so a failing re-fetch
+   *   empties them for the rest of the visit.
+   * - `rename.error` (`useFolderCardRename`) is announced above this
+   *   drive's grid for up to its 3 s TTL after being raised on another.
+   * - `rename.editingPath` *is* dropped on a drive change, by two
+   *   mechanisms that each cover it on their own: `setFolders([])` here
+   *   empties the grid, and the fetch effect's `setFoldersLoading(true)`
+   *   swaps it for the skeleton branch. Either unmounts the card, and
+   *   `InlineNameEditor`'s cleanup then cancels the edit.
+   *
+   *   Because they are redundant, deleting one and watching the edit
+   *   still drop says nothing about which carries it — the other was
+   *   standing. Separating them takes the complement: neutralise one
+   *   side with the other left in place, each way round. Both hold, and
+   *   only removing both lets an edit begun on one drive reopen on a card
+   *   of the same path on the next.
+   *
+   *   What is *not* redundant is which of them runs when the drive does
+   *   not change: this effect is keyed on `driveName` and does not, the
+   *   fetch effect does. So an in-progress rename is cancelled by any
+   *   re-run of that effect — a nickname settling included — and that is
+   *   the fetch effect's alone. It is a behaviour the follow-up unit that
+   *   owns rename state should decide about rather than inherit.
+   *
+   *   No case in either suite starts a rename, so nothing here is held by
+   *   a test. It is measured; the runs are in the PR body.
+   * - `pinnedPaths` has two writers: the fetch effect's tail, and
+   *   `handleTogglePin`. The tail lands in the same React commit as
+   *   `applyFolders` and `setFoldersLoading(false)`, so no frame draws
+   *   this drive's grid against the previous drive's pins; the second
+   *   writer can land at any time, and what keeps *it* off the wrong
+   *   drive is its own `shownDriveRef` check below, not the batching.
+   *   Note also that the tail **replaces** the set rather than merging
+   *   into it, so a pin applied just before it arrives is overwritten by
+   *   the pre-pin set the request was dispatched with — reproduces on
+   *   `origin/develop`, and written up as F-3 in the PR body.
+   *
+   * **This is the scoping, and it is one place rather than one check per
+   * writer.** Six rounds of this component closed six separate paths
+   * into `folders`, each one a call site that had to remember to ask "is
+   * this response still wanted?", and the seventh was found in the
+   * failure branch of the guard written for the sixth. A reset cannot be
+   * reopened by a call site added later, because the call site is not
+   * where it lives.
+   *
+   * It is keyed on `driveName` alone, unlike the fetch effect below,
+   * which also re-runs when the nickname settles. Declared before that
+   * effect by convention rather than by necessity: the fetch effect
+   * reads none of the state above on the path that issues a request, and
+   * both run in one flush, so moving this one after it changes nothing
+   * observable (measured).
+   *
+   * What it cannot scope is a write that lands *after* it: a create
+   * still in flight when the drive changes settles later, when the field
+   * legitimately holds the next drive's half-typed name. That one is a
+   * guard, in `handleCreateFolder`.
+   */
+  useEffect(() => {
+    setFolders([]);
+    setFoldersExpanded(false);
+    cancelCreateFolder();
+    setMenuTarget(null);
+    closeFolderMenu();
+  }, [driveName, cancelCreateFolder, closeFolderMenu]);
 
   useEffect(() => {
     const fetchAll = async () => {
+      const pageLoadId = ++pageLoadRef.current;
       setRecent({ files: [], loading: true });
       setFavorites({ files: [], loading: true });
       setLiked({ files: [], loading: true });
+      // `folders` is *not* emptied here. This effect re-runs for reasons
+      // that are not a drive change — `hasProfile` and `nickname` are in
+      // its dependencies, and `ProfileProvider` reports `null` on the
+      // first pass and the cookie on the second, so a profiled user's
+      // hard load runs it twice on one drive. Emptying the list on those
+      // runs and then failing the re-fetch is how the Folders section
+      // disappears from a drive that has folders. The clear belongs to
+      // the drive, and lives in the reset effect above.
       setFoldersLoading(true);
       if (hasProfile) {
         setContinueWatchingLoading(true);
@@ -184,14 +460,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       }
 
       const promises: [
-        Promise<PromiseSettledResult<PaginatedResponse>[]>,
-        Promise<FolderType[]>,
+        Promise<FileSectionsBatch>,
+        Promise<FoldersBatch>,
         Promise<{ path: string }[]>,
         Promise<WatchHistoryItem[]> | null,
         Promise<WatchHistoryItem[]> | null,
       ] = [
         fetchFileSections(),
-        getFolders(driveName).catch(() => [] as FolderType[]),
+        fetchFolders(),
         getPins(driveName).catch(() => [] as { path: string }[]),
         hasProfile ? getWatchHistory(driveName, SECTION_LIMIT).catch(() => [] as WatchHistoryItem[]) : null,
         hasProfile ? getWatchHistory(driveName, SECTION_LIMIT, "all").catch(() => [] as WatchHistoryItem[]) : null,
@@ -205,9 +481,15 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         promises[4] ?? Promise.resolve([] as WatchHistoryItem[]),
       ]);
 
+      // The rows and the grid answer to their own requests, so they are
+      // applied whether or not this page load is still the current one.
       applyFileSections(fileResults);
+      applyFolders(foldersResult);
 
-      setFolders(foldersResult);
+      // The rest is fetched only here, so this page load is what it
+      // answers to.
+      if (pageLoadRef.current !== pageLoadId) return;
+
       setFoldersLoading(false);
       setPinnedPaths(new Set(pinsResult.map((p) => p.path)));
       if (hasProfile) {
@@ -219,22 +501,38 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     };
 
     fetchAll();
-  }, [driveName, fetchFileSections, applyFileSections, hasProfile, nickname]);
+  }, [driveName, fetchFileSections, applyFileSections, fetchFolders, applyFolders, hasProfile, nickname]);
 
   const handleTogglePin = useCallback(
     async (folderPath: string) => {
+      // The drive, not the page load. A pin path is drive-relative, so
+      // the same string is a different folder on the next drive, and
+      // that is the whole condition: this write is a *functional* update
+      // adding or deleting one path, so applying it to a set refetched
+      // in the meantime is idempotent, and the server really did perform
+      // it — applying it is more correct than dropping it.
+      //
+      // `pageLoadRef` bumps for every dependency the fetch effect has,
+      // `nickname` among them, so gating on it dropped a pin made on the
+      // drive in front of you whenever the nickname settled mid-request:
+      // the folder stayed marked unpinned and the page-load's own
+      // `getPins`, dispatched before the pin, did not repair it.
+      // Measured against `origin/develop`, where this write is
+      // unguarded: the pin lands there and does not here.
       try {
         const isPinned = pinnedPaths.has(folderPath);
         if (isPinned) {
           await removePin(driveName, folderPath);
-          setPinnedPaths((prev) => {
-            const next = new Set(prev);
-            next.delete(folderPath);
-            return next;
-          });
         } else {
           await addPin(driveName, folderPath);
-          setPinnedPaths((prev) => new Set(prev).add(folderPath));
+        }
+        if (shownDriveRef.current === driveName) {
+          setPinnedPaths((prev) => {
+            const next = new Set(prev);
+            if (isPinned) next.delete(folderPath);
+            else next.add(folderPath);
+            return next;
+          });
         }
         refreshSidebar();
       } catch {
@@ -245,13 +543,12 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   );
 
   const refetchAllSections = useCallback(async () => {
-    const results = await fetchFileSections();
-    applyFileSections(results);
+    applyFileSections(await fetchFileSections());
   }, [fetchFileSections, applyFileSections]);
 
   // Both halves of the page follow the drive: the folder grid *and* the
-  // Recently added / Favourites / Popular rows. Refreshing only the
-  // grid left the rows showing files that had been deleted or moved
+  // Recently Added / Favorites / Liked rows. Refreshing only the grid
+  // left the rows showing files that had been deleted or moved
   // elsewhere.
   //
   // `drive.file_updated` matters here because favouriting is a content
@@ -272,6 +569,27 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setContinueWatching((prev) => prev.filter((item) => item.id !== fileId));
     setRecentlyPlayed((prev) => prev.filter((item) => item.id !== fileId));
   }, []);
+
+  // The folders the grid has, which are none while it is drawing the
+  // skeleton.
+  //
+  // `folders` no longer survives a drive change — the reset effect drops
+  // it — so this mask is not what keeps the previous drive off the grid.
+  // What it is still for is the one way a list can be in state under a
+  // skeleton on *this* drive: an out-of-band refresh (a drag-and-drop, a
+  // WebSocket `drive.structure_changed`) settling while the page load's
+  // own fetch is still in flight. It also means a same-drive re-fetch
+  // draws the skeleton rather than the list it is about to replace,
+  // which is a consequence of masking rather than a reason for it.
+  //
+  // The control and the cards are counted from this one list, so the
+  // number in the label is the number of cards that appear, and a
+  // control that names the grid is only ever drawn beside a grid that
+  // exists. The control appears when the list is strictly longer than
+  // the cap.
+  const gridFolders = foldersLoading ? [] : folders;
+  const hiddenFolderCount = gridFolders.length - MAX_FOLDERS;
+  const visibleFolders = foldersExpanded ? gridFolders : gridFolders.slice(0, MAX_FOLDERS);
 
   const driveBase = `/drive/${encodeURIComponent(driveName)}`;
 
@@ -353,13 +671,22 @@ export function DriveHome({ driveName }: DriveHomeProps) {
               <Folder size={20} className="text-text-muted" />
               {t("folders")}
             </h2>
-            {folders.length > MAX_FOLDERS && (
-              <Link
-                href={`${driveBase}?view=all`}
-                className="text-sm text-text-muted transition-colors hover:text-text-primary"
+            {/* The rest of the grid is revealed here rather than behind
+                a link, because there is no drive-wide destination that
+                lists folders: `?view=all` is the flat every-file
+                listing and renders none. The sidebar offers that view
+                under its own name ("All Files"), where a flat listing
+                of files is what is being asked for. */}
+            {hiddenFolderCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setFoldersExpanded((expanded) => !expanded)}
+                aria-expanded={foldersExpanded}
+                aria-controls={folderGridId}
+                className="text-sm text-text-muted transition-colors hover:text-accent"
               >
-                {tc("seeAll")}
-              </Link>
+                {foldersExpanded ? tc("showLess") : tc("showMoreCount", { count: hiddenFolderCount })}
+              </button>
             )}
           </div>
 
@@ -392,11 +719,12 @@ export function DriveHome({ driveName }: DriveHomeProps) {
             </div>
           ) : (
             <div
+              id={folderGridId}
               ref={folderGridRef}
               className="grid gap-3"
               style={{ gridTemplateColumns: cardGridTemplate(columns) }}
             >
-              {folders.slice(0, MAX_FOLDERS).map((folder) => {
+              {visibleFolders.map((folder) => {
                 const disabled = isDropDisabled(folder.path);
                 return (
                   <FolderCard
