@@ -577,12 +577,19 @@ corrected in.
 - **Sizes**: `sm` `px-3 py-1.5 text-sm`, `md` `px-4 py-2 text-sm` (default), `lg`
   `px-5 py-2.5 text-sm`.
 - **A labelled button is sized by padding, never `h-*`**, so a Japanese label
-  that wraps grows it instead of being clipped. `iconOnly` is the exception: a
-  fixed `h-8 w-8` square.
+  that wraps grows it instead of being clipped — the coarse-pointer floor below
+  is a `min-h` for the same reason, raising a short box without capping a tall
+  one. `iconOnly` is the exception: a fixed `h-8 w-8` square.
 - **`iconOnly` requires `aria-label` in the type**, and the name must be
   entity-specific ("Delete Q1 notes", not "Delete").
-- **`iconOnly` grows the hit area on `pointer: coarse`** by the §Row Actions
-  recipe — the overhang, not the box.
+- **Every shape reaches the 44px touch floor on `pointer: coarse`, and no call
+  site adds it by hand.** Two mechanisms, because the two shapes are sized
+  differently: a labelled button takes `pointer-coarse:min-h-11`, and `iconOnly`
+  takes the §Row Actions overhang instead — the hit area, not the box, which
+  stays 32px at every pointer type. `buttonClass()` emits the same floor as a
+  labelled button, so a link and a button standing next to each other are the
+  same height. Both are gated on `coarse`: on a fine pointer each shape keeps
+  the size its padding gives it.
 - **Hover is written `enabled:hover:`.** A bare `hover:` repaints a *disabled*
   button under the cursor, which is the defect the Known gap above names for
   `disabled:hover:bg-accent`. Guarding it inside the variant means a call site

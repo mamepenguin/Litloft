@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Trash2 } from "lucide-react";
-import { Button, type ButtonVariant } from "../Button";
+import { Button, buttonClass, type ButtonSize, type ButtonVariant } from "../Button";
 
 const VARIANTS: ButtonVariant[] = [
   "primary",
@@ -308,6 +308,104 @@ describe("Button", () => {
       // @ts-expect-error - DESIGN.md §6 names five.
       const bad = <Button variant="tertiary">Save</Button>;
       expect(bad).toBeTruthy();
+    });
+  });
+
+  /**
+   * The 44px touch floor, and the parity of the two emitters that carry it.
+   *
+   * `Button` and `buttonClass()` are two implementations of one recipe — one
+   * builds a `<button>`'s class list, the other returns a string for an `<a>`
+   * — and they disagreed: the anchor recipe carried the floor and the
+   * component did not. Six call sites had written the class out by hand and
+   * every other labelled button was under the floor on a touch screen. The
+   * *disagreement* is the defect, so both emitters are asserted, neither is
+   * read from the other, and the expected class is a literal here rather than
+   * imported from the module under test.
+   *
+   * **What this cannot hold.** jsdom lays nothing out
+   * (`.claude/rules/review-workflow.md`, "What a test here cannot hold"), so
+   * every `getBoundingClientRect()` is zeros and nothing below is evidence
+   * about a rendered height. It pins the class the two emitters produce, which
+   * is a decision, not a geometry. The 44px itself was measured in Chrome
+   * against the running stack's own stylesheet at 375x667 with a real coarse
+   * pointer; those numbers are in the PR body, where they are dated, and not
+   * in this file or in a source comment.
+   */
+  describe("the touch floor, on both emitters", () => {
+    // Written out rather than imported: a test that reads the value it is
+    // checking cannot disagree with it (detector rule 5).
+    const FLOOR = "pointer-coarse:min-h-11";
+    const SIZES: ButtonSize[] = ["sm", "md", "lg"];
+    const CASES = VARIANTS.flatMap((variant) =>
+      SIZES.map((size) => [variant, size] as const),
+    );
+
+    // The population is declared, not derived from what the render produced.
+    // On its own this only catches either list being walked back — it is the
+    // test's own literal. What ties the list to the component is the case
+    // below it: `buttonClass` reads `VARIANT_CLASS[variant]` and calls a
+    // string method on it, so a variant this list names and the component has
+    // dropped throws there instead of passing quietly.
+    it("covers every variant against every size", () => {
+      expect(CASES.length).toBe(15);
+    });
+
+    it.each(VARIANTS)("names a variant the component still defines (%s)", (variant) => {
+      expect(buttonClass({ variant })).toContain("rounded-");
+    });
+
+    it.each(CASES)("a labelled Button takes it (%s, %s)", (variant, size) => {
+      render(
+        <Button variant={variant} size={size}>
+          Save
+        </Button>,
+      );
+      expect(screen.getByRole("button").classList.contains(FLOOR)).toBe(true);
+    });
+
+    it.each(CASES)("a link on buttonClass takes it (%s, %s)", (variant, size) => {
+      expect(buttonClass({ variant, size }).split(" ")).toContain(FLOOR);
+    });
+
+    // Gated, on both. An ungated `min-h-11` would raise the box on a mouse
+    // too, which is the half of §Row Actions that says 32px on `fine` — and
+    // it would still satisfy a substring search for the floor's name.
+    it.each(CASES)("does not raise a Button's box on a fine pointer (%s, %s)", (variant, size) => {
+      render(
+        <Button variant={variant} size={size}>
+          Save
+        </Button>,
+      );
+      const ungated = [...screen.getByRole("button").classList].filter(
+        (c) => /^min-h-/.test(c) || /^h-\d/.test(c),
+      );
+      expect(ungated).toEqual([]);
+    });
+
+    it.each(CASES)("does not raise a link's box on a fine pointer (%s, %s)", (variant, size) => {
+      const ungated = buttonClass({ variant, size })
+        .split(" ")
+        .filter((c) => /^min-h-/.test(c) || /^h-\d/.test(c));
+      expect(ungated).toEqual([]);
+    });
+
+    // The icon-only shape reaches the same floor by the other mechanism, and
+    // must not take this one: a `min-h` would grow the box `ICON_BOX_CLASS`
+    // fixes at 32px, and the overhang's 32 + 12 = 44 stops being true of the
+    // thing on screen.
+    it.each(VARIANTS)("leaves the icon-only box to the overhang (%s)", (variant) => {
+      render(
+        <Button variant={variant} iconOnly aria-label="Delete Q1 notes">
+          <Trash2 size={18} />
+        </Button>,
+      );
+      const button = screen.getByRole("button", { name: "Delete Q1 notes" });
+      expect(button.classList.contains(FLOOR)).toBe(false);
+      expect(button.classList.contains("h-8")).toBe(true);
+      expect(
+        button.classList.contains("pointer-coarse:before:-inset-1.5"),
+      ).toBe(true);
     });
   });
 });
