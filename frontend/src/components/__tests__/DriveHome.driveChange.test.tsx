@@ -212,8 +212,9 @@ const SECOND_DRIVE_FOLDER_NAME = "lima";
  * by text matches both. `FolderCard` puts that attribute on its
  * non-editing branch only, so a card with the inline editor open is not
  * counted. Inert while no case in this file starts a rename, and the
- * first one that does is the case this would mislead — which is why the
- * name says what it counts rather than what it is used for.
+ * first one that does is the case this would mislead — which is why
+ * `nonEditing` is in the name rather than only in this paragraph: the
+ * call site is where that author is looking.
  *
  * **Why document-wide is sound here**, and it is not "everything else is
  * stubbed": `CarouselSection` and `FolderContextMenu` both draw real
@@ -230,7 +231,7 @@ const SECOND_DRIVE_FOLDER_NAME = "lima";
  * unwitnessed *there* — so it is a precedent for naming the hazard, not
  * authority for reading unscoped.
  */
-function folderCardCount(): number {
+function nonEditingFolderCardCount(): number {
   return document.querySelectorAll("[data-rename-focus]").length;
 }
 
@@ -793,10 +794,10 @@ describe("DriveHome across a drive change", () => {
     rerender(<DriveHome driveName={DRIVE_UNDER_TEST} />);
 
     // The re-run blanks the grid to its skeleton...
-    await waitFor(() => expect(folderCardCount()).toBe(0));
+    await waitFor(() => expect(nonEditingFolderCardCount()).toBe(0));
     // ...and the cards come back only when the effect's tail runs, which
     // is the write this case needs to have landed.
-    await waitFor(() => expect(folderCardCount()).toBe(1));
+    await waitFor(() => expect(nonEditingFolderCardCount()).toBe(1));
 
     await act(async () => {
       finishPin();
