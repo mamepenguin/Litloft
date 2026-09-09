@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { Folder, History, Clock, Star, ThumbsUp, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, Folder as FolderType, PaginatedResponse, WatchHistoryItem } from "@/types";
@@ -64,6 +63,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const [liked, setLiked] = useState<SectionState>({ files: [], loading: true });
   const [folders, setFolders] = useState<FolderType[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(true);
+  const [foldersExpanded, setFoldersExpanded] = useState(false);
+  const folderGridId = useId();
   const [pinnedPaths, setPinnedPaths] = useState<Set<string>>(new Set());
   const [menuTarget, setMenuTarget] = useState<FolderType | null>(null);
   const { ref: folderGridRef, columns } = useCardColumns();
@@ -273,6 +274,21 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setRecentlyPlayed((prev) => prev.filter((item) => item.id !== fileId));
   }, []);
 
+  // The grid is collapsed again when the page changes drive: this
+  // component is reused across `/drive/[name]`, so without this the
+  // expansion of one drive's grid would carry into the next.
+  useEffect(() => {
+    setFoldersExpanded(false);
+  }, [driveName]);
+
+  // What the control reveals, counted from the folders that were
+  // fetched. The grid draws `visibleFolders`, so the number in the
+  // label and the number of cards that appear cannot disagree. Negative
+  // below the cap, which is the same condition as having nothing to
+  // reveal and is what gates the control.
+  const hiddenFolderCount = folders.length - MAX_FOLDERS;
+  const visibleFolders = foldersExpanded ? folders : folders.slice(0, MAX_FOLDERS);
+
   const driveBase = `/drive/${encodeURIComponent(driveName)}`;
 
   return (
@@ -353,13 +369,22 @@ export function DriveHome({ driveName }: DriveHomeProps) {
               <Folder size={20} className="text-text-muted" />
               {t("folders")}
             </h2>
-            {folders.length > MAX_FOLDERS && (
-              <Link
-                href={`${driveBase}?view=all`}
+            {/* The rest of the grid is revealed here rather than behind
+                a link, because there is no drive-wide destination that
+                lists folders: `?view=all` is the flat every-file
+                listing and renders none. The sidebar offers that view
+                under its own name ("All files"), where a flat listing
+                of files is what is being asked for. */}
+            {hiddenFolderCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setFoldersExpanded((expanded) => !expanded)}
+                aria-expanded={foldersExpanded}
+                aria-controls={folderGridId}
                 className="text-sm text-text-muted transition-colors hover:text-text-primary"
               >
-                {tc("seeAll")}
-              </Link>
+                {foldersExpanded ? tc("showLess") : tc("showMoreCount", { count: hiddenFolderCount })}
+              </button>
             )}
           </div>
 
@@ -392,11 +417,12 @@ export function DriveHome({ driveName }: DriveHomeProps) {
             </div>
           ) : (
             <div
+              id={folderGridId}
               ref={folderGridRef}
               className="grid gap-3"
               style={{ gridTemplateColumns: cardGridTemplate(columns) }}
             >
-              {folders.slice(0, MAX_FOLDERS).map((folder) => {
+              {visibleFolders.map((folder) => {
                 const disabled = isDropDisabled(folder.path);
                 return (
                   <FolderCard

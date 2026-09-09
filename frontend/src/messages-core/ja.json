@@ -12,6 +12,8 @@
     "refresh": "更新",
     "seeAll": "すべて見る",
     "seeAllCount": "すべて見る（{count}）",
+    "showMoreCount": "さらに表示（{count}）",
+    "showLess": "表示を減らす",
     "download": "ダウンロード",
     "rename": "名前を変更",
     "move": "移動",
