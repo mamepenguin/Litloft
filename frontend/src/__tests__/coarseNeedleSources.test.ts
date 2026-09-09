@@ -245,7 +245,12 @@ describe("pointer-coarse needle sources", () => {
     // suite at its baseline count — the same walk-back one block down,
     // one block wider. Declared here because this is the only file that
     // imports `REQUIRED`.
-    expect(REQUIRED).toHaveLength(42);
+    //
+    // The price of that is one line per needle added anywhere: 42 to 49
+    // when unit F merged in, which brought `.fixed`, `.inset-0`, `.z-30`,
+    // `.z-10`, `.z-20`, `.z-50` and `.bottom-0` — the tiers the popup
+    // fixtures' four stacking arrangements are made of.
+    expect(REQUIRED).toHaveLength(49);
 
     expect(NEEDLE_PARTS).toHaveLength(7);
     expect(CANNOT_BE_ABSENT).toHaveLength(4);

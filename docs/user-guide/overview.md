@@ -15,6 +15,28 @@ A Litloft installation has:
 - A **viewer identity** — a self-chosen nickname stored in a cookie, hashed to a 16-char ID. Used for comments and watch-history attribution. There are no accounts; identity is local to each device.
 - A **JWT** — issued when a viewer unlocks a password group. Drives become visible only when the viewer holds their `access_group`.
 
+## Closing a menu
+
+Menus, filter panels and folder pickers close as soon as you press anywhere
+outside them — and that press only closes them. Whatever sits under your finger
+is *not* activated: dismissing the file `⋮` menu by tapping a card does not open
+that card, and dismissing the sort menu by tapping a folder does not walk into
+it. Press a second time to reach what is underneath.
+
+A **right-click** is different, deliberately. Right-clicking a second row while
+a context menu is open moves the menu to that row, as one gesture. Only the
+ordinary press is held back.
+
+These menus also close on **Escape**. Most then return you to the control that
+opened them; the context menu you raise by right-clicking, the folder picker
+and the player's settings panel do not — the first has no button to return you
+to, and the other two leave focus where it was.
+
+Renaming in place is the deliberate exception to all of it. Clicking away from
+a name you are editing **commits** the new name, and the click still does its
+own job — so clicking a second row saves the first and selects the second in
+one action.
+
 ## What you can do
 
 ### Browse and view

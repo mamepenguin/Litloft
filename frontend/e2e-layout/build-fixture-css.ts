@@ -206,6 +206,30 @@ export const REQUIRED = [
   ".top-0 {",
   ".bg-bg-card {",
   ".overflow-x-auto {",
+  // `popup-dismiss.spec.ts` taps through a scrim that is only over the
+  // page because of these three. Without them the scrim has no box, and a
+  // case that reads a click count goes red naming the count rather than
+  // the empty sheet that caused it.
+  //
+  // `.inset-0` and `.z-30` carry the brace for the reason `.mt-1` does:
+  // `.inset-0` is satisfied by `.inset-0\.5` and `.z-30` by nothing today,
+  // but a needle that a longer class name can satisfy asserts less than it
+  // reads as.
+  ".fixed {",
+  ".inset-0 {",
+  ".z-30 {",
+  // The tiers the four *arrangements* are made of: a `z-10` bar written
+  // after the scrim, a `z-50` bar pinned to the bottom, and the `z-20` box
+  // the nested arrangement puts the scrim inside. Each pair of cases is a
+  // contrast between two stacking orders, so a missing rule collapses the
+  // pair into one page and the contrast stops being a contrast. Like the
+  // common utilities above and unlike the arbitrary-valued ones, the tree
+  // writes all three in dozens of places: they are here for the diagnosis
+  // rather than because they could plausibly go missing.
+  ".z-10 {",
+  ".z-20 {",
+  ".z-50 {",
+  ".bottom-0 {",
   // Unit D measures the player the sheet's `half` is derived from. The
   // sticky rule is the premise of every one of those cases — without it
   // the player is in flow, scrolls away under the sheet, and "it stayed

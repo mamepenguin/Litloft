@@ -14,6 +14,7 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import type { FileItem } from "@/types";
 import { ActionMenuItem } from "./ActionMenuItem";
+import { DismissScrim } from "./DismissScrim";
 import { useDialogPortalTarget } from "./DialogPortal";
 import { AddonSlot } from "./AddonSlot";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -215,17 +216,6 @@ export function FileActions({
   const anyDialogOpen =
     renameOpen || moveOpen || deleteOpen || addonDialogOpen;
 
-  useEffect(() => {
-    if (!menuOpen || anyDialogOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen, anyDialogOpen]);
-
   // A popup must be dismissable from the keyboard. Without this the only
   // ways out are an outside click or picking an item, so a keyboard user
   // who opens the menu cannot back out of it.
@@ -326,6 +316,67 @@ export function FileActions({
     },
   });
 
+  // Built here rather than in place: the menu stays mounted while a
+  // dialog raised from it is up (closing would unmount the dialog with
+  // it), and in that state it is drawn without a dismissal layer — see
+  // the two branches below.
+  const menu = (
+    <div
+      ref={menuBoxRef}
+      role="menu"
+      className={`absolute z-30 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg ${
+        openUp ? "bottom-full mb-1" : "top-full mt-1"
+      } ${alignLeft ? "left-0" : "right-0"}`}
+    >
+      {menuItems.map((item) => (
+        <ActionMenuItem
+          key={item.label}
+          icon={item.icon}
+          label={item.label}
+          onClick={item.onClick}
+          disabled={item.disabled}
+          danger={item.danger}
+        />
+      ))}
+      {addonProps && (
+        /* `empty:hidden` carries the separator: no addon claims this
+           slot on a stock install, and an entry that does claim it may
+           still render nothing for a given file. Either way the rule
+           would otherwise float under the last core item with nothing
+           beneath it.
+
+           An entry here must NOT close the menu when it opens a
+           dialog: closing unmounts this subtree, taking the dialog
+           with it. Entries open their dialog, report it through
+           `onDialogOpenChange` so the outside-click and Escape
+           listeners stand down, and call `onRequestClose` only once
+           the dialog is dismissed. */
+        <div
+          /* Presentational: the menuitems inside must read as direct
+             children of role="menu", and the rule itself is decoration. */
+          role="none"
+          className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+        >
+          <AddonSlot
+            id="file-actions-menu"
+            layout="stack"
+            props={{
+              ...addonProps,
+              onRequestClose: () => {
+                setAddonDialogOpen(false);
+                setMenuOpen(false);
+                // The entry that had focus is about to unmount with
+                // the menu; without this, focus lands on <body>.
+                triggerRef.current?.focus();
+              },
+              onDialogOpenChange: setAddonDialogOpen,
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       <div ref={menuRef} className="relative">
@@ -363,62 +414,22 @@ export function FileActions({
           </svg>
         </button>
 
-        {menuOpen && (
-          <div
-            ref={menuBoxRef}
-            role="menu"
-            className={`absolute z-30 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg ${
-              openUp ? "bottom-full mb-1" : "top-full mt-1"
-            } ${alignLeft ? "left-0" : "right-0"}`}
-          >
-            {menuItems.map((item) => (
-              <ActionMenuItem
-                key={item.label}
-                icon={item.icon}
-                label={item.label}
-                onClick={item.onClick}
-                disabled={item.disabled}
-                danger={item.danger}
-              />
-            ))}
-            {addonProps && (
-              /* `empty:hidden` carries the separator: no addon claims this
-                 slot on a stock install, and an entry that does claim it may
-                 still render nothing for a given file. Either way the rule
-                 would otherwise float under the last core item with nothing
-                 beneath it.
-
-                 An entry here must NOT close the menu when it opens a
-                 dialog: closing unmounts this subtree, taking the dialog
-                 with it. Entries open their dialog, report it through
-                 `onDialogOpenChange` so the outside-click and Escape
-                 listeners stand down, and call `onRequestClose` only once
-                 the dialog is dismissed. */
-              <div
-                /* Presentational: the menuitems inside must read as direct
-                   children of role="menu", and the rule itself is decoration. */
-                role="none"
-                className="mt-1 border-t border-bg-border pt-1 empty:hidden"
-              >
-                <AddonSlot
-                  id="file-actions-menu"
-                  layout="stack"
-                  props={{
-                    ...addonProps,
-                    onRequestClose: () => {
-                      setAddonDialogOpen(false);
-                      setMenuOpen(false);
-                      // The entry that had focus is about to unmount with
-                      // the menu; without this, focus lands on <body>.
-                      triggerRef.current?.focus();
-                    },
-                    onDialogOpenChange: setAddonDialogOpen,
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        )}
+        {menuOpen &&
+          (anyDialogOpen ? (
+            menu
+          ) : (
+            <DismissScrim
+              onDismiss={() => setMenuOpen(false)}
+              // The dim's own tier. Not while a dialog raised from this
+              // menu is up: the dialog portals out of this subtree and a
+              // layer behind it would answer the presses meant for it.
+              // Same condition the `document` listener this replaced
+              // stood down on.
+              className="fixed inset-0 z-30"
+            >
+              {menu}
+            </DismissScrim>
+          ))}
 
         {error && (
           <div

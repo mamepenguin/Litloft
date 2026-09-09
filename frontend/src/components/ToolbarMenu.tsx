@@ -3,6 +3,8 @@
 import { useId, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { Check } from "lucide-react";
 
+import { DismissScrim } from "@/components/DismissScrim";
+
 /**
  * The scope a toolbar control keeps, and the class that enforces it.
  *
@@ -179,13 +181,8 @@ export function ToolbarMenu({
         <span>{value}</span>
       </button>
       {open && (
-        <>
-          <div
-            className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
-            aria-hidden="true"
-            onClick={close}
-          />
-          {/* The scrim is a mouse gesture, so Escape (handled on the box
+        <DismissScrim onDismiss={close}>
+          {/* Dismissal is a pointer gesture, so Escape (handled on the box
               above) is the keyboard's only way out. Arrow-key roving is the
               rest of the APG menu contract and is not here yet; the rows are
               ordinary buttons in tab order — the same gap `FilterMenu`
@@ -193,7 +190,7 @@ export function ToolbarMenu({
           <div role="menu" className={MENU_SURFACE_BASE + MENU_ALIGN[align]}>
             {children(close)}
           </div>
-        </>
+        </DismissScrim>
       )}
     </div>
   );

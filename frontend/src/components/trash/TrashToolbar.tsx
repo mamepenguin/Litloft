@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Check, CheckSquare, Filter } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { ViewToggle } from "@/components/ViewToggle";
+import { DismissScrim } from "@/components/DismissScrim";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { SortButton } from "@/components/SortButton";
 
 interface TrashToolbarProps {
@@ -40,7 +43,7 @@ export function TrashToolbar({
   const ts = useTranslations("selection");
   const tFilter = useTranslations("filter");
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
-  const typeFilterRef = useRef<HTMLDivElement>(null);
+  const typeFilterTriggerRef = useRef<HTMLButtonElement>(null);
 
   // An empty bin has nothing to sort, nothing to lay out and nothing to
   // filter by kind — the seven pills, the sort, the view toggle and the
@@ -49,16 +52,41 @@ export function TrashToolbar({
   // empty result is also the way back out of it.
   const hideArrangingControls = total === 0 && typeFilter === null;
 
-  useEffect(() => {
-    if (!typeFilterOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (typeFilterRef.current && !typeFilterRef.current.contains(e.target as Node)) {
-        setTypeFilterOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [typeFilterOpen]);
+  // A popup must be dismissable from the keyboard. Without it the only
+  // ways out are a press outside it or picking a row, so a keyboard user
+  // who opens this menu cannot back out of it.
+  //
+  // On the shortcut stack, not on `document`: a listener does not know
+  // what is stacked above it, and `escape-listeners.test.ts` records the
+  // presses that were answered twice before this was the rule.
+  // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
+  // while it is open. `FileActions` carries the same block and the
+  // reasoning in full.
+  //
+  // `editingOnly: false` because nothing traps focus inside this menu, so
+  // Tab walks out of the last row into whatever follows in the document.
+  // The provider counts a focused field as "editing", and the default
+  // fires only when nothing is — which would leave Escape inert exactly
+  // there, with the menu still up. The test case for that state is what
+  // makes the flag checkable.
+  useShortcuts(
+    "trash-type-filter-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          setTypeFilterOpen(false);
+          typeFilterTriggerRef.current?.focus();
+        },
+      },
+    ],
+    typeFilterOpen,
+    OVERLAY_PRIORITY,
+  );
 
   return (
     <>
@@ -91,40 +119,55 @@ export function TrashToolbar({
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {!hideArrangingControls && (
-        <div ref={typeFilterRef} className="relative sm:hidden">
+        <div className="relative sm:hidden">
           <button
+            ref={typeFilterTriggerRef}
             onClick={() => setTypeFilterOpen((s) => !s)}
             className={`flex items-center gap-1.5 rounded-lg p-2 text-sm transition-colors ${
               typeFilter
                 ? "bg-accent/20 text-accent"
                 : "text-text-muted hover:text-text-primary"
             }`}
+            aria-haspopup="menu"
+            aria-expanded={typeFilterOpen}
             aria-label={t("fileType")}
           >
             <Filter size={16} />
           </button>
           {typeFilterOpen && (
-            <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left">
-              {TYPE_OPTION_KEYS.map((opt) => (
-                <button
-                  key={opt.labelKey}
-                  onClick={() => {
-                    onTypeFilterChange(opt.value);
-                    setTypeFilterOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                    typeFilter === opt.value
-                      ? "text-accent"
-                      : "text-text-primary hover:bg-bg-elevated"
-                  }`}
-                >
-                  <span className="w-4 flex-shrink-0">
-                    {typeFilter === opt.value && <Check size={14} />}
-                  </span>
-                  {tFilter(opt.labelKey)}
-                </button>
-              ))}
-            </div>
+            <DismissScrim
+              onDismiss={() => setTypeFilterOpen(false)}
+              // No tint: anchored to its trigger, and the control itself
+              // only exists below `sm`.
+              className="fixed inset-0 z-30"
+            >
+              <div role="menu" aria-label={t("fileType")} className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left">
+                {TYPE_OPTION_KEYS.map((opt) => (
+                  <button
+                    key={opt.labelKey}
+                    // As `MenuRadioGroup` does for the same rows elsewhere:
+                    // the tick is the only thing saying which one is on, and
+                    // it is an unlabelled glyph.
+                    role="menuitemradio"
+                    aria-checked={typeFilter === opt.value}
+                    onClick={() => {
+                      onTypeFilterChange(opt.value);
+                      setTypeFilterOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                      typeFilter === opt.value
+                        ? "text-accent"
+                        : "text-text-primary hover:bg-bg-elevated"
+                    }`}
+                  >
+                    <span className="w-4 flex-shrink-0">
+                      {typeFilter === opt.value && <Check size={14} />}
+                    </span>
+                    {tFilter(opt.labelKey)}
+                  </button>
+                ))}
+              </div>
+            </DismissScrim>
           )}
         </div>
         )}

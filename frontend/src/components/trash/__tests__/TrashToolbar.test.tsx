@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 import { TrashToolbar } from "../TrashToolbar";
+import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 
 vi.mock("@/components/SortButton", () => ({
   SortButton: () => <button data-testid="sort-button">Sort</button>,
@@ -68,6 +69,62 @@ describe("TrashToolbar", () => {
         screen.getByLabelText("Selection mode").getAttribute("aria-pressed"),
       ).toBe("false");
     });
+  });
+
+  it("closes its kind filter on Escape and returns focus to the trigger", () => {
+    // The scrim is a pointer gesture, so without an Escape path a
+    // keyboard user who opens this menu cannot back out of it — and
+    // `docs/user-guide/overview.md` tells them it works. Measured before
+    // it was wired: the menu stayed open.
+    //
+    // Focus is moved **into the menu** before the press, which is where a
+    // keyboard user's focus is after arrowing to a row. Pressing with
+    // focus already on the trigger asserts nothing about the focus
+    // return: closing the menu does not move focus, so `toHaveFocus`
+    // passes whether or not the handler restores it. That was measured —
+    // deleting the focus line left three of these green.
+    render(
+      <ShortcutsProvider>
+        <TrashToolbar {...defaultProps} />
+      </ShortcutsProvider>,
+    );
+    const trigger = screen.getByLabelText("File type");
+    fireEvent.click(trigger);
+    const row = screen.getAllByRole("menuitemradio")[0];
+    row.focus();
+    expect(row).toHaveFocus();
+
+    fireEvent.keyDown(row, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+
+  it("closes on Escape even with focus in a text field", () => {
+    // What `editingOnly: false` buys, and the only state that needs it.
+    // Nothing traps focus inside these menus, so Tab walks out of the last
+    // row into whatever follows in the document — a search box, a filter
+    // field. `ShortcutsProvider` treats an INPUT as "editing", and without
+    // the flag a shortcut fires only when nothing is being edited, so
+    // Escape would do nothing there while the menu is still up.
+    //
+    // Measured before this case existed: deleting `editingOnly: false`
+    // left every other assertion green.
+    render(
+      <ShortcutsProvider>
+        <TrashToolbar {...defaultProps} />
+        <input aria-label="elsewhere" />
+      </ShortcutsProvider>,
+    );
+    fireEvent.click(screen.getByLabelText("File type"));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+
+    const field = screen.getByLabelText("elsewhere");
+    field.focus();
+    fireEvent.keyDown(field, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("puts every arranging control away when the trash is empty", () => {

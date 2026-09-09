@@ -20,6 +20,7 @@ import { useViewModeState } from "@/components/viewMode";
 import { ActionMenuItem } from "@/components/ActionMenuItem";
 import { BAR_WIDE, MENU_SURFACE, MenuSeparator } from "@/components/ToolbarMenu";
 import { SortGroup, SortMenu } from "./SortMenu";
+import { DismissScrim } from "@/components/DismissScrim";
 import { ViewGroup, ViewMenu } from "@/components/ViewMenu";
 import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
 
@@ -319,12 +320,7 @@ export function FolderToolbar({
               <MoreHorizontal size={16} />
             </button>
             {moreOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
-                  aria-hidden="true"
-                  onClick={() => setMoreOpen(false)}
-                />
+              <DismissScrim onDismiss={() => setMoreOpen(false)}>
                 <div role="menu" className={MENU_SURFACE}>
                 {/* The two menus that are not on the bar below 768px, drawn
                     from the same rows they draw there. `md:hidden` and
@@ -413,7 +409,7 @@ export function FolderToolbar({
                   </button>
                 )}
                 </div>
-              </>
+              </DismissScrim>
             )}
         </div>
 

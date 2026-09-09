@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { dispatchUploadEvent, useFilePicker } from "./useFilePicker";
 import {
@@ -17,6 +17,9 @@ import { ActionMenuItem } from "@/components/ActionMenuItem";
 import { AddonSlot } from "@/components/AddonSlot";
 import { useAddonSlots } from "@/components/AddonSlotsProvider";
 import { Button } from "@/components/Button";
+import { DismissScrim } from "@/components/DismissScrim";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import type { UploadFileEntry } from "@/hooks/useUpload";
 
 /**
@@ -77,7 +80,6 @@ export function AddButton({
   const tf = useTranslations("folder");
   const t = useTranslations("toolbar");
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const filePicker = useFilePicker();
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -97,16 +99,40 @@ export function AddButton({
     triggerRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen]);
+  // A popup must be dismissable from the keyboard. Without it the only
+  // ways out are a press outside it or picking a row, so a keyboard user
+  // who opens this menu cannot back out of it.
+  //
+  // On the shortcut stack, not on `document`: a listener does not know
+  // what is stacked above it, and `escape-listeners.test.ts` records the
+  // presses that were answered twice before this was the rule.
+  // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
+  // while it is open. `FileActions` carries the same block and the
+  // reasoning in full.
+  //
+  // `editingOnly: false` because nothing traps focus inside this menu, so
+  // Tab walks out of the last row into whatever follows in the document.
+  // The provider counts a focused field as "editing", and the default
+  // fires only when nothing is — which would leave Escape inert exactly
+  // there, with the menu still up. The test case for that state is what
+  // makes the flag checkable.
+  useShortcuts(
+    "add-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          closeMenu();
+        },
+      },
+    ],
+    menuOpen,
+    OVERLAY_PRIORITY,
+  );
 
   return (
     <>
@@ -127,7 +153,7 @@ export function AddButton({
           e.target.value = "";
         }}
       />
-      <div ref={menuRef} className="relative">
+      <div className="relative">
         {/* The label is not `hidden sm:inline`. Dropping it at 400px would
             leave a `+` and a chevron, and the mobile rule is to carry fewer
             controls rather than nameless ones (00-basis, モバイルの寸法規則). */}
@@ -143,98 +169,105 @@ export function AddButton({
           <ChevronDown size={14} className="opacity-70" />
         </Button>
         {menuOpen && (
-          <div
-            role="menu"
-            // Capped and scrollable, like every other menu on this bar.
-            // `MENU_SURFACE` is anchored to the *right* of its trigger;
-            // this keeps its own geometry and takes only the height rules,
-            // because which side it grows from depends on the caller: on
-            // the folder toolbar `Add` is the leftmost control, and in the
-            // drive root's `PageHeader` it is the rightmost, where a
-            // left-anchored 180px panel behind a ~100px trigger runs off
-            // the right edge of a phone.
-            //
-            // It grows with `folder-actions-menu`: three contributed rows
-            // take it from four to seven and from ~120px to 331. Measured
-            // uncapped, seven rows, bar pinned: 383 against a 375 fold at
-            // 667x375, and against 360 at 740x360 and 640x360. Capped, all
-            // of those fit and scroll.
-            //
-            // `max-h` is against the viewport, not against the room below
-            // the trigger — so before the bar pins, with `Header` and the
-            // breadcrumb above it, even the capped menu can end below the
-            // fold (441 of 393 at 852x393). Scrolling recovers that; what
-            // it cannot recover is a menu with no cap at all, which stays
-            // 331 tall however far the bar rises.
-            className={`absolute top-full z-30 mt-1 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:max-h-[70vh] ${
-              align === "right"
-                ? "right-0 origin-top-right"
-                : "left-0 origin-top-left"
-            }`}
+          <DismissScrim
+            onDismiss={() => setMenuOpen(false)}
+            // No tint: this menu stays anchored to its trigger at every
+            // width, so there is no sheet for a dim to explain.
+            className="fixed inset-0 z-30"
           >
-            <ActionMenuItem
-              icon={FileIcon}
-              label={tu("files")}
-              onClick={() => {
-                closeMenu();
-                filePicker.open();
-              }}
-            />
-            <ActionMenuItem
-              icon={Folder}
-              label={tu("folder")}
-              onClick={() => {
-                closeMenu();
-                folderInputRef.current?.click();
-              }}
-            />
-            {onCreateFolder && (
+            <div
+              role="menu"
+              // Capped and scrollable, like every other menu on this bar.
+              // `MENU_SURFACE` is anchored to the *right* of its trigger;
+              // this keeps its own geometry and takes only the height rules,
+              // because which side it grows from depends on the caller: on
+              // the folder toolbar `Add` is the leftmost control, and in the
+              // drive root's `PageHeader` it is the rightmost, where a
+              // left-anchored 180px panel behind a ~100px trigger runs off
+              // the right edge of a phone.
+              //
+              // It grows with `folder-actions-menu`: three contributed rows
+              // take it from four to seven and from ~120px to 331. Measured
+              // uncapped, seven rows, bar pinned: 383 against a 375 fold at
+              // 667x375, and against 360 at 740x360 and 640x360. Capped, all
+              // of those fit and scroll.
+              //
+              // `max-h` is against the viewport, not against the room below
+              // the trigger — so before the bar pins, with `Header` and the
+              // breadcrumb above it, even the capped menu can end below the
+              // fold (441 of 393 at 852x393). Scrolling recovers that; what
+              // it cannot recover is a menu with no cap at all, which stays
+              // 331 tall however far the bar rises.
+              className={`absolute top-full z-30 mt-1 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:max-h-[70vh] ${
+                align === "right"
+                  ? "right-0 origin-top-right"
+                  : "left-0 origin-top-left"
+              }`}
+            >
               <ActionMenuItem
-                icon={FolderPlus}
-                label={tf("newFolder")}
+                icon={FileIcon}
+                label={tu("files")}
                 onClick={() => {
                   closeMenu();
-                  onCreateFolder();
+                  filePicker.open();
                 }}
               />
-            )}
-            {onCreateFile && (
               <ActionMenuItem
-                icon={FilePlus}
-                label={tf("newFile")}
+                icon={Folder}
+                label={tu("folder")}
                 onClick={() => {
                   closeMenu();
-                  onCreateFile();
+                  folderInputRef.current?.click();
                 }}
               />
-            )}
-            {showAddonRows && (
-              /* The rule is this element's own border, not a sibling, so
-                 `empty:hidden` can take both away together. `hasSlot` only
-                 answers "did an addon declare this slot" — an entry that
-                 did may still render nothing here (a drive with the
-                 addon's feature policy off does exactly that), and the
-                 rule would then hang under the last core row with nothing
-                 beneath it. Ported from `FileActions`, which carries this
-                 for the same reason.
-
-                 `role="none"`: the rows inside must read as direct
-                 children of `role="menu"`, and the rule is decoration. */
-              <div
-                role="none"
-                className="mt-1 border-t border-bg-border pt-1 empty:hidden"
-              >
-                <AddonSlot
-                  id={ADD_MENU_SLOT}
-                  layout="stack"
-                  props={{
-                    ...addonProps,
-                    onRequestClose: closeMenu,
+              {onCreateFolder && (
+                <ActionMenuItem
+                  icon={FolderPlus}
+                  label={tf("newFolder")}
+                  onClick={() => {
+                    closeMenu();
+                    onCreateFolder();
                   }}
                 />
-              </div>
-            )}
-          </div>
+              )}
+              {onCreateFile && (
+                <ActionMenuItem
+                  icon={FilePlus}
+                  label={tf("newFile")}
+                  onClick={() => {
+                    closeMenu();
+                    onCreateFile();
+                  }}
+                />
+              )}
+              {showAddonRows && (
+                /* The rule is this element's own border, not a sibling, so
+                   `empty:hidden` can take both away together. `hasSlot` only
+                   answers "did an addon declare this slot" — an entry that
+                   did may still render nothing here (a drive with the
+                   addon's feature policy off does exactly that), and the
+                   rule would then hang under the last core row with nothing
+                   beneath it. Ported from `FileActions`, which carries this
+                   for the same reason.
+
+                   `role="none"`: the rows inside must read as direct
+                   children of `role="menu"`, and the rule is decoration. */
+                <div
+                  role="none"
+                  className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+                >
+                  <AddonSlot
+                    id={ADD_MENU_SLOT}
+                    layout="stack"
+                    props={{
+                      ...addonProps,
+                      onRequestClose: closeMenu,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </DismissScrim>
         )}
       </div>
     </>

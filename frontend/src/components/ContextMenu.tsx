@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ComponentType } from "react";
+import { DismissScrim } from "@/components/DismissScrim";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
 export interface MenuItem {
@@ -51,56 +52,49 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
 
   return (
     <>
-      {/* Full-screen overlay absorbs all pointer events outside the menu,
-          preventing clicks from reaching underlying elements. */}
-      <div
-        className="fixed inset-0 z-49"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
-      />
-      <div
-        ref={menuRef}
-        className="fixed z-50 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
-        style={{ left: position.x, top: position.y }}
-      >
-        {items.map((item) => (
-          <button
-            key={item.label}
-            role="menuitem"
-            disabled={item.disabled}
-            aria-disabled={item.disabled || undefined}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (item.disabled) return;
-              onClose();
-              // Use requestAnimationFrame to let the menu close before opening dialog
-              requestAnimationFrame(() => item.onClick());
-            }}
-            // `:hover` still matches a disabled button, so the override
-            // stops a greyed row tinting under the pointer while
-            // refusing the click. Same treatment as ActionMenuItem.
-            className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 disabled:hover:bg-transparent ${
-              item.danger
-                ? "text-danger hover:bg-accent/10"
-                : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
-            } ${item.disabled && item.danger ? "disabled:hover:text-danger" : ""}`}
-          >
-            <item.icon size={14} />
-            {item.label}
-          </button>
-        ))}
-      </div>
+      {/* Its own band rather than `MENU_SCRIM`'s: this menu is raised by a
+          right-click or a long-press anywhere on the page, including over
+          surfaces that already sit above the popover tier, and it is never
+          the bottom-sheet form the tint is for. */}
+      <DismissScrim onDismiss={onClose} className="fixed inset-0 z-49">
+        <div
+          ref={menuRef}
+          className="fixed z-50 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
+          style={{ left: position.x, top: position.y }}
+        >
+          {items.map((item) => (
+            <button
+              key={item.label}
+              role="menuitem"
+              disabled={item.disabled}
+              aria-disabled={item.disabled || undefined}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (item.disabled) return;
+                onClose();
+                // Use requestAnimationFrame to let the menu close before opening dialog
+                requestAnimationFrame(() => item.onClick());
+              }}
+              // `:hover` still matches a disabled button, so the override
+              // stops a greyed row tinting under the pointer while
+              // refusing the click. Same treatment as ActionMenuItem.
+              className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 disabled:hover:bg-transparent ${
+                item.danger
+                  ? "text-danger hover:bg-accent/10"
+                  : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+              } ${item.disabled && item.danger ? "disabled:hover:text-danger" : ""}`}
+            >
+              <item.icon size={14} />
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </DismissScrim>
     </>
   );
 }

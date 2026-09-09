@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { DismissScrim } from "@/components/DismissScrim";
 import { getDriveTags } from "@/lib/api";
 import { extractValidTags, parseNote, withTags } from "@/lib/frontmatter";
 import {
@@ -246,6 +247,26 @@ export function EditableTagChips(props: EditableTagChipsProps) {
       .slice(0, 5);
   }, [input, allTags, tags]);
 
+  /**
+   * The one way the add-a-tag interaction ends.
+   *
+   * Five callers: Escape, the scrim, the `onBlur` timer, and both of
+   * `submitTag`'s closing paths. It was extracted for the first two only.
+   *
+   * What the duplicate branch missed was `error`: it cleared `input` and
+   * `adding` by hand, so an invalid tag followed by one the file already
+   * carries left the error paragraph on screen — it renders outside the
+   * `adding` branch. The accepted-tag branch never had that bug, because
+   * `commit` calls `setError(null)` itself; what it has to do is close the
+   * field, which is a claim of its own and is pinned as one in
+   * `EditableTagChips.test.tsx`.
+   */
+  const closeInput = useCallback(() => {
+    setAdding(false);
+    setInput("");
+    setError(null);
+  }, []);
+
   const submitTag = useCallback(
     (raw: string) => {
       const trimmed = raw.trim();
@@ -260,8 +281,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
       }
       if (tags.some((existing) => existing.toLowerCase() === trimmed.toLowerCase())) {
         // Already present — silently close the input.
-        setInput("");
-        setAdding(false);
+        closeInput();
         return;
       }
       if (tags.length >= MAX_TAGS) {
@@ -269,10 +289,9 @@ export function EditableTagChips(props: EditableTagChipsProps) {
         return;
       }
       commit([...tags, trimmed]);
-      setInput("");
-      setAdding(false);
+      closeInput();
     },
-    [commit, tags, t],
+    [closeInput, commit, tags, t],
   );
 
   const removeTag = useCallback(
@@ -299,16 +318,14 @@ export function EditableTagChips(props: EditableTagChipsProps) {
           submitTag(input);
         }
       } else if (e.key === "Escape") {
-        setAdding(false);
-        setInput("");
-        setError(null);
+        closeInput();
       } else if (e.key === "Backspace" && input === "" && tags.length > 0) {
         // Familiar chip-group shortcut: empty input + Backspace drops
         // the last chip. Matches Gmail / GitHub / Obsidian.
         removeTag(tags[tags.length - 1]);
       }
     },
-    [composing, input, removeTag, selectedIndex, submitTag, suggestions, tags],
+    [closeInput, composing, input, removeTag, selectedIndex, submitTag, suggestions, tags],
   );
 
   return (
@@ -342,33 +359,51 @@ export function EditableTagChips(props: EditableTagChipsProps) {
               onCompositionStart={() => setComposing(true)}
               onCompositionEnd={() => setComposing(false)}
               onBlur={() => {
-                setTimeout(() => {
-                  setAdding(false);
-                  setInput("");
-                  setError(null);
-                }, 200);
+                // The delay is for the suggestion rows: `onPointerUp`
+                // fires after `blur`, and closing immediately would
+                // unmount the row mid-press.
+                setTimeout(closeInput, 200);
               }}
               placeholder={t("placeholder")}
               className="w-32 rounded-full bg-bg-card px-2 py-0.5 text-xs text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
             />
             {suggestions.length > 0 && (
-              <div className="absolute top-full left-0 z-10 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg">
-                {suggestions.map((s, i) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onPointerUp={() => submitTag(s)}
-                    className={`block w-full px-3 py-1.5 text-left text-xs ${
-                      i === selectedIndex
-                        ? "bg-accent text-white"
-                        : "text-text-muted hover:bg-bg-elevated"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
+              <DismissScrim
+                onDismiss={closeInput}
+                // No tint, and the tier is the dim's only job: this list
+                // is anchored to the field at every width. Which box a
+                // press lands on is not part of the dismissal.
+                className="fixed inset-0 z-30"
+              >
+                <div
+                  role="listbox"
+                  aria-label={t("placeholder")}
+                  // Above the sticky tab strip, which is `z-10` and later
+                  // in the document: at an equal tier the strip wins the
+                  // paint order and covers the top of this list, and taps
+                  // that look like they land on a suggestion reach the strip
+                  // instead.
+                  className="absolute top-full left-0 z-30 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg"
+                >
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={s}
+                      type="button"
+                      role="option"
+                      aria-selected={i === selectedIndex}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onPointerUp={() => submitTag(s)}
+                      className={`block w-full px-3 py-1.5 text-left text-xs ${
+                        i === selectedIndex
+                          ? "bg-accent text-white"
+                          : "text-text-muted hover:bg-bg-elevated"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </DismissScrim>
             )}
           </div>
         ) : (

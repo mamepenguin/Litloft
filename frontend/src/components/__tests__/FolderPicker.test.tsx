@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { dismissByPressingOutside } from "@/__tests__/helpers/dismissScrim";
 import { getFolders, getFolderTree } from "@/lib/api";
 import { FolderPicker } from "../FolderPicker";
 import { ShortcutsProvider } from "../ShortcutsProvider";
@@ -62,7 +63,36 @@ describe("FolderPicker", () => {
 
     fireEvent.click(trigger);
     expect(await screen.findByText("No subfolders")).toBeInTheDocument();
-    fireEvent.pointerDown(screen.getByRole("button", { name: "Outside" }));
+
+    // The scrim, not the button behind it. That button is what the picker
+    // used to close on — a `pointerdown` anywhere outside — and the press
+    // that closed it also pressed the button, which is the defect
+    // `DismissScrim` exists to end. Whether the scrim really is what a tap
+    // reaches is a hit test jsdom does not run; `e2e-layout` measures it.
+    const outside = screen.getByRole("button", { name: "Outside" });
+    const pressed = vi.fn();
+    outside.addEventListener("click", pressed);
+    dismissByPressingOutside();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(pressed).not.toHaveBeenCalled();
+  });
+
+  it("stays open while its own panel is being worked", async () => {
+    // The other half of the mechanism, stated so that giving
+    // `DismissScrim` the wrong subtree fails here: a press inside the
+    // panel is the user picking a folder, and closing on it would also
+    // swallow the click that does the picking.
+    render(
+      <ShortcutsProvider>
+        <FolderPicker drive="recipes" value="" onChange={vi.fn()} />
+      </ShortcutsProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Save to:/ }));
+    expect(await screen.findByText("No subfolders")).toBeInTheDocument();
+
+    fireEvent.pointerDown(screen.getByRole("dialog"));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { configure } from "@testing-library/react";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
 import enMessages from "../messages/en.json";
 
 // Testing Library's 1000 ms default is a wall-clock budget, and the speed
@@ -138,4 +138,63 @@ vi.mock("next-intl", () => {
     useLocale,
     NextIntlClientProvider: ({ children }: { children: React.ReactNode }) => children,
   };
+});
+
+// End whatever gesture the test left open.
+//
+// `DismissScrim` keeps two pieces of module-scope state across a file: a
+// press is in flight from `pointerdown` until `pointerup` or
+// `pointercancel` (a popup that mounts during one — `useContextMenu`'s
+// long press — has to take the click that press will produce), and an
+// armed swallow waits for the click a press produced. A test that fires
+// only the down half leaves both behind, and the next test in the same
+// file pays: a popup mounted then arms a swallow for a press that ended
+// before it, and a `fireEvent.click` can be eaten outright by a swallow
+// armed a test ago.
+//
+// Both were reachable. The press half was found by the shuffled-order job
+// — the click-away case in `FolderContent.inlineRename.test.tsx` presses
+// `document.body` and never lifts, and the two tests it shares a file with
+// lost the click that opens the inline editor when the shuffle put them
+// after it. Module state does not cross files here (`pool: "forks"`, and
+// isolation on), so this is a within-file ordering, which is the half of
+// `--sequence.shuffle` `ci.yml` says has found every defect so far. The
+// swallow half was found in review, by the same shape one field over.
+//
+// `pointercancel` rather than `pointerup`, because it is the one event
+// that means both: it ends the press *and* it is in the set that abandons
+// an armed swallow. A browser sends it when a gesture stops being one, and
+// a test ending is that.
+//
+// **What this is, exactly.** A plain `Event`, not a `PointerEvent` — jsdom
+// implements none — dispatched at `document` and not bubbling. So it
+// reaches a `pointercancel` listener on `document` in either phase, and a
+// *capture* listener on `window`, because the capture path runs through
+// it; a bubble listener on `window` never sees it, and a handler that
+// reads `button` or `pointerId` off it gets `undefined`.
+//
+// That is deliberately the smallest thing that reaches what this harness
+// has to reach: `DismissScrim`'s two document-capture listeners — the
+// module-scope one that ends a press, and the per-arming one that abandons
+// a swallow. Hitting both with one event is the whole reason it is a
+// `pointercancel`. Making it bubble would also end the
+// scrub `usePlayerGestures` follows on a `window` bubble listener —
+// measured, and it costs act warnings from a component that is still
+// mounted when this runs (see the ordering below). A window-level gesture that leaks the same way
+// needs its own lift, or this event needs to grow, and either way the
+// scopes it reaches are pinned in `press-lift.test.tsx` rather than
+// described here alone.
+//
+// It runs **before** Testing Library's `cleanup()`: vitest calls
+// `afterEach` hooks in reverse registration order and the auto-cleanup is
+// registered by the import at the top of this file. So the event lands on
+// a still-mounted tree. That is harmless while nothing but `DismissScrim`
+// answers a document-level `pointercancel` — but a component that ends a
+// drag on one will run its drag-end handler during teardown, outside
+// `act()`, and the act warning will name a file whose author changed
+// nothing.
+afterEach(() => {
+  if (typeof document !== "undefined") {
+    document.dispatchEvent(new Event("pointercancel"));
+  }
 });

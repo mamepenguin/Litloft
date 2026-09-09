@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { DismissScrim } from "@/components/DismissScrim";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
@@ -91,51 +92,57 @@ export function OverFrameSettingsPanel({
         isPopover ? "items-end" : "",
       ].join(" ")}
     >
-      <button
-        type="button"
+      <DismissScrim
+        onDismiss={onClose}
         data-testid={backdropTestId}
-        aria-label={closeLabel}
+        // Named, unlike a menu's scrim. Over media there is no page edge
+        // to say where the panel stops, so the area that dismisses it is
+        // a control a reader can find rather than dead space.
+        label={closeLabel}
+        // The frame, not the viewport: this panel is drawn inside a box
+        // that goes `position: fixed` while faking fullscreen on Apple
+        // mobile, and a viewport-sized scrim would leave the frame.
+        //
         // A mouse user can see the whole frame at once and the panel
         // covers very little of it, so there is nothing to dim; the
         // backdrop stays only to catch the click that dismisses it.
         className={`absolute inset-0 ${isPopover ? "" : "bg-black/40"}`}
-        onClick={onClose}
-      />
-
-      <div
-        data-testid={testId}
-        data-placement={placement}
-        tabIndex={-1}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-        className={[
-          "relative flex flex-col gap-2 bg-black/85 px-3 pb-3 pt-3 text-white",
-          isPopover
-            ? // Clear of the bar the button that opened this lives in.
-              // Written out per branch rather than composed, so Tailwind
-              // can see both class names in the source.
-              fromTop
-              ? "mt-14 mr-2 w-64 rounded-2xl"
-              : "mb-16 mr-2 w-64 rounded-2xl"
-            : "rounded-t-2xl",
-          // The frame is only as tall as its content — on a phone that
-          // can be barely 200px. The panel is sized to fit inside that;
-          // this is the guard for the cases it still cannot, rather
-          // than letting rows fall off the bottom edge unreachable.
-          // The popover's own offset comes out of that budget, or a
-          // narrow window pushes its top rows off the frame instead.
-          isPopover ? "max-h-[calc(100%-5rem)]" : "max-h-full",
-          "overflow-y-auto",
-          // From the edge it hangs off. A panel parked under the top bar
-          // that rises from below starts a panel-height down the frame,
-          // in open space, and travels toward its own trigger — the
-          // anchor's own defect over again, in time instead of space.
-          fromTop ? "animate-slide-down-bar" : "animate-slide-up-bar",
-        ].join(" ")}
       >
-        {children}
-      </div>
+        <div
+          data-testid={testId}
+          data-placement={placement}
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onClose();
+          }}
+          className={[
+            "relative flex flex-col gap-2 bg-black/85 px-3 pb-3 pt-3 text-white",
+            isPopover
+              ? // Clear of the bar the button that opened this lives in.
+                // Written out per branch rather than composed, so Tailwind
+                // can see both class names in the source.
+                fromTop
+                ? "mt-14 mr-2 w-64 rounded-2xl"
+                : "mb-16 mr-2 w-64 rounded-2xl"
+              : "rounded-t-2xl",
+            // The frame is only as tall as its content — on a phone that
+            // can be barely 200px. The panel is sized to fit inside that;
+            // this is the guard for the cases it still cannot, rather
+            // than letting rows fall off the bottom edge unreachable.
+            // The popover's own offset comes out of that budget, or a
+            // narrow window pushes its top rows off the frame instead.
+            isPopover ? "max-h-[calc(100%-5rem)]" : "max-h-full",
+            "overflow-y-auto",
+            // From the edge it hangs off. A panel parked under the top bar
+            // that rises from below starts a panel-height down the frame,
+            // in open space, and travels toward its own trigger — the
+            // anchor's own defect over again, in time instead of space.
+            fromTop ? "animate-slide-down-bar" : "animate-slide-up-bar",
+          ].join(" ")}
+        >
+          {children}
+        </div>
+      </DismissScrim>
     </div>
   );
 }

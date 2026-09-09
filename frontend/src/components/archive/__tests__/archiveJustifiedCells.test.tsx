@@ -22,6 +22,7 @@ import {
   JG_MAX_RATIO,
   JG_MIN_RATIO,
 } from "@/lib/justifiedGrid";
+import { MENU_SCRIM } from "@/components/DismissScrim";
 import { viewerTakesCanvasFloor } from "@/lib/fileDetailShell";
 import type { ArchiveEntry } from "@/types";
 
@@ -281,14 +282,29 @@ describe("the canvas viewer's floor", () => {
     // The population the rule above protects. If either of these is ever
     // portalled or stops being `fixed`, this test says so — and the
     // containment answer becomes available again.
+    //
+    // The toolbar's is one step away now: it renders `DismissScrim` with
+    // no `className`, so the box is `MENU_SCRIM`'s. Both halves are
+    // asserted — the default being `fixed inset-0` says nothing if the
+    // toolbar has started passing a box of its own, and the toolbar
+    // taking the default says nothing if the default has moved.
     const viewer = readFileSync(
       join(__dirname, "..", "ArchiveImageViewer.tsx"),
       "utf8",
     );
     const toolbar = readFileSync(join(__dirname, "..", "ArchiveToolbar.tsx"), "utf8");
+    const scrim = readFileSync(
+      join(__dirname, "..", "..", "DismissScrim.tsx"),
+      "utf8",
+    );
     expect(viewer).toMatch(/fixed inset-0/);
-    expect(toolbar).toMatch(/fixed inset-0/);
+    expect(MENU_SCRIM).toMatch(/\bfixed inset-0\b/);
+    expect(toolbar).toMatch(/<DismissScrim onDismiss=\{closeMore\}>/);
     expect(viewer).not.toMatch(/createPortal/);
+    // The scrim is written where it is used for exactly this reason: a
+    // portal would leave the canvas and the rule above would stop
+    // protecting anything.
+    expect(scrim).not.toMatch(/createPortal/);
   });
 });
 

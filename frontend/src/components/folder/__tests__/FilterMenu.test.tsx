@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 
 import { FilterMenu } from "../FilterMenu";
+import { dismissByPressingOutside } from "@/__tests__/helpers/dismissScrim";
 
 const base = {
   typeFilter: null,
@@ -117,23 +118,24 @@ describe("FilterMenu", () => {
     expect(trigger()).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("closes on a click outside it", () => {
+  it("closes on a press outside it", () => {
     // With two chips there were two ways out. There is one now.
     //
-    // The scrim is found as a *sibling* of the menu, not by asking the
-    // document for the first `[aria-hidden]`: lucide marks its icons that
-    // way, so the loose query returned the icon inside the trigger, and
-    // clicking it toggled the menu shut through the button. Deleting the
-    // scrim entirely left that version green.
+    // The dim is still checked for, as the menu's *previous sibling*
+    // rather than by asking the document for the first `[aria-hidden]`:
+    // lucide marks its icons that way, so the loose query returned the
+    // icon inside the trigger. It is that position `DismissScrim` reads
+    // as "inside", so a menu that stopped being the element after the
+    // scrim would take every outside press with it.
     render(<FilterMenu {...base} />);
     fireEvent.click(trigger());
     const menu = screen.getByRole("menu");
-    const scrim = [...menu.parentElement!.children].find(
-      (el) => el !== menu && el.getAttribute("aria-hidden") === "true",
-    );
-    expect(scrim).toBeTruthy();
+    const scrim = menu.previousElementSibling;
+    expect(scrim?.getAttribute("aria-hidden")).toBe("true");
     expect(scrim!.getAttribute("class")?.split(/\s+/)).toContain("fixed");
-    fireEvent.click(scrim!);
+
+    dismissByPressingOutside();
+
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 

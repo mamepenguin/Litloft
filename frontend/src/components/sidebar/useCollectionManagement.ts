@@ -53,12 +53,11 @@ export function useCollectionManagement({
     }
   }, [renamingId]);
 
-  useEffect(() => {
-    if (!contextMenu) return;
-    function handleClick() { setContextMenu(null); }
-    window.addEventListener("click", handleClick);
-    return () => window.removeEventListener("click", handleClick);
-  }, [contextMenu]);
+  // No listener here. The menu is `ContextMenu`, which goes through
+  // `DismissScrim`: an outside press closes it and the click that press
+  // produces is swallowed. The `window` listener this replaced answered
+  // the same click *and* let it reach the sidebar row underneath, so
+  // dismissing the menu navigated somewhere.
 
   const handleCreateCollection = useCallback(async () => {
     if (!currentDrive || !newCollectionName.trim()) {

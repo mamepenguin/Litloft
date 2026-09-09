@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { DismissScrim } from "@/components/DismissScrim";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
@@ -27,7 +28,6 @@ interface FolderPickerProps {
 export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const t = useTranslations("fileSaveDialog");
   const panelId = useId();
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
@@ -37,21 +37,6 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const [allFolders, setAllFolders] = useState<FolderTreeNode[]>([]);
   const [loadingCurrent, setLoadingCurrent] = useState(false);
   const allLoadedRef = useRef(false);
-
-  useEffect(() => {
-    if (!open) return;
-
-    function handlePointerDown(event: PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [open]);
 
   // Escape closes the picker through the shortcut stack. As its own
   // listener it fired alongside the listener of whatever dialog holds
@@ -130,7 +115,7 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const displayValue = value ? `/${value}` : `/${t("folderRoot")}`;
 
   return (
-    <div ref={containerRef} className="relative w-full min-w-0">
+    <div className="relative w-full min-w-0">
       {/* Toggle button */}
       <button
         type="button"
@@ -152,123 +137,135 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
         )}
       </button>
 
-      {/* Expanded panel */}
       {open && (
-        <div
-          id={panelId}
-          role="dialog"
-          className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-bg-border bg-bg-primary shadow-lg"
+        <DismissScrim
+          onDismiss={() => setOpen(false)}
+          // Under the panel, which is `z-50`. Four of this picker's six
+          // callers are dialogs, and a dialog root is `fixed z-50` — a
+          // stacking context, so inside one these two numbers are compared
+          // against each other and nothing else. The two plain-page callers
+          // put the scrim in the floating-surface band (DESIGN.md
+          // §Layering) rather than the popover one it belongs to, and that
+          // follows from the panel's own `z-50`; renumbering the panel is
+          // the fix, and it is not this change's.
+          className="fixed inset-0 z-40"
         >
-          {/* Filter input */}
-          <div className="border-b border-bg-border px-3 py-2">
-            <div className="relative">
-              <Search
-                size={13}
-                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
-              />
-              <input
-                type="text"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder={t("folderFilter")}
-                className="w-full rounded-2xl bg-bg-elevated py-1.5 pl-8 pr-8 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-focus-ring"
-              />
-              {filter && (
+          <div
+            id={panelId}
+            role="dialog"
+            className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-bg-border bg-bg-primary shadow-lg"
+          >
+            {/* Filter input */}
+            <div className="border-b border-bg-border px-3 py-2">
+              <div className="relative">
+                <Search
+                  size={13}
+                  className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
+                />
+                <input
+                  type="text"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder={t("folderFilter")}
+                  className="w-full rounded-2xl bg-bg-elevated py-1.5 pl-8 pr-8 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-focus-ring"
+                />
+                {filter && (
+                  <button
+                    type="button"
+                    onClick={() => setFilter("")}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
+                    aria-label={t("folderFilterClear")}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Breadcrumb (navigation mode only) */}
+            {!isFiltering && (
+              <div className="flex flex-wrap items-center gap-1 border-b border-bg-border px-3 py-2 text-xs text-text-muted">
                 <button
                   type="button"
-                  onClick={() => setFilter("")}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-lg p-1 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
-                  aria-label={t("folderFilterClear")}
+                  onClick={() => handleBreadcrumbClick(-1)}
+                  className="rounded-xl px-2 py-1 transition-colors hover:bg-bg-elevated hover:text-text-primary"
                 >
-                  <X size={13} />
+                  {drive}
                 </button>
-              )}
-            </div>
-          </div>
+                {breadcrumbParts.map((part, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    <ChevronRight size={12} className="shrink-0" />
+                    <button
+                      type="button"
+                      onClick={() => handleBreadcrumbClick(i)}
+                      className="rounded-xl px-2 py-1 transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                    >
+                      {part}
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
 
-          {/* Breadcrumb (navigation mode only) */}
-          {!isFiltering && (
-            <div className="flex flex-wrap items-center gap-1 border-b border-bg-border px-3 py-2 text-xs text-text-muted">
-              <button
-                type="button"
-                onClick={() => handleBreadcrumbClick(-1)}
-                className="rounded-xl px-2 py-1 transition-colors hover:bg-bg-elevated hover:text-text-primary"
-              >
-                {drive}
-              </button>
-              {breadcrumbParts.map((part, i) => (
-                <span key={i} className="flex items-center gap-1">
-                  <ChevronRight size={12} className="shrink-0" />
-                  <button
-                    type="button"
-                    onClick={() => handleBreadcrumbClick(i)}
-                    className="rounded-xl px-2 py-1 transition-colors hover:bg-bg-elevated hover:text-text-primary"
-                  >
-                    {part}
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Folder list */}
-          <div className="max-h-48 overflow-y-auto">
-            {isFiltering ? (
-              filteredFolders.length === 0 ? (
-                <p className="px-3 py-3 text-sm text-text-muted">
-                  {t("folderEmpty")}
-                </p>
-              ) : (
-                filteredFolders.map((folder) => (
-                  <button
-                    key={folder.path}
-                    type="button"
-                    onClick={() => handleFilteredClick(folder.path)}
-                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                      value === folder.path
-                        ? "bg-accent/10 text-accent"
-                        : "text-text-primary hover:bg-bg-elevated"
-                    }`}
-                  >
-                    <FolderIcon
-                      size={14}
-                      className={`shrink-0 ${value === folder.path ? "text-accent" : "text-text-muted"}`}
-                    />
-                    <span className="truncate">{folder.path}</span>
-                  </button>
-                ))
-              )
-            ) : (
-              <>
-                {loadingCurrent && (
+            {/* Folder list */}
+            <div className="max-h-48 overflow-y-auto">
+              {isFiltering ? (
+                filteredFolders.length === 0 ? (
                   <p className="px-3 py-3 text-sm text-text-muted">
-                    {t("folderLoading")}
+                    {t("folderEmpty")}
                   </p>
-                )}
-                {!loadingCurrent && currentFolders.length === 0 && (
-                  <p className="px-3 py-3 text-sm text-text-muted">
-                    {t("folderNoSubfolders")}
-                  </p>
-                )}
-                {!loadingCurrent &&
-                  currentFolders.map((folder) => (
+                ) : (
+                  filteredFolders.map((folder) => (
                     <button
                       key={folder.path}
                       type="button"
-                      onClick={() => handleFolderClick(folder.path)}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                      onClick={() => handleFilteredClick(folder.path)}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                        value === folder.path
+                          ? "bg-accent/10 text-accent"
+                          : "text-text-primary hover:bg-bg-elevated"
+                      }`}
                     >
                       <FolderIcon
                         size={14}
-                        className="shrink-0 text-text-muted"
+                        className={`shrink-0 ${value === folder.path ? "text-accent" : "text-text-muted"}`}
                       />
-                      <span className="flex-1 truncate">{folder.name}</span>
+                      <span className="truncate">{folder.path}</span>
                     </button>
-                  ))}
-              </>
-            )}
+                  ))
+                )
+              ) : (
+                <>
+                  {loadingCurrent && (
+                    <p className="px-3 py-3 text-sm text-text-muted">
+                      {t("folderLoading")}
+                    </p>
+                  )}
+                  {!loadingCurrent && currentFolders.length === 0 && (
+                    <p className="px-3 py-3 text-sm text-text-muted">
+                      {t("folderNoSubfolders")}
+                    </p>
+                  )}
+                  {!loadingCurrent &&
+                    currentFolders.map((folder) => (
+                      <button
+                        key={folder.path}
+                        type="button"
+                        onClick={() => handleFolderClick(folder.path)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                      >
+                        <FolderIcon
+                          size={14}
+                          className="shrink-0 text-text-muted"
+                        />
+                        <span className="flex-1 truncate">{folder.name}</span>
+                      </button>
+                    ))}
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        </DismissScrim>
       )}
     </div>
   );

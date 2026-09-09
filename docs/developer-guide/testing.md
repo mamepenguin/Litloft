@@ -109,6 +109,28 @@ Library constraints:
     where the instance never looks and three error-path tests quietly stop
     testing their error path.
 
+- **Every test ends with a `pointercancel` at `document`.** `setup.ts`
+  dispatches one after each test, and
+  `src/test/__tests__/press-lift.test.tsx` guards it the way
+  `storage-shim.test.ts` guards the shim.
+
+  It is there because `DismissScrim` keeps two pieces of module-scope state
+  across a file — a press in flight, and an armed click-swallow — and
+  `fireEvent.pointerDown` has no reason to end either. A test that presses
+  without lifting hands both to the next test in the file: a popup mounted
+  then arms a swallow for a press that is already over, and a plain
+  `fireEvent.click` can be eaten outright. `pointercancel` is the one event
+  that ends the press *and* abandons the swallow.
+
+  Two things about it are worth knowing before they cost an afternoon. It
+  runs **before** Testing Library's `cleanup()`, so it lands on a tree that
+  is still mounted: a component that ends a drag on a document-level
+  `pointercancel` will run its drag-end handler during teardown, outside
+  `act()`, and the act warning will name a file whose author changed
+  nothing. And it does **not** bubble, so a `window`-level bubble listener
+  — `usePlayerGestures` follows a scrub on one — never sees it; a gesture
+  that leaks the same way from there needs its own lift.
+
 ### Addon frontends run here too
 
 An addon's frontend has no runner of its own. Its components import core's
@@ -177,6 +199,44 @@ pnpm test:e2e --reporter=html
 pnpm test:e2e:report
 ```
 
+### Components in a browser, which is a third suite
+
+`frontend/e2e-components/` is Playwright again, and it is the only place in the
+tree where **a real component is driven by a real gesture**. The repo's own vite
+bundles `fixtures/app.tsx`, which imports `DismissScrim`, `ContextMenu` and
+`useContextMenu` out of `src/`; Playwright then drives the bundle in an emulated
+Pixel 5 with CDP `Input.dispatchTouchEvent`, so the compatibility `click` after
+`touchend` is Chromium's own.
+
+```bash
+cd frontend
+pnpm test:e2e:components       # a few seconds, including the bundle
+```
+
+Why it exists, plainly: `e2e-layout/` cannot import a `.tsx`. Its fixtures
+hand-write a copy of whatever mechanism they measure, and a copy is right by
+construction — so a component can stop doing the thing while its fixture keeps
+passing. Unit F shipped four functional defects across four review rounds and
+**every one of them passed the browser suite**, including one the new mechanism
+created: a popup raised by a 500 ms long press had no swallow armed for the
+click that press produces, so long-pressing a file card opened its menu *and*
+navigated to the file. Nothing in the tree could see it until a target that runs
+the component existed.
+
+What it holds that `e2e-layout` cannot:
+
+- the component itself, through React's own dispatch path (handlers delegated at
+  the root container, under a swallow that stops the click at `document` above
+  it);
+- gestures no `page.touchscreen` API expresses — a **long press** is touchStart,
+  a wait, touchEnd, and only CDP can hold one open.
+
+What it still cannot hold: the *pages* are hand-written. `SelectionBar`,
+`InspectorShell` and `FileCard` need Next.js, `next-intl` and a backend, so what
+is measured is the real primitive inside a copy of their arrangements — a
+`fixed bottom-0 z-50` bar, a sticky strip written after the scrim, a transformed
+ancestor, a long-press opener. It is Chromium only, like the layout suite.
+
 ### Layout invariants, which are a separate suite
 
 `frontend/e2e-layout/` is also Playwright, and has nothing else in common with
@@ -212,8 +272,10 @@ these are the runs on one branch, and the runner varies.
 
 It has its own config (`playwright-layout.config.ts`) so that neither run can
 pull the other in, and its `globalSetup` compiles `src/app/globals.css` into the
-sheet the fixture links, so there is no build step to forget. **It is the one
-job in CI that starts a browser** — `frontend (layout invariants in a browser)`.
+sheet the fixture links, so there is no build step to forget. It shares its CI
+job with the component suite below —
+`frontend (layout invariants and components in a browser)` — which is **the one
+job in CI that starts a browser**.
 
 Why it exists: jsdom lays nothing out. Every `getBoundingClientRect()` in
 `justifiedGrid.test.tsx` returns zeros, so a cell drawn at the wrong aspect
@@ -424,6 +486,17 @@ and a loop toggle that one test switches off and the next expects on. The
 fix is never to reorder; it is to give the block its own setup, or to clear
 the store in `beforeEach`.
 
+The third one this job found was not `localStorage`, and it did not take a
+per-block fix: it was module-scope state inside a component
+(`DismissScrim`'s press-in-flight and armed click-swallow), reached by a
+test that pressed without lifting. State a component keeps for the life of
+a file cannot be cleared by the block that happens to notice — every file
+that renders it is exposed — so it is ended centrally instead, by the
+`pointercancel` the *Library constraints* list above describes. Read that
+bullet before writing a `beforeEach` for anything of this shape; a per-file
+copy of it was deliberately removed, because the file that keeps one is the
+file that cannot notice the shared clean-up disappearing.
+
 The `frontend (shuffled order)` CI job runs this on every pull request so
 the next one does not have to be found by hand.
 
@@ -469,7 +542,7 @@ every pull request and on pushes to the default branch.
 |---|---|
 | `frontend` | `setup-addons.sh`, install, merge translations, the collection check below, then `pnpm test`, `tsc --noEmit`, `pnpm lint` |
 | `frontend (shuffled order)` | the same suite under `--sequence.shuffle`. Required since 2026-09 — when it is red, reproduce with its seed rather than re-running; see below |
-| `frontend (layout invariants in a browser)` | `frontend/e2e-layout/` under Chromium — the geometry jsdom cannot see. Not required yet; see below |
+| `frontend (layout invariants and components in a browser)` | `frontend/e2e-layout/` and `frontend/e2e-components/` under Chromium — the geometry and the gestures jsdom cannot see. Not required yet; see below |
 | `mcp-server` | `pnpm test`, `tsc --noEmit` |
 | `backend` | `backend/Dockerfile.test` built and run |
 | `bootstrap` | `pytest tests/test_configure.py` on a bare Python 3.12 |

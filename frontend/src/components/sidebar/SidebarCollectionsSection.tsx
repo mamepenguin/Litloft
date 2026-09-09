@@ -4,6 +4,7 @@ import { Library, Pencil, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { CollectionSummary } from "@/types";
+import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
 import { addCollectionItems, getCollections } from "@/lib/api";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import { useSidebarItemOrder } from "./useSidebarItemOrder";
@@ -84,6 +85,38 @@ export function SidebarCollectionsSection({
     ids: order,
     onReorder: setOrder,
   });
+
+  // Rebuilt whenever the target changes, because every entry closes over
+  // the collection it acts on. `ContextMenu` runs the handler in a
+  // `requestAnimationFrame` after closing, so `renamingId` is set on a
+  // tree that no longer holds the menu.
+  const contextMenuItems = useMemo<MenuItem[]>(() => {
+    const target = collectionList.find((c) => c.id === contextMenu?.id);
+    if (!target) return [];
+    return [
+      {
+        icon: Pencil,
+        label: t("renameCollection"),
+        onClick: () => {
+          setRenamingId(target.id);
+          setRenameValue(target.name);
+        },
+      },
+      {
+        icon: Trash2,
+        label: t("deleteCollection"),
+        danger: true,
+        onClick: () => handleDeleteCollection(target.id),
+      },
+    ];
+  }, [
+    collectionList,
+    contextMenu,
+    handleDeleteCollection,
+    setRenameValue,
+    setRenamingId,
+    t,
+  ]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     if (!e.dataTransfer.types.includes("application/x-file-ids")) return;
@@ -239,34 +272,24 @@ export function SidebarCollectionsSection({
             </button>
           )}
 
-          {contextMenu?.id === c.id && (
-            <div
-              className="fixed z-50 min-w-[140px] rounded-lg border border-bg-border bg-bg-primary py-1 shadow-lg"
-              style={{ left: contextMenu.x, top: contextMenu.y }}
-            >
-              <button
-                onClick={() => {
-                  setRenamingId(c.id);
-                  setRenameValue(c.name);
-                  setContextMenu(null);
-                }}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-text-muted hover:bg-bg-elevated hover:text-text-primary"
-              >
-                <Pencil size={14} />
-                {t("renameCollection")}
-              </button>
-              <button
-                onClick={() => handleDeleteCollection(c.id)}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-danger hover:bg-accent/10"
-              >
-                <Trash2 size={14} />
-                {t("deleteCollection")}
-              </button>
-            </div>
-          )}
         </div>
         );
       })}
+
+      {/* The shared component, as `SidebarSmartFoldersSection` already uses
+          for the identical gesture two files away. This section drew its
+          own `fixed` panel with no scrim, no `role` and a `window` click
+          listener, so the tap that dismissed it also pressed the sidebar
+          row underneath — and having no ARIA, it was invisible to the
+          sweep that is supposed to find popups. */}
+      {contextMenu && (
+        <ContextMenu
+          open
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          items={contextMenuItems}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </>
   );
 }

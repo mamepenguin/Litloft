@@ -17,6 +17,7 @@ import {
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { DismissScrim } from "@/components/DismissScrim";
 import type { FileKind } from "@/types";
 
 /**
@@ -127,23 +128,6 @@ export function FilterField({
     return () => window.clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localText]);
-
-  useEffect(() => {
-    if (!open) return;
-    function handlePointer(e: Event) {
-      const inside =
-        popoverRef.current?.contains(e.target as Node) ||
-        chipWrapperRef.current?.contains(e.target as Node) ||
-        triggerRef.current?.contains(e.target as Node);
-      if (!inside) setOpen(false);
-    }
-    document.addEventListener("mousedown", handlePointer);
-    document.addEventListener("touchstart", handlePointer, { passive: true });
-    return () => {
-      document.removeEventListener("mousedown", handlePointer);
-      document.removeEventListener("touchstart", handlePointer);
-    };
-  }, [open]);
 
   // Measure chip width so the input's paddingLeft can avoid overlap. Use a
   // layout effect (run before paint) plus ResizeObserver so font load /
@@ -266,41 +250,49 @@ export function FilterField({
   const TypeIcon = typeFilter ? TYPE_ICONS[typeFilter] : null;
   const typeLabel = typeFilter ? t(TYPE_LABEL_KEYS[typeFilter]) : "";
 
+  // Both call sites below draw the menu through this, so the scrim is
+  // written once and neither form can be left without one.
   const renderMenu = () => (
-    <div
-      ref={popoverRef}
-      id={menuId}
-      role="menu"
-      onKeyDown={handleMenuKeyDown}
-      className={
-        typeFilter === null
-          ? "absolute right-0 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
-          : "absolute left-7 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
-      }
+    <DismissScrim
+      onDismiss={() => setOpen(false)}
+      // No tint: this menu is anchored to its chip at every width.
+      className="fixed inset-0 z-30"
     >
-      {menuValues.map((value, idx) => {
-        const isSelected = value === typeFilter;
-        const label = value === null ? t("type.all") : t(TYPE_LABEL_KEYS[value]);
-        return (
-          <button
-            key={value ?? "__all__"}
-            ref={(el) => {
-              optionRefs.current[idx] = el;
-            }}
-            type="button"
-            role="menuitem"
-            tabIndex={focusedIndex === idx ? 0 : -1}
-            onClick={() => handleSelect(value)}
-            className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors ${
-              isSelected ? "bg-bg-elevated text-text-primary font-medium" : "text-text-primary hover:bg-bg-elevated"
-            }`}
-          >
-            <span className="w-4 flex-shrink-0">{isSelected && <Check size={14} />}</span>
-            {label}
-          </button>
-        );
-      })}
-    </div>
+      <div
+        ref={popoverRef}
+        id={menuId}
+        role="menu"
+        onKeyDown={handleMenuKeyDown}
+        className={
+          typeFilter === null
+            ? "absolute right-0 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
+            : "absolute left-7 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
+        }
+      >
+        {menuValues.map((value, idx) => {
+          const isSelected = value === typeFilter;
+          const label = value === null ? t("type.all") : t(TYPE_LABEL_KEYS[value]);
+          return (
+            <button
+              key={value ?? "__all__"}
+              ref={(el) => {
+                optionRefs.current[idx] = el;
+              }}
+              type="button"
+              role="menuitem"
+              tabIndex={focusedIndex === idx ? 0 : -1}
+              onClick={() => handleSelect(value)}
+              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors ${
+                isSelected ? "bg-bg-elevated text-text-primary font-medium" : "text-text-primary hover:bg-bg-elevated"
+              }`}
+            >
+              <span className="w-4 flex-shrink-0">{isSelected && <Check size={14} />}</span>
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </DismissScrim>
   );
 
   const underline = variant === "underline";

@@ -896,6 +896,92 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   and accepts it. Whether measuring should replace any of that is filed as its
   own unit; until it lands, this is one component's behaviour and not a rule
   the tree keeps.
+- **A popup is dismissed by a press outside it, and the click that press
+  produces is swallowed.** One primitive, `DismissScrim`, and every
+  **anchored** popup in core on it — a menu, a filter panel, a picker, a
+  typeahead. It takes the popup as its child, so "outside" is a subtree and
+  not a box. A modal dialog is a different pattern and keeps its own
+  backdrop; `popup-dismissal.test.ts` enumerates which surfaces are which
+  rather than leaving it to whichever ones happen to spell `role="dialog"`.
+  The addons are each their own repository and are named where they stand:
+  `knowledge`'s `[[` candidate list is on the primitive and pinned here;
+  `intelligence`'s AI menu dismisses on its own scrim's `click`, by hand,
+  which is the mechanism this section stopped calling correct — it is the
+  `scrim-click` strategy `e2e-layout/popup-dismiss.spec.ts` measures as
+  wrong at two of its four arrangements. Nobody has measured that menu in
+  either of them; it closes when the file takes `DismissScrim`.
+
+  The requirement is that **dismissing a menu must not also activate what
+  is under the finger**, and it is a statement about event order. A tap's
+  `click` is dispatched after `touchend`, against whatever is topmost
+  *then*, so a popup that closes on the press and lets that click go has
+  activated the page. Answering the press and then refusing the one click
+  it produces — `document`, capture phase, `stopPropagation` and
+  `preventDefault`, armed for that interaction only — says exactly that,
+  and says it whatever is stacked where. A mouse hides half of the old
+  defect, because cancelling `pointerdown` suppresses the compatibility
+  mouse events, which is how the tree ended up with three behaviours at
+  once.
+
+  **The same holds for the press that *raises* a popup.** A long press
+  opens `ContextMenu` from a 500 ms timer, and the primitive never answered
+  that press — so nothing armed for the click the lift produces, and the
+  tap that opened a file card's menu also opened the file. A scrim that
+  mounts while a press is in flight arms the swallow for it, which closes
+  the class rather than that one opener. Measured in
+  `e2e-components/popup-dismiss.spec.ts`, on the real components.
+
+  **The scrim is appearance.** It draws the dim below 640px and takes no
+  pointer events at all (`pointer-events: none`, inline, so no caller's
+  class list can turn it back on). Its tier says what the dim covers and
+  nothing else: no dismissal depends on the scrim being the element a tap
+  reaches. That is also why the case above needed fixing rather than
+  ignoring: the old scrim intercepted the long press's click by accident,
+  being in the way, and appearance cannot.
+
+  That is a correction, and it cost three rounds to arrive at. The scrim
+  used to absorb the click, which is a claim that it is above everything a
+  finger can reach — and every rule written to hold that claim lost to an
+  arrangement it had not foreseen: `z-[9]` under the inspector's tab strip;
+  a band admitting `z-10`, which ties that strip and loses on document
+  order; a floor-and-ceiling that forbade clearing `SelectionBar`'s
+  `fixed bottom-0 z-50`, said nothing about the five scrims inside
+  `FolderToolbar`'s own stacking context, and skipped the shared default
+  entirely. There is no bounded list of ways one box ends up over another,
+  so a rule about position loses to the next position.
+  `e2e-layout/popup-dismiss.spec.ts` measures both mechanisms at four
+  arrangements in a real browser; the numbers are in that PR, not here.
+
+  A right-press retargets, and now does so by itself: the press dismisses,
+  the browser's `contextmenu` reaches the row underneath, and the row
+  raises the menu there. Nothing prevents or re-dispatches it.
+
+  The scrim is written where the popup is and needs no portal: it is a
+  sibling of the popup, so it is already in the popup's interactive subtree
+  and in a box that *contains* whatever the popup is drawn against (inside
+  the sheet, vaul makes `<body>` inert and only `Drawer.Content` is live —
+  §Layering). Not the *same* containing block, and the two words decide
+  different questions: a `fixed` box resolves against the viewport — or
+  against the nearest ancestor carrying a `transform`, `filter` or
+  `contain`, which is what vaul's drawer is — while an `absolute` one
+  resolves against its nearest positioned ancestor. Fifteen of the sixteen
+  scrims are `fixed`; the over-frame settings panel's is `absolute`, so
+  that a panel drawn inside a frame that goes `position: fixed` cannot
+  leave it. The menus themselves are not one shape: `SortButton` and the
+  shared `MENU_SURFACE` are `fixed` bottom sheets below 640px and
+  `sm:absolute` above it, while `AddButton`, `FileActions`, `FilterField`,
+  `TrashToolbar` and `EditableTagChips` are `absolute` against their
+  wrapper at every width.
+
+  The scrim carries no name and no role, except where it is the popup's
+  *stated* way out — the over-frame settings panel names its backdrop,
+  because over media there is no page edge to say where the panel stops.
+  That one keeps its pointer events and its `onClick`, which is the path a
+  keyboard activation takes.
+
+  The exception is a field, not a popup: an inline rename commits on an outside
+  press and lets the click through on purpose, so that clicking a second row
+  while renaming the first both commits and selects.
 - **Where a popup's direction is measured, everything else anchored to the same
   control uses that same answer** — on both axes, and including an error raised
   after the popup has closed. `FileActions`'s error toast is
@@ -918,6 +1004,15 @@ number one higher than whatever it currently sits under.
 | Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page rather than overlay it |
 | Always on top | `z-[100]` | Shortcut cheat sheet, quick note, file save, toasts |
 
+- **Inside a tier, the number is not the whole answer, so do not build
+  behaviour on it.** A sticky bar and a popover anchored to a control are
+  both in `z-10`–`z-30`; at an equal number the later element in the
+  document wins, a bar in its own stacking context is compared only against
+  its siblings, and a `fixed bottom-0 z-50` bar is over the lot. Pick the
+  tier by what the element *is* and let it decide what covers what
+  visually. Nothing that has to be *correct* may depend on it —
+  `DismissScrim` used to and could not be made to hold (§Context Menus /
+  Dropdowns).
 - **A panel that has run out of room is still in-flow chrome.** The inspector
   covering the canvas looks like a floating surface but is part of the page's
   layout; at `z-40` it buries the mini player, and at `z-20` it correctly sits

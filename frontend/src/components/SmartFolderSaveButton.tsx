@@ -8,6 +8,9 @@ import { useTranslations } from "next-intl";
 import type { FileKind } from "@/types";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { DismissScrim } from "./DismissScrim";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { SmartFolderSaveDialog } from "./SmartFolderSaveDialog";
 
 interface SmartFolderSaveButtonProps {
@@ -62,6 +65,7 @@ export function SmartFolderSaveButton({
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -70,22 +74,41 @@ export function SmartFolderSaveButton({
     return () => clearTimeout(timer);
   }, [error]);
 
-  const menuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    const timer = setTimeout(() => {
-      document.addEventListener("mousedown", handleClick);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, [menuOpen]);
+  // A popup must be dismissable from the keyboard. Without it the only
+  // ways out are a press outside it or picking a row, so a keyboard user
+  // who opens this menu cannot back out of it.
+  //
+  // On the shortcut stack, not on `document`: a listener does not know
+  // what is stacked above it, and `escape-listeners.test.ts` records the
+  // presses that were answered twice before this was the rule.
+  // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
+  // while it is open. `FileActions` carries the same block and the
+  // reasoning in full.
+  //
+  // `editingOnly: false` because nothing traps focus inside this menu, so
+  // Tab walks out of the last row into whatever follows in the document.
+  // The provider counts a focused field as "editing", and the default
+  // fires only when nothing is — which would leave Escape inert exactly
+  // there, with the menu still up. The test case for that state is what
+  // makes the flag checkable.
+  useShortcuts(
+    "smart-folder-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          setMenuOpen(false);
+          menuTriggerRef.current?.focus();
+        },
+      },
+    ],
+    menuOpen,
+    OVERLAY_PRIORITY,
+  );
 
   const buildSearchUrl = useCallback(
     (id: string | null) => {
@@ -160,8 +183,9 @@ export function SmartFolderSaveButton({
   return (
     <>
       {inSavedMode ? (
-        <div ref={menuRef} className="relative flex-shrink-0">
+        <div className="relative flex-shrink-0">
           <button
+            ref={menuTriggerRef}
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
             className="flex items-center gap-1.5 rounded-2xl bg-bg-elevated px-3 py-1.5 text-sm font-medium text-text-primary ring-1 ring-bg-border transition-colors hover:bg-bg-card"
@@ -175,44 +199,50 @@ export function SmartFolderSaveButton({
             <ChevronDown size={14} className="text-text-muted" />
           </button>
           {menuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
+            <DismissScrim
+              onDismiss={() => setMenuOpen(false)}
+              // Under the `z-40` menu, over the search bar it hangs from.
+              className="fixed inset-0 z-30"
             >
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setUpdateConfirmOpen(true);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+              <div
+                role="menu"
+                className="absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
               >
-                <RefreshCw size={14} />
-                {t("update")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setRenameOpen(true);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-              >
-                <Pencil size={14} />
-                {t("rename")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setDeleteConfirmOpen(true);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-danger transition-colors hover:bg-accent/10"
-              >
-                <Trash2 size={14} />
-                {t("delete")}
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setUpdateConfirmOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                >
+                  <RefreshCw size={14} />
+                  {t("update")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setRenameOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                >
+                  <Pencil size={14} />
+                  {t("rename")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setDeleteConfirmOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-danger transition-colors hover:bg-accent/10"
+                >
+                  <Trash2 size={14} />
+                  {t("delete")}
+                </button>
+              </div>
+            </DismissScrim>
           )}
         </div>
       ) : (
