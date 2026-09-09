@@ -44,13 +44,20 @@ interface InspectorShellProps {
  * finding them first; anchored, they are in the same place for every
  * file, whatever is below them.
  *
- * In `column` mode that anchoring is bought elsewhere and would be paid
- * for twice: the sheet's resting strip already carries the file's name
- * and the row that acts on it, and it is on screen whether the sheet is
- * up or down. So the header scrolls away and the enclosing box does all
- * the scrolling, leaving only the tab strip pinned — sticky against
- * that box, so a tab can still be switched however far the reader has
- * scrolled.
+ * In `column` mode the header scrolls away with everything else and the
+ * enclosing box does all the scrolling, leaving only the tab strip
+ * pinned — sticky against that box, so a tab can still be switched
+ * however far the reader has scrolled.
+ *
+ * **The actions go with it.** While the sheet is up, the resting strip
+ * is not drawn at all — the sheet renders the strip *or* the drawer,
+ * never both — so the header is the only thing carrying the file's name
+ * and its action row, and reaching them means scrolling back to the top
+ * of the column. What the strip buys is the state the sheet spends most
+ * of its time in: down, where the name and the actions are on screen
+ * without opening anything. Trading the pinned header for the height it
+ * takes is the user's confirmed decision (2026-09-09), not something
+ * this arrangement gets for free.
  *
  * With a single tab there is no strip: see `tabs.ts` for why, and for
  * why nothing in this file knows what an addon is called.

@@ -178,134 +178,181 @@ async function layout(
 /** Past any content this fixture draws; the browser clamps it to the end. */
 const TO_THE_END = 1_000_000;
 
+type Case = (typeof CASES)[number];
+
+/**
+ * What the loops below actually registered, recorded as they register it.
+ *
+ * Pinning `CASES.length` does not observe a loop: `for (… of
+ * CASES.slice(0, 1))` dropped seven of these cases and the suite reported
+ * green, because nothing compared the tests that exist against the
+ * population they were meant to come from. Two of the loops were worse —
+ * they ran inside a single test, where a `slice` does not even change the
+ * count.
+ *
+ * So every case goes through `eachCase`, which pushes its id **and**
+ * registers the test in the same two lines. A `slice`, a `break` or a
+ * `continue` anywhere in that loop shortens this array, and the guard at
+ * the bottom of the file compares it against the cross product of
+ * `GROUPS` and `CASES` — recomputed from the two declarations rather than
+ * from the array itself, so the expected side does not move with the
+ * loop. Same recipe as `mobileInspectorSheetFixtureParity.test.tsx`.
+ */
+const registered: string[] = [];
+
+const caseId = (group: string, c: Case) => `${group} — ${c.height}px at ${c.sLabel}`;
+
+function eachCase(
+  group: string,
+  body: (page: import("@playwright/test").Page, c: Case) => Promise<void>,
+): void {
+  for (const c of CASES) {
+    registered.push(caseId(group, c));
+    test(`${c.height}px (${c.hLabel}) at ${c.sLabel}`, async ({ page }) => {
+      await body(page, c);
+    });
+  }
+}
+
+/**
+ * Every group of cases in this file, by name.
+ *
+ * Declared rather than counted, so deleting a whole describe is red as
+ * well: the guard rebuilds the expected register from this list.
+ */
+const GROUPS = [
+  "the drawer hangs below the fold, and the box inside it does not",
+  "the drawer itself is still 90vh",
+  "the end of the tab can be brought on screen",
+  "exactly one box scrolls, and it is the sheet's",
+  "the tab strip stays reachable once it has been scrolled to",
+  "the tab strip is on screen from the start when the header fits",
+  "replaced: the pinned header leaves the wrong box scrolling",
+  "replaced: the hand-written cap ends below the screen",
+  "replaced: an unbounded scroller ends a whole overhang below the screen",
+] as const;
+expect(GROUPS).toHaveLength(9);
+
 test.beforeEach(async ({ page }) => {
   await page.goto(FIXTURE);
 });
 
-test.describe("the drawer hangs below the fold, and the box inside it does not", () => {
-  for (const { height, snap, hLabel, sLabel } of CASES) {
-    test(`${height}px (${hLabel}) at ${sLabel}`, async ({ page }) => {
-      const m = await layout(page, { height, snap });
+test.describe(GROUPS[0], () => {
+  eachCase(GROUPS[0], async (page, { height, snap }) => {
+    const m = await layout(page, { height, snap });
 
-      // vaul's number, from the inputs rather than from the reading:
-      // it translates the drawer down by the part of the window the snap
-      // does not cover.
-      expect(m.snapPointHeight).toBeCloseTo(height * (1 - snap), 0);
+    // vaul's number, from the inputs rather than from the reading:
+    // it translates the drawer down by the part of the window the snap
+    // does not cover.
+    expect(m.snapPointHeight).toBeCloseTo(height * (1 - snap), 0);
 
-      // The defect C-2 is about, asserted rather than assumed: the
-      // drawer's own foot really is off the screen, at every snap.
-      expect(m.drawer.bottom).toBeGreaterThan(height);
-      expect(m.drawer.bottom - height).toBeCloseTo(m.snapPointHeight, 0);
+    // The defect C-2 is about, asserted rather than assumed: the
+    // drawer's own foot really is off the screen, at every snap.
+    expect(m.drawer.bottom).toBeGreaterThan(height);
+    expect(m.drawer.bottom - height).toBeCloseTo(m.snapPointHeight, 0);
 
-      // And the box the scroller lives in is the drawer less exactly
-      // that — stated against the drawer's own measured box, so no snap
-      // value and no viewport unit is repeated in the expectation. The
-      // border is named because `100%` resolves against the content box:
-      // it lands above the visible box rather than inside it, which is
-      // why the consequence on the next line is exact.
-      expect(m.visible).not.toBeNull();
-      expect(
-        m.visible!.height + m.snapPointHeight + m.drawerBorderTop,
-      ).toBeCloseTo(m.drawer.height, 0);
-      expect(m.drawerBorderTop).toBeGreaterThan(0);
-      expect(m.visible!.bottom).toBeCloseTo(height, 0);
-      expect(m.scroller.bottom).toBeLessThanOrEqual(height + 1);
-    });
-  }
-
-  test("the drawer itself is still 90vh, which is the height vaul is measuring", async ({
-    page,
-  }) => {
-    // Left alone deliberately. vaul derives its offsets from the window
-    // and the drawer's box, so shrinking the drawer to "fix" the overhang
-    // feeds straight back into the number the fix reads.
-    for (const { height, snap } of CASES) {
-      const m = await layout(page, { height, snap });
-      expect(m.drawer.height).toBeCloseTo(height * 0.9, 0);
-    }
+    // And the box the scroller lives in is the drawer less exactly
+    // that — stated against the drawer's own measured box, so no snap
+    // value and no viewport unit is repeated in the expectation. The
+    // border is named because `100%` resolves against the content box:
+    // it lands above the visible box rather than inside it, which is
+    // why the consequence on the next line is exact.
+    expect(m.visible).not.toBeNull();
+    expect(
+      m.visible!.height + m.snapPointHeight + m.drawerBorderTop,
+    ).toBeCloseTo(m.drawer.height, 0);
+    expect(m.drawerBorderTop).toBeGreaterThan(0);
+    expect(m.visible!.bottom).toBeCloseTo(height, 0);
+    expect(m.scroller.bottom).toBeLessThanOrEqual(height + 1);
   });
 });
 
-test.describe("the end of the tab can be brought on screen", () => {
-  for (const { height, snap, hLabel, sLabel } of CASES) {
-    test(`${height}px (${hLabel}) at ${sLabel}`, async ({ page }) => {
-      const before = await layout(page, { height, snap });
-
-      // The claim is about content that is off the screen. A scroller
-      // whose content already fitted would satisfy "the end is visible"
-      // without anything having scrolled.
-      expect(before.end.top).toBeGreaterThan(height);
-      expect(before.maxScroll).toBeGreaterThan(0);
-
-      const after = await layout(page, { height, snap }, TO_THE_END);
-
-      expect(after.scrollTop).toBeCloseTo(after.maxScroll, 0);
-      // The reported defect, inverted: the last line of the tab is on
-      // the screen, not merely inside a box whose own foot is past it.
-      expect(after.end.bottom).toBeLessThanOrEqual(height + 1);
-      expect(after.end.top).toBeGreaterThanOrEqual(0);
-    });
-  }
+test.describe(GROUPS[1], () => {
+  eachCase(GROUPS[1], async (page, { height, snap }) => {
+    // Left alone deliberately, and not because vaul measures it — the
+    // translate is a pure function of `window.innerHeight` and the snap.
+    // The drawer's height is the *other* term in what the fix computes:
+    // the visible box is that height less the translate, so shrinking
+    // `Drawer.Content` moves its top down while the translate stays put.
+    // At `h-[50vh]` and snap 0.5 the whole drawer would land at or below
+    // the fold.
+    const m = await layout(page, { height, snap });
+    expect(m.drawer.height).toBeCloseTo(height * 0.9, 0);
+  });
 });
 
-test.describe("exactly one box scrolls, and it is the sheet's", () => {
-  for (const { height, snap, hLabel, sLabel } of CASES) {
-    test(`${height}px (${hLabel}) at ${sLabel}`, async ({ page }) => {
-      const m = await layout(page, { height, snap });
+test.describe(GROUPS[2], () => {
+  eachCase(GROUPS[2], async (page, { height, snap }) => {
+    const before = await layout(page, { height, snap });
 
-      // Named, not counted. The two-tier form also has one scrolling box
-      // — the wrong one — so a count would not separate them, and would
-      // not say what it had found either.
-      expect(m.verticallyScrollable).toEqual(["mobile-inspector-content"]);
-    });
-  }
+    // The claim is about content that is off the screen. A scroller
+    // whose content already fitted would satisfy "the end is visible"
+    // without anything having scrolled.
+    expect(before.end.top).toBeGreaterThan(height);
+    expect(before.maxScroll).toBeGreaterThan(0);
+
+    const after = await layout(page, { height, snap }, TO_THE_END);
+
+    expect(after.scrollTop).toBeCloseTo(after.maxScroll, 0);
+    // The reported defect, inverted: the last line of the tab is on
+    // the screen, not merely inside a box whose own foot is past it.
+    expect(after.end.bottom).toBeLessThanOrEqual(height + 1);
+    expect(after.end.top).toBeGreaterThanOrEqual(0);
+  });
 });
 
-test.describe("the tab strip stays reachable", () => {
-  for (const { height, snap, hLabel, sLabel } of CASES) {
-    test(`${height}px (${hLabel}) at ${sLabel}`, async ({ page }) => {
-      // A header taller than the whole visible sheet, which at `half` is
-      // the file page's real shape: the strip then starts below the fold
-      // and the reader has to scroll to it. That is the trade the
-      // one-column decision makes, and this is it written down.
-      const spec = { height, snap, headerPx: height };
+test.describe(GROUPS[3], () => {
+  eachCase(GROUPS[3], async (page, { height, snap }) => {
+    const m = await layout(page, { height, snap });
 
-      const rest = await layout(page, spec);
-      expect(rest.stripTopInScroller).toBeGreaterThan(rest.scroller.height);
+    // Named, not counted. The two-tier form also has one scrolling box
+    // — the wrong one — so a count would not separate them, and would
+    // not say what it had found either.
+    expect(m.verticallyScrollable).toEqual(["mobile-inspector-content"]);
+  });
+});
 
-      // Scrolled all the way down, the strip has not gone with the
-      // header: it is at the top edge of the box that scrolled, and the
-      // header has travelled off the top of it.
-      const scrolled = await layout(page, spec, TO_THE_END);
-      expect(scrolled.stripPosition).toBe("sticky");
-      expect(scrolled.stripTopInScroller).toBeCloseTo(0, 0);
-      expect(scrolled.headerTopInScroller).toBeLessThan(0);
-      // On the screen, not merely at the top of a box that is not.
-      expect(scrolled.strip.top).toBeGreaterThanOrEqual(0);
-      expect(scrolled.strip.bottom).toBeLessThanOrEqual(height + 1);
-      // Opaque, or the tab body travels visibly through it.
-      expect(scrolled.stripBackground).not.toBe("rgba(0, 0, 0, 0)");
-      // And in front of it. The tab body is positioned — an addon
-      // section, a popover anchor — and two positioned boxes at
-      // `z-index: auto` paint in document order, which puts the panel on
-      // top. This is the strip's own stacking order, asked of the
-      // browser rather than read off a class.
-      expect(scrolled.bodyPosition).toBe("relative");
-      expect(scrolled.stripHit).toBe("inspector-tabs");
-    });
-  }
+test.describe(GROUPS[4], () => {
+  eachCase(GROUPS[4], async (page, { height, snap }) => {
+    // A header taller than the whole visible sheet, which at `half` is
+    // the file page's real shape: the strip then starts below the fold
+    // and the reader has to scroll to it. That is the trade the
+    // one-column decision makes, and this is it written down.
+    const spec = { height, snap, headerPx: height };
 
-  test("and it is already there when the header is short enough", async ({
-    page,
-  }) => {
+    const rest = await layout(page, spec);
+    expect(rest.stripTopInScroller).toBeGreaterThan(rest.scroller.height);
+
+    // Scrolled all the way down, the strip has not gone with the
+    // header: it is at the top edge of the box that scrolled, and the
+    // header has travelled off the top of it.
+    const scrolled = await layout(page, spec, TO_THE_END);
+    expect(scrolled.stripPosition).toBe("sticky");
+    expect(scrolled.stripTopInScroller).toBeCloseTo(0, 0);
+    expect(scrolled.headerTopInScroller).toBeLessThan(0);
+    // On the screen, not merely at the top of a box that is not.
+    expect(scrolled.strip.top).toBeGreaterThanOrEqual(0);
+    expect(scrolled.strip.bottom).toBeLessThanOrEqual(height + 1);
+    // Opaque, or the tab body travels visibly through it.
+    expect(scrolled.stripBackground).not.toBe("rgba(0, 0, 0, 0)");
+    // And in front of it. The tab body is positioned — an addon
+    // section, a popover anchor — and two positioned boxes at
+    // `z-index: auto` paint in document order, which puts the panel on
+    // top. This is the strip's own stacking order, asked of the
+    // browser rather than read off a class.
+    expect(scrolled.bodyPosition).toBe("relative");
+    expect(scrolled.stripHit).toBe("inspector-tabs");
+  });
+});
+
+test.describe(GROUPS[5], () => {
+  eachCase(GROUPS[5], async (page, { height, snap }) => {
     // The other side of the same mechanism: sticky pins a box that has
     // been reached, it does not pull one up. With a header that fits, the
     // strip is on screen from the start.
-    for (const { height, snap } of CASES) {
-      const m = await layout(page, { height, snap, headerPx: 40 });
-      expect(m.strip.bottom).toBeLessThanOrEqual(height + 1);
-      expect(m.stripTopInScroller).toBeCloseTo(40, 0);
-    }
+    const m = await layout(page, { height, snap, headerPx: 40 });
+    expect(m.strip.bottom).toBeLessThanOrEqual(height + 1);
+    expect(m.stripTopInScroller).toBeCloseTo(40, 0);
   });
 });
 
@@ -317,42 +364,51 @@ test.describe("the tab strip stays reachable", () => {
  * `--snap-point-height` box are what put the end of the tab on screen.
  * Until the two alternatives are shown not to, that is prose.
  */
-test.describe("the two arrangements this replaces", () => {
-  for (const { height, snap, hLabel, sLabel } of CASES) {
-    test(`the pinned header leaves the wrong box scrolling — ${height}px (${hLabel}) at ${sLabel}`, async ({
+test.describe(GROUPS[6], () => {
+  eachCase(GROUPS[6], async (page, { height, snap }) => {
+    const m = await layout(page, { height, snap, mode: "panel" }, TO_THE_END);
+
+    // The nested pair: the sheet's own scroller has nothing to scroll,
+    // because the shell inside it has taken a height to fill and put
+    // the overflow in the panel.
+    expect(m.verticallyScrollable).toEqual(["inspector-panel"]);
+    expect(m.maxScroll).toBe(0);
+    // And so scrolling the sheet does not move the end of the tab.
+    expect(m.end.top).toBeGreaterThan(height);
+  });
+});
+
+test.describe(GROUPS[7], () => {
+  eachCase(GROUPS[7], async (page, { height, snap }) => {
+    const m = await layout(
       page,
-    }) => {
-      const m = await layout(page, { height, snap, mode: "panel" }, TO_THE_END);
+      { height, snap, bound: "cap-50vh" },
+      TO_THE_END,
+    );
 
-      // The nested pair: the sheet's own scroller has nothing to scroll,
-      // because the shell inside it has taken a height to fill and put
-      // the overflow in the panel.
-      expect(m.verticallyScrollable).toEqual(["inspector-panel"]);
-      expect(m.maxScroll).toBe(0);
-      // And so scrolling the sheet does not move the end of the tab.
-      expect(m.end.top).toBeGreaterThan(height);
-    });
+    // A cap of the snap's own fraction is a second definition of a
+    // number vaul already publishes, and it is short by everything
+    // above the scroller — the handle, and the drawer's top edge.
+    expect(m.visible).toBeNull();
+    expect(m.scroller.bottom).toBeGreaterThan(height);
+    expect(m.end.bottom).toBeGreaterThan(height);
+  });
+});
 
-    test(`the hand-written cap ends below the screen — ${height}px (${hLabel}) at ${sLabel}`, async ({
-      page,
-    }) => {
-      const m = await layout(page, { height, snap, bound: "cap-50vh" }, TO_THE_END);
+test.describe(GROUPS[8], () => {
+  eachCase(GROUPS[8], async (page, { height, snap }) => {
+    const m = await layout(page, { height, snap, bound: "none" }, TO_THE_END);
 
-      // A cap of the snap's own fraction is a second definition of a
-      // number vaul already publishes, and it is short by everything
-      // above the scroller — the handle, and the drawer's top edge.
-      expect(m.visible).toBeNull();
-      expect(m.scroller.bottom).toBeGreaterThan(height);
-      expect(m.end.bottom).toBeGreaterThan(height);
-    });
+    expect(m.scroller.bottom).toBeCloseTo(m.drawer.bottom, 0);
+    expect(m.end.bottom).toBeGreaterThan(height);
+  });
+});
 
-    test(`an unbounded scroller ends a whole overhang below the screen — ${height}px (${hLabel}) at ${sLabel}`, async ({
-      page,
-    }) => {
-      const m = await layout(page, { height, snap, bound: "none" }, TO_THE_END);
-
-      expect(m.scroller.bottom).toBeCloseTo(m.drawer.bottom, 0);
-      expect(m.end.bottom).toBeGreaterThan(height);
-    });
-  }
+test("every group ran at every case", () => {
+  // The expected side is rebuilt from the two declarations, so it does
+  // not follow a loop that has been walked back. Order matters: this is
+  // the register in the order the file wrote it.
+  expect(registered).toEqual(
+    GROUPS.flatMap((group) => CASES.map((c) => caseId(group, c))),
+  );
 });

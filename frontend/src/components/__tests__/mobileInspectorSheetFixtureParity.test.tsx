@@ -170,8 +170,18 @@ describe("the sheet's own chrome", () => {
   });
 
   it("mounts the scroller inside the visible box, and the child inside the scroller", () => {
-    // The nesting, not just the class lists: a fixture drawing them as
-    // siblings would measure boxes the app never puts inside one another.
+    // **The component's tree, not the fixture's.** The class lists above
+    // would still match if the sheet stopped nesting these — a scroller
+    // beside the box instead of inside it carries the same utilities and
+    // does none of the work — so this is what says the box encloses the
+    // scroller here.
+    //
+    // The fixture's own nesting is not reachable from this file: it is
+    // JavaScript in `fixtures/mobile-inspector-sheet.html` that nothing
+    // here executes. Measured: rebuilding the fixture to append them as
+    // siblings left every case in this file green and turned 29 browser
+    // cases red, so the fixture's half is held by the browser suite. Do
+    // not read this case as covering it.
     const { visible, scroller } = renderSheet(SHEET_SNAP_FULL);
     expect(visible).toContainElement(scroller);
     expect(scroller).toContainElement(screen.getByTestId("sheet-child"));
