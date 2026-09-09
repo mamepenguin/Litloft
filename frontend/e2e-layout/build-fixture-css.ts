@@ -125,7 +125,7 @@ const REQUIRED = [
   // the screen and a sticky tab strip inside the one box that scrolls.
   // Every rule below is load-bearing for a different case, and each one's
   // absence would be read as a finding about the sheet rather than about
-  // an empty sheet: `h-[90vh]` is the drawer the overhang is arithmetic
+  // an empty sheet: `.h-\[90vh\]` is the drawer the overhang is arithmetic
   // on; `overflow-auto` is the only scroller, without which nothing
   // scrolls anywhere and "the end is on screen" passes for the wrong
   // reason; `min-h-0` and `flex-1` are what let that scroller be shorter
@@ -134,6 +134,17 @@ const REQUIRED = [
   // is the ground the opacity case asserts; and `overflow-x-auto` is what
   // makes the strip a scroll container in both axes, which is the reason
   // the scrolling box is named rather than counted.
+  //
+  // The first is named above as the compiled selector rather than as the
+  // class, and deliberately. Tailwind scans this file too, so a class
+  // spelled bare in a comment is itself a source for that utility, after
+  // which the needle below cannot go missing. Measured: with the class
+  // taken out of both the component and the fixture, the sheet still
+  // carried the rule and the mobile cases failed on their own numbers
+  // instead of the setup naming the sheet. The other six are utilities the
+  // tree writes in dozens of places and are present either way; this one is
+  // arbitrary-valued and used twice, which is what made it the one that
+  // could actually be absent.
   ".h-\\[90vh\\] {",
   ".overflow-auto {",
   ".min-h-0 {",
@@ -157,6 +168,7 @@ const REQUIRED = [
   ".pointer-coarse\\:w-11 {",
   ".pointer-coarse\\:pr-0 {",
   ".pointer-coarse\\:-ml-3 {",
+  ".pointer-coarse\\:gap-0 {",
   // The row's own spacing, which is what the coarse rules above cancel.
   // Without them there is nothing to cancel and the two layouts the spec
   // compares are the same layout.

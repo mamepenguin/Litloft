@@ -30,9 +30,12 @@
       - `file` — both trailing controls, the state a folder listing draws.
       - `fileNoStar` — the overflow alone, which is what the collection
         detail and the right-hand pane render (no `onFavoriteToggle`).
-      - `selectable` — selection mode: no trailing controls at all, and
-        therefore a row that keeps its trailing padding. It is the state
-        that would regress if the padding were dropped unconditionally.
+      - `selectable` — selection mode. It stands the `⋮` down (the row
+        means "pick me" there, and right-click is disabled for the same
+        reason) but it keeps the star: both callers that pass `selectable`
+        pass `onFavoriteToggle` too, so the star is one trailing control
+        reaching the floor on its own, and the row gives up its trailing
+        padding like every other.
       - `folder` — `FolderListRow`, drawn into the *same column* as the
         file rows on the same screen. Its trailing edge has to move with
         theirs or the two `⋮` columns stop lining up.
@@ -40,7 +43,9 @@
         It is the file row exactly as it was drawn before this change:
         star and overflow as direct children of the row with the row's
         own `gap-3` between them, the star at its fine-pointer box, and
-        the row keeping its trailing padding. It is here so that what the
+        the row keeping its trailing padding. On a fine pointer it is
+        also what the shipped row measures — the grouping is cancelled
+        there — which is how the spec holds that claim. It is here so that what the
         change buys the name is a measurement rather than a sentence, and
         the parity test names it as the one shape it does not compare —
         nothing renders it, so nothing can be compared against.
@@ -134,7 +139,7 @@
             },
             {
               "tag": "div",
-              "class": "flex flex-shrink-0 items-center pointer-coarse:-ml-3",
+              "class": "flex flex-shrink-0 items-center gap-3 pointer-coarse:gap-0 pointer-coarse:-ml-3",
               "children": [
                 {
                   "tag": "button",
@@ -253,7 +258,7 @@
             },
             {
               "tag": "div",
-              "class": "flex flex-shrink-0 items-center pointer-coarse:-ml-3",
+              "class": "flex flex-shrink-0 items-center gap-3 pointer-coarse:gap-0 pointer-coarse:-ml-3",
               "children": [
                 {
                   "tag": "button",
@@ -279,7 +284,7 @@
         },
         "selectable": {
           "tag": "div",
-          "class": "group flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated cursor-pointer select-none",
+          "class": "group flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 pointer-coarse:pr-0 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated cursor-pointer select-none",
           "children": [
             {
               "tag": "div",
@@ -363,6 +368,29 @@
                   ]
                 }
               ]
+            },
+            {
+              "tag": "div",
+              "class": "flex flex-shrink-0 items-center gap-3 pointer-coarse:gap-0 pointer-coarse:-ml-3",
+              "children": [
+                {
+                  "tag": "button",
+                  "class": "flex items-center gap-1.5 transition-colors rounded-lg p-1.5 justify-center pointer-coarse:h-11 pointer-coarse:w-11 text-text-muted/50 hover:text-accent-teal",
+                  "attrs": {
+                    "aria-label": "*"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-star",
+                      "attrs": {
+                        "width": "16",
+                        "height": "16"
+                      }
+                    }
+                  ]
+                }
+              ]
             }
           ]
         },
@@ -415,7 +443,7 @@
             },
             {
               "tag": "div",
-              "class": "flex flex-shrink-0 items-center pointer-coarse:-ml-3",
+              "class": "flex flex-shrink-0 items-center gap-3 pointer-coarse:gap-0 pointer-coarse:-ml-3",
               "children": [
                 {
                   "tag": "button",

@@ -1152,8 +1152,8 @@ transcript line, a `⋮` on a list row.
   secondary action clears the floor while its primary one does not has spent
   the width and kept the miss: the finger still lands between two targets, and
   the one it was reaching for is the small one.
-- **More than one of them is a group, not a sequence.** They sit together at
-  the trailing edge with **no gap between them**, and on `pointer: coarse` the
+- **More than one of them is a group, not a sequence.** On `pointer: coarse`
+  they sit together at the trailing edge with **no gap between them**, and the
   group's own padding replaces the row's gap and trailing padding rather than
   being added to it. A 44px target carries 14px of empty box on each side of a
   16px glyph; a row that then draws its gap and its padding around that has
@@ -1161,6 +1161,19 @@ transcript line, a `⋮` on a list row.
   padding stays: a thumbnail has no padding of its own to stand in for it. A row
   that draws *no* trailing control keeps its trailing padding for the same
   reason.
+  **The rule is the floor's, so it ends where the floor does**: at a fine
+  pointer the boxes are their own size and carry no padding to stand in for the
+  row's, so the group keeps the row's gap between the controls and the row keeps
+  its trailing padding. Cancel the spacing under the same condition that grows
+  the boxes, never unconditionally: controls left at their own size have only
+  their own padding between them, and taking the row's gap away as well leaves
+  the two glyphs closer than either rule asked for.
+  The exception is a group that is not at a row's trailing edge:
+  `.file-action-row-touch` — the resting strip's action row and the inspector's
+  — keeps a gap between its controls at every pointer type (`gap-0.5`, and
+  `gap-1` in the inspector) and gives up none of its host's padding, because
+  there is no name column beside it for that spacing to be taken out of. It
+  takes the floor from this section; it does not take the grouping.
 - Reach the floor on **the row** (`pointer-coarse:min-h-11`), and give the row's
   own controls the same class wherever `items-start` stops them inheriting it.
   Then grow the *action's* hit area rather than its box — `relative` plus
@@ -1169,11 +1182,14 @@ transcript line, a `⋮` on a list row.
   safe: at a shorter pitch, adjacent pseudo-elements overlap and the later row
   wins the hit test.
 - **Grow the box instead wherever the controls are side by side.** The overhang
-  above is safe *down a column*, where the row pitch is what separates
-  neighbours. Along a row it is not: two overhung 32px boxes sitting together
-  overlap, and the later sibling wins the hit test for its neighbour's edge —
-  so each one silently keeps less than it appears to have. A trailing group and
-  the action row in the resting strip both take real 44px boxes for this reason
+  above is safe *down a column that has reached the floor*, where the row pitch
+  is what separates neighbours — that precondition is the bullet above's, and
+  repeating `iconOnly` buttons down a list without giving the row the floor
+  reproduces the defect the overhang was written to prevent (`Button.tsx`).
+  Along a row it is not: two overhung 32px boxes sitting together overlap, and
+  the later sibling wins the hit test for its neighbour's edge — so each one
+  silently keeps less than it appears to have. A trailing group and the action
+  row in the resting strip both take real 44px boxes for this reason
   (`rowFurniture.ts`, and `.file-action-row-touch` in `globals.css`).
 
 ### Section Header Labels (i18n)

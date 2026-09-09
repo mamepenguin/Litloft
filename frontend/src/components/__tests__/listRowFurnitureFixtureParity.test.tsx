@@ -25,7 +25,9 @@
  *
  * jsdom lays nothing out, so nothing here is evidence about a width, a
  * touch target or a gap. That is the browser spec's, and this is what
- * connects the two.
+ * connects the two — the rows, and also the containers they are stacked
+ * in, since the fixture draws one column where the app draws two side by
+ * side and a spec that measured one column cannot see the other move.
  */
 
 import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
@@ -202,13 +204,20 @@ const folder = { name: "Folder", path: "Folder", file_count: 3 } as Folder;
  * One render per fixture row, declared by name.
  *
  * The three file states are the three answers this row gives about its
- * trailing furniture, and each is a real call site: a folder listing wires
- * both handlers, `CollectionDetail` and the right-hand pane wire the menu
- * without the star, and selection mode stands the menu down (the row means
+ * trailing furniture, and each is a real call site — the props are the
+ * ones a caller actually passes, not a combination the type allows.
+ * `FileList` is the only thing that renders `FileListRow`, it passes
+ * `onContextMenu` unconditionally, and its four callers split two and two:
+ * `RootFileListing` and `folder/FolderContent` pass `selectable` *and*
+ * `onFavoriteToggle`, `CollectionDetail` and `folder/RightPaneFolder` pass
+ * neither.
+ *
+ * So selection mode draws the star: it stands the `⋮` down (the row means
  * "pick me" there, and right-click is already disabled for the same
- * reason). `selectable` is the state that keeps the row's trailing
- * padding, because it has no control whose own padding could stand in for
- * it.
+ * reason) and keeps a trailing group of one, which is why it gives up its
+ * trailing padding like the rest. The state where the row draws nothing at
+ * the trailing edge is not here because nothing renders it; the test below
+ * pins that branch of the guard on its own.
  */
 const STATES: Record<string, () => Element> = {
   file: () =>
@@ -227,6 +236,7 @@ const STATES: Record<string, () => Element> = {
       <FileListRow
         file={file}
         onContextMenu={vi.fn()}
+        onFavoriteToggle={vi.fn()}
         selectable
         onSelect={vi.fn()}
       />,
@@ -272,6 +282,12 @@ describe("the list-row layout fixture's markup table", () => {
       (c) => !tokens(before.class).includes(c),
     );
     expect(removed).toEqual(["pointer-coarse:pr-0"]);
+    // Both directions, the way the star's guard below is written. One
+    // direction leaves the counterfactual free to gain a class of its own
+    // and still read as "the shipped row with three things put back".
+    expect(
+      tokens(before.class).filter((c) => !tokens(shipped.class).includes(c)),
+    ).toEqual([]);
 
     // The shipped row is link + group; the counterfactual is link + the
     // two controls the group held, in the same order.
@@ -289,16 +305,66 @@ describe("the list-row layout fixture's markup table", () => {
     expect(
       tokens(starBefore.class).filter((c) => !tokens(star.class).includes(c)),
     ).toEqual([]);
+
+    // And the group draws the separation the row used to draw between the
+    // two controls, cancelled exactly where the boxes grow to the floor.
+    // That is what makes the counterfactual the shipped row at a fine
+    // pointer rather than a wider one — the browser spec measures that;
+    // jsdom can only say the classes are there.
+    expect(tokens(group.class)).toContain("gap-3");
+    expect(tokens(group.class)).toContain("pointer-coarse:gap-0");
+    expect(tokens(shipped.class)).toContain("gap-3");
   });
 
-  it("names the list column the fixture stacks the rows in", () => {
-    // The fixture writes this class by hand. `FileList` is what draws it
-    // around the rows in the app, and a column that stopped being a
-    // block-level flex column would lay the rows out at their content
-    // width — after which every width the spec reports is about a box the
-    // app does not have, with nothing turning red.
+  it("keeps the trailing padding on a row that draws no trailing control", () => {
+    // Not a fixture shape and not a call site: `FileList` passes
+    // `onContextMenu` to every row, and the two callers that pass
+    // `selectable` pass `onFavoriteToggle` with it, so no screen reaches
+    // this branch. The props allow it, so the guard is here rather than
+    // in the fixture — a row with nothing at its trailing edge has no
+    // control whose own padding could stand in for the row's, and
+    // dropping `pointer-coarse:pr-0` out of its condition would put this
+    // row's text against the edge.
+    //
+    // jsdom lays nothing out: this is a claim about a class list, and the
+    // padding it names is measured in `e2e-layout/list-row-furniture.spec.ts`.
+    const row = render(
+      <FileListRow file={file} selectable onSelect={vi.fn()} />,
+    ).container.firstElementChild!;
+    expect(tokens(classOf(row))).not.toContain("pointer-coarse:pr-0");
+    expect(tokens(classOf(row))).toContain("p-2.5");
+    expect(Array.from(row.children)).toHaveLength(1);
+  });
+
+  it("names both containers the two row kinds are stacked in", () => {
+    // The fixture writes one column class by hand and stacks every shape
+    // in it, file rows and the folder row together. In the app they are
+    // two containers, drawn as siblings by `FolderContent`: the folder
+    // rows go in its own `FolderShelf` and the file rows in `FileList`.
+    //
+    // The claim the fixture stands for is that neither container insets
+    // its rows horizontally, which is what puts the two `⋮` columns at
+    // one x. Pinning only `FileList` left the other half of that claim
+    // held by nothing: `mb-6` → `mb-6 px-2` is an 8px misalignment —
+    // exactly the defect the recipe was written to prevent — and it was
+    // measured to leave the whole suite and every browser case green.
+    //
+    // Both are pinned as the literal the source writes rather than as a
+    // list of spellings that would mean an inset: there is no bounded set
+    // of ways to move a box sideways, so a whitelist loses to the next
+    // one (`review-workflow.md`, "What a test here cannot hold"). Any edit
+    // to either container is red here and has to be looked at.
     expect(FIXTURE_HTML).toContain('column.className = "flex flex-col"');
-    const source = readFileSync(join(__dirname, "..", "FileList.tsx"), "utf8");
-    expect(source).toContain('<div className="flex flex-col">');
+
+    const fileList = readFileSync(join(__dirname, "..", "FileList.tsx"), "utf8");
+    expect(fileList).toContain('<div className="flex flex-col">');
+
+    const folderContent = readFileSync(
+      join(__dirname, "..", "folder", "FolderContent.tsx"),
+      "utf8",
+    );
+    expect(folderContent).toContain(
+      'return <div className="mb-6">{children}</div>;',
+    );
   });
 });

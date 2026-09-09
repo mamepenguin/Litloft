@@ -10,10 +10,11 @@
  *
  * The controls are grown rather than overhung, for the reason
  * `.file-action-row-touch` gives in `globals.css`: the recipe's `::before`
- * overhang keeps an icon at its rendered size and is safe where the row
- * pitch is what separates neighbours, but these two sit edge to edge on
- * one line, so overhangs would overlap and the later sibling would win the
- * hit test for its neighbour's edge.
+ * overhang keeps an icon at its rendered size and is safe down a column
+ * that has already reached the 44px floor, where the row pitch is what
+ * separates neighbours, but these two sit edge to edge on one line, so
+ * overhangs would overlap and the later sibling would win the hit test for
+ * its neighbour's edge.
  */
 
 /**
@@ -29,17 +30,23 @@ export const ROW_ACTION_FLOOR = "pointer-coarse:h-11 pointer-coarse:w-11";
 /**
  * The group the trailing controls sit in.
  *
- * **No gap.** A 44px target already carries 14px of empty box on each side
- * of a 16px glyph, so a gap between two of them draws the same separation
- * twice and takes it out of the name.
+ * **No gap, on a coarse pointer only.** A 44px target already carries 14px
+ * of empty box on each side of a 16px glyph, so a gap between two of them
+ * draws the same separation twice and takes it out of the name. That
+ * reason is the floor's, and the floor is a coarse-pointer rule: where the
+ * boxes stay at their own size — a 28px star, a 24px `⋮` — there is no
+ * padding inside them standing in for the gap, and removing it would move
+ * the glyphs 12px closer on a screen the report was not about.
  *
- * `pointer-coarse:-ml-3` cancels the row's own `gap-3` in front of the
- * group for the same reason — the leading control's 14px stands in for it.
- * It is written as the row's gap negated rather than as a distance, so a
- * row that changes its gap does not silently leave a sliver behind.
+ * So the group carries the row's own `gap-3` and cancels it exactly where
+ * the boxes grow, and `pointer-coarse:-ml-3` cancels the row's gap in
+ * front of the group for the same reason — the leading control's 14px
+ * stands in for it. Both are written as the row's gap rather than as a
+ * distance, so a row that changes its gap does not silently leave a sliver
+ * behind.
  */
 export const ROW_FURNITURE_GROUP =
-  "flex flex-shrink-0 items-center pointer-coarse:-ml-3";
+  "flex flex-shrink-0 items-center gap-3 pointer-coarse:gap-0 pointer-coarse:-ml-3";
 
 /**
  * What the row itself adds: on a coarse pointer its trailing padding goes,
@@ -47,6 +54,12 @@ export const ROW_FURNITURE_GROUP =
  *
  * Only the trailing edge. The leading padding is in front of the
  * thumbnail, which has no padding of its own to stand in for it.
+ *
+ * Applied by the row only where the row draws a control, since a row with
+ * an empty trailing edge has nothing standing there. No caller reaches
+ * that branch today — every `FileList` call site passes the context menu,
+ * and the ones that also select pass the star — so it is a guard on the
+ * prop surface rather than a state on any screen.
  */
 export const ROW_FURNITURE_PADDING = "pointer-coarse:pr-0";
 
