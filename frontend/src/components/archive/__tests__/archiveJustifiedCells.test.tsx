@@ -299,7 +299,7 @@ describe("the canvas viewer's floor", () => {
     );
     expect(viewer).toMatch(/fixed inset-0/);
     expect(MENU_SCRIM).toMatch(/\bfixed inset-0\b/);
-    expect(toolbar).toMatch(/<DismissScrim onDismiss=\{closeMore\} \/>/);
+    expect(toolbar).toMatch(/<DismissScrim onDismiss=\{closeMore\}>/);
     expect(viewer).not.toMatch(/createPortal/);
     // The scrim is written where it is used for exactly this reason: a
     // portal would leave the canvas and the rule above would stop

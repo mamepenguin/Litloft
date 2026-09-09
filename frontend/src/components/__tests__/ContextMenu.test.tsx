@@ -4,20 +4,29 @@ import { Trash2 } from "lucide-react";
 
 import { ContextMenu } from "../ContextMenu";
 import { ShortcutsProvider } from "../ShortcutsProvider";
-import { openScrim } from "@/__tests__/helpers/dismissScrim";
+import {
+  dismissByPressingOutside,
+  openScrim,
+} from "@/__tests__/helpers/dismissScrim";
 
 /**
  * How the right-click / long-press menu closes.
  *
- * It is the popup this unit's defect was reported on: the scrim was
- * dismissed on `onPointerDown`, which takes it away before the tap's
- * `click` is dispatched, so on a phone the tap that closed the menu also
- * pressed the row underneath. A mouse never showed it, because cancelling
- * `pointerdown` suppresses the compatibility mouse events.
+ * It is the popup this unit's defect was reported on: the menu closed on
+ * `onPointerDown` and left the `click` that press produces to the page, so
+ * on a phone the tap that closed the menu also pressed the row underneath.
+ * A mouse never showed it, because cancelling `pointerdown` suppresses the
+ * compatibility mouse events.
  *
- * jsdom hit-tests nothing, so what is asserted here is only which event
- * the scrim answers — the consequence for the row underneath is measured
- * in Chromium by `e2e-layout/popup-dismiss.spec.ts`.
+ * It now goes through `DismissScrim`, which answers the press *and* takes
+ * that click. What is asserted here is this menu's own share of that: it
+ * closes on an outside press, keeps working when its own rows are pressed,
+ * and — the behaviour it alone needs — lets a right-press retarget it,
+ * which is now the browser's `contextmenu` reaching the row rather than a
+ * re-dispatch of one.
+ *
+ * jsdom hit-tests nothing. The consequence for the row underneath is
+ * measured in Chromium by `e2e-layout/popup-dismiss.spec.ts`.
  */
 function open(onClose = vi.fn()) {
   render(
@@ -34,35 +43,45 @@ function open(onClose = vi.fn()) {
 }
 
 describe("ContextMenu", () => {
-  it("closes on the scrim's click", () => {
+  it("closes on a press outside it", () => {
     const onClose = open();
-    fireEvent.click(openScrim());
+    dismissByPressingOutside();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("does not close on the press that precedes it", () => {
-    const onClose = open();
-    fireEvent.pointerDown(openScrim());
-    fireEvent.mouseDown(openScrim());
-    fireEvent.touchStart(openScrim());
-    expect(onClose).not.toHaveBeenCalled();
+  it("keeps its dim, and keeps it out of the way", () => {
+    // The scrim is still drawn — this menu wants no tint but does want
+    // the box — and it takes no pointer events, which is what lets the
+    // `contextmenu` below reach the row at all.
+    open();
+    expect(openScrim().style.pointerEvents).toBe("none");
   });
 
-  it("absorbs a second right-click instead of stacking the browser's menu", () => {
-    // This menu was raised by that gesture. Letting the default through
-    // would draw the browser's own menu over the app's.
+  it("lets a right-press retarget it onto the row underneath", () => {
+    // This menu is raised by that gesture, so right-pressing a second row
+    // must move the menu there. It used to take the `contextmenu` on the
+    // scrim, prevent it, and re-dispatch one at the same point a frame
+    // later; now the press closes the menu and the browser's own event
+    // arrives at the row, which raises it again.
     const onClose = open();
-    const notDefaulted = fireEvent.contextMenu(openScrim());
+    const row = document.createElement("div");
+    const raised = vi.fn((e: Event) => e.preventDefault());
+    row.addEventListener("contextmenu", raised);
+    document.body.appendChild(row);
+
+    fireEvent.pointerDown(row, { button: 2 });
+    fireEvent.contextMenu(row);
+
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(notDefaulted).toBe(false);
+    expect(raised).toHaveBeenCalledTimes(1);
+    row.remove();
   });
 
   it("still runs its rows", () => {
-    // The scrim covers the viewport, so a menu drawn under it would be
-    // unusable for its own purpose. Which of the two a press reaches is a
-    // hit test jsdom does not run — `e2e-layout/popup-dismiss.spec.ts`
-    // asks `elementFromPoint` over the menu — so this asserts only that
-    // the row still does its job when it is pressed.
+    // A press inside the menu is the user working it, not dismissing it,
+    // so neither the close nor the swallow may fire — which is exactly
+    // what would break if `DismissScrim` were given the wrong subtree as
+    // its popup.
     const onClick = vi.fn();
     const onClose = vi.fn();
     render(
@@ -75,7 +94,9 @@ describe("ContextMenu", () => {
         />
       </ShortcutsProvider>,
     );
-    fireEvent.click(screen.getByRole("menuitem", { name: "Only" }));
+    const row = screen.getByRole("menuitem", { name: "Only" });
+    fireEvent.pointerDown(row);
+    fireEvent.click(row);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

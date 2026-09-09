@@ -253,12 +253,11 @@ export function FilterField({
   // Both call sites below draw the menu through this, so the scrim is
   // written once and neither form can be left without one.
   const renderMenu = () => (
-    <>
-      <DismissScrim
-        onDismiss={() => setOpen(false)}
-        // No tint: this menu is anchored to its chip at every width.
-        className="fixed inset-0 z-30"
-      />
+    <DismissScrim
+      onDismiss={() => setOpen(false)}
+      // No tint: this menu is anchored to its chip at every width.
+      className="fixed inset-0 z-30"
+    >
       <div
         ref={popoverRef}
         id={menuId}
@@ -293,7 +292,7 @@ export function FilterField({
           );
         })}
       </div>
-    </>
+    </DismissScrim>
   );
 
   const underline = variant === "underline";

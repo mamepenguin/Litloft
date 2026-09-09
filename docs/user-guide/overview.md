@@ -17,9 +17,9 @@ A Litloft installation has:
 
 ## Closing a menu
 
-Menus, filter panels and folder pickers close when you press anywhere outside
-them — and that press only closes them. Whatever sits under your finger is
-*not* activated: dismissing the file `⋮` menu by tapping a card does not open
+Menus, filter panels and folder pickers close as soon as you press anywhere
+outside them — and that press only closes them. Whatever sits under your finger
+is *not* activated: dismissing the file `⋮` menu by tapping a card does not open
 that card, and dismissing the sort menu by tapping a folder does not walk into
 it. Press a second time to reach what is underneath.
 

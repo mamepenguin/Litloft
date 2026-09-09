@@ -151,8 +151,7 @@ export function FilterMenu({
         </span>
       </button>
       {open && (
-        <>
-          <DismissScrim onDismiss={close} />
+        <DismissScrim onDismiss={close}>
           {/* The scrim is a mouse gesture, so Escape (handled on the box
               above) is the keyboard's only way out. Arrow-key roving is the
               rest of the APG menu contract and is not here yet; the rows are
@@ -254,7 +253,7 @@ export function FilterMenu({
               </>
             )}
           </div>
-        </>
+        </DismissScrim>
       )}
     </div>
   );

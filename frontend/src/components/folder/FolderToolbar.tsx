@@ -326,8 +326,7 @@ export function FolderToolbar({
               <MoreHorizontal size={16} />
             </button>
             {moreOpen && (
-              <>
-                <DismissScrim onDismiss={() => setMoreOpen(false)} />
+              <DismissScrim onDismiss={() => setMoreOpen(false)}>
                 <div role="menu" className={MENU_SURFACE}>
                 {/* The two menus that are not on the bar below 768px, drawn
                     from the same rows they draw there. `md:hidden` and
@@ -416,7 +415,7 @@ export function FolderToolbar({
                   </button>
                 )}
                 </div>
-              </>
+              </DismissScrim>
             )}
         </div>
 

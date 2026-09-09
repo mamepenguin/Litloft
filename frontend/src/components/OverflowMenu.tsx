@@ -93,12 +93,11 @@ export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
         <MoreHorizontal size={16} />
       </button>
       {open && (
-        <>
-          <DismissScrim onDismiss={() => setOpen(false)} />
+        <DismissScrim onDismiss={() => setOpen(false)}>
           <div role="menu" aria-label={label} className={MENU_SURFACE}>
             {children(close)}
           </div>
-        </>
+        </DismissScrim>
       )}
     </div>
   );

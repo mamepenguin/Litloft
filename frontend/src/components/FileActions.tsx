@@ -316,6 +316,67 @@ export function FileActions({
     },
   });
 
+  // Built here rather than in place: the menu stays mounted while a
+  // dialog raised from it is up (closing would unmount the dialog with
+  // it), and in that state it is drawn without a dismissal layer — see
+  // the two branches below.
+  const menu = (
+    <div
+      ref={menuBoxRef}
+      role="menu"
+      className={`absolute z-30 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg ${
+        openUp ? "bottom-full mb-1" : "top-full mt-1"
+      } ${alignLeft ? "left-0" : "right-0"}`}
+    >
+      {menuItems.map((item) => (
+        <ActionMenuItem
+          key={item.label}
+          icon={item.icon}
+          label={item.label}
+          onClick={item.onClick}
+          disabled={item.disabled}
+          danger={item.danger}
+        />
+      ))}
+      {addonProps && (
+        /* `empty:hidden` carries the separator: no addon claims this
+           slot on a stock install, and an entry that does claim it may
+           still render nothing for a given file. Either way the rule
+           would otherwise float under the last core item with nothing
+           beneath it.
+
+           An entry here must NOT close the menu when it opens a
+           dialog: closing unmounts this subtree, taking the dialog
+           with it. Entries open their dialog, report it through
+           `onDialogOpenChange` so the outside-click and Escape
+           listeners stand down, and call `onRequestClose` only once
+           the dialog is dismissed. */
+        <div
+          /* Presentational: the menuitems inside must read as direct
+             children of role="menu", and the rule itself is decoration. */
+          role="none"
+          className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+        >
+          <AddonSlot
+            id="file-actions-menu"
+            layout="stack"
+            props={{
+              ...addonProps,
+              onRequestClose: () => {
+                setAddonDialogOpen(false);
+                setMenuOpen(false);
+                // The entry that had focus is about to unmount with
+                // the menu; without this, focus lands on <body>.
+                triggerRef.current?.focus();
+              },
+              onDialogOpenChange: setAddonDialogOpen,
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
       <div ref={menuRef} className="relative">
@@ -353,77 +414,22 @@ export function FileActions({
           </svg>
         </button>
 
-        {menuOpen && !anyDialogOpen && (
-          /* Not while a dialog raised from this menu is up. The dialog
-             portals out of this subtree and paints above, so a scrim under
-             it would only take the clicks meant for the page around it —
-             and the dialog draws its own. This is the same condition the
-             `document` listener this replaced stood down on. */
-          <DismissScrim
-            onDismiss={() => setMenuOpen(false)}
-            // The popover tier, under the menu it guards. Same number as
-            // the menu, which is drawn after it, so DOM order settles the
-            // two (DESIGN.md §Layering: both are in-flow chrome).
-            className="fixed inset-0 z-30"
-          />
-        )}
-
-        {menuOpen && (
-          <div
-            ref={menuBoxRef}
-            role="menu"
-            className={`absolute z-30 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg ${
-              openUp ? "bottom-full mb-1" : "top-full mt-1"
-            } ${alignLeft ? "left-0" : "right-0"}`}
-          >
-            {menuItems.map((item) => (
-              <ActionMenuItem
-                key={item.label}
-                icon={item.icon}
-                label={item.label}
-                onClick={item.onClick}
-                disabled={item.disabled}
-                danger={item.danger}
-              />
-            ))}
-            {addonProps && (
-              /* `empty:hidden` carries the separator: no addon claims this
-                 slot on a stock install, and an entry that does claim it may
-                 still render nothing for a given file. Either way the rule
-                 would otherwise float under the last core item with nothing
-                 beneath it.
-
-                 An entry here must NOT close the menu when it opens a
-                 dialog: closing unmounts this subtree, taking the dialog
-                 with it. Entries open their dialog, report it through
-                 `onDialogOpenChange` so the outside-click and Escape
-                 listeners stand down, and call `onRequestClose` only once
-                 the dialog is dismissed. */
-              <div
-                /* Presentational: the menuitems inside must read as direct
-                   children of role="menu", and the rule itself is decoration. */
-                role="none"
-                className="mt-1 border-t border-bg-border pt-1 empty:hidden"
-              >
-                <AddonSlot
-                  id="file-actions-menu"
-                  layout="stack"
-                  props={{
-                    ...addonProps,
-                    onRequestClose: () => {
-                      setAddonDialogOpen(false);
-                      setMenuOpen(false);
-                      // The entry that had focus is about to unmount with
-                      // the menu; without this, focus lands on <body>.
-                      triggerRef.current?.focus();
-                    },
-                    onDialogOpenChange: setAddonDialogOpen,
-                  }}
-                />
-              </div>
-            )}
-          </div>
-        )}
+        {menuOpen &&
+          (anyDialogOpen ? (
+            menu
+          ) : (
+            <DismissScrim
+              onDismiss={() => setMenuOpen(false)}
+              // The dim's own tier. Not while a dialog raised from this
+              // menu is up: the dialog portals out of this subtree and a
+              // layer behind it would answer the presses meant for it.
+              // Same condition the `document` listener this replaced
+              // stood down on.
+              className="fixed inset-0 z-30"
+            >
+              {menu}
+            </DismissScrim>
+          ))}
 
         {error && (
           <div

@@ -140,35 +140,34 @@ export function TrashToolbar({
               // No tint: anchored to its trigger, and the control itself
               // only exists below `sm`.
               className="fixed inset-0 z-30"
-            />
-          )}
-          {typeFilterOpen && (
-            <div role="menu" aria-label={t("fileType")} className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left">
-              {TYPE_OPTION_KEYS.map((opt) => (
-                <button
-                  key={opt.labelKey}
-                  // As `MenuRadioGroup` does for the same rows elsewhere:
-                  // the tick is the only thing saying which one is on, and
-                  // it is an unlabelled glyph.
-                  role="menuitemradio"
-                  aria-checked={typeFilter === opt.value}
-                  onClick={() => {
-                    onTypeFilterChange(opt.value);
-                    setTypeFilterOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                    typeFilter === opt.value
-                      ? "text-accent"
-                      : "text-text-primary hover:bg-bg-elevated"
-                  }`}
-                >
-                  <span className="w-4 flex-shrink-0">
-                    {typeFilter === opt.value && <Check size={14} />}
-                  </span>
-                  {tFilter(opt.labelKey)}
-                </button>
-              ))}
-            </div>
+            >
+              <div role="menu" aria-label={t("fileType")} className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left">
+                {TYPE_OPTION_KEYS.map((opt) => (
+                  <button
+                    key={opt.labelKey}
+                    // As `MenuRadioGroup` does for the same rows elsewhere:
+                    // the tick is the only thing saying which one is on, and
+                    // it is an unlabelled glyph.
+                    role="menuitemradio"
+                    aria-checked={typeFilter === opt.value}
+                    onClick={() => {
+                      onTypeFilterChange(opt.value);
+                      setTypeFilterOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                      typeFilter === opt.value
+                        ? "text-accent"
+                        : "text-text-primary hover:bg-bg-elevated"
+                    }`}
+                  >
+                    <span className="w-4 flex-shrink-0">
+                      {typeFilter === opt.value && <Check size={14} />}
+                    </span>
+                    {tFilter(opt.labelKey)}
+                  </button>
+                ))}
+              </div>
+            </DismissScrim>
           )}
         </div>
         )}

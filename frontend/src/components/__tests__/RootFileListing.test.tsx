@@ -10,6 +10,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FileItem } from "@/types";
+import { dismissByPressingOutside } from "@/__tests__/helpers/dismissScrim";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -347,10 +348,17 @@ describe("the drive root's overflow menu", () => {
     expect(again.className).toMatch(/\bbg-bg-elevated\b/);
   });
 
-  it("closes when the sheet's backdrop is tapped", async () => {
+  it("closes when the page outside it is tapped", async () => {
     await openMenu();
-    const backdrop = document.querySelector('[aria-hidden][class*="bg-black/30"]')!;
-    fireEvent.click(backdrop);
+    // The dim is still drawn — this is the sheet form of the menu — but
+    // it is not what takes the tap: `DismissScrim` answers the press
+    // wherever it lands, and swallows the click after it.
+    expect(
+      document.querySelector('[aria-hidden][class*="bg-black/30"]'),
+    ).not.toBeNull();
+
+    dismissByPressingOutside();
+
     expect(screen.queryByRole("menuitem")).toBeNull();
   });
 });

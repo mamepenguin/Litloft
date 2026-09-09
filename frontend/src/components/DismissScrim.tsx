@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEvent, ReactElement } from "react";
+import { useEffect, useRef, type ReactElement } from "react";
 
 /**
  * The class list a menu-surface popup gives its scrim.
@@ -8,15 +8,33 @@ import type { MouseEvent, ReactElement } from "react";
  * Dimmed below 640px, where the popup is a bottom sheet and the page
  * behind it is not part of the interaction; transparent above it, where
  * the popup is a small panel anchored to its trigger and hiding the page
- * would say more than is happening. `z-30` is the popover tier
- * (`DESIGN.md` §Layering); a caller whose popup sits in a higher tier
- * passes its own band instead.
+ * would say more than is happening.
+ *
+ * `z-30` is the popover tier (`DESIGN.md` §Layering) and it is a
+ * statement about **what the dim covers**, nothing more. Dismissal does
+ * not go through this box — see the component below — so a scrim that
+ * loses the paint order to a sticky bar draws its tint under that bar and
+ * behaves identically. Three rounds of this unit tried to make a number
+ * carry the behaviour and each lost to an arrangement the rule had not
+ * foreseen.
  */
 export const MENU_SCRIM = "fixed inset-0 z-30 bg-black/30 sm:bg-transparent";
 
 export interface DismissScrimProps {
   /** Close the popup. */
   onDismiss: () => void;
+  /**
+   * **The popup this guards.** Rendered immediately after the scrim, as
+   * its sibling — the same DOM the callers wrote by hand before, and now
+   * the component's own output, because the mechanism needs to know
+   * exactly which subtree is "inside".
+   *
+   * A press inside it is the user working the popup and is left alone. A
+   * press anywhere else dismisses. Passing the popup rather than looking
+   * for it is the point: there is no arrangement in which the two can
+   * drift apart, and no shape a scan has to recognise.
+   */
+  children: ReactElement;
   /** The scrim's own box and tier. Defaults to {@link MENU_SCRIM}. */
   className?: string;
   /**
@@ -27,39 +45,12 @@ export interface DismissScrimProps {
    * there is no visible page edge to say where the panel stops. A menu
    * whose scrim is transparent gains nothing from a tab stop that reads
    * as a control and does nothing but close.
+   *
+   * A named backdrop is a control, so it keeps its pointer events and its
+   * `onClick` — which is what a keyboard activation on it goes through,
+   * there being no press to answer.
    */
   label?: string;
-  /**
-   * Take the `contextmenu` event as well, and **hand it on to the element
-   * underneath**.
-   *
-   * The event, not the gesture. A right-click raises it everywhere, and a
-   * long-press raises it on Android Chrome and iOS Safari — but this
-   * tree's own long-press path does not: `useContextMenu` opens the menu
-   * from a 500 ms `setTimeout` on `touchstart`, and while a menu is open
-   * the scrim is in front, so a second row's `onTouchStart` never fires
-   * and there is nothing to re-aim. Retargeting is therefore a right-click
-   * behaviour here plus whatever the platform synthesises, and nothing
-   * measures the second half — Playwright has no long-press that raises
-   * `contextmenu`. The user guide claims only the right-click for that
-   * reason.
-   *
-   * Only `ContextMenu`, which is the popup that gesture raises. Two
-   * things have to be true of it at once, and they pull opposite ways:
-   *
-   *  - the browser must not draw its own menu over the app's, so the
-   *    default is prevented;
-   *  - right-clicking a *second* row must move the menu to that row, as
-   *    it always did. One gesture, one menu, wherever it was aimed.
-   *
-   * So the scrim dismisses and then re-dispatches the event at the same
-   * point, once it is no longer in the way. Swallowing it outright — the
-   * shape this component shipped with first — cost a second right-click
-   * on every retarget, which was never part of what the click-swallowing
-   * is for: pressing a control by accident is the defect, and re-aiming a
-   * context menu is not that.
-   */
-  retargetOnContextMenu?: boolean;
   "data-testid"?: string;
 }
 
@@ -79,55 +70,121 @@ export interface DismissScrimProps {
 export const DISMISS_SCRIM_ATTR = "data-dismiss-scrim";
 
 /**
+ * Take the click this press is about to produce, once, and let nothing
+ * else see it.
+ *
+ * `capture` on `document` is the first listener in the path, so
+ * `stopPropagation` there keeps the click from every element handler and
+ * from React's own root listener, and `preventDefault` keeps a link from
+ * navigating and a label from toggling its control. Both are needed:
+ * stopping propagation alone leaves the default action.
+ *
+ * **One click, and only the one this press produces.** The swallow is
+ * abandoned by anything that says the click is not coming — a
+ * `pointercancel` (the touch became a scroll), a keystroke, or a second
+ * press. A right-press produces no click at all, which is why the
+ * abandoning matters: without it the swallow would sit armed and eat some
+ * later, unrelated click.
+ *
+ * The arming press is compared by identity rather than counted, so
+ * arming from inside that press's own dispatch cannot abandon itself.
+ * (The DOM copies a node's listener list before invoking it, so a
+ * listener added during dispatch does not run for that event — this does
+ * not rely on that.)
+ */
+let disarm: (() => void) | null = null;
+
+function swallowTheClickThisPressProduces(press: Event): void {
+  disarm?.();
+
+  const swallow = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    disarm?.();
+  };
+  const abandon = (e: Event) => {
+    if (e === press) return;
+    disarm?.();
+  };
+
+  disarm = () => {
+    document.removeEventListener("click", swallow, true);
+    document.removeEventListener("pointerdown", abandon, true);
+    document.removeEventListener("pointercancel", abandon, true);
+    document.removeEventListener("keydown", abandon, true);
+    disarm = null;
+  };
+
+  document.addEventListener("click", swallow, true);
+  document.addEventListener("pointerdown", abandon, true);
+  document.addEventListener("pointercancel", abandon, true);
+  document.addEventListener("keydown", abandon, true);
+}
+
+/**
  * The one way a popup in this tree is dismissed by pointer.
  *
- * A full-frame surface over everything the popup does not own, which
- * closes it **on `click`** — not on `pointerdown`, `mousedown` or
- * `touchstart`.
+ * **A press outside the popup closes it, and the click that press
+ * produces is swallowed.** Two halves, and the second is the whole
+ * requirement: dismissing a popup must not also activate what is under
+ * the finger.
  *
- * That choice is the whole component. A touch's `click` is dispatched
- * after `touchend`, at the point the finger left, against whatever is
- * topmost *then*. A popup that closes on the press has already unmounted
- * its scrim by that moment, so the click hit-tests to whatever was
- * underneath and runs it: the tap that dismissed a menu also opened a
- * file, toggled a mode, or navigated away. Closing on the click instead
- * means the scrim is still there to receive it, and it stops there.
- * Dismissing a popup must not also activate what is under the finger.
+ * ## Why it is not the scrim that absorbs the click
  *
- * The same reasoning rules out a `document`-level listener with a
- * "was the target inside the menu" test: it answers on the press, and
- * the element underneath never stopped being the click's target.
+ * It was, for three rounds, and each round the arrangement beat it. A
+ * scrim can only absorb a tap that lands *on it*, so the mechanism was
+ * really "this box is above everything a finger can reach" — a claim
+ * about stacking, which nothing can hold. `z-[9]` went under a tab strip;
+ * a band written to stop that admitted `z-10`, which ties the same strip
+ * and loses on document order; the relation written to stop *that* could
+ * not clear a `fixed bottom-0 z-50` selection bar, said nothing about
+ * five scrims inside a toolbar's own stacking context, and exempted the
+ * shared default. `.claude/rules/review-workflow.md` names the shape:
+ * there is no bounded list of ways one box ends up over another — a later
+ * rule, a stacking context, document order, a transform, a portal — so a
+ * whitelist of positions loses to the next position.
  *
- * A mouse is the case where the difference does not show, because
- * cancelling `pointerdown` suppresses the compatibility mouse events —
- * which is why a tree can carry this defect for a long time and only a
- * phone finds it.
+ * The requirement was never geometric. It is about **event order**: a
+ * touch's `click` is dispatched after `touchend`, against whatever is
+ * topmost then, so a popup that closes on the press leaves that click to
+ * the page. Answering the press and then refusing the click it produces
+ * says exactly that, and says it whatever is stacked where, on a mouse
+ * and on a finger alike. It is also checkable without a browser, because
+ * event order is not layout.
+ *
+ * ## What "outside" is
+ *
+ * Not a box and not a tier: the popup passed as `children`. A press whose
+ * target is inside that subtree is the user working the popup; anything
+ * else — the page, a sticky bar over the scrim, the popup's own trigger —
+ * dismisses. The trigger is deliberately outside: every trigger here
+ * toggles, and its click is swallowed, so pressing it while open closes
+ * the popup exactly once.
+ *
+ * ## The scrim itself is appearance
+ *
+ * `pointer-events: none`, inline rather than in the class list so that no
+ * caller's own classes can turn it back on. It draws the tint below
+ * 640px and nothing else; hit-testing it is not part of the mechanism,
+ * and the page behind it stays hoverable and scrollable. The named form
+ * (`label`) is the exception, because a control a reader can find is what
+ * it is for.
+ *
+ * One thing came back for free. A right-press dismisses and the
+ * `contextmenu` that follows reaches the row underneath on its own, so
+ * `ContextMenu` retargets to a second row with no re-dispatch, no
+ * `elementFromPoint` and no frame of latency — the machinery that used to
+ * do that by hand is gone with the interception it was working around.
  *
  * **Rendered in place, and it needs no portal.** A dialog opened from
  * inside the mobile Bottom Sheet does need one — vaul is modal there, so
  * `<body>` gets `pointer-events: none` and every other body child gets
  * `aria-hidden`, and `useDialogPortalTarget()` exists to land it in the
  * host the sheet keeps *inside* `Drawer.Content`, which is the one
- * subtree left interactive.
- *
- * A scrim has no such problem to solve. It is a sibling of the popup it
- * guards, so leaving it where it is written already puts it in the same
- * interactive subtree and the same containing block, and whatever the
- * popup is drawn against the scrim covers. Portalling it anywhere —
- * `document.body`, which vaul does make inert, or the sheet's dialog
- * host, which it does not — would only move it away from the box it is
- * supposed to match.
- *
- * Inside the sheet that containing block is `Drawer.Content`, which
- * carries a transform: the scrim covers the drawer rather than the
- * window. That is the area a finger can reach anything in — vaul's own
- * overlay owns everything outside the drawer, and dismissing to it
- * collapses the sheet.
- *
- * **The left click is what gets swallowed, and only it.** A right-click
- * on the scrim is re-aimed at what is underneath rather than absorbed —
- * see `retargetOnContextMenu`. Pressing a control by accident is the
- * defect; moving a context menu to another row is the gesture working.
+ * subtree left interactive. A scrim has no such problem to solve: it is
+ * written where the popup is, so the tint lands on the same box the popup
+ * is drawn against, and the listener that does the work is on `document`
+ * either way.
  *
  * Escape is not here. It goes through `useShortcuts`, which knows what is
  * stacked above what; `escape-listeners.test.ts` records why a listener
@@ -135,60 +192,65 @@ export const DISMISS_SCRIM_ATTR = "data-dismiss-scrim";
  */
 export function DismissScrim({
   onDismiss,
+  children,
   className = MENU_SCRIM,
   label,
-  retargetOnContextMenu = false,
   "data-testid": testId,
 }: DismissScrimProps): ReactElement {
-  const onContextMenu = retargetOnContextMenu
-    ? (e: MouseEvent) => {
-        // The native menu is refused whatever happens next: the popup
-        // this scrim guards was itself raised by this gesture.
-        e.preventDefault();
-        const { clientX, clientY } = e;
-        onDismiss();
-        // On the next frame, so React has committed the unmount and the
-        // scrim is no longer what the point hit-tests to. Re-dispatched
-        // rather than simply let through, because "let through" is not
-        // available: the scrim is in front, and moving it out of the way
-        // is the same unmount.
-        requestAnimationFrame(() => {
-          const beneath = document.elementFromPoint?.(clientX, clientY);
-          if (!beneath) return;
-          beneath.dispatchEvent(
-            new MouseEvent("contextmenu", {
-              bubbles: true,
-              cancelable: true,
-              clientX,
-              clientY,
-            }),
-          );
-        });
-      }
-    : undefined;
+  const scrimRef = useRef<HTMLElement | null>(null);
+  const dismiss = useRef(onDismiss);
 
-  if (label !== undefined) {
-    return (
+  useEffect(() => {
+    dismiss.current = onDismiss;
+  });
+
+  useEffect(() => {
+    const onPress = (e: Event) => {
+      // The popup is what this component rendered after the scrim, so
+      // there is nothing to search for and nothing to keep in step.
+      const popup = scrimRef.current?.nextElementSibling ?? null;
+      const target = e.target;
+      if (popup && target instanceof Node && popup.contains(target)) return;
+      swallowTheClickThisPressProduces(e);
+      dismiss.current();
+    };
+    document.addEventListener("pointerdown", onPress, true);
+    return () => document.removeEventListener("pointerdown", onPress, true);
+  }, []);
+
+  const keepScrim = (el: HTMLElement | null) => {
+    scrimRef.current = el;
+  };
+
+  const scrim =
+    label !== undefined ? (
       <button
+        ref={keepScrim}
         type="button"
         aria-label={label}
         {...{ [DISMISS_SCRIM_ATTR]: "" }}
         data-testid={testId}
         className={className}
+        // The keyboard's way through: an activation with no press before
+        // it arms nothing, so this is the path that closes the panel for
+        // a reader on Enter or Space.
         onClick={() => onDismiss()}
-        onContextMenu={onContextMenu}
+      />
+    ) : (
+      <div
+        ref={keepScrim}
+        aria-hidden="true"
+        {...{ [DISMISS_SCRIM_ATTR]: "" }}
+        data-testid={testId}
+        className={className}
+        style={{ pointerEvents: "none" }}
       />
     );
-  }
 
   return (
-    <div
-      aria-hidden="true"
-      {...{ [DISMISS_SCRIM_ATTR]: "" }}
-      data-testid={testId}
-      className={className}
-      onClick={() => onDismiss()}
-      onContextMenu={onContextMenu}
-    />
+    <>
+      {scrim}
+      {children}
+    </>
   );
 }

@@ -83,8 +83,7 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
       </button>
 
       {open && (
-        <>
-          <DismissScrim onDismiss={() => setOpen(false)} />
+        <DismissScrim onDismiss={() => setOpen(false)}>
           <div role="menu" aria-label={t("label")} className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[180px] sm:overflow-visible sm:origin-top-right">
           {sortOptions.map((opt) => {
             const selected = opt.sort === sort && opt.order === order;
@@ -116,7 +115,7 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
             );
           })}
           </div>
-        </>
+        </DismissScrim>
       )}
     </div>
   );

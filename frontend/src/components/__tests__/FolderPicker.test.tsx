@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { dismissViaScrim, openScrim } from "@/__tests__/helpers/dismissScrim";
+import { dismissByPressingOutside } from "@/__tests__/helpers/dismissScrim";
 import { getFolders, getFolderTree } from "@/lib/api";
 import { FolderPicker } from "../FolderPicker";
 import { ShortcutsProvider } from "../ShortcutsProvider";
@@ -72,15 +72,16 @@ describe("FolderPicker", () => {
     const outside = screen.getByRole("button", { name: "Outside" });
     const pressed = vi.fn();
     outside.addEventListener("click", pressed);
-    dismissViaScrim();
+    dismissByPressingOutside();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(pressed).not.toHaveBeenCalled();
   });
 
-  it("does not close on the press, only on the click", async () => {
-    // The mechanism, stated so that reverting it fails here: a scrim that
-    // unmounts on `pointerdown` is gone before the tap's `click` is
-    // dispatched, and the click lands on whatever was underneath.
+  it("stays open while its own panel is being worked", async () => {
+    // The other half of the mechanism, stated so that giving
+    // `DismissScrim` the wrong subtree fails here: a press inside the
+    // panel is the user picking a folder, and closing on it would also
+    // swallow the click that does the picking.
     render(
       <ShortcutsProvider>
         <FolderPicker drive="recipes" value="" onChange={vi.fn()} />
@@ -90,12 +91,8 @@ describe("FolderPicker", () => {
     fireEvent.click(screen.getByRole("button", { name: /Save to:/ }));
     expect(await screen.findByText("No subfolders")).toBeInTheDocument();
 
-    const scrim = openScrim();
-    fireEvent.pointerDown(scrim);
-    fireEvent.mouseDown(scrim);
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    fireEvent.pointerDown(screen.getByRole("dialog"));
 
-    fireEvent.click(scrim);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });

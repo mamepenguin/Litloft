@@ -203,47 +203,46 @@ export function SmartFolderSaveButton({
               onDismiss={() => setMenuOpen(false)}
               // Under the `z-40` menu, over the search bar it hangs from.
               className="fixed inset-0 z-30"
-            />
-          )}
-          {menuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
             >
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setUpdateConfirmOpen(true);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+              <div
+                role="menu"
+                className="absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
               >
-                <RefreshCw size={14} />
-                {t("update")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setRenameOpen(true);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
-              >
-                <Pencil size={14} />
-                {t("rename")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setDeleteConfirmOpen(true);
-                }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-danger transition-colors hover:bg-accent/10"
-              >
-                <Trash2 size={14} />
-                {t("delete")}
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setUpdateConfirmOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                >
+                  <RefreshCw size={14} />
+                  {t("update")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setRenameOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+                >
+                  <Pencil size={14} />
+                  {t("rename")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setDeleteConfirmOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-danger transition-colors hover:bg-accent/10"
+                >
+                  <Trash2 size={14} />
+                  {t("delete")}
+                </button>
+              </div>
+            </DismissScrim>
           )}
         </div>
       ) : (

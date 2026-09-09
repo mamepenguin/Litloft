@@ -368,74 +368,42 @@ export function EditableTagChips(props: EditableTagChipsProps) {
               className="w-32 rounded-full bg-bg-card px-2 py-0.5 text-xs text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
             />
             {suggestions.length > 0 && (
-              <>
-              {/* The list is a popup, so it dismisses like every other one:
-                  on the scrim's click, which the scrim absorbs. `onBlur`
-                  below still ends the whole add-a-tag interaction, but it
-                  answers a press that has already reached the page — the
-                  tap that dismissed this list also pressed whatever was
-                  under it.
-
-                  Only while there is a list. With no suggestions there is
-                  no popup, just a focused field, and a click landing
-                  wherever it was aimed is what a field should do
-                  (`InlineNameEditor` is the same trade, written down in
-                  `popup-dismissal.test.ts`). */}
               <DismissScrim
                 onDismiss={closeInput}
-                // Above the chrome a finger can land on while this list
-                // is open — not a number picked to sit under the list.
-                //
-                // Which surface that is depends on where the chips are
-                // drawn, because `fixed` resolves against the nearest
-                // transformed ancestor when there is one. In the mobile
-                // sheet there is: vaul's `Drawer.Content`, so the scrim
-                // covers the drawer and the surface it must stay over is
-                // `InspectorShell`'s tab strip, `sticky top-0 z-10` in
-                // column mode and later in the document. On the desktop
-                // rail there is no transform, the scrim reaches the
-                // viewport, and the surface is the page `Header` at
-                // `sticky top-0 z-20`. The page header is not reachable
-                // from inside the sheet at all — vaul's own overlay is
-                // over it.
-                //
-                // `z-[9]` was under both, and it reintroduced the exact
-                // defect this primitive exists to remove: the tap was
-                // never absorbed, so the list closed through `onBlur`
-                // while the tab switched under the finger.
-                // `popup-dismissal.test.ts` holds the relation against
-                // both surfaces' own files.
+                // No tint, and the tier is the dim's only job: this list
+                // is anchored to the field at every width. Which box a
+                // press lands on is not part of the dismissal.
                 className="fixed inset-0 z-30"
-              />
-              <div
-                role="listbox"
-                aria-label={t("placeholder")}
-                // Above the sticky tab strip, which is `z-10` and later
-                // in the document: at an equal tier the strip wins the
-                // paint order and covers the top of this list, and taps
-                // that look like they land on a suggestion reach the strip
-                // instead.
-                className="absolute top-full left-0 z-30 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg"
               >
-                {suggestions.map((s, i) => (
-                  <button
-                    key={s}
-                    type="button"
-                    role="option"
-                    aria-selected={i === selectedIndex}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onPointerUp={() => submitTag(s)}
-                    className={`block w-full px-3 py-1.5 text-left text-xs ${
-                      i === selectedIndex
-                        ? "bg-accent text-white"
-                        : "text-text-muted hover:bg-bg-elevated"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              </>
+                <div
+                  role="listbox"
+                  aria-label={t("placeholder")}
+                  // Above the sticky tab strip, which is `z-10` and later
+                  // in the document: at an equal tier the strip wins the
+                  // paint order and covers the top of this list, and taps
+                  // that look like they land on a suggestion reach the strip
+                  // instead.
+                  className="absolute top-full left-0 z-30 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg"
+                >
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={s}
+                      type="button"
+                      role="option"
+                      aria-selected={i === selectedIndex}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onPointerUp={() => submitTag(s)}
+                      className={`block w-full px-3 py-1.5 text-left text-xs ${
+                        i === selectedIndex
+                          ? "bg-accent text-white"
+                          : "text-text-muted hover:bg-bg-elevated"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </DismissScrim>
             )}
           </div>
         ) : (

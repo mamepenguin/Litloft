@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SidebarCollectionsSection } from "../SidebarCollectionsSection";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
-import { dismissViaScrim } from "@/__tests__/helpers/dismissScrim";
+import { dismissByPressingOutside } from "@/__tests__/helpers/dismissScrim";
 import type { CollectionSummary } from "@/types";
 import { createRef } from "react";
 
@@ -202,7 +202,7 @@ describe("SidebarCollectionsSection", () => {
     setContextMenu.mockClear();
     handleCollectionClick.mockClear();
 
-    dismissViaScrim();
+    dismissByPressingOutside();
     expect(setContextMenu).toHaveBeenCalledWith(null);
     expect(handleCollectionClick).not.toHaveBeenCalled();
   });

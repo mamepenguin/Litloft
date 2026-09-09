@@ -14,20 +14,24 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 
 /**
- * Every popup in core is dismissed by one primitive, on the click.
+ * Every popup in core is dismissed by one primitive.
  *
  * Three behaviours coexisted here, and two of them handed the click
  * through to whatever was under the finger:
  *
- *  - a scrim dismissed on its `click` — correct, and what `DismissScrim`
- *    now is;
  *  - a `document` listener on `mousedown` / `pointerdown` / `touchstart`,
- *    which answers on the *press*, leaving the element underneath as the
- *    target of the `click` that follows;
+ *    which answers on the *press* and leaves the element underneath as
+ *    the target of the `click` that follows;
  *  - a scrim dismissed on `pointerDown`, which unmounts itself before the
- *    tap's `click` is dispatched and so hit-tests to the same place.
+ *    tap's `click` is dispatched and so hit-tests to the same place;
+ *  - a scrim dismissed on its own `click`, which was right only while the
+ *    scrim was what the tap reached — a claim about stacking that lost
+ *    three times running.
  *
- * A mouse hides both: cancelling `pointerdown` suppresses the
+ * `DismissScrim` now answers the press **and swallows the click that
+ * press produces**, so no popup depends on where its scrim is painted.
+ *
+ * A mouse hides the first two: cancelling `pointerdown` suppresses the
  * compatibility mouse events, so only a phone finds them. The user did.
  *
  * ## Core only, and why that is not laziness
@@ -50,14 +54,17 @@ import { resolve, dirname, relative } from "node:path";
  * ## What this file claims, and what it cannot
  *
  * It claims that the population is enumerated, that each member goes
- * through `DismissScrim`, and that each scrim's declared tier clears the
- * declared tier of every sticky bar in core — a spelling check over
- * source text, run in node with nothing rendered. It claims nothing about
- * hit testing: that the scrim is the element a tap actually lands on,
- * that a bar written after it does not take the tap, and that the control
- * underneath is spared, is measured with a real touch in Chromium by
- * `e2e-layout/popup-dismiss.spec.ts`. `DismissScrim.test.tsx` drives the
- * component and pins which event it answers.
+ * through `DismissScrim`, and that nothing else in core answers a
+ * document-level press — a spelling check over source text, run in node
+ * with nothing rendered. It claims nothing about the mechanism itself:
+ * that a press outside dismisses, that the click it produces is taken
+ * once, and that the control underneath is spared, is
+ * `DismissScrim.test.tsx`'s, and the same outcome under real stacking is
+ * measured with a real touch in Chromium by
+ * `e2e-layout/popup-dismiss.spec.ts`.
+ *
+ * **No tier is asserted here any longer.** See the paragraph above
+ * `An outside press` for what three rounds of trying cost.
  */
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -327,19 +334,27 @@ const POPUPS: Record<string, PopupEntry> = {
 /**
  * A `document`- or `window`-level pointer listener.
  *
- * The event, not the handler's body: a pointer listener at this scope is
- * either a popup dismissal — the defect — or one of the enumerated
- * exceptions. A listener on a specific element is a gesture on that
+ * The event, not the handler's body: a pointer listener at this scope
+ * either belongs to the one primitive that dismisses popups, or is one of
+ * the enumerated exceptions, or is a popup closing itself by hand — which
+ * is the defect. A listener on a specific element is a gesture on that
  * element and is not in scope.
  *
  * **`click` is in the alternation, and it is the one that matters most.**
- * A press listener is obviously wrong: it answers before the click, so
- * the click lands on whatever is underneath. A `click` listener at this
- * scope *looks* right and fails the same way, because `window` is not in
- * front of anything — the popup closes and the element under the finger
- * receives the very same click. That is what the sidebar's collection
- * menu did, and it declared no ARIA at all, so this scan is the only
- * thing that could have named it.
+ * A hand-written press listener is obviously wrong: it answers before the
+ * click, so the click lands on whatever is underneath. A `click` listener
+ * at this scope *looks* right and fails the same way, because `window` is
+ * not in front of anything — the popup closes and the element under the
+ * finger receives the very same click. That is what the sidebar's
+ * collection menu did, and it declared no ARIA at all, so this scan is the
+ * only thing that could have named it.
+ *
+ * `DismissScrim` now answers the press here too, and the difference is
+ * the second half it carries with it: it takes the click that press
+ * produces, once, before anything else can see it. That is the whole of
+ * why the exception below is not the defect, and it is pinned in
+ * `DismissScrim.test.tsx` — remove the swallow and that file goes red,
+ * which is what makes this entry an exception rather than a hole.
  */
 const GLOBAL_POINTER_LISTENER =
   /\b(?:document|window)\.addEventListener\(\s*["'](?:click|mousedown|pointerdown|touchstart)["']/g;
@@ -368,6 +383,12 @@ function globalPointerListeners(roots: string[] = [CORE_ROOT]): string[] {
  * same popup — so what is compared is the set of files.
  */
 const GLOBAL_POINTER_EXCEPTIONS: Record<string, string> = {
+  "frontend/src/components/DismissScrim.tsx":
+    "the primitive itself, and the only listener of this shape that is " +
+    "allowed to dismiss. It answers the press *and* swallows the click " +
+    "that press produces — the two halves are one mechanism, and a popup " +
+    "that writes half of it by hand is what every other name here would " +
+    "be.",
   "frontend/src/components/InlineNameEditor.tsx":
     "a text field, not a popup. An outside press *commits* the rename, and " +
     "the click that follows is meant to do its own job — clicking a row " +
@@ -576,258 +597,32 @@ const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
 });
 
 /**
- * Where each scrim is drawn, read from its call site — and what it has to
- * be above.
+ * The scrim's tier is not asserted anywhere, and that is the change.
  *
- * `MENU_SCRIM`'s default is pinned by `DismissScrim.test.tsx`; a caller
- * that passes its own `className` was pinned by nothing, in jsdom or in a
- * browser. That is how a scrim shipped at `z-[9]`, under the inspector's
- * `sticky top-0 z-10` tab strip: a tap on the strip was not absorbed, and
- * the popup this primitive had just been given closed through its old
- * `onBlur` while the tab switched underneath.
+ * Three rounds of this file held a rule about `z`: a band, then a floor
+ * read from the sticky bars, then a ceiling. Each was beaten by an
+ * arrangement it had not foreseen — `z-[9]` under a tab strip, `z-10`
+ * tying that strip and losing on document order, a `fixed bottom-0 z-50`
+ * selection bar no scrim was allowed to clear, five scrims inside a
+ * toolbar's own stacking context where every value behaves alike, and the
+ * shared default which the rule skipped altogether.
  *
- * **A band is the wrong instrument for that, and this file used one.**
- * `DESIGN.md` §Layering puts sticky bars, the header and "popovers
- * anchored to a control" in *one* tier, `z-10` to `z-30`, so "in the
- * popover band" can never mean "above the chrome" — the band's own floor
- * is the tab strip's number. A scrim at `z-10` passed that check and lost
- * the paint order to a `z-10` strip written later in the document, which
- * is the shipped defect returning with the whole suite green.
+ * They were beaten because the rule was the wrong instrument, not because
+ * it was written badly. `.claude/rules/review-workflow.md` says it under
+ * "What a test here cannot hold": there is no bounded list of ways one box
+ * ends up over another, so a whitelist of positions loses to the next
+ * position.
  *
- * So what is asserted is the relation: a scrim clears every sticky bar it
- * covers, and stays inside the popover tier. Both sides are read from the
- * tree, so raising a bar fails here as surely as lowering a scrim.
- *
- * The floor is the half that has teeth today. The ceiling only fires for a
- * scrim written above the tier and not enumerated, and every scrim above
- * it right now is enumerated — so lowering this constant fails the file
- * and raising it changes nothing. It is a rule for the next scrim, not a
- * pin on this tree, and saying otherwise would be the claim detector rule
- * 4 is about.
+ * `DismissScrim` no longer needs the scrim to be hit, so no value of `z`
+ * changes what a dismissing tap does. What replaced the rule is the
+ * mechanism's own tests — `DismissScrim.test.tsx` for the event order,
+ * `e2e-layout/popup-dismiss.spec.ts` for the same outcome measured in
+ * Chromium with a real touch at four different stacking arrangements,
+ * including the two this file's rules could not express.
  */
-const POPOVER_CEILING = 30;
-
-/**
- * Sticky top bars in core, with the tier each declares.
- *
- * The scan is `sticky top-0 z-N`, the shape both surfaces in the shipped
- * defect had. A bar spelled another way — `fixed top-0`, a `style` prop, a
- * tier inherited from a parent — is outside what this holds, and the
- * population pin below is what keeps a new bar of *this* shape from
- * arriving unseen. Nothing here claims more than that.
- */
-function stickyChrome(roots: string[] = [CORE_ROOT]): Map<string, number> {
-  const out = new Map<string, number>();
-  for (const root of roots) {
-    for (const file of sourceFiles(root)) {
-      const text = withoutComments(readFileSync(file, "utf-8"));
-      const rel = relative(REPO_ROOT, file);
-      for (const m of text.matchAll(/sticky top-0 z-\[?(\d+)\]?/g)) {
-        out.set(rel, Math.max(out.get(rel) ?? 0, Number(m[1])));
-      }
-    }
-  }
-  return out;
-}
-
-/**
- * What that scan is expected to find.
- *
- * Declared, not derived: the floor below is a `Math.max` over the scan, so
- * a bar that vanishes from the scan takes its own requirement with it and
- * every scrim keeps passing (detector rule 5). The numbers are the files'
- * own, so a failure here is a bar that moved or a bar that arrived — in
- * both cases, check that every scrim still clears it before editing this.
- */
-const STICKY_CHROME: Record<string, number> = {
-  "frontend/src/app/admin/settings/AddonPolicySection.tsx": 10,
-  "frontend/src/components/FileDetail/inspector/InspectorShell.tsx": 10,
-  "frontend/src/components/Header.tsx": 20,
-  "frontend/src/components/PdfPreview.tsx": 10,
-  "frontend/src/components/folder/FolderToolbar.tsx": 20,
-};
-
-/**
- * Scrims deliberately outside that relation, and why. Enumerated rather
- * than counted: `DESIGN.md` carried a count of these and it was wrong twice.
- */
-const TIER_EXCEPTIONS: Record<string, { z: string; why: string }> = {
-  "frontend/src/components/ContextMenu.tsx": {
-    z: "z-49",
-    why:
-      "raised by a gesture anywhere on the page, including over surfaces " +
-      "already above the popover tier; it is never the sheet form",
-  },
-  "frontend/src/components/FolderPicker.tsx": {
-    z: "z-40",
-    why:
-      "under its own panel's z-50, which four of its six callers compare " +
-      "inside a dialog root's stacking context; renumbering the panel is " +
-      "the real fix and is not this unit's",
-  },
-  "frontend/src/components/SelectionBar.tsx": {
-    z: "z-20",
-    why:
-      "drawn inside the bar's own fixed z-50 box, which is a stacking " +
-      "context: this number is compared against the menu it guards and " +
-      "against nothing on the page, and the bar carrying both is already " +
-      "above every sticky bar below it",
-  },
-  "frontend/src/components/player/MediaControls/parts/OverFrameSettingsPanel.tsx": {
-    z: "absolute inset-0",
-    why:
-      "scoped to the player frame rather than the viewport — no tier at " +
-      "all, and `absolute` rather than `fixed`, because the frame goes " +
-      "`position: fixed` while faking fullscreen on Apple mobile",
-  },
-};
-
-/** A call site that passes no `className`: the `MENU_SCRIM` default. */
-const NO_CLASS_LIST = "";
-
-/**
- * A call site whose `className` is present and could not be read.
- *
- * Its own outcome, and not `NO_CLASS_LIST`. Reusing the empty string for
- * both spelled "the extractor failed" the same way as "there is nothing to
- * check", so the tier case skipped it: writing the scrim as
- * `className={"fixed inset-0 z-[9]"}` — a braced string, which the
- * extractor did not read — shipped the round-3 defect with this file
- * green. It is an offender now, and the extractor reads the braced forms
- * too.
- */
-const UNREADABLE = "<unreadable>";
-
-/**
- * Every `DismissScrim` call site, with the class list it passes.
- *
- * Found by index rather than by a regex over the whole tag: the element
- * spans many lines and carries comments, and a lazy pattern is one edit
- * away from stopping at the wrong delimiter.
- */
-function scrimCallSites(roots: string[] = [CORE_ROOT]): Map<string, string> {
-  const out = new Map<string, string>();
-  const TAG = "<DismissScrim";
-  for (const root of roots) {
-    for (const file of sourceFiles(root)) {
-      const text = withoutComments(readFileSync(file, "utf-8"));
-      const rel = relative(REPO_ROOT, file);
-      let from = text.indexOf(TAG);
-      while (from !== -1) {
-        const close = text.indexOf("/>", from);
-        const attrs = close === -1 ? "" : text.slice(from + TAG.length, close);
-        const cn =
-          /className=(?:\{\s*(?:`([^`]*)`|"([^"]*)"|'([^']*)')\s*\}|"([^"]*)")/.exec(
-            attrs,
-          );
-        const value = cn
-          ? (cn[1] ?? cn[2] ?? cn[3] ?? cn[4]).replace(/\s+/g, " ").trim()
-          : /\bclassName=/.test(attrs)
-            ? UNREADABLE
-            : NO_CLASS_LIST;
-        out.set(rel, value);
-        from = text.indexOf(TAG, close === -1 ? from + TAG.length : close);
-      }
-    }
-  }
-  return out;
-}
-
-/**
- * The class list every call site passes, declared.
- *
- * The keys were pinned before this and the values were not, and the values
- * are what the tier case consumes: an unread value was indistinguishable
- * from an absent one, so gutting the extractor left every assertion in this
- * describe green. Editing a scrim's box or tier edits this table, on
- * purpose — it is the one place those numbers are written down.
- */
-const SCRIM_CLASS_LISTS: Record<string, string> = {
-  "frontend/src/components/AddButton.tsx": "fixed inset-0 z-30",
-  "frontend/src/components/ContextMenu.tsx": "fixed inset-0 z-49",
-  "frontend/src/components/EditableTagChips.tsx": "fixed inset-0 z-30",
-  "frontend/src/components/FileActions.tsx": "fixed inset-0 z-30",
-  "frontend/src/components/FolderPicker.tsx": "fixed inset-0 z-40",
-  "frontend/src/components/OverflowMenu.tsx": NO_CLASS_LIST,
-  "frontend/src/components/SelectionBar.tsx": "fixed inset-0 z-20 sm:hidden",
-  "frontend/src/components/SmartFolderSaveButton.tsx": "fixed inset-0 z-30",
-  "frontend/src/components/SortButton.tsx": NO_CLASS_LIST,
-  "frontend/src/components/ToolbarMenu.tsx": NO_CLASS_LIST,
-  "frontend/src/components/archive/ArchiveToolbar.tsx": NO_CLASS_LIST,
-  "frontend/src/components/folder/FilterField.tsx": "fixed inset-0 z-30",
-  "frontend/src/components/folder/FilterMenu.tsx": NO_CLASS_LIST,
-  "frontend/src/components/folder/FolderToolbar.tsx": NO_CLASS_LIST,
-  "frontend/src/components/player/MediaControls/parts/OverFrameSettingsPanel.tsx":
-    'absolute inset-0 ${isPopover ? "" : "bg-black/40"}',
-  "frontend/src/components/trash/TrashToolbar.tsx": "fixed inset-0 z-30",
-};
-
-describe("Every scrim's tier", () => {
-  it("names every scrim it found", () => {
-    // The scan is a population, so it is pinned like one — and it is what
-    // the cases below rest on.
-    expect([...scrimCallSites().keys()].sort()).toEqual(
-      [
-        ...new Set(
-          Object.values(POPUPS)
-            .map((e) => e.dismissedIn)
-            .filter((f): f is string => f !== null),
-        ),
-      ].sort(),
-    );
-  });
-
-  it("reads the class list each of them passes", () => {
-    expect(Object.fromEntries(scrimCallSites())).toEqual(SCRIM_CLASS_LISTS);
-  });
-
-  it("names every sticky bar a scrim has to clear", () => {
-    expect(Object.fromEntries(stickyChrome())).toEqual(STICKY_CHROME);
-  });
-
-  it("clears the chrome and stays in the popover tier, or is enumerated", () => {
-    // The floor is the tallest sticky bar in core, read from the files —
-    // `Header` at `z-20` today, with the inspector's tab strip at `z-10`
-    // under it. A scrim must be strictly above it: equal loses to whichever
-    // of the two is later in the document, which is the defect.
-    const floor = Math.max(...stickyChrome().values());
-    const offenders: string[] = [];
-    for (const [file, className] of scrimCallSites()) {
-      if (className === UNREADABLE) {
-        offenders.push(`${file}: a className this scan cannot read`);
-        continue;
-      }
-      // No class list at all is `MENU_SCRIM`, pinned elsewhere.
-      if (className === NO_CLASS_LIST) continue;
-      const exception = TIER_EXCEPTIONS[file];
-      if (exception) {
-        if (!className.includes(exception.z)) {
-          offenders.push(
-            `${file}: enumerated as ${exception.z}, found "${className}"`,
-          );
-        }
-        continue;
-      }
-      const z = /\bz-\[?(\d+)\]?/.exec(className);
-      if (!z) {
-        offenders.push(`${file}: no tier in "${className}" and not enumerated`);
-        continue;
-      }
-      const tier = Number(z[1]);
-      if (tier <= floor) {
-        offenders.push(
-          `${file}: z-${tier} does not clear the chrome at z-${floor}`,
-        );
-      } else if (tier > POPOVER_CEILING) {
-        offenders.push(`${file}: z-${tier} is above the popover tier`);
-      }
-    }
-    expect(offenders).toEqual([]);
-  });
-});
 
 describe("An outside press", () => {
-  it("never dismisses a popup", () => {
+  it("is answered in one place, and nowhere by hand", () => {
     expect(
       [
         ...new Set(

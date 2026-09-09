@@ -287,8 +287,7 @@ export function ArchiveToolbar({
             <MoreHorizontal size={16} />
           </button>
           {moreOpen && (
-            <>
-              <DismissScrim onDismiss={closeMore} />
+            <DismissScrim onDismiss={closeMore}>
               <div role="menu" className={MENU_SURFACE}>
                 <ArchiveSortGroup
                   sort={sort}
@@ -308,7 +307,7 @@ export function ArchiveToolbar({
                   }}
                 />
               </div>
-            </>
+            </DismissScrim>
           )}
         </div>
 

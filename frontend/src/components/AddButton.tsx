@@ -180,101 +180,100 @@ export function AddButton({
             // No tint: this menu stays anchored to its trigger at every
             // width, so there is no sheet for a dim to explain.
             className="fixed inset-0 z-30"
-          />
-        )}
-        {menuOpen && (
-          <div
-            role="menu"
-            // Capped and scrollable, like every other menu on this bar.
-            // `MENU_SURFACE` is anchored to the *right* of its trigger;
-            // this keeps its own geometry and takes only the height rules,
-            // because which side it grows from depends on the caller: on
-            // the folder toolbar `Add` is the leftmost control, and in the
-            // drive root's `PageHeader` it is the rightmost, where a
-            // left-anchored 180px panel behind a ~100px trigger runs off
-            // the right edge of a phone.
-            //
-            // It grows with `folder-actions-menu`: three contributed rows
-            // take it from four to seven and from ~120px to 331. Measured
-            // uncapped, seven rows, bar pinned: 383 against a 375 fold at
-            // 667x375, and against 360 at 740x360 and 640x360. Capped, all
-            // of those fit and scroll.
-            //
-            // `max-h` is against the viewport, not against the room below
-            // the trigger — so before the bar pins, with `Header` and the
-            // breadcrumb above it, even the capped menu can end below the
-            // fold (441 of 393 at 852x393). Scrolling recovers that; what
-            // it cannot recover is a menu with no cap at all, which stays
-            // 331 tall however far the bar rises.
-            className={`absolute top-full z-30 mt-1 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:max-h-[70vh] ${
-              align === "right"
-                ? "right-0 origin-top-right"
-                : "left-0 origin-top-left"
-            }`}
           >
-            <ActionMenuItem
-              icon={FileIcon}
-              label={tu("files")}
-              onClick={() => {
-                closeMenu();
-                filePicker.open();
-              }}
-            />
-            <ActionMenuItem
-              icon={Folder}
-              label={tu("folder")}
-              onClick={() => {
-                closeMenu();
-                folderInputRef.current?.click();
-              }}
-            />
-            {onCreateFolder && (
+            <div
+              role="menu"
+              // Capped and scrollable, like every other menu on this bar.
+              // `MENU_SURFACE` is anchored to the *right* of its trigger;
+              // this keeps its own geometry and takes only the height rules,
+              // because which side it grows from depends on the caller: on
+              // the folder toolbar `Add` is the leftmost control, and in the
+              // drive root's `PageHeader` it is the rightmost, where a
+              // left-anchored 180px panel behind a ~100px trigger runs off
+              // the right edge of a phone.
+              //
+              // It grows with `folder-actions-menu`: three contributed rows
+              // take it from four to seven and from ~120px to 331. Measured
+              // uncapped, seven rows, bar pinned: 383 against a 375 fold at
+              // 667x375, and against 360 at 740x360 and 640x360. Capped, all
+              // of those fit and scroll.
+              //
+              // `max-h` is against the viewport, not against the room below
+              // the trigger — so before the bar pins, with `Header` and the
+              // breadcrumb above it, even the capped menu can end below the
+              // fold (441 of 393 at 852x393). Scrolling recovers that; what
+              // it cannot recover is a menu with no cap at all, which stays
+              // 331 tall however far the bar rises.
+              className={`absolute top-full z-30 mt-1 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:max-h-[70vh] ${
+                align === "right"
+                  ? "right-0 origin-top-right"
+                  : "left-0 origin-top-left"
+              }`}
+            >
               <ActionMenuItem
-                icon={FolderPlus}
-                label={tf("newFolder")}
+                icon={FileIcon}
+                label={tu("files")}
                 onClick={() => {
                   closeMenu();
-                  onCreateFolder();
+                  filePicker.open();
                 }}
               />
-            )}
-            {onCreateFile && (
               <ActionMenuItem
-                icon={FilePlus}
-                label={tf("newFile")}
+                icon={Folder}
+                label={tu("folder")}
                 onClick={() => {
                   closeMenu();
-                  onCreateFile();
+                  folderInputRef.current?.click();
                 }}
               />
-            )}
-            {showAddonRows && (
-              /* The rule is this element's own border, not a sibling, so
-                 `empty:hidden` can take both away together. `hasSlot` only
-                 answers "did an addon declare this slot" — an entry that
-                 did may still render nothing here (a drive with the
-                 addon's feature policy off does exactly that), and the
-                 rule would then hang under the last core row with nothing
-                 beneath it. Ported from `FileActions`, which carries this
-                 for the same reason.
-
-                 `role="none"`: the rows inside must read as direct
-                 children of `role="menu"`, and the rule is decoration. */
-              <div
-                role="none"
-                className="mt-1 border-t border-bg-border pt-1 empty:hidden"
-              >
-                <AddonSlot
-                  id={ADD_MENU_SLOT}
-                  layout="stack"
-                  props={{
-                    ...addonProps,
-                    onRequestClose: closeMenu,
+              {onCreateFolder && (
+                <ActionMenuItem
+                  icon={FolderPlus}
+                  label={tf("newFolder")}
+                  onClick={() => {
+                    closeMenu();
+                    onCreateFolder();
                   }}
                 />
-              </div>
-            )}
-          </div>
+              )}
+              {onCreateFile && (
+                <ActionMenuItem
+                  icon={FilePlus}
+                  label={tf("newFile")}
+                  onClick={() => {
+                    closeMenu();
+                    onCreateFile();
+                  }}
+                />
+              )}
+              {showAddonRows && (
+                /* The rule is this element's own border, not a sibling, so
+                   `empty:hidden` can take both away together. `hasSlot` only
+                   answers "did an addon declare this slot" — an entry that
+                   did may still render nothing here (a drive with the
+                   addon's feature policy off does exactly that), and the
+                   rule would then hang under the last core row with nothing
+                   beneath it. Ported from `FileActions`, which carries this
+                   for the same reason.
+
+                   `role="none"`: the rows inside must read as direct
+                   children of `role="menu"`, and the rule is decoration. */
+                <div
+                  role="none"
+                  className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+                >
+                  <AddonSlot
+                    id={ADD_MENU_SLOT}
+                    layout="stack"
+                    props={{
+                      ...addonProps,
+                      onRequestClose: closeMenu,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          </DismissScrim>
         )}
       </div>
     </>

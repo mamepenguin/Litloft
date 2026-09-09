@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { dismissViaScrim } from "@/__tests__/helpers/dismissScrim";
+import { dismissByPressingOutside } from "@/__tests__/helpers/dismissScrim";
 import { DISMISS_SCRIM_ATTR } from "@/components/DismissScrim";
 import { deleteFile } from "@/lib/api";
 import { FileActions } from "../FileActions";
@@ -902,7 +902,7 @@ describe("FileActions file-actions-menu slot", () => {
     renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
-    dismissViaScrim();
+    dismissByPressingOutside();
 
     expect(screen.queryByText("Download")).not.toBeInTheDocument();
     expect(
@@ -954,7 +954,7 @@ describe("FileActions file-actions-menu slot", () => {
     expect(screen.queryByText("Download")).not.toBeInTheDocument();
 
     openMenu();
-    dismissViaScrim();
+    dismissByPressingOutside();
 
     expect(screen.queryByText("Download")).not.toBeInTheDocument();
   });
@@ -973,7 +973,7 @@ describe("FileActions file-actions-menu slot", () => {
     expect(screen.getByText("Download")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("addon-dialog-close"));
-    dismissViaScrim();
+    dismissByPressingOutside();
 
     expect(screen.queryByText("Download")).not.toBeInTheDocument();
   });
