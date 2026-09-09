@@ -109,6 +109,28 @@ Library constraints:
     where the instance never looks and three error-path tests quietly stop
     testing their error path.
 
+- **Every test ends with a `pointercancel` at `document`.** `setup.ts`
+  dispatches one after each test, and
+  `src/test/__tests__/press-lift.test.tsx` guards it the way
+  `storage-shim.test.ts` guards the shim.
+
+  It is there because `DismissScrim` keeps two pieces of module-scope state
+  across a file — a press in flight, and an armed click-swallow — and
+  `fireEvent.pointerDown` has no reason to end either. A test that presses
+  without lifting hands both to the next test in the file: a popup mounted
+  then arms a swallow for a press that is already over, and a plain
+  `fireEvent.click` can be eaten outright. `pointercancel` is the one event
+  that ends the press *and* abandons the swallow.
+
+  Two things about it are worth knowing before they cost an afternoon. It
+  runs **before** Testing Library's `cleanup()`, so it lands on a tree that
+  is still mounted: a component that ends a drag on a document-level
+  `pointercancel` will run its drag-end handler during teardown, outside
+  `act()`, and the act warning will name a file whose author changed
+  nothing. And it does **not** bubble, so a `window`-level bubble listener
+  — `usePlayerGestures` follows a scrub on one — never sees it; a gesture
+  that leaks the same way from there needs its own lift.
+
 ### Addon frontends run here too
 
 An addon's frontend has no runner of its own. Its components import core's

@@ -171,6 +171,42 @@ describe("DismissScrim", () => {
     expect(page.clicks()).toBe(1);
   });
 
+  it("abandons a stale swallow when a second press starts", () => {
+    // The third way of learning the click is not coming, and the one the
+    // two below cannot stand in for: a new press *is* the answer, because
+    // whatever the last one was going to produce, it is not producing it
+    // now.
+    //
+    // It needs a popup that actually closes, so that the second press
+    // meets no scrim and cannot simply re-arm — which is also why the
+    // pair below, firing at a still-mounted scrim, does not reach this
+    // path. Its own killer used to be `ContextMenu`'s row-click, by
+    // accident; the harness now abandons every armed swallow between
+    // tests, so that accident is gone and this is what is left.
+    const page = pageUnderneath();
+    function Caller(): React.ReactElement {
+      const [open, setOpen] = useState(true);
+      return open ? (
+        <DismissScrim onDismiss={() => setOpen(false)}>
+          <Popup />
+        </DismissScrim>
+      ) : (
+        <span>closed</span>
+      );
+    }
+    render(<Caller />);
+
+    // Arms, and leaves it armed: no click follows this press.
+    fireEvent.pointerDown(page.el);
+    expect(screen.getByText("closed")).toBeInTheDocument();
+
+    fireEvent.pointerDown(page.el);
+    const notPrevented = fireEvent.click(page.el);
+
+    expect(page.clicks()).toBe(1);
+    expect(notPrevented).toBe(true);
+  });
+
   it("abandons the swallow when the press produces no click", () => {
     // A right-press dismisses and never produces a click, so the swallow
     // would sit armed and eat some later, unrelated one. Each of these is

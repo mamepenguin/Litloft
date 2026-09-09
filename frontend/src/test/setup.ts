@@ -173,9 +173,11 @@ vi.mock("next-intl", () => {
 // it; a bubble listener on `window` never sees it, and a handler that
 // reads `button` or `pointerId` off it gets `undefined`.
 //
-// That is deliberately the smallest thing that ends the gesture this
-// harness knows about, which is the one `DismissScrim` installs on
-// `document` in the capture phase. Making it bubble would also end the
+// That is deliberately the smallest thing that reaches what this harness
+// has to reach: `DismissScrim`'s two document-capture listeners — the
+// module-scope one that ends a press, and the per-arming one that abandons
+// a swallow. Hitting both with one event is the whole reason it is a
+// `pointercancel`. Making it bubble would also end the
 // scrub `usePlayerGestures` follows on a `window` bubble listener —
 // measured, and it costs act warnings from a component that is still
 // mounted when this runs (see the ordering below). A window-level gesture that leaks the same way

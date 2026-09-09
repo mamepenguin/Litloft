@@ -24,8 +24,12 @@
  * by name. Both are written the same way — read the trap if there is one,
  * then set a fresh one — so whichever runs second is the one that
  * measures, in either order, and the other passes having only set the
- * trap. Never a false green: the check is skipped only when there is
- * nothing yet to check.
+ * trap. Never a false green **in a run that collects both tests**, which
+ * is every run either CI job makes: the check is skipped only when there
+ * is nothing yet to check. Filtered locally to one of them (`-t`,
+ * `it.only`, `--bail=1`) it reports `1 passed | 1 skipped` and pins
+ * nothing — vitest says so in that line, and the absolute the sentence
+ * used to claim was not something this shape can support.
  *
  * jsdom lays nothing out and hit-tests nothing. Every claim here is about
  * event dispatch and module state, which is what the hook is.
@@ -38,30 +42,76 @@ import { fireEvent, render } from "@testing-library/react";
 import { DismissScrim } from "@/components/DismissScrim";
 
 /**
- * Where the teardown event is expected to arrive, and where it is not.
+ * Every scope a listener can take, built rather than listed.
  *
- * Declared, not collected: the point of the last entry is that it stays
- * absent. `setup.ts` dispatches a non-bubbling `Event` at `document`, so
- * the capture path reaches `window` and `document`, the target's own
- * listeners run in both phases, and a `window` bubble listener — the shape
- * `usePlayerGestures` uses for a scrub — is out of reach. Making the event
- * bubble is a real choice with a real cost, and it fails here rather than
- * silently widening what runs during teardown.
+ * The registration below is the cross product of these two, so there is no
+ * per-scope line to delete: taking `window-bubble` out of the population
+ * means taking `window` out of `TARGETS`, which takes a positively
+ * asserted arrival with it. The previous shape listed the four
+ * registrations by hand and named only three of them in an expectation, so
+ * the fourth — the one carrying the whole bubbling guard — could be
+ * deleted with its `const` and nothing disagreed. That is detector rule
+ * 5's "a deletion removes the element from both sides at once", and this
+ * is the answer to it: the two sides are built differently, so they cannot
+ * be edited together by accident.
+ */
+const TARGETS: Record<string, EventTarget> = { window, document };
+const PHASES: Record<string, boolean> = { capture: true, bubble: false };
+
+const SCOPES = Object.entries(TARGETS).flatMap(([where, target]) =>
+  Object.entries(PHASES).map(([phase, capture]) => ({
+    label: `${where}-${phase}`,
+    target,
+    capture,
+  })),
+);
+
+/**
+ * Whether the teardown event arrives at each scope, declared per scope.
+ *
+ * A value, not a presence: `false` is a statement, where an absence from a
+ * list is indistinguishable from a listener nobody registered. The keys
+ * are checked against the generated scopes, so this table cannot lose a
+ * row on its own either.
+ *
+ * `setup.ts` dispatches a non-bubbling `Event` at `document`: the capture
+ * path runs `window` → `document`, the target's own listeners run in both
+ * phases, and the bubble path — where `usePlayerGestures` follows a scrub
+ * on `window` — never starts.
+ */
+const ARRIVES: Record<string, boolean> = {
+  "window-capture": true,
+  "window-bubble": false,
+  "document-capture": true,
+  "document-bubble": true,
+};
+
+/**
+ * The arrivals in the order they happen, plus the one that is not an
+ * arrival at all.
+ *
+ * `cleanup-unmounted` is last, and that is the ordering claim: the hook
+ * runs *before* Testing Library's `cleanup()`, because vitest calls
+ * `afterEach` hooks in reverse registration order and the auto-cleanup is
+ * registered by the import at the top of `setup.ts`. So the event lands on
+ * a tree that is still mounted — harmless while `DismissScrim` is the only
+ * thing answering a document-level `pointercancel`, and an act warning in
+ * a file whose author changed nothing the day something else does.
  */
 const REACHED = [
   "window-capture",
   "document-capture",
   "document-bubble",
-  // Last, and that is the other half of the order: the hook runs *before*
-  // Testing Library's `cleanup()`, because vitest calls `afterEach` hooks
-  // in reverse registration order and the auto-cleanup is registered by
-  // the import at the top of `setup.ts`. So the event lands on a tree that
-  // is still mounted. Harmless while `DismissScrim` is the only thing in
-  // the tree answering a document-level `pointercancel`; a component that
-  // ended a drag on one would run its handler here, outside `act()`.
   "cleanup-unmounted",
 ];
-const NOT_REACHED = "window-bubble";
+
+/** The same scopes under an event that *does* bubble: one more, last. */
+const REACHED_WHEN_BUBBLING = [
+  "window-capture",
+  "document-capture",
+  "document-bubble",
+  "window-bubble",
+];
 
 /** Reports when Testing Library unmounts it, so the order can be read. */
 function Unmounts({ onUnmount }: { onUnmount: () => void }): null {
@@ -71,6 +121,7 @@ function Unmounts({ onUnmount }: { onUnmount: () => void }): null {
 
 interface Trap {
   seen: string[];
+  teardown: () => Event | null;
   off: () => void;
   page: HTMLButtonElement;
   clicks: () => number;
@@ -81,14 +132,16 @@ let trap: Trap | null = null;
 /** A control on the page, and a swallow armed against it. */
 function setTrap(): void {
   const seen: string[] = [];
-  const listeners: Array<[EventTarget, string, boolean]> = [
-    [window, "window-capture", true],
-    [document, "document-capture", true],
-    [document, "document-bubble", false],
-    [window, NOT_REACHED, false],
-  ];
-  const handlers = listeners.map(([target, label, capture]) => {
-    const fn = () => seen.push(label);
+  // The event itself, kept from the listener that is guaranteed to see it:
+  // whether it bubbles is the mechanism the scope table only describes the
+  // consequence of, and reading it here means the bubbling guard survives
+  // even if every listener below were deleted.
+  let teardown: Event | null = null;
+  const handlers = SCOPES.map(({ target, label, capture }) => {
+    const fn = (e: Event) => {
+      if (label === "document-capture") teardown ??= e;
+      seen.push(label);
+    };
     target.addEventListener("pointercancel", fn, capture);
     return () => target.removeEventListener("pointercancel", fn, capture);
   });
@@ -115,6 +168,7 @@ function setTrap(): void {
 
   trap = {
     seen,
+    teardown: () => teardown,
     off: () => handlers.forEach((remove) => remove()),
     page,
     clicks: () => clicks,
@@ -137,9 +191,29 @@ function readTrap(left: Trap): void {
   fireEvent.click(left.page);
   expect(left.clicks()).toBe(2);
 
-  // Then where the event went, which is the half a comment would otherwise
-  // be the only record of.
+  // Then the event itself. `bubbles` is what decides the whole scope
+  // question — a non-bubbling event's path stops at its target — so it is
+  // asserted directly rather than inferred from who did not answer.
+  const teardown = left.teardown();
+  expect(teardown?.type).toBe("pointercancel");
+  expect(teardown?.bubbles).toBe(false);
+
+  // And where it went. The declared table is checked against the scopes
+  // that exist, then against what happened, so neither side can shrink
+  // quietly.
+  expect(Object.keys(ARRIVES).sort()).toEqual(SCOPES.map((s) => s.label).sort());
+  expect(REACHED.filter((label) => label !== "cleanup-unmounted")).toEqual(
+    SCOPES.filter(({ label }) => ARRIVES[label]).map(({ label }) => label),
+  );
   expect(left.seen).toEqual(REACHED);
+
+  // One bubbling probe, as the positive control: the scope the teardown
+  // event does not reach is one a listener *is* registered at, and this is
+  // what says so. `usePlayerGestures` follows a scrub there, and ending it
+  // during teardown would run a drag-end handler on a tree Testing Library
+  // has not unmounted yet.
+  document.dispatchEvent(new Event("pointercancel", { bubbles: true }));
+  expect(left.seen).toEqual([...REACHED, ...REACHED_WHEN_BUBBLING]);
 
   left.off();
   left.page.remove();
