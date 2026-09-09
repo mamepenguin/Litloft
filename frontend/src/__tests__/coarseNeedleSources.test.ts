@@ -17,9 +17,15 @@ import { REQUIRED } from "../../e2e-layout/build-fixture-css";
  *
  * One file is out of that set: `globals.css` carries an `@source not` for
  * `build-fixture-css.ts` itself, because the list's own entries are the
- * purest case of this — `".p-4 {"` is a string containing `p-4`, so the
- * assertion was its own source. The exclusion covers that whole file;
- * everything below is about the files still scanned.
+ * purest case of this — a needle is a string containing the class it asks
+ * the sheet for, so the assertion was its own source. The exclusion covers
+ * that whole file; everything below is about the files still scanned.
+ *
+ * Note what the exclusion does **not** buy, because two rounds of comments
+ * claimed it did: it does not make those needles guards. A rule leaves the
+ * sheet only when nothing scanned writes its class, and the classes in
+ * question are written across the app. See `build-fixture-css.ts`'s own
+ * header, which now carries the measurement.
  *
  * That has now happened three times on this branch, in a different kind of
  * file each time: a comment in `build-fixture-css.ts`, assertion strings in
@@ -73,8 +79,12 @@ const coarse = (parts: Parts) => `pointer-coarse:${base(parts)}`;
  * other three are written by the recipe and the fixture only.
  *
  * The two added for the `Button` floor sit on the same side for the same
- * reason: `min-h-11` is written by twenty-eight core files and the overhang
- * by four, so neither can be made absent by editing `Button.tsx`.
+ * reason: the floor is written by twenty-eight core files and the overhang
+ * by four, so neither can be made absent by editing `Button.tsx`. Named by
+ * role rather than spelled, because a bare base utility written here is a
+ * source for a rule nothing in the app uses — which is what the emptiness
+ * of `ALLOWED_BASE_SOURCES` below is about, and this sentence was the one
+ * place in the file breaking it.
  *
  * **What "cannot be absent" is relative to.** Measured by stripping every
  * whole spelling of each class from every scanned file and rebuilding the
@@ -228,6 +238,15 @@ describe("pointer-coarse needle sources", () => {
     // every one of them, which is the failure the whole file exists to
     // catch. The parts table above is split for the same reason. So the size
     // is declared and the membership is held by the two ties.
+    // The whole list, not only the variant slice this file reads.
+    //
+    // The three ties below hold the `pointer-coarse` entries against each
+    // other; nothing held the rest, so deleting a plain needle left the
+    // suite at its baseline count — the same walk-back one block down,
+    // one block wider. Declared here because this is the only file that
+    // imports `REQUIRED`.
+    expect(REQUIRED).toHaveLength(42);
+
     expect(NEEDLE_PARTS).toHaveLength(7);
     expect(CANNOT_BE_ABSENT).toHaveLength(4);
     expect(CAN_BE_ABSENT).toHaveLength(3);
@@ -253,22 +272,30 @@ describe("pointer-coarse needle sources", () => {
   });
 
   /**
-   * The exclusion the needles with no backslash in them rest on.
+   * The exclusion that stops the needle list adding rules to the sheet.
    *
-   * Escaping is what made `.pointer-coarse\:pr-0 {` and `.h-\[90vh\] {`
-   * falsifiable, and it is a property of those selectors rather than a
-   * decision: a needle whose class needs no escape — `.p-4 {`, `.h-12 {`,
-   * `.flex-1 {` — is spelled in the list exactly as the scanner reads it,
-   * and is its own source. Taking the file out of the scan is what makes
-   * the property hold for all of them.
+   * A needle is a string holding the class it asks the sheet for, so every
+   * entry whose class the scanner can read whole was a source for its own
+   * rule — dead CSS in the sheet every viewer loads, emitted by an
+   * assertion. Taking the file out of the scan stops that for all of them
+   * at once.
    *
-   * **What this holds is the decision, not the mechanism.** It is a text
-   * match on a stylesheet, which cannot tell you what a compiler does;
-   * whether the exclusion works was measured by taking each needle's
-   * class out of every component, fixture, spec and comment in the tree
-   * and watching `globalSetup` name it, and those figures are in the PR
-   * that added the line. What this stops is the line being deleted
-   * without anyone re-measuring.
+   * **It does not make any needle a guard**, which is what the paragraph
+   * that stood here used to say. That claim was wrong twice over: a rule
+   * leaves the sheet only when nothing scanned writes its class, and the
+   * classes concerned are written across the app; and the escape those
+   * needles were said to rest on is itself a token boundary, so an escaped
+   * selector in prose emits its unescaped head rather than itself. Both are
+   * measured in `build-fixture-css.ts`'s header.
+   *
+   * **What this case holds is the decision, not the mechanism.** It is a
+   * text match on a stylesheet, which cannot tell you what a compiler does.
+   * Whether the exclusion works was measured by compiling `source(none)`
+   * against one file at a time; the figures are in the PR. What this stops
+   * is the line being deleted without anyone re-measuring.
+   *
+   * Its own prose names no selector, for the reason the parts table above
+   * is split: this file would otherwise be the source it exists to forbid.
    */
   it("keeps the needle list itself out of the scanner", () => {
     const globals = readFileSync(join(FRONTEND, "src", "app", "globals.css"), "utf8");

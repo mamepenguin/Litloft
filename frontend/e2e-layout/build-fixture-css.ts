@@ -75,39 +75,50 @@ export const FIXTURE_CSS = join(__dirname, "fixtures", "globals.built.css");
  *
  * ## What a needle can hold, and what it cannot
  *
- * A needle is only a guard if the rule it asks for can actually be absent.
- * Three needles in this list have turned out not to be, in three separate
- * rounds — the drawer height utility on unit G's rebase, `.p-4`, `.h-12`
- * and `.gap-3` on unit D's merge, `.h-8` and `.w-8` on this one — and it
- * has been two different mechanisms wearing one shape.
+ * **A needle's teeth are a property of the utility, not of how it is
+ * spelled.** The rule it asks for goes missing only when *nothing* in the
+ * scanned tree writes that class any more — so a needle for a utility the
+ * tree writes in dozens of places records what the sheet must contain and
+ * cannot report its absence, however it is written here. Two rounds of
+ * comments in this file said otherwise, on two different theories, and both
+ * were wrong.
  *
- * **This list used to be a source for its own needles.** Tailwind reads
- * candidates out of every file it scans, string literals included, so
- * `".p-4 {"` put `p-4` into the sheet and then asked the sheet for it.
- * Escaping hid that rather than fixing it: a selector needing a backslash
- * is not a candidate, so needles for arbitrary values and for variants had
- * teeth while every plainly-spelled one did not — which is why the rule
- * looked like "spell it as the compiled selector" for two rounds. It was
- * never that. `globals.css` now takes this file out of the scan with
- * `@source not`, and `coarseNeedleSources.test.ts` pins that line. Writing
- * a needle as the compiled selector is still required, because the check is
- * `includes` over the sheet text, but it is no longer what keeps the needle
- * honest.
+ * Measure before claiming, with Tailwind's own scanner rather than by
+ * reading: compile a stylesheet that is `@import "tailwindcss" source(none)`
+ * plus one `@source` line naming a single file, and see whether the rule
+ * comes out. Run that per file across the tree and the answer is a list of
+ * owners rather than a guess. The owner counts for the entries below are in
+ * the PR that added them, because a count in a comment goes stale without
+ * going red.
  *
- * **A needle whose class is a prefix of a longer utility cannot be isolated
- * at all**, and no spelling fixes it. Tailwind extracts `py-2` as a
- * candidate from every `py-2.5`, so `.py-2 {` is in the sheet as long as
- * anything in the tree writes `py-2.5` — the escaped `py-2\.5` a docstring
- * writes to *avoid* being a source included. Measured: stripping every bare
- * `py-2` from 112 files leaves the rule compiled; it drops out only when
- * every spelling of `py-2.5` goes too.
+ * So what is the list for, if most of it cannot fail? The failure it was
+ * written against, and still catches: **a sheet that did not compile, or
+ * compiled without a whole layer.** That misses every needle at once, and
+ * `globalSetup` names them before a browser opens instead of the specs
+ * reporting a page laid out at `auto`. A needle is *additionally* a guard
+ * over one recipe when that recipe is the only writer of its class — which
+ * in practice means an arbitrary value or a variant-prefixed class, not
+ * because of the backslash but because those are the classes only one place
+ * writes.
  *
- * So before adding one: if the class is a prefix of a longer utility the
- * tree writes, the entry is documentation of what the sheet must contain,
- * and it cannot fail — mark it where it is declared rather than counting it
- * as a guard. Otherwise it is a guard, and what a reader gets from it is
- * `globalSetup` naming the missing rule instead of a handful of browser
- * measurements that do not say why.
+ * ## Two spelling facts, measured, both the opposite of what this file said
+ *
+ * Neither changes the paragraph above. Both decide whether this file and the
+ * prose around it quietly add rules to the sheet every viewer loads.
+ *
+ * - **A selector written in prose is a source for its own utility.** The
+ *   leading `.` is a token boundary for the extractor, so `.h-8` in a
+ *   docstring emits that rule. Writing the compiled selector never hid a
+ *   class from the scanner.
+ * - **A CSS escape is a boundary too, so an escaped selector is a source for
+ *   its unescaped head.** The escaped spelling of the `lg` padding emits the
+ *   `md` one's rule, not its own. The convention earlier comments
+ *   recommended as protection creates a different rule instead of protecting
+ *   the one it names. Splitting the token across two literals emits nothing,
+ *   which is what `coarseNeedleSources.test.ts` does and why.
+ *
+ * `globals.css` takes this file itself out of the scan with `@source not`,
+ * and `coarseNeedleSources.test.ts` pins that line.
  */
 /**
  * Exported for `src/__tests__/coarseNeedleSources.test.ts`, which reads the
@@ -262,18 +273,24 @@ export const REQUIRED = [
   // are: the test is `includes` over the whole sheet, and the padding
   // needle without one is satisfied by its own `.5` sibling's selector.
   //
-  // Six of these seven are guards: taking the class out of the components,
-  // the fixture and the specs leaves the rule uncompiled and `globalSetup`
-  // names it. The exception is marked below.
+  // **None of the five plain entries below is a guard over this recipe**,
+  // and the two variant ones are guards only in the sense the block above
+  // is. Every class here is written across the tree — the paddings by most
+  // dialogs and toolbars in the app, the icon box by the header, the tree
+  // toggle, the gallery and two dozen more — so taking one out of
+  // `SIZE_CLASS` or `ICON_BOX_CLASS` leaves its rule in the sheet. They are
+  // here for the failure the header names: a sheet that did not compile
+  // misses all of them at once. Owner counts, measured per file with
+  // `source(none)`, are in the PR.
+  //
+  // What does hold the two recipes is `buttonTouchFloorFixtureParity`:
+  // widening the icon box in `Button.tsx` leaves this list silent and the
+  // browser suite green — the fixture writes its own class lists — and
+  // reddens the parity test alone. That is the division of labour, and it
+  // is worth knowing which file to read when one of them fails.
   ".pointer-coarse\\:min-h-11 {",
   ".pointer-coarse\\:before\\:-inset-1\\.5 {",
   ".py-1\\.5 {",
-  // **Documentation, not a guard**, and it cannot be made into one. The
-  // header above has the mechanism: the candidate is extracted from every
-  // `.5` sibling as well, so this rule is in the sheet as long as anything
-  // in the tree writes that longer utility — the escaped spelling in
-  // `button-touch-floor.spec.ts`'s own docstring included. It records what
-  // the `md` size needs; it cannot report its absence.
   ".py-2 {",
   ".py-2\\.5 {",
   ".h-8 {",

@@ -427,10 +427,12 @@ describe("Button", () => {
     // to md" above are one claim in two files.
     //
     // The default `variant` rides along. No caller omits it today, which is
-    // the reason to pin it rather than a reason not to: `Button`'s equivalent
-    // is pinned by "does not fill by default", and an unpinned `primary` here
-    // would spend §2.2's one accent fill on the first caller that leaves the
-    // prop off.
+    // the reason to pin it rather than a reason not to: an unpinned `primary`
+    // here would spend §2.2's one accent fill on the first caller that leaves
+    // the prop off. `Button`'s equivalent is the case directly below — not
+    // "does not fill by default", which is a negative three of the five
+    // variants satisfy and which let the component's own default be changed
+    // with the whole suite green.
     it("emits the md secondary recipe when called with no arguments", () => {
       expect(buttonClass()).toBe(linkRecipe("secondary", "md"));
     });

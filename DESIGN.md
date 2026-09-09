@@ -1236,11 +1236,11 @@ transcript line, a `⋮` on a list row.
   this section; it does not take the grouping.
 - Reach the floor on **the row** (`pointer-coarse:min-h-11`), and give the row's
   own controls the same class wherever `items-start` stops them inheriting it —
-  **unless the control is a labelled `Button`**, which carries the floor itself
-  (§6): a hand-written copy there is the duplication §6 says no call site should
-  write. The qualifier is load-bearing: `iconOnly` takes the overhang instead
-  of the class, so its *box* never reaches the floor and it does not satisfy
-  the side-by-side bullet below, which asks for the box and not the hit area.
+  **unless the control is a `Button`**, which brings §6's own answer either
+  way: labelled shapes carry the floor class, `iconOnly` takes the overhang.
+  A hand-written copy on either is the duplication §6 says no call site should
+  write — including on `iconOnly`, whose 32px box is the deliberate shape and
+  not an omission to patch.
   Then grow the *action's* hit area rather than its box — `relative` plus
   `pointer-coarse:before:absolute pointer-coarse:before:-inset-1.5` — so the icon
   stays 32px at every pointer type. The 44px row is what makes that overhang
@@ -1256,6 +1256,11 @@ transcript line, a `⋮` on a list row.
   silently keeps less than it appears to have. A trailing group and the action
   row in the resting strip both take real 44px boxes for this reason
   (`rowFurniture.ts`, and `.file-action-row-touch` in `globals.css`).
+  **This is where the `Button` exception above stops.** A `<Button iconOnly>`
+  keeps its 32px box at every pointer type, so it is not a control that has
+  reached the floor and does not belong in a group that has cancelled its own
+  spacing on the promise that its children have. Use the group's own recipe
+  there, or a labelled shape.
 
 ### Section Header Labels (i18n)
 
