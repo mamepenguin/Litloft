@@ -203,6 +203,20 @@ const SHARED_FOLDER_NAME = "alfa";
 /** A folder only the second drive has, so its grid says it has landed. */
 const SECOND_DRIVE_FOLDER_NAME = "lima";
 
+/**
+ * How many folder cards the grid is drawing.
+ *
+ * Read off the card's own rename-focus attribute rather than off its
+ * name: the context-menu stub reports its target's path too, so a search
+ * by text matches both. Document-wide, which is sound here only because
+ * every other component in this file is stubbed to a `<div />` — the
+ * same limit `DriveHome.folderGrid.test.tsx` states for its own scoped
+ * reader.
+ */
+function folderCardCount(): number {
+  return document.querySelectorAll("[data-rename-focus]").length;
+}
+
 function folder(name: string): FolderType {
   return { name, path: name, file_count: 1, kind_counts: { video: 1 }, dominant_kind: "video" };
 }
@@ -726,7 +740,22 @@ describe("DriveHome across a drive change", () => {
     //
     // The effect's own re-fetch is allowed to land completely before the
     // pin does, so this measures the guard rather than the order the two
-    // writes happened to arrive in.
+    // writes happened to arrive in — and *that* is waited on rather than
+    // assumed. Waiting on `getPins` having been called is a wait on the
+    // request, not on the write it dispatches (detector rule 3): with the
+    // second `getPins` held so the tail could never run, this case stayed
+    // green while declaring the opposite.
+    //
+    // What is waited on instead is the grid coming back. The re-run swaps
+    // it for the skeleton synchronously, and the cards return only in the
+    // effect's gated tail — the same synchronous block, and so the same
+    // React commit, as the `setPinnedPaths` this case is about.
+    //
+    // The other interleaving is a real defect and is not this case's:
+    // released the other way round, the pin lands and the tail then
+    // *replaces* the set with the pre-pin one it was dispatched with. It
+    // reproduces on `origin/develop`, so it is written up as F-3 rather
+    // than fixed here.
     driveHasFiles(DRIVE_UNDER_TEST, DRIVE_A_FILES);
     driveHasFolders(DRIVE_UNDER_TEST, [SHARED_FOLDER_NAME]);
     const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
@@ -745,11 +774,12 @@ describe("DriveHome across a drive change", () => {
 
     profile.nickname = "someone";
     rerender(<DriveHome driveName={DRIVE_UNDER_TEST} />);
-    await waitFor(() => expect(getPins).toHaveBeenCalledTimes(2));
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+
+    // The re-run blanks the grid to its skeleton...
+    await waitFor(() => expect(folderCardCount()).toBe(0));
+    // ...and the cards come back only when the effect's tail runs, which
+    // is the write this case needs to have landed.
+    await waitFor(() => expect(folderCardCount()).toBe(1));
 
     await act(async () => {
       finishPin();

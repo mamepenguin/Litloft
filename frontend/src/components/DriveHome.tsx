@@ -378,14 +378,26 @@ export function DriveHome({ driveName }: DriveHomeProps) {
    *   empties them for the rest of the visit.
    * - `rename.error` (`useFolderCardRename`) is announced above this
    *   drive's grid for up to its 3 s TTL after being raised on another.
-   * - `rename.editingPath` *is* dropped, but by `setFolders([])`
-   *   unmounting the card and `InlineNameEditor`'s cleanup cancelling
-   *   the edit — not by this effect. A card that survived the clear
-   *   would reopen in edit mode with nothing failing.
-   * - `pinnedPaths` is written only by the fetch effect's tail, in the
-   *   same React commit as `applyFolders` and `setFoldersLoading(false)`,
-   *   so no frame draws this drive's grid against the previous drive's
-   *   pins. That is a property of the batching, not of this effect.
+   * - `rename.editingPath` *is* dropped, but by the **fetch** effect's
+   *   `setFoldersLoading(true)`, which swaps the whole grid for the
+   *   skeleton branch and takes the card and its `InlineNameEditor` with
+   *   it; the editor's cleanup then cancels the edit. Not by this
+   *   effect, and not by `setFolders([])` either — measured: deleting
+   *   that line, and the `gridFolders` mask with it, still drops the
+   *   edit, and only neutralising the skeleton branch reaches the
+   *   counterfactual. The consequence of the true mechanism is that an
+   *   in-progress rename is cancelled by *any* re-run of the fetch
+   *   effect, a nickname settling included, with no drive change at all.
+   * - `pinnedPaths` has two writers: the fetch effect's tail, and
+   *   `handleTogglePin`. The tail lands in the same React commit as
+   *   `applyFolders` and `setFoldersLoading(false)`, so no frame draws
+   *   this drive's grid against the previous drive's pins; the second
+   *   writer can land at any time, and what keeps *it* off the wrong
+   *   drive is its own `shownDriveRef` check below, not the batching.
+   *   Note also that the tail **replaces** the set rather than merging
+   *   into it, so a pin applied just before it arrives is overwritten by
+   *   the pre-pin set the request was dispatched with — reproduces on
+   *   `origin/develop`, and written up as F-3 in the PR body.
    *
    * **This is the scoping, and it is one place rather than one check per
    * writer.** Six rounds of this component closed six separate paths
