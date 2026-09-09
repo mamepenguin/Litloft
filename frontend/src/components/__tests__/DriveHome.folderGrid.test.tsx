@@ -838,11 +838,12 @@ describe("DriveHome folder grid", () => {
     // Across a drive change, "what it had" belongs to a *different*
     // drive. `applyFolders` returns on a failed response before it
     // writes, so nothing in that function can tell the two apart — the
-    // scoping has to be in the state, and it is: the fetch effect
-    // empties `folders` on every drive change, the way it already
-    // emptied the three rows. Without that, this drive draws the
-    // previous drive's cards at rest, with a control counting a folder
-    // that is not there.
+    // scoping has to be in the state, and it is: the reset effect
+    // empties `folders` when the drive changes. (Not the fetch effect,
+    // which also runs when the nickname settles; the case below about a
+    // re-run on one drive is why that distinction is load-bearing.)
+    // Without the reset, this drive draws the previous drive's cards at
+    // rest, with a control counting a folder that is not there.
     driveHasFolders(DRIVE_UNDER_TEST, [...AT_CAP_FOLDER_NAMES, NINTH_FOLDER_NAME]);
     const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
     await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));

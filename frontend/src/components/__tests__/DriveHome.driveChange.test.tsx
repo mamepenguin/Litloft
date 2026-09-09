@@ -77,35 +77,54 @@ vi.mock("../CarouselSection", () => ({
   },
 }));
 
-// `open` is honoured, not ignored. The real component draws nothing
-// when it is false, and a stand-in that renders regardless cannot
-// witness the menu being closed — which is a property this file now
-// asserts.
+// **Both halves of the real gate.** `FolderContextMenu` returns null
+// unless `open` *and* `target` are set, and a stand-in that honours one
+// of them measures half the component: with only `open` modelled, the
+// case below passes on `closeFolderMenu()` alone and `setMenuTarget(null)`
+// — the line that carries the production risk — has no witness at all.
+// Fixing a stub for one prop of a two-prop gate is the same error one
+// prop over.
 vi.mock("../FolderContextMenu", () => ({
   FolderContextMenu: ({
     open,
+    target,
     isPinned,
     onTogglePin,
   }: {
     open: boolean;
+    target: { path: string } | null;
     isPinned: boolean;
     onTogglePin?: () => void;
   }) =>
-    open ? (
+    (
       <div>
-        <span data-testid="pin-state">{isPinned ? "pinned" : "not pinned"}</span>
-        <button type="button" onClick={onTogglePin}>
-          toggle pin
-        </button>
+        {/* The parent's own `open` state, reported whether or not the
+            menu draws. Not part of the gate — it is how a case can say
+            "the long-press timer fired" at all, which is otherwise
+            invisible precisely because the target is null. */}
+        <span data-testid="menu-open">{String(open)}</span>
+        {open && target ? (
+          <>
+            <span data-testid="pin-state">{isPinned ? "pinned" : "not pinned"}</span>
+            <span data-testid="menu-target">{target.path}</span>
+            <button type="button" onClick={onTogglePin}>
+              toggle pin
+            </button>
+          </>
+        ) : null}
       </div>
-    ) : null,
+    ),
 }));
 
 vi.mock("../SidebarProvider", () => ({
   useSidebar: () => ({ requestRefresh: vi.fn() }),
 }));
+// Mutable: the fetch effect depends on `hasProfile` / `nickname`, so a
+// nickname settling re-runs it on one drive with no navigation. One case
+// below is about a write that spans exactly that.
+const profile: { nickname: string | null } = { nickname: null };
 vi.mock("../ProfileProvider", () => ({
-  useProfile: () => ({ nickname: null }),
+  useProfile: () => ({ nickname: profile.nickname }),
 }));
 vi.mock("@/hooks/useWebSocketRefresh", () => ({ useWebSocketRefresh: () => {} }));
 
@@ -400,6 +419,7 @@ describe("DriveHome across a drive change", () => {
     heldRowBatches.clear();
     heldPinFetches.clear();
     fileActionCallbacks.length = 0;
+    profile.nickname = null;
     // Neither drive has folders unless a case says so, and neither has
     // pins. Declared per drive rather than globally, so a read for a
     // third drive is still the foreign answer.
@@ -695,6 +715,94 @@ describe("DriveHome across a drive change", () => {
     );
 
     expect(screen.queryByTestId("pin-state")).toBeNull();
+  });
+
+  it("marks a pin that spans a re-run of the fetch effect on this drive", async () => {
+    // The pin write answers to the **drive**, not to the page load. That
+    // id bumps for every dependency the fetch effect has — `nickname`
+    // among them — so gating on it dropped a pin made on the drive in
+    // front of you whenever the nickname settled mid-request, leaving
+    // the folder marked unpinned against a server that had pinned it.
+    //
+    // The effect's own re-fetch is allowed to land completely before the
+    // pin does, so this measures the guard rather than the order the two
+    // writes happened to arrive in.
+    driveHasFiles(DRIVE_UNDER_TEST, DRIVE_A_FILES);
+    driveHasFolders(DRIVE_UNDER_TEST, [SHARED_FOLDER_NAME]);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(screen.getByText(SHARED_FOLDER_NAME)).toBeInTheDocument());
+
+    fireEvent.contextMenu(screen.getByText(SHARED_FOLDER_NAME));
+    expect(screen.getByTestId("pin-state")).toHaveTextContent("not pinned");
+
+    let finishPin: () => void = () => {};
+    addPin.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishPin = resolve;
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "toggle pin" }));
+
+    profile.nickname = "someone";
+    rerender(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(getPins).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      finishPin();
+    });
+
+    expect(addPin).toHaveBeenCalledWith(DRIVE_UNDER_TEST, SHARED_FOLDER_NAME);
+    expect(screen.getByTestId("pin-state")).toHaveTextContent(/^pinned$/);
+  });
+
+  it("draws nothing when a long-press begun on the drive that was left fires after the change", async () => {
+    // The witness `setMenuTarget(null)` did not have, and the reason
+    // that line rather than `closeFolderMenu()` is the one carrying the
+    // risk: `useContextMenu.handleTouchStart` arms a 500 ms timer that
+    // opens the menu, and nothing cancels it on a drive change. So a
+    // long-press begun before the navigation re-opens the menu after it,
+    // and only a null target keeps it from drawing the previous drive's
+    // folder — with `onTogglePin` closed over the drive in front of you.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      driveHasFiles(DRIVE_UNDER_TEST, DRIVE_A_FILES);
+      driveHasFolders(DRIVE_UNDER_TEST, [SHARED_FOLDER_NAME]);
+      driveHasFiles(SECOND_DRIVE, DRIVE_B_FILES);
+      driveHasFolders(SECOND_DRIVE, [SECOND_DRIVE_FOLDER_NAME]);
+      const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+      await waitFor(() => expect(screen.getByText(SHARED_FOLDER_NAME)).toBeInTheDocument());
+
+      // Begun, not completed: the timer is armed and the menu is not open.
+      fireEvent.touchStart(screen.getByText(SHARED_FOLDER_NAME), {
+        touches: [{ clientX: 10, clientY: 10 }],
+      });
+      expect(screen.queryByTestId("pin-state")).toBeNull();
+
+      rerender(<DriveHome driveName={SECOND_DRIVE} />);
+      await waitFor(() =>
+        expect(screen.getByText(SECOND_DRIVE_FOLDER_NAME)).toBeInTheDocument(),
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+      });
+
+      // The precondition, and it has to be read off the parent's own
+      // state: the timer really did fire and really did ask for the menu
+      // to open. Without this the case passes on a press that never
+      // happened, which is what it did when first written.
+      expect(screen.getByTestId("menu-open")).toHaveTextContent("true");
+
+      // And nothing is drawn, because the target is gone.
+      expect(screen.queryByTestId("menu-target")).toBeNull();
+      expect(screen.queryByTestId("pin-state")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps a pin made on the drive that was left out of this drive's pin set", async () => {

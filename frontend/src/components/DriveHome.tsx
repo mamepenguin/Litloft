@@ -179,10 +179,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     // returns before claiming the stream rather than after.
     //
     // "What it had" is this drive's list and nothing else, because the
-    // fetch effect empties `folders` on every drive change. That is the
-    // scoping, and it is in the state rather than here: this branch is
-    // reached with the drive already checked, but a *check* is what the
-    // previous five rounds each had one of.
+    // reset effect empties `folders` when the drive changes — not the
+    // fetch effect, which also runs when the nickname settles. That is
+    // the scoping, and it is in the state rather than here: this branch
+    // is reached with the drive already checked, but a *check* is what
+    // the previous five rounds each had one of.
     if (batch.folders === null) return;
     foldersAppliedRef.current = batch.requestId;
     setFolders(batch.folders);
@@ -229,7 +230,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     }
     setFolderError(null);
 
-    // The one guard left in this file, and it guards on the **drive**.
+    // A guard, not a reset, and it guards on the **drive**.
     //
     // The reset effect above blanks this field when the drive changes,
     // which scopes every synchronous writer — including the two
@@ -340,17 +341,51 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   }, [driveName]);
 
   /**
-   * Everything on this page that belongs to a drive, dropped when the
-   * drive changes.
+   * The drive-owned state this effect drops when the drive changes.
    *
-   * This component is reused across `/drive/[name]` with no `key`, so
-   * without this every one of these carries into the next drive: the
-   * grid would draw the previous drive's cards the moment
-   * `foldersLoading` cleared, the expansion of one drive's grid would
-   * decide how the next one opens, the create field would arrive holding
-   * a name typed somewhere else — or an "Invalid folder name" raised
-   * there — and the context menu would stay open over a folder the page
-   * has left (measured: it does).
+   * Enumerated rather than described as "everything", because it is not
+   * everything and a claim of completeness here is what sent the last
+   * round looking in the wrong place:
+   *
+   * - `folders` — the grid would otherwise draw the previous drive's
+   *   cards the moment `foldersLoading` cleared.
+   * - `foldersExpanded` — one drive's expansion would decide how the
+   *   next one opens.
+   * - the create field (`creatingFolder` / `newFolderName` /
+   *   `folderError`) — it would otherwise arrive holding a name typed
+   *   somewhere else, or an "Invalid folder name" raised there.
+   * - `menuTarget` and the context menu's open state — the menu would
+   *   stay open over a folder the page has left (measured: it does), and
+   *   `useContextMenu`'s 500 ms long-press timer is not cancelled on a
+   *   drive change, so one begun before the navigation can reopen it
+   *   after.
+   *
+   *   `FolderContextMenu` draws nothing unless *both* are set, and of the
+   *   two lines only `setMenuTarget(null)` is independently observable:
+   *   with the target gone the menu is already inert, so deleting
+   *   `closeFolderMenu()` on its own changes nothing on screen and no
+   *   case fails (measured — it is a declared survivor). It stays because
+   *   leaving `useContextMenu` resting "open" across a drive it is not
+   *   about is a state no reader of `folderMenuState.open` alone should
+   *   have to know is a lie.
+   *
+   * **What this effect does not cover**, and why it is not a hole this
+   * PR opened — each measured against `origin/develop` and reproducing
+   * there:
+   *
+   * - `recent` / `favorites` / `liked` are blanked by the fetch effect,
+   *   which also runs when the nickname settles, so a failing re-fetch
+   *   empties them for the rest of the visit.
+   * - `rename.error` (`useFolderCardRename`) is announced above this
+   *   drive's grid for up to its 3 s TTL after being raised on another.
+   * - `rename.editingPath` *is* dropped, but by `setFolders([])`
+   *   unmounting the card and `InlineNameEditor`'s cleanup cancelling
+   *   the edit — not by this effect. A card that survived the clear
+   *   would reopen in edit mode with nothing failing.
+   * - `pinnedPaths` is written only by the fetch effect's tail, in the
+   *   same React commit as `applyFolders` and `setFoldersLoading(false)`,
+   *   so no frame draws this drive's grid against the previous drive's
+   *   pins. That is a property of the batching, not of this effect.
    *
    * **This is the scoping, and it is one place rather than one check per
    * writer.** Six rounds of this component closed six separate paths
@@ -360,15 +395,17 @@ export function DriveHome({ driveName }: DriveHomeProps) {
    * reopened by a call site added later, because the call site is not
    * where it lives.
    *
-   * It runs before the fetch effect below — declaration order is
-   * execution order — so a request is never issued against state the
-   * previous drive left behind. It is keyed on `driveName` alone, unlike
-   * that effect, which also re-runs when the nickname settles.
+   * It is keyed on `driveName` alone, unlike the fetch effect below,
+   * which also re-runs when the nickname settles. Declared before that
+   * effect by convention rather than by necessity: the fetch effect
+   * reads none of the state above on the path that issues a request, and
+   * both run in one flush, so moving this one after it changes nothing
+   * observable (measured).
    *
    * What it cannot scope is a write that lands *after* it: a create
    * still in flight when the drive changes settles later, when the field
    * legitimately holds the next drive's half-typed name. That one is a
-   * guard, in `handleCreateFolder`, and it is the only one left.
+   * guard, in `handleCreateFolder`.
    */
   useEffect(() => {
     setFolders([]);
@@ -444,11 +481,20 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
   const handleTogglePin = useCallback(
     async (folderPath: string) => {
-      // The set this edits belongs to the page load that fetched it. A
-      // pin path is drive-relative, so the same string is a different
-      // folder on the next drive — and the same folder on an earlier
-      // visit to this one, whose pin set has since been refetched.
-      const pageLoadId = pageLoadRef.current;
+      // The drive, not the page load. A pin path is drive-relative, so
+      // the same string is a different folder on the next drive, and
+      // that is the whole condition: this write is a *functional* update
+      // adding or deleting one path, so applying it to a set refetched
+      // in the meantime is idempotent, and the server really did perform
+      // it — applying it is more correct than dropping it.
+      //
+      // `pageLoadRef` bumps for every dependency the fetch effect has,
+      // `nickname` among them, so gating on it dropped a pin made on the
+      // drive in front of you whenever the nickname settled mid-request:
+      // the folder stayed marked unpinned and the page-load's own
+      // `getPins`, dispatched before the pin, did not repair it.
+      // Measured against `origin/develop`, where this write is
+      // unguarded: the pin lands there and does not here.
       try {
         const isPinned = pinnedPaths.has(folderPath);
         if (isPinned) {
@@ -456,7 +502,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         } else {
           await addPin(driveName, folderPath);
         }
-        if (pageLoadRef.current === pageLoadId) {
+        if (shownDriveRef.current === driveName) {
           setPinnedPaths((prev) => {
             const next = new Set(prev);
             if (isPinned) next.delete(folderPath);
