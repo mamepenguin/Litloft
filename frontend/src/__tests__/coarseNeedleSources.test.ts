@@ -212,6 +212,26 @@ describe("pointer-coarse needle sources", () => {
           .replace(/\\([:.])/g, "$1"),
     );
 
+    // The three lists tied to each other, and then the population declared.
+    //
+    // The ties are directional on their own: a needle added to `REQUIRED`
+    // and left unclassified is red here. A *deletion* is not — it leaves all
+    // three sides at once and every case below loops over the lists, so the
+    // suite does not even change in count. Detector rule 5, inside the
+    // guard. Measured: deleting one needle from `REQUIRED`, `NEEDLE_PARTS`
+    // and `CANNOT_BE_ABSENT` together left 429 files / 5,968 tests, the
+    // baseline exactly, with the sheet no longer checked for that rule.
+    //
+    // Counted rather than enumerated, and that is the one place in this
+    // repository where a count is the stronger instrument: writing the seven
+    // class names out as literals here would make this file a source for
+    // every one of them, which is the failure the whole file exists to
+    // catch. The parts table above is split for the same reason. So the size
+    // is declared and the membership is held by the two ties.
+    expect(NEEDLE_PARTS).toHaveLength(7);
+    expect(CANNOT_BE_ABSENT).toHaveLength(4);
+    expect(CAN_BE_ABSENT).toHaveLength(3);
+
     expect(fromRequired.slice().sort()).toEqual(NEEDLE_PARTS.map(coarse).sort());
     expect([...CANNOT_BE_ABSENT, ...CAN_BE_ABSENT].map(coarse).sort()).toEqual(
       NEEDLE_PARTS.map(coarse).sort(),

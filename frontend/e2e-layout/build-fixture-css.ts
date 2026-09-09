@@ -72,6 +72,42 @@ export const FIXTURE_CSS = join(__dirname, "fixtures", "globals.built.css");
  * page with no opinions at all, which is exactly the shape of green this
  * whole job exists to remove — so ask the output what it contains rather
  * than trusting that the compiler exited 0.
+ *
+ * ## What a needle can hold, and what it cannot
+ *
+ * A needle is only a guard if the rule it asks for can actually be absent.
+ * Three needles in this list have turned out not to be, in three separate
+ * rounds — the drawer height utility on unit G's rebase, `.p-4`, `.h-12`
+ * and `.gap-3` on unit D's merge, `.h-8` and `.w-8` on this one — and it
+ * has been two different mechanisms wearing one shape.
+ *
+ * **This list used to be a source for its own needles.** Tailwind reads
+ * candidates out of every file it scans, string literals included, so
+ * `".p-4 {"` put `p-4` into the sheet and then asked the sheet for it.
+ * Escaping hid that rather than fixing it: a selector needing a backslash
+ * is not a candidate, so needles for arbitrary values and for variants had
+ * teeth while every plainly-spelled one did not — which is why the rule
+ * looked like "spell it as the compiled selector" for two rounds. It was
+ * never that. `globals.css` now takes this file out of the scan with
+ * `@source not`, and `coarseNeedleSources.test.ts` pins that line. Writing
+ * a needle as the compiled selector is still required, because the check is
+ * `includes` over the sheet text, but it is no longer what keeps the needle
+ * honest.
+ *
+ * **A needle whose class is a prefix of a longer utility cannot be isolated
+ * at all**, and no spelling fixes it. Tailwind extracts `py-2` as a
+ * candidate from every `py-2.5`, so `.py-2 {` is in the sheet as long as
+ * anything in the tree writes `py-2.5` — the escaped `py-2\.5` a docstring
+ * writes to *avoid* being a source included. Measured: stripping every bare
+ * `py-2` from 112 files leaves the rule compiled; it drops out only when
+ * every spelling of `py-2.5` goes too.
+ *
+ * So before adding one: if the class is a prefix of a longer utility the
+ * tree writes, the entry is documentation of what the sheet must contain,
+ * and it cannot fail — mark it where it is declared rather than counting it
+ * as a guard. Otherwise it is a guard, and what a reader gets from it is
+ * `globalSetup` naming the missing rule instead of a handful of browser
+ * measurements that do not say why.
  */
 /**
  * Exported for `src/__tests__/coarseNeedleSources.test.ts`, which reads the
@@ -223,17 +259,21 @@ export const REQUIRED = [
   // needle, two readers.
   //
   // Written with the brace throughout, for the reason the two blocks above
-  // are: the test is `includes` over the whole sheet, and `.py-2` alone is
-  // satisfied by `.py-2\.5`. A needle that cannot be absent asserts nothing.
+  // are: the test is `includes` over the whole sheet, and the padding
+  // needle without one is satisfied by its own `.5` sibling's selector.
   //
-  // Spelled as compiled selectors rather than as classes here, and that is
-  // not decoration — see the `.h-\[90vh\]` note above. Tailwind scans this
-  // file, so a class written bare in a comment is a source for it and its
-  // needle can never go missing. `coarseNeedleSources.test.ts` holds that
-  // property for the `pointer-coarse:` half mechanically.
+  // Six of these seven are guards: taking the class out of the components,
+  // the fixture and the specs leaves the rule uncompiled and `globalSetup`
+  // names it. The exception is marked below.
   ".pointer-coarse\\:min-h-11 {",
   ".pointer-coarse\\:before\\:-inset-1\\.5 {",
   ".py-1\\.5 {",
+  // **Documentation, not a guard**, and it cannot be made into one. The
+  // header above has the mechanism: the candidate is extracted from every
+  // `.5` sibling as well, so this rule is in the sheet as long as anything
+  // in the tree writes that longer utility — the escaped spelling in
+  // `button-touch-floor.spec.ts`'s own docstring included. It records what
+  // the `md` size needs; it cannot report its absence.
   ".py-2 {",
   ".py-2\\.5 {",
   ".h-8 {",

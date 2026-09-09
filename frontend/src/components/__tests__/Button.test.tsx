@@ -435,6 +435,43 @@ describe("Button", () => {
       expect(buttonClass()).toBe(linkRecipe("secondary", "md"));
     });
 
+    /**
+     * The other emitter's half of the same claim.
+     *
+     * `Button`'s default `size` is pinned by "defaults to md" above. Its
+     * default `variant` was pinned only by "does not fill by default",
+     * which asserts `bg-accent` is *absent* — a negative three of the five
+     * variants satisfy. Measured: changing the destructured default to
+     * `ghost` passed 429 files / 5,968 tests and `tsc --noEmit`, against
+     * DESIGN.md §6's "`variant` defaults to `secondary` — a `primary`
+     * default would spend the page's one accent fill (§2.2)". So the
+     * register pinned one emitter's default fill and not the other's,
+     * which is the divergence this describe block exists to close, on the
+     * axis it had not closed.
+     *
+     * The fill is named rather than negated, and written out rather than
+     * read back from `VARIANT_CLASS` — same rule as `FLOOR` and
+     * `LINK_VARIANT` above. `bg-sand` with `rounded-2xl` is `secondary`
+     * alone: `circle` shares the hover but is `bg-warm-light` and
+     * `rounded-full`, and the other three carry no `bg-sand` at all.
+     */
+    it("renders the secondary variant when given no variant", () => {
+      render(<Button>Add</Button>);
+      const tokens = [...screen.getByRole("button").classList];
+      for (const cls of [
+        "bg-sand",
+        "text-text-primary",
+        "enabled:hover:bg-sand-hover",
+        "rounded-2xl",
+      ]) {
+        expect(tokens).toContain(cls);
+      }
+      // `toContain` is satisfied by a class list that has grown as well as
+      // by the right one, so the two fills it must not also carry are named.
+      expect(tokens).not.toContain("bg-accent");
+      expect(tokens).not.toContain("bg-warm-light");
+    });
+
     it.each(CASES)("a labelled Button takes it (%s, %s)", (variant, size) => {
       render(
         <Button variant={variant} size={size}>

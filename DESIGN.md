@@ -1236,8 +1236,11 @@ transcript line, a `⋮` on a list row.
   this section; it does not take the grouping.
 - Reach the floor on **the row** (`pointer-coarse:min-h-11`), and give the row's
   own controls the same class wherever `items-start` stops them inheriting it —
-  **unless the control is a `Button`**, which carries the floor itself (§6): a
-  hand-written copy there is the duplication §6 says no call site should write.
+  **unless the control is a labelled `Button`**, which carries the floor itself
+  (§6): a hand-written copy there is the duplication §6 says no call site should
+  write. The qualifier is load-bearing: `iconOnly` takes the overhang instead
+  of the class, so its *box* never reaches the floor and it does not satisfy
+  the side-by-side bullet below, which asks for the box and not the hit area.
   Then grow the *action's* hit area rather than its box — `relative` plus
   `pointer-coarse:before:absolute pointer-coarse:before:-inset-1.5` — so the icon
   stays 32px at every pointer type. The 44px row is what makes that overhang
