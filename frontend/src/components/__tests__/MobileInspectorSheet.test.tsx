@@ -1,15 +1,28 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import { createPortal } from "react-dom";
 
 import { useDialogPortalTarget } from "@/components/DialogPortal";
 import {
-  MobileInspectorSheet,
   SHEET_PEEK_PX,
   SHEET_SNAP_FULL,
-  SHEET_SNAP_HALF,
-  SHEET_SNAP_PEEK,
+  SHEET_SNAP_HALF_FALLBACK,
+} from "@/lib/sheetSnap";
+import {
+  MobileInspectorSheet,
+  SHEET_STATE_FULL,
+  SHEET_STATE_HALF,
+  SHEET_STATE_PEEK,
   isSheetExpanded,
+  sheetSnapPoints,
+  sheetStateForSnap,
+  type SheetState,
 } from "@/components/MobileInspectorSheet";
 
 /**
@@ -23,19 +36,21 @@ import {
  * they are in the same place on every file.
  */
 function renderSheet(
-  snap: number | string = SHEET_SNAP_PEEK,
-  onSnapChange = vi.fn(),
+  state: SheetState = SHEET_STATE_PEEK,
+  onStateChange = vi.fn(),
+  halfSnap?: number,
 ) {
   const utils = render(
     <MobileInspectorSheet
-      snap={snap}
-      onSnapChange={onSnapChange}
+      state={state}
+      onStateChange={onStateChange}
+      halfSnap={halfSnap}
       peek={<div data-testid="peek-content">title and actions</div>}
     >
       <div data-testid="inspector-content">tags-content</div>
     </MobileInspectorSheet>,
   );
-  return { ...utils, onSnapChange };
+  return { ...utils, onStateChange };
 }
 
 describe("MobileInspectorSheet", () => {
@@ -64,7 +79,7 @@ describe("MobileInspectorSheet", () => {
     page.setAttribute("data-testid", "the-page");
     document.body.appendChild(page);
     try {
-      renderSheet(SHEET_SNAP_PEEK);
+      renderSheet(SHEET_STATE_PEEK);
       expect(screen.queryByRole("dialog")).toBeNull();
       expect(page.getAttribute("aria-hidden")).toBeNull();
     } finally {
@@ -73,7 +88,7 @@ describe("MobileInspectorSheet", () => {
   });
 
   it("does not draw the rest of the inspector at rest", () => {
-    renderSheet(SHEET_SNAP_PEEK);
+    renderSheet(SHEET_STATE_PEEK);
     expect(screen.queryByTestId("inspector-content")).toBeNull();
   });
 
@@ -85,9 +100,9 @@ describe("MobileInspectorSheet", () => {
   // reached by scrolling back to it. That is the confirmed trade
   // (`DESIGN.md` §Layering), and this is the fact it rests on, stated
   // where it can fail.
-  for (const snap of [SHEET_SNAP_HALF, SHEET_SNAP_FULL]) {
-    it(`draws no resting strip at ${snap}, so the actions are not also below`, async () => {
-      renderSheet(snap);
+  for (const state of [SHEET_STATE_HALF, SHEET_STATE_FULL]) {
+    it(`draws no resting strip at ${state}, so the actions are not also below`, async () => {
+      renderSheet(state);
       await screen.findByTestId("mobile-inspector-sheet");
 
       expect(screen.queryByTestId("mobile-inspector-peek")).toBeNull();
@@ -98,7 +113,7 @@ describe("MobileInspectorSheet", () => {
   it("draws it at rest and nowhere else, which is the whole of that rule", () => {
     // Both halves in one place: a component that rendered the strip at
     // every snap would pass each case above's sibling and none of this.
-    renderSheet(SHEET_SNAP_PEEK);
+    renderSheet(SHEET_STATE_PEEK);
     expect(screen.getByTestId("mobile-inspector-peek")).toBeInTheDocument();
     expect(screen.queryByTestId("mobile-inspector-sheet")).toBeNull();
   });
@@ -108,7 +123,7 @@ describe("MobileInspectorSheet", () => {
     // which would leave half covering the page with no dim to say so —
     // a tap outside would then collapse the sheet with nothing on
     // screen having explained why.
-    renderSheet(SHEET_SNAP_HALF);
+    renderSheet(SHEET_STATE_HALF);
     const overlay = await screen.findByTestId("mobile-inspector-overlay");
     expect(overlay.dataset.vaulSnapPointsOverlay).toBe("true");
   });
@@ -117,13 +132,13 @@ describe("MobileInspectorSheet", () => {
     // There is no closed state to dismiss to. Refusing the gesture
     // outright would leave a reader who tapped the dim with nothing
     // happening at all.
-    const { onSnapChange } = renderSheet(SHEET_SNAP_HALF);
+    const { onStateChange } = renderSheet(SHEET_STATE_HALF);
     await screen.findByTestId("mobile-inspector-sheet");
 
     fireEvent.keyDown(document, { key: "Escape" });
 
     await waitFor(() => {
-      expect(onSnapChange).toHaveBeenCalledWith(SHEET_SNAP_PEEK);
+      expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
     });
   });
 
@@ -132,7 +147,7 @@ describe("MobileInspectorSheet", () => {
     // menu included, so Rename / Move / Trash and any addon dialog open
     // from inside it. Those portal at z-50; if the sheet outranked them
     // they would be launched and immediately buried. DESIGN.md §Layering.
-    renderSheet(SHEET_SNAP_FULL);
+    renderSheet(SHEET_STATE_FULL);
     const sheet = await screen.findByTestId("mobile-inspector-sheet");
     const overlay = screen.getByTestId("mobile-inspector-overlay");
 
@@ -162,8 +177,8 @@ describe("MobileInspectorSheet", () => {
 
     render(
       <MobileInspectorSheet
-        snap={SHEET_SNAP_FULL}
-        onSnapChange={() => undefined}
+        state={SHEET_STATE_FULL}
+        onStateChange={() => undefined}
         peek={<div />}
       >
         <DialogFromInsideTheSheet />
@@ -194,10 +209,110 @@ describe("MobileInspectorSheet", () => {
   });
 });
 
+/** The drawer at an expanded state, which is where vaul has published. */
+function expanded(state: SheetState, halfSnap?: number) {
+  // Torn down first, so a case may ask this twice: vaul portals to
+  // `document.body`, and two drawers there make every query ambiguous.
+  cleanup();
+  render(
+    <MobileInspectorSheet
+      state={state}
+      onStateChange={vi.fn()}
+      halfSnap={halfSnap}
+      peek={<div />}
+    >
+      <div />
+    </MobileInspectorSheet>,
+  );
+  return { drawer: screen.getByTestId("mobile-inspector-sheet") };
+}
+
 describe("isSheetExpanded", () => {
   it("calls only the resting state unexpanded", () => {
-    expect(isSheetExpanded(SHEET_SNAP_PEEK)).toBe(false);
-    expect(isSheetExpanded(SHEET_SNAP_HALF)).toBe(true);
-    expect(isSheetExpanded(SHEET_SNAP_FULL)).toBe(true);
+    expect(isSheetExpanded(SHEET_STATE_PEEK)).toBe(false);
+    expect(isSheetExpanded(SHEET_STATE_HALF)).toBe(true);
+    expect(isSheetExpanded(SHEET_STATE_FULL)).toBe(true);
+  });
+});
+
+/**
+ * `half` is a state; the snap it resolves to is a measurement.
+ *
+ * The component is the only place the two meet, and these are what that
+ * translation has to get right. None of it is geometry — jsdom lays
+ * nothing out, so where the drawer *lands* at a given snap is
+ * `e2e-layout/mobile-inspector-sheet.spec.ts` — but which number reaches
+ * vaul, and which state comes back out, are decisions and are here.
+ */
+describe("the half state and the snap it resolves to", () => {
+  /** A player-derived value: not 0.5, not 0.9, and not a round number. */
+  const DERIVED = 0.627736;
+
+  it("hands vaul the derived snap in place of the fixed one", () => {
+    // Read back off the variable vaul publishes rather than off the
+    // prop, so this fails if the number is accepted and not used.
+    const { drawer } = expanded(SHEET_STATE_HALF, DERIVED);
+    expect(
+      Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height")),
+    ).toBeCloseTo(window.innerHeight * (1 - DERIVED), 5);
+  });
+
+  it("leaves full alone when half moves", () => {
+    // `full` is the state for reading without following playback, so it
+    // does not depend on the player. A derivation wired into both would
+    // pass every case above and cover the video at the state whose whole
+    // point is that it may.
+    const { drawer } = expanded(SHEET_STATE_FULL, DERIVED);
+    expect(
+      Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height")),
+    ).toBeCloseTo(window.innerHeight * (1 - SHEET_SNAP_FULL), 5);
+  });
+
+  it("falls back to the fixed fraction when nothing was measured", () => {
+    // The Markdown / PDF / image surfaces, which pass no `halfSnap`.
+    const { drawer } = expanded(SHEET_STATE_HALF);
+    expect(
+      Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height")),
+    ).toBeCloseTo(window.innerHeight * (1 - SHEET_SNAP_HALF_FALLBACK), 5);
+  });
+
+  it("still publishes which state it is in, not the number", () => {
+    // `[data-sheet-snap]` and `data-snap` are read by a stylesheet and by
+    // `MediaShell.test.tsx`; a derived float landing in either would make
+    // both meaningless.
+    expect(expanded(SHEET_STATE_HALF, DERIVED).drawer.dataset.snap).toBe("half");
+    expect(expanded(SHEET_STATE_FULL, DERIVED).drawer.dataset.snap).toBe("full");
+  });
+
+  it("reports a drag to full as full, and every other snap as half", () => {
+    // vaul answers with a snap point and the shell stores a state, so
+    // this is the direction that has to survive a derived number. Each
+    // input is declared with the state it belongs to; a mapping written
+    // the other way round — "is this the half number" — passes the first
+    // two and turns the third into `full`.
+    const BACK = [
+      { snap: SHEET_SNAP_FULL, state: SHEET_STATE_FULL },
+      { snap: SHEET_SNAP_HALF_FALLBACK, state: SHEET_STATE_HALF },
+      { snap: DERIVED, state: SHEET_STATE_HALF },
+      { snap: DERIVED + 1e-12, state: SHEET_STATE_HALF },
+      { snap: null, state: SHEET_STATE_HALF },
+    ];
+    expect(BACK).toHaveLength(5);
+
+    expect(BACK.map(({ snap }) => sheetStateForSnap(snap))).toEqual(
+      BACK.map(({ state }) => state),
+    );
+  });
+
+  it("hands vaul the derived half and the fixed full, in that order", () => {
+    expect(sheetSnapPoints(DERIVED)).toEqual([DERIVED, SHEET_SNAP_FULL]);
+  });
+
+  it("orders the snap points, so vaul's own indices mean what they say", () => {
+    // `fadeFromIndex={0}` names the first of these, and vaul treats the
+    // list as ascending. A derived half above full would invert it.
+    const points = sheetSnapPoints(0.62) as number[];
+    expect(points[0]).toBeLessThan(points[1]);
+    expect(points[1]).toBe(SHEET_SNAP_FULL);
   });
 });

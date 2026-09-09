@@ -53,6 +53,12 @@ import { test, expect } from "@playwright/test";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import {
+  SHEET_PEEK_PX,
+  SHEET_SNAP_HALF_FALLBACK,
+  halfSnapUnderPlayer,
+} from "../src/lib/sheetSnap";
+
 const FIXTURE = pathToFileURL(
   resolve(__dirname, "fixtures", "mobile-inspector-sheet.html"),
 ).href;
@@ -112,6 +118,8 @@ interface Measurement {
   strip: Rect;
   header: Rect;
   end: Rect;
+  player: Rect | null;
+  playerPosition: string | null;
   stripTopInScroller: number;
   headerTopInScroller: number;
   stripPosition: string;
@@ -144,6 +152,8 @@ declare global {
       headerPx: number;
       bodyPx: number;
     }) => void;
+    buildPage: (spec: { playerPx: number; bodyPx: number }) => void;
+    scrollCanvas: (to: number) => void;
     measureSheet: (scrollTo?: number) => Measurement;
   }
 }
@@ -404,11 +414,319 @@ test.describe(GROUPS[8], () => {
   });
 });
 
+/**
+ * Unit D: `half` is where the player ends.
+ *
+ * The sheet's `half` snap stops being a fixed fraction of the window and
+ * becomes the room under the player, so a phone can carry the video and
+ * the transcript at once. Everything about that is geometry, and this is
+ * the only place in the repository that can see it: jsdom returns zeros
+ * for every rect, so a sheet drawn over the video measures there exactly
+ * like one drawn under it.
+ *
+ * **The derivation is the app's, not a copy.** `halfSnapUnderPlayer` is
+ * imported from `src/lib/sheetSnap.ts` and handed the player's *measured*
+ * bottom edge — the page is built and measured first, then the snap is
+ * computed, then the sheet is built at it. A fixture that recomputed the
+ * arithmetic in the browser would agree with any derivation at all,
+ * including one that ignored the player.
+ *
+ * **The assertions are relationships, never pixels.** Where the sheet
+ * lands is stated against the player's own measured box and against a
+ * second measurement of the sheet at `full`; the only literal is
+ * `SHEET_PEEK_PX`, which is the unit both bounds are expressed in.
+ *
+ * The sheet's top edge is the *drawer's* border-box top. The visible box
+ * inside it begins one border lower — `100%` resolves against the
+ * content box — which is the same border the C cases account for.
+ */
+
+/**
+ * What is at the top of the canvas, by shape.
+ *
+ * Three aspect ratios and one player that has no ratio at all. The three
+ * are what a video library actually holds, and the fourth is the case
+ * where the room under the player is more than the sheet may take.
+ */
+const PLAYERS = [
+  { label: "16:9", px: (width: number) => (width * 9) / 16 },
+  { label: "4:3", px: (width: number) => (width * 3) / 4 },
+  { label: "9:16 shot on a phone", px: (width: number) => (width * 16) / 9 },
+  // A control bar and nothing above it. Not a ratio, which is the point:
+  // its height does not follow the width, so it is short at every
+  // viewport and the room under it is more than `full` itself shows.
+  { label: "an audio bar", px: () => 54 },
+] as const;
+expect(PLAYERS).toHaveLength(4);
+
+/**
+ * What each pair is expected to do, declared by name.
+ *
+ * Three outcomes, and two of them are the bounds rather than the rule —
+ * so they are written out here instead of being computed from the
+ * measurement. A rule derived from what was observed moves with it and
+ * can never disagree with it (`review-workflow.md`, detector rule 5),
+ * and these two sets are exactly where D's headline claim is *not* true.
+ *
+ * - `floored`: a portrait clip is taller than a small phone's screen less
+ *   the room the sheet must keep, so no snap clears it. The sheet takes
+ *   the least there is — one resting strip — rather than a fraction that
+ *   happens to look reasonable.
+ * - `capped`: the room under the player is more than `full` shows, so
+ *   `half` would meet or pass `full` and the drag between the two states
+ *   would move nothing. It stops one strip short of `full` instead.
+ *
+ * Everything not named here lands the sheet's top edge on the player's
+ * bottom edge, which is the rule.
+ */
+const FLOORED = ["667 × 9:16 shot on a phone", "745 × 9:16 shot on a phone"];
+const CAPPED = [
+  "667 × an audio bar",
+  "745 × an audio bar",
+  "812 × an audio bar",
+  "915 × an audio bar",
+];
+expect(FLOORED).toHaveLength(2);
+expect(CAPPED).toHaveLength(4);
+
+type Outcome = "lands" | "floored" | "capped";
+
+interface PlayerCase {
+  height: number;
+  hLabel: string;
+  playerPx: number;
+  pLabel: string;
+  outcome: Outcome;
+}
+
+const PLAYER_CASES: PlayerCase[] = HEIGHTS.flatMap(({ height, label: hLabel }) =>
+  PLAYERS.map(({ label: pLabel, px }) => {
+    const key = `${height} × ${pLabel}`;
+    return {
+      height,
+      hLabel,
+      playerPx: px(WIDTH),
+      pLabel,
+      outcome: FLOORED.includes(key)
+        ? ("floored" as const)
+        : CAPPED.includes(key)
+          ? ("capped" as const)
+          : ("lands" as const),
+    };
+  }),
+);
+expect(PLAYER_CASES).toHaveLength(16);
+// Named per outcome, so a pair silently changing class is red here
+// rather than passing under whichever branch it landed in.
+expect(PLAYER_CASES.filter((c) => c.outcome === "lands")).toHaveLength(10);
+expect(PLAYER_CASES.filter((c) => c.outcome === "floored")).toHaveLength(2);
+expect(PLAYER_CASES.filter((c) => c.outcome === "capped")).toHaveLength(4);
+
+const PLAYER_GROUPS = [
+  "the sheet's derived half against the player it sits under",
+  "and the same after the page behind it has been scrolled",
+  "replaced: the fixed half does not know the player is there",
+] as const;
+expect(PLAYER_GROUPS).toHaveLength(3);
+
+const playerCaseId = (group: string, c: PlayerCase) =>
+  `${group} — ${c.height}px with ${c.pLabel}`;
+
+function eachPlayerCase(
+  group: string,
+  body: (page: import("@playwright/test").Page, c: PlayerCase) => Promise<void>,
+): void {
+  for (const c of PLAYER_CASES) {
+    registered.push(playerCaseId(group, c));
+    test(`${c.height}px (${c.hLabel}) with ${c.pLabel}`, async ({ page }) => {
+      await body(page, c);
+    });
+  }
+}
+
+/**
+ * Draw the page, measure the player, derive the snap, draw the sheet.
+ *
+ * In that order, which is the app's own: the snap is a function of a
+ * measurement, so choosing it first would prove nothing.
+ */
+async function layoutUnderPlayer(
+  page: import("@playwright/test").Page,
+  { height, playerPx }: { height: number; playerPx: number },
+  { snap, scrollCanvasTo }: { snap?: number; scrollCanvasTo?: number } = {},
+): Promise<{ m: Measurement; derived: number; playerBottom: number }> {
+  await page.setViewportSize({ width: WIDTH, height });
+  await page.evaluate((spec) => window.buildPage(spec), {
+    playerPx,
+    bodyPx: height * 2,
+  });
+  if (scrollCanvasTo !== undefined) {
+    await page.evaluate((to) => window.scrollCanvas(to), scrollCanvasTo);
+  }
+
+  const playerBottom = await page.evaluate(
+    () =>
+      document
+        .querySelector("[data-testid='media-detail-player']")!
+        .getBoundingClientRect().bottom,
+  );
+
+  const derived =
+    halfSnapUnderPlayer({ viewportHeight: height, playerBottom }) ??
+    SHEET_SNAP_HALF_FALLBACK;
+
+  const m = await layout(page, { height, snap: snap ?? derived });
+  return { m, derived, playerBottom };
+}
+
+/** The room the sheet has on screen, border included, at one snap. */
+const roomOnScreen = (m: Measurement) => m.visible!.height + m.drawerBorderTop;
+
+/**
+ * What every case asserts about a sheet built at the derived snap.
+ *
+ * Split out because the scrolled group asserts exactly the same thing
+ * about exactly the same sixteen pairs, and a second copy is a second
+ * place for one of the three outcomes to quietly go missing.
+ */
+async function expectSheetUnderPlayer(
+  page: import("@playwright/test").Page,
+  c: PlayerCase,
+  { m }: { m: Measurement },
+): Promise<void> {
+  expect(m.player).not.toBeNull();
+  expect(m.visible).not.toBeNull();
+  // A real box, or "it is above the sheet" would be true of nothing.
+  expect(m.player!.height).toBeGreaterThan(0);
+  // The premise: the player is stuck to the top of the canvas, which is
+  // what makes one measurement good for the whole of a scroll.
+  expect(m.playerPosition).toBe("sticky");
+  // Never less than the strip it replaced, whatever the outcome.
+  expect(roomOnScreen(m)).toBeGreaterThanOrEqual(SHEET_PEEK_PX - 1);
+  expect(m.visible!.bottom).toBeCloseTo(c.height, 0);
+
+  if (c.outcome === "floored") {
+    // No snap clears this player. The sheet gives up everything it can.
+    expect(roomOnScreen(m)).toBeCloseTo(SHEET_PEEK_PX, 0);
+    return;
+  }
+
+  // The claim: the whole of the player's box — the frame and the action
+  // row under it — is above the sheet's top edge.
+  expect(m.player!.bottom).toBeLessThanOrEqual(m.drawer.top + 1);
+
+  if (c.outcome === "capped") {
+    // Clear, but not touching: the room under this player is more than
+    // `full` itself shows, so `half` stops one strip short of `full`
+    // instead of meeting it. Measured against a second build at `full`
+    // rather than against the arithmetic that produced it.
+    const atFull = await layout(page, { height: c.height, snap: 0.9 });
+    expect(roomOnScreen(atFull) - roomOnScreen(m)).toBeCloseTo(
+      SHEET_PEEK_PX,
+      0,
+    );
+    expect(m.drawer.top).toBeGreaterThan(m.player!.bottom + 1);
+    return;
+  }
+
+  // The rule: it starts where the player ends, so nothing between them
+  // is wasted.
+  expect(m.drawer.top).toBeCloseTo(m.player!.bottom, 0);
+}
+
+test.describe(PLAYER_GROUPS[0], () => {
+  eachPlayerCase(PLAYER_GROUPS[0], async (page, c) => {
+    const { m, derived } = await layoutUnderPlayer(page, c);
+
+    // A snap vaul can hold, at every one of the sixteen. `fadeFromIndex`
+    // names the first of an ascending pair, and a half at or above full
+    // would invert it.
+    expect(derived).toBeGreaterThan(0);
+    expect(derived).toBeLessThan(0.9);
+
+    await expectSheetUnderPlayer(page, c, { m });
+  });
+});
+
+test.describe(PLAYER_GROUPS[1], () => {
+  eachPlayerCase(PLAYER_GROUPS[1], async (page, c) => {
+    // `position: sticky` is what the reader is promised: scroll the
+    // description under the video and the video stays. It is also what
+    // makes one measurement good for the whole page — the app derives
+    // the snap once, from a `ResizeObserver` that watches the player's
+    // *size*, and scrolling changes only where it is drawn. So the
+    // scrolled sheet is built at the snap the top of the page produced,
+    // which is the number the app would still be holding.
+    const top = await layoutUnderPlayer(page, c);
+    const scrolled = await layoutUnderPlayer(page, c, {
+      snap: top.derived,
+      scrollCanvasTo: TO_THE_END,
+    });
+
+    if (c.outcome === "floored") {
+      // **The one shape that does travel, and it is the same set.**
+      // Sticky is bounded by its containing block, so at the end of the
+      // scroll a player taller than what the canvas can show is pulled
+      // up with the page's last line. That happens exactly when the
+      // player leaves less than a resting strip of room — the canvas
+      // ends `SHEET_PEEK_PX` above the fold so the strip does not bury
+      // it — which is the same condition that floors the snap. The two
+      // sets coincide by construction, not by luck, so `FLOORED` names
+      // both.
+      expect(scrolled.playerBottom).toBeLessThan(top.playerBottom);
+    } else {
+      expect(scrolled.playerBottom).toBeCloseTo(top.playerBottom, 0);
+    }
+
+    await expectSheetUnderPlayer(page, c, { m: scrolled.m });
+  });
+});
+
+/**
+ * What this replaced, measured.
+ *
+ * Detector rule 4: the cases above claim the derivation is what puts the
+ * sheet where it belongs. Until the fixed `0.5` is shown not to, that is
+ * prose. It does not land on the player's edge at any of the sixteen —
+ * it is drawn from the window and knows nothing about what is on the
+ * page — and on the portrait pairs it covers the player outright, which
+ * is the reported defect.
+ */
+const FIXED_HALF_COVERS = [
+  "667 × 9:16 shot on a phone",
+  "745 × 9:16 shot on a phone",
+  "812 × 9:16 shot on a phone",
+  "915 × 9:16 shot on a phone",
+];
+expect(FIXED_HALF_COVERS).toHaveLength(4);
+
+test.describe(PLAYER_GROUPS[2], () => {
+  eachPlayerCase(PLAYER_GROUPS[2], async (page, c) => {
+    const { m } = await layoutUnderPlayer(page, c, {
+      snap: SHEET_SNAP_HALF_FALLBACK,
+    });
+
+    // It never meets the player's edge — that is the whole difference.
+    expect(Math.abs(m.drawer.top - m.player!.bottom)).toBeGreaterThan(1);
+
+    if (FIXED_HALF_COVERS.includes(`${c.height} × ${c.pLabel}`)) {
+      expect(m.player!.bottom).toBeGreaterThan(m.drawer.top);
+    } else {
+      // And where it does not cover it, it leaves a band of page between
+      // the two that the derived snap gives to the sheet.
+      expect(m.drawer.top).toBeGreaterThan(m.player!.bottom + 1);
+    }
+  });
+});
+
 test("every group ran at every case", () => {
   // The expected side is rebuilt from the two declarations, so it does
   // not follow a loop that has been walked back. Order matters: this is
   // the register in the order the file wrote it.
-  expect(registered).toEqual(
-    GROUPS.flatMap((group) => CASES.map((c) => caseId(group, c))),
-  );
+  expect(registered).toEqual([
+    ...GROUPS.flatMap((group) => CASES.map((c) => caseId(group, c))),
+    ...PLAYER_GROUPS.flatMap((group) =>
+      PLAYER_CASES.map((c) => playerCaseId(group, c)),
+    ),
+  ]);
 });

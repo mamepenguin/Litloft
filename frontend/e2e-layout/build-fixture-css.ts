@@ -141,6 +141,16 @@ const REQUIRED = [
   ".top-0 {",
   ".bg-bg-card {",
   ".overflow-x-auto {",
+  // Unit D measures the player the sheet's `half` is derived from. The
+  // sticky rule is the premise of every one of those cases — without it
+  // the player is in flow, scrolls away under the sheet, and "it stayed
+  // whole" would be a claim about a box that had left the screen.
+  "[data-sheet-snap] .media-detail-player {",
+  // And the canvas it travels inside. `h-12` gives the page row the
+  // height the player starts below; a page row of nothing puts the
+  // player at the viewport top, where a fixed snap would clear it too
+  // and the replaced-arrangement cases would pass for the wrong reason.
+  ".h-12 {",
 ];
 
 /**

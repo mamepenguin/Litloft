@@ -26,6 +26,15 @@
       edge, so that many pixels of it are always past the fold; this box
       is the drawer less exactly that, taken from vaul's own published
       number rather than from a snap value repeated here.
+
+      The last five keys are the page *behind* the sheet, for unit D: the
+      shell root that publishes `data-sheet-snap`, the page row, the
+      canvas that scrolls and the player wrapper the stylesheet sticks to
+      the top of it. Without them there is nothing for the derived snap
+      to be measured against. `MediaShell.test.tsx` renders the real
+      shell and compares these four class lists and the padding; the case
+      at the bottom of `mobileInspectorSheetFixtureParity.test.tsx` is
+      what says every key is compared somewhere.
     -->
     <script type="application/json" id="fixture-markup">
       {
@@ -44,10 +53,18 @@
         "panelStrip": "flex gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11 shrink-0",
         "panelPanel": "min-h-0 flex-1 space-y-4 overflow-auto p-4",
         "tab": "whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium transition-colors pointer-coarse:min-h-11 border-transparent text-text-muted hover:text-text-primary",
-        "drawerVh": 0.9
+        "drawerVh": 0.9,
+        "pageRoot": "flex h-full w-full flex-col",
+        "chrome": "flex h-12 shrink-0 items-center gap-2 border-b border-bg-border bg-bg-card px-3",
+        "canvas": "flex min-w-0 min-h-0 flex-1 flex-col overflow-auto",
+        "player": "media-detail-player",
+        "peekPx": 56
       }
     </script>
 
+    <!-- The page the sheet covers. Empty for every case that is only
+         about the drawer, so nothing below it moves. -->
+    <div id="page"></div>
     <div id="frame"></div>
 
     <script>
@@ -184,6 +201,72 @@
       };
 
       /**
+       * The page behind the sheet: chrome, a canvas that scrolls, and a
+       * player stuck to the top of it.
+       *
+       * Unit D derives `half` from this player's bottom edge, so the
+       * fixture has to draw a player before there is anything to derive
+       * from — and it has to draw it inside the box the app sticks it in,
+       * because `position: sticky` travels only within its own containing
+       * block and the whole claim is that the player does not move while
+       * the reader scrolls.
+       *
+       * `data-sheet-snap` on the shell root is the mobile test the
+       * stylesheet makes; without it the player is in flow and scrolls
+       * away, and the case would be measuring a different page.
+       *
+       * The two inline heights are the fixture's own: the app's root
+       * layout gives the shell its height, and the player's height comes
+       * from the video's aspect ratio. Both are inputs to the cases
+       * rather than declarations under test.
+       */
+      window.buildPage = ({ playerPx, bodyPx }) => {
+        const host = document.getElementById("page");
+        host.replaceChildren();
+        host.style.height = "100vh";
+
+        const shell = document.createElement("div");
+        shell.className = SPEC.pageRoot;
+        shell.dataset.testid = "file-detail-shell";
+        shell.dataset.sheetSnap = "expanded";
+
+        const chrome = document.createElement("div");
+        chrome.className = SPEC.chrome;
+        chrome.dataset.testid = "file-detail-chrome";
+
+        const canvas = document.createElement("main");
+        canvas.className = SPEC.canvas;
+        canvas.dataset.testid = "file-detail-canvas";
+        // The page ends above the resting strip; the shell writes this
+        // inline for the same reason the fixture does.
+        canvas.style.paddingBottom = `${SPEC.peekPx}px`;
+
+        const player = document.createElement("div");
+        player.className = SPEC.player;
+        player.dataset.testid = "media-detail-player";
+        const frame = document.createElement("div");
+        frame.style.height = `${playerPx}px`;
+        frame.style.background = "#000";
+        player.append(frame);
+
+        const below = document.createElement("div");
+        below.style.height = `${bodyPx}px`;
+        below.textContent = "the description, the comments, the summaries";
+
+        canvas.append(player, below);
+        shell.append(chrome, canvas);
+        host.append(shell);
+      };
+
+      /** Scrolls the canvas, which is what the sticky player travels in. */
+      window.scrollCanvas = (to) => {
+        const canvas = document.querySelector(
+          "[data-testid='file-detail-canvas']",
+        );
+        if (canvas) canvas.scrollTop = to;
+      };
+
+      /**
        * Where everything landed, and which box the browser will actually
        * scroll.
        *
@@ -210,6 +293,9 @@
         const strip = drawer.querySelector("[data-testid='inspector-tabs']");
         const header = drawer.querySelector("[data-testid='inspector-header']");
         const end = drawer.querySelector("[data-testid='inspector-end']");
+        const player = document.querySelector(
+          "[data-testid='media-detail-player']",
+        );
 
         if (scrollTo !== undefined) scroller.scrollTop = scrollTo;
 
@@ -246,6 +332,10 @@
           strip: rect(strip),
           header: rect(header),
           end: rect(end),
+          // Null for every case that draws no page, which is every case
+          // that is only about the drawer.
+          player: player ? rect(player) : null,
+          playerPosition: player ? getComputedStyle(player).position : null,
           // Relative to the box that scrolls: "the strip is at the top of
           // its scrollport" is the sticky property, and an absolute
           // viewport coordinate would also be satisfied by a page that

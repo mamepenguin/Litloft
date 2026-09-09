@@ -13,16 +13,17 @@
  * row ship once already, and every claim below is about what the shell
  * does with what it is handed.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname } from "node:path";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
 import { inspectorOpenStorageKey } from "@/lib/inspectorOpenStore";
-import {
-  SHEET_PEEK_PX,
-  SHEET_VISIBLE_HEIGHT,
-} from "@/components/MobileInspectorSheet";
+import { SHEET_PEEK_PX, SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
+import { SHEET_VISIBLE_HEIGHT } from "@/components/MobileInspectorSheet";
 import { CANVAS_PADDING_REM } from "@/lib/layoutSizes";
 import {
   claimSlot,
@@ -743,6 +744,235 @@ describe("media on the shell, on a phone", () => {
     expect(screen.getByTestId("mobile-inspector-sheet")).toContainElement(
       screen.getByTestId("active-summary-host"),
     );
+  });
+});
+
+/**
+ * `half` is where the player ends.
+ *
+ * **Not geometry.** jsdom lays nothing out, so the player's rect is
+ * stubbed here and nothing below is evidence that the sheet's top edge
+ * actually clears the player — `e2e-layout/mobile-inspector-sheet.spec.ts`
+ * measures that in Chromium. What these cases are about is the decision:
+ * which number is derived, whether it reaches vaul, and which surfaces
+ * get it at all.
+ *
+ * The snap is written out rather than recomputed. `halfSnapUnderPlayer`
+ * has its own table in `lib/__tests__/sheetSnap.test.ts`; calling it here
+ * would make this pass against any derivation, including one that
+ * ignored the player.
+ */
+describe("the sheet's half, derived from the player", () => {
+  /** jsdom's window, which is what vaul reads. */
+  const VIEWPORT_HEIGHT = 768;
+  /** Where the stub puts the player's foot. */
+  const PLAYER_BOTTOM = 315;
+  /** `1 − (0.9 × 768 − (768 − 315)) / 768`, by hand. */
+  const DERIVED = 0.689844;
+
+  let restore: (() => void) | null = null;
+  let playerBottom = PLAYER_BOTTOM;
+
+  beforeEach(() => {
+    window.localStorage.setItem("media-layout-preference", "stacked");
+    setViewport(400);
+    playerBottom = PLAYER_BOTTOM;
+    expect(window.innerHeight).toBe(VIEWPORT_HEIGHT);
+  });
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+  });
+
+  /**
+   * Give `.media-detail-player` a box, and leave every other element at
+   * jsdom's zeros.
+   *
+   * The wrapper rather than the frame inside it, because the wrapper is
+   * what `globals.css` sticks to the top of the canvas and therefore what
+   * has to stay clear of the sheet — the action row under the frame
+   * included.
+   */
+  function stubPlayerBox(bottom: number) {
+    playerBottom = bottom;
+    if (restore) return;
+    const original = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      if (this.classList.contains("media-detail-player")) {
+        return {
+          ...new DOMRect(0, playerBottom - 211, 400, 211),
+          bottom: playerBottom,
+        } as DOMRect;
+      }
+      return original.call(this);
+    };
+    restore = () => {
+      Element.prototype.getBoundingClientRect = original;
+    };
+  }
+
+  /** The snap vaul was handed, read back off the variable it publishes. */
+  const publishedSnap = (drawer: HTMLElement) =>
+    1 -
+    Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height")) /
+      VIEWPORT_HEIGHT;
+
+  async function openSheet() {
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    return screen.findByTestId("mobile-inspector-sheet");
+  }
+
+  it("raises the sheet to the room under the player", async () => {
+    stubPlayerBox(PLAYER_BOTTOM);
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+
+    const drawer = await openSheet();
+    expect(drawer.dataset.snap).toBe("half");
+    expect(publishedSnap(drawer)).toBeCloseTo(DERIVED, 5);
+  });
+
+  it("moves with the player, not with the window", async () => {
+    // The claim the whole unit rests on, stated as a difference. A sheet
+    // that took a fixed fraction would publish the same number for both
+    // of these; the derivation makes the taller player buy the shorter
+    // sheet.
+    stubPlayerBox(PLAYER_BOTTOM);
+    const first = await renderMediaAwaitingChrome(
+      makeFile({ has_chapters: false }),
+    );
+    const shortPlayer = publishedSnap(await openSheet());
+    first.unmount();
+    restore?.();
+
+    stubPlayerBox(PLAYER_BOTTOM * 2);
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+    const tallPlayer = publishedSnap(await openSheet());
+
+    expect(tallPlayer).toBeLessThan(shortPlayer);
+  });
+
+  it("falls back to the fixed fraction with no player measured", async () => {
+    // No stub: every rect is jsdom's zeros, which is what an unpainted
+    // subtree looks like and is the same answer a page with no player at
+    // all gets.
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+
+    const drawer = await openSheet();
+    expect(publishedSnap(drawer)).toBeCloseTo(SHEET_SNAP_HALF_FALLBACK, 5);
+  });
+
+  it("re-derives when the viewport changes under it", async () => {
+    // The case that finds a snap computed once: a phone's URL bar
+    // collapses mid-scroll, `window.innerHeight` changes, and vaul
+    // re-derives its own offsets from it. A `half` that did not move
+    // with them would leave the sheet somewhere the player is not.
+    //
+    // The player's box is moved here rather than the window's height,
+    // because the two arrive through different channels and only the
+    // window's `resize` is under test: jsdom has no `ResizeObserver`.
+    stubPlayerBox(PLAYER_BOTTOM);
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+    const before = publishedSnap(await openSheet());
+
+    stubPlayerBox(PLAYER_BOTTOM * 1.5);
+    fireEvent(window, new Event("resize"));
+
+    await waitFor(() => {
+      expect(
+        publishedSnap(screen.getByTestId("mobile-inspector-sheet")),
+      ).toBeLessThan(before);
+    });
+  });
+
+  it("keeps the player element across the raise it now measures", async () => {
+    // Measuring is a `getBoundingClientRect()` and nothing else. If it
+    // ever became a re-parent or a remount, a `.loft` iframe would reload
+    // and a `<video>` would restart at zero with `ended` rebound
+    // (`design-decisions.md`, watch history).
+    stubPlayerBox(PLAYER_BOTTOM);
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+    const player = screen.getByTestId("file-preview");
+
+    await openSheet();
+    expect(screen.getByTestId("file-preview")).toBe(player);
+  });
+});
+
+/**
+ * The layout fixture's page, against the shell that page imitates.
+ *
+ * `e2e-layout/mobile-inspector-sheet.spec.ts` derives the sheet's `half`
+ * from a player it draws itself, out of class lists written into the
+ * fixture's JSON. Change the shell — take `data-sheet-snap` off the root,
+ * drop `overflow-auto` from the canvas, rename the player's class — and
+ * every one of those browser cases stays green, because the fixture never
+ * asked the shell anything.
+ *
+ * This is what asks, and it lives here rather than beside the sheet's own
+ * parity cases because this is the file with a real shell already
+ * mounted: `FileDetailShell`, `FileDetailChrome` and `MediaPlayerBlock`
+ * are three components and a page's worth of context, and comparing a
+ * copy of them would be comparing a copy.
+ *
+ * jsdom lays nothing out, so nothing here is evidence about a position.
+ * That is the browser spec's, and this is what connects the two.
+ */
+describe("the layout fixture's page, against the shell", () => {
+  const FIXTURE_PATH = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../../../e2e-layout/fixtures/mobile-inspector-sheet.html",
+  );
+
+  const SPEC: Record<string, string | number> = JSON.parse(
+    readFileSync(FIXTURE_PATH, "utf-8").match(
+      /<script type="application\/json" id="fixture-markup">([\s\S]*?)<\/script>/,
+    )![1],
+  );
+
+  const sorted = (className: string) =>
+    className.split(/\s+/).filter(Boolean).sort();
+
+  beforeEach(() => {
+    window.localStorage.setItem("media-layout-preference", "stacked");
+    setViewport(400);
+  });
+
+  it("declares the four boxes the derived snap is measured against", async () => {
+    const { container } = await renderMediaAwaitingChrome(
+      makeFile({ has_chapters: false }),
+    );
+
+    const shell = screen.getByTestId("file-detail-shell");
+    const chrome = screen.getByTestId("file-detail-chrome");
+    const canvas = container.querySelector("main")!;
+    const player = container.querySelector(".media-detail-player")!;
+
+    expect(sorted(shell.className)).toEqual(sorted(SPEC.pageRoot as string));
+    expect(sorted(chrome.className)).toEqual(sorted(SPEC.chrome as string));
+    expect(sorted(canvas.className)).toEqual(sorted(SPEC.canvas as string));
+    expect(sorted(player.className)).toEqual(sorted(SPEC.player as string));
+  });
+
+  it("declares the attribute that makes the player sticky at all", async () => {
+    // The fixture writes `data-sheet-snap` on its own root, and the
+    // stylesheet rule the browser cases depend on is scoped to it. The
+    // shell writing it somewhere else — or not at all on a phone —
+    // would leave those cases measuring a player in normal flow.
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+    expect(screen.getByTestId("file-detail-shell").dataset.sheetSnap).toBe(
+      "peek",
+    );
+  });
+
+  it("declares the padding that ends the page above the resting strip", async () => {
+    const { container } = await renderMediaAwaitingChrome(
+      makeFile({ has_chapters: false }),
+    );
+    expect(container.querySelector("main")!.style.paddingBottom).toBe(
+      `${SPEC.peekPx}px`,
+    );
+    expect(SPEC.peekPx).toBe(SHEET_PEEK_PX);
   });
 });
 

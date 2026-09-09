@@ -26,10 +26,10 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
 import { FileActions, MENU_GAP_PX } from "@/components/FileActions";
+import { SHEET_PEEK_PX } from "@/lib/sheetSnap";
 import {
   MobileInspectorSheet,
-  SHEET_PEEK_PX,
-  SHEET_SNAP_PEEK,
+  SHEET_STATE_PEEK,
 } from "@/components/MobileInspectorSheet";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { deleteFile } from "@/lib/api";
@@ -277,8 +277,8 @@ describe("the file-actions layout fixture's class lists", () => {
     // the constant the sheet renders from.
     render(
       <MobileInspectorSheet
-        snap={SHEET_SNAP_PEEK}
-        onSnapChange={vi.fn()}
+        state={SHEET_STATE_PEEK}
+        onStateChange={vi.fn()}
         peek={null}
       >
         {null}
