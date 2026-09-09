@@ -51,6 +51,8 @@ const SPEC: Record<string, string> = JSON.parse(
   )![1],
 );
 
+let navigation = 0;
+
 /** Somewhere over the scrim and clear of the menu in the top-left corner. */
 const TAP = { x: 200, y: 500 };
 
@@ -72,11 +74,21 @@ interface Reading {
   pressedUnderneath: number;
 }
 
+interface ContextReading {
+  dismissed: number;
+  retargetedUnderneath: number;
+}
+
 async function open(
   page: import("@playwright/test").Page,
   strategy: string,
 ): Promise<void> {
-  await page.goto(`${FIXTURE}#${strategy}`);
+  // The query is a cache-buster, and it is load-bearing: the strategy is
+  // read from `location.hash` when the script runs, and going from one
+  // hash to another on the same document is a hash change, not a
+  // navigation — the script does not re-run and the page keeps the first
+  // strategy. The `data-strategy` assertion below is what caught that.
+  await page.goto(`${FIXTURE}?run=${++navigation}#${strategy}`);
   await expect(page.locator("body")).toHaveAttribute("data-ready", "1");
   await expect(page.locator("body")).toHaveAttribute("data-strategy", strategy);
   await expect(page.locator("#menu")).toBeVisible();
@@ -89,6 +101,17 @@ async function read(page: import("@playwright/test").Page): Promise<Reading> {
     ),
     pressedUnderneath: Number(
       document.getElementById("underneath")!.dataset.clicks,
+    ),
+  }));
+}
+
+async function readContext(
+  page: import("@playwright/test").Page,
+): Promise<ContextReading> {
+  return page.evaluate(() => ({
+    dismissed: Number(document.getElementById("state")!.dataset.dismissed),
+    retargetedUnderneath: Number(
+      document.getElementById("underneath")!.dataset.contextmenus,
     ),
   }));
 }
@@ -175,6 +198,60 @@ for (const viewport of VIEWPORTS) {
           });
         });
       }
+    });
+
+    test.describe("a right-click that dismisses a popup", () => {
+      // The left click is swallowed; the right one is re-aimed. A context
+      // menu is raised *by* this gesture, so right-clicking a second row
+      // has always moved the menu there — swallowing it costs a second
+      // right-click, which is not what the swallowing is for.
+      //
+      // Both wirings run, so the difference is a measurement rather than
+      // an argument: `swallow-contextmenu` is the shape this change first
+      // shipped, and is otherwise the same scrim.
+      for (const [strategy, want] of Object.entries({
+        shipped: {
+          dismissed: 1,
+          retargetedUnderneath: 1,
+          why: "dismisses, then re-dispatches the gesture at the same point",
+        },
+        "swallow-contextmenu": {
+          dismissed: 1,
+          retargetedUnderneath: 0,
+          why: "dismisses and absorbs — the regression, kept as the contrast",
+        },
+      })) {
+        test(`${strategy}: ${want.why}`, async ({ page }) => {
+          await open(page, strategy);
+          await page.mouse.click(TAP.x, TAP.y, { button: "right" });
+          // The re-dispatch is a frame later, so the reading outlives it.
+          await expect
+            .poll(async () => (await readContext(page)).retargetedUnderneath)
+            .toBe(want.retargetedUnderneath);
+          expect((await readContext(page)).dismissed).toBe(want.dismissed);
+        });
+      }
+
+      test("refuses the browser's own menu either way", async ({ page }) => {
+        // Retargeting is about which element gets the gesture, not about
+        // letting the native menu through: the popup underneath was
+        // raised by this gesture and draws its own.
+        for (const strategy of ["shipped", "swallow-contextmenu"]) {
+          await open(page, strategy);
+          const defaultPrevented = await page.evaluate(([x, y]) => {
+            const scrim = document.getElementById("scrim")!;
+            const e = new MouseEvent("contextmenu", {
+              bubbles: true,
+              cancelable: true,
+              clientX: x,
+              clientY: y,
+            });
+            scrim.dispatchEvent(e);
+            return e.defaultPrevented;
+          }, [TAP.x, TAP.y]);
+          expect(defaultPrevented, strategy).toBe(true);
+        }
+      });
     });
 
     test.describe("the scrim itself", () => {

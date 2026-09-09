@@ -18,6 +18,8 @@ import { AddonSlot } from "@/components/AddonSlot";
 import { useAddonSlots } from "@/components/AddonSlotsProvider";
 import { Button } from "@/components/Button";
 import { DismissScrim } from "@/components/DismissScrim";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import type { UploadFileEntry } from "@/hooks/useUpload";
 
 /**
@@ -96,6 +98,34 @@ export function AddButton({
     setMenuOpen(false);
     triggerRef.current?.focus();
   }, []);
+
+  // A popup must be dismissable from the keyboard. Without it the only
+  // ways out are a pointer on the scrim or picking a row, so a keyboard
+  // user who opens this menu cannot back out of it.
+  //
+  // On the shortcut stack, not on `document`: a listener does not know
+  // what is stacked above it, and `escape-listeners.test.ts` records the
+  // presses that were answered twice before this was the rule.
+  // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
+  // while it is open. `FileActions` carries the same block and the
+  // reasoning in full.
+  useShortcuts(
+    "add-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          closeMenu();
+        },
+      },
+    ],
+    menuOpen,
+    OVERLAY_PRIORITY,
+  );
 
   return (
     <>

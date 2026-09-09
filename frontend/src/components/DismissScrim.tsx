@@ -30,11 +30,25 @@ export interface DismissScrimProps {
    */
   label?: string;
   /**
-   * Absorb a right-click / long-press too, instead of letting the browser
-   * open its own menu over this one. `ContextMenu` is the popup that was
-   * opened by that gesture in the first place.
+   * Take the right-click / long-press as well, and **hand it on to the
+   * element underneath**.
+   *
+   * Only `ContextMenu`, which is the popup that gesture raises. Two
+   * things have to be true of it at once, and they pull opposite ways:
+   *
+   *  - the browser must not draw its own menu over the app's, so the
+   *    default is prevented;
+   *  - right-clicking a *second* row must move the menu to that row, as
+   *    it always did. One gesture, one menu, wherever it was aimed.
+   *
+   * So the scrim dismisses and then re-dispatches the gesture at the same
+   * point, once it is no longer in the way. Swallowing it outright — the
+   * shape this component shipped with first — cost a second right-click
+   * on every retarget, which was never part of what the click-swallowing
+   * is for: pressing a control by accident is the defect, and re-aiming a
+   * context menu is not that.
    */
-  dismissOnContextMenu?: boolean;
+  retargetOnContextMenu?: boolean;
   "data-testid"?: string;
 }
 
@@ -78,19 +92,31 @@ export const DISMISS_SCRIM_ATTR = "data-dismiss-scrim";
  * which is why a tree can carry this defect for a long time and only a
  * phone finds it.
  *
- * **Rendered in place, never portalled.** Inside the mobile Bottom Sheet
- * vaul is modal: `pointer-events: none` on `<body>` and `aria-hidden` on
- * every other body child, so a scrim portalled to the body from in there
- * — `useDialogPortalTarget()` included, which lands in the sheet's own
- * dialog host — is stacked correctly and inert. Left where it is written,
- * the scrim is a sibling of the popup and shares its containing block, so
- * whatever the popup is drawn against the scrim covers.
+ * **Rendered in place, and it needs no portal.** A dialog opened from
+ * inside the mobile Bottom Sheet does need one — vaul is modal there, so
+ * `<body>` gets `pointer-events: none` and every other body child gets
+ * `aria-hidden`, and `useDialogPortalTarget()` exists to land it in the
+ * host the sheet keeps *inside* `Drawer.Content`, which is the one
+ * subtree left interactive.
+ *
+ * A scrim has no such problem to solve. It is a sibling of the popup it
+ * guards, so leaving it where it is written already puts it in the same
+ * interactive subtree and the same containing block, and whatever the
+ * popup is drawn against the scrim covers. Portalling it anywhere —
+ * `document.body`, which vaul does make inert, or the sheet's dialog
+ * host, which it does not — would only move it away from the box it is
+ * supposed to match.
  *
  * Inside the sheet that containing block is `Drawer.Content`, which
  * carries a transform: the scrim covers the drawer rather than the
  * window. That is the area a finger can reach anything in — vaul's own
  * overlay owns everything outside the drawer, and dismissing to it
  * collapses the sheet.
+ *
+ * **The left click is what gets swallowed, and only it.** A right-click
+ * on the scrim is re-aimed at what is underneath rather than absorbed —
+ * see `retargetOnContextMenu`. Pressing a control by accident is the
+ * defect; moving a context menu to another row is the gesture working.
  *
  * Escape is not here. It goes through `useShortcuts`, which knows what is
  * stacked above what; `escape-listeners.test.ts` records why a listener
@@ -100,13 +126,33 @@ export function DismissScrim({
   onDismiss,
   className = MENU_SCRIM,
   label,
-  dismissOnContextMenu = false,
+  retargetOnContextMenu = false,
   "data-testid": testId,
 }: DismissScrimProps): ReactElement {
-  const onContextMenu = dismissOnContextMenu
+  const onContextMenu = retargetOnContextMenu
     ? (e: MouseEvent) => {
+        // The native menu is refused whatever happens next: the popup
+        // this scrim guards was itself raised by this gesture.
         e.preventDefault();
+        const { clientX, clientY } = e;
         onDismiss();
+        // On the next frame, so React has committed the unmount and the
+        // scrim is no longer what the point hit-tests to. Re-dispatched
+        // rather than simply let through, because "let through" is not
+        // available: the scrim is in front, and moving it out of the way
+        // is the same unmount.
+        requestAnimationFrame(() => {
+          const beneath = document.elementFromPoint?.(clientX, clientY);
+          if (!beneath) return;
+          beneath.dispatchEvent(
+            new MouseEvent("contextmenu", {
+              bubbles: true,
+              cancelable: true,
+              clientX,
+              clientY,
+            }),
+          );
+        });
       }
     : undefined;
 

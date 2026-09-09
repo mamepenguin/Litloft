@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowDownUp, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { SortField, SortOrder } from "@/types";
 import { isDefaultSort, sortOptionsFor, type SortOption } from "@/components/sortOptions";
 import { DismissScrim } from "@/components/DismissScrim";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 interface SortButtonProps {
   sort: SortField;
@@ -22,6 +24,36 @@ interface SortButtonProps {
 export function SortButton({ sort, order, onChange, allowRelevance }: SortButtonProps) {
   const t = useTranslations("sort");
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // A popup must be dismissable from the keyboard. Without it the only
+  // ways out are a pointer on the scrim or picking a row, so a keyboard
+  // user who opens this menu cannot back out of it.
+  //
+  // On the shortcut stack, not on `document`: a listener does not know
+  // what is stacked above it, and `escape-listeners.test.ts` records the
+  // presses that were answered twice before this was the rule.
+  // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
+  // while it is open. `FileActions` carries the same block and the
+  // reasoning in full.
+  useShortcuts(
+    "sort-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          setOpen(false);
+          triggerRef.current?.focus();
+        },
+      },
+    ],
+    open,
+    OVERLAY_PRIORITY,
+  );
 
   const sortOptions: SortOption[] = sortOptionsFor(allowRelevance);
   const isActive = !isDefaultSort(sort, order, allowRelevance);
@@ -29,6 +61,7 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
   return (
     <div className="relative">
       <button
+        ref={triggerRef}
         onClick={() => setOpen((s) => !s)}
         className={`flex items-center gap-1.5 rounded-lg p-2 text-sm transition-colors ${
           isActive

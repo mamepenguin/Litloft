@@ -25,7 +25,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, fireEvent } from "@testing-library/react";
+import { render, fireEvent, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
@@ -72,6 +72,35 @@ describe("the popup-dismiss fixture", () => {
     render(<DismissScrim onDismiss={onDismiss} />);
     fireEvent[SPEC.dismissEvent as "click"](openScrim());
     expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-aims the right-click the same way the component does", async () => {
+    // The fixture writes its own contextmenu handler, so the browser
+    // spec's retarget cases would stay green if the component went back
+    // to swallowing. This is what stops that: the fixture declares which
+    // of the two it copies, and the component is driven to confirm it
+    // does that.
+    expect(SPEC.contextMenuBehaviour).toBe("retarget");
+
+    const beneath = document.createElement("div");
+    document.body.appendChild(beneath);
+    const retargeted = vi.fn();
+    beneath.addEventListener("contextmenu", retargeted);
+    (document as unknown as { elementFromPoint: unknown }).elementFromPoint =
+      () => beneath;
+
+    render(<DismissScrim onDismiss={vi.fn()} retargetOnContextMenu />);
+    const prevented = fireEvent.contextMenu(openScrim(), {
+      clientX: 40,
+      clientY: 60,
+    });
+
+    expect(prevented).toBe(false);
+    await waitFor(() => expect(retargeted).toHaveBeenCalledTimes(1));
+
+    delete (document as unknown as { elementFromPoint?: unknown })
+      .elementFromPoint;
+    beneath.remove();
   });
 
   it("wires none of the events that come before it", () => {

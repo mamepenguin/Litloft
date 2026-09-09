@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { SidebarCollectionsSection } from "../SidebarCollectionsSection";
+import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+import { dismissViaScrim } from "@/__tests__/helpers/dismissScrim";
 import type { CollectionSummary } from "@/types";
 import { createRef } from "react";
 
@@ -140,26 +142,69 @@ describe("SidebarCollectionsSection", () => {
 
   it("shows context menu when set", () => {
     render(
-      <SidebarCollectionsSection
-        {...defaultProps}
-        contextMenu={{ id: "c1", x: 100, y: 200 }}
-      />
+      <ShortcutsProvider>
+        <SidebarCollectionsSection
+          {...defaultProps}
+          contextMenu={{ id: "c1", x: 100, y: 200 }}
+        />
+      </ShortcutsProvider>,
     );
-    expect(screen.getByText("Rename")).toBeInTheDocument();
-    expect(screen.getByText("Delete")).toBeInTheDocument();
+    // Rows, not bare buttons: this section drew its own panel with no
+    // `role` at all, which is why the popup sweep could not see it.
+    expect(screen.getByRole("menuitem", { name: /Rename/ })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Delete/ })).toBeInTheDocument();
   });
 
-  it("calls handleDeleteCollection from context menu", () => {
+  it("calls handleDeleteCollection from context menu", async () => {
     const handleDeleteCollection = vi.fn();
     render(
-      <SidebarCollectionsSection
-        {...defaultProps}
-        contextMenu={{ id: "c1", x: 100, y: 200 }}
-        handleDeleteCollection={handleDeleteCollection}
-      />
+      <ShortcutsProvider>
+        <SidebarCollectionsSection
+          {...defaultProps}
+          contextMenu={{ id: "c1", x: 100, y: 200 }}
+          handleDeleteCollection={handleDeleteCollection}
+        />
+      </ShortcutsProvider>,
     );
-    fireEvent.click(screen.getByText("Delete"));
-    expect(handleDeleteCollection).toHaveBeenCalledWith("c1");
+    fireEvent.click(screen.getByRole("menuitem", { name: /Delete/ }));
+    // `ContextMenu` closes first and runs the entry on the next frame, so
+    // the dialog an entry opens is not mounted inside a menu that is
+    // going away.
+    await waitFor(() =>
+      expect(handleDeleteCollection).toHaveBeenCalledWith("c1"),
+    );
+  });
+
+  it("dismisses through the scrim, without pressing the row underneath", () => {
+    // The defect this section had: a `window` click listener closed the
+    // menu and the same click reached the collection row, navigating to
+    // it. Its sibling `SidebarSmartFoldersSection` already used the
+    // shared `ContextMenu`, so one sidebar had two behaviours.
+    //
+    // jsdom hit-tests nothing, so what is asserted is that the scrim
+    // exists and that it — not a `window` listener — is what closes the
+    // menu. `e2e-layout/popup-dismiss.spec.ts` measures the hit test.
+    const setContextMenu = vi.fn();
+    const handleCollectionClick = vi.fn();
+    render(
+      <ShortcutsProvider>
+        <SidebarCollectionsSection
+          {...defaultProps}
+          contextMenu={{ id: "c1", x: 100, y: 200 }}
+          setContextMenu={setContextMenu}
+          handleCollectionClick={handleCollectionClick}
+        />
+      </ShortcutsProvider>,
+    );
+
+    fireEvent.click(screen.getByText("Rock"));
+    expect(handleCollectionClick).toHaveBeenCalledTimes(1);
+    setContextMenu.mockClear();
+    handleCollectionClick.mockClear();
+
+    dismissViaScrim();
+    expect(setContextMenu).toHaveBeenCalledWith(null);
+    expect(handleCollectionClick).not.toHaveBeenCalled();
   });
 
   it("hides collection items when collapsed and persists state", () => {

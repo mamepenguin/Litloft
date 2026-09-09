@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 import { TrashToolbar } from "../TrashToolbar";
+import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 
 vi.mock("@/components/SortButton", () => ({
   SortButton: () => <button data-testid="sort-button">Sort</button>,
@@ -68,6 +69,31 @@ describe("TrashToolbar", () => {
         screen.getByLabelText("Selection mode").getAttribute("aria-pressed"),
       ).toBe("false");
     });
+  });
+
+  it("closes its kind filter on Escape and returns focus to the trigger", () => {
+    // The scrim is a pointer gesture, so without an Escape path a
+    // keyboard user who opens this menu cannot back out of it — and
+    // `docs/user-guide/overview.md` tells them it works. Measured before
+    // it was wired: the menu stayed open.
+    //
+    // Pressed with focus on the trigger rather than at `document`: a
+    // press with no `HTMLElement` target reads as "not editing" to the
+    // provider, so it would pass even with `editingOnly: false` removed.
+    render(
+      <ShortcutsProvider>
+        <TrashToolbar {...defaultProps} />
+      </ShortcutsProvider>,
+    );
+    const trigger = screen.getByLabelText("File type");
+    fireEvent.click(trigger);
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 
   it("puts every arranging control away when the trash is empty", () => {

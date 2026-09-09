@@ -96,15 +96,18 @@ function read(rel: string): string {
  * because a comment beside the rows quotes `role="menu"` while explaining
  * why they carry a role at all. The population would then have rested on
  * a sentence.
+ *
+ * Two branches, and each has a case below whose only match it removes. A
+ * third — dropping lines that begin with `*` — was here and is gone: the
+ * block strip already takes every JSDoc line, so nothing could tell the
+ * two apart and either one could be deleted with the suite green. A
+ * branch no case needs is not a guard.
  */
 function withoutComments(text: string): string {
   return text
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .split("\n")
-    .filter((line) => {
-      const t = line.trim();
-      return !t.startsWith("//") && !t.startsWith("*");
-    })
+    .filter((line) => !line.trim().startsWith("//"))
     .join("\n");
 }
 
@@ -113,13 +116,29 @@ function withoutComments(text: string): string {
  *
  * The ARIA a popup surface declares, plus the attribute its trigger
  * carries. Deliberately wider than "things that render a scrim": it also
- * catches a menu *row* and a file that only opens someone else's panel,
- * so every one of those has to be named below with where its dismissal
- * lives. A new menu written from scratch matches at least one of these
- * before it has a scrim, which is the point — the failure names the file
- * rather than waiting for a phone to find it.
+ * catches a menu *row*, a modal dialog, and a file that only opens
+ * someone else's panel, so every one of those has to be named below with
+ * where its dismissal lives.
+ *
+ * `role="menuitem` is a prefix, not a whole attribute. Ended at the quote
+ * it missed `role="menuitemradio"` — the spelling this same change
+ * introduced into `SortButton` and `TrashToolbar`, which are in the
+ * population only because `role="menu"` went onto their panels in the
+ * same commit. One attribute the other way and the near-miss would have
+ * been the live case. `menuitemcheckbox` rides on the same prefix.
+ *
+ * `role="option"` and `role="listbox"` have no live example in core — the
+ * only listbox in the tree is the knowledge addon's `[[` candidate list.
+ * They are here because this is a definition rather than an inventory,
+ * and each has a case below that writes it and asserts it is found.
+ *
+ * What no ARIA needle can see is a popup that declares nothing, which is
+ * exactly what `SidebarCollectionsSection` was: a `fixed` panel with no
+ * `role`, no `aria-haspopup` and bare `<button>` rows. What finds that
+ * shape is the dismissal scan below, and it is why `click` is in it.
  */
-const POPUP_NEEDLE = /role="menu"|role="menuitem"|role="listbox"|aria-haspopup/;
+const POPUP_NEEDLE =
+  /role="menu"|role="menuitem|role="listbox"|role="option"|role="dialog"|aria-haspopup/;
 
 function popupFiles(roots: string[] = [CORE_ROOT]): string[] {
   const out: string[] = [];
@@ -221,26 +240,70 @@ const POPUPS: Record<string, PopupEntry> = {
     dismissedIn: "frontend/src/components/trash/TrashToolbar.tsx",
     why: "the bin's kind-filter menu, below 640px",
   },
+
+  // Modal surfaces. They arrive with `role="dialog"` in the needle set,
+  // and they are not anchored popups: each paints its own backdrop over
+  // the whole viewport and is dismissed by that backdrop or by Escape,
+  // with nothing behind it a stray click could reach. Enumerated rather
+  // than excluded by a path rule, so a dialog that grows a menu inside it
+  // is already named here.
+  "frontend/src/app/admin/settings/DrivesSection.tsx": {
+    dismissedIn: null,
+    why: "modal dialogs with their own backdrop",
+  },
+  "frontend/src/app/admin/settings/PasswordsSection.tsx": {
+    dismissedIn: null,
+    why: "modal dialogs with their own backdrop",
+  },
+  "frontend/src/components/FileSaveDialog.tsx": {
+    dismissedIn: null,
+    why: "a modal dialog; it hosts FolderPicker, which brings its own scrim",
+  },
+  "frontend/src/components/ImageGallery.tsx": {
+    dismissedIn: null,
+    why: "an immersive viewer — it replaces the page and marks the rest inert",
+  },
+  "frontend/src/components/ShortcutCheatSheet.tsx": {
+    dismissedIn: null,
+    why: "a modal dialog with its own backdrop",
+  },
+  "frontend/src/components/archive/ArchiveImageViewer.tsx": {
+    dismissedIn: null,
+    why: "an immersive viewer — it replaces the page and marks the rest inert",
+  },
+  "frontend/src/components/quick-note/QuickNotePresenter.tsx": {
+    dismissedIn: null,
+    why: "a modal dialog; it hosts FolderPicker, which brings its own scrim",
+  },
 };
 
 /**
- * A `document`- or `window`-level listener for a pointer *press*.
+ * A `document`- or `window`-level pointer listener.
  *
- * The event, not the handler's body: a press listener at this scope is
+ * The event, not the handler's body: a pointer listener at this scope is
  * either a popup dismissal — the defect — or one of the enumerated
  * exceptions. A listener on a specific element is a gesture on that
  * element and is not in scope.
+ *
+ * **`click` is in the alternation, and it is the one that matters most.**
+ * A press listener is obviously wrong: it answers before the click, so
+ * the click lands on whatever is underneath. A `click` listener at this
+ * scope *looks* right and fails the same way, because `window` is not in
+ * front of anything — the popup closes and the element under the finger
+ * receives the very same click. That is what the sidebar's collection
+ * menu did, and it declared no ARIA at all, so this scan is the only
+ * thing that could have named it.
  */
-const OUTSIDE_PRESS =
-  /\b(?:document|window)\.addEventListener\(\s*["'](?:mousedown|pointerdown|touchstart)["']/g;
+const GLOBAL_POINTER_LISTENER =
+  /\b(?:document|window)\.addEventListener\(\s*["'](?:click|mousedown|pointerdown|touchstart)["']/g;
 
-function outsidePressListeners(roots: string[] = [CORE_ROOT]): string[] {
+function globalPointerListeners(roots: string[] = [CORE_ROOT]): string[] {
   const found: string[] = [];
   for (const root of roots) {
     for (const file of sourceFiles(root)) {
       const text = readFileSync(file, "utf-8");
       const rel = relative(REPO_ROOT, file);
-      for (const m of text.matchAll(OUTSIDE_PRESS)) {
+      for (const m of text.matchAll(GLOBAL_POINTER_LISTENER)) {
         found.push(`${rel}:${text.slice(0, m.index!).split("\n").length}`);
       }
     }
@@ -257,7 +320,7 @@ function outsidePressListeners(roots: string[] = [CORE_ROOT]): string[] {
  * one — `FilterField` carried a `mousedown` and a `touchstart` for the
  * same popup — so what is compared is the set of files.
  */
-const OUTSIDE_PRESS_EXCEPTIONS: Record<string, string> = {
+const GLOBAL_POINTER_EXCEPTIONS: Record<string, string> = {
   "frontend/src/components/InlineNameEditor.tsx":
     "a text field, not a popup. An outside press *commits* the rename, and " +
     "the click that follows is meant to do its own job — clicking a row " +
@@ -272,9 +335,17 @@ describe("Every popup surface in core", () => {
 
   it.each([
     'aria-haspopup="menu"',
+    'aria-haspopup="dialog"',
     'role="menu"',
     'role="menuitem"',
+    // The three the needle used to end one character too early, or not
+    // carry at all. `role="menuitemradio"` is the spelling this same
+    // change put into two files of its own.
+    'role="menuitemradio"',
+    'role="menuitemcheckbox"',
     'role="listbox"',
+    'role="option"',
+    'role="dialog"',
   ])("is found by %s", (declaration) => {
     // Each needle separately, against a tree written for it. Core carries
     // no `role="listbox"` today — the knowledge addon's candidate list is
@@ -283,6 +354,41 @@ describe("Every popup surface in core", () => {
     const dir = mkdtempSync(join(tmpdir(), "popup-needle-"));
     const file = join(dir, "Sample.tsx");
     writeFileSync(file, `export const x = <div ${declaration} />;\n`);
+    try {
+      expect(popupFiles([dir])).toEqual([relative(REPO_ROOT, file)]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ["a line comment", '// role="menu" is what a menu panel declares\nexport const x = 1;\n'],
+    ["a block comment", '/* role="menu" */\nexport const x = 1;\n'],
+    [
+      "a JSDoc block",
+      '/**\n * Rows inside a `role="menu"` must be menuitems.\n */\nexport const x = 1;\n',
+    ],
+  ])("is not declared by %s", (_label, source) => {
+    // One case per branch of `withoutComments`, because the branches were
+    // individually deletable while the whole function was killed: the
+    // only live evidence in core was one JSDoc block, and both branches
+    // removed it. The single-line block form is what separates them — the
+    // line filter does not touch it.
+    const dir = mkdtempSync(join(tmpdir(), "popup-comment-"));
+    const file = join(dir, "Prose.tsx");
+    writeFileSync(file, source);
+    try {
+      expect(popupFiles([dir])).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("still sees a declaration on a line that also carries a comment", () => {
+    // The other side of the same guard: stripping must not eat the code.
+    const dir = mkdtempSync(join(tmpdir(), "popup-comment-"));
+    const file = join(dir, "Menu.tsx");
+    writeFileSync(file, 'export const x = <div role="menu" />; // the panel\n');
     try {
       expect(popupFiles([dir])).toEqual([relative(REPO_ROOT, file)]);
     } finally {
@@ -330,21 +436,33 @@ describe("An outside press", () => {
     expect(
       [
         ...new Set(
-          outsidePressListeners().map((hit) => hit.replace(/:\d+$/, "")),
+          globalPointerListeners().map((hit) => hit.replace(/:\d+$/, "")),
         ),
       ].sort(),
-    ).toEqual(Object.keys(OUTSIDE_PRESS_EXCEPTIONS).sort());
+    ).toEqual(Object.keys(GLOBAL_POINTER_EXCEPTIONS).sort());
   });
 
-  it("looks at the tree it claims to", () => {
-    // The scan is core's. Naming the root here means a later edit that
-    // narrows it — to `components/`, say — is a failure rather than a
-    // quieter green.
+  it("looks at the whole tree it claims to", () => {
+    // The scan is core's, and it is the *whole* of core's.
+    //
+    // `toBe`, not a bound. This was `toBeGreaterThan(200)` against a real
+    // population of 409, which tolerated losing half the tree — and a
+    // plausible edit ("skip `app`, `hooks` and `lib`, there are no popups
+    // in them") did exactly that with every assertion in this file still
+    // green, because no member of `POPUPS` lives outside `components/`.
+    // `review-workflow.md` rule 1 names that spelling directly.
+    //
+    // The cost is that adding or deleting any source file under
+    // `frontend/src` edits this number. That is the intended price: it is
+    // one line, and the alternative is a guard that reads as a floor and
+    // functions as nothing.
     expect(relative(REPO_ROOT, CORE_ROOT)).toBe("frontend/src");
-    expect(sourceFiles(CORE_ROOT).length).toBeGreaterThan(200);
+    expect(sourceFiles(CORE_ROOT).length).toBe(409);
   });
 
   it.each([
+    ["click", "window"],
+    ["click", "document"],
     ["mousedown", "document"],
     ["pointerdown", "document"],
     ["touchstart", "document"],
@@ -372,7 +490,7 @@ describe("An outside press", () => {
       ].join("\n"),
     );
     try {
-      expect(outsidePressListeners([dir])).toEqual([
+      expect(globalPointerListeners([dir])).toEqual([
         `${relative(REPO_ROOT, file)}:5`,
       ]);
     } finally {
@@ -392,7 +510,7 @@ describe("An outside press", () => {
       'frame.addEventListener("pointerdown", revealControls);\n',
     );
     try {
-      expect(outsidePressListeners([dir])).toEqual([]);
+      expect(globalPointerListeners([dir])).toEqual([]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
 
 import { AddButton, ADD_MENU_SLOT } from "@/components/AddButton";
+import { ShortcutsProvider } from "../ShortcutsProvider";
 
 const slotEntries = { current: 0 };
 /**
@@ -52,6 +53,31 @@ describe("AddButton", () => {
     for (const el of trigger.querySelectorAll("[class]")) {
       expect((el.getAttribute("class") ?? "").split(/\s+/)).not.toContain("hidden");
     }
+  });
+
+  it("closes on Escape and returns focus to the trigger", () => {
+    // The scrim is a pointer gesture, so without an Escape path a
+    // keyboard user who opens this menu cannot back out of it — and
+    // `docs/user-guide/overview.md` tells them it works. Measured before
+    // it was wired: the menu stayed open.
+    //
+    // Pressed with focus on the trigger rather than at `document`: a
+    // press with no `HTMLElement` target reads as "not editing" to the
+    // provider, so it would pass even with `editingOnly: false` removed.
+    render(
+      <ShortcutsProvider>
+        <AddButton />
+      </ShortcutsProvider>,
+    );
+    const trigger = screen.getByRole("button", { name: /Add/ });
+    fireEvent.click(trigger);
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 
   it("keeps every way of adding behind the one control", () => {

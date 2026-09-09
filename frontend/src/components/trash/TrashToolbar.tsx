@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Check, CheckSquare, Filter } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { ViewToggle } from "@/components/ViewToggle";
 import { DismissScrim } from "@/components/DismissScrim";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { SortButton } from "@/components/SortButton";
 
 interface TrashToolbarProps {
@@ -41,6 +43,7 @@ export function TrashToolbar({
   const ts = useTranslations("selection");
   const tFilter = useTranslations("filter");
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
+  const typeFilterTriggerRef = useRef<HTMLButtonElement>(null);
 
   // An empty bin has nothing to sort, nothing to lay out and nothing to
   // filter by kind — the seven pills, the sort, the view toggle and the
@@ -48,6 +51,35 @@ export function TrashToolbar({
   // is a bin emptied by the filter itself: the pill that produced the
   // empty result is also the way back out of it.
   const hideArrangingControls = total === 0 && typeFilter === null;
+
+  // A popup must be dismissable from the keyboard. Without it the only
+  // ways out are a pointer on the scrim or picking a row, so a keyboard
+  // user who opens this menu cannot back out of it.
+  //
+  // On the shortcut stack, not on `document`: a listener does not know
+  // what is stacked above it, and `escape-listeners.test.ts` records the
+  // presses that were answered twice before this was the rule.
+  // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
+  // while it is open. `FileActions` carries the same block and the
+  // reasoning in full.
+  useShortcuts(
+    "trash-type-filter-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          setTypeFilterOpen(false);
+          typeFilterTriggerRef.current?.focus();
+        },
+      },
+    ],
+    typeFilterOpen,
+    OVERLAY_PRIORITY,
+  );
 
   return (
     <>
@@ -82,6 +114,7 @@ export function TrashToolbar({
         {!hideArrangingControls && (
         <div className="relative sm:hidden">
           <button
+            ref={typeFilterTriggerRef}
             onClick={() => setTypeFilterOpen((s) => !s)}
             className={`flex items-center gap-1.5 rounded-lg p-2 text-sm transition-colors ${
               typeFilter

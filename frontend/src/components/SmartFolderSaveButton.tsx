@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Pencil, RefreshCw, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -9,6 +9,8 @@ import type { FileKind } from "@/types";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DismissScrim } from "./DismissScrim";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { SmartFolderSaveDialog } from "./SmartFolderSaveDialog";
 
 interface SmartFolderSaveButtonProps {
@@ -63,6 +65,7 @@ export function SmartFolderSaveButton({
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -70,6 +73,35 @@ export function SmartFolderSaveButton({
     const timer = setTimeout(() => setError(null), 3000);
     return () => clearTimeout(timer);
   }, [error]);
+
+  // A popup must be dismissable from the keyboard. Without it the only
+  // ways out are a pointer on the scrim or picking a row, so a keyboard
+  // user who opens this menu cannot back out of it.
+  //
+  // On the shortcut stack, not on `document`: a listener does not know
+  // what is stacked above it, and `escape-listeners.test.ts` records the
+  // presses that were answered twice before this was the rule.
+  // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
+  // while it is open. `FileActions` carries the same block and the
+  // reasoning in full.
+  useShortcuts(
+    "smart-folder-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          setMenuOpen(false);
+          menuTriggerRef.current?.focus();
+        },
+      },
+    ],
+    menuOpen,
+    OVERLAY_PRIORITY,
+  );
 
   const buildSearchUrl = useCallback(
     (id: string | null) => {
@@ -146,6 +178,7 @@ export function SmartFolderSaveButton({
       {inSavedMode ? (
         <div className="relative flex-shrink-0">
           <button
+            ref={menuTriggerRef}
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
             className="flex items-center gap-1.5 rounded-2xl bg-bg-elevated px-3 py-1.5 text-sm font-medium text-text-primary ring-1 ring-bg-border transition-colors hover:bg-bg-card"

@@ -59,7 +59,7 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
       <DismissScrim
         onDismiss={onClose}
         className="fixed inset-0 z-49"
-        dismissOnContextMenu
+        retargetOnContextMenu
       />
       <div
         ref={menuRef}

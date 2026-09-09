@@ -890,7 +890,10 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   own unit; until it lands, this is one component's behaviour and not a rule
   the tree keeps.
 - **A popup is dismissed on the scrim's `click`, never on the press.** One
-  primitive, `DismissScrim`, and every popup in the tree on it. A tap's `click`
+  primitive, `DismissScrim`, and every popup in core on it. The addons are
+  each their own repository and are named where they stand:
+  `intelligence`'s AI menu is correct but hand-written, and `knowledge`'s
+  `[[` candidate list is fixed in that repository ahead of the pointer bump. A tap's `click`
   is dispatched after `touchend`, against whatever is topmost *then* — so a
   popup that closes on `pointerdown`, `mousedown` or `touchstart` has taken its
   scrim away before that moment, and the click hit-tests to whatever the popup
@@ -902,12 +905,23 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   compatibility mouse events — which is how the tree ended up with three
   behaviours at once.
 
-  The scrim is written where the popup is, never portalled to the body: inside
-  the mobile Bottom Sheet vaul is modal, so a scrim on the body is drawn and
-  inert (§Layering). Its tier is the popover band, under the popup it guards.
-  It carries no name and no role, except where it is the popup's *stated* way
-  out — the over-frame settings panel names its backdrop, because over media
-  there is no page edge to say where the panel stops.
+  A right-click is the exception, and it is re-aimed rather than swallowed: a
+  context menu is raised *by* that gesture, so right-clicking a second row
+  moves the menu there. `DismissScrim` prevents the native menu, dismisses,
+  and re-dispatches the gesture at the same point once it is out of the way.
+  Swallowing it cost a second right-click on every retarget, which is not what
+  the swallowing is for — pressing a control by accident is the defect.
+
+  The scrim is written where the popup is and needs no portal: it is a sibling
+  of the popup, so it already shares the popup's containing block and its
+  interactive subtree (inside the sheet, vaul makes `<body>` inert and only
+  `Drawer.Content` is live — §Layering). **It sits directly under the popup it
+  guards, in that popup's own band**, which is the rule that stays true when a
+  popup changes tier: three of the fifteen are outside the popover band, and
+  each is under its own popup rather than at a number of its own. It carries
+  no name and no role, except where it is the popup's *stated* way out — the
+  over-frame settings panel names its backdrop, because over media there is no
+  page edge to say where the panel stops.
 
   The exception is a field, not a popup: an inline rename commits on an outside
   press and lets the click through on purpose, so that clicking a second row

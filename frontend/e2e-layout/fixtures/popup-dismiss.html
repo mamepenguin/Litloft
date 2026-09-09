@@ -32,6 +32,7 @@
       {
         "scrimClass": "fixed inset-0 z-30 bg-black/30 sm:bg-transparent",
         "dismissEvent": "click",
+        "contextMenuBehaviour": "retarget",
         "menu": "fixed left-2 top-2 z-40 w-40 rounded-2xl border border-bg-border bg-bg-card p-3 shadow-lg",
         "underneath": "fixed inset-0 z-0 bg-bg-elevated text-text-primary"
       }
@@ -51,9 +52,18 @@
       underneath.id = "underneath";
       underneath.className = SPEC.underneath;
       underneath.dataset.clicks = "0";
+      underneath.dataset.contextmenus = "0";
       underneath.textContent = "underneath";
       underneath.addEventListener("click", () => {
         underneath.dataset.clicks = String(Number(underneath.dataset.clicks) + 1);
+      });
+      // A row that opens a context menu answers this and re-raises the
+      // menu on itself. Counting it is how "the gesture was re-aimed at
+      // the row" is observed without building a second menu.
+      underneath.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        underneath.dataset.contextmenus =
+          String(Number(underneath.dataset.contextmenus) + 1);
       });
       document.body.append(underneath);
 
@@ -78,7 +88,11 @@
       }
 
       let scrim = null;
-      const strategy = location.hash.slice(1) || "shipped";
+      // `swallow-contextmenu` draws the shipped scrim and differs only in
+      // what it does with a right-click, so the two can be compared with
+      // one variable moving.
+      const raw = location.hash.slice(1) || "shipped";
+      const strategy = raw === "swallow-contextmenu" ? "swallow-contextmenu" : raw;
 
       if (strategy === "document-press") {
         // No scrim: nothing between the finger and the page.
@@ -102,6 +116,34 @@
         } else {
           scrim.addEventListener(SPEC.dismissEvent, dismiss);
         }
+
+        // What the scrim does with a right-click / long-press.
+        //
+        // `swallow` is the shape this PR first shipped: prevent and
+        // dismiss. It cost a second right-click to move a context menu to
+        // another row. `retarget` is `DismissScrim`, which prevents the
+        // native menu, dismisses, and re-dispatches the gesture at the
+        // same point once it is out of the way.
+        const contextBehaviour =
+          strategy === "swallow-contextmenu" ? "swallow" : SPEC.contextMenuBehaviour;
+        scrim.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          const { clientX, clientY } = e;
+          dismiss();
+          if (contextBehaviour !== "retarget") return;
+          requestAnimationFrame(() => {
+            const beneath = document.elementFromPoint(clientX, clientY);
+            if (!beneath) return;
+            beneath.dispatchEvent(
+              new MouseEvent("contextmenu", {
+                bubbles: true,
+                cancelable: true,
+                clientX,
+                clientY,
+              }),
+            );
+          });
+        });
       }
 
       document.body.dataset.strategy = strategy;

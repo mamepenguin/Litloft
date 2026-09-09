@@ -17,18 +17,24 @@ A Litloft installation has:
 
 ## Closing a menu
 
-Every menu, filter panel and folder picker in Litloft is closed by pressing
-anywhere outside it — and that press only closes it. Whatever sits under your
-finger is *not* activated: dismissing the file `⋮` menu by tapping a card does
-not open that card, and dismissing the sort menu by tapping a folder does not
-walk into it. Press a second time to reach what is underneath.
+Menus, filter panels and folder pickers close when you press anywhere outside
+them — and that press only closes them. Whatever sits under your finger is
+*not* activated: dismissing the file `⋮` menu by tapping a card does not open
+that card, and dismissing the sort menu by tapping a folder does not walk into
+it. Press a second time to reach what is underneath.
 
-Escape closes the same menus from the keyboard, and returns focus to the
-control that opened them.
+A **right-click** is different, deliberately. Right-clicking (or long-pressing)
+a second row while a context menu is open moves the menu to that row, as one
+gesture. Only the ordinary press is held back.
 
-Renaming in place is the deliberate exception. Clicking away from a name you
-are editing **commits** the new name, and the click still does its own job —
-so clicking a second row saves the first and selects the second in one action.
+Most of these menus also close on **Escape**, which returns you to the control
+that opened them. The context menu you raise by right-clicking closes on Escape
+too, but it has no button to return you to.
+
+Renaming in place is the deliberate exception to all of it. Clicking away from
+a name you are editing **commits** the new name, and the click still does its
+own job — so clicking a second row saves the first and selects the second in
+one action.
 
 ## What you can do
 

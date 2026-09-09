@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import {
   DISMISS_SCRIM_ATTR,
@@ -81,21 +81,87 @@ describe("DismissScrim", () => {
     );
   });
 
-  it("leaves the browser's own menu alone unless asked to absorb it", () => {
+  it("leaves the browser's own menu alone unless asked to take it", () => {
     const onDismiss = vi.fn();
-    const { rerender } = render(<DismissScrim onDismiss={onDismiss} />);
+    render(<DismissScrim onDismiss={onDismiss} />);
 
     const plain = fireEvent.contextMenu(openScrim());
     expect(onDismiss).not.toHaveBeenCalled();
     // `fireEvent` returns false when a handler called `preventDefault`.
     expect(plain).toBe(true);
+  });
 
-    rerender(<DismissScrim onDismiss={onDismiss} dismissOnContextMenu />);
-    const absorbed = fireEvent.contextMenu(openScrim());
+  it("refuses the native menu and re-aims the gesture at what is under it", async () => {
+    // The regression this component shipped with: it dismissed and
+    // swallowed, so right-clicking a second row closed the menu instead of
+    // moving it there, and a second right-click was needed. What the
+    // click-swallowing is for is a control pressed by accident; re-aiming
+    // a context menu is the gesture working.
+    //
+    // jsdom hit-tests nothing and `elementFromPoint` is not implemented in
+    // it, so the element beneath is stubbed and what is asserted is the
+    // component's own behaviour: prevent the default, dismiss, then
+    // re-dispatch a bubbling `contextmenu` at the same point.
+    const onDismiss = vi.fn();
+    const beneath = document.createElement("div");
+    document.body.appendChild(beneath);
+    const retargeted = vi.fn();
+    beneath.addEventListener("contextmenu", retargeted);
+    // Assigned, not spied: jsdom does not implement `elementFromPoint`
+    // at all, so there is no property to wrap. That absence is the reason
+    // the component calls it optionally, and the last case here is what
+    // pins that.
+    const elementFromPoint = vi.fn(() => beneath);
+    (document as unknown as { elementFromPoint: unknown }).elementFromPoint =
+      elementFromPoint;
+
+    render(<DismissScrim onDismiss={onDismiss} retargetOnContextMenu />);
+    const taken = fireEvent.contextMenu(openScrim(), {
+      clientX: 120,
+      clientY: 340,
+    });
+
+    expect(taken).toBe(false);
     expect(onDismiss).toHaveBeenCalledTimes(1);
-    // `ContextMenu` was raised by this very gesture. Letting the default
-    // through would open the browser's menu over the app's.
-    expect(absorbed).toBe(false);
+    // Not in the same tick: the scrim is still what the point hit-tests
+    // to until React has committed the unmount.
+    expect(retargeted).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(retargeted).toHaveBeenCalledTimes(1));
+    expect(elementFromPoint).toHaveBeenCalledWith(120, 340);
+    const event = retargeted.mock.calls[0][0] as MouseEvent;
+    expect(event.bubbles).toBe(true);
+    expect([event.clientX, event.clientY]).toEqual([120, 340]);
+
+    delete (document as unknown as { elementFromPoint?: unknown })
+      .elementFromPoint;
+    beneath.remove();
+  });
+
+  it.each([
+    ["the point is over nothing", () => null],
+    ["the environment has no elementFromPoint", undefined],
+  ])("re-aims nothing when %s", async (_label, impl) => {
+    // Two ways the lookup yields nothing, and a re-dispatch onto either
+    // would throw inside a `requestAnimationFrame`, where nothing catches
+    // it. The second is not hypothetical — it is jsdom, which implements
+    // no hit testing at all, so every other test in this file runs in an
+    // environment where the optional call is the only thing standing
+    // between the component and a TypeError.
+    const doc = document as unknown as { elementFromPoint?: unknown };
+    if (impl) doc.elementFromPoint = impl;
+    else delete doc.elementFromPoint;
+
+    const onDismiss = vi.fn();
+    render(<DismissScrim onDismiss={onDismiss} retargetOnContextMenu />);
+    fireEvent.contextMenu(openScrim(), { clientX: 1, clientY: 1 });
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+
+    // The throw would land in the frame, not in the call above, so the
+    // assertion has to outlive it.
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    delete doc.elementFromPoint;
   });
 
   it("marks itself so a popup's dismissal surface is findable", () => {

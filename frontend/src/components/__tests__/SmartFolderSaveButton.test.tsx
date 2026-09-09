@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import type { SmartFolder } from "@/types/smartFolder";
 import { SmartFolderSaveButton } from "../SmartFolderSaveButton";
+import { ShortcutsProvider } from "../ShortcutsProvider";
 
 // Mock router
 const routerReplace = vi.fn();
@@ -190,6 +191,37 @@ describe("SmartFolderSaveButton", () => {
     expect(screen.getByText("Update")).toBeInTheDocument();
     expect(screen.getByText("Rename")).toBeInTheDocument();
     expect(screen.getByText("Delete")).toBeInTheDocument();
+  });
+
+  it("closes its menu on Escape and returns focus to the trigger", () => {
+    // The scrim is a pointer gesture, so without an Escape path a
+    // keyboard user who opens this menu cannot back out of it — and
+    // `docs/user-guide/overview.md` tells them it works. Measured before
+    // it was wired: the menu stayed open.
+    //
+    // Pressed with focus on the trigger rather than at `document`: a
+    // press with no `HTMLElement` target reads as "not editing" to the
+    // provider, so it would pass even with `editingOnly: false` removed.
+    mockSmartFolders = [SAMPLE];
+    render(
+      <ShortcutsProvider>
+        <SmartFolderSaveButton
+          drive="main"
+          query="foo"
+          typeFilter="video"
+          smartFolderId="sf1"
+        />
+      </ShortcutsProvider>,
+    );
+    const trigger = screen.getByText(/Saved: My Folder/).closest("button")!;
+    fireEvent.click(trigger);
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
   });
 
   it("calls update with current query when 'update' is confirmed", async () => {
