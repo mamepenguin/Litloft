@@ -7,6 +7,8 @@ import { useOptimisticFileToggle } from "@/hooks/useOptimisticFileToggle";
 import { toggleFavorite } from "@/lib/api";
 import type { FileItem } from "@/types";
 
+import { ROW_ACTION_FLOOR } from "./rowFurniture";
+
 export function FavoriteButton({
   fileId,
   isFavorite,
@@ -14,6 +16,7 @@ export function FavoriteButton({
   size = "sm",
   showLabel = false,
   entityName,
+  rowAction = false,
 }: {
   fileId: string;
   isFavorite: boolean;
@@ -26,6 +29,15 @@ export function FavoriteButton({
    * favorites" tells a screen reader nothing about which row it is on.
    */
   entityName?: string;
+  /**
+   * This star is one of a list row's repeated trailing controls, so it
+   * takes §Row Actions' 44px touch floor on a coarse pointer alongside the
+   * `⋮` beside it. Off elsewhere: on a card the star is alone on a
+   * thumbnail with nothing next to it to disagree with, and on the detail
+   * page the row it sits in reaches the floor through
+   * `.file-action-row-touch`.
+   */
+  rowAction?: boolean;
 }) {
   const t = useTranslations("favorite");
   const { current, iconRef, toggle } = useOptimisticFileToggle({
@@ -43,7 +55,7 @@ export function FavoriteButton({
         showLabel
           ? "rounded-full bg-bg-card px-3 py-1.5 text-sm"
           : "rounded-lg p-1.5"
-      } ${
+      } ${rowAction ? `justify-center ${ROW_ACTION_FLOOR}` : ""} ${
         current
           ? "text-accent-teal"
           : "text-text-muted/50 hover:text-accent-teal"
@@ -65,9 +77,7 @@ export function FavoriteButton({
         fill={current ? "currentColor" : "none"}
         strokeWidth={current ? 0 : 2}
       />
-      {showLabel && (
-        <span>{current ? t("added") : t("label")}</span>
-      )}
+      {showLabel && <span>{current ? t("added") : t("label")}</span>}
     </button>
   );
 }

@@ -4,6 +4,11 @@ import { useTranslations } from "next-intl";
 import { RENAME_FOCUS_ATTR } from "@/hooks/useInlineRename";
 import type { Folder as FolderType } from "@/types";
 import { InlineNameEditor } from "./InlineNameEditor";
+import {
+  ROW_FURNITURE_GROUP,
+  ROW_FURNITURE_PADDING,
+  ROW_OVERFLOW_BUTTON,
+} from "./rowFurniture";
 
 /**
  * A folder as one row of the list view, beside `FileListRow`.
@@ -89,7 +94,7 @@ export function FolderListRow({
 
   return (
     <div
-      className={`group flex items-center gap-3 border-b border-bg-border bg-bg-card p-2.5 transition-colors last:border-b-0 hover:bg-bg-elevated sm:p-2${
+      className={`group flex items-center gap-3 border-b border-bg-border bg-bg-card p-2.5 transition-colors last:border-b-0 hover:bg-bg-elevated sm:p-2${onContextMenu ? ` ${ROW_FURNITURE_PADDING}` : ""}${
         isDropTarget ? " bg-bg-elevated ring-2 ring-accent ring-inset" : ""
       }${isDragging ? " opacity-40" : ""}${dragEnabled ? " select-none" : ""}`}
       draggable={dragEnabled}
@@ -139,7 +144,13 @@ export function FolderListRow({
           </div>
         </Link>
       )}
-      {/* The same reason `FileListRow` has one: right-click and long-press
+      {/* The same trailing group `FileListRow` draws, holding one control
+          instead of two. A group either way: these rows and the file rows
+          are the same column on the same screen, so a trailing edge that
+          moved in one and not the other would leave two `⋮` columns
+          that do not line up (`rowFurniture.ts`).
+
+          The same reason `FileListRow` has one: right-click and long-press
           are the only other ways in, and a keyboard has neither. Without
           it a column of rows shows a `⋮` on every file and none on the
           folders, which reads as the folder being a different kind of
@@ -152,34 +163,36 @@ export function FolderListRow({
           (hako `Prwd_iaXmCjWfY24KjFz2`), and 44px where the pointer is a
           finger (`00-basis.md`). */}
       {onContextMenu && (
-        <button
-          type="button"
-          aria-label={tFile("actionsFor", { name: folder.name })}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // Enter and Space on a button produce a click with no pointer,
-            // so `clientX/clientY` are 0 and the menu opens clamped to the
-            // top-left of the window — rows away from the one it belongs
-            // to. Anchor it to the button, which is where a pointer click
-            // would have put it anyway.
-            if (e.clientX === 0 && e.clientY === 0) {
-              const box = e.currentTarget.getBoundingClientRect();
-              onContextMenu({
-                ...e,
-                preventDefault: () => {},
-                stopPropagation: () => {},
-                clientX: box.left,
-                clientY: box.bottom,
-              } as unknown as React.MouseEvent);
-              return;
-            }
-            onContextMenu(e);
-          }}
-          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11 pointer-coarse:opacity-100"
-        >
-          <MoreVertical size={16} />
-        </button>
+        <div className={ROW_FURNITURE_GROUP}>
+          <button
+            type="button"
+            aria-label={tFile("actionsFor", { name: folder.name })}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              // Enter and Space on a button produce a click with no pointer,
+              // so `clientX/clientY` are 0 and the menu opens clamped to the
+              // top-left of the window — rows away from the one it belongs
+              // to. Anchor it to the button, which is where a pointer click
+              // would have put it anyway.
+              if (e.clientX === 0 && e.clientY === 0) {
+                const box = e.currentTarget.getBoundingClientRect();
+                onContextMenu({
+                  ...e,
+                  preventDefault: () => {},
+                  stopPropagation: () => {},
+                  clientX: box.left,
+                  clientY: box.bottom,
+                } as unknown as React.MouseEvent);
+                return;
+              }
+              onContextMenu(e);
+            }}
+            className={ROW_OVERFLOW_BUTTON}
+          >
+            <MoreVertical size={16} />
+          </button>
+        </div>
       )}
     </div>
   );

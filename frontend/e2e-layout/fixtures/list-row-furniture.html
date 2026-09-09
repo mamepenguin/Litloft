@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>list row furniture — layout fixture</title>
+    <!--
+      The compiled globals.css, built by ../build-fixture-css.ts. No
+      <style> of its own, like the other fixtures: every declaration
+      measured here has to have come out of the app's own stylesheet, or
+      the measurement is a test of this page.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The rows `FileListRow` and `FolderListRow` draw, written out as the
+      element, the exact class list and the descendant tree.
+
+      The class lists are the geometry here. What the name gets is what is
+      left of the row after its own padding, the `w-24` thumbnail, the
+      `gap-3` in front of the name, and the trailing controls with
+      whatever the row draws between and after them — drop any one of
+      those from this table and the fixture measures a row this app does
+      not have. `listRowFurnitureFixtureParity.test.tsx` renders the real
+      components in each state and fails if this table and they come
+      apart in either direction.
+
+      Five shapes, and only four of them have a component behind them:
+
+      - `file` — both trailing controls, the state a folder listing draws.
+      - `fileNoStar` — the overflow alone, which is what the collection
+        detail and the right-hand pane render (no `onFavoriteToggle`).
+      - `selectable` — selection mode: no trailing controls at all, and
+        therefore a row that keeps its trailing padding. It is the state
+        that would regress if the padding were dropped unconditionally.
+      - `folder` — `FolderListRow`, drawn into the *same column* as the
+        file rows on the same screen. Its trailing edge has to move with
+        theirs or the two `⋮` columns stop lining up.
+      - `separated` — **the counterfactual, with no component behind it.**
+        It is the file row exactly as it was drawn before this change:
+        star and overflow as direct children of the row with the row's
+        own `gap-3` between them, the star at its fine-pointer box, and
+        the row keeping its trailing padding. It is here so that what the
+        change buys the name is a measurement rather than a sentence, and
+        the parity test names it as the one shape it does not compare —
+        nothing renders it, so nothing can be compared against.
+
+      `text` is the leaf's text content, not markup: the parity test
+      ignores it. Dates and type labels are locale output and move no box
+      the spec asserts on — the name is passed in by the caller for the
+      reason the related-files fixture gives, so that a character or a
+      width reported here is about a name the caller chose.
+
+      The lucide `<svg>` children are a deliberate stop: their `d` is the
+      icon's business and moves no box.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "file": {
+          "tag": "div",
+          "class": "group flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 pointer-coarse:pr-0 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated",
+          "children": [
+            {
+              "tag": "a",
+              "class": "flex flex-1 items-center gap-3 min-w-0",
+              "attrs": {
+                "href": "*"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24",
+                  "children": [
+                    {
+                      "tag": "img",
+                      "class": "h-full w-full object-cover",
+                      "attrs": {
+                        "alt": "Title",
+                        "loading": "lazy",
+                        "src": "*"
+                      }
+                    },
+                    {
+                      "tag": "span",
+                      "class": "absolute bottom-0.5 right-0.5 rounded-lg bg-black/70 px-1 py-0.5 text-[10px] text-white",
+                      "children": [],
+                      "text": "1:00"
+                    }
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "class": "min-w-0 max-w-list-row flex-1",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "flex items-center gap-2",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary",
+                          "children": [],
+                          "text": "Title"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "div",
+                      "class": "mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0",
+                          "children": [],
+                          "text": "Video"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0 sm:hidden",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "class": "flex flex-shrink-0 items-center pointer-coarse:-ml-3",
+              "children": [
+                {
+                  "tag": "button",
+                  "class": "flex items-center gap-1.5 transition-colors rounded-lg p-1.5 justify-center pointer-coarse:h-11 pointer-coarse:w-11 text-text-muted/50 hover:text-accent-teal",
+                  "attrs": {
+                    "aria-label": "*"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-star",
+                      "attrs": {
+                        "width": "16",
+                        "height": "16"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "tag": "button",
+                  "class": "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11",
+                  "attrs": {
+                    "type": "button",
+                    "aria-label": "*"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-ellipsis-vertical",
+                      "attrs": {
+                        "width": "16",
+                        "height": "16"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "fileNoStar": {
+          "tag": "div",
+          "class": "group flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 pointer-coarse:pr-0 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated",
+          "children": [
+            {
+              "tag": "a",
+              "class": "flex flex-1 items-center gap-3 min-w-0",
+              "attrs": {
+                "href": "*"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24",
+                  "children": [
+                    {
+                      "tag": "img",
+                      "class": "h-full w-full object-cover",
+                      "attrs": {
+                        "alt": "Title",
+                        "loading": "lazy",
+                        "src": "*"
+                      }
+                    },
+                    {
+                      "tag": "span",
+                      "class": "absolute bottom-0.5 right-0.5 rounded-lg bg-black/70 px-1 py-0.5 text-[10px] text-white",
+                      "children": [],
+                      "text": "1:00"
+                    }
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "class": "min-w-0 max-w-list-row flex-1",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "flex items-center gap-2",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary",
+                          "children": [],
+                          "text": "Title"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "div",
+                      "class": "mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0",
+                          "children": [],
+                          "text": "Video"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0 sm:hidden",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "class": "flex flex-shrink-0 items-center pointer-coarse:-ml-3",
+              "children": [
+                {
+                  "tag": "button",
+                  "class": "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11",
+                  "attrs": {
+                    "type": "button",
+                    "aria-label": "*"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-ellipsis-vertical",
+                      "attrs": {
+                        "width": "16",
+                        "height": "16"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "selectable": {
+          "tag": "div",
+          "class": "group flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated cursor-pointer select-none",
+          "children": [
+            {
+              "tag": "div",
+              "class": "flex flex-1 cursor-pointer items-center gap-3 min-w-0",
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-colors pointer-events-none border-text-muted/50",
+                  "attrs": {
+                    "aria-hidden": "true"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "div",
+                  "class": "flex flex-1 items-center gap-3 min-w-0",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24",
+                      "children": [
+                        {
+                          "tag": "img",
+                          "class": "h-full w-full object-cover",
+                          "attrs": {
+                            "alt": "Title",
+                            "loading": "lazy",
+                            "src": "*"
+                          }
+                        },
+                        {
+                          "tag": "span",
+                          "class": "absolute bottom-0.5 right-0.5 rounded-lg bg-black/70 px-1 py-0.5 text-[10px] text-white",
+                          "children": [],
+                          "text": "1:00"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "div",
+                      "class": "min-w-0 max-w-list-row flex-1",
+                      "children": [
+                        {
+                          "tag": "div",
+                          "class": "flex items-center gap-2",
+                          "children": [
+                            {
+                              "tag": "span",
+                              "class": "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary",
+                              "children": [],
+                              "text": "Title"
+                            },
+                            {
+                              "tag": "span",
+                              "class": "hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline",
+                              "children": [],
+                              "text": "09/01"
+                            }
+                          ]
+                        },
+                        {
+                          "tag": "div",
+                          "class": "mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted",
+                          "children": [
+                            {
+                              "tag": "span",
+                              "class": "flex-shrink-0",
+                              "children": [],
+                              "text": "Video"
+                            },
+                            {
+                              "tag": "span",
+                              "class": "flex-shrink-0 sm:hidden",
+                              "children": [],
+                              "text": "09/01"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "folder": {
+          "tag": "div",
+          "class": "group flex items-center gap-3 border-b border-bg-border bg-bg-card p-2.5 transition-colors last:border-b-0 hover:bg-bg-elevated sm:p-2 pointer-coarse:pr-0",
+          "children": [
+            {
+              "tag": "a",
+              "class": "flex min-w-0 flex-1 items-center gap-3",
+              "attrs": {
+                "href": "*",
+                "draggable": "false",
+                "data-rename-focus": "*"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "flex h-14 w-24 flex-shrink-0 items-center justify-center rounded-lg bg-bg-elevated",
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-folder text-text-muted",
+                      "attrs": {
+                        "width": "22",
+                        "height": "22"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "class": "flex min-w-0 max-w-list-row flex-1 items-center gap-2",
+                  "children": [
+                    {
+                      "tag": "span",
+                      "class": "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary",
+                      "children": [],
+                      "text": "Folder"
+                    },
+                    {
+                      "tag": "span",
+                      "class": "flex-shrink-0 text-xs tabular-nums text-text-muted",
+                      "children": [],
+                      "text": "3 items"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "div",
+              "class": "flex flex-shrink-0 items-center pointer-coarse:-ml-3",
+              "children": [
+                {
+                  "tag": "button",
+                  "class": "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11",
+                  "attrs": {
+                    "type": "button",
+                    "aria-label": "*"
+                  },
+                  "children": [
+                    {
+                      "tag": "svg",
+                      "class": "lucide lucide-ellipsis-vertical",
+                      "attrs": {
+                        "width": "16",
+                        "height": "16"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "separated": {
+          "tag": "div",
+          "class": "group flex items-center gap-3 bg-bg-card p-2.5 sm:p-2 border-b border-bg-border last:border-b-0 transition-colors hover:bg-bg-elevated",
+          "children": [
+            {
+              "tag": "a",
+              "class": "flex flex-1 items-center gap-3 min-w-0",
+              "attrs": {
+                "href": "*"
+              },
+              "children": [
+                {
+                  "tag": "div",
+                  "class": "relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24",
+                  "children": [
+                    {
+                      "tag": "img",
+                      "class": "h-full w-full object-cover",
+                      "attrs": {
+                        "alt": "Title",
+                        "loading": "lazy",
+                        "src": "*"
+                      }
+                    },
+                    {
+                      "tag": "span",
+                      "class": "absolute bottom-0.5 right-0.5 rounded-lg bg-black/70 px-1 py-0.5 text-[10px] text-white",
+                      "children": [],
+                      "text": "1:00"
+                    }
+                  ]
+                },
+                {
+                  "tag": "div",
+                  "class": "min-w-0 max-w-list-row flex-1",
+                  "children": [
+                    {
+                      "tag": "div",
+                      "class": "flex items-center gap-2",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary",
+                          "children": [],
+                          "text": "Title"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    },
+                    {
+                      "tag": "div",
+                      "class": "mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted",
+                      "children": [
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0",
+                          "children": [],
+                          "text": "Video"
+                        },
+                        {
+                          "tag": "span",
+                          "class": "flex-shrink-0 sm:hidden",
+                          "children": [],
+                          "text": "09/01"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "tag": "button",
+              "class": "flex items-center gap-1.5 transition-colors rounded-lg p-1.5 text-text-muted/50 hover:text-accent-teal",
+              "attrs": {
+                "aria-label": "*"
+              },
+              "children": [
+                {
+                  "tag": "svg",
+                  "class": "lucide lucide-star",
+                  "attrs": {
+                    "width": "16",
+                    "height": "16"
+                  }
+                }
+              ]
+            },
+            {
+              "tag": "button",
+              "class": "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg text-text-muted opacity-0 transition-opacity hover:bg-bg-elevated hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11",
+              "attrs": {
+                "type": "button",
+                "aria-label": "*"
+              },
+              "children": [
+                {
+                  "tag": "svg",
+                  "class": "lucide lucide-ellipsis-vertical",
+                  "attrs": {
+                    "width": "16",
+                    "height": "16"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }    </script>
+
+    <div id="frame"></div>
+
+    <script>
+      // A 1x1 transparent GIF. The thumbnail box is `h-14 w-24` and the
+      // picture is `object-fit: cover` inside it, so the image's own size
+      // moves nothing — and a data URI needs no network, which is what
+      // lets this page run off file://.
+      const PIXEL =
+        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+      const SHAPES = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      const NS = "http://www.w3.org/2000/svg";
+
+      const build = (spec) => {
+        const el =
+          spec.tag === "svg"
+            ? document.createElementNS(NS, spec.tag)
+            : document.createElement(spec.tag);
+        el.setAttribute("class", spec.class);
+        if (spec.tag === "img") el.src = PIXEL;
+        if (spec.tag === "a") el.href = "#";
+        for (const [name, value] of Object.entries(spec.attrs ?? {})) {
+          // `"*"` is "present, value not pinned" in the table, and the
+          // parity test reads it that way. Here the attribute still has
+          // to exist: the measurement finds each trailing control by
+          // `button[aria-label]`, the way a finger's target is
+          // identified everywhere else in this repository, so an
+          // attribute skipped rather than filled would leave the
+          // controls invisible to it and every case reading `undefined`.
+          el.setAttribute(name, value === "*" ? name : value);
+        }
+        if (spec.text !== undefined) el.textContent = spec.text;
+        for (const child of spec.children ?? []) el.append(build(child));
+        return el;
+      };
+
+      /**
+       * One row of the named shape, built from the table above and
+       * nothing else, with the name span filled in.
+       *
+       * The name is passed rather than baked here: a fixture that chose
+       * its own filename would report a width about a name the library
+       * does not hold.
+       */
+      const buildRow = (shape, name) => {
+        const spec = SHAPES[shape];
+        if (!spec) throw new Error(`no such row shape: ${shape}`);
+        const row = build(spec);
+        row.querySelector("span.truncate").textContent = name;
+        row.dataset.shape = shape;
+        return row;
+      };
+
+      /**
+       * The list column at a chosen width, in a viewport that could hold
+       * it.
+       *
+       * The viewport is sized to the frame rather than left at the
+       * runner's default, for the reason the justified fixture gives: a
+       * rule keyed to `@media` is invisible to a suite that lays a 343px
+       * column out in a 1280px window — and `sm:p-2`, one of the two
+       * declarations whose interaction this fixture exists to measure, is
+       * exactly that rule.
+       *
+       * `flex flex-col` is `FileList`'s own wrapper, and the rows are
+       * `display: flex` items in it at the column's full width, which is
+       * how the app stacks them.
+       */
+      window.buildListColumn = ({ width, shapes, name }) => {
+        const frame = document.getElementById("frame");
+        frame.style.width = `${width}px`;
+        frame.replaceChildren();
+
+        const column = document.createElement("div");
+        column.className = "flex flex-col";
+        for (const shape of shapes) column.append(buildRow(shape, name));
+        frame.append(column);
+      };
+
+      const box = (el) => {
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return {
+          top: r.top,
+          bottom: r.bottom,
+          left: r.left,
+          right: r.right,
+          width: r.width,
+          height: r.height,
+        };
+      };
+
+      /**
+       * Every row's realized boxes: the row itself, its click target, the
+       * thumbnail, the name, and each trailing control in the order the
+       * row draws them.
+       *
+       * The controls are found by their `aria-label`, which is how a
+       * finger's target is identified everywhere else in this repository,
+       * rather than by position among the row's children — the whole
+       * point of the change is that their position among the children
+       * moved.
+       */
+      window.measureRows = () => {
+        const rows = [...document.querySelectorAll("#frame [data-shape]")];
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          coarse: window.matchMedia("(pointer: coarse)").matches,
+          rows: rows.map((row) => {
+            const controls = [...row.querySelectorAll("button[aria-label]")];
+            return {
+              shape: row.dataset.shape,
+              row: box(row),
+              // The row's first child, which is its click target in every
+              // shape: an `<a>`, or the selection-mode `<div>` that owns
+              // the checkbox. Taken by position rather than by tag so the
+              // two are one measurement.
+              link: box(row.firstElementChild),
+              thumb: box(row.querySelector(".w-24")),
+              name: box(row.querySelector("span.truncate")),
+              // Whether the name column ran out before the name did. A
+              // column wider than the string would report the same
+              // number at every width and say nothing about any of them.
+              nameTruncated: (() => {
+                const el = row.querySelector("span.truncate");
+                return el.scrollWidth > el.clientWidth;
+              })(),
+              controls: controls.map((c) => ({
+                label: c.getAttribute("aria-label"),
+                box: box(c),
+              })),
+            };
+          }),
+        };
+      };
+    </script>
+  </body>
+</html>

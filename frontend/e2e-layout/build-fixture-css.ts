@@ -141,6 +141,27 @@ const REQUIRED = [
   ".top-0 {",
   ".bg-bg-card {",
   ".overflow-x-auto {",
+  // `list-row-furniture.spec.ts` measures touch targets and a name column
+  // under `@media (pointer: coarse)`. Every one of these is a *coarse-only*
+  // declaration, which is the kind a missing sheet hides best: without them
+  // the fixture lays out the fine-pointer row at every viewport, reports
+  // 28px and 24px controls, and the cases asserting the floor fail naming
+  // a box rather than the sheet.
+  //
+  // Written with the brace for the reason the two above are: the test is
+  // `includes` over the whole sheet, and `.pointer-coarse\\:w-11` is
+  // satisfied by nothing else here, but `.pointer-coarse\\:pr-0` would be
+  // satisfied by a hypothetical `pr-0.5`. A needle that cannot be absent
+  // asserts nothing.
+  ".pointer-coarse\\:h-11 {",
+  ".pointer-coarse\\:w-11 {",
+  ".pointer-coarse\\:pr-0 {",
+  ".pointer-coarse\\:-ml-3 {",
+  // The row's own spacing, which is what the coarse rules above cancel.
+  // Without them there is nothing to cancel and the two layouts the spec
+  // compares are the same layout.
+  ".gap-3 {",
+  ".p-2\\.5 {",
 ];
 
 /**
