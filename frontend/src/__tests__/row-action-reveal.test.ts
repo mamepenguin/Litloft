@@ -94,7 +94,16 @@ function allSources(): Array<{ rel: string; body: string }> {
         if (entry.name === "__tests__") continue;
         if (!existsSync(full)) continue;
         if (statSync(full).isDirectory()) walk(full);
-        else if (/\.tsx$/.test(entry.name) && !/\.test\.tsx$/.test(entry.name) && full !== SELF) {
+        // `.ts` as well as `.tsx`. A class list does not need JSX around
+        // it: this tree keeps the list row's shared recipe in
+        // `components/rowFurniture.ts`, and a scan of components only
+        // would have watched the two rows that import it lose their
+        // reveal and report nothing about where it went.
+        else if (
+          /\.tsx?$/.test(entry.name) &&
+          !/\.test\.tsx?$/.test(entry.name) &&
+          full !== SELF
+        ) {
           const rel =
             label === "frontend/src"
               ? `frontend/src/${relative(SRC, full)}`
@@ -139,12 +148,20 @@ const FOCUS_AND_TOUCH_EXEMPT = [
   "frontend/src/components/sidebar/ItemDragHandle.tsx",
 ];
 
-/** Reveals still keyed on an unnamed `group`. Shrinks, never grows. */
+/**
+ * Reveals still keyed on an unnamed `group`. Shrinks, never grows.
+ *
+ * `rowFurniture.ts` is where `FileListRow` and `FolderListRow` both used
+ * to be: they wrote the same overflow trigger twice, and it is now one
+ * recipe they import. Still unnamed, for the reason the others are —
+ * naming the group means touching the row's class as well as the
+ * action's — but the two rows have to be named together when it happens,
+ * because they now share the string.
+ */
 const UNNAMED_GROUPS = [
   "frontend/src/components/FileCard.tsx",
-  "frontend/src/components/FileListRow.tsx",
-  "frontend/src/components/FolderListRow.tsx",
   "frontend/src/components/JustifiedFileCell.tsx",
+  "frontend/src/components/rowFurniture.ts",
   "frontend/src/components/sidebar/ItemDragHandle.tsx",
   "frontend/src/components/sidebar/SectionDragHandle.tsx",
 ];
@@ -156,8 +173,10 @@ describe("a row action revealed by hover is revealed by focus too", () => {
     // Exact. A lower bound would let the scan silently stop matching —
     // and "all of them are fine" is true of an empty list. Four are the
     // trash and missing surfaces this rule was written for, one reveal
-    // each; the other nine already had some form of it.
-    expect(reveals.length).toBe(13);
+    // each; the other eight already had some form of it. It was thirteen
+    // until the two list rows stopped writing the same overflow trigger
+    // twice and started importing it from `rowFurniture.ts`.
+    expect(reveals.length).toBe(12);
     for (const named of [
       "frontend/src/components/trash/TrashFileGrid.tsx",
       "frontend/src/components/trash/TrashFileList.tsx",

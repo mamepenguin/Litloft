@@ -717,11 +717,12 @@ describe("An outside press", () => {
     // `review-workflow.md` rule 1 names that spelling directly.
     //
     // The cost is that adding or deleting any source file under
-    // `frontend/src` edits this number. That is the intended price: it is
-    // one line, and the alternative is a guard that reads as a floor and
-    // functions as nothing.
+    // `frontend/src` edits this number — it went 409 to 410 when unit G
+    // merged into this branch. That is the intended price: it is one line,
+    // and the alternative is a guard that reads as a floor and functions
+    // as nothing.
     expect(relative(REPO_ROOT, CORE_ROOT)).toBe("frontend/src");
-    expect(sourceFiles(CORE_ROOT).length).toBe(409);
+    expect(sourceFiles(CORE_ROOT).length).toBe(410);
   });
 
   it.each([
