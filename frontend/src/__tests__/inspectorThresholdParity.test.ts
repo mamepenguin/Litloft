@@ -4,7 +4,12 @@ import { resolve, dirname } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { SHEET_PEEK_PX } from "@/components/MobileInspectorSheet";
+import {
+  SHEET_PEEK_PX,
+  SHEET_SNAP_FULL,
+  SHEET_SNAP_HALF,
+  SHEET_VISIBLE_HEIGHT,
+} from "@/components/MobileInspectorSheet";
 import {
   CANVAS_PADDING_REM,
   COLUMN_REM,
@@ -120,13 +125,113 @@ describe("§8.5 widths", () => {
 });
 
 describe("§Layering sheet states", () => {
+  const design = () => readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
+
   it("documents the resting height the sheet actually uses", () => {
     // Same rule as the §8.5 widths: a number in the design table and a
     // constant in the code, with nothing between them, is the drift the
     // parity suite exists to make unrepresentable.
-    const design = readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
-    const row = design.match(/\|\s*peek\s*\|\s*`(\d+)px`\s*\|/);
+    const row = design().match(/\|\s*peek\s*\|\s*`(\d+)px`\s*\|/);
     expect(row).not.toBeNull();
     expect(Number(row![1])).toBe(SHEET_PEEK_PX);
+  });
+
+  it("documents the expression that puts the sheet's end on the screen", () => {
+    // The one that is not a number. §Layering states the box between the
+    // drawer and the scroller as an expression, precisely so nobody
+    // writes the snap into the CSS a second time — and a document quoting
+    // an expression the code no longer uses is worse than one quoting
+    // none, because a reader would act on it.
+    expect(design()).toContain(`\`${SHEET_VISIBLE_HEIGHT}\``);
+  });
+
+  /**
+   * The Height column, evaluated rather than spot-checked.
+   *
+   * The cell this replaces asserted the *old* wording, negated, plus one
+   * keyword — so any replacement containing the word "scrolling" passed,
+   * including "the whole window … all at once, with no scrolling
+   * needed", which is the claim this unit exists to retract. Detector
+   * rule 4: a sentence saying "the table is true of the code" is
+   * unverified until the table being false breaks something.
+   *
+   * So each row states its own arithmetic — `90vh` less `vh × (1 − s)`
+   * = the remainder — and this reads all three numbers back out and
+   * checks them against the snap constants and the drawer's own class
+   * list. A cell that is not that subtraction does not parse; a cell
+   * with the wrong snap, the wrong drawer height or a remainder that
+   * does not follow from them is red.
+   *
+   * **The third column is prose and nothing here enforces it.** There is
+   * no code-derived fact that says whether the tab strip is on screen at
+   * a given snap — it depends on the header's height, which is a
+   * property of the file being looked at. `DESIGN.md` says so too.
+   */
+  const heightCell = (state: string): string => {
+    const row = design().match(
+      new RegExp(`\\|\\s*${state}\\s*\\|([^|]*)\\|`),
+    );
+    expect({ state, found: row !== null }).toEqual({ state, found: true });
+    return row![1];
+  };
+
+  /** The `90vh` the drawer is actually rendered at, read off the component. */
+  const drawerVh = (): number => {
+    const source = readFileSync(
+      resolve(REPO_ROOT, "frontend/src/components/MobileInspectorSheet.tsx"),
+      "utf-8",
+    );
+    const match = source.match(/className="fixed bottom-0[^"]*\sh-\[(\d+)vh\]/);
+    expect(match).not.toBeNull();
+    return Number(match![1]);
+  };
+
+  // Both snaps, declared. One row would leave the other's arithmetic
+  // unread, and the two differ only in the number that is easiest to
+  // copy from the wrong place.
+  const ROWS = [
+    { state: "half", snap: SHEET_SNAP_HALF },
+    { state: "full", snap: SHEET_SNAP_FULL },
+  ];
+  expect(ROWS).toHaveLength(2);
+
+  for (const { state, snap } of ROWS) {
+    it(`states ${state}'s height as the subtraction the code performs`, () => {
+      const cell = heightCell(state);
+      const parsed = cell.match(
+        /`(\d+)vh`\s*less\s*`vh × \(1 − ([\d.]+)\)`\s*=\s*\*\*(\d+)vh\*\*/,
+      );
+      expect({ state, cell, parsed: parsed !== null }).toEqual({
+        state,
+        cell,
+        parsed: true,
+      });
+
+      const [documentedDrawer, documentedSnap, documentedVisible] = [
+        Number(parsed![1]),
+        Number(parsed![2]),
+        Number(parsed![3]),
+      ];
+
+      // The drawer's height is the component's, not a figure typed here.
+      expect(documentedDrawer).toBe(drawerVh());
+      // The snap is the constant vaul is handed.
+      expect(documentedSnap).toBe(snap);
+      // And the remainder follows from the two, rather than being a
+      // third independent number. `90 − 50 = 40` is the whole of the
+      // correction this row needed: the old cell said 50.
+      expect(documentedVisible).toBe(
+        documentedDrawer - Math.round((1 - snap) * 100),
+      );
+    });
+  }
+
+  it("says out loud that the snap is not the height", () => {
+    // The sentence under the table is what stops the next reader
+    // re-deriving `half = 50vh` from the snap name. It is prose, so this
+    // pins its claim rather than its wording: the drawer's height, and
+    // the fact that it is the same at both snaps.
+    const design_ = design();
+    expect(design_).toContain(`The drawer is \`h-[${drawerVh()}vh]\` at both states`);
   });
 });

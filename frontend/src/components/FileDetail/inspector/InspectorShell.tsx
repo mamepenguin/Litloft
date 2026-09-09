@@ -5,6 +5,22 @@ import { useTranslations } from "next-intl";
 
 import { listedTabs, showsTabStrip, type InspectorTab } from "./tabs";
 
+/**
+ * Which box in the inspector scrolls.
+ *
+ * `panel` keeps the header and the strip still and scrolls the selected
+ * panel under them. `column` makes the whole inspector one column: the
+ * header scrolls away with everything else and the strip is sticky, so
+ * the inspector adds no scroller of its own and whatever encloses it is
+ * the only one.
+ *
+ * A mode rather than a viewport query, because the two surfaces already
+ * know which they are and this component does not: the desktop pane is
+ * a 384px column beside a tall canvas, and the sheet is a drawer whose
+ * own box is the scroller.
+ */
+export type InspectorScroll = "panel" | "column";
+
 interface InspectorShellProps {
   /**
    * The part that does not move: title, length and size, state chip,
@@ -15,16 +31,33 @@ interface InspectorShellProps {
   tabs: InspectorTab[];
   /** Resets the selected tab when the file changes under a reused mount. */
   resetKey?: string;
+  /** See `InspectorScroll`. Defaults to the pinned-header form. */
+  scroll?: InspectorScroll;
 }
 
 /**
- * The inspector, in two tiers.
+ * The inspector, in two tiers or in one column.
  *
- * The header stays put and only the tab region scrolls. That is the
- * whole reason for the split: the per-file actions — like, favourite,
- * the AI menu, the overflow — were previously somewhere in a long
- * column, so reaching them meant finding them first. Anchored, they are
- * in the same place for every file, whatever is below them.
+ * In `panel` mode the header stays put and only the tab region scrolls.
+ * The per-file actions — like, favourite, the AI menu, the overflow —
+ * were previously somewhere in a long column, so reaching them meant
+ * finding them first; anchored, they are in the same place for every
+ * file, whatever is below them.
+ *
+ * In `column` mode the header scrolls away with everything else and the
+ * enclosing box does all the scrolling, leaving only the tab strip
+ * pinned — sticky against that box, so a tab can still be switched
+ * however far the reader has scrolled.
+ *
+ * **The actions go with it.** While the sheet is up, the resting strip
+ * is not drawn at all — the sheet renders the strip *or* the drawer,
+ * never both — so the header is the only thing carrying the file's name
+ * and its action row, and reaching them means scrolling back to the top
+ * of the column. What the strip buys is the state the sheet spends most
+ * of its time in: down, where the name and the actions are on screen
+ * without opening anything. Trading the pinned header for the height it
+ * takes is the user's confirmed decision (2026-09-09), not something
+ * this arrangement gets for free.
  *
  * With a single tab there is no strip: see `tabs.ts` for why, and for
  * why nothing in this file knows what an addon is called.
@@ -33,6 +66,7 @@ export function InspectorShell({
   header,
   tabs,
   resetKey,
+  scroll = "panel",
 }: InspectorShellProps) {
   const t = useTranslations("inspector");
   // Only a listed tab can be selected. An unlisted one is mounted so it
@@ -83,9 +117,21 @@ export function InspectorShell({
     [listed, active?.id],
   );
 
+  const column = scroll === "column";
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 px-4 pt-4 pb-3">{header}</div>
+    <div
+      data-testid="inspector-shell"
+      data-scroll={scroll}
+      // `h-full min-h-0` is what makes the panel below a bounded box, so
+      // it is exactly what a one-column inspector must not have: with a
+      // height to fill, the panel scrolls inside the enclosing scroller
+      // instead of extending it.
+      className={column ? "flex flex-col" : "flex h-full min-h-0 flex-col"}
+    >
+      <div className={column ? "px-4 pt-4 pb-3" : "shrink-0 px-4 pt-4 pb-3"}>
+        {header}
+      </div>
 
       {strip && (
         <div
@@ -101,7 +147,14 @@ export function InspectorShell({
           // (`DESIGN.md` §Row Actions): the strip is a row of controls,
           // and the floor is reached on the row so its members inherit
           // it rather than each growing its own box.
-          className="flex shrink-0 gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11"
+          // `sticky top-0` in column mode resolves against the nearest
+          // scrollport, which is the enclosing box rather than anything
+          // here — the strip stays reachable however far the header has
+          // been scrolled past. It needs a ground of its own or the rows
+          // travelling under it show through.
+          className={`flex gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11 ${
+            column ? "sticky top-0 z-10 bg-bg-card" : "shrink-0"
+          }`}
         >
           {listed.map((tab) => {
             const selected = tab.id === active?.id;
@@ -160,12 +213,19 @@ export function InspectorShell({
               strip && tab.listed ? `inspector-tab-${tab.id}` : undefined
             }
             hidden={!selected}
-            // Focusable because it is the only thing that scrolls and it
-            // may hold nothing focusable — a transcript, a comment list.
-            // Chrome will not let a keyboard-only reader scroll such a
-            // region otherwise.
+            // Focusable because in `panel` mode it is the box that
+            // scrolls and it may hold nothing focusable — a transcript, a
+            // comment list. Chrome will not let a keyboard-only reader
+            // scroll such a region otherwise. Kept in `column` mode too:
+            // the panel is then a plain box, and taking the stop away
+            // would make the reachable set differ between the two
+            // surfaces for no reason a reader could name.
             tabIndex={selected ? 0 : -1}
-            className="min-h-0 flex-1 space-y-4 overflow-auto p-4"
+            className={
+              column
+                ? "space-y-4 p-4"
+                : "min-h-0 flex-1 space-y-4 overflow-auto p-4"
+            }
           >
             {tab.content}
           </div>

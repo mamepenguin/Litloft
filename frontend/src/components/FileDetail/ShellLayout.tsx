@@ -358,10 +358,24 @@ export function ShellLayout({
             entry,
             label: slotEntryLabel(entry, tGlobal),
             available: slotAvailability.isAvailable(entry.id),
-            // The panel is the height budget, so the occupant fills it
-            // and scrolls inside itself. Without the wrapper the flex
+            // What this wrapper does depends on which surface asked.
+            //
+            // In the desktop pane (`buildTabs(false)`) the panel is the
+            // height budget, so this continues the flex chain and the
+            // occupant fills it and scrolls inside itself. Without it the
             // chain stops here and a transcript lays itself out at full
             // length inside a bounded box, which clips it silently.
+            //
+            // In the sheet (`buildTabs(true)`) the panel is
+            // `scroll="column"` and has no height, so `h-full` resolves
+            // to `auto` and this box is inert: the occupant lays out at
+            // its natural length and the sheet's own scroller carries it,
+            // which is the one scroller `column` mode exists to leave.
+            // `fillHeight` stays `true` on both — on this path it tells
+            // the occupant about a budget it does not have, and it is
+            // still the right value, because `false` would give
+            // `TranscriptSection` a `max-h-80` and put a second scroller
+            // back inside the sheet.
             content: (
               <div className="flex h-full min-h-0 flex-col">
                 <SlotEntryRenderer
@@ -380,8 +394,20 @@ export function ShellLayout({
 
   // Only when actually on mobile, so the sections inside mount exactly
   // once across the two surfaces rather than once per surface.
+  //
+  // `scroll="column"` is the sheet's half of the arrangement: the drawer
+  // is the scroller, so the inspector inside it must not be a second one.
+  // The header — the file's name and its action row — scrolls away with
+  // it and is reached by scrolling back, which is the trade the user
+  // confirmed. The resting strip carries the same name and row while the
+  // sheet is *down*; it is not drawn while the sheet is up.
   const mobileSheet = isMobile ? (
-    <InspectorShell header={meta} tabs={buildTabs(true)} resetKey={fileId} />
+    <InspectorShell
+      header={meta}
+      tabs={buildTabs(true)}
+      resetKey={fileId}
+      scroll="column"
+    />
   ) : undefined;
 
   if (usesCanvasViewer) {

@@ -184,8 +184,10 @@ the eleven specs above. It opens a **static page off `file://`** — no app, no
 backend, no drives — carrying the app's own compiled `globals.css`, and measures
 the boxes Chromium produces. There is one fixture and one spec per property:
 `justified-grid` (cell ratios and line filling), `related-files` (the rail's
-tiles), `addon-policy` (a sticky table heading) and `file-actions-menu` (which
-side of a trigger a popup lands on).
+tiles), `addon-policy` (a sticky table heading), `file-actions-menu` (which
+side of a trigger a popup lands on) and `mobile-inspector-sheet` (where the
+Bottom Sheet's drawer, scroller and tab strip land at each snap, and whether the
+end of a tab can be brought on screen).
 
 ```bash
 cd frontend
@@ -197,8 +199,10 @@ ceiling at 57s on a cold cache — 25s of which was the Chromium download. Only
 `bootstrap` and `mcp-server` are cheaper; `frontend` and the two Docker jobs are
 minutes.
 
-**The stable part is the test step: 6-7s in every run so far** (6 at 22 tests,
-7 at 26). Everything else is preamble — checkout, `setup-node`, `pnpm install`, and the apt half of
+**The stable part is the test step: 6-7s in every run so far**, and it has stayed
+there across every size the suite has been — the count is in the job's own output
+and in the PR that changed it, not here, because a figure written down here is
+one nobody re-measures. Everything else is preamble — checkout, `setup-node`, `pnpm install`, and the apt half of
 `playwright install --with-deps`, which runs on a cache hit too — and that is
 where the run-to-run spread lives. It is spread, not one step: between two warm
 runs that differed by 9s, apt carried 5 of them, `setup-node` 2, and six of the

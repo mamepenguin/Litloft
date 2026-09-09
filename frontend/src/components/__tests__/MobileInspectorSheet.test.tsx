@@ -77,6 +77,32 @@ describe("MobileInspectorSheet", () => {
     expect(screen.queryByTestId("inspector-content")).toBeNull();
   });
 
+  // The converse, and it is what the `column` inspector's justification
+  // turns on. Three files said the strip "is on screen whether the sheet
+  // is up or down" — it is not: the component returns the strip *or* the
+  // drawer, never both, so once the sheet is up the file's name and its
+  // action row live only at the top of the sheet's own column, and are
+  // reached by scrolling back to it. That is the confirmed trade
+  // (`DESIGN.md` §Layering), and this is the fact it rests on, stated
+  // where it can fail.
+  for (const snap of [SHEET_SNAP_HALF, SHEET_SNAP_FULL]) {
+    it(`draws no resting strip at ${snap}, so the actions are not also below`, async () => {
+      renderSheet(snap);
+      await screen.findByTestId("mobile-inspector-sheet");
+
+      expect(screen.queryByTestId("mobile-inspector-peek")).toBeNull();
+      expect(screen.queryByTestId("peek-content")).toBeNull();
+    });
+  }
+
+  it("draws it at rest and nowhere else, which is the whole of that rule", () => {
+    // Both halves in one place: a component that rendered the strip at
+    // every snap would pass each case above's sibling and none of this.
+    renderSheet(SHEET_SNAP_PEEK);
+    expect(screen.getByTestId("mobile-inspector-peek")).toBeInTheDocument();
+    expect(screen.queryByTestId("mobile-inspector-sheet")).toBeNull();
+  });
+
   it("dims the page at half, the state the toggle opens", async () => {
     // vaul fades its overlay from the *last* snap point by default,
     // which would leave half covering the page with no dim to say so —

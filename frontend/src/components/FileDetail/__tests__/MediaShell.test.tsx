@@ -19,7 +19,10 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
 import { inspectorOpenStorageKey } from "@/lib/inspectorOpenStore";
-import { SHEET_PEEK_PX } from "@/components/MobileInspectorSheet";
+import {
+  SHEET_PEEK_PX,
+  SHEET_VISIBLE_HEIGHT,
+} from "@/components/MobileInspectorSheet";
 import { CANVAS_PADDING_REM } from "@/lib/layoutSizes";
 import {
   claimSlot,
@@ -647,15 +650,70 @@ describe("media on the shell, on a phone", () => {
     expect(screen.getByTestId("file-preview")).toBe(player);
   });
 
-  it("bounds the sheet's scroller by the state it is in", async () => {
-    // vaul keeps the content at full height and slides it, so at half
-    // the bottom of the scroll box is below the screen and cannot be
-    // scrolled to.
+  it("puts the scroller inside the part of the drawer that is on screen", async () => {
+    // vaul keeps the drawer at its full height and slides it down, so
+    // its last `--snap-point-height` pixels are always below the fold.
+    // The scroller lives inside a box that is the drawer less exactly
+    // that, and takes no cap of its own — a cap written here would be a
+    // second definition of the same number, which is what the `50vh` it
+    // replaces was.
+    //
+    // jsdom lays nothing out, so this is evidence about the expression
+    // the sheet renders and not about where the box lands;
+    // `e2e-layout/mobile-inspector-sheet.spec.ts` measures that.
     await renderMediaAwaitingChrome();
     fireEvent.click(screen.getByTestId("inspector-toggle"));
 
-    const scroller = await screen.findByTestId("mobile-inspector-content");
-    expect(scroller.style.maxHeight).toBe("50vh");
+    const visible = await screen.findByTestId("mobile-inspector-visible");
+    expect(visible.style.height).toBe(SHEET_VISIBLE_HEIGHT);
+    expect(SHEET_VISIBLE_HEIGHT).toContain("--snap-point-height");
+
+    const scroller = screen.getByTestId("mobile-inspector-content");
+    expect(visible).toContainElement(scroller);
+    expect(scroller.style.maxHeight).toBe("");
+  });
+
+  it("gives the sheet one scroller, and the inspector inside it is not a second", async () => {
+    // The C-1 defect stated directly. `MobileInspectorSheet` scrolls,
+    // and the shell it is handed must therefore be the column form: a
+    // `panel` shell inside it is `overflow-auto` inside `overflow-auto`,
+    // which is the nested pair on a phone the sheet was built to remove.
+    //
+    // Counted over what core renders. An addon occupant may still scroll
+    // inside itself — that is its own repository's business, and the
+    // stub here draws none — so this is a claim about the sheet's own
+    // chrome, which is where the split was.
+    withTranscript();
+    await renderMediaAwaitingChrome();
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+
+    const sheet = await screen.findByTestId("mobile-inspector-sheet");
+    expect(screen.getByTestId("inspector-shell").dataset.scroll).toBe("column");
+
+    const scrollers = [...sheet.querySelectorAll<HTMLElement>("*")].filter(
+      (el) =>
+        [...el.classList].some((token) =>
+          /^overflow(-y)?-(auto|scroll)$/.test(token),
+        ),
+    );
+    expect(scrollers).toEqual([screen.getByTestId("mobile-inspector-content")]);
+  });
+
+  it("keeps the tab strip reachable by pinning it to that one scroller", async () => {
+    // What replaces the pinned header. The strip is the only thing that
+    // stays: `sticky top-0` resolves against the nearest scrollport,
+    // which in the column form is the sheet's own scroller rather than
+    // anything the shell draws.
+    withTranscript();
+    await renderMediaAwaitingChrome();
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+
+    await screen.findByTestId("mobile-inspector-sheet");
+    const strip = screen.getByTestId("inspector-tabs");
+    expect(strip.className).toContain("sticky");
+    expect(strip.className).toContain("top-0");
+    // Opaque, or the rows travelling under it show through.
+    expect(strip.className).toContain("bg-bg-card");
   });
 
   it("puts it in the sheet, with its tabs", async () => {
@@ -733,6 +791,17 @@ describe("what the canvas keeps and what the inspector takes", () => {
     expect(CANVAS_PADDING_REM).toBe(2);
     // 2rem across the pair, so 1rem a side: `p-4` on Tailwind's scale.
     expect(canvas!.classList.contains("p-4")).toBe(true);
+  });
+
+  it("keeps the desktop pane's header pinned, which is where the split earns its keep", async () => {
+    // The column form is the sheet's, not the inspector's in general. A
+    // 384px column beside a tall canvas is exactly where the per-file
+    // actions being in one place is worth the height they take.
+    await renderMedia();
+
+    const shell = screen.getByTestId("inspector-shell");
+    expect(screen.getByTestId("inspector-pane")).toContainElement(shell);
+    expect(shell.dataset.scroll).toBe("panel");
   });
 
   it("publishes no sheet state on a desktop, so its rules cannot apply", async () => {

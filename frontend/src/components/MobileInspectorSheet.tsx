@@ -36,6 +36,45 @@ export const SHEET_SNAP_POINTS: (number | string)[] = [
 
 export type SheetSnap = number | string;
 
+/**
+ * The part of the drawer that is actually on screen.
+ *
+ * vaul translates the drawer down by `vh × (1 − snap)` and publishes
+ * that as `--snap-point-height`, having assumed the drawer's untranslated
+ * top is the viewport top. `Drawer.Content` is `fixed bottom-0`, so its
+ * untranslated top is its own height above the bottom edge and the
+ * translate is added to that: whatever the snap, the last
+ * `--snap-point-height` pixels of the drawer are below the fold. A
+ * scroller that fills the drawer therefore ends off screen, and reports
+ * nothing left to scroll while its last screenful is where nobody can
+ * reach it.
+ *
+ * This is the box that is not: the drawer's own height less what vaul
+ * pushed past the bottom edge. `100%` is `Drawer.Content`'s height rather
+ * than a copy of it, so a later change to that height — or a snap point
+ * added between these two — moves this with it. No snap value, no handle
+ * height and no viewport unit belongs in this expression; every one of
+ * them would be a second, quieter definition of what vaul already
+ * publishes.
+ *
+ * The `0px` fallback is the no-snap-points case, where vaul sets no
+ * variable and the whole drawer is on screen.
+ */
+export const SHEET_VISIBLE_HEIGHT =
+  "calc(100% - var(--snap-point-height, 0px))";
+
+/**
+ * The gap under the last line of the sheet.
+ *
+ * 16px of breathing room plus whatever the device puts between the
+ * bottom edge and something a finger can reach. Named rather than
+ * inlined because jsdom cannot round-trip an `env()` through
+ * `style.paddingBottom`, so the layout fixture's copy of it has nothing
+ * to be compared against otherwise.
+ */
+export const SHEET_SCROLLER_PADDING_BOTTOM =
+  "calc(env(safe-area-inset-bottom, 0px) + 16px)";
+
 /** Whether a snap point is one of the two that cover the page. */
 export function isSheetExpanded(snap: SheetSnap): boolean {
   return snap !== SHEET_SNAP_PEEK;
@@ -129,33 +168,33 @@ export function MobileInspectorSheet({
           data-snap={snap === SHEET_SNAP_FULL ? "full" : "half"}
           className="fixed bottom-0 left-0 right-0 z-[46] flex h-[90vh] max-h-[90vh] flex-col rounded-t-2xl border-t border-bg-border bg-bg-card outline-none"
         >
-          {/* Restored deliberately: the guide tells readers they can
-              drag the sheet to full, and a sheet with no handle does not
-              say so. `Drawer.Handle` is also vaul's own drag affordance,
-              so tapping it cycles the snap points. */}
-          <Drawer.Handle className="mx-auto mt-3 h-1 w-12 shrink-0 rounded-full bg-bg-border" />
-          <Drawer.Title className="sr-only">{t("title")}</Drawer.Title>
-          {/* Visually hidden description for assistive tech — vaul
-              (Radix Dialog) requires either a Description or an explicit
-              `aria-describedby={undefined}` to silence the warning. */}
-          <Drawer.Description className="sr-only">
-            {t("sheetDescription")}
-          </Drawer.Description>
           <div
-            data-testid="mobile-inspector-content"
-            className="min-h-0 flex-1 overflow-auto"
-            style={{
-              // vaul keeps the content at its full height and slides it,
-              // so at `half` the bottom 40vh of this box is below the
-              // screen and cannot be scrolled to. Bounding the scroller
-              // by the active snap is what puts its end back on screen.
-              maxHeight: snap === SHEET_SNAP_FULL ? "90vh" : "50vh",
-              paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
-            }}
+            data-testid="mobile-inspector-visible"
+            className="flex min-h-0 shrink-0 flex-col"
+            style={{ height: SHEET_VISIBLE_HEIGHT }}
           >
-            <DialogPortalProvider target={dialogHost}>
-              {children}
-            </DialogPortalProvider>
+            {/* Restored deliberately: the guide tells readers they can
+                drag the sheet to full, and a sheet with no handle does
+                not say so. `Drawer.Handle` is also vaul's own drag
+                affordance, so tapping it cycles the snap points. */}
+            <Drawer.Handle className="mx-auto mt-3 h-1 w-12 shrink-0 rounded-full bg-bg-border" />
+            <Drawer.Title className="sr-only">{t("title")}</Drawer.Title>
+            {/* Visually hidden description for assistive tech — vaul
+                (Radix Dialog) requires either a Description or an
+                explicit `aria-describedby={undefined}` to silence the
+                warning. */}
+            <Drawer.Description className="sr-only">
+              {t("sheetDescription")}
+            </Drawer.Description>
+            <div
+              data-testid="mobile-inspector-content"
+              className="min-h-0 flex-1 overflow-auto"
+              style={{ paddingBottom: SHEET_SCROLLER_PADDING_BOTTOM }}
+            >
+              <DialogPortalProvider target={dialogHost}>
+                {children}
+              </DialogPortalProvider>
+            </div>
           </div>
           {/* Host for dialogs opened from inside the sheet. vaul is
               modal, so `pointer-events: none` on <body> and
