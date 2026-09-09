@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { Folder as FolderType } from "@/types";
 
 vi.mock("next/link", () => ({
@@ -59,10 +59,15 @@ import { DriveHome } from "../DriveHome";
  * whether a revealed card is on screen — only that it is reachable
  * without leaving the page.
  *
- * **Populations are declared, never sliced from each other.** Deriving
- * `HIDDEN` as `ALL.slice(CAP)` would make a deletion invisible: the name
- * would leave the fixture and the expectation at the same moment
- * (`review-workflow.md` detector rule 5). Every set below is written out.
+ * **Populations are declared, and every one of them has a witness.**
+ * Deriving `HIDDEN` as `ALL.slice(CAP)` would make a deletion invisible:
+ * the name would leave the fixture and the expectation at the same
+ * moment (`review-workflow.md` detector rule 5). Writing a set out is
+ * not on its own enough, though — a set whose only consumer is an
+ * equality with itself shrinks silently too. Each set below is read by a
+ * case that fails when an element leaves it: `ALL`, `COLLAPSED` and
+ * `HIDDEN` check each other, and `AT_CAP` is checked by the case one
+ * folder past it, where the label counts.
  */
 
 /** Eleven folders. The names are arbitrary; the count is the point. */
@@ -96,8 +101,15 @@ const COLLAPSED_FOLDER_NAMES = [
 const HIDDEN_FOLDER_NAMES = ["india", "juliett", "kilo"] as const;
 
 /**
- * Exactly the cap, so the control has nothing to reveal. Written out
- * rather than sliced for the same reason as the sets above.
+ * Exactly the cap, so the control has nothing to reveal.
+ *
+ * Its witness is the nine-folder case: that drive is this set plus
+ * `NINTH_FOLDER_NAME`, and its label reads how many folders are left.
+ * Remove a name here and that drive falls to the cap, which offers no
+ * control at all, so the removal is visible. Without the witness this
+ * set could be walked back to a single folder and a case named "exactly
+ * the cap" would stay green, taking the off-by-one it exists to catch
+ * with it.
  */
 const AT_CAP_FOLDER_NAMES = [
   "alfa",
@@ -109,6 +121,12 @@ const AT_CAP_FOLDER_NAMES = [
   "golf",
   "hotel",
 ] as const;
+
+/**
+ * The ninth folder. Nine top-level folders is the drive this cap was
+ * measured on, and the smallest drive the cap hides anything from.
+ */
+const NINTH_FOLDER_NAME = "victor";
 
 /** A second drive, with its own names so a stale grid is visible. */
 const SECOND_DRIVE_FOLDER_NAMES = [
@@ -243,11 +261,62 @@ describe("DriveHome folder grid", () => {
     expect(screen.queryByRole("button", { name: "Show less" })).toBeNull();
   });
 
+  it("offers the ninth folder when the drive has one past the cap", async () => {
+    // The boundary from the other side, and the drive the cap was
+    // measured on. The literal 1 in the label is declared, not read off
+    // the render: it is what makes a folder leaving `AT_CAP` visible.
+    await renderDriveHome([...AT_CAP_FOLDER_NAMES, NINTH_FOLDER_NAME]);
+
+    expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]);
+    expect(screen.queryByText(NINTH_FOLDER_NAME)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show more (1)" }));
+
+    expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES, NINTH_FOLDER_NAME]);
+  });
+
+  it("offers nothing over the next drive's skeleton", async () => {
+    getFolders.mockResolvedValue(ALL_FOLDER_NAMES.map(folder));
+    const { rerender } = render(<DriveHome driveName="drive-under-test" />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...COLLAPSED_FOLDER_NAMES]));
+
+    // The second drive's folders never arrive, so what is asserted below
+    // is the whole loading window rather than one frame of it. The
+    // control counts the folders the grid is drawing, and the grid is
+    // drawing none, so a count belonging to the drive that was left
+    // cannot be on screen — nor a reference to a grid element that the
+    // skeleton is standing in for.
+    getFolders.mockReturnValue(new Promise<FolderType[]>(() => {}));
+    rerender(<DriveHome driveName="second-drive" />);
+
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([]));
+    expect(screen.queryByRole("button", { name: /Show more/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show less" })).toBeNull();
+  });
+
+  it("offers nothing over the skeleton when a refresh lands under it", async () => {
+    // The other way into the same window: the first fetch has not
+    // settled, and an out-of-band refresh (a drag-and-drop or a WS
+    // event) puts folders into state while the grid is still a
+    // skeleton. Nothing is drawn, so nothing is offered.
+    getFolders.mockReturnValueOnce(new Promise<FolderType[]>(() => {}));
+    getFolders.mockResolvedValue(ALL_FOLDER_NAMES.map(folder));
+    render(<DriveHome driveName="drive-under-test" />);
+
+    await act(async () => {
+      window.dispatchEvent(new Event("loft-move-complete"));
+    });
+
+    expect(folderNamesOnScreen()).toEqual([]);
+    expect(screen.queryByRole("button", { name: /Show more/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show less" })).toBeNull();
+  });
+
   it("does not link the grid at the flat every-file view", async () => {
     await renderDriveHome(ALL_FOLDER_NAMES);
 
     // `?view=all` lists every file and no folders, so a folder past the
-    // cap is not reachable through it. The sidebar's own "All files"
+    // cap is not reachable through it. The sidebar's own "All Files"
     // link is a different surface and keeps that destination.
     const hrefs = Array.from(document.querySelectorAll("a")).map((a) => a.getAttribute("href"));
     expect(hrefs.filter((href) => href?.includes("view=all"))).toEqual([]);

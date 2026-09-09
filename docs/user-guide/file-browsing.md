@@ -16,7 +16,7 @@ The numbered areas in the screenshot map to the main browsing surfaces: breadcru
 - Right-click (or long-press on touch) opens the **folder menu**: Open, New file here, New folder here, Pin / Unpin, Rename, Move, Delete. Which entries appear depends on the surface — the tree pane offers the create actions, the folder grid does not.
 - Addon actions appear in this menu too, below a separator under the app's own rows — *intelligence* offers its batch AI actions there, for the files the listing is showing.
 - The folder list is derived from the paths of the files in the drive, so a folder holding no files at all would otherwise vanish. Those are recorded in the `empty_folders` table and merged back into the listing with a count of 0.
-- The grid draws the first eight folders. When the drive has more, **Show more (N)** beside the *Folders* heading names how many are left and reveals them in the same grid — you stay on the drive home, and **Show less** puts them away again. The sidebar's **All files** is a different thing: a flat listing of every file in the drive, with no folders in it.
+- The grid draws the first eight folders. When the drive has more, **Show more (N)** beside the *Folders* heading names how many are left and reveals them in the same grid — you stay on the drive home, and **Show less** puts them away again. The sidebar's **All Files** is a different thing: a flat listing of every file in the drive, with no folders in it.
 
 ## File grid and list modes
 

@@ -281,13 +281,17 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setFoldersExpanded(false);
   }, [driveName]);
 
-  // What the control reveals, counted from the folders that were
-  // fetched. The grid draws `visibleFolders`, so the number in the
-  // label and the number of cards that appear cannot disagree. Negative
-  // below the cap, which is the same condition as having nothing to
-  // reveal and is what gates the control.
-  const hiddenFolderCount = folders.length - MAX_FOLDERS;
-  const visibleFolders = foldersExpanded ? folders : folders.slice(0, MAX_FOLDERS);
+  // The folders the grid has, which are none while it is drawing the
+  // skeleton: `folders` still holds the drive that was left until this
+  // drive's fetch lands, and an out-of-band refresh can put a list there
+  // under the skeleton as well. The control and the cards are counted
+  // from this one list, so the number in the label is the number of
+  // cards that appear, and a control that names the grid is only ever
+  // drawn beside a grid that exists. The control appears when the list
+  // is strictly longer than the cap.
+  const gridFolders = foldersLoading ? [] : folders;
+  const hiddenFolderCount = gridFolders.length - MAX_FOLDERS;
+  const visibleFolders = foldersExpanded ? gridFolders : gridFolders.slice(0, MAX_FOLDERS);
 
   const driveBase = `/drive/${encodeURIComponent(driveName)}`;
 
@@ -373,7 +377,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
                 a link, because there is no drive-wide destination that
                 lists folders: `?view=all` is the flat every-file
                 listing and renders none. The sidebar offers that view
-                under its own name ("All files"), where a flat listing
+                under its own name ("All Files"), where a flat listing
                 of files is what is being asked for. */}
             {hiddenFolderCount > 0 && (
               <button
@@ -381,7 +385,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
                 onClick={() => setFoldersExpanded((expanded) => !expanded)}
                 aria-expanded={foldersExpanded}
                 aria-controls={folderGridId}
-                className="text-sm text-text-muted transition-colors hover:text-text-primary"
+                className="text-sm text-text-muted transition-colors hover:text-accent"
               >
                 {foldersExpanded ? tc("showLess") : tc("showMoreCount", { count: hiddenFolderCount })}
               </button>
