@@ -46,10 +46,16 @@ import { resolve, dirname, relative } from "node:path";
  *
  * So each repository asserts over its own tree. `addons/knowledge` has
  * its copy, over `WikiLinkAutocomplete`. The addons with no copy today —
- * `intelligence` (whose `FileAIActionsButton` already dismisses on its
- * scrim's click, correctly, but by hand), `media_import` and
- * `cloud-sync` — are unguarded by anything, and that is the hole: it
- * closes one addon repository at a time, not from here.
+ * `intelligence`, `media_import` and `cloud-sync` — are unguarded by
+ * anything, and that is the hole: it closes one addon repository at a
+ * time, not from here.
+ *
+ * `intelligence`'s `FileAIActionsButton` is the one to look at first. It
+ * dismisses on its own scrim's `click`, by hand — the strategy
+ * `e2e-layout/popup-dismiss.spec.ts` measures as wrong at two of its four
+ * arrangements. Whether either arrangement occurs where that menu is drawn
+ * is unmeasured; what is not true is the verdict this file used to carry,
+ * that the menu is "correct but hand-written".
  *
  * ## What this file claims, and what it cannot
  *
@@ -355,9 +361,22 @@ const POPUPS: Record<string, PopupEntry> = {
  * why the exception below is not the defect, and it is pinned in
  * `DismissScrim.test.tsx` — remove the swallow and that file goes red,
  * which is what makes this entry an exception rather than a hole.
+ *
+ * **The up-events are in the alternation too.** A popup closing on
+ * `pointerup`, `mouseup` or `touchend` fails in exactly the way one
+ * closing on the press does — all three are dispatched before the `click`,
+ * so the click is still the page's. They were missing while the paragraph
+ * above claimed the scan covers "a popup closing itself by hand"; the four
+ * literals cost nothing and the sentence is now true of them.
+ *
+ * `document.body` is there for the same reason: it is the same scope by
+ * any behavioural measure. What a text scan cannot reach is an alias —
+ * `const d = document; d.addEventListener(…)` — and there is no spelling
+ * to add for that. It is a limit of the instrument, stated rather than
+ * papered over.
  */
 const GLOBAL_POINTER_LISTENER =
-  /\b(?:document|window)\.addEventListener\(\s*["'](?:click|mousedown|pointerdown|touchstart)["']/g;
+  /\b(?:document|window|document\.body)\.addEventListener\(\s*["'](?:click|mousedown|pointerdown|touchstart|mouseup|pointerup|touchend)["']/g;
 
 function globalPointerListeners(roots: string[] = [CORE_ROOT]): string[] {
   const found: string[] = [];
@@ -374,13 +393,20 @@ function globalPointerListeners(roots: string[] = [CORE_ROOT]): string[] {
 }
 
 /**
- * The listeners that are not popup dismissals, with the reason each one
- * is a press rather than a click.
+ * The listeners that are not popup dismissals, with the reason each.
  *
  * Paths only, since the scan reports a line and an edit above one of
  * these should not have to be paid for here. A file may hold more than
  * one — `FilterField` carried a `mousedown` and a `touchstart` for the
  * same popup — so what is compared is the set of files.
+ *
+ * Two of these arrived with the up-events: a gesture that *began* on an
+ * element finishes at window scope because a finger leaves the element it
+ * started on. That is not the shape this scan is about — nothing is
+ * dismissed and no click is handed anywhere — but they are enumerated
+ * rather than excluded by a pattern, because "it is only a drag" is
+ * exactly what a dismissal added to one of these files would look like
+ * from a distance.
  */
 const GLOBAL_POINTER_EXCEPTIONS: Record<string, string> = {
   "frontend/src/components/DismissScrim.tsx":
@@ -389,6 +415,15 @@ const GLOBAL_POINTER_EXCEPTIONS: Record<string, string> = {
     "that press produces — the two halves are one mechanism, and a popup " +
     "that writes half of it by hand is what every other name here would " +
     "be.",
+  "frontend/src/components/VideoPreview.tsx":
+    "the end of a drag, not of a popup. A seek begun on the scrubber is " +
+    "followed to wherever the pointer goes, so `mousemove` / `mouseup` " +
+    "are at window scope; nothing is dismissed and the click that ends " +
+    "the drag belongs to the scrubber.",
+  "frontend/src/components/player/MediaControls/hooks/usePlayerGestures.ts":
+    "the same shape for a press on the player: `pointerup` / " +
+    "`pointercancel` end a gesture that started on the surface, and the " +
+    "tap they classify is the player's own.",
   "frontend/src/components/InlineNameEditor.tsx":
     "a text field, not a popup. An outside press *commits* the rename, and " +
     "the click that follows is meant to do its own job — clicking a row " +

@@ -18,6 +18,9 @@ const eslintConfig = defineConfig([
     "test-results/**",
     "playwright-report/**",
     "blob-report/**",
+    // The component fixture's bundle: minified output of the real
+    // components, built by e2e-components/build-bundle.ts.
+    "e2e-components/.build/**",
   ]),
   {
     // The current codebase predates React Compiler-oriented hooks lint

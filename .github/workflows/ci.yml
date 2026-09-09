@@ -262,7 +262,7 @@ jobs:
     # compiled from src/app/globals.css, and its `@source "../addons"` names
     # the gitignored symlink directory, which Tailwind skips silently when
     # absent. No addon writes a rule the justified grid reads.
-    name: frontend (layout invariants in a browser)
+    name: frontend (layout invariants and components in a browser)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -304,6 +304,25 @@ jobs:
       # links, so there is no separate build step to forget.
       - name: Test the layout invariants
         run: pnpm test:e2e:layout
+        working-directory: frontend
+
+      # The same browser, one step further in: `e2e-components/` bundles
+      # the real `DismissScrim`, `ContextMenu` and `useContextMenu` with
+      # the repo's vite and drives them with CDP touch, including a 500 ms
+      # long press — a gesture `page.touchscreen` cannot express and the
+      # opener a popup can be raised by.
+      #
+      # It is here rather than in a job of its own because it needs exactly
+      # what this one already pays for: the dependencies and a Chromium.
+      # Its own globalSetup builds the bundle.
+      #
+      # Why it exists: `e2e-layout/` is `file://` plus a stylesheet and
+      # cannot import a `.tsx`, so no component is ever run in it — its
+      # fixtures hand-write a copy of the mechanism, and a copy is right by
+      # construction. Every functional defect unit F shipped across four
+      # review rounds passed that suite. See e2e-components/build-bundle.ts.
+      - name: Test the components in a browser
+        run: pnpm test:e2e:components
         working-directory: frontend
 
   mcp-server:

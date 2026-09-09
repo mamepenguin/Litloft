@@ -49,3 +49,6 @@ next-env.d.ts
 # generated: the compiled stylesheet the layout fixture links
 # (built by e2e-layout/build-fixture-css.ts)
 /e2e-layout/fixtures/globals.built.css
+
+# The component fixture's bundle (built by e2e-components/build-bundle.ts)
+/e2e-components/.build/

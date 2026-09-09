@@ -100,8 +100,8 @@ export function AddButton({
   }, []);
 
   // A popup must be dismissable from the keyboard. Without it the only
-  // ways out are a pointer on the scrim or picking a row, so a keyboard
-  // user who opens this menu cannot back out of it.
+  // ways out are a press outside it or picking a row, so a keyboard user
+  // who opens this menu cannot back out of it.
   //
   // On the shortcut stack, not on `document`: a listener does not know
   // what is stacked above it, and `escape-listeners.test.ts` records the

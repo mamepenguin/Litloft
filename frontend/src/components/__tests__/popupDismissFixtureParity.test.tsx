@@ -51,9 +51,15 @@ const SPEC: Record<string, string> = JSON.parse(
 /**
  * Every pointer event in a tap, in the order a browser produces them.
  *
- * Listed rather than counted so that a browser adding a new one leaves
- * this table visibly short rather than silently narrower. The fixture may
- * dismiss on exactly one of these, and the component must agree.
+ * The population for the only assertion in the tree that says
+ * `DismissScrim` dismisses on `pointerdown` **and on nothing else in a
+ * tap** — so it is pinned like one. An earlier version said "listed rather
+ * than counted", which held for an append and not for a deletion: the only
+ * number in the file, `swallowAt === A_TAP.length - 1`, is derived from
+ * `A_TAP`, so cutting the table moved both sides at once. Measured — with
+ * it cut to `["pointerDown", "click"]` a second `mousedown` dismissal in
+ * the component left this file green; with the table restored, the same
+ * regression fails at "mouseDown on the page".
  */
 const A_TAP = [
   "pointerDown",
@@ -82,6 +88,10 @@ function Popup(): React.ReactElement {
 }
 
 describe("the popup-dismiss fixture", () => {
+  it("knows every event a tap produces", () => {
+    expect(A_TAP).toHaveLength(7);
+  });
+
   it("draws the scrim the component draws", () => {
     render(
       <DismissScrim onDismiss={vi.fn()}>

@@ -190,6 +190,30 @@ const SCRIM_CLICK: Record<string, Reading & { why: string }> = {
   },
 };
 
+test.describe("the populations these cases are generated from", () => {
+  test("are the ones the file names", () => {
+    // Three tables, and every case below is generated from them, so a
+    // deletion is a silently shorter run: dropping `fixed-bar` and
+    // `nested` takes the two arrangements this round's whole argument
+    // rests on and leaves the rest green. Declared here rather than
+    // derived, because a length read off the table it is checking cannot
+    // disagree with it (detector rule 5).
+    expect(ARRANGEMENTS.map((a) => a.id)).toEqual([
+      "plain",
+      "sticky-bar",
+      "fixed-bar",
+      "nested",
+    ]);
+    expect(Object.keys(SCRIM_CLICK).sort()).toEqual([
+      "fixed-bar",
+      "nested",
+      "plain",
+      "sticky-bar",
+    ]);
+    expect(VIEWPORTS).toHaveLength(2);
+  });
+});
+
 for (const viewport of VIEWPORTS) {
   test.describe(viewport.name, () => {
     // `hasTouch` is what makes `page.touchscreen.tap` dispatch touch

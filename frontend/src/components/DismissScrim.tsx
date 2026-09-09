@@ -122,6 +122,52 @@ function swallowTheClickThisPressProduces(press: Event): void {
 }
 
 /**
+ * The press happening right now, if one is.
+ *
+ * **A popup can be raised *by* a press this component never saw.**
+ * `useContextMenu` opens `ContextMenu` from a 500 ms timer on
+ * `touchstart`, so by the time a scrim exists the press that raised it is
+ * already half over: the primitive's own listener answered nothing, no
+ * swallow was armed, and the `click` the lift produces went to the row
+ * under the finger. Long-pressing a file card opened its menu **and**
+ * navigated to the file. The old scrim covered this by accident, being
+ * `pointer-events: auto` and in the way; appearance cannot.
+ *
+ * So the class is closed rather than the call site: whatever raised it, a
+ * popup that mounts *during* a press arms the swallow for that press. A
+ * scrim that mounts between presses arms nothing.
+ *
+ * Watched from module scope, because the press it has to know about
+ * starts before any scrim exists — installing the listener from a mount
+ * would be too late for exactly the case this is for. Two listeners, both
+ * passive, for the life of the document.
+ *
+ * "In flight" is `pointerdown` until `pointerup` or `pointercancel`: the
+ * span in which a press can still produce a click nobody has claimed.
+ * After it, a mount is an ordinary mount.
+ */
+let pressInFlight: Event | null = null;
+
+if (typeof document !== "undefined") {
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      pressInFlight = e;
+    },
+    true,
+  );
+  const ended = () => {
+    pressInFlight = null;
+  };
+  document.addEventListener("pointerup", ended, true);
+  document.addEventListener("pointercancel", ended, true);
+  // A browser always ends a press, so the two above are the window. This
+  // third is the belt: a click means the interaction is over whatever was
+  // observed of it.
+  document.addEventListener("click", ended, true);
+}
+
+/**
  * The one way a popup in this tree is dismissed by pointer.
  *
  * **A press outside the popup closes it, and the click that press
@@ -160,6 +206,16 @@ function swallowTheClickThisPressProduces(press: Event): void {
  * dismisses. The trigger is deliberately outside: every trigger here
  * toggles, and its click is swallowed, so pressing it while open closes
  * the popup exactly once.
+ *
+ * ## Raised by a press, not only dismissed by one
+ *
+ * The press half has a second case: a popup can be *opened* by a press
+ * this component never saw — `useContextMenu`'s 500 ms long-press timer is
+ * the one in the tree. Nothing answered that press, so nothing armed for
+ * the click it will produce, and a scrim that no longer intercepts cannot
+ * stand in. So a scrim that mounts while a press is in flight arms the
+ * swallow for it (see `pressInFlight`), which closes the class rather than
+ * that one opener.
  *
  * ## The scrim itself is appearance
  *
@@ -205,6 +261,11 @@ export function DismissScrim({
   });
 
   useEffect(() => {
+    // Raised *by* a press nothing here answered — a long-press, or any
+    // opener that acts before the click. The click it produces is still
+    // coming and no one has claimed it.
+    if (pressInFlight) swallowTheClickThisPressProduces(pressInFlight);
+
     const onPress = (e: Event) => {
       // The popup is what this component rendered after the scrim, so
       // there is nothing to search for and nothing to keep in step.

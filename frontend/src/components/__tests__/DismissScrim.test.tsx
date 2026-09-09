@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import {
@@ -59,6 +59,15 @@ function Popup(): React.ReactElement {
 }
 
 describe("DismissScrim", () => {
+  afterEach(() => {
+    // A browser always ends a press; `fireEvent.pointerDown` alone does
+    // not. The primitive tracks whether a press is in flight — that is
+    // what arms the swallow for a popup raised *by* one — so a case that
+    // leaves one open would hand it to the next case, which no real
+    // gesture does.
+    fireEvent.pointerUp(document.body);
+  });
+
   it("closes on a press outside the popup", () => {
     const onDismiss = vi.fn();
     render(
@@ -189,6 +198,46 @@ describe("DismissScrim", () => {
       view.unmount();
       page.el.remove();
     }
+  });
+
+  it("swallows for the press that raised it, when it mounts during one", () => {
+    // A popup can be opened *by* a press this component never answered —
+    // `useContextMenu` opens `ContextMenu` from a 500 ms long-press timer,
+    // so the press is half over before a scrim exists. Nothing armed for
+    // the click that lift will produce, and appearance cannot block it:
+    // measured in a real browser, long-pressing a file card opened its
+    // menu and navigated to the file.
+    const page = pageUnderneath();
+
+    fireEvent.pointerDown(page.el);
+    render(
+      <DismissScrim onDismiss={vi.fn()}>
+        <Popup />
+      </DismissScrim>,
+    );
+    fireEvent.pointerUp(page.el);
+    fireEvent.click(page.el);
+
+    expect(page.clicks()).toBe(0);
+  });
+
+  it("swallows nothing when it mounts between presses", () => {
+    // The other side of that, and the reason the window is `pointerdown`
+    // to `pointerup` rather than "the last press we saw": a popup opened
+    // by a keystroke, a timer or a completed click has no click of its own
+    // coming, and a swallow armed then would eat someone else's.
+    const page = pageUnderneath();
+
+    fireEvent.pointerDown(page.el);
+    fireEvent.pointerUp(page.el);
+    render(
+      <DismissScrim onDismiss={vi.fn()}>
+        <Popup />
+      </DismissScrim>,
+    );
+    fireEvent.click(page.el);
+
+    expect(page.clicks()).toBe(1);
   });
 
   it("keeps swallowing after the popup it guarded is gone", () => {

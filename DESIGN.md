@@ -897,8 +897,12 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   backdrop; `popup-dismissal.test.ts` enumerates which surfaces are which
   rather than leaving it to whichever ones happen to spell `role="dialog"`.
   The addons are each their own repository and are named where they stand:
-  `intelligence`'s AI menu is correct but hand-written, and `knowledge`'s
-  `[[` candidate list is on the primitive and pinned here.
+  `knowledge`'s `[[` candidate list is on the primitive and pinned here;
+  `intelligence`'s AI menu dismisses on its own scrim's `click`, by hand,
+  which is the mechanism this section stopped calling correct — it is the
+  `scrim-click` strategy `e2e-layout/popup-dismiss.spec.ts` measures as
+  wrong at two of its four arrangements. Nobody has measured that menu in
+  either of them; it closes when the file takes `DismissScrim`.
 
   The requirement is that **dismissing a menu must not also activate what
   is under the finger**, and it is a statement about event order. A tap's
@@ -912,11 +916,21 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   mouse events, which is how the tree ended up with three behaviours at
   once.
 
+  **The same holds for the press that *raises* a popup.** A long press
+  opens `ContextMenu` from a 500 ms timer, and the primitive never answered
+  that press — so nothing armed for the click the lift produces, and the
+  tap that opened a file card's menu also opened the file. A scrim that
+  mounts while a press is in flight arms the swallow for it, which closes
+  the class rather than that one opener. Measured in
+  `e2e-components/popup-dismiss.spec.ts`, on the real components.
+
   **The scrim is appearance.** It draws the dim below 640px and takes no
   pointer events at all (`pointer-events: none`, inline, so no caller's
   class list can turn it back on). Its tier says what the dim covers and
   nothing else: no dismissal depends on the scrim being the element a tap
-  reaches.
+  reaches. That is also why the case above needed fixing rather than
+  ignoring: the old scrim intercepted the long press's click by accident,
+  being in the way, and appearance cannot.
 
   That is a correction, and it cost three rounds to arrive at. The scrim
   used to absorb the click, which is a claim that it is above everything a

@@ -182,7 +182,7 @@ export function ToolbarMenu({
       </button>
       {open && (
         <DismissScrim onDismiss={close}>
-          {/* The scrim is a mouse gesture, so Escape (handled on the box
+          {/* Dismissal is a pointer gesture, so Escape (handled on the box
               above) is the keyboard's only way out. Arrow-key roving is the
               rest of the APG menu contract and is not here yet; the rows are
               ordinary buttons in tab order — the same gap `FilterMenu`

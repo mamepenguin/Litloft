@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:report": "playwright show-report",
-    "test:e2e:layout": "playwright test --config=playwright-layout.config.ts"
+    "test:e2e:layout": "playwright test --config=playwright-layout.config.ts",
+    "test:e2e:components": "playwright test --config=playwright-components.config.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",
