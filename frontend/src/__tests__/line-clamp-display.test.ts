@@ -603,11 +603,15 @@ describe("the display enumeration matches Tailwind's own", () => {
  *
  * So a case is not a string, it is a class list written four ways the tree
  * actually writes one, and the declared answer has to come out of all four.
- * The last three reach `readTemplate` and `readExpression`; the fourth is what
- * a nested backtick inside an interpolation costs.
+ * Spellings 2-4 reach `readTemplate`; 3 and 4 go on into `readExpression`;
+ * only 4 sends `readExpression` back into `readTemplate` for a nested
+ * backtick. So each one adds a step the one before it does not take.
  *
- * Deleting a spelling would shrink the population the same way, so the names
- * are asserted below against a declared list.
+ * Deleting a spelling, or swapping one body for another, would shrink the
+ * population the same way, so what each must *produce* is declared below
+ * against a literal — the names alone were not enough, and were measured not
+ * to be: with all four bodies replaced by the quoted form and the names left
+ * alone, the whole matrix went back through `readQuoted` and stayed green.
  */
 const SPELLINGS: ReadonlyArray<readonly [string, (value: string) => string]> = [
   ["a quoted attribute", (v) => `"${v}"`],
@@ -722,11 +726,23 @@ describe("the recogniser", () => {
   it("writes shapes that a quote-only reader gets wrong", () => {
     // The declaration above fixes the text; this is what makes the text
     // worth fixing. `sourceScan`'s `stringLiterals` is the reader this file
-    // used before `literalChunks` — it returns a backtick span whole — so
-    // asking it the same question separates the spellings that exercise
-    // `readTemplate` / `readExpression` from the ones that merely look
-    // different. The first two are shapes it handles; the last two are not,
-    // and that is the whole reason they are in the list.
+    // used before `literalChunks`: it walks quote to quote and never descends
+    // into `${…}`. Put the four spellings through it and the cut is between
+    // the two it still reads correctly and the two it does not — which is a
+    // different cut from "reaches `readTemplate`", and deliberately so.
+    // Spelling 2 does reach `readTemplate`, and is on the correct side here,
+    // because a template with no interpolation is one the old reader also got
+    // right. What 3 and 4 buy is the two ways an interpolation goes wrong for
+    // it, and they go wrong differently:
+    //
+    //   3  ["${wide ? \"block line-clamp-2\" : \"\"}"]
+    //      the interpolation comes back as one span, so the tokens are there
+    //      but wearing quote characters, and the set lookup misses them.
+    //   4  ["${wide ? ", " : \"\"}"]
+    //      the inner backticks mis-pair against the outer one, and the class
+    //      list falls into the gap between the two fragments — gone, not
+    //      merely mis-spelled. That is why spelling 4 is in the list: it is
+    //      the shape whose failure leaves nothing behind to notice.
     const naive = (src: string) =>
       stringLiterals(src)
         .flatMap((literal) => literal.split(/\s+/))
@@ -861,7 +877,10 @@ describe("the recogniser", () => {
  * guard, which is not optional here: three Tailwind packages carry three
  * independent `^4` ranges, this file uses two of them, and the sheet that
  * ships is built by the third. Under a skew, "no rule of this file's is in
- * the sheet" would be a claim about a sheet nobody builds.
+ * the sheet" would be a claim about a sheet nobody builds. The call sits in
+ * this `it` and compares all three packages, so it also covers the
+ * `tailwindcss` import the enumeration oracle uses in the `describe` above —
+ * by being in the same file, not by that block asking for it.
  * `tailwind-scans-addons.test.ts` declined to recompile because doing it
  * *its* way needed `postcss` as a direct dependency; this needs no new one.
  */

@@ -44,6 +44,19 @@
  * ask whether its own class names leaked into it, and under a skew it would
  * be answering that about a sheet no one ships. A second caller of a recipe
  * takes the recipe's guard with it.
+ *
+ * **Grepped by role, that leaves one caller uncovered.**
+ * `src/__tests__/design-tokens.test.ts` puts the same question to a Tailwind
+ * compiler through the `tailwindcss` package rather than this binary — it
+ * compiles every class the tree writes and asserts which of them produce no
+ * CSS, which is a claim about the shipped sheet and exactly the thing a
+ * version moves — and it does not call this. Measured, with `tailwindcss`
+ * pinned to a skewed version: that file stays green and silent, while
+ * `line-clamp-display.test.ts` goes red, because this function compares all
+ * three packages and not only the one its caller used. So a skew *is*
+ * reported and CI does turn red; what is not true is that the file making the
+ * claim is the file that notices, and that holds only while the two stay in
+ * one vitest job. One import in `design-tokens.test.ts` closes it.
  */
 
 import { execFileSync } from "node:child_process";
