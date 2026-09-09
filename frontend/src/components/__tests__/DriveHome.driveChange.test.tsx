@@ -204,14 +204,31 @@ const SHARED_FOLDER_NAME = "alfa";
 const SECOND_DRIVE_FOLDER_NAME = "lima";
 
 /**
- * How many folder cards the grid is drawing.
+ * How many folder cards the grid is drawing **that are not being
+ * renamed**.
  *
  * Read off the card's own rename-focus attribute rather than off its
  * name: the context-menu stub reports its target's path too, so a search
- * by text matches both. Document-wide, which is sound here only because
- * every other component in this file is stubbed to a `<div />` — the
- * same limit `DriveHome.folderGrid.test.tsx` states for its own scoped
- * reader.
+ * by text matches both. `FolderCard` puts that attribute on its
+ * non-editing branch only, so a card with the inline editor open is not
+ * counted. Inert while no case in this file starts a rename, and the
+ * first one that does is the case this would mislead — which is why the
+ * name says what it counts rather than what it is used for.
+ *
+ * **Why document-wide is sound here**, and it is not "everything else is
+ * stubbed": `CarouselSection` and `FolderContextMenu` both draw real
+ * elements in this file, and `FolderCard`, `InlineNameEditor` and
+ * `Button` are not stubbed at all. It is that the attribute has one
+ * producer, `FolderCard`, and the only other host that draws folder
+ * cards — `RootFileListing` — is stubbed to a `<div />` here. Give that
+ * stub a card carrying the attribute and the case below goes red, which
+ * is the property this rests on rather than a convention.
+ *
+ * `DriveHome.folderGrid.test.tsx` takes the other choice for the same
+ * hazard: it scopes to the Folders section because `RootFileListing` is
+ * live in production. Its declared survivor records that the scoping is
+ * unwitnessed *there* — so it is a precedent for naming the hazard, not
+ * authority for reading unscoped.
  */
 function folderCardCount(): number {
   return document.querySelectorAll("[data-rename-focus]").length;

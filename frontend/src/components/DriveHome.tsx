@@ -378,16 +378,28 @@ export function DriveHome({ driveName }: DriveHomeProps) {
    *   empties them for the rest of the visit.
    * - `rename.error` (`useFolderCardRename`) is announced above this
    *   drive's grid for up to its 3 s TTL after being raised on another.
-   * - `rename.editingPath` *is* dropped, but by the **fetch** effect's
-   *   `setFoldersLoading(true)`, which swaps the whole grid for the
-   *   skeleton branch and takes the card and its `InlineNameEditor` with
-   *   it; the editor's cleanup then cancels the edit. Not by this
-   *   effect, and not by `setFolders([])` either — measured: deleting
-   *   that line, and the `gridFolders` mask with it, still drops the
-   *   edit, and only neutralising the skeleton branch reaches the
-   *   counterfactual. The consequence of the true mechanism is that an
-   *   in-progress rename is cancelled by *any* re-run of the fetch
-   *   effect, a nickname settling included, with no drive change at all.
+   * - `rename.editingPath` *is* dropped on a drive change, by two
+   *   mechanisms that each cover it on their own: `setFolders([])` here
+   *   empties the grid, and the fetch effect's `setFoldersLoading(true)`
+   *   swaps it for the skeleton branch. Either unmounts the card, and
+   *   `InlineNameEditor`'s cleanup then cancels the edit.
+   *
+   *   Because they are redundant, deleting one and watching the edit
+   *   still drop says nothing about which carries it — the other was
+   *   standing. Separating them takes the complement: neutralise one
+   *   side with the other left in place, each way round. Both hold, and
+   *   only removing both lets an edit begun on one drive reopen on a card
+   *   of the same path on the next.
+   *
+   *   What is *not* redundant is which of them runs when the drive does
+   *   not change: this effect is keyed on `driveName` and does not, the
+   *   fetch effect does. So an in-progress rename is cancelled by any
+   *   re-run of that effect — a nickname settling included — and that is
+   *   the fetch effect's alone. It is a behaviour the follow-up unit that
+   *   owns rename state should decide about rather than inherit.
+   *
+   *   No case in either suite starts a rename, so nothing here is held by
+   *   a test. It is measured; the runs are in the PR body.
    * - `pinnedPaths` has two writers: the fetch effect's tail, and
    *   `handleTogglePin`. The tail lands in the same React commit as
    *   `applyFolders` and `setFoldersLoading(false)`, so no frame draws
