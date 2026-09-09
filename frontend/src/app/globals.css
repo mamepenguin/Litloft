@@ -19,6 +19,23 @@
    Naming the directory explicitly overrides both exclusions. */
 @source "../addons";
 
+/* That same walk reaches `src/__tests__`, and the scanner does not know a
+   test from a component: it reads utility names out of a detector's
+   enumeration, its case table, and its prose. `line-clamp-display.test.ts`
+   writes every display utility and a row of arbitrary spellings as data, so
+   Tailwind generated a rule for each one — dead CSS in the sheet every viewer
+   loads, some of it out of a sentence in a docstring. Re-measure by deleting
+   this line and diffing what `e2e-layout/build-fixture-css.ts` compiles; the
+   figures at the time it was added are in the PR that added it.
+
+   Only that one file is excluded. Whether the rest of the test directories can
+   go too is a separate question with a trap in it: a class a component
+   composes at runtime and a test spells out literally would leave the sheet
+   with nothing turning red, which is the failure mode the comment above is
+   already about. Answering it means auditing each rule that disappears, and
+   that is not this change. */
+@source not "../__tests__/line-clamp-display.test.ts";
+
 /* ===== Pinterest Design System ===== */
 /* Warm white canvas · Coral Red (#d63031) · Plum Black (#211922) */
 /* Dark variant: warm plum dark (#1a0e10) · Bright Coral (#e85d5e) */

@@ -650,6 +650,42 @@ with a **border in the accent colour**, never a fill.
   MiniPlayer); dense list rows and inline cards stay flat.
 - Hover changes the surface colour only. **Never expand or darken the shadow on
   hover, and never use `scale()`.**
+- **A card's name row clamps to two lines where it clamps at all.** The scope
+  is the row of text under the card's media area, and nothing else: not every
+  card clamps there — `FolderCard` and `ArchiveEntryCard` cut theirs to one
+  line with `truncate`, and `JustifiedFileCell` draws its name as an overlay
+  governed by `.justified-grid-name` in `globals.css` — but the ones that
+  reach for `line-clamp-*` do not each pick a different number. Walk
+  `grep -rn 'line-clamp-' frontend/src addons/*/frontend` rather than trusting
+  this list — three consecutive reviews found a name missing from it, each
+  time because it had been copied from the previous round instead. The name
+  rows it returns today are `FileCard`, `TrashFileGrid`, `MissingFileGrid`,
+  `media_import`'s `WatchCard` and `intelligence`'s `SceneCard`, all at two.
+- **The media area is a different surface, and `TextThumbnail` clamps at
+  three there.** A text file has no picture to show, so `TextThumbnail` draws
+  one: the title in bold over a shrunken cast of the body text, inside the
+  media box, where a photograph would be. `FileCard`, `FileListRow` and
+  `JustifiedFileCell` all mount it, so on a text card the same title is drawn
+  twice at two different limits — three lines inside the picture, two in the
+  name row beneath it. That is not the bullet above being broken: the rule
+  there is scoped to the name row, and a stand-in for a thumbnail is sized by
+  the box it fills. **Whether three is the right number for that box is not
+  decided anywhere** — not in hako, not in a spec — so treat it as the
+  thumbnail's own and leave it alone unless something decides it. What would
+  break the rule above is the *name row* picking a third number.
+  The rest of what that grep returns clamps something that is not a name at
+  all — an excerpt, a search snippet, a quote, a description, `SceneCard`'s
+  own second line — and neither bullet says anything about them.
+- **Nothing else in that class list may set a `display`.** `line-clamp-*`
+  compiles to `display: -webkit-box` plus `-webkit-line-clamp`, and the clamp is
+  a property of that box: any other `display` utility on the same element
+  overrides it at equal specificity and leaves `-webkit-line-clamp` nothing to
+  act on, with the clamp still written on the element and nothing rendering
+  differently from a card that never had one. `block` beside a clamp is the
+  spelling this has taken twice. `line-clamp-none` is the exception — it is the
+  clamp's own release valve and is meant to be paired with one, as
+  `PropertiesPanel` pairs it. `frontend/src/__tests__/line-clamp-display.test.ts`
+  holds the mechanical half of this rule for core and every checked-out addon.
 
 ### The first fact under a file's name
 

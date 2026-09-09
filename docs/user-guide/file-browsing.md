@@ -93,7 +93,7 @@ The file list is paged: 30 files per request, fetched as you scroll. When you op
 Each file card shows:
 
 - Thumbnail (lazy-generated on first access). A photograph is stored at its own proportions, at most 320px on its longest side, and the card shows the middle of it — a tall photograph fills the card rather than sitting in black bars. Video and PDF thumbnails are a fixed 320x180 frame.
-- The file's **title**, not its filename. The title is derived from the filename and is cosmetic — this is why renaming in place is not offered on the cards (see below).
+- The file's **title**, not its filename. The title is derived from the filename and is cosmetic — this is why renaming in place is not offered on the cards (see below). A title too long to fit stops after two lines, so a row of cards stays a row of cards; the whole title is on the file's own page.
 - The date the file was indexed, plus up to two tags — and, before the date, the one fact the file has not already told you:
 
   | Kind | First shows | Because |

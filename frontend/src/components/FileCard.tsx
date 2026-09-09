@@ -177,7 +177,7 @@ function FileCardImpl({
         <div className="p-3">
           {/* Not a heading — see `FolderCard`. The accessible name is the
               card's link, which is unchanged. */}
-          <span className="block line-clamp-2 text-sm font-semibold text-text-primary">
+          <span className="line-clamp-2 text-sm font-semibold text-text-primary">
             {file.title}
           </span>
           <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
