@@ -1006,44 +1006,83 @@ describe("the sheet's half, derived from the player", () => {
   ] as const;
   expect(VIEWPORT_CHANNELS).toHaveLength(3);
 
-  const firedChannels: string[] = [];
+  /**
+   * Every group that walks the channels, by name.
+   *
+   * Declared rather than counted, so deleting a whole group is red as
+   * well: the guard at the end of this describe rebuilds the expected
+   * register from this list and the channel list.
+   */
+  const CHANNEL_GROUPS = [
+    "re-derives when the window reports a taller viewport",
+    "keeps the player element",
+  ] as const;
+  expect(CHANNEL_GROUPS).toHaveLength(2);
 
-  for (const channel of VIEWPORT_CHANNELS) {
-    it(`re-derives when ${channel.what} reports a taller window`, async () => {
-      const vv = stubVisualViewport();
-      try {
-        stubPlayerBox(PLAYER_BOTTOM);
-        await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
-        const drawer = await openSheet();
-        const before = roomOnScreen(drawer);
-        expect(before).toBeCloseTo(VIEWPORT_HEIGHT - PLAYER_BOTTOM, 0);
+  /**
+   * What the loops below actually registered, recorded as they register it.
+   *
+   * Pinning `VIEWPORT_CHANNELS.length` does not observe a loop, and a
+   * loop that runs inside one `it()` is worse still: a `slice` there does
+   * not even change the count, so the identity group was shortened to one
+   * channel with a `<video>`-remounting `key` in the tree and all 5,909
+   * tests stayed green. So every channel case goes through `eachChannel`,
+   * which registers the test and **then** records it — recorded first, a
+   * `continue` between the two lines drops the registration and leaves
+   * the record; recorded last, anything that skips the push has already
+   * skipped the `it()`.
+   *
+   * This is the shape `e2e-layout/mobile-inspector-sheet.spec.ts` uses,
+   * and its limit is the same: the expected set is written in this file,
+   * so what the guard buys is that removing a case has to disagree with
+   * something, not proof from outside.
+   */
+  const registeredChannelCases: string[] = [];
 
-        // The window grows; the player does not move. The room under it
-        // is therefore larger, and the sheet takes exactly that room —
-        // which is the claim, restated at the new window rather than
-        // compared against the old number.
-        setViewportHeight(VIEWPORT_HEIGHT + URL_BAR_PX);
-        act(() => {
-          channel.fire(vv.target);
-        });
+  const channelCaseId = (group: string, what: string) =>
+    `${group}, through ${what}`;
 
-        await waitFor(() => {
-          expect(
-            roomOnScreen(screen.getByTestId("mobile-inspector-sheet")),
-          ).toBeCloseTo(window.innerHeight - PLAYER_BOTTOM, 0);
-        });
-        expect(
-          roomOnScreen(screen.getByTestId("mobile-inspector-sheet")),
-        ).toBeGreaterThan(before);
-      } finally {
-        vv.restore();
-      }
-    });
-    firedChannels.push(channel.what);
+  function eachChannel(
+    group: string,
+    body: (channel: (typeof VIEWPORT_CHANNELS)[number]) => Promise<void>,
+  ): void {
+    for (const channel of VIEWPORT_CHANNELS) {
+      it(channelCaseId(group, channel.what), async () => {
+        await body(channel);
+      });
+      registeredChannelCases.push(channelCaseId(group, channel.what));
+    }
   }
 
-  it("fired every channel it declared", () => {
-    expect(firedChannels).toEqual(VIEWPORT_CHANNELS.map((c) => c.what));
+  eachChannel(CHANNEL_GROUPS[0], async (channel) => {
+    const vv = stubVisualViewport();
+    try {
+      stubPlayerBox(PLAYER_BOTTOM);
+      await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+      const drawer = await openSheet();
+      const before = roomOnScreen(drawer);
+      expect(before).toBeCloseTo(VIEWPORT_HEIGHT - PLAYER_BOTTOM, 0);
+
+      // The window grows; the player does not move. The room under it
+      // is therefore larger, and the sheet takes exactly that room —
+      // which is the claim, restated at the new window rather than
+      // compared against the old number.
+      setViewportHeight(VIEWPORT_HEIGHT + URL_BAR_PX);
+      act(() => {
+        channel.fire(vv.target);
+      });
+
+      await waitFor(() => {
+        expect(
+          roomOnScreen(screen.getByTestId("mobile-inspector-sheet")),
+        ).toBeCloseTo(window.innerHeight - PLAYER_BOTTOM, 0);
+      });
+      expect(
+        roomOnScreen(screen.getByTestId("mobile-inspector-sheet")),
+      ).toBeGreaterThan(before);
+    } finally {
+      vv.restore();
+    }
   });
 
   it("re-derives when the player's own box changes", async () => {
@@ -1170,10 +1209,38 @@ describe("the sheet's half, derived from the player", () => {
    * not only across the raise. Measured: with only the raise covered, a
    * `key` bumped on a `window` `resize` rebuilt the whole player and the
    * entire suite stayed green.
+   *
+   * One case per channel, through `eachChannel`, rather than one case
+   * walking them: measured, with that same `key` in the tree, a walk cut
+   * to a single channel left the whole suite green because nothing
+   * compared the channels that ran against the ones declared. The
+   * `ResizeObserver` is the fourth channel and cannot be fired off the
+   * window, so it has its own case below.
    */
-  it("keeps the player element across every channel it re-measures on", async () => {
-    const ro = stubResizeObserver();
+  eachChannel(CHANNEL_GROUPS[1], async (channel) => {
     const vv = stubVisualViewport();
+    try {
+      stubPlayerBox(PLAYER_BOTTOM);
+      await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+      const player = screen.getByTestId("file-preview");
+
+      // The raise itself, which re-renders this subtree for its own
+      // reason and so has to hold before the channel is fired at all.
+      await openSheet();
+      expect(screen.getByTestId("file-preview")).toBe(player);
+
+      setViewportHeight(window.innerHeight + 1);
+      act(() => {
+        channel.fire(vv.target);
+      });
+      expect(screen.getByTestId("file-preview")).toBe(player);
+    } finally {
+      vv.restore();
+    }
+  });
+
+  it("keeps the player element when the player's own box changes", async () => {
+    const ro = stubResizeObserver();
     try {
       stubPlayerBox(PLAYER_BOTTOM);
       const { container } = await renderMediaAwaitingChrome(
@@ -1181,30 +1248,36 @@ describe("the sheet's half, derived from the player", () => {
       );
       const player = screen.getByTestId("file-preview");
       const wrapper = container.querySelector(".media-detail-player")!;
-
-      // The raise itself.
       await openSheet();
-      expect(screen.getByTestId("file-preview")).toBe(player);
 
-      for (const channel of VIEWPORT_CHANNELS) {
-        setViewportHeight(window.innerHeight + 1);
-        act(() => {
-          channel.fire(vv.target);
-        });
-        expect(screen.getByTestId("file-preview")).toBe(player);
-      }
+      const watchers = watching(ro.instances, wrapper);
+      // More than one hook on this page observes this wrapper, so this
+      // does not pin the sheet's own observer — what it pins is that the
+      // loop below fires something at all. With nothing watching the
+      // wrapper the leg asserts an identity across an event that never
+      // happened.
+      expect(watchers.length).toBeGreaterThan(0);
 
       stubPlayerBox(PLAYER_BOTTOM * 1.2);
       act(() => {
-        for (const { cb } of watching(ro.instances, wrapper)) {
-          cb([], {} as ResizeObserver);
-        }
+        for (const { cb } of watchers) cb([], {} as ResizeObserver);
       });
       expect(screen.getByTestId("file-preview")).toBe(player);
     } finally {
-      vv.restore();
       ro.restore();
     }
+  });
+
+  it("registered every channel, in every group that walks them", () => {
+    // Both sides enumerated rather than counted, and the expected side
+    // recomputed from the two declarations rather than read off the
+    // register — so a `slice` in either loop is red, and so is dropping
+    // a group.
+    expect(registeredChannelCases).toEqual(
+      CHANNEL_GROUPS.flatMap((group) =>
+        VIEWPORT_CHANNELS.map((c) => channelCaseId(group, c.what)),
+      ),
+    );
   });
 });
 

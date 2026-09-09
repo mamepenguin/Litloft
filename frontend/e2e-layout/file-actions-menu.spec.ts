@@ -120,6 +120,14 @@ const ITEM_COUNTS = [1, 7, 14];
  * three of the six measurements of this menu's geometry deleted in silence.
  * Recording at registration puts the loop inside the thing being checked.
  *
+ * Recorded **after** the `test()` it claims, not before. Recorded first, a
+ * `continue` between the two lines drops the registration and leaves the
+ * record — measured at 198 browser cases falling to 196 passed, 0 failed,
+ * with the guard below still green. Recorded last, anything that skips the
+ * push has already skipped the `test()`, and anything that skips the
+ * `test()` skips the push. Same order as
+ * `mobile-inspector-sheet.spec.ts`'s `eachCase`.
+ *
  * Its honest limit is unchanged and is the sibling fixture's too
  * (`justified-grid.spec.ts`, "is exactly the set this file tests"): the
  * expected set is written in this file, so what the guard buys is that
@@ -133,8 +141,9 @@ const stripCaseId = (phone: (typeof PHONES)[number], items: number) =>
 test("registers exactly the screens and menus this file measures", () => {
   // Both sides enumerated rather than counted, and the expected side
   // recomputed from the two axes rather than read off the loop — so a
-  // `.slice()` anywhere between the arrays and the `test()` call is red,
-  // and so is swapping one height for another.
+  // `.slice()` on either axis is red, anything that skips a `test()`
+  // without skipping its record is red, and so is swapping one height
+  // for another.
   expect(registeredStripCases).toEqual(
     PHONES.flatMap((phone) => ITEM_COUNTS.map((n) => stripCaseId(phone, n))),
   );
@@ -164,7 +173,6 @@ test.describe("the file menu on the Bottom Sheet's resting strip", () => {
 
   for (const phone of PHONES) {
     for (const items of ITEM_COUNTS) {
-      registeredStripCases.push(stripCaseId(phone, items));
       test(`hangs off the bottom of a ${phone.label} at ${items} items, and comes back when flipped`, async ({
         page,
       }) => {
@@ -219,6 +227,7 @@ test.describe("the file menu on the Bottom Sheet's resting strip", () => {
         expect(down.menu!.top - down.trigger.bottom).toBeCloseTo(GAP_PX, 1);
         expect(up.trigger.top - up.menu!.bottom).toBeCloseTo(GAP_PX, 1);
       });
+      registeredStripCases.push(stripCaseId(phone, items));
     }
   }
 });
