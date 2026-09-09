@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Folder, History, Clock, Star, ThumbsUp, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, Folder as FolderType, PaginatedResponse, WatchHistoryItem } from "@/types";
@@ -73,10 +73,27 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const emptySelection = useMemo(() => new Set<string>(), []);
   const refreshTree = useTreeRefresh();
 
+  // The drive the page is showing, as of the last commit. Every fetch on
+  // this page captures the drive it was made for and drops its result
+  // when this no longer matches: a request outlives the drive it was made
+  // for, and there are two of them in flight across a drive change, so
+  // either order of settling is reachable. When the older one settles
+  // last it writes the drive that was left into state with
+  // `foldersLoading` already false, which is not a window — it is where
+  // the page stays, the cards and the label agreeing with each other and
+  // nothing marking either as belonging elsewhere.
+  //
+  // Read only after an `await`, so the effect that maintains it has
+  // always run by then.
+  const shownDriveRef = useRef(driveName);
+  useEffect(() => {
+    shownDriveRef.current = driveName;
+  }, [driveName]);
+
   const refreshFolders = useCallback(async () => {
     try {
       const updated = await getFolders(driveName);
-      setFolders(updated);
+      if (shownDriveRef.current === driveName) setFolders(updated);
     } catch {
       // ignore
     }
@@ -205,6 +222,10 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         promises[3] ?? Promise.resolve([] as WatchHistoryItem[]),
         promises[4] ?? Promise.resolve([] as WatchHistoryItem[]),
       ]);
+
+      // Every section on this page follows the drive, so the whole batch
+      // is dropped together rather than the folder list alone.
+      if (shownDriveRef.current !== driveName) return;
 
       applyFileSections(fileResults);
 

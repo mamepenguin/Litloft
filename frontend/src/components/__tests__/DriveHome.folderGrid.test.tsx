@@ -59,15 +59,26 @@ import { DriveHome } from "../DriveHome";
  * whether a revealed card is on screen — only that it is reachable
  * without leaving the page.
  *
+ * **What else it holds.** Which drive a folder list belongs to. A fetch
+ * outlives the drive it was made for, so both entrances — the page's own
+ * fetch effect and `refreshFolders` — are rendered here against a drive
+ * change, in both settling orders. That is a decision about whose data
+ * is written, not a layout property, so jsdom is the right place for it.
+ *
  * **Populations are declared, and every one of them has a witness.**
  * Deriving `HIDDEN` as `ALL.slice(CAP)` would make a deletion invisible:
  * the name would leave the fixture and the expectation at the same
  * moment (`review-workflow.md` detector rule 5). Writing a set out is
  * not on its own enough, though — a set whose only consumer is an
- * equality with itself shrinks silently too. Each set below is read by a
- * case that fails when an element leaves it: `ALL`, `COLLAPSED` and
- * `HIDDEN` check each other, and `AT_CAP` is checked by the case one
- * folder past it, where the label counts.
+ * equality with itself shrinks silently too. Every set below is read by
+ * a case that fails when an element leaves it, enumerated rather than
+ * counted: `ALL`, `COLLAPSED` and `HIDDEN` check each other; `AT_CAP` is
+ * checked by the case one folder past it, where the label counts, and
+ * again by the refresh-outliving case, where it is what the control must
+ * not offer anything over; `SECOND_DRIVE`, `SECOND_DRIVE_COLLAPSED` and
+ * `SECOND_DRIVE_HIDDEN` are checked by the drive-change case and by both
+ * outliving-response cases, where each single deletion moves one side of
+ * a `toEqual` or the label's declared count.
  */
 
 /** Eleven folders. The names are arbitrary; the count is the point. */
@@ -103,13 +114,14 @@ const HIDDEN_FOLDER_NAMES = ["india", "juliett", "kilo"] as const;
 /**
  * Exactly the cap, so the control has nothing to reveal.
  *
- * Its witness is the nine-folder case: that drive is this set plus
- * `NINTH_FOLDER_NAME`, and its label reads how many folders are left.
- * Remove a name here and that drive falls to the cap, which offers no
- * control at all, so the removal is visible. Without the witness this
- * set could be walked back to a single folder and a case named "exactly
- * the cap" would stay green, taking the off-by-one it exists to catch
- * with it.
+ * Its witnesses are the nine-folder case — that drive is this set plus
+ * `NINTH_FOLDER_NAME`, and its label reads how many folders are left —
+ * and the refresh-outliving case, which draws this set and requires no
+ * control beside it. Remove a name here and the nine-folder drive falls
+ * to the cap, which offers no control at all, so the removal is visible.
+ * Without a witness this set could be walked back to a single folder and
+ * a case named "exactly the cap" would stay green, taking the off-by-one
+ * it exists to catch with it.
  */
 const AT_CAP_FOLDER_NAMES = [
   "alfa",
@@ -123,8 +135,11 @@ const AT_CAP_FOLDER_NAMES = [
 ] as const;
 
 /**
- * The ninth folder. Nine top-level folders is the drive this cap was
- * measured on, and the smallest drive the cap hides anything from.
+ * The ninth folder. Nine is the smallest population the cap hides
+ * anything from, which is what makes this the boundary case; it is not a
+ * claim about any real drive's folder count, and no such number belongs
+ * in a comment (`review-workflow.md`, "state the mechanism, not the
+ * measurement").
  */
 const NINTH_FOLDER_NAME = "victor";
 
@@ -169,6 +184,29 @@ function folder(name: string): FolderType {
  * carries the path, which is what the card is keyed by, not what it
  * shows. `FolderCard` renders the name in the link's only `<span>`.
  */
+/**
+ * How many placeholder cards the skeleton draws, declared rather than
+ * read off the render. The loading cases assert it so that removing the
+ * skeleton — or the section around it — fails something: a case built
+ * only out of absences passes when everything is absent.
+ */
+const SKELETON_CARD_COUNT = 4;
+
+function skeletonCardsOnScreen(): number {
+  return document.querySelectorAll(".animate-pulse").length;
+}
+
+/**
+ * The section is on screen and drawing its skeleton.
+ *
+ * Membership only. jsdom lays nothing out, so this says the heading and
+ * the placeholders are in the document, not that either is visible.
+ */
+function expectFolderSkeleton(): void {
+  expect(screen.getByRole("heading", { name: "Folders" })).toBeInTheDocument();
+  expect(skeletonCardsOnScreen()).toBe(SKELETON_CARD_COUNT);
+}
+
 function folderNamesOnScreen(): string[] {
   return Array.from(document.querySelectorAll<HTMLElement>("[data-rename-focus]")).map(
     (el) => el.querySelector("span")?.textContent ?? "",
@@ -262,9 +300,9 @@ describe("DriveHome folder grid", () => {
   });
 
   it("offers the ninth folder when the drive has one past the cap", async () => {
-    // The boundary from the other side, and the drive the cap was
-    // measured on. The literal 1 in the label is declared, not read off
-    // the render: it is what makes a folder leaving `AT_CAP` visible.
+    // The boundary from the other side. The literal 1 in the label is
+    // declared, not read off the render: it is what makes a folder
+    // leaving `AT_CAP` visible.
     await renderDriveHome([...AT_CAP_FOLDER_NAMES, NINTH_FOLDER_NAME]);
 
     expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]);
@@ -290,8 +328,101 @@ describe("DriveHome folder grid", () => {
     rerender(<DriveHome driveName="second-drive" />);
 
     await waitFor(() => expect(folderNamesOnScreen()).toEqual([]));
+    expectFolderSkeleton();
     expect(screen.queryByRole("button", { name: /Show more/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Show less" })).toBeNull();
+  });
+
+  it("keeps the drive that was left off the page when its folders land last", async () => {
+    // Not the loading window: the resting state past it. Both drives'
+    // fetches are in flight across the change and the first drive's
+    // settles *after* the second's, so clearing the grid while
+    // `foldersLoading` is true does not reach this — by the time the old
+    // response arrives the flag is already false and its list would be
+    // drawn, cards and label agreeing, with nothing on screen to say the
+    // drive it belongs to has been left.
+    let resolveFirstDrive: (folders: FolderType[]) => void = () => {};
+    getFolders.mockReturnValueOnce(
+      new Promise<FolderType[]>((resolve) => {
+        resolveFirstDrive = resolve;
+      }),
+    );
+    const { rerender } = render(<DriveHome driveName="drive-under-test" />);
+
+    // The first drive's fetch is still in flight when the page moves on.
+    // Without this the case passes vacuously the moment that fetch
+    // settles first — which is the ordering the case above already
+    // covers, and the one the round-2 repair handles.
+    await act(async () => {});
+    expect(folderNamesOnScreen()).toEqual([]);
+
+    getFolders.mockResolvedValue(SECOND_DRIVE_FOLDER_NAMES.map(folder));
+    rerender(<DriveHome driveName="second-drive" />);
+    await waitFor(() =>
+      expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]),
+    );
+
+    await act(async () => {
+      resolveFirstDrive(ALL_FOLDER_NAMES.map(folder));
+    });
+
+    // The page is unmoved: the drive on screen still draws its own cards
+    // and its own count, and not one name from the drive that was left
+    // is in the document — including the eight the cap would have drawn,
+    // which is the shape that would otherwise look correct.
+    expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]);
+    expect(
+      screen.getByRole("button", { name: `Show more (${SECOND_DRIVE_HIDDEN_NAMES.length})` }),
+    ).toBeInTheDocument();
+    for (const name of ALL_FOLDER_NAMES) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
+  });
+
+  it("drops a refresh that was started on the drive that was left", async () => {
+    // The second entrance into the same resting state. `refreshFolders`
+    // is not tied to the fetch effect's lifetime — a drag-and-drop's
+    // `loft-move-complete` or a WS `drive.structure_changed` starts it —
+    // so its request outlives the drive change on its own, and guarding
+    // only the effect would leave this one open.
+    getFolders.mockResolvedValue(AT_CAP_FOLDER_NAMES.map(folder));
+    const { rerender } = render(<DriveHome driveName="drive-under-test" />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
+
+    let resolveRefresh: (folders: FolderType[]) => void = () => {};
+    getFolders.mockReturnValueOnce(
+      new Promise<FolderType[]>((resolve) => {
+        resolveRefresh = resolve;
+      }),
+    );
+    await act(async () => {
+      window.dispatchEvent(new Event("loft-move-complete"));
+    });
+
+    // The refresh is still in flight when the page moves on. It resolves
+    // with a longer list than the one on screen, so if it settled here
+    // the control would already be offering three folders — the case
+    // would then be about a settled refresh, not an outliving one.
+    expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]);
+    expect(screen.queryByRole("button", { name: /Show more/ })).toBeNull();
+
+    getFolders.mockResolvedValue(SECOND_DRIVE_FOLDER_NAMES.map(folder));
+    rerender(<DriveHome driveName="second-drive" />);
+    await waitFor(() =>
+      expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]),
+    );
+
+    await act(async () => {
+      resolveRefresh(ALL_FOLDER_NAMES.map(folder));
+    });
+
+    expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]);
+    expect(
+      screen.getByRole("button", { name: `Show more (${SECOND_DRIVE_HIDDEN_NAMES.length})` }),
+    ).toBeInTheDocument();
+    for (const name of ALL_FOLDER_NAMES) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
   });
 
   it("offers nothing over the skeleton when a refresh lands under it", async () => {
@@ -307,7 +438,16 @@ describe("DriveHome folder grid", () => {
       window.dispatchEvent(new Event("loft-move-complete"));
     });
 
+    // The precondition, witnessed. Without this the case holds for a
+    // bare skeleton that no refresh ever reached, which is what the
+    // drive-change case beside it already covers — and it would degrade
+    // into a copy of that one the moment the `loft-move-complete`
+    // listener regressed, silently, since nothing else covers it.
+    expect(getFolders).toHaveBeenCalledTimes(2);
+    expect(getFolders).toHaveBeenLastCalledWith("drive-under-test");
+
     expect(folderNamesOnScreen()).toEqual([]);
+    expectFolderSkeleton();
     expect(screen.queryByRole("button", { name: /Show more/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Show less" })).toBeNull();
   });
