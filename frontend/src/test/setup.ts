@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { configure } from "@testing-library/react";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
 import enMessages from "../messages/en.json";
 
 // Testing Library's 1000 ms default is a wall-clock budget, and the speed
@@ -138,4 +138,25 @@ vi.mock("next-intl", () => {
     useLocale,
     NextIntlClientProvider: ({ children }: { children: React.ReactNode }) => children,
   };
+});
+
+// A browser always ends a press; `fireEvent.pointerDown` does not.
+//
+// `DismissScrim` treats a press as in flight from `pointerdown` until
+// `pointerup` or `pointercancel`, because a popup that mounts during one —
+// `useContextMenu`'s long press is the case — has to take the click that
+// press will produce. A test that fires only the down half leaves that
+// state set, and the next popup mounted in the same file arms a swallow
+// for a press that ended before it. Measured: under `--sequence.shuffle`
+// with seed 1788980194458, `FolderContent.inlineRename` ran after
+// `InlineNameEditor`'s click-away case and lost the click that opens the
+// inline editor.
+//
+// So the lift is sent here rather than remembered in each test. It is not
+// a workaround for the mechanism: it is the half of the gesture jsdom has
+// no reason to synthesise and a browser never omits.
+afterEach(() => {
+  if (typeof document !== "undefined") {
+    document.dispatchEvent(new Event("pointerup"));
+  }
 });
