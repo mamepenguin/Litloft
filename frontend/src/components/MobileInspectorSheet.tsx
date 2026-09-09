@@ -8,7 +8,9 @@ import {
   SHEET_PEEK_PX,
   SHEET_SNAP_FULL,
   SHEET_SNAP_HALF_FALLBACK,
+  sheetDrawerHeightPx,
 } from "@/lib/sheetSnap";
+import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { DialogPortalProvider } from "./DialogPortal";
 
 /**
@@ -52,6 +54,11 @@ export const SHEET_STATE_FULL: SheetState = "full";
  *
  * The `0px` fallback is the no-snap-points case, where vaul sets no
  * variable and the whole drawer is on screen.
+ *
+ * The drawer's own height is on the element as a px value rather than
+ * as a `vh` class, for the reason `sheetDrawerHeightPx` gives: `100%`
+ * of a box sized in the large viewport would be the wrong box on a
+ * phone showing its URL bar, and this subtraction would inherit it.
  */
 export const SHEET_VISIBLE_HEIGHT =
   "calc(100% - var(--snap-point-height, 0px))";
@@ -159,6 +166,14 @@ export function MobileInspectorSheet({
 }): ReactElement | null {
   const t = useTranslations("inspector");
   const [dialogHost, setDialogHost] = useState<HTMLDivElement | null>(null);
+  // The drawer's height, against the viewport vaul solves its snaps in.
+  // A `vh` class here would size the box in the large viewport while
+  // every snap point was computed in `window.innerHeight`, and on a
+  // phone with the URL bar showing those differ by the height of the
+  // bar — the sheet's top edge would land that far above the player it
+  // is meant to stop at. See `sheetDrawerHeightPx`.
+  const viewportHeight = useViewportHeight();
+  const drawerHeight = `${sheetDrawerHeightPx(viewportHeight)}px`;
   // Rebuilt only when the derived snap moves. vaul re-derives its own
   // offsets when this array changes identity, so an inline literal would
   // hand it a new list on every render of the page behind it.
@@ -200,7 +215,8 @@ export function MobileInspectorSheet({
         <Drawer.Content
           data-testid="mobile-inspector-sheet"
           data-snap={state}
-          className="fixed bottom-0 left-0 right-0 z-[46] flex h-[90vh] max-h-[90vh] flex-col rounded-t-2xl border-t border-bg-border bg-bg-card outline-none"
+          className="fixed bottom-0 left-0 right-0 z-[46] flex flex-col rounded-t-2xl border-t border-bg-border bg-bg-card outline-none"
+          style={{ height: drawerHeight }}
         >
           <div
             data-testid="mobile-inspector-visible"

@@ -134,7 +134,11 @@ const REQUIRED = [
   // is the ground the opacity case asserts; and `overflow-x-auto` is what
   // makes the strip a scroll container in both axes, which is the reason
   // the scrolling box is named rather than counted.
-  ".h-\\[90vh\\] {",
+  //
+  // `h-[90vh]` is deliberately not in this list any more: the drawer's
+  // height is written on the element in px, off the viewport vaul solves
+  // its snaps in, and a `vh` class on it would be the defect rather than
+  // a missing rule.
   ".overflow-auto {",
   ".min-h-0 {",
   ".flex-1 {",
@@ -151,6 +155,21 @@ const REQUIRED = [
   // player at the viewport top, where a fixed snap would clear it too
   // and the replaced-arrangement cases would pass for the wrong reason.
   ".h-12 {",
+  // The width cap is what makes a phone held sideways draw a player as
+  // tall as its own scrollport, which is the viewport where the derived
+  // snap has nothing to offer and hands back the fixed fraction. Without
+  // this rule the landscape case draws an uncapped player and measures a
+  // shape the app does not have.
+  '[data-sheet-snap] .media-detail-player[data-framed="true"] {',
+  // And the padding the same surface takes off the host, which is what
+  // leaves the sticky player no travel. Compiled away, the player starts
+  // `p-4` below the scrollport, drifts by it, and the case asserting one
+  // bottom edge for the whole of a scroll goes red naming a position
+  // rather than a missing rule.
+  "[data-sheet-snap] .media-detail-host {",
+  // The host's own padding, which is the other half of that: the rule
+  // above is a correction to `p-4` and cannot be read without it.
+  ".p-4 {",
 ];
 
 /**

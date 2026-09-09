@@ -776,6 +776,7 @@ describe("the sheet's half, derived from the player", () => {
   beforeEach(() => {
     window.localStorage.setItem("media-layout-preference", "stacked");
     setViewport(400);
+    setViewportHeight(VIEWPORT_HEIGHT);
     playerBottom = PLAYER_BOTTOM;
     expect(window.innerHeight).toBe(VIEWPORT_HEIGHT);
   });
@@ -783,6 +784,7 @@ describe("the sheet's half, derived from the player", () => {
   afterEach(() => {
     restore?.();
     restore = null;
+    setViewportHeight(VIEWPORT_HEIGHT);
   });
 
   /**
@@ -812,11 +814,125 @@ describe("the sheet's half, derived from the player", () => {
     };
   }
 
-  /** The snap vaul was handed, read back off the variable it publishes. */
+  /**
+   * The snap vaul was handed, read back off the variable it publishes.
+   *
+   * Divided by the window *as it is now*, not by the height the suite
+   * started at: the cases below move `innerHeight`, and vaul's offset is
+   * a fraction of whatever it was at that render.
+   */
   const publishedSnap = (drawer: HTMLElement) =>
     1 -
     Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height")) /
-      VIEWPORT_HEIGHT;
+      window.innerHeight;
+
+  /**
+   * The height jsdom reports, which is the number vaul and the hook read.
+   *
+   * A URL bar collapsing is this and nothing else: the window grows and
+   * nothing on the page moves.
+   */
+  function setViewportHeight(height: number) {
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      writable: true,
+      value: height,
+    });
+  }
+
+  /** A window this much taller, which is a URL bar's worth. */
+  const URL_BAR_PX = 80;
+
+  /**
+   * The room the sheet has on screen, read entirely off the drawer.
+   *
+   * The drawer's own height less what vaul slid past the bottom edge —
+   * both of them values the component wrote on the element at its last
+   * render, so this is a reading and not an arithmetic. That matters for
+   * the viewport cases: `publishedSnap` divides by the window *now*, so
+   * moving the window moves the quotient with nothing having
+   * re-rendered, and a case comparing two of those would pass against a
+   * component that ignored the change entirely. Measured — it did.
+   */
+  const roomOnScreen = (drawer: HTMLElement) =>
+    Number.parseFloat(drawer.style.height) -
+    Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height"));
+
+  /**
+   * A `ResizeObserver` that records what each instance watched and
+   * whether it was let go.
+   *
+   * jsdom ships none, so every case that needs one installs this. It is
+   * evidence about the hook's wiring — which node it observed, and
+   * whether the cleanup released it — and nothing at all about when a
+   * browser would fire.
+   *
+   * **Fired through `observe`, not over the callbacks.** More than one
+   * hook on this page builds an observer, and calling every callback
+   * that was ever constructed re-derives the snap whether or not
+   * anything was observed — measured: deleting `observer.observe(node)`
+   * from the hook left the version of this that did so green.
+   */
+  interface Instance {
+    cb: ResizeObserverCallback;
+    nodes: Element[];
+    disconnected: boolean;
+  }
+
+  function stubResizeObserver(): {
+    instances: Instance[];
+    restore: () => void;
+  } {
+    const instances: Instance[] = [];
+    const original = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      private instance: Instance;
+      constructor(cb: ResizeObserverCallback) {
+        this.instance = { cb, nodes: [], disconnected: false };
+        instances.push(this.instance);
+      }
+      observe(node: Element) {
+        this.instance.nodes.push(node);
+      }
+      unobserve() {}
+      disconnect() {
+        this.instance.disconnected = true;
+      }
+    } as unknown as typeof ResizeObserver;
+    return {
+      instances,
+      restore: () => {
+        globalThis.ResizeObserver = original;
+      },
+    };
+  }
+
+  /** The instances that were pointed at the player wrapper itself. */
+  const watching = (instances: Instance[], player: Element) =>
+    instances.filter((i) => i.nodes.includes(player));
+
+  /**
+   * An `EventTarget` standing in for `window.visualViewport`.
+   *
+   * jsdom has none. Installing one is what lets a case fire the channel
+   * the URL bar reports on first — without it, that listener can be
+   * deleted with every suite green, which is what happened.
+   */
+  function stubVisualViewport(): { target: EventTarget; restore: () => void } {
+    const target = new EventTarget();
+    const had = Object.getOwnPropertyDescriptor(window, "visualViewport");
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: target,
+    });
+    return {
+      target,
+      restore: () => {
+        if (had) Object.defineProperty(window, "visualViewport", had);
+        else delete (window as { visualViewport?: unknown }).visualViewport;
+      },
+    };
+  }
 
   async function openSheet() {
     fireEvent.click(screen.getByTestId("inspector-toggle"));
@@ -862,62 +978,80 @@ describe("the sheet's half, derived from the player", () => {
     expect(publishedSnap(drawer)).toBeCloseTo(SHEET_SNAP_HALF_FALLBACK, 5);
   });
 
-  it("re-derives when the viewport changes under it", async () => {
-    // The case that finds a snap computed once: a phone's URL bar
-    // collapses mid-scroll, `window.innerHeight` changes, and vaul
-    // re-derives its own offsets from it. A `half` that did not move
-    // with them would leave the sheet somewhere the player is not.
-    //
-    // The player's box is moved here rather than the window's height,
-    // because the two arrive through different channels and only the
-    // window's `resize` is under test: jsdom has no `ResizeObserver`.
-    stubPlayerBox(PLAYER_BOTTOM);
-    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
-    const before = publishedSnap(await openSheet());
+  /**
+   * The window's own channels, each fired on its own.
+   *
+   * A URL bar collapsing is a taller window with nothing on the page
+   * having moved, so the player's box is held still and `innerHeight` is
+   * what changes — the opposite of the version this replaces, which
+   * moved the player and fired `resize`, and so would have passed with
+   * the window ignored entirely.
+   *
+   * Three rows because they are three listeners. `resize` is the one
+   * every browser fires; `orientationchange` is belt-and-braces; the
+   * visual viewport is the one iOS reports the URL bar on first, and it
+   * is the only one of the three that a phone is guaranteed to get.
+   * Sharing one case between them would let two of the three be deleted.
+   */
+  const VIEWPORT_CHANNELS = [
+    { what: "a window resize", fire: (_: EventTarget) => window.dispatchEvent(new Event("resize")) },
+    {
+      what: "a rotation",
+      fire: (_: EventTarget) => window.dispatchEvent(new Event("orientationchange")),
+    },
+    {
+      what: "the visual viewport",
+      fire: (target: EventTarget) => target.dispatchEvent(new Event("resize")),
+    },
+  ] as const;
+  expect(VIEWPORT_CHANNELS).toHaveLength(3);
 
-    stubPlayerBox(PLAYER_BOTTOM * 1.5);
-    fireEvent(window, new Event("resize"));
+  const firedChannels: string[] = [];
 
-    await waitFor(() => {
-      expect(
-        publishedSnap(screen.getByTestId("mobile-inspector-sheet")),
-      ).toBeLessThan(before);
+  for (const channel of VIEWPORT_CHANNELS) {
+    it(`re-derives when ${channel.what} reports a taller window`, async () => {
+      const vv = stubVisualViewport();
+      try {
+        stubPlayerBox(PLAYER_BOTTOM);
+        await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+        const drawer = await openSheet();
+        const before = roomOnScreen(drawer);
+        expect(before).toBeCloseTo(VIEWPORT_HEIGHT - PLAYER_BOTTOM, 0);
+
+        // The window grows; the player does not move. The room under it
+        // is therefore larger, and the sheet takes exactly that room —
+        // which is the claim, restated at the new window rather than
+        // compared against the old number.
+        setViewportHeight(VIEWPORT_HEIGHT + URL_BAR_PX);
+        act(() => {
+          channel.fire(vv.target);
+        });
+
+        await waitFor(() => {
+          expect(
+            roomOnScreen(screen.getByTestId("mobile-inspector-sheet")),
+          ).toBeCloseTo(window.innerHeight - PLAYER_BOTTOM, 0);
+        });
+        expect(
+          roomOnScreen(screen.getByTestId("mobile-inspector-sheet")),
+        ).toBeGreaterThan(before);
+      } finally {
+        vv.restore();
+      }
     });
+    firedChannels.push(channel.what);
+  }
+
+  it("fired every channel it declared", () => {
+    expect(firedChannels).toEqual(VIEWPORT_CHANNELS.map((c) => c.what));
   });
 
   it("re-derives when the player's own box changes", async () => {
     // The other channel, and the one the window's events cannot cover: a
     // `.loft` frame resolving its ratio, or `--rail-avail` moving the
     // width cap, changes the player's height without changing the
-    // window's. jsdom ships no `ResizeObserver`, so one is installed
-    // here — which makes this evidence that the hook observes the player
-    // and acts on the callback, and nothing at all about when a browser
-    // would fire it.
-    //
-    // **Fired through `observe`, not over the callbacks.** More than one
-    // hook on this page builds an observer, and calling every callback
-    // that was ever constructed re-derives the snap whether or not
-    // anything was observed — measured: deleting `observer.observe(node)`
-    // from the hook left that version of this case green.
-    interface Instance {
-      cb: ResizeObserverCallback;
-      nodes: Element[];
-    }
-    const instances: Instance[] = [];
-    const original = globalThis.ResizeObserver;
-    globalThis.ResizeObserver = class {
-      private instance: Instance;
-      constructor(cb: ResizeObserverCallback) {
-        this.instance = { cb, nodes: [] };
-        instances.push(this.instance);
-      }
-      observe(node: Element) {
-        this.instance.nodes.push(node);
-      }
-      unobserve() {}
-      disconnect() {}
-    } as unknown as typeof ResizeObserver;
-
+    // window's.
+    const ro = stubResizeObserver();
     try {
       stubPlayerBox(PLAYER_BOTTOM);
       const { container } = await renderMediaAwaitingChrome(
@@ -926,9 +1060,7 @@ describe("the sheet's half, derived from the player", () => {
       const before = publishedSnap(await openSheet());
 
       const player = container.querySelector(".media-detail-player")!;
-      const watchingThePlayer = instances.filter((i) =>
-        i.nodes.includes(player),
-      );
+      const watchingThePlayer = watching(ro.instances, player);
       // The player wrapper, not some ancestor: an observer on the page
       // would fire for reasons that have nothing to do with the video.
       expect(watchingThePlayer.length).toBeGreaterThan(0);
@@ -944,21 +1076,135 @@ describe("the sheet's half, derived from the player", () => {
         ).toBeLessThan(before);
       });
     } finally {
-      globalThis.ResizeObserver = original;
+      ro.restore();
     }
   });
 
-  it("keeps the player element across the raise it now measures", async () => {
-    // Measuring is a `getBoundingClientRect()` and nothing else. If it
-    // ever became a re-parent or a remount, a `.loft` iframe would reload
-    // and a `<video>` would restart at zero with `ended` rebound
-    // (`design-decisions.md`, watch history).
-    stubPlayerBox(PLAYER_BOTTOM);
-    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
-    const player = screen.getByTestId("file-preview");
+  it("lets the old observer go when it takes a new one", async () => {
+    // The effect re-runs on a file change, on a rotation across the
+    // mobile breakpoint, and on every viewport change — so an observer
+    // that is not disconnected is not a tidiness point. Each one keeps a
+    // closure over the node and the window it was built for and goes on
+    // writing the snap from them, and two live observers write two
+    // different answers to the same question.
+    const ro = stubResizeObserver();
+    try {
+      stubPlayerBox(PLAYER_BOTTOM);
+      const { container, unmount } = await renderMediaAwaitingChrome(
+        makeFile({ has_chapters: false }),
+      );
+      await openSheet();
 
-    await openSheet();
-    expect(screen.getByTestId("file-preview")).toBe(player);
+      const player = container.querySelector(".media-detail-player")!;
+      // Counted live, not by instance: more than one hook on this page
+      // observes this wrapper, so "was the first one released" is a
+      // question about somebody else's observer as much as this one's.
+      // What has to hold is that a re-run does not leave a second live
+      // observer behind — the leak, stated as the leak.
+      const live = () =>
+        watching(ro.instances, player).filter((i) => !i.disconnected).length;
+      const built = () => watching(ro.instances, player).length;
+      const liveAtRest = live();
+      expect(liveAtRest).toBeGreaterThan(0);
+
+      // A viewport change re-runs the effect, which is the commonest way
+      // a second observer is built on the same still-mounted page.
+      const builtAtRest = built();
+      setViewportHeight(VIEWPORT_HEIGHT + URL_BAR_PX);
+      act(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+      await waitFor(() => {
+        expect(built()).toBeGreaterThan(builtAtRest);
+      });
+      expect(live()).toBe(liveAtRest);
+
+      // And they all go when the page does.
+      unmount();
+      expect(live()).toBe(0);
+    } finally {
+      ro.restore();
+    }
+  });
+
+  it("re-measures for the next file, by being built again with it", async () => {
+    // Why the hook takes no `fileId`. `useFileDetailData` does
+    // `setFile(null)` the moment the id changes, so `FileDetailContainer`
+    // returns its spinner and this subtree — shell, canvas, player, hook
+    // — is unmounted and built again. Both halves are asserted: the
+    // wrapper really is a different element afterwards, which is the
+    // mechanism, and the snap really did move with the new player's box,
+    // which is what the reader gets. A dependency on the id would have
+    // been a second answer to a question already settled, justified by a
+    // claim about element identity that this case would have failed.
+    stubPlayerBox(PLAYER_BOTTOM);
+    setApiResponses(makeFile({ has_chapters: false }));
+    const { container, rerender } = render(
+      <FileDetailContent fileId="f1" drive="main" />,
+    );
+    await screen.findByTestId("file-detail-chrome");
+    const before = publishedSnap(await openSheet());
+    const wrapper = container.querySelector(".media-detail-player")!;
+
+    stubPlayerBox(PLAYER_BOTTOM * 1.5);
+    setApiResponses(makeFile({ id: "f2", has_chapters: false }));
+    rerender(<FileDetailContent fileId="f2" drive="main" />);
+    await screen.findByTestId("file-detail-chrome");
+
+    expect(container.querySelector(".media-detail-player")).not.toBe(wrapper);
+    // The shell is built again, so this is the next raise rather than
+    // the same one.
+    const after = publishedSnap(await openSheet());
+    expect(after).toBeLessThan(before);
+  });
+
+  /**
+   * The player element, across every channel this hook now re-measures on.
+   *
+   * `design-decisions.md` (watch history) makes this a rule rather than a
+   * preference: a remounted `<video>` restarts at zero with `ended`
+   * rebound and writes a position nobody played, and a re-parented
+   * `.loft` iframe reloads. What this unit added is a re-render driven by
+   * `resize`, `orientationchange`, the visual viewport and a
+   * `ResizeObserver` — so the identity has to hold across each of them,
+   * not only across the raise. Measured: with only the raise covered, a
+   * `key` bumped on a `window` `resize` rebuilt the whole player and the
+   * entire suite stayed green.
+   */
+  it("keeps the player element across every channel it re-measures on", async () => {
+    const ro = stubResizeObserver();
+    const vv = stubVisualViewport();
+    try {
+      stubPlayerBox(PLAYER_BOTTOM);
+      const { container } = await renderMediaAwaitingChrome(
+        makeFile({ has_chapters: false }),
+      );
+      const player = screen.getByTestId("file-preview");
+      const wrapper = container.querySelector(".media-detail-player")!;
+
+      // The raise itself.
+      await openSheet();
+      expect(screen.getByTestId("file-preview")).toBe(player);
+
+      for (const channel of VIEWPORT_CHANNELS) {
+        setViewportHeight(window.innerHeight + 1);
+        act(() => {
+          channel.fire(vv.target);
+        });
+        expect(screen.getByTestId("file-preview")).toBe(player);
+      }
+
+      stubPlayerBox(PLAYER_BOTTOM * 1.2);
+      act(() => {
+        for (const { cb } of watching(ro.instances, wrapper)) {
+          cb([], {} as ResizeObserver);
+        }
+      });
+      expect(screen.getByTestId("file-preview")).toBe(player);
+    } finally {
+      vv.restore();
+      ro.restore();
+    }
   });
 });
 
@@ -1001,7 +1247,14 @@ describe("the layout fixture's page, against the shell", () => {
     setViewport(400);
   });
 
-  it("declares the four boxes the derived snap is measured against", async () => {
+  it("declares the five boxes the derived snap is measured against", async () => {
+    // Five, not four. `.media-detail-host` sits between the canvas and
+    // the player and carries `p-4`; a fixture without it measures a page
+    // whose sticky player has no travel in front of it for the wrong
+    // reason — because the padding is absent rather than because the
+    // stylesheet took it off — and the case that asserts one bottom edge
+    // for the whole of a scroll would be proving it about markup with the
+    // offending box removed.
     const { container } = await renderMediaAwaitingChrome(
       makeFile({ has_chapters: false }),
     );
@@ -1009,12 +1262,42 @@ describe("the layout fixture's page, against the shell", () => {
     const shell = screen.getByTestId("file-detail-shell");
     const chrome = screen.getByTestId("file-detail-chrome");
     const canvas = container.querySelector("main")!;
+    const mediaHost = container.querySelector(".media-detail-host")!;
     const player = container.querySelector(".media-detail-player")!;
 
     expect(sorted(shell.className)).toEqual(sorted(SPEC.pageRoot as string));
     expect(sorted(chrome.className)).toEqual(sorted(SPEC.chrome as string));
     expect(sorted(canvas.className)).toEqual(sorted(SPEC.canvas as string));
+    expect(sorted(mediaHost.className)).toEqual(
+      sorted(SPEC.mediaHost as string),
+    );
     expect(sorted(player.className)).toEqual(sorted(SPEC.player as string));
+
+    // And the nesting, which no pair of class lists states: the host
+    // between the two, and the player inside it.
+    expect(canvas).toContainElement(mediaHost as HTMLElement);
+    expect(mediaHost).toContainElement(player as HTMLElement);
+  });
+
+  it("declares the ratio a framed player's height comes from", async () => {
+    // The fixture draws its player with a `padding-top` shim and lets the
+    // stylesheet's width cap decide the height, which is how the app
+    // draws a `.loft` embed and — through `aspect-video` — a `<video>`.
+    // `data-framed` is what puts the cap on it at all, so a shell that
+    // stopped writing it would leave the landscape case measuring an
+    // uncapped player, which is not a shape this page can draw.
+    const { container } = await renderMediaAwaitingChrome(
+      makeFile({ has_chapters: false }),
+    );
+    expect(
+      container
+        .querySelector(".media-detail-player")!
+        .getAttribute("data-framed"),
+    ).toBe("true");
+    // 56.25% is 9/16 written as the shim writes it.
+    expect(
+      Number.parseFloat(SPEC.framedShimPaddingTop as string) / 100,
+    ).toBeCloseTo(9 / 16, 6);
   });
 
   it("declares the attribute that makes the player sticky at all", async () => {

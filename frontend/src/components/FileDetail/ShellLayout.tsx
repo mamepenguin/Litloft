@@ -168,7 +168,6 @@ export function ShellLayout({
   const sheetHalfSnap = useSheetHalfSnap(
     metrics.playerWrapperRef,
     isMobile && hasPlayer,
-    fileId,
   );
 
   /**

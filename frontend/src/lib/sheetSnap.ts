@@ -9,7 +9,9 @@
  * Everything here is a fraction of `window.innerHeight`, which is the
  * only viewport vaul knows: `snapPointsOffset` is a pure function of
  * that and the snap point, and the drawer's own box is not an input to
- * it (vaul 1.1.2).
+ * it (vaul 1.1.2). The drawer's height is expressed against the same
+ * number, by `sheetDrawerHeightPx` below — see `useViewportHeight` for
+ * why a CSS viewport unit is a different quantity.
  */
 
 /**
@@ -21,16 +23,13 @@
  * find, and now they are in the same place on every file.
  *
  * `DESIGN.md` §Layering states it, and the parity test binds the two.
- * It is also the unit the derived snap is bounded by, below.
+ * It is also the unit the derived snap's upper bound is expressed in,
+ * below.
  */
 export const SHEET_PEEK_PX = 56;
 
 /**
  * `Drawer.Content`'s own height, as a fraction of the viewport.
- *
- * Tailwind cannot read a constant, so the class list still spells
- * `h-[90vh]`; `inspectorThresholdParity.test.ts` reads that class out of
- * the component and checks it against this.
  *
  * **Not the same quantity as `SHEET_SNAP_FULL`**, which happens to carry
  * the same digits. This is how tall the drawer is; that is how far up
@@ -43,13 +42,47 @@ export const SHEET_DRAWER_VH = 0.9;
 export const SHEET_SNAP_FULL = 0.9;
 
 /**
- * The snap `half` falls back to when there is no player to measure.
+ * The snap `half` falls back to when there is nothing to derive.
  *
  * A Markdown note, a PDF, an image: nothing on the page has a bottom
  * edge the sheet is trying to stay under, so `half` keeps the fixed
- * fraction it had before the derivation existed.
+ * fraction it had before the derivation existed. A page whose player
+ * leaves less room than this is the same answer for the same reason —
+ * see `halfSnapUnderPlayer`.
  */
 export const SHEET_SNAP_HALF_FALLBACK = 0.5;
+
+/**
+ * `Drawer.Content`'s height in px, for a viewport of this height.
+ *
+ * **The component's height comes from here, not from a `vh` class.**
+ * The drawer's height is one of the two terms in the derivation below,
+ * and the other is `window.innerHeight`; a CSS viewport unit would size
+ * the box against a viewport vaul has never heard of. On a phone with
+ * the URL bar showing, `100vh` — the *large* viewport — is taller than
+ * `innerHeight` by the height of that bar, and the sheet's top edge
+ * lands that far above where the arithmetic put it, over the player it
+ * exists to leave whole.
+ *
+ * So the number is computed in JS from the viewport vaul reads and
+ * written on the element, and `MobileInspectorSheet.test.tsx` holds the
+ * drawer to it and to carrying no viewport unit of its own.
+ */
+export function sheetDrawerHeightPx(viewportHeight: number): number {
+  return SHEET_DRAWER_VH * viewportHeight;
+}
+
+/**
+ * The room a snap leaves on screen, in px.
+ *
+ * The subtraction `SHEET_VISIBLE_HEIGHT` performs in CSS: vaul
+ * translates the drawer down by `vh × (1 − snap)` and the drawer is
+ * anchored to the bottom edge, so what is left is its own height less
+ * that translate.
+ */
+function roomAtSnap(viewportHeight: number, snap: number): number {
+  return sheetDrawerHeightPx(viewportHeight) - viewportHeight * (1 - snap);
+}
 
 export interface HalfSnapInput {
   /** `window.innerHeight`, which is the viewport vaul derives from. */
@@ -61,33 +94,37 @@ export interface HalfSnapInput {
 /**
  * The snap that lands the sheet's top edge on the player's bottom edge.
  *
- * **The mechanism, not a number.** vaul translates the drawer down by
- * `vh × (1 − snap)`, and the drawer is anchored to the bottom edge, so
- * what is left on screen is the drawer's own height less that translate
- * — the subtraction `SHEET_VISIBLE_HEIGHT` performs in CSS. Asking for
- * the sheet's top edge to sit at the player's bottom is asking for that
- * remainder to be exactly the room under the player, which solves for
- * the snap in one step:
+ * **The mechanism, not a number.** Asking for the sheet's top edge to
+ * sit at the player's bottom is asking for the room a snap leaves on
+ * screen — `roomAtSnap` above — to be exactly the room under the
+ * player, which solves for the snap in one step:
  *
  *     drawerHeight − vh × (1 − snap) = vh − playerBottom
  *
- * Read the drawer's height out of `SHEET_DRAWER_VH` rather than writing
- * the difference as a constant: an offset term is the same expression
- * with the drawer's height already substituted into it, and it goes
- * silently wrong the moment that height moves.
+ * Read the drawer's height out of `sheetDrawerHeightPx` rather than
+ * writing the difference as a constant: an offset term is the same
+ * expression with the drawer's height already substituted into it, and
+ * it goes silently wrong the moment that height moves.
  *
- * The room is bounded at both ends by states the sheet already has.
- * Below `SHEET_PEEK_PX` a raised sheet would be shorter than the resting
- * strip it replaced; at `full`'s own room the two expanded states stop
- * being distinguishable and a drag between them would move nothing, so
- * `half` stops one row short of it. A player taller than the screen and
- * a player barely taller than its own controls both exist, and both land
- * outside those bounds.
+ * **The derivation only applies while it gives the reader more room
+ * than the fixed fraction it replaced.** Below that there is nothing to
+ * buy: a sheet raised to less than `half` used to show has taken the
+ * page away to protect a player that has already taken the screen. A
+ * phone held sideways is where this happens — the stylesheet caps a
+ * framed player at the scrollport's own height there, so the room under
+ * it is a handful of pixels — and the answer is the same fixed fraction
+ * a page with no player gets, not a sheet one row tall.
  *
- * @returns the snap, or `null` when there is nothing to derive from —
- * a viewport with no height, a rect that never laid out, or a screen too
- * short for the two bounds to leave anything between them. The caller
- * falls back to `SHEET_SNAP_HALF_FALLBACK`.
+ * The upper bound is `full`'s own room less a row. Past it the two
+ * expanded states stop being distinguishable and a drag between them
+ * would move nothing, so `half` stops one row short. An audio bar,
+ * which is short at every viewport, is the shape that gets there.
+ *
+ * @returns the snap, or `null` when there is nothing to derive — a
+ * viewport with no height, a rect that never laid out, a player that
+ * leaves less room than the fallback would, or a screen too short for the
+ * two bounds to leave anything between them. The caller falls back to
+ * `SHEET_SNAP_HALF_FALLBACK`, so the result is never below it.
  */
 export function halfSnapUnderPlayer({
   viewportHeight,
@@ -101,17 +138,20 @@ export function halfSnapUnderPlayer({
   // supposed to leave alone. Nothing to derive; fall back.
   if (!Number.isFinite(playerBottom) || playerBottom <= 0) return null;
 
-  const drawerPx = SHEET_DRAWER_VH * viewportHeight;
-  const snapForRoom = (room: number) => 1 - (drawerPx - room) / viewportHeight;
-
-  const fullRoom = drawerPx - viewportHeight * (1 - SHEET_SNAP_FULL);
-  const smallestRoom = SHEET_PEEK_PX;
-  const largestRoom = fullRoom - SHEET_PEEK_PX;
+  const smallestRoom = roomAtSnap(viewportHeight, SHEET_SNAP_HALF_FALLBACK);
+  const largestRoom =
+    roomAtSnap(viewportHeight, SHEET_SNAP_FULL) - SHEET_PEEK_PX;
+  // The two bounds cross on a window too short to hold both. Not a
+  // phone, but it is what `viewportHeight` reads as while a tab is being
+  // restored or a window dragged to nothing.
   if (largestRoom < smallestRoom) return null;
 
-  const room = Math.min(
-    Math.max(viewportHeight - playerBottom, smallestRoom),
-    largestRoom,
+  const room = viewportHeight - playerBottom;
+  if (room < smallestRoom) return null;
+
+  return (
+    1 -
+    (sheetDrawerHeightPx(viewportHeight) - Math.min(room, largestRoom)) /
+      viewportHeight
   );
-  return snapForRoom(room);
 }

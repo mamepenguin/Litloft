@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  act,
   cleanup,
   render,
   screen,
@@ -13,6 +14,7 @@ import {
   SHEET_PEEK_PX,
   SHEET_SNAP_FULL,
   SHEET_SNAP_HALF_FALLBACK,
+  sheetDrawerHeightPx,
 } from "@/lib/sheetSnap";
 import {
   MobileInspectorSheet,
@@ -274,6 +276,50 @@ describe("the half state and the snap it resolves to", () => {
     expect(
       Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height")),
     ).toBeCloseTo(window.innerHeight * (1 - SHEET_SNAP_HALF_FALLBACK), 5);
+  });
+
+  it("sizes the drawer in the viewport vaul solves its snaps in", () => {
+    // Both terms of the derivation in one place. vaul's translate is a
+    // fraction of `window.innerHeight`; the drawer's height has to be a
+    // fraction of the same number, or the sheet's top edge lands
+    // somewhere neither of them named.
+    const { drawer } = expanded(SHEET_STATE_HALF, DERIVED);
+    expect(drawer.style.height).toBe(
+      `${sheetDrawerHeightPx(window.innerHeight)}px`,
+    );
+  });
+
+  it("follows the window when the URL bar moves", () => {
+    // A height read once is the same defect as a snap computed once. On
+    // a phone the window grows by the height of the bar and vaul's
+    // translate changes with it; a drawer still sized for the old window
+    // is the mismatch this round removed, arriving a moment later.
+    const had = window.innerHeight;
+    try {
+      const { drawer } = expanded(SHEET_STATE_HALF, DERIVED);
+      const before = drawer.style.height;
+
+      Object.defineProperty(window, "innerHeight", {
+        configurable: true,
+        writable: true,
+        value: had + 80,
+      });
+      act(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+
+      const after = screen.getByTestId("mobile-inspector-sheet");
+      expect(after.style.height).not.toBe(before);
+      expect(after.style.height).toBe(
+        `${sheetDrawerHeightPx(window.innerHeight)}px`,
+      );
+    } finally {
+      Object.defineProperty(window, "innerHeight", {
+        configurable: true,
+        writable: true,
+        value: had,
+      });
+    }
   });
 
   it("still publishes which state it is in, not the number", () => {

@@ -14,9 +14,9 @@
  * than the equation written out a second time — a test that recomputes
  * the implementation is reading one table twice and agrees with any
  * expression at all, including a wrong one (`review-workflow.md`,
- * detector rule 5). The three claims that are not literals — the cap,
- * the direction, and the two ways there is nothing to derive — are
- * stated as properties, which is what they are.
+ * detector rule 5). The claims that are not literals — the cap, the
+ * direction, the floor the derivation refuses, and the ways there is
+ * nothing to derive — are stated as properties, which is what they are.
  */
 import { describe, it, expect } from "vitest";
 
@@ -26,34 +26,32 @@ import {
   SHEET_SNAP_FULL,
   SHEET_SNAP_HALF_FALLBACK,
   halfSnapUnderPlayer,
+  sheetDrawerHeightPx,
 } from "@/lib/sheetSnap";
 
 /**
- * Four shapes, each a different branch, with the snap written out.
+ * Three shapes, each a different branch, with the snap written out.
  *
- * The first two are ordinary players at two viewport heights and two
- * aspect ratios; the last two are the ends the room is clamped at. A
- * table of the ordinary cases alone would leave both clamps unread, and
- * they are where a player that does not fit the screen ends up.
+ * Two ordinary players at two viewport heights, and one that reaches the
+ * upper bound. A table of the ordinary cases alone would leave the cap
+ * unread, and it is where a player far shorter than the screen ends up.
+ *
+ * The lower end is not in this table because it has no snap: below the
+ * room the fixed fraction already gives, the function declines and the
+ * caller keeps that fraction. `FALLS_BACK` is where those live.
  */
 const CASES = [
   {
-    what: "a 16:9 player on a small phone",
+    what: "a framed player on a small phone",
     viewportHeight: 667,
     playerBottom: 315,
     snap: 0.627736,
   },
   {
-    what: "a 4:3 player on a taller phone",
+    what: "a taller player on a taller phone",
     viewportHeight: 812,
     playerBottom: 329.25,
-    snap: 0.694520,
-  },
-  {
-    what: "a player whose foot is already past the fold",
-    viewportHeight: 667,
-    playerBottom: 800,
-    snap: 0.183958,
+    snap: 0.69452,
   },
   {
     what: "a player barely taller than its own controls",
@@ -62,14 +60,75 @@ const CASES = [
     snap: 0.816042,
   },
 ] as const;
-expect(CASES).toHaveLength(4);
+expect(CASES).toHaveLength(3);
 
-/** What the loop registered, so walking it back disagrees with `CASES`. */
+/**
+ * Where there is no snap to give, by reason.
+ *
+ * Each row is a different way of having nothing to derive, and the
+ * reason is in the row rather than in a comment above the loop, so that
+ * deleting a branch of the function leaves one of them naming itself.
+ */
+const FALLS_BACK = [
+  {
+    what: "a viewport with no height",
+    viewportHeight: 0,
+    playerBottom: 300,
+  },
+  {
+    what: "a viewport height that is not a number",
+    viewportHeight: Number.NaN,
+    playerBottom: 300,
+  },
+  {
+    what: "a viewport with no upper end",
+    viewportHeight: Number.POSITIVE_INFINITY,
+    playerBottom: 300,
+  },
+  {
+    what: "a rect that never laid out",
+    viewportHeight: 667,
+    playerBottom: 0,
+  },
+  {
+    what: "a rect above the viewport's own top",
+    viewportHeight: 667,
+    playerBottom: -20,
+  },
+  {
+    what: "a screen the two bounds do not fit inside",
+    viewportHeight: 120,
+    playerBottom: 40,
+  },
+  {
+    // A phone held sideways: the stylesheet caps a framed player at the
+    // scrollport's own height there, so what is under it is nothing.
+    what: "a player that fills the screen",
+    viewportHeight: 375,
+    playerBottom: 375,
+  },
+  {
+    // And the general form of it, which is the bound rather than that
+    // one viewport: less room than the fixed fraction already gives.
+    what: "a player leaving less room than the fraction it replaces",
+    viewportHeight: 667,
+    playerBottom: 450,
+  },
+] as const;
+expect(FALLS_BACK).toHaveLength(8);
+
+/**
+ * What the loops registered, recorded after each registration.
+ *
+ * Written after the `it()` and not before it: a record kept in front of
+ * the thing it claims survives anything inserted between the two lines —
+ * measured, in the version this replaces, at three of four cases silently
+ * dropped with the guard still green.
+ */
 const ran: string[] = [];
 
 describe("halfSnapUnderPlayer", () => {
   for (const c of CASES) {
-    ran.push(c.what);
     it(`derives ${c.what}`, () => {
       expect(
         halfSnapUnderPlayer({
@@ -78,10 +137,26 @@ describe("halfSnapUnderPlayer", () => {
         }),
       ).toBeCloseTo(c.snap, 6);
     });
+    ran.push(c.what);
   }
 
-  it("ran every case in the table", () => {
-    expect(ran).toEqual(CASES.map((c) => c.what));
+  for (const c of FALLS_BACK) {
+    it(`has nothing to derive from ${c.what}`, () => {
+      expect(
+        halfSnapUnderPlayer({
+          viewportHeight: c.viewportHeight,
+          playerBottom: c.playerBottom,
+        }),
+      ).toBeNull();
+    });
+    ran.push(c.what);
+  }
+
+  it("ran every case in both tables", () => {
+    expect(ran).toEqual([
+      ...CASES.map((c) => c.what),
+      ...FALLS_BACK.map((c) => c.what),
+    ]);
   });
 
   it("never reaches full, so the two expanded states stay distinguishable", () => {
@@ -97,6 +172,23 @@ describe("halfSnapUnderPlayer", () => {
     }
   });
 
+  it("never gives back less than the fraction it replaces", () => {
+    // The bound the landscape regression is about, as a property over
+    // every player position rather than at the one viewport that showed
+    // it. A derivation that clamped a too-tall player to some floor
+    // instead of declining satisfies every literal above and fails here
+    // at the positions where that floor is shorter than `half` already
+    // was: a 55px sheet, against 150px for the fraction it replaced.
+    for (const viewportHeight of [375, 667, 812, 915]) {
+      for (let playerBottom = 1; playerBottom < viewportHeight; playerBottom++) {
+        const snap = halfSnapUnderPlayer({ viewportHeight, playerBottom });
+        if (snap === null) continue;
+        expect(snap).toBeGreaterThanOrEqual(SHEET_SNAP_HALF_FALLBACK);
+        expect(snap).toBeLessThan(SHEET_SNAP_FULL);
+      }
+    }
+  });
+
   it("gives a taller player a smaller sheet", () => {
     // The direction, which no single value can show. A derivation that
     // dropped the player term entirely — or inverted it — satisfies every
@@ -107,39 +199,21 @@ describe("halfSnapUnderPlayer", () => {
     expect(at(200)).toBeGreaterThan(at(300));
     expect(at(300)).toBeGreaterThan(at(400));
   });
+});
 
-  it("has nothing to derive from a viewport with no height", () => {
-    // Before the first layout, and in the environments where
-    // `innerHeight` is 0. The caller falls back rather than snapping the
-    // sheet to a number computed from nothing.
-    for (const viewportHeight of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
-      expect(
-        halfSnapUnderPlayer({ viewportHeight, playerBottom: 300 }),
-      ).toBeNull();
+describe("sheetDrawerHeightPx", () => {
+  it("is the drawer's fraction of the viewport vaul reads", () => {
+    // The component writes this on `Drawer.Content` and the derivation
+    // uses it as one of its two terms. One function so the two cannot be
+    // in different viewports, which is what a `vh` class made them:
+    // `MobileInspectorSheet.test.tsx` holds the element to this value and
+    // to carrying no viewport unit of its own.
+    for (const viewportHeight of [375, 667, 915]) {
+      expect(sheetDrawerHeightPx(viewportHeight)).toBeCloseTo(
+        SHEET_DRAWER_VH * viewportHeight,
+        6,
+      );
     }
-  });
-
-  it("has nothing to derive from a rect that never laid out", () => {
-    // Zero is the one that matters, and it is not the same as "a very
-    // short player": an unpainted subtree measures `bottom: 0`, and a
-    // room of the whole window clamps to a sheet that covers the player
-    // it exists to stay under. The fallback is the honest answer.
-    for (const playerBottom of [0, -20, Number.NaN]) {
-      expect(
-        halfSnapUnderPlayer({ viewportHeight: 667, playerBottom }),
-      ).toBeNull();
-    }
-  });
-
-  it("has nothing to derive on a screen the two bounds do not fit inside", () => {
-    // Not a phone, but it is what `viewportHeight` reads as while a tab
-    // is being restored or a window is being dragged to nothing. The
-    // room the sheet may take is bounded below by a peek row and above by
-    // full's own room less another one, and under ~140px those bounds
-    // cross.
-    expect(
-      halfSnapUnderPlayer({ viewportHeight: 120, playerBottom: 40 }),
-    ).toBeNull();
   });
 });
 

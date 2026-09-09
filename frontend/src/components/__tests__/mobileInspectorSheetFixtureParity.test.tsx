@@ -30,7 +30,12 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
-import { SHEET_SNAP_FULL, SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
+import {
+  SHEET_DRAWER_VH,
+  SHEET_SNAP_FULL,
+  SHEET_SNAP_HALF_FALLBACK,
+  sheetDrawerHeightPx,
+} from "@/lib/sheetSnap";
 import {
   MobileInspectorSheet,
   SHEET_STATE_FULL,
@@ -178,10 +183,28 @@ describe("the sheet's own chrome", () => {
 
   it("declares the drawer's height as the fraction the browser cases are arithmetic on", () => {
     const { drawer } = renderSheet(SHEET_SNAP_HALF_FALLBACK);
-    // `drawerVh` is the only number the browser spec asserts about the
-    // drawer itself, and it is a literal there. This is the line that
-    // makes it a claim about the app.
-    expect(drawer.className).toContain(`h-[${(SPEC.drawerVh as number) * 100}vh]`);
+    // `drawerVh` is the fixture's copy of `SHEET_DRAWER_VH`, and the
+    // browser spec sizes its own drawer from it. This is the line that
+    // makes it a claim about the app — the height the component actually
+    // wrote on the element, in px, against jsdom's own window.
+    expect(SPEC.drawerVh).toBe(SHEET_DRAWER_VH);
+    expect(drawer.style.height).toBe(
+      `${sheetDrawerHeightPx(window.innerHeight)}px`,
+    );
+  });
+
+  it("gives the drawer no viewport unit of its own", () => {
+    // The first finding of round two, as a rule rather than as the one
+    // spelling it arrived in. CSS `vh` is the large viewport and vaul
+    // solves every snap in `window.innerHeight`; `svh`, `lvh` and `dvh`
+    // are three more answers to "which viewport", and a `calc()` or a
+    // `min()` around any of them is a fourth. The drawer's height comes
+    // from `sheetDrawerHeightPx` and there is no second definition of it
+    // anywhere on the element.
+    const { drawer } = renderSheet(SHEET_SNAP_HALF_FALLBACK);
+    const written = `${drawer.className} ${drawer.getAttribute("style") ?? ""}`;
+    expect(written).not.toMatch(/\d\s*(?:[sld]?vh|vmin|vmax)\b/);
+    expect(SPEC.drawer as string).not.toMatch(/\d\s*(?:[sld]?vh|vmin|vmax)\b/);
   });
 
   it("mounts the scroller inside the visible box, and the child inside the scroller", () => {
@@ -352,12 +375,14 @@ describe("the fixture's declarations", () => {
   const COMPARED_IN_MEDIA_SHELL = [
     "canvas",
     "chrome",
+    "framedShimPaddingTop",
+    "mediaHost",
     "pageRoot",
     "peekPx",
     "player",
   ];
   expect(COMPARED_HERE).toHaveLength(16);
-  expect(COMPARED_IN_MEDIA_SHELL).toHaveLength(5);
+  expect(COMPARED_IN_MEDIA_SHELL).toHaveLength(7);
 
   it("names every key the fixture uses, and no others", () => {
     expect(Object.keys(SPEC).sort()).toEqual(
