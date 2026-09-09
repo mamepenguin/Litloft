@@ -36,6 +36,27 @@
    that is not this change. */
 @source not "../__tests__/line-clamp-display.test.ts";
 
+/* And the same hazard one directory over, in its purest form: the needle
+   list in `e2e-layout/build-fixture-css.ts` asserts that the compiled
+   sheet contains a rule for `p-4`, and it asserts it by holding that
+   class in a string — so the scanner reads the candidate out of the
+   assertion itself and the assertion cannot fail. Measured: with the
+   class taken out of every component, fixture, spec and comment in the
+   tree, the rule was still in the sheet and the browser cases failed on
+   their own numbers instead of the setup naming the sheet.
+
+   Escaping hid that rather than fixing it. A selector needing a
+   backslash — the arbitrary-valued height, the `pointer-coarse` variants
+   — is not a candidate, so those needles were falsifiable while every
+   needle whose class is spelled exactly as the scanner reads it was not.
+   Excluding the file makes the property hold for all of them instead of
+   for the ones whose selectors happen to need a backslash.
+
+   (No brace-and-selector spellings in this comment: `mediaDetailTheaterCss`
+   counts braces to check a rule is at the top level, and it counts the
+   ones in prose too.) */
+@source not "../../e2e-layout/build-fixture-css.ts";
+
 /* ===== Pinterest Design System ===== */
 /* Warm white canvas · Coral Red (#d63031) · Plum Black (#211922) */
 /* Dark variant: warm plum dark (#1a0e10) · Bright Coral (#e85d5e) */
@@ -1250,18 +1271,25 @@ div[data-citation-section-path]:not(tr) {
 /* The player starts at the scrollport's own top edge, so it has nowhere
    to travel before it pins.
 
-   **This follows the sticky rule above, and so has the same scope: every
-   phone file page with a canvas viewer.** `FileDetailCanvas` and
-   `MediaCanvas` are what draw this host, and each of them puts the
-   player wrapper inside it on every branch they return, so a top padding
-   here gives a sticky box travel in front of it wherever the rule
-   applies — two bottom edges, one before it pins and one after —
-   whether or not anything on the page reads them. The sheet's `half`
+   **This follows the sticky rule above, and so has the same scope.**
+   `MediaCanvas` is the host inside `[data-sheet-snap]`: the attribute is
+   written on the shell root, `ShellLayout` puts that canvas inside it,
+   and the canvas host is `media-detail-host w-full space-y-4 p-4` — the
+   `p-4` this rule cancels, spelled the same way in
+   `e2e-layout/fixtures/mobile-inspector-sheet.html`'s `mediaHost`. The
+   canvas puts the player wrapper inside that host on every branch it
+   returns, so cancelling the padding gives a sticky box no travel in
+   front of it — one bottom edge for the whole of a scroll rather than
+   two — whether or not anything on the page reads it. The sheet's `half`
    (`useSheetHalfSnap`) is one consumer of the pinned edge rather than
    the reason for it: solved while scrolled and then scrolled back, its
-   top edge lands over the player by exactly this padding. Narrowing the
-   selector to the surfaces that hook runs on would leave the other
-   sticky wrappers with travel for no reason.
+   top edge lands over the player by exactly this padding.
+
+   `FileDetailCanvas` draws the same host and is deliberately not named
+   here: `FileDetailPresenter` returns it as its own root in the branch
+   where `ridesFileDetailShell` is false, which is never inside
+   `[data-sheet-snap]`, and its hosts are `media-detail-host w-full` with
+   no padding to cancel in the first place.
 
    The mechanism, since the selector does not show it: the wrapper is the
    host's first child, so a top padding puts it that far below the

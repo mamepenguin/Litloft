@@ -696,6 +696,23 @@ const TRAVEL_PX: Record<string, number> = {
 expect(Object.keys(TRAVEL_PX)).toHaveLength(1);
 
 /**
+ * Every travelling pair is a `fallback` pair, and the two lists are not
+ * the same list by accident.
+ *
+ * A player only travels when it is taller than what the canvas can show,
+ * and a player that fills the scrollport leaves nothing under it — which
+ * is the same condition `fallback` names. So where the edge moves there
+ * was never a derived snap to go stale, and where a snap was derived the
+ * edge does not move. That is the whole reason one measurement at the top
+ * of the page is good for the rest of it.
+ *
+ * Asserted as a subset rather than left to the reader: a pair that
+ * travelled *and* derived would be a stale number nothing here would
+ * notice, and it has to disagree with this line first.
+ */
+expect(Object.keys(TRAVEL_PX).filter((k) => !FALLBACK.includes(k))).toEqual([]);
+
+/**
  * A phone's URL bar, as an input.
  *
  * Not a measurement of anything in this repository: it stands for the
@@ -926,31 +943,49 @@ test.describe(PLAYER_GROUPS[1], () => {
       scrollCanvasTo: TO_THE_END,
     });
 
+    // **The hazard**: the app solves `half` once, at the top of the page,
+    // and holds that number for the whole of a scroll. A number solved
+    // from an edge that then moved would be stale, so the two branches
+    // below are the two ways it cannot be — and they are the only two,
+    // because the subset asserted beside `TRAVEL_PX` says a pair either
+    // travels or derives and never both.
+    //
+    // Recomputing the derivation from the scrolled edge and comparing it
+    // with `top.derived` is *not* what does this, and the earlier version
+    // of this case did exactly that: on the nine pairs that do not travel
+    // the two edges are the same number, and on the one that does both
+    // sides fall back, so the comparison was `0.5 === 0.5` with 62px of
+    // slack before it had any content at all.
     const travel = TRAVEL_PX[playerKey(c.width, c.height, c.pLabel)];
     if (travel !== undefined) {
       // Bounded by its containing block: a player taller than what the
       // canvas can show is pulled up with the page's last line, by this
       // much and not merely upwards.
       expect(top.playerBottom - scrolled.playerBottom).toBeCloseTo(travel, 0);
+
+      // And there was nothing to go stale. Asserted as the derivation's
+      // own answer at *both* edges rather than as a distance: `null` is
+      // "the room here is under the floor I refuse below", which is the
+      // branch the top of the page took and the branch the scrolled page
+      // still takes. A viewport or a player shape whose travel lifted the
+      // room over that floor would return a number here — a snap the app
+      // would not be holding — and go red instead of passing quietly.
+      for (const edge of [top.playerBottom, scrolled.playerBottom]) {
+        expect(
+          halfSnapUnderPlayer({
+            viewportHeight: c.height,
+            playerBottom: edge,
+          }),
+        ).toBeNull();
+      }
+      expect(top.derived).toBe(SHEET_SNAP_HALF_FALLBACK);
     } else {
+      // The edge did not move, so the number solved from it is the number
+      // the scrolled page would solve. There is nothing further to assert
+      // here, and recomputing from an edge pinned equal to the one the
+      // snap came from would assert nothing.
       expect(scrolled.playerBottom).toBeCloseTo(top.playerBottom, 0);
     }
-
-    // **The hazard itself**, which neither branch above reaches: the app
-    // solves `half` once, at the top of the page, and goes on holding
-    // that number for the whole of a scroll. So the question is not how
-    // far the edge moved but whether the edge it moved to would have
-    // produced a different snap — and where it would not, the number in
-    // force is not stale in any way a reader can see. On the travelling
-    // pair this is the arithmetic that makes 88px harmless, stated where
-    // a viewport or a player shape that lifted the room over the floor
-    // would be red instead of silent.
-    expect(
-      halfSnapUnderPlayer({
-        viewportHeight: c.height,
-        playerBottom: scrolled.playerBottom,
-      }) ?? SHEET_SNAP_HALF_FALLBACK,
-    ).toBeCloseTo(top.derived, 5);
 
     await expectSheetUnderPlayer(page, c, { m: scrolled.m });
   });
