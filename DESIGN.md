@@ -925,18 +925,63 @@ number one higher than whatever it currently sits under.
 | State | Height | What is on screen |
 |---|---|---|
 | peek | `56px` | The file's name and the row that acts on it — like, favourite, the AI menu, the overflow |
-| half | `90vh` less `vh × (1 − 0.5)` = **40vh** | The top of the inspector: title, meta, action row, tags. The tab strip and the tab body are below it, and are reached by scrolling |
+| half | `90vh` less `vh × (1 − 0.5)` = **40vh** where nothing is measured; on a page with a player, the room under the player's bottom edge | The top of the inspector: title, meta, action row, tags. The tab strip and the tab body are below it, and are reached by scrolling |
 | full | `90vh` less `vh × (1 − 0.9)` = **80vh** | Most of that column at once, with room to read a tab |
 
-**The snap does not set the height.** The drawer is `h-[90vh]` at both states;
-the snap sets how far vaul translates it down, and what is left on screen is
-`90vh` less that translate. So `half` is 40% of the window and not 50%, and the
-two rows above are the same subtraction with a different snap — which is why the
-Height column is written as the arithmetic rather than as a figure, and why
-`inspectorThresholdParity.test.ts` evaluates it against `SHEET_SNAP_HALF`,
-`SHEET_SNAP_FULL` and the drawer's own class list. The third column is prose and
-nothing enforces it.
+**The snap does not set the height.** The drawer is nine tenths of the window at
+both states; the snap sets how far vaul translates it down, and what is left on
+screen is that height less the translate. So the fixed `half` is 40% of the
+window and not 50%, and the two rows above are the same subtraction with a
+different snap — which is why the Height column is written as the arithmetic
+rather than as a figure, and why `inspectorThresholdParity.test.ts` evaluates it
+against `SHEET_SNAP_HALF_FALLBACK`, `SHEET_SNAP_FULL` and `SHEET_DRAWER_VH`. The
+third column is prose and nothing enforces it.
 
+**`vh` above means `window.innerHeight`, and the drawer is sized in it too.** Not
+the CSS unit: on a phone `100vh` is the *large* viewport, the height with the
+browser's chrome retracted, while every snap point vaul computes is a fraction of
+`window.innerHeight`, the height with the chrome showing. A drawer given its
+height in `vh` and a snap solved in `innerHeight` are two definitions of one edge
+and differ by the height of the URL bar, which puts the sheet's top that far above
+where the arithmetic put it. So `Drawer.Content` takes its height in px from
+`sheetDrawerHeightPx(window.innerHeight)` and carries no viewport unit at all —
+the same rule as the visible-height bullet below, which is why `100%` there is the
+drawer's own box rather than a copy of it.
+
+- **`half` is where the player ends, not half the window.** On a page with a
+  player the snap is derived — `halfSnapUnderPlayer` solves `drawerHeight −
+  vh × (1 − snap) = vh − playerBottom`, which is the visible-height subtraction
+  in the bullet below set equal to the room under the player — so the sheet's
+  top edge lands on the player's bottom edge, the video stays whole and
+  everything under it goes to the tab. **Derive it; do not write an offset.** An
+  offset term is that expression with the drawer's height already substituted
+  into it, and it goes silently wrong the moment the drawer's height moves. The
+  room is bounded at both ends by states the sheet already has. Above, it never
+  comes nearer than one `peek` row to `full`'s own room, or the two expanded
+  states stop being distinguishable and the drag between them moves nothing.
+  Below, **the derivation applies only while it gives more room than the fixed
+  fraction it replaced**: under that there is nothing to buy, because a sheet
+  raised to less than `half` used to show has taken the page away to protect a
+  player that has already taken the screen, so `half` is the fixed fraction
+  again. A phone held sideways is where that happens — the stylesheet caps a
+  framed player at the scrollport's own height there — and it is a state, not a
+  fallback from failure. A surface with no player — Markdown, PDF, an image —
+  keeps the fixed fraction for the other reason, and `full` is unchanged
+  everywhere: it is the state for reading *without* following playback, so it
+  does not depend on the player's size.
+- **On a phone the media host has no top padding.** `p-4` between the page row
+  and the player is travel in front of a sticky box: `top: 0` only catches the
+  player once the reader has scrolled past that padding, so the wrapper has two
+  bottom edges and the derived `half` is solved from whichever was current when
+  it was measured. Measured while scrolled and then scrolled back, the sheet
+  covers the player by exactly that padding. Zero, rather than smaller: any
+  non-zero amount is the same defect with a smaller number in it.
+- **The shell stores the state, never the snap.** vaul re-derives its offsets
+  from `window.innerHeight`, so `half`'s number moves when a phone's URL bar
+  collapses mid-scroll; a stored number would then name a snap point that is no
+  longer in the list vaul was handed. `MobileInspectorSheet` is the one place
+  the state and the snap meet, and it maps back by `full`'s fixed value rather
+  than by comparing against a derived float.
 - **On a phone the sheet is one scroller, and the inspector inside it is not a
   second.** `InspectorShell` takes a `scroll` mode from its caller: the desktop
   pane keeps the pinned header, and the sheet asks for `column`, where the header

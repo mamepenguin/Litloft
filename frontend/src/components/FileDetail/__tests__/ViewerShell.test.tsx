@@ -30,9 +30,10 @@
  * a browser's; the widths themselves were measured by hand.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 import { FileDetailContent } from "../../FileDetailContent";
+import { SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
 import type { FileItem } from "@/types";
 import {
   claimSlot,
@@ -519,6 +520,43 @@ describe("the archive's page-list tab", () => {
       file_type: "video",
     });
     expect(container.querySelector('main[data-canvas-floor="true"]')).toBeNull();
+  });
+
+  it("keeps the sheet's fixed half where there is no player", async () => {
+    // `half` is derived from the *player's* bottom edge, and a viewer is
+    // not a player: a PDF, an archive and a photograph all draw inside
+    // the same `.media-detail-player` wrapper, so a gate written on
+    // "does this canvas have a viewer" would derive a snap from a
+    // document's first page. The gate is `hasPlayer`, and this is where
+    // it can fail — the wrapper is given a box, and the sheet still
+    // opens at the fixed fraction.
+    //
+    // jsdom lays nothing out, so the box is a stub and this is evidence
+    // about the gate, not about where anything lands.
+    const original = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      if (this.classList.contains("media-detail-player")) {
+        return { ...new DOMRect(0, 104, 400, 211), bottom: 315 } as DOMRect;
+      }
+      return original.call(this);
+    };
+    try {
+      setViewport(600);
+      publishedPdfState.value = { numPages: 225, outline: [] };
+      await renderKind(PDF);
+
+      fireEvent.click(screen.getByTestId("inspector-toggle"));
+      const drawer = await screen.findByTestId("mobile-inspector-sheet");
+      const published = Number.parseFloat(
+        drawer.style.getPropertyValue("--snap-point-height"),
+      );
+      expect(1 - published / window.innerHeight).toBeCloseTo(
+        SHEET_SNAP_HALF_FALLBACK,
+        5,
+      );
+    } finally {
+      Element.prototype.getBoundingClientRect = original;
+    }
   });
 
   it("gives a PDF's canvas the floor too", async () => {
