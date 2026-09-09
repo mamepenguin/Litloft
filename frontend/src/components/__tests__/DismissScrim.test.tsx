@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import {
@@ -59,15 +59,11 @@ function Popup(): React.ReactElement {
 }
 
 describe("DismissScrim", () => {
-  afterEach(() => {
-    // A browser always ends a press; `fireEvent.pointerDown` alone does
-    // not. The primitive tracks whether a press is in flight — that is
-    // what arms the swallow for a popup raised *by* one — so a case that
-    // leaves one open would hand it to the next case, which no real
-    // gesture does.
-    fireEvent.pointerUp(document.body);
-  });
-
+  // No lift of its own. `src/test/setup.ts` ends the gesture after every
+  // test in the suite, and this file keeping a private copy would be the
+  // one file most likely to be edited next by someone changing this
+  // mechanism — and the one file that could not notice the shared hook
+  // going away. `src/test/__tests__/press-lift.test.tsx` is what notices.
   it("closes on a press outside the popup", () => {
     const onDismiss = vi.fn();
     render(

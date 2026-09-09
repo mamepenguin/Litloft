@@ -140,23 +140,59 @@ vi.mock("next-intl", () => {
   };
 });
 
-// A browser always ends a press; `fireEvent.pointerDown` does not.
+// End whatever gesture the test left open.
 //
-// `DismissScrim` treats a press as in flight from `pointerdown` until
-// `pointerup` or `pointercancel`, because a popup that mounts during one —
-// `useContextMenu`'s long press is the case — has to take the click that
-// press will produce. A test that fires only the down half leaves that
-// state set, and the next popup mounted in the same file arms a swallow
-// for a press that ended before it. Measured: under `--sequence.shuffle`
-// with seed 1788980194458, `FolderContent.inlineRename` ran after
-// `InlineNameEditor`'s click-away case and lost the click that opens the
-// inline editor.
+// `DismissScrim` keeps two pieces of module-scope state across a file: a
+// press is in flight from `pointerdown` until `pointerup` or
+// `pointercancel` (a popup that mounts during one — `useContextMenu`'s
+// long press — has to take the click that press will produce), and an
+// armed swallow waits for the click a press produced. A test that fires
+// only the down half leaves both behind, and the next test in the same
+// file pays: a popup mounted then arms a swallow for a press that ended
+// before it, and a `fireEvent.click` can be eaten outright by a swallow
+// armed a test ago.
 //
-// So the lift is sent here rather than remembered in each test. It is not
-// a workaround for the mechanism: it is the half of the gesture jsdom has
-// no reason to synthesise and a browser never omits.
+// Both were reachable. The press half was found by the shuffled-order job
+// — the click-away case in `FolderContent.inlineRename.test.tsx` presses
+// `document.body` and never lifts, and the two tests it shares a file with
+// lost the click that opens the inline editor when the shuffle put them
+// after it. Module state does not cross files here (`pool: "forks"`, and
+// isolation on), so this is a within-file ordering, which is the half of
+// `--sequence.shuffle` `ci.yml` says has found every defect so far. The
+// swallow half was found in review, by the same shape one field over.
+//
+// `pointercancel` rather than `pointerup`, because it is the one event
+// that means both: it ends the press *and* it is in the set that abandons
+// an armed swallow. A browser sends it when a gesture stops being one, and
+// a test ending is that.
+//
+// **What this is, exactly.** A plain `Event`, not a `PointerEvent` — jsdom
+// implements none — dispatched at `document` and not bubbling. So it
+// reaches a `pointercancel` listener on `document` in either phase, and a
+// *capture* listener on `window`, because the capture path runs through
+// it; a bubble listener on `window` never sees it, and a handler that
+// reads `button` or `pointerId` off it gets `undefined`.
+//
+// That is deliberately the smallest thing that ends the gesture this
+// harness knows about, which is the one `DismissScrim` installs on
+// `document` in the capture phase. Making it bubble would also end the
+// scrub `usePlayerGestures` follows on a `window` bubble listener —
+// measured, and it costs act warnings from a component that is still
+// mounted when this runs (see the ordering below). A window-level gesture that leaks the same way
+// needs its own lift, or this event needs to grow, and either way the
+// scopes it reaches are pinned in `press-lift.test.tsx` rather than
+// described here alone.
+//
+// It runs **before** Testing Library's `cleanup()`: vitest calls
+// `afterEach` hooks in reverse registration order and the auto-cleanup is
+// registered by the import at the top of this file. So the event lands on
+// a still-mounted tree. That is harmless while nothing but `DismissScrim`
+// answers a document-level `pointercancel` — but a component that ends a
+// drag on one will run its drag-end handler during teardown, outside
+// `act()`, and the act warning will name a file whose author changed
+// nothing.
 afterEach(() => {
   if (typeof document !== "undefined") {
-    document.dispatchEvent(new Event("pointerup"));
+    document.dispatchEvent(new Event("pointercancel"));
   }
 });
