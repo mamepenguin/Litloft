@@ -229,27 +229,30 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     }
     setFolderError(null);
 
-    // The create field and its error belong to the page load that opened
-    // them, not to the drive this request was made for — the same unit
-    // `handleTogglePin` answers to. Without this, a create started here
-    // and settling after the page has moved closes the field the user is
-    // typing into on the next drive, or raises "Failed to create folder"
-    // there about an action taken somewhere else.
+    // The one guard left in this file, and it guards on the **drive**.
     //
-    // Unlike the grid, this state cannot be scoped by emptying it on a
-    // drive change: the write arrives *after* that reset, at a moment
-    // when the field legitimately holds the next drive's half-typed
-    // name. So it is a guard, and it is the one write in this file that
-    // still is one.
-    const pageLoadId = pageLoadRef.current;
+    // The reset effect above blanks this field when the drive changes,
+    // which scopes every synchronous writer — including the two
+    // `setFolderError` calls a few lines up. What it cannot scope is
+    // this continuation: it lands after that reset, when the field
+    // legitimately holds the next drive's half-typed name, so closing it
+    // or writing an error into it there would take something that
+    // belongs to the drive in front of you.
+    //
+    // `shownDriveRef`, not `pageLoadRef`. The page-load id bumps for
+    // every dependency the fetch effect has — `nickname` among them — so
+    // it says "something re-fetched", not "the drive changed", and
+    // gating on it suppressed a create's own outcome on the drive it was
+    // made for. The condition this needs is the drive, and that is what
+    // it now asks.
     try {
       await createFolder(driveName, "", name);
-      if (pageLoadRef.current === pageLoadId) cancelCreateFolder();
+      if (shownDriveRef.current === driveName) cancelCreateFolder();
       // Not gated: the grid answers to its own request identity, and the
       // tree below it should learn about the folder either way.
       await refreshFolders();
     } catch {
-      if (pageLoadRef.current === pageLoadId) setFolderError(tf("createFailed"));
+      if (shownDriveRef.current === driveName) setFolderError(tf("createFailed"));
     }
   }, [newFolderName, tf, driveName, cancelCreateFolder, refreshFolders]);
 
@@ -336,24 +339,59 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     return { drive, requestId, results };
   }, [driveName]);
 
+  /**
+   * Everything on this page that belongs to a drive, dropped when the
+   * drive changes.
+   *
+   * This component is reused across `/drive/[name]` with no `key`, so
+   * without this every one of these carries into the next drive: the
+   * grid would draw the previous drive's cards the moment
+   * `foldersLoading` cleared, the expansion of one drive's grid would
+   * decide how the next one opens, the create field would arrive holding
+   * a name typed somewhere else — or an "Invalid folder name" raised
+   * there — and the context menu would stay open over a folder the page
+   * has left (measured: it does).
+   *
+   * **This is the scoping, and it is one place rather than one check per
+   * writer.** Six rounds of this component closed six separate paths
+   * into `folders`, each one a call site that had to remember to ask "is
+   * this response still wanted?", and the seventh was found in the
+   * failure branch of the guard written for the sixth. A reset cannot be
+   * reopened by a call site added later, because the call site is not
+   * where it lives.
+   *
+   * It runs before the fetch effect below — declaration order is
+   * execution order — so a request is never issued against state the
+   * previous drive left behind. It is keyed on `driveName` alone, unlike
+   * that effect, which also re-runs when the nickname settles.
+   *
+   * What it cannot scope is a write that lands *after* it: a create
+   * still in flight when the drive changes settles later, when the field
+   * legitimately holds the next drive's half-typed name. That one is a
+   * guard, in `handleCreateFolder`, and it is the only one left.
+   */
+  useEffect(() => {
+    setFolders([]);
+    setFoldersExpanded(false);
+    cancelCreateFolder();
+    setMenuTarget(null);
+    closeFolderMenu();
+  }, [driveName, cancelCreateFolder, closeFolderMenu]);
+
   useEffect(() => {
     const fetchAll = async () => {
       const pageLoadId = ++pageLoadRef.current;
       setRecent({ files: [], loading: true });
       setFavorites({ files: [], loading: true });
       setLiked({ files: [], loading: true });
-      // The grid is emptied here, beside the rows, and not merely masked
-      // while it loads. `folders` used to survive a drive change and be
-      // hidden by `gridFolders`'s `foldersLoading` check, which meant
-      // every path that reaches `applyFolders` had to answer "is this
-      // response still wanted?" or leave the previous drive's cards on
-      // screen once the flag cleared. Six rounds of this component found
-      // six such paths, the last of them the failure branch three lines
-      // into the guard that was written for the previous one. Emptying
-      // the list makes "a failure keeps what it found" mean *this
-      // drive's* list by construction, so a call site added later cannot
-      // reopen it by omission.
-      setFolders([]);
+      // `folders` is *not* emptied here. This effect re-runs for reasons
+      // that are not a drive change — `hasProfile` and `nickname` are in
+      // its dependencies, and `ProfileProvider` reports `null` on the
+      // first pass and the cookie on the second, so a profiled user's
+      // hard load runs it twice on one drive. Emptying the list on those
+      // runs and then failing the re-fetch is how the Folders section
+      // disappears from a drive that has folders. The clear belongs to
+      // the drive, and lives in the reset effect above.
       setFoldersLoading(true);
       if (hasProfile) {
         setContinueWatchingLoading(true);
@@ -462,21 +500,23 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setRecentlyPlayed((prev) => prev.filter((item) => item.id !== fileId));
   }, []);
 
-  // The grid is collapsed again when the page changes drive: this
-  // component is reused across `/drive/[name]`, so without this the
-  // expansion of one drive's grid would carry into the next.
-  useEffect(() => {
-    setFoldersExpanded(false);
-  }, [driveName]);
-
   // The folders the grid has, which are none while it is drawing the
-  // skeleton: `folders` still holds the drive that was left until this
-  // drive's fetch lands, and an out-of-band refresh can put a list there
-  // under the skeleton as well. The control and the cards are counted
-  // from this one list, so the number in the label is the number of
-  // cards that appear, and a control that names the grid is only ever
-  // drawn beside a grid that exists. The control appears when the list
-  // is strictly longer than the cap.
+  // skeleton.
+  //
+  // `folders` no longer survives a drive change — the reset effect drops
+  // it — so this mask is not what keeps the previous drive off the grid.
+  // What it is still for is the one way a list can be in state under a
+  // skeleton on *this* drive: an out-of-band refresh (a drag-and-drop, a
+  // WebSocket `drive.structure_changed`) settling while the page load's
+  // own fetch is still in flight. It also means a same-drive re-fetch
+  // draws the skeleton rather than the list it is about to replace,
+  // which is a consequence of masking rather than a reason for it.
+  //
+  // The control and the cards are counted from this one list, so the
+  // number in the label is the number of cards that appear, and a
+  // control that names the grid is only ever drawn beside a grid that
+  // exists. The control appears when the list is strictly longer than
+  // the cap.
   const gridFolders = foldersLoading ? [] : folders;
   const hiddenFolderCount = gridFolders.length - MAX_FOLDERS;
   const visibleFolders = foldersExpanded ? gridFolders : gridFolders.slice(0, MAX_FOLDERS);

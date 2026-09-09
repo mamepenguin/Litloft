@@ -77,21 +77,28 @@ vi.mock("../CarouselSection", () => ({
   },
 }));
 
+// `open` is honoured, not ignored. The real component draws nothing
+// when it is false, and a stand-in that renders regardless cannot
+// witness the menu being closed — which is a property this file now
+// asserts.
 vi.mock("../FolderContextMenu", () => ({
   FolderContextMenu: ({
+    open,
     isPinned,
     onTogglePin,
   }: {
+    open: boolean;
     isPinned: boolean;
     onTogglePin?: () => void;
-  }) => (
-    <div>
-      <span data-testid="pin-state">{isPinned ? "pinned" : "not pinned"}</span>
-      <button type="button" onClick={onTogglePin}>
-        toggle pin
-      </button>
-    </div>
-  ),
+  }) =>
+    open ? (
+      <div>
+        <span data-testid="pin-state">{isPinned ? "pinned" : "not pinned"}</span>
+        <button type="button" onClick={onTogglePin}>
+          toggle pin
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock("../SidebarProvider", () => ({
@@ -658,6 +665,36 @@ describe("DriveHome across a drive change", () => {
     // The drive that was left has no pins, and saying so here would
     // unmark a folder this drive does pin.
     expect(screen.getByTestId("pin-state")).toHaveTextContent(/^pinned$/);
+  });
+
+  it("closes a folder context menu when the page changes drive", async () => {
+    // `menuTarget` is a `Folder` from the drive it was opened on, and
+    // `handleTogglePin` closes over the *current* `driveName` — so a menu
+    // that survives a navigation offers Pin on a folder the page has
+    // left, and toggling it would call `addPin` with this drive and that
+    // folder's path. Measured before the fix: the menu stayed open.
+    //
+    // Scoped by the reset rather than by a check at each of the two call
+    // sites that open it, which is the same move the folder list itself
+    // now takes.
+    driveHasFiles(DRIVE_UNDER_TEST, DRIVE_A_FILES);
+    driveHasFolders(DRIVE_UNDER_TEST, [SHARED_FOLDER_NAME]);
+    driveHasFiles(SECOND_DRIVE, DRIVE_B_FILES);
+    driveHasFolders(SECOND_DRIVE, [SECOND_DRIVE_FOLDER_NAME]);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(screen.getByText(SHARED_FOLDER_NAME)).toBeInTheDocument());
+
+    fireEvent.contextMenu(screen.getByText(SHARED_FOLDER_NAME));
+    // The precondition: the menu really is open on this drive, so the
+    // assertion below cannot pass on a menu that never opened.
+    expect(screen.getByTestId("pin-state")).toBeInTheDocument();
+
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
+    await waitFor(() =>
+      expect(screen.getByText(SECOND_DRIVE_FOLDER_NAME)).toBeInTheDocument(),
+    );
+
+    expect(screen.queryByTestId("pin-state")).toBeNull();
   });
 
   it("keeps a pin made on the drive that was left out of this drive's pin set", async () => {

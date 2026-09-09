@@ -56,8 +56,13 @@ vi.mock("../FolderContextMenu", () => ({ FolderContextMenu: () => null }));
 vi.mock("../SidebarProvider", () => ({
   useSidebar: () => ({ requestRefresh: vi.fn() }),
 }));
+// Mutable, because the fetch effect depends on `hasProfile` / `nickname`
+// and `ProfileProvider` reports `null` on its first pass and the cookie
+// on its second — so a profiled user's hard load re-runs that effect on
+// one drive, with no navigation. One case below is about exactly that.
+const profile: { nickname: string | null } = { nickname: null };
 vi.mock("../ProfileProvider", () => ({
-  useProfile: () => ({ nickname: null }),
+  useProfile: () => ({ nickname: profile.nickname }),
 }));
 vi.mock("@/hooks/useWebSocketRefresh", () => ({ useWebSocketRefresh: () => {} }));
 
@@ -416,6 +421,7 @@ describe("DriveHome folder grid", () => {
     vi.clearAllMocks();
     foldersByDrive.clear();
     heldFolderFetches.clear();
+    profile.nickname = null;
     installFolderResponder();
     createFolder.mockResolvedValue(undefined);
   });
@@ -958,6 +964,184 @@ describe("DriveHome folder grid", () => {
 
     // Read as "no alert anywhere", not "not this string": the failure is
     // a message arriving on the wrong screen, whatever it says.
+    expect(screen.queryAllByRole("alert")).toEqual([]);
+  });
+
+  it("keeps the section when the effect re-runs on this drive and the re-fetch fails", async () => {
+    // The fetch effect runs for more reasons than a drive change: its
+    // dependencies include `hasProfile` and `nickname`, and
+    // `ProfileProvider` reports `null` on its first pass and the stored
+    // nickname on its second. So a profiled user's hard load runs it
+    // twice on one drive, with no navigation anywhere.
+    //
+    // Blanking the grid on *that* is how the Folders section disappears
+    // from a drive that has folders — the failure round 5 was written to
+    // close. The clear belongs to the drive, so it lives in the reset
+    // effect and not here.
+    driveHasFolders(DRIVE_UNDER_TEST, AT_CAP_FOLDER_NAMES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
+
+    // The nickname settles. Same drive, same URL, no rerender to another.
+    const failing = holdFolderFetch(DRIVE_UNDER_TEST);
+    profile.nickname = "someone";
+    rerender(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await act(async () => {
+      failing.reject();
+    });
+
+    // The precondition, witnessed rather than assumed: the effect really
+    // did re-run, and both requests were for this drive. Without this
+    // the case passes on an effect that never fired again.
+    expect(getFolders).toHaveBeenCalledTimes(2);
+    expect(getFolders).toHaveBeenNthCalledWith(1, DRIVE_UNDER_TEST);
+    expect(getFolders).toHaveBeenNthCalledWith(2, DRIVE_UNDER_TEST);
+
+    expect(folderSection()).toBeInTheDocument();
+    expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]);
+  });
+
+  it("closes the create field when a create succeeds on the drive it was made on", async () => {
+    // The positive half of "leaves the create field alone when a create
+    // started on the drive that was left returns". A guard read only for
+    // what it refuses cannot tell "correctly refused" from "never runs":
+    // replacing it with `if (false)` leaves every successful create with
+    // the field still open and the name still in it, which looks exactly
+    // like a create that failed.
+    driveHasFolders(DRIVE_UNDER_TEST, AT_CAP_FOLDER_NAMES);
+    render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
+
+    fireEvent.click(screen.getByRole("button", { name: "new folder" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "november" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    });
+
+    expect(createFolder).toHaveBeenCalledWith(DRIVE_UNDER_TEST, "", "november");
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
+  it("reports a create that fails on the drive it was made on", async () => {
+    // The positive half of "does not report a create that failed on the
+    // drive that was left". Under `if (false)` every failed create
+    // reports nothing at all, and the field sits there with no
+    // explanation.
+    driveHasFolders(DRIVE_UNDER_TEST, AT_CAP_FOLDER_NAMES);
+    render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
+
+    createFolder.mockRejectedValue(new Error("createFolder failed"));
+    fireEvent.click(screen.getByRole("button", { name: "new folder" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "november" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Failed to create folder");
+    // The field stays open for the name to be fixed.
+    expect(screen.getByRole("textbox")).toHaveValue("november");
+  });
+
+  it("still reports a create that spans a re-run of the fetch effect on this drive", async () => {
+    // The guard has to ask about the **drive**, and nothing else. Gating
+    // these two writes on the page-load id instead suppresses them
+    // across every re-run of the fetch effect — and that effect re-runs
+    // when the nickname settles, on one drive, with no navigation. A
+    // create in flight across that bump then reports nothing at all: it
+    // looks exactly like a create that is still going.
+    driveHasFolders(DRIVE_UNDER_TEST, AT_CAP_FOLDER_NAMES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
+
+    let failCreate: () => void = () => {};
+    createFolder.mockReturnValue(
+      new Promise<void>((_resolve, reject) => {
+        failCreate = () => reject(new Error("createFolder failed"));
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "new folder" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "november" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await expectStillHeld([createFolder.mock.results.at(-1)?.value as Promise<void>]);
+
+    // The nickname settles mid-create. Same drive throughout.
+    profile.nickname = "someone";
+    rerender(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await act(async () => {
+      failCreate();
+    });
+
+    // The precondition: the effect really did re-run, so the create
+    // really did span the bump this case is about.
+    expect(getFolders).toHaveBeenCalledTimes(2);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Failed to create folder");
+  });
+
+  it("still closes the create field when a create spans a re-run on this drive", async () => {
+    // The other half of the same bump: a create that succeeded looks
+    // like one that failed, because the field it should have closed is
+    // still open with the name in it.
+    driveHasFolders(DRIVE_UNDER_TEST, AT_CAP_FOLDER_NAMES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
+
+    let finishCreate: () => void = () => {};
+    createFolder.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishCreate = resolve;
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "new folder" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "november" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await expectStillHeld([createFolder.mock.results.at(-1)?.value as Promise<void>]);
+
+    profile.nickname = "someone";
+    rerender(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await act(async () => {
+      finishCreate();
+    });
+
+    // Three, enumerated rather than bounded: the page load's own fetch,
+    // the one the nickname settling re-issued, and the refresh a
+    // successful create runs on its way past. The failure case above
+    // sees two, because a create that rejects never reaches that
+    // refresh.
+    expect(getFolders).toHaveBeenCalledTimes(3);
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
+  it("drops the create field and its error when the page changes drive", async () => {
+    // The synchronous half of the same statement. `setFolderError` is
+    // reached without any await at all — an invalid name is rejected on
+    // the spot — so no guard on a continuation touches it. What scopes
+    // it is the reset, which is also what makes the guard's premise
+    // true: only after this does the field on the next drive hold that
+    // drive's name rather than the previous one's.
+    driveHasFolders(DRIVE_UNDER_TEST, AT_CAP_FOLDER_NAMES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
+
+    fireEvent.click(screen.getByRole("button", { name: "new folder" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "bad/name" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    // Raised synchronously, with no request made at all.
+    expect(screen.getByRole("alert")).toHaveTextContent("Invalid folder name");
+    expect(createFolder).not.toHaveBeenCalled();
+
+    driveHasFolders(SECOND_DRIVE, SECOND_DRIVE_FOLDER_NAMES);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
+    await waitFor(() =>
+      expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]),
+    );
+
+    // The field is gone and so is the message. Read as "no alert
+    // anywhere": the failure is a message from another drive being on
+    // screen, whatever it says.
+    expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryAllByRole("alert")).toEqual([]);
   });
 
