@@ -1148,6 +1148,40 @@ transcript line, a `⋮` on a list row.
 - **Touch targets: 44px on `pointer: coarse`, 32px on `fine`.** 32px already
   clears the 24px minimum for repeated icon-only controls, and 44px everywhere
   costs height a transcript of several hundred rows cannot spare.
+- **Every control in the row, or the floor buys nothing.** A list whose
+  secondary action clears the floor while its primary one does not has spent
+  the width and kept the miss: the finger still lands between two targets, and
+  the one it was reaching for is the small one.
+- **More than one of them is a group, not a sequence.** On `pointer: coarse`
+  they sit together at the trailing edge with **no gap between them**, and the
+  group's own padding replaces the row's gap and trailing padding rather than
+  being added to it. A 44px target carries 14px of empty box on each side of a
+  16px glyph; a row that then draws its gap and its padding around that has
+  drawn the same separation twice, and both times out of the name. The leading
+  padding stays: a thumbnail has no padding of its own to stand in for it. A row
+  that draws *no* trailing control keeps its trailing padding for the same
+  reason.
+  **The rule is the floor's, so it ends where the floor does**: at a fine
+  pointer the boxes are their own size and carry no padding to stand in for the
+  row's, so the group keeps the row's gap between the controls and the row keeps
+  its trailing padding. Cancel the spacing under the same condition that grows
+  the boxes, never unconditionally: controls left at their own size have only
+  their own padding between them, and taking the row's gap away as well leaves
+  the two glyphs closer than either rule asked for.
+  **Cancel only the spacing around boxes you wrote.** A group may stand its own
+  padding in for the row's when it knows what is inside each box — every
+  control the list row's group holds carries the floor in its own class list
+  (`ROW_ACTION_FLOOR` in `rowFurniture.ts`), so the group can say the 14px is
+  already there. That holds however many the row draws — a star and a `⋮`, or
+  either of them alone — because it is a property of each control rather than
+  of the group's size. `.file-action-row-touch` cannot: it *imposes* a floor on
+  children it does not write, through a `> *` rule in `globals.css`, and those
+  children are shared buttons drawn at other sizes elsewhere plus whatever an
+  addon put in `file-detail-actions` — which brings its own trigger and takes
+  no sizing from the host. A group that cannot say what its children's boxes
+  contain keeps a real gap between them (`gap-0.5` in the resting strip, `gap-1` in the
+  inspector) and gives up none of its host's padding. It takes the floor from
+  this section; it does not take the grouping.
 - Reach the floor on **the row** (`pointer-coarse:min-h-11`), and give the row's
   own controls the same class wherever `items-start` stops them inheriting it.
   Then grow the *action's* hit area rather than its box — `relative` plus
@@ -1155,6 +1189,16 @@ transcript line, a `⋮` on a list row.
   stays 32px at every pointer type. The 44px row is what makes that overhang
   safe: at a shorter pitch, adjacent pseudo-elements overlap and the later row
   wins the hit test.
+- **Grow the box instead wherever the controls are side by side.** The overhang
+  above is safe *down a column that has reached the floor*, where the row pitch
+  is what separates neighbours — that precondition is the bullet above's, and
+  repeating `iconOnly` buttons down a list without giving the row the floor
+  reproduces the defect the overhang was written to prevent (`Button.tsx`).
+  Along a row it is not: two overhung 32px boxes sitting together overlap, and
+  the later sibling wins the hit test for its neighbour's edge — so each one
+  silently keeps less than it appears to have. A trailing group and the action
+  row in the resting strip both take real 44px boxes for this reason
+  (`rowFurniture.ts`, and `.file-action-row-touch` in `globals.css`).
 
 ### Section Header Labels (i18n)
 

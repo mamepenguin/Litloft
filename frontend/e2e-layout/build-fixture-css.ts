@@ -73,7 +73,13 @@ export const FIXTURE_CSS = join(__dirname, "fixtures", "globals.built.css");
  * whole job exists to remove — so ask the output what it contains rather
  * than trusting that the compiler exited 0.
  */
-const REQUIRED = [
+/**
+ * Exported for `src/__tests__/coarseNeedleSources.test.ts`, which reads the
+ * `pointer-coarse:` entries back out of this list rather than respelling
+ * them: a test that writes one of these classes whole becomes a source for
+ * it, which is the failure that test exists to catch.
+ */
+export const REQUIRED = [
   ".justified-grid-host",
   ".justified-grid-cell",
   ".justified-grid-tail",
@@ -125,7 +131,7 @@ const REQUIRED = [
   // the screen and a sticky tab strip inside the one box that scrolls.
   // Every rule below is load-bearing for a different case, and each one's
   // absence would be read as a finding about the sheet rather than about
-  // an empty sheet: `h-[90vh]` is the drawer the overhang is arithmetic
+  // an empty sheet: `.h-\[90vh\]` is the drawer the overhang is arithmetic
   // on; `overflow-auto` is the only scroller, without which nothing
   // scrolls anywhere and "the end is on screen" passes for the wrong
   // reason; `min-h-0` and `flex-1` are what let that scroller be shorter
@@ -134,6 +140,17 @@ const REQUIRED = [
   // is the ground the opacity case asserts; and `overflow-x-auto` is what
   // makes the strip a scroll container in both axes, which is the reason
   // the scrolling box is named rather than counted.
+  //
+  // The first is named above as the compiled selector rather than as the
+  // class, and deliberately. Tailwind scans this file too, so a class
+  // spelled bare in a comment is itself a source for that utility, after
+  // which the needle below cannot go missing. Measured: with the class
+  // taken out of both the component and the fixture, the sheet still
+  // carried the rule and the mobile cases failed on their own numbers
+  // instead of the setup naming the sheet. The other six are utilities the
+  // tree writes in dozens of places and are present either way; this one is
+  // arbitrary-valued and used twice, which is what made it the one that
+  // could actually be absent.
   ".h-\\[90vh\\] {",
   ".overflow-auto {",
   ".min-h-0 {",
@@ -141,6 +158,28 @@ const REQUIRED = [
   ".top-0 {",
   ".bg-bg-card {",
   ".overflow-x-auto {",
+  // `list-row-furniture.spec.ts` measures touch targets and a name column
+  // under `@media (pointer: coarse)`. Every one of these is a *coarse-only*
+  // declaration, which is the kind a missing sheet hides best: without them
+  // the fixture lays out the fine-pointer row at every viewport, reports
+  // 28px and 24px controls, and the cases asserting the floor fail naming
+  // a box rather than the sheet.
+  //
+  // Written with the brace for the reason the two above are: the test is
+  // `includes` over the whole sheet, and `.pointer-coarse\\:w-11` is
+  // satisfied by nothing else here, but `.pointer-coarse\\:pr-0` would be
+  // satisfied by a hypothetical `pr-0.5`. A needle that cannot be absent
+  // asserts nothing.
+  ".pointer-coarse\\:h-11 {",
+  ".pointer-coarse\\:w-11 {",
+  ".pointer-coarse\\:pr-0 {",
+  ".pointer-coarse\\:-ml-3 {",
+  ".pointer-coarse\\:gap-0 {",
+  // The row's own spacing, which is what the coarse rules above cancel.
+  // Without them there is nothing to cancel and the two layouts the spec
+  // compares are the same layout.
+  ".gap-3 {",
+  ".p-2\\.5 {",
 ];
 
 /**
