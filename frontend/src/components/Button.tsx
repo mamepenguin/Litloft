@@ -30,21 +30,47 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
 /**
  * Padding, not height. A button sized by its padding grows with a Japanese
  * label that wraps; one sized by `h-*` clips it (DESIGN.md §6 Primary:
- * "ensure Japanese labels have enough room").
+ * "ensure Japanese labels have enough room"). `TOUCH_FLOOR_CLASS` below is a
+ * `min-h` for the same reason: a floor raises a short box without capping a
+ * tall one.
  *
- * The three values are the ones the tree already used, counted before they
- * were named: `md` on nine call sites, `sm` on four, `lg` on four. Exact on
- * padding; on type size, three of the four `lg` sites used `text-sm` and one
- * used `text-base`, which this rounds down. An earlier draft of this file
- * invented `sm` as `px-3 py-1.5 text-xs`, which matched nothing — a scale
- * written without measuring the thing it was meant to replace, which is how
- * five sizes came to exist in the first place.
+ * The scale was read off the call sites rather than invented. An earlier draft
+ * of this file wrote `sm` as `px-3 py-1.5 text-xs`, which matched nothing in
+ * the tree — a scale written without measuring the thing it was meant to
+ * replace, which is how five sizes came to exist before this component did.
+ * How the call sites divide across the three today is a fact about the
+ * screens, not about this table; count it in the tree rather than here, where
+ * nothing re-checks it.
  */
 const SIZE_CLASS: Record<ButtonSize, string> = {
   sm: "px-3 py-1.5 text-sm",
   md: "px-4 py-2 text-sm",
   lg: "px-5 py-2.5 text-sm",
 };
+
+/**
+ * The 44px touch floor, for the shapes that are sized by their padding.
+ *
+ * `00-basis.md`'s mobile sizing rule is that a tap target is at least 44px,
+ * and DESIGN.md §Row Actions restates it as 44 on `coarse` and 32 on `fine`.
+ * Padding alone does not get there: the scale above tops out well under the
+ * floor, so a labelled button was under it on every touch screen.
+ *
+ * **`min-h`, not `h`.** A floor raises a short box and leaves a tall one
+ * alone, so a Japanese label that wraps still grows the button instead of
+ * being clipped — the property `SIZE_CLASS` exists to keep.
+ *
+ * **Not for `iconOnly`.** That shape reaches the same floor through
+ * `COARSE_HIT_AREA`'s overhang instead: the hit area grows and the box stays
+ * 32px at every pointer type, which is the §Row Actions recipe. Giving it a
+ * `min-h` as well would grow the box and falsify the arithmetic
+ * `ICON_BOX_CLASS` is fixed for.
+ *
+ * Emitted by both `Button` and `buttonClass()`. They are two implementations
+ * of one recipe and they disagreed here — only the anchor recipe carried the
+ * floor — which is why call sites had taken to writing this class out by hand.
+ */
+const TOUCH_FLOOR_CLASS = "pointer-coarse:min-h-11";
 
 /**
  * Icon-only buttons are a fixed 32px square, not padding around whatever glyph
@@ -191,10 +217,9 @@ export function buttonClass({
     // the cursor. The condition it guards cannot arise here.
     VARIANT_CLASS[variant].replaceAll("enabled:hover:", "hover:"),
     SIZE_CLASS[size],
-    // A link is a row action too. `Button` gives its icon-only shape an
-    // overhang and its labelled shape the padding; an anchor gets neither
-    // unless it is asked, and these sit where a finger goes.
-    "pointer-coarse:min-h-11",
+    // The same floor a labelled `Button` takes. An anchor has no icon-only
+    // shape, so the overhang half of the recipe never applies here.
+    TOUCH_FLOOR_CLASS,
     className,
   ]
     .filter(Boolean)
@@ -216,7 +241,9 @@ export function Button(props: ButtonProps) {
     BASE_CLASS,
     VARIANT_CLASS[variant],
     iconOnly ? ICON_BOX_CLASS : SIZE_CLASS[size],
-    iconOnly ? COARSE_HIT_AREA : "",
+    // One floor, two mechanisms: the overhang for the fixed 32px square, the
+    // `min-h` for the shapes that padding sizes. A call site adds neither.
+    iconOnly ? COARSE_HIT_AREA : TOUCH_FLOOR_CLASS,
     DISABLED_CLASS,
     className,
   ]

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>button touch floor — layout fixture</title>
+    <!--
+      The compiled globals.css, built by ../build-fixture-css.ts. No
+      <style> of its own, for the reason the other fixtures have none:
+      every declaration measured here has to have come out of the app's
+      own stylesheet, or the measurement is a test of this page.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The class lists `Button` and `buttonClass()` emit, written out.
+
+      **Utilities are named below as the rule they emit** —
+      `.pointer-coarse\:min-h-11` rather than the class as a class list
+      spells it. Tailwind scans this file's comments as well as its
+      markup, so a class written whole in prose is a source for it and
+      `e2e-layout/build-fixture-css.ts` then holds a needle for that rule
+      which cannot go missing however the table below changes. Measured on
+      this file: with every whole spelling stripped from the tree the
+      build fails naming the sheet, and putting the token back into this
+      one comment alone makes it pass again.
+
+      They are the whole mechanism: the labelled shapes are sized by
+      `SIZE_CLASS`'s padding and raised to the floor by
+      `.pointer-coarse\:min-h-11`, and the icon-only shape keeps a fixed
+      `.h-8` / `.w-8` box and reaches the floor through the
+      `.pointer-coarse\:before\:-inset-1\.5` overhang instead.
+      `buttonTouchFloorFixtureParity.test.tsx` renders the real component —
+      and calls the real `buttonClass()` — and fails if any of these drift.
+
+      `controls` is not the app. `wrapClamped` is `wrapFloored` with the
+      floor respelled as a fixed height rather than a minimum
+      (`.pointer-coarse\:h-11` in place of `.pointer-coarse\:min-h-11`),
+      and it is here so the "a wrapped label is not clipped" case has
+      something it demonstrably fails on: without it that case passes on
+      any box tall enough, including one that clips nothing because
+      nothing wrapped.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "shapes": {
+          "buttonSm": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary enabled:hover:bg-sand-hover rounded-2xl px-3 py-1.5 text-sm pointer-coarse:min-h-11 disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed",
+          "buttonMd": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary enabled:hover:bg-sand-hover rounded-2xl px-4 py-2 text-sm pointer-coarse:min-h-11 disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed",
+          "buttonLg": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary enabled:hover:bg-sand-hover rounded-2xl px-5 py-2.5 text-sm pointer-coarse:min-h-11 disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed",
+          "linkSm": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary hover:bg-sand-hover rounded-2xl px-3 py-1.5 text-sm pointer-coarse:min-h-11",
+          "linkMd": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary hover:bg-sand-hover rounded-2xl px-4 py-2 text-sm pointer-coarse:min-h-11",
+          "linkLg": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary hover:bg-sand-hover rounded-2xl px-5 py-2.5 text-sm pointer-coarse:min-h-11",
+          "iconOnly": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring text-text-primary enabled:hover:bg-bg-elevated rounded-2xl h-8 w-8 relative pointer-coarse:before:absolute pointer-coarse:before:-inset-1.5 pointer-coarse:before:content-[''] disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
+        },
+        "controls": {
+          "wrapClamped": "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring bg-sand text-text-primary enabled:hover:bg-sand-hover rounded-2xl px-4 py-2 text-sm pointer-coarse:h-11 disabled:bg-sand disabled:text-warm-silver disabled:cursor-not-allowed"
+        },
+        "label": "Save",
+        "wrappingLabel": "選択したファイルを別のフォルダへ移動",
+        "wrapColumnPx": 120
+      }
+    </script>
+
+    <div id="frame"></div>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      /**
+       * One row per shape, each drawn twice: as the `<button>` the
+       * component emits and as the `<a>` `buttonClass()` dresses.
+       *
+       * The two elements are what the claim is about — "a link and a
+       * button standing next to each other are the same height" — so
+       * they are laid out side by side in one flex row, at the app's
+       * own font, rather than measured in separate pages where a
+       * different inherited line-height could not be seen.
+       */
+      window.buildButtons = () => {
+        const frame = document.getElementById("frame");
+        frame.innerHTML = "";
+
+        const make = (tag, cls, text) => {
+          const el = document.createElement(tag);
+          el.className = cls;
+          el.textContent = text;
+          if (tag === "a") el.setAttribute("href", "#");
+          return el;
+        };
+
+        for (const size of ["Sm", "Md", "Lg"]) {
+          const row = document.createElement("div");
+          row.style.display = "flex";
+          row.style.alignItems = "flex-start";
+          row.style.gap = "8px";
+          row.setAttribute("data-row", size.toLowerCase());
+
+          const button = make("button", SPEC.shapes["button" + size], SPEC.label);
+          button.setAttribute("data-shape", "button" + size);
+          const link = make("a", SPEC.shapes["link" + size], SPEC.label);
+          link.setAttribute("data-shape", "link" + size);
+
+          row.append(button, link);
+          frame.append(row);
+        }
+
+        const icon = make("button", SPEC.shapes.iconOnly, "");
+        icon.setAttribute("data-shape", "iconOnly");
+        icon.setAttribute("aria-label", "Delete Q1 notes");
+        // A glyph the size DESIGN.md's own example passes. The box must
+        // not depend on it, which is what `.h-8` / `.w-8` are for.
+        const glyph = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        glyph.setAttribute("width", "18");
+        glyph.setAttribute("height", "18");
+        icon.append(glyph);
+        frame.append(icon);
+
+        // The wrapping pair, in a column too narrow for the label. The
+        // floored one must grow; the fixed-height control must clip.
+        for (const [name, cls] of [
+          ["wrapFloored", SPEC.shapes.buttonMd],
+          ["wrapClamped", SPEC.controls.wrapClamped],
+        ]) {
+          const column = document.createElement("div");
+          column.style.width = SPEC.wrapColumnPx + "px";
+          const el = make("button", cls, SPEC.wrappingLabel);
+          el.setAttribute("data-shape", name);
+          el.style.width = "100%";
+          column.append(el);
+          frame.append(column);
+        }
+      };
+
+      window.measure = (shape) => {
+        const el = document.querySelector(`[data-shape="${shape}"]`);
+        const box = el.getBoundingClientRect();
+        const overhang = getComputedStyle(el, "::before");
+        return {
+          height: box.height,
+          width: box.width,
+          clientHeight: el.clientHeight,
+          scrollHeight: el.scrollHeight,
+          beforeContent: overhang.content,
+          beforeTop: overhang.top,
+          beforeBottom: overhang.bottom,
+        };
+      };
+
+      window.pointerIsCoarse = () =>
+        window.matchMedia("(pointer: coarse)").matches;
+    </script>
+  </body>
+</html>

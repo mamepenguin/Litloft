@@ -72,6 +72,53 @@ export const FIXTURE_CSS = join(__dirname, "fixtures", "globals.built.css");
  * page with no opinions at all, which is exactly the shape of green this
  * whole job exists to remove — so ask the output what it contains rather
  * than trusting that the compiler exited 0.
+ *
+ * ## What a needle can hold, and what it cannot
+ *
+ * **A needle's teeth are a property of the utility, not of how it is
+ * spelled.** The rule it asks for goes missing only when *nothing* in the
+ * scanned tree writes that class any more — so a needle for a utility the
+ * tree writes in dozens of places records what the sheet must contain and
+ * cannot report its absence, however it is written here. Two rounds of
+ * comments in this file said otherwise, on two different theories, and both
+ * were wrong.
+ *
+ * Measure before claiming, with Tailwind's own scanner rather than by
+ * reading: compile a stylesheet that is `@import "tailwindcss" source(none)`
+ * plus one `@source` line naming a single file, and see whether the rule
+ * comes out. Run that per file across the tree and the answer is a list of
+ * owners rather than a guess. The owner counts for the entries below are in
+ * the PR that added them, because a count in a comment goes stale without
+ * going red.
+ *
+ * So what is the list for, if most of it cannot fail? The failure it was
+ * written against, and still catches: **a sheet that did not compile, or
+ * compiled without a whole layer.** That misses every needle at once, and
+ * `globalSetup` names them before a browser opens instead of the specs
+ * reporting a page laid out at `auto`. A needle is *additionally* a guard
+ * over one recipe when that recipe is the only writer of its class — which
+ * in practice means an arbitrary value or a variant-prefixed class, not
+ * because of the backslash but because those are the classes only one place
+ * writes.
+ *
+ * ## Two spelling facts, measured, both the opposite of what this file said
+ *
+ * Neither changes the paragraph above. Both decide whether this file and the
+ * prose around it quietly add rules to the sheet every viewer loads.
+ *
+ * - **A selector written in prose is a source for its own utility.** The
+ *   leading `.` is a token boundary for the extractor, so `.h-8` in a
+ *   docstring emits that rule. Writing the compiled selector never hid a
+ *   class from the scanner.
+ * - **A CSS escape is a boundary too, so an escaped selector is a source for
+ *   its unescaped head.** The escaped spelling of the `lg` padding emits the
+ *   `md` one's rule, not its own. The convention earlier comments
+ *   recommended as protection creates a different rule instead of protecting
+ *   the one it names. Splitting the token across two literals emits nothing,
+ *   which is what `coarseNeedleSources.test.ts` does and why.
+ *
+ * `globals.css` takes this file itself out of the scan with `@source not`,
+ * and `coarseNeedleSources.test.ts` pins that line.
  */
 /**
  * Exported for `src/__tests__/coarseNeedleSources.test.ts`, which reads the
@@ -230,6 +277,48 @@ export const REQUIRED = [
   // compares are the same layout.
   ".gap-3 {",
   ".p-2\\.5 {",
+  // `button-touch-floor.spec.ts` measures the 44px floor and the three
+  // padding heights under it. Each of these is a different case's whole
+  // subject, and each one's absence reads as a finding rather than as an
+  // empty sheet: without the floor every coarse measurement is the fine
+  // one and the two halves of the spec agree for the wrong reason;
+  // without the three padding rules the "32 / 36 / 40" cases all measure a
+  // 20px line box; and without the overhang the icon-only case reports
+  // `content: none` under a coarse pointer, which is the defect it exists
+  // to catch.
+  //
+  // `.pointer-coarse\:h-11` is not repeated here. It is needled in the block
+  // above, and the two specs need it for different reasons: the row furniture
+  // sizes its controls with it, and `button-touch-floor.spec.ts` uses it as
+  // the control its own floor case has to be able to fail against. One
+  // needle, two readers.
+  //
+  // Written with the brace throughout, for the reason the two blocks above
+  // are: the test is `includes` over the whole sheet, and the padding
+  // needle without one is satisfied by its own `.5` sibling's selector.
+  //
+  // **None of the five plain entries below is a guard over this recipe**,
+  // and the two variant ones are guards only in the sense the block above
+  // is. Every class here is written across the tree — the paddings by most
+  // dialogs and toolbars in the app, the icon box by the header, the tree
+  // toggle, the gallery and two dozen more — so taking one out of
+  // `SIZE_CLASS` or `ICON_BOX_CLASS` leaves its rule in the sheet. They are
+  // here for the failure the header names: a sheet that did not compile
+  // misses all of them at once. Owner counts, measured per file with
+  // `source(none)`, are in the PR.
+  //
+  // What does hold the two recipes is `buttonTouchFloorFixtureParity`:
+  // widening the icon box in `Button.tsx` leaves this list silent and the
+  // browser suite green — the fixture writes its own class lists — and
+  // reddens the parity test alone. That is the division of labour, and it
+  // is worth knowing which file to read when one of them fails.
+  ".pointer-coarse\\:min-h-11 {",
+  ".pointer-coarse\\:before\\:-inset-1\\.5 {",
+  ".py-1\\.5 {",
+  ".py-2 {",
+  ".py-2\\.5 {",
+  ".h-8 {",
+  ".w-8 {",
 ];
 
 /**

@@ -204,13 +204,6 @@ export function MissingFileGrid({
                   <Button
                     variant="danger"
                     size="sm"
-                    // The strip carries the floor but is `items-center`,
-                    // which stops a child inheriting the height — and
-                    // `Button` grows the hit area only for `iconOnly`.
-                    // §Row Actions names this case: give the row's own
-                    // controls the class where the alignment stops them
-                    // taking it.
-                    className="pointer-coarse:min-h-11"
                     onClick={(e) => {
                       e.stopPropagation();
                       onPurge(file.id);
