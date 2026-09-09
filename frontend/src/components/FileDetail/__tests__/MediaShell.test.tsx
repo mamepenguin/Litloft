@@ -893,15 +893,26 @@ describe("the sheet's half, derived from the player", () => {
     // here — which makes this evidence that the hook observes the player
     // and acts on the callback, and nothing at all about when a browser
     // would fire it.
-    const observed: Element[] = [];
-    const callbacks: ResizeObserverCallback[] = [];
+    //
+    // **Fired through `observe`, not over the callbacks.** More than one
+    // hook on this page builds an observer, and calling every callback
+    // that was ever constructed re-derives the snap whether or not
+    // anything was observed — measured: deleting `observer.observe(node)`
+    // from the hook left that version of this case green.
+    interface Instance {
+      cb: ResizeObserverCallback;
+      nodes: Element[];
+    }
+    const instances: Instance[] = [];
     const original = globalThis.ResizeObserver;
     globalThis.ResizeObserver = class {
+      private instance: Instance;
       constructor(cb: ResizeObserverCallback) {
-        callbacks.push(cb);
+        this.instance = { cb, nodes: [] };
+        instances.push(this.instance);
       }
       observe(node: Element) {
-        observed.push(node);
+        this.instance.nodes.push(node);
       }
       unobserve() {}
       disconnect() {}
@@ -914,15 +925,17 @@ describe("the sheet's half, derived from the player", () => {
       );
       const before = publishedSnap(await openSheet());
 
+      const player = container.querySelector(".media-detail-player")!;
+      const watchingThePlayer = instances.filter((i) =>
+        i.nodes.includes(player),
+      );
       // The player wrapper, not some ancestor: an observer on the page
       // would fire for reasons that have nothing to do with the video.
-      expect(observed).toContain(
-        container.querySelector(".media-detail-player"),
-      );
+      expect(watchingThePlayer.length).toBeGreaterThan(0);
 
       stubPlayerBox(PLAYER_BOTTOM * 1.5);
       act(() => {
-        for (const cb of callbacks) cb([], {} as ResizeObserver);
+        for (const { cb } of watchingThePlayer) cb([], {} as ResizeObserver);
       });
 
       await waitFor(() => {
