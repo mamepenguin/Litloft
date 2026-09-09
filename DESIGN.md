@@ -664,18 +664,25 @@ with a **border in the accent colour**, never a fill.
 - **The media area is a different surface, and `TextThumbnail` clamps at
   three there.** A text file has no picture to show, so `TextThumbnail` draws
   one: the title in bold over a shrunken cast of the body text, inside the
-  media box, where a photograph would be. `FileCard`, `FileListRow` and
-  `JustifiedFileCell` all mount it, so on a text card the same title is drawn
-  twice at two different limits — three lines inside the picture, two in the
-  name row beneath it. That is not the bullet above being broken: the rule
-  there is scoped to the name row, and a stand-in for a thumbnail is sized by
-  the box it fills. **Whether three is the right number for that box is not
-  decided anywhere** — not in hako, not in a spec — so treat it as the
-  thumbnail's own and leave it alone unless something decides it. What would
-  break the rule above is the *name row* picking a third number.
-  The rest of what that grep returns clamps something that is not a name at
-  all — an excerpt, a search snippet, a quote, a description, `SceneCard`'s
-  own second line — and neither bullet says anything about them.
+  media box, where a photograph would be. Three surfaces mount it, and only
+  one of them pairs it with a clamped name row:
+  - `FileCard` does, so it is the one place the same title is drawn twice at
+    two different limits — three lines inside the picture, two below it.
+  - `JustifiedFileCell` puts the name over the picture on one line, which is
+    the overlay the bullet above already describes.
+  - `FileListRow` is a list row rather than a card, so §Cards does not reach
+    it at all; it sets the name beside the picture on one line with
+    `truncate`.
+
+  The `FileCard` pairing is not the bullet above being broken: the rule there
+  is scoped to the name row, and a stand-in for a thumbnail is sized by the box
+  it fills. **Whether three is the right number for that box is not decided
+  anywhere** — not in hako, not in a spec — so treat it as the thumbnail's own
+  and leave it alone unless something decides it. What would break the rule
+  above is the *name row* picking a third number. The rest of what that grep
+  returns clamps something that is not a name at all — an excerpt, a search
+  snippet, a quote, a description, `SceneCard`'s own second line — and neither
+  bullet says anything about them.
 - **Nothing else in that class list may set a `display`.** `line-clamp-*`
   compiles to `display: -webkit-box` plus `-webkit-line-clamp`, and the clamp is
   a property of that box: any other `display` utility on the same element
