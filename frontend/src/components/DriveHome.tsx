@@ -45,6 +45,20 @@ interface SectionState {
   loading: boolean;
 }
 
+/**
+ * One `getDriveFiles` batch, carrying the drive it was fetched for.
+ *
+ * The drive travels with the response instead of being read where the
+ * response is applied. `applyFileSections` is reached from the page's
+ * fetch effect and from `onFileAction` on every row below it, and a
+ * request outlives the drive it was made for, so the pairing has to be
+ * one the call site cannot get wrong.
+ */
+interface FileSectionsBatch {
+  drive: string;
+  results: PromiseSettledResult<PaginatedResponse>[];
+}
+
 const SECTION_LIMIT = 12;
 const MAX_FOLDERS = 8;
 
@@ -75,13 +89,13 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
   // The drive the page is showing, as of the last commit. Every fetch on
   // this page captures the drive it was made for and drops its result
-  // when this no longer matches: a request outlives the drive it was made
-  // for, and there are two of them in flight across a drive change, so
-  // either order of settling is reachable. When the older one settles
-  // last it writes the drive that was left into state with
-  // `foldersLoading` already false, which is not a window — it is where
-  // the page stays, the cards and the label agreeing with each other and
-  // nothing marking either as belonging elsewhere.
+  // when this no longer matches. A request outlives the drive it was
+  // made for, and requests for both drives are in flight across a drive
+  // change, so either order of settling is reachable. When one started
+  // on the drive that was left settles last, it writes that drive into
+  // state with the loading flags already false — which is not a window,
+  // it is where the page stays, the cards and the label agreeing with
+  // each other and nothing marking either as belonging elsewhere.
   //
   // Read only after an `await`, so the effect that maintains it has
   // always run by then.
@@ -167,7 +181,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     },
   });
 
-  const applyFileSections = useCallback((results: PromiseSettledResult<PaginatedResponse>[]) => {
+  const applyFileSections = useCallback((batch: FileSectionsBatch) => {
+    // The guard sits here rather than in each caller: this is where a
+    // response becomes what the page shows, and a batch cannot reach it
+    // without carrying the drive it was fetched for. A caller added
+    // later has nothing to remember.
+    if (shownDriveRef.current !== batch.drive) return;
+
+    const { results } = batch;
     const section = (result: PromiseSettledResult<PaginatedResponse>): SectionState =>
       result.status === "fulfilled"
         ? {
@@ -182,12 +203,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setLiked(section(results[2]));
   }, []);
 
-  const fetchFileSections = useCallback((): Promise<PromiseSettledResult<PaginatedResponse>[]> => {
-    return Promise.allSettled([
-      getDriveFiles(driveName, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-      getDriveFiles(driveName, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-      getDriveFiles(driveName, { liked: true, sort: "liked_at", order: "desc", limit: SECTION_LIMIT }),
+  const fetchFileSections = useCallback(async (): Promise<FileSectionsBatch> => {
+    const drive = driveName;
+    const results = await Promise.allSettled([
+      getDriveFiles(drive, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(drive, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(drive, { liked: true, sort: "liked_at", order: "desc", limit: SECTION_LIMIT }),
     ]);
+    return { drive, results };
   }, [driveName]);
 
   useEffect(() => {
@@ -202,7 +225,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       }
 
       const promises: [
-        Promise<PromiseSettledResult<PaginatedResponse>[]>,
+        Promise<FileSectionsBatch>,
         Promise<FolderType[]>,
         Promise<{ path: string }[]>,
         Promise<WatchHistoryItem[]> | null,
@@ -249,14 +272,20 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         const isPinned = pinnedPaths.has(folderPath);
         if (isPinned) {
           await removePin(driveName, folderPath);
-          setPinnedPaths((prev) => {
-            const next = new Set(prev);
-            next.delete(folderPath);
-            return next;
-          });
         } else {
           await addPin(driveName, folderPath);
-          setPinnedPaths((prev) => new Set(prev).add(folderPath));
+        }
+        // A pin path is drive-relative, so the same string is a
+        // different folder on another drive: writing this one into the
+        // set after the page has moved marks a folder that was never
+        // pinned.
+        if (shownDriveRef.current === driveName) {
+          setPinnedPaths((prev) => {
+            const next = new Set(prev);
+            if (isPinned) next.delete(folderPath);
+            else next.add(folderPath);
+            return next;
+          });
         }
         refreshSidebar();
       } catch {
@@ -267,8 +296,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   );
 
   const refetchAllSections = useCallback(async () => {
-    const results = await fetchFileSections();
-    applyFileSections(results);
+    applyFileSections(await fetchFileSections());
   }, [fetchFileSections, applyFileSections]);
 
   // Both halves of the page follow the drive: the folder grid *and* the

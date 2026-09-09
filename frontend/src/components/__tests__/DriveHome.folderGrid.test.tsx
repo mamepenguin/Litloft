@@ -73,12 +73,12 @@ import { DriveHome } from "../DriveHome";
  * equality with itself shrinks silently too. Every set below is read by
  * a case that fails when an element leaves it, enumerated rather than
  * counted: `ALL`, `COLLAPSED` and `HIDDEN` check each other; `AT_CAP` is
- * checked by the case one folder past it, where the label counts, and
- * again by the refresh-outliving case, where it is what the control must
- * not offer anything over; `SECOND_DRIVE`, `SECOND_DRIVE_COLLAPSED` and
- * `SECOND_DRIVE_HIDDEN` are checked by the drive-change case and by both
- * outliving-response cases, where each single deletion moves one side of
- * a `toEqual` or the label's declared count.
+ * checked by the case one folder past it, where the label counts;
+ * `SECOND_DRIVE`, `SECOND_DRIVE_COLLAPSED` and `SECOND_DRIVE_HIDDEN` are
+ * checked by the drive-change case and by both outliving-response cases,
+ * where each single deletion moves one side of a `toEqual` or the
+ * label's declared count. A set drawn by a case that only compares it
+ * against itself is not counted as a witness of it.
  */
 
 /** Eleven folders. The names are arbitrary; the count is the point. */
@@ -114,14 +114,17 @@ const HIDDEN_FOLDER_NAMES = ["india", "juliett", "kilo"] as const;
 /**
  * Exactly the cap, so the control has nothing to reveal.
  *
- * Its witnesses are the nine-folder case — that drive is this set plus
- * `NINTH_FOLDER_NAME`, and its label reads how many folders are left —
- * and the refresh-outliving case, which draws this set and requires no
- * control beside it. Remove a name here and the nine-folder drive falls
- * to the cap, which offers no control at all, so the removal is visible.
- * Without a witness this set could be walked back to a single folder and
- * a case named "exactly the cap" would stay green, taking the off-by-one
- * it exists to catch with it.
+ * Its witness is the nine-folder case: that drive is this set plus
+ * `NINTH_FOLDER_NAME`, and its label reads how many folders are left, so
+ * removing a name here drops that drive to the cap, which offers no
+ * control at all. Without a witness this set could be walked back to a
+ * single folder and a case named "exactly the cap" would stay green,
+ * taking the off-by-one it exists to catch with it.
+ *
+ * The refresh-outliving case draws this set too, but is not a second
+ * witness: it reads the set into the fixture and back out of a `toEqual`
+ * against what it just rendered, which is an equality with itself
+ * (`review-workflow.md` detector rule 5).
  */
 const AT_CAP_FOLDER_NAMES = [
   "alfa",
@@ -184,6 +187,12 @@ function folder(name: string): FolderType {
  * carries the path, which is what the card is keyed by, not what it
  * shows. `FolderCard` renders the name in the link's only `<span>`.
  */
+function folderNamesOnScreen(): string[] {
+  return Array.from(document.querySelectorAll<HTMLElement>("[data-rename-focus]")).map(
+    (el) => el.querySelector("span")?.textContent ?? "",
+  );
+}
+
 /**
  * How many placeholder cards the skeleton draws, declared rather than
  * read off the render. The loading cases assert it so that removing the
@@ -192,25 +201,73 @@ function folder(name: string): FolderType {
  */
 const SKELETON_CARD_COUNT = 4;
 
-function skeletonCardsOnScreen(): number {
-  return document.querySelectorAll(".animate-pulse").length;
+/**
+ * The Folders section's own element, found from its heading.
+ *
+ * Every count taken for this section is scoped through here. Counting
+ * across the document instead measures the mock set — the carousels, the
+ * continue-watching row and the file listing are all stubbed out in this
+ * file and all draw skeletons in production — so a document-wide count
+ * would hold while this section drew nothing at all.
+ */
+function folderSection(): HTMLElement {
+  const section = screen.getByRole("heading", { name: "Folders" }).closest("section");
+  expect(section).not.toBeNull();
+  return section as HTMLElement;
 }
 
 /**
- * The section is on screen and drawing its skeleton.
+ * The section is on screen and drawing its own skeleton.
  *
  * Membership only. jsdom lays nothing out, so this says the heading and
  * the placeholders are in the document, not that either is visible.
  */
 function expectFolderSkeleton(): void {
-  expect(screen.getByRole("heading", { name: "Folders" })).toBeInTheDocument();
-  expect(skeletonCardsOnScreen()).toBe(SKELETON_CARD_COUNT);
+  expect(folderSection().querySelectorAll(".animate-pulse")).toHaveLength(SKELETON_CARD_COUNT);
 }
 
-function folderNamesOnScreen(): string[] {
-  return Array.from(document.querySelectorAll<HTMLElement>("[data-rename-focus]")).map(
-    (el) => el.querySelector("span")?.textContent ?? "",
+/**
+ * A `getFolders` response the test is holding open, and the assertion
+ * that it is still held.
+ *
+ * The precondition each outliving case rests on is that the response it
+ * started has not been applied yet, and that is not readable off the
+ * document: a refresh that settled with the list already on screen draws
+ * exactly what a held one draws, and a fetch that settled with no
+ * folders draws no cards exactly as a held one does. So the response the
+ * component was handed is checked against the one this test is holding,
+ * and that promise is checked for having gone nowhere. Swapping the held
+ * promise for a resolved one in the fixture is the edit that would
+ * otherwise turn either case into one the guard is not needed for.
+ */
+function heldFolderResponse(): {
+  promise: Promise<FolderType[]>;
+  resolve: (names: readonly string[]) => void;
+} {
+  let resolve: (names: readonly string[]) => void = () => {};
+  const promise = new Promise<FolderType[]>((res) => {
+    resolve = (names) => res(names.map(folder));
+  });
+  return { promise, resolve };
+}
+
+async function expectFolderResponseStillHeld(promise: Promise<FolderType[]>): Promise<void> {
+  expect(getFolders.mock.results.at(-1)?.value).toBe(promise);
+
+  let settled = false;
+  void promise.then(
+    () => {
+      settled = true;
+    },
+    () => {
+      settled = true;
+    },
   );
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(settled).toBe(false);
 }
 
 async function renderDriveHome(names: readonly string[]) {
@@ -341,19 +398,17 @@ describe("DriveHome folder grid", () => {
     // response arrives the flag is already false and its list would be
     // drawn, cards and label agreeing, with nothing on screen to say the
     // drive it belongs to has been left.
-    let resolveFirstDrive: (folders: FolderType[]) => void = () => {};
-    getFolders.mockReturnValueOnce(
-      new Promise<FolderType[]>((resolve) => {
-        resolveFirstDrive = resolve;
-      }),
-    );
+    const firstDrive = heldFolderResponse();
+    getFolders.mockReturnValueOnce(firstDrive.promise);
     const { rerender } = render(<DriveHome driveName="drive-under-test" />);
 
     // The first drive's fetch is still in flight when the page moves on.
     // Without this the case passes vacuously the moment that fetch
     // settles first — which is the ordering the case above already
-    // covers, and the one the round-2 repair handles.
-    await act(async () => {});
+    // covers, and the one the round-2 repair handles. An empty grid does
+    // not say it: a fetch that settled with no folders leaves exactly
+    // that, so the response is what is asserted.
+    await expectFolderResponseStillHeld(firstDrive.promise);
     expect(folderNamesOnScreen()).toEqual([]);
 
     getFolders.mockResolvedValue(SECOND_DRIVE_FOLDER_NAMES.map(folder));
@@ -363,7 +418,7 @@ describe("DriveHome folder grid", () => {
     );
 
     await act(async () => {
-      resolveFirstDrive(ALL_FOLDER_NAMES.map(folder));
+      firstDrive.resolve(ALL_FOLDER_NAMES);
     });
 
     // The page is unmoved: the drive on screen still draws its own cards
@@ -389,20 +444,17 @@ describe("DriveHome folder grid", () => {
     const { rerender } = render(<DriveHome driveName="drive-under-test" />);
     await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
 
-    let resolveRefresh: (folders: FolderType[]) => void = () => {};
-    getFolders.mockReturnValueOnce(
-      new Promise<FolderType[]>((resolve) => {
-        resolveRefresh = resolve;
-      }),
-    );
+    const refresh = heldFolderResponse();
+    getFolders.mockReturnValueOnce(refresh.promise);
     await act(async () => {
       window.dispatchEvent(new Event("loft-move-complete"));
     });
 
-    // The refresh is still in flight when the page moves on. It resolves
-    // with a longer list than the one on screen, so if it settled here
-    // the control would already be offering three folders — the case
-    // would then be about a settled refresh, not an outliving one.
+    // The refresh is still in flight when the page moves on. Nothing on
+    // screen can say so — a refresh that settled with the list already
+    // drawn draws what a held one draws, whatever payload the fixture
+    // picks — so the precondition is read off the response instead.
+    await expectFolderResponseStillHeld(refresh.promise);
     expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]);
     expect(screen.queryByRole("button", { name: /Show more/ })).toBeNull();
 
@@ -413,7 +465,7 @@ describe("DriveHome folder grid", () => {
     );
 
     await act(async () => {
-      resolveRefresh(ALL_FOLDER_NAMES.map(folder));
+      refresh.resolve(ALL_FOLDER_NAMES);
     });
 
     expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]);
