@@ -1190,7 +1190,9 @@ transcript line, a `⋮` on a list row.
   inspector) and gives up none of its host's padding. It takes the floor from
   this section; it does not take the grouping.
 - Reach the floor on **the row** (`pointer-coarse:min-h-11`), and give the row's
-  own controls the same class wherever `items-start` stops them inheriting it.
+  own controls the same class wherever `items-start` stops them inheriting it —
+  **unless the control is a `Button`**, which carries the floor itself (§6): a
+  hand-written copy there is the duplication §6 says no call site should write.
   Then grow the *action's* hit area rather than its box — `relative` plus
   `pointer-coarse:before:absolute pointer-coarse:before:-inset-1.5` — so the icon
   stays 32px at every pointer type. The 44px row is what makes that overhang

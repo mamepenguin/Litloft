@@ -320,17 +320,37 @@ describe("Button", () => {
    * component did not. Six call sites had written the class out by hand and
    * every other labelled button was under the floor on a touch screen. The
    * *disagreement* is the defect, so both emitters are asserted, neither is
-   * read from the other, and the expected class is a literal here rather than
-   * imported from the module under test.
+   * read from the other, and every expected class below is a literal here
+   * rather than imported from the module under test.
+   *
+   * **The floor is the one thing here that cannot diverge any more**, because
+   * after the fix both emitters read one constant — one table read twice,
+   * which is detector rule 2. So the register below does not stop at the
+   * floor: it pins the anchor's *whole* class list per `(variant, size)`,
+   * which is where the two are genuinely two implementations. Deleting the
+   * `enabled:hover:` rewrite, the base class or the size class from
+   * `buttonClass()` each left the whole suite green before this existed.
+   *
+   * **The defaults are pinned separately.** The thirty explicit cases pin the
+   * declaration, and every one of them passes `variant` *and* `size`;
+   * `EmptyState` — the sentence "a link and a button standing next to each
+   * other are the same height", written as two branches of one function —
+   * passes `variant` to both emitters and `size` to neither, so on that screen
+   * the two heights agree only because the two defaults do. `Button`'s default
+   * was pinned by "defaults to md" and `buttonClass()`'s was pinned by
+   * nothing; the asymmetry is what the zero-argument case closes, and it takes
+   * the default `variant` with it because a default nothing exercises today is
+   * how the next caller inherits the wrong one. The pair *beside each other*
+   * is held in `EmptyState.test.tsx`.
    *
    * **What this cannot hold.** jsdom lays nothing out
    * (`.claude/rules/review-workflow.md`, "What a test here cannot hold"), so
    * every `getBoundingClientRect()` is zeros and nothing below is evidence
    * about a rendered height. It pins the class the two emitters produce, which
-   * is a decision, not a geometry. The 44px itself was measured in Chrome
-   * against the running stack's own stylesheet at 375x667 with a real coarse
-   * pointer; those numbers are in the PR body, where they are dated, and not
-   * in this file or in a source comment.
+   * is a decision, not a geometry. The heights those classes produce — 32 / 36
+   * / 40 on a fine pointer, 44 on a coarse one, and the icon box staying 32 at
+   * both — are measured in a real browser by
+   * `e2e-layout/button-touch-floor.spec.ts`, which CI runs.
    */
   describe("the touch floor, on both emitters", () => {
     // Written out rather than imported: a test that reads the value it is
@@ -341,18 +361,78 @@ describe("Button", () => {
       SIZES.map((size) => [variant, size] as const),
     );
 
+    // The anchor's recipe, declared. Same rule as `FLOOR`: these are the
+    // strings the component is expected to emit, typed out here, not read
+    // back from it.
+    //
+    // `hover:`, not `enabled:hover:` — CSS `:enabled` never matches an `<a>`,
+    // so the guarded spelling gives a link no hover state at all beside a
+    // `Button` that lights up. And no `disabled:` half: unreachable markup on
+    // an anchor.
+    const LINK_BASE =
+      "inline-flex items-center justify-center gap-1.5 font-medium transition-colors " +
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring";
+    const LINK_VARIANT: Record<ButtonVariant, string> = {
+      primary: "bg-accent text-white hover:bg-accent-hover rounded-2xl",
+      secondary: "bg-sand text-text-primary hover:bg-sand-hover rounded-2xl",
+      danger: "text-danger hover:bg-danger/10 rounded-2xl",
+      ghost: "text-text-primary hover:bg-bg-elevated rounded-2xl",
+      circle: "bg-warm-light text-text-primary hover:bg-sand-hover rounded-full",
+    };
+    const LINK_SIZE: Record<ButtonSize, string> = {
+      sm: "px-3 py-1.5 text-sm",
+      md: "px-4 py-2 text-sm",
+      lg: "px-5 py-2.5 text-sm",
+    };
+    const linkRecipe = (variant: ButtonVariant, size: ButtonSize) =>
+      [LINK_BASE, LINK_VARIANT[variant], LINK_SIZE[size], FLOOR].join(" ");
+
     // The population is declared, not derived from what the render produced.
     // On its own this only catches either list being walked back — it is the
-    // test's own literal. What ties the list to the component is the case
-    // below it: `buttonClass` reads `VARIANT_CLASS[variant]` and calls a
-    // string method on it, so a variant this list names and the component has
-    // dropped throws there instead of passing quietly.
+    // test's own literal. What ties both lists to the component is the whole
+    // class list asserted below: a variant this list names and the component
+    // has dropped throws in `VARIANT_CLASS[variant].replaceAll(...)`, and a
+    // size it has dropped is swallowed by `.filter(Boolean)` and leaves the
+    // padding missing from a string compared with `toBe`. (Before that
+    // comparison existed the tie held for variants only, and dropping `lg`
+    // from `SIZE_CLASS` passed all thirty cases.)
     it("covers every variant against every size", () => {
       expect(CASES.length).toBe(15);
     });
 
     it.each(VARIANTS)("names a variant the component still defines (%s)", (variant) => {
       expect(buttonClass({ variant })).toContain("rounded-");
+    });
+
+    // The whole string, not a token search. `toContain` on a class list is
+    // satisfied by everything else in it being gone.
+    it.each(CASES)("a link's class list is the whole recipe (%s, %s)", (variant, size) => {
+      expect(buttonClass({ variant, size })).toBe(linkRecipe(variant, size));
+    });
+
+    // Named separately from the register above even though that pins it
+    // too: it is the divergence `buttonClass()` exists for, and a reader
+    // scanning failures should see it stated rather than inferred from a
+    // long string diff.
+    it.each(VARIANTS)("gives a link a hover an anchor can reach (%s)", (variant) => {
+      const tokens = buttonClass({ variant }).split(" ");
+      expect(tokens.filter((c) => c.startsWith("enabled:"))).toEqual([]);
+      expect(tokens.filter((c) => c.startsWith("disabled:"))).toEqual([]);
+      expect(tokens.filter((c) => c.startsWith("hover:"))).toHaveLength(1);
+    });
+
+    // The dispatch, not the declaration. `EmptyState` is the only caller in
+    // the tree that omits `size`, and it renders a `Button` in the other
+    // branch of the same function — so this default and `Button`'s "defaults
+    // to md" above are one claim in two files.
+    //
+    // The default `variant` rides along. No caller omits it today, which is
+    // the reason to pin it rather than a reason not to: `Button`'s equivalent
+    // is pinned by "does not fill by default", and an unpinned `primary` here
+    // would spend §2.2's one accent fill on the first caller that leaves the
+    // prop off.
+    it("emits the md secondary recipe when called with no arguments", () => {
+      expect(buttonClass()).toBe(linkRecipe("secondary", "md"));
     });
 
     it.each(CASES)("a labelled Button takes it (%s, %s)", (variant, size) => {
@@ -371,7 +451,16 @@ describe("Button", () => {
     // Gated, on both. An ungated `min-h-11` would raise the box on a mouse
     // too, which is the half of §Row Actions that says 32px on `fine` — and
     // it would still satisfy a substring search for the floor's name.
-    it.each(CASES)("does not raise a Button's box on a fine pointer (%s, %s)", (variant, size) => {
+    //
+    // Named for what it holds and no more. This is a check on two spellings,
+    // not on a height: padding raises the same box and slips it entirely
+    // (measured — appending `py-6` to the floor takes the fine box from 36px
+    // to 68px with every case in this file green), and so do `md:min-h-14`
+    // and `size-11`. There is no bounded list of ways CSS can give a box a
+    // height (`.claude/rules/review-workflow.md`, "What a test here cannot
+    // hold"). The fine-pointer *geometry* is measured in
+    // `e2e-layout/button-touch-floor.spec.ts`.
+    it.each(CASES)("emits no ungated min-h-* or h-* on a Button (%s, %s)", (variant, size) => {
       render(
         <Button variant={variant} size={size}>
           Save
@@ -383,7 +472,7 @@ describe("Button", () => {
       expect(ungated).toEqual([]);
     });
 
-    it.each(CASES)("does not raise a link's box on a fine pointer (%s, %s)", (variant, size) => {
+    it.each(CASES)("emits no ungated min-h-* or h-* on a link (%s, %s)", (variant, size) => {
       const ungated = buttonClass({ variant, size })
         .split(" ")
         .filter((c) => /^min-h-/.test(c) || /^h-\d/.test(c));

@@ -180,6 +180,38 @@ export const REQUIRED = [
   // compares are the same layout.
   ".gap-3 {",
   ".p-2\\.5 {",
+  // `button-touch-floor.spec.ts` measures the 44px floor and the three
+  // padding heights under it. Each of these is a different case's whole
+  // subject, and each one's absence reads as a finding rather than as an
+  // empty sheet: without the floor every coarse measurement is the fine
+  // one and the two halves of the spec agree for the wrong reason;
+  // without the three padding rules the "32 / 36 / 40" cases all measure a
+  // 20px line box; and without the overhang the icon-only case reports
+  // `content: none` under a coarse pointer, which is the defect it exists
+  // to catch.
+  //
+  // `.pointer-coarse\:h-11` is not repeated here. It is needled in the block
+  // above, and the two specs need it for different reasons: the row furniture
+  // sizes its controls with it, and `button-touch-floor.spec.ts` uses it as
+  // the control its own floor case has to be able to fail against. One
+  // needle, two readers.
+  //
+  // Written with the brace throughout, for the reason the two blocks above
+  // are: the test is `includes` over the whole sheet, and `.py-2` alone is
+  // satisfied by `.py-2\.5`. A needle that cannot be absent asserts nothing.
+  //
+  // Spelled as compiled selectors rather than as classes here, and that is
+  // not decoration — see the `.h-\[90vh\]` note above. Tailwind scans this
+  // file, so a class written bare in a comment is a source for it and its
+  // needle can never go missing. `coarseNeedleSources.test.ts` holds that
+  // property for the `pointer-coarse:` half mechanically.
+  ".pointer-coarse\\:min-h-11 {",
+  ".pointer-coarse\\:before\\:-inset-1\\.5 {",
+  ".py-1\\.5 {",
+  ".py-2 {",
+  ".py-2\\.5 {",
+  ".h-8 {",
+  ".w-8 {",
 ];
 
 /**

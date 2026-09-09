@@ -47,6 +47,8 @@ const NEEDLE_PARTS = [
   ["pr", "0"],
   ["-ml", "3"],
   ["gap", "0"],
+  ["min-h", "11"],
+  ["before:-inset", "1.5"],
 ] as const;
 
 type Parts = readonly [string, string];
@@ -63,10 +65,26 @@ const coarse = (parts: Parts) => `pointer-coarse:${base(parts)}`;
  * the sheet. That is a property of the utility rather than a defect, and it
  * is recorded here rather than left for the next reader to rediscover. The
  * other three are written by the recipe and the fixture only.
+ *
+ * The two added for the `Button` floor sit on the same side for the same
+ * reason: `min-h-11` is written by twenty-eight core files and the overhang
+ * by four, so neither can be made absent by editing `Button.tsx`.
+ *
+ * **What "cannot be absent" is relative to.** Measured by stripping every
+ * whole spelling of each class from every scanned file and rebuilding the
+ * fixture's sheet: with the addon symlinks in place, all four survive —
+ * `intelligence` and `knowledge` write the floor, the overhang and the two
+ * sizing classes in their own components, and this walk skips symlinks. With
+ * `src/addons` absent, which is the state CI's layout job checks out in, all
+ * four make the build fail naming the sheet. So a needle's teeth depend on
+ * whether the submodules are present, and the four here are classified for
+ * the tree this file walks rather than for a developer's checkout.
  */
 const CANNOT_BE_ABSENT: readonly Parts[] = [
   ["h", "11"],
   ["w", "11"],
+  ["min-h", "11"],
+  ["before:-inset", "1.5"],
 ];
 const CAN_BE_ABSENT: readonly Parts[] = [
   ["pr", "0"],
@@ -177,7 +195,15 @@ describe("pointer-coarse needle sources", () => {
     // again. `REQUIRED` holds the selector each one emits; this is the
     // inverse of that spelling.
     const fromRequired = REQUIRED.filter((rule) => rule.startsWith(".pointer-coarse")).map(
-      (rule) => rule.replace(/^\./, "").replace(/\s*\{$/, "").replace(/\\:/g, ":"),
+      (rule) =>
+        rule
+          .replace(/^\./, "")
+          .replace(/\s*\{$/, "")
+          // Both escapes CSS needs, not only the colon: an arbitrary-valued
+          // utility carries `\.` in its selector, and leaving that in makes
+          // the inverse spelling disagree with the parts below for a reason
+          // that is not a missing classification.
+          .replace(/\\([:.])/g, "$1"),
     );
 
     expect(fromRequired.slice().sort()).toEqual(NEEDLE_PARTS.map(coarse).sort());
