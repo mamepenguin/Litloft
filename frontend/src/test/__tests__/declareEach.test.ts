@@ -1,12 +1,18 @@
 /**
- * The helper every enumerating suite in this tree registers through.
+ * The helper, held directly — not the repository's enumerating suites.
  *
- * `declareEach` is the one place a case can be dropped without a register
- * noticing — it is the code between "the population" and "the runner" —
- * so it is held here directly, with a fake `register` standing in for
- * `test` / `it`. Measured before this file existed: a single `if (…)
- * return;` inside the map dropped 18 of 73 browser cases with every
- * register green.
+ * `declareEach` stands between a population and the runner in the suites
+ * that have been wired to it, and it is the one place a case can be
+ * dropped without a register noticing. It is **not** the shape every
+ * enumerating suite here uses: `describe.each`, `it.each` and plain
+ * `for` loops over a table are still the common one, and a suite written
+ * that way is held by whatever it pins itself, not by this file.
+ *
+ * So what follows is about the helper: a fake `register` stands in for
+ * `test` / `it`, and the cases assert count, order, bodies, and that an
+ * id exists only for a member that was registered. Measured before this
+ * file existed: a single `if (…) return;` inside the map dropped 18 of 73
+ * browser cases with every register green.
  *
  * These are decisions about calls, not about anything rendered, so jsdom
  * laying nothing out is irrelevant here.
@@ -49,9 +55,11 @@ describe("declareEach", () => {
   });
 
   it("returns an id for a member only when it registered that member", () => {
-    // The property the two earlier repairs did not have. A member that is
-    // skipped must not contribute an id, or the register it feeds says a
-    // test exists that does not.
+    // The property the three earlier repairs did not have. A member that
+    // is skipped must not contribute an id, or the register it feeds says
+    // a test exists that does not — which is what an id produced by the
+    // shape that iterates (`items.map(… return id)`) always does, since
+    // the skip is the return.
     const runner = fakeRunner();
 
     const ids = declareEach(ITEMS, runner.register, (item) => ({
@@ -60,8 +68,17 @@ describe("declareEach", () => {
       body: () => item,
     }));
 
-    expect(ids).toEqual(runner.calls.map((c) => c.title));
-    expect(ids).toHaveLength(ITEMS.length);
+    // Written out rather than compared with each other: two lists that
+    // shorten together agree at every length.
+    expect(runner.calls.map((c) => c.title)).toEqual(["a", "b", "c"]);
+    expect(ids).toEqual(["a", "b", "c"]);
+
+    // No case here holds the *ordering* of the two statements inside the
+    // helper, and none can: with no skip in that body both orders
+    // produce this same pair, and nothing outside the helper can watch
+    // the ids array grow. What the order buys is only visible as a
+    // mutation — a skip in the helper's body — and what goes red for it
+    // is the callers' registers, not this file.
   });
 
   it("hands the runner the body the spec built, not a stand-in", () => {
@@ -86,14 +103,18 @@ describe("declareEach", () => {
     // stayed green. Measured.
     //
     // So the population here is every integer a viewport height could be
-    // and every snap point to two decimals, which is where the callers'
-    // literals live: 667 / 745 / 812 / 915, and 0.5 / 0.7 / 0.9. A skip
-    // keyed on any of them fails here.
+    // and every snap point to two decimals, which contains every value
+    // the callers pass: 667 / 745 / 812 / 915, and 0.5 / 0.9. (0.7 is in
+    // the population and is nobody's literal — the range is declared,
+    // not collected from the call sites.) A skip keyed on one of those
+    // values fails here.
     //
-    // It is not a proof of totality. A condition keyed on a value outside
-    // this range, or on something other than the title, still survives —
-    // and nothing in a test file can read the runner's registry to close
-    // that. `--list` and the CI job are where the true count is.
+    // It is not a proof of totality, and the titles are the limit: these
+    // are bare numbers, while a caller's title is `745px (iPhone 15) at
+    // half`, so `includes("745")` fails here and `includes("px (")` does
+    // not. What catches the second one is no longer this file but the
+    // caller's own register, which is short whenever this body skips —
+    // see `declareEach`'s docstring for what is left after that.
     const heights = Array.from({ length: 1024 }, (_, i) => i);
     const snaps = Array.from({ length: 101 }, (_, i) => i / 100);
     const items = [...heights, ...snaps];

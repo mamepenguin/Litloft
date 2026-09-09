@@ -115,13 +115,19 @@ describe("MobileInspectorSheet", () => {
     },
   }));
 
-  it("asks that of every snap point the sheet has", () => {
+  it("asks that of every snap point the sheet has, and there are two of them", () => {
+    // Two assertions doing different jobs. The first is the register
+    // against the population: a `continue` in the declaration drops an
+    // id and disagrees here.
     expect(declaredSnaps).toEqual(SHEET_SNAP_POINTS.map(String));
-    // And they are different snaps, not one repeated.
-    expect(expectDistinct(declaredSnaps)).toEqual({
-      unique: SHEET_SNAP_POINTS.length,
-      total: SHEET_SNAP_POINTS.length,
-    });
+    // The second is the population against a number written out. Both
+    // sides of the line above are `SHEET_SNAP_POINTS`, so shrinking the
+    // component's array to one snap moves them together and leaves this
+    // file green at one case — half of the fact `DESIGN.md` §Layering
+    // and `InspectorShell` both cite, gone, with the only red coming
+    // from an unrelated file's hand-written table. `expectDistinct`
+    // exists to be given the numbers, not the length it just measured.
+    expect(expectDistinct(declaredSnaps)).toEqual({ unique: 2, total: 2 });
   });
 
   it("draws it at rest and nowhere else, which is the whole of that rule", () => {

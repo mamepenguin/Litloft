@@ -2,13 +2,14 @@
  * Declare one test per member of a population, and hand back the ids of
  * the tests that were declared.
  *
- * ## The hole this closes, and the two attempts before it
+ * ## The hole this closes, and the three attempts before it
  *
  * A suite that loops over a table and asserts `table.length` has checked
  * nothing about its tests: the assertion reads the literal, not the loop.
  * Walking the loop back — `slice`, `break`, `continue` — leaves the length
- * green and silently drops cases. Five rounds of review in this
- * repository have found five spellings of that.
+ * green and silently drops cases. Every round of review in this
+ * repository has found another spelling of it; counting them here would
+ * be one more number that goes stale without going red.
  *
  * The first repair recorded each id one line *above* its registration.
  * The seam between the two statements was the next hole: a `continue`
@@ -20,13 +21,21 @@
  * return; test(…); }` returned an id without registering anything, and
  * the same 73 became 55 again.
  *
- * So the caller no longer registers. `spec(item)` builds a title, an id
- * and a body; **this function calls `register` itself, unconditionally,
- * for every item**, and the id it returns is the id of the test it just
- * declared. There is no per-item callback with a registration inside it
- * to put a condition in front of, and the one remaining skip point — this
- * body — is what `declareEach.test.ts` exists to hold: it passes a fake
- * `register` and fails if the count, the order or the bodies drift.
+ * The third repair brought the registration in here, as a `.map` whose
+ * body ended in `return id`. That is the same seam a third time, moved
+ * from the caller into this file: an early `return id` in front of
+ * `register` hands every caller a *complete* register having declared
+ * nothing. Measured at `ca4dd8e1`: `if (title.includes("px (")) return
+ * id;` dropped all 72 browser cases, `pnpm test:e2e:layout` went 140 → 68
+ * and exited 0, with `every group ran at every case` green.
+ *
+ * So the ids are no longer produced by the shape that iterates. The body
+ * below is a loop that calls `register` and *then* records the id, which
+ * is the one order in which a skip cannot leave the two disagreeing:
+ * whatever is not registered contributes no id, the returned register is
+ * short, and a caller comparing it against a list rebuilt from its own
+ * declarations goes red. Same mutation against this shape: 1 failed / 67
+ * passed, named `every group ran at every case`.
  *
  * ## What it still does not close
  *
@@ -36,31 +45,40 @@
  * - **A caller that passes a filtering `register`** instead of the
  *   runner's own `test` / `it`. That is not a loop being walked back; it
  *   is a wrapper written on purpose, and it is visible at the call site.
- * - **A condition in this body keyed on a value outside the population
- *   `declareEach.test.ts` drives.** That test walks every integer up to
- *   1023 and every snap point to two decimals, so a skip keyed on any
- *   viewport height or snap the callers use is caught; one keyed on
- *   something else is not. Measured, before that population was widened:
- *   `if (title.includes("745")) return id;` dropped 18 browser cases with
- *   the helper's own three-item fixture green.
+ * - **A caller that checks the returned register against itself.** The
+ *   ids carry the skip only as far as the expected side is built
+ *   independently of them — a hand-written list, or a cross product of
+ *   declared tables that are themselves pinned. `expect(ids).toEqual(
+ *   population.map(String))` moves with the population and says nothing
+ *   about a population the caller shrank.
  * - **A population walked back in *distinctness* rather than length** —
  *   four entries with the same value keep every count and every id.
- *   `expectDistinct` is for that, and it has to be used.
- * - **A case deleted outside the helper.** Compare the returned register
- *   against a list rebuilt from the declarations, never against itself.
+ *   `expectDistinct` is for that, and it has to be used with the numbers
+ *   written out at the call site.
+ * - **A case deleted outside the helper**, and a whole `describe` skipped
+ *   with `.skip` — the runner registers those and then declines to run
+ *   them, so nothing here is short.
  * - **Anything about the runner's own registry.** No test file can read
- *   it; the true count lives in `--list` and in the CI job's output.
+ *   it; the true count lives in `--list` and in the CI job's output. Note
+ *   that Playwright takes a case's location from the call site of
+ *   `test()`, so every case declared through this helper is listed as
+ *   `declareEach.ts` at the line below rather than as the spec that
+ *   supplied it. The group and the case are still in the title.
  */
 export function declareEach<T, Body>(
   items: readonly T[],
   register: (title: string, body: Body) => void,
   spec: (item: T) => { title: string; id: string; body: Body },
 ): string[] {
-  return items.map((item) => {
+  const ids: string[] = [];
+  for (const item of items) {
     const { title, id, body } = spec(item);
     register(title, body);
-    return id;
-  });
+    // After the registration, never before it: an id recorded first is
+    // an id for a test that a skip on the next line would not declare.
+    ids.push(id);
+  }
+  return ids;
 }
 
 /**

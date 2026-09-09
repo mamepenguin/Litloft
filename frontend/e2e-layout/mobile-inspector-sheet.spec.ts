@@ -26,8 +26,11 @@
  * **vaul is not running.** This page reproduces vaul's own arithmetic —
  * `--snap-point-height` is `innerHeight × (1 − snap)` — and sets the
  * variable and the transform itself. What pins that copy against the real
- * library is `MobileInspectorSheet.test.tsx`, which renders a real drawer
- * at each snap and reads the variable back off it.
+ * library is `mobileInspectorSheetFixtureParity.test.tsx`'s "vaul's snap
+ * arithmetic, which the fixture reproduces", which renders a real drawer
+ * at each snap and reads the variable back off it. That file also holds
+ * `SNAPS` below against the component's own `SHEET_SNAP_POINTS`, which
+ * nothing in this process can import.
  *
  * **And nothing here notices the components losing the arrangement.**
  * This file builds its own markup from the JSON in the fixture, so taking
@@ -67,6 +70,13 @@ const WIDTH = 375;
  *
  * `peek` is not among them — the drawer is not mounted there at all — so
  * these two are every state this file can be about.
+ *
+ * Written out here because the component cannot be imported into a
+ * Playwright node context. That makes this a second copy of
+ * `SHEET_SNAP_POINTS`, and the `toHaveLength(2)` below reads the literal
+ * above it rather than the component — so what actually keeps the two in
+ * step is `mobileInspectorSheetFixtureParity.test.tsx`, which reads this
+ * block as text and compares it with the component's array.
  */
 const SNAPS = [
   { snap: 0.5, label: "half" },

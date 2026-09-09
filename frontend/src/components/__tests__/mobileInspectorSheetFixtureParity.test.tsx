@@ -34,9 +34,11 @@ import {
   MobileInspectorSheet,
   SHEET_SNAP_FULL,
   SHEET_SNAP_HALF,
+  SHEET_SNAP_POINTS,
   SHEET_SCROLLER_PADDING_BOTTOM,
   SHEET_VISIBLE_HEIGHT,
 } from "@/components/MobileInspectorSheet";
+import { declareEach, expectDistinct } from "@/test/declareEach";
 import { InspectorShell } from "@/components/FileDetail/inspector/InspectorShell";
 import { buildInspectorTabs } from "@/components/FileDetail/inspector/tabs";
 import type { InspectorScroll } from "@/components/FileDetail/inspector/InspectorShell";
@@ -267,16 +269,39 @@ describe("both forms of the inspector", () => {
   });
 });
 
+/**
+ * vitest's `it`, narrowed to the two arguments the helper uses.
+ *
+ * `it` is overloaded (options objects, `.each`, modifiers), so handing it
+ * over unnarrowed makes the helper infer the options overload rather than
+ * a test body.
+ */
+const registerCase: (title: string, body: () => void | Promise<void>) => void =
+  it;
+
 describe("vaul's snap arithmetic, which the fixture reproduces", () => {
   // Two implementations, not one table read twice: vaul computes the
   // offset inside a React render from `window.innerHeight`, and the
   // expectation is the published formula written out here. A vaul upgrade
   // that changes either the formula or the variable's name fails this.
+  //
+  // This is the case the browser suite's cases rest on — it is what pins the
+  // fixture's hand-written copy of the formula against the real library —
+  // so the loop that declares it is registered rather than counted.
+  // `expect(SNAPS).toHaveLength(2)` read the literal two lines above it,
+  // so `if (snap === SHEET_SNAP_FULL) continue;` as the loop's first
+  // statement dropped the `full` half of it and stayed green.
   const SNAPS = [SHEET_SNAP_HALF, SHEET_SNAP_FULL];
-  expect(SNAPS).toHaveLength(2);
+  // The hand-written pair against the array the sheet hands vaul: a snap
+  // added to or removed from the component is red here rather than
+  // measured at one fewer snap in silence.
+  expect(SNAPS).toEqual(SHEET_SNAP_POINTS);
+  expect(expectDistinct(SNAPS)).toEqual({ unique: 2, total: 2 });
 
-  for (const snap of SNAPS) {
-    it(`publishes innerHeight × (1 − ${snap}) as --snap-point-height`, () => {
+  const declaredSnaps = declareEach(SNAPS, registerCase, (snap) => ({
+    title: `publishes innerHeight × (1 − ${snap}) as --snap-point-height`,
+    id: String(snap),
+    body: () => {
       const { drawer } = renderSheet(snap);
       const published = drawer.style.getPropertyValue("--snap-point-height");
 
@@ -285,8 +310,45 @@ describe("vaul's snap arithmetic, which the fixture reproduces", () => {
         window.innerHeight * (1 - snap),
         5,
       );
-    });
-  }
+    },
+  }));
+
+  it("asked it of both snaps", () => {
+    // The register against the declaration, and the declaration against
+    // two numbers written out — the pins above cannot both be satisfied
+    // by a population that shrank.
+    expect(declaredSnaps).toEqual(SNAPS.map(String));
+    expect(expectDistinct(declaredSnaps)).toEqual({ unique: 2, total: 2 });
+  });
+
+  it("is asked at every snap the browser suite measures at, too", () => {
+    // The third population of these two numbers, and the one nothing
+    // could reach: `mobile-inspector-sheet.spec.ts` runs in a Playwright
+    // node context where importing the component would drag React and
+    // vaul into a file whose whole premise is that vaul is not running.
+    // So it is read as text, the same way `inspectorThresholdParity`
+    // reads `DESIGN.md` — two files, no code either of them runs.
+    //
+    // Without this the browser suite silently measures the drawer at one
+    // snap fewer than the sheet has whenever a snap point is added: its
+    // cases are the cross product of its heights, its snaps and its
+    // groups, and every count in that file follows from its own
+    // hand-written `SNAPS` rather than from the component's.
+    const spec = readFileSync(
+      resolve(REPO_ROOT, "frontend/e2e-layout/mobile-inspector-sheet.spec.ts"),
+      "utf-8",
+    );
+    const block = spec.match(/const SNAPS = \[([\s\S]*?)\] as const;/);
+    expect({ found: block !== null }).toEqual({ found: true });
+
+    const declared = [...block![1].matchAll(/snap:\s*([\d.]+)/g)].map((m) =>
+      Number(m[1]),
+    );
+    // A regex that matched nothing yields `[]`, which is not
+    // `SHEET_SNAP_POINTS` — so a rename of that table fails here rather
+    // than passing vacuously.
+    expect(declared).toEqual(SHEET_SNAP_POINTS);
+  });
 
   it("is the same expression the fixture computes it with", () => {
     // A text match, and it is the only tie there can be: the fixture's

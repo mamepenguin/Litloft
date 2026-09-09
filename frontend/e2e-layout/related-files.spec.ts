@@ -59,9 +59,11 @@
  * element, not this file.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { declareEach, expectDistinct } from "../src/test/declareEach";
 
 const FIXTURE = pathToFileURL(
   resolve(__dirname, "fixtures", "related-files.html"),
@@ -283,6 +285,18 @@ test.describe("the column count is the container's question", () => {
   });
 });
 
+/**
+ * Playwright's `test`, narrowed to the two arguments the helper uses.
+ *
+ * `test` is a callable with a dozen properties hanging off it and several
+ * overloads; this is the one signature `declareEach` needs, so the helper
+ * infers a body type instead of the details overload.
+ */
+const registerCase: (
+  title: string,
+  body: (args: { page: Page }) => Promise<void>,
+) => void = test;
+
 test.describe("no width produces a tile narrower than the rail's single column", () => {
   // The invariant the threshold exists to hold, swept rather than
   // spot-checked: a tile is either the whole container or at least as
@@ -305,16 +319,36 @@ test.describe("no width produces a tile narrower than the rail's single column",
     THRESHOLD,
     1200,
   ];
+  const SWEPT = [...new Set(WIDTHS)].sort((a, b) => a - b);
 
-  for (const width of [...new Set(WIDTHS)].sort((a, b) => a - b)) {
-    test(`${width}px`, async ({ page }) => {
+  // The population, pinned to a number written out rather than to its own
+  // length. Everything above is spread from `SURFACES`, so a surface
+  // losing a width — or two of them collapsing onto one value, which the
+  // `Set` would swallow — moves the sweep and nothing else. Thirteen is
+  // the count this list has to keep: adding a surface width means saying
+  // so here.
+  expect(expectDistinct(SWEPT)).toEqual({ unique: 13, total: 13 });
+
+  // And what the loop registered, not what it was asked to register.
+  // Pinning the population above does not observe the loop: `if (width >
+  // 400) continue;` as its first statement dropped eleven of these cases
+  // and `pnpm test:e2e:layout` reported 129 green. See `declareEach`,
+  // which registers and records in the one order a skip cannot split.
+  const declaredWidths = declareEach(SWEPT, registerCase, (width) => ({
+    title: `${width}px`,
+    id: String(width),
+    body: async ({ page }: { page: Page }) => {
       const m = await layout(page, width);
       for (const tile of m.tiles) {
         const full = Math.abs(tile.width - m.gridWidth) < 1;
         expect(full || tile.width >= RAIL_GRID).toBe(true);
       }
-    });
-  }
+    },
+  }));
+
+  test("swept every width the surfaces produce", () => {
+    expect(declaredWidths).toEqual(SWEPT.map(String));
+  });
 });
 
 test.describe("the shapes the tile actually comes in", () => {
