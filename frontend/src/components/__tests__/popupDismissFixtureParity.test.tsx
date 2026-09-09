@@ -7,7 +7,7 @@
  * own. Change `DismissScrim` back to `onPointerDown` and every case there
  * stays green, because the fixture never asked the component anything.
  *
- * This is what asks. Two claims, because the fixture makes two:
+ * This is what asks. Four claims, because the fixture makes four:
  *
  *  - `scrimClass` is the box. Compared whole and in both directions
  *    against `MENU_SCRIM`, so a class dropped from either side is red —
@@ -18,6 +18,12 @@
  *    comparing a string to a string: what has to hold is that the
  *    component answers the one the fixture wires up and none of the
  *    others.
+ *  - `chrome` is the bar the browser cases tap through, and it is only the
+ *    inspector's tab strip while it carries the strip's own tier — read
+ *    out of `InspectorShell.tsx`, not respelled here.
+ *  - `lowScrim` is the contrast, and it is only a contrast while it fails
+ *    to clear that bar. A "fix" raising it to the shipped tier would leave
+ *    both browser cases green and measuring the same thing.
  *
  * jsdom lays nothing out and hit-tests nothing, so nothing here is
  * evidence about what a tap reaches. That is the browser spec's, and this
@@ -33,9 +39,16 @@ import { resolve, dirname } from "node:path";
 import { DismissScrim, MENU_SCRIM } from "@/components/DismissScrim";
 import { openScrim } from "@/__tests__/helpers/dismissScrim";
 
+const HERE = dirname(fileURLToPath(import.meta.url));
+
 const FIXTURE = resolve(
-  dirname(fileURLToPath(import.meta.url)),
+  HERE,
   "../../../e2e-layout/fixtures/popup-dismiss.html",
+);
+
+const INSPECTOR_SHELL = resolve(
+  HERE,
+  "../FileDetail/inspector/InspectorShell.tsx",
 );
 
 const SPEC: Record<string, string> = JSON.parse(
@@ -101,6 +114,35 @@ describe("the popup-dismiss fixture", () => {
     delete (document as unknown as { elementFromPoint?: unknown })
       .elementFromPoint;
     beneath.remove();
+  });
+
+  it("draws the tab strip's own tier as the chrome over the page", () => {
+    // The browser cases ask whether a tap on a `sticky top-0 z-10` bar
+    // reaches the scrim. That question is about `InspectorShell`'s strip,
+    // so the fixture's bar carries the strip's declaration, read from the
+    // component. If the strip is renumbered, this is what says the fixture
+    // has stopped being about it.
+    const strip = /sticky top-0 z-\[?\d+\]?/.exec(
+      readFileSync(INSPECTOR_SHELL, "utf8"),
+    );
+    expect(strip, "InspectorShell no longer declares a sticky strip").not.toBe(
+      null,
+    );
+    expect(SPEC.chrome).toContain(strip![0]);
+  });
+
+  it("ties the low scrim to that bar, and the shipped one above it", () => {
+    // The contrast case's whole content, as an equality rather than a
+    // bound: `lowScrim` is the value a "must be in the popover band" check
+    // admitted *at its floor*, which is the bar's own tier — the case is
+    // about what happens when the two are equal and the bar is written
+    // later. Raising it to the shipped tier would leave both browser cases
+    // green and measuring the same page twice.
+    const tierOf = (classList: string) =>
+      Number(/\bz-\[?(\d+)\]?/.exec(classList)![1]);
+
+    expect(tierOf(SPEC.lowScrim)).toBe(tierOf(SPEC.chrome));
+    expect(tierOf(SPEC.scrimClass)).toBeGreaterThan(tierOf(SPEC.chrome));
   });
 
   it("wires none of the events that come before it", () => {

@@ -35,6 +35,20 @@
  * none` body and the addon slots are all absent. This is the mechanism at
  * viewport scale, not any particular screen.
  *
+ * **Chrome above the scrim is one bar, not a page.** The `chrome`
+ * strategies add a `sticky top-0 z-10` bar after the scrim — the shape
+ * `InspectorShell`'s tab strip has — because without it this page is a
+ * scrim over a single `z-0` button, where every scrim tier from `z-1`
+ * upward is on top and passes. What they hold is the tier of the scrim
+ * *this page draws*, which the parity test ties to `MENU_SCRIM`: measured,
+ * `scrimClass` at `z-10` fails the `chrome` case at both viewports and
+ * left every other case here green. A scrim a caller passes by hand is not
+ * on this page at all — `popup-dismissal.test.ts` reads those against the
+ * sticky bars' own files.
+ *
+ * What is still absent is a transformed ancestor, so the sheet's
+ * containing block is not reproduced here either.
+ *
  * **The retarget cases are mouse-only.** They run `page.mouse.click(…,
  * { button: "right" })`; Playwright has no long-press gesture that
  * synthesises `contextmenu`, so the touch path to the same event is not
@@ -285,6 +299,80 @@ for (const viewport of VIEWPORTS) {
           }, [TAP.x, TAP.y]);
           expect(defaultPrevented, strategy).toBe(true);
         }
+      });
+    });
+
+    test.describe("chrome written after the scrim", () => {
+      // The gap the two shipped defects lived in. Both rounds put the
+      // scrim at or below the inspector's `sticky top-0 z-10` tab strip,
+      // which is later in the document, so the tap reached the strip and
+      // switched the tab under the finger. Neither was visible to any
+      // case above: a scrim over a single `z-0` button is on top whatever
+      // its tier.
+      //
+      // The pair is the measurement. `chrome` is the shipped `z-30`
+      // scrim; `chrome-low-scrim` is `z-10`, the value a "must be in the
+      // popover band" check admitted at its floor. A case that only
+      // asserted the first would pass on a page where nothing can reach
+      // the bar.
+      for (const [strategy, want] of Object.entries({
+        chrome: {
+          dismissed: 1,
+          pressedChrome: 0,
+          why: "z-30 clears the bar, so the tap is absorbed",
+        },
+        "chrome-low-scrim": {
+          dismissed: 0,
+          pressedChrome: 1,
+          why:
+            "z-10 ties the bar and loses the paint order to it — the tap " +
+            "presses the bar and the popup is not even dismissed",
+        },
+      })) {
+        test(`${strategy}: ${want.why}`, async ({ page }) => {
+          await open(page, strategy);
+          const bar = (await page.locator("#chrome").boundingBox())!;
+          const point = { x: bar.x + bar.width / 2, y: bar.y + bar.height / 2 };
+
+          // The element under that point, before anything is tapped: the
+          // reading the tap's outcome follows from, and the one a reader
+          // of a failure needs.
+          const at = await page.evaluate(
+            ([x, y]) => document.elementFromPoint(x, y)?.id ?? null,
+            [point.x, point.y],
+          );
+          expect(at).toBe(strategy === "chrome" ? "scrim" : "chrome");
+
+          await page.touchscreen.tap(point.x, point.y);
+          expect(
+            await page.evaluate(() => ({
+              dismissed: Number(
+                document.getElementById("state")!.dataset.dismissed,
+              ),
+              pressedChrome: Number(
+                document.getElementById("chrome")!.dataset.clicks,
+              ),
+            })),
+          ).toEqual({
+            dismissed: want.dismissed,
+            pressedChrome: want.pressedChrome,
+          });
+        });
+      }
+
+      test("puts the bar over the page it is chrome for", async ({ page }) => {
+        // The premise of the pair: the bar has to be reachable at all. A
+        // bar with no box, or one the full-bleed button covers, would make
+        // `chrome-low-scrim` read like the shipped case for a reason that
+        // has nothing to do with tiers.
+        await open(page, "chrome-low-scrim");
+        const bar = (await page.locator("#chrome").boundingBox())!;
+        expect(bar.width).toBeCloseTo(
+          await page.evaluate(() => window.innerWidth),
+          0,
+        );
+        expect(bar.height).toBeGreaterThan(0);
+        expect(bar.y).toBeCloseTo(0, 0);
       });
     });
 

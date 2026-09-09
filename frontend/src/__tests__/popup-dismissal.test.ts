@@ -49,10 +49,12 @@ import { resolve, dirname, relative } from "node:path";
  *
  * ## What this file claims, and what it cannot
  *
- * It claims that the population is enumerated and that each member goes
- * through `DismissScrim` — a spelling check over source text, run in
- * node with nothing rendered. It claims nothing about hit testing: that
- * the scrim is the element a tap actually lands on, and that the control
+ * It claims that the population is enumerated, that each member goes
+ * through `DismissScrim`, and that each scrim's declared tier clears the
+ * declared tier of every sticky bar in core — a spelling check over
+ * source text, run in node with nothing rendered. It claims nothing about
+ * hit testing: that the scrim is the element a tap actually lands on,
+ * that a bar written after it does not take the tap, and that the control
  * underneath is spared, is measured with a real touch in Chromium by
  * `e2e-layout/popup-dismiss.spec.ts`. `DismissScrim.test.tsx` drives the
  * component and pins which event it answers.
@@ -455,7 +457,11 @@ describe("Every popup surface in core", () => {
  * the fixture had stopped containing anything a real trigger writes.
  *
  * The keys are checked against `NEEDLES` below, so a needle cannot be
- * added without a declaration to exercise it.
+ * added without a declaration to exercise it, and each case asserts that
+ * the declaration it runs actually contains its own needle — without that
+ * the table was pinned on neither axis: setting all nine values to
+ * `role="menu"` left nine "is found by" cases green, eight of them
+ * measuring a spelling they are not named for.
  */
 const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
   'role="menu"': 'role="menu"',
@@ -475,13 +481,20 @@ const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
 
   it.each(
     NEEDLES.map((needle) => [needle, NEEDLE_DECLARATIONS[needle]]),
-  )("is found by %s", (_needle, declaration) => {
+  )("is found by %s", (needle, declaration) => {
     // Each spelling separately, against a tree written for it. Without a
     // case of its own a spelling is a branch that could be deleted with
     // every other assertion green — which is not hypothetical: two of
     // these were deleted from the regex and from a hand-written case list
     // in one edit, and the file stayed green. The cases are generated from
     // `NEEDLES` now, so that edit cannot be made in one hand.
+    //
+    // The needle first: the fixture landing in `popupFiles` says it is *a*
+    // popup, never that this spelling is why. `role="menuitem` is a prefix
+    // and is satisfied by `role="menuitemradio"`, which is what the
+    // declaration writes.
+    expect(declaration).toContain(needle);
+
     const dir = mkdtempSync(join(tmpdir(), "popup-needle-"));
     const file = join(dir, "Sample.tsx");
     writeFileSync(file, `export const x = <div ${declaration} />;\n`);
@@ -563,31 +576,87 @@ const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
 });
 
 /**
- * The `z` band each scrim is drawn in, read from its call site.
+ * Where each scrim is drawn, read from its call site — and what it has to
+ * be above.
  *
  * `MENU_SCRIM`'s default is pinned by `DismissScrim.test.tsx`; a caller
  * that passes its own `className` was pinned by nothing, in jsdom or in a
- * browser. That is how a scrim shipped at `z-[9]` — below the inspector's
- * `sticky top-0 z-10` tab strip and the page's `sticky top-0 z-20` header.
- * A tap on either was not absorbed, and the popup this primitive had just
- * been given closed through its old `onBlur` while the tab switched
- * underneath: the defect the unit removes, reintroduced by the unit.
+ * browser. That is how a scrim shipped at `z-[9]`, under the inspector's
+ * `sticky top-0 z-10` tab strip: a tap on the strip was not absorbed, and
+ * the popup this primitive had just been given closed through its old
+ * `onBlur` while the tab switched underneath.
  *
- * A scrim must be in the popover band (`DESIGN.md` §Layering, `z-10` to
- * `z-30`) unless it is enumerated below with the reason it is not.
+ * **A band is the wrong instrument for that, and this file used one.**
+ * `DESIGN.md` §Layering puts sticky bars, the header and "popovers
+ * anchored to a control" in *one* tier, `z-10` to `z-30`, so "in the
+ * popover band" can never mean "above the chrome" — the band's own floor
+ * is the tab strip's number. A scrim at `z-10` passed that check and lost
+ * the paint order to a `z-10` strip written later in the document, which
+ * is the shipped defect returning with the whole suite green.
+ *
+ * So what is asserted is the relation: a scrim clears every sticky bar it
+ * covers, and stays inside the popover tier. Both sides are read from the
+ * tree, so raising a bar fails here as surely as lowering a scrim.
+ *
+ * The floor is the half that has teeth today. The ceiling only fires for a
+ * scrim written above the tier and not enumerated, and every scrim above
+ * it right now is enumerated — so lowering this constant fails the file
+ * and raising it changes nothing. It is a rule for the next scrim, not a
+ * pin on this tree, and saying otherwise would be the claim detector rule
+ * 4 is about.
  */
-const POPOVER_BAND = { min: 10, max: 30 };
+const POPOVER_CEILING = 30;
 
 /**
- * Scrims deliberately outside the band, and why. Enumerated rather than
- * counted: `DESIGN.md` carried a count of these and it was wrong twice.
+ * Sticky top bars in core, with the tier each declares.
+ *
+ * The scan is `sticky top-0 z-N`, the shape both surfaces in the shipped
+ * defect had. A bar spelled another way — `fixed top-0`, a `style` prop, a
+ * tier inherited from a parent — is outside what this holds, and the
+ * population pin below is what keeps a new bar of *this* shape from
+ * arriving unseen. Nothing here claims more than that.
+ */
+function stickyChrome(roots: string[] = [CORE_ROOT]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const root of roots) {
+    for (const file of sourceFiles(root)) {
+      const text = withoutComments(readFileSync(file, "utf-8"));
+      const rel = relative(REPO_ROOT, file);
+      for (const m of text.matchAll(/sticky top-0 z-\[?(\d+)\]?/g)) {
+        out.set(rel, Math.max(out.get(rel) ?? 0, Number(m[1])));
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * What that scan is expected to find.
+ *
+ * Declared, not derived: the floor below is a `Math.max` over the scan, so
+ * a bar that vanishes from the scan takes its own requirement with it and
+ * every scrim keeps passing (detector rule 5). The numbers are the files'
+ * own, so a failure here is a bar that moved or a bar that arrived — in
+ * both cases, check that every scrim still clears it before editing this.
+ */
+const STICKY_CHROME: Record<string, number> = {
+  "frontend/src/app/admin/settings/AddonPolicySection.tsx": 10,
+  "frontend/src/components/FileDetail/inspector/InspectorShell.tsx": 10,
+  "frontend/src/components/Header.tsx": 20,
+  "frontend/src/components/PdfPreview.tsx": 10,
+  "frontend/src/components/folder/FolderToolbar.tsx": 20,
+};
+
+/**
+ * Scrims deliberately outside that relation, and why. Enumerated rather
+ * than counted: `DESIGN.md` carried a count of these and it was wrong twice.
  */
 const TIER_EXCEPTIONS: Record<string, { z: string; why: string }> = {
   "frontend/src/components/ContextMenu.tsx": {
     z: "z-49",
     why:
       "raised by a gesture anywhere on the page, including over surfaces " +
-      "already above the popover band; it is never the sheet form",
+      "already above the popover tier; it is never the sheet form",
   },
   "frontend/src/components/FolderPicker.tsx": {
     z: "z-40",
@@ -595,6 +664,14 @@ const TIER_EXCEPTIONS: Record<string, { z: string; why: string }> = {
       "under its own panel's z-50, which four of its six callers compare " +
       "inside a dialog root's stacking context; renumbering the panel is " +
       "the real fix and is not this unit's",
+  },
+  "frontend/src/components/SelectionBar.tsx": {
+    z: "z-20",
+    why:
+      "drawn inside the bar's own fixed z-50 box, which is a stacking " +
+      "context: this number is compared against the menu it guards and " +
+      "against nothing on the page, and the bar carrying both is already " +
+      "above every sticky bar below it",
   },
   "frontend/src/components/player/MediaControls/parts/OverFrameSettingsPanel.tsx": {
     z: "absolute inset-0",
@@ -604,6 +681,22 @@ const TIER_EXCEPTIONS: Record<string, { z: string; why: string }> = {
       "`position: fixed` while faking fullscreen on Apple mobile",
   },
 };
+
+/** A call site that passes no `className`: the `MENU_SCRIM` default. */
+const NO_CLASS_LIST = "";
+
+/**
+ * A call site whose `className` is present and could not be read.
+ *
+ * Its own outcome, and not `NO_CLASS_LIST`. Reusing the empty string for
+ * both spelled "the extractor failed" the same way as "there is nothing to
+ * check", so the tier case skipped it: writing the scrim as
+ * `className={"fixed inset-0 z-[9]"}` — a braced string, which the
+ * extractor did not read — shipped the round-3 defect with this file
+ * green. It is an offender now, and the extractor reads the braced forms
+ * too.
+ */
+const UNREADABLE = "<unreadable>";
 
 /**
  * Every `DismissScrim` call site, with the class list it passes.
@@ -623,8 +716,16 @@ function scrimCallSites(roots: string[] = [CORE_ROOT]): Map<string, string> {
       while (from !== -1) {
         const close = text.indexOf("/>", from);
         const attrs = close === -1 ? "" : text.slice(from + TAG.length, close);
-        const cn = /className=(?:\{`([^`]*)`\}|"([^"]*)")/.exec(attrs);
-        out.set(rel, cn ? (cn[1] ?? cn[2]).replace(/\s+/g, " ").trim() : "");
+        const cn =
+          /className=(?:\{\s*(?:`([^`]*)`|"([^"]*)"|'([^']*)')\s*\}|"([^"]*)")/.exec(
+            attrs,
+          );
+        const value = cn
+          ? (cn[1] ?? cn[2] ?? cn[3] ?? cn[4]).replace(/\s+/g, " ").trim()
+          : /\bclassName=/.test(attrs)
+            ? UNREADABLE
+            : NO_CLASS_LIST;
+        out.set(rel, value);
         from = text.indexOf(TAG, close === -1 ? from + TAG.length : close);
       }
     }
@@ -632,10 +733,39 @@ function scrimCallSites(roots: string[] = [CORE_ROOT]): Map<string, string> {
   return out;
 }
 
+/**
+ * The class list every call site passes, declared.
+ *
+ * The keys were pinned before this and the values were not, and the values
+ * are what the tier case consumes: an unread value was indistinguishable
+ * from an absent one, so gutting the extractor left every assertion in this
+ * describe green. Editing a scrim's box or tier edits this table, on
+ * purpose — it is the one place those numbers are written down.
+ */
+const SCRIM_CLASS_LISTS: Record<string, string> = {
+  "frontend/src/components/AddButton.tsx": "fixed inset-0 z-30",
+  "frontend/src/components/ContextMenu.tsx": "fixed inset-0 z-49",
+  "frontend/src/components/EditableTagChips.tsx": "fixed inset-0 z-30",
+  "frontend/src/components/FileActions.tsx": "fixed inset-0 z-30",
+  "frontend/src/components/FolderPicker.tsx": "fixed inset-0 z-40",
+  "frontend/src/components/OverflowMenu.tsx": NO_CLASS_LIST,
+  "frontend/src/components/SelectionBar.tsx": "fixed inset-0 z-20 sm:hidden",
+  "frontend/src/components/SmartFolderSaveButton.tsx": "fixed inset-0 z-30",
+  "frontend/src/components/SortButton.tsx": NO_CLASS_LIST,
+  "frontend/src/components/ToolbarMenu.tsx": NO_CLASS_LIST,
+  "frontend/src/components/archive/ArchiveToolbar.tsx": NO_CLASS_LIST,
+  "frontend/src/components/folder/FilterField.tsx": "fixed inset-0 z-30",
+  "frontend/src/components/folder/FilterMenu.tsx": NO_CLASS_LIST,
+  "frontend/src/components/folder/FolderToolbar.tsx": NO_CLASS_LIST,
+  "frontend/src/components/player/MediaControls/parts/OverFrameSettingsPanel.tsx":
+    'absolute inset-0 ${isPopover ? "" : "bg-black/40"}',
+  "frontend/src/components/trash/TrashToolbar.tsx": "fixed inset-0 z-30",
+};
+
 describe("Every scrim's tier", () => {
   it("names every scrim it found", () => {
     // The scan is a population, so it is pinned like one — and it is what
-    // the two cases below rest on.
+    // the cases below rest on.
     expect([...scrimCallSites().keys()].sort()).toEqual(
       [
         ...new Set(
@@ -647,11 +777,28 @@ describe("Every scrim's tier", () => {
     );
   });
 
-  it("is in the popover band, or enumerated with a reason", () => {
+  it("reads the class list each of them passes", () => {
+    expect(Object.fromEntries(scrimCallSites())).toEqual(SCRIM_CLASS_LISTS);
+  });
+
+  it("names every sticky bar a scrim has to clear", () => {
+    expect(Object.fromEntries(stickyChrome())).toEqual(STICKY_CHROME);
+  });
+
+  it("clears the chrome and stays in the popover tier, or is enumerated", () => {
+    // The floor is the tallest sticky bar in core, read from the files —
+    // `Header` at `z-20` today, with the inspector's tab strip at `z-10`
+    // under it. A scrim must be strictly above it: equal loses to whichever
+    // of the two is later in the document, which is the defect.
+    const floor = Math.max(...stickyChrome().values());
     const offenders: string[] = [];
     for (const [file, className] of scrimCallSites()) {
-      // An empty class list is `MENU_SCRIM`, pinned elsewhere.
-      if (className === "") continue;
+      if (className === UNREADABLE) {
+        offenders.push(`${file}: a className this scan cannot read`);
+        continue;
+      }
+      // No class list at all is `MENU_SCRIM`, pinned elsewhere.
+      if (className === NO_CLASS_LIST) continue;
       const exception = TIER_EXCEPTIONS[file];
       if (exception) {
         if (!className.includes(exception.z)) {
@@ -666,32 +813,16 @@ describe("Every scrim's tier", () => {
         offenders.push(`${file}: no tier in "${className}" and not enumerated`);
         continue;
       }
-      const band = Number(z[1]);
-      if (band < POPOVER_BAND.min || band > POPOVER_BAND.max) {
-        offenders.push(`${file}: z-${band} is outside the popover band`);
+      const tier = Number(z[1]);
+      if (tier <= floor) {
+        offenders.push(
+          `${file}: z-${tier} does not clear the chrome at z-${floor}`,
+        );
+      } else if (tier > POPOVER_CEILING) {
+        offenders.push(`${file}: z-${tier} is above the popover tier`);
       }
     }
     expect(offenders).toEqual([]);
-  });
-
-  it("sits above the chrome a finger lands on", () => {
-    // The two surfaces the `z-[9]` scrim was under, read from their own
-    // files rather than restated — raising either above the band is a
-    // failure here instead of a silent hole under every scrim in it.
-    const tierOf = (path: string) =>
-      Number(
-        /sticky top-0 z-(\d+)/.exec(
-          readFileSync(resolve(REPO_ROOT, path), "utf-8"),
-        )![1],
-      );
-
-    expect(POPOVER_BAND.max).toBe(30);
-    expect(
-      tierOf("frontend/src/components/FileDetail/inspector/InspectorShell.tsx"),
-    ).toBeLessThan(POPOVER_BAND.max);
-    expect(tierOf("frontend/src/components/Header.tsx")).toBeLessThan(
-      POPOVER_BAND.max,
-    );
   });
 });
 

@@ -23,10 +23,20 @@
       `WikiLinkAutocomplete` did — no scrim at all, and a `document`
       listener on the press.
 
+      `chrome` and `chrome-low-scrim` add the piece every case above is
+      missing: a `sticky top-0 z-10` bar written *after* the scrim, which
+      is what `InspectorShell` puts over the page in column mode. The
+      first draws the shipped scrim over it, the second the `z-10` one a
+      "must be in the popover band" check admitted — the band's own floor
+      is the bar's number, so that scrim loses the paint order and the tap
+      reaches the bar. Without the pair, every scrim tier from `z-1` up
+      passes this page.
+
       `scrimClass` is compared against `MENU_SCRIM` by
-      `popupDismissFixtureParity.test.tsx`, and `dismissEvent` against the
-      event the component actually answers. Without that this page is a
-      test of itself.
+      `popupDismissFixtureParity.test.tsx`, `dismissEvent` against the
+      event the component actually answers, and `chrome` / `lowScrim`
+      against the strip's own tier. Without that this page is a test of
+      itself.
     -->
     <script type="application/json" id="fixture-markup">
       {
@@ -34,7 +44,9 @@
         "dismissEvent": "click",
         "contextMenuBehaviour": "retarget",
         "menu": "fixed left-2 top-2 z-40 w-40 rounded-2xl border border-bg-border bg-bg-card p-3 shadow-lg",
-        "underneath": "fixed inset-0 z-0 bg-bg-elevated text-text-primary"
+        "underneath": "fixed inset-0 z-0 bg-bg-elevated text-text-primary",
+        "chrome": "sticky top-0 z-10 bg-bg-card p-2.5 text-text-primary",
+        "lowScrim": "fixed inset-0 z-10 bg-black/30 sm:bg-transparent"
       }
     </script>
 
@@ -90,9 +102,16 @@
       let scrim = null;
       // `swallow-contextmenu` draws the shipped scrim and differs only in
       // what it does with a right-click, so the two can be compared with
-      // one variable moving.
+      // one variable moving. The two `chrome` strategies differ only in
+      // the scrim's tier, for the same reason.
       const raw = location.hash.slice(1) || "shipped";
       const strategy = raw === "swallow-contextmenu" ? "swallow-contextmenu" : raw;
+
+      const CHROME_SCRIMS = {
+        chrome: SPEC.scrimClass,
+        "chrome-low-scrim": SPEC.lowScrim,
+      };
+      const chromeScrim = CHROME_SCRIMS[strategy];
 
       if (strategy === "document-press") {
         // No scrim: nothing between the finger and the page.
@@ -106,8 +125,23 @@
       } else {
         scrim = document.createElement("div");
         scrim.id = "scrim";
-        scrim.className = SPEC.scrimClass;
+        scrim.className = chromeScrim ?? SPEC.scrimClass;
         document.body.insertBefore(scrim, menu);
+
+        if (chromeScrim) {
+          // After the scrim in the document, which is the whole point: at
+          // an equal tier the later element paints on top, so the bar wins
+          // unless the scrim is strictly above it.
+          const chrome = document.createElement("div");
+          chrome.id = "chrome";
+          chrome.className = SPEC.chrome;
+          chrome.dataset.clicks = "0";
+          chrome.textContent = "tab strip";
+          chrome.addEventListener("click", () => {
+            chrome.dataset.clicks = String(Number(chrome.dataset.clicks) + 1);
+          });
+          document.body.append(chrome);
+        }
         if (strategy === "scrim-press") {
           scrim.addEventListener("pointerdown", (e) => {
             e.preventDefault();

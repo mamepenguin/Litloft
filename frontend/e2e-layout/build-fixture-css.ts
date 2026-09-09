@@ -171,6 +171,14 @@ export const REQUIRED = [
   ".fixed {",
   ".inset-0 {",
   ".z-30 {",
+  // The bar the `chrome` strategies write after the scrim declares this
+  // tier, and the pair only measures anything while it does: with no rule
+  // the bar has no stacking order of its own, the shipped case passes on
+  // document order and the low-scrim contrast passes for the wrong reason.
+  // Like the six utilities above and unlike the arbitrary-valued one, the
+  // tree writes it in dozens of places, so it is here for the diagnosis
+  // rather than because it could plausibly go missing.
+  ".z-10 {",
   // `list-row-furniture.spec.ts` measures touch targets and a name column
   // under `@media (pointer: coarse)`. Every one of these is a *coarse-only*
   // declaration, which is the kind a missing sheet hides best: without them

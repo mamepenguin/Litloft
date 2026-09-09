@@ -920,21 +920,30 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   of the popup, so it is already in the popup's interactive subtree,
   and in a box that *contains* whatever the popup is drawn against (inside the
   sheet, vaul makes `<body>` inert and only `Drawer.Content` is live —
-  §Layering). Not the *same* containing block: the scrim is always `fixed`,
-  while above 640px the anchored form of these menus is `sm:absolute` against
-  its own wrapper. **It sits directly under the popup it
-  guards, in that popup's own band**, which is the rule that stays true when a
-  popup changes tier. Most sit in the popover band because most popups do;
-  `ContextMenu`, `FolderPicker` and the over-frame settings panel do not, and
-  each is under its own popup rather than at a number of its own — the last
-  `absolute` inside the player frame with no `z` at all. Named rather than
-  counted: this sentence carried a count twice and it was wrong both times,
-  once because the same change that wrote it added a scrim.
-  `popup-dismissal.test.ts` holds the same list, and fails when a scrim
-  outside the band is not one of them. It carries
-  no name and no role, except where it is the popup's *stated* way out — the
-  over-frame settings panel names its backdrop, because over media there is no
-  page edge to say where the panel stops.
+  §Layering). Not the *same* containing block, and the two words decide
+  different questions: a `fixed` box resolves against the viewport — or
+  against the nearest ancestor carrying a `transform`, `filter` or
+  `contain`, which is what vaul's drawer is — while an `absolute` one
+  resolves against its nearest positioned ancestor. Nearly every scrim here
+  is `fixed` and the menus they guard are `absolute` against their own
+  wrapper; the over-frame settings panel inverts it and makes the *scrim*
+  `absolute`, so that a panel drawn inside a frame that goes `position:
+  fixed` cannot leave it. **The scrim sits directly under the popup it
+  guards, and above the chrome that popup is drawn over** — those are two
+  requirements, not one, and the tier alone states neither: sticky bars and
+  anchored popovers share a tier (§Layering), so "in the popover band" is
+  satisfied by a number that loses the paint order to the tab strip.
+  `ContextMenu`, `FolderPicker`, `SelectionBar`'s overflow and the
+  over-frame settings panel are each somewhere else for a reason of their
+  own — the last with no `z` at all. Named rather than counted: this
+  sentence carried a count twice and it was wrong both times, once because
+  the same change that wrote it added a scrim. `popup-dismissal.test.ts`
+  holds the relation, reading both the scrims and the sticky bars out of
+  their own files, and names the same exceptions; the two lists are
+  maintained by hand on each side, because no test reads this document. The
+  scrim carries no name and no role, except where it is the popup's
+  *stated* way out — the over-frame settings panel names its backdrop,
+  because over media there is no page edge to say where the panel stops.
 
   The exception is a field, not a popup: an inline rename commits on an outside
   press and lets the click through on purpose, so that clicking a second row
@@ -961,6 +970,16 @@ number one higher than whatever it currently sits under.
 | Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page rather than overlay it |
 | Always on top | `z-[100]` | Shortcut cheat sheet, quick note, file save, toasts |
 
+- **Inside the in-flow tier, order still decides.** A sticky bar and a
+  popover anchored to a control are both in `z-10`–`z-30`, so the tier says
+  nothing about which of the two paints over the other; at an equal number
+  the later element in the document wins, and the sticky bars are usually
+  later. A scrim covering chrome is therefore **strictly above that
+  chrome's own number** — `z-30`, over sticky bars at `z-10` and `z-20` —
+  and a scrim inside a bar that is its own stacking context (`SelectionBar`
+  is `fixed … z-50`) is compared only against what is in that context.
+  A scrim that ties the bar it covers is not "nearly right": it is the
+  same paint order as one below it, and the tap reaches the bar in both.
 - **A panel that has run out of room is still in-flow chrome.** The inspector
   covering the canvas looks like a floating surface but is part of the page's
   layout; at `z-40` it buries the mini player, and at `z-20` it correctly sits

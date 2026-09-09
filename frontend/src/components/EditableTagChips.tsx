@@ -250,12 +250,16 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   /**
    * The one way the add-a-tag interaction ends.
    *
-   * All four exits go through it — Escape, the scrim, the `onBlur` timer,
-   * and both of `submitTag`'s closing paths. It was extracted for the
-   * first two only, and the two it missed cleared `input` and `adding`
-   * but not `error`: typing an invalid tag and then a valid one left the
-   * error paragraph on screen, because it renders outside the `adding`
-   * branch.
+   * Five callers: Escape, the scrim, the `onBlur` timer, and both of
+   * `submitTag`'s closing paths. It was extracted for the first two only.
+   *
+   * What the duplicate branch missed was `error`: it cleared `input` and
+   * `adding` by hand, so an invalid tag followed by one the file already
+   * carries left the error paragraph on screen — it renders outside the
+   * `adding` branch. The accepted-tag branch never had that bug, because
+   * `commit` calls `setError(null)` itself; what it has to do is close the
+   * field, which is a claim of its own and is pinned as one in
+   * `EditableTagChips.test.tsx`.
    */
   const closeInput = useCallback(() => {
     setAdding(false);
@@ -379,26 +383,38 @@ export function EditableTagChips(props: EditableTagChipsProps) {
                   `popup-dismissal.test.ts`). */}
               <DismissScrim
                 onDismiss={closeInput}
-                // The top of the popover band, because that is the tier an
-                // anchored popup belongs to (DESIGN.md §Layering) — not a
-                // number picked to sit under this list.
+                // Above the chrome a finger can land on while this list
+                // is open — not a number picked to sit under the list.
                 //
-                // `z-[9]` was that mistake, and it reintroduced the exact
-                // defect this primitive exists to remove: the chips are in
-                // `InspectorShell`'s header, whose tab strip is `sticky
-                // top-0 z-10` in column mode and whose page `Header` is
-                // `sticky top-0 z-20`. Both painted above the scrim, so a
-                // tap on either was never absorbed — the list closed
-                // through `onBlur` and the tab switched under the finger.
+                // Which surface that is depends on where the chips are
+                // drawn, because `fixed` resolves against the nearest
+                // transformed ancestor when there is one. In the mobile
+                // sheet there is: vaul's `Drawer.Content`, so the scrim
+                // covers the drawer and the surface it must stay over is
+                // `InspectorShell`'s tab strip, `sticky top-0 z-10` in
+                // column mode and later in the document. On the desktop
+                // rail there is no transform, the scrim reaches the
+                // viewport, and the surface is the page `Header` at
+                // `sticky top-0 z-20`. The page header is not reachable
+                // from inside the sheet at all — vaul's own overlay is
+                // over it.
+                //
+                // `z-[9]` was under both, and it reintroduced the exact
+                // defect this primitive exists to remove: the tap was
+                // never absorbed, so the list closed through `onBlur`
+                // while the tab switched under the finger.
+                // `popup-dismissal.test.ts` holds the relation against
+                // both surfaces' own files.
                 className="fixed inset-0 z-30"
               />
               <div
                 role="listbox"
                 aria-label={t("placeholder")}
-                // Above the sticky tab strip, which is `z-10` and later in
-                // the document, so at equal `z` it painted over the first
-                // rows of this list — measured at 390x844: 44px of overlap,
-                // and taps in it reached the strip.
+                // Above the sticky tab strip, which is `z-10` and later
+                // in the document: at an equal tier the strip wins the
+                // paint order and covers the top of this list, and taps
+                // that look like they land on a suggestion reach the strip
+                // instead.
                 className="absolute top-full left-0 z-30 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg"
               >
                 {suggestions.map((s, i) => (

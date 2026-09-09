@@ -71,6 +71,33 @@ describe("EditableTagChips", () => {
     expect(onChange).toHaveBeenLastCalledWith(["newtag"]);
   });
 
+  it("closes the field once the tag is accepted", async () => {
+    // The fourth exit, and the one the extraction is named for. Deleting
+    // `closeInput()` from `submitTag`'s success path left the whole suite
+    // green: the chip appeared, `adding` stayed true and `input` kept the
+    // text, so the field stayed open under the new chip with the word
+    // still in it and the suggestion list still under that — and Enter
+    // again fell into the duplicate branch, so leaving took two.
+    //
+    // Asserted on both pieces of state `closeInput` owns here, because the
+    // field going away is `adding` and the text going away is `input`, and
+    // a case that reads only the first passes on a field that reopens with
+    // the old word in it.
+    render(<EditableTagChips file={file} initialTags={[]} />);
+    clickAdd();
+    typeAndEnter("newtag");
+
+    await waitFor(() => {
+      expect(screen.getByText("newtag")).toBeInTheDocument();
+    });
+    expect(screen.queryByPlaceholderText("Tag name...")).not.toBeInTheDocument();
+
+    clickAdd();
+    expect(
+      (screen.getByPlaceholderText("Tag name...") as HTMLInputElement).value,
+    ).toBe("");
+  });
+
   it("rejects invalid characters with an inline error", async () => {
     render(<EditableTagChips file={file} initialTags={[]} />);
     clickAdd();
@@ -89,9 +116,10 @@ describe("EditableTagChips", () => {
     // tag followed by one that is already on the file left the complaint
     // about the first on screen with nothing to correct.
     //
-    // Not the *accepted*-tag path, which review named: `commit` clears the
-    // error itself, so that one was never stale. Measured — removing
-    // `closeInput` from the success path leaves this file green.
+    // Not the *accepted*-tag path: `commit` clears the error itself, so
+    // that one was never stale. What that path does need is to close the
+    // field, and "closes the field once the tag is accepted" above is what
+    // holds it — this case does not.
     render(<EditableTagChips file={file} initialTags={["existing"]} />);
     clickAdd();
     typeAndEnter("bad name");
