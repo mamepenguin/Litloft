@@ -36,41 +36,71 @@ interface SectionState {
    *
    * `getDriveFiles` returns it in `meta.total` and the row shows at most
    * `SECTION_LIMIT` of them, so this is the only thing that can say how
-   * much is past the edge. `undefined` while loading, and after a failed
-   * fetch — where it is moot, since a row with no files does not render.
-   * `CarouselSection` falls back to an unqualified "See all" either way,
-   * rather than claiming a number it does not have.
+   * much is past the edge. `undefined` while loading, and after a fetch
+   * that failed with nothing already in the row — where it is moot, since
+   * a row with no files does not render. A fetch that fails over a row
+   * that has files keeps that row's own total rather than dropping it.
+   * `CarouselSection` falls back to an unqualified "See all" when it is
+   * absent, rather than claiming a number it does not have.
    */
   total?: number;
   loading: boolean;
 }
 
 /**
- * One `getDriveFiles` batch, carrying the identity of the request that
- * produced it.
+ * The identity every response on this page carries: **which drive it was
+ * made for, and which request made it.** Both, because they answer
+ * different questions and each leaves a case open on its own.
  *
- * The identity travels with the response rather than being read where
- * the response is applied: `applyFileSections` cannot be reached
- * without one, so a caller added later has nothing to remember. The
- * entrances are the page's fetch effect; `refetchAllSections` as
+ * The drive alone cannot separate two visits to one drive.
+ * `/drive/[name]` renders this component with no `key`, so one instance
+ * survives A → B → A and the first visit's request settles on the third
+ * render still naming the drive in front of you.
+ *
+ * The request alone cannot catch a callback captured on one drive and
+ * invoked after the page has moved. `handleCreateFolder` awaits
+ * `createFolder`, then calls a `refreshFolders` still closed over the
+ * drive it was armed on: that issues a **brand-new** `getFolders` for the
+ * drive that was left, which mints the newest id and so passes any test
+ * of "is this the latest request". `useFolderCardRename`'s commit, the
+ * drag `onComplete`, `FolderContextMenu`'s `onUpdate` and `onFileAction`
+ * on the carousels and the file listing all have that shape.
+ *
+ * The identity travels with the response rather than being read where the
+ * response is applied, so a caller added later has nothing to remember:
+ * neither `applyFileSections` nor `applyFolders` can be reached without a
+ * batch, and a batch cannot be built without both fields.
+ */
+interface ResponseIdentity {
+  /** The drive the request was made for, read off the closure that made it. */
+  drive: string;
+  requestId: number;
+}
+
+/**
+ * One `getDriveFiles` batch.
+ *
+ * The entrances are the page's fetch effect; `refetchAllSections` as
  * `onFileAction` on each of the three carousels and on the file
  * listing; and `refetchAllSections` inside `refreshPage`, which the
  * WebSocket subscription below fires with no user action at all.
+ *
+ * `Promise.allSettled` means this resolves even when every request in it
+ * failed, so "the batch arrived" is not "the batch delivered anything" —
+ * see `applyFileSections`.
  */
-interface FileSectionsBatch {
-  requestId: number;
+interface FileSectionsBatch extends ResponseIdentity {
   results: PromiseSettledResult<PaginatedResponse>[];
 }
 
 /**
- * One `getFolders` response, carrying the identity of its request.
+ * One `getFolders` response.
  *
  * `folders` is `null` when the request failed, which leaves the grid
  * holding what it had — the same outcome the swallowed error had
  * before, now expressed as a response rather than as an early return.
  */
-interface FoldersBatch {
-  requestId: number;
+interface FoldersBatch extends ResponseIdentity {
   folders: FolderType[] | null;
 }
 
@@ -102,29 +132,39 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const emptySelection = useMemo(() => new Set<string>(), []);
   const refreshTree = useTreeRefresh();
 
-  // Which request each of this page's three streams of responses is
-  // waiting on. `++ref.current` mints the id of a new request and
-  // supersedes everything already in flight on that stream, so a
-  // response is applied only by the request that asked for it.
+  // The drive the page is showing, as opposed to the drive any given
+  // request was made for. Read only after an `await`, so the effect that
+  // maintains it has always run by then.
+  const shownDriveRef = useRef(driveName);
+  useEffect(() => {
+    shownDriveRef.current = driveName;
+  }, [driveName]);
+
+  // Which request each of this page's streams of responses is waiting on.
+  // `++ref.current` mints the id of a new request; the `applied` ref
+  // beside it records the id of the last response that actually wrote
+  // something.
   //
-  // A drive name cannot stand in for this. A request outlives the drive
-  // it was made for, and requests are in flight in both directions
-  // across a drive change, so either order of settling is reachable;
-  // when one that started earlier settles last it writes its payload
-  // with the loading flags already false, which is not a window but
-  // where the page stays. Comparing names catches that only across
-  // *different* drives — `/drive/[name]` renders this component with no
-  // `key`, so one instance survives A → B → A, and the first visit's
-  // request settling last passes a name comparison while carrying data
-  // the page has already moved past twice. Two visits to one drive are
-  // two requests; only a per-request identity separates them. Same
-  // pattern as `useInfiniteScroll`'s `fetchIdRef`.
+  // **Newest applied, not newest dispatched.** Dropping everything that
+  // is not the newest request in flight means a refresh cancels the page
+  // load's own fetch before anyone knows whether the refresh will deliver
+  // — and when it does not, the good response is already gone and nothing
+  // re-requests it. For the grid that ends at `foldersLoading === false`
+  // with `folders === []`, which the section's render gate reads as "this
+  // drive has no folders" and removes the section outright; for the rows
+  // it leaves all three empty for the rest of the visit. Comparing
+  // against what has landed instead means a superseded request can be
+  // briefly visible but can never be the last word, and a request that
+  // delivers nothing takes nothing with it.
   //
-  // The streams are separate because they are separate resources: a
-  // folder refresh must not supersede a row refetch that the same
-  // WebSocket event started.
+  // Same pattern as `useInfiniteScroll`'s `fetchIdRef`, with that one
+  // difference. The streams are separate because they are separate
+  // resources: a folder refresh must not supersede a row refetch that the
+  // same WebSocket event started.
   const fileSectionsRequestRef = useRef(0);
+  const fileSectionsAppliedRef = useRef(0);
   const foldersRequestRef = useRef(0);
+  const foldersAppliedRef = useRef(0);
   // Bumped by the fetch effect alone. The pin set and the watch rows
   // are read only there, so a page load is the unit of identity for
   // them, and `handleTogglePin` — which updates the set it fetched
@@ -132,16 +172,23 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const pageLoadRef = useRef(0);
 
   const applyFolders = useCallback((batch: FoldersBatch) => {
-    if (foldersRequestRef.current !== batch.requestId) return;
-    if (batch.folders !== null) setFolders(batch.folders);
+    if (batch.drive !== shownDriveRef.current) return;
+    if (batch.requestId < foldersAppliedRef.current) return;
+    // A failed request leaves the grid holding what it had — and leaves
+    // the stream to whatever is still in flight, which is why this
+    // returns before claiming the stream rather than after.
+    if (batch.folders === null) return;
+    foldersAppliedRef.current = batch.requestId;
+    setFolders(batch.folders);
   }, []);
 
   const fetchFolders = useCallback(async (): Promise<FoldersBatch> => {
     const requestId = ++foldersRequestRef.current;
+    const drive = driveName;
     try {
-      return { requestId, folders: await getFolders(driveName) };
+      return { drive, requestId, folders: await getFolders(drive) };
     } catch {
-      return { requestId, folders: null };
+      return { drive, requestId, folders: null };
     }
   }, [driveName]);
 
@@ -220,32 +267,51 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const applyFileSections = useCallback((batch: FileSectionsBatch) => {
     // The guard sits here rather than in each caller: this is where a
     // response becomes what the page shows, and a batch cannot reach it
-    // without carrying the request that produced it.
-    if (fileSectionsRequestRef.current !== batch.requestId) return;
+    // without carrying both halves of its identity.
+    if (batch.drive !== shownDriveRef.current) return;
+    if (batch.requestId < fileSectionsAppliedRef.current) return;
 
     const { results } = batch;
-    const section = (result: PromiseSettledResult<PaginatedResponse>): SectionState =>
+
+    // `Promise.allSettled` resolves even when all three requests failed,
+    // so a batch arriving is not a batch delivering. One that delivered
+    // nothing still clears the skeleton — a first load that fails must
+    // not leave it spinning — but it must not claim the stream, or it
+    // would discard the response still in flight that can.
+    if (results.some((result) => result.status === "fulfilled")) {
+      fileSectionsAppliedRef.current = batch.requestId;
+    }
+    // A failed request leaves the row holding what it had, the same way a
+    // failed `getFolders` leaves the grid holding its list. Writing an
+    // empty row instead would let a refresh that delivered nothing erase
+    // one that did — on the first load there is nothing to keep, so the
+    // row still ends up empty and out of the skeleton.
+    const section = (
+      result: PromiseSettledResult<PaginatedResponse>,
+      previous: SectionState,
+    ): SectionState =>
       result.status === "fulfilled"
         ? {
             files: result.value.data,
             total: result.value.meta.total,
             loading: false,
           }
-        : { files: [], loading: false };
+        : { ...previous, loading: false };
 
-    setRecent(section(results[0]));
-    setFavorites(section(results[1]));
-    setLiked(section(results[2]));
+    setRecent((previous) => section(results[0], previous));
+    setFavorites((previous) => section(results[1], previous));
+    setLiked((previous) => section(results[2], previous));
   }, []);
 
   const fetchFileSections = useCallback(async (): Promise<FileSectionsBatch> => {
     const requestId = ++fileSectionsRequestRef.current;
+    const drive = driveName;
     const results = await Promise.allSettled([
-      getDriveFiles(driveName, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-      getDriveFiles(driveName, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-      getDriveFiles(driveName, { liked: true, sort: "liked_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(drive, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(drive, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(drive, { liked: true, sort: "liked_at", order: "desc", limit: SECTION_LIMIT }),
     ]);
-    return { requestId, results };
+    return { drive, requestId, results };
   }, [driveName]);
 
   useEffect(() => {

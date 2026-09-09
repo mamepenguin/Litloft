@@ -19,15 +19,16 @@ vi.mock("next/link", () => ({
 }));
 
 const getFolders = vi.fn<(drive: string) => Promise<FolderType[]>>();
+const createFolder = vi.fn<(drive: string, path: string, name: string) => Promise<void>>();
 
 vi.mock("@/lib/api", () => ({
   getFolders: (drive: string) => getFolders(drive),
+  createFolder: (drive: string, path: string, name: string) => createFolder(drive, path, name),
   getDriveFiles: vi.fn(() => Promise.resolve({ data: [], meta: { total: 0 } })),
   getPins: vi.fn(() => Promise.resolve([])),
   getWatchHistory: vi.fn(() => Promise.resolve([])),
   addPin: vi.fn(() => Promise.resolve()),
   removePin: vi.fn(() => Promise.resolve()),
-  createFolder: vi.fn(() => Promise.resolve()),
 }));
 
 // The sections around the grid are not what this file is about, and each
@@ -36,7 +37,19 @@ vi.mock("../RootFileListing", () => ({ RootFileListing: () => <div /> }));
 vi.mock("../AddonSlot", () => ({ AddonSlot: () => <div /> }));
 vi.mock("../CarouselSection", () => ({ CarouselSection: () => <div /> }));
 vi.mock("../ContinueWatchingSection", () => ({ ContinueWatchingSection: () => <div /> }));
-vi.mock("../PageHeader", () => ({ PageHeader: () => <div /> }));
+// The header is stood in for by something that draws its actions and
+// nothing else: the Add menu is how the create-folder field is opened,
+// and a header stubbed to `<div />` puts that entrance out of reach.
+vi.mock("../PageHeader", () => ({
+  PageHeader: ({ actions }: { actions?: React.ReactNode }) => <div>{actions}</div>,
+}));
+vi.mock("../AddButton", () => ({
+  AddButton: ({ onCreateFolder }: { onCreateFolder?: () => void }) => (
+    <button type="button" onClick={onCreateFolder}>
+      new folder
+    </button>
+  ),
+}));
 vi.mock("../TreeToggle", () => ({ TreeToggle: () => <div /> }));
 vi.mock("../FolderContextMenu", () => ({ FolderContextMenu: () => null }));
 
@@ -207,16 +220,76 @@ function folder(name: string): FolderType {
   return { name, path: name, file_count: 1, kind_counts: { video: 1 }, dominant_kind: "video" };
 }
 
+const DRIVE_UNDER_TEST = "drive-under-test";
+const SECOND_DRIVE = "second-drive";
+
+/**
+ * `getFolders` answers according to the drive it is asked for.
+ *
+ * Before this, every mock in this file answered by call order —
+ * `mockResolvedValue` / `mockReturnValueOnce` — so "drive A's folders"
+ * and "drive B's folders" were the same object universe distinguished
+ * only by when the fixture was armed. A population that cannot tell a
+ * request for A from a request for B cannot witness a guard whose whole
+ * job is telling them apart, and this file proved it: rewiring the page
+ * to fetch a hardcoded foreign drive left all seventeen cases green, and
+ * a round that deleted the file's only drive comparison moved not one
+ * test. (`review-workflow.md` detector rule 5, in the guard's own
+ * fixture rather than in what the guard guards.)
+ *
+ * A drive with no entry answers with `FOREIGN_FOLDER_NAME`, which is in
+ * none of the declared sets — so a request made for the wrong drive is
+ * *readable on screen* rather than indistinguishable from an empty grid.
+ * A rejection would not do: the grid keeps what it had on a failed
+ * fetch, so a foreign request would look exactly like no request.
+ */
+const FOREIGN_FOLDER_NAME = "fetched-for-the-wrong-drive";
+
+const foldersByDrive = new Map<string, readonly string[]>();
+const heldFolderFetches = new Map<string, () => Promise<FolderType[]>>();
+
+function installFolderResponder(): void {
+  getFolders.mockImplementation((drive) => {
+    const held = heldFolderFetches.get(drive);
+    if (held) {
+      heldFolderFetches.delete(drive);
+      return held();
+    }
+    return Promise.resolve((foldersByDrive.get(drive) ?? [FOREIGN_FOLDER_NAME]).map(folder));
+  });
+}
+
+/** What a drive answers with from now on. */
+function driveHasFolders(drive: string, names: readonly string[]): void {
+  foldersByDrive.set(drive, names);
+}
+
 /**
  * The Folders section's own element, found from its heading.
  *
- * Reads of this section are scoped through here rather than taken
- * across the document: the carousels, the continue-watching row and the
- * file listing are all stubbed out in this file and all draw cards and
- * skeletons in production, so a document-wide read holds while this
- * section draws nothing at all. The one read not taken through this
- * helper is the grid the control names, looked up by `aria-controls` —
- * that lookup is the assertion, not a way around this one.
+ * `folderNamesOnScreen()` reads through here rather than across the
+ * document because `RootFileListing` draws folder cards carrying the same
+ * `data-rename-focus` attribute in production, so a document-wide read of
+ * that attribute would hold while this section drew nothing at all.
+ *
+ * **That scoping has no witness here, and cannot have one.** Every other
+ * component in this file is stubbed to a `<div />`, so document-wide and
+ * section-scoped are the same set and always will be: reverting
+ * `folderNamesOnScreen()` to `document.querySelectorAll` leaves every
+ * case in this file green (measured). It is hardening for production, not
+ * a property this suite can hold — `review-workflow.md`, "the honest
+ * response is to narrow what the test claims".
+ *
+ * So this is not a rule the file follows. Most reads here are
+ * deliberately document-wide: `screen.queryByText(name)` for a name that
+ * must be absent, which is the stronger read taken across the whole page,
+ * and `screen.getByRole` for the Show more / Show less control, which
+ * nothing else in this file draws. Two earlier versions of this comment
+ * each claimed a completeness about that split — "every count is scoped
+ * through here", then "the one read not taken through this helper" — and
+ * both were false when written. This one claims none: which reads are
+ * scoped is decided case by case, and the rule is the mechanism above,
+ * not a tally.
  */
 function folderSection(): HTMLElement {
   const section = screen.getByRole("heading", { name: "Folders" }).closest("section");
@@ -275,29 +348,30 @@ function expectFolderSkeleton(): void {
  * promise for a resolved one in the fixture is the edit that would
  * otherwise turn either case into one the guard is not needed for.
  */
-function heldFolderResponse(): {
+function holdFolderFetch(drive: string): {
   promise: Promise<FolderType[]>;
   resolve: (names: readonly string[]) => void;
+  reject: () => void;
 } {
   let resolve: (names: readonly string[]) => void = () => {};
-  const promise = new Promise<FolderType[]>((res) => {
+  let reject: () => void = () => {};
+  const promise = new Promise<FolderType[]>((res, rej) => {
     resolve = (names) => res(names.map(folder));
+    reject = () => rej(new Error("getFolders failed"));
   });
-  return { promise, resolve };
+  // One shot, for the drive asked for. The next request for that drive
+  // falls through to its declared list, which is what a return visit and
+  // a retry both need.
+  heldFolderFetches.set(drive, () => promise);
+  return { promise, resolve, reject };
 }
 
-async function expectFolderResponseStillHeld(promise: Promise<FolderType[]>): Promise<void> {
-  expect(getFolders.mock.results.at(-1)?.value).toBe(promise);
-
+async function expectStillHeld(promises: Promise<unknown>[]): Promise<void> {
   let settled = false;
-  void promise.then(
-    () => {
-      settled = true;
-    },
-    () => {
-      settled = true;
-    },
-  );
+  const mark = () => {
+    settled = true;
+  };
+  for (const promise of promises) void promise.then(mark, mark);
   await act(async () => {
     await Promise.resolve();
     await Promise.resolve();
@@ -305,15 +379,24 @@ async function expectFolderResponseStillHeld(promise: Promise<FolderType[]>): Pr
   expect(settled).toBe(false);
 }
 
+async function expectFolderResponseStillHeld(promise: Promise<FolderType[]>): Promise<void> {
+  expect(getFolders.mock.results.at(-1)?.value).toBe(promise);
+  await expectStillHeld([promise]);
+}
+
 async function renderDriveHome(names: readonly string[]) {
-  getFolders.mockResolvedValue(names.map(folder));
-  render(<DriveHome driveName="drive-under-test" />);
+  driveHasFolders(DRIVE_UNDER_TEST, names);
+  render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
   await waitFor(() => expect(folderNamesOnScreen().length).toBeTruthy());
 }
 
 describe("DriveHome folder grid", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    foldersByDrive.clear();
+    heldFolderFetches.clear();
+    installFolderResponder();
+    createFolder.mockResolvedValue(undefined);
   });
 
   it("draws the cap and offers the rest, counted from the folders it has", async () => {
@@ -360,8 +443,8 @@ describe("DriveHome folder grid", () => {
   });
 
   it("folds back when the page changes drive", async () => {
-    getFolders.mockResolvedValue(ALL_FOLDER_NAMES.map(folder));
-    const { rerender } = render(<DriveHome driveName="drive-under-test" />);
+    driveHasFolders(DRIVE_UNDER_TEST, ALL_FOLDER_NAMES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
     await waitFor(() => expect(folderNamesOnScreen().length).toBeTruthy());
 
     fireEvent.click(screen.getByRole("button", { name: /Show more/ }));
@@ -369,8 +452,8 @@ describe("DriveHome folder grid", () => {
 
     // The component is reused across `/drive/[name]`, so the expansion
     // of one drive's grid must not decide how the next one opens.
-    getFolders.mockResolvedValue(SECOND_DRIVE_FOLDER_NAMES.map(folder));
-    rerender(<DriveHome driveName="second-drive" />);
+    driveHasFolders(SECOND_DRIVE, SECOND_DRIVE_FOLDER_NAMES);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
 
     await waitFor(() =>
       expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]),
@@ -406,8 +489,8 @@ describe("DriveHome folder grid", () => {
   });
 
   it("offers nothing over the next drive's skeleton", async () => {
-    getFolders.mockResolvedValue(ALL_FOLDER_NAMES.map(folder));
-    const { rerender } = render(<DriveHome driveName="drive-under-test" />);
+    driveHasFolders(DRIVE_UNDER_TEST, ALL_FOLDER_NAMES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
     await waitFor(() => expect(folderNamesOnScreen()).toEqual([...COLLAPSED_FOLDER_NAMES]));
 
     // The second drive's folders never arrive, so what is asserted below
@@ -416,8 +499,8 @@ describe("DriveHome folder grid", () => {
     // drawing none, so a count belonging to the drive that was left
     // cannot be on screen — nor a reference to a grid element that the
     // skeleton is standing in for.
-    getFolders.mockReturnValue(new Promise<FolderType[]>(() => {}));
-    rerender(<DriveHome driveName="second-drive" />);
+    heldFolderFetches.set(SECOND_DRIVE, () => new Promise<FolderType[]>(() => {}));
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
 
     await waitFor(() => expect(folderNamesOnScreen()).toEqual([]));
     expectFolderSkeleton();
@@ -433,9 +516,8 @@ describe("DriveHome folder grid", () => {
     // response arrives the flag is already false and its list would be
     // drawn, cards and label agreeing, with nothing on screen to say the
     // drive it belongs to has been left.
-    const firstDrive = heldFolderResponse();
-    getFolders.mockReturnValueOnce(firstDrive.promise);
-    const { rerender } = render(<DriveHome driveName="drive-under-test" />);
+    const firstDrive = holdFolderFetch(DRIVE_UNDER_TEST);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
 
     // The first drive's fetch is still in flight when the page moves on.
     // Without this the case passes vacuously the moment that fetch
@@ -446,8 +528,8 @@ describe("DriveHome folder grid", () => {
     await expectFolderResponseStillHeld(firstDrive.promise);
     expect(folderNamesOnScreen()).toEqual([]);
 
-    getFolders.mockResolvedValue(SECOND_DRIVE_FOLDER_NAMES.map(folder));
-    rerender(<DriveHome driveName="second-drive" />);
+    driveHasFolders(SECOND_DRIVE, SECOND_DRIVE_FOLDER_NAMES);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
     await waitFor(() =>
       expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]),
     );
@@ -475,12 +557,11 @@ describe("DriveHome folder grid", () => {
     // `loft-move-complete` or a WS `drive.structure_changed` starts it —
     // so its request outlives the drive change on its own, and guarding
     // only the effect would leave this one open.
-    getFolders.mockResolvedValue(AT_CAP_FOLDER_NAMES.map(folder));
-    const { rerender } = render(<DriveHome driveName="drive-under-test" />);
+    driveHasFolders(DRIVE_UNDER_TEST, AT_CAP_FOLDER_NAMES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
     await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
 
-    const refresh = heldFolderResponse();
-    getFolders.mockReturnValueOnce(refresh.promise);
+    const refresh = holdFolderFetch(DRIVE_UNDER_TEST);
     await act(async () => {
       window.dispatchEvent(new Event("loft-move-complete"));
     });
@@ -493,8 +574,8 @@ describe("DriveHome folder grid", () => {
     expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]);
     expect(screen.queryByRole("button", { name: /Show more/ })).toBeNull();
 
-    getFolders.mockResolvedValue(SECOND_DRIVE_FOLDER_NAMES.map(folder));
-    rerender(<DriveHome driveName="second-drive" />);
+    driveHasFolders(SECOND_DRIVE, SECOND_DRIVE_FOLDER_NAMES);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
     await waitFor(() =>
       expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]),
     );
@@ -518,22 +599,21 @@ describe("DriveHome folder grid", () => {
     // component is not remounted between them: `/drive/[name]` renders
     // it with no `key`, so one instance carries the first visit's fetch
     // through the whole A -> B -> A trip.
-    const firstVisit = heldFolderResponse();
-    getFolders.mockReturnValueOnce(firstVisit.promise);
-    const { rerender } = render(<DriveHome driveName="drive-under-test" />);
+    const firstVisit = holdFolderFetch(DRIVE_UNDER_TEST);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
 
     await expectFolderResponseStillHeld(firstVisit.promise);
     expect(folderNamesOnScreen()).toEqual([]);
 
-    getFolders.mockResolvedValue(SECOND_DRIVE_FOLDER_NAMES.map(folder));
-    rerender(<DriveHome driveName="second-drive" />);
+    driveHasFolders(SECOND_DRIVE, SECOND_DRIVE_FOLDER_NAMES);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
     await waitFor(() =>
       expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]),
     );
 
     // Back to the drive we started on, which has since lost folders.
-    getFolders.mockResolvedValue(REVISIT_FOLDER_NAMES.map(folder));
-    rerender(<DriveHome driveName="drive-under-test" />);
+    driveHasFolders(DRIVE_UNDER_TEST, REVISIT_FOLDER_NAMES);
+    rerender(<DriveHome driveName={DRIVE_UNDER_TEST} />);
     await waitFor(() => expect(folderNamesOnScreen()).toEqual([...REVISIT_FOLDER_NAMES]));
 
     await act(async () => {
@@ -559,7 +639,7 @@ describe("DriveHome folder grid", () => {
     await renderDriveHome(AT_CAP_FOLDER_NAMES);
     expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]);
 
-    getFolders.mockResolvedValue(REVISIT_FOLDER_NAMES.map(folder));
+    driveHasFolders(DRIVE_UNDER_TEST, REVISIT_FOLDER_NAMES);
     await act(async () => {
       window.dispatchEvent(new Event("loft-move-complete"));
     });
@@ -572,9 +652,9 @@ describe("DriveHome folder grid", () => {
     // settled, and an out-of-band refresh (a drag-and-drop or a WS
     // event) puts folders into state while the grid is still a
     // skeleton. Nothing is drawn, so nothing is offered.
-    getFolders.mockReturnValueOnce(new Promise<FolderType[]>(() => {}));
-    getFolders.mockResolvedValue(ALL_FOLDER_NAMES.map(folder));
-    render(<DriveHome driveName="drive-under-test" />);
+    heldFolderFetches.set(DRIVE_UNDER_TEST, () => new Promise<FolderType[]>(() => {}));
+    driveHasFolders(DRIVE_UNDER_TEST, ALL_FOLDER_NAMES);
+    render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
 
     await act(async () => {
       window.dispatchEvent(new Event("loft-move-complete"));
@@ -586,12 +666,142 @@ describe("DriveHome folder grid", () => {
     // into a copy of that one the moment the `loft-move-complete`
     // listener regressed, silently, since nothing else covers it.
     expect(getFolders).toHaveBeenCalledTimes(2);
-    expect(getFolders).toHaveBeenLastCalledWith("drive-under-test");
+    expect(getFolders).toHaveBeenLastCalledWith(DRIVE_UNDER_TEST);
 
     expect(folderNamesOnScreen()).toEqual([]);
     expectFolderSkeleton();
     expect(screen.queryByRole("button", { name: /Show more/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Show less" })).toBeNull();
+  });
+
+  it("keeps a refresh a captured callback made for the drive that was left off the grid", async () => {
+    // The entrance a per-request identity cannot see on its own.
+    // `handleCreateFolder` awaits `createFolder` and then calls a
+    // `refreshFolders` still closed over the drive it was armed on, so
+    // what lands is a **brand-new** `getFolders` for the drive that was
+    // left — the newest request on the stream, and therefore the one any
+    // "is this the latest" test would admit. Only the drive it was made
+    // for separates it from a legitimate refresh.
+    //
+    // Five other entrances have this shape and none of them is in this
+    // file: the rename commit, the drag `onComplete`,
+    // `FolderContextMenu.onUpdate`, and `onFileAction` on
+    // `RootFileListing` and the carousels. They are covered by the same
+    // guard rather than by five more cases, because the guard is in
+    // `applyFolders` and none of them can reach the grid past it.
+    driveHasFolders(DRIVE_UNDER_TEST, AT_CAP_FOLDER_NAMES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
+
+    let finishCreate: () => void = () => {};
+    createFolder.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishCreate = resolve;
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "new folder" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "november" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    expect(createFolder).toHaveBeenCalledWith(DRIVE_UNDER_TEST, "", "november");
+
+    // The create is still in flight when the page moves on, so what runs
+    // below is its continuation on the old closure and not a second copy
+    // of the drive-change case. Read off the response, because nothing on
+    // screen says it: a create that had already settled leaves the same
+    // grid.
+    await expectStillHeld([createFolder.mock.results.at(-1)?.value as Promise<void>]);
+
+    driveHasFolders(SECOND_DRIVE, SECOND_DRIVE_FOLDER_NAMES);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
+    await waitFor(() =>
+      expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]),
+    );
+
+    // The drive that was left has since gained folders past the cap, so
+    // if its list landed the grid would say so twice — with its names and
+    // with a control counting them.
+    driveHasFolders(DRIVE_UNDER_TEST, ALL_FOLDER_NAMES);
+    await act(async () => {
+      finishCreate();
+    });
+
+    // The new request really was made for the drive that was left: the
+    // precondition, witnessed. Without it this case would pass on a
+    // continuation that never ran at all.
+    expect(getFolders).toHaveBeenLastCalledWith(DRIVE_UNDER_TEST);
+
+    expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]);
+    expect(
+      screen.getByRole("button", { name: `Show more (${SECOND_DRIVE_HIDDEN_NAMES.length})` }),
+    ).toBeInTheDocument();
+    for (const name of ALL_FOLDER_NAMES) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
+  });
+
+  it("keeps the section when a same-drive refresh fails under the page load", async () => {
+    // No drive change here at all. Both requests are for the drive in
+    // front of you: the page load's own fetch, and an out-of-band refresh
+    // that a backend scan's `drive.structure_changed` — or any
+    // drag-and-drop — starts under it. The refresh fails.
+    //
+    // A guard that drops everything but the newest request in flight
+    // throws the good response away before the refresh is known to have
+    // failed, and then the failure writes nothing. That leaves
+    // `foldersLoading === false` with an empty list, which the section's
+    // own render gate reads as "this drive has no folders" — so the
+    // Folders section leaves a page whose drive has folders, and nothing
+    // re-requests them.
+    const pageLoad = holdFolderFetch(DRIVE_UNDER_TEST);
+    render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await expectFolderResponseStillHeld(pageLoad.promise);
+
+    const refresh = holdFolderFetch(DRIVE_UNDER_TEST);
+    await act(async () => {
+      window.dispatchEvent(new Event("loft-move-complete"));
+    });
+    await expectFolderResponseStillHeld(refresh.promise);
+
+    // The page load's own response lands first and is good; the refresh
+    // that superseded it then fails. Both orders are reachable, and the
+    // one that loses the good response is this one.
+    await act(async () => {
+      pageLoad.resolve(AT_CAP_FOLDER_NAMES);
+    });
+    await act(async () => {
+      refresh.reject();
+    });
+
+    expect(folderSection()).toBeInTheDocument();
+    expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]);
+  });
+
+  it("keeps the section when the failed refresh lands before the page load", async () => {
+    // The other settling order, and it is a different mechanism rather
+    // than a second copy: here the failure is applied *first*, so what
+    // has to hold is that a response which wrote nothing did not claim
+    // the stream on its way past. If it did, the page load's own good
+    // response arrives second and is dropped as stale.
+    const pageLoad = holdFolderFetch(DRIVE_UNDER_TEST);
+    render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await expectFolderResponseStillHeld(pageLoad.promise);
+
+    const refresh = holdFolderFetch(DRIVE_UNDER_TEST);
+    await act(async () => {
+      window.dispatchEvent(new Event("loft-move-complete"));
+    });
+    await expectFolderResponseStillHeld(refresh.promise);
+
+    await act(async () => {
+      refresh.reject();
+    });
+    await act(async () => {
+      pageLoad.resolve(AT_CAP_FOLDER_NAMES);
+    });
+
+    expect(folderSection()).toBeInTheDocument();
+    expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]);
   });
 
   it("does not link the grid at the flat every-file view", async () => {
