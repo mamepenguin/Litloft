@@ -46,17 +46,32 @@ interface SectionState {
 }
 
 /**
- * One `getDriveFiles` batch, carrying the drive it was fetched for.
+ * One `getDriveFiles` batch, carrying the identity of the request that
+ * produced it.
  *
- * The drive travels with the response instead of being read where the
- * response is applied. `applyFileSections` is reached from the page's
- * fetch effect and from `onFileAction` on every row below it, and a
- * request outlives the drive it was made for, so the pairing has to be
- * one the call site cannot get wrong.
+ * The identity travels with the response rather than being read where
+ * the response is applied: `applyFileSections` cannot be reached
+ * without one, so a caller added later has nothing to remember. The
+ * entrances are the page's fetch effect; `refetchAllSections` as
+ * `onFileAction` on each of the three carousels and on the file
+ * listing; and `refetchAllSections` inside `refreshPage`, which the
+ * WebSocket subscription below fires with no user action at all.
  */
 interface FileSectionsBatch {
-  drive: string;
+  requestId: number;
   results: PromiseSettledResult<PaginatedResponse>[];
+}
+
+/**
+ * One `getFolders` response, carrying the identity of its request.
+ *
+ * `folders` is `null` when the request failed, which leaves the grid
+ * holding what it had — the same outcome the swallowed error had
+ * before, now expressed as a response rather than as an early return.
+ */
+interface FoldersBatch {
+  requestId: number;
+  folders: FolderType[] | null;
 }
 
 const SECTION_LIMIT = 12;
@@ -87,32 +102,53 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const emptySelection = useMemo(() => new Set<string>(), []);
   const refreshTree = useTreeRefresh();
 
-  // The drive the page is showing, as of the last commit. Every fetch on
-  // this page captures the drive it was made for and drops its result
-  // when this no longer matches. A request outlives the drive it was
-  // made for, and requests for both drives are in flight across a drive
-  // change, so either order of settling is reachable. When one started
-  // on the drive that was left settles last, it writes that drive into
-  // state with the loading flags already false — which is not a window,
-  // it is where the page stays, the cards and the label agreeing with
-  // each other and nothing marking either as belonging elsewhere.
+  // Which request each of this page's three streams of responses is
+  // waiting on. `++ref.current` mints the id of a new request and
+  // supersedes everything already in flight on that stream, so a
+  // response is applied only by the request that asked for it.
   //
-  // Read only after an `await`, so the effect that maintains it has
-  // always run by then.
-  const shownDriveRef = useRef(driveName);
-  useEffect(() => {
-    shownDriveRef.current = driveName;
+  // A drive name cannot stand in for this. A request outlives the drive
+  // it was made for, and requests are in flight in both directions
+  // across a drive change, so either order of settling is reachable;
+  // when one that started earlier settles last it writes its payload
+  // with the loading flags already false, which is not a window but
+  // where the page stays. Comparing names catches that only across
+  // *different* drives — `/drive/[name]` renders this component with no
+  // `key`, so one instance survives A → B → A, and the first visit's
+  // request settling last passes a name comparison while carrying data
+  // the page has already moved past twice. Two visits to one drive are
+  // two requests; only a per-request identity separates them. Same
+  // pattern as `useInfiniteScroll`'s `fetchIdRef`.
+  //
+  // The streams are separate because they are separate resources: a
+  // folder refresh must not supersede a row refetch that the same
+  // WebSocket event started.
+  const fileSectionsRequestRef = useRef(0);
+  const foldersRequestRef = useRef(0);
+  // Bumped by the fetch effect alone. The pin set and the watch rows
+  // are read only there, so a page load is the unit of identity for
+  // them, and `handleTogglePin` — which updates the set it fetched
+  // rather than replacing it — is answering that same load.
+  const pageLoadRef = useRef(0);
+
+  const applyFolders = useCallback((batch: FoldersBatch) => {
+    if (foldersRequestRef.current !== batch.requestId) return;
+    if (batch.folders !== null) setFolders(batch.folders);
+  }, []);
+
+  const fetchFolders = useCallback(async (): Promise<FoldersBatch> => {
+    const requestId = ++foldersRequestRef.current;
+    try {
+      return { requestId, folders: await getFolders(driveName) };
+    } catch {
+      return { requestId, folders: null };
+    }
   }, [driveName]);
 
   const refreshFolders = useCallback(async () => {
-    try {
-      const updated = await getFolders(driveName);
-      if (shownDriveRef.current === driveName) setFolders(updated);
-    } catch {
-      // ignore
-    }
+    applyFolders(await fetchFolders());
     refreshTree();
-  }, [driveName, refreshTree]);
+  }, [applyFolders, fetchFolders, refreshTree]);
 
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -184,9 +220,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const applyFileSections = useCallback((batch: FileSectionsBatch) => {
     // The guard sits here rather than in each caller: this is where a
     // response becomes what the page shows, and a batch cannot reach it
-    // without carrying the drive it was fetched for. A caller added
-    // later has nothing to remember.
-    if (shownDriveRef.current !== batch.drive) return;
+    // without carrying the request that produced it.
+    if (fileSectionsRequestRef.current !== batch.requestId) return;
 
     const { results } = batch;
     const section = (result: PromiseSettledResult<PaginatedResponse>): SectionState =>
@@ -204,17 +239,18 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   }, []);
 
   const fetchFileSections = useCallback(async (): Promise<FileSectionsBatch> => {
-    const drive = driveName;
+    const requestId = ++fileSectionsRequestRef.current;
     const results = await Promise.allSettled([
-      getDriveFiles(drive, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-      getDriveFiles(drive, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
-      getDriveFiles(drive, { liked: true, sort: "liked_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(driveName, { sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(driveName, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
+      getDriveFiles(driveName, { liked: true, sort: "liked_at", order: "desc", limit: SECTION_LIMIT }),
     ]);
-    return { drive, results };
+    return { requestId, results };
   }, [driveName]);
 
   useEffect(() => {
     const fetchAll = async () => {
+      const pageLoadId = ++pageLoadRef.current;
       setRecent({ files: [], loading: true });
       setFavorites({ files: [], loading: true });
       setLiked({ files: [], loading: true });
@@ -226,13 +262,13 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
       const promises: [
         Promise<FileSectionsBatch>,
-        Promise<FolderType[]>,
+        Promise<FoldersBatch>,
         Promise<{ path: string }[]>,
         Promise<WatchHistoryItem[]> | null,
         Promise<WatchHistoryItem[]> | null,
       ] = [
         fetchFileSections(),
-        getFolders(driveName).catch(() => [] as FolderType[]),
+        fetchFolders(),
         getPins(driveName).catch(() => [] as { path: string }[]),
         hasProfile ? getWatchHistory(driveName, SECTION_LIMIT).catch(() => [] as WatchHistoryItem[]) : null,
         hasProfile ? getWatchHistory(driveName, SECTION_LIMIT, "all").catch(() => [] as WatchHistoryItem[]) : null,
@@ -246,13 +282,15 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         promises[4] ?? Promise.resolve([] as WatchHistoryItem[]),
       ]);
 
-      // Every section on this page follows the drive, so the whole batch
-      // is dropped together rather than the folder list alone.
-      if (shownDriveRef.current !== driveName) return;
-
+      // The rows and the grid answer to their own requests, so they are
+      // applied whether or not this page load is still the current one.
       applyFileSections(fileResults);
+      applyFolders(foldersResult);
 
-      setFolders(foldersResult);
+      // The rest is fetched only here, so this page load is what it
+      // answers to.
+      if (pageLoadRef.current !== pageLoadId) return;
+
       setFoldersLoading(false);
       setPinnedPaths(new Set(pinsResult.map((p) => p.path)));
       if (hasProfile) {
@@ -264,10 +302,15 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     };
 
     fetchAll();
-  }, [driveName, fetchFileSections, applyFileSections, hasProfile, nickname]);
+  }, [driveName, fetchFileSections, applyFileSections, fetchFolders, applyFolders, hasProfile, nickname]);
 
   const handleTogglePin = useCallback(
     async (folderPath: string) => {
+      // The set this edits belongs to the page load that fetched it. A
+      // pin path is drive-relative, so the same string is a different
+      // folder on the next drive — and the same folder on an earlier
+      // visit to this one, whose pin set has since been refetched.
+      const pageLoadId = pageLoadRef.current;
       try {
         const isPinned = pinnedPaths.has(folderPath);
         if (isPinned) {
@@ -275,11 +318,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         } else {
           await addPin(driveName, folderPath);
         }
-        // A pin path is drive-relative, so the same string is a
-        // different folder on another drive: writing this one into the
-        // set after the page has moved marks a folder that was never
-        // pinned.
-        if (shownDriveRef.current === driveName) {
+        if (pageLoadRef.current === pageLoadId) {
           setPinnedPaths((prev) => {
             const next = new Set(prev);
             if (isPinned) next.delete(folderPath);
@@ -300,8 +339,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   }, [fetchFileSections, applyFileSections]);
 
   // Both halves of the page follow the drive: the folder grid *and* the
-  // Recently added / Favourites / Popular rows. Refreshing only the
-  // grid left the rows showing files that had been deleted or moved
+  // Recently Added / Favorites / Liked rows. Refreshing only the grid
+  // left the rows showing files that had been deleted or moved
   // elsewhere.
   //
   // `drive.file_updated` matters here because favouriting is a content

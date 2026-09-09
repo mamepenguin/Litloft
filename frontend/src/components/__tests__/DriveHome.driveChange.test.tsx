@@ -21,12 +21,13 @@ vi.mock("next/link", () => ({
 const getDriveFiles = vi.fn<(drive: string, params: Record<string, unknown>) => Promise<PaginatedResponse>>();
 const getFolders = vi.fn<(drive: string) => Promise<FolderType[]>>();
 const addPin = vi.fn<(drive: string, path: string) => Promise<void>>();
+const getPins = vi.fn<(drive: string) => Promise<{ path: string }[]>>();
 
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (drive: string, params: Record<string, unknown>) => getDriveFiles(drive, params),
   getFolders: (drive: string) => getFolders(drive),
   addPin: (drive: string, path: string) => addPin(drive, path),
-  getPins: vi.fn(() => Promise.resolve([])),
+  getPins: (drive: string) => getPins(drive),
   getWatchHistory: vi.fn(() => Promise.resolve([])),
   removePin: vi.fn(() => Promise.resolve()),
   createFolder: vi.fn(() => Promise.resolve()),
@@ -98,7 +99,11 @@ import { DriveHome } from "../DriveHome";
  * `DriveHome.folderGrid.test.tsx`; this file covers the rest of the page
  * — the Recently Added / Favorites / Liked rows, and the pin set — where
  * the same request outliving the same drive change writes the drive that
- * was left under this drive's links.
+ * was left under this drive's links. Both are also taken across a return
+ * to the drive the request was made for, where the name is the same on
+ * both ends and only the request tells the two apart, and both have a
+ * case where the response does reach the screen, so a guard that
+ * discards everything is not read as one that discards the right thing.
  *
  * **What this file can hold.** Which drive's data is in state after a
  * response settles late. jsdom lays nothing out, so nothing here is
@@ -133,6 +138,18 @@ const DRIVE_B_FILES: SectionFiles = {
   recentAdded: "bravo-added",
   favorites: "bravo-favorite",
   liked: "bravo-liked",
+};
+
+/**
+ * What the first drive holds when it is opened again — after the file
+ * the trip started with was trashed, say. Its own names, disjoint from
+ * the first visit's, so a batch belonging to that visit is readable on
+ * screen rather than hiding behind an identical row.
+ */
+const DRIVE_A_REVISIT_FILES: SectionFiles = {
+  recentAdded: "alfa-added-after",
+  favorites: "alfa-favorite-after",
+  liked: "alfa-liked-after",
 };
 
 /**
@@ -199,8 +216,8 @@ function respondWith(files: SectionFiles): void {
  * The precondition is that the batch has not been applied yet, and that
  * is not readable off the document: a batch that settled before the page
  * moved draws exactly what one still in flight draws, since the rows
- * keep the files they already had. So the responses the component was
- * handed are checked against the ones this test is holding.
+ * keep the files they already had. `expectRowBatchStillHeld` is what
+ * reads it, off the responses the component was handed.
  */
 function heldRowResponses(): {
   responseFor: (params: Record<string, unknown>) => Promise<PaginatedResponse>;
@@ -236,10 +253,40 @@ async function expectStillHeld(promises: Promise<unknown>[]): Promise<void> {
   expect(settled).toBe(false);
 }
 
+/**
+ * The batch the component was handed is the one this test is holding.
+ *
+ * Identity, with `toBe`. `toEqual` cannot tell two Promises apart: a
+ * Promise has no own enumerable properties, so a deep equality between
+ * any two of them holds — including between a held one and one that
+ * resolved before the assertion ran, which is the ordering these cases
+ * do not need a guard for. And the promises checked for having gone
+ * nowhere are the ones read back out of the mock, not the fixture's own
+ * copies, which nothing would resolve either way.
+ */
+async function expectRowBatchStillHeld(
+  held: Record<SectionKey, Promise<PaginatedResponse>>,
+): Promise<void> {
+  const calls = getDriveFiles.mock.calls.slice(-SECTION_KEYS.length);
+  const received = getDriveFiles.mock.results
+    .slice(-SECTION_KEYS.length)
+    .map((result) => result.value as Promise<PaginatedResponse>);
+
+  // One request per row, declared rather than counted: a row that stops
+  // being fetched drops out of this set instead of shortening a length.
+  expect(new Set(calls.map(([, params]) => sectionOf(params)))).toEqual(new Set(SECTION_KEYS));
+  calls.forEach(([, params], index) => {
+    expect(received[index]).toBe(held[sectionOf(params)]);
+  });
+
+  await expectStillHeld(received);
+}
+
 describe("DriveHome across a drive change", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getFolders.mockResolvedValue([]);
+    getPins.mockResolvedValue([]);
     addPin.mockResolvedValue(undefined);
   });
 
@@ -255,10 +302,7 @@ describe("DriveHome across a drive change", () => {
     getDriveFiles.mockImplementation((_drive, params) => held.responseFor(params));
     fireEvent.click(screen.getByRole("button", { name: `act on ${SECTION_TITLES.recentAdded}` }));
 
-    expect(getDriveFiles.mock.results.slice(-SECTION_KEYS.length).map((result) => result.value)).toEqual(
-      SECTION_KEYS.map((key) => held.promises[key]),
-    );
-    await expectStillHeld(SECTION_KEYS.map((key) => held.promises[key]));
+    await expectRowBatchStillHeld(held.promises);
 
     respondWith(DRIVE_B_FILES);
     rerender(<DriveHome driveName="second-drive" />);
@@ -276,6 +320,101 @@ describe("DriveHome across a drive change", () => {
     for (const name of Object.values(DRIVE_A_FILES)) {
       expect(screen.queryByText(name)).toBeNull();
     }
+  });
+
+  it("keeps a batch from an earlier visit to this drive out of the rows", async () => {
+    // The same drive name at both ends of the trip, so nothing that
+    // compares names can separate the two requests made for it. The
+    // component is not remounted in between: `/drive/[name]` renders it
+    // with no `key`, so the first visit's batch is still in flight when
+    // the third render arrives.
+    const firstVisit = heldRowResponses();
+    getDriveFiles.mockImplementation((_drive, params) => firstVisit.responseFor(params));
+    const { rerender } = render(<DriveHome driveName="drive-under-test" />);
+    await expectRowBatchStillHeld(firstVisit.promises);
+
+    respondWith(DRIVE_B_FILES);
+    rerender(<DriveHome driveName="second-drive" />);
+    await waitFor(() => expect(rowsOnScreen()).toEqual(expectedRows(DRIVE_B_FILES)));
+
+    respondWith(DRIVE_A_REVISIT_FILES);
+    rerender(<DriveHome driveName="drive-under-test" />);
+    await waitFor(() => expect(rowsOnScreen()).toEqual(expectedRows(DRIVE_A_REVISIT_FILES)));
+
+    await act(async () => {
+      firstVisit.resolve(DRIVE_A_FILES);
+    });
+
+    // The rows read this visit. The failure this covers is what a user
+    // sees after trashing a file here, stepping to another drive and
+    // coming back: the pre-action batch would put the file back into
+    // Recently Added, Favorites and Liked and leave it there.
+    expect(rowsOnScreen()).toEqual(expectedRows(DRIVE_A_REVISIT_FILES));
+    for (const name of Object.values(DRIVE_A_FILES)) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
+  });
+
+  it("marks a folder pinned on the drive it was pinned on", async () => {
+    // The positive half of the case below. A guard read only for what
+    // it discards cannot tell "correctly dropped" from "never applied":
+    // inverted, every pin made on the drive in front of you would leave
+    // the menu still offering Pin, and nothing else in the suite asks.
+    respondWith(DRIVE_A_FILES);
+    getFolders.mockResolvedValue([folder(SHARED_FOLDER_NAME)]);
+    render(<DriveHome driveName="drive-under-test" />);
+    await waitFor(() => expect(screen.getByText(SHARED_FOLDER_NAME)).toBeInTheDocument());
+
+    fireEvent.contextMenu(screen.getByText(SHARED_FOLDER_NAME));
+    expect(screen.getByTestId("pin-state")).toHaveTextContent("not pinned");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "toggle pin" }));
+    });
+
+    expect(addPin).toHaveBeenCalledWith("drive-under-test", SHARED_FOLDER_NAME);
+    // Anchored: "pinned" is a substring of "not pinned", so an
+    // unanchored read of this element holds in both states.
+    expect(screen.getByTestId("pin-state")).toHaveTextContent(/^pinned$/);
+  });
+
+  it("keeps a pin set fetched for the drive that was left out of this drive's", async () => {
+    // The pin set is fetched only by the page's own effect, so this
+    // covers the tail of an effect whose page load has been superseded —
+    // the writes that have no request of their own to answer to.
+    respondWith(DRIVE_A_FILES);
+    getFolders.mockResolvedValue([folder(SHARED_FOLDER_NAME)]);
+
+    let resolveFirstPins: (pins: { path: string }[]) => void = () => {};
+    getPins.mockReturnValueOnce(
+      new Promise<{ path: string }[]>((resolve) => {
+        resolveFirstPins = resolve;
+      }),
+    );
+    const { rerender } = render(<DriveHome driveName="drive-under-test" />);
+
+    // The first drive's pin fetch is still in flight when the page moves
+    // on, so what lands below is its effect's tail and not a second
+    // copy of the case above.
+    await expectStillHeld([getPins.mock.results[0]?.value as Promise<unknown>]);
+
+    getPins.mockResolvedValue([{ path: SHARED_FOLDER_NAME }]);
+    getFolders.mockResolvedValue([folder(SHARED_FOLDER_NAME), folder(SECOND_DRIVE_FOLDER_NAME)]);
+    respondWith(DRIVE_B_FILES);
+    rerender(<DriveHome driveName="second-drive" />);
+    await waitFor(() => expect(screen.getByText(SECOND_DRIVE_FOLDER_NAME)).toBeInTheDocument());
+
+    // This drive's own pin set reached the screen: the positive half.
+    fireEvent.contextMenu(screen.getByText(SHARED_FOLDER_NAME));
+    expect(screen.getByTestId("pin-state")).toHaveTextContent(/^pinned$/);
+
+    await act(async () => {
+      resolveFirstPins([]);
+    });
+
+    // The drive that was left has no pins, and saying so here would
+    // unmark a folder this drive does pin.
+    expect(screen.getByTestId("pin-state")).toHaveTextContent(/^pinned$/);
   });
 
   it("keeps a pin made on the drive that was left out of this drive's pin set", async () => {
