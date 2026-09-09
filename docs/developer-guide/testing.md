@@ -181,13 +181,15 @@ pnpm test:e2e:report
 
 `frontend/e2e-layout/` is also Playwright, and has nothing else in common with
 the eleven specs above. It opens a **static page off `file://`** — no app, no
-backend, no drives — carrying the app's own compiled `globals.css` and a row of
-hand-placed cells with known `--jg-ratio` values, and measures the boxes
-Chromium produces.
+backend, no drives — carrying the app's own compiled `globals.css`, and measures
+the boxes Chromium produces. There is one fixture and one spec per property:
+`justified-grid` (cell ratios and line filling), `related-files` (the rail's
+tiles), `addon-policy` (a sticky table heading) and `file-actions-menu` (which
+side of a trigger a popup lands on).
 
 ```bash
 cd frontend
-pnpm test:e2e:layout          # 26 tests, ~2.5s, browser already installed
+pnpm test:e2e:layout          # a few seconds, browser already installed
 ```
 
 The CI job around it has finished **under a minute in every run**, with the
@@ -219,7 +221,21 @@ verify a layout.** A later rule at any specificity, an `@media` / `@container` /
 `@layer` block, or an inline style each override a declaration that is still,
 textually, right where the assertion looks for it.
 
-What it holds today, all of it measured rather than matched:
+What `file-actions-menu` holds, measured in Chromium:
+
+- the `⋮` menu hung `top-full` inside the Bottom Sheet's 56px resting strip
+  starts at the bottom edge of the screen and runs off it, and `bottom-full`
+  brings the whole box back — at two phone heights and three menu lengths, with
+  both directions giving the menu the same height, which is what lets a
+  `ResizeObserver` drive the flip without oscillating;
+- a `whitespace-nowrap` error toast hung `right-0` from a trigger at its
+  column's left edge crosses that edge, and `left-0` keeps it inside both of
+  them.
+
+What **justified-grid** holds, all of it measured rather than matched. This list
+and every paragraph after it is about that fixture, which is the oldest and the
+most worked-over; the others follow the same shape, each with its own parity
+test:
 
 - a justified cell's realized aspect ratio equals its `--jg-ratio`, at five grid
   widths;
