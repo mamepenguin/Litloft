@@ -226,22 +226,30 @@ const SECOND_DRIVE = "second-drive";
 /**
  * `getFolders` answers according to the drive it is asked for.
  *
- * Before this, every mock in this file answered by call order —
- * `mockResolvedValue` / `mockReturnValueOnce` — so "drive A's folders"
- * and "drive B's folders" were the same object universe distinguished
- * only by when the fixture was armed. A population that cannot tell a
- * request for A from a request for B cannot witness a guard whose whole
- * job is telling them apart, and this file proved it: rewiring the page
- * to fetch a hardcoded foreign drive left all seventeen cases green, and
- * a round that deleted the file's only drive comparison moved not one
- * test. (`review-workflow.md` detector rule 5, in the guard's own
- * fixture rather than in what the guard guards.)
+ * Before this it answered by call order — `mockResolvedValue` /
+ * `mockReturnValueOnce` — so "drive A's folders" and "drive B's folders"
+ * were the same object universe, distinguished only by when the fixture
+ * was armed. A population that cannot tell a request for A from a
+ * request for B cannot witness a guard whose whole job is telling them
+ * apart, and a round that deleted this file's only drive comparison
+ * moved not one test. (`review-workflow.md` detector rule 5, in the
+ * guard's own fixture rather than in what the guard guards.)
  *
  * A drive with no entry answers with `FOREIGN_FOLDER_NAME`, which is in
  * none of the declared sets — so a request made for the wrong drive is
  * *readable on screen* rather than indistinguishable from an empty grid.
- * A rejection would not do: the grid keeps what it had on a failed
- * fetch, so a foreign request would look exactly like no request.
+ * A rejection would not do: the grid keeps what it had on a same-drive
+ * failure, so a foreign request would look exactly like no request.
+ *
+ * **This covers `getFolders` and nothing else in this file.**
+ * `getDriveFiles` and `getPins` are still argument-less stubs here,
+ * because the rows and the pin menu are stubbed out of this file
+ * entirely and a drive mix-up in either draws nothing to read. Their
+ * drive is held next door in `DriveHome.driveChange.test.tsx`, which
+ * renders both. An earlier version of this comment reported a
+ * measurement across both suites as though it had been taken in this
+ * one, and got the figure wrong as well; measurements belong in the PR
+ * body, where they are dated.
  */
 const FOREIGN_FOLDER_NAME = "fetched-for-the-wrong-drive";
 
@@ -314,6 +322,19 @@ function folderNamesOnScreen(): string[] {
   return Array.from(folderSection().querySelectorAll<HTMLElement>("[data-rename-focus]")).map(
     (el) => el.querySelector("span")?.textContent ?? "",
   );
+}
+
+/**
+ * The Folders section is not on the page at all.
+ *
+ * Its render gate is `(foldersLoading || folders.length > 0)`, so this is
+ * what an empty list at rest looks like — a drive with no folders, and a
+ * drive whose `getFolders` failed with nothing already drawn for it.
+ * Asserted through the heading rather than through `folderSection()`,
+ * which throws when there is nothing to scope to.
+ */
+function expectNoFolderSection(): void {
+  expect(screen.queryByRole("heading", { name: "Folders" })).toBeNull();
 }
 
 /**
@@ -802,6 +823,142 @@ describe("DriveHome folder grid", () => {
 
     expect(folderSection()).toBeInTheDocument();
     expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]);
+  });
+
+  it("keeps the drive that was left off the grid when this drive's fetch fails", async () => {
+    // The half of the failure pair that was missing, and the one that
+    // decides whether "a failure keeps what it found" is scoped.
+    //
+    // Across a drive change, "what it had" belongs to a *different*
+    // drive. `applyFolders` returns on a failed response before it
+    // writes, so nothing in that function can tell the two apart — the
+    // scoping has to be in the state, and it is: the fetch effect
+    // empties `folders` on every drive change, the way it already
+    // emptied the three rows. Without that, this drive draws the
+    // previous drive's cards at rest, with a control counting a folder
+    // that is not there.
+    driveHasFolders(DRIVE_UNDER_TEST, [...AT_CAP_FOLDER_NAMES, NINTH_FOLDER_NAME]);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
+    expect(screen.getByRole("button", { name: "Show more (1)" })).toBeInTheDocument();
+
+    const failing = holdFolderFetch(SECOND_DRIVE);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
+    await act(async () => {
+      failing.reject();
+    });
+
+    // The section is gone, which is what an empty list at rest draws —
+    // the same thing this drive would show if it genuinely had no
+    // folders. Not one card and not the control: a "Show more (1)" here
+    // would be the label and the cards agreeing with each other and both
+    // describing the drive that was left.
+    expectNoFolderSection();
+    expect(screen.queryByRole("button", { name: /Show more/ })).toBeNull();
+    for (const name of [...AT_CAP_FOLDER_NAMES, NINTH_FOLDER_NAME]) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
+  });
+
+  it("keeps the other drive off the grid when a return visit's fetch fails", async () => {
+    // The same mechanism by the route where no name comparison can help:
+    // the drive is the same at both ends, so what must not be drawn is
+    // the *other* drive's list, left in state by the middle leg.
+    driveHasFolders(DRIVE_UNDER_TEST, REVISIT_FOLDER_NAMES);
+    driveHasFolders(SECOND_DRIVE, SECOND_DRIVE_FOLDER_NAMES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...REVISIT_FOLDER_NAMES]));
+
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
+    await waitFor(() =>
+      expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]),
+    );
+
+    const failing = holdFolderFetch(DRIVE_UNDER_TEST);
+    rerender(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await act(async () => {
+      failing.reject();
+    });
+
+    expectNoFolderSection();
+    expect(screen.queryByRole("button", { name: /Show more/ })).toBeNull();
+    for (const name of SECOND_DRIVE_FOLDER_NAMES) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
+  });
+
+  it("leaves the create field alone when a create started on the drive that was left returns", async () => {
+    // `handleCreateFolder`'s tail, which the round that named this
+    // function fixed one line of and left two. `cancelCreateFolder()`
+    // closes the field and blanks the name; run on the old drive's
+    // closure it takes the name the user is halfway through typing here.
+    driveHasFolders(DRIVE_UNDER_TEST, AT_CAP_FOLDER_NAMES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
+
+    let finishCreate: () => void = () => {};
+    createFolder.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishCreate = resolve;
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "new folder" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "started-on-the-first-drive" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await expectStillHeld([createFolder.mock.results.at(-1)?.value as Promise<void>]);
+
+    driveHasFolders(SECOND_DRIVE, SECOND_DRIVE_FOLDER_NAMES);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
+    await waitFor(() =>
+      expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]),
+    );
+
+    // A name half-typed on *this* drive, which the old drive's
+    // continuation must not touch.
+    fireEvent.click(screen.getByRole("button", { name: "new folder" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "typing-on-the-second-drive" } });
+
+    await act(async () => {
+      finishCreate();
+    });
+
+    expect(screen.getByRole("textbox")).toHaveValue("typing-on-the-second-drive");
+  });
+
+  it("does not report a create that failed on the drive that was left", async () => {
+    // The other half of the same tail. `setFolderError` in the `catch`
+    // has no drive and no request either, so a create that fails on the
+    // drive you left raises its message on the drive you arrived at,
+    // with nothing on screen saying where it came from.
+    driveHasFolders(DRIVE_UNDER_TEST, AT_CAP_FOLDER_NAMES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));
+
+    let failCreate: () => void = () => {};
+    createFolder.mockReturnValue(
+      new Promise<void>((_resolve, reject) => {
+        failCreate = () => reject(new Error("createFolder failed"));
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "new folder" }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "started-on-the-first-drive" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await expectStillHeld([createFolder.mock.results.at(-1)?.value as Promise<void>]);
+
+    driveHasFolders(SECOND_DRIVE, SECOND_DRIVE_FOLDER_NAMES);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
+    await waitFor(() =>
+      expect(folderNamesOnScreen()).toEqual([...SECOND_DRIVE_COLLAPSED_NAMES]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "new folder" }));
+
+    await act(async () => {
+      failCreate();
+    });
+
+    // Read as "no alert anywhere", not "not this string": the failure is
+    // a message arriving on the wrong screen, whatever it says.
+    expect(screen.queryAllByRole("alert")).toEqual([]);
   });
 
   it("does not link the grid at the flat every-file view", async () => {

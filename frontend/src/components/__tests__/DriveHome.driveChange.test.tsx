@@ -245,7 +245,14 @@ function installResponders(): void {
       heldPinFetches.delete(drive);
       return held();
     }
-    return Promise.resolve((pinsByDrive.get(drive) ?? []).map((path) => ({ path })));
+    // An undeclared drive answers with a readable path, for the reason
+    // the other two responders do. Answering `[]` was the outcome the
+    // docstring above rejects for them: a wrong-drive pin fetch would
+    // then be detectable only where the correct drive has a *non-empty*
+    // declared set, which is one of the three pin cases.
+    return Promise.resolve(
+      (pinsByDrive.get(drive) ?? [`wrong-drive(${drive})`]).map((path) => ({ path })),
+    );
   });
 }
 
@@ -556,6 +563,37 @@ describe("DriveHome across a drive change", () => {
     });
 
     expect(rowsOnScreen()).toEqual(expectedRows(DRIVE_A_FILES));
+  });
+
+  it("keeps the drive that was left out of the rows when this drive's batch fails", async () => {
+    // The rows' half of the same structural claim the grid now makes.
+    // `applyFileSections` keeps a row's files when its request fails, so
+    // across a drive change "what it had" would be the previous drive's
+    // files — and nothing in that function can tell the two apart,
+    // because the failure branch is reached with the drive already
+    // checked. What scopes it is the fetch effect emptying all three
+    // rows on every drive change, which is what the grid did not do for
+    // six rounds.
+    driveHasFiles(DRIVE_UNDER_TEST, DRIVE_A_FILES);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() => expect(rowsOnScreen()).toEqual(expectedRows(DRIVE_A_FILES)));
+
+    const failing = holdRowBatch(SECOND_DRIVE);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
+    await act(async () => {
+      failing.reject();
+    });
+
+    // Three rows, all empty — the same thing a drive with no files
+    // draws. Not the drive that was left.
+    expect(rowsOnScreen()).toEqual({
+      [SECTION_TITLES.recentAdded]: [],
+      [SECTION_TITLES.favorites]: [],
+      [SECTION_TITLES.liked]: [],
+    });
+    for (const name of Object.values(DRIVE_A_FILES)) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
   });
 
   it("marks a folder pinned on the drive it was pinned on", async () => {

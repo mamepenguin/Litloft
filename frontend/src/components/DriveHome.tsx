@@ -174,9 +174,15 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const applyFolders = useCallback((batch: FoldersBatch) => {
     if (batch.drive !== shownDriveRef.current) return;
     if (batch.requestId < foldersAppliedRef.current) return;
-    // A failed request leaves the grid holding what it had — and leaves
-    // the stream to whatever is still in flight, which is why this
+    // A failed request leaves the grid holding what it had, and leaves
+    // the stream to whatever is still in flight — which is why this
     // returns before claiming the stream rather than after.
+    //
+    // "What it had" is this drive's list and nothing else, because the
+    // fetch effect empties `folders` on every drive change. That is the
+    // scoping, and it is in the state rather than here: this branch is
+    // reached with the drive already checked, but a *check* is what the
+    // previous five rounds each had one of.
     if (batch.folders === null) return;
     foldersAppliedRef.current = batch.requestId;
     setFolders(batch.folders);
@@ -222,12 +228,28 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       return;
     }
     setFolderError(null);
+
+    // The create field and its error belong to the page load that opened
+    // them, not to the drive this request was made for — the same unit
+    // `handleTogglePin` answers to. Without this, a create started here
+    // and settling after the page has moved closes the field the user is
+    // typing into on the next drive, or raises "Failed to create folder"
+    // there about an action taken somewhere else.
+    //
+    // Unlike the grid, this state cannot be scoped by emptying it on a
+    // drive change: the write arrives *after* that reset, at a moment
+    // when the field legitimately holds the next drive's half-typed
+    // name. So it is a guard, and it is the one write in this file that
+    // still is one.
+    const pageLoadId = pageLoadRef.current;
     try {
       await createFolder(driveName, "", name);
-      cancelCreateFolder();
+      if (pageLoadRef.current === pageLoadId) cancelCreateFolder();
+      // Not gated: the grid answers to its own request identity, and the
+      // tree below it should learn about the folder either way.
       await refreshFolders();
     } catch {
-      setFolderError(tf("createFailed"));
+      if (pageLoadRef.current === pageLoadId) setFolderError(tf("createFailed"));
     }
   }, [newFolderName, tf, driveName, cancelCreateFolder, refreshFolders]);
 
@@ -320,6 +342,18 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       setRecent({ files: [], loading: true });
       setFavorites({ files: [], loading: true });
       setLiked({ files: [], loading: true });
+      // The grid is emptied here, beside the rows, and not merely masked
+      // while it loads. `folders` used to survive a drive change and be
+      // hidden by `gridFolders`'s `foldersLoading` check, which meant
+      // every path that reaches `applyFolders` had to answer "is this
+      // response still wanted?" or leave the previous drive's cards on
+      // screen once the flag cleared. Six rounds of this component found
+      // six such paths, the last of them the failure branch three lines
+      // into the guard that was written for the previous one. Emptying
+      // the list makes "a failure keeps what it found" mean *this
+      // drive's* list by construction, so a call site added later cannot
+      // reopen it by omission.
+      setFolders([]);
       setFoldersLoading(true);
       if (hasProfile) {
         setContinueWatchingLoading(true);
