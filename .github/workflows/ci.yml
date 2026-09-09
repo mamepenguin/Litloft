@@ -223,6 +223,13 @@ jobs:
     # off `file://` that carries the app's own compiled globals.css and a
     # hand-placed row of cells, and asserts the boxes Chromium produces.
     #
+    # Boxes are not the only thing jsdom cannot produce. `popup-dismiss`
+    # taps with a real touch and asks which element the `click` Chromium
+    # synthesises from `touchend` lands on — a hit test, over a scrim, at
+    # two viewports. jsdom hit-tests nothing, so `fireEvent.click` there
+    # dispatches at whatever element the test named and can never observe
+    # a click reaching the wrong one.
+    #
     # A browser suite can only see a selector that matches the markup in
     # front of it, so the fixture draws from a declared table of cell
     # shapes: every class list the cell can carry (six for
@@ -282,10 +289,13 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
 
-      # Chromium alone. The invariants here are flex geometry and resolved
-      # transitions, not rendering differences between engines, and adding
-      # two more browsers would triple the job for a question it is not
-      # asking.
+      # Chromium alone. The invariants here are flex geometry, resolved
+      # transitions and pointer-event dispatch, not rendering differences
+      # between engines, and adding two more browsers would triple the job
+      # for a question it is not asking. What that leaves unmeasured is
+      # named where it matters: Safari's touch-to-click synthesis is the
+      # one `popup-dismiss` would most like a second engine for, and this
+      # job does not have it.
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
         working-directory: frontend

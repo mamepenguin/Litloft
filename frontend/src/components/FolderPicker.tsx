@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { DismissScrim } from "@/components/DismissScrim";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
@@ -27,7 +28,6 @@ interface FolderPickerProps {
 export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const t = useTranslations("fileSaveDialog");
   const panelId = useId();
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
@@ -37,21 +37,6 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const [allFolders, setAllFolders] = useState<FolderTreeNode[]>([]);
   const [loadingCurrent, setLoadingCurrent] = useState(false);
   const allLoadedRef = useRef(false);
-
-  useEffect(() => {
-    if (!open) return;
-
-    function handlePointerDown(event: PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [open]);
 
   // Escape closes the picker through the shortcut stack. As its own
   // listener it fired alongside the listener of whatever dialog holds
@@ -130,7 +115,7 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const displayValue = value ? `/${value}` : `/${t("folderRoot")}`;
 
   return (
-    <div ref={containerRef} className="relative w-full min-w-0">
+    <div className="relative w-full min-w-0">
       {/* Toggle button */}
       <button
         type="button"
@@ -151,6 +136,17 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
           <ChevronDown size={14} className="ml-2 shrink-0 text-text-muted" />
         )}
       </button>
+
+      {open && (
+        <DismissScrim
+          onDismiss={() => setOpen(false)}
+          // Under the `z-50` panel. Most callers put this picker inside a
+          // dialog, whose own root is the stacking context these two are
+          // compared in; on a plain page the band is the popover tier's
+          // ceiling, over the page and under nothing this picker opens.
+          className="fixed inset-0 z-40"
+        />
+      )}
 
       {/* Expanded panel */}
       {open && (

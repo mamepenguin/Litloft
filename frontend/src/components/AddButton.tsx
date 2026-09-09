@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { dispatchUploadEvent, useFilePicker } from "./useFilePicker";
 import {
@@ -17,6 +17,7 @@ import { ActionMenuItem } from "@/components/ActionMenuItem";
 import { AddonSlot } from "@/components/AddonSlot";
 import { useAddonSlots } from "@/components/AddonSlotsProvider";
 import { Button } from "@/components/Button";
+import { DismissScrim } from "@/components/DismissScrim";
 import type { UploadFileEntry } from "@/hooks/useUpload";
 
 /**
@@ -77,7 +78,6 @@ export function AddButton({
   const tf = useTranslations("folder");
   const t = useTranslations("toolbar");
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const filePicker = useFilePicker();
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -96,17 +96,6 @@ export function AddButton({
     setMenuOpen(false);
     triggerRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen]);
 
   return (
     <>
@@ -127,7 +116,7 @@ export function AddButton({
           e.target.value = "";
         }}
       />
-      <div ref={menuRef} className="relative">
+      <div className="relative">
         {/* The label is not `hidden sm:inline`. Dropping it at 400px would
             leave a `+` and a chevron, and the mobile rule is to carry fewer
             controls rather than nameless ones (00-basis, モバイルの寸法規則). */}
@@ -148,6 +137,14 @@ export function AddButton({
           {t("add")}
           <ChevronDown size={14} className="opacity-70" />
         </Button>
+        {menuOpen && (
+          <DismissScrim
+            onDismiss={() => setMenuOpen(false)}
+            // No tint: this menu stays anchored to its trigger at every
+            // width, so there is no sheet for a dim to explain.
+            className="fixed inset-0 z-30"
+          />
+        )}
         {menuOpen && (
           <div
             role="menu"

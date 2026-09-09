@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import type { FileKind, TrustFilter } from "@/types";
 import { TRUST_OPTION_KEYS, TYPE_OPTION_KEYS } from "./filterOptions";
 import { MENU_SURFACE } from "@/components/ToolbarMenu";
+import { DismissScrim } from "@/components/DismissScrim";
 
 interface FilterMenuProps {
   typeFilter: FileKind | null;
@@ -151,11 +152,7 @@ export function FilterMenu({
       </button>
       {open && (
         <>
-          <div
-            className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
-            aria-hidden="true"
-            onClick={close}
-          />
+          <DismissScrim onDismiss={close} />
           {/* The scrim is a mouse gesture, so Escape (handled on the box
               above) is the keyboard's only way out. Arrow-key roving is the
               rest of the APG menu contract and is not here yet; the rows are

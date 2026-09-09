@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Pencil, RefreshCw, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import type { FileKind } from "@/types";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { DismissScrim } from "./DismissScrim";
 import { SmartFolderSaveDialog } from "./SmartFolderSaveDialog";
 
 interface SmartFolderSaveButtonProps {
@@ -69,23 +70,6 @@ export function SmartFolderSaveButton({
     const timer = setTimeout(() => setError(null), 3000);
     return () => clearTimeout(timer);
   }, [error]);
-
-  const menuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    const timer = setTimeout(() => {
-      document.addEventListener("mousedown", handleClick);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, [menuOpen]);
 
   const buildSearchUrl = useCallback(
     (id: string | null) => {
@@ -160,7 +144,7 @@ export function SmartFolderSaveButton({
   return (
     <>
       {inSavedMode ? (
-        <div ref={menuRef} className="relative flex-shrink-0">
+        <div className="relative flex-shrink-0">
           <button
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
@@ -174,6 +158,13 @@ export function SmartFolderSaveButton({
             </span>
             <ChevronDown size={14} className="text-text-muted" />
           </button>
+          {menuOpen && (
+            <DismissScrim
+              onDismiss={() => setMenuOpen(false)}
+              // Under the `z-40` menu, over the search bar it hangs from.
+              className="fixed inset-0 z-30"
+            />
+          )}
           {menuOpen && (
             <div
               role="menu"

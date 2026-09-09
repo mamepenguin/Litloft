@@ -17,6 +17,7 @@ import {
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { DismissScrim } from "@/components/DismissScrim";
 import type { FileKind } from "@/types";
 
 /**
@@ -127,23 +128,6 @@ export function FilterField({
     return () => window.clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localText]);
-
-  useEffect(() => {
-    if (!open) return;
-    function handlePointer(e: Event) {
-      const inside =
-        popoverRef.current?.contains(e.target as Node) ||
-        chipWrapperRef.current?.contains(e.target as Node) ||
-        triggerRef.current?.contains(e.target as Node);
-      if (!inside) setOpen(false);
-    }
-    document.addEventListener("mousedown", handlePointer);
-    document.addEventListener("touchstart", handlePointer, { passive: true });
-    return () => {
-      document.removeEventListener("mousedown", handlePointer);
-      document.removeEventListener("touchstart", handlePointer);
-    };
-  }, [open]);
 
   // Measure chip width so the input's paddingLeft can avoid overlap. Use a
   // layout effect (run before paint) plus ResizeObserver so font load /
@@ -266,7 +250,15 @@ export function FilterField({
   const TypeIcon = typeFilter ? TYPE_ICONS[typeFilter] : null;
   const typeLabel = typeFilter ? t(TYPE_LABEL_KEYS[typeFilter]) : "";
 
+  // Both call sites below draw the menu through this, so the scrim is
+  // written once and neither form can be left without one.
   const renderMenu = () => (
+    <>
+    <DismissScrim
+      onDismiss={() => setOpen(false)}
+      // No tint: this menu is anchored to its chip at every width.
+      className="fixed inset-0 z-30"
+    />
     <div
       ref={popoverRef}
       id={menuId}
@@ -301,6 +293,7 @@ export function FilterField({
         );
       })}
     </div>
+    </>
   );
 
   const underline = variant === "underline";

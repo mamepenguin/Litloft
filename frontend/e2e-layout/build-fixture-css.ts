@@ -141,6 +141,19 @@ const REQUIRED = [
   ".top-0 {",
   ".bg-bg-card {",
   ".overflow-x-auto {",
+  // `popup-dismiss.spec.ts` taps through a scrim that is only over the
+  // page because of these three. Without them the scrim has no box, the
+  // tap reaches the button in every strategy, and the case that says the
+  // shipped one absorbs it goes red naming a click count — not the empty
+  // sheet that caused it.
+  //
+  // `.inset-0` and `.z-30` carry the brace for the reason `.mt-1` does:
+  // `.inset-0` is satisfied by `.inset-0\.5` and `.z-30` by nothing today,
+  // but a needle that a longer class name can satisfy asserts less than it
+  // reads as.
+  ".fixed {",
+  ".inset-0 {",
+  ".z-30 {",
 ];
 
 /**

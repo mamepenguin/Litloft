@@ -11,6 +11,7 @@ import {
   MenuSeparator,
   ToolbarMenu,
 } from "@/components/ToolbarMenu";
+import { DismissScrim } from "@/components/DismissScrim";
 import { ViewMenu } from "@/components/ViewMenu";
 import type { ArchiveContents, FileType } from "@/types";
 import type { ArchiveSortKey, ArchiveSortOrder } from "./useArchiveSort";
@@ -287,11 +288,7 @@ export function ArchiveToolbar({
           </button>
           {moreOpen && (
             <>
-              <div
-                className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
-                aria-hidden="true"
-                onClick={closeMore}
-              />
+              <DismissScrim onDismiss={closeMore} />
               <div role="menu" className={MENU_SURFACE}>
                 <ArchiveSortGroup
                   sort={sort}

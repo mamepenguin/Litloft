@@ -14,6 +14,7 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import type { FileItem } from "@/types";
 import { ActionMenuItem } from "./ActionMenuItem";
+import { DismissScrim } from "./DismissScrim";
 import { useDialogPortalTarget } from "./DialogPortal";
 import { AddonSlot } from "./AddonSlot";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -215,17 +216,6 @@ export function FileActions({
   const anyDialogOpen =
     renameOpen || moveOpen || deleteOpen || addonDialogOpen;
 
-  useEffect(() => {
-    if (!menuOpen || anyDialogOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen, anyDialogOpen]);
-
   // A popup must be dismissable from the keyboard. Without this the only
   // ways out are an outside click or picking an item, so a keyboard user
   // who opens the menu cannot back out of it.
@@ -362,6 +352,21 @@ export function FileActions({
             <circle cx="8" cy="13" r="1.5" />
           </svg>
         </button>
+
+        {menuOpen && !anyDialogOpen && (
+          /* Not while a dialog raised from this menu is up. The dialog
+             portals out of this subtree and paints above, so a scrim under
+             it would only take the clicks meant for the page around it —
+             and the dialog draws its own. This is the same condition the
+             `document` listener this replaced stood down on. */
+          <DismissScrim
+            onDismiss={() => setMenuOpen(false)}
+            // The popover tier, under the menu it guards. Same number as
+            // the menu, which is drawn after it, so DOM order settles the
+            // two (DESIGN.md §Layering: both are in-flow chrome).
+            className="fixed inset-0 z-30"
+          />
+        )}
 
         {menuOpen && (
           <div

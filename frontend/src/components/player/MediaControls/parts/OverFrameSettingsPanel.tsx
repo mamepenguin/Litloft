@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { DismissScrim } from "@/components/DismissScrim";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
@@ -91,15 +92,21 @@ export function OverFrameSettingsPanel({
         isPopover ? "items-end" : "",
       ].join(" ")}
     >
-      <button
-        type="button"
+      <DismissScrim
+        onDismiss={onClose}
         data-testid={backdropTestId}
-        aria-label={closeLabel}
+        // Named, unlike a menu's scrim. Over media there is no page edge
+        // to say where the panel stops, so the area that dismisses it is
+        // a control a reader can find rather than dead space.
+        label={closeLabel}
+        // The frame, not the viewport: this panel is drawn inside a box
+        // that goes `position: fixed` while faking fullscreen on Apple
+        // mobile, and a viewport-sized scrim would leave the frame.
+        //
         // A mouse user can see the whole frame at once and the panel
         // covers very little of it, so there is nothing to dim; the
         // backdrop stays only to catch the click that dismisses it.
         className={`absolute inset-0 ${isPopover ? "" : "bg-black/40"}`}
-        onClick={onClose}
       />
 
       <div

@@ -21,6 +21,7 @@ import { ActionMenuItem } from "./ActionMenuItem";
 import { BatchRenameDialog } from "./BatchRenameDialog";
 import { Button } from "./Button";
 import { useClipboard } from "./ClipboardProvider";
+import { DismissScrim } from "./DismissScrim";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
@@ -294,10 +295,12 @@ export function SelectionBar({
   const overflowMenu =
     moreOpen && inOverflow.length > 0 ? (
       <>
-        <div
+        <DismissScrim
+          onDismiss={closeMore}
+          // Its own band and no tint: this menu hangs off a bar that is
+          // already the page's foreground, and `sm:hidden` because the bar
+          // stops overflowing above 640px.
           className="fixed inset-0 z-20 sm:hidden"
-          aria-hidden="true"
-          onClick={closeMore}
         />
         {/* Opens upward: the bar is pinned to the bottom. Positioned against
             the wrapper outside the card, so the card's `overflow-hidden` has

@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { dismissViaScrim } from "@/__tests__/helpers/dismissScrim";
+import { DISMISS_SCRIM_ATTR } from "@/components/DismissScrim";
 import { deleteFile } from "@/lib/api";
 import { FileActions } from "../FileActions";
 import { ShortcutsProvider } from "../ShortcutsProvider";
@@ -880,16 +882,18 @@ describe("FileActions file-actions-menu slot", () => {
   });
 
   it("keeps the menu open while an addon dialog is open", () => {
-    // An addon's dialog is portalled to document.body, so the host's
-    // outside-click listener sees it as a click outside the menu. Were the
-    // menu to close, the slot subtree — and the dialog with it — would
-    // unmount mid-interaction.
+    // An addon's dialog paints above the menu's scrim, so a scrim left
+    // under it would take the clicks aimed at the page around the dialog
+    // and close the menu — unmounting the slot subtree, and the dialog
+    // with it, mid-interaction. The scrim stands down instead.
     renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
     fireEvent.click(screen.getByTestId("addon-open"));
-    fireEvent.mouseDown(document.body);
 
+    expect(
+      document.querySelectorAll(`[${DISMISS_SCRIM_ATTR}]`),
+    ).toHaveLength(0);
     expect(screen.getByText("Download")).toBeInTheDocument();
     expect(screen.getByTestId("addon-slot-file-actions-menu")).toBeInTheDocument();
   });
@@ -898,7 +902,7 @@ describe("FileActions file-actions-menu slot", () => {
     renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
-    fireEvent.mouseDown(document.body);
+    dismissViaScrim();
 
     expect(screen.queryByText("Download")).not.toBeInTheDocument();
     expect(
@@ -950,7 +954,7 @@ describe("FileActions file-actions-menu slot", () => {
     expect(screen.queryByText("Download")).not.toBeInTheDocument();
 
     openMenu();
-    fireEvent.mouseDown(document.body);
+    dismissViaScrim();
 
     expect(screen.queryByText("Download")).not.toBeInTheDocument();
   });
@@ -963,11 +967,13 @@ describe("FileActions file-actions-menu slot", () => {
     openMenu();
 
     fireEvent.click(screen.getByTestId("addon-open"));
-    fireEvent.mouseDown(document.body);
+    expect(
+      document.querySelectorAll(`[${DISMISS_SCRIM_ATTR}]`),
+    ).toHaveLength(0);
     expect(screen.getByText("Download")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("addon-dialog-close"));
-    fireEvent.mouseDown(document.body);
+    dismissViaScrim();
 
     expect(screen.queryByText("Download")).not.toBeInTheDocument();
   });

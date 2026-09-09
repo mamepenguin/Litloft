@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ComponentType } from "react";
+import { DismissScrim } from "@/components/DismissScrim";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
 export interface MenuItem {
@@ -51,18 +52,14 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
 
   return (
     <>
-      {/* Full-screen overlay absorbs all pointer events outside the menu,
-          preventing clicks from reaching underlying elements. */}
-      <div
+      {/* Its own band rather than `MENU_SCRIM`'s: this menu is raised by a
+          right-click or a long-press anywhere on the page, including over
+          surfaces that already sit above the popover tier, and it is never
+          the bottom-sheet form the tint is for. */}
+      <DismissScrim
+        onDismiss={onClose}
         className="fixed inset-0 z-49"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
+        dismissOnContextMenu
       />
       <div
         ref={menuRef}

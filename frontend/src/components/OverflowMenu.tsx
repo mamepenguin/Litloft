@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 
+import { DismissScrim } from "@/components/DismissScrim";
 import { MENU_SURFACE } from "@/components/ToolbarMenu";
 
 interface OverflowMenuProps {
@@ -30,7 +31,7 @@ interface OverflowMenuProps {
 }
 
 /**
- * The `…` overflow menu: trigger, panel, and the one way it closes.
+ * The `…` overflow menu: trigger, panel, and the two ways it closes.
  *
  * Written once because there were already two copies of it — the drive
  * root's toolbar and the collection header — differing only in what they
@@ -38,6 +39,9 @@ interface OverflowMenuProps {
  * where a `…` sits on every bar in this app; `AddButton` keeps its own
  * geometry because its trigger is a labelled primary button that can sit
  * at either end of a row (see the `align` note there).
+ *
+ * A pointer closes it on `DismissScrim`, which is where the reason for
+ * dismissing on the click rather than the press is written down.
  *
  * Escape is answered by a React `onKeyDown` on the box, not by a
  * `document` listener: a listener does not know what is stacked above
@@ -54,7 +58,6 @@ interface OverflowMenuProps {
  */
 export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const close = useCallback(() => {
@@ -62,20 +65,8 @@ export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
     triggerRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
-
   return (
     <div
-      ref={menuRef}
       className="relative"
       onKeyDown={(e) => {
         if (!open || e.key !== "Escape") return;
@@ -103,13 +94,7 @@ export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
       </button>
       {open && (
         <>
-          {/* The scrim dims behind the sheet and is transparent under the
-              dropdown, where the page below should stay visible. */}
-          <div
-            className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
-            aria-hidden
-            onClick={() => setOpen(false)}
-          />
+          <DismissScrim onDismiss={() => setOpen(false)} />
           <div role="menu" aria-label={label} className={MENU_SURFACE}>
             {children(close)}
           </div>

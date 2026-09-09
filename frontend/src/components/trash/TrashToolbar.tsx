@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Check, CheckSquare, Filter } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { ViewToggle } from "@/components/ViewToggle";
+import { DismissScrim } from "@/components/DismissScrim";
 import { SortButton } from "@/components/SortButton";
 
 interface TrashToolbarProps {
@@ -40,7 +41,6 @@ export function TrashToolbar({
   const ts = useTranslations("selection");
   const tFilter = useTranslations("filter");
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
-  const typeFilterRef = useRef<HTMLDivElement>(null);
 
   // An empty bin has nothing to sort, nothing to lay out and nothing to
   // filter by kind — the seven pills, the sort, the view toggle and the
@@ -48,17 +48,6 @@ export function TrashToolbar({
   // is a bin emptied by the filter itself: the pill that produced the
   // empty result is also the way back out of it.
   const hideArrangingControls = total === 0 && typeFilter === null;
-
-  useEffect(() => {
-    if (!typeFilterOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (typeFilterRef.current && !typeFilterRef.current.contains(e.target as Node)) {
-        setTypeFilterOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [typeFilterOpen]);
 
   return (
     <>
@@ -91,7 +80,7 @@ export function TrashToolbar({
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {!hideArrangingControls && (
-        <div ref={typeFilterRef} className="relative sm:hidden">
+        <div className="relative sm:hidden">
           <button
             onClick={() => setTypeFilterOpen((s) => !s)}
             className={`flex items-center gap-1.5 rounded-lg p-2 text-sm transition-colors ${
@@ -99,15 +88,30 @@ export function TrashToolbar({
                 ? "bg-accent/20 text-accent"
                 : "text-text-muted hover:text-text-primary"
             }`}
+            aria-haspopup="menu"
+            aria-expanded={typeFilterOpen}
             aria-label={t("fileType")}
           >
             <Filter size={16} />
           </button>
           {typeFilterOpen && (
-            <div className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left">
+            <DismissScrim
+              onDismiss={() => setTypeFilterOpen(false)}
+              // No tint: anchored to its trigger, and the control itself
+              // only exists below `sm`.
+              className="fixed inset-0 z-30"
+            />
+          )}
+          {typeFilterOpen && (
+            <div role="menu" aria-label={t("fileType")} className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left">
               {TYPE_OPTION_KEYS.map((opt) => (
                 <button
                   key={opt.labelKey}
+                  // As `MenuRadioGroup` does for the same rows elsewhere:
+                  // the tick is the only thing saying which one is on, and
+                  // it is an unlabelled glyph.
+                  role="menuitemradio"
+                  aria-checked={typeFilter === opt.value}
                   onClick={() => {
                     onTypeFilterChange(opt.value);
                     setTypeFilterOpen(false);

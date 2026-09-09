@@ -15,6 +15,21 @@ A Litloft installation has:
 - A **viewer identity** — a self-chosen nickname stored in a cookie, hashed to a 16-char ID. Used for comments and watch-history attribution. There are no accounts; identity is local to each device.
 - A **JWT** — issued when a viewer unlocks a password group. Drives become visible only when the viewer holds their `access_group`.
 
+## Closing a menu
+
+Every menu, filter panel and folder picker in Litloft is closed by pressing
+anywhere outside it — and that press only closes it. Whatever sits under your
+finger is *not* activated: dismissing the file `⋮` menu by tapping a card does
+not open that card, and dismissing the sort menu by tapping a folder does not
+walk into it. Press a second time to reach what is underneath.
+
+Escape closes the same menus from the keyboard, and returns focus to the
+control that opened them.
+
+Renaming in place is the deliberate exception. Clicking away from a name you
+are editing **commits** the new name, and the click still does its own job —
+so clicking a second row saves the first and selects the second in one action.
+
 ## What you can do
 
 ### Browse and view

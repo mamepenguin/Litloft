@@ -5,6 +5,7 @@ import { ArrowDownUp, Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { SortField, SortOrder } from "@/types";
 import { isDefaultSort, sortOptionsFor, type SortOption } from "@/components/sortOptions";
+import { DismissScrim } from "@/components/DismissScrim";
 
 interface SortButtonProps {
   sort: SortField;
@@ -34,6 +35,8 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
             ? "bg-bg-card text-text-primary"
             : "text-text-muted hover:text-text-primary"
         }`}
+        aria-haspopup="menu"
+        aria-expanded={open}
         aria-label={t("label")}
       >
         <ArrowDownUp size={16} />
@@ -41,17 +44,20 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
 
       {open && (
         <>
-          <div
-            className="fixed inset-0 z-30 bg-black/30 sm:bg-transparent"
-            aria-hidden="true"
-            onClick={() => setOpen(false)}
-          />
-          <div className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[180px] sm:overflow-visible sm:origin-top-right">
+          <DismissScrim onDismiss={() => setOpen(false)} />
+          <div role="menu" aria-label={t("label")} className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[180px] sm:overflow-visible sm:origin-top-right">
           {sortOptions.map((opt) => {
             const selected = opt.sort === sort && opt.order === order;
             return (
               <button
                 key={`${opt.sort}-${opt.order}`}
+                // The same contract `MenuRadioGroup` gives the identical
+                // rows on the toolbar: a tick drawn as an unlabelled
+                // `<svg>` says which one is on only to people who can see
+                // it, and a `role="menu"` publishes nothing but
+                // menuitem / group / separator children.
+                role="menuitemradio"
+                aria-checked={selected}
                 onClick={() => {
                   onChange(opt.sort, opt.order);
                   setOpen(false);

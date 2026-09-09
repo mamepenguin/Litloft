@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>popup dismissal — layout fixture</title>
+    <!--
+      The compiled globals.css, built by ../build-fixture-css.ts. The scrim
+      is only over the button because *this* stylesheet says `fixed
+      inset-0 z-30`, so every measurement here is a measurement of it.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      Three ways to dismiss a popup, so that the two wrong ones are
+      reproduced in the same run as the right one.
+
+      `shipped` is `DismissScrim`. `scrim-press` is what `ContextMenu`
+      did — a scrim that unmounts on `pointerdown`. `document-press` is
+      what `FileActions`, `AddButton`, `FilterField`, `TrashToolbar`,
+      `SmartFolderSaveButton`, `FolderPicker` and knowledge's
+      `WikiLinkAutocomplete` did — no scrim at all, and a `document`
+      listener on the press.
+
+      `scrimClass` is compared against `MENU_SCRIM` by
+      `popupDismissFixtureParity.test.tsx`, and `dismissEvent` against the
+      event the component actually answers. Without that this page is a
+      test of itself.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "scrimClass": "fixed inset-0 z-30 bg-black/30 sm:bg-transparent",
+        "dismissEvent": "click",
+        "menu": "fixed left-2 top-2 z-40 w-40 rounded-2xl border border-bg-border bg-bg-card p-3 shadow-lg",
+        "underneath": "fixed inset-0 z-0 bg-bg-elevated text-text-primary"
+      }
+    </script>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      // The whole viewport, so that wherever the spec taps is over it. A
+      // real page has a control somewhere under the scrim; which one is
+      // not the point, and a full-bleed target removes the coordinate
+      // from the reasoning.
+      const underneath = document.createElement("button");
+      underneath.type = "button";
+      underneath.id = "underneath";
+      underneath.className = SPEC.underneath;
+      underneath.dataset.clicks = "0";
+      underneath.textContent = "underneath";
+      underneath.addEventListener("click", () => {
+        underneath.dataset.clicks = String(Number(underneath.dataset.clicks) + 1);
+      });
+      document.body.append(underneath);
+
+      const state = document.createElement("div");
+      state.id = "state";
+      state.dataset.dismissed = "0";
+      state.hidden = true;
+      document.body.append(state);
+
+      const menu = document.createElement("div");
+      menu.id = "menu";
+      menu.className = SPEC.menu;
+      menu.textContent = "menu";
+      document.body.append(menu);
+
+      let teardown = () => {};
+      function dismiss() {
+        state.dataset.dismissed = String(Number(state.dataset.dismissed) + 1);
+        menu.remove();
+        scrim?.remove();
+        teardown();
+      }
+
+      let scrim = null;
+      const strategy = location.hash.slice(1) || "shipped";
+
+      if (strategy === "document-press") {
+        // No scrim: nothing between the finger and the page.
+        const onPress = () => dismiss();
+        document.addEventListener("mousedown", onPress);
+        document.addEventListener("touchstart", onPress);
+        teardown = () => {
+          document.removeEventListener("mousedown", onPress);
+          document.removeEventListener("touchstart", onPress);
+        };
+      } else {
+        scrim = document.createElement("div");
+        scrim.id = "scrim";
+        scrim.className = SPEC.scrimClass;
+        document.body.insertBefore(scrim, menu);
+        if (strategy === "scrim-press") {
+          scrim.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            dismiss();
+          });
+        } else {
+          scrim.addEventListener(SPEC.dismissEvent, dismiss);
+        }
+      }
+
+      document.body.dataset.strategy = strategy;
+      document.body.dataset.ready = "1";
+    </script>
+  </body>
+</html>

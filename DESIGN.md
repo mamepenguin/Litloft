@@ -889,6 +889,29 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   and accepts it. Whether measuring should replace any of that is filed as its
   own unit; until it lands, this is one component's behaviour and not a rule
   the tree keeps.
+- **A popup is dismissed on the scrim's `click`, never on the press.** One
+  primitive, `DismissScrim`, and every popup in the tree on it. A tap's `click`
+  is dispatched after `touchend`, against whatever is topmost *then* — so a
+  popup that closes on `pointerdown`, `mousedown` or `touchstart` has taken its
+  scrim away before that moment, and the click hit-tests to whatever the popup
+  was drawn over and runs it. Dismissing a menu must not also activate what is
+  under the finger. A `document` listener with a "was the target inside the
+  menu" test is the same defect written differently: it answers on the press,
+  and the element underneath never stopped being the click's target. A mouse
+  hides one half of this, because cancelling `pointerdown` suppresses the
+  compatibility mouse events — which is how the tree ended up with three
+  behaviours at once.
+
+  The scrim is written where the popup is, never portalled to the body: inside
+  the mobile Bottom Sheet vaul is modal, so a scrim on the body is drawn and
+  inert (§Layering). Its tier is the popover band, under the popup it guards.
+  It carries no name and no role, except where it is the popup's *stated* way
+  out — the over-frame settings panel names its backdrop, because over media
+  there is no page edge to say where the panel stops.
+
+  The exception is a field, not a popup: an inline rename commits on an outside
+  press and lets the click through on purpose, so that clicking a second row
+  while renaming the first both commits and selects.
 - **Where a popup's direction is measured, everything else anchored to the same
   control uses that same answer** — on both axes, and including an error raised
   after the popup has closed. `FileActions`'s error toast is
