@@ -34,6 +34,14 @@
  * **No app is running**, so vaul's transform, the sheet's `pointer-events:
  * none` body and the addon slots are all absent. This is the mechanism at
  * viewport scale, not any particular screen.
+ *
+ * **The retarget cases are mouse-only.** They run `page.mouse.click(…,
+ * { button: "right" })`; Playwright has no long-press gesture that
+ * synthesises `contextmenu`, so the touch path to the same event is not
+ * exercised anywhere. The left-tap strategies above *are* real touch. What
+ * is measured is that `DismissScrim` re-aims a `contextmenu` — whatever
+ * raised it — and the user-facing docs were narrowed to claim only the
+ * right-click, rather than promise a long-press nothing here measures.
  */
 
 import { test, expect } from "@playwright/test";
@@ -103,6 +111,24 @@ async function read(page: import("@playwright/test").Page): Promise<Reading> {
       document.getElementById("underneath")!.dataset.clicks,
     ),
   }));
+}
+
+/**
+ * Let the re-dispatch happen, or fail to.
+ *
+ * Two frames: the handler schedules its dispatch in one
+ * `requestAnimationFrame`, and the second is what guarantees the first has
+ * run before anything is read.
+ */
+async function settleFrames(
+  page: import("@playwright/test").Page,
+): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
 }
 
 async function readContext(
@@ -224,11 +250,19 @@ for (const viewport of VIEWPORTS) {
         test(`${strategy}: ${want.why}`, async ({ page }) => {
           await open(page, strategy);
           await page.mouse.click(TAP.x, TAP.y, { button: "right" });
-          // The re-dispatch is a frame later, so the reading outlives it.
-          await expect
-            .poll(async () => (await readContext(page)).retargetedUnderneath)
-            .toBe(want.retargetedUnderneath);
-          expect((await readContext(page)).dismissed).toBe(want.dismissed);
+
+          // Wait for the frame, *then* read — do not poll. `expect.poll`
+          // returns on its first successful evaluation, so polling a
+          // counter to `0` succeeds immediately, before the re-dispatch
+          // could have raised it. Measured: with that shape, making the
+          // swallow branch retarget left all 24 cases green, and so did
+          // flipping its expectation to 1. A contrast case that passes
+          // either way is not a contrast.
+          await settleFrames(page);
+          expect(await readContext(page)).toEqual({
+            dismissed: want.dismissed,
+            retargetedUnderneath: want.retargetedUnderneath,
+          });
         });
       }
 

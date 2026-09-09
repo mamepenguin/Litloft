@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { DismissScrim } from "@/components/DismissScrim";
 import { getDriveTags } from "@/lib/api";
 import { extractValidTags, parseNote, withTags } from "@/lib/frontmatter";
 import {
@@ -275,6 +276,14 @@ export function EditableTagChips(props: EditableTagChipsProps) {
     [commit, tags, t],
   );
 
+  // One way to end the add-a-tag interaction, so the scrim and `onBlur`
+  // cannot drift into leaving different state behind.
+  const closeInput = useCallback(() => {
+    setAdding(false);
+    setInput("");
+    setError(null);
+  }, []);
+
   const removeTag = useCallback(
     (tagToRemove: string) => {
       commit(tags.filter((x) => x !== tagToRemove));
@@ -342,21 +351,46 @@ export function EditableTagChips(props: EditableTagChipsProps) {
               onCompositionStart={() => setComposing(true)}
               onCompositionEnd={() => setComposing(false)}
               onBlur={() => {
-                setTimeout(() => {
-                  setAdding(false);
-                  setInput("");
-                  setError(null);
-                }, 200);
+                // The delay is for the suggestion rows: `onPointerUp`
+                // fires after `blur`, and closing immediately would
+                // unmount the row mid-press.
+                setTimeout(closeInput, 200);
               }}
               placeholder={t("placeholder")}
               className="w-32 rounded-full bg-bg-card px-2 py-0.5 text-xs text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
             />
             {suggestions.length > 0 && (
-              <div className="absolute top-full left-0 z-10 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg">
+              <>
+              {/* The list is a popup, so it dismisses like every other one:
+                  on the scrim's click, which the scrim absorbs. `onBlur`
+                  below still ends the whole add-a-tag interaction, but it
+                  answers a press that has already reached the page — the
+                  tap that dismissed this list also pressed whatever was
+                  under it.
+
+                  Only while there is a list. With no suggestions there is
+                  no popup, just a focused field, and a click landing
+                  wherever it was aimed is what a field should do
+                  (`InlineNameEditor` is the same trade, written down in
+                  `popup-dismissal.test.ts`). */}
+              <DismissScrim
+                onDismiss={closeInput}
+                // Under the list's own `z-10`, which is the band this
+                // inline chip row works in — see DESIGN.md §Layering on
+                // picking the tier by what the element is.
+                className="fixed inset-0 z-[9]"
+              />
+              <div
+                role="listbox"
+                aria-label={t("placeholder")}
+                className="absolute top-full left-0 z-10 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg"
+              >
                 {suggestions.map((s, i) => (
                   <button
                     key={s}
                     type="button"
+                    role="option"
+                    aria-selected={i === selectedIndex}
                     onMouseDown={(e) => e.preventDefault()}
                     onPointerUp={() => submitTag(s)}
                     className={`block w-full px-3 py-1.5 text-left text-xs ${
@@ -369,6 +403,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
                   </button>
                 ))}
               </div>
+              </>
             )}
           </div>
         ) : (

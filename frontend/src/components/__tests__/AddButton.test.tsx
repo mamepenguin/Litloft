@@ -61,9 +61,12 @@ describe("AddButton", () => {
     // `docs/user-guide/overview.md` tells them it works. Measured before
     // it was wired: the menu stayed open.
     //
-    // Pressed with focus on the trigger rather than at `document`: a
-    // press with no `HTMLElement` target reads as "not editing" to the
-    // provider, so it would pass even with `editingOnly: false` removed.
+    // Focus is moved **into the menu** before the press, which is where a
+    // keyboard user's focus is after arrowing to a row. Pressing with
+    // focus already on the trigger asserts nothing about the focus
+    // return: closing the menu does not move focus, so `toHaveFocus`
+    // passes whether or not the handler restores it. That was measured —
+    // deleting the focus line left three of these green.
     render(
       <ShortcutsProvider>
         <AddButton />
@@ -71,13 +74,41 @@ describe("AddButton", () => {
     );
     const trigger = screen.getByRole("button", { name: /Add/ });
     fireEvent.click(trigger);
-    expect(screen.getByRole("menu")).toBeInTheDocument();
+    const row = screen.getAllByRole("menuitem")[0];
+    row.focus();
+    expect(row).toHaveFocus();
 
-    trigger.focus();
-    fireEvent.keyDown(trigger, { key: "Escape" });
+    fireEvent.keyDown(row, { key: "Escape" });
 
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
+  });
+
+
+  it("closes on Escape even with focus in a text field", () => {
+    // What `editingOnly: false` buys, and the only state that needs it.
+    // Nothing traps focus inside these menus, so Tab walks out of the last
+    // row into whatever follows in the document — a search box, a filter
+    // field. `ShortcutsProvider` treats an INPUT as "editing", and without
+    // the flag a shortcut fires only when nothing is being edited, so
+    // Escape would do nothing there while the menu is still up.
+    //
+    // Measured before this case existed: deleting `editingOnly: false`
+    // left every other assertion green.
+    render(
+      <ShortcutsProvider>
+        <AddButton />
+        <input aria-label="elsewhere" />
+      </ShortcutsProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Add/ }));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+
+    const field = screen.getByLabelText("elsewhere");
+    field.focus();
+    fireEvent.keyDown(field, { key: "Escape" });
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("keeps every way of adding behind the one control", () => {

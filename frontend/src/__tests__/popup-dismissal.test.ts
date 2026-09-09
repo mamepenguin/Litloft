@@ -112,33 +112,56 @@ function withoutComments(text: string): string {
 }
 
 /**
- * What makes a file part of this population.
+ * What a popup **is**, in two independent spellings.
  *
- * The ARIA a popup surface declares, plus the attribute its trigger
- * carries. Deliberately wider than "things that render a scrim": it also
- * catches a menu *row*, a modal dialog, and a file that only opens
- * someone else's panel, so every one of those has to be named below with
- * where its dismissal lives.
+ * Earlier rounds defined this population by how a popup dismissed itself —
+ * an ARIA declaration, then a global pointer listener — and each round a
+ * popup was missed. The reason is structural: dismissal is the property
+ * being *fixed*, so the broken ones are exactly the ones that do not match
+ * the definition. `EditableTagChips`'s tag suggestions were the fifth, and
+ * they escaped all three guards at once: no ARIA beyond an `aria-label`,
+ * no `document` listener (an `onBlur` and a `setTimeout` instead), and no
+ * scrim for the reverse scan to find.
  *
- * `role="menuitem` is a prefix, not a whole attribute. Ended at the quote
- * it missed `role="menuitemradio"` — the spelling this same change
- * introduced into `SortButton` and `TrashToolbar`, which are in the
- * population only because `role="menu"` went onto their panels in the
- * same commit. One attribute the other way and the near-miss would have
- * been the live case. `menuitemcheckbox` rides on the same prefix.
+ * So these say what a popup *is*:
  *
- * `role="option"` and `role="listbox"` have no live example in core — the
- * only listbox in the tree is the knowledge addon's `[[` candidate list.
- * They are here because this is a definition rather than an inventory,
- * and each has a case below that writes it and asserts it is found.
+ *  - **It says it is one.** The ARIA a popup surface declares, plus the
+ *    attribute its trigger carries. `role="menuitem` is a prefix, so
+ *    `menuitemradio` and `menuitemcheckbox` ride on it — ended at the
+ *    quote it missed the spelling this unit itself introduced.
+ *  - **It hangs off its trigger.** `top-full` / `bottom-full` is how an
+ *    anchored surface is drawn against the edge of the control that opened
+ *    it. It is geometry, not behaviour, so no dismissal style can hide it,
+ *    and it is what catches a popup that declares nothing.
  *
- * What no ARIA needle can see is a popup that declares nothing, which is
- * exactly what `SidebarCollectionsSection` was: a `fixed` panel with no
- * `role`, no `aria-haspopup` and bare `<button>` rows. What finds that
- * shape is the dismissal scan below, and it is why `click` is in it.
+ * Wider than "things that render a scrim" on purpose: it also catches a
+ * menu *row*, a modal dialog, and a file that only opens someone else's
+ * panel, so each of those is named below with where its dismissal lives.
+ *
+ * What neither spelling reaches is a popup that declares no ARIA *and* is
+ * positioned only by inline coordinates. `ContextMenu` is that shape and is
+ * in the population by its rows' `role="menuitem"`; one written with
+ * neither would be invisible here. That is the limit, said here rather
+ * than left implied by a claim that the sweep is total.
+ *
+ * **The array is the definition.** `POPUP_NEEDLE` is joined from it and the
+ * cases below iterate it, so a spelling cannot leave the alternation while
+ * its case quietly goes too — measured: deleting `role="listbox"` and
+ * `role="option"` from the regex *and* from a hand-written case list left
+ * the file green.
  */
-const POPUP_NEEDLE =
-  /role="menu"|role="menuitem|role="listbox"|role="option"|role="dialog"|aria-haspopup/;
+const NEEDLES = [
+  'role="menu"',
+  'role="menuitem',
+  'role="listbox"',
+  'role="option"',
+  'role="dialog"',
+  "aria-haspopup",
+  "top-full",
+  "bottom-full",
+] as const;
+
+const POPUP_NEEDLE = new RegExp(NEEDLES.join("|"));
 
 function popupFiles(roots: string[] = [CORE_ROOT]): string[] {
   const out: string[] = [];
@@ -182,6 +205,14 @@ const POPUPS: Record<string, PopupEntry> = {
   "frontend/src/components/ContextMenu.tsx": {
     dismissedIn: "frontend/src/components/ContextMenu.tsx",
     why: "the right-click / long-press menu on a file or folder",
+  },
+  "frontend/src/components/EditableTagChips.tsx": {
+    dismissedIn: "frontend/src/components/EditableTagChips.tsx",
+    why:
+      "the tag suggestion list. It declares no ARIA of its own beyond a " +
+      "label and dismissed on the input's `onBlur`, so it was invisible to " +
+      "every guard that asked how a popup closes — it is here because of " +
+      "the `top-full` it is drawn with",
   },
   "frontend/src/components/FileActions.tsx": {
     dismissedIn: "frontend/src/components/FileActions.tsx",
@@ -333,24 +364,36 @@ describe("Every popup surface in core", () => {
     expect(popupFiles()).toEqual(Object.keys(POPUPS).sort());
   });
 
-  it.each([
-    'aria-haspopup="menu"',
-    'aria-haspopup="dialog"',
-    'role="menu"',
-    'role="menuitem"',
-    // The three the needle used to end one character too early, or not
-    // carry at all. `role="menuitemradio"` is the spelling this same
-    // change put into two files of its own.
-    'role="menuitemradio"',
-    'role="menuitemcheckbox"',
-    'role="listbox"',
-    'role="option"',
-    'role="dialog"',
-  ])("is found by %s", (declaration) => {
-    // Each needle separately, against a tree written for it. Core carries
-    // no `role="listbox"` today — the knowledge addon's candidate list is
-    // the only one in the tree — so that branch has no live example here
-    // and would survive being deleted from the population's definition.
+  it("defines its population in one place", () => {
+    // The count is here so that dropping a spelling is a failure rather
+    // than a shorter list: the alternation and the cases below are built
+    // from the same array, so an author trimming "branches with no live
+    // example" removes both halves at once and nothing else objects.
+    // Measured before this was joined from `NEEDLES`: deleting
+    // `role="listbox"` and `role="option"` from the regex and from a
+    // hand-written case list left the file green.
+    expect(NEEDLES).toHaveLength(8);
+    expect(POPUP_NEEDLE.source.split("|")).toHaveLength(NEEDLES.length);
+  });
+
+  it.each(
+    NEEDLES.map((needle) => [
+      needle,
+      // A whole declaration to write into the fixture. The prefix needle
+      // has no closing quote, and `top-full` / `bottom-full` are classes
+      // rather than attributes.
+      needle.startsWith("role=") || needle.startsWith("aria-")
+        ? `${needle}${needle.endsWith('"') ? "" : 'radio"'}${
+            needle.startsWith("aria-") ? '="menu"' : ""
+          }`
+        : `className="absolute ${needle}"`,
+    ]),
+  )("is found by %s", (_needle, declaration) => {
+    // Each spelling separately, against a tree written for it. Several
+    // have no live example in core — `role="listbox"` and `role="option"`
+    // are the knowledge addon's candidate list, not anything here — so
+    // without a case of its own each is a branch that could be deleted
+    // with every other assertion green.
     const dir = mkdtempSync(join(tmpdir(), "popup-needle-"));
     const file = join(dir, "Sample.tsx");
     writeFileSync(file, `export const x = <div ${declaration} />;\n`);

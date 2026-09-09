@@ -84,6 +84,13 @@ export function SmartFolderSaveButton({
   // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
   // while it is open. `FileActions` carries the same block and the
   // reasoning in full.
+  //
+  // `editingOnly: false` because nothing traps focus inside this menu, so
+  // Tab walks out of the last row into whatever follows in the document.
+  // The provider counts a focused field as "editing", and the default
+  // fires only when nothing is — which would leave Escape inert exactly
+  // there, with the menu still up. The test case for that state is what
+  // makes the flag checkable.
   useShortcuts(
     "smart-folder-menu",
     "Dialog",

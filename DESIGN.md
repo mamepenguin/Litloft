@@ -893,7 +893,7 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   primitive, `DismissScrim`, and every popup in core on it. The addons are
   each their own repository and are named where they stand:
   `intelligence`'s AI menu is correct but hand-written, and `knowledge`'s
-  `[[` candidate list is fixed in that repository ahead of the pointer bump. A tap's `click`
+  `[[` candidate list is fixed and pinned here. A tap's `click`
   is dispatched after `touchend`, against whatever is topmost *then* — so a
   popup that closes on `pointerdown`, `mousedown` or `touchstart` has taken its
   scrim away before that moment, and the click hit-tests to whatever the popup
