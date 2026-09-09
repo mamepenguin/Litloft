@@ -124,6 +124,7 @@ describe("the component fixture's page", () => {
       "bottom-bar",
       "transformed",
       "long-press",
+      "sheet",
     ]);
   });
 });

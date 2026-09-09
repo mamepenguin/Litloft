@@ -270,6 +270,99 @@ test.describe("a tap that dismisses a popup", () => {
   });
 });
 
+/**
+ * The sheet slides in, so every box in it moves for a moment.
+ *
+ * Waits for the drawer to stop moving rather than for the assertion to
+ * start passing: a poll on the assertion returns the first time it
+ * happens to hold, which for a box travelling up through the viewport is
+ * a different claim than "it ends up there".
+ *
+ * Five consecutive frames at the same offset, not two. Two was measured
+ * flaky — vaul applies the transform on the frame after mount, so the
+ * frame pair before the transition starts reads as settled and the run
+ * measures a sheet that has not moved yet.
+ */
+const STILL_FRAMES = 5;
+
+async function sheetSettles(page: Page): Promise<void> {
+  await page.waitForFunction((frames) => {
+    const el = document.querySelector("[data-vaul-drawer]") as HTMLElement | null;
+    if (!el) return false;
+    const w = window as unknown as { tops?: number[] };
+    const tops = (w.tops ??= []);
+    tops.push(el.getBoundingClientRect().top);
+    if (tops.length > frames) tops.shift();
+    return tops.length === frames && new Set(tops).size === 1;
+  }, STILL_FRAMES);
+}
+
+test.describe("a menu drawn inside the Bottom Sheet", () => {
+  /**
+   * Where each box lands, and why it is the box it is.
+   *
+   * Declared per element rather than derived from what the run
+   * observed: `anchored` is on screen because it resolves against the
+   * wrapper it hangs from, `pinned-to-the-screen` is not because
+   * `position: fixed` resolves against `Drawer.Content`'s transform, and
+   * the drawer's own box says how far past the fold that is.
+   */
+  const ONSCREEN = { id: "anchored", onScreen: true };
+  const OFFSCREEN = { id: "pinned-to-the-screen", onScreen: false };
+
+  test("the sheet is really translated, which is what makes the two differ", async ({
+    page,
+  }) => {
+    // The premise. Without a transform on `Drawer.Content` both boxes
+    // resolve against the viewport and the case below passes for the
+    // wrong reason — so the transform is read, and so is the drawer
+    // reaching past the bottom of the screen.
+    await open(page, "sheet");
+    await sheetSettles(page);
+
+    const drawer = await page.evaluate(() => {
+      const el = document.querySelector("[data-vaul-drawer]") as HTMLElement;
+      const box = el.getBoundingClientRect();
+      return {
+        transformed: getComputedStyle(el).transform !== "none",
+        pastTheFold: box.bottom > window.innerHeight,
+      };
+    });
+
+    expect(drawer).toEqual({ transformed: true, pastTheFold: true });
+  });
+
+  for (const { id, onScreen } of [ONSCREEN, OFFSCREEN]) {
+    test(`#${id} is ${onScreen ? "on" : "off"} the screen`, async ({ page }) => {
+      await open(page, "sheet");
+      await sheetSettles(page);
+
+      expect(
+        await page.evaluate((sel) => {
+          const box = document.getElementById(sel)!.getBoundingClientRect();
+          return box.top < window.innerHeight && box.bottom > 0;
+        }, id),
+      ).toBe(onScreen);
+    });
+  }
+
+  test("the anchored menu hangs off its trigger", async ({ page }) => {
+    // Not merely on screen: below the control it belongs to, which is
+    // what "anchored" means and what a box that happened to be on screen
+    // for another reason would not be.
+    await open(page, "sheet");
+    await sheetSettles(page);
+
+    const { trigger, menu } = await page.evaluate(() => {
+      const box = (id: string) => document.getElementById(id)!.getBoundingClientRect();
+      return { trigger: box("trigger"), menu: box("anchored") };
+    });
+
+    expect(menu.top).toBeGreaterThanOrEqual(trigger.bottom);
+    expect(Math.round(menu.left)).toBe(Math.round(trigger.left - 10));
+  });
+});
+
 test.describe("a press that raises a popup", () => {
   test("long-press opens the menu and does not activate the card", async ({
     page,

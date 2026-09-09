@@ -887,11 +887,22 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
 
   Every other anchored popup here states its direction in its class list, and
   this paragraph does not describe them: `FolderPicker`, `AddButton`,
-  `EditableTagChips`, `folder/FilterField` and `trash/TrashToolbar` hang
-  downward unconditionally; `SortButton`, `ToolbarMenu` and the intelligence
-  addon's `FileAIActionsButton` hang downward above `sm` and become a
+  `EditableTagChips`, `folder/FilterField`, `trash/TrashToolbar` and the
+  intelligence addon's `FileAIActionsButton` hang downward unconditionally;
+  `SortButton` and `ToolbarMenu` hang downward above `sm` and become a
   `fixed bottom-4` sheet below it; and `SelectionBar` opens upward
   deliberately, because the bar it hangs from is pinned to the bottom.
+
+  **A menu drawn inside the Bottom Sheet cannot take the `fixed` form**, and
+  that is why the AI menu moved groups. The sheet's `Drawer.Content` carries
+  a transform, so a `fixed` box inside it resolves against the drawer rather
+  than the viewport, and the drawer hangs below the fold by whatever vaul has
+  translated it — a menu pinned to "the bottom of the screen" opens off the
+  bottom of the screen. Anchoring removes the question instead of answering
+  it: `absolute` resolves against the wrapper, which is on screen wherever
+  the sheet is. `e2e-components/popup-dismiss.spec.ts` measures both forms
+  inside a real sheet. The two that keep the `fixed` form are toolbar menus,
+  and no toolbar is drawn inside the sheet.
   `AddButton` even records a measurement of its own menu ending below the fold
   and accepts it. Whether measuring should replace any of that is filed as its
   own unit; until it lands, this is one component's behaviour and not a rule

@@ -33,7 +33,10 @@ import { useState, type ReactElement, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { Trash2 } from "lucide-react";
 
+import { NextIntlClientProvider } from "next-intl";
+
 import { ContextMenu } from "@/components/ContextMenu";
+import { MobileInspectorSheet } from "@/components/MobileInspectorSheet";
 import { DismissScrim } from "@/components/DismissScrim";
 import { useContextMenu } from "@/hooks/useContextMenu";
 
@@ -225,11 +228,78 @@ function LongPress(): ReactElement {
   );
 }
 
+
+/**
+ * The real Bottom Sheet, with a menu drawn inside it both ways.
+ *
+ * `Drawer.Content` carries a transform while it is snapped, which makes
+ * it the containing block for `position: fixed` descendants — so a menu
+ * pinned to "the bottom of the screen" is pinned to the bottom of the
+ * *drawer*, and the drawer hangs below the fold by however far vaul has
+ * translated it. That is a real defect that shipped: the intelligence
+ * addon's AI menu was `fixed inset-x-2 bottom-4` below `sm` and opened
+ * off the bottom of the screen.
+ *
+ * Both forms are drawn together so the difference is a measurement
+ * rather than an argument. The sheet is the real component — vaul, the
+ * real snap arithmetic, the real transform — because the transform is
+ * the whole mechanism and a hand-written box would only reproduce
+ * whatever the fixture author already believed.
+ *
+ * The two menus are not: the popup this was written for lives in
+ * `addons/intelligence`, which is a separate repository behind a pinned
+ * submodule, and a fixture that imported it would be asserting about
+ * whatever commit core happens to point at. So what is measured here is
+ * the *pattern* — anchored against pinned-to-the-screen — and the addon
+ * pins its own class list in its own suite.
+ */
+function Sheet(): ReactElement {
+  return (
+    <NextIntlClientProvider
+      locale="en"
+      messages={{ inspector: { title: "Details", sheetDescription: "Sheet" } }}
+    >
+      <PageControl id="underneath" className="fixed inset-0 z-0 bg-bg-elevated">
+        page
+      </PageControl>
+      <MobileInspectorSheet
+        state="half"
+        onStateChange={() => {}}
+        halfSnap={0.4}
+        peek={null}
+      >
+        <div className="relative flex items-center p-2.5">
+          <button type="button" id="trigger" className="rounded-full px-3 py-1.5">
+            AI
+          </button>
+          {/* What the AI menu is now: anchored to the wrapper above. */}
+          <div
+            id="anchored"
+            role="menu"
+            className="absolute left-0 top-full z-30 mt-1 min-w-[240px] rounded-2xl bg-bg-card py-1 shadow-lg"
+          >
+            anchored
+          </div>
+          {/* What it was: the bottom-sheet form, which resolves against
+              the drawer. Kept so the contrast is measured, not asserted. */}
+          <div
+            id="pinned-to-the-screen"
+            className="fixed inset-x-2 bottom-4 z-40 rounded-2xl bg-bg-card py-1"
+          >
+            fixed
+          </div>
+        </div>
+      </MobileInspectorSheet>
+    </NextIntlClientProvider>
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   plain: Plain,
   "bottom-bar": BottomBar,
   transformed: Transformed,
   "long-press": LongPress,
+  sheet: Sheet,
 };
 
 function App(): ReactElement {
