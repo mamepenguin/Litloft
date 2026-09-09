@@ -39,10 +39,12 @@
  * class list at its own height, not the sheet.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { declareEach } from "../src/test/declareEach";
 
 const FIXTURE_FILE = resolve(__dirname, "fixtures", "file-actions-menu.html");
 const FIXTURE = pathToFileURL(FIXTURE_FILE).href;
@@ -111,29 +113,56 @@ const PHONES = [
 const ITEM_COUNTS = [1, 7, 14];
 
 /**
- * Every strip case this file registers, recorded as it registers it.
+ * Every strip case this file registers, recorded by `declareEach` at the
+ * moment it registers it.
  *
  * The guard below reads *this*, not `PHONES` and `ITEM_COUNTS`. Asserting
  * on the arrays pins what the file declares, and the cases live one
- * indirection further out: `for (const phone of PHONES.slice(0, 1))` takes
- * the suite from 67 to 64 with an array assertion still green, which is
- * three of the six measurements of this menu's geometry deleted in silence.
- * Recording at registration puts the loop inside the thing being checked.
+ * indirection further out: `for (const phone of PHONES.slice(0, 1))` leaves
+ * an array assertion green while half the measurements of this menu's
+ * geometry are deleted in silence.
+ *
+ * Recording the id one statement *above* its registration was the next
+ * hole rather than the repair: the two statements have a seam, and a
+ * `continue` in it shortens neither. `declareEach` registers first and
+ * records the id afterwards, which is the one order in which a skip
+ * cannot leave the two agreeing.
  *
  * Its honest limit is unchanged and is the sibling fixture's too
- * (`justified-grid.spec.ts`, "is exactly the set this file tests"): the
- * expected set is written in this file, so what the guard buys is that
- * removing a case has to disagree with something, not proof from outside.
+ * (`justified-grid.spec.ts`): the expected set is written in this file, so
+ * what the guard buys is that removing a case has to disagree with
+ * something, not proof from outside.
  */
 const registeredStripCases: string[] = [];
 
 const stripCaseId = (phone: (typeof PHONES)[number], items: number) =>
   `${phone.width}x${phone.height} @ ${items}`;
 
+/**
+ * The cross product the strip is measured over, flattened.
+ *
+ * One population rather than a nested pair of loops, because a nested pair
+ * has a seam per level and the helper only takes the registration out of
+ * the one it is given.
+ */
+const STRIP_CASES = PHONES.flatMap((phone) =>
+  ITEM_COUNTS.map((items) => ({ phone, items })),
+);
+
+/**
+ * `test` under the name the helper's `register` parameter has. Handed over
+ * by reference rather than wrapped, so there is no per-case callback with
+ * a registration inside it for a condition to sit in front of.
+ */
+const registerCase: (
+  title: string,
+  body: (args: { page: Page }) => Promise<void>,
+) => void = test;
+
 test("registers exactly the screens and menus this file measures", () => {
   // Both sides enumerated rather than counted, and the expected side
-  // recomputed from the two axes rather than read off the loop — so a
-  // `.slice()` anywhere between the arrays and the `test()` call is red,
+  // recomputed from the two axes rather than read off `STRIP_CASES` — so
+  // a `.slice()` anywhere between the arrays and the registration is red,
   // and so is swapping one height for another.
   expect(registeredStripCases).toEqual(
     PHONES.flatMap((phone) => ITEM_COUNTS.map((n) => stripCaseId(phone, n))),
@@ -162,12 +191,11 @@ test.describe("the file menu on the Bottom Sheet's resting strip", () => {
   // than a quieter measurement.
   test.use({ hasTouch: true });
 
-  for (const phone of PHONES) {
-    for (const items of ITEM_COUNTS) {
-      registeredStripCases.push(stripCaseId(phone, items));
-      test(`hangs off the bottom of a ${phone.label} at ${items} items, and comes back when flipped`, async ({
-        page,
-      }) => {
+  registeredStripCases.push(
+    ...declareEach(STRIP_CASES, registerCase, ({ phone, items }) => ({
+      title: `hangs off the bottom of a ${phone.label} at ${items} items, and comes back when flipped`,
+      id: stripCaseId(phone, items),
+      body: async ({ page }: { page: Page }) => {
         await page.setViewportSize({ width: phone.width, height: phone.height });
         await page.goto(FIXTURE);
 
@@ -218,9 +246,9 @@ test.describe("the file menu on the Bottom Sheet's resting strip", () => {
         // menu plus the 4px `mt-1` / `mb-1`.
         expect(down.menu!.top - down.trigger.bottom).toBeCloseTo(GAP_PX, 1);
         expect(up.trigger.top - up.menu!.bottom).toBeCloseTo(GAP_PX, 1);
-      });
-    }
-  }
+      },
+    })),
+  );
 });
 
 test.describe("the error toast against its column's left edge", () => {

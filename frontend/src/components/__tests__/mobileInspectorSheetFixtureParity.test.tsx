@@ -39,10 +39,21 @@ import {
   SHEET_VISIBLE_HEIGHT,
 } from "@/components/MobileInspectorSheet";
 import { declareEach, expectDistinct } from "@/test/declareEach";
+
 import { InspectorShell } from "@/components/FileDetail/inspector/InspectorShell";
 import { buildInspectorTabs } from "@/components/FileDetail/inspector/tabs";
 import type { InspectorScroll } from "@/components/FileDetail/inspector/InspectorShell";
 import type { SlotEntry } from "@/lib/addons";
+
+/**
+ * vitest's `it`, narrowed to the two arguments the helper uses.
+ *
+ * `it` is overloaded (options objects, `.each`, modifiers), so handing it
+ * over unnarrowed makes the helper infer the options overload rather than
+ * a test body.
+ */
+const registerCase: (title: string, body: () => void | Promise<void>) => void =
+  it;
 
 const REPO_ROOT = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -220,20 +231,25 @@ describe("both forms of the inspector", () => {
     );
   });
 
-  for (const form of FORMS) {
-    compared.push(form.scroll);
-    const [rootKey, headerKey, stripKey, panelKey] = form.keys;
+  compared.push(
+    ...declareEach(FORMS, registerCase, (form) => {
+      const [rootKey, headerKey, stripKey, panelKey] = form.keys;
 
-    it(`declares the ${form.scroll} form's four boxes`, () => {
-      const shell = renderShell(form.scroll);
+      return {
+        title: `declares the ${form.scroll} form's four boxes`,
+        id: form.scroll,
+        body: () => {
+          const shell = renderShell(form.scroll);
 
-      expect(shell.root.dataset.scroll).toBe(form.scroll);
-      expectSameClasses(shell.root.className, str(rootKey));
-      expectSameClasses(shell.header.className, str(headerKey));
-      expectSameClasses(shell.strip.className, str(stripKey));
-      expectSameClasses(shell.panel.className, str(panelKey));
-    });
-  }
+          expect(shell.root.dataset.scroll).toBe(form.scroll);
+          expectSameClasses(shell.root.className, str(rootKey));
+          expectSameClasses(shell.header.className, str(headerKey));
+          expectSameClasses(shell.strip.className, str(stripKey));
+          expectSameClasses(shell.panel.className, str(panelKey));
+        },
+      };
+    }),
+  );
 
   it("declares the tab button, which is what gives the strip its height", () => {
     const shell = renderShell("column");
@@ -268,16 +284,6 @@ describe("both forms of the inspector", () => {
     expect(tokens(str("panelStrip"))).toContain("overflow-x-auto");
   });
 });
-
-/**
- * vitest's `it`, narrowed to the two arguments the helper uses.
- *
- * `it` is overloaded (options objects, `.each`, modifiers), so handing it
- * over unnarrowed makes the helper infer the options overload rather than
- * a test body.
- */
-const registerCase: (title: string, body: () => void | Promise<void>) => void =
-  it;
 
 describe("vaul's snap arithmetic, which the fixture reproduces", () => {
   // Two implementations, not one table read twice: vaul computes the

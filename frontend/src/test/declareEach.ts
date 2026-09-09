@@ -34,8 +34,10 @@
  * is the one order in which a skip cannot leave the two disagreeing:
  * whatever is not registered contributes no id, the returned register is
  * short, and a caller comparing it against a list rebuilt from its own
- * declarations goes red. Same mutation against this shape: 1 failed / 67
- * passed, named `every group ran at every case`.
+ * declarations goes red. The same mutation against this shape fails that
+ * caller's guard instead of passing, and no figure for it is written
+ * here — a count in a comment goes stale without going red, which is the
+ * shape this whole helper exists to remove.
  *
  * ## What it still does not close
  *

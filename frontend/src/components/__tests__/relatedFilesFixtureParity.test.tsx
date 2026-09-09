@@ -67,6 +67,17 @@ vi.mock("next/link", () => ({
 }));
 
 import { RelatedFilesSection } from "../RelatedFilesSection";
+import { declareEach } from "@/test/declareEach";
+
+/**
+ * vitest's `it`, narrowed to the two arguments the helper uses.
+ *
+ * `it` is overloaded (options objects, `.each`, modifiers), so handing it
+ * over unnarrowed makes the helper infer the options overload rather than
+ * a test body.
+ */
+const registerCase: (title: string, body: () => void | Promise<void>) => void =
+  it;
 
 afterEach(cleanup);
 
@@ -218,11 +229,24 @@ describe("the related-files layout fixture's markup table", () => {
     expect(Object.keys(SHAPES)).toHaveLength(SHAPE_COUNT);
   });
 
-  for (const [name, state] of Object.entries(STATES)) {
-    it(`matches the component's ${name} tile`, async () => {
-      expectMarkup(await renderTile(state), SHAPES[name], name);
-    });
-  }
+  const declared = declareEach(
+    Object.entries(STATES),
+    registerCase,
+    ([name, state]) => ({
+      title: `matches the component's ${name} tile`,
+      id: name,
+      body: async () => {
+        expectMarkup(await renderTile(state), SHAPES[name], name);
+      },
+    }),
+  );
+
+  it("rendered a tile for every state the table declares", () => {
+    // The loop, not the table it walks: the guard above compares
+    // `STATES` with `SHAPES` and pins the count, and both stay green
+    // against a loop given `.slice(0, 1)`.
+    expect(declared).toEqual(Object.keys(STATES));
+  });
 
   it("names the host and grid classes the fixture builds", async () => {
     // The fixture writes these two class names by hand. If the component

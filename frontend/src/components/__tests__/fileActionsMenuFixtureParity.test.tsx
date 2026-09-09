@@ -34,6 +34,17 @@ import {
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { deleteFile } from "@/lib/api";
 import type { FileItem } from "@/types";
+import { declareEach } from "@/test/declareEach";
+
+/**
+ * vitest's `it`, narrowed to the two arguments the helper uses.
+ *
+ * `it` is overloaded (options objects, `.each`, modifiers), so handing it
+ * over unnarrowed makes the helper infer the options overload rather than
+ * a test body.
+ */
+const registerCase: (title: string, body: () => void | Promise<void>) => void =
+  it;
 
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({
@@ -228,17 +239,20 @@ describe("the file-actions layout fixture's class lists", () => {
     );
   });
 
-  for (const corner of CORNERS) {
-    comparedCorners.push(cornerId(corner.up, corner.left));
-    it(`declares the menu's ${corner.up} / ${corner.left} class list`, () => {
-      openAt({ up: corner.up === "up", left: corner.left === "left" });
-      expectComposedOf(screen.getByRole("menu").className, [
-        str("menuBase"),
-        str(corner.up),
-        str(corner.left),
-      ]);
-    });
-  }
+  comparedCorners.push(
+    ...declareEach(CORNERS, registerCase, (corner) => ({
+      title: `declares the menu's ${corner.up} / ${corner.left} class list`,
+      id: cornerId(corner.up, corner.left),
+      body: () => {
+        openAt({ up: corner.up === "up", left: corner.left === "left" });
+        expectComposedOf(screen.getByRole("menu").className, [
+          str("menuBase"),
+          str(corner.up),
+          str(corner.left),
+        ]);
+      },
+    })),
+  );
 
   // The toast's, driven through a rejected delete so it is the real one.
   // Two rather than four because it reuses the menu's flags; the guard
@@ -249,26 +263,27 @@ describe("the file-actions layout fixture's class lists", () => {
     { up: false, left: false },
   ];
 
-  for (const corner of TOASTS) {
-    comparedToasts.push(
-      cornerId(corner.up ? "up" : "down", corner.left ? "left" : "right"),
-    );
-    it(`declares the toast's ${corner.up ? "upward" : "downward"} / ${
-      corner.left ? "left" : "right"
-    } class list`, async () => {
-      vi.mocked(deleteFile).mockRejectedValue(new Error("nope"));
-      openAt(corner);
-      fireEvent.click(screen.getByText("Move to Trash"));
-      fireEvent.click(screen.getByText("Confirm"));
+  comparedToasts.push(
+    ...declareEach(TOASTS, registerCase, (corner) => ({
+      title: `declares the toast's ${corner.up ? "upward" : "downward"} / ${
+        corner.left ? "left" : "right"
+      } class list`,
+      id: cornerId(corner.up ? "up" : "down", corner.left ? "left" : "right"),
+      body: async () => {
+        vi.mocked(deleteFile).mockRejectedValue(new Error("nope"));
+        openAt(corner);
+        fireEvent.click(screen.getByText("Move to Trash"));
+        fireEvent.click(screen.getByText("Confirm"));
 
-      const toast = await screen.findByText("Failed to delete");
-      expectComposedOf(toast.className, [
-        str("toastBase"),
-        str(corner.up ? "up" : "down"),
-        str(corner.left ? "left" : "right"),
-      ]);
-    });
-  }
+        const toast = await screen.findByText("Failed to delete");
+        expectComposedOf(toast.className, [
+          str("toastBase"),
+          str(corner.up ? "up" : "down"),
+          str(corner.left ? "left" : "right"),
+        ]);
+      },
+    })),
+  );
 
   it("declares the resting strip the spec puts the trigger inside", () => {
     // The strip is the reason there is nothing below the trigger, so the

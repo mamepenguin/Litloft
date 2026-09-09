@@ -49,9 +49,11 @@
  * phone" claim was green. It was false at every real phone height.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { declareEach } from "../src/test/declareEach";
 
 const FIXTURE = pathToFileURL(
   resolve(__dirname, "fixtures", "addon-policy.html"),
@@ -82,6 +84,18 @@ const APP_TABLE_HEIGHT = 548;
  * wrong: `height: 812` was picked, and 812 is one of the few values where
  * the convenient answer is the true one.
  */
+/**
+ * `test` under the name `declareEach`'s `register` parameter has.
+ *
+ * Passed to the helper by reference rather than wrapped, so there is no
+ * per-case callback with a registration inside it for a condition to sit
+ * in front of.
+ */
+const registerCase: (
+  title: string,
+  body: (args: { page: Page }) => Promise<void>,
+) => void = test;
+
 const HEIGHTS: { height: number; label: string; innerScroll: boolean }[] = [
   { height: 667, label: "iPhone SE viewport", innerScroll: true },
   { height: 715, label: "a phone with browser chrome", innerScroll: true },
@@ -216,38 +230,60 @@ test.describe("what the cap does at each real viewport height", () => {
   // arithmetic, declared per height. `innerScroll` is written out per row
   // and not computed from the measurement — an expectation derived from
   // the observation would agree with whatever the app did.
-  expect(HEIGHTS).toHaveLength(5);
+  const declared = declareEach(
+    HEIGHTS,
+    registerCase,
+    ({ height, label, innerScroll }) => ({
+      title: `${height}px (${label})`,
+      id: `${height}:${innerScroll ? "inner" : "page"}`,
+      body: async ({ page }: { page: Page }) => {
+        const m = await layout(page, { width: 700, height });
 
-  for (const { height, label, innerScroll } of HEIGHTS) {
-    test(`${height}px (${label})`, async ({ page }) => {
-      const m = await layout(page, { width: 700, height });
+        // The mechanism, at every height: the ceiling is 70% of the
+        // window.
+        expect(m.capPx).toBeCloseTo(height * 0.7, 0);
+        // And the consequence, declared per height rather than derived:
+        // the box scrolls exactly where the table is taller than the
+        // ceiling, and the app's table is 548px.
+        expect(m.scrollsVertically).toBe(innerScroll);
+        expect(height * 0.7 < APP_TABLE_HEIGHT).toBe(innerScroll);
+        // Either way the head is where it should be: at the top of the
+        // box when that box scrolls, and at the top of the table when it
+        // does not.
+        expect(m.headTop).toBe(0);
+      },
+    }),
+  );
 
-      // The mechanism, at every height: the ceiling is 70% of the window.
-      expect(m.capPx).toBeCloseTo(height * 0.7, 0);
-      // And the consequence, declared per height rather than derived:
-      // the box scrolls exactly where the table is taller than the
-      // ceiling, and the app's table is 548px.
-      expect(m.scrollsVertically).toBe(innerScroll);
-      expect(height * 0.7 < APP_TABLE_HEIGHT).toBe(innerScroll);
-      // Either way the head is where it should be: at the top of the box
-      // when that box scrolls, and at the top of the table when it does
-      // not.
-      expect(m.headTop).toBe(0);
-    });
-  }
+  test("declared a case at every height, with what it expects there", () => {
+    // The register the loop actually produced, against a set written out
+    // here. `expect(HEIGHTS).toHaveLength(5)` catches the table being
+    // halved; it stays green when the *loop* is, which is the failure one
+    // line below it. `declareEach` records an id only after the
+    // registration, so a skipped case is missing from this list.
+    expect(declared).toEqual([
+      "667:inner",
+      "715:inner",
+      "745:inner",
+      "807:page",
+      "863:page",
+    ]);
+  });
 });
 
 test.describe("the columns still reach a narrow screen", () => {
   /**
-   * Both phone widths, and the count is declared: halving this list is
-   * "shrinking the measured scope without moving the expected count",
-   * which detector rule 1 names and which this suite could do silently.
+   * Both phone widths, enumerated in the guard below rather than counted
+   * here: "shrinking the measured scope without moving the expected
+   * count" is what detector rule 1 names, and a length pin on this array
+   * only sees it happen to the array.
    */
   const WIDTHS = [375, 430];
-  expect(WIDTHS).toHaveLength(2);
 
-  for (const width of WIDTHS) {
-    test(`${width}px scrolls sideways, and vertically too on a phone's height`, async ({ page }) => {
+  const declared = declareEach(WIDTHS, registerCase, (width) => ({
+    title: `${width}px scrolls sideways, and vertically too on a phone's height`,
+    id: String(width),
+    body: async ({ page }: { page: Page }) => {
       const m = await layout(page, { width, height: 667 });
 
       expect(m.scrollsHorizontally).toBe(true);
@@ -257,6 +293,13 @@ test.describe("the columns still reach a narrow screen", () => {
       // labelled, which is the whole reason the cap is there.
       expect(m.scrollsVertically).toBe(true);
       expect(m.headTop).toBe(0);
-    });
-  }
+    },
+  }));
+
+  test("declared a case at both phone widths", () => {
+    // Written out here, so halving the list and halving the loop both
+    // have to disagree with it. The `toHaveLength(2)` that stood here
+    // only caught the first of those.
+    expect(declared).toEqual(["375", "430"]);
+  });
 });

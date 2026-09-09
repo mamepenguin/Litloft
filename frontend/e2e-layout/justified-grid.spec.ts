@@ -63,12 +63,13 @@
  * parity test knows about the two that exist.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { FLIP_DURATION_MS } from "../src/hooks/useJustifiedFlip";
+import { declareEach } from "../src/test/declareEach";
 
 const FIXTURE_FILE = resolve(__dirname, "fixtures", "justified-grid.html");
 const FIXTURE = pathToFileURL(FIXTURE_FILE).href;
@@ -107,6 +108,20 @@ const JG_MAX_STRETCH = 2.5;
 const JG_TAIL_GROW = 9999;
 
 const ceilingAt = (rowH: number) => rowH * JG_MAX_STRETCH;
+
+/**
+ * `test` under the name `declareEach`'s `register` parameter has.
+ *
+ * Handed to the helper by reference rather than wrapped, so there is no
+ * per-case callback with a registration inside it for a condition to sit
+ * in front of. The describes below each pass their own table and compare
+ * what came back against a set written out here — pinning the table is
+ * not observing the loop that walks it.
+ */
+const registerCase: (
+  title: string,
+  body: (args: { page: Page }) => Promise<void>,
+) => void = test;
 
 type Tree = { tag: string; class: string; children: Tree[] };
 
@@ -259,8 +274,10 @@ test.describe("the row height the container query picks", () => {
     { width: 1469, rowH: JG_ROW_H_WIDE },
   ];
 
-  for (const { width, rowH } of cases) {
-    test(`is ${rowH}px on a ${width}px grid`, async ({ page }) => {
+  const declared = declareEach(cases, registerCase, ({ width, rowH }) => ({
+    title: `is ${rowH}px on a ${width}px grid`,
+    id: `${width}->${rowH}`,
+    body: async ({ page }: { page: Page }) => {
       const cells = await layout(page, { ratios: [1], width });
 
       expect(cells).toHaveLength(1);
@@ -270,8 +287,21 @@ test.describe("the row height the container query picks", () => {
         "lone cell width",
       );
       expectPx(cells[0].height, cells[0].width, "lone cell height");
-    });
-  }
+    },
+  }));
+
+  test("declared a case on each side of the query", () => {
+    // Written out rather than mapped off `cases`, so a row deleted from
+    // the table disagrees with it — and `declareEach` records each id
+    // only after its registration, so a case dropped inside the loop
+    // shortens this list rather than leaving it full.
+    expect(declared).toEqual([
+      `420->${JG_ROW_H_NARROW}`,
+      `${JG_CONTAINER_BREAKPOINT - 1}->${JG_ROW_H_NARROW}`,
+      `${JG_CONTAINER_BREAKPOINT}->${JG_ROW_H_WIDE}`,
+      `1469->${JG_ROW_H_WIDE}`,
+    ]);
+  });
 });
 
 /**
@@ -320,11 +350,33 @@ test.describe("a cell is the shape of its own ratio", () => {
     { width: 1469, rowH: JG_ROW_H_WIDE, clamped: 0 },
   ];
 
-  for (const { width, rowH, clamped } of cases) {
-    test(`at every ratio on a ${width}px grid`, async ({ page }) => {
-      expectRatios(await layout(page, { ratios: RATIOS, width }), rowH, clamped);
-    });
-  }
+  const declared = declareEach(
+    cases,
+    registerCase,
+    ({ width, rowH, clamped }) => ({
+      title: `at every ratio on a ${width}px grid`,
+      id: `${width}->${rowH}/${clamped}`,
+      body: async ({ page }: { page: Page }) => {
+        expectRatios(
+          await layout(page, { ratios: RATIOS, width }),
+          rowH,
+          clamped,
+        );
+      },
+    }),
+  );
+
+  test("declared a case at every width, with its clamp count", () => {
+    // The clamp counts are in the ids, so this is also where swapping one
+    // width's expected count for another's has to disagree.
+    expect(declared).toEqual([
+      `420->${JG_ROW_H_NARROW}/0`,
+      `640->${JG_ROW_H_WIDE}/1`,
+      `900->${JG_ROW_H_WIDE}/0`,
+      `1200->${JG_ROW_H_WIDE}/0`,
+      `1469->${JG_ROW_H_WIDE}/0`,
+    ]);
+  });
 });
 
 /**
@@ -345,23 +397,32 @@ test.describe("a cell is the shape of its own ratio", () => {
  * so the width sweep above stays on the common shape.
  */
 test.describe("every declared cell shape", () => {
+  const declaredShapes = declareEach(
+    Object.keys(SHAPES),
+    registerCase,
+    (shape) => ({
+      title: `${shape} (${SHAPES[shape].source}) is the shape of its own ratio`,
+      id: shape,
+      body: async ({ page }: { page: Page }) => {
+        const cells = await layout(page, {
+          ratios: RATIOS,
+          width: 1200,
+          shapes: RATIOS.map(() => shape),
+        });
+        for (const cell of cells) expectShape(cell, shape);
+        expectRatios(cells, JG_ROW_H_WIDE, 0);
+      },
+    }),
+  );
+
   test("is exactly the set this file tests", () => {
     expect(Object.keys(SHAPES)).toHaveLength(SHAPE_COUNT);
+    // And the loop that walks it, not only the table it walks: pinning
+    // `Object.keys(SHAPES)` stays green against `.slice(0, 1)` one line
+    // below it. The register `declareEach` hands back is short whenever a
+    // shape was not declared, which is what this second half reads.
+    expect(declaredShapes).toEqual(Object.keys(SHAPES));
   });
-
-  for (const shape of Object.keys(SHAPES)) {
-    test(`${shape} (${SHAPES[shape].source}) is the shape of its own ratio`, async ({
-      page,
-    }) => {
-      const cells = await layout(page, {
-        ratios: RATIOS,
-        width: 1200,
-        shapes: RATIOS.map(() => shape),
-      });
-      for (const cell of cells) expectShape(cell, shape);
-      expectRatios(cells, JG_ROW_H_WIDE, 0);
-    });
-  }
 
   /**
    * And mixed, which is what an archive folder actually draws: an
@@ -447,45 +508,60 @@ test.describe("lines fill the grid", () => {
     },
   ];
 
-  for (const { name, width, ratios, filledLines, lastLine } of cases) {
-    test(`with ${name}`, async ({ page }) => {
-      const cells = await layout(page, { ratios, width });
-      const grid = await page.evaluate(() => window.measureGrid());
+  const declared = declareEach(
+    cases,
+    registerCase,
+    ({ name, width, ratios, filledLines, lastLine }) => ({
+      title: `with ${name}`,
+      id: `${name} @ ${width}: ${filledLines}+${lastLine}`,
+      body: async ({ page }: { page: Page }) => {
+        const cells = await layout(page, { ratios, width });
+        const grid = await page.evaluate(() => window.measureGrid());
 
-      expect(cells).toHaveLength(ratios.length);
-      expect(grid.gap).toBe(JG_GAP);
-      expectPx(grid.width, width, "grid width");
+        expect(cells).toHaveLength(ratios.length);
+        expect(grid.gap).toBe(JG_GAP);
+        expectPx(grid.width, width, "grid width");
 
-      const lines = new Map<number, Cell[]>();
-      for (const cell of cells) {
-        const key = Math.round(cell.top * 2) / 2;
-        lines.set(key, [...(lines.get(key) ?? []), cell]);
-      }
-      const tops = [...lines.keys()].sort((a, b) => a - b);
-      expect(tops).toHaveLength(filledLines + 1);
+        const lines = new Map<number, Cell[]>();
+        for (const cell of cells) {
+          const key = Math.round(cell.top * 2) / 2;
+          lines.set(key, [...(lines.get(key) ?? []), cell]);
+        }
+        const tops = [...lines.keys()].sort((a, b) => a - b);
+        expect(tops).toHaveLength(filledLines + 1);
 
-      for (const top of tops.slice(0, -1)) {
-        const line = lines.get(top)!;
-        const spanned =
-          line.reduce((sum, c) => sum + c.width, 0) + JG_GAP * (line.length - 1);
-        expectPx(spanned, grid.width, `line at y=${top}`);
-      }
+        for (const top of tops.slice(0, -1)) {
+          const line = lines.get(top)!;
+          const spanned =
+            line.reduce((sum, c) => sum + c.width, 0) + JG_GAP * (line.length - 1);
+          expectPx(spanned, grid.width, `line at y=${top}`);
+        }
 
-      // The last line keeps every cell at its basis: `.justified-grid-tail`
-      // takes the slack so two leftover pictures do not blow up to half a
-      // row each and read as the most important ones in the folder.
-      const last = lines.get(tops[tops.length - 1])!;
-      expect(last).toHaveLength(lastLine);
-      const expected = unstretchedWidths(
-        last.map((cell) => cell.ratio),
-        JG_ROW_H_WIDE,
-        grid.width,
-      );
-      last.forEach((cell, i) => {
-        expectPx(cell.width, expected[i], `last line cell ${i}`);
-      });
-    });
-  }
+        // The last line keeps every cell at its basis: `.justified-grid-tail`
+        // takes the slack so two leftover pictures do not blow up to half a
+        // row each and read as the most important ones in the folder.
+        const last = lines.get(tops[tops.length - 1])!;
+        expect(last).toHaveLength(lastLine);
+        const expected = unstretchedWidths(
+          last.map((cell) => cell.ratio),
+          JG_ROW_H_WIDE,
+          grid.width,
+        );
+        last.forEach((cell, i) => {
+          expectPx(cell.width, expected[i], `last line cell ${i}`);
+        });
+      },
+    }),
+  );
+
+  test("declared a case for each line-breaking shape", () => {
+    // The line counts ride in the ids, so this is where a case that lost
+    // its `filledLines` has to disagree as well as one that was dropped.
+    expect(declared).toEqual([
+      "equal ratios @ 1216: 2+2",
+      "mixed ratios @ 1216: 3+1",
+    ]);
+  });
 });
 
 /**

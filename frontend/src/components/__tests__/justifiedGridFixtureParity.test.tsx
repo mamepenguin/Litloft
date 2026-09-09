@@ -120,6 +120,17 @@ vi.mock("@/lib/api", () => ({
 
 import { FileGrid } from "../FileGrid";
 import { ArchiveEntryGrid } from "../archive/ArchiveEntryGrid";
+import { declareEach } from "@/test/declareEach";
+
+/**
+ * vitest's `it`, narrowed to the two arguments the helper uses.
+ *
+ * `it` is overloaded (options objects, `.each`, modifiers), so handing it
+ * over unnarrowed makes the helper infer the options overload rather than
+ * a test body.
+ */
+const registerCase: (title: string, body: () => void | Promise<void>) => void =
+  it;
 
 /** One row of the table the fixture builds its cells from. */
 type Markup = {
@@ -369,11 +380,22 @@ describe("the layout fixture's markup table", () => {
   });
 
   describe("against JustifiedFileCell", () => {
-    for (const state of PHOTO_STATES) {
-      it(`renders ${state.shape} exactly as the table declares it`, () => {
+    const declared = declareEach(PHOTO_STATES, registerCase, (state) => ({
+      title: `renders ${state.shape} exactly as the table declares it`,
+      id: state.shape,
+      body: () => {
         expectMarkup(renderPhotoCell(state), SHAPES[state.shape], state.shape);
-      });
-    }
+      },
+    }));
+
+    it("rendered every photo shape the table declares", () => {
+      // What the loop registered, not what the table holds. The guard
+      // above pins `PHOTO_STATES` against the fixture's own key set; both
+      // stay green against a loop handed `.slice(0, 1)`, and `declareEach`
+      // records an id only after its registration, so a case that was
+      // never declared is missing from here.
+      expect(declared).toEqual(PHOTO_STATES.map((s) => s.shape));
+    });
 
     it("covers every class list the cell can carry", () => {
       const rendered = PHOTO_STATES.map((state) => {
@@ -391,14 +413,20 @@ describe("the layout fixture's markup table", () => {
   });
 
   describe("against ArchiveEntryCard", () => {
-    for (const state of ARCHIVE_STATES) {
-      it(`renders ${state.shape} exactly as the table declares it`, () => {
+    const declared = declareEach(ARCHIVE_STATES, registerCase, (state) => ({
+      title: `renders ${state.shape} exactly as the table declares it`,
+      id: state.shape,
+      body: () => {
         expectMarkup(
           renderArchiveCell(state.clickable),
           SHAPES[state.shape],
           state.shape,
         );
-      });
-    }
+      },
+    }));
+
+    it("rendered every archive shape the table declares", () => {
+      expect(declared).toEqual(ARCHIVE_STATES.map((s) => s.shape));
+    });
   });
 });

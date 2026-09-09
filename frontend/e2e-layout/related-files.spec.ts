@@ -321,13 +321,16 @@ test.describe("no width produces a tile narrower than the rail's single column",
   ];
   const SWEPT = [...new Set(WIDTHS)].sort((a, b) => a - b);
 
-  // The population, pinned to a number written out rather than to its own
-  // length. Everything above is spread from `SURFACES`, so a surface
-  // losing a width — or two of them collapsing onto one value, which the
-  // `Set` would swallow — moves the sweep and nothing else. Thirteen is
-  // the count this list has to keep: adding a surface width means saying
-  // so here.
-  expect(expectDistinct(SWEPT)).toEqual({ unique: 13, total: 13 });
+  // The population, pinned to numbers written out rather than to its own
+  // length — and pinned *before* the `Set`, which is the only side of it
+  // where the two halves differ. Everything above is spread from
+  // `SURFACES`, so a surface losing a width shortens `total`, and two of
+  // them collapsing onto one value drops `unique` while `total` holds
+  // still; downstream of the `Set` that second failure has already been
+  // swallowed and `unique === total` for every possible `WIDTHS`.
+  // Thirteen is the count this list has to keep: adding a surface width
+  // means saying so here.
+  expect(expectDistinct(WIDTHS)).toEqual({ unique: 13, total: 13 });
 
   // And what the loop registered, not what it was asked to register.
   // Pinning the population above does not observe the loop: `if (width >

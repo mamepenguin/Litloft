@@ -9,10 +9,20 @@
  * that way is held by whatever it pins itself, not by this file.
  *
  * So what follows is about the helper: a fake `register` stands in for
- * `test` / `it`, and the cases assert count, order, bodies, and that an
- * id exists only for a member that was registered. Measured before this
- * file existed: a single `if (…) return;` inside the map dropped 18 of 73
- * browser cases with every register green.
+ * `test` / `it`, and the cases assert count, order, the bodies handed
+ * over, and a population wide enough to contain every caller's literal.
+ * Measured before this file existed: a single `if (…) return;` inside the
+ * map dropped 18 of 73 browser cases with every register green.
+ *
+ * What no case here holds is the *order* of the two statements inside the
+ * helper — the property the third repair added. `ids` is a function-local
+ * returned after the loop, so with no skip in that body both orders
+ * produce the same pair, and a `register` that throws, a `spec` that
+ * throws and a lazy `items` iterable all leave it unobservable. What the
+ * order buys shows up as a mutation, and what goes red for it is the
+ * callers' registers rather than this file. Named here rather than
+ * asserted, because a case wearing the name of a property it does not
+ * hold is the defect this helper exists to remove.
  *
  * These are decisions about calls, not about anything rendered, so jsdom
  * laying nothing out is irrelevant here.
@@ -45,40 +55,18 @@ describe("declareEach", () => {
 
     // The count and the order, written out rather than derived from what
     // the runner happened to receive — deriving the expectation from the
-    // observation is what cannot catch a deletion.
+    // observation is what cannot catch a deletion, and two lists compared
+    // with each other agree at every length they shorten to together.
+    //
+    // The title and the id are given different shapes on purpose, so
+    // `ids.push(title)` in place of `ids.push(id)` — the confusion the
+    // split exists to prevent — is red here.
     expect(runner.calls.map((c) => c.title)).toEqual([
       "title for a",
       "title for b",
       "title for c",
     ]);
     expect(ids).toEqual(["id:a", "id:b", "id:c"]);
-  });
-
-  it("returns an id for a member only when it registered that member", () => {
-    // The property the three earlier repairs did not have. A member that
-    // is skipped must not contribute an id, or the register it feeds says
-    // a test exists that does not — which is what an id produced by the
-    // shape that iterates (`items.map(… return id)`) always does, since
-    // the skip is the return.
-    const runner = fakeRunner();
-
-    const ids = declareEach(ITEMS, runner.register, (item) => ({
-      title: item,
-      id: item,
-      body: () => item,
-    }));
-
-    // Written out rather than compared with each other: two lists that
-    // shorten together agree at every length.
-    expect(runner.calls.map((c) => c.title)).toEqual(["a", "b", "c"]);
-    expect(ids).toEqual(["a", "b", "c"]);
-
-    // No case here holds the *ordering* of the two statements inside the
-    // helper, and none can: with no skip in that body both orders
-    // produce this same pair, and nothing outside the helper can watch
-    // the ids array grow. What the order buys is only visible as a
-    // mutation — a skip in the helper's body — and what goes red for it
-    // is the callers' registers, not this file.
   });
 
   it("hands the runner the body the spec built, not a stand-in", () => {

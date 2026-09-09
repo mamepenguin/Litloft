@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { declareEach } from "@/test/declareEach";
+
 /**
  * Guards the Web Storage shim installed by `src/test/setup.ts`.
  *
@@ -21,9 +23,20 @@ import { describe, expect, it, vi } from "vitest";
  * jsdom's Proxy and the other half against an object literal, so neither
  * regression can land quietly.
  */
+
+/**
+ * `describe`, narrowed to the two arguments the helper uses — the
+ * registration here is a whole suite per storage, not a single case.
+ */
+const registerSuite: (title: string, body: () => void) => void = describe;
+
+const STORAGES = ["localStorage", "sessionStorage"] as const;
+
 describe("test Web Storage shim", () => {
-  for (const name of ["localStorage", "sessionStorage"] as const) {
-    describe(name, () => {
+  const declared = declareEach(STORAGES, registerSuite, (name) => ({
+    title: name,
+    id: name,
+    body: () => {
       const storage = () => globalThis[name];
 
       it("dispatches through a spy installed on the instance", () => {
@@ -62,8 +75,17 @@ describe("test Web Storage shim", () => {
         // What makes the prototype patch above reach this object.
         expect(storage()).toBeInstanceOf(Storage);
       });
-    });
-  }
+    },
+  }));
+
+  it("declared a suite for both storages", () => {
+    // Written out rather than mapped off `STORAGES`, so shortening the
+    // table and shortening the loop both have to disagree with it. A
+    // walked-back loop here drops one storage's five cases in silence:
+    // nothing else in this file mentions `sessionStorage` by name except
+    // the two cases at the end, which pass against a shim that has it.
+    expect(declared).toEqual(["localStorage", "sessionStorage"]);
+  });
 
   it("shares one prototype between local and session storage", () => {
     // listSnapshot's quota test patches Storage.prototype.setItem and expects
