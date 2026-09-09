@@ -131,27 +131,28 @@ export const REQUIRED = [
   // the screen and a sticky tab strip inside the one box that scrolls.
   // Every rule below is load-bearing for a different case, and each one's
   // absence would be read as a finding about the sheet rather than about
-  // an empty sheet: `.h-\[90vh\]` is the drawer the overhang is arithmetic
-  // on; `overflow-auto` is the only scroller, without which nothing
-  // scrolls anywhere and "the end is on screen" passes for the wrong
-  // reason; `min-h-0` and `flex-1` are what let that scroller be shorter
+  // an empty sheet: `overflow-auto` is the only scroller, without which
+  // nothing scrolls anywhere and "the end is on screen" passes for the
+  // wrong reason; `min-h-0` and `flex-1` are what let that scroller be shorter
   // than its content inside a flex column; `top-0` is the sticky offset,
   // and a strip with `top: auto` is not sticky to anything; `bg-bg-card`
   // is the ground the opacity case asserts; and `overflow-x-auto` is what
   // makes the strip a scroll container in both axes, which is the reason
   // the scrolling box is named rather than counted.
   //
-  // The first is named above as the compiled selector rather than as the
-  // class, and deliberately. Tailwind scans this file too, so a class
-  // spelled bare in a comment is itself a source for that utility, after
-  // which the needle below cannot go missing. Measured: with the class
-  // taken out of both the component and the fixture, the sheet still
-  // carried the rule and the mobile cases failed on their own numbers
-  // instead of the setup naming the sheet. The other six are utilities the
-  // tree writes in dozens of places and are present either way; this one is
-  // arbitrary-valued and used twice, which is what made it the one that
-  // could actually be absent.
-  ".h-\\[90vh\\] {",
+  // The drawer's own height is not among them any more. It is written on
+  // the element in px, off the viewport vaul solves its snaps in, so
+  // there is no arbitrary-valued height utility on it to require — and a
+  // `vh` class there would be the defect rather than a missing rule.
+  //
+  // Every needle in this file is written as the compiled selector rather
+  // than as the class, and deliberately: Tailwind scans this file too, so
+  // a class spelled bare in a comment is itself a source for that utility,
+  // after which the needle for it cannot go missing. Measured on
+  // `develop`, against the height utility this list used to carry: with
+  // the class taken out of both the component and the fixture, the sheet
+  // still carried the rule and the mobile cases failed on their own
+  // numbers instead of the setup naming the sheet.
   ".overflow-auto {",
   ".min-h-0 {",
   ".flex-1 {",
@@ -159,10 +160,9 @@ export const REQUIRED = [
   ".bg-bg-card {",
   ".overflow-x-auto {",
   // `popup-dismiss.spec.ts` taps through a scrim that is only over the
-  // page because of these three. Without them the scrim has no box, the
-  // tap reaches the button in every strategy, and the case that says the
-  // shipped one absorbs it goes red naming a click count — not the empty
-  // sheet that caused it.
+  // page because of these three. Without them the scrim has no box, and a
+  // case that reads a click count goes red naming the count rather than
+  // the empty sheet that caused it.
   //
   // `.inset-0` and `.z-30` carry the brace for the reason `.mt-1` does:
   // `.inset-0` is satisfied by `.inset-0\.5` and `.z-30` by nothing today,
@@ -171,14 +171,43 @@ export const REQUIRED = [
   ".fixed {",
   ".inset-0 {",
   ".z-30 {",
-  // The bar the `chrome` strategies write after the scrim declares this
-  // tier, and the pair only measures anything while it does: with no rule
-  // the bar has no stacking order of its own, the shipped case passes on
-  // document order and the low-scrim contrast passes for the wrong reason.
-  // Like the six utilities above and unlike the arbitrary-valued one, the
-  // tree writes it in dozens of places, so it is here for the diagnosis
-  // rather than because it could plausibly go missing.
+  // The tiers the four *arrangements* are made of: a `z-10` bar written
+  // after the scrim, a `z-50` bar pinned to the bottom, and the `z-20` box
+  // the nested arrangement puts the scrim inside. Each pair of cases is a
+  // contrast between two stacking orders, so a missing rule collapses the
+  // pair into one page and the contrast stops being a contrast. Like the
+  // common utilities above and unlike the arbitrary-valued ones, the tree
+  // writes all three in dozens of places: they are here for the diagnosis
+  // rather than because they could plausibly go missing.
   ".z-10 {",
+  ".z-20 {",
+  ".z-50 {",
+  ".bottom-0 {",
+  // Unit D measures the player the sheet's `half` is derived from. The
+  // sticky rule is the premise of every one of those cases — without it
+  // the player is in flow, scrolls away under the sheet, and "it stayed
+  // whole" would be a claim about a box that had left the screen.
+  "[data-sheet-snap] .media-detail-player {",
+  // And the canvas it travels inside. `h-12` gives the page row the
+  // height the player starts below; a page row of nothing puts the
+  // player at the viewport top, where a fixed snap would clear it too
+  // and the replaced-arrangement cases would pass for the wrong reason.
+  ".h-12 {",
+  // The width cap is what makes a phone held sideways draw a player as
+  // tall as its own scrollport, which is the viewport where the derived
+  // snap has nothing to offer and hands back the fixed fraction. Without
+  // this rule the landscape case draws an uncapped player and measures a
+  // shape the app does not have.
+  '[data-sheet-snap] .media-detail-player[data-framed="true"] {',
+  // And the padding the same surface takes off the host, which is what
+  // leaves the sticky player no travel. Compiled away, the player starts
+  // `p-4` below the scrollport, drifts by it, and the case asserting one
+  // bottom edge for the whole of a scroll goes red naming a position
+  // rather than a missing rule.
+  "[data-sheet-snap] .media-detail-host {",
+  // The host's own padding, which is the other half of that: the rule
+  // above is a correction to `p-4` and cannot be read without it.
+  ".p-4 {",
   // `list-row-furniture.spec.ts` measures touch targets and a name column
   // under `@media (pointer: coarse)`. Every one of these is a *coarse-only*
   // declaration, which is the kind a missing sheet hides best: without them

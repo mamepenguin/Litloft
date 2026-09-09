@@ -13,16 +13,17 @@
  * row ship once already, and every claim below is about what the shell
  * does with what it is handed.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname } from "node:path";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
 import { inspectorOpenStorageKey } from "@/lib/inspectorOpenStore";
-import {
-  SHEET_PEEK_PX,
-  SHEET_VISIBLE_HEIGHT,
-} from "@/components/MobileInspectorSheet";
+import { SHEET_PEEK_PX, SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
+import { SHEET_VISIBLE_HEIGHT } from "@/components/MobileInspectorSheet";
 import { CANVAS_PADDING_REM } from "@/lib/layoutSizes";
 import {
   claimSlot,
@@ -743,6 +744,766 @@ describe("media on the shell, on a phone", () => {
     expect(screen.getByTestId("mobile-inspector-sheet")).toContainElement(
       screen.getByTestId("active-summary-host"),
     );
+  });
+});
+
+/**
+ * `half` is where the player ends.
+ *
+ * **Not geometry.** jsdom lays nothing out, so the player's rect is
+ * stubbed here and nothing below is evidence that the sheet's top edge
+ * actually clears the player — `e2e-layout/mobile-inspector-sheet.spec.ts`
+ * measures that in Chromium. What these cases are about is the decision:
+ * which number is derived, whether it reaches vaul, and which surfaces
+ * get it at all.
+ *
+ * The snap is written out rather than recomputed. `halfSnapUnderPlayer`
+ * has its own table in `lib/__tests__/sheetSnap.test.ts`; calling it here
+ * would make this pass against any derivation, including one that
+ * ignored the player.
+ */
+describe("the sheet's half, derived from the player", () => {
+  /** jsdom's window, which is what vaul reads. */
+  const VIEWPORT_HEIGHT = 768;
+  /** Where the stub puts the player's foot. */
+  const PLAYER_BOTTOM = 315;
+  /** `1 − (0.9 × 768 − (768 − 315)) / 768`, by hand. */
+  const DERIVED = 0.689844;
+
+  let restore: (() => void) | null = null;
+  let playerBottom = PLAYER_BOTTOM;
+
+  beforeEach(() => {
+    window.localStorage.setItem("media-layout-preference", "stacked");
+    setViewport(400);
+    setViewportHeight(VIEWPORT_HEIGHT);
+    playerBottom = PLAYER_BOTTOM;
+    expect(window.innerHeight).toBe(VIEWPORT_HEIGHT);
+  });
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    setViewportHeight(VIEWPORT_HEIGHT);
+  });
+
+  /**
+   * Give `.media-detail-player` a box, and leave every other element at
+   * jsdom's zeros.
+   *
+   * The wrapper rather than the frame inside it, because the wrapper is
+   * what `globals.css` sticks to the top of the canvas and therefore what
+   * has to stay clear of the sheet — the action row under the frame
+   * included.
+   */
+  function stubPlayerBox(bottom: number) {
+    playerBottom = bottom;
+    if (restore) return;
+    const original = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      if (this.classList.contains("media-detail-player")) {
+        return {
+          ...new DOMRect(0, playerBottom - 211, 400, 211),
+          bottom: playerBottom,
+        } as DOMRect;
+      }
+      return original.call(this);
+    };
+    restore = () => {
+      Element.prototype.getBoundingClientRect = original;
+    };
+  }
+
+  /**
+   * The snap vaul was handed, read back off the variable it publishes.
+   *
+   * Divided by the window *as it is now*, not by the height the suite
+   * started at: the cases below move `innerHeight`, and vaul's offset is
+   * a fraction of whatever it was at that render.
+   */
+  const publishedSnap = (drawer: HTMLElement) =>
+    1 -
+    Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height")) /
+      window.innerHeight;
+
+  /**
+   * The height jsdom reports, which is the number vaul and the hook read.
+   *
+   * A URL bar collapsing is this and nothing else: the window grows and
+   * nothing on the page moves.
+   */
+  function setViewportHeight(height: number) {
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      writable: true,
+      value: height,
+    });
+  }
+
+  /** A window this much taller, which is a URL bar's worth. */
+  const URL_BAR_PX = 80;
+
+  /**
+   * The room the sheet has on screen, read entirely off the drawer.
+   *
+   * The drawer's own height less what vaul slid past the bottom edge —
+   * both of them values the component wrote on the element at its last
+   * render, so this is a reading and not an arithmetic. That matters for
+   * the viewport cases: `publishedSnap` divides by the window *now*, so
+   * moving the window moves the quotient with nothing having
+   * re-rendered, and a case comparing two of those would pass against a
+   * component that ignored the change entirely. Measured — it did.
+   */
+  const roomOnScreen = (drawer: HTMLElement) =>
+    Number.parseFloat(drawer.style.height) -
+    Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height"));
+
+  /**
+   * A `ResizeObserver` that records what each instance watched and
+   * whether it was let go.
+   *
+   * jsdom ships none, so every case that needs one installs this. It is
+   * evidence about the hook's wiring — which node it observed, and
+   * whether the cleanup released it — and nothing at all about when a
+   * browser would fire.
+   *
+   * **Fired through `observe`, not over the callbacks.** More than one
+   * hook on this page builds an observer, and calling every callback
+   * that was ever constructed re-derives the snap whether or not
+   * anything was observed — measured: deleting `observer.observe(node)`
+   * from the hook left the version of this that did so green.
+   */
+  interface Instance {
+    cb: ResizeObserverCallback;
+    nodes: Element[];
+    disconnected: boolean;
+  }
+
+  function stubResizeObserver(): {
+    instances: Instance[];
+    restore: () => void;
+  } {
+    const instances: Instance[] = [];
+    const original = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      private instance: Instance;
+      constructor(cb: ResizeObserverCallback) {
+        this.instance = { cb, nodes: [], disconnected: false };
+        instances.push(this.instance);
+      }
+      observe(node: Element) {
+        this.instance.nodes.push(node);
+      }
+      unobserve() {}
+      disconnect() {
+        this.instance.disconnected = true;
+      }
+    } as unknown as typeof ResizeObserver;
+    return {
+      instances,
+      restore: () => {
+        globalThis.ResizeObserver = original;
+      },
+    };
+  }
+
+  /** The instances that were pointed at the player wrapper itself. */
+  const watching = (instances: Instance[], player: Element) =>
+    instances.filter((i) => i.nodes.includes(player));
+
+  /**
+   * An `EventTarget` standing in for `window.visualViewport`.
+   *
+   * jsdom has none. Installing one is what lets a case fire the channel
+   * the URL bar reports on first — without it, that listener can be
+   * deleted with every suite green, which is what happened.
+   */
+  function stubVisualViewport(): { target: EventTarget; restore: () => void } {
+    const target = new EventTarget();
+    const had = Object.getOwnPropertyDescriptor(window, "visualViewport");
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: target,
+    });
+    return {
+      target,
+      restore: () => {
+        if (had) Object.defineProperty(window, "visualViewport", had);
+        else delete (window as { visualViewport?: unknown }).visualViewport;
+      },
+    };
+  }
+
+  async function openSheet() {
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    return screen.findByTestId("mobile-inspector-sheet");
+  }
+
+  it("raises the sheet to the room under the player", async () => {
+    stubPlayerBox(PLAYER_BOTTOM);
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+
+    const drawer = await openSheet();
+    expect(drawer.dataset.snap).toBe("half");
+    expect(publishedSnap(drawer)).toBeCloseTo(DERIVED, 5);
+  });
+
+  it("moves with the player, not with the window", async () => {
+    // The claim the whole unit rests on, stated as a difference. A sheet
+    // that took a fixed fraction would publish the same number for both
+    // of these; the derivation makes the taller player buy the shorter
+    // sheet.
+    stubPlayerBox(PLAYER_BOTTOM);
+    const first = await renderMediaAwaitingChrome(
+      makeFile({ has_chapters: false }),
+    );
+    const shortPlayer = publishedSnap(await openSheet());
+    first.unmount();
+    restore?.();
+
+    stubPlayerBox(PLAYER_BOTTOM * 2);
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+    const tallPlayer = publishedSnap(await openSheet());
+
+    expect(tallPlayer).toBeLessThan(shortPlayer);
+  });
+
+  it("falls back to the fixed fraction with no player measured", async () => {
+    // No stub: every rect is jsdom's zeros, which is what an unpainted
+    // subtree looks like and is the same answer a page with no player at
+    // all gets.
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+
+    const drawer = await openSheet();
+    expect(publishedSnap(drawer)).toBeCloseTo(SHEET_SNAP_HALF_FALLBACK, 5);
+  });
+
+  /**
+   * The window's own channels, each fired on its own.
+   *
+   * A URL bar collapsing is a taller window with nothing on the page
+   * having moved, so the player's box is held still and `innerHeight` is
+   * what changes — the opposite of the version this replaces, which
+   * moved the player and fired `resize`, and so would have passed with
+   * the window ignored entirely.
+   *
+   * Three rows because they are three listeners. `resize` is the one
+   * every browser fires; `orientationchange` is belt-and-braces; the
+   * visual viewport is the one iOS reports the URL bar on first, and it
+   * is the only one of the three that a phone is guaranteed to get.
+   * Sharing one case between them would let two of the three be deleted.
+   */
+  const VIEWPORT_CHANNELS = [
+    {
+      what: "a window resize",
+      fire: (_: EventTarget) => window.dispatchEvent(new Event("resize")),
+      dispatches: "window:resize",
+    },
+    {
+      what: "a rotation",
+      fire: (_: EventTarget) => window.dispatchEvent(new Event("orientationchange")),
+      dispatches: "window:orientationchange",
+    },
+    {
+      what: "the visual viewport",
+      fire: (target: EventTarget) => target.dispatchEvent(new Event("resize")),
+      dispatches: "visualViewport:resize",
+    },
+  ] as const;
+  expect(VIEWPORT_CHANNELS).toHaveLength(3);
+  // Three distinct signatures, so the guard below can tell the three
+  // apart at all: two channels sharing one would let either stand in for
+  // the other with the dispatch check still green.
+  expect(new Set(VIEWPORT_CHANNELS.map((c) => c.dispatches)).size).toBe(3);
+
+  /**
+   * The event a case actually put on a target, read off the DOM.
+   *
+   * `dispatches` above is the declaration; this is the observation, and
+   * they are produced by different things — one is a string in this
+   * file, the other is what a listener on the target saw. Without it,
+   * both sides of the register guard are recomputed from the same two
+   * arrays and **which channel a case fires never enters the check**:
+   * measured, with a `<video>`-remounting `key` on `orientationchange`
+   * in the tree, having every case fire `resize` instead of its own
+   * channel left the whole suite green.
+   *
+   * Listening rather than wrapping `fire`: a listener sees the event
+   * whatever route it arrived by, where a wrapper only sees calls that
+   * went through the wrapper.
+   */
+  function recordDispatches(vvTarget: EventTarget): {
+    signatures: string[];
+    restore: () => void;
+  } {
+    const signatures: string[] = [];
+    const types = [
+      ...new Set(VIEWPORT_CHANNELS.map((c) => c.dispatches.split(":")[1])),
+    ];
+    const targets: [string, EventTarget][] = [
+      ["window", window],
+      ["visualViewport", vvTarget],
+    ];
+    const listeners = targets.flatMap(([name, target]) =>
+      types.map((type) => {
+        const listener = () => signatures.push(`${name}:${type}`);
+        target.addEventListener(type, listener);
+        return () => target.removeEventListener(type, listener);
+      }),
+    );
+    return {
+      signatures,
+      restore: () => {
+        for (const off of listeners) off();
+      },
+    };
+  }
+
+  /**
+   * Every group that walks the channels, by name.
+   *
+   * Declared rather than counted, so deleting a whole group is red as
+   * well: the guard at the end of this describe rebuilds the expected
+   * register from this list and the channel list.
+   */
+  const CHANNEL_GROUPS = [
+    "re-derives when the window reports a taller viewport",
+    "keeps the player element",
+  ] as const;
+  expect(CHANNEL_GROUPS).toHaveLength(2);
+
+  /**
+   * What the loops below actually registered, recorded as they register it.
+   *
+   * Pinning `VIEWPORT_CHANNELS.length` does not observe a loop, and a
+   * loop that runs inside one `it()` is worse still: a `slice` there does
+   * not even change the count, so the identity group was shortened to one
+   * channel with a `<video>`-remounting `key` in the tree and all 5,909
+   * tests stayed green. So every case that walks the three window
+   * channels goes through `eachChannel`, which registers the test and
+   * **then** records it — recorded first, a `continue` between the two
+   * lines drops the registration and leaves the record. Recorded last, a
+   * skipped push leaves the register short of the declarations and the
+   * guard red, and anything that skips the `it()` takes its push with it;
+   * the two directions are caught by different halves, not by one
+   * impossibility.
+   *
+   * The `ResizeObserver` cases are the fourth channel and cannot be
+   * fired off the window, so they are two hand-written `it()`s. They get
+   * their own declared register below rather than sitting outside every
+   * guard, where deleting one would be silent.
+   *
+   * This is the shape `e2e-layout/mobile-inspector-sheet.spec.ts` uses,
+   * and its limit is the same: the expected set is written in this file,
+   * so what the guard buys is that removing a case has to disagree with
+   * something, not proof from outside.
+   */
+  const registeredChannelCases: string[] = [];
+
+  const channelCaseId = (group: string, what: string) =>
+    `${group}, through ${what}`;
+
+  function eachChannel(
+    group: string,
+    body: (
+      channel: (typeof VIEWPORT_CHANNELS)[number],
+      vvTarget: EventTarget,
+    ) => Promise<void>,
+  ): void {
+    for (const channel of VIEWPORT_CHANNELS) {
+      it(channelCaseId(group, channel.what), async () => {
+        // The stub and the recorder belong to the helper, not to the
+        // body: the listener has to be on the visual viewport before
+        // anything renders, and a body that installed its own could
+        // observe a different target from the one it fired at.
+        const vv = stubVisualViewport();
+        const seen = recordDispatches(vv.target);
+        try {
+          await body(channel, vv.target);
+        } finally {
+          seen.restore();
+          vv.restore();
+        }
+        // The dispatch, against the declaration — this is what the
+        // register cannot see. A body handed some other channel, or one
+        // that fires nothing at all, disagrees here even though its name
+        // and its registration are untouched.
+        expect(seen.signatures).toEqual([channel.dispatches]);
+      });
+      registeredChannelCases.push(channelCaseId(group, channel.what));
+    }
+  }
+
+  /**
+   * The fourth channel's two cases, by name.
+   *
+   * A `ResizeObserver` is fired through a stub's recorded callbacks
+   * rather than off a target, so these cannot go through `eachChannel`
+   * and each group spells its own out. Declared here so that deleting
+   * one disagrees with something.
+   */
+  const RESIZE_OBSERVER_CASES = [
+    "re-derives when the player's own box changes",
+    "keeps the player element when the player's own box changes",
+  ] as const;
+  expect(RESIZE_OBSERVER_CASES).toHaveLength(2);
+
+  const registeredResizeObserverCases: string[] = [];
+
+  function resizeObserverCase(name: string, body: () => Promise<void>): void {
+    it(name, body);
+    registeredResizeObserverCases.push(name);
+  }
+
+  eachChannel(CHANNEL_GROUPS[0], async (channel, vvTarget) => {
+    stubPlayerBox(PLAYER_BOTTOM);
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+    const drawer = await openSheet();
+    const before = roomOnScreen(drawer);
+    expect(before).toBeCloseTo(VIEWPORT_HEIGHT - PLAYER_BOTTOM, 0);
+
+    // The window grows; the player does not move. The room under it
+    // is therefore larger, and the sheet takes exactly that room —
+    // which is the claim, restated at the new window rather than
+    // compared against the old number.
+    setViewportHeight(VIEWPORT_HEIGHT + URL_BAR_PX);
+    act(() => {
+      channel.fire(vvTarget);
+    });
+
+    await waitFor(() => {
+      expect(
+        roomOnScreen(screen.getByTestId("mobile-inspector-sheet")),
+      ).toBeCloseTo(window.innerHeight - PLAYER_BOTTOM, 0);
+    });
+    expect(
+      roomOnScreen(screen.getByTestId("mobile-inspector-sheet")),
+    ).toBeGreaterThan(before);
+  });
+
+  resizeObserverCase(RESIZE_OBSERVER_CASES[0], async () => {
+    // The other channel, and the one the window's events cannot cover: a
+    // `.loft` frame resolving its ratio, or `--rail-avail` moving the
+    // width cap, changes the player's height without changing the
+    // window's.
+    const ro = stubResizeObserver();
+    try {
+      stubPlayerBox(PLAYER_BOTTOM);
+      const { container } = await renderMediaAwaitingChrome(
+        makeFile({ has_chapters: false }),
+      );
+      const before = publishedSnap(await openSheet());
+
+      const player = container.querySelector(".media-detail-player")!;
+      const watchingThePlayer = watching(ro.instances, player);
+      // The player wrapper, not some ancestor: an observer on the page
+      // would fire for reasons that have nothing to do with the video.
+      //
+      // Declared, not a lower bound. Two hooks point an observer at this
+      // wrapper — `useSheetHalfSnap` and `useCompanionMetrics`'s rail
+      // observer — and `watching` counts every instance ever built at
+      // it, released ones included, so the number is a property of this
+      // page rather than of this hook. A `>= 1` here stays green when
+      // the hook under test stops observing the wrapper at all, which is
+      // the failure the line exists to catch.
+      expect(watchingThePlayer.length).toBe(3);
+
+      stubPlayerBox(PLAYER_BOTTOM * 1.5);
+      act(() => {
+        for (const { cb } of watchingThePlayer) cb([], {} as ResizeObserver);
+      });
+
+      await waitFor(() => {
+        expect(
+          publishedSnap(screen.getByTestId("mobile-inspector-sheet")),
+        ).toBeLessThan(before);
+      });
+    } finally {
+      ro.restore();
+    }
+  });
+
+  it("lets the old observer go when it takes a new one", async () => {
+    // The effect re-runs on a file change, on a rotation across the
+    // mobile breakpoint, and on every viewport change — so an observer
+    // that is not disconnected is not a tidiness point. Each one keeps a
+    // closure over the node and the window it was built for and goes on
+    // writing the snap from them, and two live observers write two
+    // different answers to the same question.
+    const ro = stubResizeObserver();
+    try {
+      stubPlayerBox(PLAYER_BOTTOM);
+      const { container, unmount } = await renderMediaAwaitingChrome(
+        makeFile({ has_chapters: false }),
+      );
+      await openSheet();
+
+      const player = container.querySelector(".media-detail-player")!;
+      // Counted live, not by instance: more than one hook on this page
+      // observes this wrapper, so "was the first one released" is a
+      // question about somebody else's observer as much as this one's.
+      // What has to hold is that a re-run does not leave a second live
+      // observer behind — the leak, stated as the leak.
+      const live = () =>
+        watching(ro.instances, player).filter((i) => !i.disconnected).length;
+      const built = () => watching(ro.instances, player).length;
+      const liveAtRest = live();
+      // Declared for the same reason as the count above, and a different
+      // number because this one is live rather than built: of the three
+      // instances pointed at this wrapper, one has already been released
+      // by the effect that built it re-running.
+      expect(liveAtRest).toBe(2);
+
+      // A viewport change re-runs the effect, which is the commonest way
+      // a second observer is built on the same still-mounted page.
+      const builtAtRest = built();
+      setViewportHeight(VIEWPORT_HEIGHT + URL_BAR_PX);
+      act(() => {
+        window.dispatchEvent(new Event("resize"));
+      });
+      await waitFor(() => {
+        expect(built()).toBeGreaterThan(builtAtRest);
+      });
+      expect(live()).toBe(liveAtRest);
+
+      // And they all go when the page does.
+      unmount();
+      expect(live()).toBe(0);
+    } finally {
+      ro.restore();
+    }
+  });
+
+  it("re-measures for the next file, by being built again with it", async () => {
+    // Why the hook takes no `fileId`. `useFileDetailData` does
+    // `setFile(null)` the moment the id changes, so `FileDetailContainer`
+    // returns its spinner and this subtree — shell, canvas, player, hook
+    // — is unmounted and built again. Both halves are asserted: the
+    // wrapper really is a different element afterwards, which is the
+    // mechanism, and the snap really did move with the new player's box,
+    // which is what the reader gets. A dependency on the id would have
+    // been a second answer to a question already settled, justified by a
+    // claim about element identity that this case would have failed.
+    stubPlayerBox(PLAYER_BOTTOM);
+    setApiResponses(makeFile({ has_chapters: false }));
+    const { container, rerender } = render(
+      <FileDetailContent fileId="f1" drive="main" />,
+    );
+    await screen.findByTestId("file-detail-chrome");
+    const before = publishedSnap(await openSheet());
+    const wrapper = container.querySelector(".media-detail-player")!;
+
+    stubPlayerBox(PLAYER_BOTTOM * 1.5);
+    setApiResponses(makeFile({ id: "f2", has_chapters: false }));
+    rerender(<FileDetailContent fileId="f2" drive="main" />);
+    await screen.findByTestId("file-detail-chrome");
+
+    expect(container.querySelector(".media-detail-player")).not.toBe(wrapper);
+    // The shell is built again, so this is the next raise rather than
+    // the same one.
+    const after = publishedSnap(await openSheet());
+    expect(after).toBeLessThan(before);
+  });
+
+  /**
+   * The player element, across every channel this hook now re-measures on.
+   *
+   * `design-decisions.md` (watch history) makes this a rule rather than a
+   * preference: a remounted `<video>` restarts at zero with `ended`
+   * rebound and writes a position nobody played, and a re-parented
+   * `.loft` iframe reloads. What this unit added is a re-render driven by
+   * `resize`, `orientationchange`, the visual viewport and a
+   * `ResizeObserver` — so the identity has to hold across each of them,
+   * not only across the raise. Measured: with only the raise covered, a
+   * `key` bumped on a `window` `resize` rebuilt the whole player and the
+   * entire suite stayed green.
+   *
+   * One case per channel, through `eachChannel`, rather than one case
+   * walking them: measured, with that same `key` in the tree, a walk cut
+   * to a single channel left the whole suite green because nothing
+   * compared the channels that ran against the ones declared — and
+   * measured again, one round later, with every case firing `resize`
+   * under its own name, which is why `eachChannel` now watches the
+   * target as well as the register. The `ResizeObserver` is the fourth
+   * channel and cannot be fired off the window, so it has its own case
+   * below.
+   */
+  eachChannel(CHANNEL_GROUPS[1], async (channel, vvTarget) => {
+    stubPlayerBox(PLAYER_BOTTOM);
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+    const player = screen.getByTestId("file-preview");
+
+    // The raise itself, which re-renders this subtree for its own
+    // reason and so has to hold before the channel is fired at all.
+    await openSheet();
+    expect(screen.getByTestId("file-preview")).toBe(player);
+
+    setViewportHeight(window.innerHeight + 1);
+    act(() => {
+      channel.fire(vvTarget);
+    });
+    expect(screen.getByTestId("file-preview")).toBe(player);
+  });
+
+  resizeObserverCase(RESIZE_OBSERVER_CASES[1], async () => {
+    const ro = stubResizeObserver();
+    try {
+      stubPlayerBox(PLAYER_BOTTOM);
+      const { container } = await renderMediaAwaitingChrome(
+        makeFile({ has_chapters: false }),
+      );
+      const player = screen.getByTestId("file-preview");
+      const wrapper = container.querySelector(".media-detail-player")!;
+      await openSheet();
+
+      const watchers = watching(ro.instances, wrapper);
+      // Declared rather than bounded below, for the reason the sibling
+      // case above gives: `>= 1` cannot tell "the sheet's observer went"
+      // from "somebody else's is still there", and it is the exact line
+      // that let an observer moved off this wrapper survive.
+      expect(watchers.length).toBe(3);
+
+      stubPlayerBox(PLAYER_BOTTOM * 1.2);
+      act(() => {
+        for (const { cb } of watchers) cb([], {} as ResizeObserver);
+      });
+      expect(screen.getByTestId("file-preview")).toBe(player);
+    } finally {
+      ro.restore();
+    }
+  });
+
+  it("registered every channel, in every group that walks them", () => {
+    // Both sides enumerated rather than counted, and the expected side
+    // recomputed from the two declarations rather than read off the
+    // register — so a `slice` in either loop is red, and so is dropping
+    // a group.
+    //
+    // What this cannot see is which channel each case fired; the
+    // register is built from the same declarations it is compared
+    // against. That is asserted inside each case instead, against a
+    // listener on the target (`recordDispatches`).
+    expect(registeredChannelCases).toEqual(
+      CHANNEL_GROUPS.flatMap((group) =>
+        VIEWPORT_CHANNELS.map((c) => channelCaseId(group, c.what)),
+      ),
+    );
+    // And the fourth channel's two, which are hand-written.
+    expect(registeredResizeObserverCases).toEqual([...RESIZE_OBSERVER_CASES]);
+  });
+});
+
+/**
+ * The layout fixture's page, against the shell that page imitates.
+ *
+ * `e2e-layout/mobile-inspector-sheet.spec.ts` derives the sheet's `half`
+ * from a player it draws itself, out of class lists written into the
+ * fixture's JSON. Change the shell — take `data-sheet-snap` off the root,
+ * drop `overflow-auto` from the canvas, rename the player's class — and
+ * every one of those browser cases stays green, because the fixture never
+ * asked the shell anything.
+ *
+ * This is what asks, and it lives here rather than beside the sheet's own
+ * parity cases because this is the file with a real shell already
+ * mounted: `FileDetailShell`, `FileDetailChrome` and `MediaPlayerBlock`
+ * are three components and a page's worth of context, and comparing a
+ * copy of them would be comparing a copy.
+ *
+ * jsdom lays nothing out, so nothing here is evidence about a position.
+ * That is the browser spec's, and this is what connects the two.
+ */
+describe("the layout fixture's page, against the shell", () => {
+  const FIXTURE_PATH = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../../../e2e-layout/fixtures/mobile-inspector-sheet.html",
+  );
+
+  const SPEC: Record<string, string | number> = JSON.parse(
+    readFileSync(FIXTURE_PATH, "utf-8").match(
+      /<script type="application\/json" id="fixture-markup">([\s\S]*?)<\/script>/,
+    )![1],
+  );
+
+  const sorted = (className: string) =>
+    className.split(/\s+/).filter(Boolean).sort();
+
+  beforeEach(() => {
+    window.localStorage.setItem("media-layout-preference", "stacked");
+    setViewport(400);
+  });
+
+  it("declares the five boxes the derived snap is measured against", async () => {
+    // Five, not four. `.media-detail-host` sits between the canvas and
+    // the player and carries `p-4`; a fixture without it measures a page
+    // whose sticky player has no travel in front of it for the wrong
+    // reason — because the padding is absent rather than because the
+    // stylesheet took it off — and the case that asserts one bottom edge
+    // for the whole of a scroll would be proving it about markup with the
+    // offending box removed.
+    const { container } = await renderMediaAwaitingChrome(
+      makeFile({ has_chapters: false }),
+    );
+
+    const shell = screen.getByTestId("file-detail-shell");
+    const chrome = screen.getByTestId("file-detail-chrome");
+    const canvas = container.querySelector("main")!;
+    const mediaHost = container.querySelector(".media-detail-host")!;
+    const player = container.querySelector(".media-detail-player")!;
+
+    expect(sorted(shell.className)).toEqual(sorted(SPEC.pageRoot as string));
+    expect(sorted(chrome.className)).toEqual(sorted(SPEC.chrome as string));
+    expect(sorted(canvas.className)).toEqual(sorted(SPEC.canvas as string));
+    expect(sorted(mediaHost.className)).toEqual(
+      sorted(SPEC.mediaHost as string),
+    );
+    expect(sorted(player.className)).toEqual(sorted(SPEC.player as string));
+
+    // And the nesting, which no pair of class lists states: the host
+    // between the two, and the player inside it.
+    expect(canvas).toContainElement(mediaHost as HTMLElement);
+    expect(mediaHost).toContainElement(player as HTMLElement);
+  });
+
+  it("declares the ratio a framed player's height comes from", async () => {
+    // The fixture draws its player with a `padding-top` shim and lets the
+    // stylesheet's width cap decide the height, which is how the app
+    // draws a `.loft` embed and — through `aspect-video` — a `<video>`.
+    // `data-framed` is what puts the cap on it at all, so a shell that
+    // stopped writing it would leave the landscape case measuring an
+    // uncapped player, which is not a shape this page can draw.
+    const { container } = await renderMediaAwaitingChrome(
+      makeFile({ has_chapters: false }),
+    );
+    expect(
+      container
+        .querySelector(".media-detail-player")!
+        .getAttribute("data-framed"),
+    ).toBe("true");
+    // 56.25% is 9/16 written as the shim writes it.
+    expect(
+      Number.parseFloat(SPEC.framedShimPaddingTop as string) / 100,
+    ).toBeCloseTo(9 / 16, 6);
+  });
+
+  it("declares the attribute that makes the player sticky at all", async () => {
+    // The fixture writes `data-sheet-snap` on its own root, and the
+    // stylesheet rule the browser cases depend on is scoped to it. The
+    // shell writing it somewhere else — or not at all on a phone —
+    // would leave those cases measuring a player in normal flow.
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+    expect(screen.getByTestId("file-detail-shell").dataset.sheetSnap).toBe(
+      "peek",
+    );
+  });
+
+  it("declares the padding that ends the page above the resting strip", async () => {
+    const { container } = await renderMediaAwaitingChrome(
+      makeFile({ has_chapters: false }),
+    );
+    expect(container.querySelector("main")!.style.paddingBottom).toBe(
+      `${SPEC.peekPx}px`,
+    );
+    expect(SPEC.peekPx).toBe(SHEET_PEEK_PX);
   });
 });
 

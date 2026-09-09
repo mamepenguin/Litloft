@@ -1,40 +1,35 @@
 "use client";
 
-import { useState, type ReactElement, type ReactNode } from "react";
+import { useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Drawer } from "vaul";
 
+import {
+  SHEET_PEEK_PX,
+  SHEET_SNAP_FULL,
+  SHEET_SNAP_HALF_FALLBACK,
+  sheetDrawerHeightPx,
+} from "@/lib/sheetSnap";
+import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { DialogPortalProvider } from "./DialogPortal";
 
 /**
- * The resting height of the sheet, in px.
+ * Which of the three states the sheet is in.
  *
- * 56px is a row: the file's name and the controls that act on it. It is
- * the whole reason the sheet rests rather than closes — on a phone the
- * per-file actions used to be somewhere in a column the reader had to
- * find, and now they are in the same place on every file.
- *
- * `DESIGN.md` §Layering states it, and the parity test binds the two.
+ * **A state, not a snap.** `full` is always the same fraction of the
+ * window, but what `half` means in vaul's units is derived per file from
+ * the player's measured bottom edge, so the number changes with the
+ * viewport and with what is being watched. Storing the number would make
+ * the shell's own state go stale the moment a phone's URL bar collapsed
+ * — it would name a snap point that is no longer in the list vaul was
+ * handed. The shell stores which state it is in and this component
+ * resolves it, which is the only place the two representations meet.
  */
-export const SHEET_PEEK_PX = 56;
+export type SheetState = "peek" | "half" | "full";
 
-export const SHEET_SNAP_PEEK = "peek";
-export const SHEET_SNAP_HALF = 0.5;
-export const SHEET_SNAP_FULL = 0.9;
-
-/**
- * What vaul is given, which is **not** every state the sheet has.
- *
- * `peek` is not a snap point. The drawer is not mounted there at all —
- * see the note on modality below — so the strip is drawn outside it and
- * vaul only ever sees the two states that cover the page.
- */
-export const SHEET_SNAP_POINTS: (number | string)[] = [
-  SHEET_SNAP_HALF,
-  SHEET_SNAP_FULL,
-];
-
-export type SheetSnap = number | string;
+export const SHEET_STATE_PEEK: SheetState = "peek";
+export const SHEET_STATE_HALF: SheetState = "half";
+export const SHEET_STATE_FULL: SheetState = "full";
 
 /**
  * The part of the drawer that is actually on screen.
@@ -59,6 +54,11 @@ export type SheetSnap = number | string;
  *
  * The `0px` fallback is the no-snap-points case, where vaul sets no
  * variable and the whole drawer is on screen.
+ *
+ * The drawer's own height is on the element as a px value rather than
+ * as a `vh` class, for the reason `sheetDrawerHeightPx` gives: `100%`
+ * of a box sized in the large viewport would be the wrong box on a
+ * phone showing its URL bar, and this subtraction would inherit it.
  */
 export const SHEET_VISIBLE_HEIGHT =
   "calc(100% - var(--snap-point-height, 0px))";
@@ -75,9 +75,35 @@ export const SHEET_VISIBLE_HEIGHT =
 export const SHEET_SCROLLER_PADDING_BOTTOM =
   "calc(env(safe-area-inset-bottom, 0px) + 16px)";
 
-/** Whether a snap point is one of the two that cover the page. */
-export function isSheetExpanded(snap: SheetSnap): boolean {
-  return snap !== SHEET_SNAP_PEEK;
+/** Whether the sheet is in one of the two states that cover the page. */
+export function isSheetExpanded(state: SheetState): boolean {
+  return state !== SHEET_STATE_PEEK;
+}
+
+/**
+ * The two snap points vaul is handed, in order.
+ *
+ * `peek` is not among them — the drawer is not mounted there at all, see
+ * the note on modality below — so these two are every state vaul sees.
+ * `half` is a parameter because it is derived from what the page is
+ * showing; `full` is not, because reading without following playback
+ * does not depend on the player's size (hako `vjPOVv5gXepgO8Io-es1m`).
+ */
+export function sheetSnapPoints(halfSnap: number): (number | string)[] {
+  return [halfSnap, SHEET_SNAP_FULL];
+}
+
+/**
+ * The state a snap point vaul hands back belongs to.
+ *
+ * Decided by `full`'s value, which is the one that is fixed. Reading it
+ * the other way round — "is this the half number" — would compare a
+ * float vaul may have rounded against one derived here, and would fall
+ * through to `full` whenever they differed by a bit. `null` is vaul's
+ * "no active snap point", which happens while a drag is settling.
+ */
+export function sheetStateForSnap(snap: number | string | null): SheetState {
+  return snap === SHEET_SNAP_FULL ? SHEET_STATE_FULL : SHEET_STATE_HALF;
 }
 
 /**
@@ -116,20 +142,43 @@ export function isSheetExpanded(snap: SheetSnap): boolean {
  * sufficient, which is what the dialog host at the bottom is for.
  */
 export function MobileInspectorSheet({
-  snap,
-  onSnapChange,
+  state,
+  onStateChange,
+  halfSnap = SHEET_SNAP_HALF_FALLBACK,
   peek,
   children,
 }: {
-  snap: SheetSnap;
-  onSnapChange: (next: SheetSnap) => void;
+  state: SheetState;
+  onStateChange: (next: SheetState) => void;
+  /**
+   * What `half` is worth in vaul's units, for this page and this
+   * viewport.
+   *
+   * Derived by `useSheetHalfSnap` from the player's bottom edge so the
+   * sheet takes the room under it and the video stays whole. The default
+   * is the surfaces that have no player to measure — a Markdown note, a
+   * PDF, an image.
+   */
+  halfSnap?: number;
   /** The 56px row: the file's name and the controls that act on it. */
   peek: ReactNode;
   children: ReactNode;
 }): ReactElement | null {
   const t = useTranslations("inspector");
   const [dialogHost, setDialogHost] = useState<HTMLDivElement | null>(null);
-  const expanded = isSheetExpanded(snap);
+  // The drawer's height, against the viewport vaul solves its snaps in.
+  // A `vh` class here would size the box in the large viewport while
+  // every snap point was computed in `window.innerHeight`, and on a
+  // phone with the URL bar showing those differ by the height of the
+  // bar — the sheet's top edge would land that far above the player it
+  // is meant to stop at. See `sheetDrawerHeightPx`.
+  const viewportHeight = useViewportHeight();
+  const drawerHeight = `${sheetDrawerHeightPx(viewportHeight)}px`;
+  // Rebuilt only when the derived snap moves. vaul re-derives its own
+  // offsets when this array changes identity, so an inline literal would
+  // hand it a new list on every render of the page behind it.
+  const snapPoints = useMemo(() => sheetSnapPoints(halfSnap), [halfSnap]);
+  const expanded = isSheetExpanded(state);
 
   if (!expanded) {
     return (
@@ -149,13 +198,13 @@ export function MobileInspectorSheet({
   return (
     <Drawer.Root
       open
-      snapPoints={SHEET_SNAP_POINTS}
-      activeSnapPoint={snap}
-      setActiveSnapPoint={(next) => onSnapChange(next ?? SHEET_SNAP_HALF)}
+      snapPoints={snapPoints}
+      activeSnapPoint={state === SHEET_STATE_FULL ? SHEET_SNAP_FULL : halfSnap}
+      setActiveSnapPoint={(next) => onStateChange(sheetStateForSnap(next))}
       fadeFromIndex={0}
       modal
       onOpenChange={(next) => {
-        if (!next) onSnapChange(SHEET_SNAP_PEEK);
+        if (!next) onStateChange(SHEET_STATE_PEEK);
       }}
     >
       <Drawer.Portal>
@@ -165,8 +214,9 @@ export function MobileInspectorSheet({
         />
         <Drawer.Content
           data-testid="mobile-inspector-sheet"
-          data-snap={snap === SHEET_SNAP_FULL ? "full" : "half"}
-          className="fixed bottom-0 left-0 right-0 z-[46] flex h-[90vh] max-h-[90vh] flex-col rounded-t-2xl border-t border-bg-border bg-bg-card outline-none"
+          data-snap={state}
+          className="fixed bottom-0 left-0 right-0 z-[46] flex flex-col rounded-t-2xl border-t border-bg-border bg-bg-card outline-none"
+          style={{ height: drawerHeight }}
         >
           <div
             data-testid="mobile-inspector-visible"

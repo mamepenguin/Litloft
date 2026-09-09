@@ -31,9 +31,15 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
 import {
-  MobileInspectorSheet,
+  SHEET_DRAWER_VH,
   SHEET_SNAP_FULL,
-  SHEET_SNAP_HALF,
+  SHEET_SNAP_HALF_FALLBACK,
+  sheetDrawerHeightPx,
+} from "@/lib/sheetSnap";
+import {
+  MobileInspectorSheet,
+  SHEET_STATE_FULL,
+  SHEET_STATE_HALF,
   SHEET_SCROLLER_PADDING_BOTTOM,
   SHEET_VISIBLE_HEIGHT,
 } from "@/components/MobileInspectorSheet";
@@ -114,9 +120,23 @@ function renderShell(scroll: InspectorScroll) {
   };
 }
 
+/**
+ * The drawer at one snap.
+ *
+ * Takes the snap rather than the state, because what the browser fixture
+ * reproduces is vaul's arithmetic on a *number* — including the derived
+ * ones `half` now takes. `full`'s own value is the one fixed point, so
+ * it is the state used to reach it and everything else goes through
+ * `half`'s `halfSnap`.
+ */
 function renderSheet(snap: number) {
   render(
-    <MobileInspectorSheet snap={snap} onSnapChange={vi.fn()} peek={null}>
+    <MobileInspectorSheet
+      state={snap === SHEET_SNAP_FULL ? SHEET_STATE_FULL : SHEET_STATE_HALF}
+      onStateChange={vi.fn()}
+      halfSnap={snap}
+      peek={null}
+    >
       <div data-testid="sheet-child" />
     </MobileInspectorSheet>,
   );
@@ -129,7 +149,7 @@ function renderSheet(snap: number) {
 
 describe("the sheet's own chrome", () => {
   it("declares the drawer, the box inside it and the scroller", () => {
-    const { drawer, visible, scroller } = renderSheet(SHEET_SNAP_HALF);
+    const { drawer, visible, scroller } = renderSheet(SHEET_SNAP_HALF_FALLBACK);
 
     expectSameClasses(drawer.className, str("drawer"));
     expectSameClasses(visible.className, str("visible"));
@@ -141,7 +161,7 @@ describe("the sheet's own chrome", () => {
     // scroller by the snap and then pushed it down by whatever was above
     // it. The fixture has to draw the same thing above the scroller or
     // its "the cap ends below the screen" case is about a different gap.
-    renderSheet(SHEET_SNAP_HALF);
+    renderSheet(SHEET_SNAP_HALF_FALLBACK);
     const handle = document.querySelector<HTMLElement>("[data-vaul-handle]")!;
     expectSameClasses(handle.className, str("handle"));
   });
@@ -162,11 +182,29 @@ describe("the sheet's own chrome", () => {
   });
 
   it("declares the drawer's height as the fraction the browser cases are arithmetic on", () => {
-    const { drawer } = renderSheet(SHEET_SNAP_HALF);
-    // `drawerVh` is the only number the browser spec asserts about the
-    // drawer itself, and it is a literal there. This is the line that
-    // makes it a claim about the app.
-    expect(drawer.className).toContain(`h-[${(SPEC.drawerVh as number) * 100}vh]`);
+    const { drawer } = renderSheet(SHEET_SNAP_HALF_FALLBACK);
+    // `drawerVh` is the fixture's copy of `SHEET_DRAWER_VH`, and the
+    // browser spec sizes its own drawer from it. This is the line that
+    // makes it a claim about the app — the height the component actually
+    // wrote on the element, in px, against jsdom's own window.
+    expect(SPEC.drawerVh).toBe(SHEET_DRAWER_VH);
+    expect(drawer.style.height).toBe(
+      `${sheetDrawerHeightPx(window.innerHeight)}px`,
+    );
+  });
+
+  it("gives the drawer no viewport unit of its own", () => {
+    // The first finding of round two, as a rule rather than as the one
+    // spelling it arrived in. CSS `vh` is the large viewport and vaul
+    // solves every snap in `window.innerHeight`; `svh`, `lvh` and `dvh`
+    // are three more answers to "which viewport", and a `calc()` or a
+    // `min()` around any of them is a fourth. The drawer's height comes
+    // from `sheetDrawerHeightPx` and there is no second definition of it
+    // anywhere on the element.
+    const { drawer } = renderSheet(SHEET_SNAP_HALF_FALLBACK);
+    const written = `${drawer.className} ${drawer.getAttribute("style") ?? ""}`;
+    expect(written).not.toMatch(/\d\s*(?:[sld]?vh|vmin|vmax)\b/);
+    expect(SPEC.drawer as string).not.toMatch(/\d\s*(?:[sld]?vh|vmin|vmax)\b/);
   });
 
   it("mounts the scroller inside the visible box, and the child inside the scroller", () => {
@@ -268,8 +306,14 @@ describe("vaul's snap arithmetic, which the fixture reproduces", () => {
   // offset inside a React render from `window.innerHeight`, and the
   // expectation is the published formula written out here. A vaul upgrade
   // that changes either the formula or the variable's name fails this.
-  const SNAPS = [SHEET_SNAP_HALF, SHEET_SNAP_FULL];
-  expect(SNAPS).toHaveLength(2);
+  //
+  // Three, not two: `half` is no longer a constant — it is derived from
+  // the player's bottom edge — so a value that is neither of the two the
+  // component knows is exactly what vaul is handed on a video page. A
+  // table of the two named snaps would leave "vaul accepts an arbitrary
+  // snap point" untested, which is the premise unit D rests on.
+  const SNAPS = [SHEET_SNAP_HALF_FALLBACK, 0.627736, SHEET_SNAP_FULL];
+  expect(SNAPS).toHaveLength(3);
 
   for (const snap of SNAPS) {
     it(`publishes innerHeight × (1 − ${snap}) as --snap-point-height`, () => {
@@ -295,26 +339,80 @@ describe("vaul's snap arithmetic, which the fixture reproduces", () => {
 });
 
 describe("the fixture's declarations", () => {
+  /**
+   * Every key, and which file compares it against a component.
+   *
+   * The fixture's builders index `SPEC` by name, so a key removed here
+   * and there together would leave both halves agreeing about nothing —
+   * and a key added with nothing comparing it is a class list the
+   * browser cases measure and no component has ever been asked about.
+   *
+   * The `page` half is compared in
+   * `FileDetail/__tests__/MediaShell.test.tsx`, which is where a real
+   * `FileDetailShell` is already mounted; the `sheet` half is compared
+   * above. Splitting the *list* would let either side grow a key the
+   * other did not know about, so the list stays whole and only the
+   * comparison is elsewhere.
+   */
+  const COMPARED_HERE = [
+    "columnHeader",
+    "columnPanel",
+    "columnRoot",
+    "columnStrip",
+    "drawer",
+    "drawerVh",
+    "handle",
+    "panelHeader",
+    "panelPanel",
+    "panelRoot",
+    "panelStrip",
+    "scroller",
+    "scrollerPaddingBottom",
+    "tab",
+    "visible",
+    "visibleHeight",
+  ];
+  const COMPARED_IN_MEDIA_SHELL = [
+    "canvas",
+    "chrome",
+    "framedShimPaddingTop",
+    "mediaHost",
+    "pageRoot",
+    "peekPx",
+    "player",
+  ];
+  expect(COMPARED_HERE).toHaveLength(16);
+  expect(COMPARED_IN_MEDIA_SHELL).toHaveLength(7);
+
   it("names every key the fixture uses, and no others", () => {
-    // The fixture's builders index `SPEC` by name, so a key removed here
-    // and there together would leave both halves agreeing about nothing.
-    expect(Object.keys(SPEC).sort()).toEqual([
-      "columnHeader",
-      "columnPanel",
-      "columnRoot",
-      "columnStrip",
-      "drawer",
-      "drawerVh",
-      "handle",
-      "panelHeader",
-      "panelPanel",
-      "panelRoot",
-      "panelStrip",
-      "scroller",
-      "scrollerPaddingBottom",
-      "tab",
-      "visible",
-      "visibleHeight",
-    ]);
+    expect(Object.keys(SPEC).sort()).toEqual(
+      [...COMPARED_HERE, ...COMPARED_IN_MEDIA_SHELL].sort(),
+    );
+  });
+
+  it("keeps the two halves disjoint", () => {
+    // A key in both lists would be one nobody had to look at: the union
+    // above would still match while either comparison quietly stopped.
+    const overlap = COMPARED_HERE.filter((key) =>
+      COMPARED_IN_MEDIA_SHELL.includes(key),
+    );
+    expect(overlap).toEqual([]);
+  });
+
+  it("points at the file that compares the other half", () => {
+    // Detector rule 4: the paragraph above says MediaShell.test.tsx
+    // compares those five. Until this file can fail when that stops
+    // being true, that is a sentence. It reads the other file and checks
+    // each key is named in it.
+    const mediaShell = readFileSync(
+      resolve(
+        REPO_ROOT,
+        "frontend/src/components/FileDetail/__tests__/MediaShell.test.tsx",
+      ),
+      "utf-8",
+    );
+    for (const key of COMPARED_IN_MEDIA_SHELL) {
+      expect(mediaShell).toContain(`SPEC.${key}`);
+    }
   });
 });

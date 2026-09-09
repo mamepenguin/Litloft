@@ -15,6 +15,12 @@ import { REQUIRED } from "../../e2e-layout/build-fixture-css";
  * a source for it**, after which that needle can never be absent and asserts
  * nothing.
  *
+ * One file is out of that set: `globals.css` carries an `@source not` for
+ * `build-fixture-css.ts` itself, because the list's own entries are the
+ * purest case of this — `".p-4 {"` is a string containing `p-4`, so the
+ * assertion was its own source. The exclusion covers that whole file;
+ * everything below is about the files still scanned.
+ *
  * That has now happened three times on this branch, in a different kind of
  * file each time: a comment in `build-fixture-css.ts`, assertion strings in
  * two suites, and a docstring in `rowFurniture.ts` — each round's sweep
@@ -198,5 +204,28 @@ describe("pointer-coarse needle sources", () => {
     for (const parts of CAN_BE_ABSENT) {
       expect(sourcesOf(files, base(parts)), base(parts)).toEqual(ALLOWED_BASE_SOURCES);
     }
+  });
+
+  /**
+   * The exclusion the needles with no backslash in them rest on.
+   *
+   * Escaping is what made `.pointer-coarse\:pr-0 {` and `.h-\[90vh\] {`
+   * falsifiable, and it is a property of those selectors rather than a
+   * decision: a needle whose class needs no escape — `.p-4 {`, `.h-12 {`,
+   * `.flex-1 {` — is spelled in the list exactly as the scanner reads it,
+   * and is its own source. Taking the file out of the scan is what makes
+   * the property hold for all of them.
+   *
+   * **What this holds is the decision, not the mechanism.** It is a text
+   * match on a stylesheet, which cannot tell you what a compiler does;
+   * whether the exclusion works was measured by taking each needle's
+   * class out of every component, fixture, spec and comment in the tree
+   * and watching `globalSetup` name it, and those figures are in the PR
+   * that added the line. What this stops is the line being deleted
+   * without anyone re-measuring.
+   */
+  it("keeps the needle list itself out of the scanner", () => {
+    const globals = readFileSync(join(FRONTEND, "src", "app", "globals.css"), "utf8");
+    expect(globals).toContain('@source not "../../e2e-layout/build-fixture-css.ts";');
   });
 });

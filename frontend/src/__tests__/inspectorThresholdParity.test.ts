@@ -5,11 +5,14 @@ import { resolve, dirname } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  SHEET_DRAWER_VH,
   SHEET_PEEK_PX,
   SHEET_SNAP_FULL,
-  SHEET_SNAP_HALF,
-  SHEET_VISIBLE_HEIGHT,
-} from "@/components/MobileInspectorSheet";
+  SHEET_SNAP_HALF_FALLBACK,
+  halfSnapUnderPlayer,
+  sheetDrawerHeightPx,
+} from "@/lib/sheetSnap";
+import { SHEET_VISIBLE_HEIGHT } from "@/components/MobileInspectorSheet";
 import {
   CANVAS_PADDING_REM,
   COLUMN_REM,
@@ -175,22 +178,23 @@ describe("§Layering sheet states", () => {
     return row![1];
   };
 
-  /** The `90vh` the drawer is actually rendered at, read off the component. */
-  const drawerVh = (): number => {
-    const source = readFileSync(
-      resolve(REPO_ROOT, "frontend/src/components/MobileInspectorSheet.tsx"),
-      "utf-8",
-    );
-    const match = source.match(/className="fixed bottom-0[^"]*\sh-\[(\d+)vh\]/);
-    expect(match).not.toBeNull();
-    return Number(match![1]);
-  };
+  /**
+   * The fraction of the window the drawer is actually rendered at.
+   *
+   * Read from the constant the component writes on the element rather
+   * than out of a class list: the drawer's height stopped being a `vh`
+   * class this round, because a CSS viewport unit is not the viewport
+   * vaul solves its snaps in. `MobileInspectorSheet.test.tsx` is what
+   * holds the rendered element to this number and to carrying no
+   * viewport unit of its own; this is the document's side of it.
+   */
+  const drawerVh = (): number => SHEET_DRAWER_VH * 100;
 
   // Both snaps, declared. One row would leave the other's arithmetic
   // unread, and the two differ only in the number that is easiest to
   // copy from the wrong place.
   const ROWS = [
-    { state: "half", snap: SHEET_SNAP_HALF },
+    { state: "half", snap: SHEET_SNAP_HALF_FALLBACK },
     { state: "full", snap: SHEET_SNAP_FULL },
   ];
   expect(ROWS).toHaveLength(2);
@@ -226,12 +230,101 @@ describe("§Layering sheet states", () => {
     });
   }
 
+  it("does not state half as a fixed fraction any more", () => {
+    // The row used to read as one unconditional subtraction, and it is
+    // now that subtraction *plus* a condition. Both halves are asserted:
+    // the arithmetic above, and here the fact that it is conditional and
+    // that the other case names what it is derived from. A cell that
+    // dropped the condition would still parse above and would be telling
+    // a reader that a video page's sheet takes 40vh, which it does not.
+    const cell = heightCell("half");
+    expect(cell).toMatch(/where nothing is measured/);
+    expect(cell).toMatch(/player/);
+    // And full's is not conditional, which is the difference between the
+    // two rows.
+    expect(heightCell("full")).not.toMatch(/player/);
+  });
+
+  /**
+   * §Layering's equation, evaluated against the function that solves it.
+   *
+   * Two implementations of one relationship, which is what makes this a
+   * parity test rather than one table read twice: the document states the
+   * geometry — the drawer's height less vaul's translate is the room under
+   * the player — and `halfSnapUnderPlayer` solves it for the snap. The
+   * drawer's height comes from the component's own class list, so all
+   * three have to agree.
+   *
+   * Only inputs inside the clamp. The bounds are deliberately *not* the
+   * equation — a player taller than the screen has no snap that satisfies
+   * it — and asserting them here would be asserting the opposite of what
+   * this case is about. `lib/__tests__/sheetSnap.test.ts` carries them.
+   */
+  const UNCLAMPED = [
+    { viewportHeight: 667, playerBottom: 315 },
+    { viewportHeight: 812, playerBottom: 329.25 },
+    { viewportHeight: 915, playerBottom: 400 },
+  ];
+  expect(UNCLAMPED).toHaveLength(3);
+
+  it("states the equation the derived snap solves", () => {
+    expect(design()).toContain(
+      "`halfSnapUnderPlayer` solves `drawerHeight −\n  vh × (1 − snap) = vh − playerBottom`",
+    );
+  });
+
+  for (const { viewportHeight, playerBottom } of UNCLAMPED) {
+    it(`solves it at ${viewportHeight}px with the player ending at ${playerBottom}`, () => {
+      const snap = halfSnapUnderPlayer({ viewportHeight, playerBottom })!;
+      expect(snap).not.toBeNull();
+
+      // The left-hand side, written out from the document rather than
+      // from the function: the drawer's height less what vaul slides
+      // past the bottom edge.
+      const drawerHeight = (drawerVh() / 100) * viewportHeight;
+      const onScreen = drawerHeight - viewportHeight * (1 - snap);
+
+      // The right-hand side: the room under the player.
+      expect(onScreen).toBeCloseTo(viewportHeight - playerBottom, 6);
+    });
+  }
+
   it("says out loud that the snap is not the height", () => {
     // The sentence under the table is what stops the next reader
     // re-deriving `half = 50vh` from the snap name. It is prose, so this
-    // pins its claim rather than its wording: the drawer's height, and
-    // the fact that it is the same at both snaps.
+    // pins its claim rather than its wording: the drawer is the same
+    // height at both snaps, and the snap is the translate.
+    expect(design()).toContain(
+      "The drawer is nine tenths of the window at\nboth states",
+    );
+  });
+
+  it("says which viewport the drawer's height is in", () => {
+    // The first finding of round two, in the document that has to carry
+    // it: the `vh` this section writes is `window.innerHeight`, not the
+    // CSS unit, and the two differ on a phone by the height of the URL
+    // bar. A paragraph that dropped the distinction would leave the next
+    // reader free to spell the height as a class again.
     const design_ = design();
-    expect(design_).toContain(`The drawer is \`h-[${drawerVh()}vh]\` at both states`);
+    expect(design_).toContain("`vh` above means `window.innerHeight`");
+    expect(design_).toContain("sheetDrawerHeightPx(window.innerHeight)");
+    // And the derivation's own term, evaluated: the document's fraction
+    // against the function the component calls.
+    expect(sheetDrawerHeightPx(667)).toBeCloseTo((drawerVh() / 100) * 667, 6);
+  });
+
+  it("states the bound that keeps the derivation from taking room away", () => {
+    // The landscape regression, as the rule rather than as the viewport
+    // it was found at. The lower end is no longer a clamp to a peek row;
+    // it is a refusal, and the sheet keeps the fraction it replaced.
+    const bullet = design();
+    expect(bullet).toContain(
+      "the derivation applies only while it gives more room than the fixed",
+    );
+    // Read back through the function: at a landscape phone with a player
+    // filling the scrollport there is no snap at all.
+    expect(
+      halfSnapUnderPlayer({ viewportHeight: 375, playerBottom: 375 }),
+    ).toBeNull();
   });
 });

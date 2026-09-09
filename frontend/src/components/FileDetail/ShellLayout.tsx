@@ -35,6 +35,7 @@ import { RelatedGroup } from "./inspector/RelatedGroup";
 import { buildInspectorTabs } from "./inspector/tabs";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 import type { SlotAvailability } from "./hooks/useSlotAvailability";
+import { useSheetHalfSnap } from "./hooks/useSheetHalfSnap";
 
 export interface ShellLayoutProps {
   file: FileItem;
@@ -148,6 +149,26 @@ export function ShellLayout({
   sheetPeek,
 }: ShellLayoutProps) {
   const tabLabels = useTranslations("inspector.tabs");
+
+  /**
+   * Where the sheet's `half` state stops, for this file.
+   *
+   * On a phone the player is stuck to the top of the canvas, so a sheet
+   * that took a fixed fraction of the window covered it at some viewport
+   * heights and left a gap at others. Derived from the player's own
+   * bottom edge instead, `half` is exactly the room under it: the video
+   * stays whole and everything below goes to the tab.
+   *
+   * Measured here rather than in `FileDetailShell` because this is where
+   * the player wrapper's ref is, and passed down as a number so the
+   * shell holds a state and not a measurement. `hasPlayer` and not
+   * `usesCanvasViewer`: a PDF has a viewer and no player, and a page
+   * nobody is watching has nothing to stay clear of.
+   */
+  const sheetHalfSnap = useSheetHalfSnap(
+    metrics.playerWrapperRef,
+    isMobile && hasPlayer,
+  );
 
   /**
    * The PDF canvas viewer's page state, when the canvas holds one.
@@ -444,6 +465,7 @@ export function ShellLayout({
         inspector={inspector}
         mobileSheet={mobileSheet}
         sheetPeek={sheetPeek}
+        halfSnap={sheetHalfSnap}
         resetKey={fileId}
       >
         <MediaCanvas

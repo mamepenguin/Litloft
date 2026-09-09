@@ -18,13 +18,13 @@ import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { FileDetailChrome } from "./FileDetail/FileDetailChrome";
 import { useInspectorFit } from "./FileDetail/hooks/useInspectorFit";
 import { InspectorPane } from "./InspectorPane";
+import { SHEET_PEEK_PX, SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
 import {
   MobileInspectorSheet,
-  SHEET_PEEK_PX,
-  SHEET_SNAP_HALF,
-  SHEET_SNAP_PEEK,
+  SHEET_STATE_HALF,
+  SHEET_STATE_PEEK,
   isSheetExpanded,
-  type SheetSnap,
+  type SheetState,
 } from "./MobileInspectorSheet";
 
 interface FileDetailShellProps {
@@ -67,6 +67,14 @@ interface FileDetailShellProps {
    * to, because at rest it is the only part on screen.
    */
   sheetPeek?: ReactNode;
+  /**
+   * What `half` is worth in vaul's units on this page.
+   *
+   * Derived from the player's bottom edge by `useSheetHalfSnap`, so a
+   * sheet raised to `half` stops where the player ends. Omitted on every
+   * surface with no player to measure, which keeps the fixed fraction.
+   */
+  halfSnap?: number;
   children: ReactNode;
   /**
    * Handed the element that actually scrolls the canvas.
@@ -126,6 +134,7 @@ export function FileDetailShell({
   inspector,
   mobileSheet,
   sheetPeek,
+  halfSnap = SHEET_SNAP_HALF_FALLBACK,
   children,
   onScrollRootChange,
   resetKey,
@@ -150,15 +159,19 @@ export function FileDetailShell({
     [measureCanvas, onScrollRootChange],
   );
 
-  const [sheetSnap, setSheetSnap] = useState<SheetSnap>(SHEET_SNAP_PEEK);
-  const sheetExpanded = isSheetExpanded(sheetSnap);
+  // Which state, never the snap it resolves to. `half`'s snap moves with
+  // the viewport and with the player, so a stored number would name a
+  // snap point that is no longer in the list vaul was handed the first
+  // time a URL bar collapsed.
+  const [sheetState, setSheetState] = useState<SheetState>(SHEET_STATE_PEEK);
+  const sheetExpanded = isSheetExpanded(sheetState);
   const attachInspectorFitHost = useInspectorFit();
 
   // Reset transient UI on file change so the previously-open Sheet
   // doesn't bleed into the next file when the host re-uses one mounted
   // shell (review HIGH H1, hako 5rtHKXzQd9VJY7WNU5Deg).
   useEffect(() => {
-    setSheetSnap(SHEET_SNAP_PEEK);
+    setSheetState(SHEET_STATE_PEEK);
   }, [resetKey]);
 
   // Re-evaluate the inspector default-open derivation on resize.
@@ -195,8 +208,8 @@ export function FileDetailShell({
       // Half rather than full: the point of raising the sheet is to
       // read the inspector, and the player above it stays on screen at
       // half. Full is a drag away for anyone who wants the whole thing.
-      setSheetSnap((prev) =>
-        isSheetExpanded(prev) ? SHEET_SNAP_PEEK : SHEET_SNAP_HALF,
+      setSheetState((prev) =>
+        isSheetExpanded(prev) ? SHEET_STATE_PEEK : SHEET_STATE_HALF,
       );
     } else toggle();
   }, [isMobile, toggle]);
@@ -261,8 +274,9 @@ export function FileDetailShell({
       </div>
       {isMobile && (
         <MobileInspectorSheet
-          snap={sheetSnap}
-          onSnapChange={setSheetSnap}
+          state={sheetState}
+          onStateChange={setSheetState}
+          halfSnap={halfSnap}
           peek={sheetPeek}
         >
           {mobileSheet ?? inspector}

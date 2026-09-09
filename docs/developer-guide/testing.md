@@ -186,8 +186,9 @@ the boxes Chromium produces. There is one fixture and one spec per property:
 `justified-grid` (cell ratios and line filling), `related-files` (the rail's
 tiles), `addon-policy` (a sticky table heading), `file-actions-menu` (which
 side of a trigger a popup lands on) and `mobile-inspector-sheet` (where the
-Bottom Sheet's drawer, scroller and tab strip land at each snap, and whether the
-end of a tab can be brought on screen).
+Bottom Sheet's drawer, scroller and tab strip land at each snap, whether the
+end of a tab can be brought on screen, and whether the sheet's derived `half`
+leaves the player above it).
 
 ```bash
 cd frontend
