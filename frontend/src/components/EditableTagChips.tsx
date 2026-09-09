@@ -247,6 +247,22 @@ export function EditableTagChips(props: EditableTagChipsProps) {
       .slice(0, 5);
   }, [input, allTags, tags]);
 
+  /**
+   * The one way the add-a-tag interaction ends.
+   *
+   * All four exits go through it — Escape, the scrim, the `onBlur` timer,
+   * and both of `submitTag`'s closing paths. It was extracted for the
+   * first two only, and the two it missed cleared `input` and `adding`
+   * but not `error`: typing an invalid tag and then a valid one left the
+   * error paragraph on screen, because it renders outside the `adding`
+   * branch.
+   */
+  const closeInput = useCallback(() => {
+    setAdding(false);
+    setInput("");
+    setError(null);
+  }, []);
+
   const submitTag = useCallback(
     (raw: string) => {
       const trimmed = raw.trim();
@@ -261,8 +277,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
       }
       if (tags.some((existing) => existing.toLowerCase() === trimmed.toLowerCase())) {
         // Already present — silently close the input.
-        setInput("");
-        setAdding(false);
+        closeInput();
         return;
       }
       if (tags.length >= MAX_TAGS) {
@@ -270,19 +285,10 @@ export function EditableTagChips(props: EditableTagChipsProps) {
         return;
       }
       commit([...tags, trimmed]);
-      setInput("");
-      setAdding(false);
+      closeInput();
     },
-    [commit, tags, t],
+    [closeInput, commit, tags, t],
   );
-
-  // One way to end the add-a-tag interaction, so the scrim and `onBlur`
-  // cannot drift into leaving different state behind.
-  const closeInput = useCallback(() => {
-    setAdding(false);
-    setInput("");
-    setError(null);
-  }, []);
 
   const removeTag = useCallback(
     (tagToRemove: string) => {
@@ -308,16 +314,14 @@ export function EditableTagChips(props: EditableTagChipsProps) {
           submitTag(input);
         }
       } else if (e.key === "Escape") {
-        setAdding(false);
-        setInput("");
-        setError(null);
+        closeInput();
       } else if (e.key === "Backspace" && input === "" && tags.length > 0) {
         // Familiar chip-group shortcut: empty input + Backspace drops
         // the last chip. Matches Gmail / GitHub / Obsidian.
         removeTag(tags[tags.length - 1]);
       }
     },
-    [composing, input, removeTag, selectedIndex, submitTag, suggestions, tags],
+    [closeInput, composing, input, removeTag, selectedIndex, submitTag, suggestions, tags],
   );
 
   return (
@@ -375,15 +379,27 @@ export function EditableTagChips(props: EditableTagChipsProps) {
                   `popup-dismissal.test.ts`). */}
               <DismissScrim
                 onDismiss={closeInput}
-                // Under the list's own `z-10`, which is the band this
-                // inline chip row works in — see DESIGN.md §Layering on
-                // picking the tier by what the element is.
-                className="fixed inset-0 z-[9]"
+                // The top of the popover band, because that is the tier an
+                // anchored popup belongs to (DESIGN.md §Layering) — not a
+                // number picked to sit under this list.
+                //
+                // `z-[9]` was that mistake, and it reintroduced the exact
+                // defect this primitive exists to remove: the chips are in
+                // `InspectorShell`'s header, whose tab strip is `sticky
+                // top-0 z-10` in column mode and whose page `Header` is
+                // `sticky top-0 z-20`. Both painted above the scrim, so a
+                // tap on either was never absorbed — the list closed
+                // through `onBlur` and the tab switched under the finger.
+                className="fixed inset-0 z-30"
               />
               <div
                 role="listbox"
                 aria-label={t("placeholder")}
-                className="absolute top-full left-0 z-10 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg"
+                // Above the sticky tab strip, which is `z-10` and later in
+                // the document, so at equal `z` it painted over the first
+                // rows of this list — measured at 390x844: 44px of overlap,
+                // and taps in it reached the strip.
+                className="absolute top-full left-0 z-30 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg"
               >
                 {suggestions.map((s, i) => (
                   <button

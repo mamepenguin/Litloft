@@ -890,7 +890,11 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   own unit; until it lands, this is one component's behaviour and not a rule
   the tree keeps.
 - **A popup is dismissed on the scrim's `click`, never on the press.** One
-  primitive, `DismissScrim`, and every popup in core on it. The addons are
+  primitive, `DismissScrim`, and every **anchored** popup in core on it — a
+  menu, a filter panel, a picker, a typeahead. A modal dialog is a different
+  pattern and keeps its own backdrop, which dismisses on `click` by
+  construction; `popup-dismissal.test.ts` enumerates which surfaces are which
+  rather than leaving it to whichever ones happen to spell `role="dialog"`. The addons are
   each their own repository and are named where they stand:
   `intelligence`'s AI menu is correct but hand-written, and `knowledge`'s
   `[[` candidate list is fixed and pinned here. A tap's `click`
@@ -913,12 +917,21 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   the swallowing is for — pressing a control by accident is the defect.
 
   The scrim is written where the popup is and needs no portal: it is a sibling
-  of the popup, so it already shares the popup's containing block and its
-  interactive subtree (inside the sheet, vaul makes `<body>` inert and only
-  `Drawer.Content` is live — §Layering). **It sits directly under the popup it
+  of the popup, so it is already in the popup's interactive subtree,
+  and in a box that *contains* whatever the popup is drawn against (inside the
+  sheet, vaul makes `<body>` inert and only `Drawer.Content` is live —
+  §Layering). Not the *same* containing block: the scrim is always `fixed`,
+  while above 640px the anchored form of these menus is `sm:absolute` against
+  its own wrapper. **It sits directly under the popup it
   guards, in that popup's own band**, which is the rule that stays true when a
-  popup changes tier: three of the fifteen are outside the popover band, and
-  each is under its own popup rather than at a number of its own. It carries
+  popup changes tier. Most sit in the popover band because most popups do;
+  `ContextMenu`, `FolderPicker` and the over-frame settings panel do not, and
+  each is under its own popup rather than at a number of its own — the last
+  `absolute` inside the player frame with no `z` at all. Named rather than
+  counted: this sentence carried a count twice and it was wrong both times,
+  once because the same change that wrote it added a scrim.
+  `popup-dismissal.test.ts` holds the same list, and fails when a scrim
+  outside the band is not one of them. It carries
   no name and no role, except where it is the popup's *stated* way out — the
   over-frame settings panel names its backdrop, because over media there is no
   page edge to say where the panel stops.

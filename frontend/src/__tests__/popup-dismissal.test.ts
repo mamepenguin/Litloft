@@ -138,11 +138,24 @@ function withoutComments(text: string): string {
  * menu *row*, a modal dialog, and a file that only opens someone else's
  * panel, so each of those is named below with where its dismissal lives.
  *
- * What neither spelling reaches is a popup that declares no ARIA *and* is
- * positioned only by inline coordinates. `ContextMenu` is that shape and is
- * in the population by its rows' `role="menuitem"`; one written with
- * neither would be invisible here. That is the limit, said here rather
- * than left implied by a claim that the sweep is total.
+ * **The limit, stated properly this time.** An earlier version of this
+ * paragraph said the only gap was "no ARIA *and* positioned by inline
+ * coordinates", and that was wrong: every modal dialog with a hand-rolled
+ * `fixed inset-0` backdrop and no `role` is outside these needles too —
+ * `ConfirmDialog`, `MoveDialog`, `RenameDialog`, `CollectionPicker`,
+ * `GlobalSearch` and the rest. Which modals are in the population is an
+ * accident of which ones happen to spell `role="dialog"`.
+ *
+ * That is tolerable only because a modal is a different pattern: it paints
+ * its own backdrop over the whole viewport, dismisses on that backdrop's
+ * `click`, and has nothing behind it a stray click could reach. The
+ * population this file guards is **anchored popups** — a surface hung off
+ * a control, with a live page behind it. A modal that grows an anchored
+ * menu inside it is caught by the menu, not by the modal.
+ *
+ * A popup declaring no ARIA and positioned only by inline coordinates is
+ * still invisible here. `ContextMenu` is that shape and is in by its rows'
+ * `role="menuitem"`; one written with neither would be missed.
  *
  * **The array is the definition.** `POPUP_NEEDLE` is joined from it and the
  * cases below iterate it, so a spelling cannot leave the alternation while
@@ -159,6 +172,7 @@ const NEEDLES = [
   "aria-haspopup",
   "top-full",
   "bottom-full",
+  "MENU_SURFACE",
 ] as const;
 
 const POPUP_NEEDLE = new RegExp(NEEDLES.join("|"));
@@ -364,6 +378,58 @@ describe("Every popup surface in core", () => {
     expect(popupFiles()).toEqual(Object.keys(POPUPS).sort());
   });
 
+  it("keeps its geometry needle load-bearing", () => {
+    // The claim this unit was re-opened to make good is that geometry —
+    // not a dismissal style, and not ARIA — is what finds a popup that
+    // declares nothing. As first shipped it was false: every file the
+    // geometry matched also carried an ARIA needle, so deleting both
+    // geometry spellings left the population byte-identical.
+    //
+    // This asserts the redundancy directly, on the real file rather than a
+    // synthetic one: strip every ARIA needle from `EditableTagChips` and
+    // it must still be a popup. Respelling its `top-full`, or dropping the
+    // needle, fails here.
+    const ariaNeedles = NEEDLES.filter(
+      (n) => n.startsWith("role=") || n.startsWith("aria-"),
+    );
+    const stripped = ariaNeedles.reduce(
+      (text, needle) => text.split(needle).join("__none__"),
+      withoutComments(read("frontend/src/components/EditableTagChips.tsx")),
+    );
+    for (const needle of ariaNeedles) expect(stripped).not.toContain(needle);
+    expect(POPUP_NEEDLE.test(stripped)).toBe(true);
+  });
+
+  it("sees a popup that reuses the shared menu surface", () => {
+    // Five menus here render `className={MENU_SURFACE}` — the identifier,
+    // not the classes — so the geometry inside it belongs to
+    // `ToolbarMenu.tsx` and no consumer matches on it. All five happen to
+    // also write `role="menu"`; a sixth would not have to. A probe of
+    // exactly that shape was in the population of nothing until
+    // `MENU_SURFACE` became a needle of its own.
+    const dir = mkdtempSync(join(tmpdir(), "popup-surface-"));
+    const file = join(dir, "Sixth.tsx");
+    // The probe does not write the `import` line a real caller would.
+    // `toolbarMenuHome.test.ts` enumerates the files that import
+    // `MENU_SURFACE`, and it caught this file when the string was here —
+    // an enumerating detector finding a new one, which is the shape
+    // working. The needle is the identifier, so the probe still carries
+    // what the sweep looks for.
+    writeFileSync(
+      file,
+      "export const Sixth = () => (\n" +
+        "  <div className={MENU_SURFACE}>\n" +
+        "    <button>row</button>\n" +
+        "  </div>\n" +
+        ");\n",
+    );
+    try {
+      expect(popupFiles([dir])).toEqual([relative(REPO_ROOT, file)]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("defines its population in one place", () => {
     // The count is here so that dropping a spelling is a failure rather
     // than a shorter list: the alternation and the cases below are built
@@ -372,28 +438,50 @@ describe("Every popup surface in core", () => {
     // Measured before this was joined from `NEEDLES`: deleting
     // `role="listbox"` and `role="option"` from the regex and from a
     // hand-written case list left the file green.
-    expect(NEEDLES).toHaveLength(8);
-    expect(POPUP_NEEDLE.source.split("|")).toHaveLength(NEEDLES.length);
+    // One literal, and it is the pin. A second assertion comparing
+    // `POPUP_NEEDLE.source.split("|")` to `NEEDLES.length` was here and
+    // could not fail: the regex is joined from the array on the line
+    // above, so the two sides were the same observation.
+    expect(NEEDLES).toHaveLength(9);
+  });
+
+/**
+ * A whole, well-formed declaration for each needle.
+ *
+ * Written as a table rather than derived by string surgery: the derived
+ * version produced `aria-haspopupradio"="menu"` for `aria-haspopup`,
+ * because the branch that closes the `role="menuitem` prefix fired on it
+ * too. The case still passed — a needle is a substring — so nothing said
+ * the fixture had stopped containing anything a real trigger writes.
+ *
+ * The keys are checked against `NEEDLES` below, so a needle cannot be
+ * added without a declaration to exercise it.
+ */
+const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
+  'role="menu"': 'role="menu"',
+  'role="menuitem': 'role="menuitemradio"',
+  'role="listbox"': 'role="listbox"',
+  'role="option"': 'role="option"',
+  'role="dialog"': 'role="dialog"',
+  "aria-haspopup": 'aria-haspopup="menu"',
+  "top-full": 'className="absolute top-full"',
+  "bottom-full": 'className="absolute bottom-full"',
+  MENU_SURFACE: "className={MENU_SURFACE}",
+};
+
+  it("has a declaration for every needle", () => {
+    expect(Object.keys(NEEDLE_DECLARATIONS).sort()).toEqual([...NEEDLES].sort());
   });
 
   it.each(
-    NEEDLES.map((needle) => [
-      needle,
-      // A whole declaration to write into the fixture. The prefix needle
-      // has no closing quote, and `top-full` / `bottom-full` are classes
-      // rather than attributes.
-      needle.startsWith("role=") || needle.startsWith("aria-")
-        ? `${needle}${needle.endsWith('"') ? "" : 'radio"'}${
-            needle.startsWith("aria-") ? '="menu"' : ""
-          }`
-        : `className="absolute ${needle}"`,
-    ]),
+    NEEDLES.map((needle) => [needle, NEEDLE_DECLARATIONS[needle]]),
   )("is found by %s", (_needle, declaration) => {
-    // Each spelling separately, against a tree written for it. Several
-    // have no live example in core — `role="listbox"` and `role="option"`
-    // are the knowledge addon's candidate list, not anything here — so
-    // without a case of its own each is a branch that could be deleted
-    // with every other assertion green.
+    // Each spelling separately, against a tree written for it. Without a
+    // case of its own a spelling is a branch that could be deleted with
+    // every other assertion green — which is not hypothetical: two of
+    // these were deleted from the regex and from a hand-written case list
+    // in one edit, and the file stayed green. The cases are generated from
+    // `NEEDLES` now, so that edit cannot be made in one hand.
     const dir = mkdtempSync(join(tmpdir(), "popup-needle-"));
     const file = join(dir, "Sample.tsx");
     writeFileSync(file, `export const x = <div ${declaration} />;\n`);
@@ -471,6 +559,139 @@ describe("Every popup surface in core", () => {
         .filter((f): f is string => f !== null),
     );
     expect(rendering).toEqual([...declared].sort());
+  });
+});
+
+/**
+ * The `z` band each scrim is drawn in, read from its call site.
+ *
+ * `MENU_SCRIM`'s default is pinned by `DismissScrim.test.tsx`; a caller
+ * that passes its own `className` was pinned by nothing, in jsdom or in a
+ * browser. That is how a scrim shipped at `z-[9]` — below the inspector's
+ * `sticky top-0 z-10` tab strip and the page's `sticky top-0 z-20` header.
+ * A tap on either was not absorbed, and the popup this primitive had just
+ * been given closed through its old `onBlur` while the tab switched
+ * underneath: the defect the unit removes, reintroduced by the unit.
+ *
+ * A scrim must be in the popover band (`DESIGN.md` §Layering, `z-10` to
+ * `z-30`) unless it is enumerated below with the reason it is not.
+ */
+const POPOVER_BAND = { min: 10, max: 30 };
+
+/**
+ * Scrims deliberately outside the band, and why. Enumerated rather than
+ * counted: `DESIGN.md` carried a count of these and it was wrong twice.
+ */
+const TIER_EXCEPTIONS: Record<string, { z: string; why: string }> = {
+  "frontend/src/components/ContextMenu.tsx": {
+    z: "z-49",
+    why:
+      "raised by a gesture anywhere on the page, including over surfaces " +
+      "already above the popover band; it is never the sheet form",
+  },
+  "frontend/src/components/FolderPicker.tsx": {
+    z: "z-40",
+    why:
+      "under its own panel's z-50, which four of its six callers compare " +
+      "inside a dialog root's stacking context; renumbering the panel is " +
+      "the real fix and is not this unit's",
+  },
+  "frontend/src/components/player/MediaControls/parts/OverFrameSettingsPanel.tsx": {
+    z: "absolute inset-0",
+    why:
+      "scoped to the player frame rather than the viewport — no tier at " +
+      "all, and `absolute` rather than `fixed`, because the frame goes " +
+      "`position: fixed` while faking fullscreen on Apple mobile",
+  },
+};
+
+/**
+ * Every `DismissScrim` call site, with the class list it passes.
+ *
+ * Found by index rather than by a regex over the whole tag: the element
+ * spans many lines and carries comments, and a lazy pattern is one edit
+ * away from stopping at the wrong delimiter.
+ */
+function scrimCallSites(roots: string[] = [CORE_ROOT]): Map<string, string> {
+  const out = new Map<string, string>();
+  const TAG = "<DismissScrim";
+  for (const root of roots) {
+    for (const file of sourceFiles(root)) {
+      const text = withoutComments(readFileSync(file, "utf-8"));
+      const rel = relative(REPO_ROOT, file);
+      let from = text.indexOf(TAG);
+      while (from !== -1) {
+        const close = text.indexOf("/>", from);
+        const attrs = close === -1 ? "" : text.slice(from + TAG.length, close);
+        const cn = /className=(?:\{`([^`]*)`\}|"([^"]*)")/.exec(attrs);
+        out.set(rel, cn ? (cn[1] ?? cn[2]).replace(/\s+/g, " ").trim() : "");
+        from = text.indexOf(TAG, close === -1 ? from + TAG.length : close);
+      }
+    }
+  }
+  return out;
+}
+
+describe("Every scrim's tier", () => {
+  it("names every scrim it found", () => {
+    // The scan is a population, so it is pinned like one — and it is what
+    // the two cases below rest on.
+    expect([...scrimCallSites().keys()].sort()).toEqual(
+      [
+        ...new Set(
+          Object.values(POPUPS)
+            .map((e) => e.dismissedIn)
+            .filter((f): f is string => f !== null),
+        ),
+      ].sort(),
+    );
+  });
+
+  it("is in the popover band, or enumerated with a reason", () => {
+    const offenders: string[] = [];
+    for (const [file, className] of scrimCallSites()) {
+      // An empty class list is `MENU_SCRIM`, pinned elsewhere.
+      if (className === "") continue;
+      const exception = TIER_EXCEPTIONS[file];
+      if (exception) {
+        if (!className.includes(exception.z)) {
+          offenders.push(
+            `${file}: enumerated as ${exception.z}, found "${className}"`,
+          );
+        }
+        continue;
+      }
+      const z = /\bz-\[?(\d+)\]?/.exec(className);
+      if (!z) {
+        offenders.push(`${file}: no tier in "${className}" and not enumerated`);
+        continue;
+      }
+      const band = Number(z[1]);
+      if (band < POPOVER_BAND.min || band > POPOVER_BAND.max) {
+        offenders.push(`${file}: z-${band} is outside the popover band`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("sits above the chrome a finger lands on", () => {
+    // The two surfaces the `z-[9]` scrim was under, read from their own
+    // files rather than restated — raising either above the band is a
+    // failure here instead of a silent hole under every scrim in it.
+    const tierOf = (path: string) =>
+      Number(
+        /sticky top-0 z-(\d+)/.exec(
+          readFileSync(resolve(REPO_ROOT, path), "utf-8"),
+        )![1],
+      );
+
+    expect(POPOVER_BAND.max).toBe(30);
+    expect(
+      tierOf("frontend/src/components/FileDetail/inspector/InspectorShell.tsx"),
+    ).toBeLessThan(POPOVER_BAND.max);
+    expect(tierOf("frontend/src/components/Header.tsx")).toBeLessThan(
+      POPOVER_BAND.max,
+    );
   });
 });
 

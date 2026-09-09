@@ -30,8 +30,19 @@ export interface DismissScrimProps {
    */
   label?: string;
   /**
-   * Take the right-click / long-press as well, and **hand it on to the
-   * element underneath**.
+   * Take the `contextmenu` event as well, and **hand it on to the element
+   * underneath**.
+   *
+   * The event, not the gesture. A right-click raises it everywhere, and a
+   * long-press raises it on Android Chrome and iOS Safari — but this
+   * tree's own long-press path does not: `useContextMenu` opens the menu
+   * from a 500 ms `setTimeout` on `touchstart`, and while a menu is open
+   * the scrim is in front, so a second row's `onTouchStart` never fires
+   * and there is nothing to re-aim. Retargeting is therefore a right-click
+   * behaviour here plus whatever the platform synthesises, and nothing
+   * measures the second half — Playwright has no long-press that raises
+   * `contextmenu`. The user guide claims only the right-click for that
+   * reason.
    *
    * Only `ContextMenu`, which is the popup that gesture raises. Two
    * things have to be true of it at once, and they pull opposite ways:
@@ -41,7 +52,7 @@ export interface DismissScrimProps {
    *  - right-clicking a *second* row must move the menu to that row, as
    *    it always did. One gesture, one menu, wherever it was aimed.
    *
-   * So the scrim dismisses and then re-dispatches the gesture at the same
+   * So the scrim dismisses and then re-dispatches the event at the same
    * point, once it is no longer in the way. Swallowing it outright — the
    * shape this component shipped with first — cost a second right-click
    * on every retarget, which was never part of what the click-swallowing

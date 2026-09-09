@@ -81,6 +81,52 @@ describe("EditableTagChips", () => {
     });
   });
 
+  it("clears the error when the tag is one already present", async () => {
+    // Every exit from the add-a-tag interaction goes through one
+    // `closeInput`, and this is the path that needed it. `submitTag`'s
+    // duplicate branch closed the field without clearing `error`, and the
+    // error paragraph renders outside the `adding` branch — so a rejected
+    // tag followed by one that is already on the file left the complaint
+    // about the first on screen with nothing to correct.
+    //
+    // Not the *accepted*-tag path, which review named: `commit` clears the
+    // error itself, so that one was never stale. Measured — removing
+    // `closeInput` from the success path leaves this file green.
+    render(<EditableTagChips file={file} initialTags={["existing"]} />);
+    clickAdd();
+    typeAndEnter("bad name");
+    await waitFor(() => {
+      expect(screen.getByText(/Contains invalid characters/)).toBeInTheDocument();
+    });
+
+    typeAndEnter("existing");
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(/Contains invalid characters/),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("clears the error when the field is dismissed", async () => {
+    // The same single exit, reached from Escape rather than from a
+    // successful submit.
+    render(<EditableTagChips file={file} initialTags={[]} />);
+    clickAdd();
+    typeAndEnter("bad name");
+    await waitFor(() => {
+      expect(screen.getByText(/Contains invalid characters/)).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(screen.getByPlaceholderText(/tag/i), { key: "Escape" });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(/Contains invalid characters/),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it("rejects over-length tags", async () => {
     render(<EditableTagChips file={file} initialTags={[]} />);
     clickAdd();
