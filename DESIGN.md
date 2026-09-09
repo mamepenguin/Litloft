@@ -654,9 +654,14 @@ with a **border in the accent colour**, never a fill.
   clamps, and this does not ask them to: `FolderCard` and `ArchiveEntryCard`
   cut theirs to one line with `truncate`, and `JustifiedFileCell` draws its
   name as an overlay governed by `.justified-grid-name` in `globals.css`. The
-  rule is for the cards that reach for `line-clamp-*` — `FileCard`, the trash
-  and missing grids and `media_import`'s `WatchCard` are the ones that do
-  today — and it is that they do not each pick a different number.
+  rule is for the cards that reach for `line-clamp-*`, and it is that they do
+  not each pick a different number. `grep -rn 'line-clamp-' frontend/src
+  addons/*/frontend` is the whole check — of the sites it returns, the ones
+  clamping a card's name are `FileCard`, `TrashFileGrid`, `MissingFileGrid`,
+  `media_import`'s `WatchCard` and `intelligence`'s `SceneCard`
+  (`VisualIndexSection`), all at two. The rest clamp something that is not a
+  name — an excerpt, a quote, a description, `SceneCard`'s own second line —
+  and this bullet says nothing about them.
 - **Nothing else in that class list may set a `display`.** `line-clamp-*`
   compiles to `display: -webkit-box` plus `-webkit-line-clamp`, and the clamp is
   a property of that box: any other `display` utility on the same element

@@ -1,8 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  existsSync,
+  statSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { resolve, dirname, relative } from "node:path";
+import { resolve, dirname, join, relative } from "node:path";
 import { __unstable__loadDesignSystem, compile } from "tailwindcss";
 
 import {
@@ -95,18 +103,23 @@ const SOURCE_ROOTS = [
  * suite green. The day a sync status card grows a `line-clamp-2` it would have
  * been in a root nothing was watching.
  *
- * So the roots are named here, and an addon's root is dropped only when its
- * submodule is not checked out. `addons/<name>` and not `<name>/frontend`,
- * because that is the granularity `addonPresent` tests and the granularity a
- * non-recursive clone works at.
+ * So the roots are named here, and an addon's root is dropped **only when its
+ * submodule is not checked out** — the one condition a source scan cannot do
+ * anything about. That is why the filter is handed `addons/<name>` and the
+ * `/frontend` is appended afterwards: `addonPresent` tests the first three
+ * segments of what it is given, so passing it the full root path would test
+ * `addons/<name>/frontend` and drop a root whenever an addon that *is* checked
+ * out has merely stopped shipping a frontend — a source root leaving the
+ * population silently, which is the hole this constant exists to close, one
+ * level down. Measured: with the frontend directory of a checked-out addon
+ * moved aside, the three-segment form left the suite green.
  */
 const EXPECTED_ROOTS = [
   "frontend/src",
-  "addons/cloud-sync/frontend",
-  "addons/intelligence/frontend",
-  "addons/knowledge/frontend",
-  "addons/media_import/frontend",
-].filter((root) => addonPresent(REPO_ROOT, root));
+  ...["cloud-sync", "intelligence", "knowledge", "media_import"]
+    .filter((name) => addonPresent(REPO_ROOT, `addons/${name}`))
+    .map((name) => `addons/${name}/frontend`),
+];
 
 /**
  * Every utility Tailwind 4.2.2 compiles to a bare `display` declaration.
@@ -574,48 +587,177 @@ describe("the display enumeration matches Tailwind's own", () => {
  * which a scan that recognises nothing also achieves. The expectation for each
  * case is written here rather than read off the tree.
  */
+/**
+ * The spellings every declared case is put through.
+ *
+ * A case table's job is to declare the expectation independently of the tree.
+ * The first version of this one wrapped every case in `"…"` and so ran the
+ * whole table through `readQuoted` alone — with the result that putting
+ * `classTokens` back on `stringLiterals`, the pre-fix body, left all 47 tests
+ * green. The capability the docstring claims outright ("descends into template
+ * interpolations") was held by nothing, which is detector rule 4 inside the
+ * commit written to answer a rule-5 failure.
+ *
+ * So a case is not a string, it is a class list written four ways the tree
+ * actually writes one, and the declared answer has to come out of all four.
+ * The last three reach `readTemplate` and `readExpression`; the fourth is what
+ * a nested backtick inside an interpolation costs.
+ *
+ * Deleting a spelling would shrink the population the same way, so the names
+ * are asserted below against a declared list.
+ */
+const SPELLINGS: ReadonlyArray<readonly [string, (value: string) => string]> = [
+  ["a quoted attribute", (v) => `"${v}"`],
+  ["a template literal", (v) => `{\`${v}\`}`],
+  ["a quoted literal inside an interpolation", (v) => `{\`\${wide ? "${v}" : ""}\`}`],
+  ["a nested template inside an interpolation", (v) => `{\`\${wide ? \`${v}\` : ""}\`}`],
+];
+
+/**
+ * A display utility that exists only in this file.
+ *
+ * `[display:revert-layer]` is a real Tailwind arbitrary property — it compiles
+ * to a rule like any other — and nothing in the app writes it or ever would.
+ * That makes its presence in the built stylesheet a fact about this file's own
+ * text leaking into the scan, and its absence the property the `@source not`
+ * in `globals.css` exists to hold. Pinning a *property* rather than the
+ * directive's spelling is what lets the next reader widen that directive to a
+ * glob without a test telling them the file is not excluded while it is.
+ */
+const STYLESHEET_SENTINEL = "[display:revert-layer]";
+
+/**
+ * What to look for in the built sheet.
+ *
+ * Not the utility as written: Tailwind escapes the selector
+ * (`.\[display\:revert-layer\]`) and puts a space in the declaration
+ * (`display: revert-layer`), so the class string itself appears nowhere in the
+ * output and asserting on it would pass whether the rule was emitted or not —
+ * which is how the first version of this guard came out green with the
+ * directive deleted. The value survives both transformations intact, and is
+ * the half nothing else in the sheet writes.
+ */
+const SENTINEL_NEEDLE = "revert-layer";
+
+/**
+ * The declared answers, one row per class list, written here rather than read
+ * off the tree — a scan and a tree that agree prove nothing about either.
+ */
+const RECOGNISER_CASES = [
+  // The defect this unit exists for, in both of its spellings.
+  ["block line-clamp-2 text-sm font-semibold", true],
+  ["line-clamp-2 block", true],
+  ["line-clamp-2 text-sm font-semibold", false],
+  // `flex-1` is not a display utility. `MatchOverlay` writes
+  // `line-clamp-2 min-w-0 flex-1` and is not an instance of this defect;
+  // a scan matching on a prefix would report it and send the next reader
+  // to break a working component.
+  ["line-clamp-2 min-w-0 flex-1 text-[11px]", false],
+  ["line-clamp-2 flex-col", false],
+  ["line-clamp-2 grid-cols-3", false],
+  ["line-clamp-2 table-fixed", false],
+  ["line-clamp-2 inline-size-full", false],
+  // The clamp's own release valve, which is meant to be paired with a clamp.
+  ["line-clamp-3 hover:line-clamp-none", false],
+  ["line-clamp-none", false],
+  // A display set through an arbitrary property is still a display.
+  ["line-clamp-2 [display:flex]", true],
+  ["line-clamp-2 md:[display:block]", true],
+  // The sentinel "the detector keeps out of the stylesheet" looks for:
+  // a real display utility no component would ever write, so its
+  // absence from the compiled sheet is a fact about this file alone.
+  ["line-clamp-2 [display:revert-layer]", true],
+  // Variants on either side.
+  ["md:line-clamp-2 flex", true],
+  ["[&>p]:line-clamp-2 [&>p]:block", true],
+  // Arbitrary clamp values.
+  ["line-clamp-[7] block", true],
+  ["line-clamp-[7] gap-2", false],
+  // Neither half present.
+  ["flex items-center gap-2", false],
+  ["", false],
+] as [string, boolean][];
+
 describe("the recogniser", () => {
-  const flags = (value: string) => {
-    const tokens = classTokens(`"${value}"`);
+  const flags = (value: string, spell: (v: string) => string) => {
+    const tokens = classTokens(spell(value));
     return tokens.some(isLineClamp) && tokens.some(isDisplayUtility);
   };
 
-  it.each(DISPLAY_UTILITIES)("catches `%s` beside a clamp", (utility) => {
-    expect(flags(`${utility} line-clamp-2`)).toBe(true);
-    expect(flags(`sm:${utility} line-clamp-2`)).toBe(true);
+  // Every case against every spelling, as separate cases rather than a loop
+  // inside one assertion. A loop inside `it` is one edit away from
+  // `SPELLINGS[0]` — the quoted form, which reaches none of the new walker —
+  // at the cost of no test and no red; as a matrix, shortening `SPELLINGS` is
+  // red instead. Narrowing `matrix` itself still shrinks the suite silently,
+  // and no arrangement of a test can prevent that. What covers it is that the
+  // claim the matrix carries is also carried by the assertion above, which is
+  // why that one is written separately: measured, with `matrix` narrowed to
+  // one spelling, reverting the walker is still red.
+  const matrix = <T extends readonly unknown[]>(rows: readonly T[]) =>
+    rows.flatMap((row) =>
+      SPELLINGS.map(([name, spell]) => [name, ...row, spell] as const),
+    );
+
+  it("puts every case through the spellings it says it does", () => {
+    // Declared, because `SPELLINGS` is a hand-written list and a hand-written
+    // list can be shortened by one entry while every loop over it still
+    // passes — the same shape `DISPLAY_UTILITIES` needed pinning against.
+    // There is no compiler to ask here: the claim is about which shapes of
+    // source text the table covers, so the shapes are named.
+    expect(SPELLINGS.map(([name]) => name)).toEqual([
+      "a quoted attribute",
+      "a template literal",
+      "a quoted literal inside an interpolation",
+      "a nested template inside an interpolation",
+    ]);
+    // And that each one really does deliver the tokens to the walker, rather
+    // than being a wrapper the walker never enters.
+    for (const [name, spell] of SPELLINGS) {
+      expect(classTokens(spell("block line-clamp-2")).sort(), name).toEqual([
+        "block",
+        "line-clamp-2",
+      ]);
+    }
   });
 
-  it.each([
-    // The defect this unit exists for, in both of its spellings.
-    ["block line-clamp-2 text-sm font-semibold", true],
-    ["line-clamp-2 block", true],
-    ["line-clamp-2 text-sm font-semibold", false],
-    // `flex-1` is not a display utility. `MatchOverlay` writes
-    // `line-clamp-2 min-w-0 flex-1` and is not an instance of this defect;
-    // a scan matching on a prefix would report it and send the next reader
-    // to break a working component.
-    ["line-clamp-2 min-w-0 flex-1 text-[11px]", false],
-    ["line-clamp-2 flex-col", false],
-    ["line-clamp-2 grid-cols-3", false],
-    ["line-clamp-2 table-fixed", false],
-    ["line-clamp-2 inline-size-full", false],
-    // The clamp's own release valve, which is meant to be paired with a clamp.
-    ["line-clamp-3 hover:line-clamp-none", false],
-    ["line-clamp-none", false],
-    // A display set through an arbitrary property is still a display.
-    ["line-clamp-2 [display:flex]", true],
-    ["line-clamp-2 md:[display:block]", true],
-    // Variants on either side.
-    ["md:line-clamp-2 flex", true],
-    ["[&>p]:line-clamp-2 [&>p]:block", true],
-    // Arbitrary clamp values.
-    ["line-clamp-[7] block", true],
-    ["line-clamp-[7] gap-2", false],
-    // Neither half present.
-    ["flex items-center gap-2", false],
-    ["", false],
-  ] as [string, boolean][])("reads `%s` as %s", (value, expected) => {
-    expect(flags(value)).toBe(expected);
+  it.each(matrix(DISPLAY_UTILITIES.map((u) => [u] as const)))(
+    "as %s, catches `%s` beside a clamp",
+    (_spelling, utility, spell) => {
+      expect(flags(`${utility} line-clamp-2`, spell)).toBe(true);
+      expect(flags(`sm:${utility} line-clamp-2`, spell)).toBe(true);
+    },
+  );
+
+  it.each(matrix(RECOGNISER_CASES))(
+    "as %s, reads `%s` as %s",
+    (_spelling, value, expected, spell) => {
+      expect(flags(value, spell)).toBe(expected);
+    },
+  );
+
+  it("still carries the sentinel the stylesheet guard looks for", () => {
+    // The two spellings must not drift: the guard below proves the sentinel
+    // is absent from the compiled sheet, which proves nothing if the table
+    // has stopped writing it.
+    expect(RECOGNISER_CASES.map(([value]) => value)).toContain(
+      `line-clamp-2 ${STYLESHEET_SENTINEL}`,
+    );
+  });
+
+
+  it("reads a template-literal className end to end, span reader included", () => {
+    // The spellings above go straight into `classTokens`. This one goes in
+    // through `classAttributeSpans`, which is the path a real file takes: the
+    // span it hands back is `{`…`}`, braces and interpolation and all, and a
+    // reader that stopped at the first `}` would cut the value in half.
+    const [list] = classListsIn(
+      "probe.tsx",
+      "const x = <p className={`line-clamp-2 text-sm ${wide ? \"block\" : \"\"}`} />;",
+    );
+    expect(list.tokens.sort()).toEqual(["block", "line-clamp-2", "text-sm"]);
+    expect(
+      list.tokens.some(isLineClamp) && list.tokens.some(isDisplayUtility),
+    ).toBe(true);
   });
 
   it("reads a clamp out of a cn() call and a hoisted constant alike", () => {
@@ -647,32 +789,56 @@ describe("the recogniser", () => {
  * Tailwind auto-detects its sources by walking out from `globals.css` and
  * scanning everything under `frontend/` that `.gitignore` does not exclude —
  * `src/__tests__` included, and it does not strip comments. So the
- * enumeration above, the case table below it and the prose around both are
- * candidates, and every utility named here got a rule in the sheet every
- * viewer loads, `not-sr-only` among them, out of a docstring sentence. The
- * `@source not` line in `globals.css` is what stops it, and it grows more
- * load-bearing with every case added here.
+ * enumeration above, the case table and the prose around both are candidates,
+ * and every utility named here got a rule in the sheet every viewer loads,
+ * out of a docstring sentence in one case. The `@source not` line in
+ * `globals.css` is what stops it, and it grows more load-bearing with every
+ * case added here.
  *
- * **This does not recompile the stylesheet** — it checks the declaration is
- * there and still points at this file, which is the realistic decay (the line
- * deleted, or this file renamed and the line left behind). Recompiling from
- * vitest means shelling out to the Tailwind CLI on every run, and
- * `tailwind-scans-addons.test.ts` declined that for the same reason. The way
- * to re-measure the bytes is in the comment beside the directive.
+ * **The property, not the directive's spelling.** An earlier version of this
+ * matched `@source not "…"` as text and asserted the path resolved to this
+ * file. That rejected two directives that exclude this file perfectly well —
+ * the single-quoted form, and the `../__tests__` glob the comment beside the
+ * directive invites the next reader to consider — telling whoever widened it
+ * that the file is not excluded while it demonstrably was. So this compiles
+ * the stylesheet and asks whether the sentinel is in it. Deleting the
+ * directive is red; renaming this file and leaving the directive behind is
+ * red; strengthening the directive is green, which is the point.
+ *
+ * It shells out to the pinned Tailwind CLI — the binary
+ * `e2e-layout/build-fixture-css.ts` uses — which costs a fraction of a second
+ * and is the only way to ask the question. `tailwind-scans-addons.test.ts`
+ * declined to recompile because doing it *its* way needed `postcss` as a
+ * direct dependency; this needs no new dependency.
  */
 describe("the detector keeps out of the stylesheet", () => {
-  it("is excluded from Tailwind's source scan by name", () => {
-    const globals = readFileSync(
-      resolve(REPO_ROOT, "frontend/src/app/globals.css"),
-      "utf8",
+  it("writes no rule of its own into the compiled sheet", () => {
+    const out = join(
+      mkdtempSync(join(tmpdir(), "litloft-clamp-")),
+      "built.css",
     );
-    const declared = /@source\s+not\s+"([^"]+)"/g;
-    const excluded = [...globals.matchAll(declared)].map((m) =>
-      resolve(REPO_ROOT, "frontend/src/app", m[1]),
+    execFileSync(
+      resolve(REPO_ROOT, "frontend/node_modules/.bin/tailwindcss"),
+      [
+        "--input",
+        resolve(REPO_ROOT, "frontend/src/app/globals.css"),
+        "--output",
+        out,
+      ],
+      { stdio: "pipe" },
     );
-    // Resolved to a path rather than matched as a string, so renaming this
-    // file breaks it instead of leaving a directive pointing at nothing —
-    // Tailwind says nothing about a `@source not` that matches no file.
-    expect(excluded).toContain(SELF);
-  });
+    const css = readFileSync(out, "utf8");
+
+    // A compile that produced nothing would satisfy any "is absent" assertion,
+    // which is the shape of green this whole file exists to remove. Two
+    // needles the app genuinely writes, one a utility and one a hand-written
+    // rule, so an empty or half-built sheet fails here and not below.
+    expect(css).toContain(".line-clamp-2 {");
+    expect(css).toContain(".justified-grid-host");
+
+    // The needle has to still be part of the utility the case table writes,
+    // or this looks for something nothing would ever emit.
+    expect(STYLESHEET_SENTINEL).toContain(SENTINEL_NEEDLE);
+    expect(css).not.toContain(SENTINEL_NEEDLE);
+  }, 60_000);
 });
