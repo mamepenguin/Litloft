@@ -14,7 +14,7 @@
  * does with what it is handed.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
@@ -883,6 +883,56 @@ describe("the sheet's half, derived from the player", () => {
         publishedSnap(screen.getByTestId("mobile-inspector-sheet")),
       ).toBeLessThan(before);
     });
+  });
+
+  it("re-derives when the player's own box changes", async () => {
+    // The other channel, and the one the window's events cannot cover: a
+    // `.loft` frame resolving its ratio, or `--rail-avail` moving the
+    // width cap, changes the player's height without changing the
+    // window's. jsdom ships no `ResizeObserver`, so one is installed
+    // here — which makes this evidence that the hook observes the player
+    // and acts on the callback, and nothing at all about when a browser
+    // would fire it.
+    const observed: Element[] = [];
+    const callbacks: ResizeObserverCallback[] = [];
+    const original = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = class {
+      constructor(cb: ResizeObserverCallback) {
+        callbacks.push(cb);
+      }
+      observe(node: Element) {
+        observed.push(node);
+      }
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver;
+
+    try {
+      stubPlayerBox(PLAYER_BOTTOM);
+      const { container } = await renderMediaAwaitingChrome(
+        makeFile({ has_chapters: false }),
+      );
+      const before = publishedSnap(await openSheet());
+
+      // The player wrapper, not some ancestor: an observer on the page
+      // would fire for reasons that have nothing to do with the video.
+      expect(observed).toContain(
+        container.querySelector(".media-detail-player"),
+      );
+
+      stubPlayerBox(PLAYER_BOTTOM * 1.5);
+      act(() => {
+        for (const cb of callbacks) cb([], {} as ResizeObserver);
+      });
+
+      await waitFor(() => {
+        expect(
+          publishedSnap(screen.getByTestId("mobile-inspector-sheet")),
+        ).toBeLessThan(before);
+      });
+    } finally {
+      globalThis.ResizeObserver = original;
+    }
   });
 
   it("keeps the player element across the raise it now measures", async () => {
