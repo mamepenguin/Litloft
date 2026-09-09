@@ -36,8 +36,14 @@
  * `assertSameCompiler` is the guard, and it is not redundant with the
  * ranges: nothing enforces that Tailwind keeps publishing the three
  * together, and a `resolutions`/`overrides` entry or a partial update can
- * separate them at any time. Nothing else in the repository would notice —
- * the `REQUIRED` needles below are all version-insensitive.
+ * separate them at any time. The `REQUIRED` needles below are all
+ * version-insensitive, so nothing here would notice.
+ *
+ * It is exported because it is no longer the only caller of that binary:
+ * `src/__tests__/line-clamp-display.test.ts` compiles the same stylesheet to
+ * ask whether its own class names leaked into it, and under a skew it would
+ * be answering that about a sheet no one ships. A second caller of a recipe
+ * takes the recipe's guard with it.
  */
 
 import { execFileSync } from "node:child_process";
@@ -90,7 +96,7 @@ const REQUIRED = [
  * the ranges there are what disagree — the resolved versions are what
  * decide whether the output is the app's.
  */
-function assertSameCompiler() {
+export function assertSameCompiler() {
   const versionOf = (pkg: string): string =>
     JSON.parse(
       readFileSync(

@@ -6,6 +6,7 @@ import {
   readdirSync,
   existsSync,
   statSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
@@ -16,9 +17,11 @@ import { __unstable__loadDesignSystem, compile } from "tailwindcss";
 import {
   classAttributeSpans,
   classConstSpans,
+  stringLiterals,
   stripComments,
 } from "./helpers/sourceScan";
 import { addonPresent } from "./helpers/addonPresent";
+import { assertSameCompiler } from "../../e2e-layout/build-fixture-css";
 
 /**
  * `line-clamp-*` brings its own `display`, so nothing else may set one.
@@ -698,25 +701,65 @@ describe("the recogniser", () => {
       SPELLINGS.map(([name, spell]) => [name, ...row, spell] as const),
     );
 
-  it("puts every case through the spellings it says it does", () => {
-    // Declared, because `SPELLINGS` is a hand-written list and a hand-written
-    // list can be shortened by one entry while every loop over it still
-    // passes — the same shape `DISPLAY_UTILITIES` needed pinning against.
-    // There is no compiler to ask here: the claim is about which shapes of
-    // source text the table covers, so the shapes are named.
-    expect(SPELLINGS.map(([name]) => name)).toEqual([
-      "a quoted attribute",
-      "a template literal",
-      "a quoted literal inside an interpolation",
-      "a nested template inside an interpolation",
-    ]);
-    // And that each one really does deliver the tokens to the walker, rather
-    // than being a wrapper the walker never enters.
+  it("writes the source shapes it says it writes", () => {
+    // Names are not the observation. An earlier version asserted only this
+    // list and the tokens that came out, and every spelling produces the same
+    // two tokens by construction — so replacing all four bodies with the
+    // quoted form, names untouched, left the whole matrix back on `readQuoted`
+    // with 171 green. The bodies are the thing under test, so the bodies are
+    // what is declared: the exact source text each must produce for one probe
+    // value, written out here rather than read back off the lambda.
+    expect(Object.fromEntries(SPELLINGS.map(([n, f]) => [n, f("X Y")]))).toEqual(
+      {
+        "a quoted attribute": '"X Y"',
+        "a template literal": "{`X Y`}",
+        "a quoted literal inside an interpolation": '{`${wide ? "X Y" : ""}`}',
+        "a nested template inside an interpolation": "{`${wide ? `X Y` : \"\"}`}",
+      },
+    );
+  });
+
+  it("writes shapes that a quote-only reader gets wrong", () => {
+    // The declaration above fixes the text; this is what makes the text
+    // worth fixing. `sourceScan`'s `stringLiterals` is the reader this file
+    // used before `literalChunks` — it returns a backtick span whole — so
+    // asking it the same question separates the spellings that exercise
+    // `readTemplate` / `readExpression` from the ones that merely look
+    // different. The first two are shapes it handles; the last two are not,
+    // and that is the whole reason they are in the list.
+    const naive = (src: string) =>
+      stringLiterals(src)
+        .flatMap((literal) => literal.split(/\s+/))
+        .filter(Boolean)
+        .sort();
+    const byName = Object.fromEntries(SPELLINGS);
+    const tokens = ["block", "line-clamp-2"];
+
+    expect(naive(byName["a quoted attribute"]("block line-clamp-2"))).toEqual(
+      tokens,
+    );
+    expect(naive(byName["a template literal"]("block line-clamp-2"))).toEqual(
+      tokens,
+    );
+    expect(
+      naive(
+        byName["a quoted literal inside an interpolation"]("block line-clamp-2"),
+      ),
+    ).not.toEqual(tokens);
+    expect(
+      naive(
+        byName["a nested template inside an interpolation"](
+          "block line-clamp-2",
+        ),
+      ),
+    ).not.toEqual(tokens);
+
+    // And the walker gets all four right, which is the claim the matrix below
+    // rests on.
     for (const [name, spell] of SPELLINGS) {
-      expect(classTokens(spell("block line-clamp-2")).sort(), name).toEqual([
-        "block",
-        "line-clamp-2",
-      ]);
+      expect(classTokens(spell("block line-clamp-2")).sort(), name).toEqual(
+        tokens,
+      );
     }
   });
 
@@ -795,39 +838,64 @@ describe("the recogniser", () => {
  * `globals.css` is what stops it, and it grows more load-bearing with every
  * case added here.
  *
- * **The property, not the directive's spelling.** An earlier version of this
- * matched `@source not "…"` as text and asserted the path resolved to this
- * file. That rejected two directives that exclude this file perfectly well —
- * the single-quoted form, and the `../__tests__` glob the comment beside the
+ * **The property, not the directive's spelling.** An earlier version matched
+ * `@source not "…"` as text and asserted the path resolved to this file. That
+ * rejected two directives that exclude this file perfectly well — the
+ * single-quoted form, and the `../__tests__` glob the comment beside the
  * directive invites the next reader to consider — telling whoever widened it
  * that the file is not excluded while it demonstrably was. So this compiles
  * the stylesheet and asks whether the sentinel is in it. Deleting the
- * directive is red; renaming this file and leaving the directive behind is
- * red; strengthening the directive is green, which is the point.
+ * directive is red; pointing it at another file is red; strengthening it is
+ * green, which is the point.
+ *
+ * **An absence needs a positive control.** `expect(css).not.toContain(needle)`
+ * is satisfied by a needle that could never appear — set `SENTINEL_NEEDLE` to
+ * the utility as written, which the compiler escapes and spaces out of
+ * existence, and the guard is green forever, directive or no directive. The
+ * same is true of a future Tailwind that stops emitting arbitrary properties
+ * this way. So the needle is first proved to be a thing this compiler emits,
+ * by compiling it deliberately in isolation. ~20ms.
  *
  * It shells out to the pinned Tailwind CLI — the binary
- * `e2e-layout/build-fixture-css.ts` uses — which costs a fraction of a second
- * and is the only way to ask the question. `tailwind-scans-addons.test.ts`
- * declined to recompile because doing it *its* way needed `postcss` as a
- * direct dependency; this needs no new dependency.
+ * `e2e-layout/build-fixture-css.ts` uses, with that file's own version-skew
+ * guard, which is not optional here: three Tailwind packages carry three
+ * independent `^4` ranges, this file uses two of them, and the sheet that
+ * ships is built by the third. Under a skew, "no rule of this file's is in
+ * the sheet" would be a claim about a sheet nobody builds.
+ * `tailwind-scans-addons.test.ts` declined to recompile because doing it
+ * *its* way needed `postcss` as a direct dependency; this needs no new one.
  */
 describe("the detector keeps out of the stylesheet", () => {
-  it("writes no rule of its own into the compiled sheet", () => {
-    const out = join(
-      mkdtempSync(join(tmpdir(), "litloft-clamp-")),
-      "built.css",
-    );
+  const compileCss = (input: string): string => {
+    const out = join(mkdtempSync(join(tmpdir(), "litloft-clamp-")), "built.css");
     execFileSync(
       resolve(REPO_ROOT, "frontend/node_modules/.bin/tailwindcss"),
-      [
-        "--input",
-        resolve(REPO_ROOT, "frontend/src/app/globals.css"),
-        "--output",
-        out,
-      ],
+      ["--input", input, "--output", out],
       { stdio: "pipe" },
     );
-    const css = readFileSync(out, "utf8");
+    return readFileSync(out, "utf8");
+  };
+
+  it("writes no rule of its own into the compiled sheet", () => {
+    // The binary below and the `tailwindcss` import the enumeration oracle
+    // uses are two packages on two ranges; the app's sheet is built by a
+    // third. Same call `build-fixture-css.ts` makes, for the same reason.
+    assertSameCompiler();
+
+    // The positive control: the sentinel, compiled on its own, with nothing
+    // scanned. If this does not emit it, the absence asserted below means
+    // nothing and the failure says so here rather than passing quietly.
+    const req = createRequire(import.meta.url);
+    const controlDir = mkdtempSync(join(tmpdir(), "litloft-clamp-control-"));
+    const controlInput = join(controlDir, "control.css");
+    writeFileSync(
+      controlInput,
+      `@import "${req.resolve("tailwindcss/index.css")}" source(none);\n` +
+        `@source inline("${STYLESHEET_SENTINEL}");\n`,
+    );
+    expect(compileCss(controlInput)).toContain(SENTINEL_NEEDLE);
+
+    const css = compileCss(resolve(REPO_ROOT, "frontend/src/app/globals.css"));
 
     // A compile that produced nothing would satisfy any "is absent" assertion,
     // which is the shape of green this whole file exists to remove. Two
@@ -836,9 +904,6 @@ describe("the detector keeps out of the stylesheet", () => {
     expect(css).toContain(".line-clamp-2 {");
     expect(css).toContain(".justified-grid-host");
 
-    // The needle has to still be part of the utility the case table writes,
-    // or this looks for something nothing would ever emit.
-    expect(STYLESHEET_SENTINEL).toContain(SENTINEL_NEEDLE);
     expect(css).not.toContain(SENTINEL_NEEDLE);
   }, 60_000);
 });
