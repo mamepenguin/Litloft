@@ -73,7 +73,13 @@ export const FIXTURE_CSS = join(__dirname, "fixtures", "globals.built.css");
  * whole job exists to remove — so ask the output what it contains rather
  * than trusting that the compiler exited 0.
  */
-const REQUIRED = [
+/**
+ * Exported for `src/__tests__/coarseNeedleSources.test.ts`, which reads the
+ * `pointer-coarse:` entries back out of this list rather than respelling
+ * them: a test that writes one of these classes whole becomes a source for
+ * it, which is the failure that test exists to catch.
+ */
+export const REQUIRED = [
   ".justified-grid-host",
   ".justified-grid-cell",
   ".justified-grid-tail",

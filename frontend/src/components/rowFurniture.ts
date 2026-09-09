@@ -15,6 +15,15 @@
  * separates neighbours, but these two sit edge to edge on one line, so
  * overhangs would overlap and the later sibling would win the hit test for
  * its neighbour's edge.
+ *
+ * **Utilities are named below as the rule they emit** — `.pointer-coarse\:-ml-3`
+ * rather than the class as a class list spells it. Tailwind scans this file's
+ * comments as well as its code, so a class written whole in a docstring is a
+ * source for it, and `e2e-layout/build-fixture-css.ts` then has a needle for
+ * that rule which cannot go missing however the exports below change.
+ * `src/__tests__/coarseNeedleSources.test.ts` holds it: the three needles that
+ * are meant to be able to fail are spelled once each in this file, on their
+ * own export line and nowhere else.
  */
 
 /**
@@ -39,7 +48,7 @@ export const ROW_ACTION_FLOOR = "pointer-coarse:h-11 pointer-coarse:w-11";
  * the glyphs 12px closer on a screen the report was not about.
  *
  * So the group carries the row's own `gap-3` and cancels it exactly where
- * the boxes grow, and `pointer-coarse:-ml-3` cancels the row's gap in
+ * the boxes grow, and `.pointer-coarse\:-ml-3` cancels the row's gap in
  * front of the group for the same reason — the leading control's 14px
  * stands in for it. Both are written as the row's gap rather than as a
  * distance, so a row that changes its gap does not silently leave a sliver

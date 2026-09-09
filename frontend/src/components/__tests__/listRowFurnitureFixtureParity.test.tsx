@@ -144,8 +144,25 @@ const COUNTERFACTUAL = "separated";
  * Splitting the token keeps the assertion and removes the source. It is not
  * built from `rowFurniture.ts`'s exports on purpose — an expected value taken
  * from the thing under test cannot disagree with it.
+ *
+ * **The variant is not the only half that has to be split.** The first
+ * version of this helper took the utility whole, so the argument was itself
+ * a bare candidate for the *base* utility, and the shipped sheet gained a
+ * zero-padding and a zero-gap rule nothing in the app uses — the same leak
+ * one layer down. The escaped spelling used in prose across this branch does
+ * not reach that: measured, it hides the variant from the scanner and leaves
+ * the base utility behind. Taking the property and the value apart leaves no
+ * complete utility in this file at all, in code or in prose.
+ * `src/__tests__/coarseNeedleSources.test.ts` is what notices if one comes
+ * back.
  */
-const coarse = (utility: string) => `pointer-coarse:${utility}`;
+const coarse = ([property, value]: readonly [string, string]) =>
+  `pointer-coarse:${property}-${value}`;
+
+const PR_0 = ["pr", "0"] as const;
+const GAP_0 = ["gap", "0"] as const;
+const H_11 = ["h", "11"] as const;
+const W_11 = ["w", "11"] as const;
 
 const tokens = (className: string) => className.split(/\s+/).filter(Boolean);
 const normalise = (className: string) => tokens(className).join(" ");
@@ -301,7 +318,7 @@ describe("the list-row layout fixture's markup table", () => {
     const removed = tokens(shipped.class).filter(
       (c) => !tokens(before.class).includes(c),
     );
-    expect(removed).toEqual([coarse("pr-0")]);
+    expect(removed).toEqual([coarse(PR_0)]);
     // Both directions, the way the star's guard below is written. One
     // direction leaves the counterfactual free to gain a class of its own
     // and still read as "the shipped row with three things put back".
@@ -321,7 +338,7 @@ describe("the list-row layout fixture's markup table", () => {
     const starBefore = before.children![1];
     expect(
       tokens(star.class).filter((c) => !tokens(starBefore.class).includes(c)),
-    ).toEqual(["justify-center", coarse("h-11"), coarse("w-11")]);
+    ).toEqual(["justify-center", coarse(H_11), coarse(W_11)]);
     expect(
       tokens(starBefore.class).filter((c) => !tokens(star.class).includes(c)),
     ).toEqual([]);
@@ -332,7 +349,7 @@ describe("the list-row layout fixture's markup table", () => {
     // pointer rather than a wider one — the browser spec measures that;
     // jsdom can only say the classes are there.
     expect(tokens(group.class)).toContain("gap-3");
-    expect(tokens(group.class)).toContain(coarse("gap-0"));
+    expect(tokens(group.class)).toContain(coarse(GAP_0));
     expect(tokens(shipped.class)).toContain("gap-3");
   });
 
@@ -351,37 +368,54 @@ describe("the list-row layout fixture's markup table", () => {
     const row = render(
       <FileListRow file={file} selectable onSelect={vi.fn()} />,
     ).container.firstElementChild!;
-    expect(tokens(classOf(row))).not.toContain(coarse("pr-0"));
+    expect(tokens(classOf(row))).not.toContain(coarse(PR_0));
     expect(tokens(classOf(row))).toContain("p-2.5");
     expect(Array.from(row.children)).toHaveLength(1);
   });
 
-  it("names both containers the two row kinds are stacked in", () => {
+  it("pins how the two containers the row kinds are stacked in are written", () => {
     // The fixture writes one column class by hand and stacks every shape
     // in it, file rows and the folder row together. In the app they are
     // two containers, drawn as siblings by `FolderContent`: the folder
     // rows go in its own `FolderShelf` and the file rows in `FileList`.
     //
-    // The claim the fixture stands for is that neither container insets
-    // its rows horizontally, which is what puts the two `⋮` columns at
-    // one x. Pinning only `FileList` left the other half of that claim
-    // held by nothing: `mb-6` → `mb-6 px-2` is an 8px misalignment —
-    // exactly the defect the recipe was written to prevent — and it was
-    // measured to leave the whole suite and every browser case green.
-    //
-    // Both are pinned as the literal the source writes rather than as a
-    // list of spellings that would mean an inset: there is no bounded set
-    // of ways to move a box sideways, so a whitelist loses to the next
-    // one (`review-workflow.md`, "What a test here cannot hold").
-    //
-    // Both pins reach up to the statement that returns the column, not
-    // just to its opening tag. A bare tag survives being wrapped, and a
-    // wrapper is how the inset actually arrives: pinning only
-    // `<div className="flex flex-col">` left
+    // **What this holds is three spellings, and only those.** If either
+    // container's own statement changes — a class added to it, a wrapper
+    // put inside it — this goes red and the change has to be looked at.
+    // Both pins reach up to the statement that returns the column rather
+    // than to its opening tag, because a bare tag survives being wrapped:
+    // pinning only `<div className="flex flex-col">` left
     // `<div className="px-2"><div className="flex flex-col">` green across
-    // `tsc` and the whole unit suite, which is round 1's 8px misalignment
-    // on the container this test was added to guard. Anchored this way,
-    // any edit to either container is red here and has to be looked at.
+    // `tsc` and the whole unit suite, which is round 1's own 8px
+    // misalignment on the container this case was added to guard.
+    //
+    // **What it does not hold is the alignment.** An earlier version of
+    // this comment said the pins stand for "neither container insets its
+    // rows horizontally, which is what puts the two `⋮` columns at one x".
+    // Nothing here holds that, and nothing text-matching can. Measured:
+    // wrapping `<FileList …>` at its call site in `FolderContent.tsx` in
+    // `<div className="px-2">` reproduces exactly that misalignment — the
+    // folder rows stay at the container edge, the file rows move in 8px —
+    // and leaves the whole unit suite, `tsc` and all 147 browser cases
+    // green. Neither container was touched, so neither pin can see it.
+    //
+    // Pinning the parent as well is not the repair: the inset would move
+    // to the grandparent, and then to a third component, a wrapper around
+    // `FolderShelf`, or a stylesheet rule. There is no bounded set of
+    // places an inset can be introduced, which is `review-workflow.md`'s
+    // "a whitelist of spellings loses to the next spelling" one level up
+    // from the sheet — so the claim is narrowed rather than the population
+    // extended.
+    //
+    // **Where the alignment would actually be measured**: on real boxes,
+    // by a fixture that stacks both row kinds the way `FolderContent`
+    // does, asserting the two `⋮` columns share an x. `e2e-layout/` cannot
+    // be extended into that by another `toContain` — its fixtures write
+    // their own markup instead of mounting the components, which is why
+    // its current one measures a hand-written column and says nothing
+    // about who wraps it in the app. That fixture is not written; today
+    // the alignment rests on the shared recipe in `rowFurniture.ts` and on
+    // review.
     expect(FIXTURE_HTML).toContain('column.className = "flex flex-col"');
 
     const fileList = readFileSync(join(__dirname, "..", "FileList.tsx"), "utf8");

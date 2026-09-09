@@ -1169,15 +1169,17 @@ transcript line, a `⋮` on a list row.
   their own padding between them, and taking the row's gap away as well leaves
   the two glyphs closer than either rule asked for.
   **Cancel only the spacing around boxes you wrote.** A group may stand its own
-  padding in for the row's when it knows what is inside each box — the list
-  row's group holds two controls whose class lists carry the floor themselves
-  (`ROW_ACTION_FLOOR` in `rowFurniture.ts`), so it can say the 14px is already
-  there. `.file-action-row-touch` cannot: it *imposes* a floor on children it
-  does not write, through a `> *` rule in `globals.css`, and those children are
-  shared buttons drawn at other sizes elsewhere plus whatever an addon put in
-  `file-detail-actions` — which brings its own trigger and takes no sizing from
-  the host. A group that cannot say what its children's boxes contain keeps a
-  real gap between them (`gap-0.5` in the resting strip, `gap-1` in the
+  padding in for the row's when it knows what is inside each box — every
+  control the list row's group holds carries the floor in its own class list
+  (`ROW_ACTION_FLOOR` in `rowFurniture.ts`), so the group can say the 14px is
+  already there. That holds however many the row draws — a star and a `⋮`, or
+  either of them alone — because it is a property of each control rather than
+  of the group's size. `.file-action-row-touch` cannot: it *imposes* a floor on
+  children it does not write, through a `> *` rule in `globals.css`, and those
+  children are shared buttons drawn at other sizes elsewhere plus whatever an
+  addon put in `file-detail-actions` — which brings its own trigger and takes
+  no sizing from the host. A group that cannot say what its children's boxes
+  contain keeps a real gap between them (`gap-0.5` in the resting strip, `gap-1` in the
   inspector) and gives up none of its host's padding. It takes the floor from
   this section; it does not take the grouping.
 - Reach the floor on **the row** (`pointer-coarse:min-h-11`), and give the row's
