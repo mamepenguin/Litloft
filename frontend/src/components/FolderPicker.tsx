@@ -140,10 +140,14 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
       {open && (
         <DismissScrim
           onDismiss={() => setOpen(false)}
-          // Under the `z-50` panel. Most callers put this picker inside a
-          // dialog, whose own root is the stacking context these two are
-          // compared in; on a plain page the band is the popover tier's
-          // ceiling, over the page and under nothing this picker opens.
+          // Under the panel, which is `z-50`. Four of this picker's six
+          // callers are dialogs, and a dialog root is `fixed z-50` — a
+          // stacking context, so inside one these two numbers are compared
+          // against each other and nothing else. The two plain-page callers
+          // put the scrim in the floating-surface band (DESIGN.md
+          // §Layering) rather than the popover one it belongs to, and that
+          // follows from the panel's own `z-50`; renumbering the panel is
+          // the fix, and it is not this change's.
           className="fixed inset-0 z-40"
         />
       )}

@@ -41,10 +41,15 @@ export interface DismissScrimProps {
 /**
  * Marks the rendered element as a popup's dismissal surface.
  *
- * A scrim is invisible above 640px and has no role, no name and no text,
- * so nothing else about it is addressable. Tests find it by this, and
- * `popup-dismissal.test.ts` reads it to check the tree has exactly one
- * spelling of the surface.
+ * In its default form a scrim has no role, no accessible name, no text
+ * and — above 640px — no colour, so there is nothing else to address it
+ * by. `__tests__/helpers/dismissScrim.ts` finds it by this attribute, and
+ * insists on exactly one being mounted: two would mean two popups are
+ * open, and a helper that took the first would dismiss the wrong one.
+ *
+ * It is not what `popup-dismissal.test.ts` scans for. That reads source
+ * text for `<DismissScrim`, because the question there is which files
+ * render one, not what any of them produced at runtime.
  */
 export const DISMISS_SCRIM_ATTR = "data-dismiss-scrim";
 
@@ -76,9 +81,16 @@ export const DISMISS_SCRIM_ATTR = "data-dismiss-scrim";
  * **Rendered in place, never portalled.** Inside the mobile Bottom Sheet
  * vaul is modal: `pointer-events: none` on `<body>` and `aria-hidden` on
  * every other body child, so a scrim portalled to the body from in there
- * is drawn and inert. Left where it is written, it shares the popup's own
- * containing block — the drawer inside the sheet, the viewport outside
- * it — which is the box the popup is measured against anyway.
+ * — `useDialogPortalTarget()` included, which lands in the sheet's own
+ * dialog host — is stacked correctly and inert. Left where it is written,
+ * the scrim is a sibling of the popup and shares its containing block, so
+ * whatever the popup is drawn against the scrim covers.
+ *
+ * Inside the sheet that containing block is `Drawer.Content`, which
+ * carries a transform: the scrim covers the drawer rather than the
+ * window. That is the area a finger can reach anything in — vaul's own
+ * overlay owns everything outside the drawer, and dismissing to it
+ * collapses the sheet.
  *
  * Escape is not here. It goes through `useShortcuts`, which knows what is
  * stacked above what; `escape-listeners.test.ts` records why a listener

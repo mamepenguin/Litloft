@@ -31,7 +31,7 @@ interface OverflowMenuProps {
 }
 
 /**
- * The `…` overflow menu: trigger, panel, and the two ways it closes.
+ * The `…` overflow menu: trigger, panel, and how it closes.
  *
  * Written once because there were already two copies of it — the drive
  * root's toolbar and the collection header — differing only in what they

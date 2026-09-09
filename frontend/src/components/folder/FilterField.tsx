@@ -254,45 +254,45 @@ export function FilterField({
   // written once and neither form can be left without one.
   const renderMenu = () => (
     <>
-    <DismissScrim
-      onDismiss={() => setOpen(false)}
-      // No tint: this menu is anchored to its chip at every width.
-      className="fixed inset-0 z-30"
-    />
-    <div
-      ref={popoverRef}
-      id={menuId}
-      role="menu"
-      onKeyDown={handleMenuKeyDown}
-      className={
-        typeFilter === null
-          ? "absolute right-0 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
-          : "absolute left-7 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
-      }
-    >
-      {menuValues.map((value, idx) => {
-        const isSelected = value === typeFilter;
-        const label = value === null ? t("type.all") : t(TYPE_LABEL_KEYS[value]);
-        return (
-          <button
-            key={value ?? "__all__"}
-            ref={(el) => {
-              optionRefs.current[idx] = el;
-            }}
-            type="button"
-            role="menuitem"
-            tabIndex={focusedIndex === idx ? 0 : -1}
-            onClick={() => handleSelect(value)}
-            className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors ${
-              isSelected ? "bg-bg-elevated text-text-primary font-medium" : "text-text-primary hover:bg-bg-elevated"
-            }`}
-          >
-            <span className="w-4 flex-shrink-0">{isSelected && <Check size={14} />}</span>
-            {label}
-          </button>
-        );
-      })}
-    </div>
+      <DismissScrim
+        onDismiss={() => setOpen(false)}
+        // No tint: this menu is anchored to its chip at every width.
+        className="fixed inset-0 z-30"
+      />
+      <div
+        ref={popoverRef}
+        id={menuId}
+        role="menu"
+        onKeyDown={handleMenuKeyDown}
+        className={
+          typeFilter === null
+            ? "absolute right-0 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
+            : "absolute left-7 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
+        }
+      >
+        {menuValues.map((value, idx) => {
+          const isSelected = value === typeFilter;
+          const label = value === null ? t("type.all") : t(TYPE_LABEL_KEYS[value]);
+          return (
+            <button
+              key={value ?? "__all__"}
+              ref={(el) => {
+                optionRefs.current[idx] = el;
+              }}
+              type="button"
+              role="menuitem"
+              tabIndex={focusedIndex === idx ? 0 : -1}
+              onClick={() => handleSelect(value)}
+              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors ${
+                isSelected ? "bg-bg-elevated text-text-primary font-medium" : "text-text-primary hover:bg-bg-elevated"
+              }`}
+            >
+              <span className="w-4 flex-shrink-0">{isSelected && <Check size={14} />}</span>
+              {label}
+            </button>
+          );
+        })}
+      </div>
     </>
   );
 

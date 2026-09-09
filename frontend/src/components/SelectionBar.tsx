@@ -21,8 +21,8 @@ import { ActionMenuItem } from "./ActionMenuItem";
 import { BatchRenameDialog } from "./BatchRenameDialog";
 import { Button } from "./Button";
 import { useClipboard } from "./ClipboardProvider";
-import { DismissScrim } from "./DismissScrim";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { DismissScrim } from "./DismissScrim";
 import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
 

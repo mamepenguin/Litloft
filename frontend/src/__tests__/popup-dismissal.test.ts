@@ -88,6 +88,27 @@ function read(rel: string): string {
 }
 
 /**
+ * The file with its comments removed.
+ *
+ * The needles below are attribute spellings, and a docstring that names
+ * one is describing a popup rather than declaring one. Measured: deleting
+ * every ARIA attribute from `SortButton` left it in the population,
+ * because a comment beside the rows quotes `role="menu"` while explaining
+ * why they carry a role at all. The population would then have rested on
+ * a sentence.
+ */
+function withoutComments(text: string): string {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .filter((line) => {
+      const t = line.trim();
+      return !t.startsWith("//") && !t.startsWith("*");
+    })
+    .join("\n");
+}
+
+/**
  * What makes a file part of this population.
  *
  * The ARIA a popup surface declares, plus the attribute its trigger
@@ -104,7 +125,7 @@ function popupFiles(roots: string[] = [CORE_ROOT]): string[] {
   const out: string[] = [];
   for (const root of roots) {
     for (const file of sourceFiles(root)) {
-      if (POPUP_NEEDLE.test(readFileSync(file, "utf-8"))) {
+      if (POPUP_NEEDLE.test(withoutComments(readFileSync(file, "utf-8")))) {
         out.push(relative(REPO_ROOT, file));
       }
     }
@@ -130,15 +151,14 @@ interface PopupEntry {
 const POPUPS: Record<string, PopupEntry> = {
   "frontend/src/components/ActionMenuItem.tsx": {
     dismissedIn: null,
-    why: "a row inside someone else's menu; the menu owns the dismissal",
+    why:
+      "a row inside someone else's menu; the menu owns the dismissal. It is " +
+      "here because it declares `role=\"menuitem\"` — `AddonSlot` only names " +
+      "that role in a docstring and is not in the population at all",
   },
   "frontend/src/components/AddButton.tsx": {
     dismissedIn: "frontend/src/components/AddButton.tsx",
     why: "the folder toolbar's Add menu",
-  },
-  "frontend/src/components/AddonSlot.tsx": {
-    dismissedIn: null,
-    why: 'names `role="menu"` in a docstring; renders no popup of its own',
   },
   "frontend/src/components/ContextMenu.tsx": {
     dismissedIn: "frontend/src/components/ContextMenu.tsx",
@@ -283,7 +303,7 @@ describe("Every popup surface in core", () => {
   it("goes through DismissScrim", () => {
     const missing = Object.entries(POPUPS)
       .filter(([, e]) => e.dismissedIn !== null)
-      .filter(([, e]) => !/<DismissScrim\b/.test(read(e.dismissedIn!)))
+      .filter(([, e]) => !/<DismissScrim\b/.test(withoutComments(read(e.dismissedIn!))))
       .map(([file]) => file);
     expect(missing).toEqual([]);
   });
@@ -293,7 +313,7 @@ describe("Every popup surface in core", () => {
     // the sweep does not reach, and the table above would still be
     // complete about the files it does.
     const rendering = sourceFiles(CORE_ROOT)
-      .filter((f) => /<DismissScrim\b/.test(readFileSync(f, "utf-8")))
+      .filter((f) => /<DismissScrim\b/.test(withoutComments(readFileSync(f, "utf-8"))))
       .map((f) => relative(REPO_ROOT, f))
       .sort();
     const declared = new Set(
