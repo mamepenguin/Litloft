@@ -79,12 +79,14 @@ export const DISMISS_SCRIM_ATTR = "data-dismiss-scrim";
  * navigating and a label from toggling its control. Both are needed:
  * stopping propagation alone leaves the default action.
  *
- * **One click, and only the one this press produces.** The swallow is
- * abandoned by anything that says the click is not coming — a
- * `pointercancel` (the touch became a scroll), a keystroke, or a second
- * press. A right-press produces no click at all, which is why the
- * abandoning matters: without it the swallow would sit armed and eat some
- * later, unrelated click.
+ * **One click, and only the one this press produces.** Two things keep
+ * that true. A press that cannot produce a click — anything but the
+ * primary button — arms nothing at all. And a press that could have but
+ * did not is abandoned by whatever says so: a `pointercancel` (the touch
+ * became a scroll), a keystroke, or a second press. Without either, a
+ * swallow sits armed and eats some later, unrelated click; the first is
+ * what a right-press needs, because `useContextMenu` raises its menu from
+ * `contextmenu` while that press is still in flight.
  *
  * The arming press is compared by identity rather than counted, so
  * arming from inside that press's own dispatch cannot abandon itself.
@@ -94,7 +96,21 @@ export const DISMISS_SCRIM_ATTR = "data-dismiss-scrim";
  */
 let disarm: (() => void) | null = null;
 
+/** The only button whose press produces a `click`. */
+const PRIMARY_BUTTON = 0;
+
 function swallowTheClickThisPressProduces(press: Event): void {
+  // A press that produces no click has nothing to swallow, and arming for
+  // one leaves the swallow sitting until something abandons it — a state
+  // the sentence above says does not exist. A right-press raises
+  // `contextmenu` and a middle one `auxclick`; neither raises `click`, and
+  // `useContextMenu` opens its menu from `contextmenu`, so the mount-time
+  // arming meets a right-press every time a context menu is raised by
+  // mouse.
+  if ("button" in press && (press as PointerEvent).button !== PRIMARY_BUTTON) {
+    return;
+  }
+
   disarm?.();
 
   const swallow = (e: Event) => {
@@ -139,12 +155,19 @@ function swallowTheClickThisPressProduces(press: Event): void {
  *
  * Watched from module scope, because the press it has to know about
  * starts before any scrim exists — installing the listener from a mount
- * would be too late for exactly the case this is for. Two listeners, both
- * passive, for the life of the document.
+ * would be too late for exactly the case this is for. Three listeners for
+ * the life of the document, all in the capture phase and none of them
+ * passive (the `true` is `useCapture`; passive would be
+ * `{ capture: true, passive: true }`, and none of these is in the set a
+ * browser makes passive by default). They record and clear one reference
+ * and call `preventDefault` on nothing.
  *
  * "In flight" is `pointerdown` until `pointerup` or `pointercancel`: the
  * span in which a press can still produce a click nobody has claimed.
- * After it, a mount is an ordinary mount.
+ * After it, a mount is an ordinary mount. A fourth listener on `click`
+ * was here as a belt and is gone: measured, removing it left both browser
+ * suites and this component's own file green, and a branch no case needs
+ * is not a guard.
  */
 let pressInFlight: Event | null = null;
 
@@ -161,10 +184,6 @@ if (typeof document !== "undefined") {
   };
   document.addEventListener("pointerup", ended, true);
   document.addEventListener("pointercancel", ended, true);
-  // A browser always ends a press, so the two above are the window. This
-  // third is the belt: a click means the interaction is over whatever was
-  // observed of it.
-  document.addEventListener("click", ended, true);
 }
 
 /**

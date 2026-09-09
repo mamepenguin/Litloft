@@ -42,5 +42,11 @@ export function openScrim(): HTMLElement {
  */
 export function dismissByPressingOutside(): void {
   fireEvent.pointerDown(document.body);
+  // The lift, which a browser always sends and a test has to remember to:
+  // the primitive treats a press as in flight from `pointerdown` until
+  // `pointerup`, and a popup that mounts during one arms the swallow for
+  // it. A helper that left the press open would hand that state to
+  // whatever the caller renders next.
+  fireEvent.pointerUp(document.body);
   fireEvent.click(document.body);
 }

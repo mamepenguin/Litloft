@@ -104,29 +104,119 @@ async function tap(page: Page, selector: string): Promise<void> {
 }
 
 /**
- * What a dismissing tap must do, and where the tap lands.
+ * What the page has to be for a case to be the case it is named for.
  *
- * One expectation for all three arrangements, declared before they were
- * run: the popup closes and the control under the finger is not
- * activated. That the answer does not vary with the arrangement is the
- * property five rounds of positional rules failed to hold — `bottom-bar`
- * and `transformed` are the two the last rule could not express at all.
+ * Measured from the page, before the tap, with computed styles: a
+ * declaration read back from the browser rather than a class name read out
+ * of the fixture, so a class that compiles to nothing fails here.
+ *
+ * This is what makes the three entries below distinct. The outcome
+ * assertion is identical for all of them — the popup closes and the
+ * control is spared, and that it does not vary with the arrangement is the
+ * property five rounds of positional rules could not hold — so with the
+ * targets alone, all three could be pointed at the shared full-bleed
+ * button and the run would stay green: three copies of `plain` wearing
+ * three names. Measured, before this existed: it did.
+ */
+interface Requirement {
+  /** What the fact is about, read from the page under test. */
+  of: string;
+  /** The element must not be on the page at all. */
+  absent?: boolean;
+  /** Computed style declarations that must hold on it. */
+  style?: Record<string, string>;
+  /** An ancestor selector the element must be inside. */
+  inside?: string;
+  /** An ancestor that must carry a transform, named for what it stands for. */
+  insideTransform?: string;
+}
+
+/**
+ * `$target` is the control this case taps, resolved here rather than
+ * written twice.
+ *
+ * It is what ties a requirement to the case: a fact about `#bar` alone is
+ * still true after the entry is pointed somewhere else, and retargeting
+ * all three at the shared full-bleed button is the mutation that made
+ * three copies of `plain` out of this table.
+ */
+const TARGET = "$target";
+
+async function meets(
+  page: Page,
+  requirement: Requirement,
+  target: string,
+): Promise<string[]> {
+  const req: Requirement = {
+    ...requirement,
+    of: requirement.of === TARGET ? target : requirement.of,
+  };
+  return page.evaluate((r) => {
+    const wrong: string[] = [];
+    const el = document.querySelector(r.of) as HTMLElement | null;
+    if (r.absent) return el ? [`${r.of} is on the page and must not be`] : [];
+    if (!el) return [`${r.of} is not on the page`];
+    const style = getComputedStyle(el);
+    for (const [prop, want] of Object.entries(r.style ?? {})) {
+      const got = style.getPropertyValue(prop);
+      if (got !== want) wrong.push(`${r.of} ${prop} is ${got}, not ${want}`);
+    }
+    if (r.inside && !document.querySelector(r.inside)?.contains(el)) {
+      wrong.push(`${r.of} is not inside ${r.inside}`);
+    }
+    if (r.insideTransform) {
+      const box = document.querySelector(r.insideTransform) as HTMLElement | null;
+      const transform = box ? getComputedStyle(box).transform : "none";
+      if (!box) wrong.push(`${r.insideTransform} is not on the page`);
+      else if (transform === "none") {
+        wrong.push(`${r.insideTransform} carries no transform`);
+      } else if (!box.contains(el)) {
+        wrong.push(`${r.of} is not inside ${r.insideTransform}`);
+      }
+    }
+    return wrong;
+  }, req);
+}
+
+/**
+ * What a dismissing tap must do, where it lands, and what has to be true
+ * of the page for that to mean anything.
  */
 const DISMISSING = [
   {
     arrangement: "plain",
     target: "#underneath",
     why: "a scrim over a z-0 button",
+    requires: [
+      { of: TARGET, style: { position: "fixed", "z-index": "0" } },
+      // No chrome at all: this case *is* the absence of it, and either of
+      // the others' surfaces appearing here would make it a copy.
+      { of: "#bar", absent: true },
+      { of: "#tabstrip", absent: true },
+    ] as Requirement[],
   },
   {
     arrangement: "bottom-bar",
     target: "#bulk",
     why: "scrim and menu inside a fixed bottom-0 z-50 bar, tapping a bulk action",
+    requires: [
+      {
+        of: "#bar",
+        style: { position: "fixed", bottom: "0px", "z-index": "50" },
+      },
+      { of: TARGET, inside: "#bar" },
+      { of: "[data-dismiss-scrim]", inside: "#bar" },
+    ] as Requirement[],
   },
   {
     arrangement: "transformed",
     target: "#tabstrip",
     why: "scrim inside a transformed box, tapping a sticky strip written after it",
+    requires: [
+      { of: TARGET, style: { position: "sticky", "z-index": "10" } },
+      { of: TARGET, insideTransform: "#drawer" },
+      { of: "[data-dismiss-scrim]", insideTransform: "#drawer" },
+    ] as Requirement[],
   },
 ] as const;
 
@@ -145,10 +235,20 @@ test.describe("a tap that dismisses a popup", () => {
     ]);
   });
 
-  for (const { arrangement, target, why } of DISMISSING) {
+  for (const { arrangement, target, why, requires } of DISMISSING) {
     test(`${arrangement}: ${why}`, async ({ page }) => {
       await open(page, arrangement);
       expect(await popupIsOpen(page)).toBe(true);
+
+      // The page is what the title says it is, before the tap decides
+      // anything. Retargeting this case at another arrangement's control
+      // fails here rather than passing as a third copy of `plain`.
+      for (const requirement of requires) {
+        expect(
+          await meets(page, requirement, target),
+          JSON.stringify(requirement),
+        ).toEqual([]);
+      }
 
       await tap(page, target);
 

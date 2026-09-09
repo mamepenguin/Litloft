@@ -14,6 +14,15 @@
  * need Next.js, `next-intl` and a backend. The classes come from the same
  * compiled stylesheet the app ships.
  *
+ * **That page is pinned in two directions**, because a fixture that draws
+ * its own markup drifts away from what it claims to reproduce and keeps
+ * every case title. `componentFixtureParity.test.tsx` compares these class
+ * lists against `SelectionBar` and `InspectorShell`, so the app moving a
+ * tier fails; the spec measures the same facts from computed styles before
+ * each tap, so this file dropping one fails. Measured with neither: the
+ * bar at `z-10`, the strip unstuck and the `translate3d` deleted all left
+ * the eight cases green.
+ *
  * `ShortcutsProvider` is deliberately absent: its default context is a
  * no-op, so `ContextMenu` renders without it and Escape does nothing here.
  * Escape is `escape-listeners.test.ts`'s and `useShortcuts`'s subject, not
@@ -125,7 +134,7 @@ function BottomBar(): ReactElement {
       <PageControl id="underneath" className="fixed inset-0 z-0 bg-bg-elevated">
         underneath
       </PageControl>
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-bg-card">
+      <div id="bar" className="fixed bottom-0 left-0 right-0 z-50 bg-bg-card">
         <PageControl id="bulk" className="block w-full p-2.5 text-text-primary">
           Delete selected
         </PageControl>

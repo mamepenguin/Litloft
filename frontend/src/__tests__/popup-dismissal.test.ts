@@ -692,16 +692,29 @@ describe("An outside press", () => {
     ["mousedown", "document"],
     ["pointerdown", "document"],
     ["touchstart", "document"],
+    ["mouseup", "document"],
+    ["pointerup", "document"],
+    ["touchend", "document"],
     ["mousedown", "window"],
+    ["pointerdown", "document.body"],
   ])("still bites on a %s at %s", (event, target) => {
     // Guards the scan end to end rather than re-testing its regex: an
     // assertion of "only the exceptions" passes trivially once the walk
     // stops returning files.
     //
-    // All three events and both scopes, because core happens to carry one
-    // spelling today. `FilterField` carried the `touchstart` until this
-    // change removed it, and a scan whose alternation has no live example
-    // is a branch nothing would notice losing.
+    // **Every branch of the alternation has a case here**, which is the
+    // rule this table exists for: a scan whose alternation has no live
+    // example is a branch nothing would notice losing. Measured when the
+    // up-events and `document.body` were added to the needle and not to
+    // this table: `touchend` and `document.body` could both be deleted
+    // from the scan with the whole file green, because core carries no
+    // occurrence of either. `mouseup` and `pointerup` survived only
+    // because the same change enumerated two real listeners that use
+    // them.
+    //
+    // Seven events and three scopes, enumerated rather than counted — the
+    // sentence here used to say "all three events and both scopes" and
+    // was already wrong before the needle was widened.
     const dir = mkdtempSync(join(tmpdir(), "popup-dismiss-scan-"));
     const file = join(dir, "Sample.tsx");
     writeFileSync(

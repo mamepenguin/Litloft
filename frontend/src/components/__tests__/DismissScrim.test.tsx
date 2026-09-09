@@ -221,6 +221,33 @@ describe("DismissScrim", () => {
     expect(page.clicks()).toBe(0);
   });
 
+  it("arms nothing for a press that cannot produce a click", () => {
+    // A right-press raises `contextmenu`, never `click` — and
+    // `useContextMenu` opens its menu from that event, while the press is
+    // still in flight, so the mount-time arming meets one every time a
+    // context menu is raised by mouse. Arming there would leave a swallow
+    // sitting for a click that never comes, to be spent on someone
+    // else's. Measured in Chromium by review before this guard existed:
+    // right-press to open the menu, then a click on the page — eaten.
+    const page = pageUnderneath();
+
+    // Dispatched by hand: jsdom implements no `PointerEvent`, so
+    // `fireEvent.pointerDown` builds a bare `Event` with no `button` at
+    // all — the property this turns on. A `MouseEvent` under the pointer
+    // event's name carries the `button` a browser's would.
+    page.el.dispatchEvent(
+      new MouseEvent("pointerdown", { bubbles: true, button: 2 }),
+    );
+    render(
+      <DismissScrim onDismiss={vi.fn()}>
+        <Popup />
+      </DismissScrim>,
+    );
+    fireEvent.click(page.el);
+
+    expect(page.clicks()).toBe(1);
+  });
+
   it("swallows nothing when it mounts between presses", () => {
     // The other side of that, and the reason the window is `pointerdown`
     // to `pointerup` rather than "the last press we saw": a popup opened

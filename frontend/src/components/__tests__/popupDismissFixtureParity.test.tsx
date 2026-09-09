@@ -49,24 +49,28 @@ const SPEC: Record<string, string> = JSON.parse(
 );
 
 /**
- * Every pointer event in a tap, in the order a browser produces them.
+ * Every event a *touch* produces, in the order the browser produces them.
  *
- * The population for the only assertion in the tree that says
+ * The compatibility mouse events come after `touchend`, not before it —
+ * this list said otherwise while claiming to be in order, and it is the
+ * tree's only written statement of that order.
+ *
+ * It is the population for the only assertion anywhere that says
  * `DismissScrim` dismisses on `pointerdown` **and on nothing else in a
- * tap** — so it is pinned like one. An earlier version said "listed rather
- * than counted", which held for an append and not for a deletion: the only
- * number in the file, `swallowAt === A_TAP.length - 1`, is derived from
- * `A_TAP`, so cutting the table moved both sides at once. Measured — with
- * it cut to `["pointerDown", "click"]` a second `mousedown` dismissal in
- * the component left this file green; with the table restored, the same
- * regression fails at "mouseDown on the page".
+ * tap**, so it is pinned as a population: by membership, not by length.
+ * Two measured failures, one for each half — cut to
+ * `["pointerDown", "click"]`, a second `mousedown` dismissal in the
+ * component went unseen; and with `"mouseDown"` swapped for `"dragStart"`,
+ * still seven entries, the same regression went unseen again. A length is
+ * "a `toHaveLength(7)` counting the test's own literal", which is
+ * `review-workflow.md` rule 5's own example.
  */
 const A_TAP = [
   "pointerDown",
   "touchStart",
-  "mouseDown",
   "pointerUp",
   "touchEnd",
+  "mouseDown",
   "mouseUp",
   "click",
 ] as const;
@@ -89,7 +93,19 @@ function Popup(): React.ReactElement {
 
 describe("the popup-dismiss fixture", () => {
   it("knows every event a tap produces", () => {
-    expect(A_TAP).toHaveLength(7);
+    // Membership, declared. A length alone survives a substitution, and a
+    // substitution is what takes an event out of the "and on nothing
+    // else" claim: swap `mouseDown` for something a tap never produces
+    // and a `mousedown` dismissal in the component stops being checked.
+    expect([...A_TAP]).toEqual([
+      "pointerDown",
+      "touchStart",
+      "pointerUp",
+      "touchEnd",
+      "mouseDown",
+      "mouseUp",
+      "click",
+    ]);
   });
 
   it("draws the scrim the component draws", () => {
