@@ -4,7 +4,10 @@ import { resolve, dirname } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { SHEET_PEEK_PX } from "@/components/MobileInspectorSheet";
+import {
+  SHEET_PEEK_PX,
+  SHEET_VISIBLE_HEIGHT,
+} from "@/components/MobileInspectorSheet";
 import {
   CANVAS_PADDING_REM,
   COLUMN_REM,
@@ -120,13 +123,34 @@ describe("§8.5 widths", () => {
 });
 
 describe("§Layering sheet states", () => {
+  const design = () => readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
+
   it("documents the resting height the sheet actually uses", () => {
     // Same rule as the §8.5 widths: a number in the design table and a
     // constant in the code, with nothing between them, is the drift the
     // parity suite exists to make unrepresentable.
-    const design = readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
-    const row = design.match(/\|\s*peek\s*\|\s*`(\d+)px`\s*\|/);
+    const row = design().match(/\|\s*peek\s*\|\s*`(\d+)px`\s*\|/);
     expect(row).not.toBeNull();
     expect(Number(row![1])).toBe(SHEET_PEEK_PX);
+  });
+
+  it("documents the expression that puts the sheet's end on the screen", () => {
+    // The one that is not a number. §Layering states the box between the
+    // drawer and the scroller as an expression, precisely so nobody
+    // writes the snap into the CSS a second time — and a document quoting
+    // an expression the code no longer uses is worse than one quoting
+    // none, because a reader would act on it.
+    expect(design()).toContain(`\`${SHEET_VISIBLE_HEIGHT}\``);
+  });
+
+  it("no longer claims half shows the tab strip and the tab", () => {
+    // Measured 2026-09-09 at 375x667: the header ran 277px against a
+    // 267px visible sheet, so the strip was 28px below the fold and the
+    // tab below that. The row said all three were on screen for as long
+    // as none of them was checked.
+    const row = design().match(/\|\s*half\s*\|[^|]*\|([^|]*)\|/);
+    expect(row).not.toBeNull();
+    expect(row![1]).toContain("scrolling");
+    expect(row![1]).not.toMatch(/fixed part, the tab strip, and the tab/);
   });
 });

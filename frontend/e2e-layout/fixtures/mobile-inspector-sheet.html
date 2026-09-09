@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>mobile inspector sheet — layout fixture</title>
+    <!--
+      The compiled globals.css, built by ../build-fixture-css.ts. No
+      <style> of its own, for the reason the other fixtures have none:
+      every declaration measured here has to have come out of the app's
+      own stylesheet, or the measurement is a test of this page.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The class lists the sheet and the inspector render, written out.
+
+      Both forms of the inspector are here, because the spec measures the
+      column form *and* the two-tier form it replaced: a case that only
+      draws the shipped arrangement cannot show that the arrangement is
+      what makes the difference. `mobileInspectorSheetFixtureParity.test.tsx`
+      renders both from the real components and fails if either drifts.
+
+      `visibleHeight` is the whole of C-2. vaul slides the drawer down by
+      `--snap-point-height` and the drawer is anchored to the bottom
+      edge, so that many pixels of it are always past the fold; this box
+      is the drawer less exactly that, taken from vaul's own published
+      number rather than from a snap value repeated here.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "drawer": "fixed bottom-0 left-0 right-0 z-[46] flex h-[90vh] max-h-[90vh] flex-col rounded-t-2xl border-t border-bg-border bg-bg-card outline-none",
+        "visible": "flex min-h-0 shrink-0 flex-col",
+        "visibleHeight": "calc(100% - var(--snap-point-height, 0px))",
+        "handle": "mx-auto mt-3 h-1 w-12 shrink-0 rounded-full bg-bg-border",
+        "scroller": "min-h-0 flex-1 overflow-auto",
+        "scrollerPaddingBottom": "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+        "columnRoot": "flex flex-col",
+        "columnHeader": "px-4 pt-4 pb-3",
+        "columnStrip": "flex gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11 sticky top-0 z-10 bg-bg-card",
+        "columnPanel": "space-y-4 p-4",
+        "panelRoot": "flex h-full min-h-0 flex-col",
+        "panelHeader": "shrink-0 px-4 pt-4 pb-3",
+        "panelStrip": "flex gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11 shrink-0",
+        "panelPanel": "min-h-0 flex-1 space-y-4 overflow-auto p-4",
+        "tab": "whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium transition-colors pointer-coarse:min-h-11 border-transparent text-text-muted hover:text-text-primary",
+        "drawerVh": 0.9
+      }
+    </script>
+
+    <div id="frame"></div>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      /**
+       * vaul's own arithmetic, reproduced.
+       *
+       * `snapPointsOffset` maps each fractional snap point to
+       * `window.innerHeight - snap * window.innerHeight` and the active
+       * one is published on the drawer as `--snap-point-height`. It is
+       * the same expression in vaul 1.1.2's `useSnapPoints`, and
+       * `MobileInspectorSheet.test.tsx` reads the variable back off a
+       * real vaul render at each snap so that this copy cannot drift
+       * from it silently.
+       */
+      const snapPointHeight = (snap) => window.innerHeight * (1 - snap);
+
+      /**
+       * The sheet at one snap, in one of the two inspector forms, with a
+       * chosen bound on the scroller.
+       *
+       * `bound` is what makes the mutants expressible:
+       *
+       * - `visible-box` is what ships — a box of `100% -
+       *   var(--snap-point-height)` between the drawer and the scroller.
+       * - `cap-50vh` is what it replaced: no box, and a `max-height` of
+       *   the snap written into the scroller by hand. It lands a drag
+       *   handle's height too low and is a second definition of a number
+       *   vaul already publishes.
+       * - `none` is the scroller filling the drawer, which is what the
+       *   drawer's own overhang then does to it.
+       */
+      window.buildSheet = ({
+        snap,
+        mode,
+        bound,
+        headerPx,
+        bodyPx,
+      }) => {
+        const frame = document.getElementById("frame");
+        frame.replaceChildren();
+
+        const offset = snapPointHeight(snap);
+        const drawer = document.createElement("div");
+        drawer.className = SPEC.drawer;
+        drawer.dataset.testid = "mobile-inspector-sheet";
+        drawer.style.setProperty("--snap-point-height", `${offset}px`);
+        // vaul writes this inline on the same element; the CSS form it
+        // also ships (`data-vaul-delayed-snap-points`) reads the same
+        // variable. Either way the drawer is translated down by it, and
+        // that is the whole reason its foot is off the screen.
+        drawer.style.transform = `translate3d(0, ${offset}px, 0)`;
+
+        const scroller = document.createElement("div");
+        scroller.className = SPEC.scroller;
+        scroller.dataset.testid = "mobile-inspector-content";
+        scroller.style.paddingBottom = SPEC.scrollerPaddingBottom;
+
+        const handle = document.createElement("div");
+        handle.className = SPEC.handle;
+        handle.dataset.testid = "mobile-inspector-handle";
+
+        if (bound === "visible-box") {
+          const visible = document.createElement("div");
+          visible.className = SPEC.visible;
+          visible.dataset.testid = "mobile-inspector-visible";
+          visible.style.height = SPEC.visibleHeight;
+          visible.append(handle, scroller);
+          drawer.append(visible);
+        } else {
+          if (bound === "cap-50vh") {
+            scroller.style.maxHeight = snap === 0.9 ? "90vh" : "50vh";
+          }
+          drawer.append(handle, scroller);
+        }
+
+        const column = mode === "column";
+        const root = document.createElement("div");
+        root.className = column ? SPEC.columnRoot : SPEC.panelRoot;
+        root.dataset.testid = "inspector-shell";
+
+        const header = document.createElement("div");
+        header.className = column ? SPEC.columnHeader : SPEC.panelHeader;
+        header.dataset.testid = "inspector-header";
+        // A box of a stated height rather than the real header's own
+        // content: the header's height is a property of the file, and
+        // the cases below vary it deliberately against the height of the
+        // sheet they are drawn in.
+        header.style.height = `${headerPx}px`;
+
+        const strip = document.createElement("div");
+        strip.className = column ? SPEC.columnStrip : SPEC.panelStrip;
+        strip.dataset.testid = "inspector-tabs";
+        strip.setAttribute("role", "tablist");
+        for (const label of ["Info", "Transcript"]) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.setAttribute("role", "tab");
+          button.className = SPEC.tab;
+          button.textContent = label;
+          strip.append(button);
+        }
+
+        const panel = document.createElement("div");
+        panel.className = column ? SPEC.columnPanel : SPEC.panelPanel;
+        panel.dataset.testid = "inspector-panel";
+
+        const body = document.createElement("div");
+        body.style.height = `${bodyPx}px`;
+        // Positioned, standing in for the tab content that is: an addon
+        // section with a `relative` wrapper, a popover anchor, a chip
+        // row. Two positioned boxes at `z-index: auto` paint in document
+        // order, and the panel comes after the strip — so without a
+        // stacking order of its own the strip is the one underneath,
+        // and the tab body travels visibly over it.
+        body.style.position = "relative";
+        body.style.background = "var(--color-bg-card, #fff)";
+        const end = document.createElement("div");
+        end.dataset.testid = "inspector-end";
+        // The last line of the tab, and the thing the reader is trying to
+        // reach. Given a height of its own so "its bottom is on screen"
+        // is a claim about a box rather than about a zero-height marker
+        // that any rounding would satisfy.
+        end.style.height = "24px";
+        end.textContent = "the end of the tab";
+        panel.append(body, end);
+
+        root.append(header, strip, panel);
+        scroller.append(root);
+        frame.append(drawer);
+      };
+
+      /**
+       * Where everything landed, and which box the browser will actually
+       * scroll.
+       *
+       * `verticallyScrollable` is the C-1 question asked directly: not
+       * "is there a scroller" but "which element has more content than
+       * box in the block axis". The two-tier form answers
+       * `inspector-panel` and the column form answers
+       * `mobile-inspector-content`, and that difference is the defect.
+       * The tab strip is a scroll container too — `overflow-x: auto`
+       * computes `overflow-y` to `auto` — so a count of scroll containers
+       * would not separate them, and a count of anything would not say
+       * which one it found.
+       */
+      window.measureSheet = (scrollTo) => {
+        const drawer = document.querySelector(
+          "[data-testid='mobile-inspector-sheet']",
+        );
+        const scroller = drawer.querySelector(
+          "[data-testid='mobile-inspector-content']",
+        );
+        const visible = drawer.querySelector(
+          "[data-testid='mobile-inspector-visible']",
+        );
+        const strip = drawer.querySelector("[data-testid='inspector-tabs']");
+        const header = drawer.querySelector("[data-testid='inspector-header']");
+        const end = drawer.querySelector("[data-testid='inspector-end']");
+
+        if (scrollTo !== undefined) scroller.scrollTop = scrollTo;
+
+        const rect = (el) => {
+          const box = el.getBoundingClientRect();
+          return { top: box.top, bottom: box.bottom, height: box.height };
+        };
+
+        const scrollerBox = scroller.getBoundingClientRect();
+        const verticallyScrollable = [...drawer.querySelectorAll("*")]
+          .filter((el) => {
+            const overflowY = getComputedStyle(el).overflowY;
+            if (overflowY !== "auto" && overflowY !== "scroll") return false;
+            return el.scrollHeight > el.clientHeight + 1;
+          })
+          .map((el) => el.dataset.testid ?? el.tagName.toLowerCase());
+
+        return {
+          viewportHeight: window.innerHeight,
+          snapPointHeight: Number.parseFloat(
+            getComputedStyle(drawer).getPropertyValue("--snap-point-height"),
+          ),
+          drawer: rect(drawer),
+          // `100%` inside the drawer resolves against its content box,
+          // which `border-t` puts a pixel below its border box. That
+          // pixel is above the visible box rather than inside it, so the
+          // box still ends exactly at the fold — but the arithmetic only
+          // balances with the border named.
+          drawerBorderTop: Number.parseFloat(
+            getComputedStyle(drawer).borderTopWidth,
+          ),
+          visible: visible ? rect(visible) : null,
+          scroller: rect(scroller),
+          strip: rect(strip),
+          header: rect(header),
+          end: rect(end),
+          // Relative to the box that scrolls: "the strip is at the top of
+          // its scrollport" is the sticky property, and an absolute
+          // viewport coordinate would also be satisfied by a page that
+          // never scrolled.
+          stripTopInScroller: strip.getBoundingClientRect().top - scrollerBox.top,
+          headerTopInScroller:
+            header.getBoundingClientRect().top - scrollerBox.top,
+          stripPosition: getComputedStyle(strip).position,
+          // The premise of the stacking case, stated so it cannot be
+          // satisfied by a fixture that quietly stopped positioning the
+          // tab body — at which point the strip would win by default and
+          // the case would pass for the wrong reason.
+          bodyPosition: getComputedStyle(
+            drawer.querySelector("[data-testid='inspector-panel'] > div"),
+          ).position,
+          // What is actually drawn at the middle of the strip. "Sticky"
+          // is only half the property: a strip pinned to the right place
+          // and painted under the tab body is not on screen either, and
+          // no rectangle says so.
+          stripHit: (() => {
+            const box = strip.getBoundingClientRect();
+            const el = document.elementFromPoint(
+              box.left + box.width / 2,
+              box.top + box.height / 2,
+            );
+            if (!el) return null;
+            const owner = el.closest("[data-testid]");
+            return owner ? owner.dataset.testid : el.tagName.toLowerCase();
+          })(),
+          stripBackground: getComputedStyle(strip).backgroundColor,
+          scrollTop: scroller.scrollTop,
+          maxScroll: scroller.scrollHeight - scroller.clientHeight,
+          verticallyScrollable,
+        };
+      };
+    </script>
+  </body>
+</html>

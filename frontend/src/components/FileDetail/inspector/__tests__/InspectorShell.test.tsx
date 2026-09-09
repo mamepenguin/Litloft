@@ -15,7 +15,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
-import { InspectorShell } from "../InspectorShell";
+import { InspectorShell, type InspectorScroll } from "../InspectorShell";
 import { buildInspectorTabs } from "../tabs";
 import type { SlotEntry } from "@/lib/addons";
 
@@ -36,12 +36,14 @@ function renderShell(
     available?: boolean;
   }> = [],
   coreTabs: Array<{ id: string; label: string; content: React.ReactNode | null }> = [],
+  scroll?: InspectorScroll,
 ) {
   return render(
     <InspectorShell
       header={<div data-testid="header">header</div>}
       tabs={buildInspectorTabs({ info, coreTabs, addonTabs })}
       resetKey="f1"
+      scroll={scroll}
     />,
   );
 }
@@ -87,6 +89,101 @@ describe("InspectorShell", () => {
     const panel = screen.getByRole("tabpanel");
     expect(panel).not.toContainElement(header);
     expect(panel.className).toContain("overflow-auto");
+  });
+
+  it("defaults to that split, so a caller has to ask for the other one", () => {
+    // The sheet asks; every other caller keeps the pinned header. A
+    // default of `column` would silently unpin the desktop pane, where
+    // the header is what the split was built for.
+    renderShell();
+    expect(screen.getByTestId("inspector-shell").dataset.scroll).toBe("panel");
+  });
+});
+
+describe("InspectorShell in column mode", () => {
+  /**
+   * The form the mobile sheet takes: one scroller, and it is the
+   * enclosing box rather than anything here.
+   *
+   * jsdom lays nothing out, so these are claims about what the component
+   * asks for — which box declares an overflow, and which one is sticky.
+   * Whether that produces a reachable end and a pinned strip is measured
+   * in `e2e-layout/mobile-inspector-sheet.spec.ts`.
+   */
+  const renderColumn = () =>
+    renderShell(
+      [{ entry: entry("a"), label: "A", content: <p>a body</p> }],
+      [],
+      "column",
+    );
+
+  it("declares no scroller of its own, in the root, the header or the panel", () => {
+    renderColumn();
+
+    const scrolls = (el: Element) =>
+      [...el.classList].some((token) =>
+        /^overflow(-y)?-(auto|scroll)$/.test(token),
+      );
+
+    expect(scrolls(screen.getByTestId("inspector-shell"))).toBe(false);
+    expect(scrolls(screen.getByTestId("header").parentElement!)).toBe(false);
+    for (const panel of screen.getAllByRole("tabpanel", { hidden: true })) {
+      expect(scrolls(panel)).toBe(false);
+    }
+  });
+
+  it("takes no height to fill, which is what would make the panel a scroller again", () => {
+    // `h-full min-h-0` is the pair that bounds the panel. Left on, the
+    // panel has a height to fill and puts its overflow inside itself —
+    // the nested pair the sheet exists to avoid.
+    renderColumn();
+
+    const root = screen.getByTestId("inspector-shell");
+    expect(root.className).not.toContain("h-full");
+    expect(root.className).toContain("flex-col");
+  });
+
+  it("pins the tab strip to whatever scroller encloses it", () => {
+    renderColumn();
+
+    const strip = screen.getByTestId("inspector-tabs");
+    expect(strip.className).toContain("sticky");
+    expect(strip.className).toContain("top-0");
+    // Opaque, or the tab body travels visibly through it.
+    expect(strip.className).toContain("bg-bg-card");
+  });
+
+  it("and the pinned form's strip is not sticky, because nothing scrolls past it", () => {
+    // The contrast, as its own case. Without it "sticky" could be
+    // unconditional and the case above would not notice.
+    renderShell([{ entry: entry("a"), label: "A", content: <p>a body</p> }]);
+
+    expect(screen.getByTestId("inspector-tabs").className).not.toContain(
+      "sticky",
+    );
+  });
+
+  it("still puts the header above the strip and the strip above the panel", () => {
+    // The order is what makes the sticky strip mean anything: a strip
+    // drawn after the panel would pin the bottom of the column.
+    renderColumn();
+
+    const root = screen.getByTestId("inspector-shell");
+    const children = [...root.children];
+    expect(children.indexOf(screen.getByTestId("header").parentElement!)).toBe(0);
+    expect(children.indexOf(screen.getByTestId("inspector-tabs"))).toBe(1);
+    expect(children.indexOf(screen.getByRole("tabpanel"))).toBe(2);
+  });
+
+  it("keeps every panel mounted, the same as the pinned form", () => {
+    // The mode changes which box scrolls and nothing else. Unmounting on
+    // a tab switch would re-fetch the transcript and lose the reader's
+    // place, in either form.
+    renderColumn();
+
+    expect(screen.getByText("info body")).toBeInTheDocument();
+    expect(screen.getByText("a body")).toBeInTheDocument();
+    expect(screen.getAllByRole("tabpanel", { hidden: true })).toHaveLength(2);
   });
 
   it("mounts every panel and hides the ones not selected", () => {

@@ -102,6 +102,26 @@ const REQUIRED = [
   // A third kind again: this is what keeps a long message from wrapping,
   // which is the premise of the column cases rather than their subject.
   ".whitespace-nowrap {",
+  // `mobile-inspector-sheet.spec.ts` measures a drawer whose foot is off
+  // the screen and a sticky tab strip inside the one box that scrolls.
+  // Every rule below is load-bearing for a different case, and each one's
+  // absence would be read as a finding about the sheet rather than about
+  // an empty sheet: `h-[90vh]` is the drawer the overhang is arithmetic
+  // on; `overflow-auto` is the only scroller, without which nothing
+  // scrolls anywhere and "the end is on screen" passes for the wrong
+  // reason; `min-h-0` and `flex-1` are what let that scroller be shorter
+  // than its content inside a flex column; `top-0` is the sticky offset,
+  // and a strip with `top: auto` is not sticky to anything; `bg-bg-card`
+  // is the ground the opacity case asserts; and `overflow-x-auto` is what
+  // makes the strip a scroll container in both axes, which is the reason
+  // the scrolling box is named rather than counted.
+  ".h-\\[90vh\\] {",
+  ".overflow-auto {",
+  ".min-h-0 {",
+  ".flex-1 {",
+  ".top-0 {",
+  ".bg-bg-card {",
+  ".overflow-x-auto {",
 ];
 
 /**

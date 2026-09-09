@@ -882,9 +882,29 @@ number one higher than whatever it currently sits under.
 | State | Height | What is on screen |
 |---|---|---|
 | peek | `56px` | The file's name and the row that acts on it — like, favourite, the AI menu, the overflow |
-| half | 50% | The inspector's fixed part, the tab strip, and the tab |
-| full | 90vh | The same, with room for it |
+| half | 50% of the window, less what vaul slides past the bottom edge | The top of the inspector: title, meta, action row, tags. The tab strip and the tab body are below it, and are reached by scrolling |
+| full | 90vh, less the same | Most of that column at once, with room to read a tab |
 
+- **On a phone the sheet is one scroller, and the inspector inside it is not a
+  second.** `InspectorShell` takes a `scroll` mode from its caller: the desktop
+  pane keeps the pinned header, and the sheet asks for `column`, where the header
+  scrolls away and only the tab strip stays — `sticky top-0`, against the sheet's
+  own scroller. The header's anchoring is already bought by the resting strip,
+  which carries the same name and the same action row and is on screen whether
+  the sheet is up or down; pinning it again inside the drawer spends height twice.
+  A `column` sheet is reached by scrolling to the strip rather than starting at
+  it, which is the trade.
+- **What is on screen is the drawer less what vaul slid past the bottom edge.**
+  vaul translates the drawer down by `vh × (1 − snap)` and publishes it as
+  `--snap-point-height`, having assumed the drawer starts at the viewport top;
+  `Drawer.Content` is `bottom-0`, so that translate lands its foot below the fold
+  at every snap and a scroller filling it ends where nobody can reach. The box
+  between the drawer and the scroller is
+  `calc(100% - var(--snap-point-height, 0px))` — vaul's own number, so no snap
+  value, no handle height and no viewport unit is written a second time, and a
+  snap point added later needs no edit here. **Do not shrink `Drawer.Content` to
+  correct the overhang**: vaul derives its offsets from the drawer, so that feeds
+  back into the number the correction reads.
 - **The drawer exists only while it covers the page; the strip is drawn outside
   it.** vaul hands Radix's `Dialog.Root` only `open` / `defaultOpen` /
   `onOpenChange`, so Radix defaults to modal and `hideOthers()` puts

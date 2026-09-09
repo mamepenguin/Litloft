@@ -380,8 +380,19 @@ export function ShellLayout({
 
   // Only when actually on mobile, so the sections inside mount exactly
   // once across the two surfaces rather than once per surface.
+  //
+  // `scroll="column"` is the sheet's half of the arrangement: the drawer
+  // is the scroller, so the inspector inside it must not be a second one.
+  // The header's anchoring is already paid by the resting strip, which
+  // carries the same name and the same action row and is on screen
+  // whether the sheet is up or down.
   const mobileSheet = isMobile ? (
-    <InspectorShell header={meta} tabs={buildTabs(true)} resetKey={fileId} />
+    <InspectorShell
+      header={meta}
+      tabs={buildTabs(true)}
+      resetKey={fileId}
+      scroll="column"
+    />
   ) : undefined;
 
   if (usesCanvasViewer) {
