@@ -140,6 +140,53 @@ describe("EmptyState", () => {
       ).toBe(false);
     });
 
+    // DESIGN.md §6's sentence, in code: "a link and a button standing next to
+    // each other are the same height". `renderAction` is two branches of one
+    // function — `<Button variant>` and `buttonClass({ variant })` — and
+    // **neither passes `size`**, so the sentence rests entirely on the two
+    // emitters picking the same default. Nothing else in the tree exercises
+    // that: the only other `buttonClass()` caller passes `size` explicitly.
+    //
+    // The expected tokens are declared here, not read from either render.
+    // Comparing the two observations to each other stays green when both
+    // drift together (detector rule 5) — and both defaults living in one file
+    // is exactly how they would.
+    //
+    // jsdom lays nothing out, so this is a claim about the classes the two
+    // branches emit, not about a measured height. The height those classes
+    // produce is measured in `e2e-layout/button-touch-floor.spec.ts`.
+    //
+    // `newTab` picks the plain-anchor branch rather than `next/link`; the
+    // `className` is the same variable in both.
+    it("dresses a link action exactly like the button beside it", () => {
+      render(
+        <EmptyState
+          variant="no-files"
+          primaryAction={{ label: "Add files", onClick: vi.fn() }}
+          secondaryActions={[
+            { label: "Open guide", href: "/guide", newTab: true },
+          ]}
+        />,
+      );
+      const button = screen.getByRole("button", { name: "Add files" });
+      const link = screen.getByRole("link", { name: "Open guide" });
+
+      // md, on both: the size neither branch asks for.
+      for (const el of [button, link]) {
+        for (const cls of ["px-4", "py-2", "text-sm", "pointer-coarse:min-h-11"]) {
+          expect(el.classList.contains(cls)).toBe(true);
+        }
+        expect([...el.classList].filter((c) => /^px-/.test(c))).toEqual(["px-4"]);
+      }
+
+      // Principle 2 (§2.2) on the axis the case above cannot reach: a
+      // secondary *link* arriving in the accent fill would spend the screen's
+      // one call to action a second time.
+      expect(button.classList.contains("bg-accent")).toBe(true);
+      expect(link.classList.contains("bg-accent")).toBe(false);
+      expect(link.classList.contains("bg-sand")).toBe(true);
+    });
+
     it("puts the primary action before the secondaries", () => {
       render(
         <EmptyState

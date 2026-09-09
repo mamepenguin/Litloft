@@ -189,11 +189,6 @@ export function FolderToolbar({
         variant="secondary"
         size="sm"
         onClick={onCreateFolder}
-        // Cancel beside it is `iconOnly`, which carries `Button`'s own
-        // `-inset-1.5` overhang: 6px of reach on each side into an 8px
-        // gap, so it clears 44 without colliding with this button's box.
-        // This one has a label and no overhang, so it needs the height.
-        className="pointer-coarse:min-h-11"
       >
         {tc("create")}
       </Button>
@@ -268,14 +263,13 @@ export function FolderToolbar({
             screen one fill and `Add` holds it. */}
         {hasPlayableFiles && !hidePlayAll && (
           <Button
-            variant="secondary"
-            size="sm"
-            onClick={onPlayAll}
             // Its word survives 375px. The mobile rule reduces the *number*
             // of controls on the bar, and dropping the label instead would
             // put back the unnamed icon 案 2 is spending this whole PR
             // removing.
-            className="pointer-coarse:min-h-11"
+            variant="secondary"
+            size="sm"
+            onClick={onPlayAll}
           >
             <Play size={16} />
             {tc("play")}
