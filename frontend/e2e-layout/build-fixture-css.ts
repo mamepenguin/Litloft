@@ -82,21 +82,26 @@ const REQUIRED = [
   "max-h-\\[70vh\\]",
   ".sticky",
   // `file-actions-menu.spec.ts` measures which side of a trigger a popup
-  // lands on, so every utility that *is* one of those answers belongs
-  // here: without them the two boxes sit at the wrapper's own origin,
+  // lands on. Without these two the boxes sit at the wrapper's own origin,
   // every case reads the same numbers, and the ones asserting "the same"
-  // pass for that reason. Both vertical answers, both horizontal ones, and
-  // the offsets the gap assertions measure.
-  ".top-full",
-  ".bottom-full",
-  ".left-0",
-  ".right-0",
-  ".mt-1",
-  ".mb-1",
-  // A different requirement, and not one of the answers: this is what
-  // makes the toast wider than its trigger, which is the premise of the
-  // column cases rather than their subject.
-  ".whitespace-nowrap",
+  // pass for that reason.
+  //
+  // Written with the brace, because the test is `includes` on the whole
+  // sheet: `.mt-1` is satisfied by `.mt-14`, and `.left-0` by `.left-0\.5`,
+  // both of which Tailwind emits here. A needle that cannot be absent
+  // asserts nothing.
+  ".top-full {",
+  ".bottom-full {",
+  // The offsets the gap assertions measure. They are not "which side" —
+  // without them the boxes land on the correct side with a 0px gap, which
+  // only `toBeCloseTo(GAP_PX, 1)` notices.
+  ".mt-1 {",
+  ".mb-1 {",
+  ".left-0 {",
+  ".right-0 {",
+  // A third kind again: this is what keeps a long message from wrapping,
+  // which is the premise of the column cases rather than their subject.
+  ".whitespace-nowrap {",
 ];
 
 /**

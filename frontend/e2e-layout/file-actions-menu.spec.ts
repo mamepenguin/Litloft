@@ -111,20 +111,33 @@ const PHONES = [
 const ITEM_COUNTS = [1, 7, 14];
 
 /**
- * The populations, stated apart from the arrays.
+ * Every strip case this file registers, recorded as it registers it.
  *
- * Both can otherwise be walked back to one entry with everything green —
- * five of the six strip cases, the only measurements of this menu's
- * geometry anywhere, deleted with nothing to say so. Same guard the
- * sibling fixture in this directory uses (`justified-grid.spec.ts`,
- * "is exactly the set this file tests"), enumerated rather than counted so
- * that swapping a height for another one is red as well.
+ * The guard below reads *this*, not `PHONES` and `ITEM_COUNTS`. Asserting
+ * on the arrays pins what the file declares, and the cases live one
+ * indirection further out: `for (const phone of PHONES.slice(0, 1))` takes
+ * the suite from 67 to 64 with an array assertion still green, which is
+ * three of the six measurements of this menu's geometry deleted in silence.
+ * Recording at registration puts the loop inside the thing being checked.
  *
- * Its honest limit: the arrays and this expectation live in the same file,
- * so what it buys is that shrinking either takes two edits, not proof from
- * outside.
+ * Its honest limit is unchanged and is the sibling fixture's too
+ * (`justified-grid.spec.ts`, "is exactly the set this file tests"): the
+ * expected set is written in this file, so what the guard buys is that
+ * removing a case has to disagree with something, not proof from outside.
  */
-test("is exactly the set of screens and menus this file measures", () => {
+const registeredStripCases: string[] = [];
+
+const stripCaseId = (phone: (typeof PHONES)[number], items: number) =>
+  `${phone.width}x${phone.height} @ ${items}`;
+
+test("registers exactly the screens and menus this file measures", () => {
+  // Both sides enumerated rather than counted, and the expected side
+  // recomputed from the two axes rather than read off the loop — so a
+  // `.slice()` anywhere between the arrays and the `test()` call is red,
+  // and so is swapping one height for another.
+  expect(registeredStripCases).toEqual(
+    PHONES.flatMap((phone) => ITEM_COUNTS.map((n) => stripCaseId(phone, n))),
+  );
   expect(PHONES.map((p) => `${p.width}x${p.height}`)).toEqual([
     "375x667",
     "393x852",
@@ -151,6 +164,7 @@ test.describe("the file menu on the Bottom Sheet's resting strip", () => {
 
   for (const phone of PHONES) {
     for (const items of ITEM_COUNTS) {
+      registeredStripCases.push(stripCaseId(phone, items));
       test(`hangs off the bottom of a ${phone.label} at ${items} items, and comes back when flipped`, async ({
         page,
       }) => {
@@ -218,8 +232,16 @@ test.describe("the error toast against its column's left edge", () => {
   const COLUMN = { left: 40, width: 240 };
   /**
    * Handed to the page, so it is the string being measured rather than a
-   * constant beside one. Its length is what makes the toast wider than its
-   * trigger, and that is asserted on the rendered box below.
+   * constant beside one.
+   *
+   * What makes the toast wider than its trigger is its own `px-3`, not
+   * this text: a one-character message still measures 30.3px against a
+   * 28px trigger. What the text buys is the *amount* of the overhang, and
+   * `whitespace-nowrap` is what stops a long one wrapping out of the spill
+   * instead of crossing the edge — which is the property the two cases
+   * below turn on. Non-emptiness is held by the fixture rather than by an
+   * assertion: an empty message renders no toast at all and `m.toast` is
+   * null, so both cases go red.
    */
   const MESSAGE = "Failed to delete";
 
@@ -276,8 +298,9 @@ test.describe("the error toast against its column's left edge", () => {
     // point of the message is that it can be read.
     expect(m.toast!.left).toBeGreaterThanOrEqual(m.column!.left);
     expect(m.toast!.right).toBeLessThanOrEqual(m.column!.right);
-    // The message is what makes the box wide enough for any of this to
-    // matter: `whitespace-nowrap` means it cannot wrap out of trouble.
+    // The box is wider than the trigger it hangs from — its padding does
+    // that on its own — so "inside both edges" is a claim about a box with
+    // width, not about a point.
     expect(m.toast!.width).toBeGreaterThan(m.trigger.width);
   });
 });

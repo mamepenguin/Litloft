@@ -261,14 +261,6 @@ describe("FileActions", () => {
 function mountWithBoxes(
   trigger: { top: number; bottom: number; left: number; right: number },
   menuHeight: number,
-  // Only consulted when a case renders `<Column>`: nothing else in these
-  // trees carries an `overflow`, so the walk finds no clipping ancestor
-  // and the frame falls back to the viewport.
-  column: { top: number; bottom: number; left: number } = {
-    top: 0,
-    bottom: 0,
-    left: 0,
-  },
 ) {
   // `menuReads` counts how often the decision actually reads the box, so
   // a case can say how many re-derivations one observed change produces.
@@ -283,9 +275,11 @@ function mountWithBoxes(
         state.menuReads += 1;
         return { height: state.menuHeight } as DOMRect;
       }
-      if (this.getAttribute("data-bounds") === "clip") {
-        return { ...column } as DOMRect;
-      }
+      // An ancestor built by `<Ancestors>` states its own box, so a case
+      // that adds one to the chain does not also have to be handed to the
+      // mock separately.
+      const box = this.getAttribute("data-box");
+      if (box) return JSON.parse(box) as DOMRect;
       return original.call(this);
     },
   );
@@ -534,54 +528,65 @@ describe("FileActions menu direction, as the menu's own height moves", () => {
 });
 
 /**
- * A scrolling column around the menu, so the walk has something to find.
+ * One ancestor of the menu, stated: how it is positioned, whether it is a
+ * scrollport, and what box it reports.
  *
- * The two longhands, not the `overflow` shorthand: the decision reads
- * `overflowX` / `overflowY`, and jsdom's `getComputedStyle` leaves both
- * empty when only the shorthand is set — which would make this column
- * invisible to the walk and every case below a viewport case wearing a
- * column's name. Its box is stated like every other rect here; jsdom lays
+ * `overflowX` / `overflowY` and not the `overflow` shorthand: the decision
+ * reads the two longhands, and jsdom's `getComputedStyle` leaves both empty
+ * when only the shorthand is set — which would make a scroller invisible to
+ * the walk and turn every case below into a viewport case wearing a
+ * scroller's name. Boxes are stated like every other rect here; jsdom lays
  * nothing out.
  */
-function Column({
+interface AncestorSpec {
+  /** Computed `position`. Omitted means static, which is jsdom's `""`. */
+  position?: "relative" | "absolute" | "fixed" | "sticky";
+  /** The box it reports, if any case asks it for one. */
+  box?: { top: number; bottom: number; left: number };
+  /** Whether it is a scrollport, and so a candidate frame. */
+  clips?: boolean;
+}
+
+/** Wraps `children` in the given chain, outermost entry first. */
+function Ancestors({
+  chain,
   children,
-  inner,
-  positioned,
 }: {
+  chain: AncestorSpec[];
   children: React.ReactNode;
-  /**
-   * How the menu's subtree is anchored inside the column. `fixed` is the
-   * resting strip (`MobileInspectorSheet`), which is laid out against the
-   * viewport and is therefore not clipped by the column at all; `absolute`
-   * takes the subtree out of the column's flow, after which only a
-   * positioned ancestor can still be its containing block.
-   */
-  inner?: "fixed" | "absolute";
-  /** Whether the column itself is positioned, and so can still be a
-   *  containing block for an `absolute` subtree inside it. */
-  positioned?: boolean;
 }) {
-  return (
-    <div
-      data-bounds="clip"
-      style={{
-        overflowX: "auto",
-        overflowY: "auto",
-        ...(positioned ? { position: "relative" as const } : {}),
-      }}
-    >
-      {inner ? <div style={{ position: inner }}>{children}</div> : children}
-    </div>
+  return chain.reduceRight<React.ReactNode>(
+    (inner, spec, i) => (
+      <div
+        key={i}
+        data-box={spec.box ? JSON.stringify(spec.box) : undefined}
+        style={{
+          ...(spec.position ? { position: spec.position } : {}),
+          ...(spec.clips ? { overflowX: "auto", overflowY: "auto" } : {}),
+        }}
+      >
+        {inner}
+      </div>
+    ),
+    children,
   );
 }
 
 describe("FileActions menu direction, against the frame that clips it", () => {
   /**
-   * Both axes resolve against the same box: the first ancestor that clips,
-   * and the visual viewport only when there is none. The horizontal axis
-   * has always said so ("what matters is the enclosing column, not the
-   * viewport"); these cases are what stops the vertical one drifting back
-   * to `window.innerHeight`, which answers a different question.
+   * Both axes resolve against the same box: the first ancestor that clips
+   * *this menu*, and the visual viewport only when there is none. The
+   * horizontal axis has always said so ("what matters is the enclosing
+   * column, not the viewport"); these cases are what stops the vertical one
+   * drifting back to `window.innerHeight`, which answers a different
+   * question.
+   *
+   * "Clips this menu" is the part with edges. An overflow box clips a
+   * positioned descendant only while it is in that descendant's
+   * containing-block chain, and the chain leaves the DOM parentage at a
+   * `fixed` ancestor and, temporarily, at an `absolute` one. Each of the
+   * four values the walk treats as positioned gets a case here, because
+   * each is a different reason a box is or is not in the chain.
    *
    * Unit C puts this menu inside an `overflow-auto` scroller, so the two
    * frames stop agreeing on the running app rather than only here.
@@ -591,113 +596,164 @@ describe("FileActions menu direction, against the frame that clips it", () => {
     vi.restoreAllMocks();
   });
 
-  function openInColumn(
-    trigger: { top: number; bottom: number; left: number; right: number },
-    menuHeight: number,
-    column: { top: number; bottom: number; left: number },
-    inner?: "fixed" | "absolute",
-    positioned?: boolean,
+  /**
+   * The boxes every chain case below shares, so that the only thing that
+   * differs between them is the chain itself.
+   *
+   * A trigger at 440/468 with a 100px menu: 300px below it in a 768px
+   * window, which fits, and 32px below it inside a scroller ending at 500,
+   * which does not. So "up" means the scroller was the frame and "down"
+   * means the window was.
+   */
+  const TRIGGER = { top: 440, bottom: 468, left: 300, right: 328 };
+  const MENU_HEIGHT = 100;
+  const SCROLLER = { top: 300, bottom: 500, left: 0 };
+
+  function openUnder(
+    chain: AncestorSpec[],
+    trigger = TRIGGER,
+    menuHeight = MENU_HEIGHT,
   ) {
-    mountWithBoxes(trigger, menuHeight, column);
+    mountWithBoxes(trigger, menuHeight);
     renderWithStack(
-      <Column inner={inner} positioned={positioned}>
+      <Ancestors chain={chain}>
         <FileActions file={mockFile} />
-      </Column>,
+      </Ancestors>,
     );
     fireEvent.click(screen.getByLabelText("File actions"));
     return screen.getByRole("menu").className;
   }
 
-  it("flips where the column ends, not where the window does", () => {
-    // 300px under the trigger in the window and 32px in the column. A
-    // 100px menu fits the first and not the second, and the column is what
-    // it is drawn inside.
-    const className = openInColumn(
-      { top: 440, bottom: 468, left: 300, right: 328 },
-      100,
-      { top: 300, bottom: 500, left: 0 },
-    );
+  const framedByScroller = (className: string) => {
     expect(className.includes("bottom-full")).toBe(true);
     expect(className.includes("top-full")).toBe(false);
-  });
-
-  it("measures the room above from the column's top, not the window's", () => {
-    // 140px above the trigger inside the column against 440px above it in
-    // the window, and 200px below. Neither side fits a 300px menu, so the
-    // answer turns entirely on which of the two the space above is
-    // compared with: from the column it is the smaller side and the menu
-    // stays down.
-    const className = openInColumn(
-      { top: 440, bottom: 468, left: 300, right: 328 },
-      300,
-      { top: 300, bottom: 668, left: 0 },
-    );
+  };
+  const framedByWindow = (className: string) => {
     expect(className.includes("top-full")).toBe(true);
     expect(className.includes("bottom-full")).toBe(false);
+  };
+
+  it("flips where the scroller ends, not where the window does", () => {
+    framedByScroller(openUnder([{ clips: true, box: SCROLLER }]));
   });
 
-  it("flips sideways at the column's left edge, not the window's", () => {
-    // A column starting 200px in. The trigger's right edge is at 300, so a
-    // 160px menu hung leftward starts at 140 — inside the window and 60px
-    // outside the column it is drawn in.
-    const className = openInColumn(
+  it("measures the room above from the scroller's top, not the window's", () => {
+    // 140px above the trigger inside a scroller running 300-668, against
+    // 440px above it in the window, and 200px below either way. Neither
+    // side fits a 300px menu, so the answer turns entirely on which of the
+    // two the space above is compared with: from the scroller it is the
+    // smaller side and the menu stays down.
+    framedByWindow(
+      openUnder(
+        [{ clips: true, box: { top: 300, bottom: 668, left: 0 } }],
+        TRIGGER,
+        300,
+      ),
+    );
+  });
+
+  it("flips sideways at the scroller's left edge, not the window's", () => {
+    // A scroller starting 200px in. The trigger's right edge is at 300, so
+    // a 160px menu hung leftward starts at 140 — inside the window and 60px
+    // outside the box it is drawn in.
+    const className = openUnder(
+      [{ clips: true, box: { top: 0, bottom: 768, left: 200 } }],
       { top: 100, bottom: 128, left: 272, right: 300 },
-      100,
-      { top: 0, bottom: 768, left: 200 },
     );
     expect(className.includes("left-0")).toBe(true);
     expect(className.includes("right-0")).toBe(false);
   });
 
   it("ignores a scroller above a fixed subtree, which it does not clip", () => {
-    // The resting strip is `fixed bottom-0`, so it is laid out against the
-    // viewport and an `overflow` box anywhere above it clips nothing. Same
-    // boxes as the first case — a column ending at 500 with a 100px menu —
-    // except that the trigger is inside a fixed box, and the answer
-    // reverses: there are 300px below in the viewport, so the menu stays
-    // down. Taking the column's word for it would flip a menu that had
-    // room, and on the strip itself it flips the reasoning the other way
-    // and draws the menu off the bottom again.
-    const className = openInColumn(
-      { top: 440, bottom: 468, left: 300, right: 328 },
-      100,
-      { top: 300, bottom: 500, left: 0 },
-      "fixed",
+    // The resting strip is `fixed bottom-0`: laid out against the viewport,
+    // so an `overflow` box anywhere above it clips nothing. Taking the
+    // scroller's word for it would flip a menu that had room, and on the
+    // strip itself it draws the menu off the bottom again.
+    framedByWindow(
+      openUnder([{ clips: true, box: SCROLLER }, { position: "fixed" }]),
     );
-    expect(className.includes("top-full")).toBe(true);
-    expect(className.includes("bottom-full")).toBe(false);
   });
 
-  it("ignores a static scroller above an absolute subtree", () => {
-    // Past an `absolute` box, the containing block is the nearest
-    // positioned ancestor — so a static `overflow` box between the two is
-    // not in the chain and does not clip. The column here is static, and
-    // the frame falls through to the viewport for the same reason.
-    const className = openInColumn(
-      { top: 440, bottom: 468, left: 300, right: 328 },
-      100,
-      { top: 300, bottom: 500, left: 0 },
-      "absolute",
+  it("ignores a static scroller between an absolute subtree and its containing block", () => {
+    // Past an `absolute` box the containing block is the nearest positioned
+    // ancestor, so a static `overflow` box in between is not in the chain.
+    // There is no positioned ancestor here at all, so the frame falls
+    // through to the window.
+    framedByWindow(
+      openUnder([{ clips: true, box: SCROLLER }, { position: "absolute" }]),
     );
-    expect(className.includes("top-full")).toBe(true);
-    expect(className.includes("bottom-full")).toBe(false);
   });
 
-  it("still uses a positioned scroller above an absolute subtree", () => {
-    // The other side of the case above, and what stops the rule from
-    // reading "an absolute subtree is never clipped": a *positioned*
-    // overflow box is still the containing block, so it still clips, and
-    // the same boxes that stayed downward through a static column flip
-    // upward through this one.
-    const className = openInColumn(
-      { top: 440, bottom: 468, left: 300, right: 328 },
-      100,
-      { top: 300, bottom: 500, left: 0 },
-      "absolute",
-      true,
+  // The four values the walk treats as positioned, one case each.
+  //
+  // Which value each case pins is not uniform, and saying so is cheaper
+  // than the next reader working it out: dropping `relative`, `sticky` or
+  // `fixed` from the predicate is red at that value's own case here.
+  // `absolute` is different — it both starts a detour and is checked
+  // during one, so removing it cancels itself out in this shape; what
+  // catches it is the static-scroller case above, where it is the thing
+  // that starts the detour at all. All four cases do pin the `positioned
+  // ||` half of the chain test: block every ancestor during a detour and
+  // each of them goes red.
+  it("uses a relative scroller above an absolute subtree", () => {
+    // `relative`: the containing block of the `absolute` box below it, and
+    // a scrollport, so it clips.
+    framedByScroller(
+      openUnder([
+        { clips: true, position: "relative", box: SCROLLER },
+        { position: "absolute" },
+      ]),
     );
-    expect(className.includes("bottom-full")).toBe(true);
-    expect(className.includes("top-full")).toBe(false);
+  });
+
+  it("uses a sticky scroller above an absolute subtree", () => {
+    // `sticky` establishes a containing block for out-of-flow descendants
+    // exactly as `relative` does. Treated as static, this box is skipped
+    // and the window answers instead.
+    framedByScroller(
+      openUnder([
+        { clips: true, position: "sticky", box: SCROLLER },
+        { position: "absolute" },
+      ]),
+    );
+  });
+
+  it("uses an absolute scroller above an absolute subtree", () => {
+    // A second `absolute` box: the containing block of the first, and a
+    // scrollport of its own.
+    framedByScroller(
+      openUnder([
+        { clips: true, position: "absolute", box: SCROLLER },
+        { position: "absolute" },
+      ]),
+    );
+  });
+
+  it("uses a fixed scroller above an absolute subtree", () => {
+    // `fixed` is both — the containing block of the `absolute` below it and
+    // the point the walk stops at. The clip is read first, so a fixed
+    // scrollport frames the menu; only a fixed ancestor that is *not* a
+    // scrollport ends the walk at the window.
+    framedByScroller(
+      openUnder([
+        { clips: true, position: "fixed", box: SCROLLER },
+        { position: "absolute" },
+      ]),
+    );
+  });
+
+  it("resumes clipping above the containing block of an absolute subtree", () => {
+    // The detour ends where it started from: `relative` is itself in flow,
+    // so above it the chain is ordinary DOM parentage again and a static
+    // scroller clips as usual. Treating "past an absolute" as permanent
+    // skips this scroller and draws 72px of menu outside it.
+    framedByScroller(
+      openUnder([
+        { clips: true, box: SCROLLER },
+        { position: "relative" },
+        { position: "absolute" },
+      ]),
+    );
   });
 
   it("measures the window against what is visible, not the layout viewport", () => {

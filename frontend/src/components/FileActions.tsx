@@ -117,42 +117,54 @@ export function FileActions({
 
       // The first ancestor that *clips this menu* — which is not the same
       // as the first ancestor with an `overflow` value. An overflow box
-      // clips a positioned descendant only while it stays in that
-      // descendant's containing-block chain, and two things leave it:
+      // clips a positioned descendant only while it is still in that
+      // descendant's containing-block chain, and the chain leaves the DOM
+      // parentage twice:
       //
-      //   - a `fixed` ancestor is laid out against the viewport, so
+      //   - at a `fixed` ancestor. It is laid out against the viewport, so
       //     nothing above it clips the subtree. The resting strip this fix
       //     exists for is exactly that (`fixed bottom-0`), so without the
       //     stop a scroller anywhere above the shell would hand both axes
       //     a box the strip is not inside.
-      //   - past an `absolute` ancestor, only a *positioned* box can still
-      //     be the containing block, so static overflow boxes above one
-      //     are not clippers either.
+      //   - at an `absolute` ancestor, and then only as far as *its* own
+      //     containing block: the nearest positioned ancestor. Static
+      //     boxes in between are not in the chain and do not clip. Once
+      //     that positioned ancestor is reached the detour is over — a
+      //     `relative` or `sticky` box is itself in flow, so statics above
+      //     it clip again; an `absolute` one starts a fresh detour.
       //
-      // The exception is an ancestor with `transform` / `filter` /
-      // `contain`, which makes itself the containing block of even a fixed
-      // descendant. vaul's drawer is one; the menu is not inside it at
-      // rest, which is the state this decision is about.
+      // The exception this does not implement is an ancestor with
+      // `transform` / `filter` / `contain`, which becomes the containing
+      // block of even a `fixed` descendant. vaul's drawer is one, and the
+      // menu is not inside it in the state this decision is about — at
+      // rest the strip is drawn outside the drawer.
       let bounds: { left: number; top: number; bottom: number } | null = null;
-      let onlyPositionedClips = false;
+      // Set while the walk is between an `absolute` ancestor and that
+      // ancestor's containing block, where only a positioned box counts.
+      let inAbsoluteDetour = false;
       for (let el = trigger.parentElement; el; el = el.parentElement) {
         const { overflowX, overflowY, position } = getComputedStyle(el);
         // Positive test rather than `!== "static"`: an unset `position`
         // reads as `""` outside a browser, and the whole point of the flag
-        // is that a *static* box past an `absolute` cannot clip.
+        // is that a *static* box inside the detour cannot clip.
         const positioned =
           position === "relative" ||
           position === "absolute" ||
           position === "fixed" ||
           position === "sticky";
-        const inChain = !onlyPositionedClips || positioned;
-        if (inChain && /auto|scroll|hidden/.test(overflowX + overflowY)) {
+        if (
+          (positioned || !inAbsoluteDetour) &&
+          /auto|scroll|hidden/.test(overflowX + overflowY)
+        ) {
           const rect = el.getBoundingClientRect();
           bounds = { left: rect.left, top: rect.top, bottom: rect.bottom };
           break;
         }
         if (position === "fixed") break;
-        if (position === "absolute") onlyPositionedClips = true;
+        // Only a positioned box moves the flag: it is the one that ends a
+        // detour, or starts one. A static ancestor leaves it alone, which
+        // is what keeps the detour running across the statics inside it.
+        if (positioned) inAbsoluteDetour = position === "absolute";
       }
       // `window.innerHeight` is the layout viewport, which the keyboard
       // does not move; `visualViewport` is what is actually on screen.

@@ -200,14 +200,36 @@ describe("the file-actions layout fixture's class lists", () => {
     HORIZONTAL.map((left) => ({ up, left })),
   );
 
-  it("covers every axis group the fixture declares, and no others", () => {
+  // What the loops below actually registered, recorded as they register
+  // it. Checking `CORNERS` instead pins the declaration and leaves the
+  // loop free: `for (const corner of CORNERS.slice(0, 1))` drops three of
+  // the four comparisons with an assertion on `CORNERS.length` still
+  // green. The expected side is recomputed from the two axes, so it does
+  // not move with the loop either.
+  const comparedCorners: string[] = [];
+  const comparedToasts: string[] = [];
+  const cornerId = (up: string, left: string) => `${up}/${left}`;
+
+  it("compares exactly the corners the fixture declares, on both boxes", () => {
     expect([...VERTICAL, ...HORIZONTAL].sort()).toEqual(
       ["down", "left", "right", "up"].sort(),
     );
-    expect(CORNERS).toHaveLength(VERTICAL.length * HORIZONTAL.length);
+    expect(comparedCorners).toEqual(
+      VERTICAL.flatMap((up) => HORIZONTAL.map((left) => cornerId(up, left))),
+    );
+    // The toast reuses the menu's two flags, so what has to be shown of it
+    // is that it follows *each axis* — both values of both, which is the
+    // property rather than a length.
+    expect(new Set(comparedToasts.map((id) => id.split("/")[0]))).toEqual(
+      new Set(VERTICAL),
+    );
+    expect(new Set(comparedToasts.map((id) => id.split("/")[1]))).toEqual(
+      new Set(HORIZONTAL),
+    );
   });
 
   for (const corner of CORNERS) {
+    comparedCorners.push(cornerId(corner.up, corner.left));
     it(`declares the menu's ${corner.up} / ${corner.left} class list`, () => {
       openAt({ up: corner.up === "up", left: corner.left === "left" });
       expectComposedOf(screen.getByRole("menu").className, [
@@ -219,22 +241,18 @@ describe("the file-actions layout fixture's class lists", () => {
   }
 
   // The toast's, driven through a rejected delete so it is the real one.
-  // Two rather than four because the toast reuses the menu's flags: what
-  // has to be shown is that it follows *each axis*, which is why the
-  // population is checked for covering both values of both rather than
-  // for its length. Walk it back to one entry and an axis loses its
-  // second value.
+  // Two rather than four because it reuses the menu's flags; the guard
+  // above checks what these loops registered covers both values of both
+  // axes.
   const TOASTS = [
     { up: true, left: true },
     { up: false, left: false },
   ];
 
-  it("drives the toast through both values of both axes", () => {
-    expect(new Set(TOASTS.map((c) => c.up))).toEqual(new Set([true, false]));
-    expect(new Set(TOASTS.map((c) => c.left))).toEqual(new Set([true, false]));
-  });
-
   for (const corner of TOASTS) {
+    comparedToasts.push(
+      cornerId(corner.up ? "up" : "down", corner.left ? "left" : "right"),
+    );
     it(`declares the toast's ${corner.up ? "upward" : "downward"} / ${
       corner.left ? "left" : "right"
     } class list`, async () => {

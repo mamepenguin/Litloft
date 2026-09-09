@@ -819,10 +819,21 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   side is right wherever the trigger has the room; on the Bottom Sheet's
   resting strip (`fixed bottom-0`, §Layering) there is none below it, and a
   menu that could only open downward was drawn entirely off-screen. It reads
-  the rendered box against the first ancestor that clips it — not a breakpoint,
-  and not a row count, which the addon slot in the menu is free to change — and
-  flips only when the other side is the better of the two, so a trigger with
-  room for neither keeps the direction the menu reads as everywhere else.
+  the rendered box — not a breakpoint, and not a row count, which the addon
+  slot in the menu is free to change — and flips only when the other side is
+  the better of the two, so a trigger with room for neither keeps the direction
+  the menu reads as everywhere else.
+
+  The frame it reads that box against is the first ancestor that clips *this
+  menu*: an `overflow` box counts only while it is still in the menu's
+  containing-block chain, which a `fixed` ancestor leaves for good and an
+  `absolute` one leaves as far as its own containing block. Falling back to
+  `visualViewport` when there is no such ancestor, since an on-screen keyboard
+  moves what is visible without moving `window.innerHeight`. What the walk does
+  **not** do is notice an ancestor with `transform` / `filter` / `contain`,
+  which becomes the containing block of even a `fixed` descendant — vaul's
+  drawer is one, and the menu is outside it in the state this measurement is
+  about.
 
   Every other anchored popup here states its direction in its class list, and
   this paragraph does not describe them: `FolderPicker`, `AddButton`,
