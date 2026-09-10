@@ -18,8 +18,8 @@
  * output.
  *
  * It does not need `frontend/src/addons` to exist: the `@source
- * "../addons"` in globals.css resolves to that gitignored symlink
- * directory, and Tailwind skips it silently when it is absent. That is why
+ * "../addons"` in globals.css resolves to that gitignored link tree, and
+ * Tailwind skips it silently when it is absent. That is why
  * the CI job checks out without submodules and never runs
  * `setup-addons.sh` — no addon writes a rule the justified grid reads.
  *

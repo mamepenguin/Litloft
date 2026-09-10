@@ -69,7 +69,7 @@ function centredCappedClassLists(body: string): string[] {
  * rooted at `src/app` missed those. It also skipped any directory named
  * `addons`, which under `src/app` is the real route folder for addon
  * pages and is ordinary core source; the exclusion was aimed at the
- * `src/addons` symlink dir, which is where it belongs.
+ * `src/addons` link tree, which is where it belongs.
  */
 function pageFiles(): Array<{ rel: string; body: string }> {
   const out: Array<{ rel: string; body: string }> = [];

@@ -85,8 +85,8 @@ function sourceFiles(dir: string): string[] {
       const full = resolve(d, entry.name);
       if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
       if (entry.name === "__tests__" || /\.test\.tsx?$/.test(entry.name)) continue;
-      // `frontend/src/addons/*` are symlinks into the submodules. They are
-      // another repository's files, asserted over there.
+      // `frontend/src/addons/*` links the submodules in. They are another
+      // repository's files, asserted over there.
       if (full.startsWith(ADDON_LINK_DIR)) continue;
       if (!existsSync(full)) continue;
       if (statSync(full).isDirectory()) walk(full);

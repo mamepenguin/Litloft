@@ -87,9 +87,9 @@ function callersFound(): string[] {
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = resolve(dir, entry.name);
-      // `addons` is a symlink to submodule checkouts — an addon drawing its
-      // own namespace is the addon's business, and on a clone without
-      // submodules it is not there to read.
+      // `addons` is a link tree over the submodule checkouts — an addon
+      // drawing its own namespace is the addon's business, and on a clone
+      // without submodules it is not there to read.
       if (entry.name === "addons" || entry.name === "__tests__") continue;
       if (statSync(full).isDirectory()) walk(full);
       else if (/\.tsx?$/.test(entry.name) && HANDLE.test(readFileSync(full, "utf8"))) {

@@ -42,9 +42,12 @@ import { REQUIRED } from "../../e2e-layout/build-fixture-css";
  * of the sheet.
  *
  * It walks the working tree and drops what `.gitignore` drops, which is the
- * set Tailwind scans. Symlinks are not followed, so `src/addons/*` — links
- * into the addon submodules, which CI checks out without — is out of scope
- * here as it is for Tailwind when absent.
+ * set Tailwind scans. `src/addons/*` is out of scope on both counts: it is
+ * gitignored, and every file in it is a symlink into an addon submodule,
+ * which this walk does not follow. (The directories themselves stopped being
+ * symlinks when `setup-addons.sh` began building a link per file; the
+ * per-file links are what keeps this walk from reading an addon twice, so
+ * copying the files instead of linking them would silently double the set.)
  */
 
 /**

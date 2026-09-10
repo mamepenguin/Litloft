@@ -135,10 +135,12 @@ Library constraints:
 
 An addon's frontend has no runner of its own. Its components import core's
 (`@/components`, `@/hooks`, `@/lib`), and `frontend/src/addons/<name>` is a
-symlink into `addons/<name>/frontend`, so **core's vitest collects every addon
-test**. `setup-addons.sh` creates those symlinks and they are gitignored;
-without them the suite still passes, having silently collected nothing from any
-addon.
+real directory holding one symlink per file of `addons/<name>/frontend`, so
+**core's vitest collects every addon test**. A directory rather than a symlink
+to one, because tools that walk the tree do not descend a symlinked directory —
+that is what kept addon files no test imports out of the coverage denominator.
+`setup-addons.sh` builds it and it is gitignored; without it the suite still
+passes, having silently collected nothing from any addon.
 
 What a fresh checkout needs before `pnpm test` is therefore:
 
@@ -151,8 +153,11 @@ node frontend/scripts/merge-addon-messages.mjs
 and nothing else — no `drives.json`, `passwords.json`, `.env`, or
 `docker-compose.override.yml`.
 
-`tsc --noEmit` follows the symlinks and type-checks addon sources; `eslint` does
-not follow them and covers core only.
+`tsc --noEmit` follows the links and type-checks addon sources; `eslint` covers
+core only, because `frontend/eslint.config.mjs` ignores `src/addons/**`.
+Nothing lints the addon frontends today — none of the four addon repositories
+has an eslint config or a `package.json` — so `tsc` is the only static check
+those files get.
 
 ### What to test
 
@@ -569,7 +574,7 @@ responsibility.
 Before running the suite, the job asks `vitest list --filesOnly` what it
 actually collected, and fails naming any addon that contributed nothing. This is
 the step that makes the green tick mean something: a submodule that did not
-check out, or a symlink `setup-addons.sh` did not make, costs nothing at
+check out, or a link tree `setup-addons.sh` did not build, costs nothing at
 collection time — vitest simply finds fewer files and reports every remaining
 one as passing. It is the **first** line of defence for that, and
 `i18n-keys.test.ts`'s "found at least one addon catalogue" assertion is the
@@ -579,10 +584,12 @@ Each addon's own workflow runs the same check for itself.
 
 `images` builds what no test builds. For the frontend that is `next build`,
 covered by neither vitest nor tsc, and impossible to run against the
-`frontend/src/addons` symlinks: Turbopack fails to resolve the dynamic
-`@/addons/<name>/Page` import through them. `frontend/Dockerfile` deletes the
-symlinks and copies the addon trees in first, so building the image is the only
-honest rehearsal. The backend earns a build by the same argument — its
+`frontend/src/addons` link tree: Turbopack fails to resolve the dynamic
+`@/addons/<name>/Page` import through a symlinked file. `frontend/Dockerfile`
+discards that directory and copies the addon trees in as real files first, so
+building the image is the only honest rehearsal. (Measured: the same build
+succeeds against real files and fails against links, so this is about the
+links themselves and not about how the directory above them is made.) The backend earns a build by the same argument — its
 production Dockerfile has steps the test image does not share, notably the addon
 copy loop and the `addons/__init__.py` it creates.
 

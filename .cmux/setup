@@ -30,7 +30,7 @@ for f in addons/intelligence/search-config.yml addons/cloud-sync/sync-config.jso
   [ -e "$REPO_ROOT/$f" ] && ln -sfn "$REPO_ROOT/$f" "$f"
 done
 
-# creates backend/addons + frontend/src/addons symlinks (both gitignored)
+# creates backend/addons symlinks + the frontend/src/addons link tree (both gitignored)
 ./setup-addons.sh
 
 pnpm install --dir frontend --frozen-lockfile

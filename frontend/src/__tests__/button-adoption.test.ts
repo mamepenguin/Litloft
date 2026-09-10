@@ -13,7 +13,7 @@ import { addonPresent } from "./helpers/addonPresent";
  * that remain, so the set can only shrink by a change that edits this file.
  *
  * **Core and every addon.** The first version of this file scanned
- * `frontend/src` alone and skipped the `frontend/src/addons` symlinks, which
+ * `frontend/src` alone and skipped the `frontend/src/addons` link tree, which
  * meant it measured 20 of the 43 sites the phase was then about — the addons
  * held 23 more. It condemned hand-maintained enumerations in this very comment
  * while being one: a scope that leaves out 23 sites cannot be contradicted by
@@ -75,8 +75,9 @@ function handWritten(): Record<string, number> {
   for (const [label, root] of SOURCE_ROOTS) {
     if (!existsSync(root)) continue;
     const walk = (dir: string) => {
-      // The symlinks under `frontend/src/addons` point at the roots already
-      // walked above; following them would count every addon site twice.
+      // `frontend/src/addons` mirrors the roots already walked above — a
+      // directory per addon holding a symlink per file — so descending it
+      // would count every addon site twice.
       if (dir === ADDON_LINK_DIR) return;
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const full = resolve(dir, entry.name);

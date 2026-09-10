@@ -60,8 +60,10 @@ project root/
 
   frontend/
     src/
-      addons/                      # Symlinks for local dev (gitignored)
-        my-addon -> ../../../addons/my-addon/frontend
+      addons/                      # Built for local dev (gitignored)
+        my-addon/                  # a real directory, not a symlink to one
+          Page.tsx -> ../../../../addons/my-addon/frontend/Page.tsx
+          slots.ts -> ../../../../addons/my-addon/frontend/slots.ts
       app/
         addons/{name}/page.tsx     # Auto-generated at Docker build (gitignored)
 ```
@@ -109,11 +111,14 @@ RUN for addon_dir in addons/*/; do \
 COPY frontend/ .
 COPY addon[s]/ /tmp/_all_addons/
 
-# Same pattern: resolve symlinks, copy frontend code
-RUN find src/addons -maxdepth 1 -type l -delete; \
+# Discard whatever the host's gitignored src/addons held, then copy for real.
+# In a working copy that directory is built by setup-addons.sh out of links
+# into the addon repositories, and every one of them dangles inside the image.
+RUN rm -rf src/addons; \
     for addon_dir in /tmp/_all_addons/*/; do \
       [ -d "$addon_dir/frontend" ] || continue; \
       name="$(basename "$addon_dir")"; \
+      mkdir -p "src/addons/$name"; \
       cp -r "$addon_dir/frontend/"* "src/addons/$name/"; \
     done
 
@@ -123,7 +128,9 @@ RUN pnpm build
 **Key points:**
 - Place your addon in `addons/{name}/`. That's it.
 - The Dockerfiles handle the rest. You don't need to manually copy anything.
-- Symlinks in `backend/addons/` and `frontend/src/addons/` are only for local development convenience (IDE auto-completion, local test runs, etc).
+- `backend/addons/` and `frontend/src/addons/` are built by `setup-addons.sh` for local development (IDE auto-completion, local test runs, etc).
+  The two shapes differ on purpose: `backend/addons/{name}` is a symlink to the addon's `backend/`, while `frontend/src/addons/{name}/` is a **real directory holding a symlink per file**.
+  A tool that walks the tree does not descend a symlinked directory, so the directory form is what makes addon frontend sources visible to type-checking, linting and coverage even when no test imports them.
 - External service addons declare themselves via `addons/{name}/manifest.json` — the manifest lives in the addon's own repo, not in the main Litloft repo.
 - Page wrappers (`src/app/addons/{name}/page.tsx`) are auto-generated at Docker build time. You never write these manually.
 
@@ -1163,9 +1170,10 @@ touch addons/my-addon/backend/__init__.py
 
 # 3. Write frontend components
 
-# 4. (Optional) For local dev, create symlinks for IDE support
-ln -s ../../addons/my-addon/backend backend/addons/my-addon
-ln -s ../../../addons/my-addon/frontend frontend/src/addons/my-addon
+# 4. (Optional) For local dev, link the addon in for IDE support.
+# Always via the script — the frontend side is a directory of per-file
+# symlinks, not a directory symlink, and hand-linking gets that wrong.
+./setup-addons.sh
 
 # 5. Build and run
 docker compose up -d --build

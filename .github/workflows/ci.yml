@@ -59,9 +59,10 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      # frontend/src/addons/* are symlinks into addons/*/frontend, and they are
-      # gitignored. Without them vitest collects no addon test at all and the
-      # suite is green for the wrong reason.
+      # frontend/src/addons/<name> is a real directory of per-file symlinks
+      # into addons/<name>/frontend, built by this script and gitignored.
+      # Without it vitest collects no addon test at all and the suite is green
+      # for the wrong reason.
       - name: Link addons into backend/ and frontend/
         run: ./setup-addons.sh
 
@@ -112,27 +113,32 @@ jobs:
               continue
             fi
             if ! printf '%s\n' "$collected" | grep -q "^src/addons/$name/"; then
-              echo "::error::vitest collected no tests from addons/$name (setup-addons.sh made no symlink)"
+              echo "::error::vitest collected no tests from addons/$name (setup-addons.sh built no link tree)"
               status=1
             fi
           done
           exit $status
 
-      # Runs core's suite and, through the symlinks above, every addon's
+      # Runs core's suite and, through the link tree above, every addon's
       # frontend tests. A fresh checkout needs nothing else: no drives.json,
       # passwords.json, .env, or docker-compose.override.yml.
       - name: Test
         run: pnpm test
         working-directory: frontend
 
-      # tsc follows the addon symlinks, so this type-checks addon sources too.
+      # tsc follows the per-file links, so this type-checks addon sources too.
       - name: Type-check
         run: pnpm exec tsc --noEmit
         working-directory: frontend
 
       # Two limits worth knowing, since neither is visible from the green tick.
-      # eslint does not follow the addon symlinks, so this covers core only —
-      # tsc is what guards addon sources. And the config downgrades several
+      # This covers core only: `src/addons/**` is an explicit ignore, so the
+      # addon frontends are not linted from here — and they are not linted
+      # anywhere else either, because none of the four addon repositories has
+      # an eslint config or a package.json. tsc is what guards those sources.
+      # Until `setup-addons.sh` began building that directory for real the
+      # exclusion happened by accident, eslint not following a symlinked
+      # directory; it is now a declaration. And the config downgrades several
       # rules (including no-explicit-any) to warnings, which do not reach the
       # exit code: only errors fail this step. Raising that is a separate
       # decision about roughly a hundred existing warnings, not a CI change.
@@ -260,8 +266,8 @@ jobs:
     #
     # No submodules and no setup-addons.sh: the fixture links a sheet
     # compiled from src/app/globals.css, and its `@source "../addons"` names
-    # the gitignored symlink directory, which Tailwind skips silently when
-    # absent. No addon writes a rule the justified grid reads.
+    # the gitignored link tree, which Tailwind skips silently when absent.
+    # No addon writes a rule the justified grid reads.
     name: frontend (layout invariants and components in a browser)
     runs-on: ubuntu-latest
     steps:
@@ -418,10 +424,11 @@ jobs:
     # The production images, which no test builds.
     #
     # For the frontend that is `next build`, covered by neither vitest nor tsc,
-    # and impossible to run against the frontend/src/addons symlinks — Turbopack
-    # fails to resolve the dynamic `@/addons/<name>/Page` import through them.
-    # frontend/Dockerfile deletes the symlinks and copies the addon trees in
-    # first, so building the image is the only honest rehearsal.
+    # and impossible to run against a development checkout — Turbopack fails to
+    # resolve the dynamic `@/addons/<name>/Page` import through the symlinked
+    # files in frontend/src/addons. frontend/Dockerfile discards that directory
+    # and copies the addon trees in as real files first, so building the image
+    # is the only honest rehearsal.
     #
     # The backend earns a build by the same argument, even though its test image
     # shares the requirements files: backend/Dockerfile has production-only

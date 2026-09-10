@@ -38,8 +38,12 @@ function sourceFiles(root: string): string[] {
   const walk = (dir: string) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = resolve(dir, entry.name);
-      // `frontend/src/addons/*` are symlinks to the same trees the
-      // second root walks; following them reports every hit twice.
+      // `frontend/src/addons/*` mirrors the same trees the second root
+      // walks, as a directory per addon holding a symlink per file. Skipping
+      // symlinks therefore skips exactly those files, and reading them would
+      // report every hit twice. That depends on the mirror being made of
+      // links: `setup-addons.sh` copying the files instead would double the
+      // count here without changing a line of this test.
       if (entry.isSymbolicLink()) continue;
       if (entry.isDirectory()) {
         if (["node_modules", ".git", ".next", "dist"].includes(entry.name)) {

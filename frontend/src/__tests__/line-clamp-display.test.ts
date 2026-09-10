@@ -44,7 +44,7 @@ import { assertSameCompiler } from "../../e2e-layout/build-fixture-css";
  *
  * Every `.ts` / `.tsx` file under `frontend/src` and under each
  * `addons/<name>/frontend` that is checked out, minus `__tests__` / `test`
- * directories and minus `frontend/src/addons` (symlinks back into the same
+ * directories and minus `frontend/src/addons` (a link tree over those same
  * addon trees, which would double-count them). Class lists are read through
  * `sourceScan`'s attribute spans *and* its `*_CLASS` constant spans, so a
  * recipe hoisted out of JSX into a constant stays inside the population.
@@ -374,7 +374,7 @@ const CLASS_LISTS = FILES.flatMap((f) => classListsIn(f.rel, f.body));
  *
  * Declared, not derived from the walk: "no class list pairs the two" is also
  * true of a scan that reached no class list at all, and the walk crosses four
- * addon repositories whose checkouts can be missing and a symlink directory it
+ * addon repositories whose checkouts can be missing and a link tree it
  * deliberately skips.
  *
  * Each path here is a place a `line-clamp-*` is written today, which is a
