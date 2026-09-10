@@ -253,7 +253,45 @@ function LongPress(): ReactElement {
  * the *pattern* — anchored against pinned-to-the-screen — and the addon
  * pins its own class list in its own suite.
  */
-function Sheet(): ReactElement {
+/** The row the AI button sits in, drawn wherever the sheet puts it. */
+function ActionRow({ up }: { up: boolean }): ReactElement {
+  return (
+    <div className="relative flex items-center p-2.5">
+      <button type="button" id="trigger" className="rounded-full px-3 py-1.5">
+        AI
+      </button>
+      {/* What the menu is now: anchored to the wrapper above, in the
+          direction the box says there is room for. */}
+      <div
+        id="anchored"
+        role="menu"
+        className={`absolute left-0 z-30 min-w-[240px] rounded-2xl bg-bg-card py-1 shadow-lg ${
+          up ? "bottom-full mb-1" : "top-full mt-1"
+        }`}
+      >
+        anchored
+      </div>
+      {/* What it was: the bottom-sheet form. Kept in both states so the
+          contrast is a measurement rather than an argument — it is whole
+          in one of them and off the screen in the other, which is the
+          whole reason the direction is measured instead of declared. */}
+      <div
+        id="pinned-to-the-screen"
+        className="fixed inset-x-2 bottom-4 z-40 rounded-2xl bg-bg-card py-1"
+      >
+        fixed
+      </div>
+    </div>
+  );
+}
+
+function InSheet({
+  state,
+  up,
+}: {
+  state: "half" | "peek";
+  up: boolean;
+}): ReactElement {
   return (
     <NextIntlClientProvider
       locale="en"
@@ -263,35 +301,41 @@ function Sheet(): ReactElement {
         page
       </PageControl>
       <MobileInspectorSheet
-        state="half"
+        state={state}
         onStateChange={() => {}}
         halfSnap={0.4}
-        peek={null}
+        peek={state === "peek" ? <ActionRow up={up} /> : null}
       >
-        <div className="relative flex items-center p-2.5">
-          <button type="button" id="trigger" className="rounded-full px-3 py-1.5">
-            AI
-          </button>
-          {/* What the AI menu is now: anchored to the wrapper above. */}
-          <div
-            id="anchored"
-            role="menu"
-            className="absolute left-0 top-full z-30 mt-1 min-w-[240px] rounded-2xl bg-bg-card py-1 shadow-lg"
-          >
-            anchored
-          </div>
-          {/* What it was: the bottom-sheet form, which resolves against
-              the drawer. Kept so the contrast is measured, not asserted. */}
-          <div
-            id="pinned-to-the-screen"
-            className="fixed inset-x-2 bottom-4 z-40 rounded-2xl bg-bg-card py-1"
-          >
-            fixed
-          </div>
-        </div>
+        {state === "peek" ? null : <ActionRow up={up} />}
       </MobileInspectorSheet>
     </NextIntlClientProvider>
   );
+}
+
+/**
+ * The expanded sheet: the row is inside `Drawer.Content`, which is
+ * transformed, and the menu hangs downward because there is room.
+ */
+function Sheet(): ReactElement {
+  return <InSheet state="half" up={false} />;
+}
+
+/**
+ * The **collapsed** sheet, which is the state the file detail opens in.
+ *
+ * The same row is drawn a second time as the sheet's 56px resting strip —
+ * `fixed bottom-0`, no transform, and the drawer is not mounted at all.
+ * A menu that could only hang downward from a row whose bottom edge is
+ * the bottom of the screen is off the screen, which is the defect the
+ * first round of this unit created while fixing the other state.
+ */
+function SheetPeekDown(): ReactElement {
+  return <InSheet state="peek" up={false} />;
+}
+
+/** The same strip with the direction the measurement picks there. */
+function SheetPeekUp(): ReactElement {
+  return <InSheet state="peek" up />;
 }
 
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
@@ -300,6 +344,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   transformed: Transformed,
   "long-press": LongPress,
   sheet: Sheet,
+  "sheet-peek-down": SheetPeekDown,
+  "sheet-peek-up": SheetPeekUp,
 };
 
 function App(): ReactElement {

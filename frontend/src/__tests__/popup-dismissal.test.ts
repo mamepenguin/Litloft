@@ -50,12 +50,11 @@ import { resolve, dirname, relative } from "node:path";
  * anything, and that is the hole: it closes one addon repository at a
  * time, not from here.
  *
- * `intelligence`'s `FileAIActionsButton` is the one to look at first. It
- * dismisses on its own scrim's `click`, by hand — the strategy
- * `e2e-layout/popup-dismiss.spec.ts` measures as wrong at two of its four
- * arrangements. Whether either arrangement occurs where that menu is drawn
- * is unmeasured; what is not true is the verdict this file used to carry,
- * that the menu is "correct but hand-written".
+ * `intelligence`'s `FileAIActionsButton` was the one to look at first,
+ * and it has been looked at: it dismissed on its own scrim's `click` by
+ * hand, and now goes through `DismissScrim` like everything in core. What
+ * remains unguarded in those three repositories is whatever is added
+ * next, which is the hole this paragraph is about.
  *
  * ## What this file claims, and what it cannot
  *

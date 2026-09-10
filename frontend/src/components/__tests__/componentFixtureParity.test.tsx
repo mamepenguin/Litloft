@@ -125,6 +125,8 @@ describe("the component fixture's page", () => {
       "transformed",
       "long-press",
       "sheet",
+      "sheet-peek-down",
+      "sheet-peek-up",
     ]);
   });
 });

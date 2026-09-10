@@ -901,8 +901,22 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   bottom of the screen. Anchoring removes the question instead of answering
   it: `absolute` resolves against the wrapper, which is on screen wherever
   the sheet is. `e2e-components/popup-dismiss.spec.ts` measures both forms
-  inside a real sheet. The two that keep the `fixed` form are toolbar menus,
-  and no toolbar is drawn inside the sheet.
+  inside a real sheet, in both of the sheet's states.
+
+  **And the direction it hangs in is measured too**, for the same reason
+  `FileActions` measures it two paragraphs up: the file detail draws that
+  action row a second time in the sheet's resting strip, which is
+  `fixed bottom-0`, and a menu that could only hang downward from a row
+  whose bottom edge is the bottom of the screen is off the screen. One
+  state or the other is always the broken one for a constant direction.
+
+  What keeps the `fixed … bottom-4` form is every menu that hangs off a
+  *bar*, enumerated rather than counted: `SortButton`, `ToolbarMenu` (and
+  through it `ViewMenu`, `SortMenu`, `folder/FilterMenu`,
+  `archive/ArchiveToolbar` and `folder/FolderToolbar`'s `…`),
+  `SmartFolderSaveButton`, `FolderContextMenu` and
+  `sidebar/SidebarSmartFoldersSection`. None of them is drawn inside the
+  sheet, and none of them is drawn in its resting strip.
   `AddButton` even records a measurement of its own menu ending below the fold
   and accepts it. Whether measuring should replace any of that is filed as its
   own unit; until it lands, this is one component's behaviour and not a rule
@@ -915,12 +929,12 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   backdrop; `popup-dismissal.test.ts` enumerates which surfaces are which
   rather than leaving it to whichever ones happen to spell `role="dialog"`.
   The addons are each their own repository and are named where they stand:
-  `knowledge`'s `[[` candidate list is on the primitive and pinned here;
-  `intelligence`'s AI menu dismisses on its own scrim's `click`, by hand,
-  which is the mechanism this section stopped calling correct — it is the
-  `scrim-click` strategy `e2e-layout/popup-dismiss.spec.ts` measures as
-  wrong at two of its four arrangements. Nobody has measured that menu in
-  either of them; it closes when the file takes `DismissScrim`.
+  `knowledge`'s `[[` candidate list and `intelligence`'s AI menu are both
+  on the primitive and pinned here. The AI menu was the last one
+  dismissing on its own scrim's `click` — the `scrim-click` strategy
+  `e2e-layout/popup-dismiss.spec.ts` measures as wrong at two of its four
+  arrangements — and took the primitive in the change that stopped it
+  positioning itself against the screen.
 
   The requirement is that **dismissing a menu must not also activate what
   is under the finger**, and it is a statement about event order. A tap's

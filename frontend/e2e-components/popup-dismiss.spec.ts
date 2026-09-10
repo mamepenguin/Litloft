@@ -309,6 +309,20 @@ test.describe("a menu drawn inside the Bottom Sheet", () => {
    */
   const ONSCREEN = { id: "anchored", onScreen: true };
   const OFFSCREEN = { id: "pinned-to-the-screen", onScreen: false };
+  const BOXES = [ONSCREEN, OFFSCREEN];
+
+  test("both boxes are measured, and each says which it is", () => {
+    // The population, declared. Cutting `OFFSCREEN` — with its `const`,
+    // which is the tidy-up `eslint` asks for once the array stops using
+    // it — leaves the block saying only "an anchored box is visible",
+    // which the `plain` arrangement already says and which is true in
+    // any arrangement. That is the shape this repository has hit
+    // twenty-two times; it is not being written a twenty-third.
+    expect(BOXES).toEqual([
+      { id: "anchored", onScreen: true },
+      { id: "pinned-to-the-screen", onScreen: false },
+    ]);
+  });
 
   test("the sheet is really translated, which is what makes the two differ", async ({
     page,
@@ -332,7 +346,7 @@ test.describe("a menu drawn inside the Bottom Sheet", () => {
     expect(drawer).toEqual({ transformed: true, pastTheFold: true });
   });
 
-  for (const { id, onScreen } of [ONSCREEN, OFFSCREEN]) {
+  for (const { id, onScreen } of BOXES) {
     test(`#${id} is ${onScreen ? "on" : "off"} the screen`, async ({ page }) => {
       await open(page, "sheet");
       await sheetSettles(page);
@@ -346,21 +360,116 @@ test.describe("a menu drawn inside the Bottom Sheet", () => {
     });
   }
 
-  test("the anchored menu hangs off its trigger", async ({ page }) => {
-    // Not merely on screen: below the control it belongs to, which is
-    // what "anchored" means and what a box that happened to be on screen
-    // for another reason would not be.
+  test("the anchored menu hangs off the wrapper it is positioned against", async ({
+    page,
+  }) => {
+    // Not merely on screen: exactly where `absolute left-0 top-full mt-1`
+    // puts it, on both axes. A bound ("somewhere below the trigger") let
+    // a 64px gap call itself anchored — measured — while the axis beside
+    // it was already exact, and the asymmetry was the finding.
+    //
+    // Read against the *wrapper*, which is what `absolute` resolves
+    // against. Reading against the button instead needs the wrapper's
+    // padding as a magic number, and that number is the fixture's rather
+    // than the component's.
     await open(page, "sheet");
     await sheetSettles(page);
 
-    const { trigger, menu } = await page.evaluate(() => {
-      const box = (id: string) => document.getElementById(id)!.getBoundingClientRect();
-      return { trigger: box("trigger"), menu: box("anchored") };
+    const { wrapper, menu } = await page.evaluate(() => {
+      const box = (el: Element) => {
+        const r = el.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom, left: r.left };
+      };
+      const anchored = document.getElementById("anchored")!;
+      return { wrapper: box(anchored.parentElement!), menu: box(anchored) };
     });
 
-    expect(menu.top).toBeGreaterThanOrEqual(trigger.bottom);
-    expect(Math.round(menu.left)).toBe(Math.round(trigger.left - 10));
+    expect({
+      top: Math.round(menu.top - wrapper.bottom),
+      left: Math.round(menu.left - wrapper.left),
+    }).toEqual({ top: 4, left: 0 });
   });
+});
+
+/**
+ * The state the file detail opens in, and the one the first round of this
+ * unit broke while fixing the other.
+ *
+ * Collapsed, the sheet draws the same action row a second time as a 56px
+ * resting strip — `fixed bottom-0`, no transform, and the drawer is not
+ * mounted at all. There is nothing below that row, so the direction a
+ * menu hangs in cannot be a constant: downward is off the screen there,
+ * and upward is off the screen inside the expanded sheet's scroller.
+ * `FileActions` measures and flips for this reason, in this exact strip,
+ * and `DESIGN.md` says so directly above the paragraph this unit added.
+ */
+test.describe("a menu in the sheet's resting strip", () => {
+  const IN_THE_STRIP = [
+    { arrangement: "sheet-peek-down", id: "anchored", onScreen: false },
+    { arrangement: "sheet-peek-up", id: "anchored", onScreen: true },
+    // The form this unit replaced is whole *here* — which is why the
+    // first round's measurement, taken only in the expanded sheet,
+    // pointed the wrong way. Both states are drawn now.
+    { arrangement: "sheet-peek-down", id: "pinned-to-the-screen", onScreen: true },
+  ];
+
+  test("both directions and the old form are measured, in the state that starts", () => {
+    expect(IN_THE_STRIP).toEqual([
+      { arrangement: "sheet-peek-down", id: "anchored", onScreen: false },
+      { arrangement: "sheet-peek-up", id: "anchored", onScreen: true },
+      {
+        arrangement: "sheet-peek-down",
+        id: "pinned-to-the-screen",
+        onScreen: true,
+      },
+    ]);
+  });
+
+  test("the strip is on the bottom edge, and carries no transform", async ({
+    page,
+  }) => {
+    // The premise, and the difference from the expanded sheet: nothing
+    // here is transformed, so `fixed` means the viewport — and the row's
+    // own bottom edge is the screen's.
+    await open(page, "sheet-peek-down");
+
+    expect(
+      await page.evaluate(() => {
+        const strip = document.querySelector(
+          '[data-testid="mobile-inspector-peek"]',
+        ) as HTMLElement;
+        return {
+          transformed: getComputedStyle(strip).transform !== "none",
+          bottomIsTheScreen:
+            Math.round(strip.getBoundingClientRect().bottom) ===
+            window.innerHeight,
+          drawerMounted: !!document.querySelector("[data-vaul-drawer]"),
+        };
+      }),
+    ).toEqual({
+      transformed: false,
+      bottomIsTheScreen: true,
+      drawerMounted: false,
+    });
+  });
+
+  for (const { arrangement, id, onScreen } of IN_THE_STRIP) {
+    test(`${arrangement}: #${id} is ${onScreen ? "on" : "off"} the screen`, async ({
+      page,
+    }) => {
+      await open(page, arrangement);
+
+      expect(
+        await page.evaluate((sel) => {
+          const box = document.getElementById(sel)!.getBoundingClientRect();
+          // Whole, not merely intersecting: the defect this replaces left
+          // 1.5px of an 82px menu visible, which "on screen" by any
+          // overlap test would have called a pass.
+          return box.top >= 0 && box.bottom <= window.innerHeight;
+        }, id),
+      ).toBe(onScreen);
+    });
+  }
 });
 
 test.describe("a press that raises a popup", () => {
