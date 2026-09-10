@@ -41,6 +41,13 @@
  *
  * It says nothing about what any fixture draws. That is each spec's own
  * subject.
+ *
+ * **And it holds it only for this directory.** The other browser target,
+ * `e2e-components/`, is outside this population: its page is built by
+ * vite rather than checked in, and its whole config is a phone, so the
+ * trap is armed there at every moment rather than in the specs that opt
+ * in. `e2e-components/spec-viewport.spec.ts` is the sibling that covers
+ * it, and says there why it is a sibling rather than a wider `FIXTURES`.
  */
 
 import { test, expect } from "@playwright/test";

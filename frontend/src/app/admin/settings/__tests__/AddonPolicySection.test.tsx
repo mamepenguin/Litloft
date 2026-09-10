@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
@@ -383,13 +383,48 @@ describe("AddonPolicySection says each explanation once", () => {
    * Not the key paths: the global `next-intl` mock resolves against the
    * real merged messages, so a key path is what a *miss* renders as —
    * counting those would count zero copies of everything and pass.
+   *
+   * The strings are the intelligence addon's own, and
+   * `scripts/merge-addon-messages.mjs` builds `messages/` by walking the
+   * `messages` directory under each `src/addons` link — so with the
+   * symlink gone the namespace is
+   * not in the file and reading through it threw at collection time,
+   * taking every case in this file down with it. `design-decisions.md`
+   * §Addons makes removing that symlink the way an addon is disabled, so
+   * the block gates on the symlink rather than on the key: an absent
+   * addon skips, and an addon that is installed but has renamed the key
+   * is a defect and fails on the case below.
    */
-  const feature = JSON.parse(
-    readFileSync(resolve(REPO_ROOT, "frontend/src/messages/en.json"), "utf-8"),
-  ).intelligence.policyFeatures.transcriptionCloud;
-  const HELP: string = feature.help;
-  const WARNING: string = feature.warning;
-  const LABEL: string = feature.label;
+  const ADDON_DIR = resolve(REPO_ROOT, "frontend/src/addons/intelligence");
+  const intelligenceLinked =
+    existsSync(ADDON_DIR) && readdirSync(ADDON_DIR).length > 0;
+
+  const feature = (
+    JSON.parse(
+      readFileSync(resolve(REPO_ROOT, "frontend/src/messages/en.json"), "utf-8"),
+    ) as {
+      intelligence?: {
+        policyFeatures?: {
+          transcriptionCloud?: { help: string; warning: string; label: string };
+        };
+      };
+    }
+  ).intelligence?.policyFeatures?.transcriptionCloud;
+  const HELP: string = feature?.help ?? "";
+  const WARNING: string = feature?.warning ?? "";
+  const LABEL: string = feature?.label ?? "";
+
+  it.runIf(intelligenceLinked)(
+    "reads a catalogue that still carries the feature it counts",
+    () => {
+      // Without this the fallbacks above would turn a renamed key into
+      // three empty needles, and "how many copies of `''` are in the
+      // document" is a question every case here answers wrongly and
+      // quietly.
+      expect(feature).toBeDefined();
+      expect([HELP, WARNING, LABEL].every((s) => s.length > 0)).toBe(true);
+    },
+  );
 
   /** Three drives, all with intelligence on: three rows, one legend. */
   const threeDrives = {
@@ -410,7 +445,7 @@ describe("AddonPolicySection says each explanation once", () => {
     });
   }
 
-  it("draws the help once however many drives show the feature", async () => {
+  it.runIf(intelligenceLinked)("draws the help once however many drives show the feature", async () => {
     setupDrives(threeDrives);
     render(<AddonPolicySection />);
 
@@ -435,7 +470,7 @@ describe("AddonPolicySection says each explanation once", () => {
     expect(screen.getAllByText(HELP)).toHaveLength(1);
   });
 
-  it("draws the warning once however many drives have it off", async () => {
+  it.runIf(intelligenceLinked)("draws the warning once however many drives have it off", async () => {
     setupDrives({
       main: { intelligence: { transcription_cloud: false } },
       photos: { intelligence: { transcription_cloud: false } },
@@ -449,7 +484,7 @@ describe("AddonPolicySection says each explanation once", () => {
     expect(screen.getAllByText(WARNING)).toHaveLength(1);
   });
 
-  it("says nothing about a feature no drive is showing a row for", async () => {
+  it.runIf(intelligenceLinked)("says nothing about a feature no drive is showing a row for", async () => {
     // A legend entry for a control that is not on the page is the
     // "heading for a thing that does not exist yet" the redesign's first
     // principle rejects.
@@ -465,7 +500,7 @@ describe("AddonPolicySection says each explanation once", () => {
     expect(screen.queryAllByText(LABEL)).toHaveLength(0);
   });
 
-  it("names the addon on each legend entry", async () => {
+  it.runIf(intelligenceLinked)("names the addon on each legend entry", async () => {
     // The only thing tying an entry to the column it explains: the rows
     // draw `↳ <feature label>` and no addon name, so with two addons
     // declaring a same-named feature the legend would be two entries a
@@ -483,7 +518,7 @@ describe("AddonPolicySection says each explanation once", () => {
     expect(entries[0]!.textContent).toContain(LABEL);
   });
 
-  it("draws no empty rule under the table when nothing declares a feature", async () => {
+  it.runIf(intelligenceLinked)("draws no empty rule under the table when nothing declares a feature", async () => {
     // `intelligence` is the only addon in the tree that declares
     // `policy_features`, so every install without it takes this path. The
     // `<dl>` carries `border-t` and `mt-6`, so an unguarded one is a
@@ -509,7 +544,7 @@ describe("AddonPolicySection says each explanation once", () => {
     expect(container.querySelectorAll("dl")).toHaveLength(0);
   });
 
-  it("keeps the warning out of it while every drive has the feature on", async () => {
+  it.runIf(intelligenceLinked)("keeps the warning out of it while every drive has the feature on", async () => {
     setupDrives(threeDrives);
     render(<AddonPolicySection />);
 

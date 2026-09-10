@@ -31,44 +31,64 @@
  * than rediscover the problem.
  */
 import { describe, it, expect } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const globalsCss = resolve(here, "../app/globals.css");
 
+const addons = resolve(here, "../addons");
+
+/**
+ * The addons `setup-addons.sh` actually linked, if any.
+ *
+ * Zero of them is a supported state, not a defect: `design-decisions.md`
+ * §Addons makes removing the symlink the way an in-process addon is
+ * disabled, and a clone without `--recurse-submodules` starts there. So
+ * "how many are linked" is the gate on the case below rather than an
+ * assertion inside it — asserting a floor here would turn disabling an
+ * addon into a core failure, which is the core edit that rule forbids.
+ *
+ * The armed state is the one that gates merges: the frontend CI job
+ * checks out the submodules, runs `setup-addons.sh`, and then asks the
+ * collector whether it picked up each addon's tests.
+ */
+const linked = existsSync(addons)
+  ? readdirSync(addons, { withFileTypes: true }).filter(
+      (e) => !e.name.startsWith("."),
+    )
+  : [];
+
 describe("Tailwind's source list", () => {
   it("names the addons directory", () => {
+    // Independent of what is installed: the declaration is core's, and it
+    // has to survive every addon being disabled.
     expect(readFileSync(globalsCss, "utf8")).toContain('@source "../addons"');
   });
 
-  it("names a directory that actually holds the addon frontends", () => {
-    // The string on its own could rot into a path that no longer exists,
-    // and Tailwind does not complain about a source that matches nothing
-    // — it would simply go back to emitting no addon utilities, which is
-    // the state this line was added to end.
-    const addons = resolve(here, "../addons");
-    expect(statSync(addons).isDirectory()).toBe(true);
+  it.runIf(linked.length > 0)(
+    "names a directory that actually holds the addon frontends",
+    () => {
+      // The string on its own could rot into a path that no longer exists,
+      // and Tailwind does not complain about a source that matches nothing
+      // — it would simply go back to emitting no addon utilities, which is
+      // the state this line was added to end.
+      expect(statSync(addons).isDirectory()).toBe(true);
 
-    const entries = readdirSync(addons, { withFileTypes: true }).filter(
-      (e) => !e.name.startsWith("."),
-    );
-    // `setup-addons.sh` has to have run; the frontend CI job asserts the
-    // same thing from the other direction by checking vitest collected
-    // each addon's tests.
-    expect(entries.length).toBeGreaterThan(0);
-
-    // At least one of them has to contain something Tailwind would scan,
-    // or the source is pointing at a shell.
-    const scannable = entries.some((entry) => {
-      const dir = resolve(addons, entry.name);
-      try {
-        return readdirSync(dir).some((f) => /\.(tsx|ts|jsx|js)$/.test(f));
-      } catch {
-        return false;
-      }
-    });
-    expect(scannable).toBe(true);
-  });
+      // Existential by construction rather than a weakened universal: the
+      // claim is about the source path, and one linked addon whose
+      // frontend puts every module in a subdirectory is not evidence that
+      // `@source` points at a shell.
+      const scannable = linked.some((entry) => {
+        const dir = resolve(addons, entry.name);
+        try {
+          return readdirSync(dir).some((f) => /\.(tsx|ts|jsx|js)$/.test(f));
+        } catch {
+          return false;
+        }
+      });
+      expect(scannable).toBe(true);
+    },
+  );
 });
