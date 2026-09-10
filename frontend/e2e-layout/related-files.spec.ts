@@ -98,6 +98,17 @@ const THRESHOLD = 720;
 const columnAt = (container: number) => (container - GAP) / 2;
 
 /**
+ * How many distinct widths the sweep below runs at.
+ *
+ * Declared here and not counted from `sweptWidths()`: the sweep's input
+ * is three surface tables plus four loose widths, and the deduplication
+ * means a surface can lose an entry — or gain one that collides with a
+ * threshold — without the list of cases changing length in any way the
+ * loop itself could notice.
+ */
+const SWEPT_WIDTHS = 13;
+
+/**
  * The three places this list is drawn, and the widths each produces.
  *
  * Two of them are stacks, and they are not the same stack — a claim
@@ -124,6 +135,23 @@ const SURFACES = {
  * asserted below — which is what makes the name column's width a
  * question about the layout rather than about the font.
  */
+/**
+ * Every width the sweep runs at: the three surfaces, both sides of the
+ * threshold, and the two ends beyond them, deduplicated and in order.
+ */
+const sweptWidths = (): number[] =>
+  [
+    ...new Set([
+      320,
+      ...SURFACES.rail,
+      ...SURFACES.canonicalStack,
+      ...SURFACES.collectionStack,
+      THRESHOLD - 8,
+      THRESHOLD,
+      1200,
+    ]),
+  ].sort((a, b) => a - b);
+
 const NAME = "15792094940_54b0fd8f84_o.jpg";
 const FOLDER = "test_images";
 
@@ -283,6 +311,27 @@ test.describe("the column count is the container's question", () => {
   });
 });
 
+/**
+ * What the sweep actually registered, recorded as it registers it.
+ *
+ * The sweep is the one loop in this file that is generated rather than
+ * written out, and nothing here observed it: a `continue` inside it drops
+ * the cases it guards while every surface table, every threshold and
+ * every other case stay exactly as they were — a state this suite was
+ * measured in.
+ *
+ * The order of the two lines is the whole of it: `test()` first, `push`
+ * second. Recorded first, anything between them drops the registration
+ * and keeps the record. Recorded last, a skipped `test()` takes its push
+ * with it and the register comes up short of the declarations.
+ *
+ * The expected side is the same `SURFACES` table read a second time, so
+ * it moves with a surface that is deleted; `SWEPT_WIDTHS` beside the
+ * table is what holds that half, and it is a count of the distinct widths
+ * rather than of the entries, because the sweep deduplicates.
+ */
+const sweepRegistered: number[] = [];
+
 test.describe("no width produces a tile narrower than the rail's single column", () => {
   // The invariant the threshold exists to hold, swept rather than
   // spot-checked: a tile is either the whole container or at least as
@@ -296,25 +345,33 @@ test.describe("no width produces a tile narrower than the rail's single column",
   // and it was exactly the amount by which the 44rem threshold broke
   // the rule. A floor loosened to admit the one case it was written to
   // judge is not a floor.
-  const WIDTHS = [
-    320,
-    ...SURFACES.rail,
-    ...SURFACES.canonicalStack,
-    ...SURFACES.collectionStack,
-    THRESHOLD - 8,
-    THRESHOLD,
-    1200,
-  ];
+  //
+  // And the width list is pinned before the loop walks it: the sweep
+  // deduplicates, so a surface losing an entry it shares with another
+  // surface is otherwise not a change at all.
+  expect(sweptWidths()).toHaveLength(SWEPT_WIDTHS);
 
-  for (const width of [...new Set(WIDTHS)].sort((a, b) => a - b)) {
+  for (const width of sweptWidths()) {
     test(`${width}px`, async ({ page }) => {
       const m = await layout(page, width);
+      // The case's own width, read back off the grid the browser laid
+      // out. Every assertion below is a comparison between two tiles in
+      // the same run, so without this the whole sweep would still pass
+      // if `layout` were handed one width thirteen times.
+      expect(m.gridWidth).toBeCloseTo(width, 0);
       for (const tile of m.tiles) {
         const full = Math.abs(tile.width - m.gridWidth) < 1;
         expect(full || tile.width >= RAIL_GRID).toBe(true);
       }
     });
+    sweepRegistered.push(width);
   }
+});
+
+test("the sweep ran at every width the surfaces produce", () => {
+  // Rebuilt from `SURFACES` in the order the loop walks it, so it does
+  // not follow a loop that has been walked back.
+  expect(sweepRegistered).toEqual(sweptWidths());
 });
 
 test.describe("the shapes the tile actually comes in", () => {

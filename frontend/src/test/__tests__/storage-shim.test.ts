@@ -21,8 +21,55 @@ import { describe, expect, it, vi } from "vitest";
  * jsdom's Proxy and the other half against an object literal, so neither
  * regression can land quietly.
  */
+/**
+ * The two Web Storage globals, declared — not counted, and not read off
+ * the window.
+ *
+ * A length assertion here would be counting this file's own literal, and
+ * the register below would be comparing that literal against itself. What
+ * gives the population a second opinion is `shimmed()`: a scan of the
+ * window for the objects `setup.ts` actually installed. The two disagree
+ * in both directions — a name dropped from here is still on the window,
+ * and a storage the shim stops replacing is still named here.
+ */
+const NAMES = ["localStorage", "sessionStorage"] as const;
+
+/**
+ * Every own property of `window` that holds one of the shim's instances.
+ *
+ * Read through the descriptor rather than by indexing, so a `window`
+ * accessor with side effects is never invoked just to be classified.
+ */
+const shimmed = (): string[] =>
+  Object.getOwnPropertyNames(window)
+    .filter((key) => {
+      const descriptor = Object.getOwnPropertyDescriptor(window, key);
+      return (
+        descriptor !== undefined &&
+        "value" in descriptor &&
+        descriptor.value instanceof Storage
+      );
+    })
+    .sort();
+
+/**
+ * What the loop below registered, recorded as it registers it.
+ *
+ * The loop registers a whole `describe` per storage, so walking it back
+ * takes four cases with it and leaves nothing behind to notice — which is
+ * a state this file was measured in. `describe()` first and the `push`
+ * second: recorded first, anything between the two lines keeps the record
+ * and loses the block.
+ */
+const registered: string[] = [];
+
 describe("test Web Storage shim", () => {
-  for (const name of ["localStorage", "sessionStorage"] as const) {
+  it("covers every Web Storage global the shim installed, and no other", () => {
+    expect(shimmed()).toEqual([...NAMES].sort());
+    expect(registered).toEqual([...NAMES]);
+  });
+
+  for (const name of NAMES) {
     describe(name, () => {
       const storage = () => globalThis[name];
 
@@ -63,6 +110,7 @@ describe("test Web Storage shim", () => {
         expect(storage()).toBeInstanceOf(Storage);
       });
     });
+    registered.push(name);
   }
 
   it("shares one prototype between local and session storage", () => {
