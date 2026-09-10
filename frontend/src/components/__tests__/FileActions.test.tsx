@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { dismissByPressingOutside } from "@/__tests__/helpers/dismissScrim";
+import {
+  Ancestors,
+  type AncestorSpec,
+} from "@/__tests__/helpers/ancestorChain";
 import { DISMISS_SCRIM_ATTR } from "@/components/DismissScrim";
 import { deleteFile } from "@/lib/api";
 import { FileActions } from "../FileActions";
@@ -248,6 +252,50 @@ describe("FileActions", () => {
 });
 
 /**
+ * A `visualViewport` with every field the decision reads.
+ *
+ * Stated in full rather than as the one field a case is about: the
+ * decision reads four of them, and a partial stub leaves the rest
+ * `undefined`, which makes every comparison against them `false` — the
+ * case then passes on arithmetic rather than on the code. It is an
+ * `EventTarget` too, because an open menu subscribes to it.
+ */
+function stubVisualViewport(
+  box: Partial<{
+    offsetLeft: number;
+    offsetTop: number;
+    width: number;
+    height: number;
+  }>,
+) {
+  const target = new EventTarget();
+  vi.stubGlobal("visualViewport", {
+    offsetLeft: 0,
+    offsetTop: 0,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    ...box,
+    addEventListener: target.addEventListener.bind(target),
+    removeEventListener: target.removeEventListener.bind(target),
+    dispatchEvent: target.dispatchEvent.bind(target),
+  });
+  return target;
+}
+
+/**
+ * The width the menu's `w-40` draws at, for the cases that state no width
+ * of their own.
+ *
+ * A number in a test and not in the component — `useAnchoredDirection`
+ * reads the rendered box, so there is no constant in the product for this
+ * one to agree or disagree with. It is pinned from both sides by the two
+ * alignment cases rather than asserted: halve it and the spilling trigger
+ * stops flipping, double it and the one with room flips, so it cannot be
+ * moved in either direction and stay green.
+ */
+const MENU_WIDTH = 160;
+
+/**
  * The trigger's box, the menu's height, and nothing else laid out.
  *
  * jsdom lays nothing out, so every rect here is stated. That makes these
@@ -263,10 +311,11 @@ describe("FileActions", () => {
 function mountWithBoxes(
   trigger: { top: number; bottom: number; left: number; right: number },
   menuHeight: number,
+  menuWidth: number = MENU_WIDTH,
 ) {
   // `menuReads` counts how often the decision actually reads the box, so
   // a case can say how many re-derivations one observed change produces.
-  const state = { menuHeight, menuReads: 0 };
+  const state = { menuHeight, menuWidth, menuReads: 0 };
   const original = Element.prototype.getBoundingClientRect;
   vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
     function (this: Element) {
@@ -275,7 +324,10 @@ function mountWithBoxes(
       }
       if (this.getAttribute("role") === "menu") {
         state.menuReads += 1;
-        return { height: state.menuHeight } as DOMRect;
+        return {
+          height: state.menuHeight,
+          width: state.menuWidth,
+        } as DOMRect;
       }
       // An ancestor built by `<Ancestors>` states its own box, so a case
       // that adds one to the chain does not also have to be handed to the
@@ -529,50 +581,6 @@ describe("FileActions menu direction, as the menu's own height moves", () => {
   });
 });
 
-/**
- * One ancestor of the menu, stated: how it is positioned, whether it is a
- * scrollport, and what box it reports.
- *
- * `overflowX` / `overflowY` and not the `overflow` shorthand: the decision
- * reads the two longhands, and jsdom's `getComputedStyle` leaves both empty
- * when only the shorthand is set — which would make a scroller invisible to
- * the walk and turn every case below into a viewport case wearing a
- * scroller's name. Boxes are stated like every other rect here; jsdom lays
- * nothing out.
- */
-interface AncestorSpec {
-  /** Computed `position`. Omitted means static, which is jsdom's `""`. */
-  position?: "relative" | "absolute" | "fixed" | "sticky";
-  /** The box it reports, if any case asks it for one. */
-  box?: { top: number; bottom: number; left: number };
-  /** Whether it is a scrollport, and so a candidate frame. */
-  clips?: boolean;
-}
-
-/** Wraps `children` in the given chain, outermost entry first. */
-function Ancestors({
-  chain,
-  children,
-}: {
-  chain: AncestorSpec[];
-  children: React.ReactNode;
-}) {
-  return chain.reduceRight<React.ReactNode>(
-    (inner, spec, i) => (
-      <div
-        key={i}
-        data-box={spec.box ? JSON.stringify(spec.box) : undefined}
-        style={{
-          ...(spec.position ? { position: spec.position } : {}),
-          ...(spec.clips ? { overflowX: "auto", overflowY: "auto" } : {}),
-        }}
-      >
-        {inner}
-      </div>
-    ),
-    children,
-  );
-}
 
 describe("FileActions menu direction, against the frame that clips it", () => {
   /**
@@ -609,7 +617,10 @@ describe("FileActions menu direction, against the frame that clips it", () => {
    */
   const TRIGGER = { top: 440, bottom: 468, left: 300, right: 328 };
   const MENU_HEIGHT = 100;
-  const SCROLLER = { top: 300, bottom: 500, left: 0 };
+  // `right` is the jsdom window's width, so the shared scroller is
+  // full-bleed and only its vertical edges differ from the window's. A
+  // case that turns on a right edge states a narrower one itself.
+  const SCROLLER = { top: 300, bottom: 500, left: 0, right: 1024 };
 
   function openUnder(
     chain: AncestorSpec[],
@@ -647,7 +658,7 @@ describe("FileActions menu direction, against the frame that clips it", () => {
     // smaller side and the menu stays down.
     framedByWindow(
       openUnder(
-        [{ clips: true, box: { top: 300, bottom: 668, left: 0 } }],
+        [{ clips: true, box: { top: 300, bottom: 668, left: 0, right: 1024 } }],
         TRIGGER,
         300,
       ),
@@ -659,7 +670,7 @@ describe("FileActions menu direction, against the frame that clips it", () => {
     // a 160px menu hung leftward starts at 140 — inside the window and 60px
     // outside the box it is drawn in.
     const className = openUnder(
-      [{ clips: true, box: { top: 0, bottom: 768, left: 200 } }],
+      [{ clips: true, box: { top: 0, bottom: 768, left: 200, right: 1024 } }],
       { top: 100, bottom: 128, left: 272, right: 300 },
     );
     expect(className.includes("left-0")).toBe(true);
@@ -764,7 +775,7 @@ describe("FileActions menu direction, against the frame that clips it", () => {
     // `window.innerHeight`. 440px below the trigger by the layout viewport,
     // 72px by the visual one, for a 100px menu. The rename dialog raises
     // the keyboard on this very surface.
-    vi.stubGlobal("visualViewport", { height: 400 });
+    stubVisualViewport({ height: 400 });
     mountWithBoxes({ top: 300, bottom: 328, left: 300, right: 328 }, 100);
     renderWithStack(<FileActions file={mockFile} />);
     fireEvent.click(screen.getByLabelText("File actions"));

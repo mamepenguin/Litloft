@@ -2,7 +2,12 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { Filter } from "lucide-react";
 
-import { MenuRadioGroup, MenuSeparator, ToolbarMenu } from "../ToolbarMenu";
+import {
+  MENU_SURFACE_GAP_PX,
+  MenuRadioGroup,
+  MenuSeparator,
+  ToolbarMenu,
+} from "../ToolbarMenu";
 
 const rows = (close: () => void) => (
   <button role="menuitem" onClick={close}>
@@ -12,6 +17,33 @@ const rows = (close: () => void) => (
 
 describe("ToolbarMenu", () => {
   afterEach(cleanup);
+  afterEach(() => vi.restoreAllMocks());
+
+  /**
+   * State the wrapper's box and the menu's, so a case can reach a corner
+   * the zeroes jsdom reports cannot.
+   *
+   * jsdom lays nothing out: without this every rect is zero, the menu fits
+   * everywhere and only the downward form is ever drawn. Stating the boxes
+   * makes a case evidence about the *spelling* the decision resolves to,
+   * and about nothing geometric — `e2e-components/` measures whether the
+   * box that spelling produces is on screen.
+   */
+  function stubMenuBoxes(
+    wrapper: { top: number; bottom: number },
+    menu: { height: number; width: number },
+  ) {
+    const original = Element.prototype.getBoundingClientRect;
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        if ((this as HTMLElement).classList.contains("relative")) {
+          return { ...wrapper, left: 300, right: 460 } as DOMRect;
+        }
+        if (this.getAttribute("role") === "menu") return { ...menu } as DOMRect;
+        return original.call(this);
+      },
+    );
+  }
 
   it("names itself for the control and for the state", () => {
     // WCAG 2.5.3: the accessible name has to contain the visible label, so
@@ -108,8 +140,9 @@ describe("ToolbarMenu", () => {
   });
 
   it("keeps the popover's recipe, which is what keeps it on screen", () => {
-    // A literal, not the imported `MENU_SURFACE`. Comparing the element's
-    // class to the constant it is set from compares the constant to itself:
+    // A literal, not the string `useMenuSurface` builds. Comparing the
+    // element's class to the recipe it is set from compares the recipe to
+    // itself:
     // an independent review deleted `sm:absolute` — the token that decides
     // between a bottom sheet and a menu anchored to its trigger, the most
     // consequential one in the string — and all 143 tests passed. The copy
@@ -144,10 +177,74 @@ describe("ToolbarMenu", () => {
       "fixed", "inset-x-2", "bottom-4", "z-40", "max-h-[60vh]",
       "overflow-y-auto", "rounded-2xl", "border", "border-bg-border",
       "bg-bg-primary", "py-1", "shadow-lg", "animate-fade-in-scale",
-      "sm:absolute", "sm:inset-x-auto", "sm:bottom-auto",
-      "sm:top-full", "sm:mt-1", "sm:max-h-[70vh]", "sm:min-w-[200px]",
+      "sm:absolute", "sm:inset-x-auto", "sm:max-h-[70vh]",
+      "sm:min-w-[200px]",
+      "sm:bottom-auto", "sm:top-full", "sm:mt-1",
       "sm:right-0", "sm:origin-top-right",
     ]);
+  });
+
+  it("spells the upward form as the mirror of the downward one", () => {
+    // The direction is measured now, so both spellings have to be written
+    // somewhere a reader can compare them — and the up form is reachable
+    // in this file only by stating the boxes, since jsdom lays nothing out
+    // and every rect is zero without that.
+    //
+    // What the mirror has to get right is not the pair of edges but the
+    // pair of *cancellations*: the sheet form below 640 is `bottom-4`, and
+    // above it exactly one of `sm:bottom-auto` (down) and `sm:bottom-full`
+    // (up) has to override it. Leave both out and the anchored menu sits
+    // 16px off the floor of the screen at every width.
+    stubMenuBoxes({ top: 700, bottom: 740 }, { height: 300, width: 200 });
+    render(
+      <ToolbarMenu label="Sort" value="Newest first" icon={Filter}>
+        {rows}
+      </ToolbarMenu>,
+    );
+    fireEvent.click(screen.getByRole("button"));
+    const classes = (screen.getByRole("menu").getAttribute("class") ?? "").split(
+      /\s+/,
+    );
+
+    expect(
+      classes.filter((c) => /^sm:(top|bottom|mt|mb|origin)/.test(c)),
+    ).toEqual([
+      "sm:top-auto",
+      "sm:bottom-full",
+      "sm:mb-1",
+      // The corner the open animation grows from follows the direction as
+      // well as the side. `animate-fade-in-scale` starts at `scale(.95)`,
+      // so an origin naming the top while the panel hangs from the bottom
+      // grows it away from the trigger it is attached to — the one
+      // combination the downward-only form could not reach.
+      "sm:origin-bottom-right",
+    ]);
+  });
+
+  it("ties the gap it measures with to the gap it draws", () => {
+    // `MENU_SURFACE_GAP_PX` is what the direction arithmetic adds to the
+    // menu's height; `sm:mt-1` / `sm:mb-1` is what the browser draws. A
+    // constant that only states the gap is one that can be halved with
+    // everything green, so the number is read back out of the class rather
+    // than compared with a second copy of itself. Tailwind's spacing unit
+    // is 4px, which is the one fact this asserts from outside.
+    const spacing = (cls: string) => {
+      const n = /^sm:m[tb]-(\d+)$/.exec(cls);
+      return n ? Number(n[1]) * 4 : null;
+    };
+
+    render(
+      <ToolbarMenu label="Sort" value="Newest first" icon={Filter}>
+        {rows}
+      </ToolbarMenu>,
+    );
+    fireEvent.click(screen.getByRole("button"));
+    const drawn = (screen.getByRole("menu").getAttribute("class") ?? "")
+      .split(/\s+/)
+      .map(spacing)
+      .filter((px): px is number => px !== null);
+
+    expect(drawn).toEqual([MENU_SURFACE_GAP_PX]);
   });
 
   it("hangs the anchored form from the edge the caller names", () => {

@@ -322,9 +322,10 @@ describe("AddButton", () => {
     // Measured in Chromium with three addon rows contributed, seven rows
     // in total: uncapped it is 331px and runs 3px past the fold on a
     // 852x393 landscape phone. Capped it clamps to 275 there and scrolls.
-    // `MENU_SURFACE` is not reused because it anchors to the right of its
-    // trigger and `Add` is the leftmost control; the height rules are the
-    // part that has to be shared.
+    // The shared surface is not reused here yet — `AddButton` is the
+    // first entry on the sweep's remaining list — and the side it anchors
+    // to stopped being the reason when `useMenuSurface` took an `align`
+    // and started measuring. The height rules are the part this asserts.
     render(<AddButton />);
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     const classes = [...screen.getByRole("menu").classList];

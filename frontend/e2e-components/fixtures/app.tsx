@@ -29,7 +29,7 @@
  * this file's.
  */
 
-import { useState, type ReactElement, type ReactNode } from "react";
+import { useRef, useState, type ReactElement, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { Trash2 } from "lucide-react";
 
@@ -39,6 +39,7 @@ import { ContextMenu } from "@/components/ContextMenu";
 import { MobileInspectorSheet } from "@/components/MobileInspectorSheet";
 import { DismissScrim } from "@/components/DismissScrim";
 import { useContextMenu } from "@/hooks/useContextMenu";
+import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
 
 import "../../e2e-layout/fixtures/globals.built.css";
 
@@ -425,6 +426,189 @@ function SheetPeekLeft(): ReactElement {
   return <InSheet state="peek" up alignLeft />;
 }
 
+/**
+ * A menu whose corner is picked by the real hook, not by a prop.
+ *
+ * The arrangements above hand `up` and `alignLeft` in, so what they
+ * measure is where a stated class list lands — necessary, and silent about
+ * whether anything would ever choose it. This one imports
+ * `useAnchoredDirection` from `src/` and lets it read the boxes the
+ * browser actually produced, so the spec can ask the question the jsdom
+ * cases cannot: **is the box the decision picked inside the frame?**
+ *
+ * Deleting the measurement from the hook turns these cases red; deleting
+ * it from a component does not, which is why the component's own class
+ * list is pinned separately by `componentFixtureParity.test.tsx`.
+ */
+function MeasuredMenu({
+  rows,
+  preferSide,
+}: {
+  rows: number;
+  preferSide?: "left" | "right";
+}): ReactElement {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Opened by a press, not from mount, because the *order* is part of what
+  // is being measured. vaul animates the drawer into place, so a menu that
+  // measures on mount reads a frame that is still travelling — and nothing
+  // re-derives afterwards, since neither the panel's box nor the viewport
+  // changes when the drawer stops. In the app the sheet has settled long
+  // before anyone taps the trigger. (Measured with it open from mount: the
+  // `half` state chose upward against 148px of room below it.)
+  const [open, setOpen] = useState(false);
+  const { openUp, side } = useAnchoredDirection({
+    triggerRef: wrapperRef,
+    panelRef,
+    open,
+    gapPx: 4,
+    preferSide,
+  });
+  return (
+    <div ref={wrapperRef} className="relative flex items-center">
+      <button
+        type="button"
+        id="trigger"
+        className="rounded-full px-3 py-1.5"
+        onClick={() => setOpen((v) => !v)}
+      >
+        AI
+      </button>
+      {open && (
+      <div
+        ref={panelRef}
+        id="anchored"
+        role="menu"
+        data-open-up={String(openUp)}
+        data-side={side}
+        className={`absolute z-30 min-w-[240px] rounded-2xl bg-bg-card py-1 shadow-lg ${
+          openUp ? "bottom-full mb-1" : "top-full mt-1"
+        } ${side === "left" ? "left-0" : "right-0"}`}
+      >
+        {Array.from({ length: rows }, (_, i) => (
+          <button
+            key={i}
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm"
+          >
+            row {i + 1}
+          </button>
+        ))}
+      </div>
+      )}
+    </div>
+  );
+}
+
+/** The measured menu in the strip and in both expanded states. */
+function MeasuredInSheet({
+  state,
+}: {
+  state: "peek" | "half" | "full";
+}): ReactElement {
+  const row = (
+    <>
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
+        A file name long enough to take the width the strip has
+      </span>
+      <div className="file-action-row-touch file-action-row-compact flex flex-shrink-0 items-center gap-0.5">
+        <MeasuredMenu rows={5} />
+        <button type="button" id="overflow" className="h-11 w-11 rounded-lg">
+          &#8942;
+        </button>
+      </div>
+    </>
+  );
+  return (
+    <NextIntlClientProvider
+      locale="en"
+      messages={{ inspector: { title: "Details", sheetDescription: "Sheet" } }}
+    >
+      <PageControl id="underneath" className="fixed inset-0 z-0 bg-bg-elevated">
+        page
+      </PageControl>
+      <MobileInspectorSheet
+        state={state}
+        onStateChange={() => {}}
+        halfSnap={0.4}
+        peek={state === "peek" ? row : null}
+      >
+        {state === "peek" ? null : (
+          <div className="flex items-center gap-2 px-4 pt-2">{row}</div>
+        )}
+      </MobileInspectorSheet>
+    </NextIntlClientProvider>
+  );
+}
+
+/**
+ * The 384px inspector column, which is the one frame in the tree with
+ * side edges close enough to bind.
+ *
+ * Both of the walks this hook replaced recorded `left`, `top` and
+ * `bottom` only, so nothing ever asked whether a panel hung from a
+ * trigger's left edge crossed the frame's right one. No fixture drew a
+ * frame narrow enough for the question to have an answer either, which is
+ * why it went four review rounds without being noticed.
+ *
+ * Two arrangements, because one edge cannot stand in for the other and
+ * each has to produce the answer the *other* side of the default would
+ * not: a trigger at the column's left edge preferring `right` has to end
+ * up on the left, and one at its right edge preferring `left` has to end
+ * up on the right. Assert only the box and a panel narrower than its room
+ * passes both without the question ever being put.
+ *
+ * `overflow-auto` and `w-96` are `InspectorPane`'s own.
+ */
+function InspectorColumn({
+  at,
+  preferSide,
+}: {
+  at: "left" | "right";
+  preferSide: "left" | "right";
+}): ReactElement {
+  return (
+    <>
+      <PageControl id="underneath" className="fixed inset-0 z-0 bg-bg-elevated">
+        page
+      </PageControl>
+      <aside
+        id="pane"
+        className="fixed right-0 top-0 flex h-full w-96 flex-col overflow-auto border-l border-bg-border bg-bg-card"
+      >
+        <div
+          className={`flex items-center px-3 py-4 ${
+            at === "right" ? "justify-end" : "justify-start"
+          }`}
+        >
+          <MeasuredMenu rows={5} preferSide={preferSide} />
+        </div>
+      </aside>
+    </>
+  );
+}
+
+/** A trigger at the column's left edge: the default side runs off it. */
+function InspectorColumnLeftEdge(): ReactElement {
+  return <InspectorColumn at="left" preferSide="right" />;
+}
+
+/** A trigger at its right edge, preferring the side that runs off it. */
+function InspectorColumnRightEdge(): ReactElement {
+  return <InspectorColumn at="right" preferSide="left" />;
+}
+
+function MeasuredSheetPeek(): ReactElement {
+  return <MeasuredInSheet state="peek" />;
+}
+function MeasuredSheetHalf(): ReactElement {
+  return <MeasuredInSheet state="half" />;
+}
+function MeasuredSheetFull(): ReactElement {
+  return <MeasuredInSheet state="full" />;
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   plain: Plain,
   "bottom-bar": BottomBar,
@@ -440,6 +624,11 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "sheet-full-right": SheetFullRight,
   "sheet-full-left": SheetFullLeft,
   "sheet-full-up": SheetFullUp,
+  "measured-sheet-peek": MeasuredSheetPeek,
+  "measured-sheet-half": MeasuredSheetHalf,
+  "measured-sheet-full": MeasuredSheetFull,
+  "measured-inspector-left-edge": InspectorColumnLeftEdge,
+  "measured-inspector-right-edge": InspectorColumnRightEdge,
 };
 
 function App(): ReactElement {

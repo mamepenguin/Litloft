@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 
 import type { FileKind, TrustFilter } from "@/types";
 import { TRUST_OPTION_KEYS, TYPE_OPTION_KEYS } from "./filterOptions";
-import { MENU_SURFACE } from "@/components/ToolbarMenu";
+import { useMenuSurface } from "@/components/ToolbarMenu";
 import { DismissScrim } from "@/components/DismissScrim";
 
 interface FilterMenuProps {
@@ -48,6 +48,7 @@ export function FilterMenu({
   const [open, setOpen] = useState(false);
   const headingId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const surface = useMenuSurface(open);
   const t = useTranslations("toolbar");
   const tFilter = useTranslations("filter");
   const tTrust = useTranslations("trustTier");
@@ -87,6 +88,7 @@ export function FilterMenu({
 
   return (
     <div
+      ref={surface.wrapperRef}
       className="relative"
       // On the box, not on the menu. Opening this leaves focus on the
       // trigger, which is outside the menu — so a handler there fired only
@@ -157,8 +159,9 @@ export function FilterMenu({
               rest of the APG menu contract and is not here yet; the rows are
               ordinary buttons in tab order. */}
           <div
+            ref={surface.panelRef}
             role="menu"
-            className={MENU_SURFACE}
+            className={surface.className}
           >
             {/* `role="group"` + `aria-labelledby`: a `role="menu"` publishes
                 only menuitem / group / separator children, so a bare <p>

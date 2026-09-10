@@ -186,7 +186,7 @@ const NEEDLES = [
   "aria-haspopup",
   "top-full",
   "bottom-full",
-  "MENU_SURFACE",
+  "useMenuSurface",
 ] as const;
 
 const POPUP_NEEDLE = new RegExp(NEEDLES.join("|"));
@@ -458,27 +458,30 @@ describe("Every popup surface in core", () => {
   });
 
   it("sees a popup that reuses the shared menu surface", () => {
-    // Five menus here render `className={MENU_SURFACE}` — the identifier,
-    // not the classes — so the geometry inside it belongs to
-    // `ToolbarMenu.tsx` and no consumer matches on it. All five happen to
-    // also write `role="menu"`; a sixth would not have to. A probe of
-    // exactly that shape was in the population of nothing until
-    // `MENU_SURFACE` became a needle of its own.
+    // Five menus here call `useMenuSurface` — the identifier, not the
+    // classes — so the geometry and the direction inside it belong to
+    // `ToolbarMenu.tsx` and no consumer matches on either. All five happen
+    // to also write `role="menu"`; a sixth would not have to. A probe of
+    // exactly that shape was in the population of nothing until the shared
+    // surface became a needle of its own.
+    //
+    // The identifier moved when the surface stopped being a constant and
+    // started measuring its own direction. It is the same needle doing the
+    // same job: what a consumer writes, rather than what it renders.
     const dir = mkdtempSync(join(tmpdir(), "popup-surface-"));
     const file = join(dir, "Sixth.tsx");
     // The probe does not write the `import` line a real caller would.
-    // `toolbarMenuHome.test.ts` enumerates the files that import
-    // `MENU_SURFACE`, and it caught this file when the string was here —
-    // an enumerating detector finding a new one, which is the shape
-    // working. The needle is the identifier, so the probe still carries
-    // what the sweep looks for.
+    // `toolbarMenuHome.test.ts` enumerates the files that import the
+    // module, and it caught this file when the string was here — an
+    // enumerating detector finding a new one, which is the shape working.
+    // The needle is the identifier, so the probe still carries what the
+    // sweep looks for.
     writeFileSync(
       file,
-      "export const Sixth = () => (\n" +
-        "  <div className={MENU_SURFACE}>\n" +
-        "    <button>row</button>\n" +
-        "  </div>\n" +
-        ");\n",
+      "export const Sixth = () => {\n" +
+        "  const surface = useMenuSurface(open);\n" +
+        "  return <div className={surface.className}><button>row</button></div>;\n" +
+        "};\n",
     );
     try {
       expect(popupFiles([dir])).toEqual([relative(REPO_ROOT, file)]);
@@ -527,7 +530,7 @@ const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
   "aria-haspopup": 'aria-haspopup="menu"',
   "top-full": 'className="absolute top-full"',
   "bottom-full": 'className="absolute bottom-full"',
-  MENU_SURFACE: "className={MENU_SURFACE}",
+  useMenuSurface: "const surface = useMenuSurface(open);",
 };
 
   it("has a declaration for every needle", () => {
@@ -678,11 +681,12 @@ describe("An outside press", () => {
     //
     // The cost is that adding or deleting any source file under
     // `frontend/src` edits this number — 409 to 410 when unit G merged
-    // into this branch, and 410 to 413 when unit D did. That is the
+    // into this branch, 410 to 413 when unit D did, and 413 to 414 for
+    // `useAnchoredDirection`. That is the
     // intended price: it is one line, and the alternative is a guard that
     // reads as a floor and functions as nothing.
     expect(relative(REPO_ROOT, CORE_ROOT)).toBe("frontend/src");
-    expect(sourceFiles(CORE_ROOT).length).toBe(413);
+    expect(sourceFiles(CORE_ROOT).length).toBe(414);
   });
 
   it.each([

@@ -164,16 +164,34 @@ export const REQUIRED = [
   // asserts nothing.
   ".top-full {",
   ".bottom-full {",
-  // The offsets the gap assertions measure. They are not "which side" —
-  // without them the boxes land on the correct side with a 0px gap, which
-  // only `toBeCloseTo(GAP_PX, 1)` notices.
+  // The gap, which is not "which side": without these the boxes land on the
+  // correct side with a 0px gap. Measured by stripping them — the first
+  // thing that goes red is the strip case's `toBeLessThan(GAP_PX)`, not the
+  // `toBeCloseTo(GAP_PX, 1)` pair after it.
   ".mt-1 {",
   ".mb-1 {",
+  // Which side, and only which side. Measured by stripping them: the
+  // toast's own left/right case goes red and every gap assertion stays
+  // green, because `GAP_PX` is compared on the vertical axis alone.
   ".left-0 {",
   ".right-0 {",
   // A third kind again: this is what keeps a long message from wrapping,
   // which is the premise of the column cases rather than their subject.
   ".whitespace-nowrap {",
+  // `toolbar-menu.spec.ts` measures the shared toolbar surface on both
+  // sides of `sm`. These are the variant-prefixed halves — the ones that
+  // exist only because `ToolbarMenu.tsx` writes them, and the ones whose
+  // absence turns the anchored cases into a page that is still the sheet
+  // at 768 and reports it as a wrong box rather than as a missing rule.
+  //
+  // Written whole rather than split across two literals, which the escape
+  // rules above would otherwise require: `globals.css` takes this file out
+  // of the scan with `@source not`, so nothing here is a source for
+  // anything.
+  ".sm\\:absolute {",
+  ".sm\\:top-full {",
+  ".sm\\:bottom-full {",
+  ".sm\\:bottom-auto {",
   // `mobile-inspector-sheet.spec.ts` measures a drawer whose foot is off
   // the screen and a sticky tab strip inside the one box that scrolls.
   // Every rule below is load-bearing for a different case, and each one's

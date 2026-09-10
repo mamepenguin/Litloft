@@ -76,9 +76,10 @@ const FIXTURES = [
   "mobile-inspector-sheet.html",
   "popup-dismiss.html",
   "related-files.html",
+  "toolbar-menu.html",
 ] as const;
 
-const FIXTURE_COUNT = 8;
+const FIXTURE_COUNT = 9;
 
 /**
  * The context the trap needs, and a viewport narrow enough that the

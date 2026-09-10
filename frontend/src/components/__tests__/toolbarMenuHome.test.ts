@@ -91,8 +91,10 @@ describe("the shared toolbar menu has one home", () => {
     expect(menuImporters().map((i) => i.file)).toEqual([
       "frontend/src/components/OverflowMenu.tsx",
       "frontend/src/components/PdfPreview.tsx",
+      "frontend/src/components/SortButton.tsx",
       "frontend/src/components/ViewMenu.tsx",
       "frontend/src/components/__tests__/ToolbarMenu.test.tsx",
+      "frontend/src/components/__tests__/toolbarMenuFixtureParity.test.tsx",
       "frontend/src/components/archive/ArchiveToolbar.tsx",
       "frontend/src/components/archive/ArchiveToolbar.tsx",
       "frontend/src/components/folder/FilterMenu.tsx",

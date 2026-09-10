@@ -177,14 +177,20 @@ export function AddButton({
           >
             <div
               role="menu"
-              // Capped and scrollable, like every other menu on this bar.
-              // `MENU_SURFACE` is anchored to the *right* of its trigger;
-              // this keeps its own geometry and takes only the height rules,
-              // because which side it grows from depends on the caller: on
-              // the folder toolbar `Add` is the leftmost control, and in the
-              // drive root's `PageHeader` it is the rightmost, where a
-              // left-anchored 180px panel behind a ~100px trigger runs off
-              // the right edge of a phone.
+              // Capped and scrollable, like every other menu on this bar,
+              // and it keeps its own geometry rather than taking the shared
+              // surface.
+              //
+              // Which side it grows from is **not** the reason any more.
+              // That used to be it — on the folder toolbar `Add` is the
+              // leftmost control and in the drive root's `PageHeader` it is
+              // the rightmost, where a left-anchored 180px panel behind a
+              // ~100px trigger runs off the right edge of a phone — and
+              // `useMenuSurface` now takes that as a parameter and measures
+              // it besides. What is left is that this menu has not been
+              // converted yet, not that it cannot be: it is the first entry
+              // on the sweep's remaining list, and it still hangs downward
+              // unconditionally.
               //
               // It grows with `folder-actions-menu`: three contributed rows
               // take it from four to seven and from ~120px to 331. Measured

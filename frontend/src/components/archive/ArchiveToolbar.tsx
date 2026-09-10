@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { getDownloadUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import {
-  MENU_SURFACE,
+  useMenuSurface,
   MenuRadioGroup,
   MenuSeparator,
   ToolbarMenu,
@@ -143,6 +143,13 @@ export function ArchiveToolbar({
   const tToolbar = useTranslations("toolbar");
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLButtonElement>(null);
+  // Inert while the wrapper below is `sm:hidden`: the only widths this
+  // menu exists at are the ones where the surface resolves to the
+  // viewport-spanning `fixed` sheet, and a sheet has no direction to pick.
+  // Taken anyway, because the surface is one recipe and the day this
+  // control stops being `sm:hidden` is not the day anyone will remember to
+  // wire it.
+  const moreSurface = useMenuSurface(moreOpen);
 
   // Closing must put focus back on the trigger; without it the menu unmounts
   // with focus on `<body>` and the next Tab restarts from the top of the
@@ -263,6 +270,7 @@ export function ArchiveToolbar({
             file, and a class assembled at runtime produces no CSS at all.
             That the two widths agree is asserted in the test instead. */}
         <div
+          ref={moreSurface.wrapperRef}
           className="relative sm:hidden"
           // On the box, not on the menu: opening this leaves focus on the
           // trigger, which is outside the menu. `stopPropagation` because a
@@ -288,7 +296,11 @@ export function ArchiveToolbar({
           </button>
           {moreOpen && (
             <DismissScrim onDismiss={closeMore}>
-              <div role="menu" className={MENU_SURFACE}>
+              <div
+                ref={moreSurface.panelRef}
+                role="menu"
+                className={moreSurface.className}
+              >
                 <ArchiveSortGroup
                   sort={sort}
                   order={order}

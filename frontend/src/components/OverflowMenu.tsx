@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 
 import { DismissScrim } from "@/components/DismissScrim";
-import { MENU_SURFACE } from "@/components/ToolbarMenu";
+import { useMenuSurface } from "@/components/ToolbarMenu";
 
 interface OverflowMenuProps {
   /**
@@ -50,15 +50,18 @@ interface OverflowMenuProps {
  * answered twice. `ToolbarMenu` records the same reasoning, and
  * `escape-listeners.test.ts` permits exactly this shape.
  *
- * The surface is `MENU_SURFACE` — a sheet below 640px, a right-anchored
- * dropdown above it — because every other menu on a bar in this app is
- * that surface, and a `…` rendering two ways on two screens that hold
- * the same rows is the drift this component exists to end. `AddButton`
- * is the one menu that does not use it, and says why: it anchors left.
+ * The surface is `useMenuSurface` — a sheet below 640px, and above it a
+ * dropdown anchored to its trigger in the direction and on the side the
+ * measurement picks — because every other menu on a bar in this app is
+ * that surface, and a `…` rendering two ways on two screens that hold the
+ * same rows is the drift this component exists to end. `AddButton` is the
+ * one menu on a bar that does not use it yet; its side is a parameter of
+ * the recipe now, so what is left there is the conversion, not a reason.
  */
 export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const surface = useMenuSurface(open);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -67,6 +70,7 @@ export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
 
   return (
     <div
+      ref={surface.wrapperRef}
       className="relative"
       onKeyDown={(e) => {
         if (!open || e.key !== "Escape") return;
@@ -94,7 +98,12 @@ export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
       </button>
       {open && (
         <DismissScrim onDismiss={() => setOpen(false)}>
-          <div role="menu" aria-label={label} className={MENU_SURFACE}>
+          <div
+            ref={surface.panelRef}
+            role="menu"
+            aria-label={label}
+            className={surface.className}
+          >
             {children(close)}
           </div>
         </DismissScrim>
