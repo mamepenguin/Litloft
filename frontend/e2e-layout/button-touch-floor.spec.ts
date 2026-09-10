@@ -167,13 +167,20 @@ test.describe("fine pointer", () => {
 /**
  * The coarse-pointer half — the one the change exists for.
  *
- * `isMobile` plus `hasTouch` is what makes Chromium answer
- * `(pointer: coarse)`; the first case asserts that rather than trusting
- * it, because every case under here reads the same as a fine-pointer run
- * if the media query never matched.
+ * **`hasTouch` alone is what makes Chromium answer `(pointer: coarse)`.**
+ * It is also what gives the page `maxTouchPoints`, `ontouchstart` and
+ * `(hover: none)`. `isMobile` adds none of those; what it adds is
+ * Chromium's mobile *layout* viewport, which is a second thing to get
+ * right and no help here — this file's subject is a height the pointer
+ * type decides, not a width. The two sibling coarse specs in this
+ * directory ask for `hasTouch` and nothing else.
+ *
+ * The first case asserts the pointer rather than trusting it, because
+ * every case under here reads the same as a fine-pointer run if the media
+ * query never matched.
  */
 test.describe("coarse pointer", () => {
-  test.use({ viewport: { width: 375, height: 667 }, hasTouch: true, isMobile: true });
+  test.use({ viewport: { width: 375, height: 667 }, hasTouch: true });
 
   test("the context really reports a coarse pointer", async ({ page }) => {
     await open(page);
@@ -237,7 +244,6 @@ test.describe("across the two pointer types", () => {
     const coarse = await browser.newContext({
       viewport: { width: 375, height: 667 },
       hasTouch: true,
-      isMobile: true,
     });
     try {
       const finePage = await fine.newPage();
