@@ -177,11 +177,11 @@ Addon translations live at `addons/<name>/frontend/messages/{ja,en}.json`. Track
 
 ## Enable / disable
 
-- **Install** — clone under `addons/<name>/`, symlink for in-process, add the service block for independent.
-- **Uninstall** — remove the symlink / service block.
-- **Per-drive disable** — toggle in the [settings GUI](../admin-guide/settings-gui.md) → AddonPolicy.
+- **Install** — clone under `addons/<name>/` and run `./setup-addons.sh` for in-process; add the service block for independent.
+- **Uninstall** — stop checking the submodule out (in-process), or remove the service block (independent).
+- **Per-drive disable** — toggle in the [settings GUI](../admin-guide/settings-gui.md) → AddonPolicy. This hides the addon for that drive; it does not unload it. A *proxied* route then returns 404, while an in-process addon's own routes keep answering.
 
-In-process addon enable/disable is symlink-only. Do not modify core code to opt addons in/out.
+**Removing a link is not an uninstall.** `backend/addons/` and `frontend/src/addons/` are generated: `setup-addons.sh` rebuilds both for every addon under `addons/`, and `backend/Dockerfile` copies each addon in as a real directory, so a built image has no link to remove. Being checked out is the switch. Do not modify core code to opt addons in or out.
 
 ## Cold-start grace
 

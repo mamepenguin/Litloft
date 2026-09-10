@@ -113,7 +113,7 @@ jobs:
               continue
             fi
             if ! printf '%s\n' "$collected" | grep -q "^src/addons/$name/"; then
-              echo "::error::vitest collected no tests from addons/$name (setup-addons.sh made no symlink)"
+              echo "::error::vitest collected no tests from addons/$name (setup-addons.sh built no link tree)"
               status=1
             fi
           done
@@ -266,8 +266,8 @@ jobs:
     #
     # No submodules and no setup-addons.sh: the fixture links a sheet
     # compiled from src/app/globals.css, and its `@source "../addons"` names
-    # the gitignored symlink directory, which Tailwind skips silently when
-    # absent. No addon writes a rule the justified grid reads.
+    # the gitignored link tree, which Tailwind skips silently when absent.
+    # No addon writes a rule the justified grid reads.
     name: frontend (layout invariants and components in a browser)
     runs-on: ubuntu-latest
     steps:

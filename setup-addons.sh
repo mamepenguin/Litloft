@@ -208,10 +208,13 @@ for addon_dir in "$ADDONS_DIR"/*/; do
     elif [ ! -L "$target" ] && [ -d "$target" ]; then
       echo "WARNING: $target exists as a real directory, skipping (remove it manually to use symlink)"
     else
-      # Recreated even when it already points here, so a relative spelling is
-      # normalised and a stale link cannot survive as one.
-      [ -L "$target" ] && rm "$target"
-      ln -s "$src" "$target"
+      # `-f` so it is recreated even when it already points here, which
+      # normalises a relative spelling; `-n` because without it `ln` follows an
+      # existing symlink-to-directory and writes THROUGH it — the link would
+      # land at `addons/<name>/backend/backend`, pointing at itself, inside the
+      # addon's own submodule working tree, and `ln` would exit 0. Verified on
+      # BSD, busybox and coreutils: `-sfn` replaces the link on all three.
+      ln -sfn "$src" "$target"
       echo "Linked: backend/addons/$addon_name -> addons/$addon_name/backend"
       linked=$((linked + 1))
     fi

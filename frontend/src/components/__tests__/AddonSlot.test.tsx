@@ -11,11 +11,22 @@
  *
  * ## Why the mounting cases are gated on the addon being linked
  *
- * `design-decisions.md` §Addons: "In-process addon enable/disable is
- * controlled by adding/removing a symlink. Do not modify core code." A
- * core case that fails when the symlink is gone makes the addon's absence
- * modify core, which is the thing that rule forbids. Cloning without
- * `--recurse-submodules` reaches the same state.
+ * `design-decisions.md` §Addons: an in-process addon is enabled by being
+ * checked out, and a core case that fails when an addon is not checked out
+ * would make its absence a core failure. Cloning without
+ * `--recurse-submodules` reaches that state, and so does any tree where a
+ * submodule is deliberately left out.
+ *
+ * The gate is on the link tree under `src/addons` rather than on `addons/`,
+ * and it has to be: `AddonSlot` reaches a slot module through
+ * `@/addons/<name>/slots.ts`, so an addon that is checked out but not linked
+ * is not importable here whatever the rule says about enablement.
+ *
+ * That this file *skips* rather than fails in that state is not a claim that
+ * the state is fine. It is that the state is reported somewhere else —
+ * `addon-link-tree.test.ts` fails on exactly it, because `setup-addons.sh`
+ * builds that tree for everything under `addons/` and an unlinked addon means
+ * the script has not been run. Two files, two questions, no disagreement.
  *
  * **A virtual mock is not available here, and that is a property of the
  * component rather than of vitest.** `AddonSlot` loads a slot module

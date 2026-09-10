@@ -135,10 +135,12 @@ Library constraints:
 
 An addon's frontend has no runner of its own. Its components import core's
 (`@/components`, `@/hooks`, `@/lib`), and `frontend/src/addons/<name>` is a
-symlink into `addons/<name>/frontend`, so **core's vitest collects every addon
-test**. `setup-addons.sh` creates those symlinks and they are gitignored;
-without them the suite still passes, having silently collected nothing from any
-addon.
+real directory holding one symlink per file of `addons/<name>/frontend`, so
+**core's vitest collects every addon test**. A directory rather than a symlink
+to one, because tools that walk the tree do not descend a symlinked directory —
+that is what kept addon files no test imports out of the coverage denominator.
+`setup-addons.sh` builds it and it is gitignored; without it the suite still
+passes, having silently collected nothing from any addon.
 
 What a fresh checkout needs before `pnpm test` is therefore:
 
@@ -572,7 +574,7 @@ responsibility.
 Before running the suite, the job asks `vitest list --filesOnly` what it
 actually collected, and fails naming any addon that contributed nothing. This is
 the step that makes the green tick mean something: a submodule that did not
-check out, or a symlink `setup-addons.sh` did not make, costs nothing at
+check out, or a link tree `setup-addons.sh` did not build, costs nothing at
 collection time — vitest simply finds fewer files and reports every remaining
 one as passing. It is the **first** line of defence for that, and
 `i18n-keys.test.ts`'s "found at least one addon catalogue" assertion is the

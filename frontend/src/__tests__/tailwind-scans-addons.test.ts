@@ -38,6 +38,10 @@
  *     no @source, renamed HERE          bytes=120631 cue=0
  *     no @source, renamed in globals    bytes=120629 cue=2
  *
+ * (Row 3's two extra bytes are the rename itself — `cue` to a four-character
+ * stand-in — not a property of anything. The rows that carry the argument are
+ * the `cue` counts and the fact that rows 2 and 4 are byte-identical.)
+ *
  * The floor is 2, not 0, and **both come from the prose in this file**:
  * `group-hover/cue` is spelled in the docstring above, Tailwind scans
  * `src/__tests__` (the paragraph beside this one in `globals.css` is

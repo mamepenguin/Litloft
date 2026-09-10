@@ -431,6 +431,48 @@ class TestSetupAddonsPrunesWhatIsGone:
         "half,link_dir",
         [("backend", "backend/addons"), ("frontend", "frontend/src/addons")],
     )
+    def test_running_twice_changes_nothing_and_writes_nothing_upstream(
+        self, tmp_path, half, link_dir
+    ):
+        """Idempotence, and the addon's own tree left alone.
+
+        The backend half links with `ln -sfn`. Without `-n`, `ln` follows an
+        existing symlink-to-directory and writes THROUGH it: the second run
+        would put `addons/present/<half>/<half>` -> itself inside the addon's
+        submodule working tree and exit 0. The frontend half rebuilds its tree
+        outright, so it cannot fail this way — it is parametrised in anyway,
+        because a case that only ever runs against the half that already works
+        is how the twin went unguarded in the first place.
+        """
+        self._tree(tmp_path)
+        (tmp_path / "addons" / "present" / "frontend" / "a.ts").write_text("a\n")
+        upstream = tmp_path / "addons" / "present" / half
+        before = sorted(p.name for p in upstream.iterdir())
+
+        def state():
+            entry = tmp_path / link_dir / "present"
+            # Shape-appropriate on purpose: the backend half is one symlink to
+            # the addon's directory, the frontend half is a directory of links
+            # into it. Comparing a single resolved path would assert the
+            # backend's shape of the frontend and fail on a correct tree.
+            if entry.is_symlink():
+                return ("link", entry.resolve())
+            return ("tree", sorted(str(p.relative_to(entry)) for p in entry.rglob("*")))
+
+        self._run(tmp_path)
+        first = state()
+        self._run(tmp_path)
+        second = state()
+
+        assert first == second, f"the {half} half is not idempotent"
+        assert sorted(p.name for p in upstream.iterdir()) == before, (
+            f"the {half} half wrote into the addon's own tree"
+        )
+
+    @pytest.mark.parametrize(
+        "half,link_dir",
+        [("backend", "backend/addons"), ("frontend", "frontend/src/addons")],
+    )
     def test_neither_half_overrules_a_deliberate_link(self, tmp_path, half, link_dir):
         """The two halves obey one rule, and it is the one stated in the file.
 
