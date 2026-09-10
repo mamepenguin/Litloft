@@ -42,8 +42,10 @@ fi
 # Rebuilt from scratch on every run rather than patched. Patching would have
 # to handle a file becoming a directory, a directory becoming a file, and a
 # file deleted upstream — and getting any of those wrong leaves a dangling
-# link, which is the one failure that takes the entire test suite down. The
-# tree is ~113 files; rebuilding it costs milliseconds.
+# link, which is the one failure that takes the entire test suite down.
+# Rebuilding costs milliseconds — it is one `find` and one `ln` per file over
+# an addon's whole frontend, tests and assets included, not just the sources
+# that carry the coverage argument.
 #
 # What is NOT rebuilt is a directory holding anything this script did not
 # put there. See the guard in the caller.
@@ -68,15 +70,49 @@ link_frontend_tree() {
 
 # Is this frontend entry one we may rebuild?
 #
-# Ours holds only directories and symlinks. A real file inside means someone
-# put it there — the same judgement the backend prune makes about a link that
-# resolves: report it, do not overrule it. A directory symlink is the
-# pre-Option-E shape and is ours to replace.
+# Two shapes are ours, and the distinction is the whole point:
+#
+#   - a symlink to THIS addon's own `frontend/` — the single directory symlink
+#     this script made before it linked per file. Every existing checkout has
+#     four of them, so migrating them silently is the only way anyone moves to
+#     the new layout;
+#   - a directory holding nothing but directories and symlinks — a link tree
+#     from an earlier run.
+#
+# Everything else is someone's, and is reported rather than overruled: a
+# symlink pointing anywhere ELSE under this name, and a directory with a real
+# file in it. `$src` is the addon's own `frontend/`, absent when the addon is
+# gone — in which case no symlink can be ours, which is the right answer.
+#
+# Comparing resolved paths rather than `readlink` output, because the link may
+# have been written relative: `docs/ADDON-DEVELOPMENT.md` told people to make
+# it as `ln -s ../../../addons/<name>/frontend` for years.
+#
+# Dotfiles do not count as someone's work, and that exclusion is load-bearing
+# on macOS. Finder writes `.DS_Store` into any directory it is asked to
+# display, and this is a directory a developer opens. Counting it meant one
+# such file froze that addon's tree permanently: every later run printed one
+# WARNING among the `Linked:` lines and exited 0, so a file added upstream
+# never arrived — the exact state this script was changed to end.
 frontend_tree_is_ours() {
-  local target="$1"
-  [ -L "$target" ] && return 0
+  local target="$1" src="${2-}"
+
+  if [ -L "$target" ]; then
+    [ -n "$src" ] || return 1
+    [ -d "$target" ] || return 1
+    [ "$(cd "$target" && pwd -P)" = "$(cd "$src" && pwd -P)" ]
+    return
+  fi
+
   [ -d "$target" ] || return 0
-  ! find "$target" -type f -print -quit | grep -q .
+  ! foreign_files_in "$target" | grep -q .
+}
+
+# The real files under a link tree that this script did not put there.
+# Printed, not counted, so the warning can name them: a skip the developer
+# cannot explain is a skip they will ignore.
+foreign_files_in() {
+  find "$1" -type f ! -name '.*'
 }
 
 
@@ -109,17 +145,19 @@ done
 # whole vitest run with ENOENT rather than being skipped. So a link tree whose
 # addon is gone is pruned, where a single broken link would have been.
 #
-# The rule the backend prune states applies here unchanged, and costs one
-# extra branch to keep: a symlink that RESOLVES is a developer pointing this
-# name somewhere on purpose, and is left alone whether or not it names an
-# addon in `addons/`. Only what this script would itself have produced is
-# removed.
+# This loop only removes; whether an entry under an INSTALLED addon's name is
+# replaced is decided further down by `frontend_tree_is_ours`. Saying "a
+# resolving link is left alone" here alone would be half the policy, and the
+# half that is false: a link to the addon's own `frontend/` is exactly what
+# this script used to make, and it is migrated rather than kept.
 for entry in "$FRONTEND_ADDONS"/*; do
   [ -e "$entry" ] || [ -L "$entry" ] || continue
   name="$(basename "$entry")"
 
   if [ -L "$entry" ]; then
-    # Resolves: a deliberate choice, not ours to overrule.
+    # A link that resolves survives this loop whatever it points at. If the
+    # name is an installed addon the link phase judges it; if it is not, it
+    # is a developer's own and nothing here touches it again.
     [ -e "$entry" ] && continue
     rm "$entry"
     echo "Pruned: frontend/src/addons/$name (target is gone)"
@@ -130,7 +168,7 @@ for entry in "$FRONTEND_ADDONS"/*; do
   # A directory. Keep it if its addon is still here — the link phase below
   # rebuilds it — and keep it regardless if it holds files we did not make.
   [ -d "$ADDONS_DIR/$name/frontend" ] && continue
-  if ! frontend_tree_is_ours "$entry"; then
+  if ! frontend_tree_is_ours "$entry" ""; then
     echo "WARNING: $entry holds files this script did not create, leaving it"
     continue
   fi
@@ -168,12 +206,15 @@ for addon_dir in "$ADDONS_DIR"/*/; do
   if [ -d "$addon_dir/frontend" ]; then
     target="$FRONTEND_ADDONS/$addon_name"
     src="$(cd "$addon_dir/frontend" && pwd)"
-    if frontend_tree_is_ours "$target"; then
+    if frontend_tree_is_ours "$target" "$src"; then
       link_frontend_tree "$src" "$target"
       echo "Linked: frontend/src/addons/$addon_name/ -> addons/$addon_name/frontend (per file)"
       linked=$((linked + 1))
+    elif [ -L "$target" ]; then
+      echo "WARNING: $target is a link to somewhere else, skipping (remove it manually to relink)"
     else
-      echo "WARNING: $target holds files this script did not create, skipping (remove it manually to relink)"
+      echo "WARNING: $target holds files this script did not create, skipping (remove it manually to relink):"
+      foreign_files_in "$target" | sed "s|^|  |"
     fi
   fi
 done

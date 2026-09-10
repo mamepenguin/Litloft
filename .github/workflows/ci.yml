@@ -131,8 +131,13 @@ jobs:
         working-directory: frontend
 
       # Two limits worth knowing, since neither is visible from the green tick.
-      # eslint does not follow the addon symlinks, so this covers core only —
-      # tsc is what guards addon sources. And the config downgrades several
+      # This covers core only: `src/addons/**` is an explicit ignore, so the
+      # addon frontends are not linted from here — and they are not linted
+      # anywhere else either, because none of the four addon repositories has
+      # an eslint config or a package.json. tsc is what guards those sources.
+      # Until `setup-addons.sh` began building that directory for real the
+      # exclusion happened by accident, eslint not following a symlinked
+      # directory; it is now a declaration. And the config downgrades several
       # rules (including no-explicit-any) to warnings, which do not reach the
       # exit code: only errors fail this step. Raising that is a separate
       # decision about roughly a hundred existing warnings, not a CI change.

@@ -18,20 +18,28 @@
  * files, so the production build was always correct. The build nobody
  * inspects was right and the one everybody develops against was wrong.
  *
- * Measured on the pinned Tailwind 4.2.2, compiling the real
- * `globals.css` through `@tailwindcss/postcss`:
- *
- *     without @source: 104,478 bytes, 0 occurrences of `cue`
- *     with    @source: 131,348 bytes, 4 occurrences of `cue`
- *
  * What this test checks is the declaration and that it points somewhere
  * real. It does NOT recompile the stylesheet: doing that from vitest
  * needs `postcss` as a direct dependency, which this project does not
  * have (Next supplies it), and adding a package to watch one line is a
  * bigger footprint than the line. The scenario that would slip past —
- * Tailwind changing what `@source` means — is remote, and the numbers
- * above are here so the next person can re-measure in a minute rather
- * than rediscover the problem.
+ * Tailwind changing what `@source` means — is remote.
+ *
+ * There used to be a measurement here — byte counts, and `0` occurrences
+ * of `cue` without `@source` against `4` with it. It is gone rather than
+ * updated, because a `cue` count cannot mean what it was recorded to
+ * mean: `group-hover/cue` is spelled in the prose of this very file and
+ * of `globals.css`, and the paragraph beside this one in `globals.css`
+ * is about Tailwind reading utility names out of prose in
+ * `src/__tests__` — it carries an `@source not` for another file that
+ * fell into exactly this. So the floor is 2 on today's tree and not 0,
+ * and the count cannot separate "the addon was scanned" from "this
+ * docstring was scanned".
+ *
+ * A sentinel that works needs a spelling that appears in no core file,
+ * this one included. Until there is one, the figures live in the PR that
+ * measured them, which is dated and is not re-read as though it were
+ * still true.
  */
 import { describe, it, expect } from "vitest";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -46,12 +54,12 @@ const addons = resolve(here, "../addons");
 /**
  * The addons `setup-addons.sh` actually linked, if any.
  *
- * Zero of them is a supported state, not a defect: `design-decisions.md`
- * §Addons makes removing the symlink the way an in-process addon is
- * disabled, and a clone without `--recurse-submodules` starts there. So
- * "how many are linked" is the gate on the case below rather than an
- * assertion inside it — asserting a floor here would turn disabling an
- * addon into a core failure, which is the core edit that rule forbids.
+ * Zero of them gates the case below rather than being asserted inside
+ * it, because this file is about the `@source` declaration and not about
+ * what is installed. That is not a claim that the suite passes with no
+ * addons: measured, `addons/` empty fails 7 files and 9 assertions
+ * elsewhere here, so a fresh clone without `--recurse-submodules` does
+ * not have a green `pnpm test` and never did.
  *
  * The armed state is the one that gates merges: the frontend CI job
  * checks out the submodules, runs `setup-addons.sh`, and then asks the

@@ -151,8 +151,11 @@ node frontend/scripts/merge-addon-messages.mjs
 and nothing else — no `drives.json`, `passwords.json`, `.env`, or
 `docker-compose.override.yml`.
 
-`tsc --noEmit` follows the symlinks and type-checks addon sources; `eslint` does
-not follow them and covers core only.
+`tsc --noEmit` follows the links and type-checks addon sources; `eslint` covers
+core only, because `frontend/eslint.config.mjs` ignores `src/addons/**`.
+Nothing lints the addon frontends today — none of the four addon repositories
+has an eslint config or a `package.json` — so `tsc` is the only static check
+those files get.
 
 ### What to test
 

@@ -23,13 +23,18 @@
  * a test cannot read a report that does not exist. The instrument that asks
  * the collector what it actually found belongs with the coverage block.
  *
- * Zero installed addons is a supported state, not a failure: removing the
- * link is how `design-decisions.md` §Addons disables an in-process addon, and
- * a clone without `--recurse-submodules` starts there. So what is installed
- * gates these cases rather than being asserted — the same reasoning
- * `tailwind-scans-addons.test.ts` sets out at greater length. The armed state
- * is CI, which checks the submodules out, runs `setup-addons.sh`, and then
- * asks the collector whether each addon's tests were picked up.
+ * These cases are gated on `addons/` holding something, and it is worth being
+ * exact about what that does and does not claim. It is NOT a claim that the
+ * suite passes with no addons checked out: measured, `addons/` empty fails 7
+ * files and 9 assertions elsewhere in this suite — `i18n-keys`,
+ * `officeMimes`, `toolbarMenuHome` and four others already assert that addons
+ * are beside core. A clone without `--recurse-submodules` does not have a
+ * green `pnpm test` today, and nothing here changes that.
+ *
+ * The gate is here so that this file's failure mode is the one it is about,
+ * rather than 13 ENOENTs restating what those seven already say. The armed
+ * state is CI, which checks the submodules out, runs `setup-addons.sh`, and
+ * then asks the collector whether each addon's tests were picked up.
  */
 import { describe, it, expect } from "vitest";
 import { existsSync, lstatSync, readdirSync, statSync } from "node:fs";
@@ -40,13 +45,29 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const ADDONS_DIR = resolve(REPO_ROOT, "addons");
 const ADDON_LINK_DIR = resolve(REPO_ROOT, "frontend/src/addons");
 
-/** Addons that are both checked out with a frontend and linked in. */
+/**
+ * Addons checked out with a frontend — whether or not anything linked them.
+ *
+ * The population comes from `addons/`, never from `src/addons/`. Building it
+ * from the link trees that exist would make the one state this file is for
+ * invisible: an addon checked out and never linked would simply generate
+ * fewer cases and the suite would stay green, which is detector rule 5's
+ * shape exactly — the missing element leaves both sides at once. Measured
+ * before this was fixed: moving `src/addons/knowledge` away took the file
+ * from 13 passing cases to 10 passing cases and nothing went red.
+ *
+ * The consequence, stated rather than discovered: an addon that is checked
+ * out but not linked is now a **failure**, not a skip. That is deliberate.
+ * Deleting a link tree by hand is not a way to disable an addon — the next
+ * `setup-addons.sh` run recreates it for everything under `addons/` — so the
+ * durable way to not have an addon is to not check it out, which empties this
+ * population and skips every case below.
+ */
 const installed: string[] = existsSync(ADDONS_DIR)
   ? readdirSync(ADDONS_DIR, { withFileTypes: true })
       .filter((e) => e.isDirectory() && !e.name.startsWith("."))
       .map((e) => e.name)
       .filter((name) => existsSync(join(ADDONS_DIR, name, "frontend")))
-      .filter((name) => existsSync(join(ADDON_LINK_DIR, name)))
       .sort()
   : [];
 
@@ -76,10 +97,19 @@ describe("the addon link tree", () => {
   it.runIf(installed.length > 0).each(installed)(
     "links %s as a real directory, not a symlink",
     (name) => {
+      // Existence first: an addon checked out and never linked is the state
+      // this file exists to catch, and `lstat` on a missing path throws an
+      // ENOENT that says nothing about which addon or why.
+      const dir = join(ADDON_LINK_DIR, name);
+      expect(
+        existsSync(dir),
+        `addons/${name}/frontend is checked out but ${dir} does not exist — run ./setup-addons.sh`,
+      ).toBe(true);
+
       // The whole point. `isDirectory()` alone would also be true of a
       // symlink under `stat`, which is why this reads `lstat` and asserts
       // both halves.
-      const stat = lstatSync(join(ADDON_LINK_DIR, name));
+      const stat = lstatSync(dir);
       expect(stat.isSymbolicLink()).toBe(false);
       expect(stat.isDirectory()).toBe(true);
     },

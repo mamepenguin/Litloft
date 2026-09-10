@@ -189,6 +189,13 @@ to: Turbopack cannot resolve the dynamic `@/addons/<name>/Page` import through
 the symlinked files in `src/addons`. The Dockerfile discards that directory and
 copies the addon trees in as real files before building.
 
+`pnpm dev` has the same limit, and it predates the link tree: measured, `GET /`
+returns 500 under per-file links, under the older directory symlinks, **and
+with `src/addons` empty** — the only layout it serves is real files, which is
+the one the Dockerfile builds. So the compose stack, not `next dev`, is what to
+look at while working on an addon's UI. Nothing here has fixed that; it is
+recorded so the next person does not read the instructions above as a promise.
+
 ## Common pitfalls
 
 - **Missing translation keys** — usually because addon translations were not merged. Ensure the merge script ran before `next build`.

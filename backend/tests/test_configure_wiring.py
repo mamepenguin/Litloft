@@ -349,22 +349,88 @@ class TestSetupAddonsPrunesWhatIsGone:
         for d in ("frontend/src/addons", "backend/addons"):
             assert not (tmp_path / d / "gone").is_symlink()
 
-    def test_a_link_that_resolves_is_left_alone(self, tmp_path):
-        """Only broken links go.
+    # What happens to an existing `frontend/src/addons/<name>` depends on two
+    # things at once: whether `<name>` is an addon that is installed, and what
+    # the entry points at. Declaring one name's outcome measures one cell of
+    # that table — and the first version of this test picked `custom`, the one
+    # cell where the link phase never runs, so it passed for a reason
+    # unrelated to the branch it guards.
+    #
+    # `elsewhere` and `own` are resolved inside the test; `installed` says
+    # whether the name is one `_tree` puts in `addons/`.
+    @pytest.mark.parametrize(
+        "name,points_at,expected",
+        [
+            # A developer's own link under a name we do not manage. Untouched,
+            # and not even mentioned.
+            ("custom", "elsewhere", "kept"),
+            # The same deliberate link under an installed addon's name. This
+            # is the cell the rule is about, and the one that used to be
+            # silently destroyed.
+            ("present", "elsewhere", "kept"),
+            # What this script itself made before it linked per file. Every
+            # existing checkout has one, so it migrates rather than being
+            # preserved — otherwise nobody moves to the new layout.
+            ("present", "own", "migrated"),
+            # The same, written relative, which is how
+            # `docs/ADDON-DEVELOPMENT.md` told people to make it by hand.
+            ("present", "own-relative", "migrated"),
+            # Points nowhere: the tree is claiming an addon that is not there.
+            ("present", "nowhere", "pruned"),
+            ("custom", "nowhere", "pruned"),
+        ],
+    )
+    def test_what_happens_to_an_existing_link(self, tmp_path, name, points_at, expected):
+        self._tree(tmp_path)
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        own = tmp_path / "addons" / "present" / "frontend"
+        (own / "a.ts").write_text("export const a = 1\n")
 
-        A link pointing somewhere unexpected but real is a developer's
-        deliberate choice; this script's job is to stop the tree claiming an
-        addon is installed when it is not, not to overrule that.
+        link = tmp_path / "frontend" / "src" / "addons" / name
+        if points_at == "elsewhere":
+            link.symlink_to(elsewhere)
+        elif points_at == "own":
+            link.symlink_to(own)
+        elif points_at == "own-relative":
+            link.symlink_to(Path("../../../addons/present/frontend"))
+        elif points_at == "nowhere":
+            link.symlink_to(tmp_path / "addons" / "absent" / "frontend")
+        else:  # pragma: no cover - the table above is closed
+            raise AssertionError(points_at)
+
+        result = self._run(tmp_path)
+
+        if expected == "kept":
+            assert link.is_symlink(), f"{name} -> {points_at} was not kept"
+            assert link.resolve() == elsewhere.resolve()
+        elif expected == "migrated":
+            assert not link.is_symlink(), f"{name} -> {points_at} was not migrated"
+            assert link.is_dir()
+            assert (link / "a.ts").is_symlink()
+            assert (link / "a.ts").resolve() == (own / "a.ts").resolve()
+            assert "did not create" not in result.stdout
+            assert "link to somewhere else" not in result.stdout
+        elif expected == "pruned":
+            assert not link.is_symlink() or link.resolve() != elsewhere.resolve()
+            assert not link.exists() or link.is_dir()
+        else:  # pragma: no cover - the table above is closed
+            raise AssertionError(expected)
+
+    def test_a_deliberate_link_under_an_installed_name_is_reported(self, tmp_path):
+        """Kept is not enough: silence would leave the developer guessing.
+
+        The directory-of-real-files case already reports itself; this is the
+        same judgement about the other shape someone can put here.
         """
         self._tree(tmp_path)
         elsewhere = tmp_path / "elsewhere"
         elsewhere.mkdir()
-        (tmp_path / "frontend" / "src" / "addons" / "custom").symlink_to(elsewhere)
+        (tmp_path / "frontend" / "src" / "addons" / "present").symlink_to(elsewhere)
 
-        self._run(tmp_path)
+        result = self._run(tmp_path)
 
-        link = tmp_path / "frontend" / "src" / "addons" / "custom"
-        assert link.is_symlink() and link.resolve() == elsewhere.resolve()
+        assert "link to somewhere else" in result.stdout
 
     def test_the_addons_that_are_here_are_still_linked(self, tmp_path):
         """Pruning runs before linking and must not eat what follows it.
@@ -429,6 +495,42 @@ class TestSetupAddonsPrunesWhatIsGone:
         self._run(tmp_path)
 
         assert not stale.exists()
+
+    def test_a_dotfile_does_not_freeze_the_link_tree(self, tmp_path):
+        """`.DS_Store` is not somebody's work.
+
+        Finder writes one into any directory it is asked to display, and this
+        is a directory a developer opens. While it counted as a foreign file,
+        one of them froze that addon's tree permanently: every later run
+        printed a WARNING among the `Linked:` lines and exited 0, so a file
+        added upstream never arrived — the state this whole layout exists to
+        end. Asserted through the consequence rather than the warning: a file
+        that appears upstream afterwards has to reach the tree.
+        """
+        self._tree(tmp_path)
+        src = tmp_path / "addons" / "present" / "frontend"
+        (src / "a.ts").write_text("export const a = 1\n")
+        self._run(tmp_path)
+
+        target = tmp_path / "frontend" / "src" / "addons" / "present"
+        (target / ".DS_Store").write_text("")
+        (src / "later.ts").write_text("export const later = 1\n")
+
+        result = self._run(tmp_path)
+
+        assert (target / "later.ts").is_symlink(), result.stdout
+        assert "did not create" not in result.stdout
+
+    def test_the_skip_warning_names_the_files_that_caused_it(self, tmp_path):
+        """A skip nobody can explain is a skip everybody ignores."""
+        self._tree(tmp_path)
+        mine = tmp_path / "frontend" / "src" / "addons" / "present"
+        mine.mkdir()
+        (mine / "Hand.tsx").write_text("mine\n")
+
+        result = self._run(tmp_path)
+
+        assert "Hand.tsx" in result.stdout
 
     def test_a_frontend_directory_holding_real_files_is_left_alone(self, tmp_path):
         """The same judgement the backend prune makes about a resolving link.
