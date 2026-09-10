@@ -8,13 +8,58 @@
  * exports a `slotComponents` map matching the entry id; the component
  * renders a div whose data-testid is the entry id, so we can assert on
  * which entries actually mounted under various filter combinations.
+ *
+ * ## Why the mounting cases are gated on the addon being linked
+ *
+ * `design-decisions.md` §Addons: "In-process addon enable/disable is
+ * controlled by adding/removing a symlink. Do not modify core code." A
+ * core case that fails when the symlink is gone makes the addon's absence
+ * modify core, which is the thing that rule forbids. Cloning without
+ * `--recurse-submodules` reaches the same state.
+ *
+ * **A virtual mock is not available here, and that is a property of the
+ * component rather than of vitest.** `AddonSlot` loads a slot module
+ * through `import(\`@/addons/${name}/slots.ts\`)`, a *variable* dynamic
+ * import: vite rewrites it into a lookup over a map it builds by globbing
+ * the real directory at transform time. With no symlink the map has no
+ * entry, and the call rejects before any module id exists for `vi.mock`
+ * to key on — measured, `Unknown variable dynamic import:
+ * ../addons/intelligence/slots.ts`, and the same message for a name that
+ * has never existed. So the gate is the guard `file-kind-parity.test.ts`
+ * and `componentFixtureParity.test.tsx` already use.
+ *
+ * What the gate costs is bounded on both sides. It closes only where no
+ * addon is installed; CI checks out the submodules, runs
+ * `setup-addons.sh`, and then asks the collector whether it picked up
+ * each addon's tests, so the armed state is the one that gates merges.
+ * And the claim the layout cases exist for — that a branch draws its own
+ * chrome — is asserted separately below against a module that resolves in
+ * neither state, so it holds whether or not anything is linked.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { existsSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname } from "node:path";
 import type { ReactElement } from "react";
 
 import { AddonSlot } from "../AddonSlot";
 import type { SlotEntry } from "@/lib/addons";
+
+const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+/**
+ * Both addons whose slot modules the cases below mock, not either.
+ *
+ * The directory-not-empty half separates the two states
+ * `file-kind-parity.test.ts` names: git materialises a directory for
+ * every gitlink on checkout, so an uninitialised submodule is a present
+ * empty directory rather than a missing one.
+ */
+const addonsLinked = ["knowledge", "intelligence"].every((name) => {
+  const dir = resolve(SRC, "addons", name);
+  return existsSync(dir) && readdirSync(dir).length > 0;
+});
 
 // `useAddonSlots` is the single dependency that supplies the entry list.
 // Mock it so each test can pick the entry shape directly without
@@ -54,7 +99,7 @@ beforeEach(() => {
 });
 
 describe("AddonSlot — filtering (includeIds / excludeIds)", () => {
-  it("renders all entries when neither filter is provided (back-compat)", async () => {
+  it.runIf(addonsLinked)("renders all entries when neither filter is provided (back-compat)", async () => {
     slotsState.entries = [
       {
         id: "knowledge-edit",
@@ -83,7 +128,7 @@ describe("AddonSlot — filtering (includeIds / excludeIds)", () => {
     expect(screen.getByTestId("rendered-intelligence-similar")).toBeInTheDocument();
   });
 
-  it("renders only the listed ids when `includeIds` is provided", async () => {
+  it.runIf(addonsLinked)("renders only the listed ids when `includeIds` is provided", async () => {
     slotsState.entries = [
       {
         id: "knowledge-edit",
@@ -112,7 +157,7 @@ describe("AddonSlot — filtering (includeIds / excludeIds)", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides the listed ids when `excludeIds` is provided", async () => {
+  it.runIf(addonsLinked)("hides the listed ids when `excludeIds` is provided", async () => {
     slotsState.entries = [
       {
         id: "knowledge-edit",
@@ -168,7 +213,7 @@ describe("AddonSlot — filtering (includeIds / excludeIds)", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("applies excludeIds after includeIds (intersection minus exclude)", async () => {
+  it.runIf(addonsLinked)("applies excludeIds after includeIds (intersection minus exclude)", async () => {
     slotsState.entries = [
       {
         id: "knowledge-edit",
@@ -226,7 +271,7 @@ describe("AddonSlot — what a layout draws", () => {
     { id: "intelligence-similar", label: "Similar", priority: 20, addonName: "intelligence" },
   ];
 
-  it("stacks every entry at once, with no chrome of its own", async () => {
+  it.runIf(addonsLinked)("stacks every entry at once, with no chrome of its own", async () => {
     slotsState.entries = twoEntries;
     const { container } = render(<AddonSlot id="file-detail-sections" layout="stack" />);
     expect(container.querySelectorAll("button")).toHaveLength(0);
@@ -245,7 +290,7 @@ describe("AddonSlot — what a layout draws", () => {
     );
   });
 
-  it("draws a strip of one button per entry, and shows only the active one", async () => {
+  it.runIf(addonsLinked)("draws a strip of one button per entry, and shows only the active one", async () => {
     slotsState.entries = twoEntries;
     render(<AddonSlot id="file-detail-sections" layout="tabs" />);
     const tabs = await screen.findAllByRole("button");
@@ -254,5 +299,39 @@ describe("AddonSlot — what a layout draws", () => {
       expect(screen.getByTestId("rendered-intelligence-summary")).toBeInTheDocument(),
     );
     expect(screen.queryByTestId("rendered-intelligence-similar")).not.toBeInTheDocument();
+  });
+
+  /**
+   * The chrome each branch draws, with no addon installed.
+   *
+   * The two cases above are the stronger statement and they are gated on
+   * the symlinks; this one is what survives the gate. Its entries name an
+   * addon that resolves in neither state, so `SlotEntryRenderer` fails its
+   * load and renders nothing on both paths — which leaves exactly the
+   * difference between the branches, and that difference is what the
+   * describe's docstring says went undetected: a `tabs` branch returning
+   * the stack's output.
+   *
+   * It is a weaker claim than the gated pair, not a substitute for it: it
+   * holds the strip's existence and its labels, and says nothing about
+   * which entry mounts under it.
+   */
+  const UNRESOLVABLE_ADDON = "addon-that-is-not-installed";
+
+  it("draws a tab strip for `tabs` and none for `stack`, whatever loads", async () => {
+    const entries: SlotEntry[] = twoEntries.map((entry) => ({
+      ...entry,
+      addonName: UNRESOLVABLE_ADDON,
+    }));
+
+    slotsState.entries = entries;
+    const stack = render(<AddonSlot id="file-detail-sections" layout="stack" />);
+    expect(stack.container.querySelectorAll("button")).toHaveLength(0);
+    stack.unmount();
+
+    slotsState.entries = entries;
+    render(<AddonSlot id="file-detail-sections" layout="tabs" />);
+    const tabs = await screen.findAllByRole("button");
+    expect(tabs.map((t) => t.textContent)).toEqual(["Summary", "Similar"]);
   });
 });
