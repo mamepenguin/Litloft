@@ -27,19 +27,31 @@
  *
  * There used to be a measurement here — byte counts, and `0` occurrences
  * of `cue` without `@source` against `4` with it. It is gone rather than
- * updated, because a `cue` count cannot mean what it was recorded to
- * mean: `group-hover/cue` is spelled in the prose of this very file and
- * of `globals.css`, and the paragraph beside this one in `globals.css`
- * is about Tailwind reading utility names out of prose in
- * `src/__tests__` — it carries an `@source not` for another file that
- * fell into exactly this. So the floor is 2 on today's tree and not 0,
- * and the count cannot separate "the addon was scanned" from "this
- * docstring was scanned".
+ * updated, because the `0` was wrong and the count cannot mean what it
+ * was recorded to mean.
  *
- * A sentinel that works needs a spelling that appears in no core file,
- * this one included. Until there is one, the figures live in the PR that
- * measured them, which is dated and is not re-read as though it were
- * still true.
+ * Measured by compiling this file's `globals.css` through
+ * `@tailwindcss/postcss@4.2.2`, varying one thing at a time:
+ *
+ *     baseline                          bytes=146138 cue=4
+ *     no @source                        bytes=120629 cue=2
+ *     no @source, renamed HERE          bytes=120631 cue=0
+ *     no @source, renamed in globals    bytes=120629 cue=2
+ *
+ * The floor is 2, not 0, and **both come from the prose in this file**:
+ * `group-hover/cue` is spelled in the docstring above, Tailwind scans
+ * `src/__tests__` (the paragraph beside this one in `globals.css` is
+ * about exactly that, and carries an `@source not` for another file that
+ * fell into it), and renaming the spelling here takes the count to zero.
+ * `globals.css` spells it too and contributes nothing — it is the sheet
+ * being compiled, not a scanned source, which the identical byte count on
+ * the last row shows.
+ *
+ * So the count cannot separate "the addon was scanned" from "this
+ * docstring was scanned". A sentinel that works needs a spelling that
+ * appears in no scanned core file, this one included. Until there is one,
+ * the figures live in the PR that measured them, which is dated and is
+ * not re-read as though it were still true.
  */
 import { describe, it, expect } from "vitest";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";

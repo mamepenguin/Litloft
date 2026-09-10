@@ -350,33 +350,30 @@ class TestSetupAddonsPrunesWhatIsGone:
             assert not (tmp_path / d / "gone").is_symlink()
 
     # What happens to an existing `frontend/src/addons/<name>` depends on two
-    # things at once: whether `<name>` is an addon that is installed, and what
-    # the entry points at. Declaring one name's outcome measures one cell of
-    # that table — and the first version of this test picked `custom`, the one
-    # cell where the link phase never runs, so it passed for a reason
-    # unrelated to the branch it guards.
-    #
-    # `elsewhere` and `own` are resolved inside the test; `installed` says
-    # whether the name is one `_tree` puts in `addons/`.
+    # things, and the table below is closed over both of them rather than over
+    # the rows someone thought of: every combination of {a name this script
+    # manages, a name it does not} x {points elsewhere, points at the addon's
+    # own frontend, the same written relative, points nowhere}. The first
+    # version declared one name's outcome and picked `custom`, the one value
+    # where the link phase never runs, so it passed for a reason unrelated to
+    # the branch it guarded.
     @pytest.mark.parametrize(
         "name,points_at,expected",
         [
-            # A developer's own link under a name we do not manage. Untouched,
-            # and not even mentioned.
-            ("custom", "elsewhere", "kept"),
-            # The same deliberate link under an installed addon's name. This
-            # is the cell the rule is about, and the one that used to be
-            # silently destroyed.
+            # `present` is in this fixture's `addons/`; `custom` is not, so
+            # nothing but the prune loop ever looks at it.
             ("present", "elsewhere", "kept"),
-            # What this script itself made before it linked per file. Every
-            # existing checkout has one, so it migrates rather than being
-            # preserved — otherwise nobody moves to the new layout.
             ("present", "own", "migrated"),
-            # The same, written relative, which is how
-            # `docs/ADDON-DEVELOPMENT.md` told people to make it by hand.
             ("present", "own-relative", "migrated"),
-            # Points nowhere: the tree is claiming an addon that is not there.
-            ("present", "nowhere", "pruned"),
+            # Pruned by the loop, then built afresh by the link phase, because
+            # `present` IS an installed addon. The end state is a link tree.
+            ("present", "nowhere", "relinked"),
+            ("custom", "elsewhere", "kept"),
+            # A link under an unmanaged name that happens to aim at a real
+            # addon is still not ours: no addon is called `custom`, so there is
+            # nothing to migrate it to.
+            ("custom", "own", "kept"),
+            ("custom", "own-relative", "kept"),
             ("custom", "nowhere", "pruned"),
         ],
     )
@@ -387,23 +384,25 @@ class TestSetupAddonsPrunesWhatIsGone:
         own = tmp_path / "addons" / "present" / "frontend"
         (own / "a.ts").write_text("export const a = 1\n")
 
+        targets = {
+            "elsewhere": elsewhere,
+            "own": own,
+            "own-relative": Path("../../../addons/present/frontend"),
+            "nowhere": tmp_path / "addons" / "absent" / "frontend",
+        }
         link = tmp_path / "frontend" / "src" / "addons" / name
-        if points_at == "elsewhere":
-            link.symlink_to(elsewhere)
-        elif points_at == "own":
-            link.symlink_to(own)
-        elif points_at == "own-relative":
-            link.symlink_to(Path("../../../addons/present/frontend"))
-        elif points_at == "nowhere":
-            link.symlink_to(tmp_path / "addons" / "absent" / "frontend")
-        else:  # pragma: no cover - the table above is closed
-            raise AssertionError(points_at)
+        link.symlink_to(targets[points_at])
+
+        # What it resolved to before the run, for the `kept` rows to compare
+        # against — `own` and `own-relative` are the same directory, so a
+        # single hard-coded expectation would not do.
+        before = link.resolve() if link.exists() else None
 
         result = self._run(tmp_path)
 
         if expected == "kept":
             assert link.is_symlink(), f"{name} -> {points_at} was not kept"
-            assert link.resolve() == elsewhere.resolve()
+            assert link.resolve() == before
         elif expected == "migrated":
             assert not link.is_symlink(), f"{name} -> {points_at} was not migrated"
             assert link.is_dir()
@@ -411,11 +410,46 @@ class TestSetupAddonsPrunesWhatIsGone:
             assert (link / "a.ts").resolve() == (own / "a.ts").resolve()
             assert "did not create" not in result.stdout
             assert "link to somewhere else" not in result.stdout
+        elif expected == "relinked":
+            # Went through the prune (nothing asserts the intermediate state)
+            # and came out as a tree, which is what an installed addon should
+            # end up with however it started.
+            assert not link.is_symlink()
+            assert link.is_dir()
+            assert (link / "a.ts").is_symlink()
         elif expected == "pruned":
-            assert not link.is_symlink() or link.resolve() != elsewhere.resolve()
-            assert not link.exists() or link.is_dir()
+            # Both halves matter. `is_symlink()` alone is satisfied by a link
+            # that was left exactly where it was — `resolve()` on a dangling
+            # link returns its target, and `exists()` is false, so an
+            # `or`-shaped assertion here is true of the state it excludes.
+            assert not link.is_symlink(), f"{name} -> {points_at} still a link"
+            assert not link.exists()
         else:  # pragma: no cover - the table above is closed
             raise AssertionError(expected)
+
+    @pytest.mark.parametrize(
+        "half,link_dir",
+        [("backend", "backend/addons"), ("frontend", "frontend/src/addons")],
+    )
+    def test_neither_half_overrules_a_deliberate_link(self, tmp_path, half, link_dir):
+        """The two halves obey one rule, and it is the one stated in the file.
+
+        They used to diverge: the frontend kept a link pointing somewhere else
+        and said so, while the backend replaced it silently and reported an
+        ordinary `Linked:`. Parametrised over the halves rather than written
+        twice, so fixing one and forgetting its twin is not possible here.
+        """
+        self._tree(tmp_path)
+        mine = tmp_path / "mine"
+        mine.mkdir()
+        link = tmp_path / link_dir / "present"
+        link.symlink_to(mine)
+
+        result = self._run(tmp_path)
+
+        assert link.is_symlink(), f"the {half} half replaced a deliberate link"
+        assert link.resolve() == mine.resolve()
+        assert "link to somewhere else" in result.stdout
 
     def test_a_deliberate_link_under_an_installed_name_is_reported(self, tmp_path):
         """Kept is not enough: silence would leave the developer guessing.

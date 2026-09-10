@@ -68,6 +68,19 @@ link_frontend_tree() {
     done
 }
 
+# Does `$target` already point at `$src`, however the link was spelled?
+#
+# Resolved paths, not `readlink` output: the link may have been written
+# relative — `docs/ADDON-DEVELOPMENT.md` told people to make it as
+# `ln -s ../../../addons/<name>/frontend` for years — and both spellings mean
+# the same thing.
+points_at() {
+  local target="$1" src="$2"
+  [ -L "$target" ] || return 1
+  [ -d "$target" ] || return 1
+  [ "$(cd "$target" && pwd -P)" = "$(cd "$src" && pwd -P)" ]
+}
+
 # Is this frontend entry one we may rebuild?
 #
 # Two shapes are ours, and the distinction is the whole point:
@@ -84,10 +97,6 @@ link_frontend_tree() {
 # file in it. `$src` is the addon's own `frontend/`, absent when the addon is
 # gone — in which case no symlink can be ours, which is the right answer.
 #
-# Comparing resolved paths rather than `readlink` output, because the link may
-# have been written relative: `docs/ADDON-DEVELOPMENT.md` told people to make
-# it as `ln -s ../../../addons/<name>/frontend` for years.
-#
 # Dotfiles do not count as someone's work, and that exclusion is load-bearing
 # on macOS. Finder writes `.DS_Store` into any directory it is asked to
 # display, and this is a directory a developer opens. Counting it meant one
@@ -99,8 +108,7 @@ frontend_tree_is_ours() {
 
   if [ -L "$target" ]; then
     [ -n "$src" ] || return 1
-    [ -d "$target" ] || return 1
-    [ "$(cd "$target" && pwd -P)" = "$(cd "$src" && pwd -P)" ]
+    points_at "$target" "$src"
     return
   fi
 
@@ -169,7 +177,8 @@ for entry in "$FRONTEND_ADDONS"/*; do
   # rebuilds it — and keep it regardless if it holds files we did not make.
   [ -d "$ADDONS_DIR/$name/frontend" ] && continue
   if ! frontend_tree_is_ours "$entry" ""; then
-    echo "WARNING: $entry holds files this script did not create, leaving it"
+    echo "WARNING: $entry holds files this script did not create, leaving it:"
+    foreign_files_in "$entry" | sed "s|^|  |"
     continue
   fi
   rm -rf "$entry"
@@ -190,13 +199,19 @@ for addon_dir in "$ADDONS_DIR"/*/; do
   # arise here.
   if [ -d "$addon_dir/backend" ]; then
     target="$BACKEND_ADDONS/$addon_name"
-    if [ -L "$target" ]; then
-      rm "$target"
-    fi
-    if [ -d "$target" ]; then
+    src="$(cd "$addon_dir/backend" && pwd)"
+    if [ -L "$target" ] && ! points_at "$target" "$src"; then
+      # The same judgement the frontend makes, and the one the prune loop
+      # above already promises: a link somewhere else under this name is a
+      # developer's own. Overwriting it silently is what this half used to do.
+      echo "WARNING: $target is a link to somewhere else, skipping (remove it manually to relink)"
+    elif [ ! -L "$target" ] && [ -d "$target" ]; then
       echo "WARNING: $target exists as a real directory, skipping (remove it manually to use symlink)"
     else
-      ln -s "$(cd "$addon_dir/backend" && pwd)" "$target"
+      # Recreated even when it already points here, so a relative spelling is
+      # normalised and a stale link cannot survive as one.
+      [ -L "$target" ] && rm "$target"
+      ln -s "$src" "$target"
       echo "Linked: backend/addons/$addon_name -> addons/$addon_name/backend"
       linked=$((linked + 1))
     fi

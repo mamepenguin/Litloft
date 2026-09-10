@@ -59,9 +59,10 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      # frontend/src/addons/* are symlinks into addons/*/frontend, and they are
-      # gitignored. Without them vitest collects no addon test at all and the
-      # suite is green for the wrong reason.
+      # frontend/src/addons/<name> is a real directory of per-file symlinks
+      # into addons/<name>/frontend, built by this script and gitignored.
+      # Without it vitest collects no addon test at all and the suite is green
+      # for the wrong reason.
       - name: Link addons into backend/ and frontend/
         run: ./setup-addons.sh
 
@@ -423,10 +424,11 @@ jobs:
     # The production images, which no test builds.
     #
     # For the frontend that is `next build`, covered by neither vitest nor tsc,
-    # and impossible to run against the frontend/src/addons symlinks — Turbopack
-    # fails to resolve the dynamic `@/addons/<name>/Page` import through them.
-    # frontend/Dockerfile deletes the symlinks and copies the addon trees in
-    # first, so building the image is the only honest rehearsal.
+    # and impossible to run against a development checkout — Turbopack fails to
+    # resolve the dynamic `@/addons/<name>/Page` import through the symlinked
+    # files in frontend/src/addons. frontend/Dockerfile discards that directory
+    # and copies the addon trees in as real files first, so building the image
+    # is the only honest rehearsal.
     #
     # The backend earns a build by the same argument, even though its test image
     # shares the requirements files: backend/Dockerfile has production-only
