@@ -864,8 +864,10 @@ by the file, not by the layout.
 
 Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
 
-- **`FileActions` measures both axes before it commits to a direction**, and it
-  is the only anchored dropdown in the tree that does. Hanging below and to one
+- **`FileActions` measures both axes before it commits to a direction**, and so
+  does the intelligence addon's `FileAIActionsButton`, which runs the same walk
+  against its own menu width. They are the two anchored dropdowns in the tree
+  that measure rather than declare. Hanging below and to one
   side is right wherever the trigger has the room; on the Bottom Sheet's
   resting strip (`fixed bottom-0`, §Layering) there is none below it, and a
   menu that could only open downward was drawn entirely off-screen. It reads
@@ -887,8 +889,8 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
 
   Every other anchored popup here states its direction in its class list, and
   this paragraph does not describe them: `FolderPicker`, `AddButton`,
-  `EditableTagChips`, `folder/FilterField`, `trash/TrashToolbar` and the
-  intelligence addon's `FileAIActionsButton` hang downward unconditionally;
+  `EditableTagChips`, `folder/FilterField` and `trash/TrashToolbar` hang
+  downward unconditionally;
   `SortButton` and `ToolbarMenu` hang downward above `sm` and become a
   `fixed bottom-4` sheet below it; and `SelectionBar` opens upward
   deliberately, because the bar it hangs from is pinned to the bottom.

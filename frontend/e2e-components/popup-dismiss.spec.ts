@@ -363,10 +363,18 @@ test.describe("a menu drawn inside the Bottom Sheet", () => {
   test("the anchored menu hangs off the wrapper it is positioned against", async ({
     page,
   }) => {
-    // Not merely on screen: exactly where `absolute left-0 top-full mt-1`
-    // puts it, on both axes. A bound ("somewhere below the trigger") let
-    // a 64px gap call itself anchored — measured — while the axis beside
-    // it was already exact, and the asymmetry was the finding.
+    // Not merely on screen: exactly where `absolute top-full mt-1
+    // right-0` puts it, on both axes. A bound ("somewhere below the
+    // trigger") let a 64px gap call itself anchored — measured — while
+    // the axis beside it was already exact, and the asymmetry was the
+    // finding.
+    //
+    // The horizontal edge read is the one the direction pins. This
+    // arrangement draws the menu hanging leftward, which is what the
+    // component picks for a trigger at the right of the row, so it is the
+    // *right* edges that have to coincide. Reading `left` here would
+    // measure the menu's width instead, and would have gone on passing
+    // when the component still hung it the other way.
     //
     // Read against the *wrapper*, which is what `absolute` resolves
     // against. Reading against the button instead needs the wrapper's
@@ -378,7 +386,7 @@ test.describe("a menu drawn inside the Bottom Sheet", () => {
     const { wrapper, menu } = await page.evaluate(() => {
       const box = (el: Element) => {
         const r = el.getBoundingClientRect();
-        return { top: r.top, bottom: r.bottom, left: r.left };
+        return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
       };
       const anchored = document.getElementById("anchored")!;
       return { wrapper: box(anchored.parentElement!), menu: box(anchored) };
@@ -386,8 +394,8 @@ test.describe("a menu drawn inside the Bottom Sheet", () => {
 
     expect({
       top: Math.round(menu.top - wrapper.bottom),
-      left: Math.round(menu.left - wrapper.left),
-    }).toEqual({ top: 4, left: 0 });
+      right: Math.round(menu.right - wrapper.right),
+    }).toEqual({ top: 4, right: 0 });
   });
 });
 
@@ -516,4 +524,101 @@ test.describe("a press that raises a popup", () => {
     expect(await popupIsOpen(page)).toBe(false);
     expect(await activations(page, "#card")).toBe(0);
   });
+});
+
+/**
+ * The three sheet states against the two axes — the six cells the first
+ * two rounds of this unit each answered one of.
+ *
+ * Round 1 measured the expanded sheet only and made the menu hang
+ * downward everywhere; the resting strip, which is the state the file
+ * detail opens in, then had it off the bottom. Round 2 measured the
+ * vertical axis in all three states and left the horizontal one a
+ * constant; the row is drawn at the *right* of the strip, so the menu ran
+ * off the right edge in all three. Each round measured one cell of a
+ * table it did not write down.
+ *
+ * So the table is written down. For each state and each axis, both
+ * directions are drawn and measured: the one the component picks has to
+ * be on screen, and **the other one has to be off it**. Without that
+ * second half the case would hold for a menu that fits either way, which
+ * is a state this row is never in and would make the whole decision
+ * unobservable here.
+ *
+ * What this cannot say is *which* direction the component picks — the
+ * fixture takes that as a prop. `FileAIActionsButton.test.tsx` decides
+ * it, and `componentFixtureParity.test.tsx` is what keeps this fixture
+ * drawing the class list that component produces.
+ */
+const CELLS = [
+  // state    axis          arrangement              fits
+  { state: "peek", axis: "vertical", arrangement: "sheet-peek-up", fits: true },
+  { state: "peek", axis: "vertical", arrangement: "sheet-peek-down", fits: false },
+  { state: "peek", axis: "horizontal", arrangement: "sheet-peek-up", fits: true },
+  { state: "peek", axis: "horizontal", arrangement: "sheet-peek-left", fits: false },
+  { state: "half", axis: "vertical", arrangement: "sheet-half-right", fits: true },
+  { state: "half", axis: "horizontal", arrangement: "sheet-half-right", fits: true },
+  { state: "half", axis: "horizontal", arrangement: "sheet-half-left", fits: false },
+  { state: "full", axis: "vertical", arrangement: "sheet-full-right", fits: true },
+  { state: "full", axis: "vertical", arrangement: "sheet-full-up", fits: true },
+  { state: "full", axis: "horizontal", arrangement: "sheet-full-right", fits: true },
+  { state: "full", axis: "horizontal", arrangement: "sheet-full-left", fits: false },
+] as const;
+
+test.describe("the menu's box, in every sheet state and on both axes", () => {
+  test("the table covers three states and two axes", () => {
+    // Declared, not counted off the rows: a state dropped from the table
+    // takes its cases with it and leaves a shorter table agreeing with
+    // itself (detector rule 5).
+    expect([...new Set(CELLS.map((c) => c.state))]).toEqual([
+      "peek",
+      "half",
+      "full",
+    ]);
+    expect([...new Set(CELLS.map((c) => c.axis))]).toEqual([
+      "vertical",
+      "horizontal",
+    ]);
+    // Both outcomes are represented on both axes, so no axis is measured
+    // only in the direction that works.
+    for (const axis of ["vertical", "horizontal"] as const) {
+      const outcomes = CELLS.filter((c) => c.axis === axis).map((c) => c.fits);
+      expect([...new Set(outcomes)].sort()).toEqual([false, true]);
+    }
+  });
+
+  for (const cell of CELLS) {
+    test(`${cell.state} · ${cell.axis} · ${cell.arrangement} · ${
+      cell.fits ? "on screen" : "off screen"
+    }`, async ({ page }) => {
+      await open(page, cell.arrangement);
+      // vaul animates the drawer into place. Measured before it settles,
+      // the expanded states report the animation rather than the state —
+      // which is how the first pass of this table read `half` as 99px off
+      // the bottom when it is not.
+      await page.waitForTimeout(600);
+
+      const box = await page.evaluate(() => {
+        const el = document.getElementById("anchored")!;
+        const r = el.getBoundingClientRect();
+        return {
+          left: r.left,
+          right: r.right,
+          top: r.top,
+          bottom: r.bottom,
+          vw: window.innerWidth,
+          vh: window.innerHeight,
+        };
+      });
+
+      const withinX = box.left >= 0 && box.right <= box.vw;
+      const withinY = box.top >= 0 && box.bottom <= box.vh;
+      const within = cell.axis === "horizontal" ? withinX : withinY;
+
+      expect(
+        within,
+        `${cell.arrangement} ${cell.axis}: [${box.left}, ${box.right}] x [${box.top}, ${box.bottom}] in ${box.vw}x${box.vh}`,
+      ).toBe(cell.fits);
+    });
+  }
 });
