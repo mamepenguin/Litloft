@@ -101,10 +101,13 @@ const columnAt = (container: number) => (container - GAP) / 2;
  * How many distinct widths the sweep below runs at.
  *
  * Declared here and not counted from `sweptWidths()`: the sweep's input
- * is three surface tables plus four loose widths, and the deduplication
- * means a surface can lose an entry — or gain one that collides with a
- * threshold — without the list of cases changing length in any way the
- * loop itself could notice.
+ * is three surface tables plus four loose widths, deduplicated, so a
+ * surface can lose an entry that another table also produces and the
+ * case list does not change length in any way the loop could notice.
+ *
+ * That direction only. A surface *gaining* a width that collides with an
+ * existing one costs no coverage — the sweep still runs at every distinct
+ * width — and this constant is not written to catch it.
  */
 const SWEPT_WIDTHS = 13;
 

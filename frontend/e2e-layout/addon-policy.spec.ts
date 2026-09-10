@@ -127,6 +127,7 @@ const registered: string[] = [];
 const caseId = (group: string, label: string) => `${group} — ${label}`;
 
 interface Measurement {
+  frameWidth: number;
   capPx: number;
   wrapperHeight: number;
   tableHeight: number;
@@ -286,6 +287,12 @@ test.describe(WIDTH_GROUP, () => {
     test(`${width}px scrolls sideways, and vertically too on a phone's height`, async ({ page }) => {
       const m = await layout(page, { width, height: 667 });
 
+      // The case's own width, read back off the box the browser laid
+      // out. Every other assertion in this body is a boolean about the
+      // wrapper, and both widths answer them the same way, so without
+      // this the pair passes with one width laid out twice — the seam
+      // the sweep in `related-files.spec.ts` closes the same way.
+      expect(m.frameWidth).toBeCloseTo(width, 0);
       expect(m.scrollsHorizontally).toBe(true);
       // Both axes, and that is the trade rather than an accident: at a
       // phone's height 70vh is under the app's table, so the wrapper is a

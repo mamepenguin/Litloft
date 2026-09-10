@@ -171,6 +171,11 @@
         wrapper.scrollTop = scrollTop ?? 0;
         const box = wrapper.getBoundingClientRect();
         return {
+          // The width the frame was actually built at, read off the box
+          // rather than taken from the caller. Without it a case that
+          // asserts only booleans is satisfied by any width that shares
+          // its answers.
+          frameWidth: document.querySelector("#frame").getBoundingClientRect().width,
           // The cap, and the box it actually resolved to. They are not
           // the same number and conflating them is what made the earlier
           // cases wrong: `max-height` is a ceiling, so a table shorter
