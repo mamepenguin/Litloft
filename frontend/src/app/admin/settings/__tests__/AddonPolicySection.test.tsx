@@ -386,12 +386,12 @@ describe("AddonPolicySection says each explanation once", () => {
    *
    * The strings are the intelligence addon's own, and
    * `scripts/merge-addon-messages.mjs` builds `messages/` by walking the
-   * `messages` directory under each `src/addons` link — so with the
-   * symlink gone the namespace is
+   * `messages` directory under each entry in `src/addons` — so with the
+   * addon unlinked the namespace is
    * not in the file and reading through it threw at collection time,
    * taking every case in this file down with it. `design-decisions.md`
-   * §Addons makes removing that symlink the way an addon is disabled, so
-   * the block gates on the symlink rather than on the key: an absent
+   * §Addons makes unlinking an addon the way it is disabled, so
+   * the block gates on the link rather than on the key: an absent
    * addon skips, and an addon that is installed but has renamed the key
    * is a defect and fails on the case below.
    */

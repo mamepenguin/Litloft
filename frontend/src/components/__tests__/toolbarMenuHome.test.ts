@@ -9,10 +9,11 @@ const ADDONS_DIR = resolve(REPO_ROOT, "addons");
 /**
  * Core's tree and every addon's, each read at its own root.
  *
- * Addons are symlinked into `frontend/src/addons` and share core's tsconfig
+ * Addons are linked into `frontend/src/addons` and share core's tsconfig
  * paths, so an addon component can write `@/components/folder/ToolbarMenu`
- * and resolve it. Walking `frontend/src` alone would follow the symlink and
- * report addon files under a core-relative path; skipping the link without
+ * and resolve it. Walking `frontend/src` alone would reach addon files
+ * through the link tree and report them under a core-relative path;
+ * skipping that directory without
  * reading the trees would drop them from the scan entirely, which is the
  * shape this test exists to refuse. `escape-listeners.test.ts` reads them the
  * same way.

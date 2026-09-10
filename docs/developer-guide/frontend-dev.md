@@ -186,8 +186,8 @@ builds `backend/Dockerfile` too.)
 
 `pnpm build` on a development checkout does **not** work, and is not expected
 to: Turbopack cannot resolve the dynamic `@/addons/<name>/Page` import through
-the `src/addons` symlinks. The Dockerfile deletes those symlinks and copies the
-addon trees in before building.
+the symlinked files in `src/addons`. The Dockerfile discards that directory and
+copies the addon trees in as real files before building.
 
 ## Common pitfalls
 

@@ -2,10 +2,13 @@
  * Every utility an addon uses has to reach the stylesheet.
  *
  * Tailwind finds its own sources by walking out from `globals.css`, and
- * it skips both gitignored paths and symlinks. `src/addons/*` is both —
- * `setup-addons.sh` makes the symlinks and the repository-root
- * `.gitignore` lists them — so before `@source "../addons"` was added, a
- * class appearing ONLY in an addon generated no CSS at all.
+ * it skips both gitignored paths and symlinks. `src/addons/*` is caught by
+ * the first — the repository-root `.gitignore` lists it — and everything
+ * `setup-addons.sh` puts inside it is caught by the second, since each file
+ * there is a link into an addon repository. So before `@source "../addons"`
+ * was added, a class appearing ONLY in an addon generated no CSS at all.
+ * Being gitignored is the half that carries the argument, and it is the half
+ * that does not change with how the tree is linked.
  *
  * The failure was silent in the worst way. An addon writing
  * `opacity-0 group-hover/cue:opacity-100` got the `opacity-0` — core

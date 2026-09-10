@@ -44,7 +44,7 @@ import { assertSameCompiler } from "../../e2e-layout/build-fixture-css";
  *
  * Every `.ts` / `.tsx` file under `frontend/src` and under each
  * `addons/<name>/frontend` that is checked out, minus `__tests__` / `test`
- * directories and minus `frontend/src/addons` (symlinks back into the same
+ * directories and minus `frontend/src/addons` (a link tree over those same
  * addon trees, which would double-count them). Class lists are read through
  * `sourceScan`'s attribute spans *and* its `*_CLASS` constant spans, so a
  * recipe hoisted out of JSX into a constant stays inside the population.

@@ -27,7 +27,7 @@ vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
  *
  *  - **Core only.** Addons draw their own pills — `intelligence`'s
  *    `pages/search-compare.tsx` is one, with no cap and no
- *    de-duplication. `frontend/src/addons/*` are gitignored symlinks a
+ *    de-duplication. `frontend/src/addons/*` is a gitignored link tree a
  *    checkout may or may not hold, so a core assertion about them passes
  *    or fails on what happens to be present; an addon's pills are counted
  *    in the addon's own repository.

@@ -1,5 +1,22 @@
 #!/usr/bin/env bash
-# setup-addons.sh — Scan addons/ and create symlinks into backend/ and frontend/
+# setup-addons.sh — Scan addons/ and link them into backend/ and frontend/
+#
+# The two sides are linked differently, and the difference is load-bearing:
+#
+#   backend/addons/<name>   -> a symlink to addons/<name>/backend
+#   frontend/src/addons/<name>/ -> a real directory of per-file symlinks
+#
+# The frontend side is a directory because tools that enumerate the tree do
+# not descend a symlinked directory. node-glob — which `@vitest/coverage-v8`
+# reaches through `test-exclude` — takes a `follow` option that vitest does
+# not expose, so with a directory symlink an addon file that no test imports
+# is invisible to every such walk: it cannot be counted, and no `include`
+# pattern can reach it, because `include` is applied as a filter over the
+# glob's result rather than as the traversal pattern.
+#
+# A real directory holding symlinked files is descended normally, so the
+# addon frontends are visible to anything walking `frontend/src`, while each
+# file still resolves to the addon repository and is edited in one place.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -20,30 +37,83 @@ if [ ! -f "$BACKEND_ADDONS/__init__.py" ]; then
   touch "$BACKEND_ADDONS/__init__.py"
 fi
 
-# Remove symlinks for addons that are no longer here.
+pruned=0
+
+# Remove backend symlinks for addons that are no longer here.
 #
 # The loop below only ever creates. An addon that is deleted, renamed, or
 # never checked out leaves its link behind pointing at nothing, and the link
-# outlives every later run of this script — `frontend/src/addons/` is
-# gitignored, so nothing else prunes it in a working copy. `frontend/Dockerfile`
-# already does exactly this (`find src/addons -maxdepth 1 -type l -delete`)
-# before rebuilding, which is why an image is never affected and a long-lived
-# checkout is.
+# outlives every later run of this script — `backend/addons/` is gitignored,
+# so nothing else prunes it in a working copy.
 #
-# Only broken links are removed, and only from the two directories this script
+# Only broken links are removed, and only from the directory this script
 # owns. A link that resolves is left alone even if it points somewhere
 # unexpected: this script's job is to stop lying about what is installed, not
 # to overrule a developer who pointed one somewhere on purpose.
-pruned=0
-for dir in "$BACKEND_ADDONS" "$FRONTEND_ADDONS"; do
-  for link in "$dir"/*; do
-    [ -L "$link" ] || continue
-    [ -e "$link" ] && continue
-    rm "$link"
-    echo "Pruned: ${link#$SCRIPT_DIR/} (target is gone)"
-    pruned=$((pruned + 1))
-  done
+for link in "$BACKEND_ADDONS"/*; do
+  [ -L "$link" ] || continue
+  [ -e "$link" ] && continue
+  rm "$link"
+  echo "Pruned: ${link#$SCRIPT_DIR/} (target is gone)"
+  pruned=$((pruned + 1))
 done
+
+# The same for the frontend, where an addon's entry is a whole directory.
+#
+# A leftover directory is worse than a leftover link: every file in it is a
+# dangling symlink, and a dangling symlink under `frontend/src` fails the
+# whole vitest run with ENOENT rather than being skipped.
+for entry in "$FRONTEND_ADDONS"/*; do
+  [ -e "$entry" ] || [ -L "$entry" ] || continue
+  name="$(basename "$entry")"
+  [ -d "$ADDONS_DIR/$name/frontend" ] && continue
+  # A pre-Option-E checkout has a directory symlink here; both shapes go.
+  rm -rf "$entry"
+  echo "Pruned: frontend/src/addons/$name (addon is gone)"
+  pruned=$((pruned + 1))
+done
+
+# Mirror one addon's frontend as a directory of symlinks.
+#
+# Rebuilt from scratch on every run rather than patched. Patching would have
+# to handle a file becoming a directory, a directory becoming a file, and a
+# file deleted upstream — and getting any of those wrong leaves a dangling
+# link, which is the one failure that takes the entire test suite down. The
+# tree is ~113 files; rebuilding it costs milliseconds.
+#
+# What is NOT rebuilt is a directory holding anything this script did not
+# put there. See the guard in the caller.
+link_frontend_tree() {
+  local src="$1" target="$2"
+
+  rm -rf "$target"
+  mkdir -p "$target"
+
+  # Directories first, so a file's parent always exists when it is linked.
+  # `-mindepth 1` skips `.` itself, which is `$target`.
+  (cd "$src" && find . -mindepth 1 -type d -print0) |
+    while IFS= read -r -d '' dir; do
+      mkdir -p "$target/${dir#./}"
+    done
+
+  (cd "$src" && find . -type f -print0) |
+    while IFS= read -r -d '' file; do
+      ln -s "$src/${file#./}" "$target/${file#./}"
+    done
+}
+
+# Is this frontend entry one we may rebuild?
+#
+# Ours holds only directories and symlinks. A real file inside means someone
+# put it there — the same judgement the backend prune makes about a link that
+# resolves: report it, do not overrule it. A directory symlink is the
+# pre-Option-E shape and is ours to replace.
+frontend_tree_is_ours() {
+  local target="$1"
+  [ -L "$target" ] && return 0
+  [ -d "$target" ] || return 0
+  ! find "$target" -type f -print -quit | grep -q .
+}
 
 linked=0
 
@@ -51,7 +121,10 @@ for addon_dir in "$ADDONS_DIR"/*/; do
   [ -d "$addon_dir" ] || continue
   addon_name="$(basename "$addon_dir")"
 
-  # Backend symlink
+  # Backend: a single directory symlink. Python's import machinery follows
+  # it, and coverage.py measures `--cov=<package>` by walking the package
+  # rather than by globbing, so the frontend's traversal problem does not
+  # arise here.
   if [ -d "$addon_dir/backend" ]; then
     target="$BACKEND_ADDONS/$addon_name"
     if [ -L "$target" ]; then
@@ -66,20 +139,18 @@ for addon_dir in "$ADDONS_DIR"/*/; do
     fi
   fi
 
-  # Frontend symlink
+  # Frontend: a real directory of per-file symlinks.
   if [ -d "$addon_dir/frontend" ]; then
     target="$FRONTEND_ADDONS/$addon_name"
-    if [ -L "$target" ]; then
-      rm "$target"
-    fi
-    if [ -d "$target" ]; then
-      echo "WARNING: $target exists as a real directory, skipping (remove it manually to use symlink)"
-    else
-      ln -s "$(cd "$addon_dir/frontend" && pwd)" "$target"
-      echo "Linked: frontend/src/addons/$addon_name -> addons/$addon_name/frontend"
+    src="$(cd "$addon_dir/frontend" && pwd)"
+    if frontend_tree_is_ours "$target"; then
+      link_frontend_tree "$src" "$target"
+      echo "Linked: frontend/src/addons/$addon_name/ -> addons/$addon_name/frontend (per file)"
       linked=$((linked + 1))
+    else
+      echo "WARNING: $target holds files this script did not create, skipping (remove it manually to relink)"
     fi
   fi
 done
 
-echo "Done. $linked symlink(s) created, $pruned pruned."
+echo "Done. $linked addon(s) linked, $pruned pruned."

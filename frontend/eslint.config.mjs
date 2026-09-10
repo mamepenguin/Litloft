@@ -21,6 +21,22 @@ const eslintConfig = defineConfig([
     // The component fixture's bundle: minified output of the real
     // components, built by e2e-components/build-bundle.ts.
     "e2e-components/.build/**",
+
+    // Another repository's source, linked in by `setup-addons.sh`.
+    //
+    // An addon's code is asserted in the addon's own repository — the same
+    // split `design-decisions.md` §Addons draws, and the reason the addon
+    // repositories' `frontend (core vitest / tsc)` job runs `tsc` but not
+    // `eslint`. Linting it from here makes core's required check answer for
+    // a tree core does not own and cannot fix in the same PR.
+    //
+    // This entry became load-bearing when `setup-addons.sh` started building
+    // this directory for real instead of symlinking it: eslint does not
+    // follow a symlinked directory, so until then the exclusion happened by
+    // accident. Measured at the time of the change — with the directory real
+    // and no ignore, eslint went from `0 errors, 63 warnings` (exit 0) to
+    // `10 errors, 98 warnings` (exit 1), all of the new ones from the addons.
+    "src/addons/**",
   ]),
   {
     // The current codebase predates React Compiler-oriented hooks lint

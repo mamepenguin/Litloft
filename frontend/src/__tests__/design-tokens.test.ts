@@ -47,8 +47,8 @@ const SCANNER = resolve(dirname(SELF), "helpers/sourceScan.ts");
 /**
  * Core plus every addon checked out beside it.
  *
- * `frontend/src/addons/*` are symlinks into these same trees — an addon is
- * enabled by linking it — so that directory is skipped during the walk and the
+ * `frontend/src/addons/*` mirrors these same trees — an addon is enabled by
+ * linking it in — so that directory is skipped during the walk and the
  * submodules are read at the root instead. Reading the root rather than the
  * links means the sweep covers an addon that is present but not enabled, which
  * is the state a submodule sits in right after a pointer bump.

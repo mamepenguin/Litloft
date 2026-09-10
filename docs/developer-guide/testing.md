@@ -579,10 +579,12 @@ Each addon's own workflow runs the same check for itself.
 
 `images` builds what no test builds. For the frontend that is `next build`,
 covered by neither vitest nor tsc, and impossible to run against the
-`frontend/src/addons` symlinks: Turbopack fails to resolve the dynamic
-`@/addons/<name>/Page` import through them. `frontend/Dockerfile` deletes the
-symlinks and copies the addon trees in first, so building the image is the only
-honest rehearsal. The backend earns a build by the same argument — its
+`frontend/src/addons` link tree: Turbopack fails to resolve the dynamic
+`@/addons/<name>/Page` import through a symlinked file. `frontend/Dockerfile`
+discards that directory and copies the addon trees in as real files first, so
+building the image is the only honest rehearsal. (Measured: the same build
+succeeds against real files and fails against links, so this is about the
+links themselves and not about how the directory above them is made.) The backend earns a build by the same argument — its
 production Dockerfile has steps the test image does not share, notably the addon
 copy loop and the `addons/__init__.py` it creates.
 

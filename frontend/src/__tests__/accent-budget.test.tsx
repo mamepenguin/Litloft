@@ -190,7 +190,7 @@ const folderProps = {
  * reads stronger than the check.
  *
  * Ask, Find and Media Import are absent and are not omissions: they are
- * addon-owned pages, `frontend/src/addons/*` are gitignored symlinks that
+ * addon-owned pages, `frontend/src/addons/*` is a gitignored link tree that
  * `setup-addons.sh` materialises, and a core assertion about them passes
  * or fails on what a checkout happens to hold. They are counted in their
  * own repositories, in C1 and C2a — where the work is real, since Ask and
