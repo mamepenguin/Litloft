@@ -28,7 +28,13 @@
  * ## What it holds
  *
  * That **every** fixture in this directory is safe to open under
- * `isMobile`, not only the ones that use it today. One spec here does
+ * `isMobile`, and that the context it says so in is one where an unsafe
+ * page would fail — the first case builds a page with no viewport meta
+ * and measures that it is caught, so removing the hostile half of the
+ * setup fails here rather than quietly turning the rest into a tautology.
+ *
+ * It holds that for every fixture, not only the ones that use `isMobile`
+ * today. One spec here does
  * (`popup-dismiss.spec.ts`, whose two viewports straddle the `sm`
  * breakpoint and so depend on the width being real); the rest do not, and
  * a later author adding it should not have to know this trap exists.
@@ -83,8 +89,48 @@ test.describe("a fixture lays out at the width it was given", () => {
   test.use({
     viewport: { width: WIDTH_PX, height: HEIGHT_PX },
     hasTouch: true,
-    // The hostile half. Everything here would pass without it.
+    // The hostile half, and the one this file is about. Deleting it used
+    // to disarm every case below — a detector that stops detecting when
+    // one line of its own setup goes. The negative control below is what
+    // makes that edit fail.
     isMobile: true,
+  });
+
+  test("the context is one the trap can occur in", async ({ page }) => {
+    // The negative control, and the only case here that `isMobile` arms.
+    //
+    // Every case below asserts that a fixture was *not* caught by the
+    // trap, which is equally true of a context where the trap cannot
+    // happen at all — so the enumeration on its own cannot tell "every
+    // fixture declares a viewport" from "`isMobile` is not set", and the
+    // whole file passes either way. This case separates them: a page that
+    // does not ask for the device width, opened in the same context, and
+    // required to come back with a width that is not the one the context
+    // declared.
+    //
+    // Built here rather than borrowed from the directory because every
+    // fixture there is expected to be immune, and an immune page cannot
+    // show that the context bites.
+    await page.setContent(
+      "<!doctype html><html><head><title>no viewport meta</title></head>" +
+        "<body>measured, not asked</body></html>",
+    );
+
+    const measured = await page.evaluate((width) => ({
+      laidOutAtTheContextWidth: window.innerWidth === width,
+      aboveSm: window.matchMedia("(min-width: 640px)").matches,
+      coarse: window.matchMedia("(pointer: coarse)").matches,
+    }), WIDTH_PX);
+
+    // Booleans, declared: the fallback width itself is Chromium's number
+    // and would make this a case about the emulator's version. What has
+    // to hold is that the page did *not* get the context's width and did
+    // cross `sm` — which is the consequence every case below denies.
+    expect(measured).toEqual({
+      laidOutAtTheContextWidth: false,
+      aboveSm: true,
+      coarse: true,
+    });
   });
 
   test("the fixtures checked are the fixtures on disk", () => {
@@ -119,9 +165,10 @@ test.describe("a fixture lays out at the width it was given", () => {
       // moved.
       expect(measured.aboveSm).toBe(false);
 
-      // The precondition. Without it this case would hold for a context
-      // where `isMobile` never applied, which is the one arrangement the
-      // trap cannot occur in.
+      // `hasTouch`'s consequence, not `isMobile`'s, though the two are
+      // set together above: this pins the pointer type a fixture's own
+      // spec reads when it drives a tap. What holds `isMobile` is the
+      // negative control at the top of the block, not this line.
       expect(measured.coarse).toBe(true);
     });
   }
