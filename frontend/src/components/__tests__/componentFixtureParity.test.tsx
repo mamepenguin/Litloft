@@ -5,7 +5,7 @@
  * `useContextMenu` — that half needs no parity test, and a mutation proves
  * it: delete the arming line from the primitive and the browser run goes
  * red. What it hand-writes is the page around them, because
- * `SelectionBar`, `InspectorShell` and `MobileInspectorSheet` need
+ * `SelectionBar` and `InspectorShell` need
  * Next.js, `next-intl` and a backend. `review-workflow.md` asks for a
  * parity test per fixture for exactly this reason, and this is it.
  *
@@ -29,7 +29,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
@@ -54,6 +54,26 @@ const POSITIONING = /^(fixed|absolute|sticky|relative|inset-.+|top-.+|bottom-.+|
 function positioningOf(classList: string): string[] {
   return classList.split(/\s+/).filter((c) => POSITIONING.test(c));
 }
+
+/**
+ * The addon's source, when the addon is linked.
+ *
+ * `design-decisions.md` §Addons: "In-process addon enable/disable is
+ * controlled by adding/removing a symlink. Do not modify core code." A
+ * core test that reads through that symlink unguarded turns removing it
+ * — or cloning without `--recurse-submodules` — into a core failure,
+ * which is core code the addon's absence modifies. The guard is
+ * `file-kind-parity.test.ts`'s, two directories over, for the same
+ * reason.
+ *
+ * The directory-not-empty half matters separately: an initialised
+ * submodule that has lost this file is a stale pin, and that is a real
+ * defect rather than a disabled addon.
+ */
+const ADDON_DIR = resolve(SRC, "addons/intelligence");
+const ADDON_MENU = resolve(ADDON_DIR, "FileAIActionsButton.tsx");
+const addonLinked =
+  existsSync(ADDON_DIR) && readdirSync(ADDON_DIR).length > 0;
 
 describe("the component fixture's page", () => {
   it("puts the bottom bar where SelectionBar puts it", () => {
@@ -110,6 +130,91 @@ describe("the component fixture's page", () => {
     expect(fixture).toMatch(/transform: "translate3d\(/);
   });
 
+  it.runIf(addonLinked)(
+    "is pinned to an intelligence that still has the menu",
+    () => {
+      expect(
+        existsSync(ADDON_MENU),
+        `${ADDON_MENU} is missing while the submodule is initialised — stale pin?`,
+      ).toBe(true);
+    },
+  );
+
+  it.runIf(addonLinked && existsSync(ADDON_MENU))(
+    "gives #anchored the positioning FileAIActionsButton produces",
+    () => {
+    // The link the chain was missing. `e2e-components` measures the
+    // fixture's boxes; the addon's own suite decides which direction the
+    // component picks. Nothing joined the two, so the fixture could
+    // measure a menu the component does not draw — and did: while the
+    // component hung the menu rightward unconditionally, the browser
+    // suite was green about a box that was 134px off the right edge of a
+    // 393px phone.
+    //
+    // Core's vitest follows `src/addons/*`, so the addon's source is
+    // readable from here. Compared as **sets of positioning tokens** and
+    // written out on both sides: which of `left-0` / `right-0` the
+    // component picks for a given box is the addon suite's question, and
+    // whether that box is on screen is the browser suite's. This one asks
+    // only that the fixture is drawing from the same vocabulary.
+    const component = read(ADDON_MENU);
+    // Anchored on the template itself rather than on `role="menu"`: the
+    // two are separated by a comment block that grows, and a distance
+    // limit is a needle that goes stale without going red.
+    const menu = /className=\{`(absolute [^`]*min-w-\[240px\][^`]*)`\}/.exec(
+      component,
+    );
+    expect(
+      menu,
+      "FileAIActionsButton no longer declares its menu class list inline",
+    ).not.toBe(null);
+
+    // The template's conditionals are spelled as string literals inside
+    // it, so every direction the component can take is in this text.
+    const componentTokens = new Set(positioningOf(menu![1].replace(/[${}?:"]/g, " ")));
+
+    const fixtureMenu = /id="anchored"[\s\S]*?className=\{`([^`]*)`\}/.exec(
+      fixture,
+    );
+    expect(fixtureMenu, "the fixture has no #anchored template").not.toBe(null);
+    const fixtureTokens = new Set(
+      positioningOf(fixtureMenu![1].replace(/[${}?:"]/g, " ")),
+    );
+
+    // Declared, not derived from either side: a token dropped from both
+    // at once would leave a comparison of the two sets equal.
+    const EXPECTED = [
+      "absolute",
+      "bottom-full",
+      "left-0",
+      "right-0",
+      "top-full",
+      "z-30",
+    ];
+    expect([...componentTokens].sort()).toEqual(EXPECTED);
+    expect([...fixtureTokens].sort()).toEqual(EXPECTED);
+
+    // The gap is not a positioning token, and it was the other half of
+    // the same hole: changing `mt-1`/`mb-1` to `mt-8`/`mb-8` moved the
+    // menu 28px off its trigger with every test in both repositories
+    // green. It is tied to the constant the component compares against,
+    // so the class and the arithmetic cannot drift apart — `MENU_GAP_PX`
+    // is added to the menu's height to ask whether it fits below, and a
+    // menu that is drawn 32px away while 4px is reserved for it fits
+    // where the decision says it does not.
+    //
+    // Tailwind's spacing step is 4px, and that 4 is written here rather
+    // than derived from the class being checked.
+    const gap = /const MENU_GAP_PX = (\d+);/.exec(component);
+    expect(gap, "FileAIActionsButton no longer declares MENU_GAP_PX").not.toBe(
+      null,
+    );
+    const step = Number(gap![1]) / 4;
+    expect(menu![1]).toContain(`mt-${step}`);
+    expect(menu![1]).toContain(`mb-${step}`);
+    },
+  );
+
   it("names the arrangements the browser suite runs", () => {
     // The two files are edited apart, so the fixture's own table is pinned
     // here as well as in the spec: an arrangement deleted from the page
@@ -124,6 +229,16 @@ describe("the component fixture's page", () => {
       "bottom-bar",
       "transformed",
       "long-press",
+      "sheet",
+      "sheet-peek-down",
+      "sheet-peek-up",
+      "sheet-peek-left",
+      "sheet-half-right",
+      "sheet-half-up",
+      "sheet-half-left",
+      "sheet-full-right",
+      "sheet-full-left",
+      "sheet-full-up",
     ]);
   });
 });
