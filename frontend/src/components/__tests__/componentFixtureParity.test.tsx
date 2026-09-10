@@ -29,7 +29,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 
@@ -54,6 +54,26 @@ const POSITIONING = /^(fixed|absolute|sticky|relative|inset-.+|top-.+|bottom-.+|
 function positioningOf(classList: string): string[] {
   return classList.split(/\s+/).filter((c) => POSITIONING.test(c));
 }
+
+/**
+ * The addon's source, when the addon is linked.
+ *
+ * `design-decisions.md` §Addons: "In-process addon enable/disable is
+ * controlled by adding/removing a symlink. Do not modify core code." A
+ * core test that reads through that symlink unguarded turns removing it
+ * — or cloning without `--recurse-submodules` — into a core failure,
+ * which is core code the addon's absence modifies. The guard is
+ * `file-kind-parity.test.ts`'s, two directories over, for the same
+ * reason.
+ *
+ * The directory-not-empty half matters separately: an initialised
+ * submodule that has lost this file is a stale pin, and that is a real
+ * defect rather than a disabled addon.
+ */
+const ADDON_DIR = resolve(SRC, "addons/intelligence");
+const ADDON_MENU = resolve(ADDON_DIR, "FileAIActionsButton.tsx");
+const addonLinked =
+  existsSync(ADDON_DIR) && readdirSync(ADDON_DIR).length > 0;
 
 describe("the component fixture's page", () => {
   it("puts the bottom bar where SelectionBar puts it", () => {
@@ -110,7 +130,19 @@ describe("the component fixture's page", () => {
     expect(fixture).toMatch(/transform: "translate3d\(/);
   });
 
-  it("gives #anchored the positioning FileAIActionsButton produces", () => {
+  it.runIf(addonLinked)(
+    "is pinned to an intelligence that still has the menu",
+    () => {
+      expect(
+        existsSync(ADDON_MENU),
+        `${ADDON_MENU} is missing while the submodule is initialised — stale pin?`,
+      ).toBe(true);
+    },
+  );
+
+  it.runIf(addonLinked && existsSync(ADDON_MENU))(
+    "gives #anchored the positioning FileAIActionsButton produces",
+    () => {
     // The link the chain was missing. `e2e-components` measures the
     // fixture's boxes; the addon's own suite decides which direction the
     // component picks. Nothing joined the two, so the fixture could
@@ -125,9 +157,7 @@ describe("the component fixture's page", () => {
     // component picks for a given box is the addon suite's question, and
     // whether that box is on screen is the browser suite's. This one asks
     // only that the fixture is drawing from the same vocabulary.
-    const component = read(
-      resolve(SRC, "addons/intelligence/FileAIActionsButton.tsx"),
-    );
+    const component = read(ADDON_MENU);
     // Anchored on the template itself rather than on `role="menu"`: the
     // two are separated by a comment block that grows, and a distance
     // limit is a needle that goes stale without going red.
@@ -182,7 +212,8 @@ describe("the component fixture's page", () => {
     const step = Number(gap![1]) / 4;
     expect(menu![1]).toContain(`mt-${step}`);
     expect(menu![1]).toContain(`mb-${step}`);
-  });
+    },
+  );
 
   it("names the arrangements the browser suite runs", () => {
     // The two files are edited apart, so the fixture's own table is pinned
@@ -203,6 +234,7 @@ describe("the component fixture's page", () => {
       "sheet-peek-up",
       "sheet-peek-left",
       "sheet-half-right",
+      "sheet-half-up",
       "sheet-half-left",
       "sheet-full-right",
       "sheet-full-left",

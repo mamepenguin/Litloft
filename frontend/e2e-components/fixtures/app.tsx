@@ -290,12 +290,20 @@ function ActionRow({ up, alignLeft }: { up: boolean; alignLeft: boolean }): Reac
               up ? "bottom-full mb-1" : "top-full mt-1"
             } ${alignLeft ? "left-0" : "right-0"}`}
           >
-            {/* Three rows, because the menu's height is what the vertical
-                decision is made on and the real menu offers three
-                actions. A one-line box would fit under a trigger the real
-                one does not. */}
-            {["summarise", "tag", "transcribe"].map((row) => (
-              <button key={row} type="button" role="menuitem" className="block w-full px-3 py-2 text-left text-sm">
+            {/* One row per `FileAiActionKind`, which is what the menu
+                offers when every section has something to give — the
+                height the vertical decision is made on, at its largest.
+                Written out rather than counted, and named after the
+                kinds, so a kind added to the addon and not to this list
+                is a row missing from the box this measures. */}
+            {[
+              "tags",
+              "summary",
+              "detailedSummary",
+              "chapters",
+              "visualDescription",
+            ].map((row) => (
+              <button key={row} type="button" role="menuitem" className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm">
                 {row}
               </button>
             ))}
@@ -398,6 +406,9 @@ function SheetPeekUp(): ReactElement {
 function SheetHalfRight(): ReactElement {
   return <InSheet state="half" up={false} />;
 }
+function SheetHalfUp(): ReactElement {
+  return <InSheet state="half" up />;
+}
 function SheetHalfLeft(): ReactElement {
   return <InSheet state="half" up={false} alignLeft />;
 }
@@ -424,6 +435,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "sheet-peek-up": SheetPeekUp,
   "sheet-peek-left": SheetPeekLeft,
   "sheet-half-right": SheetHalfRight,
+  "sheet-half-up": SheetHalfUp,
   "sheet-half-left": SheetHalfLeft,
   "sheet-full-right": SheetFullRight,
   "sheet-full-left": SheetFullLeft,

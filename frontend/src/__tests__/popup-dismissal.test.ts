@@ -754,3 +754,46 @@ describe("An outside press", () => {
     }
   });
 });
+
+/**
+ * The `fixed … bottom-4` sheet form, and where it may be spelled.
+ *
+ * `DESIGN.md` §Context Menus / Dropdowns used to keep this as a list of
+ * component names, and that list was wrong in both directions twice: it
+ * dropped one that reaches the form through an imported constant and
+ * added three that do not have it at all. A list of names in prose cannot
+ * be checked by the reader who is adding the next component.
+ *
+ * So the claim is the one thing about the form that matters — **nothing
+ * drawn inside the Bottom Sheet or its resting strip spells it** — and it
+ * is the file set rather than the sentence that is pinned here. Neither
+ * of the two files below is reachable from the sheet; a third appearing
+ * is a decision somebody has to make, and this is where they are asked.
+ *
+ * The needle is the literal a bar's menu writes. A component reaching the
+ * form through a shared constant is found because the constant lives in
+ * one of these two files.
+ */
+describe("the pinned-to-the-screen menu form", () => {
+  const SHEET_FORM = /fixed inset-x-2 bottom-4/;
+
+  function filesSpellingSheetForm(): string[] {
+    const out: string[] = [];
+    for (const file of sourceFiles(CORE_ROOT)) {
+      if (SHEET_FORM.test(withoutComments(readFileSync(file, "utf-8")))) {
+        out.push(relative(REPO_ROOT, file));
+      }
+    }
+    return out.sort();
+  }
+
+  it("is spelled in the two bar menus and nowhere else in core", () => {
+    // Written out, not derived from the scan: a file that stops spelling
+    // it disappears from both sides of a comparison built from the
+    // observation (detector rule 5).
+    expect(filesSpellingSheetForm()).toEqual([
+      "frontend/src/components/SortButton.tsx",
+      "frontend/src/components/ToolbarMenu.tsx",
+    ]);
+  });
+});

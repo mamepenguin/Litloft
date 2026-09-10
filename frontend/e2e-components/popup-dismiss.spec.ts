@@ -528,48 +528,110 @@ test.describe("a press that raises a popup", () => {
 
 /**
  * The three sheet states against the two axes — the six cells the first
- * two rounds of this unit each answered one of.
+ * rounds of this unit each answered one of.
  *
  * Round 1 measured the expanded sheet only and made the menu hang
  * downward everywhere; the resting strip, which is the state the file
  * detail opens in, then had it off the bottom. Round 2 measured the
  * vertical axis in all three states and left the horizontal one a
  * constant; the row is drawn at the *right* of the strip, so the menu ran
- * off the right edge in all three. Each round measured one cell of a
- * table it did not write down.
+ * off the right edge in all three. Round 3 drew the menu with three rows
+ * while the addon declares five kinds, so the height the vertical
+ * decision is made on was set by a sentence rather than by the component.
  *
- * So the table is written down. For each state and each axis, both
- * directions are drawn and measured: the one the component picks has to
- * be on screen, and **the other one has to be off it**. Without that
- * second half the case would hold for a menu that fits either way, which
- * is a state this row is never in and would make the whole decision
- * unobservable here.
+ * ## Three outcomes, not two
+ *
+ * "On screen" and "off screen" cannot say what this row needs to say. A
+ * box past the fold *inside a scroller* is reached by scrolling; the same
+ * box past the fold with nothing to scroll is gone. Those are different
+ * results and the defect this unit exists for is the second one, so the
+ * table names which it expects:
+ *
+ * - `within` — the box is inside the frame the component measured
+ *   against, and inside the viewport.
+ * - `scrollable` — past the frame's visible edge, and the frame has grown
+ *   enough scroll to reach it. A degradation, not a loss.
+ * - `clipped` — past the frame with no scroll that reaches it. This is
+ *   the failure the unit is about, and it is asserted only of directions
+ *   the component does *not* pick.
+ *
+ * **The frame, not the viewport**, because those come apart exactly where
+ * this matters: drawn upward at `half` the menu lands well inside the
+ * screen and is still cut off, because the box it is inside is the
+ * sheet's `overflow-auto` scroller and the menu starts above it. A test
+ * that asked the viewport would call that arrangement fine. The frame is
+ * walked here the way the component walks it.
+ *
+ * ## Why the vertical axis has no reversal inside the expanded sheet
+ *
+ * Measured, and worth stating as the mechanism rather than as the
+ * outcome: expanded, the row is drawn about eleven pixels below the top
+ * of the sheet's own scroller, which is the frame the walk finds. So
+ * `spaceAbove` is ~11 whatever the snap is, `spaceAbove > spaceBelow` is
+ * never true, and the flip is structurally unreachable in `half` and in
+ * `full`. It is reachable in `peek`, where the walk stops at the `fixed`
+ * strip and the frame is the viewport. That is why the answer is the same
+ * at `half` and at `full`, and it stays true when the snap points move.
+ *
+ * ## Why `peek` is the state that can lose the menu
+ *
+ * The same difference decides what an overshoot costs. Expanded, the
+ * frame is a scroller and it is `overflow-auto` in **both** axes, so a
+ * box past either trailing edge grows the scroll and stays reachable —
+ * measured, including horizontally, which is why the wrong horizontal
+ * direction reads `scrollable` there rather than `clipped`. At `peek`
+ * there is no scroller: the frame is the viewport, nothing grows, and a
+ * box past the edge is gone. That is the state the file detail opens in
+ * and the state both of this unit's shipped defects were in.
+ *
+ * A sheet that scrolls sideways is not a good outcome and is not being
+ * defended here; it is what the measurement says, and calling it
+ * `clipped` would be writing the expectation the table wanted rather
+ * than the one the browser gives.
  *
  * What this cannot say is *which* direction the component picks — the
  * fixture takes that as a prop. `FileAIActionsButton.test.tsx` decides
  * it, and `componentFixtureParity.test.tsx` is what keeps this fixture
  * drawing the class list that component produces.
  */
-const CELLS = [
-  // state    axis          arrangement              fits
-  { state: "peek", axis: "vertical", arrangement: "sheet-peek-up", fits: true },
-  { state: "peek", axis: "vertical", arrangement: "sheet-peek-down", fits: false },
-  { state: "peek", axis: "horizontal", arrangement: "sheet-peek-up", fits: true },
-  { state: "peek", axis: "horizontal", arrangement: "sheet-peek-left", fits: false },
-  { state: "half", axis: "vertical", arrangement: "sheet-half-right", fits: true },
-  { state: "half", axis: "horizontal", arrangement: "sheet-half-right", fits: true },
-  { state: "half", axis: "horizontal", arrangement: "sheet-half-left", fits: false },
-  { state: "full", axis: "vertical", arrangement: "sheet-full-right", fits: true },
-  { state: "full", axis: "vertical", arrangement: "sheet-full-up", fits: true },
-  { state: "full", axis: "horizontal", arrangement: "sheet-full-right", fits: true },
-  { state: "full", axis: "horizontal", arrangement: "sheet-full-left", fits: false },
+type CellOutcome = "within" | "scrollable" | "clipped";
+
+const CELLS: readonly {
+  state: "peek" | "half" | "full";
+  axis: "vertical" | "horizontal";
+  arrangement: string;
+  outcome: CellOutcome;
+}[] = [
+  // peek — the walk stops at the `fixed` strip, so the frame is the
+  // viewport and there is nothing to scroll in either direction.
+  { state: "peek", axis: "vertical", arrangement: "sheet-peek-up", outcome: "within" },
+  { state: "peek", axis: "vertical", arrangement: "sheet-peek-down", outcome: "clipped" },
+  { state: "peek", axis: "horizontal", arrangement: "sheet-peek-up", outcome: "within" },
+  { state: "peek", axis: "horizontal", arrangement: "sheet-peek-left", outcome: "clipped" },
+
+  // half — the frame is the sheet's own scroller, about 200px tall
+  // against a menu of five rows. Neither direction fits it, and the
+  // component picks the one whose overflow the scroller can reach.
+  { state: "half", axis: "vertical", arrangement: "sheet-half-right", outcome: "scrollable" },
+  { state: "half", axis: "vertical", arrangement: "sheet-half-up", outcome: "clipped" },
+  { state: "half", axis: "horizontal", arrangement: "sheet-half-right", outcome: "within" },
+  { state: "half", axis: "horizontal", arrangement: "sheet-half-left", outcome: "scrollable" },
+
+  // full — the same frame with room below, so the picked direction is
+  // inside the viewport outright and the reversal is off the top.
+  { state: "full", axis: "vertical", arrangement: "sheet-full-right", outcome: "within" },
+  { state: "full", axis: "vertical", arrangement: "sheet-full-up", outcome: "clipped" },
+  { state: "full", axis: "horizontal", arrangement: "sheet-full-right", outcome: "within" },
+  { state: "full", axis: "horizontal", arrangement: "sheet-full-left", outcome: "scrollable" },
 ] as const;
 
 test.describe("the menu's box, in every sheet state and on both axes", () => {
-  test("the table covers three states and two axes", () => {
-    // Declared, not counted off the rows: a state dropped from the table
-    // takes its cases with it and leaves a shorter table agreeing with
-    // itself (detector rule 5).
+  test("the table covers three states and two axes, and both directions of each", () => {
+    // Counted as well as enumerated. Without the literal the table can be
+    // walked back to any length and every case it still holds keeps
+    // passing (detector rule 1, and rule 5's shape that keeps recurring).
+    expect(CELLS).toHaveLength(12);
+
     expect([...new Set(CELLS.map((c) => c.state))]).toEqual([
       "peek",
       "half",
@@ -579,28 +641,77 @@ test.describe("the menu's box, in every sheet state and on both axes", () => {
       "vertical",
       "horizontal",
     ]);
-    // Both outcomes are represented on both axes, so no axis is measured
-    // only in the direction that works.
-    for (const axis of ["vertical", "horizontal"] as const) {
-      const outcomes = CELLS.filter((c) => c.axis === axis).map((c) => c.fits);
-      expect([...new Set(outcomes)].sort()).toEqual([false, true]);
+
+    // Every state × axis draws **both** directions, and one of the two is
+    // the one the component does not pick. Pooling the outcomes across
+    // the whole table hid that `half · vertical` had a single row: the
+    // vertical axis was discriminating in `peek` alone, and three
+    // fixture mutations that reversed a direction left the run green.
+    for (const state of ["peek", "half", "full"] as const) {
+      for (const axis of ["vertical", "horizontal"] as const) {
+        const rows = CELLS.filter((c) => c.state === state && c.axis === axis);
+        expect(rows, `${state} · ${axis}`).toHaveLength(2);
+        // One of the two has to be a direction that does *not* fit the
+        // frame — `clipped` where nothing recovers it, `scrollable` where
+        // the frame can be scrolled to it. Requiring `clipped`
+        // specifically would be requiring the sheet not to scroll
+        // sideways, which is a separate question from whether this axis
+        // is measured at all.
+        expect(
+          rows.some((r) => r.outcome !== "within"),
+          `${state} · ${axis} draws no direction that fails to fit`,
+        ).toBe(true);
+      }
     }
   });
 
   for (const cell of CELLS) {
-    test(`${cell.state} · ${cell.axis} · ${cell.arrangement} · ${
-      cell.fits ? "on screen" : "off screen"
-    }`, async ({ page }) => {
+    test(`${cell.state} · ${cell.axis} · ${cell.arrangement} · ${cell.outcome}`, async ({
+      page,
+    }) => {
       await open(page, cell.arrangement);
       // vaul animates the drawer into place. Measured before it settles,
-      // the expanded states report the animation rather than the state —
-      // which is how the first pass of this table read `half` as 99px off
-      // the bottom when it is not.
+      // the expanded states report the animation rather than the state.
       await page.waitForTimeout(600);
 
-      const box = await page.evaluate(() => {
+      const m = await page.evaluate(() => {
         const el = document.getElementById("anchored")!;
         const r = el.getBoundingClientRect();
+
+        // The frame the component measured against, found the way the
+        // component finds it: the first ancestor that clips, or the
+        // viewport when the walk leaves through a `fixed` box.
+        let frame = {
+          left: 0,
+          right: window.innerWidth,
+          top: 0,
+          bottom: window.innerHeight,
+          scrollBelow: 0,
+          scrollRight: 0,
+        };
+        for (
+          let node = el.parentElement;
+          node;
+          node = node.parentElement
+        ) {
+          const { overflowX, overflowY, position } = getComputedStyle(node);
+          if (/auto|scroll|hidden/.test(overflowX + overflowY)) {
+            const b = node.getBoundingClientRect();
+            frame = {
+              left: b.left,
+              right: b.right,
+              top: b.top,
+              bottom: b.bottom,
+              scrollBelow:
+                node.scrollHeight - node.clientHeight - node.scrollTop,
+              scrollRight:
+                node.scrollWidth - node.clientWidth - node.scrollLeft,
+            };
+            break;
+          }
+          if (position === "fixed") break;
+        }
+
         return {
           left: r.left,
           right: r.right,
@@ -608,17 +719,48 @@ test.describe("the menu's box, in every sheet state and on both axes", () => {
           bottom: r.bottom,
           vw: window.innerWidth,
           vh: window.innerHeight,
+          frame,
         };
       });
 
-      const withinX = box.left >= 0 && box.right <= box.vw;
-      const withinY = box.top >= 0 && box.bottom <= box.vh;
-      const within = cell.axis === "horizontal" ? withinX : withinY;
+      const where = `[${m.left}, ${m.right}] x [${m.top}, ${m.bottom}] in frame [${m.frame.left}, ${m.frame.right}] x [${m.frame.top}, ${m.frame.bottom}], scrollBelow ${m.frame.scrollBelow}`;
 
-      expect(
-        within,
-        `${cell.arrangement} ${cell.axis}: [${box.left}, ${box.right}] x [${box.top}, ${box.bottom}] in ${box.vw}x${box.vh}`,
-      ).toBe(cell.fits);
+      const within =
+        cell.axis === "horizontal"
+          ? m.left >= m.frame.left && m.right <= m.frame.right
+          : m.top >= m.frame.top && m.bottom <= m.frame.bottom;
+
+      if (cell.outcome === "within") {
+        expect(within, where).toBe(true);
+        // And inside the screen, which the frame being on screen makes
+        // true but does not say.
+        const onScreen =
+          cell.axis === "horizontal"
+            ? m.left >= 0 && m.right <= m.vw
+            : m.top >= 0 && m.bottom <= m.vh;
+        expect(onScreen, `${where} — on screen on this axis`).toBe(true);
+        return;
+      }
+
+      expect(within, `${where} — expected to be past the frame`).toBe(false);
+
+      // Past the frame either way; which of the two it is, is whether the
+      // frame can be scrolled far enough to bring it back — **on the axis
+      // this cell is about**. Scrolling down does not recover a box that
+      // is off to the right, and a box that overshoots the frame's top
+      // starts above its content origin, where scrolling has nowhere to
+      // go: only the trailing edge of each axis is recoverable.
+      const overflow =
+        cell.axis === "horizontal"
+          ? m.right - m.frame.right
+          : m.bottom - m.frame.bottom;
+      const scrollAvailable =
+        cell.axis === "horizontal" ? m.frame.scrollRight : m.frame.scrollBelow;
+      const reachable = overflow > 0 && scrollAvailable >= overflow;
+
+      expect(reachable, `${where} — reachable by scrolling?`).toBe(
+        cell.outcome === "scrollable",
+      );
     });
   }
 });

@@ -913,12 +913,13 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   state or the other is always the broken one for a constant direction.
 
   What keeps the `fixed … bottom-4` form is every menu that hangs off a
-  *bar*, enumerated rather than counted: `SortButton`, `ToolbarMenu` (and
-  through it `ViewMenu`, `SortMenu`, `folder/FilterMenu`,
-  `archive/ArchiveToolbar` and `folder/FolderToolbar`'s `…`),
-  `SmartFolderSaveButton`, `FolderContextMenu` and
-  `sidebar/SidebarSmartFoldersSection`. None of them is drawn inside the
-  sheet, and none of them is drawn in its resting strip.
+  *bar*, and the property that matters is not which names are on a list —
+  a list of this kind has been wrong in both directions twice here. It is
+  that **nothing rendered inside the Bottom Sheet or its resting strip
+  spells `fixed inset-x-2 bottom-4`**, which is a claim `git grep` settles
+  in one line and which stays true as components are added. The form is
+  right where it is used, because a bar is pinned to the screen already
+  and its menu has nowhere else to be.
   `AddButton` even records a measurement of its own menu ending below the fold
   and accepts it. Whether measuring should replace any of that is filed as its
   own unit; until it lands, this is one component's behaviour and not a rule
