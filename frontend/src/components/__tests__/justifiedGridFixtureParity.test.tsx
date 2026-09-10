@@ -348,6 +348,30 @@ function expectMarkup(el: Element, spec: Markup, where: string) {
   });
 }
 
+/**
+ * What the two state loops below actually registered, recorded as they
+ * register it.
+ *
+ * The state tables are already tied to the fixture's own `SHAPES` table
+ * in both directions, so a state that goes missing from either side is
+ * red. What none of that observes is the loop: a `continue` inside it
+ * drops the cases it guards and leaves every table exactly as it was,
+ * which is a state this file was measured in.
+ *
+ * The order of the two lines in each loop is the whole of it: `it()`
+ * first, `push` second. Recorded first, anything between them keeps the
+ * record and loses the registration. Recorded last, a skipped `it()`
+ * takes its push with it.
+ *
+ * The guard is the last case in the file. Vitest collects every `it` in
+ * a file before it runs any of them, so by the time it executes the two
+ * loops have finished registering.
+ */
+const registered: string[] = [];
+
+const shapeCaseId = (shape: string) =>
+  `renders ${shape} exactly as the table declares it`;
+
 describe("the layout fixture's markup table", () => {
   it("has one row per declared render state, and no other", () => {
     expect(Object.keys(SHAPES)).toHaveLength(SHAPE_COUNT);
@@ -370,9 +394,10 @@ describe("the layout fixture's markup table", () => {
 
   describe("against JustifiedFileCell", () => {
     for (const state of PHOTO_STATES) {
-      it(`renders ${state.shape} exactly as the table declares it`, () => {
+      it(shapeCaseId(state.shape), () => {
         expectMarkup(renderPhotoCell(state), SHAPES[state.shape], state.shape);
       });
+      registered.push(shapeCaseId(state.shape));
     }
 
     it("covers every class list the cell can carry", () => {
@@ -392,13 +417,24 @@ describe("the layout fixture's markup table", () => {
 
   describe("against ArchiveEntryCard", () => {
     for (const state of ARCHIVE_STATES) {
-      it(`renders ${state.shape} exactly as the table declares it`, () => {
+      it(shapeCaseId(state.shape), () => {
         expectMarkup(
           renderArchiveCell(state.clickable),
           SHAPES[state.shape],
           state.shape,
         );
       });
+      registered.push(shapeCaseId(state.shape));
     }
   });
+});
+
+it("registered a case for every state both tables declare", () => {
+  // Rebuilt from the two state tables, in the order the file walks them,
+  // so it does not follow a loop that has been walked back. `namesFrom`
+  // above is what stops a table losing a row quietly.
+  expect(registered).toEqual([
+    ...PHOTO_STATES.map((state) => shapeCaseId(state.shape)),
+    ...ARCHIVE_STATES.map((state) => shapeCaseId(state.shape)),
+  ]);
 });

@@ -236,6 +236,11 @@ describe("both forms of the inspector", () => {
   ] as const;
   const compared: string[] = [];
 
+  // Recorded **after** the `it()` it belongs to, not before. With the
+  // push first, anything between the two lines — a `continue`, a
+  // condition, a `throw` — drops the registration and leaves the record,
+  // and this guard goes on agreeing with a loop that registered nothing.
+  // With it last, a skipped `it()` takes its push with it.
   it("compares exactly the two forms the fixture declares", () => {
     expect(compared).toEqual(["column", "panel"]);
     expect(FORMS.flatMap((form) => [...form.keys]).sort()).toEqual(
@@ -253,7 +258,6 @@ describe("both forms of the inspector", () => {
   });
 
   for (const form of FORMS) {
-    compared.push(form.scroll);
     const [rootKey, headerKey, stripKey, panelKey] = form.keys;
 
     it(`declares the ${form.scroll} form's four boxes`, () => {
@@ -265,6 +269,7 @@ describe("both forms of the inspector", () => {
       expectSameClasses(shell.strip.className, str(stripKey));
       expectSameClasses(shell.panel.className, str(panelKey));
     });
+    compared.push(form.scroll);
   }
 
   it("declares the tab button, which is what gives the strip its height", () => {
@@ -315,6 +320,15 @@ describe("vaul's snap arithmetic, which the fixture reproduces", () => {
   const SNAPS = [SHEET_SNAP_HALF_FALLBACK, 0.627736, SHEET_SNAP_FULL];
   expect(SNAPS).toHaveLength(3);
 
+  // And what the loop registered, recorded after each `it()`. The length
+  // above pins the table; it says nothing about the walk over it, and a
+  // `continue` here leaves the table — and so that assertion — untouched.
+  const publishedFor: number[] = [];
+
+  it("registers one case per snap the table declares", () => {
+    expect(publishedFor).toEqual(SNAPS);
+  });
+
   for (const snap of SNAPS) {
     it(`publishes innerHeight × (1 − ${snap}) as --snap-point-height`, () => {
       const { drawer } = renderSheet(snap);
@@ -326,6 +340,7 @@ describe("vaul's snap arithmetic, which the fixture reproduces", () => {
         5,
       );
     });
+    publishedFor.push(snap);
   }
 
   it("is the same expression the fixture computes it with", () => {

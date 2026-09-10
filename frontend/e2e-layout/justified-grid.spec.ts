@@ -241,6 +241,39 @@ test.beforeEach(async ({ page }) => {
 });
 
 /**
+ * What the four generated loops below actually registered, recorded as
+ * they register it.
+ *
+ * Every one of them walks a table and calls `test()`; none of them was
+ * observed. `expect(cases).toHaveLength(n)` would not have helped either,
+ * because the table is not what goes missing — a `continue` inside the
+ * loop drops the cases it guards and leaves the table untouched, which is
+ * a state this suite was measured in.
+ *
+ * The order of the two lines in each loop is the whole of it: `test()`
+ * first, `push` second. Recorded first, anything between them — a
+ * `continue`, a `throw`, a condition — drops the registration and keeps
+ * the record. Recorded last, a skipped `test()` takes its push with it
+ * and the register comes up short of the declarations.
+ *
+ * What it cannot see: a row deleted from one of the tables, since the
+ * guard at the foot of the file rebuilds its expectation from those same
+ * tables. The counts declared beside each table hold that half. Nor
+ * `test.skip` in place of `test`, which registers a case that never runs.
+ */
+const registered: string[] = [];
+
+const caseId = (group: string, label: string) => `${group} — ${label}`;
+
+const shapeCaseId = (shape: string) =>
+  `${shape} (${SHAPES[shape].source}) is the shape of its own ratio`;
+
+const ROW_HEIGHT_GROUP = "the row height the container query picks";
+const CELL_SHAPE_GROUP = "a cell is the shape of its own ratio";
+const DECLARED_SHAPE_GROUP = "every declared cell shape";
+const LINE_FILL_GROUP = "lines fill the grid";
+
+/**
  * The row height, read as a length rather than as text.
  *
  * A single cell of ratio 1 with the slack absorber after it is laid out
@@ -251,15 +284,22 @@ test.beforeEach(async ({ page }) => {
  * dominates. At `flex-grow: 1` the absorber loses that argument and this
  * lone cell stretches to more than half the grid.
  */
-test.describe("the row height the container query picks", () => {
-  const cases = [
-    { width: 420, rowH: JG_ROW_H_NARROW },
-    { width: JG_CONTAINER_BREAKPOINT - 1, rowH: JG_ROW_H_NARROW },
-    { width: JG_CONTAINER_BREAKPOINT, rowH: JG_ROW_H_WIDE },
-    { width: 1469, rowH: JG_ROW_H_WIDE },
-  ];
+const ROW_HEIGHT_CASES = [
+  { width: 420, rowH: JG_ROW_H_NARROW },
+  { width: JG_CONTAINER_BREAKPOINT - 1, rowH: JG_ROW_H_NARROW },
+  { width: JG_CONTAINER_BREAKPOINT, rowH: JG_ROW_H_WIDE },
+  { width: 1469, rowH: JG_ROW_H_WIDE },
+];
 
-  for (const { width, rowH } of cases) {
+const rowHeightId = ({ width, rowH }: { width: number; rowH: number }) =>
+  `is ${rowH}px on a ${width}px grid`;
+
+test.describe(ROW_HEIGHT_GROUP, () => {
+  // Both sides of the query and a width well past it; the count is
+  // declared so dropping one is not a silent narrowing of the scope.
+  expect(ROW_HEIGHT_CASES).toHaveLength(4);
+
+  for (const { width, rowH } of ROW_HEIGHT_CASES) {
     test(`is ${rowH}px on a ${width}px grid`, async ({ page }) => {
       const cells = await layout(page, { ratios: [1], width });
 
@@ -271,6 +311,7 @@ test.describe("the row height the container query picks", () => {
       );
       expectPx(cells[0].height, cells[0].width, "lone cell height");
     });
+    registered.push(caseId(ROW_HEIGHT_GROUP, rowHeightId({ width, rowH })));
   }
 });
 
@@ -308,22 +349,25 @@ function expectRatios(cells: Cell[], rowH: number, clamped: number) {
   }
 }
 
-test.describe("a cell is the shape of its own ratio", () => {
-  const cases = [
-    { width: 420, rowH: JG_ROW_H_NARROW, clamped: 0 },
+const CELL_SHAPE_CASES = [
+  { width: 420, rowH: JG_ROW_H_NARROW, clamped: 0 },
     // The first width on the wide side of the query, and the one width in
     // this set where greedy line-breaking strands a narrow cell high
     // enough to meet the ceiling.
-    { width: 640, rowH: JG_ROW_H_WIDE, clamped: 1 },
-    { width: 900, rowH: JG_ROW_H_WIDE, clamped: 0 },
-    { width: 1200, rowH: JG_ROW_H_WIDE, clamped: 0 },
-    { width: 1469, rowH: JG_ROW_H_WIDE, clamped: 0 },
-  ];
+  { width: 640, rowH: JG_ROW_H_WIDE, clamped: 1 },
+  { width: 900, rowH: JG_ROW_H_WIDE, clamped: 0 },
+  { width: 1200, rowH: JG_ROW_H_WIDE, clamped: 0 },
+  { width: 1469, rowH: JG_ROW_H_WIDE, clamped: 0 },
+];
 
-  for (const { width, rowH, clamped } of cases) {
+test.describe(CELL_SHAPE_GROUP, () => {
+  expect(CELL_SHAPE_CASES).toHaveLength(5);
+
+  for (const { width, rowH, clamped } of CELL_SHAPE_CASES) {
     test(`at every ratio on a ${width}px grid`, async ({ page }) => {
       expectRatios(await layout(page, { ratios: RATIOS, width }), rowH, clamped);
     });
+    registered.push(caseId(CELL_SHAPE_GROUP, `at every ratio on a ${width}px grid`));
   }
 });
 
@@ -344,7 +388,7 @@ test.describe("a cell is the shape of its own ratio", () => {
  * One width is enough here: the shapes differ in markup, not in geometry,
  * so the width sweep above stays on the common shape.
  */
-test.describe("every declared cell shape", () => {
+test.describe(DECLARED_SHAPE_GROUP, () => {
   test("is exactly the set this file tests", () => {
     expect(Object.keys(SHAPES)).toHaveLength(SHAPE_COUNT);
   });
@@ -361,6 +405,7 @@ test.describe("every declared cell shape", () => {
       for (const cell of cells) expectShape(cell, shape);
       expectRatios(cells, JG_ROW_H_WIDE, 0);
     });
+    registered.push(caseId(DECLARED_SHAPE_GROUP, shapeCaseId(shape)));
   }
 
   /**
@@ -427,27 +472,29 @@ test("clamps a stranded cell at the ceiling and leaves its width alone", async (
  * `flex-basis: ratio * row-h` decides it, and the arithmetic is written
  * out per case so that a change to the basis has somewhere to fail.
  */
-test.describe("lines fill the grid", () => {
-  const cases = [
-    {
-      name: "equal ratios",
-      width: 1216,
-      // basis 200 each: 5 fit (5*200 + 4*8 = 1032; a sixth needs 1240).
-      ratios: Array.from({ length: 12 }, () => 1),
-      filledLines: 2,
-      lastLine: 2,
-    },
-    {
-      name: "mixed ratios",
-      width: 1216,
-      // bases 300 150 400 200 120 | 600 250 160 | 350 200 500 | 180.
-      ratios: [1.5, 0.75, 2, 1, 0.6, 3, 1.25, 0.8, 1.75, 1, 2.5, 0.9],
-      filledLines: 3,
-      lastLine: 1,
-    },
-  ];
+const LINE_FILL_CASES = [
+  {
+    name: "equal ratios",
+    width: 1216,
+    // basis 200 each: 5 fit (5*200 + 4*8 = 1032; a sixth needs 1240).
+    ratios: Array.from({ length: 12 }, () => 1),
+    filledLines: 2,
+    lastLine: 2,
+  },
+  {
+    name: "mixed ratios",
+    width: 1216,
+    // bases 300 150 400 200 120 | 600 250 160 | 350 200 500 | 180.
+    ratios: [1.5, 0.75, 2, 1, 0.6, 3, 1.25, 0.8, 1.75, 1, 2.5, 0.9],
+    filledLines: 3,
+    lastLine: 1,
+  },
+];
 
-  for (const { name, width, ratios, filledLines, lastLine } of cases) {
+test.describe(LINE_FILL_GROUP, () => {
+  expect(LINE_FILL_CASES).toHaveLength(2);
+
+  for (const { name, width, ratios, filledLines, lastLine } of LINE_FILL_CASES) {
     test(`with ${name}`, async ({ page }) => {
       const cells = await layout(page, { ratios, width });
       const grid = await page.evaluate(() => window.measureGrid());
@@ -485,6 +532,7 @@ test.describe("lines fill the grid", () => {
         expectPx(cell.width, expected[i], `last line cell ${i}`);
       });
     });
+    registered.push(caseId(LINE_FILL_GROUP, `with ${name}`));
   }
 });
 
@@ -525,4 +573,21 @@ test.describe("the FLIP transition", () => {
     expect(flip.transitionDuration).toBe("0s");
     expect(flip.transformOrigin).toBe("0px 0px");
   });
+});
+
+test("every generated case was registered", () => {
+  // The expected side is rebuilt from the four tables, in the order the
+  // file wrote them, so it does not follow a loop that has been walked
+  // back. `Object.keys(SHAPES)` is the fixture's own table, which
+  // `SHAPE_COUNT` pins above.
+  expect(registered).toEqual([
+    ...ROW_HEIGHT_CASES.map((c) => caseId(ROW_HEIGHT_GROUP, rowHeightId(c))),
+    ...CELL_SHAPE_CASES.map(({ width }) =>
+      caseId(CELL_SHAPE_GROUP, `at every ratio on a ${width}px grid`),
+    ),
+    ...Object.keys(SHAPES).map((shape) =>
+      caseId(DECLARED_SHAPE_GROUP, shapeCaseId(shape)),
+    ),
+    ...LINE_FILL_CASES.map(({ name }) => caseId(LINE_FILL_GROUP, `with ${name}`)),
+  ]);
 });

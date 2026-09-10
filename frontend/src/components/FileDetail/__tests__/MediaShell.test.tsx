@@ -575,6 +575,31 @@ describe("media on the shell, on a phone", () => {
     expect(row.classList.contains("file-action-row-touch")).toBe(true);
   });
 
+  it("gives the raised sheet the row in full, not the strip's compaction", async () => {
+    // The other half of the pair, and the half `docs/user-guide/
+    // viewers-and-players.md` describes: raising the sheet is what gets
+    // the reader back what the strip sheds. Which form each surface asks
+    // for is one prop at two call sites — `FileDetailContainer` passes
+    // `compact` for the strip, `FileMetaBlock` does not for the sheet —
+    // and only a test that opens the sheet can see the second one.
+    // `FileActionRowForms.test.tsx` holds what the prop then decides;
+    // this holds which surface asks for which.
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+    await screen.findByTestId("mobile-inspector-peek");
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    await screen.findByTestId("mobile-inspector-sheet");
+
+    expect(screen.queryByTestId("mobile-inspector-peek")).toBeNull();
+    const row = screen.getByTestId("file-action-row");
+    expect(row.classList.contains("file-action-row-compact")).toBe(false);
+    // And what that costs the strip, stated as the control rather than as
+    // the class: this file is a video, so the full form carries trust and
+    // Cast, and the case above asserts the strip carries neither.
+    expect(row.querySelector("[data-testid='trust-tier-state']")).not.toBeNull();
+    expect(row.querySelector("[data-testid='cast']")).not.toBeNull();
+  });
+
   it("ends the page above the strip it rests behind", async () => {
     // Without this the last thing in the canvas is permanently behind
     // the 56px row and cannot be scrolled to.

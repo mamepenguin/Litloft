@@ -90,7 +90,44 @@ const HEIGHTS: { height: number; label: string; innerScroll: boolean }[] = [
   { height: 863, label: "a taller desktop window", innerScroll: false },
 ];
 
+/** Both phone widths, and the count is declared beside them. */
+const WIDTHS = [375, 430];
+
+/**
+ * The two describe titles the loops below register under, named here so
+ * the guard at the foot of the file can rebuild what it expects without
+ * reading the register it is judging.
+ */
+const HEIGHT_GROUP = "what the cap does at each real viewport height";
+const WIDTH_GROUP = "the columns still reach a narrow screen";
+
+/**
+ * What the loops below actually registered, recorded as they register it.
+ *
+ * `toHaveLength` on the tables above pins the population; it says nothing
+ * about the loop that walks it. A `continue` in either loop drops the
+ * cases it guards and leaves the table — and so the length assertion —
+ * exactly as it was, which is a state this file was measured in.
+ *
+ * The order of the two lines in each loop is the whole of it: the `test()`
+ * call first and the `push` second. Recorded first, anything between the
+ * two lines — a `continue`, a `throw`, a condition — drops the
+ * registration and keeps the record, which is the seam that made the
+ * earlier form green. Recorded last, a skipped `test()` takes its push
+ * with it and the register comes up short of the declarations.
+ *
+ * What it cannot see: a case deleted from `HEIGHTS` or `WIDTHS`, since
+ * the expected side below is rebuilt from those same tables and moves
+ * with them. `toHaveLength` beside each table is what holds that half.
+ * Nor `test.skip` in place of `test`, which registers a case that never
+ * runs; the runner's own report is where that shows.
+ */
+const registered: string[] = [];
+
+const caseId = (group: string, label: string) => `${group} — ${label}`;
+
 interface Measurement {
+  frameWidth: number;
   capPx: number;
   wrapperHeight: number;
   tableHeight: number;
@@ -211,7 +248,7 @@ test.describe("the column headings survive the scroll", () => {
   });
 });
 
-test.describe("what the cap does at each real viewport height", () => {
+test.describe(HEIGHT_GROUP, () => {
   // The claim that was wrong, replaced by the mechanism and its
   // arithmetic, declared per height. `innerScroll` is written out per row
   // and not computed from the measurement — an expectation derived from
@@ -234,22 +271,28 @@ test.describe("what the cap does at each real viewport height", () => {
       // not.
       expect(m.headTop).toBe(0);
     });
+    registered.push(caseId(HEIGHT_GROUP, `${height}px`));
   }
 });
 
-test.describe("the columns still reach a narrow screen", () => {
+test.describe(WIDTH_GROUP, () => {
   /**
-   * Both phone widths, and the count is declared: halving this list is
-   * "shrinking the measured scope without moving the expected count",
-   * which detector rule 1 names and which this suite could do silently.
+   * Halving this list is "shrinking the measured scope without moving the
+   * expected count", which detector rule 1 names and which this suite
+   * could do silently.
    */
-  const WIDTHS = [375, 430];
   expect(WIDTHS).toHaveLength(2);
 
   for (const width of WIDTHS) {
     test(`${width}px scrolls sideways, and vertically too on a phone's height`, async ({ page }) => {
       const m = await layout(page, { width, height: 667 });
 
+      // The case's own width, read back off the box the browser laid
+      // out. Every other assertion in this body is a boolean about the
+      // wrapper, and both widths answer them the same way, so without
+      // this the pair passes with one width laid out twice — the seam
+      // the sweep in `related-files.spec.ts` closes the same way.
+      expect(m.frameWidth).toBeCloseTo(width, 0);
       expect(m.scrollsHorizontally).toBe(true);
       // Both axes, and that is the trade rather than an accident: at a
       // phone's height 70vh is under the app's table, so the wrapper is a
@@ -258,5 +301,16 @@ test.describe("the columns still reach a narrow screen", () => {
       expect(m.scrollsVertically).toBe(true);
       expect(m.headTop).toBe(0);
     });
+    registered.push(caseId(WIDTH_GROUP, `${width}px`));
   }
+});
+
+test("every case both tables declare was registered", () => {
+  // The expected side is rebuilt from the two tables, in the order the
+  // file wrote them, so it does not follow a loop that has been walked
+  // back.
+  expect(registered).toEqual([
+    ...HEIGHTS.map(({ height }) => caseId(HEIGHT_GROUP, `${height}px`)),
+    ...WIDTHS.map((width) => caseId(WIDTH_GROUP, `${width}px`)),
+  ]);
 });

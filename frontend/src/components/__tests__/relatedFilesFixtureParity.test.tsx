@@ -212,6 +212,29 @@ async function renderTile(state: Relation): Promise<HTMLElement> {
   return container.querySelector<HTMLElement>(".related-files-grid > a")!;
 }
 
+/**
+ * What the state loop below actually registered, recorded as it registers
+ * it.
+ *
+ * `STATES` is already pinned against the fixture's own `SHAPES` table in
+ * both directions, so a state that goes missing from either side is red.
+ * What none of that observes is the loop: a `continue` inside it drops the
+ * cases it guards and leaves both tables exactly as they were, which is a
+ * state this file was measured in.
+ *
+ * The order of the two lines is the whole of it: `it()` first, `push`
+ * second. Recorded first, anything between them keeps the record and
+ * loses the registration. Recorded last, a skipped `it()` takes its push
+ * with it.
+ *
+ * The guard is the last case in the file. Vitest collects every `it` in a
+ * file before it runs any of them, so by the time it executes the loop
+ * has finished registering.
+ */
+const registered: string[] = [];
+
+const tileCaseId = (name: string) => `matches the component's ${name} tile`;
+
 describe("the related-files layout fixture's markup table", () => {
   it("declares exactly the shapes the states below render", () => {
     expect(Object.keys(SHAPES).sort()).toEqual(Object.keys(STATES).sort());
@@ -219,9 +242,10 @@ describe("the related-files layout fixture's markup table", () => {
   });
 
   for (const [name, state] of Object.entries(STATES)) {
-    it(`matches the component's ${name} tile`, async () => {
+    it(tileCaseId(name), async () => {
       expectMarkup(await renderTile(state), SHAPES[name], name);
     });
+    registered.push(tileCaseId(name));
   }
 
   it("names the host and grid classes the fixture builds", async () => {
@@ -276,8 +300,12 @@ describe("no media in the containment scope", () => {
 
   it("holds no media before or after the interaction that mounts one", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    // This loop is inside one case, so walking it back does not change
+    // the number of tests the runner reports — there is no count for it
+    // to move. What it swept is recorded and compared at the end.
+    const swept: string[] = [];
     try {
-      for (const state of Object.values(STATES)) {
+      for (const [name, state] of Object.entries(STATES)) {
         cleanup();
         await renderTile(state);
         const host = document.querySelector(".related-files-host")!;
@@ -301,10 +329,12 @@ describe("no media in the containment scope", () => {
           vi.advanceTimersByTime(2000);
         });
         expect(media(host), "after hover").toHaveLength(0);
+        swept.push(name);
       }
     } finally {
       vi.useRealTimers();
     }
+    expect(swept).toEqual(Object.keys(STATES));
   });
 
   it("contains nothing but the grid, and nothing but tiles inside it", async () => {
@@ -338,4 +368,11 @@ describe("no media in the containment scope", () => {
       Array.from(grid.children).map((c) => c.tagName.toLowerCase()),
     ).toEqual(Object.keys(STATES).map(() => "a"));
   });
+});
+
+it("registered a case for every state the fixture declares", () => {
+  // Rebuilt from `STATES` in the order the loop walks it, so it does not
+  // follow a loop that has been walked back. The comparison against
+  // `SHAPES` above is what stops the table itself losing a row quietly.
+  expect(registered).toEqual(Object.keys(STATES).map(tileCaseId));
 });
