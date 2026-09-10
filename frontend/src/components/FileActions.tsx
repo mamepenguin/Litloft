@@ -9,7 +9,10 @@ import {
   moveFile,
   renameFile,
 } from "@/lib/api";
-import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
+import {
+  ANCHORED_VERTICAL,
+  useAnchoredDirection,
+} from "@/hooks/useAnchoredDirection";
 import { useFileMenuItems } from "@/hooks/useFileMenuItems";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
@@ -29,12 +32,14 @@ import { CollectionPicker } from "./CollectionPicker";
  * height lands in the last 4px of the space below is kept downward and its
  * final pixels sit past the edge.
  *
- * Exported so the claim is checkable rather than asserted here in prose:
+ * Read out of the same table entry the classes come from, so the number and
+ * the margin it names cannot become different facts. Exported because the
+ * claim is checked outside this file:
  * `fileActionsMenuFixtureParity.test.tsx` pins it against the number the
  * layout fixture builds its boxes from, and `e2e-layout` measures the gap
  * Chromium actually leaves against that same number.
  */
-export const MENU_GAP_PX = 4;
+export const MENU_GAP_PX = ANCHORED_VERTICAL[1].px;
 
 interface FileActionsProps {
   file: FileItem;
@@ -207,7 +212,7 @@ export function FileActions({
       ref={menuBoxRef}
       role="menu"
       className={`absolute z-30 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg ${
-        openUp ? "bottom-full mb-1" : "top-full mt-1"
+        ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
       } ${side === "left" ? "left-0" : "right-0"}`}
     >
       {menuItems.map((item) => (
@@ -321,7 +326,7 @@ export function FileActions({
                `right-0` toast crosses exactly the edge the side decision exists
                to keep the menu inside. */
             className={`absolute z-30 whitespace-nowrap rounded-2xl bg-danger px-3 py-1.5 text-xs text-white ${
-              openUp ? "bottom-full mb-1" : "top-full mt-1"
+              ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
             } ${side === "left" ? "left-0" : "right-0"}`}
           >
             {error}

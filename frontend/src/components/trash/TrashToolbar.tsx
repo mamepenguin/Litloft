@@ -7,6 +7,11 @@ import { useTranslations } from "next-intl";
 import type { FileType, SortField, SortOrder, ViewMode } from "@/types";
 import { ViewToggle } from "@/components/ViewToggle";
 import { DismissScrim } from "@/components/DismissScrim";
+import {
+  ANCHORED_ORIGIN,
+  ANCHORED_VERTICAL,
+  useAnchoredDirection,
+} from "@/hooks/useAnchoredDirection";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { SortButton } from "@/components/SortButton";
@@ -44,6 +49,19 @@ export function TrashToolbar({
   const tFilter = useTranslations("filter");
   const [typeFilterOpen, setTypeFilterOpen] = useState(false);
   const typeFilterTriggerRef = useRef<HTMLButtonElement>(null);
+  const typeFilterWrapperRef = useRef<HTMLDivElement>(null);
+  const typeFilterMenuRef = useRef<HTMLDivElement>(null);
+  // The control exists only below 640px (`sm:hidden` on its wrapper), and
+  // the panel is `absolute` there rather than a sheet — so unlike the
+  // archive bar's `…`, this one is anchored at every width it is drawn at
+  // and the hook has something to decide.
+  const { openUp, side } = useAnchoredDirection({
+    triggerRef: typeFilterWrapperRef,
+    panelRef: typeFilterMenuRef,
+    open: typeFilterOpen,
+    gapPx: ANCHORED_VERTICAL[1].px,
+    preferSide: "left",
+  });
 
   // An empty bin has nothing to sort, nothing to lay out and nothing to
   // filter by kind — the seven pills, the sort, the view toggle and the
@@ -119,7 +137,7 @@ export function TrashToolbar({
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {!hideArrangingControls && (
-        <div className="relative sm:hidden">
+        <div ref={typeFilterWrapperRef} className="relative sm:hidden">
           <button
             ref={typeFilterTriggerRef}
             onClick={() => setTypeFilterOpen((s) => !s)}
@@ -141,7 +159,16 @@ export function TrashToolbar({
               // only exists below `sm`.
               className="fixed inset-0 z-30"
             >
-              <div role="menu" aria-label={t("fileType")} className="absolute left-0 top-full z-30 mt-1 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale origin-top-left">
+              <div
+                ref={typeFilterMenuRef}
+                role="menu"
+                aria-label={t("fileType")}
+                className={`absolute z-30 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale ${
+                  ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
+                } ${side === "left" ? "left-0" : "right-0"} ${
+                  ANCHORED_ORIGIN[`${openUp ? "up" : "down"}-${side}`]
+                }`}
+              >
                 {TYPE_OPTION_KEYS.map((opt) => (
                   <button
                     key={opt.labelKey}

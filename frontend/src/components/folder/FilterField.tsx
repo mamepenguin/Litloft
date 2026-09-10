@@ -18,6 +18,10 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { DismissScrim } from "@/components/DismissScrim";
+import {
+  ANCHORED_VERTICAL,
+  useAnchoredDirection,
+} from "@/hooks/useAnchoredDirection";
 import type { FileKind } from "@/types";
 
 /**
@@ -113,6 +117,25 @@ export function FilterField({
   const inputRef = useRef<HTMLInputElement>(null);
   const chipWrapperRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // **Two forms, one menu, and the preferred side is not the same in
+  // both.** With a kind chosen the menu hangs off the chip inside the
+  // field, from the chip's own left offset; with none it hangs off the
+  // icon button at the field's right end, where a left-anchored panel runs
+  // off the screen. So the preference is a render-time value rather than a
+  // constant, and the wrapper it is measured against is whichever of the
+  // two positioned boxes actually holds the menu — they are exclusive, and
+  // handing the hook the wrong one would measure the panel against a box
+  // it is not inside.
+  const preferSide = typeFilter === null ? "right" : "left";
+  const { openUp, side } = useAnchoredDirection({
+    triggerRef: wrapperRef,
+    panelRef: popoverRef,
+    open,
+    gapPx: ANCHORED_VERTICAL[1].px,
+    preferSide,
+  });
   const [chipWidth, setChipWidth] = useState(0);
   const menuId = useId();
 
@@ -263,11 +286,15 @@ export function FilterField({
         id={menuId}
         role="menu"
         onKeyDown={handleMenuKeyDown}
-        className={
-          typeFilter === null
-            ? "absolute right-0 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
-            : "absolute left-7 top-full z-30 mt-1 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg"
-        }
+        // The two forms differ in where their preferred edge *is*: the
+        // chip form starts at the chip's own 28px offset rather than at
+        // the field's left edge, so `left-7` is what `left` means here.
+        // The flipped edge is the field's right edge in both.
+        className={`absolute z-30 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg ${
+          ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
+        } ${
+          side === "right" ? "right-0" : typeFilter === null ? "left-0" : "left-7"
+        }`}
       >
         {menuValues.map((value, idx) => {
           const isSelected = value === typeFilter;
@@ -299,7 +326,10 @@ export function FilterField({
 
   return (
     <div className="flex items-center gap-2">
-      <div className="relative flex flex-1 items-center">
+      <div
+        ref={typeFilter === null ? undefined : wrapperRef}
+        className="relative flex flex-1 items-center"
+      >
         {!underline && (
           <Search
             size={14}
@@ -378,7 +408,7 @@ export function FilterField({
       </div>
 
       {kindEnabled && typeFilter === null && (
-        <div className="relative flex-shrink-0">
+        <div ref={wrapperRef} className="relative flex-shrink-0">
           <button
             ref={triggerRef}
             type="button"

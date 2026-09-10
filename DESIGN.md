@@ -921,10 +921,15 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   it opens upward unconditionally because the bar it hangs from is pinned to
   the bottom, which is right by construction.
 
-  The popups that still state their direction in a class list are the ones the
-  sweep has not reached yet: `FolderPicker`, `AddButton`, `EditableTagChips`,
-  `folder/FilterField` and `trash/TrashToolbar` hang downward unconditionally,
-  and `SmartFolderSaveButton` hangs downward by flow order.
+  **The sweep is finished in core**, so `SelectionBar` above is the only
+  popup left that states a direction rather than measuring one. The corner
+  classes themselves live with the measurement — `ANCHORED_VERTICAL` beside
+  the hook, and `MENU_SURFACE_BASE`'s `sm:`-scoped pair for the toolbar
+  surface, which is a sheet below 640px and so needs a scoped spelling the
+  shared table has no entry for. A panel that hand-spells `top-full` outside
+  those two is a panel that decides nothing, and
+  `frontend/src/__tests__/anchoredDropdowns.test.ts` enumerates the family so
+  that the next one is a failure rather than a discovery.
 
   **A menu drawn inside the Bottom Sheet cannot take the `fixed` form**, and
   that is why the AI menu moved groups. The sheet's `Drawer.Content` carries
@@ -1025,10 +1030,12 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   scrims are `fixed`; the over-frame settings panel's is `absolute`, so
   that a panel drawn inside a frame that goes `position: fixed` cannot
   leave it. The menus themselves are not one shape: `SortButton` and the
-  shared `MENU_SURFACE` are `fixed` bottom sheets below 640px and
-  `sm:absolute` above it, while `AddButton`, `FileActions`, `FilterField`,
-  `TrashToolbar` and `EditableTagChips` are `absolute` against their
-  wrapper at every width.
+  shared surface `useMenuSurface` hands out are `fixed` bottom sheets below
+  640px and `sm:absolute` above it, while `AddButton`, `FileActions`,
+  `FilterField`, `TrashToolbar`, `EditableTagChips`, `FolderPicker`,
+  `SmartFolderSaveButton` and `SelectionBar` are `absolute` against their
+  wrapper at every width. The split is why the anchored form's direction
+  classes are scoped in one family and bare in the other.
 
   The scrim carries no name and no role, except where it is the popup's
   *stated* way out — the over-frame settings panel names its backdrop,

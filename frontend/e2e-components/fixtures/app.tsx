@@ -589,6 +589,86 @@ function InspectorColumn({
   );
 }
 
+/**
+ * A column whose **right edge is inside the viewport**, which the inspector
+ * pane's is not.
+ *
+ * `InspectorColumn` above is flush against the window (`fixed right-0 w-96`,
+ * and `InspectorPane` is at the end of a full-width row in the app), so
+ * `pane.right === viewport.width` and the frame's right edge and the visible
+ * band's are the same number. A walk that collected no `right` at all is
+ * rescued there by the intersection, and unit J's first half reported that
+ * as a survivor it could not kill.
+ *
+ * The tree pane is the arrangement where they separate. `TwoPaneLayout`'s
+ * `<aside>` is `overflow-hidden` at `md:w-[280px]` with the content column
+ * beside it, so the frame ends 280px in and a menu preferring the left edge
+ * of a trigger near that end has room the *window* would say it has and the
+ * *column* would not. Below `md` the same aside is `w-[100vw]`, which is why
+ * this arrangement runs in the desktop project.
+ *
+ * The trigger is at the column's right end, preferring `left`: the menu is
+ * 240px, the room leftward from the trigger inside the column is under 60,
+ * and the room rightward from its left edge is the rest of the column. So
+ * the answer has to be `right`, and it is `right` only if the frame is the
+ * column.
+ */
+function TreePaneColumn(): ReactElement {
+  return (
+    <>
+      <PageControl id="underneath" className="fixed inset-0 z-0 bg-bg-elevated">
+        page
+      </PageControl>
+      <aside
+        id="tree-pane"
+        className="fixed left-0 top-0 h-full w-[280px] overflow-hidden border-r border-bg-border bg-bg-card"
+      >
+        <div className="flex items-center justify-end px-3 py-4">
+          <MeasuredMenu rows={5} preferSide="left" />
+        </div>
+      </aside>
+    </>
+  );
+}
+
+/**
+ * The picker inside a modal dialog, near the foot of it.
+ *
+ * `FolderPicker`'s four dialog callers put it in the one arrangement whose
+ * panel height **does not follow the viewport**. It is capped — its folder
+ * list scrolls at `max-h-48` — but capped at a fixed 192px rather than at a
+ * fraction of the screen the way `AddButton` and the toolbar surface are, so
+ * a short viewport does not shrink it. The dialog root is `fixed inset-0`, so
+ * the walk stops there and the frame is the visible band; nothing scrolls the
+ * page behind a centred dialog, so a panel past the fold is simply gone.
+ *
+ * The markup is `FileSaveDialog`'s shape — a `fixed inset-0` centring row, an
+ * absolute overlay, and a `relative` dialog box — with the picker at the
+ * bottom of the box rather than the top, which is where a dialog with two
+ * fields above it puts one.
+ */
+function PickerInDialog(): ReactElement {
+  return (
+    <>
+      <PageControl id="underneath" className="fixed inset-0 z-0 bg-bg-elevated">
+        page
+      </PageControl>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/60" />
+        <div className="relative mx-4 w-full max-w-md">
+          <div
+            id="dialog-box"
+            className="space-y-4 rounded-xl border border-bg-border bg-bg-card p-5"
+          >
+            <div className="h-[420px]" />
+            <MeasuredMenu rows={8} preferSide="right" />
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 /** A trigger at the column's left edge: the default side runs off it. */
 function InspectorColumnLeftEdge(): ReactElement {
   return <InspectorColumn at="left" preferSide="right" />;
@@ -629,6 +709,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "measured-sheet-full": MeasuredSheetFull,
   "measured-inspector-left-edge": InspectorColumnLeftEdge,
   "measured-inspector-right-edge": InspectorColumnRightEdge,
+  "measured-tree-pane": TreePaneColumn,
+  "measured-picker-in-dialog": PickerInDialog,
 };
 
 function App(): ReactElement {

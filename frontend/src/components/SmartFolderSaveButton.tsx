@@ -6,6 +6,11 @@ import { ChevronDown, Pencil, RefreshCw, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { FileKind } from "@/types";
+import {
+  ANCHORED_ORIGIN,
+  ANCHORED_VERTICAL,
+  useAnchoredDirection,
+} from "@/hooks/useAnchoredDirection";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DismissScrim } from "./DismissScrim";
@@ -66,6 +71,18 @@ export function SmartFolderSaveButton({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuWrapperRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  // The search bar this hangs from sits at the top of its column, so the
+  // downward answer is the one it reads as almost everywhere — but the bar
+  // travels with a `sticky` header and the column scrolls under it, and
+  // "almost everywhere" is what the measurement replaces.
+  const { openUp, side } = useAnchoredDirection({
+    triggerRef: menuWrapperRef,
+    panelRef: menuRef,
+    open: menuOpen,
+    gapPx: ANCHORED_VERTICAL[1].px,
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -183,7 +200,7 @@ export function SmartFolderSaveButton({
   return (
     <>
       {inSavedMode ? (
-        <div className="relative flex-shrink-0">
+        <div ref={menuWrapperRef} className="relative flex-shrink-0">
           <button
             ref={menuTriggerRef}
             type="button"
@@ -205,8 +222,20 @@ export function SmartFolderSaveButton({
               className="fixed inset-0 z-30"
             >
               <div
+                ref={menuRef}
                 role="menu"
-                className="absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
+                // `top-full` is spelled out where the panel used to take
+                // its static position. The two land in the same place — an
+                // `absolute` box with neither offset stays where it would
+                // have been in flow, and the only flow content above it is
+                // the trigger — but a direction that is decided has to be
+                // written on both sides, and there is no `bottom-*`
+                // spelling of "wherever flow put it".
+                className={`absolute z-40 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale ${
+                  ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
+                } ${side === "left" ? "left-0" : "right-0"} ${
+                  ANCHORED_ORIGIN[`${openUp ? "up" : "down"}-${side}`]
+                }`}
               >
                 <button
                   type="button"

@@ -11,6 +11,55 @@ import { useLayoutEffect, useState, type RefObject } from "react";
  */
 export type AnchoredSide = "left" | "right";
 
+/**
+ * The vertical pair a panel hangs by, and the gap in that pair, together.
+ *
+ * The number and the class are one entry rather than two declarations,
+ * because the failure they are written against is drift between them:
+ * unit E's `MENU_WIDTH_PX` could be halved with every test green, since
+ * the constant *stated* a measurement and nothing compared it against the
+ * class the box was drawn at. Two things in one object cannot disagree —
+ * there is no second place to change.
+ *
+ * Keyed by the Tailwind step, so the key names the class and `px` is what
+ * that step is worth. Spelled out rather than built: a class assembled at
+ * runtime is not in the text Tailwind scans, so the rule is never emitted
+ * — measured in unit G, where a runtime-built token left dead rules
+ * behind.
+ *
+ * `sm:`-scoped spellings are **not** here. `ToolbarMenu`'s surface is a
+ * viewport-spanning sheet below 640 and an anchored panel above it, so
+ * its direction classes are `sm:top-full` / `sm:bottom-full` and its gap
+ * is `MENU_SURFACE_GAP_PX`. Merging the two tables would put a caller one
+ * character away from giving an always-anchored panel no vertical
+ * placement at all below the breakpoint.
+ */
+export const ANCHORED_VERTICAL = {
+  1: { px: 4, down: "top-full mt-1", up: "bottom-full mb-1" },
+  2: { px: 8, down: "top-full mt-2", up: "bottom-full mb-2" },
+} as const;
+
+/**
+ * The corner `animate-fade-in-scale` grows an anchored panel out of.
+ *
+ * A corner and not an edge, so it takes both axes: the animation starts
+ * at `scale(0.95)`, and scaling out of the corner the panel is pinned to
+ * is what makes it look attached to the trigger rather than sliding
+ * towards it. An origin naming the top while the panel hangs from the
+ * bottom is the one combination that reads wrong, and measuring the
+ * direction is what makes it reachable.
+ *
+ * Only for the panels that carry the animation. A panel with no
+ * `animate-*` has nothing to scale and takes no origin — adding one there
+ * would be a class that can never bind.
+ */
+export const ANCHORED_ORIGIN = {
+  "down-left": "origin-top-left",
+  "down-right": "origin-top-right",
+  "up-left": "origin-bottom-left",
+  "up-right": "origin-bottom-right",
+} as const;
+
 export interface AnchoredDirectionOptions {
   /**
    * The **positioned wrapper** the panel is `absolute` inside — the
