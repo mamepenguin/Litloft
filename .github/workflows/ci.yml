@@ -119,14 +119,14 @@ jobs:
           done
           exit $status
 
-      # Runs core's suite and, through the symlinks above, every addon's
+      # Runs core's suite and, through the link tree above, every addon's
       # frontend tests. A fresh checkout needs nothing else: no drives.json,
       # passwords.json, .env, or docker-compose.override.yml.
       - name: Test
         run: pnpm test
         working-directory: frontend
 
-      # tsc follows the addon symlinks, so this type-checks addon sources too.
+      # tsc follows the per-file links, so this type-checks addon sources too.
       - name: Type-check
         run: pnpm exec tsc --noEmit
         working-directory: frontend

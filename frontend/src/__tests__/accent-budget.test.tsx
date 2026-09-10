@@ -19,9 +19,9 @@ import { accentFills } from "./helpers/accentFills";
  * other screens do, and what those addons draw is their choice rather
  * than this file's guarantee.
  *
- * The stub is not a shortcut. `frontend/src/addons/*` is a set of
- * gitignored symlinks into the `addons/*` submodules, materialised by
- * `setup-addons.sh` (`.github/workflows/ci.yml`), so a core assertion
+ * The stub is not a shortcut. `frontend/src/addons/*` is a gitignored
+ * link tree over the `addons/*` submodules, built by `setup-addons.sh`
+ * (`.github/workflows/ci.yml`), so a core assertion
  * about an addon's pixels would pass or fail on what a checkout happens
  * to hold — the failure `button-adoption.test.ts` was already fixed for
  * once. Addon-owned screens are counted in the addon's own repository

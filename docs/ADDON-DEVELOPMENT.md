@@ -60,8 +60,10 @@ project root/
 
   frontend/
     src/
-      addons/                      # Symlinks for local dev (gitignored)
-        my-addon -> ../../../addons/my-addon/frontend
+      addons/                      # Built for local dev (gitignored)
+        my-addon/                  # a real directory, not a symlink to one
+          Page.tsx -> ../../../../addons/my-addon/frontend/Page.tsx
+          slots.ts -> ../../../../addons/my-addon/frontend/slots.ts
       app/
         addons/{name}/page.tsx     # Auto-generated at Docker build (gitignored)
 ```

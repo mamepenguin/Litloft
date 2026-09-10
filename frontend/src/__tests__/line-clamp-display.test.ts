@@ -374,7 +374,7 @@ const CLASS_LISTS = FILES.flatMap((f) => classListsIn(f.rel, f.body));
  *
  * Declared, not derived from the walk: "no class list pairs the two" is also
  * true of a scan that reached no class list at all, and the walk crosses four
- * addon repositories whose checkouts can be missing and a symlink directory it
+ * addon repositories whose checkouts can be missing and a link tree it
  * deliberately skips.
  *
  * Each path here is a place a `line-clamp-*` is written today, which is a
