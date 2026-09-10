@@ -6,8 +6,30 @@ import { useTranslations } from "next-intl";
 import type { SortField, SortOrder } from "@/types";
 import { isDefaultSort, sortOptionsFor, type SortOption } from "@/components/sortOptions";
 import { DismissScrim } from "@/components/DismissScrim";
+import { useMenuSurface } from "@/components/ToolbarMenu";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
+
+/**
+ * The tokens this menu does not share with the toolbar's.
+ *
+ * A sheet below 640 and a panel anchored to the trigger above it, like
+ * every other menu on a bar — but uncapped and visible-overflow above
+ * `sm`, and 180 rather than 200 wide. Those three are why the base is
+ * written here instead of taken from `ToolbarMenu`: a merged string would
+ * carry `sm:max-h-[70vh]` and `sm:max-h-none` at once, and which of them
+ * applied would be decided by the order Tailwind emits its utilities in
+ * rather than by anything readable in this file.
+ *
+ * The direction and the side are *not* in here. `useMenuSurface` supplies
+ * both, so the part of this string that used to be a near-copy of the
+ * shared one is now the shared one.
+ */
+const SORT_MENU_SURFACE_BASE =
+  "fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl " +
+  "border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale " +
+  "sm:absolute sm:inset-x-auto sm:max-h-none sm:min-w-[180px] " +
+  "sm:overflow-visible";
 
 interface SortButtonProps {
   sort: SortField;
@@ -62,11 +84,13 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
     OVERLAY_PRIORITY,
   );
 
+  const surface = useMenuSurface(open, "end", SORT_MENU_SURFACE_BASE);
+
   const sortOptions: SortOption[] = sortOptionsFor(allowRelevance);
   const isActive = !isDefaultSort(sort, order, allowRelevance);
 
   return (
-    <div className="relative">
+    <div ref={surface.wrapperRef} className="relative">
       <button
         ref={triggerRef}
         onClick={() => setOpen((s) => !s)}
@@ -84,7 +108,12 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
 
       {open && (
         <DismissScrim onDismiss={() => setOpen(false)}>
-          <div role="menu" aria-label={t("label")} className="fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-full sm:mt-1 sm:max-h-none sm:min-w-[180px] sm:overflow-visible sm:origin-top-right">
+          <div
+            ref={surface.panelRef}
+            role="menu"
+            aria-label={t("label")}
+            className={surface.className}
+          >
           {sortOptions.map((opt) => {
             const selected = opt.sort === sort && opt.order === order;
             return (

@@ -239,6 +239,11 @@ describe("the component fixture's page", () => {
       "sheet-full-right",
       "sheet-full-left",
       "sheet-full-up",
+      "measured-sheet-peek",
+      "measured-sheet-half",
+      "measured-sheet-full",
+      "measured-inspector-left-edge",
+      "measured-inspector-right-edge",
     ]);
   });
 });

@@ -164,11 +164,15 @@ export const REQUIRED = [
   // asserts nothing.
   ".top-full {",
   ".bottom-full {",
-  // The offsets the gap assertions measure. They are not "which side" —
-  // without them the boxes land on the correct side with a 0px gap, which
-  // only `toBeCloseTo(GAP_PX, 1)` notices.
+  // The gap, which is not "which side": without these the boxes land on the
+  // correct side with a 0px gap. Measured by stripping them — the first
+  // thing that goes red is the strip case's `toBeLessThan(GAP_PX)`, not the
+  // `toBeCloseTo(GAP_PX, 1)` pair after it.
   ".mt-1 {",
   ".mb-1 {",
+  // Which side, and only which side. Measured by stripping them: the
+  // toast's own left/right case goes red and every gap assertion stays
+  // green, because `GAP_PX` is compared on the vertical axis alone.
   ".left-0 {",
   ".right-0 {",
   // A third kind again: this is what keeps a long message from wrapping,

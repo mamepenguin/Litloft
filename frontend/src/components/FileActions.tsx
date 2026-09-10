@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 
 import { useTranslations } from "next-intl";
@@ -9,6 +9,7 @@ import {
   moveFile,
   renameFile,
 } from "@/lib/api";
+import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
 import { useFileMenuItems } from "@/hooks/useFileMenuItems";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
@@ -21,9 +22,6 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
-
-/** Must match the menu's `w-40`; used to decide which side it opens on. */
-const MENU_WIDTH_PX = 160;
 
 /**
  * The menu's `mt-1` / `mb-1`, in pixels. The gap is part of the room the
@@ -74,143 +72,27 @@ export function FileActions({
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  // Which corner of the trigger the menu hangs from, on both axes.
-  //
-  // Both are measured against the menu's first clipping ancestor, falling
-  // back to the visual viewport when it has none: what bounds the menu is
-  // the enclosing column, not the window — and where the window is the
-  // bound, the visual viewport is the part of it an on-screen keyboard or
-  // a collapsing URL bar leaves visible. Hanging below and to one side is
-  // right wherever the trigger has the room; in the Bottom Sheet's resting
-  // strip (`fixed bottom-0`, DESIGN.md §Layering) it has none below, so a
-  // menu that only ever opened downward was drawn below the viewport.
-  //
-  // Measured against the rendered box rather than a breakpoint or a
-  // guessed row count, because the menu's height is the addon slot's to
-  // change and no constant here would follow it.
-  //
-  // Neither flag is cleared when the menu closes: the error toast hangs
-  // off the same trigger and is raised after the menu has gone, so a reset
-  // would put the message in the corner the menu was not allowed to use.
-  // Both are re-derived on every open, so a stale value never outlives one
-  // paint.
-  const [alignLeft, setAlignLeft] = useState(false);
-  const [openUp, setOpenUp] = useState(false);
   const menuBoxRef = useRef<HTMLDivElement>(null);
+  // Which corner of the trigger the menu hangs from, on both axes.
+  // `useAnchoredDirection` carries the reasoning and the ancestor walk;
+  // what is local here is the gap the classes below spell and the side the
+  // menu prefers. The error toast reads the same answer, which is
+  // `DESIGN.md` §Context Menus / Dropdowns' rule for a second box on one
+  // trigger — and why the hook does not clear its answer on close, since
+  // the toast is raised after the menu has gone.
+  const { openUp, side } = useAnchoredDirection({
+    triggerRef: menuRef,
+    panelRef: menuBoxRef,
+    open: menuOpen,
+    gapPx: MENU_GAP_PX,
+  });
 
-  useLayoutEffect(() => {
-    if (!menuOpen) {
-      // The flag belongs to a subtree that only exists while the menu is
-      // open, and it is set by an addon in another repository. Clearing it
-      // here means a caller that forgets `onDialogOpenChange(false)` cannot
-      // strand `anyDialogOpen` at true and leave the menu unclosable.
-      setAddonDialogOpen(false);
-      return;
-    }
-
-    const measure = () => {
-      const trigger = menuRef.current;
-      const menuBox = menuBoxRef.current;
-      if (!trigger || !menuBox) return;
-
-      const triggerRect = trigger.getBoundingClientRect();
-      const menuHeight = menuBox.getBoundingClientRect().height;
-
-      // The first ancestor that *clips this menu* — which is not the same
-      // as the first ancestor with an `overflow` value. An overflow box
-      // clips a positioned descendant only while it is still in that
-      // descendant's containing-block chain, and the chain leaves the DOM
-      // parentage twice:
-      //
-      //   - at a `fixed` ancestor. It is laid out against the viewport, so
-      //     nothing above it clips the subtree. The resting strip this fix
-      //     exists for is exactly that (`fixed bottom-0`), so without the
-      //     stop a scroller anywhere above the shell would hand both axes
-      //     a box the strip is not inside.
-      //   - at an `absolute` ancestor, and then only as far as *its* own
-      //     containing block: the nearest positioned ancestor. Static
-      //     boxes in between are not in the chain and do not clip. Once
-      //     that positioned ancestor is reached the detour is over — a
-      //     `relative` or `sticky` box is itself in flow, so statics above
-      //     it clip again; an `absolute` one starts a fresh detour.
-      //
-      // The exception this does not implement is an ancestor with
-      // `transform` / `filter` / `contain`, which becomes the containing
-      // block of even a `fixed` descendant. vaul's drawer is one, and the
-      // menu is not inside it in the state this decision is about — at
-      // rest the strip is drawn outside the drawer.
-      let bounds: { left: number; top: number; bottom: number } | null = null;
-      // Set while the walk is between an `absolute` ancestor and that
-      // ancestor's containing block, where only a positioned box counts.
-      let inAbsoluteDetour = false;
-      for (let el = trigger.parentElement; el; el = el.parentElement) {
-        const { overflowX, overflowY, position } = getComputedStyle(el);
-        // Positive test rather than `!== "static"`: an unset `position`
-        // reads as `""` outside a browser, and the whole point of the flag
-        // is that a *static* box inside the detour cannot clip.
-        const positioned =
-          position === "relative" ||
-          position === "absolute" ||
-          position === "fixed" ||
-          position === "sticky";
-        if (
-          (positioned || !inAbsoluteDetour) &&
-          /auto|scroll|hidden/.test(overflowX + overflowY)
-        ) {
-          const rect = el.getBoundingClientRect();
-          bounds = { left: rect.left, top: rect.top, bottom: rect.bottom };
-          break;
-        }
-        if (position === "fixed") break;
-        // Only a positioned box moves the flag: it is the one that ends a
-        // detour, or starts one. A static ancestor leaves it alone, which
-        // is what keeps the detour running across the statics inside it.
-        if (positioned) inAbsoluteDetour = position === "absolute";
-      }
-      // `window.innerHeight` is the layout viewport, which the keyboard
-      // does not move; `visualViewport` is what is actually on screen.
-      const frame = bounds ?? {
-        left: 0,
-        top: 0,
-        bottom: window.visualViewport?.height ?? window.innerHeight,
-      };
-
-      setAlignLeft(triggerRect.right - MENU_WIDTH_PX < frame.left);
-
-      // `triggerRect` is the wrapper's, which the menu — being absolute,
-      // out of flow — does not move, and the menu's height is the same
-      // whichever direction it is drawn in. So the reading does not depend
-      // on the answer it feeds.
-      //
-      // The gap is counted once. `mt-1` and `mb-1` are the same 4px, so it
-      // cancels out of `spaceAbove > spaceBelow` and decides only whether
-      // the menu fits below at all. Flips only when the space above is the
-      // better of the two, so a trigger with room for neither keeps the
-      // downward direction the menu reads as everywhere else.
-      const spaceBelow = frame.bottom - triggerRect.bottom;
-      const spaceAbove = triggerRect.top - frame.top;
-      setOpenUp(
-        menuHeight + MENU_GAP_PX > spaceBelow && spaceAbove > spaceBelow,
-      );
-    };
-
-    measure();
-
-    // The height is not settled on the commit that opens the menu.
-    // `AddonSlot` resolves a dynamic `import()` inside an effect and
-    // renders null until it lands, so the first open after a page load
-    // sees a menu with no addon rows in it — the same wrong number the
-    // guessed row count would have given. Following the box is what makes
-    // measuring it worth anything.
-    //
-    // Flipping cannot re-enter this: `bottom-full mb-1` and `top-full
-    // mt-1` move the menu, they do not resize it, and a ResizeObserver
-    // reports a changed box rather than a changed position.
-    const menuBox = menuBoxRef.current;
-    if (!menuBox || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(menuBox);
-    return () => observer.disconnect();
+  useEffect(() => {
+    // The flag belongs to a subtree that only exists while the menu is
+    // open, and it is set by an addon in another repository. Clearing it
+    // here means a caller that forgets `onDialogOpenChange(false)` cannot
+    // strand `anyDialogOpen` at true and leave the menu unclosable.
+    if (!menuOpen) setAddonDialogOpen(false);
   }, [menuOpen]);
 
   const anyDialogOpen =
@@ -326,7 +208,7 @@ export function FileActions({
       role="menu"
       className={`absolute z-30 w-40 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg ${
         openUp ? "bottom-full mb-1" : "top-full mt-1"
-      } ${alignLeft ? "left-0" : "right-0"}`}
+      } ${side === "left" ? "left-0" : "right-0"}`}
     >
       {menuItems.map((item) => (
         <ActionMenuItem
@@ -436,11 +318,11 @@ export function FileActions({
             /* Both axes follow the menu's, per DESIGN.md §Context Menus /
                Dropdowns. This box does not wrap, so its width is whatever
                the message is: on a trigger near its column's left edge a
-               `right-0` toast crosses exactly the edge `alignLeft` exists
+               `right-0` toast crosses exactly the edge the side decision exists
                to keep the menu inside. */
             className={`absolute z-30 whitespace-nowrap rounded-2xl bg-danger px-3 py-1.5 text-xs text-white ${
               openUp ? "bottom-full mb-1" : "top-full mt-1"
-            } ${alignLeft ? "left-0" : "right-0"}`}
+            } ${side === "left" ? "left-0" : "right-0"}`}
           >
             {error}
           </div>

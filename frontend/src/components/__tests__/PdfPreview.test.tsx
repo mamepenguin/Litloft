@@ -93,7 +93,9 @@ vi.mock("react-pdf", () => ({
 let resizeCallbacks: ResizeObserverCallback[] = [];
 let resizeTargets: Element[] = [];
 class DrivableResizeObserver {
+  private cb: ResizeObserverCallback;
   constructor(cb: ResizeObserverCallback) {
+    this.cb = cb;
     resizeCallbacks.push(cb);
   }
   observe(target: Element) {
@@ -103,7 +105,16 @@ class DrivableResizeObserver {
     resizeTargets.push(target);
   }
   unobserve() {}
-  disconnect() {}
+  disconnect() {
+    // A torn-down observer leaves the list, so the "exactly one" check
+    // below stays a claim about what is *watching* rather than about
+    // everything that ever did. The viewer draws a `ToolbarMenu`, whose
+    // surface measures its own direction while it is open and stops when
+    // it closes; an append-only list would count that forever and turn
+    // every case here red for a menu that is no longer on screen.
+    const at = resizeCallbacks.indexOf(this.cb);
+    if (at !== -1) resizeCallbacks.splice(at, 1);
+  }
 }
 /**
  * Feed the viewer's one observer a size.

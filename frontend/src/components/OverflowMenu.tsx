@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 
 import { DismissScrim } from "@/components/DismissScrim";
-import { MENU_SURFACE } from "@/components/ToolbarMenu";
+import { useMenuSurface } from "@/components/ToolbarMenu";
 
 interface OverflowMenuProps {
   /**
@@ -59,6 +59,7 @@ interface OverflowMenuProps {
 export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const surface = useMenuSurface(open);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -67,6 +68,7 @@ export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
 
   return (
     <div
+      ref={surface.wrapperRef}
       className="relative"
       onKeyDown={(e) => {
         if (!open || e.key !== "Escape") return;
@@ -94,7 +96,12 @@ export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
       </button>
       {open && (
         <DismissScrim onDismiss={() => setOpen(false)}>
-          <div role="menu" aria-label={label} className={MENU_SURFACE}>
+          <div
+            ref={surface.panelRef}
+            role="menu"
+            aria-label={label}
+            className={surface.className}
+          >
             {children(close)}
           </div>
         </DismissScrim>

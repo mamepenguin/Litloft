@@ -4,6 +4,7 @@ import { useId, useRef, useState, type ComponentType, type ReactNode } from "rea
 import { Check } from "lucide-react";
 
 import { DismissScrim } from "@/components/DismissScrim";
+import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
 
 /**
  * The scope a toolbar control keeps, and the class that enforces it.
@@ -68,8 +69,33 @@ export type BarScope = "wide" | "roomy";
 const MENU_SURFACE_BASE =
   "fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border " +
   "border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale " +
-  "sm:absolute sm:inset-x-auto sm:bottom-auto sm:top-full sm:mt-1 " +
-  "sm:max-h-[70vh] sm:min-w-[200px]";
+  "sm:absolute sm:inset-x-auto sm:max-h-[70vh] sm:min-w-[200px]";
+
+/**
+ * Which edge of the trigger the anchored form hangs from, once measured.
+ *
+ * Only the anchored form has a direction — the sheet below 640 is pinned to
+ * the bottom of the screen and has nowhere else to be — so both spellings
+ * are `sm:`-scoped, and `bottom-auto` / `bottom-full` are what cancel the
+ * sheet's own `bottom-4` above the breakpoint.
+ *
+ * `useAnchoredDirection` picks between them from the rendered box.
+ * `DESIGN.md` §Context Menus / Dropdowns is the rule: this menu is capped
+ * and scrollable, but a cap is against the viewport and not against the
+ * room below the trigger, so a capped menu on a bar low in a landscape
+ * phone still ends past the fold.
+ */
+const MENU_DIRECTION = {
+  down: " sm:bottom-auto sm:top-full sm:mt-1",
+  up: " sm:top-auto sm:bottom-full sm:mb-1",
+} as const;
+
+/**
+ * The `sm:mt-1` / `sm:mb-1` above, in pixels, for the arithmetic that
+ * decides between them. Exported so the two cannot drift: the parity test
+ * reads the class list and this number and pins them together.
+ */
+export const MENU_SURFACE_GAP_PX = 4;
 
 /**
  * Which edge the anchored form hangs from.
@@ -86,12 +112,68 @@ const MENU_SURFACE_BASE =
  * is `absolute` inside a bar the page does not scroll sideways.
  */
 const MENU_ALIGN = {
-  end: " sm:right-0 sm:origin-top-right",
-  start: " sm:left-0 sm:origin-top-left",
+  right: " sm:right-0 sm:origin-top-right",
+  left: " sm:left-0 sm:origin-top-left",
 } as const;
 
-/** The end-aligned surface, for the menus written without `ToolbarMenu`. */
-export const MENU_SURFACE = MENU_SURFACE_BASE + MENU_ALIGN.end;
+/**
+ * Which edge a caller's menu *prefers*, named the way a bar is described
+ * rather than the way CSS is.
+ *
+ * It is a preference and not a decision: `useMenuSurface` measures, and
+ * hands the menu the other edge where the preferred one has no room. The
+ * archive toolbar is why `start` exists at all — measured in Chromium, its
+ * `min-w-[200px]` sort menu hung from a trigger ending at x=145 and put its
+ * left edge at -55, with two columns of every row off the frame — and the
+ * measurement now happens on every open rather than once, in a browser, by
+ * a person.
+ */
+const PREFERRED_SIDE = { end: "right", start: "left" } as const;
+
+/**
+ * The surface every menu on a toolbar opens, and the direction it opens in.
+ *
+ * One recipe, five panels: `ToolbarMenu` itself, `OverflowMenu`,
+ * `FilterMenu`, `FolderToolbar`'s overflow and `ArchiveToolbar`'s. A copy
+ * of a surface recipe diverges on whichever property nobody is comparing,
+ * and the one that matters here is whether a row can be reached at all.
+ *
+ * The caller spreads `wrapperRef` onto the positioned box the menu hangs
+ * inside and `panelRef` onto the menu, and takes `className` for it. Both
+ * refs are the hook's because the decision needs both boxes, and a caller
+ * that wired only one would measure the panel against itself.
+ */
+export function useMenuSurface(
+  open: boolean,
+  align: keyof typeof PREFERRED_SIDE = "end",
+  /**
+   * The tokens that are not the direction and not the side.
+   *
+   * Overridable because one menu's base legitimately differs —
+   * `SortButton` is uncapped and visible-overflow above `sm`, and merging
+   * its three utilities into this string would put two `max-height`
+   * declarations on one element and leave the winner to the order Tailwind
+   * happens to emit them in. The direction and the side are shared even so:
+   * those are the part that was a near-copy.
+   */
+  base: string = MENU_SURFACE_BASE,
+) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const { openUp, side } = useAnchoredDirection({
+    triggerRef: wrapperRef,
+    panelRef,
+    open,
+    gapPx: MENU_SURFACE_GAP_PX,
+    preferSide: PREFERRED_SIDE[align],
+  });
+  return {
+    wrapperRef,
+    panelRef,
+    className:
+      base + MENU_DIRECTION[openUp ? "up" : "down"] + MENU_ALIGN[side],
+  };
+}
 
 interface ToolbarMenuProps {
   /** What the control does. Prefixes the accessible name. */
@@ -102,8 +184,8 @@ interface ToolbarMenuProps {
   /** Layout only — which widths this control lives at. */
   className?: string;
   "data-bar"?: BarScope;
-  /** Which edge the anchored menu hangs from. See `MENU_ALIGN`. */
-  align?: keyof typeof MENU_ALIGN;
+  /** Which edge the anchored menu prefers. See `PREFERRED_SIDE`. */
+  align?: keyof typeof PREFERRED_SIDE;
   /** Rows. Given `close` so a row can dismiss the menu it was pressed in. */
   children: (close: () => void) => ReactNode;
 }
@@ -134,6 +216,7 @@ export function ToolbarMenu({
 }: ToolbarMenuProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const surface = useMenuSurface(open, align);
 
   const close = () => {
     setOpen(false);
@@ -142,6 +225,7 @@ export function ToolbarMenu({
 
   return (
     <div
+      ref={surface.wrapperRef}
       className={`relative ${className}`}
       data-bar={bar}
       // On the box, not on the menu: opening this leaves focus on the
@@ -187,7 +271,7 @@ export function ToolbarMenu({
               rest of the APG menu contract and is not here yet; the rows are
               ordinary buttons in tab order — the same gap `FilterMenu`
               records. */}
-          <div role="menu" className={MENU_SURFACE_BASE + MENU_ALIGN[align]}>
+          <div ref={surface.panelRef} role="menu" className={surface.className}>
             {children(close)}
           </div>
         </DismissScrim>

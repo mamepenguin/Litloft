@@ -243,8 +243,9 @@ describe("FilterMenu", () => {
       "fixed", "inset-x-2", "bottom-4", "z-40", "max-h-[60vh]",
       "overflow-y-auto", "rounded-2xl", "border", "border-bg-border",
       "bg-bg-primary", "py-1", "shadow-lg", "animate-fade-in-scale",
-      "sm:absolute", "sm:inset-x-auto", "sm:bottom-auto",
-      "sm:top-full", "sm:mt-1", "sm:max-h-[70vh]", "sm:min-w-[200px]",
+      "sm:absolute", "sm:inset-x-auto", "sm:max-h-[70vh]",
+      "sm:min-w-[200px]",
+      "sm:bottom-auto", "sm:top-full", "sm:mt-1",
       "sm:right-0", "sm:origin-top-right",
     ]);
   });

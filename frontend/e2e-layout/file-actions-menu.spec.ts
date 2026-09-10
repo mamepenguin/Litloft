@@ -39,7 +39,7 @@
  * class list at its own height, not the sheet.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -141,12 +141,36 @@ const registeredStripCases: string[] = [];
 const stripCaseId = (phone: (typeof PHONES)[number], items: number) =>
   `${phone.width}x${phone.height} @ ${items}`;
 
+/**
+ * Register a strip case **and** record it, in one call.
+ *
+ * The record used to be a second statement beside the `test()`, which
+ * leaves the two separable: a `continue` between them skips one and keeps
+ * the other, and the guard below then compares a list that agrees with
+ * itself. Three narrower repairs were made to this shape before this one —
+ * closing the array, closing the loop, closing the names of the spelling
+ * functions — and each time the next round found the seam that was left.
+ *
+ * There is no seam here. A case that is not registered is not recorded,
+ * because registering it is what records it.
+ */
+function stripCase(
+  phone: (typeof PHONES)[number],
+  items: number,
+  title: string,
+  body: (args: { page: Page }) => Promise<void>,
+) {
+  test(title, body);
+  registeredStripCases.push(stripCaseId(phone, items));
+}
+
 test("registers exactly the screens and menus this file measures", () => {
   // Both sides enumerated rather than counted, and the expected side
   // recomputed from the two axes rather than read off the loop — so a
-  // `.slice()` on either axis is red, anything that skips a `test()`
-  // without skipping its record is red, and so is swapping one height
-  // for another.
+  // `.slice()` on either axis is red, and so is swapping one height for
+  // another. Skipping a `test()` while keeping its record is not a
+  // mutation this has to catch any more: `stripCase` is the only way to
+  // write either, and it writes both.
   expect(registeredStripCases).toEqual(
     PHONES.flatMap((phone) => ITEM_COUNTS.map((n) => stripCaseId(phone, n))),
   );
@@ -176,9 +200,11 @@ test.describe("the file menu on the Bottom Sheet's resting strip", () => {
 
   for (const phone of PHONES) {
     for (const items of ITEM_COUNTS) {
-      test(`hangs off the bottom of a ${phone.label} at ${items} items, and comes back when flipped`, async ({
-        page,
-      }) => {
+      stripCase(
+        phone,
+        items,
+        `hangs off the bottom of a ${phone.label} at ${items} items, and comes back when flipped`,
+        async ({ page }) => {
         await page.setViewportSize({ width: phone.width, height: phone.height });
         await page.goto(FIXTURE);
 
@@ -229,8 +255,8 @@ test.describe("the file menu on the Bottom Sheet's resting strip", () => {
         // menu plus the 4px `mt-1` / `mb-1`.
         expect(down.menu!.top - down.trigger.bottom).toBeCloseTo(GAP_PX, 1);
         expect(up.trigger.top - up.menu!.bottom).toBeCloseTo(GAP_PX, 1);
-      });
-      registeredStripCases.push(stripCaseId(phone, items));
+        },
+      );
     }
   }
 });
@@ -248,12 +274,15 @@ test.describe("the error toast against its column's left edge", () => {
    *
    * What makes the toast wider than its trigger is its own `px-3`, not
    * this text: a one-character message still measures 30.3px against a
-   * 28px trigger. What the text buys is the *amount* of the overhang, and
-   * `whitespace-nowrap` is what stops a long one wrapping out of the spill
-   * instead of crossing the edge — which is the property the two cases
-   * below turn on. Non-emptiness is held by the fixture rather than by an
-   * assertion: an empty message renders no toast at all and `m.toast` is
-   * null, so both cases go red.
+   * 28px trigger. What the text buys is the *amount* of the overhang.
+   *
+   * `whitespace-nowrap` is **not** what the two cases below turn on —
+   * measured by taking it off the fixture, the toast wraps, its width
+   * falls, and both cases still pass every bound they assert. What catches
+   * that edit is the parity test, which compares the fixture's class list
+   * against the component's. Non-emptiness is held by the fixture rather
+   * than by an assertion: an empty message renders no toast at all and
+   * `m.toast` is null, so both cases go red.
    */
   const MESSAGE = "Failed to delete";
 

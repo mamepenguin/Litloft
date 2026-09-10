@@ -864,36 +864,54 @@ by the file, not by the layout.
 
 Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
 
-- **`FileActions` measures both axes before it commits to a direction**, and so
-  does the intelligence addon's `FileAIActionsButton`, which runs the same walk
-  against its own menu width. They are the two anchored dropdowns in the tree
-  that measure rather than declare. Hanging below and to one
-  side is right wherever the trigger has the room; on the Bottom Sheet's
-  resting strip (`fixed bottom-0`, §Layering) there is none below it, and a
-  menu that could only open downward was drawn entirely off-screen. It reads
-  the rendered box — not a breakpoint, and not a row count, which the addon
-  slot in the menu is free to change — and flips only when the other side is
-  the better of the two, so a trigger with room for neither keeps the direction
-  the menu reads as everywhere else.
+- **An anchored dropdown measures both axes before it commits to a
+  direction**, and the measurement lives in one place: `useAnchoredDirection`.
+  Hanging below and to one side is right wherever the trigger has the room; on
+  the Bottom Sheet's resting strip (`fixed bottom-0`, §Layering) there is none
+  below it, and a menu that could only open downward was drawn entirely
+  off-screen. It reads the rendered box — not a breakpoint, and not a row
+  count, which the addon slot in a menu is free to change — and flips only
+  when the other side is the better of the two, so a trigger with room for
+  neither keeps the direction the panel reads as everywhere else. The same
+  rule runs on the horizontal axis, against the panel's own rendered width.
 
-  The frame it reads that box against is the first ancestor that clips *this
-  menu*: an `overflow` box counts only while it is still in the menu's
+  **The room a panel has is what is both unclipped and on screen.** The frame
+  is the clipping ancestor's box intersected with the visual viewport, not one
+  or the other: an on-screen keyboard shrinks what is visible without moving
+  any element's box, so a panel inside a column would otherwise count room the
+  keyboard is covering.
+
+  **A panel that is not anchored decides nothing**, and the hook tests that by
+  reading the panel's own computed `position` rather than by asking a media
+  query which form is on screen. The toolbar menus are a viewport-spanning
+  sheet below `sm` and an anchored panel above it; the sheet is pinned to the
+  bottom of the screen already and has nowhere else to be.
+
+  The clipping half of that frame is the first ancestor that clips *this
+  panel*: an `overflow` box counts only while it is still in the panel's
   containing-block chain, which a `fixed` ancestor leaves for good and an
-  `absolute` one leaves as far as its own containing block. Falling back to
-  `visualViewport` when there is no such ancestor, since an on-screen keyboard
-  moves what is visible without moving `window.innerHeight`. What the walk does
+  `absolute` one leaves as far as its own containing block. Where the chain
+  has no such box the visible band is the whole frame. What the walk does
   **not** do is notice an ancestor with `transform` / `filter` / `contain`,
   which becomes the containing block of even a `fixed` descendant — vaul's
-  drawer is one, and the menu is outside it in the state this measurement is
-  about.
+  drawer is one. Inside the expanded sheet the drawer is never reached: the
+  sheet's own scroller clips first.
 
-  Every other anchored popup here states its direction in its class list, and
-  this paragraph does not describe them: `FolderPicker`, `AddButton`,
-  `EditableTagChips`, `folder/FilterField` and `trash/TrashToolbar` hang
-  downward unconditionally;
-  `SortButton` and `ToolbarMenu` hang downward above `sm` and become a
-  `fixed bottom-4` sheet below it; and `SelectionBar` opens upward
-  deliberately, because the bar it hangs from is pinned to the bottom.
+  **Two families are not this**, and they are named so that the next reader
+  does not unify them. *Point-anchored* menus — `ContextMenu` and its callers,
+  and the knowledge addon's capture button — clamp a panel to a cursor
+  position; there is no trigger box to flip against. *Frame-parked* panels —
+  `OverFrameSettingsPanel`'s two callers — are anchored to the viewer chrome by
+  a measured decision of their own.
+
+  `SelectionBar` is the exception the rule accommodates rather than converts:
+  it opens upward unconditionally because the bar it hangs from is pinned to
+  the bottom, which is right by construction.
+
+  The popups that still state their direction in a class list are the ones the
+  sweep has not reached yet: `FolderPicker`, `AddButton`, `EditableTagChips`,
+  `folder/FilterField` and `trash/TrashToolbar` hang downward unconditionally,
+  and `SmartFolderSaveButton` hangs downward by flow order.
 
   **A menu drawn inside the Bottom Sheet cannot take the `fixed` form**, and
   that is why the AI menu moved groups. The sheet's `Drawer.Content` carries
@@ -920,10 +938,8 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   in one line and which stays true as components are added. The form is
   right where it is used, because a bar is pinned to the screen already
   and its menu has nowhere else to be.
-  `AddButton` even records a measurement of its own menu ending below the fold
-  and accepts it. Whether measuring should replace any of that is filed as its
-  own unit; until it lands, this is one component's behaviour and not a rule
-  the tree keeps.
+  `AddButton` still records a measurement of its own menu ending below the fold
+  and accepts it, and is on that list.
 - **A popup is dismissed by a press outside it, and the click that press
   produces is swallowed.** One primitive, `DismissScrim`, and every
   **anchored** popup in core on it — a menu, a filter panel, a picker, a

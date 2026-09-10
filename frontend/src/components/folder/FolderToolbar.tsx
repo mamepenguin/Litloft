@@ -18,7 +18,7 @@ import { FilterMenu } from "./FilterMenu";
 import { Button } from "@/components/Button";
 import { useViewModeState } from "@/components/viewMode";
 import { ActionMenuItem } from "@/components/ActionMenuItem";
-import { BAR_WIDE, MENU_SURFACE, MenuSeparator } from "@/components/ToolbarMenu";
+import { BAR_WIDE, MenuSeparator, useMenuSurface } from "@/components/ToolbarMenu";
 import { SortGroup, SortMenu } from "./SortMenu";
 import { DismissScrim } from "@/components/DismissScrim";
 import { ViewGroup, ViewMenu } from "@/components/ViewMenu";
@@ -141,6 +141,7 @@ export function FolderToolbar({
   const tf = useTranslations("folder");
 
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreSurface = useMenuSurface(moreOpen);
   // Held here, not inside each menu. The same choice is offered twice — on
   // the bar from 768 up and inside `…` below it — and two switchers each
   // holding their own uncontrolled state would answer differently on the two
@@ -304,7 +305,7 @@ export function FolderToolbar({
 
         {/* Overflow: the low-frequency actions at every width, and the two
             arranging menus at the widths where they are off the bar. */}
-        <div className="relative">
+        <div ref={moreSurface.wrapperRef} className="relative">
             <button
               onClick={() => setMoreOpen((s) => !s)}
               className={`flex items-center justify-center rounded-2xl border border-bg-border p-2 transition-colors pointer-coarse:h-11 pointer-coarse:w-11 ${
@@ -321,7 +322,11 @@ export function FolderToolbar({
             </button>
             {moreOpen && (
               <DismissScrim onDismiss={() => setMoreOpen(false)}>
-                <div role="menu" className={MENU_SURFACE}>
+                <div
+                  ref={moreSurface.panelRef}
+                  role="menu"
+                  className={moreSurface.className}
+                >
                 {/* The two menus that are not on the bar below 768px, drawn
                     from the same rows they draw there. `md:hidden` and
                     `BAR_WIDE` are the two halves of one decision: a control

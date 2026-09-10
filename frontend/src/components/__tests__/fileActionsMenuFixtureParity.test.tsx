@@ -142,7 +142,11 @@ function openAt(state: { up: boolean; left: boolean }) {
         return { ...trigger, left: right - 28, right } as DOMRect;
       }
       if (this.getAttribute("role") === "menu") {
-        return { height: 200 } as DOMRect;
+        // Both edges, because the decision reads both: the width is what
+        // the side is chosen against, and `undefined` there would make
+        // every comparison `false` and hold the menu on one side whatever
+        // the trigger's box said. 160 is what `w-40` draws at.
+        return { height: 200, width: 160 } as DOMRect;
       }
       return original.call(this);
     },
@@ -210,6 +214,28 @@ describe("the file-actions layout fixture's class lists", () => {
   const comparedToasts: string[] = [];
   const cornerId = (up: string, left: string) => `${up}/${left}`;
 
+  /**
+   * Register a case **and** record it, in one call.
+   *
+   * The record used to be a statement beside the `it()`, which leaves the
+   * two separable: a `continue` between them drops the case and keeps its
+   * record, and the guard above then compares a list that agrees with
+   * itself. Three narrower repairs were made to this shape first — closing
+   * the array, closing the loop, closing the names of the spelling
+   * functions — and each round found the seam the last one left.
+   *
+   * There is no seam here: registering a case is what records it.
+   */
+  const registeredCase = (
+    record: string[],
+    id: string,
+    title: string,
+    body: () => void | Promise<void>,
+  ) => {
+    record.push(id);
+    it(title, body);
+  };
+
   it("compares exactly the corners the fixture declares, on both boxes", () => {
     expect([...VERTICAL, ...HORIZONTAL].sort()).toEqual(
       ["down", "left", "right", "up"].sort(),
@@ -229,15 +255,19 @@ describe("the file-actions layout fixture's class lists", () => {
   });
 
   for (const corner of CORNERS) {
-    comparedCorners.push(cornerId(corner.up, corner.left));
-    it(`declares the menu's ${corner.up} / ${corner.left} class list`, () => {
-      openAt({ up: corner.up === "up", left: corner.left === "left" });
-      expectComposedOf(screen.getByRole("menu").className, [
-        str("menuBase"),
-        str(corner.up),
-        str(corner.left),
-      ]);
-    });
+    registeredCase(
+      comparedCorners,
+      cornerId(corner.up, corner.left),
+      `declares the menu's ${corner.up} / ${corner.left} class list`,
+      () => {
+        openAt({ up: corner.up === "up", left: corner.left === "left" });
+        expectComposedOf(screen.getByRole("menu").className, [
+          str("menuBase"),
+          str(corner.up),
+          str(corner.left),
+        ]);
+      },
+    );
   }
 
   // The toast's, driven through a rejected delete so it is the real one.
@@ -250,24 +280,26 @@ describe("the file-actions layout fixture's class lists", () => {
   ];
 
   for (const corner of TOASTS) {
-    comparedToasts.push(
+    registeredCase(
+      comparedToasts,
       cornerId(corner.up ? "up" : "down", corner.left ? "left" : "right"),
-    );
-    it(`declares the toast's ${corner.up ? "upward" : "downward"} / ${
-      corner.left ? "left" : "right"
-    } class list`, async () => {
-      vi.mocked(deleteFile).mockRejectedValue(new Error("nope"));
-      openAt(corner);
-      fireEvent.click(screen.getByText("Move to Trash"));
-      fireEvent.click(screen.getByText("Confirm"));
+      `declares the toast's ${corner.up ? "upward" : "downward"} / ${
+        corner.left ? "left" : "right"
+      } class list`,
+      async () => {
+        vi.mocked(deleteFile).mockRejectedValue(new Error("nope"));
+        openAt(corner);
+        fireEvent.click(screen.getByText("Move to Trash"));
+        fireEvent.click(screen.getByText("Confirm"));
 
-      const toast = await screen.findByText("Failed to delete");
-      expectComposedOf(toast.className, [
-        str("toastBase"),
-        str(corner.up ? "up" : "down"),
-        str(corner.left ? "left" : "right"),
-      ]);
-    });
+        const toast = await screen.findByText("Failed to delete");
+        expectComposedOf(toast.className, [
+          str("toastBase"),
+          str(corner.up ? "up" : "down"),
+          str(corner.left ? "left" : "right"),
+        ]);
+      },
+    );
   }
 
   it("declares the resting strip the spec puts the trigger inside", () => {
