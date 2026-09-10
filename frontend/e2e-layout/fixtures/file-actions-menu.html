@@ -2,6 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!--
+      Without this, a context that sets `isMobile` lays the page out at
+      Chromium's mobile default instead of the viewport the spec asked
+      for, and every width-conditional rule answers for a page nobody
+      is measuring. `spec-viewport.spec.ts` opens this file under
+      exactly that context and reads the width back.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>file actions menu — layout fixture</title>
     <!--
       The compiled globals.css, built by ../build-fixture-css.ts. No
