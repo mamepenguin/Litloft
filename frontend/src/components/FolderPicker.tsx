@@ -12,6 +12,10 @@ import {
 import { useTranslations } from "next-intl";
 
 import { DismissScrim } from "@/components/DismissScrim";
+import {
+  ANCHORED_VERTICAL,
+  useAnchoredDirection,
+} from "@/hooks/useAnchoredDirection";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
@@ -37,6 +41,23 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const [allFolders, setAllFolders] = useState<FolderTreeNode[]>([]);
   const [loadingCurrent, setLoadingCurrent] = useState(false);
   const allLoadedRef = useRef(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Four of this picker's six callers are dialogs, and a dialog root here
+  // is `fixed inset-0` — the walk stops there and falls back to the
+  // visible band, which is the right frame: a centred dialog leaves the
+  // page behind it with nothing to scroll.
+  //
+  // This panel's height is also the one in the family that does not follow
+  // the viewport. The list below caps at `max-h-48`, a fixed 192px, rather
+  // than at a fraction of the screen the way the bar's menus do — so a
+  // short viewport shrinks the room without shrinking the panel.
+  const { openUp } = useAnchoredDirection({
+    triggerRef: wrapperRef,
+    panelRef,
+    open,
+    gapPx: ANCHORED_VERTICAL[2].px,
+  });
 
   // Escape closes the picker through the shortcut stack. As its own
   // listener it fired alongside the listener of whatever dialog holds
@@ -115,7 +136,7 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const displayValue = value ? `/${value}` : `/${t("folderRoot")}`;
 
   return (
-    <div className="relative w-full min-w-0">
+    <div ref={wrapperRef} className="relative w-full min-w-0">
       {/* Toggle button */}
       <button
         type="button"
@@ -151,9 +172,15 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
           className="fixed inset-0 z-40"
         >
           <div
+            ref={panelRef}
             id={panelId}
             role="dialog"
-            className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-bg-border bg-bg-primary shadow-lg"
+            // `inset-x-0` is both side edges at once, so this panel has no
+            // horizontal answer to take: it is the trigger's width
+            // whichever way it hangs. Only `openUp` is read.
+            className={`absolute inset-x-0 z-50 overflow-hidden rounded-2xl border border-bg-border bg-bg-primary shadow-lg ${
+              ANCHORED_VERTICAL[2][openUp ? "up" : "down"]
+            }`}
           >
             {/* Filter input */}
             <div className="border-b border-bg-border px-3 py-2">

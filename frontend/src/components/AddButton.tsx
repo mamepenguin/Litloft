@@ -18,6 +18,11 @@ import { AddonSlot } from "@/components/AddonSlot";
 import { useAddonSlots } from "@/components/AddonSlotsProvider";
 import { Button } from "@/components/Button";
 import { DismissScrim } from "@/components/DismissScrim";
+import {
+  ANCHORED_ORIGIN,
+  ANCHORED_VERTICAL,
+  useAnchoredDirection,
+} from "@/hooks/useAnchoredDirection";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import type { UploadFileEntry } from "@/hooks/useUpload";
@@ -81,6 +86,20 @@ export function AddButton({
   const t = useTranslations("toolbar");
   const [menuOpen, setMenuOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  // `align` is the side this menu *prefers*; the hook hands it the other
+  // one where the preferred edge has no room. The two callers disagree
+  // about the preference — `Add` is the leftmost control on the folder
+  // toolbar and the rightmost in the drive root's `PageHeader` — which is
+  // why the preference is a prop and the answer is not.
+  const { openUp, side } = useAnchoredDirection({
+    triggerRef: wrapperRef,
+    panelRef: menuRef,
+    open: menuOpen,
+    gapPx: ANCHORED_VERTICAL[1].px,
+    preferSide: align,
+  });
   const filePicker = useFilePicker();
   const folderInputRef = useRef<HTMLInputElement>(null);
   const { hasSlot } = useAddonSlots();
@@ -153,7 +172,7 @@ export function AddButton({
           e.target.value = "";
         }}
       />
-      <div className="relative">
+      <div ref={wrapperRef} className="relative">
         {/* The label is not `hidden sm:inline`. Dropping it at 400px would
             leave a `+` and a chevron, and the mobile rule is to carry fewer
             controls rather than nameless ones (00-basis, モバイルの寸法規則). */}
@@ -176,39 +195,43 @@ export function AddButton({
             className="fixed inset-0 z-30"
           >
             <div
+              ref={menuRef}
               role="menu"
               // Capped and scrollable, like every other menu on this bar,
               // and it keeps its own geometry rather than taking the shared
               // surface.
               //
-              // Which side it grows from is **not** the reason any more.
-              // That used to be it — on the folder toolbar `Add` is the
-              // leftmost control and in the drive root's `PageHeader` it is
-              // the rightmost, where a left-anchored 180px panel behind a
-              // ~100px trigger runs off the right edge of a phone — and
-              // `useMenuSurface` now takes that as a parameter and measures
-              // it besides. What is left is that this menu has not been
-              // converted yet, not that it cannot be: it is the first entry
-              // on the sweep's remaining list, and it still hangs downward
-              // unconditionally.
+              // **Which side it grows from is not the reason.** That used
+              // to be it, and `useMenuSurface` took it away by growing an
+              // `align` parameter. The reason that is left is the form:
+              // every class the shared surface hands back is `sm:`-scoped,
+              // because that surface is a viewport-spanning sheet below
+              // 640px and an anchored panel above it. This menu is
+              // anchored at every width — its scrim says so and draws no
+              // tint — so taking those classes would leave it with no
+              // vertical placement at all under the breakpoint, and taking
+              // the sheet with them would turn a control on every folder
+              // toolbar into a bottom sheet on a phone.
+              //
+              // The *measurement* is shared even so: that is the part that
+              // was a near-copy, and it is `useAnchoredDirection` above.
               //
               // It grows with `folder-actions-menu`: three contributed rows
-              // take it from four to seven and from ~120px to 331. Measured
-              // uncapped, seven rows, bar pinned: 383 against a 375 fold at
-              // 667x375, and against 360 at 740x360 and 640x360. Capped, all
-              // of those fit and scroll.
+              // take it from four to seven. Uncapped it runs past the fold
+              // of a landscape phone, and capped it fits and scrolls; the
+              // numbers are in the PR that measured them.
               //
               // `max-h` is against the viewport, not against the room below
-              // the trigger — so before the bar pins, with `Header` and the
-              // breadcrumb above it, even the capped menu can end below the
-              // fold (441 of 393 at 852x393). Scrolling recovers that; what
-              // it cannot recover is a menu with no cap at all, which stays
-              // 331 tall however far the bar rises.
-              className={`absolute top-full z-30 mt-1 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:max-h-[70vh] ${
-                align === "right"
-                  ? "right-0 origin-top-right"
-                  : "left-0 origin-top-left"
-              }`}
+              // the trigger, so a cap is not a direction — which is why the
+              // hook decides that separately, and why this menu used to end
+              // below the fold with the cap doing its job.
+              className={`absolute z-30 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:max-h-[70vh] ${
+                ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
+              } ${
+                side === "right"
+                  ? "right-0"
+                  : "left-0"
+              } ${ANCHORED_ORIGIN[`${openUp ? "up" : "down"}-${side}`]}`}
             >
               <ActionMenuItem
                 icon={FileIcon}

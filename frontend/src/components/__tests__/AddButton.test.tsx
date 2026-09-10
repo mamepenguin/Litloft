@@ -322,10 +322,14 @@ describe("AddButton", () => {
     // Measured in Chromium with three addon rows contributed, seven rows
     // in total: uncapped it is 331px and runs 3px past the fold on a
     // 852x393 landscape phone. Capped it clamps to 275 there and scrolls.
-    // The shared surface is not reused here yet — `AddButton` is the
-    // first entry on the sweep's remaining list — and the side it anchors
-    // to stopped being the reason when `useMenuSurface` took an `align`
-    // and started measuring. The height rules are the part this asserts.
+    //
+    // The shared surface is still not reused, and the reason is the form
+    // rather than the side: every class `useMenuSurface` returns is
+    // `sm:`-scoped, because that surface is a viewport-spanning sheet
+    // below 640px. This menu is anchored at every width, so it takes the
+    // measurement and keeps its own height rules — which are the part
+    // this asserts. The direction it hangs in is
+    // `anchoredDropdownDefaults.test.tsx`'s.
     render(<AddButton />);
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     const classes = [...screen.getByRole("menu").classList];

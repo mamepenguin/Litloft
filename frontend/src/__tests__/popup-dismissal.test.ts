@@ -187,6 +187,7 @@ const NEEDLES = [
   "top-full",
   "bottom-full",
   "useMenuSurface",
+  "ANCHORED_VERTICAL",
 ] as const;
 
 const POPUP_NEEDLE = new RegExp(NEEDLES.join("|"));
@@ -281,6 +282,14 @@ const POPUPS: Record<string, PopupEntry> = {
   "frontend/src/components/folder/FilterMenu.tsx": {
     dismissedIn: "frontend/src/components/folder/FilterMenu.tsx",
     why: "the folder toolbar's Filter menu",
+  },
+  "frontend/src/hooks/useAnchoredDirection.ts": {
+    dismissedIn: null,
+    why:
+      "not a popup — the module every anchored popup takes its direction " +
+      "from. It is in the population because `ANCHORED_VERTICAL` spells " +
+      "`top-full` and `bottom-full` for its callers, which is the same " +
+      "reason `ActionMenuItem` is here for a role it only declares",
   },
   "frontend/src/components/folder/FolderToolbar.tsx": {
     dismissedIn: "frontend/src/components/folder/FolderToolbar.tsx",
@@ -444,17 +453,39 @@ describe("Every popup surface in core", () => {
     //
     // This asserts the redundancy directly, on the real file rather than a
     // synthetic one: strip every ARIA needle from `EditableTagChips` and
-    // it must still be a popup. Respelling its `top-full`, or dropping the
-    // needle, fails here.
+    // it must still be a popup.
+    //
+    // **Geometry is three spellings, not two**, and which one a given file
+    // writes moved when the sweep landed: a panel that decides its own
+    // direction no longer writes `top-full` at all — it writes
+    // `ANCHORED_VERTICAL`, the way a consumer of the shared surface writes
+    // `useMenuSurface` rather than the classes inside it. Both halves are
+    // asserted below, so a file converted to the hook and a file still
+    // spelling its corner by hand are each found by the half that applies
+    // to it.
     const ariaNeedles = NEEDLES.filter(
       (n) => n.startsWith("role=") || n.startsWith("aria-"),
     );
-    const stripped = ariaNeedles.reduce(
-      (text, needle) => text.split(needle).join("__none__"),
-      withoutComments(read("frontend/src/components/EditableTagChips.tsx")),
-    );
-    for (const needle of ariaNeedles) expect(stripped).not.toContain(needle);
-    expect(POPUP_NEEDLE.test(stripped)).toBe(true);
+    const strip = (rel: string) =>
+      ariaNeedles.reduce(
+        (text, needle) => text.split(needle).join("__none__"),
+        withoutComments(read(rel)),
+      );
+
+    // The converted half: named for the identifier its direction comes
+    // from. `EditableTagChips` declares `role="listbox"` / `role="option"`
+    // and nothing else a dismissal scan would see.
+    const measured = strip("frontend/src/components/EditableTagChips.tsx");
+    for (const needle of ariaNeedles) expect(measured).not.toContain(needle);
+    expect(measured).toContain("ANCHORED_VERTICAL");
+    expect(POPUP_NEEDLE.test(measured)).toBe(true);
+
+    // The hand-spelled half, which is not hypothetical: `SelectionBar`
+    // opens upward by construction and is the exception the rule
+    // accommodates, so `bottom-full` stays a live spelling in the tree.
+    const declared = strip("frontend/src/components/SelectionBar.tsx");
+    expect(declared).toContain("bottom-full");
+    expect(POPUP_NEEDLE.test(declared)).toBe(true);
   });
 
   it("sees a popup that reuses the shared menu surface", () => {
@@ -502,7 +533,7 @@ describe("Every popup surface in core", () => {
     // `POPUP_NEEDLE.source.split("|")` to `NEEDLES.length` was here and
     // could not fail: the regex is joined from the array on the line
     // above, so the two sides were the same observation.
-    expect(NEEDLES).toHaveLength(9);
+    expect(NEEDLES).toHaveLength(10);
   });
 
 /**
@@ -531,6 +562,7 @@ const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
   "top-full": 'className="absolute top-full"',
   "bottom-full": 'className="absolute bottom-full"',
   useMenuSurface: "const surface = useMenuSurface(open);",
+  ANCHORED_VERTICAL: "className={ANCHORED_VERTICAL[1].down}",
 };
 
   it("has a declaration for every needle", () => {

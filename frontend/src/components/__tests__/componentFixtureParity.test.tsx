@@ -215,6 +215,92 @@ describe("the component fixture's page", () => {
     },
   );
 
+  it("bounds #pane the way TwoPaneLayout bounds its tree column", () => {
+    // The arrangement the desktop project exists for. What makes it worth
+    // drawing is a frame whose **right edge is inside the viewport**, and
+    // that is a property of two classes on `TwoPaneLayout`'s `<aside>`: an
+    // `overflow` value the walk recognises, and a width that is not the
+    // window's. Lose either in the app and the fixture is measuring a box
+    // the tree no longer has.
+    //
+    // Compared as facts rather than as a class list: the aside carries a
+    // transition and a width expression this fixture has no reason to
+    // copy, and pinning the whole string would go red on every unrelated
+    // edit to it.
+    const layout = read(resolve(SRC, "components/folder/TwoPaneLayout.tsx"));
+    const aside = /<aside\n\s+className=\{`([^`]*)`\}/.exec(layout);
+    expect(aside, "TwoPaneLayout no longer declares its aside inline").not.toBe(
+      null,
+    );
+
+    // The clipping half. `clippingFrame` tests `/auto|scroll|hidden/`, so
+    // an aside that became `overflow-clip` would stop being a frame the
+    // walk can see at all — which is the case
+    // `src/__tests__/anchoredDropdowns.test.ts` enumerates.
+    expect(aside![1]).toContain("overflow-hidden");
+    expect(fixtureClasses("tree-pane")).toContain("overflow-hidden");
+
+    // The narrowness half. The app's width is on the aside's inner box;
+    // both sides are written out, and the fixture's is the same number
+    // because a column of some other width is a column with some other
+    // answer.
+    expect(layout).toContain('className="flex h-full w-[100vw] flex-col md:w-[280px]"');
+    expect(fixtureClasses("tree-pane")).toContain("w-[280px]");
+
+    // And the fixture's column is bounded on the *left*, which is the
+    // whole point: `InspectorColumn` beside it is `right-0` and flush with
+    // the window, so its frame's right edge and the visible band's are the
+    // same number and the axis cannot be separated there.
+    expect(fixtureClasses("tree-pane")).toContain("left-0");
+    expect(fixtureClasses("tree-pane")).not.toContain("right-0");
+  });
+
+  it("gives the dialog arrangement FileSaveDialog's own root", () => {
+    // `FolderPicker`'s four dialog callers are the reason the picker can
+    // end below the fold: a dialog root is `fixed inset-0`, so the walk
+    // stops there and the frame is the visible band, and nothing scrolls
+    // behind a centred dialog to recover the overhang.
+    //
+    // That stop is a property of `position: fixed` on the root. A dialog
+    // that became `absolute` inside a scroller would hand the walk a
+    // different box, and the browser case would be measuring an
+    // arrangement the app does not have.
+    const dialog = read(resolve(SRC, "components/FileSaveDialog.tsx"));
+    const root = /className="(fixed inset-0[^"]*)"\n\s+role="dialog"/.exec(
+      dialog,
+    );
+    expect(root, "FileSaveDialog no longer opens with a fixed inset-0 root").not.toBe(
+      null,
+    );
+    const EXPECTED_ROOT = ["fixed", "inset-0", "z-[100]"];
+    expect(positioningOf(root![1]).sort()).toEqual(EXPECTED_ROOT);
+
+    const fixtureRoot =
+      /<div className="(fixed inset-0 z-\[100\][^"]*)">\n\s+<div className="absolute inset-0 bg-black\/60" \/>/.exec(
+        fixture,
+      );
+    expect(fixtureRoot, "the fixture has no dialog root").not.toBe(null);
+    expect(positioningOf(fixtureRoot![1]).sort()).toEqual(EXPECTED_ROOT);
+
+    // The picker's height does not follow the viewport, which is what
+    // makes the vertical answer load-bearing here rather than cosmetic.
+    //
+    // Stated precisely, because the loose version of it is false: the
+    // panel is not uncapped — its folder list scrolls at `max-h-48`. What
+    // it has no cap *against* is the viewport. `AddButton` and the toolbar
+    // surface are `max-h-[60vh]` / `[70vh]`, so on a short screen they
+    // shrink; a fixed 192px list plus a filter row plus a breadcrumb that
+    // wraps is the same height whatever the screen is. A trigger low in a
+    // centred dialog therefore has a panel that is too tall for the room
+    // below however small the room gets.
+    const picker = read(resolve(SRC, "components/FolderPicker.tsx"));
+    expect(picker).toContain("max-h-48");
+    expect(/max-h-\[\d+vh\]/.test(picker)).toBe(false);
+    expect(/max-h-\[\d+vh\]/.test(read(resolve(SRC, "components/AddButton.tsx")))).toBe(
+      true,
+    );
+  });
+
   it("names the arrangements the browser suite runs", () => {
     // The two files are edited apart, so the fixture's own table is pinned
     // here as well as in the spec: an arrangement deleted from the page
@@ -244,6 +330,8 @@ describe("the component fixture's page", () => {
       "measured-sheet-full",
       "measured-inspector-left-edge",
       "measured-inspector-right-edge",
+      "measured-tree-pane",
+      "measured-picker-in-dialog",
     ]);
   });
 });

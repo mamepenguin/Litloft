@@ -5,6 +5,10 @@ import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { DismissScrim } from "@/components/DismissScrim";
+import {
+  ANCHORED_VERTICAL,
+  useAnchoredDirection,
+} from "@/hooks/useAnchoredDirection";
 import { getDriveTags } from "@/lib/api";
 import { extractValidTags, parseNote, withTags } from "@/lib/frontmatter";
 import {
@@ -100,6 +104,8 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   const [error, setError] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   // Track the latest ``content`` so ``commit`` can read the current
   // value at click time rather than the value captured by its
   // useCallback closure. Without this, a chip click that races a
@@ -247,6 +253,20 @@ export function EditableTagChips(props: EditableTagChipsProps) {
       .slice(0, 5);
   }, [input, allTags, tags]);
 
+  // The one dropdown in the tree that opens *while* the on-screen keyboard
+  // is up: it is raised by typing into the field it hangs off. So the room
+  // below the chip row is whatever the keyboard has left, and the event
+  // worth re-deriving on is the keyboard going away again — which changes
+  // the visible band without resizing the panel or the window. The hook
+  // subscribes to `visualViewport` for exactly that.
+  const { openUp, side } = useAnchoredDirection({
+    triggerRef: fieldRef,
+    panelRef: listRef,
+    open: suggestions.length > 0,
+    gapPx: ANCHORED_VERTICAL[1].px,
+    preferSide: "left",
+  });
+
   /**
    * The one way the add-a-tag interaction ends.
    *
@@ -348,7 +368,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
           </span>
         ))}
         {adding ? (
-          <div className="relative">
+          <div ref={fieldRef} className="relative">
             <input
               ref={inputRef}
               autoFocus
@@ -376,6 +396,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
                 className="fixed inset-0 z-30"
               >
                 <div
+                  ref={listRef}
                   role="listbox"
                   aria-label={t("placeholder")}
                   // Above the sticky tab strip, which is `z-10` and later
@@ -383,7 +404,9 @@ export function EditableTagChips(props: EditableTagChipsProps) {
                   // paint order and covers the top of this list, and taps
                   // that look like they land on a suggestion reach the strip
                   // instead.
-                  className="absolute top-full left-0 z-30 mt-1 w-40 rounded-lg bg-bg-card py-1 shadow-lg"
+                  className={`absolute z-30 w-40 rounded-lg bg-bg-card py-1 shadow-lg ${
+                    ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
+                  } ${side === "left" ? "left-0" : "right-0"}`}
                 >
                   {suggestions.map((s, i) => (
                     <button

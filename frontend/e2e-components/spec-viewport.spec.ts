@@ -62,6 +62,7 @@ import { basename, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { OUT_DIR, PAGE } from "./build-bundle";
+import { DESKTOP_ONLY } from "./projects";
 
 /**
  * Every page the build emits, written out.
@@ -98,7 +99,65 @@ const PAGE_COUNT = 1;
 const DEVICE_WIDTH_PX = 393;
 const DEVICE_HEIGHT_PX = 727;
 
+/**
+ * Which spec runs at which width, declared here as well as in the config.
+ *
+ * The config gained a second, desktop project for the one arrangement that
+ * cannot be drawn at 393px. That makes "which width did this spec run at" a
+ * question with two answers, and this file's whole subject is that the
+ * answer a spec got is the one it was promised.
+ *
+ * Enumerated by file, both sides. A `testMatch` naming a file that no longer
+ * exists silently runs nothing; a spec added to the directory and to neither
+ * project's rule silently runs at whichever width the default gives it.
+ * Written out here, either is a failure that names the file.
+ *
+ * The desktop side is the config's own export rather than a second copy of
+ * the glob — a copy is a thing that can disagree — while the *membership* is
+ * declared, which is the half a read of the config cannot give.
+ */
+const AT_THE_PHONE_WIDTH = [
+  "anchored-direction.spec.ts",
+  "popup-dismiss.spec.ts",
+  "spec-viewport.spec.ts",
+] as const;
+
+const AT_THE_DESKTOP_WIDTH = ["anchored-direction-desktop.spec.ts"] as const;
+
 test.describe("the component fixture lays out at the width it was given", () => {
+  test("every spec in this directory is assigned to exactly one project", () => {
+    // The spec directory, reached through the build's own output rather
+    // than through `import.meta.url`: `build-bundle.ts` is CJS (it uses
+    // `__dirname`), and one `import.meta` in this file flips it to ESM and
+    // breaks that import at load.
+    const onDisk = readdirSync(resolve(OUT_DIR, ".."))
+      .filter((name) => name.endsWith(".spec.ts"))
+      .sort();
+
+    // Every spec is claimed once. `toEqual` on the union, and the two lists
+    // kept apart, so moving a file between widths is an edit to both sides
+    // and adding one is an edit to neither — which is the failure.
+    expect([...AT_THE_PHONE_WIDTH, ...AT_THE_DESKTOP_WIDTH].sort()).toEqual(
+      onDisk,
+    );
+    expect(
+      AT_THE_PHONE_WIDTH.filter((name) =>
+        (AT_THE_DESKTOP_WIDTH as readonly string[]).includes(name),
+      ),
+    ).toEqual([]);
+
+    // And the desktop list is what the config actually routes. The glob is
+    // a suffix match on the path, so this is the same question Playwright
+    // asks, put to the same string.
+    const suffix = DESKTOP_ONLY.replace(/^\*\*\//, "");
+    expect(AT_THE_DESKTOP_WIDTH).toEqual([suffix]);
+
+    // The negative half: nothing at the phone width matches the desktop
+    // rule. Without it the glob could widen to `**/*.spec.ts` and the two
+    // lists above would still agree with each other.
+    for (const name of AT_THE_PHONE_WIDTH) expect(name).not.toBe(suffix);
+  });
+
   test("the context is one the trap can occur in", async ({ page }) => {
     // The negative control, and the only case here that `isMobile` arms.
     //
