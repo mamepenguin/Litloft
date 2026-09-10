@@ -37,42 +37,6 @@ if [ ! -f "$BACKEND_ADDONS/__init__.py" ]; then
   touch "$BACKEND_ADDONS/__init__.py"
 fi
 
-pruned=0
-
-# Remove backend symlinks for addons that are no longer here.
-#
-# The loop below only ever creates. An addon that is deleted, renamed, or
-# never checked out leaves its link behind pointing at nothing, and the link
-# outlives every later run of this script — `backend/addons/` is gitignored,
-# so nothing else prunes it in a working copy.
-#
-# Only broken links are removed, and only from the directory this script
-# owns. A link that resolves is left alone even if it points somewhere
-# unexpected: this script's job is to stop lying about what is installed, not
-# to overrule a developer who pointed one somewhere on purpose.
-for link in "$BACKEND_ADDONS"/*; do
-  [ -L "$link" ] || continue
-  [ -e "$link" ] && continue
-  rm "$link"
-  echo "Pruned: ${link#$SCRIPT_DIR/} (target is gone)"
-  pruned=$((pruned + 1))
-done
-
-# The same for the frontend, where an addon's entry is a whole directory.
-#
-# A leftover directory is worse than a leftover link: every file in it is a
-# dangling symlink, and a dangling symlink under `frontend/src` fails the
-# whole vitest run with ENOENT rather than being skipped.
-for entry in "$FRONTEND_ADDONS"/*; do
-  [ -e "$entry" ] || [ -L "$entry" ] || continue
-  name="$(basename "$entry")"
-  [ -d "$ADDONS_DIR/$name/frontend" ] && continue
-  # A pre-Option-E checkout has a directory symlink here; both shapes go.
-  rm -rf "$entry"
-  echo "Pruned: frontend/src/addons/$name (addon is gone)"
-  pruned=$((pruned + 1))
-done
-
 # Mirror one addon's frontend as a directory of symlinks.
 #
 # Rebuilt from scratch on every run rather than patched. Patching would have
@@ -114,6 +78,67 @@ frontend_tree_is_ours() {
   [ -d "$target" ] || return 0
   ! find "$target" -type f -print -quit | grep -q .
 }
+
+
+pruned=0
+
+# Remove backend symlinks for addons that are no longer here.
+#
+# The loop below only ever creates. An addon that is deleted, renamed, or
+# never checked out leaves its link behind pointing at nothing, and the link
+# outlives every later run of this script — `backend/addons/` is gitignored,
+# so nothing else prunes it in a working copy.
+#
+# Only broken links are removed, and only from the directory this script
+# owns. A link that resolves is left alone even if it points somewhere
+# unexpected: this script's job is to stop lying about what is installed, not
+# to overrule a developer who pointed one somewhere on purpose.
+for link in "$BACKEND_ADDONS"/*; do
+  [ -L "$link" ] || continue
+  [ -e "$link" ] && continue
+  rm "$link"
+  echo "Pruned: ${link#$SCRIPT_DIR/} (target is gone)"
+  pruned=$((pruned + 1))
+done
+
+# The same for the frontend, where an addon's entry is a whole directory of
+# links rather than one link.
+#
+# A leftover directory is worse than a leftover link: every file in it is a
+# dangling symlink, and a dangling symlink under `frontend/src` fails the
+# whole vitest run with ENOENT rather than being skipped. So a link tree whose
+# addon is gone is pruned, where a single broken link would have been.
+#
+# The rule the backend prune states applies here unchanged, and costs one
+# extra branch to keep: a symlink that RESOLVES is a developer pointing this
+# name somewhere on purpose, and is left alone whether or not it names an
+# addon in `addons/`. Only what this script would itself have produced is
+# removed.
+for entry in "$FRONTEND_ADDONS"/*; do
+  [ -e "$entry" ] || [ -L "$entry" ] || continue
+  name="$(basename "$entry")"
+
+  if [ -L "$entry" ]; then
+    # Resolves: a deliberate choice, not ours to overrule.
+    [ -e "$entry" ] && continue
+    rm "$entry"
+    echo "Pruned: frontend/src/addons/$name (target is gone)"
+    pruned=$((pruned + 1))
+    continue
+  fi
+
+  # A directory. Keep it if its addon is still here — the link phase below
+  # rebuilds it — and keep it regardless if it holds files we did not make.
+  [ -d "$ADDONS_DIR/$name/frontend" ] && continue
+  if ! frontend_tree_is_ours "$entry"; then
+    echo "WARNING: $entry holds files this script did not create, leaving it"
+    continue
+  fi
+  rm -rf "$entry"
+  echo "Pruned: frontend/src/addons/$name (addon is gone)"
+  pruned=$((pruned + 1))
+done
+
 
 linked=0
 

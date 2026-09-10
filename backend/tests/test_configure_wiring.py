@@ -367,11 +367,82 @@ class TestSetupAddonsPrunesWhatIsGone:
         assert link.is_symlink() and link.resolve() == elsewhere.resolve()
 
     def test_the_addons_that_are_here_are_still_linked(self, tmp_path):
-        """Pruning runs before linking and must not eat what follows it."""
+        """Pruning runs before linking and must not eat what follows it.
+
+        The two halves are linked differently on purpose. The backend gets one
+        directory symlink; the frontend gets a real directory, because a tool
+        that walks the tree does not descend a symlinked directory and an addon
+        frontend file no test imports would be invisible to every such walk.
+        """
         self._tree(tmp_path)
         self._run(tmp_path)
 
-        for d, half in (("frontend/src/addons", "frontend"), ("backend/addons", "backend")):
-            link = tmp_path / d / "present"
-            assert link.is_symlink()
-            assert link.resolve() == (tmp_path / "addons" / "present" / half).resolve()
+        backend = tmp_path / "backend" / "addons" / "present"
+        assert backend.is_symlink()
+        assert backend.resolve() == (tmp_path / "addons" / "present" / "backend").resolve()
+
+        frontend = tmp_path / "frontend" / "src" / "addons" / "present"
+        assert frontend.is_dir()
+        assert not frontend.is_symlink()
+
+    def test_the_frontend_is_a_directory_holding_a_link_per_file(self, tmp_path):
+        """The shape, asserted where the files are non-empty.
+
+        `_tree` makes an empty `frontend/`, which cannot tell a directory of
+        links apart from an empty directory. Both halves are enumerated and
+        compared as sets rather than counted: a count cannot catch a file that
+        was never linked at the same time as one that should not be there.
+        """
+        self._tree(tmp_path)
+        src = tmp_path / "addons" / "present" / "frontend"
+        (src / "nested").mkdir()
+        (src / "Page.tsx").write_text("export default null\n")
+        (src / "nested" / "helper.ts").write_text("export const x = 1\n")
+
+        self._run(tmp_path)
+
+        target = tmp_path / "frontend" / "src" / "addons" / "present"
+        expected = {"Page.tsx", "nested/helper.ts"}
+        actual = {
+            str(p.relative_to(target))
+            for p in target.rglob("*")
+            if not p.is_dir()
+        }
+        assert actual == expected
+        for rel in expected:
+            link = target / rel
+            assert link.is_symlink(), f"{rel} is not a link"
+            assert link.resolve() == (src / rel).resolve()
+
+    def test_a_link_tree_whose_addon_is_gone_is_pruned(self, tmp_path):
+        """A stale directory is worse than a stale link.
+
+        Every file in it dangles, and one dangling symlink under
+        `frontend/src` fails the whole vitest run with ENOENT rather than
+        being skipped.
+        """
+        self._tree(tmp_path)
+        stale = tmp_path / "frontend" / "src" / "addons" / "gone"
+        (stale / "sub").mkdir(parents=True)
+        (stale / "sub" / "Old.tsx").symlink_to(tmp_path / "addons" / "gone" / "frontend" / "Old.tsx")
+
+        self._run(tmp_path)
+
+        assert not stale.exists()
+
+    def test_a_frontend_directory_holding_real_files_is_left_alone(self, tmp_path):
+        """The same judgement the backend prune makes about a resolving link.
+
+        A directory of real files is not something this script produced, so it
+        is reported rather than overruled — the alternative is `rm -rf` over
+        work someone put there on purpose.
+        """
+        self._tree(tmp_path)
+        mine = tmp_path / "frontend" / "src" / "addons" / "present"
+        mine.mkdir()
+        (mine / "Hand.tsx").write_text("mine\n")
+
+        result = self._run(tmp_path)
+
+        assert (mine / "Hand.tsx").read_text() == "mine\n"
+        assert "did not create" in result.stdout
