@@ -140,8 +140,9 @@ describe("ToolbarMenu", () => {
   });
 
   it("keeps the popover's recipe, which is what keeps it on screen", () => {
-    // A literal, not the imported `MENU_SURFACE`. Comparing the element's
-    // class to the constant it is set from compares the constant to itself:
+    // A literal, not the string `useMenuSurface` builds. Comparing the
+    // element's class to the recipe it is set from compares the recipe to
+    // itself:
     // an independent review deleted `sm:absolute` — the token that decides
     // between a bottom sheet and a menu anchored to its trigger, the most
     // consequential one in the string — and all 143 tests passed. The copy
@@ -205,10 +206,18 @@ describe("ToolbarMenu", () => {
       /\s+/,
     );
 
-    expect(classes.filter((c) => /^sm:(top|bottom|mt|mb)/.test(c))).toEqual([
+    expect(
+      classes.filter((c) => /^sm:(top|bottom|mt|mb|origin)/.test(c)),
+    ).toEqual([
       "sm:top-auto",
       "sm:bottom-full",
       "sm:mb-1",
+      // The corner the open animation grows from follows the direction as
+      // well as the side. `animate-fade-in-scale` starts at `scale(.95)`,
+      // so an origin naming the top while the panel hangs from the bottom
+      // grows it away from the trigger it is attached to — the one
+      // combination the downward-only form could not reach.
+      "sm:origin-bottom-right",
     ]);
   });
 

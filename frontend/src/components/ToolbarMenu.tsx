@@ -112,8 +112,28 @@ export const MENU_SURFACE_GAP_PX = 4;
  * is `absolute` inside a bar the page does not scroll sideways.
  */
 const MENU_ALIGN = {
-  right: " sm:right-0 sm:origin-top-right",
-  left: " sm:left-0 sm:origin-top-left",
+  right: " sm:right-0",
+  left: " sm:left-0",
+} as const;
+
+/**
+ * The corner `animate-fade-in-scale` grows the anchored panel out of.
+ *
+ * A corner and not an edge, so it takes both axes. The surface carries
+ * `animate-fade-in-scale`, which starts at `scale(0.95)`; scaling from the
+ * corner the panel is pinned to is what makes it look attached to the
+ * trigger rather than sliding towards it. An origin naming the top while
+ * the panel hangs from the bottom is the one combination that reads wrong,
+ * and it is reachable now that the direction is measured.
+ *
+ * `sm:` throughout, like everything else about the anchored form: the sheet
+ * below 640 is pinned to the screen and grows from wherever it is.
+ */
+const MENU_ORIGIN = {
+  "down-right": " sm:origin-top-right",
+  "down-left": " sm:origin-top-left",
+  "up-right": " sm:origin-bottom-right",
+  "up-left": " sm:origin-bottom-left",
 } as const;
 
 /**
@@ -171,7 +191,10 @@ export function useMenuSurface(
     wrapperRef,
     panelRef,
     className:
-      base + MENU_DIRECTION[openUp ? "up" : "down"] + MENU_ALIGN[side],
+      base +
+      MENU_DIRECTION[openUp ? "up" : "down"] +
+      MENU_ALIGN[side] +
+      MENU_ORIGIN[`${openUp ? "up" : "down"}-${side}`],
   };
 }
 

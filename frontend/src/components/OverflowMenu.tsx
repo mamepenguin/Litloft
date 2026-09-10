@@ -50,11 +50,13 @@ interface OverflowMenuProps {
  * answered twice. `ToolbarMenu` records the same reasoning, and
  * `escape-listeners.test.ts` permits exactly this shape.
  *
- * The surface is `MENU_SURFACE` — a sheet below 640px, a right-anchored
- * dropdown above it — because every other menu on a bar in this app is
- * that surface, and a `…` rendering two ways on two screens that hold
- * the same rows is the drift this component exists to end. `AddButton`
- * is the one menu that does not use it, and says why: it anchors left.
+ * The surface is `useMenuSurface` — a sheet below 640px, and above it a
+ * dropdown anchored to its trigger in the direction and on the side the
+ * measurement picks — because every other menu on a bar in this app is
+ * that surface, and a `…` rendering two ways on two screens that hold the
+ * same rows is the drift this component exists to end. `AddButton` is the
+ * one menu on a bar that does not use it yet; its side is a parameter of
+ * the recipe now, so what is left there is the conversion, not a reason.
  */
 export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);

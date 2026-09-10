@@ -865,7 +865,8 @@ by the file, not by the layout.
 Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
 
 - **An anchored dropdown measures both axes before it commits to a
-  direction**, and the measurement lives in one place: `useAnchoredDirection`.
+  direction.** In core the measurement is `useAnchoredDirection` and there is
+  one of it.
   Hanging below and to one side is right wherever the trigger has the room; on
   the Bottom Sheet's resting strip (`fixed bottom-0`, §Layering) there is none
   below it, and a menu that could only open downward was drawn entirely
@@ -896,6 +897,18 @@ Radius `rounded-2xl`; danger item `text-danger hover:bg-accent/10`.
   which becomes the containing block of even a `fixed` descendant — vaul's
   drawer is one. Inside the expanded sheet the drawer is never reached: the
   sheet's own scroller clips first.
+
+  **Two addons still carry their own copy**, and saying so is the point of this
+  paragraph rather than an aside: the intelligence addon's
+  `FileAIActionsButton` runs its own version of the ancestor walk, and the
+  knowledge addon's `[[` autocomplete flips against `window.innerHeight`. They
+  are separate repositories, so replacing them is an addon PR and a pointer
+  bump rather than an edit here, and until that happens the pair is kept in
+  step by PR review — the same standing arrangement as the duplicated
+  `frontmatter.py` and `credentials.py` implementations. The copy is currently
+  the *older* rule: core's walk collects the frame's right-hand edge, reads the
+  visual viewport's offsets and re-derives when the viewport moves, and the
+  addon's does none of the three.
 
   **Two families are not this**, and they are named so that the next reader
   does not unify them. *Point-anchored* menus — `ContextMenu` and its callers,

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      Without this, a context that sets `isMobile` lays the page out at
+      Chromium's mobile default instead of the viewport the spec asked
+      for, and every width-conditional rule answers for a page nobody is
+      measuring. This fixture is entirely about width-conditional rules.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>toolbar menu — layout fixture</title>
+    <!--
+      The compiled globals.css, built by ../build-fixture-css.ts. No
+      <style> of its own, like the other fixtures: every declaration
+      measured here has to have come out of the app's own stylesheet, or
+      the measurement is a test of this page.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <!--
+      The surface `useMenuSurface` builds, in the four pieces it builds it
+      from.
+
+      This is the recipe five panels and ten call sites share, and it is
+      the one whose form changes with the viewport: a sheet spanning the
+      screen below 640 and a panel anchored to its trigger above it. The
+      `sm:` half is what nothing measured before this fixture — the other
+      browser targets draw `FileActions`, which has no `sm:` in its class
+      list, and the component target runs at 393px where `sm:` cannot
+      apply at all.
+
+      `toolbarMenuFixtureParity.test.tsx` renders the real `ToolbarMenu`
+      and fails if any string here drifts from what it emits, so what the
+      spec measures is the app's recipe rather than this page's idea of it.
+    -->
+    <script type="application/json" id="fixture-markup">
+      {
+        "bar": "sticky bottom-0 flex items-center justify-end gap-2 bg-bg-card px-4 py-2",
+        "wrapper": "relative",
+        "trigger": "flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11",
+        "surfaceBase": "fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:absolute sm:inset-x-auto sm:max-h-[70vh] sm:min-w-[200px]",
+        "down": "sm:bottom-auto sm:top-full sm:mt-1",
+        "up": "sm:top-auto sm:bottom-full sm:mb-1",
+        "right": "sm:right-0",
+        "left": "sm:left-0",
+        "down-right": "sm:origin-top-right",
+        "down-left": "sm:origin-top-left",
+        "up-right": "sm:origin-bottom-right",
+        "up-left": "sm:origin-bottom-left",
+        "row": "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary",
+        "gapPx": 4
+      }
+    </script>
+
+    <div id="frame"></div>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      /**
+       * A bar pinned to the foot of the page with one menu open on it.
+       *
+       * Pinned to the foot because that is where the folder toolbar's is
+       * once the page has scrolled, and because it is the arrangement in
+       * which the downward form has nowhere to go — the state the
+       * measurement exists to answer.
+       */
+      window.buildBar = function ({ direction, align, rows }) {
+        const frame = document.getElementById("frame");
+        frame.innerHTML = "";
+
+        const bar = document.createElement("div");
+        bar.className = SPEC.bar;
+        bar.id = "bar";
+
+        const wrapper = document.createElement("div");
+        wrapper.className = SPEC.wrapper;
+        wrapper.id = "wrapper";
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.id = "trigger";
+        button.className = SPEC.trigger;
+        button.textContent = "Sort";
+        wrapper.append(button);
+
+        const menu = document.createElement("div");
+        menu.id = "menu";
+        menu.setAttribute("role", "menu");
+        menu.className =
+          SPEC.surfaceBase +
+          " " +
+          SPEC[direction] +
+          " " +
+          SPEC[align] +
+          " " +
+          SPEC[direction + "-" + align];
+        for (let i = 0; i < rows; i += 1) {
+          const row = document.createElement("button");
+          row.type = "button";
+          row.setAttribute("role", "menuitem");
+          row.className = SPEC.row;
+          row.textContent = "Row " + (i + 1);
+          menu.append(row);
+        }
+        wrapper.append(menu);
+
+        bar.append(wrapper);
+        // Tall enough that the page scrolls and the sticky bar is at the
+        // foot of the viewport rather than in the middle of the document.
+        const filler = document.createElement("div");
+        filler.style.height = "2000px";
+        frame.append(filler, bar);
+      };
+
+      /** The boxes the spec reads, plus the properties it asks CSS for. */
+      window.measureMenu = function () {
+        const box = (el) => {
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return {
+            top: r.top,
+            bottom: r.bottom,
+            left: r.left,
+            right: r.right,
+            width: r.width,
+            height: r.height,
+          };
+        };
+        const menu = document.getElementById("menu");
+        return {
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          trigger: box(document.getElementById("trigger")),
+          menu: box(menu),
+          menuPosition: getComputedStyle(menu).position,
+          menuTransformOrigin: getComputedStyle(menu).transformOrigin,
+        };
+      };
+    </script>
+  </body>
+</html>

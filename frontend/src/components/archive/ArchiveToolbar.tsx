@@ -143,6 +143,12 @@ export function ArchiveToolbar({
   const tToolbar = useTranslations("toolbar");
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLButtonElement>(null);
+  // Inert while the wrapper below is `sm:hidden`: the only widths this
+  // menu exists at are the ones where the surface resolves to the
+  // viewport-spanning `fixed` sheet, and a sheet has no direction to pick.
+  // Taken anyway, because the surface is one recipe and the day this
+  // control stops being `sm:hidden` is not the day anyone will remember to
+  // wire it.
   const moreSurface = useMenuSurface(moreOpen);
 
   // Closing must put focus back on the trigger; without it the menu unmounts

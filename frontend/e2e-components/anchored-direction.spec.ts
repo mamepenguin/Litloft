@@ -106,62 +106,93 @@ async function openAt(
  * `Drawer.Content` at two different translations — so each is asked
  * separately rather than inferred from its neighbour.
  *
- * **Only `peek` can claim the whole box is on screen.** The strip has no
- * scroller under it, so a menu past the fold there is gone; that is the
- * defect the user reported. The expanded states draw the row inside
- * `mobile-inspector-content`, which scrolls — a menu taller than the room
- * on either side of its trigger overhangs whichever direction it takes,
- * and scrolling recovers it. Asserting "fully on screen" there would be
- * asserting something the design does not promise, and it fails on the
- * real component: `half` leaves 148px under the trigger and 8px over it
- * for a 188px menu. What those two states can hold is the *direction*, and
- * the horizontal axis, which nothing recovers — the sheet spans the
- * viewport and its scroller does not scroll sideways.
+ * `fits` is what the state's room does to the panel, and it is why this is
+ * a table rather than a loop over the state names:
+ *
+ *  - **`whole`** — the picked direction puts the whole box on screen.
+ *  - **`neither`** — no direction fits, the rule keeps the panel pointing
+ *    the way it points everywhere else, and the overhang is recovered by
+ *    the scroller the row is drawn in. Asserting `whole` there would be
+ *    asserting something the design does not promise.
+ *
+ * The strip is the state with no scroller under it, so it is the one where
+ * a menu past the fold is simply gone — the defect the user reported.
  */
-test("the strip's menu is drawn entirely on screen", async ({ page }) => {
-  await openAt(page, "measured-sheet-peek");
-  const menu = await box(page, "#anchored");
-  const viewport = page.viewportSize()!;
+const CELLS = [
+  { state: "peek", openUp: true, fits: "whole" },
+  { state: "half", openUp: false, fits: "neither" },
+  { state: "full", openUp: false, fits: "whole" },
+] as const;
 
-  expect(menu.top).toBeGreaterThanOrEqual(0);
-  expect(menu.bottom).toBeLessThanOrEqual(viewport.height);
-  expect(menu.left).toBeGreaterThanOrEqual(0);
-  expect(menu.right).toBeLessThanOrEqual(viewport.width);
+test("the table covers three sheet states, both directions and both outcomes", () => {
+  // Counted as well as enumerated. Without the literal the table can be
+  // walked back to any length and every case it still holds keeps passing
+  // — measured on the loop this replaces: `["half", "full"]` cut to
+  // `["half"]` ran 37 of 38 with nothing red. Detector rule 1, and rule
+  // 5's shape that keeps recurring. `popup-dismiss.spec.ts` carries the
+  // same guard over the same three states, eleven lines away.
+  expect(CELLS).toHaveLength(3);
+  expect([...new Set(CELLS.map((c) => c.state))]).toEqual([
+    "peek",
+    "half",
+    "full",
+  ]);
+
+  // Both answers of the vertical axis are drawn. A table whose every row
+  // expected the same direction would be green for a hook that always
+  // returned it.
+  expect([...new Set(CELLS.map((c) => c.openUp))].sort()).toEqual([
+    false,
+    true,
+  ]);
+
+  // And both outcomes, named rather than counted: exactly one state is the
+  // one where neither direction fits, and it is not the state whose box
+  // nothing recovers.
+  expect(CELLS.filter((c) => c.fits === "neither").map((c) => c.state)).toEqual(
+    ["half"],
+  );
+  expect(CELLS.filter((c) => c.fits === "whole").map((c) => c.state)).toEqual([
+    "peek",
+    "full",
+  ]);
 });
 
-for (const state of ["half", "full"] as const) {
-  test(`the expanded sheet's ${state} menu stays inside the viewport's width`, async ({
-    page,
-  }) => {
-    await openAt(page, `measured-sheet-${state}`);
+for (const cell of CELLS) {
+  test(`the sheet's ${cell.state} menu hangs ${
+    cell.openUp ? "up" : "down"
+  } and lands ${cell.fits}`, async ({ page }) => {
+    const answer = await openAt(page, `measured-sheet-${cell.state}`);
     const menu = await box(page, "#anchored");
     const viewport = page.viewportSize()!;
 
+    // The strip's bottom edge *is* the bottom of the screen, so a menu
+    // that could only hang downward from it is drawn entirely below the
+    // fold; `half` and `full` put the row inside a drawer with room under
+    // it. One state or the other is always the broken one for a constant
+    // direction, which is why no state is asserted alone.
+    expect(answer.openUp).toBe(cell.openUp);
+
+    // The horizontal axis in every state: the sheet spans the viewport and
+    // its scroller does not scroll sideways, so nothing recovers a panel
+    // that crosses either side edge.
     expect(menu.left).toBeGreaterThanOrEqual(0);
     expect(menu.right).toBeLessThanOrEqual(viewport.width);
+
+    if (cell.fits === "whole") {
+      expect(menu.top).toBeGreaterThanOrEqual(0);
+      expect(menu.bottom).toBeLessThanOrEqual(viewport.height);
+    } else {
+      // The panel starts on screen — its first row is reachable without
+      // scrolling — and runs past the fold, which is this state's own
+      // shape rather than an accident of it: flipped up, the box fits the
+      // viewport outright. Asserting the overhang is what stops the
+      // direction above passing by luck.
+      expect(menu.top).toBeLessThan(viewport.height);
+      expect(menu.bottom).toBeGreaterThan(viewport.height);
+    }
   });
 }
-
-test("the strip's menu is the one that has to open upward", async ({ page }) => {
-  // The state the file detail opens in, and the defect the user reported:
-  // the strip's bottom edge *is* the bottom of the screen, so a menu that
-  // could only hang downward is drawn entirely below the fold. Asserted as
-  // well as the box above, because "inside the viewport" is also true of a
-  // menu that never opened.
-  expect((await openAt(page, "measured-sheet-peek")).openUp).toBe(true);
-});
-
-test("the expanded sheet's menu has room below and takes it", async ({
-  page,
-}) => {
-  // The other side of the same claim. Neither direction fits in `half` —
-  // the row sits a few pixels under the scroller's top edge — so the rule
-  // that keeps a trigger with room for neither pointing the way it points
-  // everywhere else is what decides it, and the larger side is below. One
-  // state or the other is always the broken one for a constant direction,
-  // which is why neither is asserted alone.
-  expect((await openAt(page, "measured-sheet-half")).openUp).toBe(false);
-});
 
 /**
  * The column's two side edges.

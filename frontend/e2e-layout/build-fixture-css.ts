@@ -178,6 +178,20 @@ export const REQUIRED = [
   // A third kind again: this is what keeps a long message from wrapping,
   // which is the premise of the column cases rather than their subject.
   ".whitespace-nowrap {",
+  // `toolbar-menu.spec.ts` measures the shared toolbar surface on both
+  // sides of `sm`. These are the variant-prefixed halves — the ones that
+  // exist only because `ToolbarMenu.tsx` writes them, and the ones whose
+  // absence turns the anchored cases into a page that is still the sheet
+  // at 768 and reports it as a wrong box rather than as a missing rule.
+  //
+  // Written whole rather than split across two literals, which the escape
+  // rules above would otherwise require: `globals.css` takes this file out
+  // of the scan with `@source not`, so nothing here is a source for
+  // anything.
+  ".sm\\:absolute {",
+  ".sm\\:top-full {",
+  ".sm\\:bottom-full {",
+  ".sm\\:bottom-auto {",
   // `mobile-inspector-sheet.spec.ts` measures a drawer whose foot is off
   // the screen and a sticky tab strip inside the one box that scrolls.
   // Every rule below is load-bearing for a different case, and each one's
