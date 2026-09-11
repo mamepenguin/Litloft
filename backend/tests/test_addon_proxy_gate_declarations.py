@@ -162,19 +162,30 @@ class TestMisdeclaredFileAccessParam:
 class TestDriveOptionalWithoutAGate:
     """``drive_optional`` waives the drive requirement; something must replace it."""
 
-    def test_a_drive_optional_route_with_no_gate_is_refused(self, declaring):
+    def test_a_drive_optional_route_with_no_gate_is_refused(self, declaring, caplog):
         """`design-decisions.md` §Addons: drive_optional is for inherently
         global paths whose "authorization is enforced through a separate
         route". A route that declares neither has no separate route, and
-        serving it would make the header optional *and* unchecked."""
+        serving it would make the header optional *and* unchecked.
+
+        The log is asserted for the same reason as its sibling above: the
+        refusal is a bare 404, so an addon author whose route stopped working
+        has nothing to go on unless the message names the declaration.
+        """
         c = declaring({
             "path": "/open", "methods": ["GET"], "drive_optional": True,
         })
 
-        response = c.get(f"/api/addons/{ADDON}/open")
+        with caplog.at_level("ERROR", logger="app.routers.addon_proxy"):
+            response = c.get(f"/api/addons/{ADDON}/open")
 
         assert response.status_code == 404
         assert _SpyClient.calls == []
+        assert any(
+            "drive_optional" in record.getMessage()
+            and "/open" in record.getMessage()
+            for record in caplog.records
+        ), "the ungated drive_optional route is not named in any ERROR log"
 
     def test_the_same_route_with_a_gate_is_served(self, declaring):
         """Positive control: the guard must refuse the undeclared case only."""
@@ -183,8 +194,11 @@ class TestDriveOptionalWithoutAGate:
             "pre_check": {"type": "file_access", "param": "file_id"},
         })
 
-        # No ``{file_id}`` in this path, so the file gate refuses — but for its
-        # own reason, which is what distinguishes it from the case above.
+        # Declaring a ``file_access`` pre_check on a path with no ``{file_id}``
+        # is the misdeclaration the guard above refuses, so this is the same
+        # 404 from a different line rather than a contrast. It is here to show
+        # the two guards do not shadow each other; the admin case below is
+        # what demonstrates that a declared gate is served.
         response = c.get(f"/api/addons/{ADDON}/open")
         assert response.status_code == 404
 
@@ -208,3 +222,66 @@ class TestDriveOptionalWithoutAGate:
         response = c.get(f"/api/addons/{ADDON}/open")
 
         assert response.status_code == 400
+
+
+#: ``pre_check`` shapes the proxy has no arm for. Each one satisfies every
+#: test for "this route declares a gate" — including the ``drive_optional``
+#: guard, which reads ``pre_check`` for truthiness — while naming nothing the
+#: dispatch recognises. Declared rather than derived from the dispatch, so
+#: removing an arm is a failure here instead of a new member of this list.
+UNRECOGNISED_PRE_CHECKS = [
+    {"type": "file_acces", "param": "file_id"},   # one letter short
+    {"type": "fileaccess"},                        # no underscore
+    {"type": "admin "},                            # trailing space
+    {"type": "Admin"},                             # wrong case
+    {"param": "file_id"},                          # no "type" key at all
+    {"type": None},                                # explicit null
+    {},                                            # empty object
+]
+
+
+class TestUnrecognisedPreCheckType:
+    """A declared gate the proxy cannot dispatch to.
+
+    This is the third way a manifest can be wrong and read as correct, and it
+    reads as correct harder than the other two: ``"type": "file_acces"`` looks
+    like a gate to a reader, to a reviewer, and — before this arm existed — to
+    the ``drive_optional`` guard, which only asks whether a ``pre_check`` is
+    present. A route that waives the drive requirement and declares a gate
+    nothing runs is served to an unauthenticated caller with no drive context.
+    """
+
+    @pytest.mark.parametrize("pre_check", UNRECOGNISED_PRE_CHECKS)
+    def test_it_is_refused_rather_than_skipped(self, declaring, caplog, pre_check):
+        c = declaring({
+            "path": "/open", "methods": ["GET"],
+            "drive_optional": True, "pre_check": pre_check,
+        })
+
+        with caplog.at_level("ERROR", logger="app.routers.addon_proxy"):
+            response = c.get(f"/api/addons/{ADDON}/open")
+
+        assert response.status_code == 404
+        assert _SpyClient.calls == []
+        assert any(
+            "pre_check" in record.getMessage() for record in caplog.records
+        ), "the unrecognised pre_check type is not named in any ERROR log"
+
+    @pytest.mark.parametrize("check_type", ["file_access", "addon_feature", "admin"])
+    def test_the_recognised_types_still_dispatch(self, declaring, check_type):
+        """Positive control, one per arm.
+
+        The refusal above must come from the type being unknown, not from the
+        new arm swallowing every ``pre_check``. Each recognised type reaches
+        its own gate, which refuses for its own reason — 403 for admin, 404
+        for the other two — and none of them forwards.
+        """
+        c = declaring({
+            "path": "/open", "methods": ["GET"],
+            "drive_optional": True, "pre_check": {"type": check_type},
+        })
+
+        response = c.get(f"/api/addons/{ADDON}/open")
+
+        assert response.status_code == (403 if check_type == "admin" else 404)
+        assert _SpyClient.calls == []

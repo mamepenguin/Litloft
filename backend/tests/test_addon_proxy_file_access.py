@@ -1,10 +1,14 @@
 """The addon proxy's file gate: what it refuses, and that it refuses first.
 
 ``pre_check: {"type": "file_access"}`` is what stands between an addon and a
-file the caller may not read. Thirty-five proxied routes declare it today, and
-for the twenty-three that carry no route-level ``addon_feature`` it is the
-whole of the core-side check — the drive-match half is the addon's, which is
-why the tests here are about access rather than about drive context.
+file the caller may not read. For a route that carries no route-level
+``addon_feature`` it is the whole of the core-side check — the drive-match half
+is the addon's — which is why the tests here are about access rather than about
+drive context.
+
+How many routes that is belongs in the PR body, not here: they are declared in
+another repository, so a count written down here cannot be falsified from this
+one and a submodule pointer bump silently edits it.
 
 Both of its refusals return 404 and both return the same body: ``design
 -decisions.md`` §Access control keeps a locked drive's existence hidden, so

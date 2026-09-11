@@ -1,17 +1,28 @@
 """Two rules the addon proxy re-implements instead of calling.
 
 ``addon_proxy`` runs from a plain handler rather than a FastAPI dependency, so
-it carries its own copy of two decisions that ``app.auth`` also makes: who
-counts as an admin, and what a viewer nickname resolves to. Duplicated rules
-drift, and this project already keeps two `frontmatter.py` parsers and two
-`credentials.py` in step by review alone.
+it reaches two decisions that ``app.auth`` also makes: who counts as an admin,
+and what a viewer nickname resolves to. **The two are not the same shape, and
+the tests below are not the same kind.**
 
-**Each implementation is checked against a declared table, not against the
-other one.** Comparing the two directly goes green when both are wrong in the
-same way — which is the likely failure, since the second copy is written by
-reading the first. The values the rules turn on are written here, once, on the
-declaration side: a nickname longer than ``NICKNAME_MAX_LENGTH`` is not a
-viewer, and an admin is a caller holding every protected group.
+*The nickname rule is genuinely duplicated.* ``_resolve_viewer_id`` re-does the
+trim-and-cap that ``auth._nickname_from_raw`` does, because the proxy runs
+outside the dependency that would have called it. Duplicated rules drift, and
+this project already keeps two ``frontmatter.py`` parsers and two
+``credentials.py`` in step by review alone. So **each implementation is checked
+against a declared table, not against the other one**: comparing them directly
+goes green when both are wrong the same way, which is the likely failure since
+the second copy is written by reading the first. The value the rule turns on —
+the cap — is written here rather than imported from either side, so moving
+either copy fails instead of agreeing with the test.
+
+*The admin rule is called, not copied.* ``addon_proxy`` imports ``is_admin``
+from ``app.auth``; there is one implementation and nothing to drift. What
+``TestAdminRule`` holds is therefore two other things, both real: that the proxy
+still calls it, with the caller's groups, at that route (the call site can break
+on its own), and that ``ADMIN_CASES`` pins what ``is_admin`` means. Breaking
+``is_admin`` fails both halves at once, which is the signature of one
+implementation read twice — and is why this half is not described as parity.
 """
 from __future__ import annotations
 
@@ -199,9 +210,12 @@ class TestAdminRule:
     def test_the_proxy_gate_agrees_through_a_real_request(
         self, parity_client, groups, is_admin_expected
     ):
-        """The proxy re-implements the gate rather than depending on
-        ``require_admin``; a condition added to one and not the other would
-        show up here as a disagreement with the declaration."""
+        """The proxy's call site, not a second implementation.
+
+        ``is_admin`` is imported, so this cannot disagree with the host over
+        the predicate. What it can catch is the proxy ceasing to call it,
+        calling it with the wrong groups, or refusing with the wrong status.
+        """
         from app.auth import get_unlocked_groups
         from app.main import app
 

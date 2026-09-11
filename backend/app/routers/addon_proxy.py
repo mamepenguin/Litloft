@@ -208,10 +208,11 @@ _STRIPPED_RESPONSE_HEADERS = frozenset(
 )
 
 
-# Maximum nickname length we will hash. Mirrors the cap in ``get_viewer_id``
-# (``app.auth``) so a pathological cookie value cannot make the proxy spend
-# unbounded CPU on SHA-256. Anything longer is treated as "no viewer" — the
-# auth helper does the same.
+# Maximum nickname length we will hash. The same cap is applied by
+# ``app.auth._nickname_from_raw``, which is where the host's copy of the
+# literal lives, so a pathological cookie value cannot make either side
+# spend unbounded CPU on SHA-256. Anything longer is treated as "no
+# viewer" on both.
 _VIEWER_NICKNAME_MAX_LEN = 50
 
 # Header that carries the SHA-256-prefixed viewer_id from the host to
@@ -561,7 +562,8 @@ async def addon_proxy(
                 # check, so the only safe answer is to refuse: falling
                 # through would serve a route whose manifest says it is
                 # gated, with no gate. 404 rather than 500 for the same
-                # reason the gates below use it.
+                # reason the file and feature gates use it: a route that
+                # cannot be authorised should not announce that it exists.
                 logger.error(
                     "Addon %r route %r declares a file_access pre_check on "
                     "%r, which is not a parameter of its path",
@@ -586,6 +588,16 @@ async def addon_proxy(
                 raise HTTPException(
                     status_code=403, detail="Admin access required"
                 )
+        else:
+            # A ``pre_check`` whose type nothing here handles. It satisfies
+            # every test for "this route declares a gate" — including the
+            # ``drive_optional`` guard above — while running none, so the
+            # declaration has to be refused rather than skipped.
+            logger.error(
+                "Addon %r route %r declares an unknown pre_check type %r",
+                addon_name, route_config.get("path"), check_type,
+            )
+            raise HTTPException(status_code=404, detail="Route not found")
 
     # File-scoped routes need to compose the core file-access check above
     # with a per-drive feature gate. ``pre_check`` intentionally has one
