@@ -262,7 +262,13 @@ const tracked = new Set([
     trackedSources(join(REPO_ROOT, "addons", name), "frontend", `src/addons/${name}/`),
   ),
 ]);
-for (const p of NO_INSTRUMENTABLE_CODE) tracked.delete(p);
+// The same discarded return value as above, and it is the fact that separates
+// the two cases the message has to choose between: git still knowing about the
+// file means it was deleted from the working tree and should come back, while
+// git not knowing about it means the entry outlived its file and should go.
+const stillTracked = new Set(
+  NO_INSTRUMENTABLE_CODE.filter((p) => tracked.delete(p)),
+);
 
 const untracked = [...tracked].filter((p) => !declared.has(p)).sort();
 
@@ -292,19 +298,26 @@ if (untracked.length || staleAbsences.length) {
       "which is why this compares against the index and not against the report.",
     );
   }
-  if (staleAbsences.length) {
+  // Split by whether git still has the file, not by whether some *other* file
+  // is also missing. Keyed on the latter, the advice about one entry changed
+  // when an unrelated deletion appeared beside it.
+  const recoverable = staleAbsences.filter((p) => stillTracked.has(p));
+  const orphaned = staleAbsences.filter((p) => !stillTracked.has(p));
+  if (recoverable.length) {
     lines.push(
-      `${staleAbsences.length} entr(y/ies) in NO_INSTRUMENTABLE_CODE name no such file:`,
-      ...staleAbsences.map((p) => `  - ${p}`),
-      untracked.length
-        ? "These are part of the same deletion — restore the files rather than"
-        : "Each entry is a claim that a real file compiles to nothing and is",
-      untracked.length
-        ? "removing the entries."
-        : "therefore absent from the report. A name with no file behind it excludes",
-      ...(untracked.length
-        ? []
-        : ["nothing and hides the next entry that stops being true. Delete it."]),
+      `${recoverable.length} declared-absent file(s) are gone from the working tree but still tracked:`,
+      ...recoverable.map((p) => `  - ${p}`),
+      "The entries are right and the files are not there. Restore them; do not",
+      "remove the declarations.",
+    );
+  }
+  if (orphaned.length) {
+    lines.push(
+      `${orphaned.length} entr(y/ies) in NO_INSTRUMENTABLE_CODE name no such file:`,
+      ...orphaned.map((p) => `  - ${p}`),
+      "git does not have these either, so the entry has outlived the file it",
+      "excluded. A name with no file behind it excludes nothing and hides the",
+      "next entry that stops being true. Delete it.",
     );
   }
   fail(lines);

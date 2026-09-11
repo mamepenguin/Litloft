@@ -91,7 +91,7 @@ export default defineConfig({
       // Set at the minimum of five CI runs. `docs/developer-guide/testing.md`
       // carries both machines' ranges and the files that move.
       thresholds: {
-        statements: 77.33,
+        statements: 77.32,
         lines: 79.76,
         functions: 73.83,
         branches: 71.86,

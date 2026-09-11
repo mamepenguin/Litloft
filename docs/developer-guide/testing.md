@@ -477,12 +477,17 @@ beside the bracket measured to set it; a copy here would be one nothing re-runs.
 
 ### The frontend thresholds, and why they are four numbers
 
-| metric | threshold | CI, 5 samples | this machine, 20 runs |
+| metric | threshold | CI, observed | this machine |
 |---|---|---|---|
-| statements | **77.33** | 77.33 | 77.35 – 77.36 |
+| statements | **77.32** | 77.32 – 77.33 | 77.35 – 77.36 |
 | lines | **79.76** | 79.76 | 79.78 |
-| functions | **73.83** | 73.83 – 73.85 | 73.88 – 73.90 |
+| functions | **73.83** | 73.83 – 73.86 | 73.88 – 73.90 |
 | branches | **71.86** | 71.86 – 71.89 | 71.86 – 71.88 |
+
+Every metric here moves between CI runs on an unchanged tree. The numerators, not
+the denominators — the population is fixed by istanbul and does not move at all.
+The widths are in the pull request that set them; what belongs here is that they
+are non-zero for all four.
 
 Four numbers because they are four claims; one figure standing for four hides
 which of them moved. Raise them when coverage rises. Do not lower one to make a
@@ -514,17 +519,27 @@ falsifiable at all.
 
 ### When a threshold goes red
 
-The floors sit at the lowest of five samples of a measurement that is not
+The floors sit at the lowest *observed* value of a measurement that is not
 deterministic, so a red build on a tree nobody changed is a possible outcome
-rather than a contradiction. It is diagnosed, not argued about:
+rather than a contradiction. It has happened. It is diagnosed, not argued about:
 
 1. **Read both lines the job prints.** The four totals come from the coverage
    summary the `Test` step printed — it is written even on a red suite. The file
    count comes from the denominator line below it, which runs even when `Test`
    fails.
 2. **If the totals are unchanged** — 21383 / 18946 / 14198 / 5109 — the
-   population is intact and the tree really did lose coverage. The fix is a
-   test. Do not move the number.
+   population is intact, so the percentage is comparable to the floor and the
+   numerator is what moved. Two cases, and they are told apart by the tree, not
+   by the number:
+   - **the branch changed something** — the tree lost coverage. The fix is a
+     test. Do not move the number.
+   - **the branch changed nothing that runs** — this is jitter. **Re-run the
+     job. Do not move the number.** A metric one unit below its floor on an
+     untouched tree is the expected behaviour of a floor sitting at an observed
+     minimum, not evidence the floor is wrong. Only a value *below the lowest
+     ever observed* says the sampling missed one, and that is a measurement
+     correction made deliberately, in its own commit, with the new observation
+     named — not a number nudged to clear a build.
 3. **If they moved**, the population changed, and the percentage is not
    comparable to the floor at all. Find out why before touching anything: an
    addon that did not link, a file that stopped being instrumented, a
@@ -609,7 +624,13 @@ Locally, two files move by one branch between runs and nothing else does:
 Both are stable in isolation, so this is cross-test interaction rather than a
 defect in either file — `ToastProvider`'s auto-dismiss `setTimeout` is the likely
 mechanism for the first. Each threshold sits at the **lowest** observation in the
-environment that enforces it. This local pair — two branches in 14198 — is
+environment that enforces it — and "lowest" is only ever the lowest *seen*.
+`statements` shipped at one unit above its true minimum because five samples had
+not produced it, and went red on a tree that had lost nothing. **Five samples did
+not find the minimum of a quantity that moves by one unit; assume six might not
+either.** A floor at the observed minimum is the best available placement, not a
+guarantee, and the permanent answer is not a lower number but no jitter — which
+is the first item of the test-noise phase, not this one. This local pair — two branches in 14198 — is
 measurement noise rather than room to spend; it is not a statement about CI's
 spread, which is wider and is given above.
 
