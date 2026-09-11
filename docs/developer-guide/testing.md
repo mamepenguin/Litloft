@@ -9,18 +9,18 @@ why, if it is not gated.
 | package | measured | gated | notes |
 |---|---|---|---|
 | `frontend/` | istanbul | four thresholds, below | — |
-| `backend/` | `--cov=app` | not yet | the floor lands with the unit that adds it; until then the command reports and nothing refuses |
-| `mcp-server/` | not yet | not yet | same unit |
-| `addons/intelligence` | `--cov=app` | yes | floor and its bracket in that repo's `pytest.ini` |
-| `addons/knowledge` | `--cov=app` | yes | same |
-| `addons/media_import` | `--cov=addons.media_import` | yes | same |
+| `backend/` | `--cov=app --cov-branch` | one floor | in the CI step as `PYTEST_ADDOPTS`, for the reason under §Floors |
+| `mcp-server/` | v8 | four thresholds | in `mcp-server/vitest.config.ts` |
+| `addons/intelligence` | `--cov=app --cov-branch` | one floor | in that repository's CI step, same shape as `backend/` |
+| `addons/knowledge` | `--cov=app --cov-branch` | one floor | same |
+| `addons/media_import` | `--cov=addons.media_import --cov-branch` | one floor | same |
 | `addons/cloud-sync` | `--cov=addons.cloud_sync` | **no floor** | out of scope by decision; it is the lowest-covered package in the tree |
 | `configure.py` | **not measured** | — | it runs on a bare interpreter outside the test image, so measuring one file means standing up a second mechanism. `tests/test_configure.py` holds the three mount invariants from `design-decisions.md` instead |
 
-The addon floors are deliberately not repeated here. They live in the repository
-that enforces them, beside the bracket that was measured to set them, and a copy
-in this file would be one nothing re-runs — which is how a figure goes false
-without anyone touching it.
+No floor value is repeated in this table. Each lives in the file that enforces
+it, beside the bracket measured to set it — a copy here would be one nothing
+re-runs, which is how a figure goes false without anyone touching it. §Floors
+below says what a floor has to satisfy to be one.
 
 ## Backend tests
 
