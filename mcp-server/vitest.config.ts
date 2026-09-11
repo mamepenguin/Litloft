@@ -10,9 +10,11 @@ export default defineConfig({
       // files instead of 8.
       include: ["src/**/*.ts"],
       exclude: ["src/__tests__/**"],
-      // `json-summary` is not optional: `scripts/check-coverage-population.py`
-      // reads it, and that check is what earns the thresholds below the right
-      // to be lower bounds.
+      // `json-summary` is not optional: the denominator check reads this
+      // report, and that check is what earns the thresholds below the right to
+      // be lower bounds. Dropping the reporter disarms it without failing
+      // anything — the thresholds go on passing over whatever population is
+      // left. The check names itself and the file it wanted when it fails.
       reporter: ["text-summary", "json-summary"],
       reportOnFailure: true,
       // Set at the CI figures, which five samples agreed on exactly — this

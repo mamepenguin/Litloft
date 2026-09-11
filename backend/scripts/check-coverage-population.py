@@ -33,9 +33,11 @@ Both are failures here. The second is why the walk does not require an
 `__init__.py`: replicating coverage.py's own rule would reproduce its blind spot
 on the side that is supposed to catch it.
 
-The body of this file from `production_sources` down is shared with the three
-addon repositories, which cannot import from here — separate images, separate
-repositories. Keeping them in step is a PR-review duty.
+The body of this file from `production_sources` down is duplicated rather than
+imported: the packages that carry a Python floor build into separate images from
+separate repositories and cannot share code. Keeping the body in step is a
+PR-review duty — and diff the copies rather than assuming they match, because a
+package whose denominator needs a rule of its own adds it here.
 """
 
 from __future__ import annotations
