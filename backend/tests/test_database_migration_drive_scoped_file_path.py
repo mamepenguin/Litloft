@@ -27,6 +27,10 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base, _migrate
 from app.models import File
 
+# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
+# in ``conftest.py`` says why that must not be the shared one.
+pytestmark = pytest.mark.usefixtures("private_data_dir")
+
 
 def _enable_fk(engine):
     @event.listens_for(engine, "connect")
@@ -163,7 +167,19 @@ def test_legacy_global_unique_migrated_to_composite(tmp_path):
 
 
 def test_legacy_migration_preserves_later_columns(tmp_path):
-    """All columns added by later ALTER phases survive the rebuild."""
+    """All columns added by later ALTER phases survive the rebuild.
+
+    The hash-format sentinel is created first so that phase is a no-op. It
+    runs *before* the rebuild and nulls every ``file_hash`` on a database
+    that has not had it, which is correct and is not what this test is
+    about — without the sentinel, ``file_hash`` arrives here already NULL
+    and the rebuild's copy cannot be observed at all.
+    """
+    import app.config as config
+
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    (config.DATA_DIR / "hash_format_v2_done").touch()
+
     engine = _fresh_engine(tmp_path, "cols.db")
     with engine.begin() as conn:
         conn.execute(text(_legacy_files_ddl_global_unique()))
@@ -194,16 +210,62 @@ def test_migration_is_idempotent(tmp_path):
     assert _has_composite_unique(engine)
 
 
+#: Every secondary index on ``files``, declared rather than read back from a
+#: run. Three things build this set, not one: ``models.py``'s
+#: ``__table_args__`` on a fresh install, the rebuild's own ``CREATE INDEX``
+#: list on an upgrade, and the ``CREATE INDEX IF NOT EXISTS`` statements in
+#: the later phases, which are unconditional and so run on both. An index
+#: missing from whichever of them applies is invisible until a query on a
+#: large library is slow. Naming the columns as well as the index catches the
+#: other half: an index keeping its name while covering the wrong column does
+#: nothing for the view it was created for.
+FILES_INDEXES = {
+    "idx_files_deleted_at": ["deleted_at"],
+    "idx_files_drive_folder_path": ["drive", "folder_path"],
+    "idx_files_drive_md_id": ["drive", "md_id"],
+    "idx_files_file_hash": ["file_hash"],
+    "idx_files_file_type": ["file_type"],
+    "idx_files_is_favorite": ["is_favorite"],
+    "idx_files_liked_at": ["liked_at"],
+    "idx_files_missing_since": ["missing_since"],
+    "idx_files_title": ["title"],
+    "idx_files_trust_tier": ["trust_tier"],
+}
+
+
+def _index_map(engine) -> dict[str, list[str]]:
+    return {
+        i["name"]: list(i["column_names"])
+        for i in inspect(engine).get_indexes("files")
+    }
+
+
 def test_migration_keeps_file_indexes(tmp_path):
-    """Table rebuild must recreate the secondary indexes."""
+    """An upgraded database ends with the declared index set, not a subset."""
     engine = _fresh_engine(tmp_path, "idx.db")
     with engine.begin() as conn:
         conn.execute(text(_legacy_files_ddl_global_unique()))
     _migrate(engine)
-    inspector = inspect(engine)
-    names = {i["name"] for i in inspector.get_indexes("files")}
-    assert "idx_files_drive_folder_path" in names
-    assert "idx_files_drive_md_id" in names
+
+    assert _index_map(engine) == FILES_INDEXES
+
+
+def test_a_fresh_install_ends_with_the_same_indexes(tmp_path):
+    """The same declared set, reached by a different route.
+
+    A fresh database gets most of this set from ``models.py`` and an upgraded
+    one from the rebuild's hardcoded list; the two paths overlap rather than
+    partition, because the later phases' ``CREATE INDEX IF NOT EXISTS``
+    statements are unconditional and supply some of it on both. Checking each
+    route against the same declared set is what makes a divergence fail —
+    reading one and asserting the other matches would go green if both lost
+    the same index.
+    """
+    engine = _fresh_engine(tmp_path, "fresh_idx.db")
+    Base.metadata.create_all(bind=engine)
+    _migrate(engine)
+
+    assert _index_map(engine) == FILES_INDEXES
 
 
 def test_migration_does_not_cascade_delete_child_rows(tmp_path):
@@ -287,6 +349,26 @@ def test_migration_does_not_cascade_delete_child_rows(tmp_path):
             text("PRAGMA foreign_key_check")
         ).fetchall()
     assert orphans == []
+
+    # The rebuild turned foreign keys off on a raw connection and has to turn
+    # them back on before handing it to the pool. The engine's connect
+    # listener runs once per *new* DBAPI connection, so a pooled one that
+    # comes back out never passes through it again — and this is the branch
+    # every successful upgrade takes, not the one that runs on a crash.
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1
+
+    # Asserted as a cascade rather than only as a pragma: what the setting is
+    # for is that deleting a file still takes its children with it.
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM files WHERE id = 'faaaaaaaaaaa'"))
+    with engine.connect() as conn:
+        assert conn.execute(
+            text("SELECT COUNT(*) FROM comments")
+        ).scalar() == 0
+        assert conn.execute(
+            text("SELECT COUNT(*) FROM file_tags")
+        ).scalar() == 0
 
 
 # --- resolve_db_path_conflict must be drive-scoped -------------------------

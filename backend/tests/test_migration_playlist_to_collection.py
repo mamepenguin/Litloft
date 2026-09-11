@@ -4,10 +4,17 @@ NULL ``description``, then the legacy tables are dropped. Verifies the
 Phase 1 spec (2026-05-12-playlist-to-collection) backend migration.
 """
 
+
+import pytest
+
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, _migrate
+
+# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
+# in ``conftest.py`` says why that must not be the shared one.
+pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 
 def _enable_fk(engine):

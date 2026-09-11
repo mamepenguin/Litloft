@@ -1,5 +1,4 @@
 import logging
-import re
 
 from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -39,132 +38,8 @@ def _set_sqlite_pragma(dbapi_conn, connection_record):
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def _get_default_drive() -> str:
-    try:
-        drives = config.load_drives()
-        if drives:
-            name = drives[0]["name"]
-            if not re.match(r"^[\w\s\-]+$", name, re.UNICODE):
-                raise ValueError(f"Invalid drive name for migration: {name}")
-            return name
-    except (ValueError, TypeError):
-        raise
-    except Exception:
-        pass
-    return "default"
-
-
 def _migrate(engine_) -> None:
     inspector = inspect(engine_)
-    tables = inspector.get_table_names()
-
-    # === Phase 1: Legacy videos table migrations (pre-files era) ===
-    if "videos" in tables and "files" not in tables:
-        columns = {col["name"] for col in inspector.get_columns("videos")}
-        with engine_.begin() as conn:
-            if "likes" not in columns:
-                logger.info("Migrating: adding 'likes' column to videos")
-                conn.execute(text("ALTER TABLE videos ADD COLUMN likes INTEGER NOT NULL DEFAULT 0"))
-            if "is_favorite" not in columns:
-                logger.info("Migrating: adding 'is_favorite' column to videos")
-                conn.execute(text("ALTER TABLE videos ADD COLUMN is_favorite BOOLEAN NOT NULL DEFAULT 0"))
-
-            if "drive" not in columns:
-                default_drive = _get_default_drive()
-                logger.info("Migrating: adding 'drive' column to videos (default: %s)", default_drive)
-                conn.execute(text(
-                    f"ALTER TABLE videos ADD COLUMN drive VARCHAR NOT NULL DEFAULT '{default_drive}'"
-                ))
-            if "category" in columns and "folder_path" not in columns:
-                logger.info("Migrating: renaming 'category' to 'folder_path' in videos")
-                conn.execute(text("ALTER TABLE videos RENAME COLUMN category TO folder_path"))
-
-        # Create tags and video_tags tables if needed (for migration path)
-        for table_name in ("tags", "video_tags"):
-            if table_name not in tables:
-                logger.info("Migrating: creating '%s' table", table_name)
-                from app.models import file_tags
-                if table_name == "tags":
-                    Base.metadata.tables["tags"].create(bind=engine_, checkfirst=True)
-
-        # Migrate tags table to add drive column
-        if "tags" in tables:
-            tag_columns = {col["name"] for col in inspector.get_columns("tags")}
-            if "drive" not in tag_columns:
-                default_drive = _get_default_drive()
-                logger.info("Migrating: rebuilding 'tags' table with drive column")
-                with engine_.begin() as conn:
-                    conn.execute(text("""
-                        CREATE TABLE tags_new (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            name VARCHAR NOT NULL,
-                            drive VARCHAR NOT NULL DEFAULT '',
-                            created_at DATETIME,
-                            UNIQUE (drive, name)
-                        )
-                    """))
-                    conn.execute(text("""
-                        INSERT INTO tags_new (id, name, drive, created_at)
-                        SELECT id, name, :drive, created_at FROM tags
-                    """), {"drive": default_drive})
-                    conn.execute(text("DROP TABLE tags"))
-                    conn.execute(text("ALTER TABLE tags_new RENAME TO tags"))
-
-        # === Migrate videos → files ===
-        logger.info("Migrating: creating 'files' table from 'videos'")
-        with engine_.begin() as conn:
-            conn.execute(text("""
-                CREATE TABLE files (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    filename VARCHAR NOT NULL,
-                    title VARCHAR NOT NULL,
-                    description TEXT DEFAULT '',
-                    drive VARCHAR NOT NULL DEFAULT '',
-                    folder_path VARCHAR NOT NULL DEFAULT '',
-                    file_path VARCHAR NOT NULL,
-                    file_size INTEGER NOT NULL,
-                    file_type VARCHAR NOT NULL DEFAULT 'other',
-                    mime_type VARCHAR NOT NULL DEFAULT 'application/octet-stream',
-                    thumbnail_path VARCHAR,
-                    duration REAL,
-                    likes INTEGER DEFAULT 0,
-                    is_favorite BOOLEAN DEFAULT 0,
-                    created_at DATETIME,
-                    updated_at DATETIME
-                )
-            """))
-            conn.execute(text("""
-                INSERT INTO files (id, filename, title, description, drive, folder_path,
-                    file_path, file_size, file_type, mime_type, thumbnail_path, duration,
-                    likes, is_favorite, created_at, updated_at)
-                SELECT id, filename, title, description, drive, folder_path,
-                    file_path, file_size, 'video', 'video/mp4', thumbnail_path, duration,
-                    likes, is_favorite, created_at, updated_at
-                FROM videos
-            """))
-            conn.execute(text("CREATE INDEX idx_files_drive_folder_path ON files(drive, folder_path)"))
-            conn.execute(text("CREATE INDEX idx_files_title ON files(title)"))
-            conn.execute(text("CREATE INDEX idx_files_is_favorite ON files(is_favorite)"))
-            conn.execute(text("CREATE INDEX idx_files_file_type ON files(file_type)"))
-
-            # Migrate video_tags → file_tags
-            if "video_tags" in inspector.get_table_names():
-                logger.info("Migrating: creating 'file_tags' from 'video_tags'")
-                conn.execute(text("""
-                    CREATE TABLE file_tags (
-                        file_id INTEGER REFERENCES files(id) ON DELETE CASCADE,
-                        tag_id INTEGER REFERENCES tags(id) ON DELETE CASCADE,
-                        PRIMARY KEY (file_id, tag_id)
-                    )
-                """))
-                conn.execute(text("""
-                    INSERT INTO file_tags (file_id, tag_id)
-                    SELECT video_id, tag_id FROM video_tags
-                """))
-                conn.execute(text("DROP TABLE video_tags"))
-
-            conn.execute(text("DROP TABLE videos"))
-            logger.info("Migration complete: videos → files")
 
     # === Phase 2: Ensure tables exist (fresh installs) ===
     tables = inspector.get_table_names()
@@ -480,18 +355,29 @@ def _migrate(engine_) -> None:
     # single-column UNIQUE creates, so the table must be rebuilt (same
     # idiom as the nanoid / dislikes rebuilds above). Idempotent: gated
     # on the composite constraint already being present, so once any DB
-    # is converted this phase never runs again — which is why the
-    # rebuild DDL below only has to mirror models.py *as of this
-    # release* (later columns are added by their own ALTER phase, but a
-    # DB old enough to lack the composite constraint cannot yet have
-    # them, and a DB new enough to have them already has the composite).
+    # is converted this phase never runs again.
     #
-    # Data is safe: the old GLOBAL unique physically guaranteed no
-    # cross-drive duplicate ``file_path``, so every existing row already
-    # satisfies ``(drive, file_path)``. FK enforcement is turned OFF for
-    # the swap: with it ON, ``DROP TABLE files`` performs an implicit
-    # row-delete that would CASCADE into file_tags / file_relations /
-    # file_exif / comments and wipe tags, relations, comments, exif.
+    # The rebuild DDL below names the columns of models.py *as of this
+    # release*, and a table reaching it can carry more or fewer than that:
+    # the phases above run first, so an upgrading database arrives here
+    # already holding ``md_id`` and ``md_aliases`` while still lacking the
+    # composite. ``common`` is what absorbs the difference — it intersects
+    # the list below with the columns actually present, and anything the
+    # list does not name is dropped by the copy. A column added to
+    # models.py after this release must therefore get its own ALTER phase
+    # *after* this one, not before it.
+    #
+    # Nothing guarantees the copy will succeed: a ``files`` table that never
+    # carried the old single-column UNIQUE can hold two rows sharing
+    # ``(drive, file_path)``, and the ``INSERT…SELECT`` then raises
+    # ``sqlite3.IntegrityError``. What keeps that safe is where it lands —
+    # before ``COMMIT``, so the handler below discards the connection and the
+    # old table is still there, whole, on the next boot.
+    #
+    # FK enforcement is turned OFF for the swap: with it ON, ``DROP TABLE
+    # files`` performs an implicit row-delete that would CASCADE into
+    # file_tags / file_relations / file_exif / comments and wipe tags,
+    # relations, comments, exif.
     # Ids are preserved by the INSERT…SELECT, so the renamed table
     # re-satisfies every child FK by name; ``foreign_key_check`` asserts
     # no orphan slipped through before FK enforcement is restored.

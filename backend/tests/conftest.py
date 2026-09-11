@@ -26,6 +26,25 @@ TEST_DRIVE = "test-drive"
 
 
 @pytest.fixture()
+def private_data_dir(tmp_path, monkeypatch):
+    """Point ``config.DATA_DIR`` at the test's own directory.
+
+    ``_migrate`` writes the hash-format sentinel into ``DATA_DIR``, and
+    ``_backfill_mangled_titles`` writes the titles marker, both before doing
+    the work they gate. A test that calls either without this touches the
+    process-wide ``DATA_DIR`` — ``./data`` in a checkout, which the dev stack
+    bind-mounts — and the sentinel it leaves there suppresses the real
+    migration on that machine.
+
+    The ``client`` fixture redirects ``DATA_DIR`` itself; tests that drive
+    ``_migrate`` directly do not use it, which is why this exists separately.
+    """
+    import app.config as config
+
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
+
+
+@pytest.fixture()
 def tmp_dirs(tmp_path):
     videos_dir = tmp_path / "videos"
     data_dir = tmp_path / "data"

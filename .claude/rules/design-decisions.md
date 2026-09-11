@@ -163,7 +163,7 @@ Rules:
 
 ## Transcript Refine
 
-- The original text is preserved in `TranscriptChunk.text_original` (so it can be reverted).
+- **Refine is destructive and there is nothing to revert to.** It re-chunks the transcript at sentence boundaries derived from LLM-inserted punctuation, so no per-chunk snapshot of the original survives it; `text_refined_at` being non-NULL is all that marks a chunk as refined. Recovering the original text means re-running transcription. Do not add a revert that implies a stored original exists.
 - The LLM is applied per chunk → words are rebuilt by WhisperX forced alignment → embeddings are recomputed from the refined text.
 - If the aligner fails (missing audio / unsupported language / OOM), keep the old word rows. Do not introduce a time-proportional fallback.
 

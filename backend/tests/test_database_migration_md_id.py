@@ -10,10 +10,17 @@ The matching index is ``idx_files_drive_md_id`` on ``(drive, md_id)``
 (non-unique — collisions are resolved at write time with the 17-digit
 suffix, so we never need a UNIQUE constraint here).
 """
+
+import pytest
+
 from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, _migrate
+
+# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
+# in ``conftest.py`` says why that must not be the shared one.
+pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 
 def _enable_fk(engine):
