@@ -552,7 +552,12 @@ async def addon_proxy(
     pre_check = route_config.get("pre_check")
     checked_file: File | None = None
     if pre_check:
-        check_type = pre_check.get("type")
+        # A manifest is JSON from another repository, so ``pre_check`` can be
+        # any shape. Anything that is not an object has no ``type`` to read and
+        # falls to the same refusal as an unrecognised one — reading ``.get``
+        # off it would surface as a 500, which is the announcement the 404
+        # below exists to avoid.
+        check_type = pre_check.get("type") if isinstance(pre_check, dict) else None
         if check_type == "file_access":
             param_name = pre_check.get("param", "file_id")
             file_id = path_params.get(param_name)
@@ -594,8 +599,9 @@ async def addon_proxy(
             # ``drive_optional`` guard above — while running none, so the
             # declaration has to be refused rather than skipped.
             logger.error(
-                "Addon %r route %r declares an unknown pre_check type %r",
-                addon_name, route_config.get("path"), check_type,
+                "Addon %r route %r declares a pre_check this proxy cannot "
+                "dispatch: type=%r from %r",
+                addon_name, route_config.get("path"), check_type, pre_check,
             )
             raise HTTPException(status_code=404, detail="Route not found")
 

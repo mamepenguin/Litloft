@@ -224,11 +224,15 @@ class TestDriveOptionalWithoutAGate:
         assert response.status_code == 400
 
 
-#: ``pre_check`` shapes the proxy has no arm for. Each one satisfies every
-#: test for "this route declares a gate" — including the ``drive_optional``
-#: guard, which reads ``pre_check`` for truthiness — while naming nothing the
-#: dispatch recognises. Declared rather than derived from the dispatch, so
-#: removing an arm is a failure here instead of a new member of this list.
+#: ``pre_check`` shapes the dispatch has no arm for, **and which are truthy**,
+#: so each one also satisfies the ``drive_optional`` guard's "does this route
+#: declare a gate" test and reaches the dispatch. That pairing is the point: a
+#: falsy shape is refused earlier by a different guard and would pass this test
+#: without the arm under test existing.
+#:
+#: A manifest is JSON from another repository, so the shapes are not all
+#: objects. Declared rather than derived from the dispatch, so removing an arm
+#: fails here instead of quietly joining this list.
 UNRECOGNISED_PRE_CHECKS = [
     {"type": "file_acces", "param": "file_id"},   # one letter short
     {"type": "fileaccess"},                        # no underscore
@@ -236,8 +240,16 @@ UNRECOGNISED_PRE_CHECKS = [
     {"type": "Admin"},                             # wrong case
     {"param": "file_id"},                          # no "type" key at all
     {"type": None},                                # explicit null
-    {},                                            # empty object
+    "file_access",                                 # a string, not an object
+    ["file_access"],                               # an array
+    42,                                            # a number
 ]
+
+#: Falsy shapes never reach the dispatch: the ``drive_optional`` guard refuses
+#: them first, for its own reason. Kept separate from the list above so the two
+#: refusals are not confused for one, which is what an empty object did while
+#: it sat there.
+FALSY_PRE_CHECKS = [{}, None, "", 0]
 
 
 class TestUnrecognisedPreCheckType:
@@ -263,9 +275,13 @@ class TestUnrecognisedPreCheckType:
 
         assert response.status_code == 404
         assert _SpyClient.calls == []
+        # "cannot dispatch" is emitted only by the arm under test. The
+        # `drive_optional` guard's message also contains "pre_check", so a
+        # looser match here is satisfied by the wrong guard — which is how an
+        # empty object passed this test while never reaching the dispatch.
         assert any(
-            "pre_check" in record.getMessage() for record in caplog.records
-        ), "the unrecognised pre_check type is not named in any ERROR log"
+            "cannot dispatch" in record.getMessage() for record in caplog.records
+        ), "the undispatchable pre_check is not named in any ERROR log"
 
     @pytest.mark.parametrize("check_type", ["file_access", "addon_feature", "admin"])
     def test_the_recognised_types_still_dispatch(self, declaring, check_type):
@@ -285,3 +301,29 @@ class TestUnrecognisedPreCheckType:
 
         assert response.status_code == (403 if check_type == "admin" else 404)
         assert _SpyClient.calls == []
+
+
+    @pytest.mark.parametrize("pre_check", FALSY_PRE_CHECKS)
+    def test_a_falsy_pre_check_is_refused_by_the_other_guard(
+        self, declaring, caplog, pre_check
+    ):
+        """Same 404, different line, and the messages are what separate them.
+
+        A falsy ``pre_check`` does not declare a gate at all, so the
+        ``drive_optional`` guard refuses it before the dispatch is reached.
+        Asserting which message appears is the only way to tell the two
+        refusals apart from outside.
+        """
+        c = declaring({
+            "path": "/open", "methods": ["GET"],
+            "drive_optional": True, "pre_check": pre_check,
+        })
+
+        with caplog.at_level("ERROR", logger="app.routers.addon_proxy"):
+            response = c.get(f"/api/addons/{ADDON}/open")
+
+        assert response.status_code == 404
+        assert _SpyClient.calls == []
+        messages = [r.getMessage() for r in caplog.records]
+        assert any("drive_optional" in m for m in messages)
+        assert not any("cannot dispatch" in m for m in messages)

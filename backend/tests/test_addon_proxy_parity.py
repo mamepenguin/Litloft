@@ -51,6 +51,10 @@ NICKNAME_MAX_LENGTH = 50
 NICKNAME_CASES: list[tuple[str | None, str | None]] = [
     (None, None),
     ("", None),
+    # Whitespace-only values are the row that makes ``.strip()`` load-bearing
+    # rather than cosmetic: without it they are not empty, pass the length
+    # check, and hash to the digest of the empty string — one viewer id shared
+    # by every client that sends one.
     ("   ", None),
     ("\t\n", None),
     ("ren", "ren"),
