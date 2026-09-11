@@ -14,9 +14,11 @@ Each side is checked against the literal instead.
 What this cannot hold: nothing mechanically compares the two copies of the
 table. Neither test image can see the other repository's source — knowledge's
 ``Dockerfile.test`` has the addon repository as its build context, and
-knowledge is not in core's CI matrix. The count and the two category
-assertions below catch rows that go missing from *this* copy; rows deleted from
-both copies at once are not reachable from any test in either repository.
+knowledge is not in core's CI matrix. Rows that go missing from *this* copy
+are caught by the count and by the three structural assertions below — the
+prefix forms, the prefix-independent forms, and the IPv4 categories. Rows
+deleted from both copies at once are reachable from no test in either
+repository.
 """
 
 import ipaddress

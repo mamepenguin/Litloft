@@ -98,10 +98,10 @@ def _embedded_ipv4(ip: ipaddress.IPv6Address) -> ipaddress.IPv4Address | None:
         return ip.sixtofour
     if ip in _NAT64_WELL_KNOWN or ip in _IPV4_COMPATIBLE or ip in _IPV4_TRANSLATED:
         return ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
-    # ISATAP is the one embedding that is not a prefix. `…:0:5efe:a.b.c.d` and
-    # `…:200:5efe:a.b.c.d` are interface identifiers, so they ride under any
-    # /64 — including a globally routable one, where every property of the
-    # carrying address says "ordinary public host".
+    # ISATAP is carried in the interface identifier rather than in a prefix:
+    # `…:0:5efe:a.b.c.d` and `…:200:5efe:a.b.c.d` ride under any /64 —
+    # including a globally routable one, where every property of the carrying
+    # address says "ordinary public host".
     packed = int(ip)
     if (packed >> 32) & 0xFFFF == _ISATAP_MARKER and (
         packed >> 48
