@@ -122,8 +122,52 @@ jobs:
       # Runs core's suite and, through the link tree above, every addon's
       # frontend tests. A fresh checkout needs nothing else: no drives.json,
       # passwords.json, .env, or docker-compose.override.yml.
+      #
+      # `vitest run --coverage` spelled out rather than `pnpm test --coverage`,
+      # so what CI measures does not depend on argument forwarding through a
+      # package script. `pnpm test` stays the plain run: the four addon
+      # repositories call it against core's `develop` tip, and they should not
+      # inherit core's thresholds in their own CI.
       - name: Test
-        run: pnpm test
+        run: pnpm exec vitest run --coverage
+        working-directory: frontend
+
+      # The thresholds above are lower bounds, and a lower bound is not a
+      # detector by itself — shrink the denominator and the percentage rises.
+      # This is what earns them: it asks the collector which files it actually
+      # measured and compares that against a declared population.
+      #
+      # `!cancelled()` because the run that most needs this line is the one
+      # where `Test` went red. A step with no `if:` is skipped when the step
+      # before it fails, so without this the instrument is absent from exactly
+      # the log that has to be diagnosed — and `reportOnFailure: true` in
+      # `vitest.config.ts`, which exists to make the report survive a red
+      # suite, buys nothing. Measured on this branch's own red run: `failure
+      # Test` / `skipped Check the coverage denominator`, and the population
+      # identity then had to be reconstructed from a local machine.
+      #
+      # With it, a threshold failure is read against the denominator line
+      # printed directly beneath it, which is what separates "the tree lost
+      # coverage" from "the population changed". `docs/developer-guide/
+      # testing.md` §When a threshold goes red gives the procedure.
+      #
+      # Not `always()`: a cancelled run has nothing to diagnose.
+      #
+      # Both halves of this were rehearsed on a scratch branch rather than
+      # argued. Raising one threshold 0.05 above the measured value — suite
+      # green, threshold red, which is the situation the condition exists for —
+      # gave `failure Test` followed by `success Check the coverage
+      # denominator`, with the denominator line printed directly under
+      # `ERROR: Coverage for lines (79.76%) does not meet global threshold`.
+      #
+      # And the cost, also observed: the step runs when an *earlier* step fails
+      # too. A run whose `checkout` failed skipped every other step and still
+      # ran this one, which then reported that coverage had not run — true, and
+      # not the cause. Noise rather than a defect; scoping the condition to the
+      # `Test` step alone is not expressible cleanly here.
+      - name: Check the coverage denominator
+        if: ${{ !cancelled() }}
+        run: node scripts/check-coverage-denominator.mjs
         working-directory: frontend
 
       # tsc follows the per-file links, so this type-checks addon sources too.
