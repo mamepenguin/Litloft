@@ -1,4 +1,4 @@
-"""Two rules the addon proxy re-implements instead of calling.
+"""Two rules the addon proxy applies without the dependency that owns them.
 
 ``addon_proxy`` runs from a plain handler rather than a FastAPI dependency, so
 it reaches two decisions that ``app.auth`` also makes: who counts as an admin,
@@ -196,7 +196,7 @@ ADMIN_CASES: list[tuple[list[str], bool]] = [
 
 
 class TestAdminRule:
-    """The admin gate, in the core router and in the proxy's own copy."""
+    """The admin gate: what it means, and that the proxy still asks it."""
 
     @pytest.mark.parametrize("groups,is_admin_expected", ADMIN_CASES)
     def test_the_host_predicate_follows_the_declaration(
