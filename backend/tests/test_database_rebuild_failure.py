@@ -21,9 +21,11 @@ constraint is on disk, and the handler's rollback has nothing left to undo.
 ``TestOrphanGuard`` below covers that path separately and asserts what it
 actually leaves, rather than folding it into the claims made about this one.
 
-The rebuild drives a raw DBAPI cursor rather than a SQLAlchemy connection, so
-what escapes it is the driver's own ``sqlite3.OperationalError`` — unwrapped,
-because nothing in the path does the wrapping.
+The rebuild drives a raw DBAPI cursor rather than a SQLAlchemy connection, so a
+statement that fails inside it raises the driver's own
+``sqlite3.OperationalError``, unwrapped — nothing in the path does the wrapping.
+The guard raises a ``RuntimeError`` of its own instead, which is the second
+reason the two paths are asserted apart rather than together.
 """
 from __future__ import annotations
 
@@ -105,10 +107,11 @@ def _private_data_dir(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def stalled_rebuild(tmp_path):
-    """A DB whose rebuild is guaranteed to fail part-way through.
+    """A DB whose rebuild fails on its first statement.
 
     ``files`` has the old single-column UNIQUE, so the rebuild runs; a table
-    already occupying the name ``files_new`` makes its first statement raise.
+    already occupying the name ``files_new`` makes its ``CREATE TABLE`` raise
+    before anything else in the transaction has happened.
     """
     engine = _make_engine(tmp_path)
     with engine.begin() as conn:
