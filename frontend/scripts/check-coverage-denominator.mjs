@@ -64,16 +64,31 @@ const NO_INSTRUMENTABLE_CODE = [
   "src/types/smartFolder.ts",
 ];
 
-/** Addons whose frontends must be in the denominator, from `addons/`. */
-function installedAddons() {
-  const dir = join(REPO_ROOT, "addons");
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && !e.name.startsWith("."))
-    .map((e) => e.name)
-    .filter((name) => existsSync(join(dir, name, "frontend")))
-    .sort();
-}
+/**
+ * Addons whose frontends must be in the denominator.
+ *
+ * Declared, never discovered. Reading `addons/` at run time made the
+ * expectation an observation of the same tree the collector was measuring, so
+ * an addon that was not there left both sides at once — detector rule 5, in the
+ * file written to hold a denominator. Measured, with `readdirSync`:
+ *
+ *     addons/cloud-sync removed  ->  511 files / 3 addons   exit 0
+ *     all of addons/ removed     ->  403 files / 0 addons   exit 0
+ *
+ * 112 files leaving the population was a pass. The names are therefore written
+ * out: adding or removing an addon is then an edit to this line, which a
+ * reviewer sees, rather than a number that moves on its own.
+ *
+ * `.gitmodules` is not read instead, for the same reason: a parse that returns
+ * nothing is silent, and a file one edit away from the tree is not independent
+ * of it.
+ *
+ * A checkout without submodules is a real state — `git clone` without
+ * `--recursive` leaves these directories empty — and it is named below rather
+ * than accepted. CI checks out `submodules: recursive`, so four is the
+ * invariant there.
+ */
+const ADDONS = ["cloud-sync", "intelligence", "knowledge", "media_import"];
 
 /**
  * Production sources under a directory, by the same predicates the config uses.
@@ -128,12 +143,27 @@ const measured = new Set(
     .map((k) => resolve(k).replace(`${FRONTEND}/`, "")),
 );
 
-// The declared population: core's sources plus every installed addon's,
+const unlinkedAddons = ADDONS.filter(
+  (name) => !existsSync(join(REPO_ROOT, "addons", name, "frontend")),
+);
+if (unlinkedAddons.length) {
+  fail([
+    `${unlinkedAddons.length} declared addon(s) have no frontend/ tree:`,
+    ...unlinkedAddons.map((n) => `  - addons/${n}`),
+    "These are git submodules. A checkout without them cannot measure this",
+    "population at all, so it is reported rather than measured around:",
+    "  git submodule update --init --recursive",
+    "If an addon was removed on purpose, remove its name from ADDONS in the",
+    "same commit — that edit is what makes the denominator change visible.",
+  ]);
+}
+
+// The declared population: core's sources plus the four declared addons',
 // enumerated from `addons/` (the real trees), minus the files that compile to
 // nothing. Building it from `src/addons/` instead would derive the expectation
 // from the same place the collector read, and an addon that was never linked
-// would go missing from both sides at once.
-const addons = installedAddons();
+// would go missing from both sides at once. The names above are what stops
+// `addons/` itself being that same observation one level up.
 const declared = new Set([
   ...productionSources(join(FRONTEND, "src"), "src/").filter(
     (p) =>
@@ -141,7 +171,7 @@ const declared = new Set([
       !p.startsWith("src/messages/") &&
       !p.startsWith("src/test/"),
   ),
-  ...addons.flatMap((name) =>
+  ...ADDONS.flatMap((name) =>
     productionSources(
       join(REPO_ROOT, "addons", name, "frontend"),
       `src/addons/${name}/`,
@@ -176,6 +206,6 @@ if (missing.length || unexpected.length) {
 
 console.log(
   `coverage denominator: ${measured.size} files ` +
-    `(core + ${addons.length} addon${addons.length === 1 ? "" : "s"}: ${addons.join(", ") || "none"}), ` +
+    `(core + ${ADDONS.length} declared addon${ADDONS.length === 1 ? "" : "s"}: ${ADDONS.join(", ")}), ` +
     `${NO_INSTRUMENTABLE_CODE.length} declared absent`,
 );
