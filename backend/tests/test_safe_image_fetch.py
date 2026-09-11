@@ -223,6 +223,8 @@ def test_every_resolved_address_is_judged_not_only_the_one_pinned(monkeypatch):
 
 
 def test_the_first_answer_is_pinned_and_duplicates_collapse(monkeypatch):
+    """The pinned address is `addresses[0]`, so the order the resolver gave is
+    the order that decides it, and a repeated answer must not shift it."""
     transport = _Transport(
         _Response(headers={"Content-Type": "image/jpeg"}, body=b"bytes"),
         resolutions=None,
@@ -232,6 +234,10 @@ def test_the_first_answer_is_pinned_and_duplicates_collapse(monkeypatch):
         {"cdn.example": ["93.184.216.34", "93.184.216.34", "8.8.8.8"]},
     )
 
+    assert safe_image_fetch._resolve_host("cdn.example", 443) == [
+        "93.184.216.34",
+        "8.8.8.8",
+    ]
     assert fetch_image("https://cdn.example/a.jpg").body == b"bytes"
     assert transport.pinned == [("cdn.example", "93.184.216.34")]
 
