@@ -531,9 +531,10 @@ rather than a contradiction. It has happened. It is diagnosed, not argued about:
    population is intact, so the percentage is comparable to the floor and the
    numerator is what moved. Two cases, and they are told apart by the tree, not
    by the number:
-   - **the branch changed something** — the tree lost coverage. The fix is a
-     test. Do not move the number.
-   - **the branch changed nothing that runs** — **re-run the same commit.**
+   - **the branch changed code that runs under test** — the tree lost coverage.
+     The fix is a test. Do not move the number.
+   - **the branch changed nothing that runs under test** — **re-run the same
+     commit.**
      That is the whole test, and it is deliberately not a judgement about the
      number: green on the re-run is jitter and there is nothing to do; red again
      means the coverage is genuinely gone and the fix is a test. Either way the
