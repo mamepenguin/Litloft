@@ -122,8 +122,23 @@ jobs:
       # Runs core's suite and, through the link tree above, every addon's
       # frontend tests. A fresh checkout needs nothing else: no drives.json,
       # passwords.json, .env, or docker-compose.override.yml.
+      #
+      # `vitest run --coverage` spelled out rather than `pnpm test --coverage`,
+      # so what CI measures does not depend on argument forwarding through a
+      # package script. `pnpm test` stays the plain run: the four addon
+      # repositories call it against core's `develop` tip, and they should not
+      # inherit core's thresholds in their own CI.
       - name: Test
-        run: pnpm test
+        run: pnpm exec vitest run --coverage
+        working-directory: frontend
+
+      # The thresholds above are lower bounds, and a lower bound is not a
+      # detector by itself — shrink the denominator and the percentage rises.
+      # This is what earns them: it asks the collector which files it actually
+      # measured and compares that against a declared population. Runs after
+      # `Test` and reads the report that step wrote.
+      - name: Check the coverage denominator
+        run: node scripts/check-coverage-denominator.mjs
         working-directory: frontend
 
       # tsc follows the per-file links, so this type-checks addon sources too.

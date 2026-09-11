@@ -1,6 +1,6 @@
 # Testing
 
-Litloft has three test layers: unit, integration, end-to-end. Coverage target is 80%+; exact thresholds vary by directory.
+Litloft has three test layers: unit, integration, end-to-end. Coverage is gated per package by a threshold set at what that package measures today, not at an aspirational figure — see [Coverage](#coverage) for the frontend's four and how to move them.
 
 ## Backend tests
 
@@ -437,6 +437,74 @@ diverge. A vitest floor goes at the displayed value.
 No floor value is repeated in this page. Each lives in the file that enforces it,
 beside the bracket measured to set it; a copy here would be one nothing re-runs.
 
+### The frontend thresholds, and why they are four numbers
+
+| metric | threshold | reproducibility |
+|---|---|---|
+| statements | 77.35 | exact |
+| lines | 79.78 | exact |
+| functions | 73.88 | exact |
+| branches | 71.86 | **observed minimum** — see below |
+
+Four numbers because they are four claims; one figure standing for four hides
+which of them moved. Raise them when coverage rises. Do not lower one to make a
+build pass without saying so in the commit that does it.
+
+**A threshold is a lower bound, which on its own is not a detector**: shrink the
+denominator and the percentage goes up without anything improving. What makes
+these legitimate is `frontend/scripts/check-coverage-denominator.mjs`, which runs
+after the coverage step in CI, reads the report the collector wrote, and compares
+the files it actually measured against a declared population. If an addon is not
+linked, or a file stops being instrumented, that step goes red even while every
+percentage looks healthy.
+
+### Why the provider is istanbul
+
+`v8` takes coverage from the engine, so it knows only about code that executed.
+Measured over four identical runs of this suite, that made the branch
+**denominator itself** move — 12699, 12701, 12702 — because a module loaded on
+one run and not the next changes how much there is to cover. A floor over a
+moving population cannot tell "the code got worse" from "that module did not load
+this time".
+
+`istanbul` instruments the AST, so the population is fixed before anything runs:
+21383 statements / 18946 lines / 14198 branches / 5109 functions, identical on
+every run measured, including one with a failing test. It is also faster here —
+29.3-31.1s against v8's 33.4s, on a 26.4s baseline with no coverage.
+
+It lists 515 files where v8 listed 524. The nine are barrel re-exports and
+type-only modules holding seven statements between them; they are declared by
+name in the denominator script. Four of them were the case where v8 gave a
+never-imported file `branches 1/1 = 100%` — a branch it invented and counted as
+covered.
+
+### `branches` is the one threshold that is not exact
+
+Two files move by one branch between runs, and nothing else does:
+
+| file | observed |
+|---|---|
+| `src/components/ToastProvider.tsx` | 17/18 and 16/18 |
+| `src/addons/media_import/SubscriptionsDashboard.tsx` | 37/65 and 36/65 |
+
+Both are stable in isolation, so this is cross-test interaction rather than a
+defect in either file — `ToastProvider`'s auto-dismiss `setTimeout` is the likely
+mechanism for the first. The threshold sits at the **lower** observation. That
+gap is measurement noise, not headroom: it is two branches in 14198, and it is
+recorded here so nobody later reads it as room to spend.
+
+### Flake hygiene notes
+
+- **`--poolOptions.forks.singleFork=true` does not work on this suite.** It is a
+  natural first diagnostic for an ordering flake, and it fails outright (~34s):
+  some test does not pass in a single process. Use `--sequence.shuffle` or
+  `--sequence.seed` instead, which is what the `frontend (shuffled order)` job
+  runs.
+- **`coverage.reportOnFailure` is set to `true`.** Its default is `false`, which
+  means a red suite writes no coverage report at all — so a missing report says
+  coverage did not run, not that a test failed, and the denominator check treats
+  absence as a failure.
+
 ## What not to mock
 
 - The database. Use SQLite in tests; mocked SQLAlchemy hides migration / constraint bugs.
@@ -457,7 +525,7 @@ For new features and bugfixes:
 2. Run; it should fail.
 3. Implement the minimum to make it pass (GREEN).
 4. Refactor (IMPROVE).
-5. Verify coverage stayed at 80%+.
+5. Verify coverage did not fall: `pnpm exec vitest run --coverage` for the frontend, `--cov` for the backend. The thresholds are the floors, not a target.
 
 The repo expects this rhythm; PRs that change behaviour without touching tests are rejected.
 
