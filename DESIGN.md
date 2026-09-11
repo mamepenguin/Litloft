@@ -1135,13 +1135,55 @@ drawer's own box rather than a copy of it.
   keeps the fixed fraction for the other reason, and `full` is unchanged
   everywhere: it is the state for reading *without* following playback, so it
   does not depend on the player's size.
-- **On a phone the media host has no top padding.** `p-4` between the page row
-  and the player is travel in front of a sticky box: `top: 0` only catches the
-  player once the reader has scrolled past that padding, so the wrapper has two
-  bottom edges and the derived `half` is solved from whichever was current when
-  it was measured. Measured while scrolled and then scrolled back, the sheet
-  covers the player by exactly that padding. Zero, rather than smaller: any
-  non-zero amount is the same defect with a smaller number in it.
+- **On a phone the player's top edge is the scrollport's own, and it takes two
+  rules to get there.** Anything between them is travel in front of a sticky
+  box: `top: 0` only catches the player once the reader has scrolled past it, so
+  the wrapper has two bottom edges and the derived `half` is solved from
+  whichever was current when it was measured.
+  - The media host's `p-4` is cancelled on this surface. Measured while scrolled
+    and then scrolled back, the sheet covers the player by exactly that padding.
+  - And so is the **negative top margin on the player's first child**, which
+    bleeds the picture to both screen edges and was written to cancel that same
+    padding. With the padding gone it is not a correction any more: it puts the
+    player's flow position *above* the scrollport, where the top of the video is
+    behind the page chrome if nothing follows the player, and where `sticky`
+    corrects it downward if something does — moving the box with its size
+    unchanged, which is the one channel `useSheetHalfSnap` does not watch. The
+    inline bleed is untouched.
+
+  Zero at the top, rather than smaller: any non-zero amount is the same defect
+  with a smaller number in it.
+- **`.media-detail-player` is the playable surface, and content does not go in
+  it.** It is the box the sheet's `half` clears, the box `--player-avail` caps as
+  a width, and the box a phone sticks to the top of the canvas — so anything
+  inside it is something the sheet protects and the phone pins. The core action
+  row directly under the frame belongs there (those controls act on what is
+  playing). A description does not: the Media Import `loft-metadata` panel put
+  `half` 80px below the video's bottom edge on `.loft` files and nowhere else,
+  and its host is now `MediaPlayerBlock`, outside that box. When adding anything
+  to it, ask both halves — must the sheet keep it on screen, and may it stay
+  pinned to the top of the page?
+- **Two gestures, and each moves exactly one thing.** The **knob** moves the
+  sheet between its states — `handleOnly` is what makes it the only thing that
+  can, by stopping `Drawer.Content` from calling vaul's press and drag handlers.
+  A **pull on the content** collapses the sheet to `peek` and can do nothing
+  else: not `full` to `half`, and not upward.
+
+  Which pulls qualify is decided **once, when the finger lands**, from three
+  numbers — whether the scroller can scroll, where it stands, and how far the
+  finger later pushes past the top (`sheetPullGesture`). Deciding per frame is
+  what vaul does and is the defect: it answers "may I drag?" from whether the
+  scroller *happens* to be at its top, so reading with a finger still down turned
+  into dragging the sheet, and a fling that coasted to the top became a drag on
+  the frame it arrived. So a gesture that began below the top belongs to the
+  scroller, and the sheet is handed it only after the finger keeps pushing once
+  the scroller has nothing left — which is what separates "scrolled up and kept
+  pushing" from "flung, and the momentum reached the top".
+
+  The distances and speeds are in `sheetPullGesture.ts`, and the gesture is
+  touch-only: refusing the browser a scroll takes `preventDefault()` on a
+  non-passive `touchmove`, which pointer events cannot express, and a mouse never
+  scrolls by dragging. The knob still drags with a mouse.
 - **The shell stores the state, never the snap.** vaul re-derives its offsets
   from `window.innerHeight`, so `half`'s number moves when a phone's URL bar
   collapses mid-scroll; a stored number would then name a snap point that is no
@@ -1521,7 +1563,15 @@ non-`.md` files.
 | `animate-slide-up-bar` | 300ms cubic-bezier slide | Selection bar |
 | `animate-pop` | 250ms scale 1→1.25→1 | Heart / favorite icons |
 
-All animations are disabled under `@media (prefers-reduced-motion: reduce)`.
+A pull on the Bottom Sheet's content follows the finger with no transition at
+all, and springs back over 200ms `ease-out` when it is released without earning
+the collapse — the same figure and the same reason as the listing's FLIP below: a
+box travelling back to where it belongs.
+
+All animations are disabled under `@media (prefers-reduced-motion: reduce)`. That
+includes the ones written as inline transitions from JavaScript: the rule at the
+top of `globals.css` caps every `transition-duration` with `!important`, which an
+inline style does not outrank.
 
 ### A change to a list's contents is carried, not cut to
 

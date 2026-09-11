@@ -7,9 +7,32 @@ import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import type { PdfController } from "@/lib/pdfController";
 import type { ArchiveController } from "@/lib/archiveController";
+import { playerKind } from "@/lib/playerKind";
 import { AddonSlot } from "../AddonSlot";
 import { FilePreview } from "../FilePreview";
 import { MediaLayoutToggle } from "../MediaLayoutToggle";
+
+/**
+ * The slot for what belongs *beside* the player rather than inside it.
+ *
+ * `.loft` files have one occupant: the channel, the publication date, the
+ * description and the captions controls that the Media Import addon
+ * fetches from the provider.
+ *
+ * **It is hosted here, outside `.media-detail-player`, and that is the
+ * point.** That box is defined as the playable surface the reader must
+ * keep — `useSheetHalfSnap` solves the Bottom Sheet's `half` against its
+ * bottom edge, `--player-avail` caps its width, and on a phone the
+ * stylesheet sticks it to the top of the canvas. A description panel
+ * inside it is a description the sheet protects and the phone pins:
+ * measured at 393x727, it put `half` 80px below the video's bottom edge
+ * on `.loft` and nowhere else.
+ *
+ * Gated on the kind rather than mounted for every file: the panel asks
+ * the addon for provider metadata as soon as it mounts, and a native
+ * `.mp4` has none to ask about.
+ */
+const MEDIA_ASIDE_SLOT = "loft-metadata";
 
 export interface MediaPlayerBlockProps {
   file: FileItem;
@@ -72,6 +95,11 @@ export function MediaPlayerBlock({
   layoutToggle,
 }: MediaPlayerBlockProps) {
   return (
+    // The grid area, in the legacy layout's `grid-template-areas`. It is
+    // this box and not the player's own because the aside below has to
+    // land inside the same area — an unplaced child of that grid is
+    // auto-placed into whichever cell is free.
+    <div className="media-detail-player-block">
     <div
       ref={playerWrapperRef}
       className="media-detail-player"
@@ -113,6 +141,13 @@ export function MediaPlayerBlock({
         />
         {layoutToggle && <MediaLayoutToggle railGated={layoutToggle.railGated} />}
       </div>
+    </div>
+      {playerKind(file) === "loft" && (
+        <AddonSlot
+          id={MEDIA_ASIDE_SLOT}
+          props={{ fileId: file.id, drive: file.drive }}
+        />
+      )}
     </div>
   );
 }

@@ -254,7 +254,17 @@ What it holds that `e2e-layout` cannot:
   the root container, under a swallow that stops the click at `document` above
   it);
 - gestures no `page.touchscreen` API expresses — a **long press** is touchStart,
-  a wait, touchEnd, and only CDP can hold one open.
+  a wait, touchEnd, and only CDP can hold one open;
+- **a touch drag the browser may answer by scrolling.** The Bottom Sheet's
+  pull-to-collapse has to be able to refuse one, so the gesture must really be
+  able to produce it — and `Input.dispatchTouchEvent` cannot. It hands the
+  renderer raw touch events and never runs the gesture recognizer, so the
+  scroller stays at zero whatever the finger does, and both halves of "one
+  gesture moves one thing" pass against a harness that cannot scroll at all.
+  `Input.synthesizeScrollGesture` with `gestureSourceType: "touch"` goes through
+  the real pipeline. Its cost is that a gesture cannot be held open mid-flight,
+  so what happened *during* one is read from a record the fixture keeps of the
+  extremes rather than from a paused finger.
 
 What it still cannot hold: the *pages* are hand-written. `SelectionBar`,
 `InspectorShell` and `FileCard` need Next.js, `next-intl` and a backend, so what

@@ -52,11 +52,12 @@
     -->
     <script type="application/json" id="fixture-markup">
       {
-        "drawer": "fixed bottom-0 left-0 right-0 z-[46] flex flex-col rounded-t-2xl border-t border-bg-border bg-bg-card outline-none",
+        "drawer": "fixed bottom-0 left-0 right-0 z-[46] flex flex-col outline-none",
+        "surface": "h-full flex flex-col rounded-t-2xl border-t border-bg-border bg-bg-card",
         "visible": "flex min-h-0 shrink-0 flex-col",
         "visibleHeight": "calc(100% - var(--snap-point-height, 0px))",
         "handle": "mx-auto mt-3 h-1 w-12 shrink-0 rounded-full bg-bg-border",
-        "scroller": "min-h-0 flex-1 overflow-auto",
+        "scroller": "min-h-0 flex-1 overflow-auto overscroll-contain",
         "scrollerPaddingBottom": "calc(env(safe-area-inset-bottom, 0px) + 16px)",
         "columnRoot": "flex flex-col",
         "columnHeader": "px-4 pt-4 pb-3",
@@ -73,6 +74,7 @@
         "canvas": "flex min-w-0 min-h-0 flex-1 flex-col overflow-auto",
         "mediaHost": "media-detail-host w-full space-y-4 p-4",
         "player": "media-detail-player",
+        "playerBleed": "-mx-4 -mt-4 md:mx-0 md:mt-0",
         "framedShimPaddingTop": "56.25%",
         "peekPx": 56
       }
@@ -153,18 +155,27 @@
         handle.className = SPEC.handle;
         handle.dataset.testid = "mobile-inspector-handle";
 
+        // The painted surface, which is also the box a content pull
+        // translates. `h-full`, so the visible box below it still
+        // subtracts from the drawer's own height: every case here that
+        // measures where that box lands measures through this one.
+        const surface = document.createElement("div");
+        surface.className = SPEC.surface;
+        surface.dataset.testid = "mobile-inspector-surface";
+        drawer.append(surface);
+
         if (bound === "visible-box") {
           const visible = document.createElement("div");
           visible.className = SPEC.visible;
           visible.dataset.testid = "mobile-inspector-visible";
           visible.style.height = SPEC.visibleHeight;
           visible.append(handle, scroller);
-          drawer.append(visible);
+          surface.append(visible);
         } else {
           if (bound === "cap-50vh") {
             scroller.style.maxHeight = snap === 0.9 ? "90vh" : "50vh";
           }
-          drawer.append(handle, scroller);
+          surface.append(handle, scroller);
         }
 
         const column = mode === "column";
@@ -277,6 +288,15 @@
         player.dataset.testid = "media-detail-player";
         const frame = document.createElement("div");
         frame.style.background = "#000";
+        // The player's first child bleeds to the screen edges, and its
+        // negative top margin is the other half of the `p-4` the
+        // stylesheet takes off the host. Drawn here because without it
+        // the fixture's player starts at the scrollport's top edge for
+        // the wrong reason — because there is no margin rather than
+        // because the stylesheet cancelled one — and the case that says
+        // the player has nowhere to travel would be proving it about a
+        // page with the offending margin removed.
+        frame.className = SPEC.playerBleed;
         if (framed) {
           // A framed player's height is a function of its width — the
           // `.loft` embed's `padding-top: 56.25%` shim, which is the same
@@ -335,6 +355,9 @@
         const drawer = document.querySelector(
           "[data-testid='mobile-inspector-sheet']",
         );
+        const surface = drawer.querySelector(
+          "[data-testid='mobile-inspector-surface']",
+        );
         const scroller = drawer.querySelector(
           "[data-testid='mobile-inspector-content']",
         );
@@ -373,13 +396,17 @@
             getComputedStyle(drawer).getPropertyValue("--snap-point-height"),
           ),
           drawer: rect(drawer),
-          // `100%` inside the drawer resolves against its content box,
+          // `100%` inside the surface resolves against its content box,
           // which `border-t` puts a pixel below its border box. That
           // pixel is above the visible box rather than inside it, so the
           // box still ends exactly at the fold — but the arithmetic only
           // balances with the border named.
-          drawerBorderTop: Number.parseFloat(
-            getComputedStyle(drawer).borderTopWidth,
+          //
+          // Read off the surface, which is the box that carries it: the
+          // drawer is unpainted so that a content pull can translate the
+          // surface without dragging a second card behind it.
+          surfaceBorderTop: Number.parseFloat(
+            getComputedStyle(surface).borderTopWidth,
           ),
           visible: visible ? rect(visible) : null,
           scroller: rect(scroller),
@@ -394,6 +421,10 @@
           // `--rail-avail` is measured from and therefore what caps a
           // framed player's width. Null for the cases that draw no page.
           canvasClientHeight: canvas ? canvas.clientHeight : null,
+          // The scrollport's own top edge, so "the player is stuck to the
+          // top of the canvas" can be asked as a comparison rather than
+          // read off a `position` that says only that it *might* be.
+          canvasTop: canvas ? canvas.getBoundingClientRect().top : null,
           // Relative to the box that scrolls: "the strip is at the top of
           // its scrollport" is the sticky property, and an absolute
           // viewport coordinate would also be satisfied by a page that

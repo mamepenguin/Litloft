@@ -119,6 +119,7 @@ const DEVICE_HEIGHT_PX = 727;
 const AT_THE_PHONE_WIDTH = [
   "anchored-direction.spec.ts",
   "popup-dismiss.spec.ts",
+  "sheet-gesture.spec.ts",
   "spec-viewport.spec.ts",
 ] as const;
 

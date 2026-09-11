@@ -1489,6 +1489,7 @@ describe("the layout fixture's page, against the shell", () => {
     expect(mediaHost).toContainElement(player as HTMLElement);
   });
 
+
   it("declares the ratio a framed player's height comes from", async () => {
     // The fixture draws its player with a `padding-top` shim and lets the
     // stylesheet's width cap decide the height, which is how the app

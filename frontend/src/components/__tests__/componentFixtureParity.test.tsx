@@ -325,6 +325,8 @@ describe("the component fixture's page", () => {
       "sheet-full-right",
       "sheet-full-left",
       "sheet-full-up",
+      "sheet-gesture",
+      "sheet-gesture-short",
       "measured-sheet-peek",
       "measured-sheet-half",
       "measured-sheet-full",

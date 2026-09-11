@@ -252,9 +252,10 @@ describe("pointer-coarse needle sources", () => {
     // The price of that is one line per needle added anywhere: 42 to 49
     // when unit F merged in, which brought `.fixed`, `.inset-0`, `.z-30`,
     // `.z-10`, `.z-20`, `.z-50` and `.bottom-0` — the tiers the popup
-    // fixtures' four stacking arrangements are made of, and 49 to 53 for
-    // the `sm:` halves of the shared toolbar surface.
-    expect(REQUIRED).toHaveLength(53);
+    // fixtures' four stacking arrangements are made of, 49 to 53 for
+    // the `sm:` halves of the shared toolbar surface, and 53 to 55 for the
+    // bleed on the player's first child and the rule that cancels it.
+    expect(REQUIRED).toHaveLength(55);
 
     expect(NEEDLE_PARTS).toHaveLength(7);
     expect(CANNOT_BE_ABSENT).toHaveLength(4);

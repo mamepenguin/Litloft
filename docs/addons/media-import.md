@@ -107,7 +107,8 @@ Resume positions for `.loft` files are tracked in the same `WatchHistory` table 
 
 ## Loft Metadata file-detail section
 
-Below the embedded player, the addon contributes a *Loft Metadata* card:
+Below the embedded player — in the page, outside the player's own box — the addon contributes a *Loft Metadata*
+card:
 
 - Channel thumbnail and name (linkable to the channel page on the provider).
 - Description (collapsed; expand to full).

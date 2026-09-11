@@ -133,7 +133,7 @@ interface Measurement {
   viewportHeight: number;
   snapPointHeight: number;
   drawer: Rect;
-  drawerBorderTop: number;
+  surfaceBorderTop: number;
   visible: Rect | null;
   scroller: Rect;
   strip: Rect;
@@ -142,6 +142,7 @@ interface Measurement {
   player: Rect | null;
   playerPosition: string | null;
   canvasClientHeight: number | null;
+  canvasTop: number | null;
   stripTopInScroller: number;
   headerTopInScroller: number;
   stripPosition: string;
@@ -361,12 +362,14 @@ test.describe(GROUPS[0], () => {
     // value and no viewport unit is repeated in the expectation. The
     // border is named because `100%` resolves against the content box:
     // it lands above the visible box rather than inside it, which is
-    // why the consequence on the next line is exact.
+    // why the consequence on the next line is exact. It is the
+    // *surface's* border — the drawer is unpainted, so that a content
+    // pull can translate the surface and nothing else.
     expect(m.visible).not.toBeNull();
     expect(
-      m.visible!.height + m.snapPointHeight + m.drawerBorderTop,
+      m.visible!.height + m.snapPointHeight + m.surfaceBorderTop,
     ).toBeCloseTo(m.drawer.height, 0);
-    expect(m.drawerBorderTop).toBeGreaterThan(0);
+    expect(m.surfaceBorderTop).toBeGreaterThan(0);
     expect(m.visible!.bottom).toBeCloseTo(height, 0);
     expect(m.scroller.bottom).toBeLessThanOrEqual(height + 1);
   });
@@ -727,10 +730,11 @@ const URL_BAR_PX = 80;
 const PLAYER_GROUPS = [
   "the sheet's derived half against the player it sits under",
   "and the same after the page behind it has been scrolled",
+  "the player starts at the scrollport's edge with nothing following it",
   "replaced: the fixed half does not know the player is there",
   "replaced: a drawer sized in a CSS viewport unit reaches over the player",
 ] as const;
-expect(PLAYER_GROUPS).toHaveLength(4);
+expect(PLAYER_GROUPS).toHaveLength(5);
 
 const playerCaseId = (group: string, c: PlayerCase) =>
   `${group} — ${playerKey(c.width, c.height, c.pLabel)}`;
@@ -792,13 +796,25 @@ async function layoutUnderPlayer(
     snap,
     scrollCanvasTo,
     drawerPx,
-  }: { snap?: number; scrollCanvasTo?: number; drawerPx?: number } = {},
+    // Twice the viewport by default: a page with somewhere to scroll,
+    // which is every case but the one that asks what happens when the
+    // player is the only thing in the canvas. Zero is not a smaller
+    // version of the same page — it takes away the slack `position:
+    // sticky` needs to correct anything, which is what makes the
+    // player's own flow position observable.
+    bodyPx = height * 2,
+  }: {
+    snap?: number;
+    scrollCanvasTo?: number;
+    drawerPx?: number;
+    bodyPx?: number;
+  } = {},
 ): Promise<{ m: Measurement; derived: number; playerBottom: number }> {
   await page.setViewportSize({ width, height });
   await page.evaluate((spec) => window.buildPage(spec), {
     playerPx,
     framed,
-    bodyPx: height * 2,
+    bodyPx,
   });
   if (scrollCanvasTo !== undefined) {
     await page.evaluate((to) => window.scrollCanvas(to), scrollCanvasTo);
@@ -825,7 +841,7 @@ async function layoutUnderPlayer(
 }
 
 /** The room the sheet has on screen, border included, at one snap. */
-const roomOnScreen = (m: Measurement) => m.visible!.height + m.drawerBorderTop;
+const roomOnScreen = (m: Measurement) => m.visible!.height + m.surfaceBorderTop;
 
 /**
  * What every case asserts about a sheet built at the derived snap.
@@ -837,7 +853,7 @@ const roomOnScreen = (m: Measurement) => m.visible!.height + m.drawerBorderTop;
 async function expectSheetUnderPlayer(
   page: import("@playwright/test").Page,
   c: PlayerCase,
-  { m }: { m: Measurement },
+  { m, atRest }: { m: Measurement; atRest: boolean },
 ): Promise<void> {
   expect(m.player).not.toBeNull();
   expect(m.visible).not.toBeNull();
@@ -846,6 +862,31 @@ async function expectSheetUnderPlayer(
   // The premise: the player is stuck to the top of the canvas, which is
   // what makes one measurement good for the whole of a scroll.
   expect(m.playerPosition).toBe("sticky");
+
+  // And it is *already* there, unscrolled — which is the half `position`
+  // alone does not state and the half the derived snap rests on. Two
+  // ways it is not, both measured on this page:
+  //
+  //  - a top padding on the host puts the player below the scrollport,
+  //    so it travels before it pins and one bottom edge becomes two
+  //    (the stylesheet takes that padding off);
+  //  - the player's own first child bleeds with a negative top margin,
+  //    and with the padding gone that margin puts the player *above* the
+  //    scrollport. Where something follows the player, `sticky` then
+  //    corrects it downward — the box moves with its size unchanged,
+  //    which is the one channel `useSheetHalfSnap` does not watch.
+  //
+  // The fixture draws both the padding and the bleed, so this comparison
+  // is what says the stylesheet cancels both.
+  //
+  // Only at rest. A player taller than its own scrollport — landscape —
+  // is pulled back up by the page's last line at the end of a scroll,
+  // which is the travel the scrolled group measures on purpose and the
+  // direction `useSheetHalfSnap` records as safe.
+  if (atRest) {
+    expect(m.canvasTop).not.toBeNull();
+    expect(m.player!.top).toBeCloseTo(m.canvasTop!, 0);
+  }
 
   if (c.framed) {
     // The width cap, asked as the thing it buys: a framed player is
@@ -920,7 +961,7 @@ test.describe(PLAYER_GROUPS[0], () => {
     expect(derived).toBeGreaterThanOrEqual(SHEET_SNAP_HALF_FALLBACK);
     expect(derived).toBeLessThan(SHEET_SNAP_FULL);
 
-    await expectSheetUnderPlayer(page, c, { m });
+    await expectSheetUnderPlayer(page, c, { m, atRest: true });
   });
 });
 
@@ -987,7 +1028,48 @@ test.describe(PLAYER_GROUPS[1], () => {
       expect(scrolled.playerBottom).toBeCloseTo(top.playerBottom, 0);
     }
 
-    await expectSheetUnderPlayer(page, c, { m: scrolled.m });
+    await expectSheetUnderPlayer(page, c, { m: scrolled.m, atRest: false });
+  });
+});
+
+/**
+ * The player's own flow position, with nothing under it to hide it.
+ *
+ * The group above asks the same question of a page that scrolls, and on
+ * one it cannot answer: with slack below the player, `position: sticky`
+ * pulls a player whose flow position is *above* the scrollport down to
+ * the scrollport's edge, so the reading is right whatever the margins
+ * did. Deleting the rule that cancels the bleed's negative top margin
+ * left every case there green (measured).
+ *
+ * With `bodyPx: 0` the player is the only thing in the canvas, so sticky
+ * has nowhere to travel and no correction to make. What it is drawn at is
+ * its flow position, and the two ways that is wrong are both visible:
+ *
+ *  - the host's `p-4` uncancelled puts it 16px below the edge, which is
+ *    travel before it pins;
+ *  - the bleed's `-mt-4` uncancelled puts it 16px above, where the top of
+ *    the video is behind the page chrome on a page that cannot scroll to
+ *    bring it back.
+ *
+ * The sheet is still drawn, at the snap the page derives, because the
+ * shared assertions below are about a page with one on it.
+ */
+test.describe(PLAYER_GROUPS[2], () => {
+  eachPlayerCase(PLAYER_GROUPS[2], async (page, c) => {
+    const { m } = await layoutUnderPlayer(page, c, { bodyPx: 0 });
+
+    expect(m.player).not.toBeNull();
+    expect(m.canvasTop).not.toBeNull();
+    expect(m.playerPosition).toBe("sticky");
+    expect(m.player!.top).toBeCloseTo(m.canvasTop!, 0);
+    // And there really was nothing under it: with slack the reading above
+    // is true for the wrong reason, which is the whole point of this
+    // group.
+    expect(m.canvasClientHeight).not.toBeNull();
+    expect(m.player!.bottom).toBeLessThanOrEqual(
+      m.canvasTop! + m.canvasClientHeight! + 1,
+    );
   });
 });
 
@@ -1009,8 +1091,8 @@ test.describe(PLAYER_GROUPS[1], () => {
 const FIXED_HALF_COVERS = ["667x375 × a framed player"];
 expect(FIXED_HALF_COVERS).toHaveLength(1);
 
-test.describe(PLAYER_GROUPS[2], () => {
-  eachPlayerCase(PLAYER_GROUPS[2], async (page, c) => {
+test.describe(PLAYER_GROUPS[3], () => {
+  eachPlayerCase(PLAYER_GROUPS[3], async (page, c) => {
     const { m } = await layoutUnderPlayer(page, c, {
       snap: SHEET_SNAP_HALF_FALLBACK,
     });
@@ -1045,8 +1127,8 @@ test.describe(PLAYER_GROUPS[2], () => {
  * it is why the component now writes the height in px off
  * `sheetDrawerHeightPx(window.innerHeight)` instead.
  */
-test.describe(PLAYER_GROUPS[3], () => {
-  eachPlayerCase(PLAYER_GROUPS[3], async (page, c) => {
+test.describe(PLAYER_GROUPS[4], () => {
+  eachPlayerCase(PLAYER_GROUPS[4], async (page, c) => {
     const shipped = await layoutUnderPlayer(page, c);
     const asVh = await layoutUnderPlayer(page, c, {
       snap: shipped.derived,

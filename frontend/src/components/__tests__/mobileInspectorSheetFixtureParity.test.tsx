@@ -142,18 +142,35 @@ function renderSheet(snap: number) {
   );
   return {
     drawer: screen.getByTestId("mobile-inspector-sheet"),
+    surface: screen.getByTestId("mobile-inspector-surface"),
     visible: screen.getByTestId("mobile-inspector-visible"),
     scroller: screen.getByTestId("mobile-inspector-content"),
   };
 }
 
 describe("the sheet's own chrome", () => {
-  it("declares the drawer, the box inside it and the scroller", () => {
-    const { drawer, visible, scroller } = renderSheet(SHEET_SNAP_HALF_FALLBACK);
+  it("declares the drawer, the surface, the box inside it and the scroller", () => {
+    const { drawer, surface, visible, scroller } = renderSheet(
+      SHEET_SNAP_HALF_FALLBACK,
+    );
 
     expectSameClasses(drawer.className, str("drawer"));
+    expectSameClasses(surface.className, str("surface"));
     expectSameClasses(visible.className, str("visible"));
     expectSameClasses(scroller.className, str("scroller"));
+  });
+
+  it("paints the sheet on the surface and not on the drawer", () => {
+    // Which of the two carries the paint is the whole reason the surface
+    // exists: a content pull translates it, and vaul overwrites the
+    // drawer's own transform on every frame of a knob drag. Painting the
+    // drawer instead would leave a second card behind the one that moves.
+    const { drawer, surface } = renderSheet(SHEET_SNAP_HALF_FALLBACK);
+    const paint = ["bg-bg-card", "rounded-t-2xl", "border-t"];
+    for (const utility of paint) {
+      expect(tokens(surface.className)).toContain(utility);
+      expect(tokens(drawer.className)).not.toContain(utility);
+    }
   });
 
   it("declares the handle, which is what stands between the drawer's top edge and the scroller", () => {
@@ -365,9 +382,12 @@ describe("the fixture's declarations", () => {
    * The `page` half is compared in
    * `FileDetail/__tests__/MediaShell.test.tsx`, which is where a real
    * `FileDetailShell` is already mounted; the `sheet` half is compared
-   * above. Splitting the *list* would let either side grow a key the
-   * other did not know about, so the list stays whole and only the
-   * comparison is elsewhere.
+   * above; and the player's bleed in `FilePreview.test.tsx`, which is the
+   * only suite that renders the real `FilePreview` — the shell harness
+   * stubs it, so the class list is not on the page there at all.
+   * Splitting the *list* would let either side grow a key the others did
+   * not know about, so the list stays whole and only the comparisons are
+   * elsewhere.
    */
   const COMPARED_HERE = [
     "columnHeader",
@@ -383,6 +403,7 @@ describe("the fixture's declarations", () => {
     "panelStrip",
     "scroller",
     "scrollerPaddingBottom",
+    "surface",
     "tab",
     "visible",
     "visibleHeight",
@@ -396,22 +417,26 @@ describe("the fixture's declarations", () => {
     "peekPx",
     "player",
   ];
-  expect(COMPARED_HERE).toHaveLength(16);
+  const COMPARED_IN_FILE_PREVIEW = ["playerBleed"];
+  expect(COMPARED_HERE).toHaveLength(17);
   expect(COMPARED_IN_MEDIA_SHELL).toHaveLength(7);
+  expect(COMPARED_IN_FILE_PREVIEW).toHaveLength(1);
+
+  const EVERYWHERE = [
+    ...COMPARED_HERE,
+    ...COMPARED_IN_MEDIA_SHELL,
+    ...COMPARED_IN_FILE_PREVIEW,
+  ];
 
   it("names every key the fixture uses, and no others", () => {
-    expect(Object.keys(SPEC).sort()).toEqual(
-      [...COMPARED_HERE, ...COMPARED_IN_MEDIA_SHELL].sort(),
-    );
+    expect(Object.keys(SPEC).sort()).toEqual([...EVERYWHERE].sort());
   });
 
-  it("keeps the two halves disjoint", () => {
-    // A key in both lists would be one nobody had to look at: the union
-    // above would still match while either comparison quietly stopped.
-    const overlap = COMPARED_HERE.filter((key) =>
-      COMPARED_IN_MEDIA_SHELL.includes(key),
-    );
-    expect(overlap).toEqual([]);
+  it("keeps the three lists disjoint", () => {
+    // A key in two lists would be one nobody had to look at: the union
+    // above would still match while one of the comparisons quietly
+    // stopped.
+    expect(new Set(EVERYWHERE).size).toBe(EVERYWHERE.length);
   });
 
   it("points at the file that compares the other half", () => {

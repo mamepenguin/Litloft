@@ -55,6 +55,48 @@ function renderSheet(
   return { ...utils, onStateChange };
 }
 
+/**
+ * Make a scroller report a scroll geometry.
+ *
+ * jsdom gives every element `scrollHeight === clientHeight === 0`, so
+ * without this the sheet's own scroller looks like one with nothing to
+ * scroll and every gesture reads as condition 1. The numbers are the
+ * hook's only inputs from the DOM, which is why they can be supplied —
+ * and why nothing here is evidence about a layout.
+ */
+function stubScrollGeometry(
+  el: HTMLElement,
+  { scrollTop, maxScroll }: { scrollTop: number; maxScroll: number },
+) {
+  Object.defineProperty(el, "clientHeight", { value: 400, configurable: true });
+  Object.defineProperty(el, "scrollHeight", {
+    value: 400 + maxScroll,
+    configurable: true,
+  });
+  Object.defineProperty(el, "scrollTop", {
+    value: scrollTop,
+    writable: true,
+    configurable: true,
+  });
+}
+
+/**
+ * One finger, in both lists.
+ *
+ * `changedTouches` is not read by the hook: it is read by the document
+ * listener `react-remove-scroll` installs under every Radix dialog, which
+ * indexes it without checking and throws on an event that has none.
+ */
+const touch = (clientY: number) => {
+  const finger = { identifier: 7, clientY, clientX: 0 };
+  return { touches: [finger], changedTouches: [finger] };
+};
+
+const lift = (clientY: number) => ({
+  touches: [],
+  changedTouches: [{ identifier: 7, clientY, clientX: 0 }],
+});
+
 describe("MobileInspectorSheet", () => {
   it("shows the peek row at rest", () => {
     renderSheet();
@@ -360,5 +402,82 @@ describe("the half state and the snap it resolves to", () => {
     const points = sheetSnapPoints(0.62) as number[];
     expect(points[0]).toBeLessThan(points[1]);
     expect(points[1]).toBe(SHEET_SNAP_FULL);
+  });
+});
+
+/**
+ * The pull-to-collapse gesture, as far as jsdom reaches.
+ *
+ * What is held here is the **wiring**: that the listeners are on the
+ * sheet's own scroller, that the box they translate is the surface, and
+ * that a gesture which earns a collapse ends in `onStateChange("peek")`.
+ * Which gestures earn it is `lib/__tests__/sheetPullGesture.test.ts`, and
+ * whether the browser then declines to scroll is
+ * `e2e-components/sheet-gesture.spec.ts` — jsdom cannot scroll, so it
+ * cannot be asked.
+ */
+describe("pulling the sheet down by its content", () => {
+  const pull = ({
+    scrollTop,
+    maxScroll,
+    to,
+  }: {
+    scrollTop: number;
+    maxScroll: number;
+    to: number;
+  }) => {
+    const { onStateChange } = renderSheet(SHEET_STATE_HALF);
+    const scroller = screen.getByTestId("mobile-inspector-content");
+    const surface = screen.getByTestId("mobile-inspector-surface");
+    stubScrollGeometry(scroller, { scrollTop, maxScroll });
+
+    fireEvent.touchStart(scroller, touch(300));
+    fireEvent.touchMove(scroller, touch(300 + to));
+    const transform = surface.style.transform;
+    fireEvent.touchEnd(scroller, lift(300 + to));
+    return { onStateChange, transform, surface };
+  };
+
+  it("draws the sheet under the finger, on the surface", () => {
+    const { transform } = pull({ scrollTop: 0, maxScroll: 900, to: 40 });
+    expect(transform).toBe("translate3d(0, 40px, 0)");
+  });
+
+  it("collapses to peek when the pull was far enough", () => {
+    const { onStateChange } = pull({ scrollTop: 0, maxScroll: 900, to: 200 });
+    expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+  });
+
+  it("springs the sheet back instead, when it was not", () => {
+    const { onStateChange, surface } = pull({
+      scrollTop: 0,
+      maxScroll: 900,
+      to: 20,
+    });
+    expect(onStateChange).not.toHaveBeenCalled();
+    expect(surface.style.transform).toBe("translate3d(0, 0, 0)");
+  });
+
+  it("leaves the sheet alone when the gesture began away from the top", () => {
+    // The negative form, and the one that says the listener is reading
+    // the scroller rather than just the finger: same finger, same
+    // distance, different starting offset.
+    const { onStateChange, transform } = pull({
+      scrollTop: 300,
+      maxScroll: 900,
+      to: 200,
+    });
+    expect(transform).toBe("");
+    expect(onStateChange).not.toHaveBeenCalled();
+  });
+
+  it("does not expand the sheet when the content is dragged upward", () => {
+    const { onStateChange, transform } = pull({
+      scrollTop: 0,
+      maxScroll: 900,
+      to: -200,
+    });
+    expect(transform).toBe("");
+    expect(onStateChange).not.toHaveBeenCalled();
   });
 });

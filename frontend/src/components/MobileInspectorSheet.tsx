@@ -1,6 +1,13 @@
 "use client";
 
-import { useMemo, useState, type ReactElement, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { useTranslations } from "next-intl";
 import { Drawer } from "vaul";
 
@@ -11,6 +18,7 @@ import {
   sheetDrawerHeightPx,
 } from "@/lib/sheetSnap";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
+import { useSheetPullToCollapse } from "@/hooks/useSheetPullToCollapse";
 import { DialogPortalProvider } from "./DialogPortal";
 
 /**
@@ -45,12 +53,12 @@ export const SHEET_STATE_FULL: SheetState = "full";
  * reach it.
  *
  * This is the box that is not: the drawer's own height less what vaul
- * pushed past the bottom edge. `100%` is `Drawer.Content`'s height rather
- * than a copy of it, so a later change to that height — or a snap point
- * added between these two — moves this with it. No snap value, no handle
- * height and no viewport unit belongs in this expression; every one of
- * them would be a second, quieter definition of what vaul already
- * publishes.
+ * pushed past the bottom edge. `100%` is the drawer's height rather than
+ * a copy of it — the surface between the two fills it (`h-full`) — so a
+ * later change to that height, or a snap point added between these two,
+ * moves this with it. No snap value, no handle height and no viewport
+ * unit belongs in this expression; every one of them would be a second,
+ * quieter definition of what vaul already publishes.
  *
  * The `0px` fallback is the no-snap-points case, where vaul sets no
  * variable and the whole drawer is on screen.
@@ -135,6 +143,22 @@ export function sheetStateForSnap(snap: number | string | null): SheetState {
  * dismiss to, and refusing the gesture would leave a reader who tapped
  * the dim with nothing happening.
  *
+ * **Two gestures, and each moves exactly one thing** (`handleOnly` plus
+ * `useSheetPullToCollapse`):
+ *
+ * - The **knob** moves the sheet between its states. `handleOnly` is what
+ *   makes that the only way: it stops `Drawer.Content` from calling
+ *   vaul's `onPress`/`onDrag`, leaving `Drawer.Handle` as the only
+ *   element that does.
+ * - A **pull on the content** collapses the sheet to `peek`, and can do
+ *   nothing else — not `full` to `half`, and not upward. Which pulls
+ *   qualify is `sheetPullGesture`'s subject.
+ *
+ * Without `handleOnly` vaul decides per frame, from whether the scroller
+ * happens to be at its top, so reading with a finger still down turned
+ * into dragging the sheet and a fling that coasted to the top became a
+ * drag on the frame it arrived.
+ *
  * Sits in the surface tier (`DESIGN.md` §Layering), above the sidebar
  * overlay and mini player but below modal dialogs — it hosts the file
  * `[...]` menu, so anything that menu opens has to paint above the sheet
@@ -166,6 +190,16 @@ export function MobileInspectorSheet({
 }): ReactElement | null {
   const t = useTranslations("inspector");
   const [dialogHost, setDialogHost] = useState<HTMLDivElement | null>(null);
+  // State rather than a ref: the drawer is not mounted at `peek`, so this
+  // node comes and goes with the sheet's state and the gesture's effect
+  // has to re-run when it does.
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const collapse = useCallback(
+    () => onStateChange(SHEET_STATE_PEEK),
+    [onStateChange],
+  );
+  useSheetPullToCollapse({ scroller, surfaceRef, onCollapse: collapse });
   // The drawer's height, against the viewport vaul solves its snaps in.
   // A `vh` class here would size the box in the large viewport while
   // every snap point was computed in `window.innerHeight`, and on a
@@ -203,8 +237,9 @@ export function MobileInspectorSheet({
       setActiveSnapPoint={(next) => onStateChange(sheetStateForSnap(next))}
       fadeFromIndex={0}
       modal
+      handleOnly
       onOpenChange={(next) => {
-        if (!next) onStateChange(SHEET_STATE_PEEK);
+        if (!next) collapse();
       }}
     >
       <Drawer.Portal>
@@ -215,35 +250,56 @@ export function MobileInspectorSheet({
         <Drawer.Content
           data-testid="mobile-inspector-sheet"
           data-snap={state}
-          className="fixed bottom-0 left-0 right-0 z-[46] flex flex-col rounded-t-2xl border-t border-bg-border bg-bg-card outline-none"
+          className="fixed bottom-0 left-0 right-0 z-[46] flex flex-col outline-none"
           style={{ height: drawerHeight }}
         >
+          {/* The sheet's visible surface, and the box a content pull
+              translates. It carries the paint — background, top corners,
+              border — because `Drawer.Content` above cannot: vaul writes
+              that element's own transform on every frame of a knob drag
+              and on every snap, so the two would overwrite each other.
+              `h-full` so the subtraction below still resolves against the
+              drawer's height. */}
           <div
-            data-testid="mobile-inspector-visible"
-            className="flex min-h-0 shrink-0 flex-col"
-            style={{ height: SHEET_VISIBLE_HEIGHT }}
+            ref={surfaceRef}
+            data-testid="mobile-inspector-surface"
+            className="h-full flex flex-col rounded-t-2xl border-t border-bg-border bg-bg-card"
           >
-            {/* Restored deliberately: the guide tells readers they can
+            <div
+              data-testid="mobile-inspector-visible"
+              className="flex min-h-0 shrink-0 flex-col"
+              style={{ height: SHEET_VISIBLE_HEIGHT }}
+            >
+              {/* Restored deliberately: the guide tells readers they can
                 drag the sheet to full, and a sheet with no handle does
                 not say so. `Drawer.Handle` is also vaul's own drag
                 affordance, so tapping it cycles the snap points. */}
-            <Drawer.Handle className="mx-auto mt-3 h-1 w-12 shrink-0 rounded-full bg-bg-border" />
-            <Drawer.Title className="sr-only">{t("title")}</Drawer.Title>
-            {/* Visually hidden description for assistive tech — vaul
+              <Drawer.Handle className="mx-auto mt-3 h-1 w-12 shrink-0 rounded-full bg-bg-border" />
+              <Drawer.Title className="sr-only">{t("title")}</Drawer.Title>
+              {/* Visually hidden description for assistive tech — vaul
                 (Radix Dialog) requires either a Description or an
                 explicit `aria-describedby={undefined}` to silence the
                 warning. */}
-            <Drawer.Description className="sr-only">
-              {t("sheetDescription")}
-            </Drawer.Description>
-            <div
-              data-testid="mobile-inspector-content"
-              className="min-h-0 flex-1 overflow-auto"
-              style={{ paddingBottom: SHEET_SCROLLER_PADDING_BOTTOM }}
-            >
-              <DialogPortalProvider target={dialogHost}>
-                {children}
-              </DialogPortalProvider>
+              <Drawer.Description className="sr-only">
+                {t("sheetDescription")}
+              </Drawer.Description>
+              {/* `overscroll-contain` keeps a gesture this scroller cannot
+                answer from becoming the page's. Like the
+                `preventDefault()` in `useSheetPullToCollapse`, what it
+                answers is a platform this repository's browser suite
+                cannot drive — it is green with the class removed
+                (measured) — so it is here for the iOS rubber band and
+                the scroll chain, not for anything Chromium does. */}
+              <div
+                ref={setScroller}
+                data-testid="mobile-inspector-content"
+                className="min-h-0 flex-1 overflow-auto overscroll-contain"
+                style={{ paddingBottom: SHEET_SCROLLER_PADDING_BOTTOM }}
+              >
+                <DialogPortalProvider target={dialogHost}>
+                  {children}
+                </DialogPortalProvider>
+              </div>
             </div>
           </div>
           {/* Host for dialogs opened from inside the sheet. vaul is
