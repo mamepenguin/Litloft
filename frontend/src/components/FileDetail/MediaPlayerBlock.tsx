@@ -13,24 +13,26 @@ import { FilePreview } from "../FilePreview";
 import { MediaLayoutToggle } from "../MediaLayoutToggle";
 
 /**
- * The slot for what belongs *beside* the player rather than inside it.
+ * The slot for what belongs under the player rather than inside it.
  *
- * `.loft` files have one occupant: the channel, the publication date, the
- * description and the captions controls that the Media Import addon
- * fetches from the provider.
+ * **The local rule, which is all this file can hold:** content goes
+ * outside `.media-detail-player`. That box is the playable surface the
+ * reader must keep — `useSheetHalfSnap` solves the Bottom Sheet's `half`
+ * against its bottom edge, `--player-avail` caps its width, and a phone
+ * makes it `position: sticky` — so anything in it is something the sheet
+ * protects and the phone pins. A description panel in there put `half`
+ * below the video's bottom edge on `.loft` files and nowhere else.
  *
- * **It is hosted here, outside `.media-detail-player`, and that is the
- * point.** That box is defined as the playable surface the reader must
- * keep — `useSheetHalfSnap` solves the Bottom Sheet's `half` against its
- * bottom edge, `--player-avail` caps its width, and on a phone the
- * stylesheet sticks it to the top of the canvas. A description panel
- * inside it is a description the sheet protects and the phone pins:
- * measured at 393x727, it put `half` 80px below the video's bottom edge
- * on `.loft` and nowhere else.
+ * **A sibling, not a wrapper.** Sticky travels only inside its own
+ * containing block, so a box drawn *around* the player takes its travel
+ * away instead (`globals.css`, `.media-detail-player-aside`).
  *
- * Gated on the kind rather than mounted for every file: the panel asks
- * the addon for provider metadata as soon as it mounts, and a native
- * `.mp4` has none to ask about.
+ * Gated on the kind rather than mounted for every file, because the
+ * occupant fetches as soon as it mounts and a native `.mp4` has nothing
+ * for it to ask about. What the occupant draws is the addon's to say —
+ * `docs/addons/media-import.md` — and deliberately not described here:
+ * `addons/` is a submodule whose contents this repository does not track,
+ * so a claim about them cannot fail from here.
  */
 const MEDIA_ASIDE_SLOT = "loft-metadata";
 
@@ -95,59 +97,59 @@ export function MediaPlayerBlock({
   layoutToggle,
 }: MediaPlayerBlockProps) {
   return (
-    // The grid area, in the legacy layout's `grid-template-areas`. It is
-    // this box and not the player's own because the aside below has to
-    // land inside the same area — an unplaced child of that grid is
-    // auto-placed into whichever cell is free.
-    <div className="media-detail-player-block">
-    <div
-      ref={playerWrapperRef}
-      className="media-detail-player"
-      data-framed={framed ? "true" : undefined}
-    >
-      {/* `globals.css` decides where this sits — on a phone the wrapper
-          above is stuck to the top of the canvas. Nothing here is told
+    <>
+      <div
+        ref={playerWrapperRef}
+        className="media-detail-player"
+        data-framed={framed ? "true" : undefined}
+      >
+        {/* `globals.css` decides where this sits — on a phone this
+          wrapper is stuck to the top of the canvas. Nothing here is told
           about it, because being told means re-rendering, and
           re-rendering is the one thing a player must not do. */}
-      <FilePreview
-        file={file}
-        videoRef={videoRef}
-        initialTime={initialTime}
-        initialPage={initialPage}
-        highlight={highlight}
-        onMediaController={onMediaController}
-        onDocumentCaptureController={onDocumentCaptureController}
-        onPdfController={onPdfController}
-        onArchiveController={onArchiveController}
-        markdownReloadKey={markdownReloadKey}
-        onMarkdownTagsSaved={onMarkdownTagsSaved}
-        miniPlayerRoot={miniPlayerRoot}
-        onEnded={onEnded}
-        autoPlay={autoPlay}
-      />
+        <FilePreview
+          file={file}
+          videoRef={videoRef}
+          initialTime={initialTime}
+          initialPage={initialPage}
+          highlight={highlight}
+          onMediaController={onMediaController}
+          onDocumentCaptureController={onDocumentCaptureController}
+          onPdfController={onPdfController}
+          onArchiveController={onArchiveController}
+          markdownReloadKey={markdownReloadKey}
+          onMarkdownTagsSaved={onMarkdownTagsSaved}
+          miniPlayerRoot={miniPlayerRoot}
+          onEnded={onEnded}
+          autoPlay={autoPlay}
+        />
 
-      {/* Directly below the player rather than inside its control bar:
+        {/* Directly below the player rather than inside its control bar:
           that bar belongs to the .loft embed and native video does not
           have one, so a button there would appear for some media and
           not others. One row so an addon action and the core's own
           layout toggle read as a single toolbar instead of stacking.
           `empty:hidden` drops the row's own padding when neither child
           renders (same trick as the heavy-summary footer). */}
-      <div className="flex items-center justify-end gap-2 px-3 pt-2 empty:hidden">
-        <AddonSlot
-          id="file-preview-actions"
-          layout="stack"
-          props={addonSlotProps}
-        />
-        {layoutToggle && <MediaLayoutToggle railGated={layoutToggle.railGated} />}
+        <div className="flex items-center justify-end gap-2 px-3 pt-2 empty:hidden">
+          <AddonSlot
+            id="file-preview-actions"
+            layout="stack"
+            props={addonSlotProps}
+          />
+          {layoutToggle && (
+            <MediaLayoutToggle railGated={layoutToggle.railGated} />
+          )}
+        </div>
       </div>
-    </div>
       {playerKind(file) === "loft" && (
-        <AddonSlot
-          id={MEDIA_ASIDE_SLOT}
-          props={{ fileId: file.id, drive: file.drive }}
-        />
+        <div className="media-detail-player-aside">
+          <AddonSlot
+            id={MEDIA_ASIDE_SLOT}
+            props={{ fileId: file.id, drive: file.drive }}
+          />
+        </div>
       )}
-    </div>
+    </>
   );
 }

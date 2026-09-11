@@ -15,20 +15,25 @@
  *
  * ## `Input.synthesizeScrollGesture`, and not `dispatchTouchEvent`
  *
- * Measured, and it is the reason this file exists in the shape it does:
- * `Input.dispatchTouchEvent` hands the renderer raw touch events and
- * **does not run the gesture recognizer**, so the scroller stays at zero
- * whatever the finger does. Every case here would have passed — "the
- * sheet did not move", "the scroller did not move" — against a harness
- * that could not scroll at all. `synthesizeScrollGesture` with
- * `gestureSourceType: "touch"` goes through the real pipeline: it emits
- * the touch events the hook listens to *and* performs the scroll the hook
- * has to be able to refuse.
+ * Both run Chromium's gesture recognizer and both really scroll — a
+ * hand-built `dispatchTouchEvent` sequence on this fixture scrolls
+ * *further* than the finger travelled, because the recognizer adds a
+ * fling. What `synthesizeScrollGesture` buys is control of the two things
+ * every case here depends on:
  *
- * The first case is the control for exactly that, and it is why it is
- * first: it drags the other way and watches the scroller move.
+ * - **`preventFling: true`**, so a reading taken after the gesture is of
+ *   a scroller that has stopped rather than one still coasting;
+ * - **`speed`**, in px/s, which is the input the dismiss *velocity* is
+ *   read from. Hand-dispatched moves carry whatever the test runner's
+ *   scheduling gave them.
  *
- * Its cost is that a gesture cannot be held open, so what happened in the
+ * Whichever API, the scroll has to be real: every case here says either
+ * "the sheet did not move" or "the scroller did not move", and both are
+ * true of a harness that cannot scroll at all. The first case is the
+ * control for exactly that, and that is why it is first — it drags the
+ * other way and watches the scroller move.
+ *
+ * The cost is that a gesture cannot be held open, so what happened in the
  * middle of one is read from the fixture's own record of the extremes
  * (`data-max-pull`, `data-max-scroll` — see `useGestureRecord`), both
  * taken off the real elements.
@@ -225,6 +230,10 @@ test.describe("what collapses the sheet", () => {
 
     const after = await read(page);
     expect(after.state).toBe("peek");
+    // True by construction, as at `:214` — the gesture began at the
+    // scroller's top going down, so there was no scroll to perform. Kept
+    // because it is the shape of the claim, marked because it is not the
+    // evidence for it.
     expect(after.maxScrolled).toBe(0);
   });
 

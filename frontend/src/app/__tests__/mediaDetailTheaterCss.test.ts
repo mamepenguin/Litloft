@@ -7,6 +7,19 @@ function globalsCss(): string {
   return readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 }
 
+/**
+ * The `.media-detail-player` rule with no further selector on it.
+ *
+ * `^` under `/m`, so this cannot match one of the qualified rules —
+ * `[data-sheet-snap] .media-detail-player`,
+ * `.media-detail-player[data-framed="true"]`,
+ * `main[data-canvas-floor="true"] .media-detail-player`. Two cases below
+ * read this, and both of them are about what the *base* rule says.
+ */
+function baseRule(): RegExpMatchArray | null {
+  return globalsCss().match(/^\.media-detail-player\s*\{[^}]*\}/m);
+}
+
 describe("media detail theater sizing", () => {
   it("derives the player width from the measured height with a viewport fallback", () => {
     expect(globalsCss()).toMatch(
@@ -31,10 +44,44 @@ describe("media detail theater sizing", () => {
     // player whose height follows its width. Applying it to an image,
     // a PDF or a text preview would narrow them on a short window for
     // no reason, which is why the selector carries `data-framed`.
-    const rule = globalsCss().match(/\.media-detail-player\s*\{[^}]*\}/);
+    //
+    // Anchored at a line start, because the unanchored form finds the
+    // *first textual occurrence* of the selector: rename or delete the
+    // base rule and it silently retargets onto
+    // `[data-sheet-snap] .media-detail-player { position: sticky … }`,
+    // which carries neither declaration and so passes while asserting
+    // nothing. Measured — it did, for a whole commit.
+    const rule = baseRule();
     expect(rule).not.toBeNull();
     expect(rule![0]).not.toMatch(/max-width/);
     expect(rule![0]).not.toMatch(/margin-inline/);
+  });
+
+  it("keeps the player itself the grid item, and nothing around it", () => {
+    // Two claims in one place because they are one decision. The legacy
+    // layout is a grid of named areas, so the player needs an area of its
+    // own — and the `loft-metadata` occupant under it needs a *different*
+    // one, rather than a box wrapping the player to hold both. A wrapper
+    // is what takes `position: sticky`'s travel away: sticky moves only
+    // inside its own containing block, and a box whose height is the
+    // player's own leaves none. Measured: the player scrolled off the top
+    // of the canvas at every scroll offset, on every file kind.
+    const rule = baseRule();
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/grid-area:\s*player;/);
+    // And the occupant's area exists and is not the player's.
+    const aside = globalsCss().match(
+      /^\.media-detail-player-aside\s*\{[^}]*\}/m,
+    );
+    expect(aside).not.toBeNull();
+    expect(aside![0]).toMatch(/grid-area:\s*player-aside;/);
+    for (const areas of globalsCss().matchAll(
+      /grid-template-areas:([^;]*);/g,
+    )) {
+      if (!areas[1].includes('"player ') && !areas[1].includes('"player"'))
+        continue;
+      expect(areas[1]).toContain("player-aside");
+    }
   });
 });
 

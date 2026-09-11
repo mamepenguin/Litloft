@@ -439,20 +439,40 @@ describe("the fixture's declarations", () => {
     expect(new Set(EVERYWHERE).size).toBe(EVERYWHERE.length);
   });
 
-  it("points at the file that compares the other half", () => {
-    // Detector rule 4: the paragraph above says MediaShell.test.tsx
-    // compares those five. Until this file can fail when that stops
-    // being true, that is a sentence. It reads the other file and checks
-    // each key is named in it.
-    const mediaShell = readFileSync(
-      resolve(
-        REPO_ROOT,
+  it("points at the files that compare the other two lists", () => {
+    // Detector rule 4: the paragraph above says which file compares
+    // which keys. Until this file can fail when that stops being true,
+    // that is a sentence. It reads the other files and checks each key is
+    // named in one of them.
+    //
+    // **Both lists, not one.** The census at the top balances on list
+    // *membership*, so a key nobody compares anywhere keeps it green —
+    // which is what happened when the third list was added with the
+    // paragraph and without this loop.
+    const elsewhere: [readonly string[], string, string][] = [
+      [
+        COMPARED_IN_MEDIA_SHELL,
         "frontend/src/components/FileDetail/__tests__/MediaShell.test.tsx",
-      ),
-      "utf-8",
+        "SPEC.",
+      ],
+      [
+        COMPARED_IN_FILE_PREVIEW,
+        "frontend/src/components/__tests__/FilePreview.test.tsx",
+        "FIXTURE.",
+      ],
+    ];
+    expect(elsewhere).toHaveLength(2);
+    // Every list but this file's own is covered, so adding a fourth
+    // without a row here is red rather than silent.
+    expect(elsewhere.map(([list]) => list.length).reduce((a, b) => a + b)).toBe(
+      EVERYWHERE.length - COMPARED_HERE.length,
     );
-    for (const key of COMPARED_IN_MEDIA_SHELL) {
-      expect(mediaShell).toContain(`SPEC.${key}`);
+
+    for (const [keys, path, accessor] of elsewhere) {
+      const source = readFileSync(resolve(REPO_ROOT, path), "utf-8");
+      for (const key of keys) {
+        expect(source).toContain(`${accessor}${key}`);
+      }
     }
   });
 });

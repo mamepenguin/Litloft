@@ -143,6 +143,7 @@ interface Measurement {
   playerPosition: string | null;
   canvasClientHeight: number | null;
   canvasTop: number | null;
+  belowHeight: number | null;
   stripTopInScroller: number;
   headerTopInScroller: number;
   stripPosition: string;
@@ -1063,13 +1064,14 @@ test.describe(PLAYER_GROUPS[2], () => {
     expect(m.canvasTop).not.toBeNull();
     expect(m.playerPosition).toBe("sticky");
     expect(m.player!.top).toBeCloseTo(m.canvasTop!, 0);
-    // And there really was nothing under it: with slack the reading above
-    // is true for the wrong reason, which is the whole point of this
-    // group.
-    expect(m.canvasClientHeight).not.toBeNull();
-    expect(m.player!.bottom).toBeLessThanOrEqual(
-      m.canvasTop! + m.canvasClientHeight! + 1,
-    );
+    // And there really was nothing under it, asked as the property the
+    // group needs: the canvas cannot scroll. "The player's bottom is
+    // inside the scrollport" was the first form of this and it is inert —
+    // true of 40px of slack as well, which is enough for `sticky` to
+    // correct the position and make the reading above right for the wrong
+    // reason (measured: the group stayed green at `bodyPx: 40` with the
+    // margin rule reverted).
+    expect(m.belowHeight).toBe(0);
   });
 });
 

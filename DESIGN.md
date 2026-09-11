@@ -1154,15 +1154,22 @@ drawer's own box rather than a copy of it.
   Zero at the top, rather than smaller: any non-zero amount is the same defect
   with a smaller number in it.
 - **`.media-detail-player` is the playable surface, and content does not go in
-  it.** It is the box the sheet's `half` clears, the box `--player-avail` caps as
-  a width, and the box a phone sticks to the top of the canvas — so anything
-  inside it is something the sheet protects and the phone pins. The core action
-  row directly under the frame belongs there (those controls act on what is
-  playing). A description does not: the Media Import `loft-metadata` panel put
-  `half` 80px below the video's bottom edge on `.loft` files and nowhere else,
-  and its host is now `MediaPlayerBlock`, outside that box. When adding anything
-  to it, ask both halves — must the sheet keep it on screen, and may it stay
-  pinned to the top of the page?
+  it — nor does a box around it.** It is what the sheet's `half` clears, what
+  `--player-avail` caps as a width, and what a phone makes `position: sticky`,
+  so both of those are ways of taking the reader's video away:
+  - **Inside it**, anything is something the sheet protects and the phone pins.
+    The core action row directly under the frame belongs there — those controls
+    act on what is playing. A description does not: the `loft-metadata` occupant
+    in there put `half` below the video's bottom edge on `.loft` files and
+    nowhere else, so its host is `MediaPlayerBlock`, as the player's **sibling**
+    in a grid area of its own (`.media-detail-player-aside`).
+  - **Around it** is worse, and it is the shape a first fix reached for. Sticky
+    travels only inside its own containing block, so a wrapper holding the player
+    and one panel has the player's own height for every file that has no panel —
+    zero travel, and the pinned player scrolls off the top of the canvas instead.
+
+  When adding anything near the player, ask all three: must the sheet keep it on
+  screen, may it stay pinned to the top of the page, and is it a sibling?
 - **Two gestures, and each moves exactly one thing.** The **knob** moves the
   sheet between its states — `handleOnly` is what makes it the only thing that
   can, by stopping `Drawer.Content` from calling vaul's press and drag handlers.

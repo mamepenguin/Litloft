@@ -312,8 +312,13 @@
         player.append(frame);
 
         const below = document.createElement("div");
+        below.dataset.testid = "media-detail-below";
         below.style.height = `${bodyPx}px`;
-        below.textContent = "the description, the comments, the summaries";
+        // Empty at zero, or the text gives the box a line's height and
+        // "nothing follows the player" is off by it.
+        below.textContent = bodyPx
+          ? "the description, the comments, the summaries"
+          : "";
 
         mediaHost.append(player, below);
         canvas.append(mediaHost);
@@ -373,6 +378,9 @@
         const canvas = document.querySelector(
           "[data-testid='file-detail-canvas']",
         );
+        const below = document.querySelector(
+          "[data-testid='media-detail-below']",
+        );
 
         if (scrollTo !== undefined) scroller.scrollTop = scrollTo;
 
@@ -425,6 +433,19 @@
           // top of the canvas" can be asked as a comparison rather than
           // read off a `position` that says only that it *might* be.
           canvasTop: canvas ? canvas.getBoundingClientRect().top : null,
+          // How tall what follows the player is.
+          //
+          // The group that measures the player's own flow position needs
+          // a page with nothing under it: a sticky box travels only
+          // inside its containing block, so slack below the player is
+          // what lets `sticky` correct the position and make that reading
+          // right whatever the margins did. "The player's bottom is
+          // inside the scrollport" was the first form of the guard and is
+          // inert — true of 40px of slack as well — and "the canvas
+          // cannot scroll" is false at the one viewport where the player
+          // is taller than the scrollport. The height of the box after it
+          // is the property itself.
+          belowHeight: below ? below.getBoundingClientRect().height : null,
           // Relative to the box that scrolls: "the strip is at the top of
           // its scrollport" is the sticky property, and an absolute
           // viewport coordinate would also be satisfied by a page that

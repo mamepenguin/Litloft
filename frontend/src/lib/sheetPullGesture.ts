@@ -14,9 +14,9 @@
  * So the owner is latched from what was true when the finger landed, and
  * the sheet only ever takes a gesture the scroller had no use for:
  *
- * - nothing to scroll → the sheet, from the first move;
- * - at the top and moving down → the sheet, from the first move;
- * - at the top and moving up → the scroller, and it keeps it;
+ * - nothing to scroll, or at the top, and then moving down → the sheet;
+ * - nothing to scroll, or at the top, and then moving up → the scroller,
+ *   and it keeps it;
  * - below the top → the scroller, which may hand the gesture over, but
  *   only after the finger has pushed `SHEET_PULL_HANDOFF_PX` past the top.
  *
@@ -117,15 +117,18 @@ export function beginSheetPull({
   scrollTop,
   maxScroll,
 }: SheetPullBegin): SheetPullState {
-  const atTop = scrollTop <= SHEET_PULL_TOP_EPS_PX;
-  // Nothing to scroll: there is no second reading of this gesture, so it
-  // does not wait for a direction to disambiguate.
-  const owner: SheetPullOwner =
-    maxScroll <= 0 ? "sheet" : atTop ? "undecided" : "scroller";
+  // Two ways a gesture can be the sheet's to take: the scroller has
+  // nowhere to go at all, or it is at its top. Both still wait for a
+  // direction — the sheet only wants the downward ones, and taking every
+  // touch in a sheet that does not scroll means refusing the browser an
+  // upward or sideways one it could have answered. A horizontally
+  // scrollable descendant (the tab strip is `overflow-x-auto`) is the
+  // shape that costs.
+  const takeable = maxScroll <= 0 || scrollTop <= SHEET_PULL_TOP_EPS_PX;
   return {
-    owner,
+    owner: takeable ? "undecided" : "scroller",
     pull: 0,
-    origin: owner === "sheet" ? 0 : null,
+    origin: null,
     pushedPastTop: 0,
     lastDy: 0,
     lastScrollTop: scrollTop,
@@ -159,7 +162,13 @@ export function advanceSheetPull(
   const delta = dy - state.lastDy;
   // Moving up, or the scroller is not at its top: whatever was pushed is
   // not owed any more.
-  if (delta <= 0 || scrollTop > SHEET_PULL_TOP_EPS_PX) {
+  //
+  // `< 0` and not `<= 0`: a frame in which the finger did not move is
+  // neither of those two things, and it is an ordinary frame — Chromium
+  // coalesces moves and rounds `clientY`, so a slow push at the top
+  // delivers same-position frames. Clearing on one made the reader start
+  // the push over.
+  if (delta < 0 || scrollTop > SHEET_PULL_TOP_EPS_PX) {
     return { ...state, ...moved, pushedPastTop: 0 };
   }
   /**

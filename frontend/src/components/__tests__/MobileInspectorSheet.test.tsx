@@ -5,6 +5,7 @@ import {
   render,
   screen,
   fireEvent,
+  createEvent,
   waitFor,
 } from "@testing-library/react";
 import { createPortal } from "react-dom";
@@ -415,26 +416,65 @@ describe("the half state and the snap it resolves to", () => {
  * whether the browser then declines to scroll is
  * `e2e-components/sheet-gesture.spec.ts` — jsdom cannot scroll, so it
  * cannot be asked.
+ *
+ * **Every event carries a chosen `timeStamp`.** Release velocity is a
+ * function of them, and jsdom's own clock is integer-millisecond epoch
+ * time: two adjacent `fireEvent` statements are 0ms apart most of the
+ * time and 1ms apart whenever they straddle a boundary, which is a
+ * velocity of 0 or of 20px/ms for the same gesture. The distance case
+ * below passed on that coincidence and went red about once in ten runs.
  */
 describe("pulling the sheet down by its content", () => {
+  /** Dispatch one touch event at a chosen moment on the fake clock. */
+  const at = (
+    el: HTMLElement,
+    type: "touchStart" | "touchMove" | "touchEnd",
+    init: object,
+    when: number,
+  ) => {
+    const event = createEvent[type](el, init);
+    Object.defineProperty(event, "timeStamp", { value: when });
+    fireEvent(el, event);
+  };
+
+  const START_AT = 1000;
+
+  /**
+   * One gesture, at a declared speed.
+   *
+   * `msPerStep` is what separates a flick from a push: the hook reads the
+   * finger's speed over the last `VELOCITY_WINDOW_MS`, so steps further
+   * apart than the window read as motionless however far they went.
+   * `holdMs` is the pause between the last move and the lift.
+   */
   const pull = ({
     scrollTop,
     maxScroll,
     to,
+    steps = 2,
+    msPerStep = 200,
+    holdMs = 0,
   }: {
     scrollTop: number;
     maxScroll: number;
     to: number;
+    steps?: number;
+    msPerStep?: number;
+    holdMs?: number;
   }) => {
     const { onStateChange } = renderSheet(SHEET_STATE_HALF);
     const scroller = screen.getByTestId("mobile-inspector-content");
     const surface = screen.getByTestId("mobile-inspector-surface");
     stubScrollGeometry(scroller, { scrollTop, maxScroll });
 
-    fireEvent.touchStart(scroller, touch(300));
-    fireEvent.touchMove(scroller, touch(300 + to));
+    at(scroller, "touchStart", touch(300), START_AT);
+    let now = START_AT;
+    for (let step = 1; step <= steps; step += 1) {
+      now += msPerStep;
+      at(scroller, "touchMove", touch(300 + (to * step) / steps), now);
+    }
     const transform = surface.style.transform;
-    fireEvent.touchEnd(scroller, lift(300 + to));
+    at(scroller, "touchEnd", lift(300 + to), now + holdMs);
     return { onStateChange, transform, surface };
   };
 
@@ -453,6 +493,35 @@ describe("pulling the sheet down by its content", () => {
       scrollTop: 0,
       maxScroll: 900,
       to: 20,
+    });
+    expect(onStateChange).not.toHaveBeenCalled();
+    expect(surface.style.transform).toBe("translate3d(0, 0, 0)");
+  });
+
+  it("collapses at that same distance when the finger left quickly", () => {
+    // The pair that gives the velocity term something to mean in jsdom:
+    // 20px settles at 200ms a step and dismisses at 8ms a step.
+    const { onStateChange } = pull({
+      scrollTop: 0,
+      maxScroll: 900,
+      to: 20,
+      msPerStep: 8,
+    });
+    expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+  });
+
+  it("springs back when the finger stopped before lifting, however fast it had been", () => {
+    // The gesture the velocity window exists for: pull the sheet a little
+    // to see the page behind it, rest, lift. Reading the speed at the last
+    // *move* instead of at the release collapsed this on a velocity from
+    // a second earlier — and 40px is short of the dismiss distance, so
+    // nothing else could have.
+    const { onStateChange, surface } = pull({
+      scrollTop: 0,
+      maxScroll: 900,
+      to: 40,
+      msPerStep: 8,
+      holdMs: 1000,
     });
     expect(onStateChange).not.toHaveBeenCalled();
     expect(surface.style.transform).toBe("translate3d(0, 0, 0)");

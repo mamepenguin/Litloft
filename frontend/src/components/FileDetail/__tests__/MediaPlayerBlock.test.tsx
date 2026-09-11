@@ -8,14 +8,16 @@
  * inside it and what is merely near it are different claims, and this is
  * where they are separated.
  *
- * The defect it exists for: the `loft-metadata` panel — a channel name, a
- * date, three lines of description — was rendered inside that box, which
- * put `half` 80px below a `.loft` video's bottom edge and nowhere else
- * (measured at 393x727). Nothing failed, because no test asked which box
- * anything was in.
+ * The defect it exists for: the addon panel that `.loft` files get was
+ * rendered inside that box, which put `half` below a `.loft` video's
+ * bottom edge and nowhere else. Nothing failed, because no test asked
+ * which box anything was in. Then the first fix drew a wrapper *around*
+ * the player to hold both, which took `position: sticky`'s travel away —
+ * so both directions are asserted below.
  *
- * jsdom lays nothing out, so the 80px is not re-measured here. What is
- * held is the containment that produced it.
+ * jsdom lays nothing out, so neither the 80px nor the lost pinning is
+ * re-measured here. What is held is the containment that produced them;
+ * the geometry is `e2e-layout/mobile-inspector-sheet.spec.ts`'s.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -89,38 +91,43 @@ function renderBlock(file: FileItem) {
   );
   return {
     container,
-    block: container.querySelector(".media-detail-player-block")!,
     player: container.querySelector(".media-detail-player")!,
-    aside: container.querySelector("[data-slot='loft-metadata']"),
+    aside: container.querySelector(".media-detail-player-aside"),
+    slot: container.querySelector("[data-slot='loft-metadata']"),
   };
 }
 
 describe("the player block", () => {
   it("keeps the provider metadata out of the playable surface", () => {
-    const { block, player, aside } = renderBlock(makeFile(LOFT));
+    const { player, aside, slot } = renderBlock(makeFile(LOFT));
 
-    expect(aside).not.toBeNull();
-    expect(player.contains(aside)).toBe(false);
-    expect(block.contains(aside!)).toBe(true);
+    expect(slot).not.toBeNull();
+    expect(player.contains(slot)).toBe(false);
+    expect(aside!.contains(slot!)).toBe(true);
   });
 
-  it("takes the grid area on the block, so the aside has a cell", () => {
-    // The legacy layout is a grid of named areas, and a child with no
-    // area is auto-placed into whichever cell happens to be free. The
-    // area therefore belongs to the box that holds both.
-    const { block, player } = renderBlock(makeFile(LOFT));
+  it("draws it as the player's sibling, and never as a box around it", () => {
+    // Both halves, because the second is the trap. `position: sticky`
+    // travels only inside its own containing block, so a wrapper drawn
+    // around the player to hold both boxes has the player's own height
+    // and leaves it no travel at all — the phone's pinned player scrolls
+    // off the top instead. That shipped once, from this file.
+    const { container, player, aside } = renderBlock(makeFile(LOFT));
 
-    expect(block.className).toContain("media-detail-player-block");
-    expect(player.className.split(/\s+/)).not.toContain(
-      "media-detail-player-block",
-    );
-    expect(block.contains(player)).toBe(true);
+    expect(player.parentElement).toBe(container);
+    expect(aside!.parentElement).toBe(container);
+    expect(aside!.contains(player)).toBe(false);
+    // And it is the box `globals.css` gives a grid area of its own, so
+    // the legacy grid does not auto-place it into someone else's cell.
+    expect(aside!.className).toContain("media-detail-player-aside");
   });
 
   it("does not ask for provider metadata about a file that has none", () => {
     // The panel fetches as soon as it mounts, so mounting it for every
     // media file would be a request per file with nothing to answer it.
-    expect(renderBlock(makeFile()).aside).toBeNull();
+    const { aside, slot } = renderBlock(makeFile());
+    expect(aside).toBeNull();
+    expect(slot).toBeNull();
   });
 
   it("keeps the core action row inside the playable surface", () => {

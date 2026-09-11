@@ -28,6 +28,12 @@ const SETTLE_EASING = "ease-out";
  * Long enough to survive one dropped frame, short enough that a finger
  * that stopped moving before lifting reads as stopped — which is the
  * gesture that must *not* be mistaken for a flick.
+ *
+ * **Measured against the moment the finger left, not against the last
+ * move.** A finger that stops emits no further `touchmove`, so a window
+ * applied only while moving never advances past the pause and the release
+ * reads the speed the finger had before it: pull 40px, hold a second,
+ * lift, and the sheet collapsed on a velocity from 984ms earlier.
  */
 const VELOCITY_WINDOW_MS = 120;
 
@@ -121,6 +127,26 @@ export function useSheetPullToCollapse({
       samples = [];
     };
 
+    /**
+     * The finger's downward speed at `at`, px/ms.
+     *
+     * The window is applied *here*, against the moment being asked about,
+     * which is what makes a pause before the lift read as a pause: the
+     * samples from before it fall outside and there is nothing left to
+     * divide. Fewer than two inside the window is a finger that was not
+     * moving, and 0 is the answer — never a pair from further back.
+     */
+    const velocityAt = (at: number) => {
+      const recent = samples.filter(
+        (sample) => at - sample.at <= VELOCITY_WINDOW_MS,
+      );
+      if (recent.length < 2) return 0;
+      const first = recent[0];
+      const last = recent[recent.length - 1];
+      const elapsed = last.at - first.at;
+      return elapsed > 0 ? (last.y - first.y) / elapsed : 0;
+    };
+
     const onTouchStart = (event: TouchEvent) => {
       // A second finger is not a second gesture: it makes this one
       // ambiguous, so the sheet gives it up and springs back.
@@ -151,45 +177,50 @@ export function useSheetPullToCollapse({
 
       state = advanceSheetPull(state, {
         dy: touch.clientY - startY,
-        scrollTop: scroller.scrollTop,
+        // Clamped, because a bounce reads as a negative offset. iOS
+        // Safari stretches an inner scroller past its own top, and a
+        // negative reading feeds `advanceSheetPull` a `consumed` term as
+        // large as the finger's own movement — so nothing accumulates
+        // toward the handoff and condition 3 never fires there. A
+        // stretching band reads as a pinned top instead. Chromium does
+        // not draw the band, so this is the arithmetic being made safe
+        // for a platform the browser suite cannot show, not a measured
+        // fix.
+        scrollTop: Math.max(0, scroller.scrollTop),
       });
 
       samples.push({ at: event.timeStamp, y: touch.clientY });
+      // Trimmed here so the list stays bounded; the reading that matters
+      // is taken against the release, in `velocityAt`.
       samples = samples.filter(
         (sample) => event.timeStamp - sample.at <= VELOCITY_WINDOW_MS,
       );
-      // Keep one sample older than the window, or a slow finger empties
-      // the list down to the current point and every release reads as
-      // motionless.
-      if (samples.length < 2)
-        samples.unshift({ at: event.timeStamp - 1, y: touch.clientY });
 
       if (state.owner !== "sheet") return;
       // Tell the browser not to treat this gesture as a scroll as well.
       //
       // **What it buys is a rubber band this repository cannot measure.**
-      // Where the sheet owns a gesture the scroller is at its top by
-      // construction and the pull is downward, so there is no scroll left
-      // for it to perform — Chromium does nothing either way, and
+      // Chromium does nothing either way here —
       // `e2e-components/sheet-gesture.spec.ts` is green with this line
-      // deleted (measured). What it answers is iOS Safari, which bounces
-      // an inner scroller past its own top: the band and the sheet would
-      // be two answers to one finger.
+      // deleted (measured) — and what it answers is iOS Safari, which
+      // bounces an inner scroller past its own top: the band and the
+      // sheet would be two answers to one finger.
+      //
+      // It fires on every direction the sheet owns, not only downward: a
+      // gesture the sheet owns is one the scroller had no use for, but
+      // `beginSheetPull` decides that from where the scroller stands and
+      // not from where the finger goes, so an upward move inside an
+      // already-owned gesture is refused too.
       //
       // `cancelable` is false once the browser has committed the gesture
-      // to a scroll, which is the handoff case (condition 3) — and there,
-      // again, the scroller is pinned at its top.
+      // to a scroll, which is the handoff case (condition 3).
       if (event.cancelable) event.preventDefault();
       draw(state.pull);
     };
 
-    const onTouchEnd = () => {
+    const onTouchEnd = (event: TouchEvent) => {
       if (!state) return;
-      const first = samples[0];
-      const last = samples[samples.length - 1];
-      const elapsed = last && first ? last.at - first.at : 0;
-      const velocity = elapsed > 0 ? (last.y - first.y) / elapsed : 0;
-      const outcome = releaseSheetPull(state, velocity);
+      const outcome = releaseSheetPull(state, velocityAt(event.timeStamp));
       forget();
       if (outcome === "dismiss") {
         // Reset before handing the state change over: the drawer is
@@ -208,9 +239,15 @@ export function useSheetPullToCollapse({
       if (owned) settle();
     };
 
-    // `passive: false` is the whole point of the move listener: a passive
-    // one cannot call `preventDefault()`, and the browser assumes passive
-    // for `touchmove` on a scroller.
+    // `passive: false` on the move listener, explicitly: a passive
+    // listener cannot call `preventDefault()` at all. It is not a
+    // correction to a default — Chromium's passive-by-default for
+    // `touchmove` applies to `window`, `document` and `document.body`,
+    // and a listener added to an arbitrary element with no options is
+    // already non-passive (measured: `cancelable` true,
+    // `preventDefault()` effective, no console warning). It is written
+    // because that is a per-engine default and this line is the one thing
+    // the gesture cannot work without.
     scroller.addEventListener("touchstart", onTouchStart, { passive: true });
     scroller.addEventListener("touchmove", onTouchMove, { passive: false });
     scroller.addEventListener("touchend", onTouchEnd, { passive: true });

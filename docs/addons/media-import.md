@@ -107,8 +107,11 @@ Resume positions for `.loft` files are tracked in the same `WatchHistory` table 
 
 ## Loft Metadata file-detail section
 
-Below the embedded player — in the page, outside the player's own box — the addon contributes a *Loft Metadata*
-card:
+Below the embedded player, and **in the page rather than inside the player's own box** — so on a phone it scrolls
+away with the page instead of staying pinned above it, and the file detail's bottom sheet opens onto the bottom of
+the video the same way it does for a local file. One consequence worth naming: the card sits inside the page's own
+16px gutter rather than running to both screen edges, which it did while it was inside the player's full-bleed
+wrapper. The addon contributes a *Loft Metadata* card:
 
 - Channel thumbnail and name (linkable to the channel page on the provider).
 - Description (collapsed; expand to full).

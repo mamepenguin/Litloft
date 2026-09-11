@@ -31,6 +31,9 @@ import {
 /** A scroller with room to move, so `maxScroll` is never the deciding term. */
 const TALL = 800;
 
+/** Half the handoff, rounded down — so two of them clear it and one does not. */
+const HALF_HANDOFF = Math.floor(SHEET_PULL_HANDOFF_PX / 2);
+
 function run(
   begin: { scrollTop: number; maxScroll: number },
   moves: { dy: number; scrollTop: number }[],
@@ -162,12 +165,92 @@ const GESTURES: {
     pull: 0,
     release: "settle",
   },
+  {
+    // The same, in a sheet with nothing to scroll. The direction is still
+    // read: a sheet that cannot scroll vertically may still hold
+    // something that scrolls sideways (the tab strip is
+    // `overflow-x-auto`), and claiming every touch there refuses the
+    // browser a gesture it could have answered.
+    name: "nothing to scroll, dragged up",
+    begin: { scrollTop: 0, maxScroll: 0 },
+    moves: [
+      { dy: -10, scrollTop: 0 },
+      { dy: -140, scrollTop: 0 },
+    ],
+    velocity: -0.8,
+    owner: "scroller",
+    pull: 0,
+    release: "settle",
+  },
+  {
+    // A finger that pushes at the top with a frame in the middle where
+    // `clientY` did not change — which is ordinary, because moves are
+    // coalesced and the position is rounded. The banked push survives it.
+    name: "pushing to the handoff through a frame that did not move",
+    begin: { scrollTop: 200, maxScroll: TALL },
+    moves: [
+      { dy: 200, scrollTop: 0 },
+      { dy: 200 + HALF_HANDOFF, scrollTop: 0 },
+      { dy: 200 + HALF_HANDOFF, scrollTop: 0 },
+      { dy: 200 + SHEET_PULL_HANDOFF_PX, scrollTop: 0 },
+      { dy: 200 + SHEET_PULL_HANDOFF_PX + 90, scrollTop: 0 },
+    ],
+    velocity: 0.1,
+    owner: "sheet",
+    pull: 90,
+    release: "dismiss",
+  },
 ];
 
 describe("sheet pull gesture", () => {
   it("declares every gesture the design names", () => {
-    expect(GESTURES).toHaveLength(7);
-    expect(new Set(GESTURES.map((g) => g.name)).size).toBe(7);
+    expect(GESTURES).toHaveLength(9);
+    expect(new Set(GESTURES.map((g) => g.name)).size).toBe(9);
+  });
+
+  /**
+   * The thresholds' own values, in literals.
+   *
+   * Every row above writes its moves as arithmetic on the constants, so
+   * both sides of each comparison move together and the *values* are
+   * unpinned: `SHEET_PULL_HANDOFF_PX = 1` left the whole table green,
+   * which is the tuning that brings back the defect this module exists to
+   * prevent. These three are the values, written out — so changing one is
+   * a decision taken here rather than a number that agrees with itself.
+   */
+  describe("the values, not only the arithmetic", () => {
+    it("hands over after 48px past the top and not after 47", () => {
+      const push = (past: number) =>
+        run({ scrollTop: 200, maxScroll: TALL }, [
+          { dy: 200, scrollTop: 0 },
+          { dy: 200 + past, scrollTop: 0 },
+        ]).owner;
+      expect(push(47)).toBe("scroller");
+      expect(push(48)).toBe("sheet");
+    });
+
+    it("reads the direction after 4px and not after 3", () => {
+      const move = (dy: number) =>
+        run({ scrollTop: 0, maxScroll: TALL }, [{ dy, scrollTop: 0 }]).owner;
+      expect(move(3)).toBe("undecided");
+      expect(move(4)).toBe("sheet");
+      expect(move(-3)).toBe("undecided");
+      expect(move(-4)).toBe("scroller");
+    });
+
+    it("dismisses at 72px, and at 0.5px/ms from any distance short of it", () => {
+      const at = (pull: number, velocity: number) =>
+        releaseSheetPull(
+          run({ scrollTop: 0, maxScroll: 0 }, [{ dy: pull, scrollTop: 0 }]),
+          velocity,
+        );
+      expect(at(71, 0)).toBe("settle");
+      expect(at(72, 0)).toBe("dismiss");
+      expect(at(20, 0.49)).toBe("settle");
+      expect(at(20, 0.5)).toBe("dismiss");
+      // And zero travel is never a dismissal, whatever the speed.
+      expect(at(0, 9)).toBe("settle");
+    });
   });
 
   describe.each(GESTURES)(
@@ -195,7 +278,7 @@ describe("sheet pull gesture", () => {
     // finger did. This is the jsdom half of "the two never move together";
     // the browser half is in `e2e-components/sheet-gesture.spec.ts`.
     const scrollerOwned = GESTURES.filter((g) => g.owner === "scroller");
-    expect(scrollerOwned).toHaveLength(2);
+    expect(scrollerOwned).toHaveLength(3);
     for (const g of scrollerOwned) {
       expect(run(g.begin, g.moves).pull).toBe(0);
     }
