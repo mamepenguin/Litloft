@@ -8,7 +8,13 @@
  * `coverage/coverage-summary.json` — the population the collector actually
  * produced — and checks it against what this file says it should be.
  *
- * Three things about how it does that are deliberate.
+ * There are three sides, not two, and the third is the one that is easy to
+ * leave out. The collector's report and the walk of `src/` both read the
+ * working tree, so anything deleted there leaves both of them in the same step
+ * and the comparison stays satisfied over a smaller population. `git ls-files`
+ * is the side that does not move when files are deleted. See `trackedSources`.
+ *
+ * Four things about how it does that are deliberate.
  *
  * **It reads the collector's own report, never a glob.** A glob written here
  * would be a second guess at the same question, and the two libraries disagree:
@@ -26,6 +32,7 @@
  * thresholds, a red suite still writes one, so absence now means something went
  * wrong with coverage itself rather than with a test.
  */
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -91,6 +98,50 @@ const NO_INSTRUMENTABLE_CODE = [
 const ADDONS = ["cloud-sync", "intelligence", "knowledge", "media_import"];
 
 /**
+ * The production sources a repository's *pinned commit* holds, from its index.
+ *
+ * This is the third side, and it exists because the other two can lose a file
+ * together. The walk below and the collector both read the working tree, so
+ * emptying a directory takes it out of `declared` and `measured` in the same
+ * step and the check passes. Measured, before this was here:
+ *
+ *     addons/intelligence/frontend emptied  ->  470 files, exit 0, and the
+ *                                               log still said "4 declared addons"
+ *     frontend/src/components/player removed -> 493 files, exit 0
+ *
+ * The second is core's own code, so the hole was never addon-specific.
+ * `existsSync` on the addon directory did not close it: an empty directory
+ * exists.
+ *
+ * `git ls-files` answers from the index instead — what a fresh clone would
+ * contain — which no amount of deleting in the working tree changes.
+ *
+ * Only one direction is enforced. A tracked file that is missing from the walk
+ * is a failure; a file in the walk that git does not know about is not, because
+ * that is what a new component looks like before it is committed, and failing
+ * there would make the check hostile to the person writing one. The walk and
+ * the report still hold that direction between them.
+ */
+function trackedSources(repoDir, pathspec, prefix) {
+  const out = execFileSync("git", ["-C", repoDir, "ls-files", "-z", pathspec], {
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return out
+    .split("\0")
+    .filter(Boolean)
+    .map((p) => p.slice(pathspec.length + 1))
+    .filter(
+      (p) =>
+        /\.tsx?$/.test(p) &&
+        !/\.d\.ts$/.test(p) &&
+        !/\.(test|spec)\.tsx?$/.test(p) &&
+        !/(^|\/)__tests__\//.test(p),
+    )
+    .map((p) => `${prefix}${p}`);
+}
+
+/**
  * Production sources under a directory, by the same predicates the config uses.
  *
  * `lstat` is never followed into a symlinked directory here because there are
@@ -100,6 +151,11 @@ const ADDONS = ["cloud-sync", "intelligence", "knowledge", "media_import"];
  */
 function productionSources(root, prefix) {
   const out = [];
+  // A missing root is not an error here. It means a directory this check
+  // expects has been deleted, and the comparison against the index below is
+  // what says so, by name. Throwing an ENOENT out of a readdir would report
+  // the same fact as a stack trace.
+  if (!existsSync(root)) return out;
   const walk = (dir, rel) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const name = entry.name;
@@ -144,13 +200,14 @@ const measured = new Set(
 );
 
 const unlinkedAddons = ADDONS.filter(
-  (name) => !existsSync(join(REPO_ROOT, "addons", name, "frontend")),
+  (name) => !existsSync(join(REPO_ROOT, "addons", name, ".git")),
 );
 if (unlinkedAddons.length) {
   fail([
-    `${unlinkedAddons.length} declared addon(s) have no frontend/ tree:`,
+    `${unlinkedAddons.length} declared addon(s) are not checked out:`,
     ...unlinkedAddons.map((n) => `  - addons/${n}`),
-    "These are git submodules. A checkout without them cannot measure this",
+    "These are git submodules, and this check reads their index to learn what",
+    "they should contain. A checkout without them cannot measure this",
     "population at all, so it is reported rather than measured around:",
     "  git submodule update --init --recursive",
     "If an addon was removed on purpose, remove its name from ADDONS in the",
@@ -180,6 +237,34 @@ const declared = new Set([
 ]);
 for (const p of NO_INSTRUMENTABLE_CODE) declared.delete(p);
 
+// The third side: what the pinned commits hold. `declared` and `measured` both
+// read the working tree, so a directory emptied there leaves both at once; the
+// index does not move when files are deleted.
+const tracked = new Set([
+  ...trackedSources(REPO_ROOT, "frontend/src", "src/").filter(
+    (p) =>
+      !p.startsWith("src/addons/") &&
+      !p.startsWith("src/messages/") &&
+      !p.startsWith("src/test/"),
+  ),
+  ...ADDONS.flatMap((name) =>
+    trackedSources(join(REPO_ROOT, "addons", name), "frontend", `src/addons/${name}/`),
+  ),
+]);
+for (const p of NO_INSTRUMENTABLE_CODE) tracked.delete(p);
+
+const untracked = [...tracked].filter((p) => !declared.has(p)).sort();
+if (untracked.length) {
+  fail([
+    `${untracked.length} tracked file(s) are missing from the working tree:`,
+    ...untracked.map((p) => `  - ${p}`),
+    "git has them at the pinned commit and the walk did not find them, so this",
+    "tree is not the one the denominator is a claim about. A deleted or",
+    "emptied directory reads as a smaller population on both sides at once,",
+    "which is why this compares against the index and not against the report.",
+  ]);
+}
+
 const missing = [...declared].filter((p) => !measured.has(p)).sort();
 const unexpected = [...measured].filter((p) => !declared.has(p)).sort();
 
@@ -206,6 +291,7 @@ if (missing.length || unexpected.length) {
 
 console.log(
   `coverage denominator: ${measured.size} files ` +
+    `(${tracked.size} tracked) ` +
     `(core + ${ADDONS.length} declared addon${ADDONS.length === 1 ? "" : "s"}: ${ADDONS.join(", ")}), ` +
     `${NO_INSTRUMENTABLE_CODE.length} declared absent`,
 );
