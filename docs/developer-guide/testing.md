@@ -1,6 +1,26 @@
 # Testing
 
-Litloft has three test layers: unit, integration, end-to-end. Coverage is gated per package by a threshold set at what that package measures today, not at an aspirational figure — see [Coverage](#coverage) for the frontend's four and how to move them.
+Litloft has three test layers: unit, integration, end-to-end. Where coverage is gated, the threshold is set at what that package measures today, not at an aspirational figure — see [Coverage](#coverage) for the frontend's four and how to move them.
+
+Which packages are gated is not uniform, and the gaps are decisions rather than
+omissions. The table is the list; add a row when you add a package, and say in it
+why, if it is not gated.
+
+| package | measured | gated | notes |
+|---|---|---|---|
+| `frontend/` | istanbul | four thresholds, below | — |
+| `backend/` | `--cov=app` | not yet | the floor lands with the unit that adds it; until then the command reports and nothing refuses |
+| `mcp-server/` | not yet | not yet | same unit |
+| `addons/intelligence` | `--cov=app` | yes | floor and its bracket in that repo's `pytest.ini` |
+| `addons/knowledge` | `--cov=app` | yes | same |
+| `addons/media_import` | `--cov=addons.media_import` | yes | same |
+| `addons/cloud-sync` | `--cov=addons.cloud_sync` | **no floor** | out of scope by decision; it is the lowest-covered package in the tree |
+| `configure.py` | **not measured** | — | it runs on a bare interpreter outside the test image, so measuring one file means standing up a second mechanism. `tests/test_configure.py` holds the three mount invariants from `design-decisions.md` instead |
+
+The addon floors are deliberately not repeated here. They live in the repository
+that enforces them, beside the bracket that was measured to set them, and a copy
+in this file would be one nothing re-runs — which is how a figure goes false
+without anyone touching it.
 
 ## Backend tests
 
@@ -402,6 +422,24 @@ Backend: `docker run --rm litloft-test` measures on every run — the flags are 
 measured too. Frontend: `pnpm exec vitest run --coverage`. mcp-server:
 `pnpm exec vitest run --coverage`.
 
+The frontend command is spelled out rather than `pnpm test --coverage`, because
+that is what CI runs and it should not depend on argument forwarding through a
+package script; `pnpm test` stays the plain, faster run. There is no HTML report
+in CI. Locally, ask for it
+alongside the others rather than instead of them:
+
+```bash
+pnpm exec vitest run --coverage \
+  --coverage.reporter=text-summary --coverage.reporter=json-summary \
+  --coverage.reporter=html
+```
+
+then open `frontend/coverage/index.html`. `--coverage.reporter=html` on its own
+**replaces** the configured reporters: the run prints no coverage summary and
+writes no `coverage-summary.json`, so the denominator check run afterwards fails
+with "No …/coverage-summary.json … This is never a pass" — a false alarm produced
+by following two instructions from this page in a row.
+
 Hard-to-test surfaces (the scanner's filesystem walking, ffmpeg integration) are
 exercised primarily via integration tests with real fixtures.
 
@@ -439,7 +477,7 @@ beside the bracket measured to set it; a copy here would be one nothing re-runs.
 
 ### The frontend thresholds, and why they are four numbers
 
-| metric | threshold | CI, 5 runs | this machine, 20 runs |
+| metric | threshold | CI, 5 samples | this machine, 20 runs |
 |---|---|---|---|
 | statements | **77.33** | 77.33 | 77.35 – 77.36 |
 | lines | **79.76** | 79.76 | 79.78 |
@@ -467,6 +505,37 @@ Five CI samples rather than two, because the fifth found a value the first four
 did not: `functions` reached 73.83 once, below the 73.85 the others agreed on.
 Two samples would have set a threshold that flakes.
 
+The five are `run_attempt` 1-5 of a single run, `34559535103`, taken 2026-09-11.
+That matters for re-deriving them: re-runs collapse into one run id, so
+`gh run list` shows one run and the samples are reached through
+`actions/runs/34559535103/attempts/<n>/jobs`. Without that pointer the column is
+a standing claim nobody can check, and once the branch is deleted it is not
+falsifiable at all.
+
+### When a threshold goes red
+
+The floors sit at the lowest of five samples of a measurement that is not
+deterministic, so a red build on a tree nobody changed is a possible outcome
+rather than a contradiction. It is diagnosed, not argued about:
+
+1. **Read the denominator line in the same job.** It runs even when `Test`
+   fails, and prints the four totals and the file count.
+2. **If the totals are unchanged** — 21383 / 18946 / 14198 / 5109 — the
+   population is intact and the tree really did lose coverage. The fix is a
+   test. Do not move the number.
+3. **If they moved**, the population changed, and the percentage is not
+   comparable to the floor at all. Find out why before touching anything: an
+   addon that did not link, a file that stopped being instrumented, a
+   dependency that changed what is bundled.
+4. **Re-measure a floor only when the environment the gate runs in changes** —
+   new runner size, new provider, new population — and then re-take five
+   samples, not one.
+
+The jitter is real and bounded: across those five CI samples `branches` spanned
+four units and `statements` and `functions` one each, with every floor at the
+observed minimum. That is why step 1 exists. The local spread quoted below is
+narrower than CI's and is not the one the gate is exposed to.
+
 **A threshold is a lower bound, which on its own is not a detector**: shrink the
 denominator and the percentage goes up without anything improving. What makes
 these legitimate is `frontend/scripts/check-coverage-denominator.mjs`, which runs
@@ -486,8 +555,33 @@ this time".
 
 `istanbul` instruments the AST, so the population is fixed before anything runs:
 21383 statements / 18946 lines / 14198 branches / 5109 functions, identical on
-every run measured, including one with a failing test. It is also faster here —
-29.3-31.1s against v8's 33.4s, on a 26.4s baseline with no coverage.
+every run measured, including one with a failing test.
+
+It is also **not slower than v8 here**, which is the opposite of what the plan
+assumed: v8 pays for source-map remapping of TypeScript that istanbul does not.
+No absolute seconds are quoted, because one machine in one thermal state is not
+a figure anyone can check later — the two measurements taken of this differ by
+60%, and both were of this same machine. The number that decides anything is
+CI's own before/after on the job that gates, in the pull request that changed it.
+
+### The two required frontend jobs no longer run the same program
+
+Nobody chose this and it is worth knowing. istanbul rewrites the AST — that is
+why its population is static — so `frontend (vitest / tsc / eslint)`, which
+collects coverage, executes babel-instrumented sources, while
+`frontend (shuffled order)` executes the sources as written.
+
+The consequences are small but real: a test that fails only under
+instrumentation would show up in the required coverage job alone; every branch
+now carries a counter, so the interleaving that produces the timing jitter below
+is not the interleaving the shuffled job sees; and the numbers the floors are set
+from describe instrumented execution rather than what the app does.
+
+**The shuffled job is therefore the control, and that is worth keeping.** If you
+are tempted to add coverage to it — for a fuller picture, or to gate it too —
+that would remove the only run of the real sources from the required set, and it
+is also the reason the shuffled job exists: instrumenting the run changes the
+timing it is there to sample.
 
 It lists 515 files where v8 listed 524. The nine are barrel re-exports and
 type-only modules holding seven statements between them; they are declared by
@@ -507,8 +601,9 @@ Locally, two files move by one branch between runs and nothing else does:
 Both are stable in isolation, so this is cross-test interaction rather than a
 defect in either file — `ToastProvider`'s auto-dismiss `setTimeout` is the likely
 mechanism for the first. Each threshold sits at the **lowest** observation in the
-environment that enforces it. Those gaps are measurement noise, not room to
-spend: two branches in 14198.
+environment that enforces it. This local pair — two branches in 14198 — is
+measurement noise rather than room to spend; it is not a statement about CI's
+spread, which is wider and is given above.
 
 **The same mechanism, larger, is what separates CI from a developer machine.**
 Coverage that depends on whether a timer fired before a test finished will
@@ -522,10 +617,12 @@ denominator never moves, so only execution timing is in question.
 ### Flake hygiene notes
 
 - **`--poolOptions.forks.singleFork=true` does not work on this suite.** It is a
-  natural first diagnostic for an ordering flake, and it fails outright (~34s):
-  some test does not pass in a single process. Use `--sequence.shuffle` or
-  `--sequence.seed` instead, which is what the `frontend (shuffled order)` job
-  runs.
+  natural first diagnostic for an ordering flake, and it does not finish: tests
+  start failing within seconds, and vitest does not bail, so it keeps going while
+  every failing test dumps its DOM. No duration is given here because there isn't
+  one — an independent run was killed at 9m36s with a 16 MB log and no summary.
+  Use `--sequence.shuffle` or `--sequence.seed` instead, which is what the
+  `frontend (shuffled order)` job runs.
 - **`coverage.reportOnFailure` is set to `true`.** Its default is `false`, which
   means a red suite writes no coverage report at all — so a missing report says
   coverage did not run, not that a test failed, and the denominator check treats
@@ -551,7 +648,7 @@ For new features and bugfixes:
 2. Run; it should fail.
 3. Implement the minimum to make it pass (GREEN).
 4. Refactor (IMPROVE).
-5. Verify coverage did not fall: `pnpm exec vitest run --coverage` for the frontend, `--cov` for the backend. The thresholds are the floors, not a target.
+5. Verify coverage did not fall: `pnpm exec vitest run --coverage` for the frontend, `--cov` for the backend. Where there are thresholds they are floors, not targets — and the table at the top of this file says where there are none, so a green run is not by itself evidence that coverage held.
 
 The repo expects this rhythm; PRs that change behaviour without touching tests are rejected.
 

@@ -22,6 +22,8 @@ pnpm dev          # http://localhost:3000 (proxies /api/* to backend in compose)
 pnpm test         # vitest run
 pnpm test:watch   # vitest, watch mode
 pnpm build
+
+pnpm exec vitest run --coverage   # what CI gates on; see developer-guide/testing.md
 ```
 
 For end-to-end tests against a running stack, use Playwright (`pnpm e2e` if configured).
