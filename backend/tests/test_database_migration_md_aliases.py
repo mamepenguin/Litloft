@@ -16,12 +16,17 @@ Pattern mirror: the existing ``md_id`` block (lines 431-446 of
 
 RED until the migration block is added.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, inspect, text
+
+# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
+# in ``conftest.py`` says why that must not be the shared one.
+pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 
 def _make_engine(tmp_path: Path):

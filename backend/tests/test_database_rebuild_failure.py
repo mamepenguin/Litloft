@@ -21,12 +21,15 @@ constraint is on disk, and the handler's rollback has nothing left to undo.
 ``TestOrphanGuard`` below covers that path separately and asserts what it
 actually leaves, rather than folding it into the claims made about this one.
 
-The rebuild drives a raw DBAPI cursor rather than a SQLAlchemy connection, so a
-statement that fails inside it raises the driver's own
-``sqlite3.OperationalError``, unwrapped — nothing in the path does the wrapping.
-The guard raises a ``RuntimeError`` of its own instead, which is the second
-reason the two paths are asserted apart rather than together.
+The rebuild drives a raw DBAPI cursor rather than a SQLAlchemy connection, so
+whatever a statement raises comes out unwrapped — nothing in the path does the
+wrapping. **Which** exception that is depends on the statement: the collision
+below raises ``sqlite3.OperationalError``; an ``INSERT`` that finds two rows
+sharing ``(drive, file_path)`` raises ``sqlite3.IntegrityError``; the guard
+raises a ``RuntimeError`` of its own. Each test names the one it expects rather
+than the file claiming a single type for all of them.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -34,6 +37,10 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, event, inspect, text
+
+# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
+# in ``conftest.py`` says why that must not be the shared one.
+pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 # ``files`` as it was before the composite constraint: ``file_path`` carries a
 # single-column UNIQUE, which is what makes ``_migrate`` rebuild the table.
@@ -89,22 +96,6 @@ def _foreign_keys_setting(engine) -> int:
         return conn.exec_driver_sql("PRAGMA foreign_keys").scalar()
 
 
-@pytest.fixture(autouse=True)
-def _private_data_dir(tmp_path, monkeypatch):
-    """Keep ``_migrate``'s hash-format sentinel out of the shared DATA_DIR.
-
-    That reset runs before the rebuild, so every ``_migrate`` call in this file
-    reaches it. ``conftest``'s redirection hangs off the ``client`` fixture,
-    which these tests do not use, so without this they touch the process-wide
-    ``config.DATA_DIR`` — ``./data`` in a checkout, which the dev stack
-    bind-mounts. Leaving the sentinel there suppresses the real migration on
-    that machine.
-    """
-    import app.config as config
-
-    monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
-
-
 @pytest.fixture()
 def stalled_rebuild(tmp_path):
     """A DB whose rebuild fails on its first statement.
@@ -131,9 +122,8 @@ def test_a_failed_rebuild_raises(stalled_rebuild):
 
     Swallowing this leaves ``files`` with the single-column UNIQUE on
     ``file_path`` — the global uniqueness that made two drives unable to each
-    hold a root ``README.md`` — while the process boots as if the migration had
-    happened, and the later phases run against a schema that is not the one
-    they were written for.
+    hold a root ``README.md`` — while the process boots as if the migration
+    had happened.
     """
     from app.database import _migrate
 
@@ -235,8 +225,11 @@ def _orphans(engine) -> list:
 class TestOrphanGuard:
     """``foreign_key_check`` after the rebuild, and what it does and does not buy.
 
-    The guard is the reason the rebuild is allowed to turn foreign keys off at
-    all: it is what checks that nothing slipped through before they go back on.
+    What makes the rebuild safe to run with foreign keys off is that ids are
+    preserved, so every child row still resolves against the renamed table.
+    The guard checks that, rather than establishing it — and the third test
+    below is the limit of what the check is worth: it stops the boot it runs
+    on and nothing re-runs it.
     """
 
     def test_an_orphan_stops_the_migration(self, orphaned_child_row):

@@ -19,11 +19,19 @@ The migration must:
    through a hardcoded column list which does not mention ``liked_at``,
    so a conversion placed before it would be silently undone.
 """
+
 from __future__ import annotations
+
+import pytest
+
 
 from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
+
+# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
+# in ``conftest.py`` says why that must not be the shared one.
+pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 
 def _make_engine(tmp_path: Path, name: str = "migration.db"):

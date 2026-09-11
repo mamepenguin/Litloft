@@ -6,11 +6,19 @@ The migration in ``app/database.py:_migrate`` must add both columns when
 absent and leave existing rows NULL — a width is a fact about the file on
 disk, so it is the scanner's to fill, not the migration's to guess.
 """
+
 from __future__ import annotations
+
+import pytest
+
 
 from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
+
+# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
+# in ``conftest.py`` says why that must not be the shared one.
+pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 
 def _make_engine(tmp_path: Path):

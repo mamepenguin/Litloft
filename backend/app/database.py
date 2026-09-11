@@ -355,18 +355,29 @@ def _migrate(engine_) -> None:
     # single-column UNIQUE creates, so the table must be rebuilt (same
     # idiom as the nanoid / dislikes rebuilds above). Idempotent: gated
     # on the composite constraint already being present, so once any DB
-    # is converted this phase never runs again — which is why the
-    # rebuild DDL below only has to mirror models.py *as of this
-    # release* (later columns are added by their own ALTER phase, but a
-    # DB old enough to lack the composite constraint cannot yet have
-    # them, and a DB new enough to have them already has the composite).
+    # is converted this phase never runs again.
     #
-    # Data is safe: the old GLOBAL unique physically guaranteed no
-    # cross-drive duplicate ``file_path``, so every existing row already
-    # satisfies ``(drive, file_path)``. FK enforcement is turned OFF for
-    # the swap: with it ON, ``DROP TABLE files`` performs an implicit
-    # row-delete that would CASCADE into file_tags / file_relations /
-    # file_exif / comments and wipe tags, relations, comments, exif.
+    # The rebuild DDL below names the columns of models.py *as of this
+    # release*, and a table reaching it can carry more or fewer than that:
+    # the phases above run first, so an upgrading database arrives here
+    # already holding ``md_id`` and ``md_aliases`` while still lacking the
+    # composite. ``common`` is what absorbs the difference — it intersects
+    # the list below with the columns actually present, and anything the
+    # list does not name is dropped by the copy. A column added to
+    # models.py after this release must therefore get its own ALTER phase
+    # *after* this one, not before it.
+    #
+    # Nothing guarantees the copy will succeed: a ``files`` table that never
+    # carried the old single-column UNIQUE can hold two rows sharing
+    # ``(drive, file_path)``, and the ``INSERT…SELECT`` then raises
+    # ``sqlite3.IntegrityError``. What keeps that safe is where it lands —
+    # before ``COMMIT``, so the handler below discards the connection and the
+    # old table is still there, whole, on the next boot.
+    #
+    # FK enforcement is turned OFF for the swap: with it ON, ``DROP TABLE
+    # files`` performs an implicit row-delete that would CASCADE into
+    # file_tags / file_relations / file_exif / comments and wipe tags,
+    # relations, comments, exif.
     # Ids are preserved by the INSERT…SELECT, so the renamed table
     # re-satisfies every child FK by name; ``foreign_key_check`` asserts
     # no orphan slipped through before FK enforcement is restored.

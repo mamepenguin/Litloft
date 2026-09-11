@@ -11,6 +11,7 @@ it.** More than one phase can supply the same column, so naming a phase in an
 assertion would claim something the assertion cannot tell apart. Each one below
 is about what an upgraded database has to look like to be usable.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -46,6 +47,10 @@ PRE_STATE_FILES_DDL = (
 
 STATE_COLUMNS = ("deleted_at", "missing_since", "file_hash")
 
+# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
+# in ``conftest.py`` says why that must not be the shared one.
+pytestmark = pytest.mark.usefixtures("private_data_dir")
+
 
 def _columns(engine, table: str) -> set[str]:
     return {c["name"] for c in inspect(engine).get_columns(table)}
@@ -59,15 +64,8 @@ def _indexes(engine, table: str) -> dict[str, list[str]]:
 
 
 @pytest.fixture()
-def pre_state_db(tmp_path: Path, monkeypatch):
+def pre_state_db(tmp_path: Path):
     """A database from before the three columns existed, holding one row."""
-    import app.config as config
-
-    # ``_migrate``'s hash-format reset writes a sentinel into DATA_DIR. Point
-    # it at the test's own directory so a run does not depend on, or leave
-    # behind, state in the image's ``./data``.
-    monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
-
     engine = create_engine(
         f"sqlite:///{tmp_path / 'pre_state.db'}",
         connect_args={"check_same_thread": False},

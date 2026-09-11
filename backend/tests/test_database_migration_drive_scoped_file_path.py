@@ -27,6 +27,10 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base, _migrate
 from app.models import File
 
+# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
+# in ``conftest.py`` says why that must not be the shared one.
+pytestmark = pytest.mark.usefixtures("private_data_dir")
+
 
 def _enable_fk(engine):
     @event.listens_for(engine, "connect")
@@ -163,7 +167,19 @@ def test_legacy_global_unique_migrated_to_composite(tmp_path):
 
 
 def test_legacy_migration_preserves_later_columns(tmp_path):
-    """All columns added by later ALTER phases survive the rebuild."""
+    """All columns added by later ALTER phases survive the rebuild.
+
+    The hash-format sentinel is created first so that phase is a no-op. It
+    runs *before* the rebuild and nulls every ``file_hash`` on a database
+    that has not had it, which is correct and is not what this test is
+    about — without the sentinel, ``file_hash`` arrives here already NULL
+    and the rebuild's copy cannot be observed at all.
+    """
+    import app.config as config
+
+    config.DATA_DIR.mkdir(parents=True, exist_ok=True)
+    (config.DATA_DIR / "hash_format_v2_done").touch()
+
     engine = _fresh_engine(tmp_path, "cols.db")
     with engine.begin() as conn:
         conn.execute(text(_legacy_files_ddl_global_unique()))
@@ -195,12 +211,14 @@ def test_migration_is_idempotent(tmp_path):
 
 
 #: Every secondary index on ``files``, declared rather than read back from a
-#: run. Two independent producers build it — ``models.py``'s ``__table_args__``
-#: on a fresh install, and the rebuild's own ``CREATE INDEX`` list on an
-#: upgrade — and an index missing from one of them is invisible until a query
-#: on a large library is slow. Naming the columns as well as the index catches
-#: the other half: an index keeping its name while covering the wrong column
-#: does nothing for the view it was created for.
+#: run. Three things build this set, not one: ``models.py``'s
+#: ``__table_args__`` on a fresh install, the rebuild's own ``CREATE INDEX``
+#: list on an upgrade, and the ``CREATE INDEX IF NOT EXISTS`` statements in
+#: the later phases, which are unconditional and so run on both. An index
+#: missing from whichever of them applies is invisible until a query on a
+#: large library is slow. Naming the columns as well as the index catches the
+#: other half: an index keeping its name while covering the wrong column does
+#: nothing for the view it was created for.
 FILES_INDEXES = {
     "idx_files_deleted_at": ["deleted_at"],
     "idx_files_drive_folder_path": ["drive", "folder_path"],
@@ -233,11 +251,13 @@ def test_migration_keeps_file_indexes(tmp_path):
 
 
 def test_a_fresh_install_ends_with_the_same_indexes(tmp_path):
-    """The other producer, through the other implementation.
+    """The same declared set, reached by a different route.
 
-    A fresh database gets its indexes from ``models.py``; an upgraded one gets
-    them from the rebuild's hardcoded list. Comparing the two against the same
-    declared set is what makes a divergence fail rather than pass quietly —
+    A fresh database gets most of this set from ``models.py`` and an upgraded
+    one from the rebuild's hardcoded list; the two paths overlap rather than
+    partition, because the later phases' ``CREATE INDEX IF NOT EXISTS``
+    statements are unconditional and supply some of it on both. Checking each
+    route against the same declared set is what makes a divergence fail —
     reading one and asserting the other matches would go green if both lost
     the same index.
     """
