@@ -235,7 +235,18 @@ const declared = new Set([
     ),
   ),
 ]);
-for (const p of NO_INSTRUMENTABLE_CODE) declared.delete(p);
+// `Set.delete` reports whether the entry was there, and that answer is the
+// check. A declared absence is a claim about a file, so it is checked like
+// one: an entry naming a file that no longer exists removes nothing, fails
+// nothing, and goes on being counted in the "declared absent" line.
+//
+// This is rule 5 arriving from the other side. `ADDONS` above is a declared
+// name that was not checked for contributing anything; this is a declared
+// absence that was not checked for still having a subject. Today the nine hold
+// seven statements between them, so nothing moves when one rots — which is
+// exactly why it would stay unnoticed, and why it matters more as the list
+// grows rather than less.
+const staleAbsences = NO_INSTRUMENTABLE_CODE.filter((p) => !declared.delete(p));
 
 // The third side: what the pinned commits hold. `declared` and `measured` both
 // read the working tree, so a directory emptied there leaves both at once; the
@@ -252,6 +263,16 @@ const tracked = new Set([
   ),
 ]);
 for (const p of NO_INSTRUMENTABLE_CODE) tracked.delete(p);
+
+if (staleAbsences.length) {
+  fail([
+    `${staleAbsences.length} entr(y/ies) in NO_INSTRUMENTABLE_CODE name no such file:`,
+    ...staleAbsences.map((p) => `  - ${p}`),
+    "Each entry is a claim that a real file compiles to nothing and is",
+    "therefore absent from the report. A name with no file behind it excludes",
+    "nothing and hides the next entry that stops being true. Delete it.",
+  ]);
+}
 
 const untracked = [...tracked].filter((p) => !declared.has(p)).sort();
 if (untracked.length) {
