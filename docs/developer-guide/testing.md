@@ -533,25 +533,35 @@ rather than a contradiction. It has happened. It is diagnosed, not argued about:
    by the number:
    - **the branch changed something** — the tree lost coverage. The fix is a
      test. Do not move the number.
-   - **the branch changed nothing that runs** — this is jitter. **Re-run the
-     job. Do not move the number.** A metric one unit below its floor on an
-     untouched tree is the expected behaviour of a floor sitting at an observed
-     minimum, not evidence the floor is wrong. Only a value *below the lowest
-     ever observed* says the sampling missed one, and that is a measurement
-     correction made deliberately, in its own commit, with the new observation
-     named — not a number nudged to clear a build.
+   - **the branch changed nothing that runs** — **re-run the same commit.**
+     That is the whole test, and it is deliberately not a judgement about the
+     number: green on the re-run is jitter and there is nothing to do; red again
+     means the coverage is genuinely gone and the fix is a test. Either way the
+     floor does not move here — moving one belongs to step 4 and to no other
+     situation.
+
+     Do not substitute a rule about how far the value fell. "Below anything ever
+     observed, so the sampling missed a sample" sounds decisive and is wrong:
+     measured, this pull request's own threshold demonstration put `statements`
+     at 76.08%, far below any observation, and the cause was four deleted test
+     files.
 3. **If they moved**, the population changed, and the percentage is not
    comparable to the floor at all. Find out why before touching anything: an
    addon that did not link, a file that stopped being instrumented, a
    dependency that changed what is bundled.
 4. **Re-measure a floor only when the environment the gate runs in changes** —
-   new runner size, new provider, new population — and then re-take five
-   samples, not one.
+   new runner size, new provider, new population. Take several samples rather
+   than one, and record how many beside the value, because no number of them
+   proves you have the minimum: five did not, here, and the floor that shipped
+   from them was wrong by one unit.
 
-The jitter is real and bounded: across those five CI samples `branches` spanned
-four units and `statements` and `functions` one each, with every floor at the
-observed minimum. That is why step 1 exists. The local spread quoted below is
-narrower than CI's and is not the one the gate is exposed to.
+The jitter is real, and it is not bounded by anything known — only its
+observations are. What is established is that it is non-zero on all four metrics,
+that the denominators never move, and that each floor sits at the lowest value
+*seen so far*, which is not the lowest obtainable. That is why step 1 exists and
+why step 2's second case asks for a re-run rather than a judgement. The local
+spread quoted below is narrower than CI's and is not the one the gate is exposed
+to.
 
 **A threshold is a lower bound, which on its own is not a detector**: shrink the
 denominator and the percentage goes up without anything improving. What makes

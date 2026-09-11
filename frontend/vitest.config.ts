@@ -88,8 +88,11 @@ export default defineConfig({
       // So a local run showing 79.78 against a floor of 79.76 is not headroom.
       // It is a different environment's observation of the same tree.
       //
-      // Set at the minimum of five CI runs. `docs/developer-guide/testing.md`
-      // carries both machines' ranges and the files that move.
+      // Set at the lowest value CI has been observed to produce, which is not
+      // the lowest it can produce — one of these shipped a unit above its true
+      // minimum and went red on a tree that had lost nothing.
+      // `docs/developer-guide/testing.md` says what to do when one goes red,
+      // and the answer is to re-run the commit, not to move the number.
       thresholds: {
         statements: 77.32,
         lines: 79.76,
