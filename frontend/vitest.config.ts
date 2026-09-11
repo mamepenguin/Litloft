@@ -64,14 +64,26 @@ export default defineConfig({
       // on what ran.
       reportOnFailure: true,
 
-      // Four numbers, because they are four claims. The first three are
-      // exactly reproducible; `branches` is the observed minimum and the two
-      // files that move it are named in `docs/developer-guide/testing.md`.
-      // Raise these when coverage rises; do not round them down for headroom.
+      // Four numbers, because they are four claims.
+      //
+      // **These are CI's figures, not a local machine's**, and the difference
+      // is not slack. Coverage here is machine-dependent: measured over five
+      // CI runs and twenty local ones on the same tree, CI reports 0.02-0.05
+      // lower on statements, lines and functions, because some time-dependent
+      // path does not execute the same way on two cores. The *denominator* is
+      // identical on both (21383 / 18946 / 14198 / 5109) — istanbul fixes the
+      // population before anything runs — which is what makes the two numbers
+      // comparable, and what makes CI's the one a gate can be a claim about.
+      //
+      // So a local run showing 79.78 against a floor of 79.76 is not headroom.
+      // It is a different environment's observation of the same tree.
+      //
+      // Set at the minimum of five CI runs. `docs/developer-guide/testing.md`
+      // carries both machines' ranges and the files that move.
       thresholds: {
-        statements: 77.35,
-        lines: 79.78,
-        functions: 73.88,
+        statements: 77.33,
+        lines: 79.76,
+        functions: 73.83,
         branches: 71.86,
       },
     },

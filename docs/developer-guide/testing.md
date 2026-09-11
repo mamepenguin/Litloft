@@ -439,16 +439,33 @@ beside the bracket measured to set it; a copy here would be one nothing re-runs.
 
 ### The frontend thresholds, and why they are four numbers
 
-| metric | threshold | reproducibility |
-|---|---|---|
-| statements | 77.35 | exact |
-| lines | 79.78 | exact |
-| functions | 73.88 | exact |
-| branches | 71.86 | **observed minimum** — see below |
+| metric | threshold | CI, 5 runs | this machine, 20 runs |
+|---|---|---|---|
+| statements | **77.33** | 77.33 | 77.35 – 77.36 |
+| lines | **79.76** | 79.76 | 79.78 |
+| functions | **73.83** | 73.83 – 73.85 | 73.88 – 73.90 |
+| branches | **71.86** | 71.86 – 71.89 | 71.86 – 71.88 |
 
 Four numbers because they are four claims; one figure standing for four hides
 which of them moved. Raise them when coverage rises. Do not lower one to make a
 build pass without saying so in the commit that does it.
+
+**The thresholds are CI's numbers, and a higher local number is not headroom.**
+Coverage here is machine-dependent — CI's two cores report 0.02 to 0.05 lower
+than a 16-core machine on the same tree, because some time-dependent path does
+not execute the same way. The *denominator* is not machine-dependent: istanbul
+fixes the population before anything runs, and all four totals are identical on
+both (21383 statements / 18946 lines / 14198 branches / 5109 functions).
+
+That identity is what makes the two sets of numbers comparable at all — the same
+population, differently covered — and it is why the floor belongs at CI's value.
+A floor is a claim about the environment that enforces it, and only CI enforces
+this one. Had the denominator moved between machines, a red build could not have
+been attributed to the code rather than to the runner.
+
+Five CI samples rather than two, because the fifth found a value the first four
+did not: `functions` reached 73.83 once, below the 73.85 the others agreed on.
+Two samples would have set a threshold that flakes.
 
 **A threshold is a lower bound, which on its own is not a detector**: shrink the
 denominator and the percentage goes up without anything improving. What makes
@@ -478,9 +495,9 @@ name in the denominator script. Four of them were the case where v8 gave a
 never-imported file `branches 1/1 = 100%` — a branch it invented and counted as
 covered.
 
-### `branches` is the one threshold that is not exact
+### What moves, and what it means
 
-Two files move by one branch between runs, and nothing else does:
+Locally, two files move by one branch between runs and nothing else does:
 
 | file | observed |
 |---|---|
@@ -489,9 +506,18 @@ Two files move by one branch between runs, and nothing else does:
 
 Both are stable in isolation, so this is cross-test interaction rather than a
 defect in either file — `ToastProvider`'s auto-dismiss `setTimeout` is the likely
-mechanism for the first. The threshold sits at the **lower** observation. That
-gap is measurement noise, not headroom: it is two branches in 14198, and it is
-recorded here so nobody later reads it as room to spend.
+mechanism for the first. Each threshold sits at the **lowest** observation in the
+environment that enforces it. Those gaps are measurement noise, not room to
+spend: two branches in 14198.
+
+**The same mechanism, larger, is what separates CI from a developer machine.**
+Coverage that depends on whether a timer fired before a test finished will
+depend on how many cores are available. That is a defect in the suite rather
+than in the gate, and a real one — it is why no figure here is exactly
+reproducible — but it is bigger than the coverage configuration and is recorded
+as an input to the test-noise phase rather than fixed alongside the thresholds.
+Anyone picking it up starts with those two files and with the fact that the
+denominator never moves, so only execution timing is in question.
 
 ### Flake hygiene notes
 
