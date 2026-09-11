@@ -66,6 +66,15 @@ MUST_BLOCK = [
     ("2002:7f00:0001::1", "6to4 wrapping loopback"),
     ("2001:0:0:0:0:0:0a00:0001", "Teredo"),
     ("fe80::5efe:10.0.0.1", "ISATAP wrapping private"),
+    ("2a00:1450:4001:80e:0:5efe:10.0.0.1",
+     "ISATAP under a routable prefix, wrapping private"),
+    ("2a00:1450:4001:80e:0:5efe:169.254.169.254",
+     "ISATAP under a routable prefix, wrapping the metadata address"),
+    ("2a00:1450:4001:80e:200:5efe:10.0.0.1",
+     "ISATAP under a routable prefix, globally-unique interface identifier"),
+    ("::ffff:0:7f00:1", "IPv4-translated wrapping loopback"),
+    ("::ffff:0:a00:1", "IPv4-translated wrapping private"),
+    ("::ffff:0:a9fe:a9fe", "IPv4-translated wrapping the metadata address"),
 ]
 
 # Real, routable addresses an image fetch must keep reaching. A predicate that
@@ -79,6 +88,8 @@ MUST_ALLOW = [
     ("2001:4860:4860::8888", "public resolver, IPv6"),
     ("2a00:1450:4001:80e::200e", "public host, IPv6"),
     ("::ffff:8.8.8.8", "IPv4-mapped public address"),
+    ("2a00:1450:4001:80e:0:5efe:8.8.8.8",
+     "ISATAP under a routable prefix, wrapping a public address"),
 ]
 
 
@@ -103,37 +114,74 @@ def test_the_declared_population_is_the_size_it_says():
     shrinking either list fails this. The knowledge half keeps its own copy of
     both numbers: changing a list here means changing them there.
     """
-    assert len(MUST_BLOCK) == 39
-    assert len(MUST_ALLOW) == 8
-    assert len({address for address, _ in MUST_BLOCK + MUST_ALLOW}) == 47
+    assert len(MUST_BLOCK) == 45
+    assert len(MUST_ALLOW) == 9
+    assert len({address for address, _ in MUST_BLOCK + MUST_ALLOW}) == 54
 
 
-def test_every_ipv6_embedding_form_is_represented():
-    """The gaps this table closed were found by enumerating the embedding forms.
+# How each embedding is recognised. A form that *is* a prefix is refused by the
+# prefix it sits in; ISATAP is an interface identifier and rides under any /64,
+# so where it is declared decides whether a row exercises it at all.
+PREFIX_FORMS = {
+    "ipv4-mapped": ipaddress.ip_network("::ffff:0:0/96"),
+    "ipv4-compatible": ipaddress.ip_network("::/96"),
+    "ipv4-translated": ipaddress.ip_network("::ffff:0:0:0/96"),
+    "nat64-well-known": ipaddress.ip_network("64:ff9b::/96"),
+    "nat64-local-use": ipaddress.ip_network("64:ff9b:1::/48"),
+    "6to4": ipaddress.ip_network("2002::/16"),
+    "teredo": ipaddress.ip_network("2001::/32"),
+}
+PREFIX_INDEPENDENT_FORMS = {"isatap"}
 
-    An address that carries an IPv4 payload can hide a private destination
-    behind flags that describe only the wrapper, so each form a payload can
-    arrive in needs a row. What this holds is that every form named here keeps
-    at least one row: deleting a form's rows fails it however the counts are
-    written. It does not reach the other direction — a form added to the
-    implementation and not to this list changes nothing here.
+
+def _carrying_address_refuses_itself(address: str) -> bool:
+    """Would this row be refused without the embedding being understood?
+
+    This is about the row, not about either implementation: it asks whether
+    some property of the address that does the carrying already condemns it. A
+    row for which this is True proves nothing about the form it is named for.
     """
-    forms = {
-        "ipv4-mapped": ipaddress.ip_network("::ffff:0:0/96"),
-        "ipv4-compatible": ipaddress.ip_network("::/96"),
-        "nat64-well-known": ipaddress.ip_network("64:ff9b::/96"),
-        "nat64-local-use": ipaddress.ip_network("64:ff9b:1::/48"),
-        "6to4": ipaddress.ip_network("2002::/16"),
-        "teredo": ipaddress.ip_network("2001::/32"),
-        "isatap": ipaddress.ip_network("fe80::5efe:0:0/96"),
-    }
+    ip = ipaddress.ip_address(address)
+    return not ip.is_global or ip.is_multicast or ip.is_reserved
+
+
+def test_every_prefix_form_keeps_at_least_one_row():
+    """A form that is a prefix is refused by the prefix, and that is correct.
+
+    What this holds is that no form loses all its rows: deleting a form's rows
+    fails it however the counts are written. It does not reach the other
+    direction — a form added to the implementation and not to this list changes
+    nothing here.
+    """
     blocked = [ipaddress.ip_address(a) for a, _ in MUST_BLOCK]
     covered = {
         name
-        for name, network in forms.items()
+        for name, network in PREFIX_FORMS.items()
         if any(ip.version == 6 and ip in network for ip in blocked)
     }
-    assert covered == set(forms)
+    assert covered == set(PREFIX_FORMS)
+
+
+def test_a_prefix_independent_form_is_declared_under_a_routable_prefix():
+    """The row that made `isatap` look covered was `fe80::5efe:10.0.0.1`.
+
+    It is refused for being link-local, which is true of every address in
+    `fe80::/10` and says nothing about ISATAP. The same interface identifier
+    under a routable /64 was reachable in both implementations, cloud metadata
+    included, while a test asserted the form was represented.
+
+    So for a form carried in the interface identifier, at least one row must be
+    one that the carrying address does not condemn on its own — which is also
+    the only thing that makes the extraction observable from the tables.
+    """
+    for name in PREFIX_INDEPENDENT_FORMS:
+        rows = [a for a, why in MUST_BLOCK if name in why.lower()]
+        assert rows, f"{name} has no row at all"
+        routable = [a for a in rows if not _carrying_address_refuses_itself(a)]
+        assert routable, (
+            f"every {name} row is refused by its carrying address; "
+            "none of them exercises the form"
+        )
 
 
 @pytest.mark.parametrize(
@@ -143,18 +191,25 @@ def test_every_ipv6_embedding_form_is_represented():
         ("64:ff9b::10.0.0.1", "10.0.0.1"),
         ("64:ff9b::169.254.169.254", "169.254.169.254"),
         ("::10.0.0.1", "10.0.0.1"),
+        ("::ffff:0:a9fe:a9fe", "169.254.169.254"),
         ("2002:0a00:0001::1", "10.0.0.1"),
+        ("2a00:1450:4001:80e:0:5efe:169.254.169.254", "169.254.169.254"),
+        ("2a00:1450:4001:80e:200:5efe:10.0.0.1", "10.0.0.1"),
         ("2606:2800:220:1:248:1893:25c8:1946", None),
+        ("2a00:1450:4001:80e::200e", None),
         ("fe80::1", None),
     ],
 )
 def test_the_embedded_destination_is_extracted_from_every_form(address, payload):
-    """Pins that the extraction happens; no row of the block table needs it.
+    """Pins the extraction form by form, including the two with no prefix to
+    lean on.
 
-    It is defence in depth — on this interpreter the carrying address's own
-    properties already refuse every blocked row, which the PR body measures —
-    so this assertion is what stops it being read as dead code. What it holds
-    is the extraction, not any verdict.
+    For the prefix forms this is defence in depth: the carrying address is
+    already condemned by its own properties, so removing the extraction refuses
+    those rows anyway. For ISATAP under a routable prefix it is the whole
+    defence, which is why the block table now carries such a row —
+    `test_a_prefix_independent_form_is_declared_under_a_routable_prefix` is
+    what keeps it there.
     """
     result = _embedded_ipv4(ipaddress.IPv6Address(address))
     assert result == (ipaddress.IPv4Address(payload) if payload else None)

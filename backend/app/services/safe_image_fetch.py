@@ -26,6 +26,9 @@ BLOCKED_HOSTNAMES = {
 _CGNAT = ipaddress.ip_network("100.64.0.0/10")
 _NAT64_WELL_KNOWN = ipaddress.ip_network("64:ff9b::/96")
 _IPV4_COMPATIBLE = ipaddress.ip_network("::/96")
+_IPV4_TRANSLATED = ipaddress.ip_network("::ffff:0:0:0/96")
+_ISATAP_MARKER = 0x5EFE
+_ISATAP_FLAGS = frozenset({0x0000, 0x0200})
 
 
 class SafeImageFetchError(ValueError):
@@ -93,8 +96,17 @@ def _embedded_ipv4(ip: ipaddress.IPv6Address) -> ipaddress.IPv4Address | None:
         return ip.ipv4_mapped
     if ip.sixtofour is not None:
         return ip.sixtofour
-    if ip in _NAT64_WELL_KNOWN or ip in _IPV4_COMPATIBLE:
+    if ip in _NAT64_WELL_KNOWN or ip in _IPV4_COMPATIBLE or ip in _IPV4_TRANSLATED:
         return ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+    # ISATAP is the one embedding that is not a prefix. `…:0:5efe:a.b.c.d` and
+    # `…:200:5efe:a.b.c.d` are interface identifiers, so they ride under any
+    # /64 — including a globally routable one, where every property of the
+    # carrying address says "ordinary public host".
+    packed = int(ip)
+    if (packed >> 32) & 0xFFFF == _ISATAP_MARKER and (
+        packed >> 48
+    ) & 0xFFFF in _ISATAP_FLAGS:
+        return ipaddress.IPv4Address(packed & 0xFFFFFFFF)
     return None
 
 

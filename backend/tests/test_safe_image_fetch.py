@@ -282,6 +282,35 @@ def test_a_numeric_spelling_of_loopback_is_refused_by_the_address_gate(url, monk
     assert transport.connections == []
 
 
+@pytest.mark.parametrize(
+    "address,why",
+    [
+        ("2a00:1450:4001:80e:0:5efe:10.0.0.1", "ISATAP, routable prefix, private"),
+        ("2a00:1450:4001:80e:0:5efe:169.254.169.254", "ISATAP, routable, metadata"),
+        ("2a00:1450:4001:80e:200:5efe:10.0.0.1", "ISATAP, routable, global IID"),
+        ("::ffff:0:a9fe:a9fe", "IPv4-translated, metadata"),
+        ("64:ff9b::169.254.169.254", "NAT64 well-known, metadata"),
+    ],
+)
+def test_a_resolver_answering_an_embedded_destination_opens_no_socket(
+    address, why, monkeypatch
+):
+    """Measured where the security review measured it, not at the predicate.
+
+    `_is_blocked_ip` returning True is not the same claim as "nothing was
+    dialled": the address travels through `_validated_addresses` and a pinned
+    connection is constructed from it. A resolver answering with one of these
+    is the shape a DNS-controlling attacker has, so the assertion is that the
+    refusal happens with no connection object ever built.
+    """
+    transport = _Transport(_Response(), resolutions=None).install(monkeypatch)
+    _stub_getaddrinfo(monkeypatch, {"attacker.example": [address]})
+
+    with pytest.raises(SafeImageFetchError, match="blocked_address"):
+        fetch_image("https://attacker.example/a.jpg")
+    assert transport.connections == []
+
+
 # --- the pinning itself -----------------------------------------------------
 
 
