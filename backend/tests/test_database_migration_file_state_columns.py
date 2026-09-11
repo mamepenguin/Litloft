@@ -51,8 +51,11 @@ def _columns(engine, table: str) -> set[str]:
     return {c["name"] for c in inspect(engine).get_columns(table)}
 
 
-def _indexes(engine, table: str) -> set[str]:
-    return {i["name"] for i in inspect(engine).get_indexes(table)}
+def _indexes(engine, table: str) -> dict[str, list[str]]:
+    return {
+        i["name"]: list(i["column_names"])
+        for i in inspect(engine).get_indexes(table)
+    }
 
 
 @pytest.fixture()
@@ -112,12 +115,17 @@ def test_the_column_starts_null_on_every_existing_row(pre_state_db, column):
 def test_the_column_is_indexed(pre_state_db, column):
     """Without the index the Trash, Missing and duplicate views full-scan
     ``files`` on an upgraded database while a fresh one does not — invisible
-    until the library is large."""
+    until the library is large.
+
+    The columns are asserted, not only the name: an index called
+    ``idx_files_deleted_at`` that covers ``title`` satisfies every query plan
+    the docstring above is about exactly as badly as no index at all.
+    """
     from app.database import _migrate
 
     _migrate(pre_state_db)
 
-    assert f"idx_files_{column}" in _indexes(pre_state_db, "files")
+    assert _indexes(pre_state_db, "files")[f"idx_files_{column}"] == [column]
 
 
 def test_the_row_survives(pre_state_db):

@@ -10,8 +10,16 @@ listener is what puts ``PRAGMA foreign_keys=ON`` on a connection, and it runs
 once per *new* DBAPI connection — a pooled one that is handed back out never
 passes through it again.
 
-The trigger used here is a name collision on ``files_new``. What is under test
-is the handler, which every failure inside the rebuild reaches the same way.
+The trigger used here is a name collision on ``files_new``, which fails the
+rebuild's first statement — before its ``COMMIT``. That is what makes "the rows
+are where they were" and "the schema did not change" true below.
+
+**The rebuild has a second failure and it is not this one.** Its
+``foreign_key_check`` guard raises *after* the ``COMMIT``, so the conversion is
+already durable when the exception escapes: the rows have moved, the new
+constraint is on disk, and the handler's rollback has nothing left to undo.
+``TestOrphanGuard`` below covers that path separately and asserts what it
+actually leaves, rather than folding it into the claims made about this one.
 
 The rebuild drives a raw DBAPI cursor rather than a SQLAlchemy connection, so
 what escapes it is the driver's own ``sqlite3.OperationalError`` — unwrapped,
@@ -66,7 +74,7 @@ def _make_engine(tmp_path: Path):
     )
 
     @event.listens_for(engine, "connect")
-    def _set_pragma(dbapi_conn, connection_record):  # pragma: no cover - listener
+    def _set_pragma(dbapi_conn, connection_record):
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
@@ -77,6 +85,22 @@ def _make_engine(tmp_path: Path):
 def _foreign_keys_setting(engine) -> int:
     with engine.connect() as conn:
         return conn.exec_driver_sql("PRAGMA foreign_keys").scalar()
+
+
+@pytest.fixture(autouse=True)
+def _private_data_dir(tmp_path, monkeypatch):
+    """Keep ``_migrate``'s hash-format sentinel out of the shared DATA_DIR.
+
+    That reset runs before the rebuild, so every ``_migrate`` call in this file
+    reaches it. ``conftest``'s redirection hangs off the ``client`` fixture,
+    which these tests do not use, so without this they touch the process-wide
+    ``config.DATA_DIR`` — ``./data`` in a checkout, which the dev stack
+    bind-mounts. Leaving the sentinel there suppresses the real migration on
+    that machine.
+    """
+    import app.config as config
+
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path / "data")
 
 
 @pytest.fixture()
@@ -158,3 +182,105 @@ def test_the_pre_existing_table_is_not_silently_adopted(stalled_rebuild):
     assert "files_new" in inspect(stalled_rebuild).get_table_names()
     with stalled_rebuild.connect() as conn:
         assert conn.execute(text("SELECT COUNT(*) FROM files_new")).scalar() == 0
+
+
+# --- the other failure inside the rebuild ---------------------------------
+
+
+@pytest.fixture()
+def orphaned_child_row(tmp_path):
+    """A pre-composite database carrying one ``file_tags`` row with no file.
+
+    An orphan is reachable without any bug in this code: SQLite's own default
+    for ``foreign_keys`` is OFF, so a write made through a connection that did
+    not pass the engine's listener — a manual ``sqlite3`` session, a tool that
+    opens ``data/data.db`` directly — leaves one behind. It is seeded the same
+    way here.
+    """
+    engine = _make_engine(tmp_path)
+    with engine.begin() as conn:
+        conn.execute(text(PRE_COMPOSITE_FILES_DDL))
+        conn.execute(text(
+            "INSERT INTO files (id, filename, title, drive, folder_path,"
+            " file_path, file_size) "
+            "VALUES ('aaaaaaaaaaaa', 'a.mp4', 'A', 'd', '', 'a.mp4', 1)"
+        ))
+        conn.execute(text(
+            "CREATE TABLE file_tags ("
+            "file_id VARCHAR(12) REFERENCES files(id) ON DELETE CASCADE,"
+            "tag_id INTEGER, PRIMARY KEY (file_id, tag_id))"
+        ))
+
+    raw = engine.raw_connection()
+    try:
+        cur = raw.cursor()
+        cur.execute("PRAGMA foreign_keys=OFF")
+        cur.execute("INSERT INTO file_tags VALUES ('gone00000000', 1)")
+        raw.commit()
+    finally:
+        raw.close()
+
+    yield engine
+    engine.dispose()
+
+
+def _orphans(engine) -> list:
+    with engine.connect() as conn:
+        return conn.exec_driver_sql("PRAGMA foreign_key_check").fetchall()
+
+
+class TestOrphanGuard:
+    """``foreign_key_check`` after the rebuild, and what it does and does not buy.
+
+    The guard is the reason the rebuild is allowed to turn foreign keys off at
+    all: it is what checks that nothing slipped through before they go back on.
+    """
+
+    def test_an_orphan_stops_the_migration(self, orphaned_child_row):
+        from app.database import _migrate
+
+        with pytest.raises(RuntimeError) as exc:
+            _migrate(orphaned_child_row)
+
+        assert "foreign_key_check" in str(exc.value)
+
+    def test_the_conversion_is_already_durable_when_it_raises(
+        self, orphaned_child_row
+    ):
+        """The claims the collision path makes do not hold here.
+
+        This check runs after the rebuild's ``COMMIT``, so the raise cannot
+        undo it: the new constraint is on disk and the rows have moved. The
+        file's opening docstring says so; this is the assertion behind it.
+        """
+        from app.database import _migrate
+
+        with pytest.raises(RuntimeError):
+            _migrate(orphaned_child_row)
+
+        constraints = inspect(orphaned_child_row).get_unique_constraints("files")
+        assert any(
+            sorted(c["column_names"]) == ["drive", "file_path"]
+            for c in constraints
+        )
+
+    def test_a_restart_walks_past_the_guard(self, orphaned_child_row):
+        """Pinned because it is the behaviour, not because it is wanted.
+
+        The rebuild is gated on the composite constraint being absent, and the
+        first boot committed it before raising. So the second boot skips the
+        rebuild, never reaches the check, and starts normally with the orphan
+        still on disk — and restarting is the first thing an operator does when
+        startup fails. Changing this is a decision about the migration, not
+        about the test; if it is taken, this test is what has to be rewritten,
+        which is the point of writing it down.
+        """
+        from app.database import _migrate
+
+        with pytest.raises(RuntimeError):
+            _migrate(orphaned_child_row)
+        assert _orphans(orphaned_child_row) != []
+
+        _migrate(orphaned_child_row)  # must not raise
+
+        assert _orphans(orphaned_child_row) != []
