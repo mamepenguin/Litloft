@@ -26,4 +26,8 @@ COPY docker-compose.override.yml.example ./_repo/docker-compose.override.yml.exa
 COPY docker-compose.yml ./_repo/docker-compose.yml
 COPY setup-addons.sh ./_repo/setup-addons.sh
 
-CMD ["pytest", "-v", "--tb=short", "--cov=app", "--cov-report=term-missing"]
+# No coverage flags here, and no floor. A command passed to `docker run`
+# *replaces* this CMD, so anything put here is absent from every partial run —
+# which is why measurement is configured where it cannot be displaced, and why
+# the floor is added by the CI step, where a run is known to be complete.
+CMD ["pytest", "-v", "--tb=short"]
