@@ -208,10 +208,11 @@ _STRIPPED_RESPONSE_HEADERS = frozenset(
 )
 
 
-# Maximum nickname length we will hash. Mirrors the cap in ``get_viewer_id``
-# (``app.auth``) so a pathological cookie value cannot make the proxy spend
-# unbounded CPU on SHA-256. Anything longer is treated as "no viewer" — the
-# auth helper does the same.
+# Maximum nickname length we will hash. The same cap is applied by
+# ``app.auth._nickname_from_raw``, which is where the host's copy of the
+# literal lives, so a pathological cookie value cannot make either side
+# spend unbounded CPU on SHA-256. Anything longer is treated as "no
+# viewer" on both.
 _VIEWER_NICKNAME_MAX_LEN = 50
 
 # Header that carries the SHA-256-prefixed viewer_id from the host to
@@ -530,25 +531,53 @@ async def addon_proxy(
     # X-Lit-Drive requirement here. They MUST still rely on a stronger
     # access gate (typically ``file_access`` pre_check) so the absence
     # of the header doesn't become an authorisation bypass.
-    if (
-        scope == "drive"
-        and not requested_drive
-        and not route_config.get("drive_optional")
-    ):
-        raise HTTPException(status_code=400, detail="Drive context required")
+    if scope == "drive" and not requested_drive:
+        if not route_config.get("drive_optional"):
+            raise HTTPException(status_code=400, detail="Drive context required")
+        # ``drive_optional`` waives the only check a drive-scoped route gets
+        # for free. Something else has to stand in its place — in practice a
+        # ``file_access`` or ``admin`` pre_check — so a route that waives it
+        # and declares nothing is refused rather than served ungated.
+        if not route_config.get("pre_check") and not route_config.get(
+            "addon_feature"
+        ):
+            logger.error(
+                "Addon %r route %r is drive_optional with no pre_check and no "
+                "addon_feature, so nothing authorises it without a drive",
+                addon_name, route_config.get("path"),
+            )
+            raise HTTPException(status_code=404, detail="Route not found")
 
     # Pre-check hooks
     pre_check = route_config.get("pre_check")
     checked_file: File | None = None
     if pre_check:
-        check_type = pre_check.get("type")
+        # A manifest is JSON from another repository, so ``pre_check`` can be
+        # any shape. Anything that is not an object has no ``type`` to read and
+        # falls to the same refusal as an unrecognised one — reading ``.get``
+        # off it would surface as a 500, which is the announcement the 404
+        # below exists to avoid.
+        check_type = pre_check.get("type") if isinstance(pre_check, dict) else None
         if check_type == "file_access":
             param_name = pre_check.get("param", "file_id")
             file_id = path_params.get(param_name)
-            if file_id:
-                checked_file = _check_file_access(
-                    file_id, unlocked_groups, db
+            if not file_id:
+                # The manifest asked to gate on a path parameter this route
+                # does not have — a rename or a typo. There is nothing to
+                # check, so the only safe answer is to refuse: falling
+                # through would serve a route whose manifest says it is
+                # gated, with no gate. 404 rather than 500 for the same
+                # reason the file and feature gates use it: a route that
+                # cannot be authorised should not announce that it exists.
+                logger.error(
+                    "Addon %r route %r declares a file_access pre_check on "
+                    "%r, which is not a parameter of its path",
+                    addon_name, route_config.get("path"), param_name,
                 )
+                raise HTTPException(status_code=404, detail="Route not found")
+            checked_file = _check_file_access(
+                file_id, unlocked_groups, db
+            )
         elif check_type == "addon_feature":
             # Per-drive policy gate. Requires X-Lit-Drive (already enforced
             # for scope=drive; for scope=both we treat absence as 404 to
@@ -564,6 +593,17 @@ async def addon_proxy(
                 raise HTTPException(
                     status_code=403, detail="Admin access required"
                 )
+        else:
+            # A ``pre_check`` whose type nothing here handles. It satisfies
+            # every test for "this route declares a gate" — including the
+            # ``drive_optional`` guard above — while running none, so the
+            # declaration has to be refused rather than skipped.
+            logger.error(
+                "Addon %r route %r declares a pre_check this proxy cannot "
+                "dispatch: type=%r from %r",
+                addon_name, route_config.get("path"), check_type, pre_check,
+            )
+            raise HTTPException(status_code=404, detail="Route not found")
 
     # File-scoped routes need to compose the core file-access check above
     # with a per-drive feature gate. ``pre_check`` intentionally has one
