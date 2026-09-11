@@ -589,8 +589,9 @@ class TestAssetPlacement:
     def test_a_row_whose_file_is_gone_does_not_claim_the_name(
         self, client, monkeypatch
     ):
-        """The row can outlive the file — that is the Missing state. Reusing the
-        name would point the note at a row with nothing behind it."""
+        """The row can outlive the file; the scanner marks that Missing, but not
+        before its next pass. Reusing the name in between would point the note
+        at a row with nothing behind it."""
         http, db, drive_dir, _ = client
         monkeypatch.setattr(
             importer, "fetch_and_normalize_image", lambda url: _normalized_jpeg()
@@ -613,7 +614,7 @@ class TestAssetPlacement:
         assert db.query(File).filter(File.folder_path == "assets").count() == 2
         assert not (drive_dir / first.file_path).exists()
 
-    def test_a_write_that_fails_leaves_no_partial_file_behind(self, client, tmp_path):
+    def test_a_write_that_fails_leaves_no_partial_file_behind(self, client):
         """The asset is written to a temp name and moved, so a failed move must
         not leave a dotfile sitting in the user's own assets folder."""
         _, _, drive_dir, _ = client
@@ -634,8 +635,8 @@ class TestAssetPlacement:
 
 class TestImportFailurePaths:
     def test_a_failed_registration_leaves_no_asset_behind(self, client, monkeypatch):
-        """A file on disk that no row points at is picked up by the next scan as
-        a stray asset, and the note still points at the remote URL."""
+        """A file no row points at is what the next scan registers as an image
+        the user never added, and the note still points at the remote URL."""
         http, db, drive_dir, _ = client
         monkeypatch.setattr(
             importer, "fetch_and_normalize_image", lambda url: _normalized_jpeg()
@@ -688,8 +689,9 @@ class TestImportFailurePaths:
     def test_a_failed_content_write_keeps_an_asset_it_did_not_create(
         self, client, monkeypatch
     ):
-        """The reused file is referenced by the note that imported it first.
-        Cleaning up on this path would delete an image that is in use."""
+        """The file was on disk before this import began, so rolling back what
+        this import did cannot include it: the note may link it from elsewhere,
+        and `physical_delete` has nothing to undo it with."""
         http, db, drive_dir, _ = client
         image = _normalized_jpeg()
         monkeypatch.setattr(importer, "fetch_and_normalize_image", lambda url: image)
@@ -953,9 +955,9 @@ class TestJobLifecycle:
     def test_a_job_that_cannot_take_the_maintenance_lock_reports_it(
         self, client, monkeypatch
     ):
-        """The lock is taken inside the task, after the request was accepted with
-        202 — so this is the one refusal the operator can only learn from the
-        job record."""
+        """The lock is taken inside the task, after the request was answered
+        with 202, so this refusal reaches the operator only through the job
+        record."""
         http, db, drive_dir, _ = client
         fetched = []
 
@@ -1005,7 +1007,8 @@ class TestJobLifecycle:
         assert response.json()["detail"]["code"] == "scope_invalid"
 
     def test_an_empty_allowed_hosts_list_is_refused_by_both_layers(self, client):
-        """An empty set is not "everything", and `issubset({})` is True.
+        """An empty set is not "everything", and it is a subset of anything, so
+        `requested.issubset(...)` on its own would accept it.
 
         The schema stops it at the HTTP edge, so the service-side guard is
         checked directly rather than through a request that cannot reach it.

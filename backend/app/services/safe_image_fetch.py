@@ -99,6 +99,7 @@ def _embedded_ipv4(ip: ipaddress.IPv6Address) -> ipaddress.IPv4Address | None:
 
 
 def _is_blocked_address(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    # The range is named here rather than relying on `is_global` to exclude it.
     if isinstance(ip, ipaddress.IPv4Address) and ip in _CGNAT:
         return True
     # `is_global` is IANA's "globally reachable" column, not the complement of
@@ -113,8 +114,9 @@ def _is_blocked_ip(address: str) -> bool:
     except ValueError:
         return True
     if isinstance(ip, ipaddress.IPv6Address):
-        # A wrapper's own flags say nothing about the IPv4 address it carries,
-        # so the payload is judged on its own before the wrapper is.
+        # An embedded destination is judged on its own, not through the address
+        # carrying it: outside `::ffff:`, no property of an IPv6 address
+        # describes the IPv4 destination inside it.
         embedded = _embedded_ipv4(ip)
         if embedded is not None and _is_blocked_address(embedded):
             return True
@@ -163,10 +165,8 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
 
 
 def _host_header(url: ValidatedImageUrl) -> str:
-    # The IDNA-encoded hostname, not `parts.netloc`: netloc keeps whatever the
-    # markdown author wrote, and http.client encodes headers as latin-1, so a
-    # non-ASCII spelling either reaches the server as mojibake or raises
-    # UnicodeEncodeError past this module's error mapping.
+    # Built from the IDNA hostname rather than `parts.netloc`: netloc keeps the
+    # spelling the author wrote, which http.client sends as latin-1 or refuses.
     host = f"[{url.hostname}]" if ":" in url.hostname else url.hostname
     return host if url.port == 443 else f"{host}:{url.port}"
 
@@ -267,8 +267,8 @@ def fetch_image(
         finally:
             connection.close()
     # The last iteration refuses its own redirect (`redirect_count >=
-    # max_redirects`), so the loop cannot fall through. This is the backstop for
-    # the loop bound and `max_redirects` ever disagreeing.
+    # max_redirects`), so the loop cannot fall through. This is the backstop in
+    # case the loop bound and `max_redirects` ever disagree.
     raise SafeImageFetchError(  # pragma: no cover
         "redirect_rejected", "Redirect limit exceeded"
     )

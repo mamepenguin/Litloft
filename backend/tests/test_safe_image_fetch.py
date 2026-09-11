@@ -165,7 +165,8 @@ def test_an_explicit_port_of_zero_is_refused_rather_than_defaulted():
 )
 def test_the_host_header_carries_the_normalised_hostname(url, expected):
     """A virtual-hosted server serves by Host, and http.client encodes it as
-    latin-1 — so the spelling the author typed is both wrong and unsendable."""
+    latin-1 — so the spelling the author typed is either wrong on the wire or
+    cannot be put on it at all."""
     assert _host_header(validate_image_url(url)) == expected
 
 
@@ -187,6 +188,19 @@ def test_the_request_keeps_the_query_string(url, expected_path, monkeypatch):
     fetch_image(url)
 
     assert [path for _, path, _ in transport.requests] == [expected_path]
+
+
+def test_the_request_sends_the_normalised_hostname_as_its_host(monkeypatch):
+    """The header is assembled from the validated hostname, not from the netloc
+    the markdown author wrote, so the wiring is asserted where it is used."""
+    transport = _Transport(
+        _Response(200, body=b"bytes"),
+        resolutions={"xn--exmple-cua.com": ["93.184.216.34"]},
+    ).install(monkeypatch)
+
+    fetch_image("https://exämple.com/a.jpg")
+
+    assert transport.requests[0][2]["Host"] == "xn--exmple-cua.com"
 
 
 # --- the address gate: resolution, and what is done with the answers --------
@@ -369,14 +383,21 @@ def test_a_redirect_without_a_location_is_refused(monkeypatch):
 
 
 def test_an_endless_redirector_stops_at_the_declared_limit(monkeypatch):
-    """The refusal comes from inside the loop, on the last iteration."""
+    """The refusal comes from the last iteration, not from the backstop below
+    the loop — which the attempt count alone cannot tell apart, since both
+    follow four hops. The two carry different details, so the detail is what
+    says which one fired.
+    """
     transport = _Transport(
         *[_Response(302, {"Location": "https://public.example/next"})] * 8,
         resolutions={"public.example": ["93.184.216.34"]},
     ).install(monkeypatch)
 
-    with pytest.raises(SafeImageFetchError, match="redirect_rejected"):
+    with pytest.raises(SafeImageFetchError) as exc:
         fetch_image("https://public.example/start", max_redirects=3)
+
+    assert exc.value.code == "redirect_rejected"
+    assert exc.value.detail == "Redirect limit or Location is invalid"
     assert len(transport.connections) == 4
 
 
@@ -534,14 +555,26 @@ def test_a_transparent_image_is_written_as_png():
 
 
 def test_a_pixel_count_over_the_limit_is_refused_before_the_pixels_are_read():
-    """A small compressed file can declare an enormous canvas; deciding on the
-    header is what keeps the decode from allocating it."""
+    """A small file can declare an enormous canvas, so the decision belongs to
+    the header rather than to what the decode allocates.
+
+    The body is truncated, which makes the order observable: `Image.open` still
+    parses the header, but `load()` cannot finish. Refusing on the header gives
+    `image_too_large`; reaching the decode first gives `invalid_image`, which is
+    what the same bytes under a high limit return.
+    """
     source = Image.new("RGB", (600, 600), "red")
     raw = io.BytesIO()
     source.save(raw, format="PNG")
+    truncated = raw.getvalue()[:-256]
 
-    with pytest.raises(SafeImageFetchError, match="image_too_large"):
-        normalize_image(raw.getvalue(), max_pixels=1000)
+    with pytest.raises(SafeImageFetchError) as too_large:
+        normalize_image(truncated, max_pixels=1000)
+    with pytest.raises(SafeImageFetchError) as unreadable:
+        normalize_image(truncated, max_pixels=10**9)
+
+    assert too_large.value.code == "image_too_large"
+    assert unreadable.value.code == "invalid_image"
 
 
 def test_pillows_own_bomb_guard_is_reported_as_a_pixel_limit():
@@ -570,9 +603,8 @@ def test_a_body_that_is_not_an_image_is_refused():
 
 
 def test_the_public_entry_point_validates_the_url_it_is_handed(monkeypatch):
-    """`fetch_and_normalize_image` takes a string, so nothing a caller did
-    earlier can stand in for the check — and `markdown_image_import` calls
-    `validate_image_url` at scan time only to keep the hostname."""
+    """`fetch_and_normalize_image` takes a string, so nothing a caller checked
+    earlier can stand in for the check here."""
     transport = _Transport(_Response(), resolutions=None).install(monkeypatch)
     _stub_getaddrinfo(monkeypatch, {"evil.example": ["10.0.0.7"]})
 
