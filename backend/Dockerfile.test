@@ -26,4 +26,8 @@ COPY docker-compose.override.yml.example ./_repo/docker-compose.override.yml.exa
 COPY docker-compose.yml ./_repo/docker-compose.yml
 COPY setup-addons.sh ./_repo/setup-addons.sh
 
-CMD ["pytest", "-v", "--tb=short", "--cov=app", "--cov-report=term-missing"]
+# The coverage flags moved into `pytest.ini`'s `addopts` so that a partial run
+# is measured too; a command passed to `docker run` replaces this CMD, and that
+# is how they were being lost. The floor is not here either — it is a claim
+# about a complete run, so the CI step adds it.
+CMD ["pytest", "-v", "--tb=short"]

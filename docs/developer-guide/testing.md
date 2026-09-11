@@ -397,9 +397,45 @@ nothing to serve, nothing to seed, and nothing to skip.
 
 ## Coverage
 
-Backend: `pytest --cov=app --cov-report=term-missing`. Frontend: `pnpm test --coverage`. Open the HTML report under `coverage/`.
+Backend: `docker run --rm litloft-test` measures on every run — the flags are in
+`backend/pytest.ini`, not in the image's CMD, so a partial run (`pytest -k x`) is
+measured too. Frontend: `pnpm exec vitest run --coverage`. mcp-server:
+`pnpm exec vitest run --coverage`.
 
-Aim for 80%+ unit + integration. Hard-to-test surfaces (the scanner's filesystem walking, ffmpeg integration) are exercised primarily via integration tests with real fixtures.
+Hard-to-test surfaces (the scanner's filesystem walking, ffmpeg integration) are
+exercised primarily via integration tests with real fixtures.
+
+### Floors, and the two rules that make them mean something
+
+A floor is a lower bound, so it cannot see the denominator shrink: drop files
+from the population and the percentage goes *up*. Every package that carries one
+therefore also runs a population check, which asks the collector what it measured
+and compares that against an independent walk of the tree, as sets, failing in
+both directions. `backend/scripts/check-coverage-population.py` and
+`mcp-server/scripts/check-coverage-population.mjs` are those; each says in its
+own docstring what it catches.
+
+**A Python floor never goes in `addopts`.** `--cov-fail-under` there fails every
+partial run, so `pytest tests/test_files.py` would exit 1 on passing tests —
+including the single-file reproductions a reviewer is asked to run. A floor is a
+claim about a complete run, so it lives where completeness is known: the CI step,
+as `PYTEST_ADDOPTS`, which appends to the image's CMD rather than replacing it.
+
+**A Python floor is the truncated total, never the rounded one.** coverage.py
+prints its pass/fail message from the raw total and computes its exit code from
+the rounded one, so the two disagree wherever a total rounds up: at such a value
+a run prints `FAIL … not reached` and still exits 0. Truncate, and bracket the
+exit code rather than reading the message. `--cov-precision=2` widens the
+comparison from whole percents to two decimals and is load-bearing for the same
+reason.
+
+vitest does not share that defect, and its absence is structural rather than
+lucky: `istanbul-lib-coverage` truncates with `Math.floor` and vitest compares
+the same figure it displays, so the number shown and the number compared cannot
+diverge. A vitest floor goes at the displayed value.
+
+No floor value is repeated in this page. Each lives in the file that enforces it,
+beside the bracket measured to set it; a copy here would be one nothing re-runs.
 
 ## What not to mock
 

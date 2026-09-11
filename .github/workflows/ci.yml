@@ -352,7 +352,17 @@ jobs:
         working-directory: mcp-server
 
       - name: Test
-        run: pnpm test
+        run: pnpm exec vitest run --coverage
+        working-directory: mcp-server
+
+      # Earns the thresholds in `vitest.config.ts` the right to be lower
+      # bounds. `!cancelled()` because the run that most needs this line is the
+      # one where the thresholds refused: a step with no `if:` is skipped when
+      # the step before it fails, which puts the instrument out of exactly the
+      # log that has to be diagnosed.
+      - name: Check the coverage denominator
+        if: ${{ !cancelled() }}
+        run: node scripts/check-coverage-population.mjs
         working-directory: mcp-server
 
       - name: Type-check
@@ -372,8 +382,48 @@ jobs:
       - name: Build the test image
         run: docker build -f backend/Dockerfile.test -t litloft-test .
 
+      # `pytest.ini` turns measurement on; the floor is added only here,
+      # because a floor is a claim about a complete run and `addopts` reaches
+      # partial ones too.
+      #
+      # `PYTEST_ADDOPTS` rather than a command after the image name: a command
+      # there *replaces* the CMD and the container never starts. But a
+      # misspelled variable name is silent — the suite passes and nothing is
+      # gated — so the same variable also carries `--cov-report=json`. If it
+      # does not take effect the report is not written either, and the step
+      # below fails on the missing file instead of succeeding for the wrong
+      # reason.
+      # 82.78 is CI's measured total truncated, and CI's rather than a local
+      # one because that is where the gate runs. The two differ here and the
+      # difference is not noise: this machine's Linux runners cover slightly
+      # more of `app/` than a developer's macOS does. What makes the CI figure
+      # the right floor rather than merely the stricter one is that the
+      # *denominator* is identical on both — same population, differently
+      # covered. A local run is therefore expected to sit below this number,
+      # which is why no floor is applied outside CI.
       - name: Test
-        run: docker run --rm litloft-test
+        shell: bash
+        env:
+          COV_FLOOR: "82.78"
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cov"
+          docker run --rm -v "$RUNNER_TEMP/cov:/out" \
+            -e PYTEST_ADDOPTS="--cov-fail-under=$COV_FLOOR --cov-report=json:/out/cov.json" \
+            litloft-test
+
+      # The floor is a lower bound, and a lower bound cannot see the
+      # denominator shrink — the percentage goes *up*. So the population is
+      # compared too, as a set, against an independent walk of this checkout.
+      # The script says what that catches; it also prints the raw total, which
+      # is what the floor was truncated from.
+      - name: Verify the floor was applied, over the right population
+        shell: bash
+        env:
+          COV_FLOOR: "82.78"
+        run: |
+          set -euo pipefail
+          python3 backend/scripts/check-coverage-population.py "$RUNNER_TEMP/cov/cov.json" "$COV_FLOOR"
 
   bootstrap:
     name: bootstrap (configure.py)
