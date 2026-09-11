@@ -264,26 +264,50 @@ const tracked = new Set([
 ]);
 for (const p of NO_INSTRUMENTABLE_CODE) tracked.delete(p);
 
-if (staleAbsences.length) {
-  fail([
-    `${staleAbsences.length} entr(y/ies) in NO_INSTRUMENTABLE_CODE name no such file:`,
-    ...staleAbsences.map((p) => `  - ${p}`),
-    "Each entry is a claim that a real file compiles to nothing and is",
-    "therefore absent from the report. A name with no file behind it excludes",
-    "nothing and hides the next entry that stops being true. Delete it.",
-  ]);
-}
-
 const untracked = [...tracked].filter((p) => !declared.has(p)).sort();
-if (untracked.length) {
-  fail([
-    `${untracked.length} tracked file(s) are missing from the working tree:`,
-    ...untracked.map((p) => `  - ${p}`),
-    "git has them at the pinned commit and the walk did not find them, so this",
-    "tree is not the one the denominator is a claim about. A deleted or",
-    "emptied directory reads as a smaller population on both sides at once,",
-    "which is why this compares against the index and not against the report.",
-  ]);
+
+// Both conditions are one report, and which one leads is the finding rather
+// than a preference.
+//
+// A deleted directory takes any declared-absent file inside it down with it, so
+// both fire together — and "delete the entry" is the wrong instruction for that
+// case, where the entry is right and the files should come back. Reported the
+// other way round, the stale list also *replaced* the real damage: measured,
+// removing `src/components/player` named three declared-absent entries and said
+// nothing about the 22 tracked files that had gone.
+//
+// They are also both incomplete alone. The 25 files that directory holds are 22
+// tracked plus 3 declared absent, and each check sees only its own share, so a
+// single count from either is wrong about the deletion. Printing both is what
+// makes the report add up.
+if (untracked.length || staleAbsences.length) {
+  const lines = [];
+  if (untracked.length) {
+    lines.push(
+      `${untracked.length} tracked file(s) are missing from the working tree:`,
+      ...untracked.map((p) => `  - ${p}`),
+      "git has them at the pinned commit and the walk did not find them, so this",
+      "tree is not the one the denominator is a claim about. A deleted or",
+      "emptied directory reads as a smaller population on both sides at once,",
+      "which is why this compares against the index and not against the report.",
+    );
+  }
+  if (staleAbsences.length) {
+    lines.push(
+      `${staleAbsences.length} entr(y/ies) in NO_INSTRUMENTABLE_CODE name no such file:`,
+      ...staleAbsences.map((p) => `  - ${p}`),
+      untracked.length
+        ? "These are part of the same deletion — restore the files rather than"
+        : "Each entry is a claim that a real file compiles to nothing and is",
+      untracked.length
+        ? "removing the entries."
+        : "therefore absent from the report. A name with no file behind it excludes",
+      ...(untracked.length
+        ? []
+        : ["nothing and hides the next entry that stops being true. Delete it."]),
+    );
+  }
+  fail(lines);
 }
 
 const missing = [...declared].filter((p) => !measured.has(p)).sort();

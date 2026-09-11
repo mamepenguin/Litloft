@@ -518,8 +518,10 @@ The floors sit at the lowest of five samples of a measurement that is not
 deterministic, so a red build on a tree nobody changed is a possible outcome
 rather than a contradiction. It is diagnosed, not argued about:
 
-1. **Read the denominator line in the same job.** It runs even when `Test`
-   fails, and prints the four totals and the file count.
+1. **Read both lines the job prints.** The four totals come from the coverage
+   summary the `Test` step printed — it is written even on a red suite. The file
+   count comes from the denominator line below it, which runs even when `Test`
+   fails.
 2. **If the totals are unchanged** — 21383 / 18946 / 14198 / 5109 — the
    population is intact and the tree really did lose coverage. The fix is a
    test. Do not move the number.
@@ -558,11 +560,23 @@ this time".
 every run measured, including one with a failing test.
 
 It is also **not slower than v8 here**, which is the opposite of what the plan
-assumed: v8 pays for source-map remapping of TypeScript that istanbul does not.
-No absolute seconds are quoted, because one machine in one thermal state is not
-a figure anyone can check later — the two measurements taken of this differ by
-60%, and both were of this same machine. The number that decides anything is
-CI's own before/after on the job that gates, in the pull request that changed it.
+assumed. Why is not established, and no explanation is offered: both providers
+remap through source maps — `@vitest/coverage-istanbul` depends on
+`istanbul-lib-source-maps` and calls `createSourceMapStore` — so the obvious
+guess is not the answer. Treat the ordering as an observation and do not build
+on a cause for it.
+
+No absolute seconds are quoted either, because one machine in one thermal state
+is not a figure anyone can check later: the two measurements taken of this
+differ by 60%, and both were of this same machine. The number that decides
+anything is CI's own before/after on the job that gates, in the pull request
+that changed it.
+
+It lists 515 files where v8 listed 524. The nine are barrel re-exports and
+type-only modules holding seven statements between them; they are declared by
+name in the denominator script. Four of them were the case where v8 gave a
+never-imported file `branches 1/1 = 100%` — a branch it invented and counted as
+covered.
 
 ### The two required frontend jobs no longer run the same program
 
@@ -582,12 +596,6 @@ are tempted to add coverage to it — for a fuller picture, or to gate it too �
 that would remove the only run of the real sources from the required set, and it
 is also the reason the shuffled job exists: instrumenting the run changes the
 timing it is there to sample.
-
-It lists 515 files where v8 listed 524. The nine are barrel re-exports and
-type-only modules holding seven statements between them; they are declared by
-name in the denominator script. Four of them were the case where v8 gave a
-never-imported file `branches 1/1 = 100%` — a branch it invented and counted as
-covered.
 
 ### What moves, and what it means
 

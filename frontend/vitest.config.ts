@@ -34,11 +34,12 @@ export default defineConfig({
       // anything runs: 21383 statements / 18946 lines / 14198 branches /
       // 5109 functions, identical across every run measured, including a run
       // with a failing test. It is also not slower than v8 here, which is the
-      // opposite of the assumption this started from: v8 pays for source-map
-      // remapping of TypeScript that istanbul does not. No seconds are quoted
-      // — the two measurements taken of it differ by 60% on the same machine,
-      // so the mechanism is the durable part and CI's own before/after on the
-      // job that gates is the figure that decides anything.
+      // opposite of the assumption this started from — but the cause is not
+      // established, and both providers remap through source maps, so the
+      // obvious guess is wrong. No seconds are quoted either: the two
+      // measurements taken of it differ by 60% on the same machine, and CI's
+      // own before/after on the job that gates is the figure that decides
+      // anything. The denominator, above, is the reason for this choice.
       //
       // Instrumenting the AST also means this job runs rewritten sources while
       // `frontend (shuffled order)` runs the originals. See

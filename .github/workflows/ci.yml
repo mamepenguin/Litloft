@@ -152,6 +152,19 @@ jobs:
       # testing.md` §When a threshold goes red gives the procedure.
       #
       # Not `always()`: a cancelled run has nothing to diagnose.
+      #
+      # Both halves of this were rehearsed on a scratch branch rather than
+      # argued. Raising one threshold 0.05 above the measured value — suite
+      # green, threshold red, which is the situation the condition exists for —
+      # gave `failure Test` followed by `success Check the coverage
+      # denominator`, with the denominator line printed directly under
+      # `ERROR: Coverage for lines (79.76%) does not meet global threshold`.
+      #
+      # And the cost, also observed: the step runs when an *earlier* step fails
+      # too. A run whose `checkout` failed skipped every other step and still
+      # ran this one, which then reported that coverage had not run — true, and
+      # not the cause. Noise rather than a defect; scoping the condition to the
+      # `Test` step alone is not expressible cleanly here.
       - name: Check the coverage denominator
         if: ${{ !cancelled() }}
         run: node scripts/check-coverage-denominator.mjs
