@@ -118,11 +118,13 @@ def _run_purge_batch(
                     db.commit()
                 except ObjectDeletedError:
                     # Someone else purged it between the query and here — a
-                    # hard delete from the Trash view. It is gone, so it is
-                    # not retained: saying otherwise reports a trash entry
-                    # the user has already removed. It is still skipped,
-                    # because termination may not rest on the reason a row
-                    # failed.
+                    # hard delete from the Trash view. Kept out of
+                    # ``retained`` so the warning does not report a trash
+                    # entry the user has already removed; that is a judgement
+                    # about the reachable cause, and it is only allowed to
+                    # decide the *message*. It goes into ``skipped`` like
+                    # every other failure, because termination is not allowed
+                    # to depend on the same judgement being right.
                     db.rollback()
                     skipped.add(file_id)
                     logger.info(

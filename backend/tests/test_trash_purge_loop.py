@@ -37,17 +37,19 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 # does not exclude comes back unchanged forever — a failure with no error and
 # no end. Any finite bound tells that apart from a slow run.
 #
-# There are two bounds because there are two populations, and conflating them
-# is what made a single value keep flaking. A run that is *meant* to hit the
-# non-termination path does almost no work — a handful of rows, each failing
-# immediately — so it returns in milliseconds when correct and the bound can
-# be tight. The bulk test is the opposite: it has no failing delete, so it
-# cannot exercise non-termination at all, and its honest runtime scales with
-# rows times commits. Binding both with one number means either the bulk test
-# flakes under load or a hang costs the tight population a minute each.
-# Timings go in the PR body.
+# There are two bounds because there are two honest runtimes, not because only
+# one population can hang. Both can: a run driving failing rows does almost no
+# work and returns in milliseconds, while the bulk test's runtime scales with
+# rows times commits — and the bulk test catches its own kind of stall, where
+# the per-row commit stops committing and the re-query stops advancing, with
+# no failing delete anywhere. One number for both means either the bulk test
+# fails under load or every hang is charged the bulk test's headroom.
+#
+# Each is set from its own measured worst case with room over it, and no
+# higher, because the bound is also what a real stall costs. Timings go in
+# the PR body.
 _TERMINATION_TIMEOUT_SECONDS = 10
-_BULK_TIMEOUT_SECONDS = 180
+_BULK_TIMEOUT_SECONDS = 60
 
 
 def _seed_trashed(db, drive_dir, filename, *, days_ago, folder="trash-src", on_disk=True):
@@ -319,8 +321,10 @@ class TestARowThatCannotBeDeleted:
 
         ``docs/user-guide/trash-and-missing.md`` sends the operator here to
         find out that something is stuck, so the number has to be the number
-        of rows still in the trash — which is also what the test below
-        measures from the other side.
+        of rows this run could not delete and left in the trash. It is not a
+        count of everything in the trash, and it is not a count of everything
+        the run skipped: a row another session purged is skipped and not
+        counted, which is the distinction the two sets exist to keep.
         """
         c, db, drive_dir, _ = client
         for index in range(3):
@@ -647,6 +651,25 @@ def _drive_until(make_coro):
         loop.close()
 
 
+def drive_one_pass(recorder, *, expect_emit=False):
+    """Drive one pass of ``purge_expired_trash`` and insist it happened.
+
+    The "did it happen" check is here rather than in each test because the
+    tests cannot be relied on to make it: an earlier version recorded the
+    timeout on the recorder and left every caller to assert it, four of six
+    did not, and the one whose only assertion is an *absence*
+    (``emits == []``) then passed while watching a busy loop for the whole
+    bound. An absence is satisfied by nothing having run at all, so the
+    assertion that something ran cannot be optional.
+    """
+    _drive_until(lambda: recorder._run_one_pass(expect_emit=expect_emit))
+    assert not recorder.timed_out, (
+        f"no pass completed within {_TERMINATION_TIMEOUT_SECONDS}s — "
+        f"sleeps={recorder.sleeps} cutoffs={len(recorder.cutoffs)} "
+        f"cleanups={len(recorder.cleanups)}"
+    )
+
+
 #: What the interval between passes must be, declared here rather than read
 #: from ``main``. Reading it from the module under test makes any change to it
 #: agree with itself, including a change to zero — which turns the task into a
@@ -713,7 +736,7 @@ class _PassRecorder:
         )
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-    async def run_one_pass(self, *, expect_emit):
+    async def _run_one_pass(self, *, expect_emit):
         """Drive exactly one pass and stop.
 
         The emit is fired with ``create_task`` and never awaited, so when the
@@ -755,7 +778,7 @@ class TestTheScheduledRun:
         recorder.install(monkeypatch)
 
         before = datetime.now(UTC)
-        _drive_until(lambda: recorder.run_one_pass(expect_emit=False))
+        drive_one_pass(recorder)
         after = datetime.now(UTC)
 
         assert len(recorder.cutoffs) == 1
@@ -777,7 +800,7 @@ class TestTheScheduledRun:
         recorder = _PassRecorder((ids, set(), {"beta", "alpha"}))
         recorder.install(monkeypatch)
 
-        _drive_until(lambda: recorder.run_one_pass(expect_emit=True))
+        drive_one_pass(recorder, expect_emit=True)
 
         assert len(recorder.emits) == 1
         event, payload, drives = recorder.emits[0]
@@ -795,7 +818,7 @@ class TestTheScheduledRun:
         recorder = _PassRecorder(([], set(), set()))
         recorder.install(monkeypatch)
 
-        _drive_until(lambda: recorder.run_one_pass(expect_emit=False))
+        drive_one_pass(recorder)
 
         assert recorder.emits == []
 
@@ -812,9 +835,8 @@ class TestTheScheduledRun:
         recorder = _PassRecorder(([], set(), set()))
         recorder.install(monkeypatch)
 
-        _drive_until(lambda: recorder.run_one_pass(expect_emit=False))
+        drive_one_pass(recorder)
 
-        assert recorder.timed_out is False
         assert recorder.sleeps == [_EXPECTED_PURGE_INTERVAL_SECONDS]
 
     def test_the_task_comes_back_after_the_interval(self, monkeypatch):
@@ -827,9 +849,8 @@ class TestTheScheduledRun:
         recorder = _PassRecorder(([], set(), set()), park_after_passes=2)
         recorder.install(monkeypatch)
 
-        _drive_until(lambda: recorder.run_one_pass(expect_emit=False))
+        drive_one_pass(recorder)
 
-        assert recorder.timed_out is False
         assert len(recorder.cutoffs) == 2
         assert recorder.sleeps == [
             _EXPECTED_PURGE_INTERVAL_SECONDS,
@@ -853,7 +874,7 @@ class TestTheScheduledRun:
         recorder = _PassRecorder(([], folders, set()))
         recorder.install(monkeypatch)
 
-        _drive_until(lambda: recorder.run_one_pass(expect_emit=False))
+        drive_one_pass(recorder)
 
         assert recorder.cleanups == [folders]
 
