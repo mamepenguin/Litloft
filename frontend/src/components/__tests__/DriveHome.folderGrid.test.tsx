@@ -319,10 +319,10 @@ function folderSection(): HTMLElement {
  * carries the path, which is what the card is keyed by, not what it
  * shows. `FolderCard` renders the name in the link's only `<span>`.
  *
- * Scoped to the Folders section, which is what makes an empty result
- * mean "the grid drew nothing" rather than "no card is anywhere on the
- * page": the same attribute is on every folder card the file listing
- * draws in production.
+ * Scoped to the Folders section for the reason `folderSection()` above
+ * gives: the attribute has three producers, so an unscoped read would
+ * answer "the grid drew nothing" with a card drawn by one of the other
+ * two.
  */
 function folderNamesOnScreen(): string[] {
   return Array.from(folderSection().querySelectorAll<HTMLElement>("[data-rename-focus]")).map(

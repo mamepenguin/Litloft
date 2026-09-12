@@ -113,7 +113,7 @@ describe("who asks for numbers", () => {
     // It does in a collection, which is an ordered thing; it does not in
     // a folder, where the order is a sort the reader can change from the
     // toolbar. Scanned over the callers rather than asserted per screen,
-    // so a fifth caller cannot pick it up unnoticed.
+    // so a caller added later cannot pick it up unnoticed.
     const callers = [
       "frontend/src/components/CollectionDetail.tsx",
       "frontend/src/components/folder/FolderContent.tsx",

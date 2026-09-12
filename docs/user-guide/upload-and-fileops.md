@@ -4,7 +4,7 @@ Litloft accepts files via drag-and-drop or a file picker, then runs them through
 
 ## Uploading files
 
-Drop files anywhere on a folder page, or use the **Upload** button.
+Drop files anywhere on a page that lists a folder's contents, or use the **Upload** button. The drive home takes a drop too; what lands there goes to the drive root.
 
 ![Upload progress drawer showing queued and completed uploads](../images/user-guide/upload-progress-drawer.png)
 

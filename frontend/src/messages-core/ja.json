@@ -74,7 +74,6 @@
     "empty": "ドライブがありません",
     "emptyDescription": "drives.jsonを設定してドライブを追加してください。",
     "folders": "フォルダ",
-    "files": "ファイル",
     "pickup": "ピックアップ",
     "recentAdded": "最近追加",
     "favorites": "お気に入り",

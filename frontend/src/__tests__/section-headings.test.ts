@@ -234,10 +234,11 @@ describe("section heading icons", () => {
     // Per root, not as one total, for the reason `page-headings.test.ts`
     // gives: a single number over core plus whichever submodules happen to
     // be checked out fails a `git clone` without `--recurse-submodules`
-    // with "expected 7 to be 8" and nothing naming the cause. This file
-    // did exactly that until the clone was measured. Core's seven are the
-    // drive home column's sections; the eighth was always the intelligence
-    // addon's "Pickup", asserted here only where that addon is present.
+    // with a bare "expected N to be M" and nothing naming the cause. This
+    // file did exactly that until the clone was measured. Core's own are
+    // the drive home column's sections plus the admin dashboard's cards;
+    // the intelligence addon's "Pickup" is counted under its own root,
+    // asserted only where that addon is present.
     const perRoot = new Map<string, number>();
     for (const icon of icons) {
       const root = icon.where.startsWith("addons/")

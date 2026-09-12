@@ -51,9 +51,9 @@ export interface FileNavOrdering {
  * What ordering the prev/next walk should use, and whether it can be
  * counted.
  *
- * The order comes from the URL, which is where both listings already put
+ * The order comes from the URL, which is where the listing already puts
  * it — the folder listing writes `?sort=&order=` into its file links and
- * the redirect carries them, and the drive root does the same. An
+ * the redirect carries them, at the drive root as at any other path. An
  * earlier version read `folderPrefs` instead, which was wrong twice
  * over: the drive root never writes a `folderPrefs` entry, and reading a
  * second source let the arrows and the full-screen gallery walk two

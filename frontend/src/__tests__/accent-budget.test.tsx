@@ -6,6 +6,7 @@ import { stripComments } from "./helpers/sourceScan";
 
 import { DriveHome } from "@/components/DriveHome";
 import { EmptyState } from "@/components/EmptyState";
+import { FolderBrowser } from "@/components/FolderBrowser";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { SelectionBar } from "@/components/SelectionBar";
 import type { FileItem } from "@/types";
@@ -33,6 +34,9 @@ vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 // and `AddButton` are deliberately real — they are what is being measured.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/drive/main",
+  useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({ name: "main" }),
 }));
 vi.mock("next/link", () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,8 +50,9 @@ vi.mock("@/components/TreeToggle", () => ({ TreeToggle: () => <button>tree</butt
 vi.mock("@/components/FileGrid", () => ({ FileGrid: () => <div data-testid="grid" /> }));
 vi.mock("@/components/FileList", () => ({ FileList: () => <div data-testid="list" /> }));
 
+const mockClipboard: { clipboard: unknown } = { clipboard: null };
 vi.mock("@/components/ClipboardProvider", () => ({
-  useClipboard: () => ({ clipboard: null, clear: vi.fn(), copy: vi.fn(), cut: vi.fn(), paste: vi.fn(), isCut: () => false }),
+  useClipboard: () => ({ ...mockClipboard, clear: vi.fn(), copy: vi.fn(), cut: vi.fn(), paste: vi.fn(), isCut: () => false }),
 }));
 // The drive root's own screen is `DriveHome`. Its listing is not drawn
 // here — that is the Library screen, asserted at the bottom of this file
@@ -469,6 +474,58 @@ describe("accent budget", () => {
   });
 });
 
+describe("accent budget — Library root", () => {
+  // The screen, not its toolbar. A bare `FolderToolbar` answers the same
+  // for every `folderPath`, so a case rendering one cannot tell this
+  // screen from a folder and duplicates the folder-toolbar cases above
+  // exactly — every mutation kills the pair together. `FolderBrowser`
+  // brings the things that are only on a screen: the page header's
+  // actions, the clipboard banner, the selection bar.
+  beforeEach(() => {
+    mockGetDriveFiles.mockReset();
+    mockGetDriveFiles.mockResolvedValue({ data: [playableFile()], meta: { total: 1 } });
+    mockClipboard.clipboard = null;
+    localStorage.clear();
+  });
+  afterEach(cleanup);
+
+  const fillLabels = (root: HTMLElement) =>
+    [...new Set(accentFills(root).map((el) => el.textContent?.trim() ?? ""))];
+
+  it("spends its one fill on Add", async () => {
+    const { container } = render(<FolderBrowser driveName="main" folderPath="" view="library" />);
+    await screen.findAllByRole("button", { name: "Add" });
+    // Two, because the toolbar renders its left group once for each
+    // breakpoint and jsdom applies no stylesheet, so both are in the
+    // tree. Declared rather than deduped away, so a third copy — a real
+    // second fill drawn with the same label — cannot hide behind the set
+    // below.
+    expect(accentFills(container)).toHaveLength(2);
+    expect(fillLabels(container)).toEqual(["Add"]);
+  });
+
+  it("spends two while the clipboard is full, which §2.2 does not allow", () => {
+    // **This records a defect, not a rule.** `Paste here` is drawn
+    // `variant="primary"` (`FolderBrowser.tsx:742-749`), so while the
+    // clipboard is non-empty every folder screen — the Library root and
+    // any path alike — carries a second resting fill beside Add.
+    //
+    // Not introduced here: the banner has drawn it since clipboard
+    // operations landed, and no case could see it because this file
+    // rendered toolbars rather than screens and its clipboard was always
+    // null. It is pinned rather than fixed because which of the two
+    // should keep the fill is a DESIGN.md §2.2 decision over every folder
+    // screen, not a consequence of moving a listing.
+    //
+    // So this case goes **red when the defect is fixed**, on purpose:
+    // whoever fixes it updates the expectation deliberately instead of
+    // finding a green suite over a screen that lost its second fill.
+    mockClipboard.clipboard = { fileIds: ["f1"], drive: "main", path: "recipes", mode: "copy" };
+    const { container } = render(<FolderBrowser driveName="main" folderPath="" view="library" />);
+    expect(fillLabels(container)).toEqual(["Add", "Paste here"]);
+  });
+});
+
 describe("accent budget — drive root", () => {
   beforeEach(() => {
     mockGetDriveFiles.mockReset();
@@ -544,19 +601,4 @@ describe("accent budget — drive root", () => {
     }
   });
 
-  it("gives the Library root a budget of its own, spent on Add", () => {
-    // The listing of the drive root's children is a screen of its own now,
-    // and a screen's budget is one fill. Asserting only that `DriveHome`
-    // has one cannot say anything about this one — they are two screens,
-    // not a screen and its section — so the toolbar that carries it is
-    // rendered with the root's own shape: a location at `""`, which is a
-    // place to write into and has no folder path to pin.
-    const { container } = render(
-      <FolderToolbar {...folderProps} folderPath="" hasPlayableFiles />,
-    );
-    expect(screen.getAllByRole("button", { name: "Play" }).length).toBeGreaterThan(0);
-    expect([
-      ...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? "")),
-    ]).toEqual(["Add"]);
-  });
 });

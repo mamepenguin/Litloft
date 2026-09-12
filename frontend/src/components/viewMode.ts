@@ -14,8 +14,9 @@ function isViewMode(value: unknown): value is ViewMode {
 /**
  * The controlled/uncontrolled split every view switcher shares.
  *
- * Two controls now offer the same choice — `ViewToggle` on five screens and
- * `ViewMenu` on the folder toolbar — and each of them has to answer the same
+ * Two controls offer the same choice — `ViewToggle` wherever a bar has room
+ * for two icons, `ViewMenu` where one is competing for it — and each has to
+ * answer the same
  * question: is a controller passing the mode down, or is this switcher the
  * one that remembers it? Left in both components, the storage key and the
  * fallback would be written twice, and a switcher that persisted under a

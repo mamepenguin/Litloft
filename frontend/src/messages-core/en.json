@@ -74,7 +74,6 @@
     "empty": "No drives found",
     "emptyDescription": "Configure drives.json to add drives.",
     "folders": "Folders",
-    "files": "Files",
     "pickup": "Pickup",
     "recentAdded": "Recently Added",
     "favorites": "Favorites",

@@ -214,9 +214,9 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setFolderError(null);
   }, []);
 
-  // Only the folder grid and the tree are refetched, not the file
-  // listing below: a new folder holds no files, so nothing in that
-  // listing changes. `refreshFolders` covers the tree on its way past.
+  // Only the folder grid and the tree are refetched, not the content
+  // rows: a new folder holds no files, so nothing they show changes.
+  // `refreshFolders` covers the tree on its way past.
   const handleCreateFolder = useCallback(async () => {
     const name = newFolderName.trim();
     if (!name) return;
