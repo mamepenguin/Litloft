@@ -510,6 +510,10 @@ describe("accent budget — Library root", () => {
     // clipboard is non-empty every folder screen — the Library root and
     // any path alike — carries a second resting fill beside Add.
     //
+    // **Where it gets decided**: the stage 4 design pass, in a real
+    // browser, alongside the other things only a viewer can judge. Not
+    // here, and not by whoever next reads this file.
+    //
     // Not introduced here: the banner has drawn it since clipboard
     // operations landed, and no case could see it because this file
     // rendered toolbars rather than screens and its clipboard was always
