@@ -32,17 +32,14 @@ export function isSidebarLinkActive({
 
   const base = `/drive/${encodeURIComponent(currentDrive)}`;
 
-  if (href === `${base}?view=favorites`) {
-    return pathname === base && activeView === "favorites";
-  }
-  if (href === `${base}?view=recent`) {
-    return pathname === base && activeView === "recent";
-  }
-  if (href === `${base}?view=recent-added`) {
-    return pathname === base && activeView === "recent-added";
-  }
-  if (href === `${base}?view=all`) {
-    return pathname === base && activeView === "all";
+  // Matched by the view value the href carries, not against a list of
+  // the views that exist. A list is the wrong shape for this question:
+  // a row whose value is absent from it renders unselected, and nothing
+  // errors or warns, so the omission is only visible to someone looking
+  // at the sidebar for that one view.
+  const viewPrefix = `${base}?view=`;
+  if (href.startsWith(viewPrefix)) {
+    return pathname === base && activeView === href.slice(viewPrefix.length);
   }
   if (href === base) {
     return pathname === base && !activeView && !activeTag;
