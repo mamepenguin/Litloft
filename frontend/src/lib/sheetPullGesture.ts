@@ -20,9 +20,11 @@
  *
  * A gesture the scroller owns can still be handed over, but only after
  * the finger has pushed `SHEET_PULL_HANDOFF_PX` past the top — and that
- * is the only route, so a gesture that began by moving up needs the same
- * push before the sheet follows it back down. Deliberate: one rule for
- * reversals rather than one per starting state.
+ * is the only route, so a gesture that began by moving up needs that
+ * push too before the sheet follows it back down. Deliberate: one rule
+ * for reversals rather than one per starting state. What the reader pays
+ * for it differs, because in a scroller with room the scroll answers the
+ * way back first and the push begins only at the top.
  *
  * That last clause is what separates "scrolled to the top and kept
  * pushing" from "flicked hard and the momentum reached the top": the

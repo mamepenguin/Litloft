@@ -8,6 +8,7 @@ import type { DocumentCaptureController } from "@/lib/documentCapture";
 import type { PdfController } from "@/lib/pdfController";
 import type { ArchiveController } from "@/lib/archiveController";
 import { playerKind } from "@/lib/playerKind";
+import { useAddonSlots } from "../AddonSlotsProvider";
 import { AddonSlot } from "../AddonSlot";
 import { FilePreview } from "../FilePreview";
 import { MediaLayoutToggle } from "../MediaLayoutToggle";
@@ -27,14 +28,22 @@ import { MediaLayoutToggle } from "../MediaLayoutToggle";
  * containing block, so a box drawn *around* the player takes its travel
  * away instead (`globals.css`, `.media-detail-player-aside`).
  *
- * Gated on the kind rather than mounted for every file: a slot is
- * mounted only where its occupant could be about something, and provider
- * metadata is about a provider-hosted file. That is core's own rule and
- * is checked here (`MediaPlayerBlock.test.tsx`). What the occupant draws,
- * and what mounting it costs, are the addon's to state —
- * `docs/addons/media-import.md` — and deliberately not repeated here:
- * `addons/` is a submodule whose contents this repository does not track,
- * so nothing here fails when they move.
+ * **Drawn only when someone is in it, and that is two questions, not
+ * one.** The kind decides whether the slot could be about anything —
+ * provider metadata is about a provider-hosted file — and `hasSlot` says
+ * whether anything is registered to fill it. Both, because the box
+ * itself costs: it takes a grid row, and a named row is laid out whether
+ * or not its occupant drew anything, with `gap` on both sides of it. An
+ * empty box therefore adds the gap twice under the player, which is what
+ * a `.loft` file got on an install with no Media Import addon, with the
+ * addon switched off for the drive, or with its slot module failing to
+ * load. Answering only the first question fixes `.mp4` and leaves those
+ * three.
+ *
+ * What the occupant draws, and what mounting it costs, are the addon's to
+ * state — `docs/addons/media-import.md` — and deliberately not repeated
+ * here: `addons/` is a submodule whose contents this repository does not
+ * track, so nothing here fails when they move.
  */
 const MEDIA_ASIDE_SLOT = "loft-metadata";
 
@@ -98,6 +107,9 @@ export function MediaPlayerBlock({
   framed,
   layoutToggle,
 }: MediaPlayerBlockProps) {
+  const { hasSlot } = useAddonSlots();
+  const aside =
+    playerKind(file) === "loft" && hasSlot(MEDIA_ASIDE_SLOT);
   return (
     <>
       <div
@@ -144,7 +156,7 @@ export function MediaPlayerBlock({
           )}
         </div>
       </div>
-      {playerKind(file) === "loft" && (
+      {aside && (
         <div className="media-detail-player-aside">
           <AddonSlot
             id={MEDIA_ASIDE_SLOT}

@@ -677,11 +677,17 @@ expect(PLAYER_CASES.filter((c) => c.outcome === "fallback")).toHaveLength(1);
  * The cases where the player is pulled up at the end of the scroll, and
  * by how far.
  *
- * Sticky travels only inside its containing block, so a player taller
- * than what the canvas can show is dragged up by the page's last line.
+ * Sticky travels only inside its containing block, so where that block
+ * ends before the scroll does, its last line drags the player up.
  * Declared rather than derived from the outcome: it is a different
- * condition from either bound — the canvas's own visible height against
- * the player's — and the two only happen to coincide on this list.
+ * condition from either bound, and the two only happen to coincide on
+ * this list.
+ *
+ * **Not "the player is taller than the scrollport".** On the one pair
+ * that travels the player is 326.98 against a 327px scrollport — very
+ * slightly shorter — and it travels anyway, because the page reserves
+ * room under it for the resting strip. The block running out is the
+ * mechanism; a comparison of those two heights is not.
  *
  * **The distance is declared too, not just the direction.** A
  * `toBeLessThan` is satisfied by one pixel of travel as readily as by
@@ -703,12 +709,14 @@ expect(Object.keys(TRAVEL_PX)).toHaveLength(1);
  * Every travelling pair is a `fallback` pair, and the two lists are not
  * the same list by accident.
  *
- * A player only travels when it is taller than what the canvas can show,
- * and a player that fills the scrollport leaves nothing under it — which
- * is the same condition `fallback` names. So where the edge moves there
- * was never a derived snap to go stale, and where a snap was derived the
- * edge does not move. That is the whole reason one measurement at the top
- * of the page is good for the rest of it.
+ * A player travels when its containing block runs out before the scroll
+ * does, which on this page means the player has taken so much of the
+ * scrollport that what is reserved below it no longer fits — and a player
+ * that takes the scrollport leaves nothing under it, which is the
+ * condition `fallback` names. So where the edge moves there was never a
+ * derived snap to go stale, and where a snap was derived the edge does
+ * not move. That is the whole reason one measurement at the top of the
+ * page is good for the rest of it.
  *
  * Asserted as a subset rather than left to the reader: a pair that
  * travelled *and* derived would be a stale number nothing here would

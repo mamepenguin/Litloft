@@ -187,10 +187,15 @@ const GESTURES: {
   {
     // And what that costs, stated rather than left to be discovered: a
     // gesture that went up first is the scroller's, and the handoff is
-    // the only way back — so the finger has to push the full
-    // `SHEET_PULL_HANDOFF_PX` *past where it turned* before the sheet
-    // follows. One rule for reversals, in a sheet that scrolls and in one
-    // that does not.
+    // the only way back, so the finger has to push
+    // `SHEET_PULL_HANDOFF_PX` **past the top** before the sheet follows.
+    //
+    // In a sheet that cannot scroll, "past the top" is measured from
+    // where the finger turned, because no part of the reversal was
+    // answered by scrolling. In one that can, the scroll answers it first
+    // and the push starts only once the scroller is back at its top — so
+    // the same rule costs the reader more there. The rule is one; the
+    // distance is not, and this row is the non-scrolling half of it.
     name: "nothing to scroll, dragged up and then back down",
     begin: { scrollTop: 0, maxScroll: 0 },
     moves: [

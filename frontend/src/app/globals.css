@@ -919,10 +919,10 @@ div[data-citation-section-path]:not(tr) {
 
    Why the row is conditional: a named row is laid out whether or not
    anything occupies it, and `gap` is drawn on **both** sides of it. An
-   unoccupied row therefore costs `24 + 0 + 24` — so an unconditional
-   fourth row doubles the space under the player on every file that has
-   no occupant, which is most of them. Measured on the legacy grid at
-   760x900: 24px became 48px.
+   unoccupied row therefore costs the gap twice over, so an
+   unconditional fourth row doubles the space under the player on every
+   file with no occupant — which is most of them. The condition is the
+   occupant's own class and not something always true, or the row is back.
 
    In the shell layout there is no grid at all and the occupant is simply
    the next block down, which is why this is two rules and not one

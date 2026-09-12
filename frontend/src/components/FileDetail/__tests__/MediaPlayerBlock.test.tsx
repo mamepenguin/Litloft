@@ -39,6 +39,13 @@ vi.mock("../../MediaLayoutToggle", () => ({
   MediaLayoutToggle: () => <button type="button">layout</button>,
 }));
 
+/** Which slots have an occupant registered, per case. */
+const filled = new Set<string>();
+
+vi.mock("../../AddonSlotsProvider", () => ({
+  useAddonSlots: () => ({ hasSlot: (id: string) => filled.has(id) }),
+}));
+
 function makeFile(overrides: Partial<FileItem> = {}): FileItem {
   return {
     image_width: null,
@@ -74,7 +81,9 @@ const LOFT = {
   mime_type: "application/vnd.litloft.loft+json",
 };
 
-function renderBlock(file: FileItem) {
+function renderBlock(file: FileItem, slots: string[] = ["loft-metadata"]) {
+  filled.clear();
+  for (const id of slots) filled.add(id);
   const { container } = render(
     <MediaPlayerBlock
       file={file}
@@ -122,13 +131,36 @@ describe("the player block", () => {
     expect(aside!.className).toContain("media-detail-player-aside");
   });
 
-  it("does not ask for provider metadata about a file that has none", () => {
-    // Core's own rule: a slot is mounted where its occupant could be
-    // about something. Provider metadata is about a provider-hosted
-    // file, so a local `.mp4` draws neither the box nor the slot.
-    const { aside, slot } = renderBlock(makeFile());
-    expect(aside).toBeNull();
-    expect(slot).toBeNull();
+  /**
+   * Both reasons the box may be absent, declared as a table.
+   *
+   * The kind and the occupancy are two questions, and answering only the
+   * first is what shipped: a `.loft` file on an install without the
+   * addon — or with it switched off for the drive, or with its slot
+   * module failing to load — still drew an empty box, which takes a grid
+   * row and so costs the row gap twice under the player. Both rows here,
+   * because the one that was missing is the one the example did not
+   * cover.
+   */
+  const ABSENT = [
+    { name: "a local file, with the slot filled", loft: false, filled: true },
+    { name: "a provider file, with nothing to fill it", loft: true, filled: false },
+    { name: "neither", loft: false, filled: false },
+  ];
+
+  it("declares every reason the box is not drawn", () => {
+    expect(ABSENT).toHaveLength(3);
+  });
+
+  describe.each(ABSENT)("draws no box for $name", ({ loft, filled: full }) => {
+    it("neither the box nor the slot", () => {
+      const { aside, slot } = renderBlock(
+        makeFile(loft ? LOFT : {}),
+        full ? ["loft-metadata"] : [],
+      );
+      expect(aside).toBeNull();
+      expect(slot).toBeNull();
+    });
   });
 
   it("keeps the core action row inside the playable surface", () => {
