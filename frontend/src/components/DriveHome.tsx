@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { FileItem, PaginatedResponse, WatchHistoryItem } from "@/types";
 import { getDriveFiles, getWatchHistory } from "@/lib/api";
 import { UploadZone } from "@/components/UploadZone";
+import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 import { AddButton } from "./AddButton";
 import { AddonSlot } from "./AddonSlot";
@@ -88,6 +89,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const t = useTranslations("drive");
   const { nickname } = useProfile();
   const hasProfile = nickname !== null;
+  const refreshTree = useTreeRefresh();
   const [continueWatching, setContinueWatching] = useState<WatchHistoryItem[]>([]);
   const [continueWatchingLoading, setContinueWatchingLoading] = useState(false);
   const [recentlyPlayed, setRecentlyPlayed] = useState<WatchHistoryItem[]>([]);
@@ -252,7 +254,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   // never notice a change made on another device.
   const refreshPage = useCallback(() => {
     void refetchAllSections();
-  }, [refetchAllSections]);
+    // The tree pane is on this page — the header draws its toggle — and
+    // this is the only thing that tells it the drive changed shape. Both
+    // entrances need it: an upload finishing here writes into the drive
+    // root, and `drive.structure_changed` can be anything. It reached the
+    // tree through the folder grid's refresh, which is not where it
+    // belonged.
+    refreshTree();
+  }, [refetchAllSections, refreshTree]);
 
   useWebSocketRefresh(
     ["drive.structure_changed", "drive.file_updated"],

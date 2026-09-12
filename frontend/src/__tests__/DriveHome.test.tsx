@@ -36,6 +36,11 @@ vi.mock("@/components/ClipboardProvider", () => ({
 }));
 
 // Mock drag and drop
+const mockRefreshTree = vi.fn();
+vi.mock("@/components/TreeRefreshContext", () => ({
+  useTreeRefresh: () => mockRefreshTree,
+}));
+
 vi.mock("@/hooks/useDragAndDrop", () => ({
   useDragAndDrop: () => ({
     dragState: { isDragging: false, draggedFolderPath: null },
@@ -116,6 +121,7 @@ const makeWatchHistoryItem = (id: string): WatchHistoryItem => ({
 
 describe("DriveHome", () => {
   beforeEach(() => {
+    mockRefreshTree.mockClear();
     vi.clearAllMocks();
     mockProfile.nickname = null;
     mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
@@ -233,6 +239,21 @@ describe("DriveHome", () => {
       await waitFor(() =>
         expect(mockGetDriveFiles.mock.calls.length).toBeGreaterThan(before),
       );
+    });
+
+    it("tells the folder tree the drive changed shape", async () => {
+      // The tree pane is on this page — the header draws its toggle — and
+      // nothing else here tells it. The signal used to reach the tree
+      // through the folder grid's own refresh, which is gone; both of
+      // `refreshPage`'s entrances need it, and this is the one with an
+      // emitter to press.
+      render(<Live initial={null} />);
+      await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalled());
+      mockRefreshTree.mockClear();
+
+      emit("drive.structure_changed", "media");
+
+      await waitFor(() => expect(mockRefreshTree).toHaveBeenCalled());
     });
 
     it("refetches on a content update, so favourites stay current", async () => {
