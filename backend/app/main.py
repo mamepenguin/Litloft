@@ -41,15 +41,36 @@ def _run_purge_batch(
 ) -> tuple[list[str], set[tuple[str, str]], set[str]]:
     """Synchronous purge work — runs in a thread via asyncio.to_thread.
 
-    Also returns the drives touched. Their names are read off the row before
-    ``physical_delete`` runs, because the purge notification is emitted after
-    the delete, when the ids no longer resolve to anything.
+    Also returns the drives touched, because the caller emits the purge
+    notification after this returns, when the ids no longer resolve to
+    anything.
+
+    Two things here are load-bearing and each has a failure it prevents:
 
     ``unpurgeable`` is what makes the loop terminate. The batch query is
-    re-run from the top after each commit rather than paged, so a row that
-    raises and is only logged comes back in the next batch unchanged; with
-    nothing committed, the same rows are re-read forever. Excluding them is
-    what turns "this one cannot be deleted" into progress rather than a spin.
+    re-run from the top rather than paged, so a row that raises and is only
+    logged comes back in the next batch unchanged; with nothing committed,
+    the same rows are re-read forever.
+
+    **A row is committed, or rolled back, on its own.** ``physical_delete``
+    deletes and flushes the row before its last step, so a failure in that
+    tail leaves a pending DELETE in the session. Under a shared batch commit
+    that DELETE rides out on the next row's success — destroying the file and
+    the row while this function reports the id as unpurgeable and no
+    ``files.purged`` ever names it. Committing per row also puts the id in
+    ``all_purged_ids`` only once its delete is durable, so a commit that
+    raises cannot announce a purge that was rolled back.
+
+    ``_PURGE_BATCH_SIZE`` is therefore the size of a query page, not of a
+    transaction. Do not fold these back into one commit per batch: a
+    savepoint is not an alternative here, because pysqlite does not emit its
+    own ``BEGIN`` and SQLite commits on ``RELEASE`` of the outermost
+    savepoint, so the per-row transaction would be real while the code said
+    otherwise.
+
+    The unlink is outside all of this and does not need to be inside it: a
+    tail failure leaves the bytes gone and the row back, and the retry finds
+    the file already absent, skips it, and completes.
     """
     all_purged_ids: list[str] = []
     folders_to_check: set[tuple[str, str]] = set()
@@ -66,24 +87,22 @@ def _run_purge_batch(
             batch = query.limit(_PURGE_BATCH_SIZE).all()
             if not batch:
                 break
-            purged = 0
             for file in batch:
                 file_id = file.id
                 drive = file.drive
                 folder_path = file.folder_path
                 try:
                     physical_delete(db, file)
+                    db.commit()
                 except Exception:
+                    db.rollback()
                     unpurgeable.add(file_id)
                     logger.exception("Failed to purge file %s", file_id)
                     continue
+                all_purged_ids.append(file_id)
                 purged_drives.add(drive)
                 if folder_path:
                     folders_to_check.add((drive, folder_path))
-                purged += 1
-                all_purged_ids.append(file_id)
-            if purged:
-                db.commit()
         except Exception:
             db.rollback()
             logger.exception("Error during trash purge")
@@ -150,6 +169,14 @@ def _rmdir_up_to_root(directory: Path, root: Path) -> None:
 _loaded_addons: dict[str, dict] = {}
 _addon_startup_fns: list[Callable[[], Coroutine]] = []
 
+#: Where in-process addons are discovered. A module-level name rather than an
+#: expression inside the loader so a test can point it at a directory it owns:
+#: writing packages into the real one leaves executables in a path that is
+#: gitignored, is not dockerignored, and that ``backend/Dockerfile`` copies
+#: into the runtime image, where a leftover from a killed run would mount as
+#: an addon with nothing in ``git status`` to say why.
+_ADDONS_DIR = Path(__file__).parent.parent / "addons"
+
 
 def _load_addons(app: FastAPI) -> None:
     """Discover and load addon routers from backend/addons/.
@@ -160,7 +187,7 @@ def _load_addons(app: FastAPI) -> None:
       ``{"label": "Download", "icon": "download", "href": "/download"}``
     - ``on_startup`` (optional): async function called during lifespan
     """
-    addons_path = Path(__file__).parent.parent / "addons"
+    addons_path = _ADDONS_DIR
     if not addons_path.is_dir():
         logger.info("No addons directory found (skipping)")
         return

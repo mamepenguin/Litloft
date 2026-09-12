@@ -1,10 +1,11 @@
 """The startup trash auto-purge: ``main._run_purge_batch`` and its wrapper.
 
-This is the only code in the tree that deletes a user's files from disk
-without the user asking at that moment, so the properties held here are the
-ones whose failure is unrecoverable: what the cutoff admits, that a file
-that cannot be deleted does not take the run down with it, and that the run
-ends.
+This is the only code that deletes a user's files *from a drive* without the
+user asking at that moment — the qualifier is load-bearing, because
+``upload.cleanup_abandoned_uploads`` runs from the same lifespan and removes
+staged upload directories. So the properties held here are the ones whose
+failure is unrecoverable: what the cutoff admits, that a file that cannot be
+deleted does not take the run down with it, and that the run ends.
 
 ``test_trash.py::test_purge_cleans_empty_folders`` writes the batch query,
 the folder collection and the delete out again in its own body instead of
@@ -13,6 +14,7 @@ a defect in the loop leaves it green.
 """
 
 import asyncio
+import logging
 import shutil
 import threading
 from datetime import UTC, datetime, timedelta
@@ -21,6 +23,7 @@ from pathlib import Path
 import pytest
 
 import app.main as main
+import app.services.fileops as fileops
 from app.models import File
 from tests.conftest import TEST_DRIVE
 
@@ -29,10 +32,12 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 # The bound on a run that is supposed to end. ``_run_purge_batch`` re-runs
 # its query from the top rather than paging, so a row it cannot delete and
 # does not exclude comes back unchanged forever — a failure with no error and
-# no end. Any finite bound tells that apart from a slow run; the value only
-# has to clear the slowest honest case here, which is one chunk-and-a-half of
-# real deletes.
-_TERMINATION_TIMEOUT_SECONDS = 20
+# no end. Any finite bound tells that apart from a slow run. It is kept close
+# to the slowest honest call rather than generously above it, because a
+# regression here does not fail one test: every test that drives a failing
+# delete waits out the whole bound, so the bound is what the file costs on the
+# day it fires. Timings go in the PR body.
+_TERMINATION_TIMEOUT_SECONDS = 4
 
 
 def _seed_trashed(db, drive_dir, filename, *, days_ago, folder="trash-src", on_disk=True):
@@ -267,6 +272,117 @@ class TestARowThatCannotBeDeleted:
         db.expire_all()
         assert db.query(File).filter(File.id == stuck_id).first() is not None
 
+    def test_the_count_it_reports_is_the_count_it_left(
+        self, client, monkeypatch, caplog
+    ):
+        """The warning is the only operator-facing signal the fix produces.
+
+        ``docs/user-guide/trash-and-missing.md`` sends the operator here to
+        find out that something is stuck, so the number has to be the number
+        of rows still in the trash — which is also what the test below
+        measures from the other side.
+        """
+        c, db, drive_dir, _ = client
+        for index in range(3):
+            _seed_trashed(db, drive_dir, f"stuck{index}.mp4", days_ago=31)
+        _seed_trashed(db, drive_dir, "ok.mp4", days_ago=31)
+
+        real_delete = main.physical_delete
+
+        def raise_for_stuck(session, target):
+            if target.filename.startswith("stuck"):
+                raise ValueError("Drive not found")
+            return real_delete(session, target)
+
+        monkeypatch.setattr(main, "physical_delete", raise_for_stuck)
+
+        with caplog.at_level(logging.WARNING, logger="app.main"):
+            _run_with_deadline(lambda: main._run_purge_batch(_cutoff()))
+
+        assert "Trash purge left 3 file(s) behind" in caplog.text
+        db.expire_all()
+        assert db.query(File).count() == 3
+
+    def test_a_failure_after_the_row_was_flushed_still_leaves_the_row(
+        self, client, monkeypatch
+    ):
+        """``physical_delete`` is not atomic, and the batch commit is shared.
+
+        It unlinks, then ``db.delete`` + ``db.flush``, and only then calls
+        ``_ensure_empty_folder_tracked`` — two more queries and a drive
+        lookup. A raise in that tail leaves a pending DELETE in the session,
+        and the commit that the batch's *other* rows earn would carry it:
+        the row and the file both gone, the id absent from
+        ``all_purged_ids`` so no ``files.purged`` names it, and the warning
+        above reporting it as retained. The per-row savepoint is what stops
+        that, so the case needs a failure from inside ``physical_delete``
+        rather than from a stub that replaces it.
+        """
+        c, db, drive_dir, _ = client
+        stuck_id = _seed_trashed(db, drive_dir, "a_stuck.mp4", days_ago=31).id
+        ok_id = _seed_trashed(db, drive_dir, "b_ok.mp4", days_ago=31).id
+
+        real_tracker = fileops._ensure_empty_folder_tracked
+        calls = []
+
+        def raise_on_the_first_tail(session, drive, folder_path):
+            calls.append(1)
+            if len(calls) == 1:
+                raise OSError("stat failed on the drive")
+            return real_tracker(session, drive, folder_path)
+
+        monkeypatch.setattr(
+            fileops, "_ensure_empty_folder_tracked", raise_on_the_first_tail
+        )
+
+        purged_ids, _folders, _drives = _run_with_deadline(
+            lambda: main._run_purge_batch(_cutoff())
+        )
+
+        assert purged_ids == [ok_id]
+        db.expire_all()
+        assert {f.id for f in db.query(File).all()} == {stuck_id}
+
+    def test_the_next_run_finishes_what_the_failure_left(
+        self, client, monkeypatch
+    ):
+        """The savepoint restores the row, not the bytes.
+
+        ``physical_delete`` unlinks before it touches the database, so after
+        the tail fails the file is already gone while the row is back. That
+        is the state the retry has to cope with, and it does: the unlink is
+        skipped for a path that no longer exists and the purge completes, so
+        the id reaches ``files.purged`` on the following run instead of never.
+        """
+        c, db, drive_dir, _ = client
+        stuck_id = _seed_trashed(db, drive_dir, "a_stuck.mp4", days_ago=31).id
+        _seed_trashed(db, drive_dir, "b_ok.mp4", days_ago=31)
+
+        real_tracker = fileops._ensure_empty_folder_tracked
+        calls = []
+
+        def raise_on_the_first_tail(session, drive, folder_path):
+            calls.append(1)
+            if len(calls) == 1:
+                raise OSError("stat failed on the drive")
+            return real_tracker(session, drive, folder_path)
+
+        monkeypatch.setattr(
+            fileops, "_ensure_empty_folder_tracked", raise_on_the_first_tail
+        )
+        _run_with_deadline(lambda: main._run_purge_batch(_cutoff()))
+
+        monkeypatch.setattr(
+            fileops, "_ensure_empty_folder_tracked", real_tracker
+        )
+        purged_ids, _folders, _drives = _run_with_deadline(
+            lambda: main._run_purge_batch(_cutoff())
+        )
+
+        assert purged_ids == [stuck_id]
+        db.expire_all()
+        assert db.query(File).count() == 0
+
     def test_its_drive_is_not_announced_as_purged(self, client, monkeypatch):
         """``purged_drives`` feeds the ``files.purged`` broadcast.
 
@@ -315,6 +431,38 @@ class TestTheBatchLoop:
         assert drives == {TEST_DRIVE}
         db.expire_all()
         assert db.query(File).count() == 0
+
+    def test_a_failing_commit_announces_nothing(self, client, monkeypatch):
+        """An id earns its place in the event at the commit, not at the flush.
+
+        A commit that raises is caught per row like any other failure: the
+        row is rolled back, excluded, and still in the trash. Returning its
+        id anyway would have ``purge_expired_trash`` broadcast a purge that
+        did not happen, and every client drop a file that is still there.
+        """
+        c, db, drive_dir, _ = client
+        file_id = _seed_trashed(db, drive_dir, "old.mp4", days_ago=31).id
+
+        real_session_factory = main.SessionLocal
+
+        def refusing_session():
+            session = real_session_factory()
+            session.commit = lambda: (_ for _ in ()).throw(
+                RuntimeError("database is locked")
+            )
+            return session
+
+        monkeypatch.setattr(main, "SessionLocal", refusing_session)
+
+        purged_ids, folders, drives = _run_with_deadline(
+            lambda: main._run_purge_batch(_cutoff())
+        )
+
+        assert purged_ids == []
+        assert folders == set()
+        assert drives == set()
+        db.expire_all()
+        assert db.query(File).filter(File.id == file_id).first() is not None
 
     def test_a_database_failure_ends_the_run_instead_of_retrying(
         self, client, monkeypatch
@@ -378,13 +526,29 @@ def _drive_until(make_coro):
         loop.close()
 
 
+#: What the interval between passes must be, declared here rather than read
+#: from ``main``. Reading it from the module under test makes any change to it
+#: agree with itself, including a change to zero — which turns the task into a
+#: busy loop re-querying the whole trash table forever, the same failure the
+#: inner loop's exclusion set exists to prevent, one level out.
+_EXPECTED_PURGE_INTERVAL_SECONDS = 86400
+
+
 class _PassRecorder:
     """Stubs for one pass of ``purge_expired_trash``, and what it did.
 
-    ``purge_expired_trash`` loops forever with a 24-hour sleep at the end, so
-    a pass is observed rather than awaited: the folder cleanup is the last
-    step before that sleep, and signalling from there is what says the pass
-    is over.
+    ``purge_expired_trash`` never returns — it is a ``while True`` whose last
+    statement is the interval sleep — so a pass is observed at that sleep.
+    The stub records the delay and then parks, which both ends the pass at a
+    point on the event loop's own thread and makes "exactly one pass" true:
+    with the real sleep the task would be cancelled mid-wait, and with no
+    sleep at all nothing here would ever be signalled.
+
+    The earlier version signalled from the folder-cleanup stub instead. That
+    runs on a ``to_thread`` worker, and ``asyncio.Event.set`` is not
+    thread-safe — the wake-up landed late, which let extra passes hide behind
+    the observation, and it detected the end of a pass by a side effect of
+    one of the functions under test.
     """
 
     def __init__(self, batch_result):
@@ -392,10 +556,14 @@ class _PassRecorder:
         self.cutoffs = []
         self.emits = []
         self.cleanups = []
+        self.sleeps = []
         self.pass_done = asyncio.Event()
         self.emit_seen = asyncio.Event()
+        self._real_sleep = asyncio.sleep
 
     def install(self, monkeypatch):
+        real_sleep = self._real_sleep
+
         def fake_batch(cutoff):
             self.cutoffs.append(cutoff)
             return self.batch_result
@@ -406,13 +574,19 @@ class _PassRecorder:
 
         def fake_cleanup(folders):
             self.cleanups.append(folders)
+
+        async def fake_sleep(delay, *args, **kwargs):
+            self.sleeps.append(delay)
             self.pass_done.set()
+            # Park here for the rest of the test; the task is cancelled.
+            await real_sleep(3600)
 
         monkeypatch.setattr(main, "_run_purge_batch", fake_batch)
         monkeypatch.setattr(main.event_hooks, "emit", fake_emit)
         monkeypatch.setattr(
             main, "_cleanup_empty_folders_after_purge", fake_cleanup
         )
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
     async def run_one_pass(self, *, expect_emit):
         """Drive exactly one pass and stop.
@@ -426,11 +600,15 @@ class _PassRecorder:
         """
         task = asyncio.create_task(main.purge_expired_trash())
         try:
-            await asyncio.wait_for(self.pass_done.wait(), timeout=5)
+            await asyncio.wait_for(
+                self.pass_done.wait(), timeout=_TERMINATION_TIMEOUT_SECONDS
+            )
             if expect_emit:
-                await asyncio.wait_for(self.emit_seen.wait(), timeout=5)
+                await asyncio.wait_for(
+                    self.emit_seen.wait(), timeout=_TERMINATION_TIMEOUT_SECONDS
+                )
             else:
-                await asyncio.sleep(0)
+                await self._real_sleep(0)
         finally:
             task.cancel()
             try:
@@ -473,7 +651,11 @@ class TestTheScheduledRun:
         event, payload, drives = recorder.emits[0]
         assert event == "files.purged"
         assert payload == {"file_ids": ids}
-        assert drives == ["alpha", "beta"]
+        # Membership, not order: no consumer of ``files.purged`` reads an
+        # order out of ``drives``, and a two-element set asserted as a list
+        # is decided by string hash randomisation rather than by the code.
+        assert set(drives) == {"alpha", "beta"}
+        assert len(drives) == 2
 
     def test_nothing_purged_emits_nothing(self, monkeypatch):
         """An empty trash is every run but one. A broadcast on each would
@@ -484,6 +666,23 @@ class TestTheScheduledRun:
         _drive_until(lambda: recorder.run_one_pass(expect_emit=False))
 
         assert recorder.emits == []
+
+    def test_the_pass_ends_by_sleeping_the_declared_interval(
+        self, monkeypatch
+    ):
+        """Nothing else holds the outer loop's only pause.
+
+        ``purge_expired_trash`` is started with ``create_task`` and runs for
+        the life of the process. Without this await it re-queries the whole
+        trash table on a worker thread with no gap — the failure the inner
+        loop was fixed for, moved one level out and just as silent.
+        """
+        recorder = _PassRecorder(([], set(), set()))
+        recorder.install(monkeypatch)
+
+        _drive_until(lambda: recorder.run_one_pass(expect_emit=False))
+
+        assert recorder.sleeps == [_EXPECTED_PURGE_INTERVAL_SECONDS]
 
     def test_the_folder_cleanup_runs_whether_or_not_anything_was_purged(
         self, monkeypatch
@@ -567,11 +766,10 @@ class TestEmptyFolderCleanup:
 
         assert parent.is_dir()
 
-    def test_the_walk_does_not_leave_the_drive(self, client):
-        """``folder_path`` comes out of the database, and the walk resolves
-        it against the drive root before climbing. A row carrying a traversal
-        would otherwise have this function removing directories on the host.
-        """
+    def test_a_traversal_in_folder_path_does_not_leave_the_drive(self, client):
+        """``folder_path`` comes out of the database and is joined to the
+        drive root, so a row carrying ``..`` would otherwise have this
+        function removing directories on the host."""
         c, _db, drive_dir, _ = client
         outside = drive_dir.parent / "outside-the-drive"
         outside.mkdir()
@@ -579,6 +777,48 @@ class TestEmptyFolderCleanup:
         main._rmdir_up_to_root(drive_dir / ".." / "outside-the-drive", drive_dir)
 
         assert outside.is_dir()
+
+    def test_a_symlinked_folder_does_not_leave_the_drive(self, client):
+        """The shape a user can actually produce, and the one the lexical
+        reading of a path misses.
+
+        ``..`` cannot reach ``folder_path`` through any writing path here —
+        ``validate_path_safe`` guards those. A symlink inside a drive
+        pointing out of it needs no involvement from this code at all: the
+        user makes it on the host. Containment therefore has to be decided
+        after following links, which is what ``resolve()`` does and what
+        normalising the path textually does not; with the walk reading the
+        path lexically, the directory below is destroyed.
+        """
+        c, _db, drive_dir, _ = client
+        outside = drive_dir.parent / "outside-the-drive"
+        (outside / "victim").mkdir(parents=True)
+        (drive_dir / "link").symlink_to(outside, target_is_directory=True)
+
+        main._rmdir_up_to_root(drive_dir / "link" / "victim", drive_dir)
+
+        assert (outside / "victim").is_dir()
+        assert outside.is_dir()
+
+    def test_a_drive_root_that_is_itself_a_symlink_still_gets_cleaned(
+        self, client, tmp_path
+    ):
+        """The other direction of the same resolution.
+
+        A drive whose configured path is a symlink is ordinary — it is how a
+        mount gets a stable name. If only the target were resolved and not
+        the root, every path would compare as outside its own drive and the
+        cleanup would quietly stop working everywhere.
+        """
+        real = tmp_path / "real-drive"
+        (real / "a" / "b").mkdir(parents=True)
+        link = tmp_path / "linked-drive"
+        link.symlink_to(real, target_is_directory=True)
+
+        main._rmdir_up_to_root(link / "a" / "b", link)
+
+        assert not (real / "a").exists()
+        assert real.is_dir()
 
     def test_the_drive_root_itself_is_never_removed(self, client):
         c, _db, drive_dir, _ = client
@@ -597,12 +837,24 @@ class TestEmptyFolderCleanup:
         would abandon every folder queued behind it.
         """
         c, _db, drive_dir, _ = client
-        leaf = drive_dir / "cleanable"
-        leaf.mkdir()
 
-        main._cleanup_empty_folders_after_purge(
-            {("no-such-drive", "whatever"), (TEST_DRIVE, "cleanable")}
-        )
+        # Both orders, explicitly. The argument is a set, so which drive is
+        # reached first is decided by string hash randomisation — on a seed
+        # that puts the good drive first the folder is already gone before
+        # anything raises, and the test says nothing about abandonment.
+        for position, order in enumerate(
+            [
+                [("no-such-drive", "whatever"), (TEST_DRIVE, "cleanable")],
+                [(TEST_DRIVE, "cleanable"), ("no-such-drive", "whatever")],
+            ]
+        ):
+            leaf = drive_dir / f"cleanable{position}"
+            leaf.mkdir()
+            named = [
+                (drive, path if drive != TEST_DRIVE else leaf.name)
+                for drive, path in order
+            ]
+            main._cleanup_empty_folders_after_purge(named)
 
-        assert not leaf.exists()
-        assert drive_dir.is_dir()
+            assert not leaf.exists()
+            assert drive_dir.is_dir()

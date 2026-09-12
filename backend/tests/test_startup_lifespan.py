@@ -14,7 +14,6 @@ Three subjects, all reached only at startup:
 
 import importlib
 import logging
-import shutil
 import sys
 import textwrap
 from pathlib import Path
@@ -27,9 +26,8 @@ import app.main as main
 from app.main import app
 from app.services import addon_registry
 
-#: Packages this module writes into ``backend/addons``. Declared rather than
-#: discovered: teardown removes exactly these, so a tree that already holds
-#: real addons (the runtime image) is left as it was.
+#: Prefix for the packages this module writes. They live in the test's own
+#: ``tmp_path``, never in ``backend/addons`` — see ``addons_dir``.
 _PACKAGE_PREFIX = "zz_test_addon_"
 
 
@@ -41,58 +39,73 @@ def _write_addon(root: Path, name: str, body: str) -> None:
 
 
 @pytest.fixture()
-def addons_dir():
-    """Yield ``backend/addons``, creating it if the layout has none.
+def addons_dir(tmp_path, monkeypatch):
+    """An ``addons`` package the test owns, pointed at by the loader.
 
-    Both layouts are real: the test image copies only ``backend/app`` and
-    ``backend/tests``, so there is no directory; the runtime image has one
-    full of addons. Teardown removes only what the test added, plus the
-    directory itself when this fixture is what created it.
+    The loader imports ``addons.<name>.router`` by absolute name, so the
+    directory has to be called ``addons`` and its parent has to be on
+    ``sys.path``. Both are arranged here against ``tmp_path``.
+
+    It is not ``backend/addons``. That path is gitignored, is not
+    dockerignored, and ``backend/Dockerfile`` copies it into the runtime
+    image while deleting only the symlinks in it — so a package left there by
+    a killed run would be baked into the next production build and mounted as
+    an addon, with nothing in ``git status`` to say where it came from.
+    Writing under ``tmp_path`` removes that path entirely rather than
+    guarding it, and it is also what lets the assertions below be absolute:
+    the loader sees this directory and nothing else, in every layout.
     """
-    root = Path(main.__file__).parent.parent / "addons"
-    created_root = not root.exists()
-    if created_root:
-        root.mkdir()
-    init_file = root / "__init__.py"
-    created_init = not init_file.exists()
-    if created_init:
-        init_file.write_text("")
+    root = tmp_path / "addons"
+    root.mkdir()
+    (root / "__init__.py").write_text("")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setattr(main, "_ADDONS_DIR", root)
+
+    # `addons` may already be imported from the real tree in a runtime image;
+    # the fresh one must win for the duration and the real one must come back.
+    real_addons_modules = {
+        name: module
+        for name, module in sys.modules.items()
+        if name == "addons" or name.startswith("addons.")
+    }
+    for name in real_addons_modules:
+        del sys.modules[name]
 
     registry_snapshot = dict(addon_registry._registry)
     loaded_snapshot = dict(main._loaded_addons)
     startup_snapshot = list(main._addon_startup_fns)
+    # Emptied for the duration, not merely restored afterwards. `app.main`
+    # runs `_load_addons(app)` at import, so in a tree that has addons these
+    # three arrive non-empty and every assertion below would have to be
+    # written as a delta against whatever the image happened to ship.
+    addon_registry._registry.clear()
+    main._loaded_addons.clear()
+    main._addon_startup_fns.clear()
     importlib.invalidate_caches()
     try:
         yield root
     finally:
-        # Process state first: a failure while removing files must not leave
-        # this module's addons registered for every test that follows.
-        for module_name in list(sys.modules):
-            if module_name == "addons" or module_name.startswith("addons."):
-                del sys.modules[module_name]
+        for name in [
+            name
+            for name in sys.modules
+            if name == "addons" or name.startswith("addons.")
+        ]:
+            del sys.modules[name]
+        sys.modules.update(real_addons_modules)
         addon_registry._registry.clear()
         addon_registry._registry.update(registry_snapshot)
         main._loaded_addons.clear()
         main._loaded_addons.update(loaded_snapshot)
         main._addon_startup_fns[:] = startup_snapshot
-
-        if created_root:
-            shutil.rmtree(root)
-        else:
-            for package in sorted(root.glob(f"{_PACKAGE_PREFIX}*")):
-                shutil.rmtree(package) if package.is_dir() else package.unlink()
-            if created_init:
-                init_file.unlink()
-            shutil.rmtree(root / "__pycache__", ignore_errors=True)
         importlib.invalidate_caches()
 
 
 def _load(root: Path) -> FastAPI:
     """Run the loader against a throwaway app and return it.
 
-    ``root`` is not passed on: ``_load_addons`` computes the directory from
-    ``app/main.py``'s ``__file__``. Taking it as an argument is what makes the
-    dependency on the ``addons_dir`` fixture visible at each call site.
+    ``root`` is not passed on: the loader reads ``main._ADDONS_DIR``, which
+    the ``addons_dir`` fixture has pointed at this directory. Taking it as an
+    argument is what makes that dependency visible at each call site.
     """
     importlib.invalidate_caches()
     target = FastAPI()
