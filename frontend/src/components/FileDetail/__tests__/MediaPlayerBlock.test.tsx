@@ -132,24 +132,36 @@ describe("the player block", () => {
   });
 
   /**
-   * Both reasons the box may be absent, declared as a table.
+   * Why the box may be absent, enumerated — and it is not everything.
    *
-   * The kind and the occupancy are two questions, and answering only the
-   * first is what shipped: a `.loft` file on an install without the
-   * addon — or with it switched off for the drive, or with its slot
-   * module failing to load — still drew an empty box, which takes a grid
-   * row and so costs the row gap twice under the player. Both rows here,
-   * because the one that was missing is the one the example did not
-   * cover.
+   * Each row names one question this file can answer. The reason the
+   * table is declared per state rather than counted is that answering a
+   * subset is what shipped twice: the kind alone left every install
+   * without the addon, and the kind with the registry left every file
+   * whose occupant chose to draw nothing.
+   *
+   * **The third question is not in this table**, because it is not this
+   * file's to answer and jsdom could not see it anyway: an occupant that
+   * renders nothing leaves the box in the document, and what takes it out
+   * of the layout is `empty:hidden` plus the `:not(:empty)` in the rule
+   * that gives it a row. The case below asserts the class; the pixels are
+   * `mediaDetailTheaterCss.test.ts`'s selector comparison and, on the
+   * legacy grid, a measurement by hand — no fixture in this repository
+   * draws `.media-detail-grid`.
    */
   const ABSENT = [
     { name: "a local file, with the slot filled", loft: false, filled: true },
-    { name: "a provider file, with nothing to fill it", loft: true, filled: false },
+    {
+      name: "a provider file, with nothing registered to fill it",
+      loft: true,
+      filled: false,
+    },
     { name: "neither", loft: false, filled: false },
   ];
 
-  it("declares every reason the box is not drawn", () => {
+  it("declares every reason this file decides the box is not drawn", () => {
     expect(ABSENT).toHaveLength(3);
+    expect(new Set(ABSENT.map((a) => `${a.loft}${a.filled}`)).size).toBe(3);
   });
 
   describe.each(ABSENT)("draws no box for $name", ({ loft, filled: full }) => {
@@ -161,6 +173,22 @@ describe("the player block", () => {
       expect(aside).toBeNull();
       expect(slot).toBeNull();
     });
+  });
+
+  it("hides the box itself when its occupant drew nothing", () => {
+    // The question neither the kind nor the registry can answer. The
+    // occupant decides at render time and has reasons that are not
+    // failures — the Media Import panel draws nothing for a `.loft` file
+    // whose provider metadata has not been fetched, with the addon
+    // installed and its policy on. Without this the box stays in the
+    // document, takes its grid row, and the reader gets the row gap twice
+    // under the video for as long as that lasts.
+    //
+    // The class, not the layout: jsdom computes no `:empty` and lays
+    // nothing out. `AddButton` carries the same pairing over the same
+    // helper, for the same reason.
+    const { aside } = renderBlock(makeFile(LOFT));
+    expect(aside!.className.split(/\s+/)).toContain("empty:hidden");
   });
 
   it("keeps the core action row inside the playable surface", () => {

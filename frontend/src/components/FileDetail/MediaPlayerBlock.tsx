@@ -28,21 +28,39 @@ import { MediaLayoutToggle } from "../MediaLayoutToggle";
  * containing block, so a box drawn *around* the player takes its travel
  * away instead (`globals.css`, `.media-detail-player-aside`).
  *
- * **Drawn only when someone is in it, and that is two questions, not
- * one.** The kind decides whether the slot could be about anything —
- * provider metadata is about a provider-hosted file — and `hasSlot` says
- * whether anything is registered to fill it. Both, because the box
- * itself costs: it takes a grid row, and a named row is laid out whether
- * or not its occupant drew anything, with `gap` on both sides of it. An
- * empty box therefore adds the gap twice under the player, which is what
- * a `.loft` file got on an install with no Media Import addon, with the
- * addon switched off for the drive, or with its slot module failing to
- * load. Answering only the first question fixes `.mp4` and leaves those
- * three.
+ * **Drawn only when someone is in it — and "someone" is three
+ * questions, asked in three different places.** The box costs whether or
+ * not its occupant drew anything: it takes a named grid row, and such a
+ * row is laid out empty, with `gap` on both sides of it. So an empty box
+ * adds the gap twice under the player.
  *
- * What the occupant draws, and what mounting it costs, are the addon's to
- * state — `docs/addons/media-import.md` — and deliberately not repeated
- * here: `addons/` is a submodule whose contents this repository does not
+ * - **Is the slot about this file at all?** The kind, here. Provider
+ *   metadata is about a provider-hosted file.
+ * - **Did anyone declare the slot?** `hasSlot`, here. That is all it
+ *   answers — `AddButton` carries the same warning over the same helper:
+ *   an entry that declared it may still render nothing.
+ * - **Did the occupant draw anything?** `empty:hidden` on the box, and
+ *   `:not(:empty)` in the rule that gives it a row (`globals.css`).
+ *   Neither of the first two can answer this: the occupant decides at
+ *   render time, and it has reasons that are not failures. The Media
+ *   Import panel returns nothing for a `.loft` file whose provider
+ *   metadata has not been fetched, with the addon installed, its policy
+ *   on and the player working.
+ *
+ * Answering fewer than all three leaves the reader a doubled gap under
+ * the video: the kind alone left every install without the addon, the
+ * kind and the registry left every file whose occupant chose to draw
+ * nothing.
+ *
+ * **The box therefore appears when `/api/addons/status` answers, not on
+ * the first paint** — a declared trade. Reserving the row instead is the
+ * defect above; an occupant cannot be asked before the registry says
+ * there is one; and the occupant's own content waited on that request
+ * already.
+ *
+ * What the occupant draws is the addon's to state —
+ * `docs/addons/media-import.md` — and deliberately not repeated here:
+ * `addons/` is a submodule whose contents this repository does not
  * track, so nothing here fails when they move.
  */
 const MEDIA_ASIDE_SLOT = "loft-metadata";
@@ -157,7 +175,7 @@ export function MediaPlayerBlock({
         </div>
       </div>
       {aside && (
-        <div className="media-detail-player-aside">
+        <div className="media-detail-player-aside empty:hidden">
           <AddonSlot
             id={MEDIA_ASIDE_SLOT}
             props={{ fileId: file.id, drive: file.drive }}

@@ -83,32 +83,49 @@ describe("media detail theater sizing", () => {
     // full gap twice under every player that has no occupant, which is
     // most of them.
     //
-    // Declared as a pair per template, both directions: every template
-    // that names the row is behind the occupant's own `:has()`, and every
-    // template that does not exists. Asserting only the first would pass
-    // on a stylesheet with no unconditional template at all — which is a
-    // grid whose player has no area.
-    //
-    // **The condition is read as what it selects, not as the presence of
-    // `:has(`.** Measured: `:has(.media-detail-player)` is a condition
-    // that is always true, so a "conditional" row spelled that way brings
-    // the whole defect back, and a check for the substring alone stays
-    // green through it.
-    const templates = [
-      ...globalsCss().matchAll(
-        /([^\n}]*)\.media-detail-grid([^{]*)\{[^}]*grid-template-areas:([^;]*);/g,
-      ),
-    ].map(([, before, after, areas]) => ({
-      onTheOccupant: /:has\(\s*>?\s*\.media-detail-player-aside\s*\)/.test(
-        `${before}${after}`,
-      ),
-      anyCondition: `${before}${after}`.includes(":has("),
-      row: areas.includes("player-aside"),
-    }));
+    // **The selector is compared whole, not searched.** Two rounds of
+    // this case were substring tests and both were unsound: a check for
+    // `:has(` passed `:has(.media-detail-player)`, a condition that is
+    // always true; a check for `:has(> .media-detail-player-aside)`
+    // passed `:not(:has(> .media-detail-player-aside))`, which is that
+    // condition inverted — it restores the doubled gap *and* throws the
+    // occupant thousands of pixels down the page where there is one. A
+    // selector has no bounded list of ways to be wrong, so the four that
+    // are right are written out and anything else fails.
+    // Split on the block boundary rather than matched with an anchor: a
+    // selector is wrapped across lines when it is long enough, and a
+    // line-anchored pattern then reads only its last line — which is how
+    // the two-column variant first went missing from this comparison.
+    const templates = globalsCss()
+      .split("}")
+      .map((block) => block.split("{"))
+      .filter(
+        ([selector, body]) =>
+          body?.includes("grid-template-areas:") &&
+          selector.includes(".media-detail-grid"),
+      )
+      .map(([selector, body]) => ({
+        selector: selector.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, " ").trim(),
+        row: /grid-template-areas:[^;]*player-aside/.test(body),
+      }));
+
+    const OCCUPIED = ":has(> .media-detail-player-aside:not(:empty))";
+    const EXPECTED = [
+      { selector: ".media-detail-grid", row: false },
+      { selector: `.media-detail-grid${OCCUPIED}`, row: true },
+      {
+        selector:
+          '[data-media-layout="beside"] [data-media-width="wide"] .media-detail-grid',
+        row: false,
+      },
+      {
+        selector: `[data-media-layout="beside"] [data-media-width="wide"] .media-detail-grid${OCCUPIED}`,
+        row: true,
+      },
+    ];
     // The one-column grid and the two-column variant, each in both forms.
-    expect(templates).toHaveLength(4);
-    expect(templates.filter((t) => t.row && t.onTheOccupant)).toHaveLength(2);
-    expect(templates.filter((t) => !t.row && !t.anyCondition)).toHaveLength(2);
+    expect(EXPECTED).toHaveLength(4);
+    expect(templates).toEqual(EXPECTED);
   });
 });
 

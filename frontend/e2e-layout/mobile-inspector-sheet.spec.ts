@@ -1010,9 +1010,9 @@ test.describe(PLAYER_GROUPS[1], () => {
     // slack before it had any content at all.
     const travel = TRAVEL_PX[playerKey(c.width, c.height, c.pLabel)];
     if (travel !== undefined) {
-      // Bounded by its containing block: a player taller than what the
-      // canvas can show is pulled up with the page's last line, by this
-      // much and not merely upwards.
+      // Bounded by its containing block: where that block runs out
+      // before the scroll does, its last line pulls the player up — by
+      // this much, and not merely upwards.
       expect(top.playerBottom - scrolled.playerBottom).toBeCloseTo(travel, 0);
 
       // And there was nothing to go stale. Asserted as the derivation's

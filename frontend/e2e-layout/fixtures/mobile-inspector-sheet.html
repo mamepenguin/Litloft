@@ -442,9 +442,10 @@
           // right whatever the margins did. "The player's bottom is
           // inside the scrollport" was the first form of the guard and is
           // inert — true of 40px of slack as well — and "the canvas
-          // cannot scroll" is false at the one viewport where the player
-          // is taller than the scrollport. The height of the box after it
-          // is the property itself.
+          // cannot scroll" is false at the viewport where the player
+          // takes the whole scrollport and the page still reserves room
+          // below it for the resting strip. The height of the box after
+          // the player is the property itself.
           belowHeight: below ? below.getBoundingClientRect().height : null,
           // Relative to the box that scrolls: "the strip is at the top of
           // its scrollport" is the sticky property, and an absolute
