@@ -87,7 +87,9 @@ def _run_purge_batch(
     # costs one property or the other. ``skipped`` is the termination
     # invariant: every row this run failed to delete, for any reason, must
     # leave the query or the loop re-reads it forever. ``retained`` is the
-    # operator signal: of those, the ones still sitting in the trash.
+    # operator signal: of those, the ones this run is reporting as left
+    # behind. It is not a census of the trash, and the gap is deliberate —
+    # see the arm below.
     skipped: set[str] = set()
     retained: set[str] = set()
     while True:

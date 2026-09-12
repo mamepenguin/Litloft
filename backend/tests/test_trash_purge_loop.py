@@ -13,6 +13,7 @@ calling ``_run_purge_batch``. It therefore holds nothing about this function:
 a defect in the loop leaves it green.
 """
 
+import ast
 import asyncio
 import logging
 from contextlib import contextmanager
@@ -37,17 +38,17 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 # does not exclude comes back unchanged forever — a failure with no error and
 # no end. Any finite bound tells that apart from a slow run.
 #
-# There are two bounds because there are two honest runtimes, not because only
-# one population can hang. Both can: a run driving failing rows does almost no
-# work and returns in milliseconds, while the bulk test's runtime scales with
-# rows times commits — and the bulk test catches its own kind of stall, where
-# the per-row commit stops committing and the re-query stops advancing, with
-# no failing delete anywhere. One number for both means either the bulk test
-# fails under load or every hang is charged the bulk test's headroom.
+# Two bounds because there are two honest runtimes, not because only one
+# population can hang. Both can: a run driving failing rows does almost no
+# work, while the bulk test's runtime scales with rows times commits — and
+# the bulk test catches its own kind of stall, where the per-row commit stops
+# committing and the re-query stops advancing, with no failing delete
+# anywhere. One number for both makes the bulk test fail under load or
+# charges every hang the bulk test's headroom.
 #
-# Each is set from its own measured worst case with room over it, and no
-# higher, because the bound is also what a real stall costs. Timings go in
-# the PR body.
+# Neither value is tuned to its worst case; both have room to spare, and the
+# cost of that room is what a genuine stall takes to report. Measurements are
+# in the PR body, where they are dated.
 _TERMINATION_TIMEOUT_SECONDS = 10
 _BULK_TIMEOUT_SECONDS = 60
 
@@ -320,11 +321,9 @@ class TestARowThatCannotBeDeleted:
         """The warning is the only operator-facing signal the fix produces.
 
         ``docs/user-guide/trash-and-missing.md`` sends the operator here to
-        find out that something is stuck, so the number has to be the number
-        of rows this run could not delete and left in the trash. It is not a
-        count of everything in the trash, and it is not a count of everything
-        the run skipped: a row another session purged is skipped and not
-        counted, which is the distinction the two sets exist to keep.
+        find out that something is stuck. What the number counts is the rows
+        *this run* failed to delete and left in place — not everything in the
+        trash, and not everything the run skipped.
         """
         c, db, drive_dir, _ = client
         for index in range(3):
@@ -651,22 +650,32 @@ def _drive_until(make_coro):
         loop.close()
 
 
-def drive_one_pass(recorder, *, expect_emit=False):
-    """Drive one pass of ``purge_expired_trash`` and insist it happened.
+def drive_one_pass(recorder):
+    """Drive ``purge_expired_trash`` to its parking point and insist it got there.
 
-    The "did it happen" check is here rather than in each test because the
-    tests cannot be relied on to make it: an earlier version recorded the
-    timeout on the recorder and left every caller to assert it, four of six
-    did not, and the one whose only assertion is an *absence*
-    (``emits == []``) then passed while watching a busy loop for the whole
-    bound. An absence is satisfied by nothing having run at all, so the
-    assertion that something ran cannot be optional.
+    The check is here rather than in each test because the tests cannot be
+    relied on to make it: an earlier version left every caller to assert it,
+    four of six did not, and the one whose only assertion is an *absence*
+    then passed while watching a busy loop for the whole bound. An absence is
+    satisfied by nothing having run at all, so that assertion cannot be
+    optional — which is also why the AST check at the end of this file
+    exists, since "everyone goes through the helper" is otherwise a
+    convention and not a mechanism.
+
+    One use per recorder: ``pass_done`` is a latch and ``timed_out`` is never
+    reset, so a second call finds the flag already set and reports a pass
+    that did not run.
     """
-    _drive_until(lambda: recorder._run_one_pass(expect_emit=expect_emit))
+    assert not recorder.driven, (
+        "this recorder has already been driven; build a new one — pass_done "
+        "latches, so a reused recorder reports a pass it did not run"
+    )
+    recorder.driven = True
+    _drive_until(recorder._run_one_pass)
     assert not recorder.timed_out, (
-        f"no pass completed within {_TERMINATION_TIMEOUT_SECONDS}s — "
-        f"sleeps={recorder.sleeps} cutoffs={len(recorder.cutoffs)} "
-        f"cleanups={len(recorder.cleanups)}"
+        f"purge_expired_trash did not reach its interval sleep within "
+        f"{_TERMINATION_TIMEOUT_SECONDS}s — slept={recorder.sleeps} "
+        f"batches={len(recorder.cutoffs)} cleanups={len(recorder.cleanups)}"
     )
 
 
@@ -703,8 +712,8 @@ class _PassRecorder:
         self.cleanups = []
         self.sleeps = []
         self.pass_done = asyncio.Event()
-        self.emit_seen = asyncio.Event()
         self.timed_out = False
+        self.driven = False
         self._real_sleep = asyncio.sleep
 
     def install(self, monkeypatch):
@@ -716,7 +725,6 @@ class _PassRecorder:
 
         async def fake_emit(event, payload, drives=None):
             self.emits.append((event, payload, drives))
-            self.emit_seen.set()
 
         def fake_cleanup(folders):
             self.cleanups.append(folders)
@@ -736,15 +744,15 @@ class _PassRecorder:
         )
         monkeypatch.setattr(asyncio, "sleep", fake_sleep)
 
-    async def _run_one_pass(self, *, expect_emit):
-        """Drive exactly one pass and stop.
+    async def _run_one_pass(self):
+        """Drive one pass of ``purge_expired_trash`` and stop.
 
-        The emit is fired with ``create_task`` and never awaited, so when the
-        cleanup signals, it has been scheduled and not necessarily run.
-        ``expect_emit`` says which of the two waits is the honest one: wait
-        for the emit itself where one is expected, and where none is, yield
-        once so anything already scheduled runs before the absence is
-        asserted.
+        The pass is observed at the interval sleep, which the loop reaches
+        after creating the emit task and awaiting the folder cleanup — so
+        anything the pass scheduled has run by the time this returns. An
+        earlier version also waited on a separate emit signal and yielded
+        once where no emit was expected; both were left behind when the
+        observation point moved, and deleting them changed nothing.
         """
         task = asyncio.create_task(main.purge_expired_trash())
         try:
@@ -755,13 +763,6 @@ class _PassRecorder:
                 await asyncio.wait_for(
                     self.pass_done.wait(), timeout=_TERMINATION_TIMEOUT_SECONDS
                 )
-                if expect_emit:
-                    await asyncio.wait_for(
-                        self.emit_seen.wait(),
-                        timeout=_TERMINATION_TIMEOUT_SECONDS,
-                    )
-                else:
-                    await self._real_sleep(0)
             except asyncio.TimeoutError:
                 self.timed_out = True
         finally:
@@ -800,7 +801,7 @@ class TestTheScheduledRun:
         recorder = _PassRecorder((ids, set(), {"beta", "alpha"}))
         recorder.install(monkeypatch)
 
-        drive_one_pass(recorder, expect_emit=True)
+        drive_one_pass(recorder)
 
         assert len(recorder.emits) == 1
         event, payload, drives = recorder.emits[0]
@@ -1031,3 +1032,85 @@ class TestEmptyFolderCleanup:
 
             assert not leaf.exists()
             assert drive_dir.is_dir()
+
+
+class TestTheHelperIsTheOnlyWayIn:
+    """``drive_one_pass`` holds a check no individual test can be trusted to.
+
+    It has now failed twice as a convention. First the timeout assertion was
+    left to each test and four of six omitted it; then the check moved into
+    this helper, and the helper itself stayed optional — ``_drive_until`` and
+    ``_run_one_pass`` are still importable, and a test written the way every
+    test was written one commit earlier passes against a busy loop.
+
+    So the convention is enforced here instead, by reading this file. The
+    same shape as ``test_event_loop_hygiene.py``, and for the same reason:
+    the rule is about how tests are *written*, which no amount of running
+    them can observe.
+    """
+
+    #: Names a scheduled-run test must not call directly. ``drive_one_pass``
+    #: is the one caller of each, and it is exempted by name below.
+    BYPASSES = frozenset({"_drive_until", "_run_one_pass"})
+
+    def _names_in(self, node):
+        """Every identifier mentioned, called or not.
+
+        Not just calls: ``_drive_until(recorder._run_one_pass)`` passes the
+        coroutine function by reference, and a scan for ``ast.Call`` walks
+        straight past it — which it did, and the positive control below is
+        what said so.
+        """
+        for inner in ast.walk(node):
+            if isinstance(inner, ast.Name):
+                yield inner.id
+            elif isinstance(inner, ast.Attribute):
+                yield inner.attr
+
+    def test_every_scheduled_run_test_drives_through_the_helper(self):
+        tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+        classes = {
+            node.name: node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef)
+        }
+        assert "TestTheScheduledRun" in classes, (
+            "the class this check governs was renamed or removed; point it at "
+            "the new name rather than deleting it"
+        )
+
+        tests = [
+            node
+            for node in classes["TestTheScheduledRun"].body
+            if isinstance(node, ast.FunctionDef) and node.name.startswith("test_")
+        ]
+        # Declared, not derived: a scan that silently found nothing would
+        # otherwise pass, which is the failure this class exists to prevent.
+        assert len(tests) == 6
+
+        offenders = {
+            node.name: sorted(set(self._names_in(node)) & self.BYPASSES)
+            for node in tests
+            if set(self._names_in(node)) & self.BYPASSES
+        }
+        assert offenders == {}, (
+            f"{offenders} bypass drive_one_pass, so nothing asserts that a "
+            f"pass actually ran. A test whose only assertion is an absence "
+            f"then passes against a task that never ran at all."
+        )
+
+    def test_the_helper_itself_still_calls_what_it_forbids(self):
+        """A positive control.
+
+        Both forbidden names are expected to appear exactly once in the file
+        outside the tests — inside ``drive_one_pass``. If they stop appearing
+        there the scan above is looking at nothing, and would pass for that
+        reason.
+        """
+        tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+        helper = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "drive_one_pass"
+        )
+        assert set(self._names_in(helper)) & self.BYPASSES == self.BYPASSES
