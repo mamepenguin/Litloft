@@ -8,6 +8,18 @@ Files and folders are browsed on the Library screen, which opens at the drive ro
 
 The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity rows that surface recent or in-progress items. The screenshot predates the current layout: the home page no longer lists files of its own, **Add** sits at the right-hand end of the breadcrumb row, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail.
 
+## The sidebar
+
+The column on the left is the same on every screen of a drive, and it is in three parts.
+
+At the top are the places you go on purpose: **Home**, then **Library**, then any addon pages. Home is what is worth continuing or returning to; Library is the drive's own folders and files, opening at the drive root. Under a **Views** heading below them are five pages that each show the whole drive through one question — **Favourites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files**. They are pages in their own right, not tabs inside Library.
+
+In the middle are the sections you build yourself: Collections, Pins, Smart Folders and Tags. These are the only ones you can collapse and reorder, and your order is remembered per drive.
+
+At the bottom are the rows about the drive rather than about what is in it: **Trash**, **Missing Files** when the drive has any, and, for an administrator, **Dashboard** under an **Administration** heading. They sit apart because they are reached rarely, and a row pressed once a month costs the same glance as one pressed every day when the two sit together.
+
+One row is highlighted at a time. Standing in a folder highlights **Library** — including in a folder reached from the tree — except where a row of yours names that exact place: a pinned folder highlights its **Pin**, and a tag you have applied highlights that **tag**. Search results, a collection and an addon page highlight their own entry, or none, and never Library.
+
 ## Folder grid
 
 - Folders show a file count and what that count is made of: *138 items · Video 135 · Document 3*. Both the count and the breakdown are **recursive** — they cover every active file in the folder *and* its subfolders. When everything in a folder is one kind, that kind is named without repeating the number: *12 items · Document*. At most the two largest kinds are named; the rest is the difference from the total.

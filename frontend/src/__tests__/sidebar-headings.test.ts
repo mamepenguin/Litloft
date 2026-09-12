@@ -92,19 +92,24 @@ describe("sidebar section headings", () => {
   });
 
   it("draws every one of them from it", () => {
-    // Addons, Collections, Pins, Smart folders, Tags. Library and
-    // Drives left with item 10. Adding a section means updating this
-    // number — which is the point, because it makes someone look at
-    // the list.
+    // Views and Addons at the top, Collections, Pins, Smart folders and
+    // Tags in the reader's own order, Administration at the bottom.
+    // Adding a section means updating this number — which is the point,
+    // because it makes someone look at the list.
+    //
+    // The count is of *uses*, not of distinct labels: one file draws two
+    // of them, so the set below is shorter than the number above and the
+    // two are not redundant.
     const uses = files.flatMap((f) =>
       [...readFileSync(f, "utf-8").matchAll(/<SidebarSectionHeading\b/g)].map(() => rel(f)),
     );
-    expect(uses.length).toBe(5);
+    expect(uses.length).toBe(7);
     expect([...new Set(uses)].sort()).toEqual([
       "frontend/src/components/sidebar/SidebarCollectionsSection.tsx",
       "frontend/src/components/sidebar/SidebarLibrarySection.tsx",
       "frontend/src/components/sidebar/SidebarPinsSection.tsx",
       "frontend/src/components/sidebar/SidebarSmartFoldersSection.tsx",
+      "frontend/src/components/sidebar/SidebarSystemSection.tsx",
       "frontend/src/components/sidebar/SidebarTagsSection.tsx",
     ]);
   });

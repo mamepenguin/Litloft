@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { AlertTriangle, Clock, Download, FilePlus, Files, Gauge, Home, NotebookPen, Package, Rss, Star, ThumbsUp, Trash2, Warehouse, type LucideIcon } from "lucide-react";
+import { Clock, Download, FilePlus, Files, FolderTree, Home, NotebookPen, Package, Rss, Star, ThumbsUp, Warehouse, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
 import { addonUrlFor, type AddonMeta } from "@/lib/addons";
-import type { Drive, DriveSummary } from "@/types";
+import type { Drive } from "@/types";
 import { SidebarDriveSwitcher } from "./SidebarDriveSwitcher";
 import { SidebarSectionHeading } from "./SidebarSectionHeading";
 
@@ -19,22 +19,20 @@ interface SidebarLibrarySectionProps {
   currentDrive: string | null;
   /** Every drive this viewer may see; feeds the switcher at the top. */
   drives?: Drive[];
-  linkClass: (href: string) => string;
+  linkClass: (href: string, active?: boolean) => string;
   close: () => void;
   addons?: Record<string, AddonMeta>;
-  driveSummary?: DriveSummary | null;
-  // Whether the current viewer is an admin (sees every protected
-  // drive). The dashboard link points at admin-only surfaces, so we
-  // only render it for admins. Defaults to hidden until the
-  // auth-status probe resolves, mirroring the /admin gate's
-  // "don't flash admin UI to non-admins" posture.
-  isAdmin?: boolean;
+  /**
+   * Whether the Library row is the selected one. Passed rather than
+   * derived from its href: Library is selected on folder URLs it does
+   * not link to, and unselected on one it does. See
+   * `libraryRowActive.ts`.
+   */
+  libraryActive: boolean;
 }
 
-export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, addons, driveSummary, isAdmin }: SidebarLibrarySectionProps) {
+export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, addons, libraryActive }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
-  const tMissing = useTranslations("missing");
-  const tAdmin = useTranslations("admin");
 
   const addonEntries = addons
     ? Object.entries(addons)
@@ -59,6 +57,17 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
       </Link>
       {driveBase && (
         <>
+          <Link href={`${driveBase}?view=library`} onClick={close} className={linkClass(`${driveBase}?view=library`, libraryActive)}>
+            <FolderTree size={16} />
+            {t("library")}
+          </Link>
+          {/* The five rows below are pages in their own right, not tabs
+              inside Library. The heading groups them so the purpose rows
+              above it stay the shortest list on the column, and it names
+              what they have in common: each is the whole drive seen
+              through one question, where Library is the drive seen
+              through its folders. */}
+          <SidebarSectionHeading label={t("views")} />
           <Link href={`${driveBase}?view=favorites`} onClick={close} className={linkClass(`${driveBase}?view=favorites`)}>
             <Star size={16} />
             {t("favorites")}
@@ -79,26 +88,7 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
             <Files size={16} />
             {t("allFiles")}
           </Link>
-          <Link href={`${driveBase}?view=trash`} onClick={close} className={linkClass(`${driveBase}?view=trash`)}>
-            <Trash2 size={16} />
-            {t("trash")}
-          </Link>
-          {driveSummary && driveSummary.missing_count > 0 && (
-            <Link href={`${driveBase}?view=missing`} onClick={close} className={linkClass(`${driveBase}?view=missing`)}>
-              <AlertTriangle size={16} className="text-warm-silver" />
-              <span className="flex-1">{tMissing("sidebar")}</span>
-              <span className="flex-shrink-0 rounded-full bg-warm-silver/20 px-1.5 py-0.5 text-[10px] font-semibold text-warm-silver">
-                {driveSummary.missing_count}
-              </span>
-            </Link>
-          )}
         </>
-      )}
-      {isAdmin && (
-        <Link href="/admin" onClick={close} className={linkClass("/admin")}>
-          <Gauge size={16} />
-          {tAdmin("title")}
-        </Link>
       )}
 
       {addonEntries.length > 0 && (

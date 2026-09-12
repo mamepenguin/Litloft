@@ -134,7 +134,7 @@ describe("the drive's fixed sidebar rows", () => {
   it("renders more than nothing, so the table above is not vacuous", () => {
     render(<Sidebar />);
     expect(driveRows().length).toBe(FIXED_SIDEBAR_ROWS.length);
-    expect(FIXED_SIDEBAR_ROWS.length).toBe(8);
+    expect(FIXED_SIDEBAR_ROWS.length).toBe(9);
   });
 });
 
@@ -155,10 +155,15 @@ describe("which row the sidebar highlights", () => {
     expect(highlighted()).toEqual([label]);
   });
 
-  it("lights nothing inside a folder, where no fixed row is the subject", () => {
+  it("lights Library inside a folder, which is the subject there", () => {
+    // Library is selected on a URL it does not link to, so its highlight
+    // cannot come from its href — `Sidebar` passes it as the override
+    // `linkClass` takes. Measured through the mounted sidebar and not
+    // only against the predicate, because the override is the half that
+    // a unit test of the predicate cannot reach.
     pathname = `${ENCODED}/recipes`;
     render(<Sidebar />);
-    expect(highlighted()).toEqual([]);
+    expect(highlighted()).toEqual(["Library"]);
   });
 
   it("lights nothing under a tag filter, Home included", () => {

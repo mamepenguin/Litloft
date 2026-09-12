@@ -183,42 +183,48 @@ describe("sidebar top — item 10", () => {
   };
 
   it("puts the drive row above the views", () => {
-    const { container } = render(<SidebarLibrarySection {...props} />);
+    const { container } = render(<SidebarLibrarySection libraryActive={false} {...props} />);
     const text = container.textContent ?? "";
     expect(text.indexOf("media")).toBeLessThan(text.indexOf("Home"));
   });
 
-  it("has no LIBRARY heading over the views", () => {
-    render(<SidebarLibrarySection {...props} />);
-    expect(screen.queryByText("Library")).not.toBeInTheDocument();
+  it("heads the views with VIEWS, below the purpose rows and not over them", () => {
+    // "Library" names a destination here, never this group. The two are
+    // one word apart on the same column, so the position is what
+    // separates them: the heading comes after the Library row and before
+    // the first view (spec §5.1).
+    const { container } = render(<SidebarLibrarySection libraryActive={false} {...props} />);
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Library")).toBeLessThan(text.indexOf("Views"));
+    expect(text.indexOf("Views")).toBeLessThan(text.indexOf("Favorites"));
+    expect(screen.getByText("Views").closest("a")).toBeNull();
   });
 
   it("keeps the views, in order, and adds none", () => {
-    // Item 10 moves the drive list; it does not re-rank the views.
     // Asserted as the whole ordered list rather than a filtered subset:
-    // filtering to the five expected names makes the test blind to a
-    // sixth view inserted between them, to Trash moving above
-    // Favorites, and to a rename (which drops out of the filter and the
-    // expectation at the same time).
-    const { container } = render(<SidebarLibrarySection {...props} />);
+    // filtering to the expected names makes the test blind to a further
+    // view inserted between them, to a row moving above Favorites, and
+    // to a rename (which drops out of the filter and the expectation at
+    // the same time).
+    const { container } = render(<SidebarLibrarySection libraryActive={false} {...props} />);
     const labels = Array.from(container.querySelectorAll("a")).map((a) =>
       (a.textContent ?? "").trim(),
     );
     expect(labels).toEqual([
       "Litloft",
       "Home",
+      "Library",
       "Favorites",
       "Liked",
       "Recently Viewed",
       "Recently Added",
       "All Files",
-      "Trash",
     ]);
   });
 
   it("names the addon group through the catalogue, not in English source", () => {
     render(
-      <SidebarLibrarySection
+      <SidebarLibrarySection libraryActive={false}
         {...props}
         addons={{ knowledge: { label: "Knowledge", icon: "notebook-pen", href: "/", scope: "drive" } }}
       />,
