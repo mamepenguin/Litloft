@@ -319,10 +319,11 @@ function folderSection(): HTMLElement {
  * carries the path, which is what the card is keyed by, not what it
  * shows. `FolderCard` renders the name in the link's only `<span>`.
  *
- * Scoped to the Folders section for the reason `folderSection()` above
- * gives: the attribute has three producers, so an unscoped read would
- * answer "the grid drew nothing" with a card drawn by one of the other
- * two.
+ * Scoped to the Folders section as hardening only. `folderSection()`
+ * above records why that scoping has no witness in this file, and the
+ * measurement still holds: reverting this to a document-wide read leaves
+ * every case here green. Do not read the scoping as a property this
+ * suite proves.
  */
 function folderNamesOnScreen(): string[] {
   return Array.from(folderSection().querySelectorAll<HTMLElement>("[data-rename-focus]")).map(

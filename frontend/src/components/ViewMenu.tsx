@@ -51,7 +51,8 @@ export function ViewGroup({ mode, onSelect }: ViewProps) {
  * what lets a toolbar reach 案 2's target of one wordless control. Two
  * toolbars take it — the folder's and the archive's — which is why this and
  * `ToolbarMenu` sit under `components/` rather than under `folder/`. The four
- * screens that are neither keep `ViewToggle`.
+ * screens that are neither keep `ViewToggle`; which those are is
+ * enumerated by `ViewToggle.test.tsx`, not counted here.
  */
 export function ViewMenu({
   mode,

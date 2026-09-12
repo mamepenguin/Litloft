@@ -386,7 +386,7 @@ total, and both send you to the same place — Recently played is the
 whole history, so it holds everything Continue watching was showing you
 and more.
 
-The drive home does not list files of its own. The files that sit at the drive root are an ordinary folder listing of the root, reached at `/drive/<name>?view=library`. It is the same listing a folder gets, with the same toolbar and the same filters — the root differs only where a folder's *path* is what a feature needs, so view mode and sort fall back to the global preference rather than being remembered there, and **Pin this folder** is not offered.
+The drive home does not list files of its own. The files that sit at the drive root are an ordinary folder listing of the root, reached at `/drive/<name>?view=library`. It is the same listing a folder gets, with the same toolbar and the same filters — the root differs only where a folder's *path* is what a feature needs: view mode falls back to your global preference and sort to newest-first, neither being remembered for the root the way they are for a folder, and **Pin this folder** is not offered.
 
 ## Pinned folders
 

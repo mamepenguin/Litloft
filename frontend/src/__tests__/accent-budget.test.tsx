@@ -50,13 +50,18 @@ vi.mock("@/components/TreeToggle", () => ({ TreeToggle: () => <button>tree</butt
 vi.mock("@/components/FileGrid", () => ({ FileGrid: () => <div data-testid="grid" /> }));
 vi.mock("@/components/FileList", () => ({ FileList: () => <div data-testid="list" /> }));
 
+// Module-level and mutable, so it carries between `describe` blocks unless
+// something puts it back. `mockProfile` above is the same shape and this
+// file already learned that lesson from it, so the reset is global rather
+// than per-describe: a block that never mentions the clipboard is exactly
+// the one that will not think to reset it.
 const mockClipboard: { clipboard: unknown } = { clipboard: null };
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({ ...mockClipboard, clear: vi.fn(), copy: vi.fn(), cut: vi.fn(), paste: vi.fn(), isCut: () => false }),
 }));
-// The drive root's own screen is `DriveHome`. Its listing is not drawn
-// here — that is the Library screen, asserted at the bottom of this file
-// through the toolbar that carries its fill.
+// The drive root's own screen is `DriveHome`; the listing of its children
+// is the Library screen, which is a different screen with a budget of its
+// own. Both are asserted in this file, each by rendering itself.
 //
 // **`useProfile` is not ambient, and stubbing it hides a state.**
 // `hasProfile` gates both watch-history rows out of the tree, and their
@@ -238,6 +243,10 @@ const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
  * whatever the screens happen to use, and every wrong entry two earlier
  * drafts had was a variant no screen used yet.
  */
+beforeEach(() => {
+  mockClipboard.clipboard = null;
+});
+
 describe("what counts as a fill at rest", () => {
   const has = (token: string) => {
     const el = document.createElement("div");
@@ -484,7 +493,6 @@ describe("accent budget — Library root", () => {
   beforeEach(() => {
     mockGetDriveFiles.mockReset();
     mockGetDriveFiles.mockResolvedValue({ data: [playableFile()], meta: { total: 1 } });
-    mockClipboard.clipboard = null;
     localStorage.clear();
   });
   afterEach(cleanup);
@@ -526,6 +534,16 @@ describe("accent budget — Library root", () => {
     // finding a green suite over a screen that lost its second fill.
     mockClipboard.clipboard = { fileIds: ["f1"], drive: "main", path: "recipes", mode: "copy" };
     const { container } = render(<FolderBrowser driveName="main" folderPath="" view="library" />);
+    expect(fillLabels(container)).toEqual(["Add", "Paste here"]);
+  });
+
+  it("spends two at a named folder as well, which is what makes it general", () => {
+    // The claim above is about *every* folder screen, and one screen
+    // cannot hold it: a partial fix gating the banner on
+    // `folderPath === ""` would leave the root case red-on-fix and this
+    // one silently wrong. Both ends of the population, declared.
+    mockClipboard.clipboard = { fileIds: ["f1"], drive: "main", path: "other", mode: "copy" };
+    const { container } = render(<FolderBrowser driveName="main" folderPath="recipes" />);
     expect(fillLabels(container)).toEqual(["Add", "Paste here"]);
   });
 });

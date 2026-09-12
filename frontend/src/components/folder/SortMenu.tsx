@@ -92,9 +92,10 @@ export function SortGroup({
 /**
  * The listing's order, as one labelled control.
  *
- * `SortButton` — the bare `⇅` the archive and recovery toolbars use — is the same menu
- * behind a bare `⇅`. The face here reads the order that is on, which is what
- * takes it off the folder toolbar's list of controls that say nothing.
+ * `SortButton` is this same menu behind a bare `⇅`, for a bar with no room
+ * to say what the order is. The face here reads the order that is on, which
+ * is what takes it off the folder toolbar's list of controls that say
+ * nothing.
  */
 export function SortMenu({
   sort,
