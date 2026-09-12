@@ -574,19 +574,6 @@ describe("accent budget — drive root", () => {
     ).toEqual(["Add"]);
   });
 
-  it("still spends only one while a folder is being named", async () => {
-    // The inline Create is the folder toolbar's twin, in this screen's own
-    // copy of the markup. Reaching it means going through the Add menu,
-    // which is the only way the row opens now.
-    const { container } = render(<DriveHome driveName="main" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
-    fireEvent.click(screen.getByText("New Folder"));
-    expect(screen.getByPlaceholderText("Folder name...")).toBeInTheDocument();
-    expect(
-      [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
-    ).toEqual(["Add"]);
-  });
-
   it("puts Add in the header", async () => {
     render(<DriveHome driveName="main" />);
     const add = await screen.findByRole("button", { name: "Add" });

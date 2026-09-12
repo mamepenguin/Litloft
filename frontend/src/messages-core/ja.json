@@ -12,8 +12,6 @@
     "refresh": "更新",
     "seeAll": "すべて見る",
     "seeAllCount": "すべて見る（{count}）",
-    "showMoreCount": "さらに表示（{count}）",
-    "showLess": "表示を減らす",
     "download": "ダウンロード",
     "rename": "名前を変更",
     "move": "移動",
@@ -76,7 +74,6 @@
   "drive": {
     "empty": "ドライブがありません",
     "emptyDescription": "drives.jsonを設定してドライブを追加してください。",
-    "folders": "フォルダ",
     "pickup": "ピックアップ",
     "recentAdded": "最近追加",
     "favorites": "お気に入り",
