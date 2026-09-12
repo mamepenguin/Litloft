@@ -237,6 +237,13 @@ ROLES = {
     }),
     # A hand-rolled temporary is how all four spellings started.
     "hand-rolled-temporary": frozenset({"app/services/atomic_write.py"}),
+    # `_atomic` still takes `preserve_mode`, because the split has to be
+    # implemented somewhere. Nothing outside the module may reach it: the
+    # leading underscore is a convention, `from ... import _atomic` is not an
+    # error, and the signature test below only sees the four public names — so
+    # `_atomic(drive_path, preserve_mode=False)` would be exactly the accident
+    # the split exists to prevent, with every test green.
+    "private-entry-point": frozenset(),
 }
 
 
@@ -256,7 +263,18 @@ def _files_by_role():
     for path in root.rglob("*.py"):
         scanned += 1
         name = str(path.relative_to(root.parent))
+        inside_the_helper = name == "app/services/atomic_write.py"
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not inside_the_helper:
+                if isinstance(node, ast.ImportFrom) and any(
+                    alias.name == "_atomic" for alias in node.names
+                ):
+                    found["private-entry-point"].add(name)
+                elif (
+                    isinstance(node, ast.Call)
+                    and getattr(node.func, "id", None) == "_atomic"
+                ):
+                    found["private-entry-point"].add(name)
             if not isinstance(node, ast.Call):
                 continue
             function = node.func
@@ -290,6 +308,7 @@ def test_the_declared_roles_are_the_spellings_that_were_actually_found():
         "rename-by-path",
         "create-exclusive",
         "hand-rolled-temporary",
+        "private-entry-point",
     }
 
 
@@ -321,3 +340,28 @@ def test_every_call_site_passes_a_destination_and_nothing_else():
         "replace_file_contents": ["destination", "body"],
         "write_generated_file": ["destination", "body"],
     }
+
+
+def test_the_private_entry_point_is_reachable_only_from_its_own_module():
+    """A negative role needs a positive control, or it passes by not looking.
+
+    `rename-by-path` and `private-entry-point` are both declared empty, and an
+    empty result is what a broken scan returns too. This plants the shape the
+    scan is meant to find and checks it is seen.
+    """
+    import ast
+
+    planted = ast.parse(
+        "from app.services.atomic_write import _atomic\n"
+        "with _atomic(p, preserve_mode=False) as t:\n    pass\n"
+    )
+    hits = [
+        node
+        for node in ast.walk(planted)
+        if (
+            isinstance(node, ast.ImportFrom)
+            and any(alias.name == "_atomic" for alias in node.names)
+        )
+        or (isinstance(node, ast.Call) and getattr(node.func, "id", None) == "_atomic")
+    ]
+    assert len(hits) == 2
