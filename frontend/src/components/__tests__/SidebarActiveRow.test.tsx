@@ -43,6 +43,18 @@ const DRIVE = "家族ビデオ & co";
 const ENCODED = `/drive/${encodeURIComponent(DRIVE)}`;
 const DECODED = `/drive/${DRIVE}`;
 
+/**
+ * A pinned folder whose path needs encoding too, for the same reason the
+ * drive name does: `pinHrefFor` and the Library row's yield both have to
+ * agree about the spelling, and a path of `recipes` cannot tell them apart.
+ */
+const PINNED_PATH = "料理 & おやつ";
+let isAdmin = false;
+let overlay = false;
+const mockClose = vi.fn();
+const UNPINNED_PATH = "旅行";
+let pins: { path: string }[] = [];
+
 let pathname = ENCODED;
 let search = new URLSearchParams();
 let tags: { resolvedScope: { drive: string; folderPath: string | null }; items: { name: string; count: number }[] } | null =
@@ -57,8 +69,8 @@ vi.mock("next/navigation", () => ({
 vi.mock("../SidebarProvider", () => ({
   useSidebar: () => ({
     isOpen: true,
-    isOverlay: false,
-    close: vi.fn(),
+    isOverlay: overlay,
+    close: mockClose,
     refreshKey: 0,
   }),
 }));
@@ -79,10 +91,10 @@ vi.mock("../sidebar/useSidebarData", () => ({
   useSidebarData: () => ({
     drives: [{ name: DRIVE, file_count: 1 }],
     tags,
-    pins: [],
+    pins,
     collectionList: [],
     setCollectionList: vi.fn(),
-    authStatus: { is_admin: false },
+    authStatus: { is_admin: isAdmin },
     driveSummary: { missing_count: 3 },
   }),
 }));
@@ -116,6 +128,10 @@ beforeEach(() => {
   pathname = ENCODED;
   search = new URLSearchParams();
   tags = null;
+  pins = [];
+  isAdmin = false;
+  overlay = false;
+  mockClose.mockClear();
 });
 
 describe("the drive's fixed sidebar rows", () => {
@@ -138,6 +154,74 @@ describe("the drive's fixed sidebar rows", () => {
   });
 });
 
+/**
+ * Where the three parts of the column sit relative to each other.
+ *
+ * The rows are held by the set above; their *position* is not, and it is
+ * the whole of what this change does to the shape of the column (spec
+ * §5.1). Moving `SidebarSystemSection` above `{order.map(…)}` is a
+ * one-line edit that no other case can see.
+ *
+ * It needs the reader's own sections to actually render, which is why
+ * this block gives the data mock a pin and a tag: with all of them empty
+ * there is no "below" for the system rows to be below, and the assertion
+ * would hold over a column that has only two parts.
+ */
+describe("the column's three parts, in order", () => {
+  it("puts the reader's own sections between the purpose rows and the drive's", () => {
+    pins = [{ path: PINNED_PATH }];
+    tags = { resolvedScope: { drive: DRIVE, folderPath: null }, items: [{ name: "soup", count: 2 }] };
+    const { container } = render(<Sidebar />);
+    const text = container.textContent ?? "";
+    const at = (needle: string) => {
+      const i = text.indexOf(needle);
+      expect(i, `${needle} is not on the column`).not.toBe(-1);
+      return i;
+    };
+    // Library and All Files are the ends of the purpose block; Pins is a
+    // section the reader owns; Trash is the first of the drive's own.
+    expect(at("Library")).toBeLessThan(at("All Files"));
+    expect(at("All Files")).toBeLessThan(at(PINNED_PATH));
+    expect(at(PINNED_PATH)).toBeLessThan(at("Trash"));
+  });
+});
+
+/**
+ * The four props `Sidebar` hands `SidebarSystemSection`.
+ *
+ * `SidebarSystemSection.test.tsx` renders that component directly with
+ * props of its own, so it can say what the component does with them and
+ * nothing about what `Sidebar` passes. Both are new call sites, and two of
+ * them carry a stated contract: the dashboard is admin-only, and choosing
+ * a destination dismisses the sidebar in overlay mode alone (spec §5.2).
+ */
+describe("what Sidebar hands the system section", () => {
+  it("keeps the dashboard off the column for a viewer who is not an admin", () => {
+    render(<Sidebar />);
+    expect(document.body.textContent).not.toContain("Dashboard");
+  });
+
+  it("puts it there for one who is", () => {
+    isAdmin = true;
+    render(<Sidebar />);
+    expect(document.body.textContent).toContain("Dashboard");
+  });
+
+  it("dismisses an overlay sidebar when a system row is chosen, and only then", () => {
+    overlay = true;
+    const { unmount } = render(<Sidebar />);
+    driveRows().find((a) => a.textContent?.includes("Trash"))!.click();
+    expect(mockClose).toHaveBeenCalled();
+    unmount();
+
+    overlay = false;
+    mockClose.mockClear();
+    render(<Sidebar />);
+    driveRows().find((a) => a.textContent?.includes("Trash"))!.click();
+    expect(mockClose).not.toHaveBeenCalled();
+  });
+});
+
 describe("which row the sidebar highlights", () => {
   it.each(FIXED_SIDEBAR_ROWS)("lights $label alone at its own URL", ({ label, view }) => {
     if (view) search = new URLSearchParams({ view });
@@ -153,6 +237,46 @@ describe("which row the sidebar highlights", () => {
     if (view) search = new URLSearchParams({ view });
     render(<Sidebar />);
     expect(highlighted()).toEqual([label]);
+  });
+
+  /**
+   * The pin states, through the mounted sidebar rather than through the
+   * predicate.
+   *
+   * `libraryRowActive.test.ts` hands the predicate a `pinnedHrefs` list it
+   * builds itself, which shows the predicate consumes a list — not that
+   * `Sidebar` supplies one. The memo that builds it, its `pins`
+   * dependency, and the shared `pinHrefFor` are only reachable from here,
+   * and cutting the memo to `[]` is what a renamed `pin.path` or a dropped
+   * dependency degrades to. What that looks like on screen is arbitration
+   * 15 reversed: the Pin row **and** Library lit at once, which is why
+   * these assert the whole lit set and not just Library's absence.
+   */
+  it("lights the Pin alone inside a pinned folder, and Library yields", () => {
+    pins = [{ path: PINNED_PATH }];
+    pathname = `${ENCODED}/${encodeURIComponent(PINNED_PATH)}`;
+    render(<Sidebar />);
+    expect(highlighted()).toEqual([PINNED_PATH]);
+  });
+
+  it("yields to the pin on the decoded path too", () => {
+    // The half `samePath` carries. With a plain comparison the pin row
+    // goes dark here and Library lights instead, so this separates the
+    // two spellings rather than the two rows.
+    pins = [{ path: PINNED_PATH }];
+    pathname = `${DECODED}/${PINNED_PATH}`;
+    render(<Sidebar />);
+    expect(highlighted()).toEqual([PINNED_PATH]);
+  });
+
+  it("lights Library in a folder that is not the pinned one", () => {
+    // The complement: with a pin in the list and the reader somewhere
+    // else, Library keeps the highlight. Without this, "Library yields"
+    // is satisfied by a Library row that never lights on a folder at all.
+    pins = [{ path: PINNED_PATH }];
+    pathname = `${ENCODED}/${encodeURIComponent(UNPINNED_PATH)}`;
+    render(<Sidebar />);
+    expect(highlighted()).toEqual(["Library"]);
   });
 
   it("lights Library inside a folder, which is the subject there", () => {

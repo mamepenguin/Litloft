@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { isLibraryRowActive, pinHrefFor } from "../libraryRowActive";
 import { isSidebarLinkActive } from "../isSidebarLinkActive";
+import { FIXED_SIDEBAR_ROWS } from "./fixedRows";
 
 /**
  * Which single fixed row the sidebar lights, in every state that can
@@ -31,22 +32,23 @@ const BASE = `/drive/${DRIVE}`;
 /**
  * Every row whose highlight is decided by `isSidebarLinkActive`.
  *
- * Enumerated by role, not by file: the fixed rows of the two sections, the
- * Pin rows (`SidebarPinsSection` passes no override, so a pin decides the
- * same way), and an addon row. Leaving the pins out is what would make
- * "a pinned folder lights nothing" look correct — the row that takes the
- * highlight from Library has to be in the population, or the yield cannot
- * be told from a hole.
+ * The fixed rows come from `fixedRows.ts` rather than being written again
+ * here: that set is compared against the rendered DOM by
+ * `SidebarActiveRow.test.tsx`, so a row deleted from it fails there. A
+ * second hand-written copy could be walked back to any length with this
+ * file green, which is what the counts below would then be counted
+ * against (detector rule 5).
+ *
+ * Library is not among them — it is the subject, and its answer comes
+ * from `isLibraryRowActive` below. The three added here are rows this
+ * file needs and that set does not carry: an addon row, a Pin, and the
+ * admin dashboard, which is not drive-scoped.
  */
-const FIXED_ROWS = [
-  { name: "Home", href: BASE },
-  { name: "Favorites", href: `${BASE}?view=favorites` },
-  { name: "Liked", href: `${BASE}?view=liked` },
-  { name: "Recently Viewed", href: `${BASE}?view=recent` },
-  { name: "Recently Added", href: `${BASE}?view=recent-added` },
-  { name: "All Files", href: `${BASE}?view=all` },
-  { name: "Trash", href: `${BASE}?view=trash` },
-  { name: "Missing Files", href: `${BASE}?view=missing` },
+const FIXED_ROWS: { name: string; href: string }[] = [
+  ...FIXED_SIDEBAR_ROWS.filter((r) => r.label !== "Library").map((r) => ({
+    name: r.label,
+    href: r.view ? `${BASE}?view=${r.view}` : BASE,
+  })),
   { name: "Dashboard", href: "/admin" },
   { name: "Ask", href: `${BASE}/addons/intelligence` },
   { name: "Pin: recipes/soup", href: pinHrefFor(BASE, "recipes/soup") },
@@ -87,6 +89,11 @@ describe("which fixed sidebar row is lit", () => {
     // what is measured is that Library gives it up.
     ["a folder with a tag on it", { pathname: `${BASE}/recipes`, activeTag: "soup" }, []],
     ["the drive root with a tag on it", { pathname: BASE, activeTag: "soup" }, []],
+    // The state that decides the tag clause at the root. Without it, the
+    // row above holds *Home's* yield and not Library's: `activeView` is
+    // null there, so `isLibraryRootView` already answers false and the
+    // clause could be deleted with this table green.
+    ["the Library root with a tag on it", { pathname: BASE, activeView: "library", activeTag: "soup" }, []],
     ["a special view", { pathname: BASE, activeView: "favorites" }, ["Favorites"]],
     ["trash", { pathname: BASE, activeView: "trash" }, ["Trash"]],
     // One state, not two: a Smart Folder navigates to this same
@@ -97,6 +104,12 @@ describe("which fixed sidebar row is lit", () => {
     ["a collection", { pathname: `${BASE}/collections/c1` }, []],
     ["an addon page", { pathname: `${BASE}/addons/intelligence` }, ["Ask"]],
     ["the admin dashboard", { pathname: "/admin" }, ["Dashboard"]],
+    // `driveBase` and `pathname` can name different drives: `useCurrentDrive`
+    // takes an override, which is how opening a collection from another
+    // drive switches the column before the route follows. Library must not
+    // light over a path that is not this drive's.
+    ["a folder on another drive", { pathname: "/drive/other/recipes" }, []],
+    ["a page outside any drive", { pathname: "/settings" }, []],
   ];
 
   it.each(STATES)("lights %s as declared", (_name, url, expected) => {
@@ -111,7 +124,7 @@ describe("which fixed sidebar row is lit", () => {
     // one of them and the other stays put.
     const byCount = (n: number) => STATES.filter(([, , expected]) => expected.length === n);
     expect(byCount(1)).toHaveLength(9);
-    expect(byCount(0)).toHaveLength(4);
+    expect(byCount(0)).toHaveLength(7);
     expect(byCount(1).length + byCount(0).length).toBe(STATES.length);
   });
 });

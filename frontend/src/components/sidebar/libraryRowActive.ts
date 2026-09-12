@@ -62,6 +62,14 @@ export function isLibraryRowActive({
 }): boolean {
   if (!driveBase) return false;
 
+  // Before the root branch, not after it. A tag takes the highlight
+  // wherever it is applied, and `?view=library&tag=x` is a reachable URL —
+  // `app/drive/[name]/page.tsx` treats it as a location on purpose. Below
+  // the early return this clause governs folder paths only, and the root
+  // lights Library under a tag with no tag row taking it
+  // (`SidebarTagsSection` requires `!activeView`).
+  if (activeTag) return false;
+
   if (samePath(pathname, driveBase)) {
     // At the drive root only the Library view is Library. A bare
     // `/drive/{d}` is Home, and any other `?view=` names its own row.
@@ -72,7 +80,6 @@ export function isLibraryRowActive({
   if (isDriveSearchPath(pathname)) return false;
   if (isDriveAddonPath(pathname)) return false;
   if (isDriveCollectionPath(pathname)) return false;
-  if (activeTag) return false;
   if (pinnedHrefs.some((href) => samePath(pathname, href))) return false;
 
   return true;

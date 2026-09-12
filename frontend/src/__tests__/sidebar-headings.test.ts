@@ -17,13 +17,15 @@ import { SIDEBAR_HEADING_CLASSES } from "@/test/sidebarHeadingClasses";
  * Two claims, both about counting:
  *
  *   1. Exactly one place in the sidebar writes the heading's classes,
- *      and it is `SidebarSectionHeading`. A sixth heading written by
- *      hand fails here even if it copies the classes perfectly.
- *   2. Exactly five headings exist. Exact, not a lower bound: the
- *      failure worth catching is a *new* heading the scan cannot see,
- *      and under `>=` that stays green. Every count in this redesign
- *      that was written from a reading of the code came out low — six
- *      times running — so the number is here to force a recount.
+ *      and it is `SidebarSectionHeading`. A heading written by hand
+ *      fails here even if it copies the classes perfectly.
+ *   2. The headings that exist are exactly the ones the assertion below
+ *      names, and there are exactly that many. Exact, not a lower
+ *      bound: the failure worth catching is a *new* heading the scan
+ *      cannot see, and under `>=` that stays green. Every count in this
+ *      redesign that was written from a reading of the code came out
+ *      low — six times running — so the number is there to force a
+ *      recount, and it is written once, beside what it counts.
  */
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -31,7 +33,7 @@ const SELF = fileURLToPath(import.meta.url);
 const SIDEBAR_DIR = resolve(REPO_ROOT, "frontend/src/components/sidebar");
 /**
  * `Sidebar.tsx` sits one level above the directory and is the file most
- * likely to grow a sixth heading — it already owns the Lock block and
+ * likely to grow the next heading — it already owns the Lock block and
  * the reorderable-section map. Scanning only the directory made both
  * claims below one directory narrower than they read.
  */

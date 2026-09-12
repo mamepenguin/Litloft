@@ -61,12 +61,11 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
             <FolderTree size={16} />
             {t("library")}
           </Link>
-          {/* The five rows below are pages in their own right, not tabs
-              inside Library. The heading groups them so the purpose rows
-              above it stay the shortest list on the column, and it names
-              what they have in common: each is the whole drive seen
-              through one question, where Library is the drive seen
-              through its folders. */}
+          {/* What the heading names: each row under it is the whole
+              drive seen through one question, where Library is the drive
+              seen through its folders. They are pages in their own
+              right, not tabs inside Library. Grouping them keeps the
+              rows above the heading to the ones you go to on purpose. */}
           <SidebarSectionHeading label={t("views")} />
           <Link href={`${driveBase}?view=favorites`} onClick={close} className={linkClass(`${driveBase}?view=favorites`)}>
             <Star size={16} />

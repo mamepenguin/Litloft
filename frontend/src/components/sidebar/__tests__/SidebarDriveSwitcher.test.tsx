@@ -195,8 +195,17 @@ describe("sidebar top — item 10", () => {
     // the first view (spec §5.1).
     const { container } = render(<SidebarLibrarySection libraryActive={false} {...props} />);
     const text = container.textContent ?? "";
-    expect(text.indexOf("Library")).toBeLessThan(text.indexOf("Views"));
-    expect(text.indexOf("Views")).toBeLessThan(text.indexOf("Favorites"));
+    // `indexOf` answers `-1` for a string that is not there, and `-1` is
+    // less than every real index — so ordering alone is satisfied by the
+    // row being deleted. Each subject is asserted present first, and the
+    // order is read off those positions.
+    const at = (needle: string) => {
+      const i = text.indexOf(needle);
+      expect(i, `${needle} is not on the column`).not.toBe(-1);
+      return i;
+    };
+    expect(at("Library")).toBeLessThan(at("Views"));
+    expect(at("Views")).toBeLessThan(at("Favorites"));
     expect(screen.getByText("Views").closest("a")).toBeNull();
   });
 

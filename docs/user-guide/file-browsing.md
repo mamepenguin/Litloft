@@ -12,9 +12,9 @@ The numbered areas in the screenshot map to the main browsing surfaces: breadcru
 
 The column on the left is the same on every screen of a drive, and it is in three parts.
 
-At the top are the places you go on purpose: **Home**, then **Library**, then any addon pages. Home is what is worth continuing or returning to; Library is the drive's own folders and files, opening at the drive root. Under a **Views** heading below them are five pages that each show the whole drive through one question — **Favourites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files**. They are pages in their own right, not tabs inside Library.
+At the top are the places you go on purpose: **Home**, then **Library**. Home is what is worth continuing or returning to; Library is the drive's own folders and files, opening at the drive root. Under a **Views** heading below them are five pages that each show the whole drive through one question — **Favourites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files**. They are pages in their own right, not tabs inside Library. Any addon pages follow, under an **Addons** heading of their own.
 
-In the middle are the sections you build yourself: Collections, Pins, Smart Folders and Tags. These are the only ones you can collapse and reorder, and your order is remembered per drive.
+In the middle are the sections you build yourself: Collections, Pins, Smart Folders and Tags. These are the only ones you can collapse and reorder. How you arrange the four is remembered once for the app, not per drive — which section you want first is a habit rather than something about a particular drive. What is remembered per drive is narrower: the order of the items inside each of those sections, and how the tag list is sorted.
 
 At the bottom are the rows about the drive rather than about what is in it: **Trash**, **Missing Files** when the drive has any, and, for an administrator, **Dashboard** under an **Administration** heading. They sit apart because they are reached rarely, and a row pressed once a month costs the same glance as one pressed every day when the two sit together.
 
