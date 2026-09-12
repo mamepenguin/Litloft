@@ -32,17 +32,31 @@ export function isSidebarLinkActive({
 
   const base = `/drive/${encodeURIComponent(currentDrive)}`;
 
+  // `samePath`, not `===`: `base` is always the encoded spelling and
+  // `usePathname()` may report either, so a raw comparison answers no for
+  // every row on a drive whose name is not its own encoding.
+  const atDriveRoot = samePath(pathname, base);
+
   // Matched by the view value the href carries, not against a list of
   // the views that exist. A list is the wrong shape for this question:
   // a row whose value is absent from it renders unselected, and nothing
   // errors or warns, so the omission is only visible to someone looking
   // at the sidebar for that one view.
+  //
+  // The trade runs the other way instead, and it is the sharper edge: a
+  // row carrying a value no route consumes renders *selected*, over a
+  // listing that is not what the row names, because an unrecognised
+  // `view` falls through to the drive-wide file list rather than
+  // erroring. A confident wrong answer is harder to notice than a
+  // missing highlight, and nothing here can catch it: what keeps it out
+  // is that every row's `?view=` value is pinned against a declared set
+  // where the rows are rendered, not this comparison.
   const viewPrefix = `${base}?view=`;
   if (href.startsWith(viewPrefix)) {
-    return pathname === base && activeView === href.slice(viewPrefix.length);
+    return atDriveRoot && activeView === href.slice(viewPrefix.length);
   }
   if (href === base) {
-    return pathname === base && !activeView && !activeTag;
+    return atDriveRoot && !activeView && !activeTag;
   }
   if (href.startsWith("/drive/")) {
     return samePath(pathname, href);
