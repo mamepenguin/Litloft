@@ -142,18 +142,35 @@ function renderSheet(snap: number) {
   );
   return {
     drawer: screen.getByTestId("mobile-inspector-sheet"),
+    surface: screen.getByTestId("mobile-inspector-surface"),
     visible: screen.getByTestId("mobile-inspector-visible"),
     scroller: screen.getByTestId("mobile-inspector-content"),
   };
 }
 
 describe("the sheet's own chrome", () => {
-  it("declares the drawer, the box inside it and the scroller", () => {
-    const { drawer, visible, scroller } = renderSheet(SHEET_SNAP_HALF_FALLBACK);
+  it("declares the drawer, the surface, the box inside it and the scroller", () => {
+    const { drawer, surface, visible, scroller } = renderSheet(
+      SHEET_SNAP_HALF_FALLBACK,
+    );
 
     expectSameClasses(drawer.className, str("drawer"));
+    expectSameClasses(surface.className, str("surface"));
     expectSameClasses(visible.className, str("visible"));
     expectSameClasses(scroller.className, str("scroller"));
+  });
+
+  it("paints the sheet on the surface and not on the drawer", () => {
+    // Which of the two carries the paint is the whole reason the surface
+    // exists: a content pull translates it, and vaul overwrites the
+    // drawer's own transform on every frame of a knob drag. Painting the
+    // drawer instead would leave a second card behind the one that moves.
+    const { drawer, surface } = renderSheet(SHEET_SNAP_HALF_FALLBACK);
+    const paint = ["bg-bg-card", "rounded-t-2xl", "border-t"];
+    for (const utility of paint) {
+      expect(tokens(surface.className)).toContain(utility);
+      expect(tokens(drawer.className)).not.toContain(utility);
+    }
   });
 
   it("declares the handle, which is what stands between the drawer's top edge and the scroller", () => {
@@ -365,9 +382,12 @@ describe("the fixture's declarations", () => {
    * The `page` half is compared in
    * `FileDetail/__tests__/MediaShell.test.tsx`, which is where a real
    * `FileDetailShell` is already mounted; the `sheet` half is compared
-   * above. Splitting the *list* would let either side grow a key the
-   * other did not know about, so the list stays whole and only the
-   * comparison is elsewhere.
+   * above; and the player's bleed in `FilePreview.test.tsx`, which is the
+   * only suite that renders the real `FilePreview` — the shell harness
+   * stubs it, so the class list is not on the page there at all.
+   * Splitting the *list* would let either side grow a key the others did
+   * not know about, so the list stays whole and only the comparisons are
+   * elsewhere.
    */
   const COMPARED_HERE = [
     "columnHeader",
@@ -383,6 +403,7 @@ describe("the fixture's declarations", () => {
     "panelStrip",
     "scroller",
     "scrollerPaddingBottom",
+    "surface",
     "tab",
     "visible",
     "visibleHeight",
@@ -396,38 +417,62 @@ describe("the fixture's declarations", () => {
     "peekPx",
     "player",
   ];
-  expect(COMPARED_HERE).toHaveLength(16);
+  const COMPARED_IN_FILE_PREVIEW = ["playerBleed"];
+  expect(COMPARED_HERE).toHaveLength(17);
   expect(COMPARED_IN_MEDIA_SHELL).toHaveLength(7);
+  expect(COMPARED_IN_FILE_PREVIEW).toHaveLength(1);
+
+  const EVERYWHERE = [
+    ...COMPARED_HERE,
+    ...COMPARED_IN_MEDIA_SHELL,
+    ...COMPARED_IN_FILE_PREVIEW,
+  ];
 
   it("names every key the fixture uses, and no others", () => {
-    expect(Object.keys(SPEC).sort()).toEqual(
-      [...COMPARED_HERE, ...COMPARED_IN_MEDIA_SHELL].sort(),
-    );
+    expect(Object.keys(SPEC).sort()).toEqual([...EVERYWHERE].sort());
   });
 
-  it("keeps the two halves disjoint", () => {
-    // A key in both lists would be one nobody had to look at: the union
-    // above would still match while either comparison quietly stopped.
-    const overlap = COMPARED_HERE.filter((key) =>
-      COMPARED_IN_MEDIA_SHELL.includes(key),
-    );
-    expect(overlap).toEqual([]);
+  it("keeps the three lists disjoint", () => {
+    // A key in two lists would be one nobody had to look at: the union
+    // above would still match while one of the comparisons quietly
+    // stopped.
+    expect(new Set(EVERYWHERE).size).toBe(EVERYWHERE.length);
   });
 
-  it("points at the file that compares the other half", () => {
-    // Detector rule 4: the paragraph above says MediaShell.test.tsx
-    // compares those five. Until this file can fail when that stops
-    // being true, that is a sentence. It reads the other file and checks
-    // each key is named in it.
-    const mediaShell = readFileSync(
-      resolve(
-        REPO_ROOT,
+  it("points at the files that compare the other two lists", () => {
+    // Detector rule 4: the paragraph above says which file compares
+    // which keys. Until this file can fail when that stops being true,
+    // that is a sentence. It reads the other files and checks each key is
+    // named in one of them.
+    //
+    // **Both lists, not one.** The census at the top balances on list
+    // *membership*, so a key nobody compares anywhere keeps it green —
+    // which is what happened when the third list was added with the
+    // paragraph and without this loop.
+    const elsewhere: [readonly string[], string, string][] = [
+      [
+        COMPARED_IN_MEDIA_SHELL,
         "frontend/src/components/FileDetail/__tests__/MediaShell.test.tsx",
-      ),
-      "utf-8",
+        "SPEC.",
+      ],
+      [
+        COMPARED_IN_FILE_PREVIEW,
+        "frontend/src/components/__tests__/FilePreview.test.tsx",
+        "FIXTURE.",
+      ],
+    ];
+    expect(elsewhere).toHaveLength(2);
+    // Every list but this file's own is covered, so adding a fourth
+    // without a row here is red rather than silent.
+    expect(elsewhere.map(([list]) => list.length).reduce((a, b) => a + b)).toBe(
+      EVERYWHERE.length - COMPARED_HERE.length,
     );
-    for (const key of COMPARED_IN_MEDIA_SHELL) {
-      expect(mediaShell).toContain(`SPEC.${key}`);
+
+    for (const [keys, path, accessor] of elsewhere) {
+      const source = readFileSync(resolve(REPO_ROOT, path), "utf-8");
+      for (const key of keys) {
+        expect(source).toContain(`${accessor}${key}`);
+      }
     }
   });
 });

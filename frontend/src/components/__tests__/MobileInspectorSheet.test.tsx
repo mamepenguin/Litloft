@@ -5,6 +5,7 @@ import {
   render,
   screen,
   fireEvent,
+  createEvent,
   waitFor,
 } from "@testing-library/react";
 import { createPortal } from "react-dom";
@@ -54,6 +55,48 @@ function renderSheet(
   );
   return { ...utils, onStateChange };
 }
+
+/**
+ * Make a scroller report a scroll geometry.
+ *
+ * jsdom gives every element `scrollHeight === clientHeight === 0`, so
+ * without this the sheet's own scroller looks like one with nothing to
+ * scroll and every gesture reads as condition 1. The numbers are the
+ * hook's only inputs from the DOM, which is why they can be supplied —
+ * and why nothing here is evidence about a layout.
+ */
+function stubScrollGeometry(
+  el: HTMLElement,
+  { scrollTop, maxScroll }: { scrollTop: number; maxScroll: number },
+) {
+  Object.defineProperty(el, "clientHeight", { value: 400, configurable: true });
+  Object.defineProperty(el, "scrollHeight", {
+    value: 400 + maxScroll,
+    configurable: true,
+  });
+  Object.defineProperty(el, "scrollTop", {
+    value: scrollTop,
+    writable: true,
+    configurable: true,
+  });
+}
+
+/**
+ * One finger, in both lists.
+ *
+ * `changedTouches` is not read by the hook: it is read by the document
+ * listener `react-remove-scroll` installs under every Radix dialog, which
+ * indexes it without checking and throws on an event that has none.
+ */
+const touch = (clientY: number) => {
+  const finger = { identifier: 7, clientY, clientX: 0 };
+  return { touches: [finger], changedTouches: [finger] };
+};
+
+const lift = (clientY: number) => ({
+  touches: [],
+  changedTouches: [{ identifier: 7, clientY, clientX: 0 }],
+});
 
 describe("MobileInspectorSheet", () => {
   it("shows the peek row at rest", () => {
@@ -360,5 +403,183 @@ describe("the half state and the snap it resolves to", () => {
     const points = sheetSnapPoints(0.62) as number[];
     expect(points[0]).toBeLessThan(points[1]);
     expect(points[1]).toBe(SHEET_SNAP_FULL);
+  });
+});
+
+/**
+ * The pull-to-collapse gesture, as far as jsdom reaches.
+ *
+ * What is held here is the **wiring**: that the listeners are on the
+ * sheet's own scroller, that the box they translate is the surface, and
+ * that a gesture which earns a collapse ends in `onStateChange("peek")`.
+ * Which gestures earn it is `lib/__tests__/sheetPullGesture.test.ts`, and
+ * whether the browser then declines to scroll is
+ * `e2e-components/sheet-gesture.spec.ts` — jsdom cannot scroll, so it
+ * cannot be asked.
+ *
+ * **Every event carries a chosen `timeStamp`.** Release velocity is a
+ * function of them, and jsdom's own clock is integer-millisecond epoch
+ * time: two adjacent `fireEvent` statements are 0ms apart most of the
+ * time and 1ms apart whenever they straddle a boundary, which is a
+ * velocity of 0 or of 20px/ms for the same gesture. The distance case
+ * below passed on that coincidence and went red about once in ten runs.
+ */
+describe("pulling the sheet down by its content", () => {
+  /** Dispatch one touch event at a chosen moment on the fake clock. */
+  const at = (
+    el: HTMLElement,
+    type: "touchStart" | "touchMove" | "touchEnd",
+    init: object,
+    when: number,
+  ) => {
+    const event = createEvent[type](el, init);
+    Object.defineProperty(event, "timeStamp", { value: when });
+    fireEvent(el, event);
+  };
+
+  const START_AT = 1000;
+
+  /**
+   * One gesture, at a declared speed.
+   *
+   * `msPerStep` is what separates a flick from a push: the hook reads the
+   * finger's speed over the last `VELOCITY_WINDOW_MS`, so steps further
+   * apart than the window read as motionless however far they went.
+   * `holdMs` is the pause between the last move and the lift.
+   */
+  const pull = ({
+    scrollTop,
+    maxScroll,
+    to,
+    steps = 2,
+    msPerStep = 200,
+    holdMs = 0,
+  }: {
+    scrollTop: number;
+    maxScroll: number;
+    to: number;
+    steps?: number;
+    msPerStep?: number;
+    holdMs?: number;
+  }) => {
+    const { onStateChange } = renderSheet(SHEET_STATE_HALF);
+    const scroller = screen.getByTestId("mobile-inspector-content");
+    const surface = screen.getByTestId("mobile-inspector-surface");
+    stubScrollGeometry(scroller, { scrollTop, maxScroll });
+
+    at(scroller, "touchStart", touch(300), START_AT);
+    let now = START_AT;
+    for (let step = 1; step <= steps; step += 1) {
+      now += msPerStep;
+      at(scroller, "touchMove", touch(300 + (to * step) / steps), now);
+    }
+    const transform = surface.style.transform;
+    at(scroller, "touchEnd", lift(300 + to), now + holdMs);
+    return { onStateChange, transform, surface };
+  };
+
+  it("draws the sheet under the finger, on the surface", () => {
+    const { transform } = pull({ scrollTop: 0, maxScroll: 900, to: 40 });
+    expect(transform).toBe("translate3d(0, 40px, 0)");
+  });
+
+  it("collapses to peek when the pull was far enough", () => {
+    const { onStateChange } = pull({ scrollTop: 0, maxScroll: 900, to: 200 });
+    expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+  });
+
+  it("springs the sheet back instead, when it was not", () => {
+    const { onStateChange, surface } = pull({
+      scrollTop: 0,
+      maxScroll: 900,
+      to: 20,
+    });
+    expect(onStateChange).not.toHaveBeenCalled();
+    expect(surface.style.transform).toBe("translate3d(0, 0, 0)");
+  });
+
+  it("collapses at that same distance when the finger left quickly", () => {
+    // The pair that gives the velocity term something to mean in jsdom:
+    // 20px settles at 200ms a step and dismisses at 8ms a step.
+    const { onStateChange } = pull({
+      scrollTop: 0,
+      maxScroll: 900,
+      to: 20,
+      msPerStep: 8,
+    });
+    expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+  });
+
+  it("springs back when the finger stopped before lifting, however fast it had been", () => {
+    // The gesture the velocity window exists for: pull the sheet a little
+    // to see the page behind it, rest, lift. Reading the speed at the last
+    // *move* instead of at the release collapsed this on a velocity from
+    // a second earlier — and 40px is short of the dismiss distance, so
+    // nothing else could have.
+    const { onStateChange, surface } = pull({
+      scrollTop: 0,
+      maxScroll: 900,
+      to: 40,
+      msPerStep: 8,
+      holdMs: 1000,
+    });
+    expect(onStateChange).not.toHaveBeenCalled();
+    expect(surface.style.transform).toBe("translate3d(0, 0, 0)");
+  });
+
+  it("leaves the sheet alone when the gesture began away from the top", () => {
+    // The negative form, and the one that says the listener is reading
+    // the scroller rather than just the finger: same finger, same
+    // distance, different starting offset.
+    const { onStateChange, transform } = pull({
+      scrollTop: 300,
+      maxScroll: 900,
+      to: 200,
+    });
+    expect(transform).toBe("");
+    expect(onStateChange).not.toHaveBeenCalled();
+  });
+
+  it("reaches the handoff through a scroller that bounced past its own top", () => {
+    // iOS Safari stretches an inner scroller past its top, and reports
+    // the stretch as a negative `scrollTop`. Unclamped, that feeds
+    // `advanceSheetPull` a `consumed` term as large as the finger's own
+    // movement, so nothing accumulates toward the handoff and condition 3
+    // — scroll to the top without lifting, then keep pushing — can never
+    // fire there.
+    //
+    // **The premise is the part jsdom cannot hold**: whether iOS really
+    // reports a negative offset. The arithmetic is what is measured here,
+    // and it needs nothing but the offsets a caller hands in, which is
+    // why "not measurable here" was the wrong scope for the claim.
+    const { onStateChange } = renderSheet(SHEET_STATE_HALF);
+    const scroller = screen.getByTestId("mobile-inspector-content");
+    const surface = screen.getByTestId("mobile-inspector-surface");
+    // Below the top, so the gesture latches to the scroller.
+    stubScrollGeometry(scroller, { scrollTop: 200, maxScroll: 900 });
+
+    at(scroller, "touchStart", touch(300), START_AT);
+    // Down to the top: every pixel answered by scrolling.
+    scroller.scrollTop = 0;
+    at(scroller, "touchMove", touch(500), START_AT + 200);
+    // Past it, with the band stretching — the offset goes negative.
+    scroller.scrollTop = -60;
+    at(scroller, "touchMove", touch(560), START_AT + 400);
+    scroller.scrollTop = -60;
+    at(scroller, "touchMove", touch(660), START_AT + 600);
+
+    expect(surface.style.transform).toBe("translate3d(0, 100px, 0)");
+    at(scroller, "touchEnd", lift(660), START_AT + 800);
+    expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+  });
+
+  it("does not expand the sheet when the content is dragged upward", () => {
+    const { onStateChange, transform } = pull({
+      scrollTop: 0,
+      maxScroll: 900,
+      to: -200,
+    });
+    expect(transform).toBe("");
+    expect(onStateChange).not.toHaveBeenCalled();
   });
 });

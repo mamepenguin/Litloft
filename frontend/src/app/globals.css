@@ -904,6 +904,54 @@ div[data-citation-section-path]:not(tr) {
   grid-area: player;
 }
 
+/* The occupant under the player gets a row, **and only when it is
+   there.**
+
+   Why it is a sibling of the player at all: `.media-detail-player` is
+   the playable surface the reader must keep whole — what the Bottom
+   Sheet's `half` clears (`useSheetHalfSnap`), what `--player-avail` caps
+   as a width, and what a phone makes `position: sticky` — so content
+   does not go inside it, and a box *around* it is worse than content in
+   it. Sticky travels only inside its own containing block, and a wrapper
+   whose height is the player's own leaves it none; that is the defect
+   the note above the sticky rule records, and it has now been made
+   twice.
+
+   Why the row is conditional: a named row is laid out whether or not
+   anything occupies it, and `gap` is drawn on **both** sides of it. An
+   unoccupied row therefore costs the gap twice over, so an
+   unconditional fourth row doubles the space under the player on every
+   file with no occupant — which is most of them.
+
+   Why `:not(:empty)` and not the class alone: the box being in the
+   document does not mean its occupant drew anything. An addon slot whose
+   entry renders nothing leaves the box there and empty, which is an
+   ordinary state rather than a failure, and the class alone would give
+   that box a row. `empty:hidden` on the box takes its own layout away;
+   this takes the row's. Both, because a `display: none` grid item is not
+   auto-placed and an item with no area is — so one without the other
+   either keeps the gap or moves the occupant into a cell that is not
+   its own.
+
+   The condition has to be the occupant's own class, un-negated: measured,
+   `:has(.media-detail-player)` and `:not(:has(…))` are both conditions
+   that read as conditional and are not.
+
+   In the shell layout there is no grid at all and the occupant is simply
+   the next block down, which is why this is two rules and not one
+   property on the box. */
+.media-detail-grid:has(> .media-detail-player-aside:not(:empty)) {
+  grid-template-areas:
+    "player"
+    "player-aside"
+    "companion"
+    "rest";
+}
+
+.media-detail-player-aside {
+  grid-area: player-aside;
+}
+
 /* Bound the player to the visible height of whatever scrolls, so it
    stops running off the bottom of the screen.
 
@@ -1027,8 +1075,22 @@ div[data-citation-section-path]:not(tr) {
 [data-media-layout="beside"] [data-media-width="wide"] .media-detail-grid {
   grid-template-columns: minmax(0, 1fr) 24rem;
   grid-template-areas:
-    "player companion"
-    "rest   companion";
+    "player   companion"
+    "rest     companion";
+}
+
+/* The occupant's row again, in the two-column variant, and conditional
+   for the reason the one-column rule gives. Written out rather than
+   inherited: `grid-template-areas` is one value, so the variant above
+   replaces the whole template and a row added only to the base is lost
+   here. */
+[data-media-layout="beside"]
+  [data-media-width="wide"]
+  .media-detail-grid:has(> .media-detail-player-aside:not(:empty)) {
+  grid-template-areas:
+    "player       companion"
+    "player-aside companion"
+    "rest         companion";
 }
 
 /* Offering the swap only where it can happen. A control that does
@@ -1303,6 +1365,32 @@ div[data-citation-section-path]:not(tr) {
    the gaps below are untouched. */
 [data-sheet-snap] .media-detail-host {
   padding-top: 0;
+}
+
+/* The other half of the same subtraction.
+
+   The player's own first child bleeds to the screen edges with negative
+   margins that cancel the host's `p-4` — and the rule above has already
+   cancelled the top one. What is left is a net −16px, which puts the
+   player's flow position *above* the scrollport's top edge, and that is
+   worse than the padding it was written to answer:
+
+   - where nothing follows the player, the top of the video is drawn
+     behind the chrome, on a page that cannot be scrolled to reach it;
+   - where something does, `position: sticky` corrects it to the
+     scrollport's edge — so the player's box moves without its size
+     changing, which is exactly the channel `useSheetHalfSnap` does not
+     watch. Anything that appears under the player *after* the snap has
+     been solved therefore moves it, and the sheet then overlaps the
+     bottom of the video by this margin.
+
+   Cancelling it here rather than in the component: the bleed is right on
+   every other surface, and the component cannot be told which one it is
+   on — `MediaPlayerBlock`'s own docstring is the reason, a player must
+   not re-render to learn about its host. Inline is untouched, so the
+   picture still reaches both screen edges. */
+[data-sheet-snap] .media-detail-player > :first-child {
+  margin-top: 0;
 }
 
 /* The same height budget, from a variable that does not drift.

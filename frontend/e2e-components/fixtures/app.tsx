@@ -29,14 +29,24 @@
  * this file's.
  */
 
-import { useRef, useState, type ReactElement, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { createRoot } from "react-dom/client";
 import { Trash2 } from "lucide-react";
 
 import { NextIntlClientProvider } from "next-intl";
 
 import { ContextMenu } from "@/components/ContextMenu";
-import { MobileInspectorSheet } from "@/components/MobileInspectorSheet";
+import {
+  MobileInspectorSheet,
+  SHEET_STATE_HALF,
+  type SheetState,
+} from "@/components/MobileInspectorSheet";
 import { DismissScrim } from "@/components/DismissScrim";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
@@ -689,6 +699,129 @@ function MeasuredSheetFull(): ReactElement {
   return <MeasuredInSheet state="full" />;
 }
 
+/**
+ * Record how far each of the two things moved during a gesture.
+ *
+ * A gesture that ends where it started leaves nothing to read
+ * afterwards, and the claim under test is about the *middle* of one: that
+ * while the sheet was following the finger the scroller did not move, and
+ * while the scroller was moving the sheet did not. So both are watched
+ * while it runs and their extremes are published — `data-max-pull` off
+ * the surface's own inline transform, `data-max-scroll` off the
+ * scroller's own `scrollTop`.
+ *
+ * Both are readings of the real component, not of a copy: the transform
+ * is the one `useSheetPullToCollapse` wrote, and the scroll is the one
+ * the browser performed or declined to. The counters reset when a finger
+ * lands, so each gesture is measured on its own.
+ */
+function useGestureRecord(): void {
+  useEffect(() => {
+    const body = document.body;
+    const reset = () => {
+      body.dataset.maxPull = "0";
+      body.dataset.maxScroll = "0";
+    };
+    reset();
+
+    const surface = () =>
+      document.querySelector<HTMLElement>(
+        "[data-testid='mobile-inspector-surface']",
+      );
+    const scroller = () =>
+      document.querySelector<HTMLElement>(
+        "[data-testid='mobile-inspector-content']",
+      );
+
+    const note = (key: "maxPull" | "maxScroll", value: number) => {
+      if (value > Number(body.dataset[key] ?? 0)) {
+        body.dataset[key] = String(Math.round(value));
+      }
+    };
+
+    const readPull = () => {
+      const el = surface();
+      if (!el) return;
+      // The hook writes `translate3d(0, Npx, 0)`; the settle writes 0.
+      const match = /translate3d\(0(?:px)?,\s*(-?[\d.]+)px/.exec(
+        el.style.transform,
+      );
+      note("maxPull", match ? Math.abs(Number(match[1])) : 0);
+    };
+
+    const onScroll = () => note("maxScroll", scroller()?.scrollTop ?? 0);
+
+    // `subtree`, because the surface is mounted and unmounted with the
+    // sheet's state and this effect runs once.
+    const observer = new MutationObserver(readPull);
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["style"],
+    });
+    document.addEventListener("touchstart", reset, true);
+    document.addEventListener("scroll", onScroll, true);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("touchstart", reset, true);
+      document.removeEventListener("scroll", onScroll, true);
+    };
+  }, []);
+}
+
+/**
+ * The sheet with something in it, and a record of what a gesture did.
+ *
+ * The state is the component's own here rather than a prop held still:
+ * collapsing is the outcome under test, so the sheet has to be able to
+ * collapse. Every state change is also written to `data-sheet-state`,
+ * which is what the spec reads — one place, whether or not React has
+ * committed a re-render the spec could see another way.
+ *
+ * `bodyPx` is the whole population of this arrangement: a body taller
+ * than the sheet is a scroller with somewhere to go, and one shorter
+ * than it is condition 1, where there was never a scroll to compete
+ * with.
+ */
+function SheetGesture({ bodyPx }: { bodyPx: number }): ReactElement {
+  const [state, setState] = useState<SheetState>(SHEET_STATE_HALF);
+  useGestureRecord();
+  return (
+    <NextIntlClientProvider
+      locale="en"
+      messages={{ inspector: { title: "Details", sheetDescription: "Sheet" } }}
+    >
+      <PageControl id="underneath" className="fixed inset-0 z-0 bg-bg-elevated">
+        page
+      </PageControl>
+      <MobileInspectorSheet
+        state={state}
+        onStateChange={(next) => {
+          setState(next);
+          document.body.dataset.sheetState = next;
+        }}
+        halfSnap={0.4}
+        peek={<div id="peek-row">peek</div>}
+      >
+        {/* Plain boxes: what is measured is the scroller and the surface,
+            and a real inspector here would need Next.js and a backend. */}
+        <div id="sheet-body" style={{ height: `${bodyPx}px` }}>
+          <div id="sheet-body-top">top of the sheet</div>
+        </div>
+      </MobileInspectorSheet>
+    </NextIntlClientProvider>
+  );
+}
+
+function SheetGestureScrollable(): ReactElement {
+  return <SheetGesture bodyPx={2000} />;
+}
+
+function SheetGestureShort(): ReactElement {
+  return <SheetGesture bodyPx={40} />;
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   plain: Plain,
   "bottom-bar": BottomBar,
@@ -704,6 +837,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "sheet-full-right": SheetFullRight,
   "sheet-full-left": SheetFullLeft,
   "sheet-full-up": SheetFullUp,
+  "sheet-gesture": SheetGestureScrollable,
+  "sheet-gesture-short": SheetGestureShort,
   "measured-sheet-peek": MeasuredSheetPeek,
   "measured-sheet-half": MeasuredSheetHalf,
   "measured-sheet-full": MeasuredSheetFull,

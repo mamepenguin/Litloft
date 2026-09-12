@@ -1,9 +1,37 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname } from "node:path";
 
 import { accentFills } from "@/__tests__/helpers/accentFills";
 import { FilePreview } from "../FilePreview";
 import type { FileItem } from "@/types";
+
+/**
+ * The layout fixture's declarations, for the one key this file owns.
+ *
+ * `e2e-layout/mobile-inspector-sheet.spec.ts` draws the player's bleed
+ * wrapper from `playerBleed` and asserts, in a real browser, that the
+ * player still starts at the scrollport's top edge with that negative
+ * margin on the page. This is the half that says the app writes it — the
+ * shell harness stubs `FilePreview`, so this is the only suite where the
+ * class list exists at all.
+ */
+const FIXTURE: Record<string, string> = JSON.parse(
+  readFileSync(
+    resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../../e2e-layout/fixtures/mobile-inspector-sheet.html",
+    ),
+    "utf-8",
+  ).match(
+    /<script type="application\/json" id="fixture-markup">([\s\S]*?)<\/script>/,
+  )![1],
+);
+
+const sorted = (className: string) =>
+  className.split(/\s+/).filter(Boolean).sort();
 
 vi.mock("@/lib/api", () => ({
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
@@ -191,6 +219,30 @@ describe("FilePreview", () => {
     render(<FilePreview file={file} />);
     expect(screen.getByTestId("loft-player")).toBeInTheDocument();
     expect(screen.queryByTestId("video-player")).not.toBeInTheDocument();
+  });
+
+  it("carries the playable surface alone, in both player branches", () => {
+    // What the `.loft` branch used to also carry: the Media Import
+    // metadata panel, a channel name and three lines of description. It
+    // is inside `.media-detail-player` from there, and that box is the
+    // surface the Bottom Sheet's `half` stays clear of — so a `.loft`
+    // file's sheet stopped 80px below its video's bottom edge and no
+    // other file's did. Its host is `MediaPlayerBlock` now, outside that
+    // box. Both branches are asked, because the bleed wrapper is the same
+    // one and only one of them ever grew an occupant.
+    for (const file of [
+      makeFile(),
+      makeFile({
+        mime_type: "application/vnd.litloft.loft+json",
+        filename: "clip.loft",
+      }),
+    ]) {
+      const { container, unmount } = render(<FilePreview file={file} />);
+      const bleed = container.firstElementChild!;
+      expect(sorted(bleed.className)).toEqual(sorted(FIXTURE.playerBleed));
+      expect(bleed.children).toHaveLength(1);
+      unmount();
+    }
   });
 
   it("renders fallback for unsupported files", () => {

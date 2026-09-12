@@ -1485,9 +1485,19 @@ describe("the layout fixture's page, against the shell", () => {
 
     // And the nesting, which no pair of class lists states: the host
     // between the two, and the player inside it.
+    //
+    // **`parentElement`, not `toContainElement`.** A descendant check is
+    // satisfied at any depth, so a box inserted between the host and the
+    // player is invisible to it — and such a box is not a cosmetic
+    // difference: `position: sticky` travels only inside its own
+    // containing block, so a wrapper whose height is the player's own
+    // takes the pinning away. One was added and shipped green past this
+    // line, and the browser spec could not see it either, because the
+    // fixture draws the flat tree this asserts.
     expect(canvas).toContainElement(mediaHost as HTMLElement);
-    expect(mediaHost).toContainElement(player as HTMLElement);
+    expect(player.parentElement).toBe(mediaHost);
   });
+
 
   it("declares the ratio a framed player's height comes from", async () => {
     // The fixture draws its player with a `padding-top` shim and lets the

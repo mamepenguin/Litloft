@@ -14,7 +14,6 @@ import { HtmlPreview } from "./HtmlPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { EmptyState } from "@/components/EmptyState";
 import { OfficeExcerpt } from "./OfficeExcerpt";
-import { AddonSlot } from "./AddonSlot";
 import LoftPlayer from "./loft/LoftPlayer";
 import { MiniPlayerContainer } from "./MiniPlayerContainer";
 import { formatFileSize } from "@/lib/format";
@@ -167,10 +166,13 @@ export function FilePreview({
   if (kind === "loft") {
     // Core renders the .loft player via the provider/player registry
     // (Phase 0 ships YouTube + Vimeo). The MiniPlayerContainer reflows
-    // the player into a floating window when it scrolls out of view;
-    // metadata UI (channel / captions status) is a separate addon slot
-    // rendered below so the floating mini-player only carries the
-    // playable surface.
+    // the player into a floating window when it scrolls out of view, so
+    // what is inside it is the playable surface and nothing else.
+    //
+    // The channel/captions metadata is an addon slot, and its host is
+    // `MediaPlayerBlock` — outside `.media-detail-player`, because that
+    // box is what the sheet's `half` stays clear of and what the phone
+    // sticks to the top of the canvas. See `MEDIA_ASIDE_SLOT` there.
     return (
       <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
         <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
@@ -187,10 +189,6 @@ export function FilePreview({
             }}
           />
         </MiniPlayerContainer>
-        <AddonSlot
-          id="loft-metadata"
-          props={{ fileId: file.id, drive: file.drive }}
-        />
       </div>
     );
   }

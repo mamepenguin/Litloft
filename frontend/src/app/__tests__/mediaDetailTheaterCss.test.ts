@@ -7,6 +7,19 @@ function globalsCss(): string {
   return readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 }
 
+/**
+ * The `.media-detail-player` rule with no further selector on it.
+ *
+ * `^` under `/m`, so this cannot match one of the qualified rules —
+ * `[data-sheet-snap] .media-detail-player`,
+ * `.media-detail-player[data-framed="true"]`,
+ * `main[data-canvas-floor="true"] .media-detail-player`. Two cases below
+ * read this, and both of them are about what the *base* rule says.
+ */
+function baseRule(): RegExpMatchArray | null {
+  return globalsCss().match(/^\.media-detail-player\s*\{[^}]*\}/m);
+}
+
 describe("media detail theater sizing", () => {
   it("derives the player width from the measured height with a viewport fallback", () => {
     expect(globalsCss()).toMatch(
@@ -31,10 +44,101 @@ describe("media detail theater sizing", () => {
     // player whose height follows its width. Applying it to an image,
     // a PDF or a text preview would narrow them on a short window for
     // no reason, which is why the selector carries `data-framed`.
-    const rule = globalsCss().match(/\.media-detail-player\s*\{[^}]*\}/);
+    //
+    // Anchored at a line start, because the unanchored form finds the
+    // *first textual occurrence* of the selector: rename or delete the
+    // base rule and it silently retargets onto
+    // `[data-sheet-snap] .media-detail-player { position: sticky … }`,
+    // which carries neither declaration and so passes while asserting
+    // nothing. Measured — it did, for a whole commit.
+    const rule = baseRule();
     expect(rule).not.toBeNull();
     expect(rule![0]).not.toMatch(/max-width/);
     expect(rule![0]).not.toMatch(/margin-inline/);
+  });
+
+  it("keeps the player itself the grid item, and nothing around it", () => {
+    // Two claims in one place because they are one decision. The legacy
+    // layout is a grid of named areas, so the player needs an area of its
+    // own — and the `loft-metadata` occupant under it needs a *different*
+    // one, rather than a box wrapping the player to hold both. A wrapper
+    // is what takes `position: sticky`'s travel away: sticky moves only
+    // inside its own containing block, and a box whose height is the
+    // player's own leaves none. Measured: the player scrolled off the top
+    // of the canvas at every scroll offset, on every file kind.
+    const rule = baseRule();
+    expect(rule).not.toBeNull();
+    expect(rule![0]).toMatch(/grid-area:\s*player;/);
+    // And the occupant's area exists and is not the player's.
+    const aside = globalsCss().match(
+      /^\.media-detail-player-aside\s*\{[^}]*\}/m,
+    );
+    expect(aside).not.toBeNull();
+    expect(aside![0]).toMatch(/grid-area:\s*player-aside;/);
+  });
+
+  it("gives the occupant a row only where there is an occupant", () => {
+    // A named row is laid out whether or not anything is in it, and `gap`
+    // is drawn on both sides of it — so an unconditional row costs the
+    // full gap twice under every player that has no occupant, which is
+    // most of them.
+    //
+    // **Both halves of each rule are compared whole, not searched.**
+    // Neither a selector nor a `grid-template-areas` value has a bounded
+    // list of ways to be wrong, and three rounds of this case searched one
+    // or the other:
+    //
+    // - `:has(` matched `:has(.media-detail-player)`, a condition that is
+    //   always true;
+    // - the occupant's class matched `:not(:has(…))`, that condition
+    //   inverted;
+    // - and a boolean "does the value mention `player-aside`" matched a
+    //   value with the rows *reordered* (the occupant drawn below `rest`,
+    //   at the foot of the page) and one with the `"player"` row deleted
+    //   (the player itself auto-placed after everything, its bottom edge
+    //   352px below the companion's top). Both measured.
+    //
+    // So the four rules that are right are written out — selector and
+    // value — and anything else fails.
+    //
+    // Comments are stripped before the blocks are split, and that is not
+    // decoration: the split is on `{` and `}`, so a brace anywhere cuts a
+    // block in two, and this file's own comments contain `/files/{id}`
+    // twelve lines above the first rule measured here.
+    const withoutComments = globalsCss().replace(/\/\*[\s\S]*?\*\//g, "");
+    const oneLine = (s: string) => s.replace(/\s+/g, " ").trim();
+    const templates = withoutComments
+      .split("}")
+      .map((block) => block.split("{"))
+      .filter(
+        ([selector, body]) =>
+          body?.includes("grid-template-areas:") &&
+          selector.includes(".media-detail-grid"),
+      )
+      .map(([selector, body]) => ({
+        selector: oneLine(selector),
+        areas: oneLine(/grid-template-areas:([^;]*);/.exec(body)?.[1] ?? ""),
+      }));
+
+    const OCCUPIED = ":has(> .media-detail-player-aside:not(:empty))";
+    const WIDE = '[data-media-layout="beside"] [data-media-width="wide"] ';
+    // The one-column grid and the two-column variant, each in both forms.
+    expect(templates).toEqual([
+      { selector: ".media-detail-grid", areas: '"player" "companion" "rest"' },
+      {
+        selector: `.media-detail-grid${OCCUPIED}`,
+        areas: '"player" "player-aside" "companion" "rest"',
+      },
+      {
+        selector: `${WIDE}.media-detail-grid`,
+        areas: '"player companion" "rest companion"',
+      },
+      {
+        selector: `${WIDE}.media-detail-grid${OCCUPIED}`,
+        areas:
+          '"player companion" "player-aside companion" "rest companion"',
+      },
+    ]);
   });
 });
 

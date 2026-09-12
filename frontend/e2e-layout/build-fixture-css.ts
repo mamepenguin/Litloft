@@ -273,6 +273,17 @@ export const REQUIRED = [
   // The host's own padding, which is the other half of that: the rule
   // above is a correction to `p-4` and cannot be read without it.
   ".p-4 {",
+  // And the *third* term in the same subtraction: the player's first
+  // child bleeds with `-mt-4`, which the rule above no longer has a
+  // padding to cancel. Without this one the player's flow position is
+  // 16px above the scrollport — behind the page chrome where nothing
+  // follows it, and corrected downward by `sticky` where something does,
+  // which moves the box the derived snap was solved from.
+  "[data-sheet-snap] .media-detail-player > :first-child {",
+  // The bleed itself, for the reason `.p-4` is here: the cancellation
+  // cannot be read without the margin it cancels, and a fixture with
+  // neither measures a page that never had the problem.
+  ".-mt-4 {",
   // `list-row-furniture.spec.ts` measures touch targets and a name column
   // under `@media (pointer: coarse)`. Every one of these is a *coarse-only*
   // declaration, which is the kind a missing sheet hides best: without them

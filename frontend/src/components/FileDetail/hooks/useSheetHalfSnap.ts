@@ -45,8 +45,12 @@ import { useViewportHeight } from "@/hooks/useViewportHeight";
  * reader scrolled back.
  *
  * It is not motionless, though. Sticky travels only inside its
- * containing block, so a player taller than the canvas can show is
- * pulled up with the page's last line at the end of a scroll. The
+ * containing block, so where that block ends before the scroll does, its
+ * last line pulls the player up. **Not a comparison of two heights**: on
+ * the one shape that travels, the player is a fraction of a pixel
+ * *shorter* than the scrollport and travels anyway, because the page
+ * reserves room under it for the resting strip
+ * (`e2e-layout/mobile-inspector-sheet.spec.ts`, `TRAVEL_PX`). The
  * direction is what makes that safe: the edge only ever rises, so the
  * room under it only ever grows, and a snap solved before the rise is a
  * sheet that takes less room than it could rather than one reaching over
