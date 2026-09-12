@@ -2,8 +2,8 @@
  * One gesture moves the scroller or the sheet, and never both.
  *
  * The real `MobileInspectorSheet` — vaul, `handleOnly`, the pull hook and
- * the browser's own touch scrolling — driven by a synthesized touch
- * gesture, because that claim is not expressible anywhere else here:
+ * the browser's own touch scrolling — driven by dispatched touches,
+ * because that claim is not expressible anywhere else here:
  *
  * - `sheetPullGesture.test.ts` decides who owns a gesture, from numbers a
  *   caller hands it. jsdom lays nothing out, so it can never produce one:
@@ -13,30 +13,22 @@
  *   land in a real browser, but off `file://` with hand-written markup —
  *   no component runs in it, so nothing there can be dragged.
  *
- * ## `Input.synthesizeScrollGesture`, and not `dispatchTouchEvent`
+ * ## The scroll has to be real, and that is what the first case is for
  *
- * Both run Chromium's gesture recognizer and both really scroll — a
- * hand-built `dispatchTouchEvent` sequence on this fixture scrolls
- * *further* than the finger travelled, because the recognizer adds a
- * fling. What `synthesizeScrollGesture` buys is control of the two things
- * every case here depends on:
+ * Every case here says either "the sheet did not move" or "the scroller
+ * did not move", and **both are true of a harness that cannot scroll at
+ * all.** So the first case drags the other way and watches the scroller
+ * move. It has earned its place twice: it caught
+ * `Input.dispatchTouchEvent` reading zero on an unsettled sheet, and then
+ * caught `Input.synthesizeScrollGesture` delivering nothing whatever on
+ * CI — a headless Linux runner with no GPU has no compositor to
+ * synthesize a gesture through, and all seven cases went red at once.
+ * `swipe` says what is used now and why.
  *
- * - **`preventFling: true`**, so a reading taken after the gesture is of
- *   a scroller that has stopped rather than one still coasting;
- * - **`speed`**, in px/s, which is the input the dismiss *velocity* is
- *   read from. Hand-dispatched moves carry whatever the test runner's
- *   scheduling gave them.
- *
- * Whichever API, the scroll has to be real: every case here says either
- * "the sheet did not move" or "the scroller did not move", and both are
- * true of a harness that cannot scroll at all. The first case is the
- * control for exactly that, and that is why it is first — it drags the
- * other way and watches the scroller move.
- *
- * The cost is that a gesture cannot be held open, so what happened in the
- * middle of one is read from the fixture's own record of the extremes
- * (`data-max-pull`, `data-max-scroll` — see `useGestureRecord`), both
- * taken off the real elements.
+ * The cost of dispatched touches is that a gesture cannot be held open,
+ * so what happened in the middle of one is read from the fixture's own
+ * record of the extremes (`data-max-pull`, `data-max-scroll` — see
+ * `useGestureRecord`), both taken off the real elements.
  *
  * What is still hand-written is the sheet's *content*: a box of a
  * declared height, because the inspector needs Next.js, `next-intl` and a
@@ -65,9 +57,24 @@ import {
 
 const FIXTURE = pathToFileURL(PAGE).href;
 
-/** px/s, which is what CDP's `speed` is. */
-const FLICK_SPEED = Math.round(SHEET_PULL_DISMISS_VELOCITY * 1000 * 4);
-const PUSH_SPEED = Math.round(SHEET_PULL_DISMISS_VELOCITY * 1000 * 0.5);
+/**
+ * How a push and a flick are spelled, as a step count and the gap
+ * between the steps.
+ *
+ * The hook reads the release velocity from the moves' own timestamps, so
+ * the gap is the input: 20px every 60ms is a third of the dismiss
+ * velocity, and 20px as fast as the transport allows (a CDP round trip,
+ * single-digit ms) is several times it. Written as the thresholds rather
+ * than as bare numbers so the pair keeps meaning what it says if the
+ * dismiss velocity moves.
+ */
+const STEP_PX = 20;
+const PUSH = { gapMs: Math.round(STEP_PX / (SHEET_PULL_DISMISS_VELOCITY / 3)) };
+const FLICK = { gapMs: 0 };
+
+/** Steps for a gesture of `down` px, at `STEP_PX` each. */
+const stepsFor = (down: number) =>
+  Math.max(2, Math.round(Math.abs(down) / STEP_PX));
 
 const SCROLLER = "[data-testid='mobile-inspector-content']";
 const SURFACE = "[data-testid='mobile-inspector-surface']";
@@ -131,40 +138,76 @@ async function open(page: Page, arrangement: string): Promise<void> {
 }
 
 /**
- * One touch gesture down the sheet's scroller.
+ * One touch gesture down the sheet's scroller: a finger lands, moves in
+ * `steps`, and lifts.
  *
- * `down` is the finger's direction — the way a reader pushes the sheet
- * away. CDP's `yDistance` is the other sign (negative moves the finger
- * down the screen, which scrolls the content up), and writing that
- * inversion once here keeps every case below readable.
+ * `down` is the finger's own direction — positive pushes the sheet away.
+ * `gapMs` between the steps is what separates a push from a flick, and
+ * separates them the way the hook reads them: it times the release from
+ * the `timeStamp`s the browser puts on the moves.
+ *
+ * **`Input.dispatchTouchEvent`, and not `Input.synthesizeScrollGesture`.**
+ * The synthesized gesture is the more convenient API — one call, a
+ * `speed` in px/s, `preventFling` — and it delivers nothing at all where
+ * this suite runs in CI: a headless Linux runner with no GPU has no
+ * compositor to synthesize gestures through, and every case here read a
+ * scroller that had not moved. Dispatched touches go to the renderer and
+ * arrive in both places, so this is the path that works on a developer's
+ * machine and on the runner.
+ *
+ * Its cost is the fling: Chromium's recognizer keeps scrolling after the
+ * finger leaves, and there is no `preventFling` here — so a reading is
+ * taken only once the scroller has stopped, below.
  */
 async function swipe(
   page: Page,
-  { down, speed }: { down: number; speed: number },
+  { down, steps, gapMs }: { down: number; steps: number; gapMs: number },
 ): Promise<void> {
   const box = (await page.locator(SCROLLER).boundingBox())!;
+  const x = Math.round(box.x + box.width / 2);
+  const y0 = Math.round(box.y + box.height / 2);
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Input.synthesizeScrollGesture", {
-    x: Math.round(box.x + box.width / 2),
-    y: Math.round(box.y + box.height / 2),
-    xDistance: 0,
-    yDistance: down,
-    speed,
-    gestureSourceType: "touch",
-    // No momentum after the finger leaves, so a reading taken afterwards
-    // is of a scroller that has stopped rather than one still coasting.
-    preventFling: true,
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x, y: y0 }],
+  });
+  for (let step = 1; step <= steps; step += 1) {
+    if (gapMs > 0) await page.waitForTimeout(gapMs);
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x, y: Math.round(y0 + (down * step) / steps) }],
+    });
+  }
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
   });
   await cdp.detach();
-  await page.evaluate(
-    () =>
-      new Promise<void>((r) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => r())),
-      ),
-  );
-  // The settle transition is 200ms; wait it out so "where did it end up"
-  // is not read mid-spring.
-  await page.waitForTimeout(320);
+
+  // Wait for the fling to run out and the spring-back (200ms) to finish,
+  // so "where did it end up" is not read of a scroller still coasting or
+  // a sheet still travelling. Two consecutive equal readings of both.
+  let last = "";
+  await expect
+    .poll(
+      async () => {
+        const now = await page.evaluate(
+          ([surfaceSel, scrollerSel]) => {
+            const surface = document.querySelector(surfaceSel);
+            const scroller = document.querySelector(scrollerSel);
+            return `${surface ? Math.round(surface.getBoundingClientRect().top) : -1}/${
+              scroller ? Math.round(scroller.scrollTop) : -1
+            }`;
+          },
+          [SURFACE, SCROLLER],
+        );
+        const settled = now === last;
+        last = now;
+        return settled ? "still" : "moving";
+      },
+      { intervals: [120, 120, 120, 120, 120, 120, 120, 120] },
+    )
+    .toBe("still");
 }
 
 /** Put the scroller somewhere other than its top, before a gesture. */
@@ -188,7 +231,7 @@ test.describe("one gesture moves one thing", () => {
     // reaches the end by accident.
     expect(before.maxScroll).toBeGreaterThan(1000);
 
-    await swipe(page, { down: -200, speed: 800 });
+    await swipe(page, { down: -200, steps: stepsFor(200), ...FLICK });
 
     const after = await read(page);
     // The control: a harness that cannot deliver a scroll passes every
@@ -206,7 +249,11 @@ test.describe("one gesture moves one thing", () => {
 
     // Short of the dismiss distance, so the sheet is still there to be
     // asked about afterwards.
-    await swipe(page, { down: SHEET_PULL_DISMISS_PX - 20, speed: PUSH_SPEED });
+    await swipe(page, {
+      down: SHEET_PULL_DISMISS_PX - 20,
+      steps: stepsFor(SHEET_PULL_DISMISS_PX - 20),
+      ...PUSH,
+    });
 
     const after = await read(page);
     expect(after.maxPull).toBeGreaterThan(20);
@@ -226,7 +273,11 @@ test.describe("what collapses the sheet", () => {
     page,
   }) => {
     await open(page, "sheet-gesture");
-    await swipe(page, { down: SHEET_PULL_DISMISS_PX + 60, speed: PUSH_SPEED });
+    await swipe(page, {
+      down: SHEET_PULL_DISMISS_PX + 60,
+      steps: stepsFor(SHEET_PULL_DISMISS_PX + 60),
+      ...PUSH,
+    });
 
     const after = await read(page);
     expect(after.state).toBe("peek");
@@ -243,7 +294,11 @@ test.describe("what collapses the sheet", () => {
     // The pair that gives the velocity term something to mean: same
     // distance as "stops short" below, released fast instead of slow.
     await open(page, "sheet-gesture");
-    await swipe(page, { down: SHEET_PULL_DISMISS_PX - 20, speed: FLICK_SPEED });
+    await swipe(page, {
+      down: SHEET_PULL_DISMISS_PX - 20,
+      steps: stepsFor(SHEET_PULL_DISMISS_PX - 20),
+      ...FLICK,
+    });
 
     expect((await read(page)).state).toBe("peek");
   });
@@ -252,7 +307,11 @@ test.describe("what collapses the sheet", () => {
     await open(page, "sheet-gesture-short");
     expect((await read(page)).maxScroll).toBe(0);
 
-    await swipe(page, { down: SHEET_PULL_DISMISS_PX + 60, speed: PUSH_SPEED });
+    await swipe(page, {
+      down: SHEET_PULL_DISMISS_PX + 60,
+      steps: stepsFor(SHEET_PULL_DISMISS_PX + 60),
+      ...PUSH,
+    });
 
     expect((await read(page)).state).toBe("peek");
   });
@@ -271,7 +330,8 @@ test.describe("what collapses the sheet", () => {
     // assertion below a coin toss on rounding.
     await swipe(page, {
       down: 120 + SHEET_PULL_HANDOFF_PX + SHEET_PULL_DISMISS_PX * 2,
-      speed: PUSH_SPEED,
+      steps: stepsFor(120 + SHEET_PULL_HANDOFF_PX + SHEET_PULL_DISMISS_PX * 2),
+      ...PUSH,
     });
 
     const after = await read(page);
@@ -287,7 +347,11 @@ test.describe("what leaves the sheet where it was", () => {
     await open(page, "sheet-gesture");
     const before = await read(page);
 
-    await swipe(page, { down: SHEET_PULL_DISMISS_PX - 20, speed: PUSH_SPEED });
+    await swipe(page, {
+      down: SHEET_PULL_DISMISS_PX - 20,
+      steps: stepsFor(SHEET_PULL_DISMISS_PX - 20),
+      ...PUSH,
+    });
 
     const after = await read(page);
     expect(after.state).toBe("");
@@ -307,7 +371,8 @@ test.describe("what leaves the sheet where it was", () => {
     // pushed past it and the sheet is never handed the gesture.
     await swipe(page, {
       down: 400 + SHEET_PULL_HANDOFF_PX - 8,
-      speed: FLICK_SPEED,
+      steps: stepsFor(400 + SHEET_PULL_HANDOFF_PX - 8),
+      ...FLICK,
     });
 
     const after = await read(page);
@@ -326,7 +391,7 @@ test.describe("what leaves the sheet where it was", () => {
     await open(page, "sheet-gesture");
     const before = await read(page);
 
-    await swipe(page, { down: -120, speed: PUSH_SPEED });
+    await swipe(page, { down: -120, steps: stepsFor(120), ...PUSH });
 
     const after = await read(page);
     expect(after.maxPull).toBe(0);
