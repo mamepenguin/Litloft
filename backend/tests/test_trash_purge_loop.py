@@ -35,13 +35,17 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 # does not exclude comes back unchanged forever — a failure with no error and
 # no end. Any finite bound tells that apart from a slow run.
 #
-# It is pulled in two directions and neither is "as large as possible". Too
-# large and a regression is expensive: this does not fail one test, it makes
-# every test that drives a failing delete wait out the whole bound. Too small
-# and it fails on a loaded machine rather than on a defect — which it did, at
-# a value with roughly twice the slowest call's headroom, while several
-# containers were building. Timings go in the PR body.
+# There are two bounds because there are two populations, and conflating them
+# is what made a single value keep flaking. A run that is *meant* to hit the
+# non-termination path does almost no work — a handful of rows, each failing
+# immediately — so it returns in milliseconds when correct and the bound can
+# be tight. The bulk test is the opposite: it has no failing delete, so it
+# cannot exercise non-termination at all, and its honest runtime scales with
+# rows times commits. Binding both with one number means either the bulk test
+# flakes under load or a hang costs the tight population a minute each.
+# Timings go in the PR body.
 _TERMINATION_TIMEOUT_SECONDS = 10
+_BULK_TIMEOUT_SECONDS = 180
 
 
 def _seed_trashed(db, drive_dir, filename, *, days_ago, folder="trash-src", on_disk=True):
@@ -75,7 +79,7 @@ def _cutoff(days=main.TRASH_RETENTION_DAYS):
     return datetime.now(UTC) - timedelta(days=days)
 
 
-def _run_with_deadline(fn):
+def _run_with_deadline(fn, seconds=_TERMINATION_TIMEOUT_SECONDS):
     """Call ``fn`` on a thread and fail rather than hang if it does not return.
 
     ``pytest-timeout`` is not installed here, and a non-terminating
@@ -92,12 +96,11 @@ def _run_with_deadline(fn):
 
     thread = threading.Thread(target=target, daemon=True)
     thread.start()
-    thread.join(timeout=_TERMINATION_TIMEOUT_SECONDS)
+    thread.join(timeout=seconds)
     if thread.is_alive():
         pytest.fail(
-            f"_run_purge_batch did not return within "
-            f"{_TERMINATION_TIMEOUT_SECONDS}s — the batch loop is not making "
-            f"progress"
+            f"_run_purge_batch did not return within {seconds}s — the batch "
+            f"loop is not making progress"
         )
     if "error" in box:
         raise box["error"]
@@ -430,7 +433,8 @@ class TestTheBatchLoop:
         assert len(expected) == total
 
         purged_ids, _folders, drives = _run_with_deadline(
-            lambda: main._run_purge_batch(_cutoff())
+            lambda: main._run_purge_batch(_cutoff()),
+            seconds=_BULK_TIMEOUT_SECONDS,
         )
 
         assert set(purged_ids) == expected
@@ -440,17 +444,20 @@ class TestTheBatchLoop:
         assert db.query(File).count() == 0
 
     def test_a_row_another_session_purged_does_not_end_the_run(
-        self, client, monkeypatch
+        self, client, monkeypatch, caplog
     ):
         """The hazard that committing per row introduces.
 
-        A commit expires every instance in the session, so reading a later
-        row's columns afterwards is a refresh ``SELECT`` (the primary key
-        survives the expiry; ``drive`` and ``folder_path`` do not). If a user
-        hard-deletes that file from the Trash view in between, the refresh
-        raises ``ObjectDeletedError`` — and read outside the per-row handler
-        it ends the entire run, abandoning every row after it. The columns
-        are therefore read once, before the first commit.
+        A commit expires every instance in the session — the primary key
+        included, measured — so reading any column of a later row afterwards
+        is a refresh ``SELECT``. If a user hard-deletes that file from the
+        Trash view in between, the refresh raises ``ObjectDeletedError``.
+        Inside the per-row handler that is survivable; read in the loop
+        header it goes past the handler to the outer one, which ends the
+        entire run and abandons every row after it. The bookkeeping columns
+        are therefore read before the first commit, which leaves only the
+        refreshes that ``physical_delete`` itself makes — and those are
+        inside the handler.
 
         The row that loses the race is deliberately not the last one: the
         rows before it are purged either way, and it is gone from the
@@ -486,7 +493,7 @@ class TestTheBatchLoop:
 
         monkeypatch.setattr(main, "SessionLocal", racing_session)
 
-        with caplog_absent():
+        with caplog.at_level(logging.WARNING, logger="app.main"):
             purged_ids, _folders, _drives = _run_with_deadline(
                 lambda: main._run_purge_batch(_cutoff())
             )
@@ -496,6 +503,10 @@ class TestTheBatchLoop:
         assert set(purged_ids) == {ids[0], ids[1], behind_it}
         db.expire_all()
         assert db.query(File).count() == 0
+        # The user removed that file themselves. Reporting it as left behind,
+        # to be retried, describes a trash entry that no longer exists — the
+        # same false operator signal the per-row rollback was added to stop.
+        assert "left" not in caplog.text
 
     def test_a_failing_commit_announces_nothing(self, client, monkeypatch):
         """An id earns its place in the event at the commit, not at the flush.
@@ -637,6 +648,7 @@ class _PassRecorder:
         self.sleeps = []
         self.pass_done = asyncio.Event()
         self.emit_seen = asyncio.Event()
+        self.timed_out = False
         self._real_sleep = asyncio.sleep
 
     def install(self, monkeypatch):
@@ -680,15 +692,22 @@ class _PassRecorder:
         """
         task = asyncio.create_task(main.purge_expired_trash())
         try:
-            await asyncio.wait_for(
-                self.pass_done.wait(), timeout=_TERMINATION_TIMEOUT_SECONDS
-            )
-            if expect_emit:
+            # A timeout is swallowed so the test reports through its own
+            # assertions — what was slept, how many passes ran — rather than
+            # through a bare ``TimeoutError`` that names nothing.
+            try:
                 await asyncio.wait_for(
-                    self.emit_seen.wait(), timeout=_TERMINATION_TIMEOUT_SECONDS
+                    self.pass_done.wait(), timeout=_TERMINATION_TIMEOUT_SECONDS
                 )
-            else:
-                await self._real_sleep(0)
+                if expect_emit:
+                    await asyncio.wait_for(
+                        self.emit_seen.wait(),
+                        timeout=_TERMINATION_TIMEOUT_SECONDS,
+                    )
+                else:
+                    await self._real_sleep(0)
+            except asyncio.TimeoutError:
+                self.timed_out = True
         finally:
             task.cancel()
             try:
@@ -762,6 +781,7 @@ class TestTheScheduledRun:
 
         _drive_until(lambda: recorder.run_one_pass(expect_emit=False))
 
+        assert recorder.timed_out is False
         assert recorder.sleeps == [_EXPECTED_PURGE_INTERVAL_SECONDS]
 
     def test_the_task_comes_back_after_the_interval(self, monkeypatch):
@@ -776,6 +796,7 @@ class TestTheScheduledRun:
 
         _drive_until(lambda: recorder.run_one_pass(expect_emit=False))
 
+        assert recorder.timed_out is False
         assert len(recorder.cutoffs) == 2
         assert recorder.sleeps == [
             _EXPECTED_PURGE_INTERVAL_SECONDS,

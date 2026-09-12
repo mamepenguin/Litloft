@@ -45,7 +45,7 @@ The frontend renders missing files with a muted card; the viewer page is reachab
 Two ways:
 
 1. **Restore the file** to the same path on disk. The next scanner pass detects the recovery, clears `missing_since`, and emits `files.recovered`.
-2. **Upload to the same path** through Litloft's UI. The upload pipeline detects the existing missing record and revives it (no `INSERT` — that would violate the `UNIQUE(path)` constraint).
+2. **Upload to the same path** through Litloft's UI. The upload pipeline detects the existing missing record and revives it (no `INSERT` — that would violate the `UNIQUE(drive, file_path)` constraint).
 
 ### Mount-failure protection
 
@@ -97,7 +97,7 @@ A background task runs at backend startup and every 24 hours:
 
 Each file is committed on its own, so one that cannot be deleted — a drive that has left `drives.json`, or a path the backend can no longer unlink — is rolled back, logged, and skipped, and the run carries on with the rest. It then logs how many it left behind. Those rows stay in Trash past the 30 days and are tried again on each following run, so they clear only once you fix what is blocking the delete: put the drive back, or correct the permissions on the file or its folder.
 
-One consequence of the ordering: the on-disk file is removed before the database row is, so a failure in the last step of a delete leaves the entry in Trash with its content already gone. **Restore** then refuses it with *File no longer exists on disk*, and the entry goes away on the next run that gets past the failing step.
+One consequence of the ordering: the on-disk file is removed before the database row is, so a failure in the last step of a delete leaves the entry in Trash with its content already gone. **Restore** cannot bring it back — the API refuses with *File no longer exists on disk*, though the Trash view currently discards that error, so what you see is the entry simply staying put. It goes away on the next run that gets past the failing step.
 
 ## Hard delete (purge from trash)
 

@@ -11,6 +11,7 @@ from typing import Callable, Coroutine, Iterable
 import time
 
 from fastapi import FastAPI, Request
+from sqlalchemy.orm.exc import ObjectDeletedError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.database import SessionLocal, init_db
@@ -69,8 +70,8 @@ def _run_purge_batch(
     means changing how every session in the application begins a
     transaction — a wider blast radius than this function is worth.
 
-    The row's columns are read once, before the first commit — see the
-    comment at the loop, which is where the reason is visible.
+    The bookkeeping columns are read before the first commit, for the reason
+    in the comment at the loop.
 
     The unlink is outside all of this and does not need to be inside it: a
     tail failure leaves the bytes gone and the row back, and the retry finds
@@ -91,17 +92,33 @@ def _run_purge_batch(
             batch = query.limit(_PURGE_BATCH_SIZE).all()
             if not batch:
                 break
-            # Read every column now, while the rows are loaded and before the
-            # first commit expires them. Reading them per iteration instead
-            # issues a refresh SELECT from outside the per-row ``try``, and a
-            # row another session purged in the meantime — a hard delete from
-            # the Trash view, say — then raises ``ObjectDeletedError`` into
-            # the outer handler and ends the whole run.
+            # Take the bookkeeping columns before the first commit, which
+            # expires every instance — the primary key included, so reading
+            # any of them afterwards is a refresh SELECT. That is fine where
+            # it can be caught: ``physical_delete`` re-reads its own columns
+            # off the same expired instances and sits inside the per-row
+            # handler below. What could not be caught was reading them in the
+            # loop header, where a row another session purged in the meantime
+            # raises ``ObjectDeletedError`` past the handler, into the outer
+            # one, which ends the whole run. This moves that read out of the
+            # loop; it does not remove the refreshes.
             rows = [(f, f.id, f.drive, f.folder_path) for f in batch]
             for file, file_id, drive, folder_path in rows:
                 try:
                     physical_delete(db, file)
                     db.commit()
+                except ObjectDeletedError:
+                    # Someone else purged it between the query and here — a
+                    # hard delete from the Trash view. It is gone, so there is
+                    # nothing to exclude and nothing to retry; counting it as
+                    # unpurgeable would report a file still in the trash that
+                    # the user has already removed.
+                    db.rollback()
+                    logger.info(
+                        "File %s was purged by another session; skipping",
+                        file_id,
+                    )
+                    continue
                 except Exception:
                     db.rollback()
                     unpurgeable.add(file_id)
