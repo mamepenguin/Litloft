@@ -27,12 +27,14 @@ import { MediaLayoutToggle } from "../MediaLayoutToggle";
  * containing block, so a box drawn *around* the player takes its travel
  * away instead (`globals.css`, `.media-detail-player-aside`).
  *
- * Gated on the kind rather than mounted for every file, because the
- * occupant fetches as soon as it mounts and a native `.mp4` has nothing
- * for it to ask about. What the occupant draws is the addon's to say —
- * `docs/addons/media-import.md` — and deliberately not described here:
+ * Gated on the kind rather than mounted for every file: a slot is
+ * mounted only where its occupant could be about something, and provider
+ * metadata is about a provider-hosted file. That is core's own rule and
+ * is checked here (`MediaPlayerBlock.test.tsx`). What the occupant draws,
+ * and what mounting it costs, are the addon's to state —
+ * `docs/addons/media-import.md` — and deliberately not repeated here:
  * `addons/` is a submodule whose contents this repository does not track,
- * so a claim about them cannot fail from here.
+ * so nothing here fails when they move.
  */
 const MEDIA_ASIDE_SLOT = "loft-metadata";
 

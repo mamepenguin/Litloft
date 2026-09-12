@@ -2,12 +2,14 @@
  * The Bottom Sheet's gesture-ownership table, state by state.
  *
  * **This is the only place the whole table can be measured, and it cannot
- * measure a browser.** jsdom lays nothing out: `getBoundingClientRect()`
- * is zeros, writing `scrollTop` moves nothing, and `preventDefault()` on
- * a synthetic touch cancels no scroll that never started. So what is held
- * here is the decision — who owns a gesture that began in this state, and
- * what releasing it does — with the scroll positions handed in as
- * numbers.
+ * measure a browser.** The module is arithmetic over numbers a caller
+ * supplies, so every state is reachable here by supplying them — which is
+ * also why a scroller that bounces past its own top is testable in jsdom
+ * and the round that added the clamp for it wrongly said otherwise. What
+ * jsdom cannot produce is the *reading*: it lays nothing out, so nothing
+ * here is evidence that a browser ever reports these offsets, and
+ * `preventDefault()` on a synthetic touch cancels no scroll that never
+ * started.
  *
  * That the browser then honours the decision (the scroller does not move
  * a pixel while the sheet does, and the reverse) is measured in
@@ -183,6 +185,26 @@ const GESTURES: {
     release: "settle",
   },
   {
+    // And what that costs, stated rather than left to be discovered: a
+    // gesture that went up first is the scroller's, and the handoff is
+    // the only way back — so the finger has to push the full
+    // `SHEET_PULL_HANDOFF_PX` *past where it turned* before the sheet
+    // follows. One rule for reversals, in a sheet that scrolls and in one
+    // that does not.
+    name: "nothing to scroll, dragged up and then back down",
+    begin: { scrollTop: 0, maxScroll: 0 },
+    moves: [
+      { dy: -40, scrollTop: 0 },
+      { dy: -40 + SHEET_PULL_HANDOFF_PX - 1, scrollTop: 0 },
+      { dy: -40 + SHEET_PULL_HANDOFF_PX, scrollTop: 0 },
+      { dy: -40 + SHEET_PULL_HANDOFF_PX + 80, scrollTop: 0 },
+    ],
+    velocity: 0.1,
+    owner: "sheet",
+    pull: 80,
+    release: "dismiss",
+  },
+  {
     // A finger that pushes at the top with a frame in the middle where
     // `clientY` did not change — which is ordinary, because moves are
     // coalesced and the position is rounded. The banked push survives it.
@@ -204,8 +226,8 @@ const GESTURES: {
 
 describe("sheet pull gesture", () => {
   it("declares every gesture the design names", () => {
-    expect(GESTURES).toHaveLength(9);
-    expect(new Set(GESTURES.map((g) => g.name)).size).toBe(9);
+    expect(GESTURES).toHaveLength(10);
+    expect(new Set(GESTURES.map((g) => g.name)).size).toBe(10);
   });
 
   /**
@@ -227,6 +249,32 @@ describe("sheet pull gesture", () => {
         ]).owner;
       expect(push(47)).toBe("scroller");
       expect(push(48)).toBe("sheet");
+    });
+
+    it("still calls a fractional offset the top, and 400px not the top", () => {
+      // The one constant here whose docstring names a device rather than
+      // a comfort: a scroller on a device pixel ratio other than 1
+      // reports a fractional `scrollTop`, so `=== 0` would refuse the
+      // gesture the reader thinks they are making. Both bounds, because
+      // the pair above it was pinned into (0, 400) and **zero is the
+      // value the docstring exists to refuse** — at zero a device
+      // reporting `0.36` after a scroll clears the banked push on every
+      // frame and the handoff can never accumulate.
+      const startedAt = (scrollTop: number) =>
+        beginSheetPull({ scrollTop, maxScroll: TALL }).owner;
+      expect(startedAt(0.36)).toBe("undecided");
+      expect(startedAt(3)).toBe("scroller");
+
+      // And the same value, in its other use: the frame-by-frame test
+      // that decides whether a push past the top is still owed.
+      const banked = (scrollTop: number) =>
+        run({ scrollTop: 200, maxScroll: TALL }, [
+          { dy: 200, scrollTop: 0 },
+          { dy: 200 + HALF_HANDOFF, scrollTop },
+          { dy: 200 + SHEET_PULL_HANDOFF_PX, scrollTop },
+        ]).pushedPastTop;
+      expect(banked(0.36)).toBeGreaterThan(0);
+      expect(banked(3)).toBe(0);
     });
 
     it("reads the direction after 4px and not after 3", () => {

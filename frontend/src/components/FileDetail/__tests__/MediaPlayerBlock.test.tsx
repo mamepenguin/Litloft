@@ -123,8 +123,9 @@ describe("the player block", () => {
   });
 
   it("does not ask for provider metadata about a file that has none", () => {
-    // The panel fetches as soon as it mounts, so mounting it for every
-    // media file would be a request per file with nothing to answer it.
+    // Core's own rule: a slot is mounted where its occupant could be
+    // about something. Provider metadata is about a provider-hosted
+    // file, so a local `.mp4` draws neither the box nor the slot.
     const { aside, slot } = renderBlock(makeFile());
     expect(aside).toBeNull();
     expect(slot).toBeNull();

@@ -880,10 +880,12 @@ async function expectSheetUnderPlayer(
   // The fixture draws both the padding and the bleed, so this comparison
   // is what says the stylesheet cancels both.
   //
-  // Only at rest. A player taller than its own scrollport — landscape —
-  // is pulled back up by the page's last line at the end of a scroll,
-  // which is the travel the scrolled group measures on purpose and the
-  // direction `useSheetHalfSnap` records as safe.
+  // Only at rest. A sticky box travels inside its own containing block,
+  // so where that block ends before the scroll does, the end of it pulls
+  // the box back up — which is the travel the scrolled group measures on
+  // purpose, and the direction `useSheetHalfSnap` records as safe. Which
+  // of these pairs it happens to is declared in `TRAVEL_PX`, not derived
+  // from a comparison here.
   if (atRest) {
     expect(m.canvasTop).not.toBeNull();
     expect(m.player!.top).toBeCloseTo(m.canvasTop!, 0);
@@ -1064,13 +1066,19 @@ test.describe(PLAYER_GROUPS[2], () => {
     expect(m.canvasTop).not.toBeNull();
     expect(m.playerPosition).toBe("sticky");
     expect(m.player!.top).toBeCloseTo(m.canvasTop!, 0);
-    // And there really was nothing under it, asked as the property the
-    // group needs: the canvas cannot scroll. "The player's bottom is
-    // inside the scrollport" was the first form of this and it is inert —
-    // true of 40px of slack as well, which is enough for `sticky` to
-    // correct the position and make the reading above right for the wrong
-    // reason (measured: the group stayed green at `bodyPx: 40` with the
-    // margin rule reverted).
+    // And there really was nothing under it — which is the property the
+    // group needs, and it is not "the canvas cannot scroll": the resting
+    // strip's own `padding-bottom` makes the canvas scrollable at some of
+    // these viewports with the player as its only content. What the
+    // reading above needs is no *slack between the player and the end*,
+    // because that is what lets `sticky` correct the player's position
+    // and make the comparison right whatever the margins did. So it is
+    // the height of the box after the player.
+    //
+    // "The player's bottom is inside the scrollport" was the first form
+    // of this guard and it is inert — true of 40px of slack as well, and
+    // measured: at `bodyPx: 40` the group stayed green with the margin
+    // rule reverted. This form goes red there.
     expect(m.belowHeight).toBe(0);
   });
 });

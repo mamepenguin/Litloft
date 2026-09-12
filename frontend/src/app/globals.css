@@ -896,7 +896,6 @@ div[data-citation-section-path]:not(tr) {
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
     "player"
-    "player-aside"
     "companion"
     "rest";
 }
@@ -905,21 +904,37 @@ div[data-citation-section-path]:not(tr) {
   grid-area: player;
 }
 
-/* A row of its own, directly under the player.
+/* The occupant under the player gets a row, **and only when it is
+   there.**
 
-   Not inside `.media-detail-player`, and **not a box wrapping it
-   either.** `.media-detail-player` is the playable surface the reader
-   must keep whole — what the Bottom Sheet's `half` clears
-   (`useSheetHalfSnap`), what `--player-avail` caps as a width, and what
-   a phone makes `position: sticky` — so content does not go in it, and a
-   wrapper around it is worse than content in it: sticky travels only
-   inside its own containing block, and a box whose height is the
-   player's own leaves it none. That is the defect the note above the
-   sticky rule records, and it has now been created twice.
+   Why it is a sibling of the player at all: `.media-detail-player` is
+   the playable surface the reader must keep whole — what the Bottom
+   Sheet's `half` clears (`useSheetHalfSnap`), what `--player-avail` caps
+   as a width, and what a phone makes `position: sticky` — so content
+   does not go inside it, and a box *around* it is worse than content in
+   it. Sticky travels only inside its own containing block, and a wrapper
+   whose height is the player's own leaves it none; that is the defect
+   the note above the sticky rule records, and it has now been made
+   twice.
 
-   So the occupant is a sibling, and this area is what keeps it out of a
-   cell meant for something else in the grid above. In the shell layout
-   there is no grid and it is simply the next block down. */
+   Why the row is conditional: a named row is laid out whether or not
+   anything occupies it, and `gap` is drawn on **both** sides of it. An
+   unoccupied row therefore costs `24 + 0 + 24` — so an unconditional
+   fourth row doubles the space under the player on every file that has
+   no occupant, which is most of them. Measured on the legacy grid at
+   760x900: 24px became 48px.
+
+   In the shell layout there is no grid at all and the occupant is simply
+   the next block down, which is why this is two rules and not one
+   property on the box. */
+.media-detail-grid:has(> .media-detail-player-aside) {
+  grid-template-areas:
+    "player"
+    "player-aside"
+    "companion"
+    "rest";
+}
+
 .media-detail-player-aside {
   grid-area: player-aside;
 }
@@ -1046,6 +1061,19 @@ div[data-citation-section-path]:not(tr) {
    layout the numbers were chosen for. */
 [data-media-layout="beside"] [data-media-width="wide"] .media-detail-grid {
   grid-template-columns: minmax(0, 1fr) 24rem;
+  grid-template-areas:
+    "player   companion"
+    "rest     companion";
+}
+
+/* The occupant's row again, in the two-column variant, and conditional
+   for the reason the one-column rule gives. Written out rather than
+   inherited: `grid-template-areas` is one value, so the variant above
+   replaces the whole template and a row added only to the base is lost
+   here. */
+[data-media-layout="beside"]
+  [data-media-width="wide"]
+  .media-detail-grid:has(> .media-detail-player-aside) {
   grid-template-areas:
     "player       companion"
     "player-aside companion"

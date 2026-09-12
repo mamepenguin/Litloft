@@ -15,10 +15,14 @@
  * the sheet only ever takes a gesture the scroller had no use for:
  *
  * - nothing to scroll, or at the top, and then moving down → the sheet;
- * - nothing to scroll, or at the top, and then moving up → the scroller,
- *   and it keeps it;
- * - below the top → the scroller, which may hand the gesture over, but
- *   only after the finger has pushed `SHEET_PULL_HANDOFF_PX` past the top.
+ * - nothing to scroll, or at the top, and then moving up → the scroller;
+ * - below the top → the scroller.
+ *
+ * A gesture the scroller owns can still be handed over, but only after
+ * the finger has pushed `SHEET_PULL_HANDOFF_PX` past the top — and that
+ * is the only route, so a gesture that began by moving up needs the same
+ * push before the sheet follows it back down. Deliberate: one rule for
+ * reversals rather than one per starting state.
  *
  * That last clause is what separates "scrolled to the top and kept
  * pushing" from "flicked hard and the momentum reached the top": the

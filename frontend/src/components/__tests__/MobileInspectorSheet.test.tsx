@@ -540,6 +540,39 @@ describe("pulling the sheet down by its content", () => {
     expect(onStateChange).not.toHaveBeenCalled();
   });
 
+  it("reaches the handoff through a scroller that bounced past its own top", () => {
+    // iOS Safari stretches an inner scroller past its top, and reports
+    // the stretch as a negative `scrollTop`. Unclamped, that feeds
+    // `advanceSheetPull` a `consumed` term as large as the finger's own
+    // movement, so nothing accumulates toward the handoff and condition 3
+    // — scroll to the top without lifting, then keep pushing — can never
+    // fire there.
+    //
+    // **The premise is the part jsdom cannot hold**: whether iOS really
+    // reports a negative offset. The arithmetic is what is measured here,
+    // and it needs nothing but the offsets a caller hands in, which is
+    // why "not measurable here" was the wrong scope for the claim.
+    const { onStateChange } = renderSheet(SHEET_STATE_HALF);
+    const scroller = screen.getByTestId("mobile-inspector-content");
+    const surface = screen.getByTestId("mobile-inspector-surface");
+    // Below the top, so the gesture latches to the scroller.
+    stubScrollGeometry(scroller, { scrollTop: 200, maxScroll: 900 });
+
+    at(scroller, "touchStart", touch(300), START_AT);
+    // Down to the top: every pixel answered by scrolling.
+    scroller.scrollTop = 0;
+    at(scroller, "touchMove", touch(500), START_AT + 200);
+    // Past it, with the band stretching — the offset goes negative.
+    scroller.scrollTop = -60;
+    at(scroller, "touchMove", touch(560), START_AT + 400);
+    scroller.scrollTop = -60;
+    at(scroller, "touchMove", touch(660), START_AT + 600);
+
+    expect(surface.style.transform).toBe("translate3d(0, 100px, 0)");
+    at(scroller, "touchEnd", lift(660), START_AT + 800);
+    expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+  });
+
   it("does not expand the sheet when the content is dragged upward", () => {
     const { onStateChange, transform } = pull({
       scrollTop: 0,

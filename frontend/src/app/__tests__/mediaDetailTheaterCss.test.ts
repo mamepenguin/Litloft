@@ -75,13 +75,31 @@ describe("media detail theater sizing", () => {
     );
     expect(aside).not.toBeNull();
     expect(aside![0]).toMatch(/grid-area:\s*player-aside;/);
-    for (const areas of globalsCss().matchAll(
-      /grid-template-areas:([^;]*);/g,
-    )) {
-      if (!areas[1].includes('"player ') && !areas[1].includes('"player"'))
-        continue;
-      expect(areas[1]).toContain("player-aside");
-    }
+  });
+
+  it("gives the occupant a row only where there is an occupant", () => {
+    // A named row is laid out whether or not anything is in it, and `gap`
+    // is drawn on both sides of it — so an unconditional row costs the
+    // full gap twice under every player that has no occupant. Measured on
+    // the legacy grid: 24px became 48px.
+    //
+    // Declared as a pair per template, both directions: every template
+    // that names the row is behind `:has()`, and every template that does
+    // not exists. Asserting only the first would pass on a stylesheet
+    // with no unconditional template at all — which is a grid whose
+    // player has no area.
+    const templates = [
+      ...globalsCss().matchAll(
+        /([^\n}]*)\.media-detail-grid([^{]*)\{[^}]*grid-template-areas:([^;]*);/g,
+      ),
+    ].map(([, before, after, areas]) => ({
+      conditional: `${before}${after}`.includes(":has("),
+      row: areas.includes("player-aside"),
+    }));
+    // The one-column grid and the two-column variant, each in both forms.
+    expect(templates).toHaveLength(4);
+    expect(templates.filter((t) => t.row && t.conditional)).toHaveLength(2);
+    expect(templates.filter((t) => !t.row && !t.conditional)).toHaveLength(2);
   });
 });
 

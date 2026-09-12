@@ -25,9 +25,11 @@ const SETTLE_EASING = "ease-out";
 /**
  * How far back in time the release velocity is read.
  *
- * Long enough to survive one dropped frame, short enough that a finger
- * that stopped moving before lifting reads as stopped — which is the
- * gesture that must *not* be mistaken for a flick.
+ * Several frames' worth, so the reading is of the finger's travel rather
+ * than of one sample pair, and short enough that a finger which stopped
+ * moving before lifting reads as stopped — which is the gesture that must
+ * *not* be mistaken for a flick. Where between those two it sits is
+ * comfort, and nothing pins it.
  *
  * **Measured against the moment the finger left, not against the last
  * move.** A finger that stops emits no further `touchmove`, so a window
@@ -133,14 +135,18 @@ export function useSheetPullToCollapse({
      * The window is applied *here*, against the moment being asked about,
      * which is what makes a pause before the lift read as a pause: the
      * samples from before it fall outside and there is nothing left to
-     * divide. Fewer than two inside the window is a finger that was not
-     * moving, and 0 is the answer — never a pair from further back.
+     * divide, so the answer is 0 rather than a pair from further back.
+     *
+     * The empty case is the only one that needs a guard. One sample makes
+     * `first` and `last` the same reading, so `elapsed` is 0 and the
+     * expression below already answers 0; a `< 2` guard there reads as if
+     * it decided something and does not.
      */
     const velocityAt = (at: number) => {
       const recent = samples.filter(
         (sample) => at - sample.at <= VELOCITY_WINDOW_MS,
       );
-      if (recent.length < 2) return 0;
+      if (recent.length === 0) return 0;
       const first = recent[0];
       const last = recent[recent.length - 1];
       const elapsed = last.at - first.at;
@@ -177,15 +183,19 @@ export function useSheetPullToCollapse({
 
       state = advanceSheetPull(state, {
         dy: touch.clientY - startY,
-        // Clamped, because a bounce reads as a negative offset. iOS
-        // Safari stretches an inner scroller past its own top, and a
+        // Clamped, because a bounce reads as a negative offset: a
         // negative reading feeds `advanceSheetPull` a `consumed` term as
-        // large as the finger's own movement — so nothing accumulates
-        // toward the handoff and condition 3 never fires there. A
-        // stretching band reads as a pinned top instead. Chromium does
-        // not draw the band, so this is the arithmetic being made safe
-        // for a platform the browser suite cannot show, not a measured
-        // fix.
+        // large as the finger's own movement, so nothing accumulates
+        // toward the handoff and condition 3 never fires. A stretching
+        // scroller reads as a pinned top instead.
+        //
+        // What this repository cannot measure is the *premise* — whether
+        // iOS Safari really reports a negative `scrollTop` on an
+        // `overscroll-behavior: contain` element; Chromium does not draw
+        // that band. The arithmetic itself is measured, in
+        // `MobileInspectorSheet.test.tsx`: a gesture whose offsets go
+        // negative reaches the handoff with this clamp and does not
+        // without it.
         scrollTop: Math.max(0, scroller.scrollTop),
       });
 
