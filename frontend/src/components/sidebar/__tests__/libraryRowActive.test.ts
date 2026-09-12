@@ -29,6 +29,11 @@ import { FIXED_SIDEBAR_ROWS } from "./fixedRows";
 const DRIVE = "main";
 const BASE = `/drive/${DRIVE}`;
 
+/** A drive whose name is not its own encoding, for the spelling clauses. */
+const ODD_DRIVE = "家族ビデオ & co";
+const ENCODED_BASE = `/drive/${encodeURIComponent(ODD_DRIVE)}`;
+const DECODED_BASE = `/drive/${ODD_DRIVE}`;
+
 /**
  * Every row whose highlight is decided by `isSidebarLinkActive`.
  *
@@ -60,16 +65,18 @@ function litRows({
   pathname,
   activeView = null,
   activeTag = null,
+  driveBase = BASE,
 }: {
   pathname: string;
   activeView?: string | null;
   activeTag?: string | null;
+  driveBase?: string;
 }): string[] {
   const lit = FIXED_ROWS.filter(({ href }) =>
     isSidebarLinkActive({ href, pathname, currentDrive: DRIVE, activeView, activeTag }),
   ).map(({ name }) => name);
 
-  if (isLibraryRowActive({ pathname, driveBase: BASE, activeView, activeTag, pinnedHrefs })) {
+  if (isLibraryRowActive({ pathname, driveBase, activeView, activeTag, pinnedHrefs })) {
     lit.push("Library");
   }
   return lit.sort();
@@ -110,6 +117,21 @@ describe("which fixed sidebar row is lit", () => {
     // light over a path that is not this drive's.
     ["a folder on another drive", { pathname: "/drive/other/recipes" }, []],
     ["a page outside any drive", { pathname: "/settings" }, []],
+    // The two above fall out at other clauses too — `/drive/other/...`
+    // and `/settings` are neither this drive's root nor under its base,
+    // and nothing else lights for them either. These two are the ones
+    // that reach `isUnderDriveBase` and nothing else: a sibling drive
+    // whose name *starts with* this one's, and this drive's own name
+    // with a suffix glued on. Both begin with `driveBase`; neither is a
+    // path inside it, which is what the trailing slash is for.
+    ["a drive whose name extends this one's", { pathname: `${BASE}-archive/recipes` }, []],
+    ["this drive's name with a suffix", { pathname: `${BASE}x` }, []],
+    // `usePathname()` reports the encoded or the decoded spelling
+    // depending on how the navigation happened, and `driveBase` is always
+    // encoded. A drive whose name is its own encoding cannot tell the
+    // two apart, so these run on one that is not.
+    ["a folder under the encoded spelling", { pathname: `${ENCODED_BASE}/recipes`, driveBase: ENCODED_BASE }, ["Library"]],
+    ["a folder under the decoded spelling", { pathname: `${DECODED_BASE}/recipes`, driveBase: ENCODED_BASE }, ["Library"]],
   ];
 
   it.each(STATES)("lights %s as declared", (_name, url, expected) => {
@@ -119,12 +141,13 @@ describe("which fixed sidebar row is lit", () => {
   it("declares one lit row per state, or none where the owner is elsewhere", () => {
     // Two numbers rather than a bound. "At most one is lit" is satisfied
     // by a table in which nothing ever lights, and "exactly one" is false
-    // for the three states whose owning row is computed in its own
-    // component. Both counts are declared, so shrinking the table moves
-    // one of them and the other stays put.
+    // for the states where no row in the population owns the highlight —
+    // a tag row, which computes its own, or no row at all. Both counts
+    // are declared, so shrinking the table moves one and the other stays
+    // put.
     const byCount = (n: number) => STATES.filter(([, , expected]) => expected.length === n);
-    expect(byCount(1)).toHaveLength(9);
-    expect(byCount(0)).toHaveLength(7);
+    expect(byCount(1)).toHaveLength(11);
+    expect(byCount(0)).toHaveLength(9);
     expect(byCount(1).length + byCount(0).length).toBe(STATES.length);
   });
 });

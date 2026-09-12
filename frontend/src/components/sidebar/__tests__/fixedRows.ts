@@ -8,7 +8,7 @@
  * 2026-09-12-purpose-oriented-navigation §5.1). The order is the column's,
  * not one file's, which is why this list is compared against the DOM.
  *
- * Shared by the two detectors that need the value, not just the label:
+ * Shared by the detectors that need the value and not just the label:
  * `components/__tests__/SidebarActiveRow.test.tsx` compares it against
  * the rendered DOM, and `sidebar/__tests__/isSidebarLinkActive.test.ts`
  * drives its per-value cases from it. A literal compared only against its

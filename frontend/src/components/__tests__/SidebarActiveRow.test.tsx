@@ -53,6 +53,7 @@ let isAdmin = false;
 let overlay = false;
 const mockClose = vi.fn();
 const UNPINNED_PATH = "旅行";
+const SMART_FOLDER_NAME = "ケーキ";
 let pins: { path: string }[] = [];
 
 let pathname = ENCODED;
@@ -100,6 +101,18 @@ vi.mock("../sidebar/useSidebarData", () => ({
 }));
 
 vi.mock("@/hooks/useShortcuts", () => ({ useShortcuts: vi.fn() }));
+
+// Its own hook, not `useSidebarData` — so the Smart Folders section is
+// absent from this file's tree unless it is mocked, and the `close` it is
+// handed is unreachable.
+vi.mock("@/hooks/useSmartFolders", () => ({
+  useSmartFolders: () => ({
+    smartFolders: smartFolders(),
+    update: vi.fn(),
+    remove: vi.fn(),
+  }),
+}));
+const smartFolders = () => [{ id: "sf1", name: SMART_FOLDER_NAME, query: "cake", file_type: null }];
 
 
 
@@ -162,10 +175,11 @@ describe("the drive's fixed sidebar rows", () => {
  * §5.1). Moving `SidebarSystemSection` above `{order.map(…)}` is a
  * one-line edit that no other case can see.
  *
- * It needs the reader's own sections to actually render, which is why
- * this block gives the data mock a pin and a tag: with all of them empty
- * there is no "below" for the system rows to be below, and the assertion
- * would hold over a column that has only two parts.
+ * It needs the reader's own sections to actually render: with every
+ * section empty there is no "below" for the system rows to be below, and
+ * the assertion would hold over a column with only two parts. The pin is
+ * what supplies that — the tag rows beside it are scenery here, because
+ * the middle position is read off the pin.
  */
 describe("the column's three parts, in order", () => {
   it("puts the reader's own sections between the purpose rows and the drive's", () => {
@@ -187,7 +201,7 @@ describe("the column's three parts, in order", () => {
 });
 
 /**
- * The four props `Sidebar` hands `SidebarSystemSection`.
+ * What `Sidebar` hands `SidebarSystemSection`.
  *
  * `SidebarSystemSection.test.tsx` renders that component directly with
  * props of its own, so it can say what the component does with them and
@@ -207,17 +221,47 @@ describe("what Sidebar hands the system section", () => {
     expect(document.body.textContent).toContain("Dashboard");
   });
 
-  it("dismisses an overlay sidebar when a system row is chosen, and only then", () => {
+  /**
+   * Spec §5.2: choosing a destination closes the sidebar in overlay mode
+   * and leaves it alone inline.
+   *
+   * Across the parts of the column rather than at one row. `Sidebar`
+   * threads one `closeIfOverlay` through every section it renders, and a
+   * case pinned to a single row leaves the others free to be handed the
+   * raw `close` — which is what happened to this file once already.
+   */
+  it.each([
+    ["a purpose row", "Library"],
+    ["a view row", "All Files"],
+    ["a row the reader made", PINNED_PATH],
+    ["one of the drive's own", "Trash"],
+    ["a tag", "soup"],
+    ["a smart folder", SMART_FOLDER_NAME],
+  ])("dismisses an overlay sidebar from %s, and leaves an inline one alone", (_part, label) => {
+    const press = () => {
+      // By text over the whole nav, not over `driveRows()`: a Smart
+      // Folder row is a `<button>` that navigates in JS and carries no
+      // href, so an anchor-only search cannot reach the section it
+      // belongs to.
+      const row = Array.from(document.querySelectorAll<HTMLElement>("nav a, nav button")).find(
+        (el) => el.textContent?.includes(label),
+      );
+      expect(row, `${label} is not on the column`).toBeTruthy();
+      row!.click();
+    };
+
+    pins = [{ path: PINNED_PATH }];
+    tags = { resolvedScope: { drive: DRIVE, folderPath: null }, items: [{ name: "soup", count: 2 }] };
     overlay = true;
     const { unmount } = render(<Sidebar />);
-    driveRows().find((a) => a.textContent?.includes("Trash"))!.click();
+    press();
     expect(mockClose).toHaveBeenCalled();
     unmount();
 
     overlay = false;
     mockClose.mockClear();
     render(<Sidebar />);
-    driveRows().find((a) => a.textContent?.includes("Trash"))!.click();
+    press();
     expect(mockClose).not.toHaveBeenCalled();
   });
 });
@@ -266,6 +310,21 @@ describe("which row the sidebar highlights", () => {
     pins = [{ path: PINNED_PATH }];
     pathname = `${DECODED}/${PINNED_PATH}`;
     render(<Sidebar />);
+    expect(highlighted()).toEqual([PINNED_PATH]);
+  });
+
+  it("follows the pins when they arrive after the first render", () => {
+    // The memo's dependency array, which a single static mount cannot
+    // reach: with `pins` already final on first render the list is right
+    // whatever the array says. `useSidebarData` fetches, so the first
+    // render of a real session has none.
+    pins = [];
+    pathname = `${ENCODED}/${encodeURIComponent(PINNED_PATH)}`;
+    const { rerender } = render(<Sidebar />);
+    expect(highlighted()).toEqual(["Library"]);
+
+    pins = [{ path: PINNED_PATH }];
+    rerender(<Sidebar />);
     expect(highlighted()).toEqual([PINNED_PATH]);
   });
 

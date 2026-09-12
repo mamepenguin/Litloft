@@ -19,13 +19,13 @@ import { SIDEBAR_HEADING_CLASSES } from "@/test/sidebarHeadingClasses";
  *   1. Exactly one place in the sidebar writes the heading's classes,
  *      and it is `SidebarSectionHeading`. A heading written by hand
  *      fails here even if it copies the classes perfectly.
- *   2. The headings that exist are exactly the ones the assertion below
- *      names, and there are exactly that many. Exact, not a lower
- *      bound: the failure worth catching is a *new* heading the scan
- *      cannot see, and under `>=` that stays green. Every count in this
- *      redesign that was written from a reading of the code came out
- *      low — six times running — so the number is there to force a
- *      recount, and it is written once, beside what it counts.
+ *   2. The files that draw them are exactly the ones enumerated below,
+ *      and the number of uses is the number written there. Exact, not a
+ *      lower bound: the failure worth catching is a *new* heading the
+ *      scan cannot see, and under `>=` that stays green. Counts written
+ *      from a reading of the code came out low every time in this
+ *      redesign, so the number lives beside what it counts and nowhere
+ *      else.
  */
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
