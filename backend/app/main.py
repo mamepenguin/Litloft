@@ -6,7 +6,7 @@ import pkgutil
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Callable, Coroutine
+from typing import Callable, Coroutine, Iterable
 
 import time
 
@@ -45,7 +45,7 @@ def _run_purge_batch(
     notification after this returns, when the ids no longer resolve to
     anything.
 
-    Two things here are load-bearing and each has a failure it prevents:
+    Each of the following is load-bearing, with the failure it prevents:
 
     ``unpurgeable`` is what makes the loop terminate. The batch query is
     re-run from the top rather than paged, so a row that raises and is only
@@ -62,11 +62,15 @@ def _run_purge_batch(
     raises cannot announce a purge that was rolled back.
 
     ``_PURGE_BATCH_SIZE`` is therefore the size of a query page, not of a
-    transaction. Do not fold these back into one commit per batch: a
-    savepoint is not an alternative here, because pysqlite does not emit its
-    own ``BEGIN`` and SQLite commits on ``RELEASE`` of the outermost
-    savepoint, so the per-row transaction would be real while the code said
-    otherwise.
+    transaction. A savepoint per row would be the other way to isolate a
+    failure, and it is not free here: as the engine is configured, pysqlite
+    emits no ``BEGIN`` of its own, so SQLite commits on ``RELEASE`` of the
+    outermost savepoint and the isolation would be imaginary. Making it real
+    means changing how every session in the application begins a
+    transaction — a wider blast radius than this function is worth.
+
+    The row's columns are read once, before the first commit — see the
+    comment at the loop, which is where the reason is visible.
 
     The unlink is outside all of this and does not need to be inside it: a
     tail failure leaves the bytes gone and the row back, and the retry finds
@@ -87,10 +91,14 @@ def _run_purge_batch(
             batch = query.limit(_PURGE_BATCH_SIZE).all()
             if not batch:
                 break
-            for file in batch:
-                file_id = file.id
-                drive = file.drive
-                folder_path = file.folder_path
+            # Read every column now, while the rows are loaded and before the
+            # first commit expires them. Reading them per iteration instead
+            # issues a refresh SELECT from outside the per-row ``try``, and a
+            # row another session purged in the meantime — a hard delete from
+            # the Trash view, say — then raises ``ObjectDeletedError`` into
+            # the outer handler and ends the whole run.
+            rows = [(f, f.id, f.drive, f.folder_path) for f in batch]
+            for file, file_id, drive, folder_path in rows:
                 try:
                     physical_delete(db, file)
                     db.commit()
@@ -138,7 +146,7 @@ async def purge_expired_trash() -> None:
 
 
 def _cleanup_empty_folders_after_purge(
-    folders: set[tuple[str, str]],
+    folders: Iterable[tuple[str, str]],
 ) -> None:
     """Remove empty directories left after purging files, walking up to drive root."""
     for drive_name, folder_path in folders:

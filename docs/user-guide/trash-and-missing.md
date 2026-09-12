@@ -95,9 +95,9 @@ A background task runs at backend startup and every 24 hours:
 - Cleans up empty parent folders.
 - Emits one `files.purged` carrying every id purged in that run, after the last chunk — not one per chunk.
 
-Each file is committed on its own, so one that cannot be deleted — most often because its drive was removed from the configuration while the file was still in the trash — is rolled back, logged, and skipped, and the run carries on with the rest. It then logs how many it left behind. Those rows stay in Trash past the 30 days and are tried again on the next run, so the way to clear them is to fix what is blocking the delete (put the drive back, or correct the permissions on the file).
+Each file is committed on its own, so one that cannot be deleted — a drive that has left `drives.json`, or a path the backend can no longer unlink — is rolled back, logged, and skipped, and the run carries on with the rest. It then logs how many it left behind. Those rows stay in Trash past the 30 days and are tried again on each following run, so they clear only once you fix what is blocking the delete: put the drive back, or correct the permissions on the file or its folder.
 
-One caveat on that retry: the on-disk file is removed before the database row is, so a failure in the last step of the delete leaves the entry in Trash with its content already gone. The next run clears the entry. Restoring such a file in the meantime gives you a record pointing at nothing.
+One consequence of the ordering: the on-disk file is removed before the database row is, so a failure in the last step of a delete leaves the entry in Trash with its content already gone. **Restore** then refuses it with *File no longer exists on disk*, and the entry goes away on the next run that gets past the failing step.
 
 ## Hard delete (purge from trash)
 

@@ -15,6 +15,7 @@ a defect in the loop leaves it green.
 
 import asyncio
 import logging
+from contextlib import contextmanager
 import shutil
 import threading
 from datetime import UTC, datetime, timedelta
@@ -32,12 +33,15 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 # The bound on a run that is supposed to end. ``_run_purge_batch`` re-runs
 # its query from the top rather than paging, so a row it cannot delete and
 # does not exclude comes back unchanged forever — a failure with no error and
-# no end. Any finite bound tells that apart from a slow run. It is kept close
-# to the slowest honest call rather than generously above it, because a
-# regression here does not fail one test: every test that drives a failing
-# delete waits out the whole bound, so the bound is what the file costs on the
-# day it fires. Timings go in the PR body.
-_TERMINATION_TIMEOUT_SECONDS = 4
+# no end. Any finite bound tells that apart from a slow run.
+#
+# It is pulled in two directions and neither is "as large as possible". Too
+# large and a regression is expensive: this does not fail one test, it makes
+# every test that drives a failing delete wait out the whole bound. Too small
+# and it fails on a loaded machine rather than on a defect — which it did, at
+# a value with roughly twice the slowest call's headroom, while several
+# containers were building. Timings go in the PR body.
+_TERMINATION_TIMEOUT_SECONDS = 10
 
 
 def _seed_trashed(db, drive_dir, filename, *, days_ago, folder="trash-src", on_disk=True):
@@ -306,17 +310,20 @@ class TestARowThatCannotBeDeleted:
     def test_a_failure_after_the_row_was_flushed_still_leaves_the_row(
         self, client, monkeypatch
     ):
-        """``physical_delete`` is not atomic, and the batch commit is shared.
+        """``physical_delete`` is not atomic: it leaves work pending.
 
         It unlinks, then ``db.delete`` + ``db.flush``, and only then calls
         ``_ensure_empty_folder_tracked`` — two more queries and a drive
-        lookup. A raise in that tail leaves a pending DELETE in the session,
-        and the commit that the batch's *other* rows earn would carry it:
-        the row and the file both gone, the id absent from
-        ``all_purged_ids`` so no ``files.purged`` names it, and the warning
-        above reporting it as retained. The per-row savepoint is what stops
-        that, so the case needs a failure from inside ``physical_delete``
-        rather than from a stub that replaces it.
+        lookup. A raise in that tail leaves a DELETE pending in the session,
+        so whoever commits next carries it out. Give the batch a single
+        commit and the row's own failure is settled by another row's success:
+        the row and the file both gone, the id absent from ``all_purged_ids``
+        so no ``files.purged`` names it, and the warning above reporting it
+        as retained.
+
+        The failure therefore has to come from inside ``physical_delete``. A
+        stub that replaces it never mutates the session, which is why the
+        tests above this one are green either way.
         """
         c, db, drive_dir, _ = client
         stuck_id = _seed_trashed(db, drive_dir, "a_stuck.mp4", days_ago=31).id
@@ -346,7 +353,7 @@ class TestARowThatCannotBeDeleted:
     def test_the_next_run_finishes_what_the_failure_left(
         self, client, monkeypatch
     ):
-        """The savepoint restores the row, not the bytes.
+        """The rollback restores the row, not the bytes.
 
         ``physical_delete`` unlinks before it touches the database, so after
         the tail fails the file is already gone while the row is back. That
@@ -432,6 +439,64 @@ class TestTheBatchLoop:
         db.expire_all()
         assert db.query(File).count() == 0
 
+    def test_a_row_another_session_purged_does_not_end_the_run(
+        self, client, monkeypatch
+    ):
+        """The hazard that committing per row introduces.
+
+        A commit expires every instance in the session, so reading a later
+        row's columns afterwards is a refresh ``SELECT`` (the primary key
+        survives the expiry; ``drive`` and ``folder_path`` do not). If a user
+        hard-deletes that file from the Trash view in between, the refresh
+        raises ``ObjectDeletedError`` — and read outside the per-row handler
+        it ends the entire run, abandoning every row after it. The columns
+        are therefore read once, before the first commit.
+
+        The row that loses the race is deliberately not the last one: the
+        rows before it are purged either way, and it is gone from the
+        database either way, so **the row behind it is the only observation
+        that distinguishes an abandoned run from a completed one.**
+        """
+        c, db, drive_dir, _ = client
+        ids = [
+            _seed_trashed(db, drive_dir, f"r{index}.mp4", days_ago=31).id
+            for index in range(4)
+        ]
+        raced_id = ids[2]
+        behind_it = ids[3]
+        real_session_factory = main.SessionLocal
+        raced = []
+
+        def racing_session():
+            session = real_session_factory()
+            real_commit = session.commit
+
+            def commit_then_race():
+                real_commit()
+                if not raced:
+                    raced.append(1)
+                    other = real_session_factory()
+                    other.query(File).filter(File.id == raced_id).delete()
+                    other.commit()
+                    other.close()
+                    (drive_dir / "trash-src" / "r2.mp4").unlink(missing_ok=True)
+
+            session.commit = commit_then_race
+            return session
+
+        monkeypatch.setattr(main, "SessionLocal", racing_session)
+
+        with caplog_absent():
+            purged_ids, _folders, _drives = _run_with_deadline(
+                lambda: main._run_purge_batch(_cutoff())
+            )
+
+        assert raced == [1]
+        assert behind_it in purged_ids
+        assert set(purged_ids) == {ids[0], ids[1], behind_it}
+        db.expire_all()
+        assert db.query(File).count() == 0
+
     def test_a_failing_commit_announces_nothing(self, client, monkeypatch):
         """An id earns its place in the event at the commit, not at the flush.
 
@@ -511,6 +576,18 @@ class TestTheBatchLoop:
         assert sessions[0].closed is True
 
 
+@contextmanager
+def caplog_absent():
+    """Silence ``app.main`` for a test that deliberately provokes a traceback."""
+    logger = logging.getLogger("app.main")
+    previous = logger.level
+    logger.setLevel(logging.CRITICAL)
+    try:
+        yield
+    finally:
+        logger.setLevel(previous)
+
+
 def _drive_until(make_coro):
     """Run ``make_coro`` on a private loop.
 
@@ -551,8 +628,9 @@ class _PassRecorder:
     one of the functions under test.
     """
 
-    def __init__(self, batch_result):
+    def __init__(self, batch_result, *, park_after_passes=1):
         self.batch_result = batch_result
+        self.park_after_passes = park_after_passes
         self.cutoffs = []
         self.emits = []
         self.cleanups = []
@@ -577,6 +655,8 @@ class _PassRecorder:
 
         async def fake_sleep(delay, *args, **kwargs):
             self.sleeps.append(delay)
+            if len(self.sleeps) < self.park_after_passes:
+                return  # let the loop come round again
             self.pass_done.set()
             # Park here for the rest of the test; the task is cancelled.
             await real_sleep(3600)
@@ -683,6 +763,24 @@ class TestTheScheduledRun:
         _drive_until(lambda: recorder.run_one_pass(expect_emit=False))
 
         assert recorder.sleeps == [_EXPECTED_PURGE_INTERVAL_SECONDS]
+
+    def test_the_task_comes_back_after_the_interval(self, monkeypatch):
+        """"Every 24 hours", not once per process.
+
+        Pinning the sleep alone does not hold this: a ``break`` after it
+        leaves the interval correct and the task gone. Only a second pass
+        distinguishes a loop from a run.
+        """
+        recorder = _PassRecorder(([], set(), set()), park_after_passes=2)
+        recorder.install(monkeypatch)
+
+        _drive_until(lambda: recorder.run_one_pass(expect_emit=False))
+
+        assert len(recorder.cutoffs) == 2
+        assert recorder.sleeps == [
+            _EXPECTED_PURGE_INTERVAL_SECONDS,
+            _EXPECTED_PURGE_INTERVAL_SECONDS,
+        ]
 
     def test_the_folder_cleanup_runs_whether_or_not_anything_was_purged(
         self, monkeypatch
