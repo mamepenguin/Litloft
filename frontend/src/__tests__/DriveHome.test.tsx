@@ -385,6 +385,23 @@ describe("the drive root's header", () => {
     expect(container.querySelectorAll("h1")).toHaveLength(0);
   });
 
+  /**
+   * Upload from this screen goes through a zone, not through a prop.
+   *
+   * `dispatchUploadEvent` resolves `document.querySelector(
+   * "[data-upload-zone]")` at the moment the picker returns
+   * (`useFilePicker.tsx:19`), and `UploadZone` is the only thing that
+   * emits that attribute. A page with **Add** on it and no zone under it
+   * opens the file chooser, takes the reader's files, and drops them
+   * with no error — which is why this is asserted on the page rather
+   * than on the button.
+   */
+  it("puts a zone under Add for the files it collects to land in", async () => {
+    render(<DriveHome driveName="media" />);
+    await screen.findByRole("button", { name: "Add" });
+    expect(document.querySelectorAll("[data-upload-zone]")).toHaveLength(1);
+  });
+
   it("opens its menu away from the edge it sits against", async () => {
     // Add is the rightmost control in the header, and the panel is wider
     // than the trigger. `AddButton.test.tsx` holds the two anchors; this

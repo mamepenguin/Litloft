@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { FileItem, Folder as FolderType, PaginatedResponse, WatchHistoryItem } from "@/types";
 import { addPin, createFolder, getDriveFiles, getFolders, getPins, getWatchHistory, removePin } from "@/lib/api";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+import { UploadZone } from "@/components/UploadZone";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
@@ -593,7 +594,19 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const driveBase = `/drive/${encodeURIComponent(driveName)}`;
 
   return (
-    <div className="flex w-full min-w-0 flex-1 flex-col">
+    // Upload is dispatched to `[data-upload-zone]` found in the document
+    // rather than passed down (`useFilePicker`), so the **Add** menu's
+    // upload rows do nothing on a page that has no zone under them — the
+    // chooser opens, takes the files and drops them silently. The zone is
+    // therefore the page's, not a section's, and it names the drive root,
+    // which is what this screen's Add acts on (spec
+    // 2026-09-12-purpose-oriented-navigation §6.1).
+    <UploadZone
+      drive={driveName}
+      folderPath=""
+      onUploadComplete={refreshPage}
+      className="flex w-full min-w-0 flex-1 flex-col"
+    >
       {/* The same header the folder and file views draw, in its titleless
           form: the breadcrumb is the subject here, so `PageHeader` emits
           no `<h1>` and puts the actions on the trail row beside it.
@@ -825,6 +838,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         }
       />
       </div>
-    </div>
+    </UploadZone>
   );
 }
