@@ -146,6 +146,23 @@ describe("api", () => {
   });
 
   describe("getDriveFiles", () => {
+    // `toContain("path=")` below is satisfied by any value. The Library
+    // root's entire request is that the value be *empty*, so it is read
+    // back parsed rather than matched as a substring.
+    it("serialises an empty path as an empty value, not as a missing one", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", { path: "" });
+      const url = new URL(mockFetch.mock.calls[0][0] as string, "http://x");
+      expect(url.searchParams.get("path")).toBe("");
+    });
+
+    it("omits path entirely when none is given", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", {});
+      const url = new URL(mockFetch.mock.calls[0][0] as string, "http://x");
+      expect(url.searchParams.has("path")).toBe(false);
+    });
+
     it("builds query params correctly", async () => {
       mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
       await getDriveFiles("main", { path: "", sort: "title", order: "asc", page: 2, limit: 30 });

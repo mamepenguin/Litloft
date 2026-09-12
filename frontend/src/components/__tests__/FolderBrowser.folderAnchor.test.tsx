@@ -29,11 +29,13 @@ vi.mock("@/components/folder/FolderContent", () => ({
   FolderContent: ({
     onAddFiles,
     onCreateFile,
+    sortQuery,
   }: {
     onAddFiles?: () => void;
     onCreateFile?: () => void;
+    sortQuery?: string;
   }) => (
-    <div data-testid="folder-content">
+    <div data-testid="folder-content" data-sort-query={sortQuery}>
       {onAddFiles && <button onClick={() => onAddFiles()}>Add files</button>}
       {onCreateFile && <button onClick={() => onCreateFile()}>Empty-state new note</button>}
     </div>
@@ -176,6 +178,9 @@ vi.mock("@/hooks/useFolderViewMode", () => ({
 function newNoteButtons() {
   return screen.queryAllByRole("button", { name: "New Note" });
 }
+
+const sortQueryOf = () =>
+  screen.getByTestId("folder-content").getAttribute("data-sort-query");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -375,5 +380,34 @@ describe("FolderBrowser — the empty folder's own doors", () => {
     expect(
       screen.queryByRole("button", { name: "Empty-state new note" }),
     ).toBeNull();
+  });
+});
+
+/**
+ * `nav=folder` is what lets the detail pane draw an `n / N` and walk the
+ * folder's own order. The claim it makes is "the rows on screen are this
+ * folder, in this order, and nothing else" — which the Library root now
+ * satisfies: its rows are the drive root's children, and
+ * `RootFileListing` already says the same of the same request.
+ */
+describe("FolderBrowser — which listings may be counted", () => {
+  it("marks the Library root, whose rows are the root folder's own", () => {
+    render(<FolderBrowser driveName="main" folderPath="" view="library" />);
+    expect(sortQueryOf()).toContain("nav=folder");
+  });
+
+  it("marks a named folder", () => {
+    render(<FolderBrowser driveName="main" folderPath="recipes" />);
+    expect(sortQueryOf()).toContain("nav=folder");
+  });
+
+  it("withholds it from a flat view, whose rows are not one folder's", () => {
+    render(<FolderBrowser driveName="main" view="favorites" />);
+    expect(sortQueryOf()).not.toContain("nav=folder");
+  });
+
+  it("withholds it where there is no folder to stand in", () => {
+    render(<FolderBrowser driveName="main" tagFilter="soup" />);
+    expect(sortQueryOf()).not.toContain("nav=folder");
   });
 });

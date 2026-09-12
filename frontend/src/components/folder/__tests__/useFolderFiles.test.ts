@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useFolderFiles } from "../useFolderFiles";
-import type { FileItem, Folder } from "@/types";
+import type { FileItem, FileKind, Folder, TrustFilter } from "@/types";
 import type { ListSnapshot } from "@/lib/listSnapshot";
 
 const mockFile = (id: string, drive = "main"): FileItem => ({
@@ -212,11 +212,14 @@ describe("useFolderFiles", () => {
   });
 
   it("sends no path for a tag filter at the drive root", async () => {
-    // §3.1: path="" would narrow to root-level files, not widen to the drive.
+    // §3.1: the whole drive, not the root's own children. `undefined` is
+    // what the route delivers here — `page.tsx` supplies a folder path
+    // only for `?view=library` — and omitting `path` applies no folder
+    // predicate at all.
     const { result } = renderHook(() =>
       useFolderFiles({
         driveName: "main",
-        folderPath: "",
+        folderPath: undefined,
         view: null,
         tagFilter: "soup",
         typeFilter: null,
@@ -261,10 +264,11 @@ describe("useFolderFiles", () => {
   });
 
   it("sends no path when there is no folder to anchor to", async () => {
-    // A nullish folderPath means the drive root, where FolderBrowser only
-    // ever renders a view or a tag filter (a plain root listing is
-    // DriveHome / RootFileListing, which calls getDriveFiles directly with
-    // path: ""). Sending "" here would narrow instead of widen (§3.1).
+    // A nullish folderPath means "no folder to stand in": the drive root
+    // reached with a tag filter, where §3.1 wants the whole drive rather
+    // than the root's own children. The root reached *as a location* is a
+    // different state and arrives as `folderPath: ""` — see the Library
+    // root block at the bottom of this file.
     const { result } = renderHook(() =>
       useFolderFiles({
         driveName: "main",
@@ -683,85 +687,241 @@ describe("useFolderFiles", () => {
 });
 
 /**
- * The Library root — `/drive/{name}?view=library` — is the drive's root
- * folder reached from the sidebar rather than by a path (spec
+ * The Library root — `/drive/{name}?view=library`.
+ *
+ * `page.tsx` turns that view into a location before the hook sees it, so
+ * what arrives here is `folderPath: ""` — the drive root's own
+ * `folder_path` — and `view` is carried only for the route layer's own
+ * use. These cases therefore use the values the route actually delivers,
+ * which is the dimension that decides whether the listing is the root's
+ * children or the whole drive flat (spec
  * 2026-09-12-purpose-oriented-navigation §7.1, AC 8 and AC 9).
  *
- * Each case pins the request with an exact `toEqual` rather than
- * `objectContaining`. The looser matcher cannot see a key that should
- * not be there, and half of AC 9 is exactly that: `view=library` is
- * consumed by the route layer and must never reach the listing API.
+ * Each case pins **the whole call record**, not one matching call. An
+ * exact `toEqual` on the arguments closes the "a key that should not be
+ * there" hole, and only a bound record closes the "a second, wrong
+ * request fired alongside the right one" hole — which is the pre-change
+ * defect, and which a matcher on one call cannot see.
+ *
+ * What these cannot reach: a second page. `useInfiniteScroll` asks for
+ * one when its sentinel intersects, and jsdom has no
+ * IntersectionObserver behaviour to intersect with, so every case here
+ * is page 1 (`.claude/rules/review-workflow.md`, "jsdom lays nothing
+ * out").
  */
 describe("useFolderFiles at the Library root", () => {
   const baseParams = {
     driveName: "main",
-    typeFilter: null,
     sort: "created_at" as const,
     order: "desc" as const,
     refreshKey: 0,
   };
 
-  const settle = async (view: string | null, tagFilter: string | null, folderPath: string) => {
-    const { result } = renderHook(() =>
-      useFolderFiles({ ...baseParams, folderPath, view, tagFilter }),
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetDriveFiles.mockResolvedValue({
+      data: [mockFile("f1"), mockFile("f2")],
+      meta: { total: 2, page: 1, limit: 30 },
+    });
+    mockGetFolders.mockImplementation((_drive: string, path?: string) =>
+      Promise.resolve(path === "" ? [mockFolder("photos")] : []),
+    );
+  });
+
+  const settle = async (props: {
+    folderPath?: string;
+    view?: string | null;
+    tagFilter?: string | null;
+    typeFilter?: FileKind | null;
+    trustFilter?: TrustFilter | null;
+  }) => {
+    const { result, rerender } = renderHook(
+      (p: typeof props) =>
+        useFolderFiles({
+          ...baseParams,
+          typeFilter: p.typeFilter ?? null,
+          trustFilter: p.trustFilter ?? null,
+          folderPath: p.folderPath,
+          view: p.view ?? null,
+          tagFilter: p.tagFilter ?? null,
+        }),
+      { initialProps: props },
     );
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
     });
-    return result;
+    return { result, rerender };
   };
 
-  it("asks for the root folder's own children", async () => {
-    await settle("library", null, "");
-    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", {
-      path: "",
-      recursive: false,
-      sort: "created_at",
-      order: "desc",
-      page: 1,
-      limit: 30,
-    });
+  /** Every request the hook made, so an extra one cannot hide behind a match. */
+  const requests = () => mockGetDriveFiles.mock.calls;
+
+  /**
+   * The same, with identical repeats collapsed.
+   *
+   * A change of location fires the listing request twice — the reset
+   * effect bumps the infinite scroll's epoch and `fetchPage`'s identity
+   * changes — which predates this change and is the same on every filter
+   * change. Measured across a transition: two calls, byte-identical.
+   * Collapsing repeats keeps the assertion about *which* requests were
+   * made, which is what a stale closure would get wrong, while still
+   * failing on a second, different request and on no request at all.
+   */
+  const distinctRequests = () => {
+    const seen = new Set(requests().map((c) => JSON.stringify(c)));
+    return [...seen].map((j) => JSON.parse(j));
+  };
+
+  const rootRequest = (extra: Record<string, unknown> = {}) => [
+    "main",
+    { path: "", recursive: false, sort: "created_at", order: "desc", page: 1, limit: 30, ...extra },
+  ];
+
+  it("asks for the root folder's own children, once", async () => {
+    await settle({ folderPath: "", view: "library" });
+    expect(requests()).toEqual([rootRequest()]);
   });
 
-  it("renders the hierarchy: root folders are fetched too", async () => {
-    const result = await settle("library", null, "");
+  it("renders the hierarchy: the root's folders are fetched with the root's path", async () => {
+    const { result } = await settle({ folderPath: "", view: "library" });
     expect(mockGetFolders).toHaveBeenCalledWith("main", "");
+    // The stub answers only for the root's own path, so a request for any
+    // other folder shows up as an empty hierarchy rather than passing.
     expect(result.current.folders).toHaveLength(1);
   });
 
-  it("lets a tag filter widen to the whole drive instead", async () => {
-    await settle("library", "soup", "");
-    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", {
-      recursive: true,
-      tag: "soup",
-      sort: "created_at",
-      order: "desc",
-      page: 1,
-      limit: 30,
+  // The chips are on screen at a Library root that holds anything
+  // (`FolderToolbar`'s arranging controls are only put away when the
+  // listing and the folder list are both empty), and `FolderBrowser`
+  // passes both straight into this hook. Each narrows the root's own
+  // listing; neither may widen it back to the drive.
+  it("keeps the root's path while the type chip narrows it", async () => {
+    await settle({ folderPath: "", view: "library", typeFilter: "video" });
+    expect(requests()).toEqual([rootRequest({ type: "video" })]);
+  });
+
+  it("keeps the root's path while the trust chip narrows it", async () => {
+    await settle({ folderPath: "", view: "library", trustFilter: "verified" });
+    expect(requests()).toEqual([rootRequest({ trust: "verified" })]);
+  });
+
+  // Two URLs reach the drive-wide answer by different routes, and both
+  // must: a tag filter at the root carries no folder path, and
+  // `?view=library&tag=x` carries one but asks recursively — and
+  // `drives.py list_drive_files` applies no folder predicate for a
+  // recursive empty prefix. `path=""` alone is not what narrows; `path=""`
+  // *without* `recursive` is.
+  it("widens to the drive for a tag filter with no folder path", async () => {
+    await settle({ folderPath: undefined, tagFilter: "soup" });
+    expect(requests()).toEqual([
+      ["main", { recursive: true, tag: "soup", sort: "created_at", order: "desc", page: 1, limit: 30 }],
+    ]);
+  });
+
+  it("widens to the drive for a tag filter at the Library root", async () => {
+    await settle({ folderPath: "", view: "library", tagFilter: "soup" });
+    expect(requests()).toEqual([
+      ["main", { path: "", recursive: true, tag: "soup", sort: "created_at", order: "desc", page: 1, limit: 30 }],
+    ]);
+  });
+
+  // An empty `tag` is a value the route passes through when a view is
+  // present, and `recursive` is what decides whether an empty path means
+  // the root or the drive — so an empty tag must not turn the root's own
+  // listing into a recursive one.
+  it("keeps the root's own listing for an empty tag", async () => {
+    await settle({ folderPath: "", view: "library", tagFilter: "" });
+    expect(requests()).toEqual([rootRequest()]);
+  });
+
+  // The search request is built by the hook's other branch, which returns
+  // before the folder path is ever consulted. A search is not a location.
+  it("sends no path when searching from the Library root", async () => {
+    const { result } = renderHook(() =>
+      useFolderFiles({
+        ...baseParams,
+        folderPath: "",
+        view: "library",
+        tagFilter: null,
+        typeFilter: null,
+        trustFilter: null,
+        searchQuery: "cake",
+      }),
+    );
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
     });
+    for (const [, params] of requests()) {
+      expect(params).not.toHaveProperty("path");
+    }
+    expect(requests().length).toBe(1);
   });
 
   it("leaves a cross-folder view drive-wide", async () => {
-    await settle("favorites", null, "");
-    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", {
-      favorite: true,
-      recursive: false,
-      sort: "created_at",
-      order: "desc",
-      page: 1,
-      limit: 30,
-    });
+    await settle({ folderPath: "", view: "favorites" });
+    expect(requests()).toEqual([
+      ["main", { favorite: true, recursive: false, sort: "created_at", order: "desc", page: 1, limit: 30 }],
+    ]);
   });
 
   it("leaves an ordinary folder path scoped to that folder", async () => {
-    await settle(null, null, "photos");
-    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", {
-      path: "photos",
-      recursive: false,
-      sort: "created_at",
-      order: "desc",
-      page: 1,
-      limit: 30,
+    await settle({ folderPath: "photos" });
+    expect(requests()).toEqual([
+      ["main", { path: "photos", recursive: false, sort: "created_at", order: "desc", page: 1, limit: 30 }],
+    ]);
+  });
+
+  // The request is rebuilt from whatever the props now say, and a
+  // listing that keeps its old identity across a change of location is
+  // the failure this guards: a hook that answered `?view=library` and
+  // then a value outside the canonical set (which keeps falling through
+  // to the drive-wide listing by design) must not answer the second with
+  // the first's request.
+  it("follows the location across a re-render, in both directions", async () => {
+    const { rerender } = await settle({ folderPath: "", view: "library" });
+    expect(requests()).toEqual([rootRequest()]);
+
+    mockGetDriveFiles.mockClear();
+    rerender({ folderPath: undefined, view: "zzz" });
+    await waitFor(() => {
+      expect(distinctRequests()).toEqual([
+        ["main", { recursive: false, sort: "created_at", order: "desc", page: 1, limit: 30 }],
+      ]);
+    });
+
+    mockGetDriveFiles.mockClear();
+    rerender({ folderPath: "", view: "library" });
+    await waitFor(() => {
+      expect(distinctRequests()).toEqual([rootRequest()]);
+    });
+  });
+
+  // The refresh path — what a `drive.structure_changed` broadcast drives —
+  // fetches the folder list again through a second copy of the mount
+  // effect's predicate. The Library root has to satisfy both copies, and
+  // only the mount one was reachable before.
+  it("refreshes the root's folders when the listing is told to", async () => {
+    const { result, rerender } = renderHook(
+      ({ refreshKey }: { refreshKey: number }) =>
+        useFolderFiles({
+          ...baseParams,
+          refreshKey,
+          folderPath: "",
+          view: "library",
+          typeFilter: null,
+          trustFilter: null,
+          tagFilter: null,
+        }),
+      { initialProps: { refreshKey: 0 } },
+    );
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    mockGetFolders.mockClear();
+    rerender({ refreshKey: 1 });
+    await waitFor(() => {
+      expect(mockGetFolders).toHaveBeenCalledWith("main", "");
     });
   });
 });

@@ -1,16 +1,16 @@
 /**
- * Classification of `/drive/{name}` routes that intentionally hide the
- * folder tree.
+ * Classification of `/drive/{name}` routes by what the URL's `?view=`
+ * means for the screen under it.
  *
- * The drive's folder tree implies "the file lives at this path in the
- * folder hierarchy". Virtual views (`?view=favorites`, search, smart
+ * Most of what is here answers one question — may the folder tree be
+ * shown? The drive's folder tree implies "the file lives at this path in
+ * the folder hierarchy". Virtual views (`?view=favorites`, search, smart
  * folders, …) and recovery views (`?view=trash | missing`) deliberately
  * cut across that hierarchy, so surfacing the tree would mislead the
- * user. The TwoPaneLayout wrapper is skipped and the TreeToggle button
- * is hidden on these routes.
- *
- * Sources of truth for view names: `app/drive/[name]/page.tsx`
- * (routing) and `FolderBrowser.tsx` (rendering).
+ * user: the TwoPaneLayout wrapper is skipped and the TreeToggle button
+ * is hidden on those routes. `isLibraryRootView` is the opposite case in
+ * the same vocabulary — a `?view=` value that names a place *in* the
+ * hierarchy — which is why it belongs beside them rather than apart.
  */
 
 const CROSS_FOLDER_VIEWS = new Set([
@@ -45,21 +45,21 @@ export function isStandaloneView(view: string | null): boolean {
 export const LIBRARY_VIEW = "library";
 
 /**
- * True at the Library root only.
+ * Whether a `?view=` value names the Library root.
  *
- * A path route is an ordinary folder and answers false: opening a child
- * from Library moves to `/drive/{name}/{path}` and does not carry
- * `view=library` along, so a folder path that somehow arrives with it
- * is still read as that folder.
+ * Exact, not lenient. An unrecognised `?view=` value is passed through to
+ * the drive-wide file list by design, and the stage's arbitration is that
+ * such a value must not be read as Library — so `?view=Library`,
+ * `?view=my-library` and `?view=library ` are unknown values, not
+ * spellings of this one.
+ *
+ * This takes only what the route layer has. Turning `view=library` into a
+ * folder path is `app/drive/[name]/page.tsx`'s job, and past that point
+ * the Library root is an ordinary location: `folderPath === ""`. Nothing
+ * downstream asks this question again.
  */
-export function isLibraryRootView({
-  view,
-  folderPath,
-}: {
-  view: string | null | undefined;
-  folderPath: string | null | undefined;
-}): boolean {
-  return view === LIBRARY_VIEW && !folderPath;
+export function isLibraryRootView(view: string | null | undefined): boolean {
+  return view === LIBRARY_VIEW;
 }
 
 /**

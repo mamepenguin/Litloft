@@ -483,7 +483,13 @@ export function FolderBrowser({
    * that is redrawn on every load.
    */
   const listingIsPlainFolder =
-    isFolderAnchored &&
+    // Not `isFolderAnchored`: that asks for a folder *path*, and the
+    // drive root has none while still being a folder. `folderPath !==
+    // undefined` is the location test — `""` is the root's own
+    // `folder_path`, and the rows under it are that folder's children in
+    // the order the URL names, which is what the marker claims.
+    folderPath !== undefined &&
+    !isSpecialView &&
     !isSearch &&
     !tagFilter &&
     !typeFilter &&
@@ -558,9 +564,8 @@ export function FolderBrowser({
   // component is the one that *latches*, turning that frame into a persistent
   // claim, so it owes the guard. The real fix is for `useFolderFiles` to
   // derive `loading` from its own reset key; that repairs every consumer at
-  // once and shrinks this to nothing. It is not done here because its blast
-  // radius reaches `RootFileListing` and two behaviours that need tests of
-  // their own.
+  // once and shrinks this to nothing. It is not done here because two
+  // behaviours downstream of that `loading` need tests of their own first.
   //
   // `trusted` is the proxy that stands in for the knowledge this component
   // lacks: a subject becomes trustworthy at mount (nothing stale to inherit)

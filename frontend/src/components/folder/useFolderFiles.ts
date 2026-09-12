@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { getDriveFiles, getFolders, getWatchHistory } from "@/lib/api";
-import { isLibraryRootView } from "@/lib/driveViews";
 import { useProfile } from "@/components/ProfileProvider";
 import {
   buildListSnapshotKey,
@@ -37,8 +36,7 @@ import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 
 /**
  * WS events that signal the file list (or folder list) might have
- * changed. Both the right pane and the tree pane subscribe to the same
- * set so they stay in sync after any structure-changing operation.
+ * changed.
  */
 // The core collapses its lifecycle events into two coarse signals before
 // they reach the browser. The list watches both: a content write can change
@@ -138,7 +136,6 @@ export function useFolderFiles({
   const isLiked = view === "liked";
   const isAll = view === "all";
   const isSpecialView = isFavorites || isRecent || isRecentAdded || isLiked || isAll;
-  const isLibraryRoot = isLibraryRootView({ view, folderPath });
 
   const snapshotKey = useMemo(
     () => buildListSnapshotKey({ driveName, folderPath, view, tagFilter }),
@@ -227,24 +224,20 @@ export function useFolderFiles({
         });
         return { data: res.data, total: res.meta.total };
       }
-      const listingPath =
-        isLibraryRoot && !tagFilter
-          ? ""
-          : isSpecialView || !folderPath
-            ? undefined
-            : folderPath;
       const res = await getDriveFiles(driveName, {
         // A tag filter no longer disqualifies the folder: it scopes to the
         // folder's subtree instead (spec 2026-08-21-folder-scoped-tag-filter).
         //
-        // `path=""` asks for the root folder's own children, and omitting
-        // `path` asks for the whole drive. Which of those the drive root
-        // means depends on how it was reached: the Library root is a
-        // location and wants its children, while a tag filter applied
-        // there has no folder to scope to and must widen to the drive
-        // (§3.1 of that spec) — so a tag wins over `view=library` when
-        // both arrive. A flat virtual view is not a location at all.
-        path: listingPath,
+        // The folder path is passed straight through, `""` included: a
+        // **non-recursive** `path=""` is an exact `folder_path` match and
+        // so asks for the root's own children, while omitting `path`
+        // applies no folder predicate and asks for the whole drive. Note
+        // which of the two inputs does the work — `path=""` *with*
+        // `recursive` is the drive again (`drives.py list_drive_files`),
+        // which is why the recursive case below is the tag's and not the
+        // root's. A route that has no folder to stand in passes none, and
+        // a flat virtual view is not a location at all.
+        path: isSpecialView ? undefined : folderPath,
         recursive: !!tagFilter,
         favorite: isFavorites ? true : undefined,
         liked: isLiked ? true : undefined,
@@ -258,7 +251,7 @@ export function useFolderFiles({
       });
       return { data: res.data, total: res.meta.total };
     },
-    [isSearch, searchQuery, driveName, folderPath, sort, order, isFavorites, isSpecialView, isLibraryRoot, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
+    [isSearch, searchQuery, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
   );
 
   const {
