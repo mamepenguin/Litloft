@@ -29,8 +29,12 @@ export default function DrivePage() {
         driveName={driveName}
         // The Library root is the drive's root folder, so it enters the
         // browser as a location rather than as a view: `""` is the root's
-        // own `folder_path`. Every other `?view=` value, and a tag filter
-        // applied here, has no folder to stand in and passes none.
+        // own `folder_path`. This looks at `view` alone, so
+        // `?view=library&tag=x` is a location too — what a tag does there
+        // is settled downstream, where `path=""` asked recursively covers
+        // the whole drive and the write actions are withheld. A URL with
+        // no `view` at all, `?tag=x` included, has no folder to stand in
+        // and passes none.
         folderPath={isLibraryRootView(view) ? "" : undefined}
         view={view}
         tagFilter={tagFilter}

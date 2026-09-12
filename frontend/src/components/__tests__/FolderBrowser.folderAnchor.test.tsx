@@ -406,6 +406,15 @@ describe("FolderBrowser — which listings may be counted", () => {
     expect(sortQueryOf()).not.toContain("nav=folder");
   });
 
+  // A flat view carrying a folder path is not a state the router builds,
+  // but it is the one the `!isSpecialView` conjunct exists for, and
+  // without a case the conjunct is held only by a scan for its own
+  // spelling.
+  it("withholds it from a flat view even when a folder path comes with it", () => {
+    render(<FolderBrowser driveName="main" folderPath="" view="favorites" />);
+    expect(sortQueryOf()).not.toContain("nav=folder");
+  });
+
   it("withholds it where there is no folder to stand in", () => {
     render(<FolderBrowser driveName="main" tagFilter="soup" />);
     expect(sortQueryOf()).not.toContain("nav=folder");

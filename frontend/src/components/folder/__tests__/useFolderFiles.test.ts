@@ -896,6 +896,43 @@ describe("useFolderFiles at the Library root", () => {
     });
   });
 
+  // Back-navigation to the Library root restores what was loaded and
+  // where the page was, which the listing it replaces never had. The
+  // hydration branch is keyed on the folder path, so the root has to
+  // satisfy it like any other location.
+  it("hydrates from a snapshot taken at the Library root", async () => {
+    const { result } = renderHook(() =>
+      useFolderFiles({
+        ...baseParams,
+        folderPath: "",
+        view: "library",
+        tagFilter: null,
+        typeFilter: null,
+        trustFilter: null,
+        initialSnapshot: {
+          // `buildListSnapshotKey({driveName, folderPath, view, tagFilter})`
+          // — the real one, not a stub.
+          key: "main||library|",
+          items: [mockFile("snap1"), mockFile("snap2"), mockFile("snap3")],
+          total: 3,
+          pagesLoaded: 1,
+          folders: [mockFolder("photos")],
+          scrollY: 420,
+          filters: { sort: "created_at", order: "desc", typeFilter: null, viewMode: "grid" },
+        } as unknown as Parameters<typeof useFolderFiles>[0]["initialSnapshot"],
+      }),
+    );
+    // Read before settling, like the folder-path case above: hydration is
+    // what happens at mount, and the revalidation that follows replaces
+    // the rows with the fetch's.
+    expect(result.current.hydratedScrollY).toBe(420);
+    expect(result.current.files.map((f) => f.id)).toEqual(["snap1", "snap2", "snap3"]);
+    expect(result.current.folders.map((f) => f.name)).toEqual(["photos"]);
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+  });
+
   // The refresh path — what a `drive.structure_changed` broadcast drives —
   // fetches the folder list again through a second copy of the mount
   // effect's predicate. The Library root has to satisfy both copies, and

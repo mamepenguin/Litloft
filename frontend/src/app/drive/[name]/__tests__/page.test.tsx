@@ -20,7 +20,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import DrivePage from "../page";
+import { LIBRARY_VIEW } from "@/lib/driveViews";
 
 let search = new URLSearchParams();
 
@@ -90,8 +94,39 @@ const renderAt = (params: Record<string, string> = {}) => {
 };
 
 describe("the drive route", () => {
-  it("covers the canonical view set and the Library root", () => {
-    // Seven canonical values plus `library` (裁定 3).
+  /**
+   * The declared table against the route's own source.
+   *
+   * `expect(ROUTES).toHaveLength(8)` would compare a literal to a number
+   * typed beside it — review-workflow rule 5's named failure, and the one
+   * the commit below this in the stack deleted. Reading the values out of
+   * `page.tsx` gives this a second implementation to disagree with
+   * (detector rule 2): the table can no longer be walked back, and the
+   * route can no longer grow a branch the table does not know about.
+   *
+   * Its limit: a source scan sees the literals, not the control flow, so
+   * it cannot tell which component a branch opens. That is what every
+   * case below is for.
+   */
+  it("knows every view value the route branches on, and no others", () => {
+    const source = readFileSync(
+      join(process.cwd(), "src/app/drive/[name]/page.tsx"),
+      "utf8",
+    );
+    const branched = new Set(
+      [...source.matchAll(/view === "([^"]+)"/g)].map((m) => m[1]),
+    );
+    // The Library branch is a call, not a comparison; `driveViews` holds
+    // the value it tests.
+    if (source.includes("isLibraryRootView(view)")) branched.add(LIBRARY_VIEW);
+    // The five that reach FolderBrowser as pass-through values are not
+    // branched on by name — they are what is left when the named
+    // branches do not match.
+    const named = new Set(
+      ROUTES.filter((r) => r.component !== "FolderBrowser" || r.folderPath === "")
+        .map((r) => r.view),
+    );
+    expect(branched).toEqual(named);
     expect(ROUTES).toHaveLength(8);
   });
 
