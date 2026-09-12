@@ -175,7 +175,7 @@ Behaviour:
 - The file is created at `untitled-{YYYYMMDD-HHMMSS}.md` (local time) inside the **current folder**. No name dialog is shown — the timestamp guarantees uniqueness, and if it ever does collide the backend automatically suffixes the name (`untitled-… (1).md`, `(2)`, …).
 - After creation you are navigated straight to the file in edit mode. Start typing.
 - To use a different extension or rename the file, use the rename action on the file once it is open.
-- The button and the shortcut are **disabled where there is no folder to write into**: the drive root, favourites (`?view=favorites`), the other flat views, search results, and the global search popup. A tag filter applied *inside* a folder does have a folder, and creates into it.
+- The button and the shortcut are **disabled where there is no folder to write into**: favourites (`?view=favorites`), the other flat views, search results, a tag filter applied at the drive root, and the global search popup. A tag filter applied *inside* a folder does have a folder, and creates into it.
 - If creation fails the browser shows an alert with the reason. Locked drives are not a special case here — they are invisible until you unlock them.
 
 ## Renaming in place

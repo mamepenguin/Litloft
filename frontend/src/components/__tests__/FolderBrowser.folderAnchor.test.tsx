@@ -121,9 +121,14 @@ vi.mock("@/lib/listSnapshot", () => ({
 // "the root is not pinnable" (`.claude/rules/review-workflow.md`,
 // detector rule 4).
 const mockTogglePin = vi.hoisted(() => vi.fn());
+// An always-empty set makes `isPinned` false and `isPinned` undefined
+// indistinguishable, and the row reads its label off that flag — so a
+// folder that *is* pinned has to be in here, or "Pin" and "Unpin" cannot
+// be told apart.
+const pinnedPaths = vi.hoisted(() => new Set<string>(["recipes"]));
 vi.mock("@/components/folder/usePinnedFolders", () => ({
   usePinnedFolders: () => ({
-    pinnedPaths: new Set<string>(),
+    pinnedPaths,
     handleTogglePin: mockTogglePin,
   }),
 }));
@@ -516,10 +521,13 @@ describe("FolderBrowser — which listings may be counted", () => {
  * The write targets needed no change to reach the root: `useCreateFile`,
  * `useCreateFolder`, `clipboard.paste` and `UploadZone` all already
  * resolve an absent folder path to `""`. Of those, the first two are
- * measured here. The last two are **not gated by either predicate** —
- * paste and drop are offered everywhere except search and write into the
- * root from views that name no destination — which predates this and is
- * not settled by it.
+ * measured here. The last two are **not gated by either predicate**, and
+ * not uniformly gated at all: the "Paste here" banner is withheld in
+ * search and nowhere else, `Cmd+V` is withheld nowhere — the shortcut
+ * group is registered on every route this component renders, search
+ * included — and the drop zone wraps everything but search. All of them
+ * write into the drive root from a listing that names no destination.
+ * That predates this and is not settled by it.
  *
  * `folderPath === ""` is what names the root, and only the route's
  * Library branch supplies it. A `FolderBrowser` with no folder path at
@@ -576,10 +584,22 @@ describe("FolderBrowser — the drive root as a write destination", () => {
 
   it("is pinnable in a named folder, which is what makes the line a line", () => {
     listing.total = 3;
-    render(<FolderBrowser driveName="main" folderPath="recipes" />);
+    render(<FolderBrowser driveName="main" folderPath="photos" />);
     fireEvent.click(screen.getAllByRole("button", { name: "More actions" })[0]);
     expect(
       screen.getByRole("menuitem", { name: "Pin this folder" }),
+    ).toBeInTheDocument();
+  });
+
+  // The row reads its label off `isPinned`, so a flag that never carries
+  // a value offers "Pin this folder" over an already-pinned folder and
+  // unpins on click.
+  it("names the flip it is actually making", () => {
+    listing.total = 3;
+    render(<FolderBrowser driveName="main" folderPath="recipes" />);
+    fireEvent.click(screen.getAllByRole("button", { name: "More actions" })[0]);
+    expect(
+      screen.getByRole("menuitem", { name: "Unpin this folder" }),
     ).toBeInTheDocument();
   });
 

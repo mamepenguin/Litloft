@@ -27,11 +27,16 @@ import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
 interface FolderToolbarProps {
   isSpecialView: boolean;
   /**
-   * Is there a concrete folder to write into? Decided once by
-   * FolderBrowser and passed down rather than re-derived here — this
-   * component's own predicate used to disagree with FolderBrowser's, so
-   * handing it `onCreateFile` during a tag filter changed nothing visible
-   * (spec 2026-08-21-folder-scoped-tag-filter §6.2).
+   * Is there a place to write into? Not the same as "is there a folder
+   * path": the drive root is a place — its own `folder_path` is empty —
+   * while a tag applied there widens the listing to the whole drive and
+   * so is not.
+   *
+   * Decided once by FolderBrowser and passed down rather than re-derived
+   * here: this component's own predicate used to disagree with
+   * FolderBrowser's, so handing it `onCreateFile` during a tag filter
+   * changed nothing visible (spec 2026-08-21-folder-scoped-tag-filter
+   * §6.2).
    */
   isWriteDestination: boolean;
   isSearch?: boolean;
@@ -61,10 +66,9 @@ interface FolderToolbarProps {
    * Current viewMode. When provided, the view switcher is controlled and
    * `FolderBrowser` owns persistence via `useFolderViewMode`; when omitted,
    * `useViewModeState` holds it here and persists to the global default
-   * key. Search, the flat virtual views and the drive root take the
-   * second path: none of them has a folder *path* to key a per-folder
-   * preference on, the root included — it is a folder, but its own
-   * `folder_path` is empty.
+   * key. The second path is taken by anything with no folder *path* to
+   * key a per-folder preference on — which includes the drive root: it
+   * is a folder, but its own `folder_path` is empty.
    */
   viewMode?: ViewMode;
   /**

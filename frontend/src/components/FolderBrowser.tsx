@@ -150,7 +150,8 @@ export function FolderBrowser({
   // It replaced `isFolderContext`, a single flag that stood for three
   // different questions and so was easy to misread as "folder support is
   // handled" (hako a8r4bT7Wt1LQ6IBPTBm7N).
-  const isFolderAnchored = !isSpecialView && !isSearch && !!folderPath;
+  const isLocation = !isSpecialView && !isSearch && folderPath !== undefined;
+  const isFolderAnchored = isLocation && folderPath !== "";
 
   // Is there a concrete place to write into? A folder path answers yes,
   // with or without a tag narrowing it — the listing is still that
@@ -167,9 +168,8 @@ export function FolderBrowser({
   // folder *path* — a non-empty key. Per-folder sort, view mode and
   // pinning need that key and the root has none, so they stay on the
   // predicate above: the root is writable and deliberately not pinnable.
-  const isDriveRootLocation = !isSpecialView && !isSearch && folderPath === "";
   const isWriteDestination =
-    isFolderAnchored || (isDriveRootLocation && !tagFilter);
+    isLocation && (folderPath !== "" || !tagFilter);
 
   // With folder scope as the default, the drive-wide view needs an
   // explicit door. Derived once here and handed to both consumers (the
