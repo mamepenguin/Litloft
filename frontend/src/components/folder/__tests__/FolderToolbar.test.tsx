@@ -45,7 +45,7 @@ const openSortMenu = () => fireEvent.click(sortControl()!);
 
 const defaultProps = {
   isSpecialView: false,
-  isFolderAnchored: true,
+  isWriteDestination: true,
   tagFilter: null,
   hasPlayableFiles: false,
   sort: "created_at" as const,
@@ -139,7 +139,7 @@ describe("FolderToolbar", () => {
 
     it("is not offered where there is no folder to write into", () => {
       render(
-        <FolderToolbar {...defaultProps} isSearch isFolderAnchored={false} />,
+        <FolderToolbar {...defaultProps} isSearch isWriteDestination={false} />,
       );
       // There is no Add button to open at all there.
       expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
@@ -185,7 +185,7 @@ describe("FolderToolbar", () => {
       <FolderToolbar
         {...defaultProps}
         isSpecialView={true}
-        isFolderAnchored={false}
+        isWriteDestination={false}
         onCreateFile={onCreateFile}
       />,
     );
@@ -203,7 +203,7 @@ describe("FolderToolbar", () => {
         {...defaultProps}
         tagFilter="nature"
         folderPath="recipes"
-        isFolderAnchored={true}
+        isWriteDestination={true}
         onCreateFile={onCreateFile}
       />,
     );
@@ -216,13 +216,13 @@ describe("FolderToolbar", () => {
   it("hides the add menu for a tag filter with no folder anchor", () => {
     // A drive-root tag filter has no concrete folder to write into.
     render(
-      <FolderToolbar {...defaultProps} tagFilter="nature" isFolderAnchored={false} />,
+      <FolderToolbar {...defaultProps} tagFilter="nature" isWriteDestination={false} />,
     );
     expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
   it("hides the add menu in search mode", () => {
-    render(<FolderToolbar {...defaultProps} isSearch={true} isFolderAnchored={false} />);
+    render(<FolderToolbar {...defaultProps} isSearch={true} isWriteDestination={false} />);
     expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 

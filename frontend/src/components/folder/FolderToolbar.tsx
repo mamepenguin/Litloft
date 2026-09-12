@@ -27,13 +27,18 @@ import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
 interface FolderToolbarProps {
   isSpecialView: boolean;
   /**
-   * Is there a concrete folder to write into? Decided once by
-   * FolderBrowser and passed down rather than re-derived here — this
-   * component's own predicate used to disagree with FolderBrowser's, so
-   * handing it `onCreateFile` during a tag filter changed nothing visible
-   * (spec 2026-08-21-folder-scoped-tag-filter §6.2).
+   * Is there a place to write into? Not the same as "is there a folder
+   * path": the drive root is a place — its own `folder_path` is empty —
+   * while a tag applied there widens the listing to the whole drive and
+   * so is not.
+   *
+   * Decided once by FolderBrowser and passed down rather than re-derived
+   * here: this component's own predicate used to disagree with
+   * FolderBrowser's, so handing it `onCreateFile` during a tag filter
+   * changed nothing visible (spec 2026-08-21-folder-scoped-tag-filter
+   * §6.2).
    */
-  isFolderAnchored: boolean;
+  isWriteDestination: boolean;
   isSearch?: boolean;
   tagFilter?: string | null;
   hasPlayableFiles: boolean;
@@ -61,8 +66,9 @@ interface FolderToolbarProps {
    * Current viewMode. When provided, the view switcher is controlled and
    * `FolderBrowser` owns persistence via `useFolderViewMode`; when omitted,
    * `useViewModeState` holds it here and persists to the global default
-   * key. Search and the flat virtual views take the second path: there is
-   * no folder to key a per-folder preference on.
+   * key. The second path is taken by anything with no folder *path* to
+   * key a per-folder preference on — which includes the drive root: it
+   * is a folder, but its own `folder_path` is empty.
    */
   viewMode?: ViewMode;
   /**
@@ -87,10 +93,11 @@ interface FolderToolbarProps {
   /**
    * When provided, render a "New Note" button that creates a blank
    * Markdown file in the current folder. Omitting the prop hides the
-   * button — used by FolderBrowser to disable file creation where there
-   * is no concrete folder to write into (search and the flat virtual
-   * views). A folder-scoped tag filter does have one, so it keeps the
-   * button (spec 2026-08-21-folder-scoped-tag-filter §6.1).
+   * button — used by FolderBrowser to disable file creation where the
+   * listing names no place to write into. A folder-scoped tag filter
+   * names one, so it keeps the button (spec
+   * 2026-08-21-folder-scoped-tag-filter §6.1), and so does the drive
+   * root reached as a location.
    */
   onCreateFile?: () => void;
   onReshuffle?: () => void;
@@ -108,7 +115,7 @@ interface FolderToolbarProps {
 }
 
 export function FolderToolbar({
-  isSpecialView, isFolderAnchored, isSearch, tagFilter, hasPlayableFiles,
+  isSpecialView, isWriteDestination, isSearch, tagFilter, hasPlayableFiles,
   sort, order, typeFilter, trustFilter, total, folderCount, selectable, scanning,
   creatingFolder, newFolderName, folderError, fileIds, drive, folderPath,
   viewMode, widenTagScope,
@@ -117,11 +124,12 @@ export function FolderToolbar({
   onSetFolderError, onCreateFolder, onCreateFile, onReshuffle,
   isPinned, onTogglePin,
 }: FolderToolbarProps) {
-  // Upload / New folder / New note all need the same thing: a folder to
-  // write into. A folder-scoped tag filter now has one — the folder the
-  // breadcrumb shows and the listing is scoped to. Search and the flat
-  // virtual views genuinely have none.
-  const hideMutatingActions = !isFolderAnchored;
+  // Upload / New folder / New note all need the same thing: a place to
+  // write into. A folder-scoped tag filter has one — the folder the
+  // breadcrumb shows and the listing is scoped to — and so does the
+  // drive root, whose folder is the root. Search, the flat virtual views
+  // and a tag applied at the root genuinely have none.
+  const hideMutatingActions = !isWriteDestination;
   // Play All is not a mutating action; it has simply always been hidden
   // wherever the left group was. Keep its existing scope rather than
   // widening it as a side effect of the folder-anchor split.
