@@ -24,6 +24,14 @@ BLOCKED_HOSTNAMES = {
     "gateway.docker.internal",
 }
 _CGNAT = ipaddress.ip_network("100.64.0.0/10")
+_NAT64_WELL_KNOWN = ipaddress.ip_network("64:ff9b::/96")
+_IPV4_COMPATIBLE = ipaddress.ip_network("::/96")
+_IPV4_TRANSLATED = ipaddress.ip_network("::ffff:0:0:0/96")
+_ISATAP_MARKER = 0x5EFE
+# RFC 5214 §6.1 defines two interface identifiers and no more: `0000:5efe:` for
+# an embedded private IPv4, `0200:5efe:` for a global one (u bit set). A closed
+# enumeration, not a list that grows — unlike the prefixes above it.
+_ISATAP_FLAGS = frozenset({0x0000, 0x0200})
 
 
 class SafeImageFetchError(ValueError):
@@ -64,9 +72,11 @@ def validate_image_url(url: str) -> ValidatedImageUrl:
         raise SafeImageFetchError("invalid_url", "URL contains control characters")
     try:
         parts = urlsplit(url)
-        port = parts.port or 443
+        port = parts.port
     except ValueError as exc:
         raise SafeImageFetchError("invalid_url", "URL has an invalid port") from exc
+    if port is None:
+        port = 443
     if parts.scheme.lower() != "https":
         raise SafeImageFetchError("invalid_url", "Only HTTPS image URLs are allowed")
     if parts.username is not None or parts.password is not None:
@@ -84,16 +94,48 @@ def validate_image_url(url: str) -> ValidatedImageUrl:
     return ValidatedImageUrl(url=url, parts=parts, hostname=hostname, port=port)
 
 
+def _embedded_ipv4(ip: ipaddress.IPv6Address) -> ipaddress.IPv4Address | None:
+    if ip.ipv4_mapped is not None:
+        return ip.ipv4_mapped
+    if ip.sixtofour is not None:
+        return ip.sixtofour
+    if ip in _NAT64_WELL_KNOWN or ip in _IPV4_COMPATIBLE or ip in _IPV4_TRANSLATED:
+        return ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+    # ISATAP is carried in the interface identifier rather than in a prefix:
+    # `…:0:5efe:a.b.c.d` and `…:200:5efe:a.b.c.d` ride under any /64 —
+    # including a globally routable one, where every property of the carrying
+    # address says "ordinary public host".
+    packed = int(ip)
+    if (packed >> 32) & 0xFFFF == _ISATAP_MARKER and (
+        packed >> 48
+    ) & 0xFFFF in _ISATAP_FLAGS:
+        return ipaddress.IPv4Address(packed & 0xFFFFFFFF)
+    return None
+
+
+def _is_blocked_address(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    # The range is named here rather than relying on `is_global` to exclude it.
+    if isinstance(ip, ipaddress.IPv4Address) and ip in _CGNAT:
+        return True
+    # `is_global` is IANA's "globally reachable" column, not the complement of
+    # special-purpose. Multicast is globally reachable in both families, and
+    # `64:ff9b::/96` and `::/96` are globally reachable and reserved at once.
+    return not ip.is_global or ip.is_multicast or ip.is_reserved
+
+
 def _is_blocked_ip(address: str) -> bool:
     try:
         ip = ipaddress.ip_address(address)
     except ValueError:
         return True
-    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
-        ip = ip.ipv4_mapped
-    if isinstance(ip, ipaddress.IPv4Address) and ip in _CGNAT:
-        return True
-    return not ip.is_global
+    if isinstance(ip, ipaddress.IPv6Address):
+        # An embedded destination is judged on its own, not through the address
+        # carrying it: outside `::ffff:`, no property of an IPv6 address
+        # describes the IPv4 destination inside it.
+        embedded = _embedded_ipv4(ip)
+        if embedded is not None and _is_blocked_address(embedded):
+            return True
+    return _is_blocked_address(ip)
 
 
 def _resolve_host(hostname: str, port: int) -> list[str]:
@@ -137,6 +179,13 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         self.sock = self._context.wrap_socket(raw_socket, server_hostname=self.host)
 
 
+def _host_header(url: ValidatedImageUrl) -> str:
+    # Built from the IDNA hostname rather than `parts.netloc`: netloc keeps the
+    # spelling the author wrote, which http.client sends as latin-1 or refuses.
+    host = f"[{url.hostname}]" if ":" in url.hostname else url.hostname
+    return host if url.port == 443 else f"{host}:{url.port}"
+
+
 def _request_path(parts: SplitResult) -> str:
     path = parts.path or "/"
     if parts.query:
@@ -170,7 +219,7 @@ def fetch_image(
                 "GET",
                 _request_path(validated.parts),
                 headers={
-                    "Host": validated.parts.netloc,
+                    "Host": _host_header(validated),
                     "User-Agent": "Litloft-Image-Importer/1.0",
                     "Accept": "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8",
                     "Accept-Encoding": "identity",
@@ -198,14 +247,15 @@ def fetch_image(
             length_header = response.getheader("Content-Length")
             if length_header:
                 try:
-                    if int(length_header) > max_bytes:
-                        raise SafeImageFetchError(
-                            "response_too_large", "Image response exceeds byte limit"
-                        )
+                    declared_length = int(length_header)
                 except ValueError as exc:
                     raise SafeImageFetchError(
                         "fetch_failed", "Invalid Content-Length header"
                     ) from exc
+                if declared_length > max_bytes:
+                    raise SafeImageFetchError(
+                        "response_too_large", "Image response exceeds byte limit"
+                    )
             chunks: list[bytes] = []
             total = 0
             while True:
@@ -231,7 +281,12 @@ def fetch_image(
             raise SafeImageFetchError("fetch_failed", "Image fetch failed") from exc
         finally:
             connection.close()
-    raise SafeImageFetchError("redirect_rejected", "Redirect limit exceeded")
+    # The last iteration refuses its own redirect (`redirect_count >=
+    # max_redirects`), so the loop cannot fall through. This is the backstop in
+    # case the loop bound and `max_redirects` ever disagree.
+    raise SafeImageFetchError(  # pragma: no cover
+        "redirect_rejected", "Redirect limit exceeded"
+    )
 
 
 def normalize_image(
