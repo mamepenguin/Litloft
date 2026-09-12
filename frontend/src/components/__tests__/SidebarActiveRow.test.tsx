@@ -7,12 +7,16 @@
  * and the `driveBase` the rows are built from could each be deleted with
  * the whole suite green.
  *
- * Two things are held here and nowhere else:
+ * Two things are held here:
  *
  * - the fixed rows a drive renders, in order, with the `?view=` value each
- *   one carries — declared below as a literal and compared against the DOM,
- *   so a deleted row, a reordered pair or a typo'd href fails;
+ *   one carries — declared in `sidebar/__tests__/fixedRows.ts` and compared
+ *   against the DOM, so a deleted row, a reordered pair or a typo'd href
+ *   fails. `SidebarDriveSwitcher.test.tsx` holds their *labels* the same
+ *   way; what is only here is the `?view=` value and the `Missing Files`
+ *   row, which that fixture does not render;
  * - that **exactly one** of them is highlighted for a given URL, and which.
+ *   That part is here and nowhere else.
  *   Counting is the point: asserting only that the expected row is lit
  *   cannot see a second row lit beside it, which spec
  *   2026-09-12-purpose-oriented-navigation §5.2 forbids ("Only one purpose
