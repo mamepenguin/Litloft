@@ -38,6 +38,7 @@ from app.schemas import (
 from app.services import fileops
 from app.services.file_versions import record_version
 from app.services.filetype import classify
+from app.services.atomic_write import atomic_write_bytes
 from app.services.safepath import resolve_safe_path
 from app.services.scanner import scan_drive
 
@@ -956,19 +957,7 @@ async def create_text_file(
         filename = resolved.name
         file_type, mime_type = classify(filename)
 
-        tmp_fd, tmp_name = _tempfile.mkstemp(
-            prefix=f".{resolved.name}.", suffix=".tmp", dir=str(resolved.parent)
-        )
-        try:
-            with _os.fdopen(tmp_fd, "wb") as f:
-                f.write(content_bytes)
-            _os.replace(tmp_name, resolved)
-        except Exception:
-            try:
-                _os.unlink(tmp_name)
-            except OSError:
-                pass
-            raise
+        atomic_write_bytes(resolved, content_bytes)
 
         nfc_name = unicodedata.normalize("NFC", resolved.name)
         parent_rel = str(_Path(normalized_rel).parent)

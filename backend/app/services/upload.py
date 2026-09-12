@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.models import TRUST_UNVERIFIED, File
+from app.services.atomic_write import atomic_replace
 from app.services.chapters import probe_file_chapters
 from app.services.filetype import classify, is_probeable_media
 from app.services.image_dimensions import read_image_dimensions
@@ -32,6 +33,20 @@ from app.services.ws import broadcast_from_thread
 logger = logging.getLogger(__name__)
 
 _upload_sessions: dict[str, "UploadSession"] = {}
+
+
+class _SizeMismatch(Exception):
+    """Raised inside the assembly block so the rename does not happen.
+
+    The check used to run after the bytes were already at the destination, and
+    its cleanup was an `unlink()` of that path — which deletes whatever is
+    there, not only what this upload wrote. Refusing before the rename means
+    there is nothing to delete.
+    """
+
+    def __init__(self, actual: int):
+        self.actual = actual
+        super().__init__(f"expected size mismatch, got {actual}")
 
 
 @dataclass
@@ -168,22 +183,36 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         else session.filename
     )
     target_full = drive_path / target_rel
-    target_full.parent.mkdir(parents=True, exist_ok=True)
 
-    # Stream chunks via copyfileobj so we never hold a full chunk in memory.
-    # Matters for huge uploads where chunk_size may be 50-100MB.
-    with open(target_full, "wb") as out:
-        for i in range(session.total_chunks):
-            chunk_file = session.temp_dir / f"chunk_{i:06d}"
-            with open(chunk_file, "rb") as src:
-                shutil.copyfileobj(src, out, length=1024 * 1024)
-
-    actual_size = target_full.stat().st_size
-    if actual_size != session.file_size:
-        target_full.unlink()
+    # Assembled beside the destination and renamed, not written into it. The
+    # chunks live under `UPLOAD_DIR`, which may be another filesystem — that is
+    # what `_check_disk_capacity` measures both sides of — so the sibling is
+    # what keeps the rename within one. Writing into `target_full` directly
+    # left a truncated file in the user's drive whenever assembly died, and the
+    # next scan registered it as a real file of that size.
+    #
+    # Streamed with copyfileobj rather than read into memory: chunk_size can be
+    # 50-100MB.
+    try:
+        with atomic_replace(target_full) as assembling:
+            with open(assembling, "wb") as out:
+                for i in range(session.total_chunks):
+                    chunk_file = session.temp_dir / f"chunk_{i:06d}"
+                    with open(chunk_file, "rb") as src:
+                        shutil.copyfileobj(src, out, length=1024 * 1024)
+            actual_size = assembling.stat().st_size
+            if actual_size != session.file_size:
+                raise _SizeMismatch(actual_size)
+    except _SizeMismatch as mismatch:
         shutil.rmtree(session.temp_dir, ignore_errors=True)
         del _upload_sessions[upload_id]
-        raise HTTPException(status_code=400, detail=f"File size mismatch: expected {session.file_size}, got {actual_size}")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"File size mismatch: expected {session.file_size}, "
+                f"got {mismatch.actual}"
+            ),
+        ) from None
 
     shutil.rmtree(session.temp_dir, ignore_errors=True)
     del _upload_sessions[upload_id]
