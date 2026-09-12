@@ -7,7 +7,7 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
-from app.services.atomic_write import AbandonWrite, atomic_replace
+from app.services.atomic_write import AbandonWrite, generating_file
 
 logger = logging.getLogger(__name__)
 
@@ -527,7 +527,7 @@ def write_thumbnail_atomically(generator, source: str, destination: str) -> bool
     Conventions: "Atomic file writes: write to `.tmp` then `os.replace()`".
     """
     try:
-        with atomic_replace(destination) as tmp_name:
+        with generating_file(destination) as tmp_name:
             if not generator(source, str(tmp_name)):
                 raise AbandonWrite
     except AbandonWrite:

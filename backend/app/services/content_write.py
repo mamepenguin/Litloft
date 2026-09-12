@@ -6,7 +6,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.models import File
-from app.services.atomic_write import atomic_write_bytes
+from app.services.atomic_write import replace_file_contents
 from app.services.hash import compute_file_hash
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ def write_text_content(
     if compute_content_etag(current) != expected_etag:
         raise ContentConflictError("ETag mismatch")
 
-    atomic_write_bytes(file_path, body)
+    replace_file_contents(file_path, body)
 
     file.file_size = len(body)
     file.file_hash = compute_file_hash(file_path)

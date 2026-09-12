@@ -4,7 +4,6 @@ import asyncio
 import hashlib
 import json
 import logging
-import os
 import re
 import uuid
 from collections import Counter
@@ -18,7 +17,7 @@ from sqlalchemy.orm import Session
 import app.config as config
 import app.database as database
 from app.models import File, active_file_filter
-from app.services.atomic_write import atomic_write_bytes, atomic_write_text
+from app.services.atomic_write import replace_file_contents, write_generated_file
 from app.services.content_write import ContentConflictError, write_text_content
 from app.services import event_hooks
 from app.services.fileops import physical_delete, validate_within_drive
@@ -121,8 +120,9 @@ def _job_dir() -> Path:
 
 def _persist_job(job: ImportJob) -> None:
     target = _job_dir() / f"{job.job_id}.json"
-    atomic_write_text(
-        target, json.dumps(job.public_dict(), ensure_ascii=False, indent=2)
+    write_generated_file(
+        target,
+        json.dumps(job.public_dict(), ensure_ascii=False, indent=2).encode("utf-8"),
     )
 
 
@@ -137,7 +137,9 @@ def initialize_interrupted_jobs() -> None:
                 continue
             data["state"] = "interrupted"
             data["finished_at"] = _now().isoformat()
-            atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=2))
+            write_generated_file(
+                path, json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+            )
             job = ImportJob(
                 **{
                     key: value
@@ -365,7 +367,7 @@ def _choose_asset_path(
 
 
 def _write_asset(path: Path, image: NormalizedImage) -> None:
-    atomic_write_bytes(path, image.body)
+    replace_file_contents(path, image.body)
 
 
 def _verify_candidate(note: File, candidate: ImportCandidate) -> tuple[Path, bytes, str]:

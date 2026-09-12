@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.models import TRUST_UNVERIFIED, File
-from app.services.atomic_write import atomic_replace
+from app.services.atomic_write import replacing_file
 from app.services.chapters import probe_file_chapters
 from app.services.filetype import classify, is_probeable_media
 from app.services.image_dimensions import read_image_dimensions
@@ -194,7 +194,7 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
     # Streamed with copyfileobj rather than read into memory: chunk_size can be
     # 50-100MB.
     try:
-        with atomic_replace(target_full) as assembling:
+        with replacing_file(target_full) as assembling:
             with open(assembling, "wb") as out:
                 for i in range(session.total_chunks):
                     chunk_file = session.temp_dir / f"chunk_{i:06d}"

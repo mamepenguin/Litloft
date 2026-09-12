@@ -616,7 +616,12 @@ class TestAssetPlacement:
 
     def test_a_write_that_fails_leaves_no_partial_file_behind(self, client):
         """The asset is written to a temp name and moved, so a failed move must
-        not leave a dotfile sitting in the user's own assets folder."""
+        not leave a dotfile sitting in the user's own assets folder.
+
+        The rename now happens inside `atomic_write`, which is where the failure
+        is injected; what this still holds that the helper's own tests do not is
+        that the folder under test is a real drive folder.
+        """
         _, _, drive_dir, _ = client
         target = drive_dir / "assets" / "image.jpg"
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -624,8 +629,10 @@ class TestAssetPlacement:
         def refuse(source, destination):
             raise OSError("no space left on device")
 
+        from app.services import atomic_write
+
         with pytest.MonkeyPatch.context() as patch:
-            patch.setattr(importer.os, "replace", refuse)
+            patch.setattr(atomic_write.os, "replace", refuse)
             with pytest.raises(OSError):
                 importer._write_asset(target, _normalized_jpeg())
 

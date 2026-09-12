@@ -9,6 +9,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 import app.config as config
+from app.services.atomic_write import replace_file_contents
 from app.database import SessionLocal
 from app.models import EmptyFolder, File, FileExif, active_file_filter
 from app.services.chapters import probe_file_chapters
@@ -255,9 +256,7 @@ def _ensure_md_id_for_new_file(
 
         new_content = compose_frontmatter(new_meta, parsed.body)
         try:
-            tmp = file_path.with_suffix(file_path.suffix + ".tmp")
-            tmp.write_text(new_content, encoding="utf-8")
-            tmp.replace(file_path)
+            replace_file_contents(file_path, new_content.encode("utf-8"))
             file_record.file_size = file_path.stat().st_size
         except OSError:
             return

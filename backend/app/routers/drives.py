@@ -38,7 +38,7 @@ from app.schemas import (
 from app.services import fileops
 from app.services.file_versions import record_version
 from app.services.filetype import classify
-from app.services.atomic_write import atomic_write_bytes
+from app.services.atomic_write import replace_file_contents
 from app.services.safepath import resolve_safe_path
 from app.services.scanner import scan_drive
 
@@ -957,7 +957,7 @@ async def create_text_file(
         filename = resolved.name
         file_type, mime_type = classify(filename)
 
-        atomic_write_bytes(resolved, content_bytes)
+        replace_file_contents(resolved, content_bytes)
 
         nfc_name = unicodedata.normalize("NFC", resolved.name)
         parent_rel = str(_Path(normalized_rel).parent)
