@@ -41,36 +41,47 @@ def _run_purge_batch(
 ) -> tuple[list[str], set[tuple[str, str]], set[str]]:
     """Synchronous purge work — runs in a thread via asyncio.to_thread.
 
-    Also returns the drives touched. They have to be collected here, while
-    the rows still exist: the purge notification is emitted after the
-    delete, when the ids no longer resolve to anything.
+    Also returns the drives touched. Their names are read off the row before
+    ``physical_delete`` runs, because the purge notification is emitted after
+    the delete, when the ids no longer resolve to anything.
+
+    ``unpurgeable`` is what makes the loop terminate. The batch query is
+    re-run from the top after each commit rather than paged, so a row that
+    raises and is only logged comes back in the next batch unchanged; with
+    nothing committed, the same rows are re-read forever. Excluding them is
+    what turns "this one cannot be deleted" into progress rather than a spin.
     """
     all_purged_ids: list[str] = []
     folders_to_check: set[tuple[str, str]] = set()
     purged_drives: set[str] = set()
+    unpurgeable: set[str] = set()
     while True:
         db = SessionLocal()
         try:
-            batch = (
-                db.query(File)
-                .filter(File.deleted_at.isnot(None), File.deleted_at < cutoff)
-                .limit(_PURGE_BATCH_SIZE)
-                .all()
+            query = db.query(File).filter(
+                File.deleted_at.isnot(None), File.deleted_at < cutoff
             )
+            if unpurgeable:
+                query = query.filter(File.id.notin_(unpurgeable))
+            batch = query.limit(_PURGE_BATCH_SIZE).all()
             if not batch:
                 break
             purged = 0
             for file in batch:
+                file_id = file.id
+                drive = file.drive
+                folder_path = file.folder_path
                 try:
-                    file_id = file.id
-                    purged_drives.add(file.drive)
-                    if file.folder_path:
-                        folders_to_check.add((file.drive, file.folder_path))
                     physical_delete(db, file)
-                    purged += 1
-                    all_purged_ids.append(file_id)
                 except Exception:
-                    logger.exception("Failed to purge file %s", file.id)
+                    unpurgeable.add(file_id)
+                    logger.exception("Failed to purge file %s", file_id)
+                    continue
+                purged_drives.add(drive)
+                if folder_path:
+                    folders_to_check.add((drive, folder_path))
+                purged += 1
+                all_purged_ids.append(file_id)
             if purged:
                 db.commit()
         except Exception:
@@ -79,6 +90,11 @@ def _run_purge_batch(
             break
         finally:
             db.close()
+    if unpurgeable:
+        logger.warning(
+            "Trash purge left %d file(s) behind; they will be retried on the "
+            "next run", len(unpurgeable)
+        )
     return all_purged_ids, folders_to_check, purged_drives
 
 

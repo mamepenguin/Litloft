@@ -55,8 +55,8 @@ If the drive's root path does not exist when the scanner runs, the scanner retur
 
 Missing files are kept indefinitely until the user explicitly purges them. Use the *Missing* view in the admin UI or the `purge_all_missing` API to clean up:
 
-- Commits in chunks of 200.
-- Emits a `files.purged` webhook per batch.
+- Commits in chunks of 200, so each commit releases the SQLite write lock.
+- Emits one `files.purged` carrying every purged id, after the last chunk — not one per chunk.
 
 ## Trash
 
@@ -92,7 +92,9 @@ A background task runs at backend startup and every 24 hours:
 - Deletes the on-disk file.
 - Deletes the DB row (cascades remove relations, comments, watch history, etc.).
 - Cleans up empty parent folders.
-- Emits `files.purged` (one event per batch of 200).
+- Emits one `files.purged` carrying every id purged in that run, after the last chunk — not one per chunk.
+
+If a file cannot be deleted — most often because its drive was removed from the configuration while the file was still in the trash — the run logs the failure, leaves that row alone and carries on with the rest, then logs how many it left behind. Those rows stay in Trash past the 30 days and are tried again on the next run, so the way to clear them is to fix what is blocking the delete (put the drive back, or correct the permissions on the file).
 
 ## Hard delete (purge from trash)
 
