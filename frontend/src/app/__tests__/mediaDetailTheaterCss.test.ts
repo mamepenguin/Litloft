@@ -83,20 +83,31 @@ describe("media detail theater sizing", () => {
     // full gap twice under every player that has no occupant, which is
     // most of them.
     //
-    // **The selector is compared whole, not searched.** Two rounds of
-    // this case were substring tests and both were unsound: a check for
-    // `:has(` passed `:has(.media-detail-player)`, a condition that is
-    // always true; a check for `:has(> .media-detail-player-aside)`
-    // passed `:not(:has(> .media-detail-player-aside))`, which is that
-    // condition inverted — it restores the doubled gap *and* throws the
-    // occupant thousands of pixels down the page where there is one. A
-    // selector has no bounded list of ways to be wrong, so the four that
-    // are right are written out and anything else fails.
-    // Split on the block boundary rather than matched with an anchor: a
-    // selector is wrapped across lines when it is long enough, and a
-    // line-anchored pattern then reads only its last line — which is how
-    // the two-column variant first went missing from this comparison.
-    const templates = globalsCss()
+    // **Both halves of each rule are compared whole, not searched.**
+    // Neither a selector nor a `grid-template-areas` value has a bounded
+    // list of ways to be wrong, and three rounds of this case searched one
+    // or the other:
+    //
+    // - `:has(` matched `:has(.media-detail-player)`, a condition that is
+    //   always true;
+    // - the occupant's class matched `:not(:has(…))`, that condition
+    //   inverted;
+    // - and a boolean "does the value mention `player-aside`" matched a
+    //   value with the rows *reordered* (the occupant drawn below `rest`,
+    //   at the foot of the page) and one with the `"player"` row deleted
+    //   (the player itself auto-placed after everything, its bottom edge
+    //   352px below the companion's top). Both measured.
+    //
+    // So the four rules that are right are written out — selector and
+    // value — and anything else fails.
+    //
+    // Comments are stripped before the blocks are split, and that is not
+    // decoration: the split is on `{` and `}`, so a brace anywhere cuts a
+    // block in two, and this file's own comments contain `/files/{id}`
+    // twelve lines above the first rule measured here.
+    const withoutComments = globalsCss().replace(/\/\*[\s\S]*?\*\//g, "");
+    const oneLine = (s: string) => s.replace(/\s+/g, " ").trim();
+    const templates = withoutComments
       .split("}")
       .map((block) => block.split("{"))
       .filter(
@@ -105,27 +116,29 @@ describe("media detail theater sizing", () => {
           selector.includes(".media-detail-grid"),
       )
       .map(([selector, body]) => ({
-        selector: selector.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\s+/g, " ").trim(),
-        row: /grid-template-areas:[^;]*player-aside/.test(body),
+        selector: oneLine(selector),
+        areas: oneLine(/grid-template-areas:([^;]*);/.exec(body)?.[1] ?? ""),
       }));
 
     const OCCUPIED = ":has(> .media-detail-player-aside:not(:empty))";
-    const EXPECTED = [
-      { selector: ".media-detail-grid", row: false },
-      { selector: `.media-detail-grid${OCCUPIED}`, row: true },
-      {
-        selector:
-          '[data-media-layout="beside"] [data-media-width="wide"] .media-detail-grid',
-        row: false,
-      },
-      {
-        selector: `[data-media-layout="beside"] [data-media-width="wide"] .media-detail-grid${OCCUPIED}`,
-        row: true,
-      },
-    ];
+    const WIDE = '[data-media-layout="beside"] [data-media-width="wide"] ';
     // The one-column grid and the two-column variant, each in both forms.
-    expect(EXPECTED).toHaveLength(4);
-    expect(templates).toEqual(EXPECTED);
+    expect(templates).toEqual([
+      { selector: ".media-detail-grid", areas: '"player" "companion" "rest"' },
+      {
+        selector: `.media-detail-grid${OCCUPIED}`,
+        areas: '"player" "player-aside" "companion" "rest"',
+      },
+      {
+        selector: `${WIDE}.media-detail-grid`,
+        areas: '"player companion" "rest companion"',
+      },
+      {
+        selector: `${WIDE}.media-detail-grid${OCCUPIED}`,
+        areas:
+          '"player companion" "player-aside companion" "rest companion"',
+      },
+    ]);
   });
 });
 
