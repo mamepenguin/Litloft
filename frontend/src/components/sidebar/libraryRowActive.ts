@@ -62,12 +62,18 @@ export function isLibraryRowActive({
 }): boolean {
   if (!driveBase) return false;
 
-  // Before the root branch, not after it. A tag takes the highlight
-  // wherever it is applied, and `?view=library&tag=x` is a reachable URL —
-  // `app/drive/[name]/page.tsx` treats it as a location on purpose. Below
-  // the early return this clause governs folder paths only, and the root
-  // lights Library under a tag with no tag row taking it
-  // (`SidebarTagsSection` requires `!activeView`).
+  // Before the root branch, not after it. Below the early return this
+  // clause governs folder paths only, and `?view=library&tag=x` is a URL
+  // `app/drive/[name]/page.tsx` treats as a location on purpose — so
+  // Library lit there under a tag.
+  //
+  // **The tag row does not take it either**: `SidebarTagsSection` gates
+  // its own highlight on `!activeView`, which reads Library as a view
+  // rather than as the location it is. So that URL leaves the column
+  // dark, as every `?view=<something>&tag=x` already did. Letting the
+  // tag row light there is a change to the rule for every tag row in the
+  // app, and it has to decide where clearing the tag lands — the stage 4
+  // browser pass owns it (arbitration 22).
   if (activeTag) return false;
 
   if (samePath(pathname, driveBase)) {

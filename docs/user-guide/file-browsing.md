@@ -18,7 +18,7 @@ In the middle are the sections you build yourself: Collections, Pins, Smart Fold
 
 At the bottom are the rows about the drive rather than about what is in it: **Trash**, **Missing Files** when the drive has any, and, for an administrator, **Dashboard** under an **Administration** heading. They sit apart because they are reached rarely, and a row pressed once a month costs the same glance as one pressed every day when the two sit together.
 
-One row is highlighted at a time. Standing in a folder highlights **Library** — including in a folder reached from the tree — except where a row of yours names that exact place: a pinned folder highlights its **Pin**, and a tag you have applied highlights that **tag**. Search results, a collection and an addon page highlight their own entry, or none, and never Library.
+At most one row is highlighted at a time — none, on a URL that is no row's subject. Standing in a folder highlights **Library** — including in a folder reached from the tree — except where a row of yours names that exact place: a pinned folder highlights its **Pin**, and a tag you have applied highlights that **tag**. Search results, a collection and an addon page highlight their own entry, or none, and never Library.
 
 ## Folder grid
 
