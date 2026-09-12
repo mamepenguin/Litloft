@@ -1,11 +1,11 @@
 import hashlib
 import logging
-import os
-import tempfile
 from pathlib import Path
 
 import pillow_heif
 from PIL import Image
+
+from app.services.atomic_write import generating_file
 
 pillow_heif.register_heif_opener()
 Image.MAX_IMAGE_PIXELS = 100_000_000  # 100 megapixels
@@ -42,15 +42,8 @@ def convert_heic_to_jpeg(source_path: str, cache_dir: Path) -> Path | None:
 
         with Image.open(source_path) as img:
             oriented = _apply_exif_orientation(img)
-            fd, tmp_path = tempfile.mkstemp(suffix=".jpg", dir=str(cache_dir))
-            try:
-                os.close(fd)
-                oriented.save(tmp_path, format="JPEG", quality=90, exif=b"")
-                os.replace(tmp_path, str(cached))
-            except Exception:
-                if os.path.exists(tmp_path):
-                    os.unlink(tmp_path)
-                raise
+            with generating_file(cached) as tmp_path:
+                oriented.save(str(tmp_path), format="JPEG", quality=90, exif=b"")
 
         logger.info("Converted HEIC to JPEG: %s -> %s", source_path, cached)
         return cached

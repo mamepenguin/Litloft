@@ -6,10 +6,8 @@ already-local ``loft://`` image into a Markdown-owned thumbnail cache.
 """
 from __future__ import annotations
 
-import os
 import re
 import shutil
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -18,6 +16,7 @@ from sqlalchemy.orm import Session
 
 import app.config as config
 from app.models import File, active_file_filter
+from app.services.atomic_write import generating_file
 from app.services.thumbnail import (
     generate_image_thumbnail,
     write_thumbnail_atomically,
@@ -333,20 +332,8 @@ def _clear_projection(file: File) -> bool:
 
 
 def _atomic_copy(source: Path, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{destination.stem}.", suffix=".jpg", dir=destination.parent
-    )
-    os.close(fd)
-    try:
-        shutil.copyfile(source, tmp_name)
-        os.replace(tmp_name, destination)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except OSError:
-            pass
-        raise
+    with generating_file(destination) as temporary:
+        shutil.copyfile(source, temporary)
 
 
 def _generate_atomic(source: Path, destination: Path) -> bool:

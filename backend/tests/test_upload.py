@@ -1,6 +1,11 @@
 import io
 from pathlib import Path
 
+import pytest
+from fastapi import HTTPException
+
+from app.services import upload as upload_service
+
 from tests.conftest import TEST_DRIVE
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -299,3 +304,92 @@ class TestUploadThumbnailIsNotWrittenInPlace:
         assert handed[0] != str(expected)
         assert Path(handed[0]).parent == expected.parent
         assert expected.exists()
+
+
+class TestAssemblyIsAtomic:
+    """`complete_upload` used to write into the destination path directly.
+
+    What broke was specific: assembly that died — a disk filling, a chunk file
+    gone, the container killed — left a truncated file in the user's drive, and
+    the next scan registered it as a real file of that size. The size check ran
+    afterwards and cleaned up with `unlink()` on that path, which deletes
+    whatever is there rather than only what this upload wrote.
+    """
+
+    def test_a_failed_assembly_leaves_the_drive_untouched(
+        self, client, monkeypatch
+    ):
+        http, db, drive_dir, _ = client
+        session = upload_service.init_upload(
+            TEST_DRIVE, "clip.bin", 8, "", 8,
+        )
+        upload_service.receive_chunk(session.upload_id, 0, b"abcdefgh")
+
+        def explode(src, dst, length=0):
+            raise OSError("no space left on device")
+
+        monkeypatch.setattr(upload_service.shutil, "copyfileobj", explode)
+
+        with pytest.raises(OSError):
+            upload_service.complete_upload(session.upload_id, db)
+
+        assert list(drive_dir.iterdir()) == []
+
+    def test_a_size_mismatch_refuses_before_anything_is_published(
+        self, client
+    ):
+        http, db, drive_dir, _ = client
+        session = upload_service.init_upload(
+            TEST_DRIVE, "short.bin", 16, "", 16,
+        )
+        upload_service.receive_chunk(session.upload_id, 0, b"only-8!!")
+
+        with pytest.raises(HTTPException) as exc:
+            upload_service.complete_upload(session.upload_id, db)
+
+        assert exc.value.status_code == 400
+        assert "size mismatch" in exc.value.detail
+        assert list(drive_dir.iterdir()) == []
+
+    def test_a_file_already_at_the_target_survives_a_failed_upload(
+        self, client, monkeypatch
+    ):
+        """The window `init_upload`'s existence check leaves open is not closed
+        here — see the PR body — but a *failed* upload must no longer be the
+        thing that destroys what it finds.
+        """
+        http, db, drive_dir, _ = client
+        session = upload_service.init_upload(
+            TEST_DRIVE, "taken.bin", 8, "", 8,
+        )
+        upload_service.receive_chunk(session.upload_id, 0, b"abcdefgh")
+        squatter = drive_dir / "taken.bin"
+        squatter.write_bytes(b"someone else's file")
+
+        def explode(src, dst, length=0):
+            raise OSError("no space left on device")
+
+        monkeypatch.setattr(upload_service.shutil, "copyfileobj", explode)
+        with pytest.raises(OSError):
+            upload_service.complete_upload(session.upload_id, db)
+
+        assert squatter.read_bytes() == b"someone else's file"
+
+    def test_a_successful_upload_still_lands_with_its_full_contents(
+        self, client
+    ):
+        http, db, drive_dir, _ = client
+        body = b"x" * 4096
+        session = upload_service.init_upload(
+            TEST_DRIVE, "whole.bin", len(body), "", 1024,
+        )
+        for index in range(4):
+            upload_service.receive_chunk(
+                session.upload_id, index, body[index * 1024:(index + 1) * 1024]
+            )
+
+        record, _recovered = upload_service.complete_upload(session.upload_id, db)
+
+        assert (drive_dir / "whole.bin").read_bytes() == body
+        assert record.file_size == len(body)
+        assert list((drive_dir).glob(".*")) == []

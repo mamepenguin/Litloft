@@ -33,6 +33,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import app.config as config
+from app.services.atomic_write import replace_file_contents
 from app.models import File, FileRelation, active_file_filter
 
 logger = logging.getLogger(__name__)
@@ -586,17 +587,7 @@ def _write_atomically(target: Path, content: str) -> int:
     The tmp sibling is removed on any exception so failed rewrites
     don't leak ``.tmp`` artefacts into the user's drive.
     """
-    target.parent.mkdir(parents=True, exist_ok=True)
-    tmp = target.with_suffix(target.suffix + ".tmp")
-    try:
-        tmp.write_text(content, encoding="utf-8")
-        tmp.replace(target)
-    except Exception:
-        try:
-            tmp.unlink(missing_ok=True)
-        except OSError:
-            pass
-        raise
+    replace_file_contents(target, content.encode("utf-8"))
     return target.stat().st_size
 
 

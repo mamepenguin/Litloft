@@ -7,6 +7,8 @@ import tempfile
 from collections import Counter
 from pathlib import Path
 
+from app.services.atomic_write import AbandonWrite, generating_file
+
 logger = logging.getLogger(__name__)
 
 
@@ -524,29 +526,13 @@ def write_thumbnail_atomically(generator, source: str, destination: str) -> bool
 
     Conventions: "Atomic file writes: write to `.tmp` then `os.replace()`".
     """
-    target = Path(destination)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(
-        prefix=f".{target.stem}.", suffix=".jpg", dir=target.parent
-    )
-    os.close(fd)
     try:
-        if not generator(source, tmp_name):
-            return False
-        # `mkstemp` opens at 0600 and `replace` carries the source's mode
-        # to the destination, so without this a replaced thumbnail ends up
-        # readable only by the process that wrote it — where every
-        # thumbnail beside it, written by the generator directly, is
-        # 0644. `data/` is a bind mount, so the difference is the host
-        # user's backup job losing access to a growing subset of it.
-        os.chmod(tmp_name, _FILE_MODE)
-        os.replace(tmp_name, destination)
-        return True
-    finally:
-        try:
-            os.unlink(tmp_name)
-        except OSError:
-            pass
+        with generating_file(destination) as tmp_name:
+            if not generator(source, str(tmp_name)):
+                raise AbandonWrite
+    except AbandonWrite:
+        return False
+    return True
 
 
 def get_thumbnail_generator(file_type: str, mime_type: str | None):
