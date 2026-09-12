@@ -30,7 +30,7 @@
        │    └─ FolderTreeRow rows
        │         └─ data-state="ancestor" + opacity-60 for path-context rows
        │
-       └─ FolderContent  /  RootFileListing (right)
+       └─ FolderContent (right)
             ├─ FolderToolbar (sort / view-mode / batch / addons / New Folder / New File)
             │    ├─ onCreateFolder  → useCreateFolder
             │    └─ onCreateFile    → useCreateFile  (new in Phase 4; omitted in special views)
@@ -145,7 +145,6 @@ Out of scope: auto-expand on drag-over hover, external OS file drop on tree rows
 |---|---|
 | `frontend/src/components/folder/FolderTreePane.tsx` | The header now renders `<FilterField>` in place of the old `<TypeFilterChips>`. When `(text \|\| typeFilter)` is non-empty, the pane: (1) switches `useFolderTreeQuery` to full-load mode, (2) runs `treeFilterTransform` on the cached tree, (3) auto-expands ancestors of matches so they are reachable, (4) renders `<FolderTreeRow isAncestor>` rows with `data-state="ancestor"` and `opacity-60` for path-context rows. Empty-state shows the "no match" copy with a *Clear filters* button. |
 | `frontend/src/components/folder/FolderContent.tsx` | Renders `<FilterField>` between the toolbar and the grid. Pipes the file list through `useFolderFilter` before handing it to the virtual list. Empty-state on zero match. |
-| `frontend/src/components/RootFileListing.tsx` | Same wiring as `FolderContent`, scoped to the drive root. |
 | `frontend/src/components/folder/FolderTreeRow.tsx` | Accepts `isAncestor: boolean`; when true emits `data-state="ancestor"` and applies `opacity-60`. The expand/collapse caret and selection behaviour are unchanged. |
 | `frontend/src/messages-core/{ja,en}.json` | New `filter` namespace: `placeholder.tree`, `placeholder.folder`, `type.{all,markdown,video,image,pdf}`, `empty.tree`, `empty.folder`, `clear`. After editing, run `node frontend/scripts/merge-addon-messages.mjs` to regenerate `frontend/src/messages/{ja,en}.json`. |
 

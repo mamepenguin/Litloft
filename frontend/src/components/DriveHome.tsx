@@ -20,7 +20,6 @@ import { FolderCard } from "./FolderCard";
 import { useFolderCardRename } from "./folder/useFolderCardRename";
 import { FolderContextMenu } from "./FolderContextMenu";
 import { PageHeader } from "./PageHeader";
-import { RootFileListing } from "./RootFileListing";
 import { TreeToggle } from "./TreeToggle";
 import { useSidebar } from "./SidebarProvider";
 import { useProfile } from "./ProfileProvider";
@@ -64,7 +63,7 @@ interface SectionState {
  * drive that was left, which mints the newest id and so passes any test
  * of "is this the latest request". `useFolderCardRename`'s commit, the
  * drag `onComplete`, `FolderContextMenu`'s `onUpdate` and `onFileAction`
- * on the carousels and the file listing all have that shape.
+ * on the carousels all have that shape.
  *
  * The identity travels with the response rather than being read where the
  * response is applied, so a caller added later has nothing to remember:
@@ -81,9 +80,9 @@ interface ResponseIdentity {
  * One `getDriveFiles` batch.
  *
  * The entrances are the page's fetch effect; `refetchAllSections` as
- * `onFileAction` on each of the three carousels and on the file
- * listing; and `refetchAllSections` inside `refreshPage`, which the
- * WebSocket subscription below fires with no user action at all.
+ * `onFileAction` on each of the three carousels; and
+ * `refetchAllSections` inside `refreshPage`, which the WebSocket
+ * subscription below fires with no user action at all.
  *
  * `Promise.allSettled` means this resolves even when every request in it
  * failed, so "the batch arrived" is not "the batch delivered anything" —
@@ -601,11 +600,10 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           Y-aligned with FolderBrowser's, so the tree toggle sits at the
           same height on the drive root, in a sub folder and on a file.
 
-          Add is here rather than in the file listing below because the
-          listing is the last of up to seven sections — roughly a
-          screenful of scrolling from the top of the page it acts on
-          (D-2). It is also this screen's one accent fill, so it is moved
-          rather than duplicated. */}
+          Add is on the header because this page draws no folder
+          toolbar to carry it, and it is this screen's one accent fill
+          (DESIGN.md §2.2) — placed once rather than repeated beside
+          anything below it. */}
       <PageHeader
         leading={<TreeToggle drive={driveName} />}
         breadcrumb={<Breadcrumb driveName={driveName} folderPath="" />}
@@ -621,9 +619,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       />
 
       {/* The name field opens directly under the button that asked for
-          it. It used to open beside the Add button in the file listing;
-          with the button here, leaving it there would split one action
-          across the length of the page. */}
+          it, so one action is not split across the length of the
+          page. */}
       {creatingFolder && (
         <div className="flex items-center gap-2 px-4 pb-2">
           <input
@@ -812,12 +809,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         totalCount={liked.total}
         seeAllHref={`${driveBase}?view=liked`}
         onFileAction={refetchAllSections}
-      />
-
-      <RootFileListing
-        driveName={driveName}
-        onFileAction={refetchAllSections}
-        onFolderChange={refreshFolders}
       />
 
       <FolderContextMenu

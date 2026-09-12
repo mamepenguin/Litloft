@@ -7,7 +7,6 @@ import { stripComments } from "./helpers/sourceScan";
 import { DriveHome } from "@/components/DriveHome";
 import { EmptyState } from "@/components/EmptyState";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
-import { RootFileListing } from "@/components/RootFileListing";
 import { SelectionBar } from "@/components/SelectionBar";
 import type { FileItem } from "@/types";
 import { accentFills } from "./helpers/accentFills";
@@ -50,9 +49,9 @@ vi.mock("@/components/FileList", () => ({ FileList: () => <div data-testid="list
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({ clipboard: null, clear: vi.fn(), copy: vi.fn(), cut: vi.fn(), paste: vi.fn(), isCut: () => false }),
 }));
-// The drive root's own screen is `DriveHome`. `RootFileListing` stays
-// real inside it — the point of the cases below is that the fill is in
-// the header and nowhere in the listing.
+// The drive root's own screen is `DriveHome`. Its listing is not drawn
+// here — that is the Library screen, asserted at the bottom of this file
+// through the toolbar that carries its fill.
 //
 // **`useProfile` is not ambient, and stubbing it hides a state.**
 // `hasProfile` gates both watch-history rows out of the tree, and their
@@ -214,6 +213,10 @@ const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
   { screen: "personal settings", assertedIn: "src/app/settings/__tests__/page.test.tsx" },
   { screen: "folder toolbar", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "drive root", assertedIn: "src/__tests__/accent-budget.test.tsx" },
+  // A screen of its own, not a section of the one above: the drive home
+  // and the listing of the drive root's children are two pages, and a
+  // budget is per screen.
+  { screen: "Library root", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "selection bar over a folder", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "trash", assertedIn: "src/components/__tests__/TrashMissingHeader.test.tsx" },
   { screen: "missing", assertedIn: "src/components/__tests__/TrashMissingHeader.test.tsx" },
@@ -309,7 +312,7 @@ describe("what counts as a fill at rest", () => {
 describe("accent budget", () => {
   afterEach(cleanup);
 
-  it("covers sixteen core screens, and each one somewhere that runs", () => {
+  it("covers seventeen core screens, and each one somewhere that runs", () => {
     expect(SCREENS.map((s) => s.screen)).toEqual([
       "root drive picker",
       "admin dashboard",
@@ -320,6 +323,7 @@ describe("accent budget", () => {
       "personal settings",
       "folder toolbar",
       "drive root",
+      "Library root",
       "selection bar over a folder",
       "trash",
       "missing",
@@ -475,12 +479,17 @@ describe("accent budget — drive root", () => {
   });
   afterEach(cleanup);
 
-  it("spends its one fill on Add, with something playable in the drive", async () => {
+  it("spends its one fill on Add, with content rows on screen", async () => {
     const { container } = render(<DriveHome driveName="main" />);
-    // Play only appears once the listing knows it holds something playable,
-    // and waiting for it is what proves the file listing has rendered — the
-    // half of the screen the fill used to be in.
-    expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
+    // A row's heading is drawn while it is still loading, so it says
+    // nothing about whether anything arrived. The count on `See all` is
+    // only known once the batch has settled, which is the state where a
+    // second fill could appear — waiting on the request that starts it
+    // would assert over an empty page (detector rule 3).
+    // Three: the rows that carry a count are Recently added, Favourites
+    // and Liked. `not.toHaveLength(0)` here would stay green if two of
+    // them stopped drawing at all (detector rule 1).
+    expect(await screen.findAllByText(/See all \(1\)/)).toHaveLength(3);
     expect(
       [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
     ).toEqual(["Add"]);
@@ -499,7 +508,7 @@ describe("accent budget — drive root", () => {
     ).toEqual(["Add"]);
   });
 
-  it("puts Add in the header, not in the listing below it", async () => {
+  it("puts Add in the header", async () => {
     render(<DriveHome driveName="main" />);
     const add = await screen.findByRole("button", { name: "Add" });
     expect(add.closest("header")).not.toBeNull();
@@ -535,14 +544,19 @@ describe("accent budget — drive root", () => {
     }
   });
 
-  it("leaves the file listing with no fill of its own", async () => {
-    // The fill moved; it was not copied. Asserting only that the header has
-    // one cannot tell the two apart — a detector whose expected values come
-    // from what it observes cannot see "this disappeared" — so the screen it
-    // left is checked directly.
-    const { container } = render(<RootFileListing driveName="main" />);
-    expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
-    expect(accentFills(container)).toHaveLength(0);
-    expect(screen.queryByRole("button", { name: "Add" })).toBeNull();
+  it("gives the Library root a budget of its own, spent on Add", () => {
+    // The listing of the drive root's children is a screen of its own now,
+    // and a screen's budget is one fill. Asserting only that `DriveHome`
+    // has one cannot say anything about this one — they are two screens,
+    // not a screen and its section — so the toolbar that carries it is
+    // rendered with the root's own shape: a location at `""`, which is a
+    // place to write into and has no folder path to pin.
+    const { container } = render(
+      <FolderToolbar {...folderProps} folderPath="" hasPlayableFiles />,
+    );
+    expect(screen.getAllByRole("button", { name: "Play" }).length).toBeGreaterThan(0);
+    expect([
+      ...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? "")),
+    ]).toEqual(["Add"]);
   });
 });

@@ -244,10 +244,9 @@ const folder = { name: "Folder", path: "Folder", file_count: 3 } as Folder;
  * trailing furniture, and each is a real call site — the props are the
  * ones a caller actually passes, not a combination the type allows.
  * `FileList` is the only thing that renders `FileListRow`, it passes
- * `onContextMenu` unconditionally, and its four callers split two and two:
- * `RootFileListing` and `folder/FolderContent` pass `selectable` *and*
- * `onFavoriteToggle`, `CollectionDetail` and `folder/RightPaneFolder` pass
- * neither.
+ * `onContextMenu` unconditionally, and its callers split one and two:
+ * `folder/FolderContent` passes `selectable` *and* `onFavoriteToggle`,
+ * `CollectionDetail` and `folder/RightPaneFolder` pass neither.
  *
  * So selection mode draws the star: it stands the `⋮` down (the row means
  * "pick me" there, and right-click is already disabled for the same

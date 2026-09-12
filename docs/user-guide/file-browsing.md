@@ -1,12 +1,12 @@
 # Browsing files
 
-The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. The breadcrumb row carries the tree toggle on the left and the **Add** button on the right; below it you find a folder grid, several *content rows* (Continue watching, Recently played, Recently added, Favourites, Liked), and the drive root's own file listing last. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
+The drive home page (`/drive/<name>`) is the main browsing surface. Folders are walked from the drive root; subfolders open at `/drive/<name>/<path>`. The breadcrumb row carries the tree toggle on the left and the **Add** button on the right; below it you find a folder grid and several *content rows* (Continue watching, Recently played, Recently added, Favourites, Liked). The files that sit at the drive root are not listed there: they are an ordinary folder listing of the root, on its own screen at `/drive/<name>?view=library`. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
 
 ## Drive home layout
 
 ![Annotated drive home page showing the breadcrumb, folder grid, file grid, and content rows](../images/user-guide/drive-home-overview.png)
 
-The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity rows that surface recent or in-progress items. The screenshot predates the current layout: **Add** now sits at the right-hand end of the breadcrumb row rather than above the file listing, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail.
+The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity rows that surface recent or in-progress items. The screenshot predates the current layout: the home page no longer lists files of its own, **Add** sits at the right-hand end of the breadcrumb row, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail.
 
 ## Folder grid
 
@@ -38,13 +38,13 @@ A toolbar above the grid lets you:
 - Put the listing in order from the **Sort** menu: **newest / oldest** (indexed date), **title A-Z / Z-A**, **largest / smallest**, or **random** — seven orders. Sorting by when you liked something is not among them; that order belongs to the Liked view, which chooses it for you, because inside an ordinary folder most rows have no like date at all. The button reads the order that is on. Search results add a **relevance** option, which is their default. Sort is remembered per folder in the same place as the view mode. While the order is random, the same menu offers **Reshuffle** below the orders.
 - Narrow the listing from the **Filter** menu, which holds both axes. **File type** (All / Video / Image / Audio / Document / Markdown / PDF / Archive / Other) — Markdown and PDF sit *under* Document, so choosing Document returns them too and choosing one of them narrows further. **Verification** (All / Verified only / Unjudged only) sits beside it, except in search results, where a ranked and truncated result set cannot be narrowed after the fact without quietly losing hits. The button carries the word *Filter* until something is on, then the names of what is on.
 
-  The server applies both and narrows the query itself, so they are right about files you have not scrolled to yet, and the count beside the folder name is the server's. Three things sit outside that: the drive home's own file listing, the section at the bottom of `/drive/<name>`, has no Filter menu at all; *recently played* fetches the last fifty and sifts verification over those rows in the browser, so its count is how many of the fifty are left; and a search count is the server's filename total plus the semantic hits the browser found on top of it.
+  The server applies both and narrows the query itself, so they are right about files you have not scrolled to yet, and the count beside the folder name is the server's. Two things sit outside that: *recently played* fetches the last fifty and sifts verification over those rows in the browser, so its count is how many of the fifty are left; and a search count is the server's filename total plus the semantic hits the browser found on top of it.
 - Turn on **Select mode** from the overflow (`…`) menu, then click cards to select them. `Cmd/Ctrl+click` turns selection on and toggles a card in one gesture, and `Shift+click` extends the selection to a range. A selection bar appears at the bottom with tag, rename, add-to-collection, copy, cut, move, and move-to-trash. On a narrow screen it keeps **Tag** and **Move** and puts the other five behind `…`, with their names — it does not scroll sideways, so nothing is off the edge.
 - **Rescan** the drive, also from the overflow menu.
 - **Pin this folder** to the sidebar, also from the overflow menu — the same pin the folder's own right-click menu offers, for the folder you are standing in. It is not offered on the drive root, which has no folder to pin.
 - **Add** anything to the folder, from the one **Add** button: upload files, upload a folder, create a folder, create a note. It is the only filled button on the bar. An addon can contribute further rows, which appear below a separator at the bottom of the menu.
 
-  On the drive home this button is in the breadcrumb row instead, at the top of the page — the file listing there is the last of up to seven sections, so a button above it would be a screenful of scrolling from the page it acts on. That one offers uploading and **New Folder** only; creating a note and the addon rows come with the folder toolbar, which the home page does not have. **New Folder** opens its name field directly under the breadcrumb row.
+  On the drive home this button is in the breadcrumb row instead, because that page draws no folder toolbar to carry it. That one offers uploading and **New Folder** only; creating a note and the addon rows come with the folder toolbar, which the home page does not have. **New Folder** opens its name field directly under the breadcrumb row.
 - **Play** everything playable in the folder, on folders that hold something playable.
 
 **Folders follow the mode too.** In grid mode they are cards above the file
@@ -87,7 +87,7 @@ than merely moved. What stays is everything that puts
 something in the folder (the Add menu and Rescan) and the count. A
 listing emptied by a filter keeps them all, because the filter that
 produced the empty result is also the way back out of it. The same
-applies to the drive root's own file listing and to an empty trash.
+applies to an empty trash.
 
 The file list is paged: 30 files per request, fetched as you scroll. When you open a file and come back, the list is restored from a snapshot in `sessionStorage` — the pages you had already loaded and your scroll position both come back, so a deep scroll survives the round trip. The snapshot is skipped for random sort and for search results, and it expires after two hours.
 
@@ -386,7 +386,7 @@ total, and both send you to the same place — Recently played is the
 whole history, so it holds everything Continue watching was showing you
 and more.
 
-Below the content rows the drive home lists the files that sit at the drive root, using the same grid as any other folder.
+The drive home does not list files of its own. The files that sit at the drive root are an ordinary folder listing of the root, reached at `/drive/<name>?view=library`, with the same toolbar, filters and view modes as any other folder.
 
 ## Pinned folders
 
@@ -428,7 +428,7 @@ The payload of each event is in [WebSocket events](../reference/websocket-events
 
 Two different things travel by drag:
 
-- **Files from your computer.** Drop one or more files (or a whole folder, in browsers that support it) onto the file grid to upload them. See [upload and file operations](upload-and-fileops.md) for chunking and limits.
+- **Files from your computer.** Drop one or more files (or a whole folder, in browsers that support it) onto the file grid to upload them. The drive home has no file grid, so nothing is dropped there — upload from its **Add** button, or into a folder listing. See [upload and file operations](upload-and-fileops.md) for chunking and limits.
 - **Files and folders already in the drive.** Dragging a card or a tree row and dropping it on a folder **moves** it. Valid drop targets are folder cards, folder rows in the tree, the breadcrumb, and the drop band at the top of the tree that stands for the drive root. Drops onto a folder itself, or into its own descendants, are refused. Drags work across panes — pick a card up in the file list and drop it on a tree row.
 
 If several files are selected, dragging any one of them moves the whole selection.

@@ -116,7 +116,6 @@ describe("who asks for numbers", () => {
     // so a fifth caller cannot pick it up unnoticed.
     const callers = [
       "frontend/src/components/CollectionDetail.tsx",
-      "frontend/src/components/RootFileListing.tsx",
       "frontend/src/components/folder/FolderContent.tsx",
       "frontend/src/components/folder/RightPaneFolder.tsx",
     ];

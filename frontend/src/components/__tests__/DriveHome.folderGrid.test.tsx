@@ -33,7 +33,6 @@ vi.mock("@/lib/api", () => ({
 
 // The sections around the grid are not what this file is about, and each
 // drags in its own fetches and providers.
-vi.mock("../RootFileListing", () => ({ RootFileListing: () => <div /> }));
 vi.mock("../AddonSlot", () => ({ AddonSlot: () => <div /> }));
 vi.mock("../CarouselSection", () => ({ CarouselSection: () => <div /> }));
 vi.mock("../ContinueWatchingSection", () => ({ ContinueWatchingSection: () => <div /> }));
@@ -281,17 +280,19 @@ function driveHasFolders(drive: string, names: readonly string[]): void {
  * The Folders section's own element, found from its heading.
  *
  * `folderNamesOnScreen()` reads through here rather than across the
- * document because `RootFileListing` draws folder cards carrying the same
- * `data-rename-focus` attribute in production, so a document-wide read of
- * that attribute would hold while this section drew nothing at all.
+ * document because `data-rename-focus` has three producers —
+ * `FolderCard`, `FolderListRow` and `FolderTreeRow` (`useInlineRename`
+ * declares the attribute) — and a document-wide read would hold on any
+ * of them while this section drew nothing at all.
  *
- * **That scoping has no witness here, and cannot have one.** Every other
- * component in this file is stubbed to a `<div />`, so document-wide and
+ * **That scoping has no witness here, and cannot have one.** Only the
+ * card is reachable from this render, so document-wide and
  * section-scoped are the same set and always will be: reverting
  * `folderNamesOnScreen()` to `document.querySelectorAll` leaves every
- * case in this file green (measured). It is hardening for production, not
- * a property this suite can hold — `review-workflow.md`, "the honest
- * response is to narrow what the test claims".
+ * case in this file green (measured). It is hardening against a second
+ * producer arriving on this screen, not a property this suite can hold —
+ * `review-workflow.md`, "the honest response is to narrow what the test
+ * claims".
  *
  * So this is not a rule the file follows. Most reads here are
  * deliberately document-wide: `screen.queryByText(name)` for a name that
@@ -710,12 +711,12 @@ describe("DriveHome folder grid", () => {
     // "is this the latest" test would admit. Only the drive it was made
     // for separates it from a legitimate refresh.
     //
-    // Five other entrances have this shape and none of them is in this
+    // The other entrances have this shape and none of them is in this
     // file: the rename commit, the drag `onComplete`,
-    // `FolderContextMenu.onUpdate`, and `onFileAction` on
-    // `RootFileListing` and the carousels. They are covered by the same
-    // guard rather than by five more cases, because the guard is in
-    // `applyFolders` and none of them can reach the grid past it.
+    // `FolderContextMenu.onUpdate`, and `onFileAction` on the carousels.
+    // They are covered by the same guard rather than by a case each,
+    // because the guard is in `applyFolders` and none of them can reach
+    // the grid past it.
     driveHasFolders(DRIVE_UNDER_TEST, AT_CAP_FOLDER_NAMES);
     const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
     await waitFor(() => expect(folderNamesOnScreen()).toEqual([...AT_CAP_FOLDER_NAMES]));

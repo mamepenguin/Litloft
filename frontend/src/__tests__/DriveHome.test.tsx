@@ -83,11 +83,6 @@ vi.mock("@/lib/api", () => ({
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
 }));
 
-// Mock child components that are complex
-vi.mock("@/components/RootFileListing", () => ({
-  RootFileListing: () => <div data-testid="root-file-listing" />,
-}));
-
 import { DriveHome } from "../components/DriveHome";
 import type { WatchHistoryItem } from "@/types";
 
@@ -180,15 +175,13 @@ describe("DriveHome", () => {
 
     render(<DriveHome driveName="media" />);
 
-    // Waited on, not asserted once the file listing appears. Those are
-    // two different fetches, and `ContinueWatchingSection` returns null
-    // only when it is *done* loading with nothing — while the history
-    // request is in flight it draws its heading. So the old form passed
-    // whenever the listing happened to resolve second, and failed when
-    // it resolved first, which under load it does.
-    await waitFor(() => {
-      expect(screen.getByTestId("root-file-listing")).toBeInTheDocument();
-    });
+    // `ContinueWatchingSection` returns null only when it is *done*
+    // loading with nothing — while the history request is in flight it
+    // draws its heading. So waiting for the heading to go is waiting for
+    // the fetch to settle. Asserted only after it has been seen once:
+    // without that, a section that never mounted at all would satisfy
+    // the wait on its first tick.
+    expect(screen.getByText("Continue Watching")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText("Continue Watching")).toBeNull();
     });
@@ -411,20 +404,13 @@ describe("the drive root's header", () => {
 
     const field = screen.getByPlaceholderText("Folder name...");
 
-    // Where it opens is the requirement, not merely that it left the
-    // listing: a field at the bottom of the page splits one action across
-    // the length of it, which is the defect this move is fixing. Moving
-    // the JSX below `RootFileListing` breaks nothing without this.
+    // Where it opens is the requirement, not merely that it is on the
+    // page: a field further down splits one action across the length of
+    // it. Pinned as adjacency rather than as document order, because
+    // "somewhere after the header" also holds for a field at the very
+    // bottom of the page.
     const header = container.querySelector("header")!;
-    const listing = screen.getByTestId("root-file-listing");
-    expect(
-      header.compareDocumentPosition(field) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(
-      field.compareDocumentPosition(listing) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(header.nextElementSibling).toBe(field.parentElement);
     fireEvent.change(field, { target: { value: "Reading" } });
 
     const foldersBefore = mockGetFolders.mock.calls.length;

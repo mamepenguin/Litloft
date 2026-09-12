@@ -60,7 +60,6 @@ describe("the provenance marker survives the redirect", () => {
 
 describe("only a plain folder listing emits the marker", () => {
   const folderBrowser = src("components", "FolderBrowser.tsx");
-  const rootListing = src("components", "RootFileListing.tsx");
   const folderContent = src("components", "folder", "FolderContent.tsx");
 
   it("gates the folder listing on every narrowing it owns", () => {
@@ -87,10 +86,6 @@ describe("only a plain folder listing emits the marker", () => {
       expect(gate![1]).toContain(term);
     }
     expect(folderBrowser).toContain('"&nav=folder"');
-  });
-
-  it("lets the drive root count itself, since the root is a folder", () => {
-    expect(rootListing).toContain("&nav=folder");
   });
 
   it("withdraws the marker while the name box is narrowing the rows", () => {
