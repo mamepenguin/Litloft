@@ -36,13 +36,8 @@ import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 
 /**
  * WS events that signal the file list (or folder list) might have
- * changed. Both the right pane and the tree pane subscribe to the same
- * set so they stay in sync after any structure-changing operation.
+ * changed.
  */
-// The core collapses its lifecycle events into two coarse signals before
-// they reach the browser. The list watches both: a content write can change
-// a title or a thumbnail, which is visible here even though the set of
-// files did not change.
 // The core collapses its lifecycle events into two coarse signals before
 // they reach the browser. The list watches both: a content write can change
 // a title or a thumbnail, which is visible here even though the set of
@@ -232,10 +227,17 @@ export function useFolderFiles({
       const res = await getDriveFiles(driveName, {
         // A tag filter no longer disqualifies the folder: it scopes to the
         // folder's subtree instead (spec 2026-08-21-folder-scoped-tag-filter).
-        // `!folderPath` — not `folderPath ?? ""` — because at the drive root
-        // there is no folder to scope to, and path="" would narrow the
-        // result to root-level files rather than widen it to the drive (§3.1).
-        path: isSpecialView || !folderPath ? undefined : folderPath,
+        //
+        // The folder path is passed straight through, `""` included: a
+        // **non-recursive** `path=""` is an exact `folder_path` match and
+        // so asks for the root's own children, while omitting `path`
+        // applies no folder predicate and asks for the whole drive. Note
+        // which of the two inputs does the work — `path=""` *with*
+        // `recursive` is the drive again (`drives.py list_drive_files`),
+        // which is why the recursive case below is the tag's and not the
+        // root's. A route that has no folder to stand in passes none, and
+        // a flat virtual view is not a location at all.
+        path: isSpecialView ? undefined : folderPath,
         recursive: !!tagFilter,
         favorite: isFavorites ? true : undefined,
         liked: isLiked ? true : undefined,
@@ -419,10 +421,9 @@ export function useFolderFiles({
   }, [driveName, folderPath, view, tagFilter, typeFilter, sort, order, searchQuery, reset]);
 
   // Refresh effect — driven by the parent's refreshKey *and* by an
-  // internal counter the WS subscription below bumps. Keeping the WS
-  // signal local to this hook means every consumer (FolderBrowser,
-  // RootFileListing, …) gets auto-sync without each parent threading
-  // WS plumbing.
+  // internal counter the WS subscription below bumps. The subscription
+  // lives in the hook, so a consumer gets auto-sync without threading
+  // WS plumbing of its own.
   const [wsRefreshKey, setWsRefreshKey] = useState(0);
   useWebSocketRefresh(
     STRUCTURE_EVENTS,

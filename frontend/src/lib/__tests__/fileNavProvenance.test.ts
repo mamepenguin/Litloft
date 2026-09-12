@@ -68,12 +68,16 @@ describe("only a plain folder listing emits the marker", () => {
     // folder". `typeFilter` and `trustFilter` are component state and
     // `tagFilter` is a prop, so none of them are in the URL — which is
     // why the gate has to be here rather than in the resolver.
-    const gate = folderBrowser.match(
-      /const listingIsPlainFolder =([\s\S]*?);\n/,
-    );
+    const gate = folderBrowser
+      // Comments inside the expression are prose, and a term named in one
+      // ("not `isFolderAnchored`, because …") satisfied this scan while
+      // the expression no longer used it.
+      .replace(/\/\/[^\n]*/g, "")
+      .match(/const listingIsPlainFolder =([\s\S]*?);\n/);
     expect(gate).not.toBeNull();
     for (const term of [
-      "isFolderAnchored",
+      "folderPath !== undefined",
+      "!isSpecialView",
       "!isSearch",
       "!tagFilter",
       "!typeFilter",
