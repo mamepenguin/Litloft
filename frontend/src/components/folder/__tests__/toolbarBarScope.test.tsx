@@ -9,7 +9,7 @@ vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 
 const props = {
   isSpecialView: false,
-  isFolderAnchored: true,
+  isWriteDestination: true,
   tagFilter: null,
   hasPlayableFiles: true,
   sort: "created_at" as const,

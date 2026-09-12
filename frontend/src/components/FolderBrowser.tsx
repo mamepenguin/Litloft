@@ -152,6 +152,25 @@ export function FolderBrowser({
   // handled" (hako a8r4bT7Wt1LQ6IBPTBm7N).
   const isFolderAnchored = !isSpecialView && !isSearch && !!folderPath;
 
+  // Is there a concrete place to write into? A folder path answers yes,
+  // with or without a tag narrowing it — the listing is still that
+  // folder's subtree. The drive root answers yes as well, reached as a
+  // location: `folderPath === ""` is the root's own `folder_path` (spec
+  // 2026-09-12-purpose-oriented-navigation §7.1, AC 10).
+  //
+  // A tag applied *at* the root is the exception, and the same spec
+  // sentence is why: the listing there is the whole drive, so it is an
+  // unscoped tag result and names no destination. Search and the flat
+  // virtual views name none either.
+  //
+  // A different question from `isFolderAnchored`, which asks for a
+  // folder *path* — a non-empty key. Per-folder sort, view mode and
+  // pinning need that key and the root has none, so they stay on the
+  // predicate above: the root is writable and deliberately not pinnable.
+  const isDriveRootLocation = !isSpecialView && !isSearch && folderPath === "";
+  const isWriteDestination =
+    isFolderAnchored || (isDriveRootLocation && !tagFilter);
+
   // With folder scope as the default, the drive-wide view needs an
   // explicit door. Derived once here and handed to both consumers (the
   // toolbar header and the empty state) so they cannot disagree about
@@ -336,10 +355,9 @@ export function FolderBrowser({
   const tsc = useTranslations("shortcuts");
   const { scanning, handleScan } = useDriveScan(driveName, refresh);
   const createFolder = useCreateFolder(driveName, folderPath, refresh);
-  // Phase 4: Cmd+N / "New File" only meaningful in a real folder
-  // context. Special views (favorites, search, tag) have no concrete
-  // target folder; we pass undefined to FolderToolbar and disable the
-  // shortcut below so neither path can fire.
+  // Creating a file needs a place to put it, so both doors to it — the
+  // toolbar's row and the keyboard — are closed on a listing that names
+  // no location. `isWriteDestination` is the question both ask.
   const { createFile } = useCreateFile(driveName, folderPath ?? "");
   // The empty folder's two doors are the add menu's two doors. Same picker,
   // so the two cannot disagree about what an upload is.
@@ -392,10 +410,11 @@ export function FolderBrowser({
       key: "ctrl+n",
       label: tsc("newFile"),
       handler: () => {
-        // Search and the flat virtual views have no concrete folder
-        // target — Cmd+N is a no-op there. A folder-scoped tag filter
-        // does have one, and creates into the anchored folder (§6.1).
-        if (!isFolderAnchored) return;
+        // Nothing to create into on a listing that names no location,
+        // so the key is a no-op there. A folder-scoped tag filter names
+        // one and creates into the anchored folder (§6.1); so does the
+        // drive root, whose folder is the root itself.
+        if (!isWriteDestination) return;
         createFile();
       },
     },
@@ -671,7 +690,7 @@ export function FolderBrowser({
 
       {!hideToolbar && <FolderToolbar
         isSpecialView={isSpecialView}
-        isFolderAnchored={isFolderAnchored}
+        isWriteDestination={isWriteDestination}
         isSearch={isSearch}
         tagFilter={tagFilter}
         hasPlayableFiles={hasPlayableFiles}
@@ -710,12 +729,12 @@ export function FolderBrowser({
         onSetNewFolderName={createFolder.setNewFolderName}
         onSetFolderError={createFolder.setFolderError}
         onCreateFolder={createFolder.handleCreateFolder}
-        onCreateFile={isFolderAnchored ? createFile : undefined}
+        onCreateFile={isWriteDestination ? createFile : undefined}
         onReshuffle={handleReshuffle}
         // Only where the breadcrumb is standing in one folder. `isPinned`
         // and the handler travel together so the row cannot name the flip it
         // is not making.
-        isPinned={folderPath ? pinnedPaths.has(folderPath) : undefined}
+        isPinned={isFolderAnchored ? pinnedPaths.has(folderPath!) : undefined}
         onTogglePin={isFolderAnchored ? handleTogglePin : undefined}
       />}
 
@@ -781,8 +800,8 @@ export function FolderBrowser({
         folders={folders}
         driveName={driveName}
         widenTagScope={widenTagScope}
-        onAddFiles={isFolderAnchored ? filePicker.open : undefined}
-        onCreateFile={isFolderAnchored ? createFile : undefined}
+        onAddFiles={isWriteDestination ? filePicker.open : undefined}
+        onCreateFile={isWriteDestination ? createFile : undefined}
         viewMode={viewMode}
         loading={loading}
         loadingMore={loadingMore}

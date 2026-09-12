@@ -137,7 +137,7 @@ function playableFile(): FileItem {
 
 const folderProps = {
   isSpecialView: false,
-  isFolderAnchored: true,
+  isWriteDestination: true,
   tagFilter: null,
   hasPlayableFiles: false,
   sort: "created_at" as const,
@@ -422,7 +422,7 @@ describe("accent budget", () => {
 
     it("spends none in search mode, where nothing can be added", () => {
       const { container } = render(
-        <FolderToolbar {...folderProps} isSearch isFolderAnchored={false} />,
+        <FolderToolbar {...folderProps} isSearch isWriteDestination={false} />,
       );
       expect(accentFills(container)).toHaveLength(0);
     });
@@ -455,7 +455,7 @@ describe("accent budget", () => {
         <FolderToolbar
           {...folderProps}
           isSpecialView
-          isFolderAnchored={false}
+          isWriteDestination={false}
           total={0}
           folderCount={0}
         />,
