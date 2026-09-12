@@ -74,6 +74,8 @@ MUST_BLOCK = [
      "ISATAP under a routable prefix, wrapping the metadata address"),
     ("2a00:1450:4001:80e:200:5efe:10.0.0.1",
      "ISATAP under a routable prefix, globally-unique interface identifier"),
+    ("2a00:1450:4001:80e:0:5efe:100.64.0.1",
+     "a routable /64 carrying CGNAT in its interface identifier"),
     ("::ffff:0:7f00:1", "IPv4-translated wrapping loopback"),
     ("::ffff:0:a00:1", "IPv4-translated wrapping private"),
     ("::ffff:0:a9fe:a9fe", "IPv4-translated wrapping the metadata address"),
@@ -116,9 +118,9 @@ def test_the_declared_population_is_the_size_it_says():
     shrinking either list fails this. The knowledge half keeps its own copy of
     both numbers: changing a list here means changing them there.
     """
-    assert len(MUST_BLOCK) == 45
+    assert len(MUST_BLOCK) == 46
     assert len(MUST_ALLOW) == 9
-    assert len({address for address, _ in MUST_BLOCK + MUST_ALLOW}) == 54
+    assert len({address for address, _ in MUST_BLOCK + MUST_ALLOW}) == 55
 
 
 # How each embedding is recognised. A form that *is* a prefix is refused by the
@@ -133,7 +135,45 @@ PREFIX_FORMS = {
     "6to4": ipaddress.ip_network("2002::/16"),
     "teredo": ipaddress.ip_network("2001::/32"),
 }
-PREFIX_INDEPENDENT_FORMS = {"isatap"}
+# ISATAP's marker, declared here and imported from neither implementation — the
+# value the rule turns on belongs on the declaration side, so moving either copy
+# fails.
+ISATAP_MARKER = 0x5EFE
+
+# The rows the marker must find, declared rather than counted. One of them says
+# nothing about ISATAP in its annotation, so selecting rows out of the free text
+# beside them fails this instead of only failing some later reword.
+ISATAP_ROWS = frozenset({
+    "fe80::5efe:10.0.0.1",
+    "2a00:1450:4001:80e:0:5efe:10.0.0.1",
+    "2a00:1450:4001:80e:0:5efe:169.254.169.254",
+    "2a00:1450:4001:80e:200:5efe:10.0.0.1",
+    "2a00:1450:4001:80e:0:5efe:100.64.0.1",
+})
+
+
+def _is_isatap(address: str) -> bool:
+    """Select on the marker alone, deliberately.
+
+    Selecting on the flag values too would make them unfalsifiable here:
+    dropping a value would drop the row carrying it, and the test would pass
+    over a narrower population. The flags are asserted below instead, against
+    the rows the marker finds.
+    """
+    ip = ipaddress.ip_address(address)
+    if ip.version != 6:
+        return False
+    return (int(ip) >> 32) & 0xFFFF == ISATAP_MARKER
+
+
+def _isatap_flag(address: str) -> int:
+    return (int(ipaddress.ip_address(address)) >> 48) & 0xFFFF
+
+
+# Selected by structure, for the same reason the IPv4 categories are: a row
+# picked out of the free text beside it is picked by a comment, and this is the
+# test that exists because a form was believed covered on the strength of one.
+PREFIX_INDEPENDENT_FORMS = {"isatap": (_is_isatap, ISATAP_ROWS)}
 
 
 def _carrying_address_refuses_itself(address: str) -> bool:
@@ -176,14 +216,19 @@ def test_a_prefix_independent_form_is_declared_under_a_routable_prefix():
     one that the carrying address does not condemn on its own — which is also
     the only thing that makes the extraction observable from the tables.
     """
-    for name in PREFIX_INDEPENDENT_FORMS:
-        rows = [a for a, why in MUST_BLOCK if name in why.lower()]
-        assert rows, f"{name} has no row at all"
+    for name, (matches, expected_rows) in PREFIX_INDEPENDENT_FORMS.items():
+        rows = [a for a, _ in MUST_BLOCK if matches(a)]
+        assert set(rows) == expected_rows
         routable = [a for a in rows if not _carrying_address_refuses_itself(a)]
         assert routable, (
             f"every {name} row is refused by its carrying address; "
             "none of them exercises the form"
         )
+        # RFC 5214 §6.1 defines two interface identifiers and no more:
+        # `0000:5efe:` for an embedded private IPv4, `0200:5efe:` for a global
+        # one (u bit set). Both have to be present, and the set is written out
+        # rather than read off the rows.
+        assert {_isatap_flag(a) for a in rows} == {0x0000, 0x0200}
 
 
 @pytest.mark.parametrize(
@@ -264,3 +309,26 @@ def test_an_unparseable_address_is_refused():
     """
     assert _is_blocked_ip("not-an-address") is True
     assert _is_blocked_ip("") is True
+
+
+def test_the_routability_helper_answers_both_directions():
+    """`_carrying_address_refuses_itself` is a transcription, not an import.
+
+    Nothing ties it to either implementation, so a clause added to one of them
+    leaves it behind. The direction that matters is the one that fails quietly:
+    if it wrongly called a link-local carrier routable, the test above would
+    accept round 1's mistake — `fe80::5efe:10.0.0.1` — as proof that ISATAP is
+    exercised. The other direction is safe, because no routable row then leaves
+    that test with nothing to find.
+
+    Both rows are declared, and each is asserted to still be in the table it
+    came from, so deleting either fails here rather than quietly weakening the
+    check.
+    """
+    condemned = "fe80::5efe:10.0.0.1"
+    routable = "2606:2800:220:1:248:1893:25c8:1946"
+    assert condemned in {address for address, _ in MUST_BLOCK}
+    assert routable in {address for address, _ in MUST_ALLOW}
+
+    assert _carrying_address_refuses_itself(condemned) is True
+    assert _carrying_address_refuses_itself(routable) is False

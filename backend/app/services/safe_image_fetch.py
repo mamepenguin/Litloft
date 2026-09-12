@@ -28,6 +28,9 @@ _NAT64_WELL_KNOWN = ipaddress.ip_network("64:ff9b::/96")
 _IPV4_COMPATIBLE = ipaddress.ip_network("::/96")
 _IPV4_TRANSLATED = ipaddress.ip_network("::ffff:0:0:0/96")
 _ISATAP_MARKER = 0x5EFE
+# RFC 5214 §6.1 defines two interface identifiers and no more: `0000:5efe:` for
+# an embedded private IPv4, `0200:5efe:` for a global one (u bit set). A closed
+# enumeration, not a list that grows — unlike the prefixes above it.
 _ISATAP_FLAGS = frozenset({0x0000, 0x0200})
 
 
