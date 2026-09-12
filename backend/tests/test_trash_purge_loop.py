@@ -25,6 +25,8 @@ import pytest
 
 import app.main as main
 import app.services.fileops as fileops
+from sqlalchemy.orm.exc import ObjectDeletedError
+
 from app.models import File
 from tests.conftest import TEST_DRIVE
 
@@ -238,6 +240,37 @@ class TestARowThatCannotBeDeleted:
         assert purged_ids == []
         assert folders == set()
         assert drives == set()
+
+    def test_termination_does_not_depend_on_why_the_row_failed(
+        self, client, monkeypatch
+    ):
+        """Every failure arm must exclude the row, including the forgiving one.
+
+        The arm that treats ``ObjectDeletedError`` as "someone else already
+        purged it" is the one place where the loop could be tempted to reason
+        instead of exclude — the row is gone, so the next query will not
+        return it, so why exclude it? Because the loop cannot verify that
+        premise, and if it is ever wrong the failure is the one this whole
+        function was fixed for: a silent, endless re-read.
+
+        Forced here rather than argued: a row that raises
+        ``ObjectDeletedError`` and stays in the table.
+        """
+        c, db, drive_dir, _ = client
+        _seed_trashed(db, drive_dir, "stubborn.mp4", days_ago=31)
+
+        def raise_object_deleted(session, target):
+            raise ObjectDeletedError(None)
+
+        monkeypatch.setattr(main, "physical_delete", raise_object_deleted)
+
+        purged_ids, _folders, _drives = _run_with_deadline(
+            lambda: main._run_purge_batch(_cutoff())
+        )
+
+        assert purged_ids == []
+        db.expire_all()
+        assert db.query(File).count() == 1
 
     def test_the_row_survives_so_a_later_run_can_retry_it(
         self, client, monkeypatch

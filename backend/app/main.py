@@ -48,10 +48,13 @@ def _run_purge_batch(
 
     Each of the following is load-bearing, with the failure it prevents:
 
-    ``unpurgeable`` is what makes the loop terminate. The batch query is
-    re-run from the top rather than paged, so a row that raises and is only
-    logged comes back in the next batch unchanged; with nothing committed,
-    the same rows are re-read forever.
+    ``skipped`` is what makes the loop terminate. The batch query is re-run
+    from the top rather than paged, so a row that raises and is only logged
+    comes back in the next batch unchanged; with nothing committed, the same
+    rows are re-read forever. **Every** failure arm has to add to it — an arm
+    that reasons its way out ("this row must be gone, so the query will not
+    return it") makes termination depend on why the row failed, which is the
+    one thing the loop cannot know.
 
     **A row is committed, or rolled back, on its own.** ``physical_delete``
     deletes and flushes the row before its last step, so a failure in that
@@ -80,15 +83,21 @@ def _run_purge_batch(
     all_purged_ids: list[str] = []
     folders_to_check: set[tuple[str, str]] = set()
     purged_drives: set[str] = set()
-    unpurgeable: set[str] = set()
+    # Two sets, because they answer different questions and conflating them
+    # costs one property or the other. ``skipped`` is the termination
+    # invariant: every row this run failed to delete, for any reason, must
+    # leave the query or the loop re-reads it forever. ``retained`` is the
+    # operator signal: of those, the ones still sitting in the trash.
+    skipped: set[str] = set()
+    retained: set[str] = set()
     while True:
         db = SessionLocal()
         try:
             query = db.query(File).filter(
                 File.deleted_at.isnot(None), File.deleted_at < cutoff
             )
-            if unpurgeable:
-                query = query.filter(File.id.notin_(unpurgeable))
+            if skipped:
+                query = query.filter(File.id.notin_(skipped))
             batch = query.limit(_PURGE_BATCH_SIZE).all()
             if not batch:
                 break
@@ -109,11 +118,13 @@ def _run_purge_batch(
                     db.commit()
                 except ObjectDeletedError:
                     # Someone else purged it between the query and here — a
-                    # hard delete from the Trash view. It is gone, so there is
-                    # nothing to exclude and nothing to retry; counting it as
-                    # unpurgeable would report a file still in the trash that
-                    # the user has already removed.
+                    # hard delete from the Trash view. It is gone, so it is
+                    # not retained: saying otherwise reports a trash entry
+                    # the user has already removed. It is still skipped,
+                    # because termination may not rest on the reason a row
+                    # failed.
                     db.rollback()
+                    skipped.add(file_id)
                     logger.info(
                         "File %s was purged by another session; skipping",
                         file_id,
@@ -121,7 +132,8 @@ def _run_purge_batch(
                     continue
                 except Exception:
                     db.rollback()
-                    unpurgeable.add(file_id)
+                    skipped.add(file_id)
+                    retained.add(file_id)
                     logger.exception("Failed to purge file %s", file_id)
                     continue
                 all_purged_ids.append(file_id)
@@ -134,10 +146,10 @@ def _run_purge_batch(
             break
         finally:
             db.close()
-    if unpurgeable:
+    if retained:
         logger.warning(
             "Trash purge left %d file(s) behind; they will be retried on the "
-            "next run", len(unpurgeable)
+            "next run", len(retained)
         )
     return all_purged_ids, folders_to_check, purged_drives
 
