@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { getDriveFiles, getFolders, getWatchHistory } from "@/lib/api";
+import { isLibraryRootView } from "@/lib/driveViews";
 import { useProfile } from "@/components/ProfileProvider";
 import {
   buildListSnapshotKey,
@@ -39,10 +40,6 @@ import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
  * changed. Both the right pane and the tree pane subscribe to the same
  * set so they stay in sync after any structure-changing operation.
  */
-// The core collapses its lifecycle events into two coarse signals before
-// they reach the browser. The list watches both: a content write can change
-// a title or a thumbnail, which is visible here even though the set of
-// files did not change.
 // The core collapses its lifecycle events into two coarse signals before
 // they reach the browser. The list watches both: a content write can change
 // a title or a thumbnail, which is visible here even though the set of
@@ -141,6 +138,7 @@ export function useFolderFiles({
   const isLiked = view === "liked";
   const isAll = view === "all";
   const isSpecialView = isFavorites || isRecent || isRecentAdded || isLiked || isAll;
+  const isLibraryRoot = isLibraryRootView({ view, folderPath });
 
   const snapshotKey = useMemo(
     () => buildListSnapshotKey({ driveName, folderPath, view, tagFilter }),
@@ -229,13 +227,24 @@ export function useFolderFiles({
         });
         return { data: res.data, total: res.meta.total };
       }
+      const listingPath =
+        isLibraryRoot && !tagFilter
+          ? ""
+          : isSpecialView || !folderPath
+            ? undefined
+            : folderPath;
       const res = await getDriveFiles(driveName, {
         // A tag filter no longer disqualifies the folder: it scopes to the
         // folder's subtree instead (spec 2026-08-21-folder-scoped-tag-filter).
-        // `!folderPath` — not `folderPath ?? ""` — because at the drive root
-        // there is no folder to scope to, and path="" would narrow the
-        // result to root-level files rather than widen it to the drive (§3.1).
-        path: isSpecialView || !folderPath ? undefined : folderPath,
+        //
+        // `path=""` asks for the root folder's own children, and omitting
+        // `path` asks for the whole drive. Which of those the drive root
+        // means depends on how it was reached: the Library root is a
+        // location and wants its children, while a tag filter applied
+        // there has no folder to scope to and must widen to the drive
+        // (§3.1 of that spec) — so a tag wins over `view=library` when
+        // both arrive. A flat virtual view is not a location at all.
+        path: listingPath,
         recursive: !!tagFilter,
         favorite: isFavorites ? true : undefined,
         liked: isLiked ? true : undefined,
@@ -249,7 +258,7 @@ export function useFolderFiles({
       });
       return { data: res.data, total: res.meta.total };
     },
-    [isSearch, searchQuery, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
+    [isSearch, searchQuery, driveName, folderPath, sort, order, isFavorites, isSpecialView, isLibraryRoot, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
   );
 
   const {
@@ -419,10 +428,9 @@ export function useFolderFiles({
   }, [driveName, folderPath, view, tagFilter, typeFilter, sort, order, searchQuery, reset]);
 
   // Refresh effect — driven by the parent's refreshKey *and* by an
-  // internal counter the WS subscription below bumps. Keeping the WS
-  // signal local to this hook means every consumer (FolderBrowser,
-  // RootFileListing, …) gets auto-sync without each parent threading
-  // WS plumbing.
+  // internal counter the WS subscription below bumps. The subscription
+  // lives in the hook, so a consumer gets auto-sync without threading
+  // WS plumbing of its own.
   const [wsRefreshKey, setWsRefreshKey] = useState(0);
   useWebSocketRefresh(
     STRUCTURE_EVENTS,

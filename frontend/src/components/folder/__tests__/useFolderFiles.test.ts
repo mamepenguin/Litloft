@@ -681,3 +681,87 @@ describe("useFolderFiles", () => {
     });
   });
 });
+
+/**
+ * The Library root — `/drive/{name}?view=library` — is the drive's root
+ * folder reached from the sidebar rather than by a path (spec
+ * 2026-09-12-purpose-oriented-navigation §7.1, AC 8 and AC 9).
+ *
+ * Each case pins the request with an exact `toEqual` rather than
+ * `objectContaining`. The looser matcher cannot see a key that should
+ * not be there, and half of AC 9 is exactly that: `view=library` is
+ * consumed by the route layer and must never reach the listing API.
+ */
+describe("useFolderFiles at the Library root", () => {
+  const baseParams = {
+    driveName: "main",
+    typeFilter: null,
+    sort: "created_at" as const,
+    order: "desc" as const,
+    refreshKey: 0,
+  };
+
+  const settle = async (view: string | null, tagFilter: string | null, folderPath: string) => {
+    const { result } = renderHook(() =>
+      useFolderFiles({ ...baseParams, folderPath, view, tagFilter }),
+    );
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+    return result;
+  };
+
+  it("asks for the root folder's own children", async () => {
+    await settle("library", null, "");
+    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", {
+      path: "",
+      recursive: false,
+      sort: "created_at",
+      order: "desc",
+      page: 1,
+      limit: 30,
+    });
+  });
+
+  it("renders the hierarchy: root folders are fetched too", async () => {
+    const result = await settle("library", null, "");
+    expect(mockGetFolders).toHaveBeenCalledWith("main", "");
+    expect(result.current.folders).toHaveLength(1);
+  });
+
+  it("lets a tag filter widen to the whole drive instead", async () => {
+    await settle("library", "soup", "");
+    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", {
+      recursive: true,
+      tag: "soup",
+      sort: "created_at",
+      order: "desc",
+      page: 1,
+      limit: 30,
+    });
+  });
+
+  it("leaves a cross-folder view drive-wide", async () => {
+    await settle("favorites", null, "");
+    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", {
+      favorite: true,
+      recursive: false,
+      sort: "created_at",
+      order: "desc",
+      page: 1,
+      limit: 30,
+    });
+  });
+
+  it("leaves an ordinary folder path scoped to that folder", async () => {
+    await settle(null, null, "photos");
+    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", {
+      path: "photos",
+      recursive: false,
+      sort: "created_at",
+      order: "desc",
+      page: 1,
+      limit: 30,
+    });
+  });
+});

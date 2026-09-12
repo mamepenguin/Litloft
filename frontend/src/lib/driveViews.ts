@@ -32,6 +32,37 @@ export function isStandaloneView(view: string | null): boolean {
 }
 
 /**
+ * The `?view=` value naming the Library root: the drive's own root
+ * folder, reached from the sidebar instead of by a path.
+ *
+ * Library belongs in neither set above, and the folder tree is why. A
+ * cross-folder view cuts across the hierarchy, so `routeHidesTree`
+ * takes the tree away; Library *is* the hierarchy, seen from its top,
+ * and keeps both the tree and its toggle (spec
+ * 2026-09-12-purpose-oriented-navigation §7.1). A standalone view owns
+ * its own page instead of the folder browser, which Library does not.
+ */
+export const LIBRARY_VIEW = "library";
+
+/**
+ * True at the Library root only.
+ *
+ * A path route is an ordinary folder and answers false: opening a child
+ * from Library moves to `/drive/{name}/{path}` and does not carry
+ * `view=library` along, so a folder path that somehow arrives with it
+ * is still read as that folder.
+ */
+export function isLibraryRootView({
+  view,
+  folderPath,
+}: {
+  view: string | null | undefined;
+  folderPath: string | null | undefined;
+}): boolean {
+  return view === LIBRARY_VIEW && !folderPath;
+}
+
+/**
  * Matches `/drive/{name}/search` and any sub paths under it. Smart
  * folders share this route — they are persisted searches resurfaced via
  * `?smart_folder_id=...` query, not a dedicated `/smart/` path. If a
