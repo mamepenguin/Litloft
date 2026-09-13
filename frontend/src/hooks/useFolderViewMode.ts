@@ -105,8 +105,6 @@ export function useFolderViewMode(opts: ResolveOpts): UseFolderViewModeResult {
   return { viewMode, setViewMode };
 }
 
-// --- Per-folder sort ---
-
 function isSortOrder(v: unknown): v is SortOrder {
   return v === "asc" || v === "desc";
 }

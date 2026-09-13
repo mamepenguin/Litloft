@@ -6,15 +6,6 @@ import type { CollectionItemEntry, FileItem, FolderKind, ViewMode } from "@/type
 import { viewModeForKind } from "@/lib/viewModeForKind";
 import { useLatchedKind } from "@/hooks/useLatchedKind";
 
-/**
- * Spec ``docs/superpowers/specs/2026-05-12-playlist-to-collection.md`` §6.3:
- * the collection detail page reuses the folder layered-fallback for
- * viewMode (hako ``2Q6UrppcejT4n0oYMEPbI``). The left-pane / RightPaneFile
- * "two-pane" experience is orthogonal — driven by the shared
- * ``useTreeEnabled`` toggle rather than this view mode — so this hook
- * only resolves between grid and list.
- */
-
 const GLOBAL_KEY = "video-share-view-mode";
 const PER_DRIVE_PREFIX = "collectionPrefs:";
 const VALID_MODES: ViewMode[] = ["grid", "list"];
@@ -57,11 +48,7 @@ function loadGlobalDefault(): ViewMode | null {
   return isViewMode(raw) ? raw : null;
 }
 
-/**
- * Map a single file to its ``FolderKind`` bucket. Mirrors the backend
- * ``dominant_kind`` classification used for folders so the layered
- * fallback semantics stay consistent across both surfaces.
- */
+/** Mirrors the backend ``dominant_kind`` classification used for folders. */
 function fileToKind(file: FileItem): FolderKind {
   if (file.file_type === "video") return "video";
   if (file.file_type === "audio") return "audio";
@@ -79,11 +66,6 @@ function fileToKind(file: FileItem): FolderKind {
   return "other";
 }
 
-/**
- * Returns the majority kind iff it exceeds half the items. Anything
- * mixed falls through to ``null`` so the caller can defer to the
- * next layer in the fallback (global default, then grid).
- */
 export function dominantCollectionKind(
   items: CollectionItemEntry[],
 ): FolderKind | null {

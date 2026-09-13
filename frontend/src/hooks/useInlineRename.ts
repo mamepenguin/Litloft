@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
-/** How long an abandoned edit's reason stays on screen. */
 const ERROR_TTL_MS = 3000;
 
 /**
@@ -15,20 +14,10 @@ const ERROR_TTL_MS = 3000;
 const REFOCUS_POLL_MS = 50;
 const REFOCUS_ATTEMPTS = 20;
 
-/**
- * Marks the focusable element of a renameable row or card. Both
- * `FolderTreeRow` and `FolderCard` carry it so this hook can restore
- * focus without knowing either shape.
- */
 export const RENAME_FOCUS_ATTR = "data-rename-focus";
 
 type Translate = (key: string) => string;
 
-/**
- * `lib/api` rejects with `Error("API error: 409 Conflict")` and friends —
- * a transport detail, not something to show a person. Pull the status out
- * and say what it means for a rename.
- */
 function describeFailure(cause: unknown, t: Translate): string {
   const raw = cause instanceof Error ? cause.message : String(cause);
   const status = raw.match(/\b(\d{3})\b/)?.[1];
@@ -45,26 +34,13 @@ function describeFailure(cause: unknown, t: Translate): string {
 }
 
 export interface InlineRenameApi {
-  /** Path of the row currently being edited, or null. */
   editingPath: string | null;
-  /** Reason an edit was abandoned, shown transiently. */
   error: string | null;
   start: (path: string) => void;
-  /** `error` is set only when a click-away commit was refused. */
   cancel: (error?: string) => void;
-  /**
-   * Run the rename. Resolves and leaves edit mode on success; rethrows a
-   * readable `Error` on failure so {@link InlineNameEditor} can decide
-   * whether to keep the field open.
-   */
   commit: (run: () => Promise<unknown>, focusAfter?: string) => Promise<void>;
 }
 
-/**
- * Edit state shared by the two surfaces that rename in place: tree rows
- * and folder cards. Owning it here keeps the failure vocabulary and the
- * refresh-on-success rule in one place rather than in each pane.
- */
 export function useInlineRename(onRenamed: () => void): InlineRenameApi {
   const t = useTranslations("inlineRename");
   const [editingPath, setEditingPath] = useState<string | null>(null);
@@ -75,10 +51,7 @@ export function useInlineRename(onRenamed: () => void): InlineRenameApi {
   /**
    * An edit can be abandoned by the unmount itself: tearing down a focused
    * editor fires blur, and the `cancel` that follows arrives *after* this
-   * hook's cleanup has run. Clearing the pending timer there is therefore
-   * not enough — the late `cancel` arms a fresh poll nothing owns, and
-   * `document.querySelector` below then hands focus to whatever row has
-   * taken that path since.
+   * hook's cleanup has run, arming a fresh poll nothing owns.
    */
   const aliveRef = useRef(true);
 
@@ -86,12 +59,6 @@ export function useInlineRename(onRenamed: () => void): InlineRenameApi {
     editingPathRef.current = editingPath;
   }, [editingPath]);
 
-  /**
-   * Hand keyboard focus back to the row the edit came from. Without this
-   * every rename drops focus to <body>, which matters most for the F2
-   * path: the user arrived by keyboard and would lose their place on each
-   * rename.
-   */
   const refocus = useCallback((path: string) => {
     if (!aliveRef.current) return;
     if (refocusTimerRef.current !== null) {

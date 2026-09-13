@@ -21,30 +21,17 @@ import type { FileItem } from "@/types";
 import { useClipboard } from "@/components/ClipboardProvider";
 
 /**
- * The file actions menu, written once.
- *
- * There were three: the card grid's (`FileContextMenu`), the list view's
- * (built inline in `FileList`, and missing "open in new tab"), and the
- * detail page's (`FileActions`, which had no "add to collection" at
- * all). Right-clicking the same file in two views offered two different
- * sets of things to do with it.
- *
- * Surfaces differ only in which optional entries they pass a handler
- * for. The order is fixed here so the same action is in the same place
+ * The order is fixed here so the same action is in the same place
  * wherever the menu is opened — muscle memory is the whole value of a
  * context menu.
  */
 export interface FileMenuContext {
-  /** Open in a new tab. Absent on the detail page, which is already there. */
   onOpenInNewTab?: () => void;
-  /** Switch the detail page into edit mode. Detail page only. */
   onEdit?: () => void;
   onAddToCollection: () => void;
-  /** Rename in place, where the surface supports it; else a dialog. */
   onStartInlineRename?: () => void;
   onRename: () => void;
   onMove: () => void;
-  /** Drop the row from watch history. The Recent view only. */
   onRemoveFromHistory?: () => void;
   onTrash: () => void;
 }
@@ -65,8 +52,7 @@ export function useFileMenuItems(
     // A file the scanner can no longer find still has a row, tags and
     // history, but its bytes are gone: the stream answers 410 and a
     // copy would paste a path to nothing. Those entries stay in place
-    // and go grey rather than vanishing, so the menu keeps its shape
-    // and says why (design-decisions.md, "Handling missing files").
+    // and go grey rather than vanishing, so the menu keeps its shape.
     const gone = file.missing_since !== null;
 
     const items: MenuItem[] = [];

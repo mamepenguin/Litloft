@@ -16,27 +16,9 @@ const IDLE: FetchState = { status: "idle", nodes: [], error: null };
 interface UseFolderTreeQueryOpts {
   drive: string;
   typeFilter: FileKind | null;
-  /** Paths whose children should be loaded. Drive root is "". Ignored when ``flatLoad`` is true. */
   pathsToLoad: ReadonlySet<string>;
-  /**
-   * When true, fetch the entire drive tree once via ``?flat=true`` and
-   * expose every returned node under ``childrenByPath.get("")``. The
-   * tree pane groups them by parent path itself. Used by the spec
-   * 2026-05-09 tree filter to evaluate matches deeper than the root.
-   */
   flatLoad?: boolean;
-  /**
-   * Ask the endpoint for file nodes as well as folders (F-7). Off by
-   * default, matching the endpoint. It is part of the cache key: the two
-   * answers are different lists, and serving one for the other is what
-   * makes a toggle look broken.
-   */
   includeFiles?: boolean;
-  /**
-   * Bump to force a cache drop and refetch (e.g. after a context-menu
-   * mutation renames / moves / deletes a node). Treated like a fourth
-   * dimension of the cache key.
-   */
   refreshKey?: number;
 }
 
@@ -51,12 +33,6 @@ interface UseFolderTreeQueryResult {
   errors: Map<string, string>;
 }
 
-/**
- * Lazy-loads folder-tree children for each folder path requested in
- * `pathsToLoad`. Cached per (drive, typeFilter, mode, includeFiles, path);
- * when any of those change the cache is dropped because counts and
- * visibility differ.
- */
 export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQueryResult {
   const {
     drive,
@@ -73,7 +49,6 @@ export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQ
   }::${refreshKey}`;
   const cacheKeyRef = useRef(cacheKey);
 
-  // Drop cache + cancel inflight when drive, typeFilter, or mode changes.
   useEffect(() => {
     if (cacheKeyRef.current === cacheKey) return;
     cacheKeyRef.current = cacheKey;
@@ -125,8 +100,6 @@ export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQ
     [drive, typeFilter, flatLoad, includeFiles],
   );
 
-  // Trigger fetch for any requested path that we haven't loaded yet. In
-  // flatLoad mode we only ever load the synthetic "" key (the whole tree).
   useEffect(() => {
     if (flatLoad) {
       const state = byPath.get("") ?? IDLE;
@@ -139,7 +112,6 @@ export function useFolderTreeQuery(opts: UseFolderTreeQueryOpts): UseFolderTreeQ
     }
   }, [pathsToLoad, byPath, fetchPath, flatLoad]);
 
-  // Cleanup inflight requests on unmount.
   useEffect(() => {
     return () => {
       for (const controller of inflight.current.values()) controller.abort();

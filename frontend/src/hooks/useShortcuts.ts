@@ -5,15 +5,9 @@ import { useShortcutsContext } from "@/components/ShortcutsProvider";
 import type { ShortcutDef, ShortcutContextDef } from "@/lib/shortcuts";
 
 /**
- * Register a keyboard shortcut context for as long as the component is mounted
- * and `enabled` is true.
- *
  * When `enabled` is false (default: true) the context is not pushed to the
  * stack, so it cannot shadow shortcuts from lower contexts (e.g. a closed
  * dialog must not block the video-player shortcuts beneath it).
- *
- * The shortcuts array is held in a ref so that handler closures always reflect
- * the latest state without triggering re-registration (push/pop) on every render.
  *
  * `priority` raises the context above plain push order. Overlays should pass
  * `OVERLAY_PRIORITY` so a context that enables later — an editor whose content
@@ -29,7 +23,6 @@ export function useShortcuts(
   const { push, pop } = useShortcutsContext();
   const shortcutsRef = useRef<ShortcutDef[]>(shortcuts);
 
-  // Keep ref current on every render without re-registering the context
   useEffect(() => {
     shortcutsRef.current = shortcuts;
   });
