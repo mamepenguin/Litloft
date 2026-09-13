@@ -944,7 +944,8 @@
     "modeCut": "Move",
     "copied": "Copied",
     "moved": "Moved",
-    "clear": "Clear"
+    "clear": "Clear",
+    "pasteFailed": "{count, plural, one {# file could not be pasted} other {# files could not be pasted}}"
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",

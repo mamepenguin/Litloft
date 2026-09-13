@@ -47,6 +47,8 @@ Renaming a folder, or a file in the tree pane, now happens **in place** rather t
 - **Move** — change the parent folder. The move dialog browses the folders of the drive the file is already in, so a move made this way lands in the same drive.
 - **Copy / Cut / Paste** — put a selection on a clipboard, navigate, then paste into the target folder. Copy duplicates; cut moves. The clipboard is kept in `sessionStorage`, so it survives a reload, and a banner above the file list offers **Paste here** wherever there is a folder to paste into.
 
+Pasting empties the clipboard, so the same files cannot be put down twice — for a copy as well as for a cut. It is emptied only once something has actually arrived: a paste where every file was refused leaves the clipboard where it was, so you can try somewhere else. Files that could not be pasted are counted in a message; the ones that did arrive stay where they landed.
+
 Paste targets whichever drive and folder you are standing in, and the move and copy endpoints both take a target drive, so **cutting or copying in one drive and pasting in another moves or copies the file across drives.** The file is relocated on disk between the two drive roots and its record follows it. A name already taken at the destination is refused (409) for a move, and suffixed for a copy.
 
 A copy gets a new file id, and starts unliked, without the favourite flag, and with empty watch history; tags and comments are not duplicated. If the name is taken in the target folder, the copy is suffixed `_copy`, then `_copy_2`, `_copy_3`, and so on.

@@ -944,7 +944,8 @@
     "modeCut": "移動",
     "copied": "コピーしました",
     "moved": "移動しました",
-    "clear": "クリア"
+    "clear": "クリア",
+    "pasteFailed": "{count} 件を貼り付けられませんでした"
   },
   "shortcuts": {
     "title": "ショートカット",
