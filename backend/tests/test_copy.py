@@ -473,9 +473,14 @@ class TestBatchCopy:
             .filter(File.drive == TEST_DRIVE, File.file_path == "dest/photo.png")
             .one()
         )
-        assert copied_row.thumbnail_path == f"{TEST_DRIVE}/dest/photo.jpg"
+        # The slot holds the moved original's picture and the original still
+        # names it. Handing the copy the same pointer means deleting either row
+        # takes the other one's picture with it.
+        assert copied_row.thumbnail_path is None
+        assert c.delete(f"/api/files/{copied_row.id}").status_code == 200
+        assert c.delete(f"/api/files/{copied_row.id}/purge").status_code == 200
         assert (
-            c.get(f"/api/files/{copied_row.id}/thumbnail").content
+            c.get(f"/api/files/{f.id}/thumbnail").content
             == b"\xff\xd8\xff\xe0fake-jpeg"
         )
 
@@ -740,10 +745,13 @@ class TestBatchCopy:
         assert c.delete(f"/api/files/{ghost_id}/purge").status_code == 200
         assert not projection.exists(), "the purge could no longer reach the JPEG"
 
-    def test_a_database_failure_leaves_no_thumbnail_behind(self, client, monkeypatch):
-        """The span writes two files and the failure arrives after both. The
-        thumbnail lands on the slot the Missing record owns, so leaving it is
-        that record showing the picture of a file that never arrived."""
+    def test_a_database_failure_leaves_the_slot_as_it_found_it(
+        self, client, monkeypatch
+    ):
+        """The span writes more than the body, and the thumbnail lands on a slot
+        the Missing record already owns. Writing onto it destroys that record's
+        picture before the copy is known to have worked; deleting it afterwards
+        does not give the picture back."""
         import app.config as config
         from app.models import File
         from sqlalchemy.exc import SQLAlchemyError
@@ -789,9 +797,11 @@ class TestBatchCopy:
         db.expire_all()
         kept = db.get(File, ghost_id)
         assert kept.thumbnail_path == ghost_thumb_rel
-        assert not ghost_thumb.exists(), (
-            "the Missing record now shows the picture of the file that failed"
+        assert ghost_thumb.read_bytes() == b"\xff\xd8\xff\xe0GHOST-PICTURE"
+        assert c.get(f"/api/files/{ghost_id}/thumbnail").content == (
+            b"\xff\xd8\xff\xe0GHOST-PICTURE"
         )
+        assert sorted(p.name for p in ghost_thumb.parent.iterdir()) == ["a.jpg"]
 
     def test_a_thumbnail_the_cache_no_longer_holds_does_not_fail_the_copy(
         self, client
@@ -842,12 +852,146 @@ class TestBatchCopy:
         assert res.status_code == 200
         assert res.json() == {"copied": 1, "errors": []}
         assert (drive_dir / "dest" / "a.mp4").exists()
-        copied_row = (
+        assert linked.read_bytes() == b"\xff\xd8\xff\xe0fake-jpeg"
+
+    def test_a_thumbnail_that_fails_midway_leaves_nothing_in_the_cache(
+        self, client, monkeypatch
+    ):
+        """A copy that dies partway has already written bytes at its
+        destination."""
+        import app.config as config
+
+        c, db, drive_dir, data_dir = client
+        source = _seed_with_thumbnail(db, drive_dir, data_dir, "a.mp4", folder="one")
+        real_copy2 = shutil.copy2
+        calls = {"n": 0}
+
+        def die_midway(src, dst, *args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                Path(dst).write_bytes(b"\xff\xd8half")
+                raise OSError(28, "No space left on device")
+            return real_copy2(src, dst, *args, **kwargs)
+
+        monkeypatch.setattr("app.services.fileops.shutil.copy2", die_midway)
+
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [source.id], "target_folder_path": "dest"},
+        )
+        assert res.json()["copied"] == 0
+        assert (
+            sorted(p.name for p in (config.THUMBNAILS_DIR / TEST_DRIVE / "dest").glob("*"))
+            == []
+        )
+
+    def test_a_copy_onto_a_missing_record_at_the_drive_root(self, client):
+        """The retirement reads the slot out of the destination path, and a file
+        at the top of a drive has no folder segment in it."""
+        import app.config as config
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        source = _seed_with_thumbnail(db, drive_dir, data_dir, "a.mp4", folder="one")
+        root_thumb_rel = f"{TEST_DRIVE}/a.jpg"
+        root_thumb = config.THUMBNAILS_DIR / root_thumb_rel
+        root_thumb.parent.mkdir(parents=True, exist_ok=True)
+        root_thumb.write_bytes(b"\xff\xd8\xff\xe0GHOST-PICTURE")
+        ghost = File(
+            filename="a.mp4",
+            title="Gone",
+            drive=TEST_DRIVE,
+            folder_path="",
+            file_path="a.mp4",
+            file_size=1,
+            file_type="video",
+            mime_type="video/mp4",
+            thumbnail_path=root_thumb_rel,
+            missing_since=datetime.now(UTC),
+        )
+        db.add(ghost)
+        db.commit()
+        ghost_id = ghost.id
+
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [source.id], "target_folder_path": ""},
+        )
+        assert res.json()["copied"] == 1
+
+        db.expire_all()
+        landed = (
             db.query(File)
-            .filter(File.drive == TEST_DRIVE, File.file_path == "dest/a.mp4")
+            .filter(File.drive == TEST_DRIVE, File.file_path == "a.mp4")
             .one()
         )
-        assert copied_row.thumbnail_path == f"{TEST_DRIVE}/dest/a.jpg"
+        assert landed.thumbnail_path == root_thumb_rel
+        assert db.get(File, ghost_id).thumbnail_path is None
+
+    def test_a_failed_copy_of_a_note_leaves_no_projection_behind(
+        self, client, monkeypatch
+    ):
+        """A note's thumbnail is projected under the new row's id, so a rollback
+        takes away the only name that could ever reclaim it."""
+        import app.config as config
+        from sqlalchemy.exc import SQLAlchemyError
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        (drive_dir / "one").mkdir(exist_ok=True)
+        from PIL import Image
+
+        image = drive_dir / "one" / "pic.png"
+        Image.new("RGB", (64, 48), (30, 90, 150)).save(image)
+        picture = File(
+            filename="pic.png",
+            title="Pic",
+            drive=TEST_DRIVE,
+            folder_path="one",
+            file_path="one/pic.png",
+            file_size=image.stat().st_size,
+            file_type="image",
+            mime_type="image/png",
+        )
+        db.add(picture)
+        db.commit()
+        note = drive_dir / "one" / "n.md"
+        note.write_text(f"![pic](loft://{picture.id})\n", encoding="utf-8")
+        row = File(
+            filename="n.md",
+            title="Note",
+            drive=TEST_DRIVE,
+            folder_path="one",
+            file_path="one/n.md",
+            file_size=note.stat().st_size,
+            file_type="document",
+            mime_type="text/markdown",
+        )
+        db.add(row)
+        db.commit()
+
+        projections = config.THUMBNAILS_DIR / TEST_DRIVE / ".markdown"
+
+        assert (
+            c.post(
+                "/api/files/batch/copy",
+                json={"ids": [row.id], "target_folder_path": "dest"},
+            ).json()["copied"]
+            == 1
+        )
+        after_success = sorted(p.name for p in projections.iterdir())
+        assert len(after_success) == 1
+
+        def fail(*args, **kwargs):
+            raise SQLAlchemyError("database is locked")
+
+        monkeypatch.setattr(fileops, "remove_empty_folder_if_has_files", fail)
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [row.id], "target_folder_path": "dest"},
+        )
+        assert res.json()["copied"] == 0
+        assert sorted(p.name for p in projections.iterdir()) == after_success
 
     def test_batch_copy_empty_ids(self, client):
         c, db, drive_dir, data_dir = client
