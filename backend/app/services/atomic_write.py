@@ -1,9 +1,5 @@
 """Replacing a file's contents, with no second way to do it wrong.
 
-`backend-conventions.md` states the discipline — write to a temporary, then
-`os.replace()` — and ten call sites implemented it separately, in four
-different spellings, with seven of them losing the destination's mode.
-
 **Two functions, because there are two meanings.** The mode policy is chosen by
 which one you call, not by an argument: a caller that can pass a policy is a
 caller that can pass the wrong one.
@@ -32,10 +28,6 @@ Beyond the mode, a caller cannot:
   `BaseException`: a `KeyboardInterrupt` mid-assembly cleans up too.
 - **publish a half-written file.** The rename happens on clean exit from the
   block and nowhere else. To give up, raise `AbandonWrite`.
-
-Every call site passes a destination and the contents. There is nothing else to
-pass, which is what lets `test_atomic_write.py` ask the opposite question —
-which writes in the tree do *not* come through here.
 
 What this does **not** promise is durability. `os.replace` is atomic with
 respect to what a reader can see; surviving a power cut needs `fsync` on the
@@ -67,10 +59,8 @@ class AbandonWrite(Exception):
     """Raise inside a write block to discard it without publishing.
 
     The temporary file is removed and the destination is untouched, and this
-    propagates for the caller to catch. It is not swallowed, because a caller
-    that cannot tell "abandoned" from "published" reports success for a file it
-    never wrote — which is the bug `write_thumbnail_atomically` returns `False`
-    to avoid.
+    propagates for the caller to catch: a caller that cannot tell "abandoned"
+    from "published" reports success for a file it never wrote.
     """
 
 

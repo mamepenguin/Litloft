@@ -209,15 +209,8 @@ def _ensure_md_id_for_new_file(
 
     No-op when the file is not markdown, has no frontmatter, or is too
     large to safely parse. When the frontmatter has no ``id:``, generate
-    one and write the file back atomically. Same collision rule as
-    ``put_file_content._inject_md_id`` (spec §3.1).
+    one and write the file back atomically.
 
-    Aliases projection (spec §3.6 — Phase B): when frontmatter has a
-    valid ``aliases:`` list, store the sanitized JSON form on
-    ``File.md_aliases`` so the wiki-link resolver can match alias-form
-    targets at first-scan time.
-
-    Called from both ``register_single_file`` and ``_scan_and_register``.
     Failures (read errors, malformed YAML, write errors) are swallowed so
     a hostile file cannot break scan / upload registration.
     """
@@ -263,7 +256,6 @@ def _ensure_md_id_for_new_file(
 
     file_record.md_id = new_id
 
-    # Phase B: aliases projection. Best-effort — never raise.
     try:
         aliases = extract_valid_aliases(parsed.metadata)
         file_record.md_aliases = json.dumps(aliases) if aliases else None
@@ -515,7 +507,6 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             }, drive=drive_name)
             last_progress_time = now
 
-    # Determine missing candidates (paths that exist in DB but not on FS).
     unseen_paths = set(existing.keys()) - found_paths
     missing_candidates = [
         existing[rp]
@@ -615,7 +606,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 old_path, relative_path, drive_name, candidate.id,
             )
 
-            # Phase D (spec 2026-05-12 §3.7): when an out-of-band rename
+            # When an out-of-band rename
             # changes a ``.md`` basename, rewrite ``[[old_stem]]``
             # references in other ``.md`` files in the same drive.
             # Trigger only when both the source and destination are
@@ -642,7 +633,6 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                         )
             continue
 
-        # Genuine new file — INSERT.
         duration = None
         if is_probeable_media(file_type, mime_type):
             duration = get_video_duration(str(item))
@@ -693,7 +683,6 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         added += 1
         logger.info("Added file: %s (drive: %s, type: %s)", relative_path, drive_name, file_type)
 
-    # Mark genuinely missing files (excluding those promoted to moved).
     missing_count = 0
     if unseen_paths:
         newly_missing_ids = [
@@ -752,7 +741,6 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 markdown_file.file_path,
             )
 
-    # Sync empty folders: detect filesystem dirs with no files and track them
     folders_with_files = {
         f.folder_path
         for f in db.query(File.folder_path).filter(

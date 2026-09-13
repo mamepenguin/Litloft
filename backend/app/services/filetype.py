@@ -50,8 +50,7 @@ _EXTRA_MIMES = {
     ".aac": "audio/aac",
     ".ogg": "audio/ogg",
     ".webm": "video/webm",
-    # Phase 2F: Linux Docker's mimetypes DB lacks .m4a / .opus
-    # entries (hako BDffxf4IyuwzRiZDnZuBZ + A-gF1mK3kDjRjS_dfuq1B).
+    # Linux Docker's mimetypes DB lacks .m4a / .opus entries.
     # ``audio/mp4`` is the IANA-registered MIME for AAC-in-MP4 audio
     # — choosing it over Apple's ``audio/m4a`` / ``audio/x-m4a``
     # de-facto values keeps macOS and Linux registrations identical
@@ -103,7 +102,7 @@ def is_probeable_media(file_type: str, mime_type: str) -> bool:
 # Containers that frequently wrap audio-only payloads despite a
 # "video/*" mime guess from the extension. Apple's iTunes ALAC/AAC-LC
 # downloads sometimes ship with a ``.mp4`` extension instead of
-# ``.m4a`` (hako 4t5FWrH4IpLUlGDXxh7cO); ``.mov`` containers can also
+# ``.m4a``; ``.mov`` containers can also
 # be audio-only. When ffprobe confirms zero video streams we downgrade
 # the classification so the UI shows the file as audio and cloud STT
 # providers don't reject it as a malformed video.

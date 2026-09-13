@@ -52,8 +52,7 @@ TRUST_VERIFIED = "verified"
 TRUST_UNVERIFIED = "unverified"
 
 #: A source the viewer has vouched for ranks with primary sources; anything
-#: scavenged from outside starts unverified. See
-#: ``.claude/rules/design-decisions.md`` and hako 9APRV-pzgqpa2fPMHNTJt.
+#: scavenged from outside starts unverified.
 TRUST_TIERS = (TRUST_VERIFIED, TRUST_UNVERIFIED)
 
 
@@ -120,8 +119,7 @@ class File(Base):
     __table_args__ = (
         # A drive is a security boundary; ``file_path`` is stored
         # drive-relative (no drive prefix), so uniqueness is per-drive,
-        # never global. Mirrors Tag / EmptyFolder / PinnedFolder /
-        # Collection which are all UniqueConstraint("drive", ...).
+        # never global.
         UniqueConstraint("drive", "file_path", name="uq_files_drive_file_path"),
         Index("idx_files_drive_folder_path", "drive", "folder_path"),
         Index("idx_files_title", "title"),

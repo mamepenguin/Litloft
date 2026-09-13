@@ -41,7 +41,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def _migrate(engine_) -> None:
     inspector = inspect(engine_)
 
-    # === Phase 2: Ensure tables exist (fresh installs) ===
     tables = inspector.get_table_names()
     if "file_tags" not in tables:
         Base.metadata.tables["file_tags"].create(bind=engine_, checkfirst=True)
@@ -56,7 +55,6 @@ def _migrate(engine_) -> None:
     if "collection_items" not in tables:
         Base.metadata.tables["collection_items"].create(bind=engine_, checkfirst=True)
 
-    # === Phase 3: Migrate files.id from INTEGER to nanoid VARCHAR(12) ===
     tables = inspector.get_table_names()
     if "files" in tables:
         file_columns = inspector.get_columns("files")
@@ -129,7 +127,6 @@ def _migrate(engine_) -> None:
 
             logger.info("Migration complete: files.id → nanoid (%d files migrated)", len(id_map))
 
-    # === Phase 4: Drop dislikes column from files ===
     tables = inspector.get_table_names()
     if "files" in tables:
         file_columns = {col["name"] for col in inspector.get_columns("files")}
@@ -193,12 +190,10 @@ def _migrate(engine_) -> None:
             logger.info("Migration complete: dislikes column dropped")
 
 
-    # === Phase 5: Create watch_history table ===
     tables = inspector.get_table_names()
     if "watch_history" not in tables:
         Base.metadata.tables["watch_history"].create(bind=engine_, checkfirst=True)
 
-    # === Phase 6: Add deleted_at column to files (soft delete) ===
     tables = inspector.get_table_names()
     if "files" in tables:
         file_columns = {col["name"] for col in inspector.get_columns("files")}
@@ -209,7 +204,6 @@ def _migrate(engine_) -> None:
                 conn.execute(text("CREATE INDEX idx_files_deleted_at ON files(deleted_at)"))
 
 
-    # === Phase 7: Add file_hash column to files (duplicate detection) ===
     tables = inspector.get_table_names()
     if "files" in tables:
         file_columns = {col["name"] for col in inspector.get_columns("files")}
@@ -219,12 +213,10 @@ def _migrate(engine_) -> None:
                 conn.execute(text("ALTER TABLE files ADD COLUMN file_hash VARCHAR(64)"))
                 conn.execute(text("CREATE INDEX idx_files_file_hash ON files(file_hash)"))
 
-    # === Phase 8: Create comments table ===
     tables = inspector.get_table_names()
     if "comments" not in tables:
         Base.metadata.tables["comments"].create(bind=engine_, checkfirst=True)
 
-    # === Phase 9: Add missing_since column to files (missing files tracking) ===
     tables = inspector.get_table_names()
     if "files" in tables:
         file_columns = {col["name"] for col in inspector.get_columns("files")}
@@ -234,22 +226,17 @@ def _migrate(engine_) -> None:
                 conn.execute(text("ALTER TABLE files ADD COLUMN missing_since DATETIME"))
                 conn.execute(text("CREATE INDEX idx_files_missing_since ON files(missing_since)"))
 
-    # === Phase 10: Create file_relations table ===
     tables = inspector.get_table_names()
     if "file_relations" not in tables:
         logger.info("Migrating: creating 'file_relations' table")
         Base.metadata.tables["file_relations"].create(bind=engine_, checkfirst=True)
 
-    # === Phase 11: Create smart_folders table ===
     tables = inspector.get_table_names()
     if "smart_folders" not in tables:
         logger.info("Migrating: creating 'smart_folders' table")
         Base.metadata.tables["smart_folders"].create(bind=engine_, checkfirst=True)
-    # === Spec 2026-04-30-file-active-summary-to-knowledge: drop core
-    # table; the pointer is owned by the knowledge addon now. Existing
-    # data is allowed to be lost (personal-tool migration policy,
-    # mirrors the tag-unification migration in hako fcuA0T0Qr739yVHCNzrbc).
-    # Idempotent: if the table is already gone the DROP is skipped.
+    # Existing data is allowed to be lost: the pointer is owned by the
+    # knowledge addon now.
     if "file_active_summaries" in tables:
         logger.info(
             "Migrating: dropping legacy 'file_active_summaries' table "
@@ -258,9 +245,8 @@ def _migrate(engine_) -> None:
         with engine_.begin() as conn:
             conn.execute(text("DROP TABLE file_active_summaries"))
 
-    # === Spec 2026-05-03-hash-based-move-detection: reset file_hash to
-    # force recomputation under the new (head256KB || tail256KB) SHA-256
-    # algorithm. Idempotent via a sentinel file in DATA_DIR.
+    # Reset file_hash to force recomputation under the (head256KB || tail256KB)
+    # SHA-256 algorithm. Idempotent via a sentinel file in DATA_DIR.
     if "files" in tables:
         sentinel = config.DATA_DIR / "hash_format_v2_done"
         if not sentinel.exists():
@@ -276,18 +262,13 @@ def _migrate(engine_) -> None:
             config.DATA_DIR.mkdir(parents=True, exist_ok=True)
             sentinel.touch()
 
-    # === Phase 12: Create file_exif table ===
     tables = inspector.get_table_names()
     if "file_exif" not in tables:
         logger.info("Migrating: creating 'file_exif' table")
         Base.metadata.tables["file_exif"].create(bind=engine_, checkfirst=True)
 
-    # === Spec 2026-05-12-playlist-to-collection: playlists → collections rename ===
-    # Old tables ``playlists`` and ``playlist_items`` are renamed to
-    # ``collections`` and ``collection_items``. The new schema also adds a
-    # ``description`` column on ``collections``. ``create_all`` in
-    # ``init_db`` already created the empty new tables for us; we just
-    # need to copy old data over and drop the legacy tables.
+    # ``create_all`` in ``init_db`` already created the empty new tables; copy
+    # the data of the legacy ``playlists`` / ``playlist_items`` over and drop them.
     inspector_after = inspect(engine_)
     tables_after = inspector_after.get_table_names()
     if "playlists" in tables_after:
@@ -313,7 +294,6 @@ def _migrate(engine_) -> None:
             conn.execute(text("DROP TABLE playlists"))
         logger.info("Migration complete: playlists data copied to collections")
 
-    # === Spec 2026-05-12-markdown-link-three-forms: add md_id column to files ===
     inspector_md = inspect(engine_)
     tables_md = inspector_md.get_table_names()
     if "files" in tables_md:
@@ -330,8 +310,7 @@ def _migrate(engine_) -> None:
                     "ON files(drive, md_id)"
                 ))
 
-        # Phase B: aliases projection (frontmatter ``aliases:`` → JSON
-        # list). No index — alias lookup is a drive-scoped scan, which
+        # No index on ``md_aliases``: alias lookup is a drive-scoped scan, which
         # stays bounded by the drive = security boundary rule.
         file_columns = {col["name"] for col in inspector_md.get_columns("files")}
         if "md_aliases" not in file_columns:
@@ -339,17 +318,7 @@ def _migrate(engine_) -> None:
             with engine_.begin() as conn:
                 conn.execute(text("ALTER TABLE files ADD COLUMN md_aliases TEXT"))
 
-    # === Spec 2026-05-17-file-path-drive-scoped-unique: files.file_path
-    # UNIQUE must be per-drive, not global.
-    #
-    # The pre-fix schema declared ``file_path`` with a single-column
-    # ``unique=True`` (models.py) / ``file_path ... UNIQUE`` (raw DDL).
-    # Because the scanner stores a *drive-relative* path with no drive
-    # prefix, two drives could never both hold e.g. a root ``README.md``
-    # (the second registration died with an IntegrityError surfaced as
-    # 409). A drive is a security boundary, so uniqueness is per-drive —
-    # this matches Tag / EmptyFolder / PinnedFolder / Collection, which
-    # are all ``UniqueConstraint("drive", ...)``.
+    # ``files.file_path`` UNIQUE must be per-drive, not global.
     #
     # SQLite can't ``DROP`` the implicit ``sqlite_autoindex`` an inline
     # single-column UNIQUE creates, so the table must be rebuilt (same
@@ -469,9 +438,7 @@ def _migrate(engine_) -> None:
                 # The connection still has ``foreign_keys=OFF`` (and may be
                 # mid-transaction). Discard it so the pool can't hand a
                 # FK-disabled connection to a later checkout — the engine's
-                # connect listener re-enables FK on the fresh one. (In
-                # practice this aborts ``init_db`` and startup, but stay
-                # defensive in case a caller recovers.)
+                # connect listener re-enables FK on the fresh one.
                 try:
                     raw.rollback()
                 finally:
@@ -480,9 +447,9 @@ def _migrate(engine_) -> None:
             finally:
                 raw.close()
 
-    # === Spec 2026-08-11-media-chapters: record whether chapter metadata
-    # has already been probed. The result table cannot carry this fact when
-    # a file has no chapters, so the nullable stamp belongs to ``files``.
+    # Whether chapter metadata has already been probed. The result table cannot
+    # carry this fact when a file has no chapters, so the nullable stamp belongs
+    # to ``files``.
     inspector_chapters = inspect(engine_)
     if "files" in inspector_chapters.get_table_names():
         file_columns = {
@@ -495,7 +462,6 @@ def _migrate(engine_) -> None:
                     text("ALTER TABLE files ADD COLUMN chapters_probed_at DATETIME")
                 )
 
-    # === Spec 2026-08-29-web-clip-promotion: trust tiers.
     # Existing rows migrate to 'verified' so nothing that grounds Ask today
     # stops doing so; 'trust_reviewed_at' stays NULL for them, which is what
     # distinguishes a bulk-migrated row from one a human actually approved.
@@ -529,10 +495,6 @@ def _migrate(engine_) -> None:
                 )
             )
 
-    # === Spec 2026-09-01-favorite-like-separation: the ``likes`` counter
-    # becomes ``liked_at``, a nullable timestamp that is both the flag and
-    # the sort key for the Liked view.
-    #
     # This phase must stay *after* the drive-scoped file_path rebuild
     # above. That rebuild copies rows through a hardcoded column list
     # which does not name ``liked_at``, so a conversion placed before it
@@ -575,9 +537,8 @@ def _migrate(engine_) -> None:
                 "ON files (liked_at)"
             ))
 
-    # === Spec 2026-09-06-ui-redesign-p4-viewers: pixel dimensions for the
-    # justified image grid. The columns stay NULL after this runs; the
-    # scanner backfills them for images it finds with no width recorded.
+    # The columns stay NULL after this runs; the scanner backfills them for
+    # images it finds with no width recorded.
     inspector_dimensions = inspect(engine_)
     if "files" in inspector_dimensions.get_table_names():
         dimension_columns = {

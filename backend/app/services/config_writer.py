@@ -1,16 +1,5 @@
 """Atomic JSON config writer with single-generation backup.
 
-Used by `routers/admin_config.py` to durably rewrite drives.json /
-passwords.json without leaving partial files behind. The pattern is:
-
-1. If destination exists, copy it to ``<path>.bak`` (single generation).
-2. Serialise to ``<path>.tmp``.
-3. ``os.replace(tmp, path)`` for atomic rename within the same filesystem.
-4. On any failure, clean up ``<path>.tmp`` and re-raise.
-5. On success, touch the restart-pending flag in DATA_DIR so the GUI can
-   surface the "config has been changed, please restart" banner. The flag
-   is cleared on the next backend startup (lifespan in ``main.py``).
-
 Bind-mounted single-file fallback:
     On Linux, ``rename(2)`` over a path that is itself a bind-mount target
     returns ``EBUSY`` because the kernel cannot swap the inode while the
@@ -45,8 +34,7 @@ def atomic_write_json(
 
     Side effects:
       - Creates ``<path>.bak`` (preserving mtime via ``shutil.copy2``) when
-        the destination already exists. The previous ``.bak`` is overwritten
-        (single-generation backup, matches spec 2026-04-30-config-gui).
+        the destination already exists. The previous ``.bak`` is overwritten.
       - Touches ``DATA_DIR/restart_pending`` unless caller opts out.
 
     Failure modes:
@@ -58,8 +46,6 @@ def atomic_write_json(
     tmp = path.with_suffix(path.suffix + ".tmp")
     bak = path.with_suffix(path.suffix + ".bak")
 
-    # Ensure parent directory exists (matches behaviour of TestClient
-    # fixtures that create tmp_path/data dynamically).
     path.parent.mkdir(parents=True, exist_ok=True)
 
     if path.exists():

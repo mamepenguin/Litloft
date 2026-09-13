@@ -3,12 +3,6 @@
 Maps URLs to provider names (youtube, vimeo, etc.) so .loft files
 record a stable dispatch key for the corresponding frontend player.
 
-Phase 0 ships with youtube + vimeo registered by Core. The registry is
-exposed so future addons (Import, third-party) can register additional
-providers without touching Core code:
-
-    register_provider("soundcloud", re.compile(r"soundcloud\\.com"))
-
 Unknown URLs resolve to the literal string ``"generic"``, which the
 frontend renders as a non-embedded link card. That fallback is part of
 the contract and must remain stable across releases.
@@ -23,10 +17,7 @@ from typing import Callable, Pattern
 logger = logging.getLogger(__name__)
 
 # Optional metadata extractor: takes a URL, returns a dict of fields the
-# .loft pipeline understands (title/description/channel/...). Phase 0
-# uses a single yt-dlp-based extractor for all providers, so this slot
-# stays None on every entry. Reserved for Phase 1+ provider-specific
-# extractors (e.g. an Import addon may register a faster custom path).
+# .loft pipeline understands (title/description/channel/...).
 MetadataExtractor = Callable[[str], dict]
 
 GENERIC_PROVIDER = "generic"

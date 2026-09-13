@@ -330,7 +330,7 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     new_filename = validate_filename(new_filename)
     drive_path = resolve_drive_path(file.drive)
 
-    # Phase D: capture pre-rename filename BEFORE mutation so we can
+    # Capture pre-rename filename BEFORE mutation so we can
     # compute the old/new wiki-link stems after the rename commits.
     old_filename = file.filename
     old_drive = file.drive
@@ -345,14 +345,10 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    # Free the UNIQUE file_path slot if a stale ghost holds it (same
-    # behaviour as move_file). Raises 409 for a genuine active conflict.
     resolve_db_path_conflict(db, new_rel, file.drive)
 
     old_full.rename(new_full)
 
-    # Mirror move_file's atomicity guard: if any DB op fails after the FS
-    # rename, reverse the rename so FS and DB stay in sync.
     try:
         if file.file_type == "video" and file.thumbnail_path:
             new_stem = Path(new_filename).stem
@@ -379,10 +375,8 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
             detail=f"Rename failed (DB error, filesystem reversed): {exc}",
         ) from exc
 
-    # Phase D (spec 2026-05-12 §3.7): when a ``.md`` is renamed,
-    # rewrite ``[[old_stem]]`` references inside other ``.md`` files in
-    # the same drive. Best-effort: a rewrite failure must NOT roll back
-    # the user-visible rename (FS + DB row are already durable).
+    # Best-effort: a rewrite failure must NOT roll back the user-visible rename
+    # (FS + DB row are already durable).
     if old_filename.lower().endswith(".md") and new_filename.lower().endswith(".md"):
         old_stem = Path(old_filename).stem
         new_stem = Path(new_filename).stem
@@ -406,11 +400,8 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
 
 
 def move_file(db: Session, file_id: str, target_drive: str | None, target_folder: str) -> File:
-    # Phase D note: move_file preserves ``file.filename`` (only the
-    # ``folder_path`` / ``drive`` change). A pure move therefore never
-    # changes the wiki-link basename, so no rewrite hook is needed here.
-    # Cross-drive moves are out of scope for rewrite anyway — drive is a
-    # security boundary (see ``.claude/rules/design-decisions.md``).
+    # A pure move preserves ``file.filename``, so the wiki-link basename never
+    # changes and no rewrite hook is needed here.
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
@@ -432,19 +423,11 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    # Free the UNIQUE file_path slot if a stale ghost record holds it
-    # (shared with rename_file / copy_file / upload for consistent
-    # behaviour). Raises 409 only for a genuinely active conflict.
     resolve_db_path_conflict(db, new_rel, dst_drive)
 
     new_full.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(old_full), str(new_full))
 
-    # Wrap all post-FS-move operations in a try/except so that if the DB
-    # commit fails for any reason the filesystem move is reversed, keeping
-    # the two stores in sync.  Without this guard, a DB error after
-    # shutil.move leaves the file at the destination on disk but still
-    # pointing to the source path in the DB (i.e. the file "disappears").
     try:
         if file.file_type == "video" and file.thumbnail_path:
             new_thumb_rel = (
@@ -469,7 +452,6 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
         _ensure_empty_folder_tracked(db, old_drive, old_folder)
         db.commit()
     except Exception as exc:
-        # Reverse the filesystem move so neither store is corrupted.
         db.rollback()
         try:
             shutil.move(str(new_full), str(old_full))
@@ -507,12 +489,7 @@ def _update_pinned_folders(
 def _update_folder_paths(
     db: Session, drive: str, old_path: str, new_path: str
 ) -> list[str]:
-    """Move all file/empty-folder/pin records under ``old_path`` to ``new_path``.
-
-    Returns the list of File ids whose path changed, so callers can emit a
-    ``files.moved`` event for downstream addons (Intelligence indexed_files
-    snapshot keeps a stale absolute path otherwise).
-    """
+    """Move all file/empty-folder/pin records under ``old_path`` to ``new_path``."""
     old_prefix = old_path + "/"
     old_len = len(old_path)
 
@@ -532,7 +509,6 @@ def _update_folder_paths(
         ).fetchall()
     ]
 
-    # Update file records
     db.execute(
         text("""
             UPDATE files
@@ -550,7 +526,6 @@ def _update_folder_paths(
         },
     )
 
-    # Update thumbnails
     files_in_folder = (
         db.query(File)
         .filter(
@@ -573,7 +548,6 @@ def _update_folder_paths(
                 old_thumb.rename(new_thumb)
             f.thumbnail_path = new_thumb_rel
 
-    # Update EmptyFolder records
     db.execute(
         text("""
             UPDATE empty_folders
@@ -590,7 +564,6 @@ def _update_folder_paths(
         },
     )
 
-    # Update PinnedFolder records
     _update_pinned_folders(db, drive, old_path, old_prefix, new_path, old_len)
 
     return affected_ids
@@ -604,11 +577,9 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
 
     folder_name = Path(path).name
 
-    # Self-reference loop detection
     if target_path == path or target_path.startswith(path + "/"):
         raise HTTPException(status_code=400, detail="Cannot move folder into itself")
 
-    # Compute new path
     new_path = f"{target_path}/{folder_name}" if target_path else folder_name
     if new_path == path:
         raise HTTPException(status_code=400, detail="Folder is already in this location")
@@ -626,13 +597,11 @@ def move_folder(drive: str, path: str, target_path: str, db: Session) -> dict:
     if new_full.exists():
         raise HTTPException(status_code=409, detail="Target folder already exists")
 
-    # Ensure target parent exists
     new_full.parent.mkdir(parents=True, exist_ok=True)
 
     # Filesystem move first
     old_full.rename(new_full)
 
-    # Update all DB records
     affected_ids = _update_folder_paths(db, drive, path, new_path)
 
     db.commit()

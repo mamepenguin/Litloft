@@ -1,18 +1,7 @@
 """Public per-drive addon policy endpoint.
 
-Spec: ``docs/superpowers/specs/2026-05-10-markdown-document-layout.md`` §4 D4.
-
-Exposes a read-only snapshot of the per-drive addon policy so the frontend
-can toggle features (for example the Knowledge inline editor) without each
-addon having to ship its own discovery endpoint. Lives outside
-``routers/internal.py`` because the consumer is the browser, not addons —
-the Internal API Policy (R1-R5) does not directly apply, but the design
-satisfies its spirit: read-only, generic shape (no addon name in the
-path/parameters), and the response is a generic dictionary.
-
-Access control piggybacks on ``accessible_drives`` via ``check_drive_access``:
-locked protected drives surface as 404 (consistent with
-``.claude/rules/design-decisions.md`` Access control rule).
+Lives outside ``routers/internal.py`` because the consumer is the browser, not
+addons.
 """
 
 import logging
@@ -40,8 +29,6 @@ def _normalize_policy(raw: bool | dict) -> AddonPolicy:
     """
     if isinstance(raw, bool):
         return AddonPolicy(default=raw, features={})
-    # dict branch: graceful-degradation default is True (anything not listed
-    # is enabled), per ``.claude/rules/design-decisions.md`` Addons section.
     coerced = {key: bool(value) for key, value in raw.items()}
     return AddonPolicy(default=True, features=coerced)
 
@@ -66,12 +53,8 @@ def get_drive_addon_policies(
 ) -> DriveAddonPoliciesResponse:
     """Return the addon policy snapshot for ``drive_name``.
 
-    Errors:
-    - 404 when the drive does not exist or is a locked protected drive
-      (existence is hidden, mirroring the project's "404 not 403" rule).
-    - 5xx surfaces ``load_drives`` errors for malformed config (e.g. an
-      addon value that is neither bool nor dict). The endpoint must not
-      silently swallow broken config as "all enabled".
+    ``load_drives`` errors for malformed config surface as 5xx: the endpoint
+    must not silently swallow broken config as "all enabled".
     """
     try:
         drives = config.load_drives()
@@ -87,7 +70,6 @@ def get_drive_addon_policies(
     if drive is None:
         raise HTTPException(status_code=404, detail=f"Drive not found: {drive_name}")
 
-    # Hide locked protected drives behind 404 (raises HTTPException(404)).
     check_drive_access(drive_name, unlocked_groups)
 
     return DriveAddonPoliciesResponse(addons=_build_policies(drive))

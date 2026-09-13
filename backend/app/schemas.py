@@ -58,10 +58,8 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     # tells those apart to offer a review queue.
     trust_tier: str = "verified"
     trust_reviewed_at: datetime | None = None
-    # Set only by /api/drives/{name}/files when ``search`` matches: tells
-    # the frontend whether the hit came from the title (filename engine),
-    # the folder_path, or both — drives the per-card "ファイル名 / パス"
-    # badge mix. Spec ``2026-05-02-search-path-match.md``.
+    # Set only by /api/drives/{name}/files when ``search`` matches: whether
+    # the hit came from the title, the folder_path, or both.
     match_source: str | None = None
 
     model_config = {"from_attributes": True}
@@ -195,8 +193,7 @@ class AddonPolicy(BaseModel):
 
     ``default`` is the bool shorthand (or the implicit-True default when a
     feature dict is provided). ``features`` is the per-feature override map
-    (empty when only the bool shorthand is configured). See
-    spec ``2026-05-10-markdown-document-layout`` §4 D4.
+    (empty when only the bool shorthand is configured).
     """
 
     default: bool
@@ -206,9 +203,7 @@ class AddonPolicy(BaseModel):
 class DriveAddonPoliciesResponse(BaseModel):
     """``GET /api/drives/{drive}/addon-policies`` response envelope.
 
-    Generic dictionary keyed by addon name (Internal API Policy R2 spirit:
-    no addon name leaks into the path/parameters; the response is a generic
-    map). Empty dict when the drive has no ``addons`` configured.
+    Empty dict when the drive has no ``addons`` configured.
     """
 
     addons: dict[str, AddonPolicy]
@@ -474,10 +469,7 @@ class ProgressUpdateRequest(BaseModel):
     # Both fields Optional so the same endpoint serves two use cases:
     # media playback (position+duration required) and "page-opened"
     # view records for non-media files (both omitted, only
-    # last_played_at advances). Mixing — sending only one — is rejected
-    # to keep WatchHistory rows consistent. See spec
-    # ``2026-04-26-intelligence-ask-personal-history-query.md`` §4.2
-    # Stage B for why text/image/PDF files must also surface here.
+    # last_played_at advances).
     position: float | None = None
     duration: float | None = None
 
@@ -508,8 +500,7 @@ class ProgressUpdateRequest(BaseModel):
         # All-or-nothing: sending only one of {position, duration}
         # leaves the WatchHistory row in an undefined state (e.g. a
         # position with no duration cannot be checked against the
-        # 90% completion gate in drives.py:570). Reject early so the
-        # endpoint contract stays explicit.
+        # 90% completion gate).
         if (self.position is None) != (self.duration is None):
             raise ValueError(
                 "position and duration must be sent together or both omitted"
@@ -681,10 +672,8 @@ class DashboardFilesystemInfo(BaseModel):
     """One mounted filesystem, and the drives that live on it.
 
     Reported per filesystem rather than per drive because that is what
-    the number measures. Every drive used to carry a copy of
-    ``shutil.disk_usage`` for whatever mount it sat on, so drives
-    sharing a disk all showed the same bar and an empty drive read as
-    48% full.
+    the number measures: drives sharing a disk would otherwise all show
+    the same bar.
     """
 
     mount_label: str

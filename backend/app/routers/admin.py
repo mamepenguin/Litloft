@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # Admin-only: every endpoint here exposes system-wide aggregates
 # (disk usage, indexed totals across all drives, scan status). Callers
-# must hold every protected access_group — see auth.is_admin docstring.
+# must hold every protected access_group.
 router = APIRouter(
     prefix="/api/admin",
     tags=["admin"],
@@ -38,11 +38,8 @@ _start_time = time.monotonic()
 def _collect_filesystems(drives: list[dict]) -> list[DashboardFilesystemInfo]:
     """Group the configured drives by the filesystem they sit on.
 
-    ``shutil.disk_usage`` measures a mount, not a directory, so asking
-    it per drive answered the same number for every drive on one disk —
-    a drive with no files in it read as 48% full, and three drives on
-    one SSD looked like three disks filling in step. Grouping by
-    ``st_dev`` says the true thing once and names which drives share it.
+    ``shutil.disk_usage`` measures a mount, not a directory, so asking it per
+    drive would report one disk's number for every drive on it.
     """
     by_device: dict[int, DashboardFilesystemInfo] = {}
     for drive in drives:
