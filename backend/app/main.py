@@ -382,7 +382,7 @@ async def addons_status(drive: str | None = None):
     surface without special-casing missing drives.
     """
     # Strip internal-only fields (proxy config) before returning to clients
-    _FRONTEND_FIELDS = {"label", "description", "icon", "href", "type", "slots", "scope", "policy_features"}
+    _FRONTEND_FIELDS = {"label", "description", "icon", "href", "type", "slots", "scope", "policy_features", "navigation"}
 
     def is_configured(meta: dict) -> bool:
         # External services need compose/env wiring. A manifest alone can

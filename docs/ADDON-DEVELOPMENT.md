@@ -357,8 +357,40 @@ addons/my-service/        # ← addon's own repo root
 | `href` | No | URL pattern for the addon page. Omit if the addon has no dedicated page |
 | `slots` | No | UI slot declarations (see [UI Slot System](#ui-slot-system)) |
 | `policy_features` | No | Per-drive feature flags exposed in the admin settings GUI |
+| `navigation` | No | The addon's sidebar destination (see [`navigation`](#navigation)) |
 | `event_hooks` | No | Lifecycle webhook subscriptions (see [Event Hooks](#event-hooks)) |
 | `proxy` | Yes | Reverse proxy configuration |
+
+#### `navigation`
+
+One sidebar destination for the addon, kept apart from its product `label` so
+the settings screen can say "Knowledge" while the sidebar says "Notes". An
+in-process addon puts the same object under `ADDON_META["navigation"]`.
+
+```json
+"navigation": {
+    "label": "Notes",
+    "i18n_key": "knowledge.nav.label",
+    "icon": "notebook-pen",
+    "placement": "primary",
+    "priority": 20
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `label` | Yes | Non-empty English fallback name |
+| `placement` | Yes | `"primary"` \| `"sources"` \| `"utility"` |
+| `priority` | Yes | Integer; order within the placement |
+| `i18n_key` | No | String key in the addon's own message catalogue |
+| `icon` | No | String icon token |
+
+The block has no `href`: the destination is the addon's generated route. If any
+check above fails, the core logs a warning and drops the whole `navigation`
+block; the addon, its slots and its proxy routes still load. Other keys inside
+the block are passed through unchanged. `GET /api/addons/status` returns the
+block as declared, under the same per-drive `index` policy filtering as the rest
+of the addon's entry.
 
 #### `policy_features`
 
