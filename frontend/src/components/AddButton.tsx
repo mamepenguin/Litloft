@@ -6,7 +6,6 @@ import { dispatchUploadEvent, useFilePicker } from "./useFilePicker";
 import {
   ChevronDown,
   File as FileIcon,
-  FilePlus,
   Folder,
   FolderPlus,
   Plus,
@@ -46,11 +45,6 @@ export const ADD_MENU_SLOT = "folder-actions-menu";
 interface AddButtonProps {
   onCreateFolder?: () => void;
   /**
-   * When provided, a "New note" row. The same gate the standalone button
-   * carried: a caller with no concrete folder to write into omits it.
-   */
-  onCreateFile?: () => void;
-  /**
    * Context handed to `folder-actions-menu`, and the opt-in that renders
    * the slot at all — the shape `FileActions` uses for `file-actions-menu`.
    * A caller with no folder context gives no addon rows.
@@ -77,7 +71,6 @@ interface AddButtonProps {
  */
 export function AddButton({
   onCreateFolder,
-  onCreateFile,
   addonProps,
   align = "left",
 }: AddButtonProps = {}) {
@@ -225,16 +218,6 @@ export function AddButton({
           onClick={() => {
             closeMenu();
             onCreateFolder();
-          }}
-        />
-      )}
-      {onCreateFile && (
-        <ActionMenuItem
-          icon={FilePlus}
-          label={tf("newFile")}
-          onClick={() => {
-            closeMenu();
-            onCreateFile();
           }}
         />
       )}

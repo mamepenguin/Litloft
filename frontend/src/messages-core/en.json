@@ -99,7 +99,6 @@
     "pin": "Pin",
     "unpin": "Unpin",
     "newFolder": "New Folder",
-    "newFile": "New Note",
     "createFileFailed": "Failed to create file",
     "createFileForbidden": "This drive is not writable",
     "open": "Open",

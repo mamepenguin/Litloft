@@ -120,17 +120,16 @@ describe("AddButton", () => {
     expect(screen.getByText("Folder")).toBeInTheDocument();
   });
 
-  it("offers new folder and new note only when handed a handler", () => {
+  it("offers new folder only when handed a handler, and no note row of its own", () => {
+    const rows = () => screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
     render(<AddButton />);
     open();
-    expect(screen.queryByText("New Folder")).not.toBeInTheDocument();
-    expect(screen.queryByText("New Note")).not.toBeInTheDocument();
+    expect(rows()).toEqual(["Files", "Folder"]);
     cleanup();
 
-    render(<AddButton onCreateFolder={vi.fn()} onCreateFile={vi.fn()} />);
+    render(<AddButton onCreateFolder={vi.fn()} />);
     open();
-    expect(screen.getByText("New Folder")).toBeInTheDocument();
-    expect(screen.getByText("New Note")).toBeInTheDocument();
+    expect(rows()).toEqual(["Files", "Folder", "New Folder"]);
   });
 
   it("closes the menu when a row is chosen", () => {
@@ -142,10 +141,10 @@ describe("AddButton", () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
-  it.each(["Files", "Folder", "New Folder", "New Note"])(
+  it.each(["Files", "Folder", "New Folder"])(
     "returns focus to the trigger after %s",
     (label) => {
-      render(<AddButton onCreateFolder={vi.fn()} onCreateFile={vi.fn()} />);
+      render(<AddButton onCreateFolder={vi.fn()} />);
       const trigger = screen.getByRole("button", { name: "Add" });
       open();
       const row = screen.getByText(label);

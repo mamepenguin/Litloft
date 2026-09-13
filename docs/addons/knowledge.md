@@ -5,6 +5,7 @@ The `knowledge` addon turns Litloft into a personal notes vault and web-clip arc
 ## What it provides
 
 - **Markdown editor** — a CodeMirror 6 editor with live preview, autosave, wiki links, and drag-and-drop image upload.
+- **New note from Add** — the **Add** menu on Home and in Library folders offers **New note**, which creates a Markdown file in that folder after you confirm its folder and name, then opens it in the editor.
 - **Version history** — every text write is snapshotted; the editor lists past versions with a diff and a restore action.
 - **Source capture** — collect quotes and timestamps from anywhere in Litloft into a basket, then commit them into a note.
 - **Web clipping** — paste a URL or a piece of HTML; the addon fetches, sanitises, converts to Markdown, and saves.
@@ -366,7 +367,7 @@ Configure per drive in `drives.json`:
 }
 ```
 
-A drive opts out simply by setting `"knowledge": false`. Two feature keys are recognised for finer control: `editor` (the inline editor on a note's detail page, and the **Create note** entry in any file's `[...]` menu) and `index` (whether lifecycle webhooks are forwarded for that drive). Unspecified keys are enabled by graceful degradation, and changes take effect on container restart.
+A drive opts out simply by setting `"knowledge": false`. Two feature keys are recognised for finer control: `editor` (the inline editor on a note's detail page, the **Create note** entry in any file's `[...]` menu, and **New note** in the Add menu) and `index` (whether lifecycle webhooks are forwarded for that drive). Unspecified keys are enabled by graceful degradation, and changes take effect on container restart.
 
 Turning knowledge off for a drive stops new writes and hides the UI; it does not delete anything the addon already recorded. The notes themselves are ordinary `.md` files on the drive and are untouched either way.
 

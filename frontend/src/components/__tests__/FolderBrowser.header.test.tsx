@@ -81,13 +81,7 @@ vi.mock("@/components/AddButton", () => ({
   // Stands in for the one control that puts things in a folder. It renders a
   // row per prop it is given, so a test can still see *which* of them
   // FolderBrowser decided to offer — the real menu keeps them behind a click.
-  AddButton: ({
-    onCreateFolder,
-    onCreateFile,
-  }: {
-    onCreateFolder?: () => void;
-    onCreateFile?: () => void;
-  }) => (
+  AddButton: ({ onCreateFolder }: { onCreateFolder?: () => void }) => (
     <>
       {/* Named by their text, as the real rows are: `ActionMenuItem` puts
           the label in the button's content and carries no `aria-label`, so
@@ -99,9 +93,6 @@ vi.mock("@/components/AddButton", () => ({
         // the click event instead hands the handler an event where it
         // expects a name.
         <button onClick={() => onCreateFolder()}>New Folder</button>
-      )}
-      {onCreateFile && (
-        <button onClick={() => onCreateFile()}>New Note</button>
       )}
     </>
   ),
