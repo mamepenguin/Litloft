@@ -3,13 +3,8 @@ RUN apt-get update && apt-get install -y ffmpeg libheif-dev curl && rm -rf /var/
 WORKDIR /app
 RUN mkdir -p /app/data
 
-# Built from the repository root, like every other image here — `context: .`
-# in docker-compose.yml and the addons' Dockerfile.test. That is what lets
-# the tests reach `configure.py` and the compose template, which live above
-# `backend/` and had no coverage while the context stopped at it. Two review
-# rounds found bugs in `configure.py` that only running it would surface.
-#
-#   docker build -f backend/Dockerfile.test -t video-share-test .
+# Built from the repository root so the tests can reach `configure.py` and the
+# compose template, which live above `backend/`.
 #
 # `.dockerignore` keeps the context small; without it the daemon is handed
 # the whole media library.

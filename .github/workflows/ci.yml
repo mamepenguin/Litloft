@@ -2,13 +2,6 @@
 #
 # No test command is piped into `tee`, a formatter, or a summariser; no step
 # carries `continue-on-error`; no run of vitest passes `--reporter=json`.
-# That is not house style, it is the whole point of the file. Vitest reports an
-# unhandled rejection as `Errors 1 error` while printing every test as passed,
-# and exits 1 — and its JSON reporter does not carry those errors at all. Four
-# PRs merged through that gap because the pass count was read and the exit code
-# was not. Anything that turns a command's exit status into text puts the gap
-# back.
-#
 # The corollary for whoever edits this next: if you need to see more output,
 # make the command itself louder. Do not wrap it.
 
@@ -24,8 +17,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Nothing here writes to the repository; the cross-repository checkouts read
-# public repositories only.
 permissions:
   contents: read
 
@@ -38,15 +29,6 @@ jobs:
         with:
           # The pinned addon commits, not their branch tips, so the job tests
           # the pairing a fresh clone would get.
-          #
-          # Be precise about what that catches. design-tokens.test.ts and
-          # i18n-keys.test.ts walk addons/*/frontend directly, so pinned addon
-          # code that uses a token core has removed, or ships a namespace that
-          # displaces one of core's, fails here; so does a submodule that did
-          # not check out at all (i18n-keys asserts it found catalogues). A
-          # pointer that is merely behind, on a tree still consistent with
-          # core, passes all of them. Bumping the pointer is checked here only
-          # to the extent that the old code actually conflicts.
           submodules: recursive
 
       - uses: pnpm/action-setup@v4
@@ -59,8 +41,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      # frontend/src/addons/<name> is a real directory of per-file symlinks
-      # into addons/<name>/frontend, built by this script and gitignored.
       # Without it vitest collects no addon test at all and the suite is green
       # for the wrong reason.
       - name: Link addons into backend/ and frontend/
@@ -70,17 +50,10 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: frontend
 
-      # Generates the gitignored frontend/src/messages/ from messages-core/
-      # plus every addon's own catalogue.
       - name: Merge addon translations
         run: node scripts/merge-addon-messages.mjs
         working-directory: frontend
 
-      # The one way this job can be green and worthless: a submodule that did
-      # not check out, or a symlink that did not get made, costs nothing at
-      # collection time — vitest simply finds fewer files and reports every one
-      # of them passing. Ask the collector what it found instead of assuming.
-      #
       # Walk addons/*/ rather than addons/*/frontend, because an uninitialised
       # submodule leaves an empty directory that the narrower glob would step
       # straight over — skipping the very case this step exists to catch.
@@ -104,7 +77,6 @@ jobs:
               status=1
               continue
             fi
-            # An addon need not ship a frontend, or any frontend test.
             [ -d "$dir/frontend" ] || continue
             # Match what vitest's default include picks up, .spec included —
             # an addon testing only in .spec files would otherwise read as
@@ -119,10 +91,6 @@ jobs:
           done
           exit $status
 
-      # Runs core's suite and, through the link tree above, every addon's
-      # frontend tests. A fresh checkout needs nothing else: no drives.json,
-      # passwords.json, .env, or docker-compose.override.yml.
-      #
       # `vitest run --coverage` spelled out rather than `pnpm test --coverage`,
       # so what CI measures does not depend on argument forwarding through a
       # package script. `pnpm test` stays the plain run: the four addon
@@ -132,60 +100,18 @@ jobs:
         run: pnpm exec vitest run --coverage
         working-directory: frontend
 
-      # The thresholds above are lower bounds, and a lower bound is not a
-      # detector by itself — shrink the denominator and the percentage rises.
-      # This is what earns them: it asks the collector which files it actually
-      # measured and compares that against a declared population.
-      #
       # `!cancelled()` because the run that most needs this line is the one
-      # where `Test` went red. A step with no `if:` is skipped when the step
-      # before it fails, so without this the instrument is absent from exactly
-      # the log that has to be diagnosed — and `reportOnFailure: true` in
-      # `vitest.config.ts`, which exists to make the report survive a red
-      # suite, buys nothing. Measured on this branch's own red run: `failure
-      # Test` / `skipped Check the coverage denominator`, and the population
-      # identity then had to be reconstructed from a local machine.
-      #
-      # With it, a threshold failure is read against the denominator line
-      # printed directly beneath it, which is what separates "the tree lost
-      # coverage" from "the population changed". `docs/developer-guide/
-      # testing.md` §When a threshold goes red gives the procedure.
-      #
-      # Not `always()`: a cancelled run has nothing to diagnose.
-      #
-      # Both halves of this were rehearsed on a scratch branch rather than
-      # argued. Raising one threshold 0.05 above the measured value — suite
-      # green, threshold red, which is the situation the condition exists for —
-      # gave `failure Test` followed by `success Check the coverage
-      # denominator`, with the denominator line printed directly under
-      # `ERROR: Coverage for lines (79.76%) does not meet global threshold`.
-      #
-      # And the cost, also observed: the step runs when an *earlier* step fails
-      # too. A run whose `checkout` failed skipped every other step and still
-      # ran this one, which then reported that coverage had not run — true, and
-      # not the cause. Noise rather than a defect; scoping the condition to the
-      # `Test` step alone is not expressible cleanly here.
+      # where `Test` went red: a step with no `if:` is skipped when the step
+      # before it fails. Not `always()`: a cancelled run has nothing to diagnose.
       - name: Check the coverage denominator
         if: ${{ !cancelled() }}
         run: node scripts/check-coverage-denominator.mjs
         working-directory: frontend
 
-      # tsc follows the per-file links, so this type-checks addon sources too.
       - name: Type-check
         run: pnpm exec tsc --noEmit
         working-directory: frontend
 
-      # Two limits worth knowing, since neither is visible from the green tick.
-      # This covers core only: `src/addons/**` is an explicit ignore, so the
-      # addon frontends are not linted from here — and they are not linted
-      # anywhere else either, because none of the four addon repositories has
-      # an eslint config or a package.json. tsc is what guards those sources.
-      # Until `setup-addons.sh` began building that directory for real the
-      # exclusion happened by accident, eslint not following a symlinked
-      # directory; it is now a declaration. And the config downgrades several
-      # rules (including no-explicit-any) to warnings, which do not reach the
-      # exit code: only errors fail this step. Raising that is a separate
-      # decision about roughly a hundred existing warnings, not a CI change.
       - name: Lint
         run: pnpm lint
         working-directory: frontend
@@ -193,24 +119,6 @@ jobs:
   frontend-shuffled:
     # The same suite, run in a random order. It answers a question the job
     # above cannot: does any test depend on another test having run?
-    #
-    # Two were found the day this job was added, in different repositories,
-    # and both were the same defect — a test reading state a sibling test
-    # wrote (`localStorage`, which nothing clears between tests). Neither is
-    # visible in source order, and source order is the only order the
-    # required job ever runs.
-    #
-    # **Required since 2026-09-05.** It was deliberately not required at
-    # first, on the theory that a random seed would block pull requests over
-    # an order nobody chose. Measured over the 48 runs and 15 branches of the
-    # redesign's Phase 2, that never happened: one red, no false positives.
-    #
-    # It also turned out to catch more than order dependence — a
-    # passive-effect flush race, in a run whose order was the source order —
-    # so what it really provides is a second sample of a non-deterministic
-    # suite. When it is red, take the seed below and reproduce; do not re-run
-    # until it goes green, because on this record a red is a real defect.
-    # See docs/developer-guide/testing.md §Branch protection.
     #
     # Vitest prints the seed it picked ("Running tests with seed …"). To
     # reproduce a failure exactly, pass that seed back:
@@ -247,66 +155,14 @@ jobs:
         run: node scripts/merge-addon-messages.mjs
         working-directory: frontend
 
-      # `--sequence.shuffle` shuffles the files and the tests inside each
-      # file. The second half is the one that matters here: both defects it
-      # found were between two tests in one file.
       - name: Test in a random order
         run: pnpm exec vitest run --sequence.shuffle
         working-directory: frontend
 
   frontend-layout:
-    # The one job in this file that starts a browser.
-    #
-    # It exists because the suites above cannot see a layout at all. jsdom
-    # lays nothing out, so `getBoundingClientRect()` returns zeros there and
-    # a cell drawn at the wrong aspect ratio measures exactly like one drawn
-    # at the right one. What the vitest side settled for instead is text: it
-    # reads globals.css as a string and checks the declarations are present.
-    # In #200 that was measured and found wanting — the defect came back in
-    # full by appending one line to the end of the stylesheet, and every
-    # suite stayed green through two rounds of review. **Text matching
-    # cannot verify a layout.** A later rule at any specificity, an
-    # `@media` / `@container` / `@layer` block, or an inline style each
-    # override a declaration that is still, textually, right there.
-    #
-    # So this measures instead. `frontend/e2e-layout/` opens a static page
-    # off `file://` that carries the app's own compiled globals.css and a
-    # hand-placed row of cells, and asserts the boxes Chromium produces.
-    #
-    # Boxes are not the only thing jsdom cannot produce. `popup-dismiss`
-    # taps with a real touch and asks which element the `click` Chromium
-    # synthesises from `touchend` lands on — a hit test, over a scrim, at
-    # two viewports. jsdom hit-tests nothing, so `fireEvent.click` there
-    # dispatches at whatever element the test named and can never observe
-    # a click reaching the wrong one.
-    #
-    # A browser suite can only see a selector that matches the markup in
-    # front of it, so the fixture draws from a declared table of cell
-    # shapes: every class list the cell can carry (six for
-    # JustifiedFileCell, two for ArchiveEntryCard), and every element,
-    # attribute and class either component puts inside a cell. Not the
-    # cross product of those with the wrapper states — see the table's own
-    # note for what is left out.
-    #
-    # That table is not decoration. Each of these broke a shipped cell and
-    # stayed green while the fixture drew less than the app does:
-    # `button.justified-grid-cell`, `.justified-grid-cell.overflow-hidden`,
-    # `.justified-grid-cell.select-none`,
-    # `.justified-grid-cell.opacity-50.select-none`,
-    # `.justified-grid-cell[draggable]`, `:has(.justified-grid-name)`,
-    # `:has(> a[download])`. The table is kept honest from the jsdom side by
-    # justifiedGridFixtureParity.test.tsx, in the `frontend` job above.
-    #
-    # It is deliberately NOT the eleven specs under `frontend/e2e/` — twelve
-    # files, of which helpers.ts is not a spec; `playwright test --list` says
-    # 45 tests in 11 files. Those need a live stack on localhost:3000 and a
-    # seeded library. Ten of them skip themselves when no drive answers, so in
-    # CI they would report green having run almost nothing, which is the exact
-    # failure this workflow exists to remove; the eleventh,
-    # source-capture.spec.ts, carries no guard at all and would simply go red.
-    # Neither outcome is a check. See docs/developer-guide/testing.md, "Why
-    # e2e is not in CI". The two runs get two Playwright configs so that
-    # neither can pull the other in.
+    # Deliberately not the specs under `frontend/e2e/`: those need a live stack
+    # on localhost:3000 and a seeded library, and skip themselves when no drive
+    # answers, so in CI they would report green having run almost nothing.
     #
     # No submodules and no setup-addons.sh: the fixture links a sheet
     # compiled from src/app/globals.css, and its `@source "../addons"` names
@@ -341,36 +197,15 @@ jobs:
 
       # Chromium alone. The invariants here are flex geometry, resolved
       # transitions and pointer-event dispatch, not rendering differences
-      # between engines, and adding two more browsers would triple the job
-      # for a question it is not asking. What that leaves unmeasured is
-      # named where it matters: Safari's touch-to-click synthesis is the
-      # one `popup-dismiss` would most like a second engine for, and this
-      # job does not have it.
+      # between engines.
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
         working-directory: frontend
 
-      # globalSetup compiles src/app/globals.css into the sheet the fixture
-      # links, so there is no separate build step to forget.
       - name: Test the layout invariants
         run: pnpm test:e2e:layout
         working-directory: frontend
 
-      # The same browser, one step further in: `e2e-components/` bundles
-      # the real `DismissScrim`, `ContextMenu` and `useContextMenu` with
-      # the repo's vite and drives them with CDP touch, including a 500 ms
-      # long press — a gesture `page.touchscreen` cannot express and the
-      # opener a popup can be raised by.
-      #
-      # It is here rather than in a job of its own because it needs exactly
-      # what this one already pays for: the dependencies and a Chromium.
-      # Its own globalSetup builds the bundle.
-      #
-      # Why it exists: `e2e-layout/` is `file://` plus a stylesheet and
-      # cannot import a `.tsx`, so no component is ever run in it — its
-      # fixtures hand-write a copy of the mechanism, and a copy is right by
-      # construction. Every functional defect unit F shipped across four
-      # review rounds passed that suite. See e2e-components/build-bundle.ts.
       - name: Test the components in a browser
         run: pnpm test:e2e:components
         working-directory: frontend
@@ -399,11 +234,9 @@ jobs:
         run: pnpm exec vitest run --coverage
         working-directory: mcp-server
 
-      # Earns the thresholds in `vitest.config.ts` the right to be lower
-      # bounds. `!cancelled()` because the run that most needs this line is the
-      # one where the thresholds refused: a step with no `if:` is skipped when
-      # the step before it fails, which puts the instrument out of exactly the
-      # log that has to be diagnosed.
+      # `!cancelled()` because the run that most needs this line is the one
+      # where the thresholds refused: a step with no `if:` is skipped when the
+      # step before it fails.
       - name: Check the coverage denominator
         if: ${{ !cancelled() }}
         run: node scripts/check-coverage-population.mjs
@@ -437,14 +270,9 @@ jobs:
       # does not take effect the report is not written either, and the step
       # below fails on the missing file instead of succeeding for the wrong
       # reason.
-      # 82.78 is CI's measured total truncated, and CI's rather than a local
-      # one because that is where the gate runs. The two differ here and the
-      # difference is not noise: this machine's Linux runners cover slightly
-      # more of `app/` than a developer's macOS does. What makes the CI figure
-      # the right floor rather than merely the stricter one is that the
-      # *denominator* is identical on both — same population, differently
-      # covered. A local run is therefore expected to sit below this number,
-      # which is why no floor is applied outside CI.
+      # 82.78 is CI's measured total truncated. A developer's macOS run covers
+      # slightly less of `app/` over the same denominator, so no floor is
+      # applied outside CI.
       - name: Test
         shell: bash
         env:
@@ -459,8 +287,6 @@ jobs:
       # The floor is a lower bound, and a lower bound cannot see the
       # denominator shrink — the percentage goes *up*. So the population is
       # compared too, as a set, against an independent walk of this checkout.
-      # The script says what that catches; it also prints the raw total, which
-      # is what the floor was truncated from.
       - name: Verify the floor was applied, over the right population
         shell: bash
         env:
@@ -515,8 +341,6 @@ jobs:
         run: docker run --rm addon-test
 
   images:
-    # The production images, which no test builds.
-    #
     # For the frontend that is `next build`, covered by neither vitest nor tsc,
     # and impossible to run against a development checkout — Turbopack fails to
     # resolve the dynamic `@/addons/<name>/Page` import through the symlinked
