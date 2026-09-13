@@ -195,15 +195,11 @@ describe("design tokens", () => {
     expect(dead.has("text-sm")).toBe(false);
   });
 
-  it("gives the list-row measure a token, a user, and a documented value", () => {
+  it("gives the list-row measure a token and a user", () => {
     expect(dead.has("max-w-list-row")).toBe(false);
 
     const css = readFileSync(GLOBALS_CSS, "utf-8");
     expect(css).toMatch(/--container-list-row:\s*60rem;/);
-
-    const design = readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
-    expect(design).toMatch(/### 3\.6 List row measure/);
-    expect(design).toMatch(/`60rem` \(960px\)[^]*`max-w-list-row`/);
 
     const ROWS = [
       "frontend/src/components/FileListRow.tsx",

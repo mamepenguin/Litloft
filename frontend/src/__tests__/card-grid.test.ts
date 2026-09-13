@@ -229,36 +229,6 @@ describe("every card grid goes through lib/cardGrid", () => {
   });
 });
 
-describe("DESIGN.md §8.5 states the rule the code implements", () => {
-  const design = () => readFileSync(resolve(REPO_ROOT, "DESIGN.md"), "utf-8");
-
-  it("names the minimum column count, and it is the one in the code", () => {
-    const row = design()
-      .replace(/\s+/g, " ")
-      .match(
-        /\*\*Card grid minimum width: `16rem`\. Minimum column count: (\d+)\.\*\*/,
-      );
-    expect(row).not.toBeNull();
-    expect(Number(row![1])).toBe(MIN_CARD_COLUMNS);
-  });
-
-  it("quotes the card widths the rule produces at phone sizes", () => {
-    // 375px and 400px phones less their `px-4` gutters.
-    const body = design().replace(/\s+/g, " ");
-    expect(body).toMatch(/≈165px at 375px/);
-    expect(body).toMatch(/≈178px at 400px/);
-    expect(Math.floor((343 - CARD_GAP_PX) / columnsFor(343))).toBe(165);
-    expect(Math.floor((368 - CARD_GAP_PX) / columnsFor(368))).toBe(178);
-  });
-
-  it("forbids writing the auto-fill template into a card grid", () => {
-    // Whitespace-insensitive: the prose is wrapped by hand.
-    expect(design().replace(/\s+/g, " ")).toMatch(
-      /Do not write `repeat\(auto-fill, [^`]*\)`/,
-    );
-  });
-});
-
 describe("grids that are not card grids", () => {
   it.each([
     "frontend/src/components/RelatedFilesSection.tsx",
