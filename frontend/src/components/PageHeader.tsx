@@ -34,9 +34,15 @@ export interface PageHeaderProps {
   titleIcon?: LucideIcon;
   /**
    * The page's subject. **Omit it when the breadcrumb is the subject** —
-   * folders and the inside of an archive name themselves in the trail, and a
-   * second heading repeating the last segment is one subject stated twice.
+   * a folder and the inside of an archive name themselves in the trail, and
+   * a second heading repeating the last segment is one subject stated twice.
    * An `<h1>` is emitted only when this is given.
+   *
+   * A breadcrumb beside a title is not a contradiction: the rule is that
+   * the subject is named once, not that the two never appear together. A
+   * screen whose trail stops at an ancestor has no segment naming it, so
+   * it names itself here and passes `driveIsAncestor` to say the trail
+   * carries ancestors only.
    */
   title?: ReactNode;
   /**

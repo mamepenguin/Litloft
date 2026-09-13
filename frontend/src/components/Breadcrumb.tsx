@@ -28,12 +28,11 @@ interface BreadcrumbProps {
    * drive and the drive becomes a Link rather than the leaf.
    *
    * The pairing rule is "name the subject once": a page either lets the trail
-   * name it — folders, the inside of an archive, which pass neither this nor
+   * name it — a folder, the inside of an archive, which pass neither this nor
    * `trailingSegment` — or names itself in an `<h1>` and sets this, so the
-   * trail carries only ancestors. Trash, Missing and a collection are the
-   * second kind; without it the drive renders as a non-clickable leaf and
-   * those pages have no way back to the drive at all, which is the state they
-   * shipped in.
+   * trail carries only ancestors. Without it such a page renders the drive as
+   * a non-clickable leaf and has no way back to the drive at all, which is
+   * the state the first of them shipped in.
    *
    * Redundant with `trailingSegment`, which already makes the drive a link.
    * Passing both is harmless but says the same thing twice.

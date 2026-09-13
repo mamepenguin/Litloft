@@ -37,6 +37,7 @@ import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
 import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
 import { Button } from "@/components/Button";
+import { isLibraryRootView } from "@/lib/driveViews";
 
 /**
  * How long scrolling must be idle before the list snapshot is
@@ -138,6 +139,10 @@ export function FolderBrowser({
   const isRecentAdded = view === "recent-added";
   const isLiked = view === "liked";
   const isAll = view === "all";
+  // The Library root, where the trail names only the drive. Arbitration
+  // 11: a subfolder is named by its own trail segment, so a title there
+  // would state the subject twice.
+  const isLibraryRoot = isLibraryRootView(view) && !folderPath;
   const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isLiked || isAll;
   // Is there a concrete folder we are anchored to? This is the question
   // the per-folder preferences and the create-file actions actually ask,
@@ -345,6 +350,7 @@ export function FolderBrowser({
     clearListSnapshot();
   }, [reset]);
 
+  const tSidebar = useTranslations("sidebar");
   const tSearch = useTranslations("search");
   const tFilter = useTranslations("filter");
   const tCommon = useTranslations("common");
@@ -639,14 +645,22 @@ export function FolderBrowser({
             <Breadcrumb
               driveName={driveName}
               folderPath={folderPath}
+              driveIsAncestor={isLibraryRoot}
               getDropTargetProps={(dragState.isDragging || isInternalDragging) ? getDropTargetProps : undefined}
               isDropTarget={(dragState.isDragging || isInternalDragging) ? isDropTarget : undefined}
             />
           )
         }
-        // Search names its subject in a heading because there is no path to
-        // name it; a folder is named by its trail.
-        title={isSearch ? tSearch("heading", { query: searchQuery ?? "" }) : undefined}
+        // Search names its subject in a heading because there is no path
+        // to name it, and the Library root because its trail stops at the
+        // drive. A folder is named by its trail, so it passes neither.
+        title={
+          isSearch
+            ? tSearch("heading", { query: searchQuery ?? "" })
+            : isLibraryRoot
+              ? tSidebar("library")
+              : undefined
+        }
         // The count lives here in both modes now. It used to be in the
         // header in search mode and in the toolbar in folder mode, which is
         // why the same fact was worded and placed two different ways.

@@ -40,6 +40,7 @@ vi.mock("@/components/Breadcrumb", () => ({
       aria-label="Breadcrumb"
       data-drive={String(props.driveName ?? "")}
       data-folder={String(props.folderPath ?? "")}
+      data-drive-is-ancestor={props.driveIsAncestor ? "yes" : "no"}
       data-drop-props={props.getDropTargetProps ? "yes" : "no"}
       data-drop-target={props.isDropTarget ? "yes" : "no"}
     >
@@ -235,6 +236,68 @@ function renderFolder(
     <FolderBrowser driveName="main" folderPath="videos" {...props} />,
   );
 }
+
+/**
+ * Who names the subject, per screen.
+ *
+ * Declared per state rather than derived from what renders, so a screen
+ * that stops naming itself moves this side of the equality on its own
+ * (`review-workflow.md` detector rule 5). The `<h1>` text is the whole
+ * expectation: `null` means the trail is the subject and `PageHeader`
+ * emits no heading.
+ *
+ * Spec §7.1 and arbitration 11. The Library root's trail stops at the
+ * drive, so it has no segment naming it; a subfolder's last segment
+ * names it, and a heading there would say the same thing twice.
+ */
+const SUBJECT_BY_SCREEN: [string, () => React.ReactElement, string | null][] = [
+  [
+    "the Library root",
+    () => <FolderBrowser driveName="main" folderPath="" view="library" />,
+    "Library",
+  ],
+  [
+    "a folder under Library",
+    () => <FolderBrowser driveName="main" folderPath="videos" view="library" />,
+    null,
+  ],
+  [
+    "a folder reached by its path",
+    () => <FolderBrowser driveName="main" folderPath="videos" />,
+    null,
+  ],
+  [
+    "the drive root with no view at all",
+    () => <FolderBrowser driveName="main" folderPath="" />,
+    null,
+  ],
+];
+
+describe("which screen names itself in a heading", () => {
+  it.each(SUBJECT_BY_SCREEN)("%s", (_name, screen_, expected) => {
+    render(screen_());
+    const heading = screen.queryByRole("heading", { level: 1 });
+    expect(heading?.textContent ?? null).toBe(expected);
+  });
+
+  /**
+   * The other half of naming the subject once: a screen that names
+   * itself must also tell the trail to stop at the ancestor, or the
+   * drive is drawn as a bold leaf under a heading that already said it.
+   *
+   * **What this holds is the argument, not the rendering.** `Breadcrumb`
+   * is stood in for in this file, so what is read here is what
+   * `FolderBrowser` passes it. That the prop makes the drive a link is
+   * `Breadcrumb.test.tsx`'s "driveIsAncestor" describe, which is where
+   * the real component runs.
+   */
+  it.each(SUBJECT_BY_SCREEN)("%s tells the trail whether it is the subject", (_name, screen_, expected) => {
+    render(screen_());
+    expect(screen.getByLabelText("Breadcrumb").getAttribute("data-drive-is-ancestor")).toBe(
+      expected === null ? "no" : "yes",
+    );
+  });
+});
 
 describe("the folder header", () => {
 
