@@ -44,7 +44,7 @@ A **collection** is an ordered list of files within a single drive.
 
 - The video and audio players honour the collection order: when one file ends and **autoplay** is on, the player advances to the next item.
 - Theatre mode shows the collection queue alongside the player.
-- A collection surface is available on the drive home page when at least one collection exists.
+- The collection queue is on the file page, beside the player — not on the drive home.
 
 ### Missing or deleted files in collections
 
@@ -75,10 +75,10 @@ GET /api/drives/<drive>/collections/<id>
 
 ## Pinned folders
 
-A folder you pin is kept on the drive home page even if it has had no recent activity. Pins are per-drive and shared (same model as favourites).
+A folder you pin is kept one click away from anywhere in the drive, in the **Pins** section of the sidebar. Pins are per-drive and shared (same model as favourites).
 
-- Right-click a folder → **Pin**.
-- Click the pin icon on a pinned folder card to unpin.
+- Right-click a folder → **Pin**, or, for the folder you are already inside, the toolbar's `…` → **Pin this folder**.
+- Right-click it again → **Unpin**.
 
 ## Smart folders
 

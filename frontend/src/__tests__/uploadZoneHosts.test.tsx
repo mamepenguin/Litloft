@@ -21,13 +21,19 @@
  * against exactly such a fixture. What is only here is that a real screen
  * mounts the real producer.
  *
+ * **Where the files land is measured with them.** A zone that is present
+ * but names the wrong folder fails in the same silent way a missing one
+ * does, and from the same cause: the control that dispatches cannot see
+ * the destination, so nothing it does can disagree with it. Presence and
+ * destination are therefore one subject, not two.
+ *
  * Not held: that a drop actually uploads. jsdom fires no user-agent
  * default action, so the navigation this prevents is not observable here
  * (`.claude/rules/review-workflow.md`, "What a test here cannot hold").
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -48,7 +54,13 @@ vi.mock("@/components/ClipboardProvider", () => ({
 vi.mock("@/components/FileGrid", () => ({ FileGrid: () => <div /> }));
 vi.mock("@/components/FileList", () => ({ FileList: () => <div /> }));
 vi.mock("@/hooks/useWebSocketRefresh", () => ({ useWebSocketRefresh: () => {} }));
+const initUpload = vi.fn();
+
 vi.mock("@/lib/api", () => ({
+  initUpload: (drive: string, body: Record<string, unknown>) => initUpload(drive, body),
+  uploadChunk: vi.fn().mockResolvedValue(undefined),
+  completeUpload: vi.fn().mockResolvedValue(undefined),
+  cancelUpload: vi.fn().mockResolvedValue(undefined),
   getDriveFiles: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } }),
   getFolders: vi.fn().mockResolvedValue([]),
   getPins: vi.fn().mockResolvedValue([]),
@@ -72,21 +84,45 @@ import { FolderBrowser } from "@/components/FolderBrowser";
  * Declared per screen, not collected from what renders: a screen dropped
  * from this table takes its own assertion with it, which is the deletion
  * this file exists to catch (detector rule 5).
+ *
+ * The third column is the folder that screen's zone writes into, written
+ * out per row for the same reason — read off the rendered zone it would
+ * agree with whatever the component happened to pass.
  */
-const SCREENS: [string, () => React.ReactElement][] = [
-  ["the drive home", () => <DriveHome driveName="main" />],
-  ["the Library root", () => <FolderBrowser driveName="main" folderPath="" view="library" />],
-  ["a folder", () => <FolderBrowser driveName="main" folderPath="recipes" />],
+const SCREENS: [string, () => React.ReactElement, string][] = [
+  ["the drive home", () => <DriveHome driveName="main" />, ""],
+  ["the Library root", () => <FolderBrowser driveName="main" folderPath="" view="library" />, ""],
+  ["a folder", () => <FolderBrowser driveName="main" folderPath="recipes" />, "recipes"],
 ];
 
 describe("screens that can upload mount exactly one zone", () => {
   beforeEach(() => {
     localStorage.clear();
+    initUpload.mockReset();
+    initUpload.mockResolvedValue({ upload_id: "upload-1" });
   });
 
   it.each(SCREENS)("%s", (_name, screen) => {
     const { container } = render(screen());
     expect(container.querySelectorAll("[data-upload-zone]")).toHaveLength(1);
+  });
+
+  it.each(SCREENS)("%s sends what it takes to the folder it is showing", async (_name, screen, destination) => {
+    const { container } = render(screen());
+    const zone = container.querySelector("[data-upload-zone]")!;
+
+    // The event `useFilePicker` dispatches once the chooser returns,
+    // and the same one the drop handler raises. Going in this way is
+    // what makes the destination observable at all: it is carried by
+    // the zone's props, never by the control that started the upload.
+    zone.dispatchEvent(
+      new CustomEvent("upload-files", { detail: [new File(["x"], "note.txt")] }),
+    );
+
+    await waitFor(() => expect(initUpload).toHaveBeenCalled());
+    const [drive, body] = initUpload.mock.calls[0] as [string, { folder_path: string }];
+    expect(drive).toBe("main");
+    expect(body.folder_path).toBe(destination);
   });
 
   it("covers three screens, so a deleted row is not a silent narrowing", () => {

@@ -12,8 +12,6 @@
     "refresh": "Refresh",
     "seeAll": "See all",
     "seeAllCount": "See all ({count})",
-    "showMoreCount": "Show more ({count})",
-    "showLess": "Show less",
     "download": "Download",
     "rename": "Rename",
     "move": "Move",
@@ -76,7 +74,6 @@
   "drive": {
     "empty": "No drives found",
     "emptyDescription": "Configure drives.json to add drives.",
-    "folders": "Folders",
     "pickup": "Pickup",
     "recentAdded": "Recently Added",
     "favorites": "Favorites",
