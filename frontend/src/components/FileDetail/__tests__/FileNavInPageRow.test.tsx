@@ -1,15 +1,6 @@
 /**
- * Which file kinds get visible prev / next in the page row.
- *
- * The arrow keys walk the folder for every non-media kind — image, PDF,
- * archive, text — but only the image surface draws buttons for it. On a
- * PDF or an archive the page row sits above a viewer that has its own
- * paging, and a second pair of arrows a few pixels away reads as that
- * viewer's.
- *
- * So the rule is a list of one, and a list of one is exactly the kind
- * that rots quietly: this file names each of the five kinds that must
- * not have it, rather than asserting the image case alone.
+ * Only the image surface draws prev / next buttons: on a PDF or an archive a
+ * second pair of arrows above the viewer reads as that viewer's own paging.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -63,7 +54,6 @@ const walk: FileNavState = {
   navigateNext: vi.fn(),
 };
 
-/** Every kind the shell hosts, with the one that gets the controls. */
 const KINDS: Array<[string, Partial<FileItem>, boolean]> = [
   ["image", { filename: "DSC_0412.jpg", file_type: "image", mime_type: "image/jpeg", duration: null }, true],
   ["video", { filename: "clip.mp4", file_type: "video", mime_type: "video/mp4" }, false],
@@ -99,10 +89,6 @@ describe("prev / next in the page row", () => {
   });
 
   it("covers every kind the shell hosts", () => {
-    // Rule 7: "only the image kind has them" is also true of a table
-    // with no image row in it. Both sides are named here. `text/html`
-    // rides via `usesDocumentShell` and `.loft` via `playerKind`; both
-    // were missing, so the table's name was wider than the table.
     expect(KINDS.filter(([, , shown]) => shown).map(([name]) => name)).toEqual([
       "image",
     ]);

@@ -71,12 +71,6 @@ const defaultProps = {
 
 describe("ArchiveImageViewer", () => {
   it("tells the viewer what every drawn page turned out to be", () => {
-    // The map that lets a turn back ask about a page behind the reader
-    // has exactly one filler, and it is this call. Wired end to end and
-    // never made, pairing stopped after the first face — and neither of
-    // the hook's tests could see it, because both call
-    // `rememberOrientation` from the test body rather than through the
-    // component that owns the call.
     const rememberOrientation = vi.fn();
     render(
       <ArchiveImageViewer
@@ -201,9 +195,6 @@ describe("ArchiveImageViewer", () => {
   });
 });
 
-// DESIGN.md §Layering: an immersive viewer takes the page out of reach, not
-// just out of sight. The hook that does it is covered on its own, but that
-// proves nothing about this component being wired to it.
 describe("ArchiveImageViewer backdrop", () => {
   function outsideTheViewer() {
     const viewer = document.querySelector('[role="dialog"]');

@@ -196,10 +196,6 @@ describe("useImageViewer", () => {
   });
 
   it("auto-hides controls after 2 seconds of being left alone", () => {
-    // Not "while playing". A reader looking at one image is the case the
-    // old gate never covered, and it is the common one. 1999ms asserts
-    // the boundary rather than only that it eventually happens — 3000ms
-    // was true of a 2s timer and a 3s one alike.
     const { result } = renderHook(
       () => useImageViewer("image", imageEntries, "file-1", onClose),
       { wrapper },
@@ -250,11 +246,8 @@ describe("useImageViewer", () => {
   });
 
   it("turns the slide at the interval, not the interval plus a render", () => {
-    // The effect used to depend on the whole `paging` object, which
-    // `useSpreadPaging` rebuilds every render, so any render tore the
-    // timer down and started it again. The chrome's own idle timer
-    // guarantees one two seconds into every slide, so a 3-second
-    // interval ran at 5.
+    // `useSpreadPaging` rebuilds `paging` every render, so an effect depending
+    // on it restarts the timer whenever the chrome's idle timer re-renders.
     const { result } = renderHook(
       () => useImageViewer("image", imageEntries, "file-1", onClose),
       { wrapper },
@@ -265,7 +258,6 @@ describe("useImageViewer", () => {
     });
     expect(result.current.imageIndex).toBe(0);
 
-    // The chrome withdraws here, which is a state change in this hook.
     act(() => {
       vi.advanceTimersByTime(2000);
     });
@@ -279,11 +271,8 @@ describe("useImageViewer", () => {
   });
 
   it("does not pair on a page nothing has measured", () => {
-    // `isCurrentLandscape` is a two-valued `useState(false)` written only
-    // by the on-screen image's `onLoad`, so before that resolves the
-    // current page read as *portrait*. Collapsing the three-valued
-    // answer in the direction that pairs draws a spread and then takes
-    // it away mid-load; a stale value may only ever split.
+    // An unmeasured page must read as unknown, not portrait: pairing on a
+    // guess draws a spread and takes it away mid-load.
     localStorage.setItem("image-viewer:spread-mode", "true");
     const { result } = renderHook(
       () => useImageViewer("image", imageEntries, "file-1", onClose),
@@ -292,7 +281,6 @@ describe("useImageViewer", () => {
     act(() => {
       result.current.setImageIndex(1);
     });
-    // The neighbour has answered; this page has not.
     act(() => {
       result.current.rememberOrientation(2, "portrait");
     });
@@ -307,10 +295,8 @@ describe("useImageViewer", () => {
   });
 
   it("remembers what it has seen, so a turn back is one press", () => {
-    // A two-entry lookup cannot answer about a page behind the reader,
-    // and `pageBack` has to ask: it lands on the start of the face
-    // holding the previous index. Answered `unknown`, every backward
-    // turn landed on an intermediate single face.
+    // `pageBack` has to ask about a page behind the reader, which a
+    // two-entry lookup cannot answer.
     localStorage.setItem("image-viewer:spread-mode", "true");
     const { result } = renderHook(
       () => useImageViewer("image", imageEntries, "file-1", onClose),

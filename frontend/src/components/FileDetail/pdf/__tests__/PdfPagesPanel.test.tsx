@@ -9,10 +9,8 @@ import {
   PdfPagesTab,
 } from "../PdfPagesPanel";
 
-/** Whether the fake pages report a completed paint. */
 let reportPaint = true;
 
-/** The page numbers currently mounted in the rail, in order. */
 const mounted = () =>
   [...document.querySelectorAll("[data-thumb]")].map((el) =>
     Number(el.getAttribute("data-thumb")),
@@ -26,10 +24,6 @@ vi.mock("react-pdf", () => ({
     pageNumber: number;
     onRenderSuccess?: () => void;
   }) => {
-    // pdf.js reports each page when it has actually painted. The rail waits
-    // for that before it will grow, so a fake that never reports would leave
-    // the growth path untestable — and one that always reports would hide
-    // the gate.
     useEffect(() => {
       if (reportPaint) onRenderSuccess?.();
     }, [onRenderSuccess]);
@@ -69,8 +63,6 @@ describe("PdfPagesPanel", () => {
   it("draws a bounded window of a long document, not all of it", () => {
     render(<PdfPagesPanel controller={storeWith({ numPages: 225, page: 1 })} />);
 
-    // The number is fixed, not a bound: `toBe`, because "at most 10" is also
-    // satisfied by a rail that mounts one and a rail that mounts none.
     expect(mounted().length).toBe(INITIAL_THUMBNAIL_WINDOW);
     expect(INITIAL_THUMBNAIL_WINDOW).toBe(8);
     expect(mounted()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -78,11 +70,9 @@ describe("PdfPagesPanel", () => {
 
   it("holds the window until the pages in it have painted", () => {
     // An unpainted `<Page>` is a zero-height box, so eight of them do not
-    // fill the column and the sentinel would be in view at t=0. Measured in
-    // Chromium: 16 thumbnails mounted on load before this gate, 8 after.
+    // fill the column and the sentinel would be in view at t=0.
     reportPaint = false;
     render(<PdfPagesPanel controller={storeWith({ numPages: 225, page: 1 })} />);
-    // No sentinel means nothing to observe, so nothing can ask for more.
     expect(observers.length).toBe(0);
     expect(mounted().length).toBe(INITIAL_THUMBNAIL_WINDOW);
   });
@@ -97,7 +87,6 @@ describe("PdfPagesPanel", () => {
       );
     });
 
-    // The sentinel is `aria-hidden`, so it is not one of these.
     expect(screen.getAllByRole("listitem").length).toBe(
       INITIAL_THUMBNAIL_WINDOW * 2,
     );
@@ -107,7 +96,6 @@ describe("PdfPagesPanel", () => {
   it("never draws past the end of the document", () => {
     render(<PdfPagesPanel controller={storeWith({ numPages: 3, page: 1 })} />);
     expect(mounted()).toEqual([1, 2, 3]);
-    // And no sentinel, because there is nothing left to reach.
     expect(screen.getAllByRole("listitem").length).toBe(3);
   });
 
@@ -178,10 +166,8 @@ describe("PdfPagesPanel", () => {
     const row = within(screen.getByRole("navigation", { name: "Contents" })).getByRole(
       "button",
     );
-    // `aria-disabled`, not `disabled`: the row is still part of the table of
-    // contents its author wrote, and a `disabled` button leaves the tab
-    // order — a keyboard reader would find the list shorter than the one on
-    // screen.
+    // `aria-disabled`, not `disabled`: a `disabled` button leaves the tab
+    // order, so a keyboard reader would find the contents shorter than shown.
     expect(row.getAttribute("aria-disabled")).toBe("true");
     expect(row).not.toBeDisabled();
     fireEvent.click(row);
@@ -191,17 +177,13 @@ describe("PdfPagesPanel", () => {
   it("draws no outline section for a document without one", () => {
     render(<PdfPagesPanel controller={storeWith({ numPages: 10, page: 1, outline: [] })} />);
     expect(screen.queryByRole("navigation")).toBeNull();
-    // The rail is still there — that is the half this panel always has.
     expect(screen.getByTestId("pdf-thumbnails")).toBeInTheDocument();
   });
 });
 
 describe("PdfPagesPanel, following the document", () => {
   it("moves the window to hold the page the canvas is on, without growing it", () => {
-    // A jump to 180 left the rail showing 1-8, marking nothing, with no way
-    // to reach 180 but scrolling to the sentinel twenty-two times. Extending
-    // to 180 would answer that and mount a hundred and eighty rasters at
-    // once, which is the freeze the bound exists to prevent.
+    // Extending the window to reach page 180 would mount 180 rasters at once.
     render(<PdfPagesPanel controller={storeWith({ numPages: 225, page: 180 })} />);
 
     expect(mounted().length).toBe(INITIAL_THUMBNAIL_WINDOW);
@@ -216,8 +198,6 @@ describe("PdfPagesPanel, following the document", () => {
     const { rerender } = render(<PdfPagesPanel controller={store} />);
     expect(mounted()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
 
-    // Inside the window: nothing moves, so the rail does not jump under a
-    // reader turning pages one at a time.
     act(() => store.set({ page: 5 }));
     rerender(<PdfPagesPanel controller={store} />);
     expect(mounted()).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -233,8 +213,6 @@ describe("PdfPagesPanel, following the document", () => {
   });
 
   it("starts the window over when the document changes", () => {
-    // A reader who grew document A's rail to 40 must not open document B with
-    // 40 thumbnails mounted at once.
     const store = storeWith({ numPages: 225, page: 1, src: "/a.pdf" });
     const { rerender } = render(<PdfPagesPanel controller={store} />);
     act(() => {
@@ -251,9 +229,6 @@ describe("PdfPagesPanel, following the document", () => {
   });
 
   it("marks the outline entry the reader is inside, not only its first page", () => {
-    // An outline gives a chapter's opening page; the reader is on page 7 of a
-    // chapter that starts at 3. Matching exactly leaves every page but an
-    // opening marked as belonging to nothing.
     const store = storeWith({
       numPages: 225,
       page: 7,
@@ -283,10 +258,8 @@ describe("PdfPagesPanel, following the document", () => {
 
 describe("PdfPagesTab", () => {
   it("opens no document until the tab has been on screen", () => {
-    // `InspectorShell` mounts every panel and hides the ones that are not
-    // selected, so an eager `<Document>` means pdf.js parses the file a
-    // second time and rasterises eight pages behind a `display: none` — for
-    // every multi-page PDF, whether or not anyone opens the tab.
+    // `InspectorShell` mounts every panel and hides the unselected ones, so an
+    // eager `<Document>` would parse and rasterise behind `display: none`.
     let intersect: ((visible: boolean) => void) | null = null;
     vi.stubGlobal(
       "IntersectionObserver",
@@ -333,7 +306,6 @@ describe("PdfPagesTab", () => {
     render(<PdfPagesTab controller={storeWith({ numPages: 225, page: 1, src: "/a.pdf" })} />);
     act(() => intersect!(true));
     act(() => intersect!(false));
-    // Coming back to the tab must not re-parse the document.
     expect(mounted().length).toBe(INITIAL_THUMBNAIL_WINDOW);
   });
 });

@@ -14,16 +14,9 @@ import {
   setViewport,
 } from "./harness";
 
-// Heavy children are mocked: these suites are about FileDetail's own
-// contract, not about what the children render — those have their own
-// tests. The stub bodies live in ./harness so the three suites that
-// need the same set do not each carry a copy; `vi.mock` itself has to
-// stay here, because it is hoisted per file.
+// The stub bodies live in ./harness; `vi.mock` itself has to stay here,
+// because it is hoisted per file.
 
-// The shell draws a breadcrumb and a tree toggle, both of which read
-// the router. Media rides the shell now, so this suite mounts it for
-// real rather than behind a stub — a stub is what let a second page row
-// ship once already.
 vi.mock("next/navigation", () => ({
   usePathname: () => "/drive/main",
   useSearchParams: () => new URLSearchParams(),
@@ -43,11 +36,9 @@ vi.mock("../../ExifSection", async () => ({
 vi.mock("../../AddonSlotsProvider", async () => ({
   useAddonSlots: (await import("./harness")).useAddonSlotsStub,
 }));
-// Both exports: `ShellLayout` takes `SlotEntryRenderer` by name, so a
-// factory that returns only `AddonSlot` leaves it `undefined`. It is
-// harmless while no suite here claims a `player-side` entry, and the
-// moment one does the failure is `Element type is invalid` pointing at
-// nothing in particular.
+// Both exports: `ShellLayout` takes `SlotEntryRenderer` by name, and a
+// missing one fails as `Element type is invalid` pointing at nothing in
+// particular.
 vi.mock("../../AddonSlot", async () => {
   const harness = await import("./harness");
   return {
@@ -102,14 +93,9 @@ describe("FileDetailContent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     editableTagChipsCalls.length = 0;
-    // Default: policy resolved as enabled (the "common" case for any
-    // drive that hasn't opted out). Tests that need the legacy stack
-    // override this either by selecting a non-Markdown mime type or
-    // by remocking before render.
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
     // Title, action row and tags live in the inspector, and jsdom's
-    // 1024px would leave it collapsed. These cases are about a desktop
-    // reader, so they run at a desktop width.
+    // 1024px would leave it collapsed.
     setViewport();
   });
 
@@ -146,10 +132,6 @@ describe("FileDetailContent", () => {
   });
 
   describe("file-detail-actions slot", () => {
-    // The row that already carries ♡ ☆ ⋮ is the only place an addon can
-    // put a per-file action that is not buried in the overflow menu.
-    // Phase 2 lifts this same row into the inspector's fixed header, so
-    // the slot is named for what it holds rather than for where it sits.
     const actionRow = () =>
       screen.getByTestId("file-actions").parentElement as HTMLElement;
 
@@ -171,8 +153,6 @@ describe("FileDetailContent", () => {
       const slot = screen.getByTestId("addon-slot-file-detail-actions");
       expect(slot.dataset.propFileId).toBe("f1");
       expect(slot.dataset.propDrive).toBe("main");
-      // No sizing baked in: the same entry has to fit a 56px Bottom
-      // Sheet peek row in Phase 2.
       expect(slot.dataset.fillHeight).toBe("false");
     });
 
@@ -264,9 +244,6 @@ describe("FileDetailContent", () => {
     }
     render(<Harness />);
     await loaded();
-    // FilePreview is mocked so onMediaController isn't auto-invoked
-    // here, but the wiring (handleMediaController exists and is
-    // forwarded to the FilePreview prop) is verified by the next test.
     expect(captured).toBe("untouched");
   });
 
@@ -292,11 +269,6 @@ describe("FileDetailContent", () => {
   });
 
   it("gives the player the shell's scroll container, not the host's", async () => {
-    // On the shell it is `<main>` that scrolls, so that is what the
-    // mini player has to observe and what `--rail-avail` is measured
-    // against. The host's wrapper is still on the page and still has a
-    // height; it just never scrolls any more, so a player still handed
-    // it would be watching a box the size of the whole document.
     setApiResponses(makeFile());
     const { FilePreview: MockedPreview } = await import("../../FilePreview");
     const hostRoot = document.createElement("section");
@@ -316,8 +288,6 @@ describe("FileDetailContent", () => {
     });
   });
 
-  // ---------- Markdown DocumentLayout fork (spec 2026-05-10) ----------
-
   it("renders MarkdownDocumentLayout when mime=text/markdown and policy is enabled", async () => {
     setApiResponses(
       makeFile({
@@ -329,15 +299,10 @@ describe("FileDetailContent", () => {
     render(<FileDetailContent fileId="f1" drive="work" />);
     await loaded();
     expect(screen.getByTestId("markdown-document-layout")).toBeInTheDocument();
-    // Canvas hosts the knowledge-edit slot ...
     const canvas = screen.getByTestId("md-canvas");
     expect(
       canvas.querySelector('[data-testid="addon-slot-include:knowledge-edit"]'),
     ).not.toBeNull();
-    // 2026-05-12 inspector consolidation: the canvas footer keeps
-    // only the table-heavy summary surfaces (ActiveSummaryHost +
-    // intelligence's `detailed-summary`). Everything else — including
-    // similar-files and comments — moved into the inspector.
     expect(
       canvas.querySelector('[data-testid="active-summary-host"]'),
     ).not.toBeNull();
@@ -345,8 +310,6 @@ describe("FileDetailContent", () => {
       canvas.querySelector('[data-testid="addon-slot-include:detailed-summary"]'),
     ).not.toBeNull();
     expect(canvas.querySelector('[data-testid="comments"]')).toBeNull();
-    // Inspector hosts everything except the editor itself and the
-    // table-heavy summary slot.
     const inspector = screen.getByTestId("md-inspector");
     expect(
       inspector.querySelector(
@@ -354,8 +317,6 @@ describe("FileDetailContent", () => {
       ),
     ).not.toBeNull();
     expect(inspector.querySelector('[data-testid="comments"]')).not.toBeNull();
-    // The heavy summary belongs to the canvas footer on desktop — it
-    // must NOT also live in the inspector (no double mount).
     expect(
       inspector.querySelector('[data-testid="active-summary-host"]'),
     ).toBeNull();
@@ -367,11 +328,6 @@ describe("FileDetailContent", () => {
   });
 
   it("on mobile, suppresses the canvas footer and folds heavy summaries into the mobile sheet (2026-05-12)", async () => {
-    // Drop the viewport below the 768px breakpoint so `useIsMobile`
-    // returns true. FileDetailContent must then mount
-    // ActiveSummaryHost + detailed-summary inside the mobile sheet
-    // (alongside the regular inspector content) and skip rendering
-    // them in the canvas footer — single mount across both surfaces.
     const originalWidth = window.innerWidth;
     Object.defineProperty(window, "innerWidth", {
       configurable: true,
@@ -396,10 +352,8 @@ describe("FileDetailContent", () => {
       expect(
         sheet.querySelector('[data-testid="addon-slot-include:detailed-summary"]'),
       ).not.toBeNull();
-      // Inspector content is also folded in (single source of truth).
       expect(sheet.querySelector('[data-testid="comments"]')).not.toBeNull();
 
-      // Canvas footer must NOT render the heavy summaries on mobile.
       const canvas = screen.getByTestId("md-canvas");
       expect(
         canvas.querySelector('[data-testid="active-summary-host"]'),
@@ -418,9 +372,6 @@ describe("FileDetailContent", () => {
   });
 
   it("puts a video on the shell, not on the Markdown wrapper", async () => {
-    // The Markdown wrapper carries the save dot, the view-mode toggle
-    // and the click-to-edit filename. A video rides the same shell and
-    // none of those, so it goes to `FileDetailShell` directly.
     setApiResponses(
       makeFile({
         file_type: "video",
@@ -433,8 +384,6 @@ describe("FileDetailContent", () => {
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();
     expect(screen.getByTestId("file-detail-shell")).toBeInTheDocument();
-    // Split slot, not the legacy unfiltered one: the heavy summaries go
-    // to the canvas and everything else to the inspector.
     expect(screen.queryByTestId("addon-slot-all")).toBeNull();
     expect(
       screen.getByTestId("addon-slot-exclude:detailed-summary"),
@@ -448,14 +397,6 @@ describe("FileDetailContent", () => {
   });
 
   it("hot-switches between DocumentLayout and legacy stack when usePolicy flips mid-session (Phase 5)", async () => {
-    // Phase 5 edge-case verification: drives.json edits propagate via
-    // usePolicy's TTL cache. When the resolved enabled-ness flips
-    // (false → true or vice versa), the same FileDetailContent mount
-    // must cleanly swap layouts. The two forks rely on disjoint mounts
-    // (Editor lives under DocumentLayout; legacy slot is full
-    // <AddonSlot>) — there's no graceful in-place transition, and
-    // that's fine as long as the swap doesn't crash or stack two
-    // copies of the layout.
     usePolicyMock.mockReturnValue({ enabled: false, isLoading: false });
     setApiResponses(
       makeFile({
@@ -468,24 +409,16 @@ describe("FileDetailContent", () => {
       <FileDetailContent fileId="f1" drive="work" />,
     );
     await loaded();
-    // Phase 1: legacy stack.
     expect(
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();
 
-    // Server-side toggle: knowledge.editor flips to true. After the
-    // policy hook's TTL the next render returns enabled=true.
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
     rerender(<FileDetailContent fileId="f1" drive="work" />);
 
-    // Phase 2: DocumentLayout fork is now active; legacy slot gone.
     expect(screen.getByTestId("markdown-document-layout")).toBeInTheDocument();
     expect(screen.queryByTestId("addon-slot-all")).toBeNull();
 
-    // And back again: policy flips off. What it flips *to* is no longer
-    // the legacy stack — every kind rides the shell on this surface now
-    // — so the note keeps its page row and its inspector and loses only
-    // the editor, which is the thing the policy is about.
     usePolicyMock.mockReturnValue({ enabled: false, isLoading: false });
     rerender(<FileDetailContent fileId="f1" drive="work" />);
     expect(
@@ -495,11 +428,6 @@ describe("FileDetailContent", () => {
   });
 
   it("drops the editor but keeps the shell when usePolicy reports it disabled", async () => {
-    // This used to fall all the way back to the legacy vertical stack.
-    // The policy is about the *editor*, and taking the page row and the
-    // inspector away with it was the list-of-kinds predicate speaking,
-    // not a decision: a note with the editor off is a viewer like any
-    // other, and viewers ride the shell.
     usePolicyMock.mockReturnValue({ enabled: false, isLoading: false });
     setApiResponses(
       makeFile({
@@ -517,11 +445,8 @@ describe("FileDetailContent", () => {
   });
 
   it("uses DocumentLayout while usePolicy is still loading (no 30s refetch flicker)", async () => {
-    // `usePolicy` is fail-open: it returns `enabled=true` both on the
-    // initial load AND during the 30s-TTL background refetch. The
-    // consumer reads only `enabled` so a periodic refetch can't flip
-    // the layout branch and unmount the Editor mid-edit (observed as
-    // a 30-second reload while typing).
+    // The consumer must read only `enabled`: gating on `isLoading` lets the
+    // 30s-TTL background refetch unmount the Editor mid-edit.
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: true });
     setApiResponses(
       makeFile({
@@ -537,14 +462,7 @@ describe("FileDetailContent", () => {
     ).toBeInTheDocument();
   });
 
-  // ---------- Phase 3.5: inspector content-mode wiring ----------
-
   it("wires inspector EditableTagChips in content-mode when the editor has registered for the .md file", async () => {
-    // Phase 3.5 spec 2026-05-10 §D2 / hako ZWLqXgdTwt9le4dAI3U8C: when
-    // the Knowledge Editor is mounted (and has registered itself in
-    // markdownContentRegistry), the inspector's tag chips must run
-    // in content-mode against the editor's shared `content` state —
-    // not standalone — to eliminate the etag race.
     const { markdownContentRegistry } = await import(
       "@/lib/markdownContentRegistry"
     );
@@ -574,14 +492,10 @@ describe("FileDetailContent", () => {
     expect(typeof inspectorChipProps!.content).toBe("string");
     expect(inspectorChipProps!.content).toContain("body");
     expect(typeof inspectorChipProps!.onContentChange).toBe("function");
-    // Standalone-mode plumbing must NOT be active simultaneously —
-    // mixed mode would still let saveFileTags fire its own GET/PUT.
     expect(inspectorChipProps!.initialTags).toBeUndefined();
 
-    // The forwarded onContentChange routes through the registry's
-    // setContent — single writer. The same tagChipNode renders in
-    // both the inspector and the mobile Sheet's "tags" tab, so scope
-    // the click to the inspector copy.
+    // The same tagChipNode renders in both the inspector and the mobile
+    // Sheet's "tags" tab, so scope the click to the inspector copy.
     const inspector = screen.getByTestId("md-inspector");
     inspector
       .querySelector<HTMLButtonElement>('[data-testid="tag-content-write"]')!
@@ -595,10 +509,6 @@ describe("FileDetailContent", () => {
   });
 
   it("falls back to standalone-mode chips when no editor is registered for the file", async () => {
-    // Defensive: if for any reason the editor never mounts (e.g. the
-    // Knowledge addon is still loading, or the inline flag is off but
-    // the layout fork still triggered), the inspector must keep
-    // working as a standalone tag editor.
     const { markdownContentRegistry } = await import(
       "@/lib/markdownContentRegistry"
     );
@@ -623,10 +533,6 @@ describe("FileDetailContent", () => {
   });
 
   it("refetches the file when the editor signals save-success via the registry (hako 0RnZ1KdtomAfIJPLAGIHA)", async () => {
-    // Phase 3 follow-up: in content-mode the inspector chip group does
-    // not own the save path, so its onSaveSuccess is unwired. The host
-    // (FileDetailContent) subscribes to the registry's save channel so
-    // that an editor-driven PUT still triggers File.tags refetch.
     const { markdownContentRegistry } = await import(
       "@/lib/markdownContentRegistry"
     );
@@ -652,13 +558,10 @@ describe("FileDetailContent", () => {
     render(<FileDetailContent fileId="f1" drive="work" />);
     await waitFor(() => expect(api.getFile).toHaveBeenCalledTimes(1));
 
-    // Editor reports a successful PUT.
     act(() => {
       markdownContentRegistry.notifySaved("f1");
     });
 
-    // The host refetches so the inspector's tags catch up to the new
-    // server state without waiting for navigation.
     await waitFor(() => {
       expect(api.getFile).toHaveBeenCalledTimes(2);
     });
@@ -667,8 +570,6 @@ describe("FileDetailContent", () => {
   });
 
   it("does not refetch on save notifications for a different fileId", async () => {
-    // The subscription is per-fileId; another file's editor saving
-    // must not poke this host into a refetch loop.
     const { markdownContentRegistry } = await import(
       "@/lib/markdownContentRegistry"
     );
@@ -688,7 +589,6 @@ describe("FileDetailContent", () => {
       markdownContentRegistry.notifySaved("other-file");
     });
 
-    // Give React a tick to apply any (incorrect) refetch effect.
     await new Promise((r) => setTimeout(r, 10));
     expect(api.getFile).toHaveBeenCalledTimes(1);
 
@@ -696,9 +596,6 @@ describe("FileDetailContent", () => {
   });
 
   it("keeps standalone-mode chips for non-Markdown files even when something is registered (defensive)", async () => {
-    // The registry is keyed by fileId, not mime — but the document
-    // layout fork is the only consumer. Non-Markdown files use the
-    // legacy vertical stack and must always be standalone.
     const { markdownContentRegistry } = await import(
       "@/lib/markdownContentRegistry"
     );
@@ -725,9 +622,7 @@ describe("FileDetailContent", () => {
     markdownContentRegistry.reset();
   });
 
-  // Spec 2026-08-29-description-timestamp-links.md. SeekableDescription
-  // is deliberately not mocked here — the point of these two is that the
-  // host reaches it at all, and only for media.
+  // SeekableDescription is deliberately not mocked here.
   describe("description timestamps", () => {
     it("links the timestamps in a video's description", async () => {
       setApiResponses(
@@ -786,6 +681,3 @@ describe("FileDetailContent", () => {
     });
   });
 });
-
-// Spec 2026-08-11-transcript-following-playback.md §3. Core owns where
-// the companion goes; the occupant has no say in it.

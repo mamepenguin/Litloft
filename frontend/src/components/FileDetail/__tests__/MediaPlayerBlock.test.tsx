@@ -1,25 +1,3 @@
-/**
- * Which box each thing under the player lives in.
- *
- * `.media-detail-player` is not "the top of the page": it is the playable
- * surface the reader must keep whole. The Bottom Sheet's `half` is solved
- * against its bottom edge, `--player-avail` caps its width, and on a
- * phone the stylesheet sticks it to the top of the canvas. So what is
- * inside it and what is merely near it are different claims, and this is
- * where they are separated.
- *
- * The defect it exists for: the addon panel that `.loft` files get was
- * rendered inside that box, which put `half` below a `.loft` video's
- * bottom edge and nowhere else. Nothing failed, because no test asked
- * which box anything was in. Then the first fix drew a wrapper *around*
- * the player to hold both, which took `position: sticky`'s travel away —
- * so both directions are asserted below.
- *
- * jsdom lays nothing out, so neither the 80px nor the lost pinning is
- * re-measured here. What is held is the containment that produced them;
- * the geometry is `e2e-layout/mobile-inspector-sheet.spec.ts`'s.
- */
-
 import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { createRef } from "react";
@@ -39,7 +17,6 @@ vi.mock("../../MediaLayoutToggle", () => ({
   MediaLayoutToggle: () => <button type="button">layout</button>,
 }));
 
-/** Which slots have an occupant registered, per case. */
 const filled = new Set<string>();
 
 vi.mock("../../AddonSlotsProvider", () => ({
@@ -116,11 +93,10 @@ describe("the player block", () => {
   });
 
   it("draws it as the player's sibling, and never as a box around it", () => {
-    // Both halves, because the second is the trap. `position: sticky`
-    // travels only inside its own containing block, so a wrapper drawn
-    // around the player to hold both boxes has the player's own height
-    // and leaves it no travel at all — the phone's pinned player scrolls
-    // off the top instead. That shipped once, from this file.
+    // `position: sticky` travels only inside its own containing block, so
+    // a wrapper drawn around the player to hold both boxes has the
+    // player's own height and leaves it no travel at all — the phone's
+    // pinned player scrolls off the top instead.
     const { container, player, aside } = renderBlock(makeFile(LOFT));
 
     expect(player.parentElement).toBe(container);
@@ -132,22 +108,9 @@ describe("the player block", () => {
   });
 
   /**
-   * Why the box may be absent, enumerated — and it is not everything.
-   *
-   * Each row names one question this file can answer. The reason the
-   * table is declared per state rather than counted is that answering a
-   * subset is what shipped twice: the kind alone left every install
-   * without the addon, and the kind with the registry left every file
-   * whose occupant chose to draw nothing.
-   *
-   * **The third question is not in this table**, because it is not this
-   * file's to answer and jsdom could not see it anyway: an occupant that
-   * renders nothing leaves the box in the document, and what takes it out
-   * of the layout is `empty:hidden` plus the `:not(:empty)` in the rule
-   * that gives it a row. The case below asserts the class; the pixels are
-   * `mediaDetailTheaterCss.test.ts`'s selector comparison and, on the
-   * legacy grid, a measurement by hand — no fixture in this repository
-   * draws `.media-detail-grid`.
+   * An occupant that renders nothing is not in this table: it leaves the
+   * box in the document, and what takes it out of the layout is
+   * `empty:hidden`.
    */
   const ABSENT = [
     { name: "a local file, with the slot filled", loft: false, filled: true },
@@ -176,17 +139,9 @@ describe("the player block", () => {
   });
 
   it("hides the box itself when its occupant drew nothing", () => {
-    // The question neither the kind nor the registry can answer. The
-    // occupant decides at render time and has reasons that are not
+    // The occupant decides at render time and has reasons that are not
     // failures — the Media Import panel draws nothing for a `.loft` file
-    // whose provider metadata has not been fetched, with the addon
-    // installed and its policy on. Without this the box stays in the
-    // document, takes its grid row, and the reader gets the row gap twice
-    // under the video for as long as that lasts.
-    //
-    // The class, not the layout: jsdom computes no `:empty` and lays
-    // nothing out. `AddButton` carries the same pairing over the same
-    // helper, for the same reason.
+    // whose provider metadata has not been fetched.
     const { aside } = renderBlock(makeFile(LOFT));
     expect(aside!.className.split(/\s+/)).toContain("empty:hidden");
   });

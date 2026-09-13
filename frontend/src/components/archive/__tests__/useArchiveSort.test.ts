@@ -160,7 +160,6 @@ describe("useArchiveSort", () => {
 
     expect(dirs).toHaveLength(1);
     expect(dirs[0].filename).toBe("folder");
-    // image file is kept, document file is dropped
     const files = sorted.filter((e) => !e.is_dir);
     expect(files).toHaveLength(1);
     expect(files[0].file_type).toBe("image");

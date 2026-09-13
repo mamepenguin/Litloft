@@ -1,15 +1,6 @@
 /**
- * How many page rows a file detail surface ends up with.
- *
- * The other suites in this directory stub `markdown/MarkdownDocumentLayout`,
- * which is where the second row comes from — so none of them can see a
- * duplicate, and one shipped. This file leaves the shell real and stubs
- * only the leaves below it, so the row it draws is the row a reader
- * would get.
- *
- * It covers the content's half. The host's half — whether `RightPaneFile`
- * and `FileDetailFullScreen` add one of their own — is in those hosts'
- * own suites, where the guard lives.
+ * This file leaves `markdown/MarkdownDocumentLayout` real and stubs only the
+ * leaves below it, because that layout is where a second row would come from.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -43,10 +34,7 @@ vi.mock("../../AddonSlotsProvider", async () => ({
   useAddonSlots: (await import("./harness")).useAddonSlotsStub,
 }));
 // Both exports: `ShellLayout` takes `SlotEntryRenderer` by name, so a
-// factory that returns only `AddonSlot` leaves it `undefined`. It is
-// harmless while no suite here claims a `player-side` entry, and the
-// moment one does the failure is `Element type is invalid` pointing at
-// nothing in particular.
+// factory that returns only `AddonSlot` leaves it `undefined`.
 vi.mock("../../AddonSlot", async () => {
   const harness = await import("./harness");
   return {
@@ -113,8 +101,7 @@ describe("file detail page row", () => {
     render(<FileDetailContent fileId="f1" drive="main" />);
     // Waited on rather than `loaded()`: on this branch the action row
     // lives in the inspector, and jsdom's 1024px viewport leaves the
-    // inspector closed, so `file-actions` never appears. The row itself
-    // is what these assertions are about anyway.
+    // inspector closed, so `file-actions` never appears.
     await screen.findByTestId("file-detail-chrome");
 
     expect(screen.getAllByTestId("file-detail-chrome")).toHaveLength(1);
@@ -122,10 +109,6 @@ describe("file detail page row", () => {
   });
 
   it("puts the file's own folder in that row", async () => {
-    // `folderPath` is threaded from the resolved file through the
-    // presenter and the Markdown wrapper before it reaches the
-    // breadcrumb. Every step of that is invisible to the suites that
-    // stub the wrapper: delete the prop and they all stay green.
     setApiResponses(markdownFile());
     render(<FileDetailContent fileId="f1" drive="main" />);
     const row = await screen.findByTestId("file-detail-chrome");
@@ -148,8 +131,6 @@ describe("file detail page row", () => {
   });
 
   it("draws none on the collection route, where the host owns the row", async () => {
-    // `/files/{id}` keeps the legacy stack, so its row comes from the
-    // host — which is not mounted here. Nothing in between may draw one.
     setApiResponses(makeFile());
     render(<FileDetailContent fileId="f1" drive="main" surface="collection" />);
     await loaded();

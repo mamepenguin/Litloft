@@ -71,9 +71,6 @@ describe("ArchiveEntryGrid", () => {
       />
     );
 
-    // Global next-intl mock resolves "archive.emptyFolder" to the en.json
-    // entry; if not present it falls back to the namespace.key literal.
-    // Match either form.
     const empty =
       screen.queryByText(/empty folder/i) ??
       screen.queryByText("archive.emptyFolder") ??
@@ -101,7 +98,6 @@ describe("ArchiveEntryGrid", () => {
     expect(screen.getByText("photos")).toBeInTheDocument();
     expect(screen.getByText("a.jpg")).toBeInTheDocument();
     expect(screen.getByText("b.txt")).toBeInTheDocument();
-    // Each entry becomes a clickable card button
     const buttons = screen.getAllByRole("button");
     expect(buttons.length).toBe(entries.length);
   });
@@ -153,11 +149,6 @@ describe("ArchiveEntryGrid", () => {
   });
 
   describe("page names", () => {
-    // A 190-page comic reads `p01_001.jpg` … `p01_190.jpg` under 190
-    // identical thumbnails. The names are the same word repeated; the
-    // pictures are the thing being chosen between. The grid has every
-    // entry of the level in hand, so unlike the paged file listing this
-    // count is the true one.
     const pages = (n: number, ext = "jpg") =>
       Array.from({ length: n }, (_, i) =>
         makeEntry(`p01_${String(i).padStart(3, "0")}.${ext}`, {
@@ -211,8 +202,6 @@ describe("ArchiveEntryGrid", () => {
     });
 
     it("does not let a folder make the images look mixed", () => {
-      // A level of pages plus a "next chapter" folder is still a level
-      // of pages as far as the page names go.
       render(
         <ArchiveEntryGrid
           entries={[...pages(5), makeEntry("chapter-2/")]}

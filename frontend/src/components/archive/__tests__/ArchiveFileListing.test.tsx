@@ -76,9 +76,6 @@ describe("ArchiveFileListing", () => {
     expect(sizes).toHaveLength(2); // readme.txt and image.jpg
   });
 
-  // ARC-1. A row that opens says so by being pressable; writing a reason and
-  // a way out on a row that already has one is the inverse of the rule that
-  // keeps a column out of the listing when every cell would say the same.
   it("offers a reason and a download only where the row is a dead end", () => {
     render(<ArchiveFileListing {...defaultProps} />);
     expect(screen.queryByText("No preview")).toBeNull();
@@ -102,9 +99,8 @@ describe("ArchiveFileListing", () => {
       "image.jpg",
     ]);
     expect(links[0].textContent).toBe("Download");
-    // A name per row, not per control: a 2 439-file ZIP otherwise hands a
-    // screen reader that many links all called "Download". The visible word
-    // stays inside the name, so WCAG 2.5.3's containment holds.
+    // The visible word stays inside the name, so WCAG 2.5.3's containment
+    // holds.
     expect(links.map((a) => a.getAttribute("aria-label"))).toEqual([
       "Download readme.txt",
       "Download image.jpg",
@@ -121,9 +117,9 @@ describe("ArchiveFileListing", () => {
       <ArchiveFileListing {...defaultProps} isClickable={(e) => e.is_dir} />
     );
 
-    // The one button left is the directory's. A `disabled` row put an
-    // unreachable control in the tab order and dimmed the name that would
-    // have explained it, which DESIGN.md §6 forbids for exactly that reason.
+    // The one button left is the directory's. A `disabled` row puts an
+    // unreachable control in the tab order and dims the name that would
+    // explain it.
     const buttons = screen.getAllByRole("button");
     expect(buttons.length).toBe(1);
     expect(buttons[0].textContent).toContain("photos");
@@ -132,11 +128,6 @@ describe("ArchiveFileListing", () => {
   });
 
   it("puts the touch floor on the row, so rows are evenly pitched", () => {
-    // jsdom computes no layout, so what is asserted is the class that
-    // decides it. Measured in Chromium with a coarse pointer: without this
-    // the dead-end rows were 44px (the Download's own floor) and the
-    // openable ones 40, which is the uneven pitch DESIGN.md §Row Actions
-    // rules out.
     render(
       <ArchiveFileListing {...defaultProps} isClickable={(e) => e.is_dir} />
     );
@@ -148,7 +139,6 @@ describe("ArchiveFileListing", () => {
   });
 
   it("keeps every openable row a control", () => {
-    // The assertion above is also true of a listing that rendered nothing.
     render(<ArchiveFileListing {...defaultProps} />);
     expect(screen.getAllByRole("button").length).toBe(3);
   });

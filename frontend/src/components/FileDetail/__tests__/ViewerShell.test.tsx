@@ -1,34 +1,3 @@
-/**
- * Every kind that is not the document form on `FileDetailShell`.
- *
- * It began as §7 of the 2026-09 redesign — PDF, archives and images —
- * and the rest of the kinds arrived by removing the list rather than by
- * lengthening it. What the list produced was never a decision about the
- * kinds outside it: an `.xlsx` had no inspector and no way to open one,
- * and neither did `text/plain`, which was the largest group left behind
- * and has a perfectly good viewer. The shell is the skeleton for opening
- * a file, so on the canonical surface every kind rides it and the rows
- * below say so one kind at a time.
- *
- * The measurement that produced it: a 190-page comic at 1512×807 gave
- * its viewer 100px and the metadata under it 440px. The viewer's height
- * came from its own contents, so the deeper the archive the less of it
- * was on screen, and every section below it moved when you went down a
- * level. Nothing here is about the viewers themselves — that is Phase 4.
- * It is about the column they are in.
- *
- * The shell is left real, as in `MediaShell.test.tsx`. Stubbing it is
- * what let a second page row ship once already.
- *
- * **What these rows cannot see**, named so a green tick is not read as
- * covering it: anything decided by layout. jsdom lays nothing out, so
- * the canvas floor is invisible here in one direction — measured,
- * adding a spreadsheet's mime to `FLOORED_MIMES` survives this file
- * entirely, while taking archives out of it does not, because the
- * archive case asserts the flag. Whether the inspector is a pane, an
- * overlay or a sheet at a given width is `ShellLayout`'s own suite and
- * a browser's; the widths themselves were measured by hand.
- */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
@@ -121,15 +90,6 @@ vi.mock("../../SidebarProvider", async () => {
 const PDF = { mime_type: "application/pdf", file_type: "document" as const };
 const ARCHIVE = { mime_type: "application/x-zip-compressed", file_type: "archive" as const };
 const IMAGE = { mime_type: "image/jpeg", file_type: "image" as const };
-/**
- * The kinds that were only ever a fallthrough.
- *
- * Two of them have a viewer (`TextPreview` reads the text ones), and two
- * have only the "cannot show this" panel with its download and its
- * extracted excerpt. Both halves are here because the skeleton is the
- * same question either way: the old stack gave all four a full-width
- * column of metadata and no inspector at all.
- */
 const SPREADSHEET = {
   mime_type:
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -159,30 +119,11 @@ const KINDS: [string, Partial<FileItem>][] = [
   ["a file nothing can preview", UNKNOWN],
 ];
 
-/**
- * The population, pinned — because `describe.each` will happily run a
- * shorter table and report a smaller, greener number.
- *
- * Measured before this existed: deleting the two rows this whole change
- * was made to add left `48 passed` and `tsc --noEmit` with no errors,
- * and nothing anywhere said 8 rows was ever the count. That is detector
- * rule 1's second sentence exactly — shrinking the measured scope
- * without moving the expected count is not shrinking it.
- *
- * Two assertions, because they fail on different things. The count
- * catches any row leaving. The `file_type` set catches a whole *kind*
- * leaving, which is the failure that matters here and which the count
- * would miss if a row were swapped rather than dropped — and it is
- * declared, not collected, so a deletion cannot take both sides with it.
- */
 const KIND_COUNT = 8;
 
 /**
- * Every `FileType` this suite is responsible for.
- *
  * Not all seven: `video` and `audio` ride the shell through
- * `MediaShell.test.tsx`, which owns the player-shaped rows this file has
- * no equivalent of. Written out rather than derived from `FileType` so
+ * `MediaShell.test.tsx`. Written out rather than derived from `FileType` so
  * the split between the two suites is a statement someone has to change
  * on purpose.
  */
@@ -219,19 +160,13 @@ beforeEach(() => {
   window.localStorage.clear();
   // Clearing storage is not enough: `readMediaLayout` prefers the
   // attribute the store writes onto <html>, which outlives a test.
-  // Without this a test that stores "stacked" still reads the "beside"
-  // an earlier test left behind — and a companion gate that should have
-  // failed passes, because on "beside" the companion is in the tab strip
-  // whatever the gate says.
   document.documentElement.removeAttribute("data-media-layout");
   setViewport();
 });
 
 async function renderKind(kind: Partial<FileItem>) {
-  // A non-empty description on purpose. The harness default is "", which
-  // is what let this file miss the description being drawn twice: an
-  // empty string renders nothing in either place, so both copies of
-  // nothing looked like one.
+  // A non-empty description on purpose: the harness default "" renders
+  // nothing in either place, so two copies of nothing look like one.
   setApiResponses(
     makeFile({
       description: "Recorded on location.",
@@ -253,10 +188,6 @@ const tabs = () =>
 
 describe.each(KINDS)("%s on the shell", (_name, kind) => {
   it("puts its viewer in the canvas, alone", async () => {
-    // The whole of §7. Nothing else is in the column with it, so its
-    // height is no longer what is left over after the metadata — and
-    // going a level down inside it cannot move anything, because there
-    // is nothing below it to move (ARC-5).
     const { container } = await renderKind(kind);
 
     const canvas = container.querySelector(".media-detail-host")!;
@@ -266,16 +197,8 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
   });
 
   it("draws the description once, and in the inspector", async () => {
-    // A video's description is its show notes and reads with the player,
-    // so the canvas takes it. A PDF's is a property of the file and
-    // reads with the title and the size, so the inspector keeps it. Both
-    // halves are one value in the container: spelled separately, the
-    // canvas drew it for every kind while the inspector drew it for
-    // every kind without a player, and three of them had it twice.
-    //
     // `getAllByText(...).toHaveLength(1)` and not `toContain` on the
-    // container's text: a substring check passes on two copies, which is
-    // how this shipped in the first place.
+    // container's text: a substring check passes on two copies.
     const { container } = await renderKind(kind);
 
     expect(screen.getAllByText("Recorded on location.")).toHaveLength(1);
@@ -286,20 +209,13 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
   });
 
   it("gives it the same fixed inspector as every other kind", async () => {
-    // "The same shape on every kind of file" is the point of the shell:
-    // a reader who has learnt where a file's tags are on a video finds
-    // them in the same place on a PDF.
     await renderKind(kind);
 
     expect(screen.getByTestId("inspector-pane")).toBeInTheDocument();
     const row = screen.getByTestId("file-action-row");
     expect(row).toBeInTheDocument();
     // The inspector's row is not the compact strip, and it needs the touch
-    // floor for the same reason: the same controls at a 2-4px pitch. The CSS
-    // named only the compact class, so this row sat at 32px on a coarse
-    // pointer — measured in a browser — while the strip cleared 44. jsdom does
-    // no layout, so this pins the hook and `mediaDetailTheaterCss` pins the
-    // rule it selects.
+    // floor for the same reason: the same controls at a 2-4px pitch.
     expect(row.classList.contains("file-action-row-touch")).toBe(true);
     expect(row.classList.contains("file-action-row-compact")).toBe(false);
     expect(screen.getByTestId("comments")).toBeInTheDocument();
@@ -307,16 +223,6 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
   });
 
   it("draws exactly one page row, with exactly one way back in it", async () => {
-    // The failure this replaces: a host drawing a row for a kind that
-    // now brings its own gave two breadcrumbs and, on a phone, two back
-    // controls.
-    //
-    // The back link is asserted here and not only in
-    // `FileDetailPageRow.test.tsx`, which covers a note and a video —
-    // both of which rode the shell already. For the kinds this change
-    // moved, the row is new, and "the row exists" is not the property
-    // MB-3 was about: a page row with no way out of it is the shape
-    // that shipped once.
     await renderKind(kind);
 
     expect(screen.getAllByTestId("file-detail-chrome")).toHaveLength(1);
@@ -326,10 +232,6 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
   });
 
   it("offers no tab strip until something has a tab to claim", async () => {
-    // §7 asks for the *container* for a page list, not for an empty tab
-    // announcing that one could exist. When Phase 4 gives the archive
-    // viewer a page list, its tab appears with no edit to the strip.
-    //
     // The addon is installed and claiming the slot, on the default
     // `beside` preference — which is the arrangement where an entry that
     // reached the strip would become a tab. `stacked` cannot show this:
@@ -348,8 +250,7 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
     // 384px column has not got. It does *not* draw the Knowledge editor
     // — that is the other form of this shell — so the inspector must be
     // asked for it rather than have it withheld. Excluding it here would
-    // send it to neither column, which is how a video lost the knowledge
-    // addon's card once already.
+    // send it to neither column.
     await renderKind(kind);
 
     expect(
@@ -361,16 +262,9 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
   });
 
   it("offers nothing that belongs to a player, on the stored preference that would show it", async () => {
-    // A PDF has no playback clock, so nothing follows it. The companion,
-    // its tabs and the control that moves them between the two are a
-    // player's; a viewer that is not one has none of them. The addon is
-    // installed here, which is exactly the case that used to conflate
-    // "has a viewer" with "has a player".
-    //
     // `stacked`, and not the default. On `beside` the companion is in
     // the tab strip whatever the player gate says, so a missing
-    // `!hasPlayer` is invisible — which is where two of the three gates
-    // were hiding.
+    // `!hasPlayer` is invisible.
     claimSlot("player-side", [
       { id: "transcript", label: "Transcript", priority: 10, addonName: "some-addon" },
     ]);
@@ -411,14 +305,10 @@ describe("the PDF's page-list tab", () => {
 
   it("does not appear for a one-page document with nothing in it", async () => {
     await renderPdf({ numPages: 1, outline: [] });
-    // And with `info` left alone, no tab strip at all — `buildInspectorTabs`
-    // rule 2.
     expect(tabs()).toEqual([]);
   });
 
   it("does not appear for a file that publishes no document at all", async () => {
-    // Every other kind on this shell. The tab must not be a PDF-shaped hole
-    // in an image's inspector.
     publishedPdfState.value = null;
     await renderKind(PDF);
     expect(tabs()).toEqual([]);
@@ -459,9 +349,6 @@ describe("the archive's page-list tab", () => {
   });
 
   it("draws no strip for an archive holding one entry", async () => {
-    // One entry is not an index: the canvas already shows it, so the tab
-    // has nothing the canvas does not (rule 1), and with Info left alone
-    // there is no strip either (rule 2).
     await renderArchive(["only.jpg"]);
     expect(tabs()).toEqual([]);
   });
@@ -512,9 +399,7 @@ describe("the archive's page-list tab", () => {
 
   it("never gives a canvas holding a player one", async () => {
     // `container-type` around a `<video>` renders the whole subtree
-    // rotated and spinning on iOS Safari (`DESIGN.md`). The exclusion is
-    // in `viewerTakesCanvasFloor`, not in the CSS, so it is testable
-    // here — jsdom evaluates no container query.
+    // rotated and spinning on iOS Safari (`DESIGN.md`).
     const { container } = await renderKind({
       mime_type: "video/mp4",
       file_type: "video",
@@ -527,12 +412,7 @@ describe("the archive's page-list tab", () => {
     // not a player: a PDF, an archive and a photograph all draw inside
     // the same `.media-detail-player` wrapper, so a gate written on
     // "does this canvas have a viewer" would derive a snap from a
-    // document's first page. The gate is `hasPlayer`, and this is where
-    // it can fail — the wrapper is given a box, and the sheet still
-    // opens at the fixed fraction.
-    //
-    // jsdom lays nothing out, so the box is a stub and this is evidence
-    // about the gate, not about where anything lands.
+    // document's first page. The gate is `hasPlayer`.
     const original = Element.prototype.getBoundingClientRect;
     Element.prototype.getBoundingClientRect = function (this: Element) {
       if (this.classList.contains("media-detail-player")) {

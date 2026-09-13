@@ -1,17 +1,6 @@
 /**
- * Shared stubs for the FileDetail suites.
- *
- * The suites that mount the real `FileDetailContent` — the surface's
- * contract, its media canvas, and its page row — need the same heavy
- * children replaced, so the stub bodies live here and each suite keeps
- * only its own
- * `vi.mock()` lines. Those lines cannot move: `vi.mock` is hoisted per
- * file, so a helper that called it for you would run in the wrong file.
- * What they can do is `await import("./harness")` inside the factory,
- * which is why every stub below is exported rather than inlined.
- *
- * `state` is mutable on purpose. It is how a test says "an addon claims
- * this slot" or "the policy is still loading" without re-mocking.
+ * Each suite keeps its own `vi.mock()` lines: `vi.mock` is hoisted per file,
+ * so a helper that called it for you would run in the wrong file.
  */
 import { useEffect } from "react";
 import { vi } from "vitest";
@@ -32,46 +21,21 @@ import {
   type ArchiveState,
 } from "@/lib/archiveController";
 
-/**
- * Which slots an addon has claimed, and with what.
- *
- * `occupied` answers `hasSlot`, which is all most suites need. `entries`
- * answers `getSlotEntries`, which the inspector's tab strip reads —
- * there one tab is one entry, so a test that wants two tabs has to say
- * what the second one is.
- */
 export const slotMocks = {
   occupied: new Set<string>(),
   entries: new Map<string, SlotEntry[]>(),
 };
 
-/** Props every `EditableTagChips` render was given, newest last. */
 export const editableTagChipsCalls: Array<Record<string, unknown>> = [];
 
-/** Stands in for `usePolicy`; each suite's `beforeEach` sets a return. */
 export const usePolicyMock = vi.fn();
 
-/**
- * Detects any accidental `useOverlaySidebar()` call. The contract
- * (spec 2026-05-09 §3.2, §3.4) says FileDetailContent must NOT touch
- * overlay state — the host is responsible for that.
- */
 export const overlaySidebarSpy = vi.fn();
 
-/**
- * What the stubbed viewer publishes upward, when a test wants it to.
- *
- * The PDF viewer hands the shell a `PdfController` and the shell decides
- * whether the page-list tab exists from what that controller says the
- * document holds. A stub that never publishes leaves that decision
- * permanently on its "no document" branch, so the tab's own rules would look
- * covered while nothing exercised them.
- */
 export const publishedPdfState: { value: Partial<PdfDocumentState> | null } = {
   value: null,
 };
 
-/** What the archive viewer would publish, when a test wants one. */
 export const publishedArchiveState: {
   value: Partial<ArchiveState> | null;
 } = { value: null };
@@ -126,21 +90,11 @@ export const useAddonSlotsStub = () => ({
   hasSlot: (slotId: string) => slotMocks.occupied.has(slotId),
 });
 
-/** One addon entry in a slot, and `hasSlot` told about it as well. */
 export function claimSlot(slotId: string, entries: SlotEntry[]) {
   slotMocks.occupied.add(slotId);
   slotMocks.entries.set(slotId, entries);
 }
 
-/**
- * Stands in for an addon's own component, wherever it is placed.
- *
- * The two buttons are how a test plays the addon's part. `onAvailability`
- * is the entry's channel for saying whether it has anything for this
- * file, and pressing them is the only way to exercise it from outside —
- * the alternative, asserting that core passed *a function*, would go on
- * passing after core stopped honouring the answer.
- */
 export function SlotEntryRendererStub({
   entry,
   props,
@@ -192,8 +146,6 @@ export function AddonSlotStub({
   excludeIds?: string[];
   props?: Record<string, unknown>;
 }) {
-  // Surface the filter intent to the DOM so tests can assert which
-  // copy of the slot (canvas vs. inspector) ran.
   const tag =
     id !== "file-detail-sections"
       ? id
@@ -263,13 +215,6 @@ export function EditableTagChipsStub(props: Record<string, unknown>) {
   );
 }
 
-/**
- * Core's own companion occupant. Mocked like the other heavy children:
- * what it renders is its own test's business, while these files care
- * only that the host places it and counts it as an occupant. The button
- * lets a test fire `onResolved` at a moment it controls, rather than
- * racing an effect.
- */
 export function ChaptersPanelStub({
   onResolved,
   refreshToken,
@@ -279,10 +224,6 @@ export function ChaptersPanelStub({
   refreshToken?: number;
   className?: string;
 }) {
-  // `className` is passed through because it is the host's half of the
-  // contract: the panel sits in three regions with three height budgets
-  // and holds none of them itself, so a stub that dropped the class
-  // would make every one of those placements look identical.
   return (
     <div
       data-testid="chapters-panel"
@@ -321,13 +262,8 @@ export function makeFile(overrides: Partial<FileItem> = {}): FileItem {
 }
 
 /**
- * Wait for the fetched file to be on screen, not merely requested.
- *
- * `api.getFile` is called during the first commit, so a wait on the mock
- * having been called is already true the moment it runs: it returns before
- * the response lands, leaving every synchronous query after it racing the
- * state update. `FileActions` renders only past the `!file` spinner
- * branch, so finding it is the same event stated in terms of the DOM.
+ * `api.getFile` is called during the first commit, so waiting on the mock
+ * having been called returns before the response lands.
  */
 export const loaded = () => screen.findByTestId("file-actions");
 
@@ -337,18 +273,8 @@ export function setApiResponses(file: FileItem) {
 }
 
 /**
- * Set the viewport width. Defaults to a desktop one.
- *
  * jsdom reports 1024px, which is under the inspector's default-open
- * threshold, so a file that rides the shell renders with the inspector
- * collapsed — and the action row, the title and the tags live in the
- * inspector now. A suite asserting on any of them is asserting about a
- * desktop reader, so it has to be at a desktop width; otherwise it is
- * testing the collapsed state and calling it the layout. Pass a phone
- * width to test the other side of that.
- *
- * Call before `render`. `notifyViewportChange` is for anything already
- * mounted, since the store derives the default at read time.
+ * threshold, so the inspector would render collapsed.
  */
 export function setViewport(width = 1400) {
   Object.defineProperty(window, "innerWidth", {
