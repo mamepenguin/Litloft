@@ -61,9 +61,12 @@ These fire on `/drive/<name>` and `/drive/<name>/<path>` pages.
 | `Cmd/Ctrl+V` | Paste into the current folder |
 | `Cmd/Ctrl+N` | Create an empty `untitled-{timestamp}.md` in the current folder and open it in the editor (see [Browsing files → Creating a new file](file-browsing.md#creating-a-new-file)) |
 
-`Cmd/Ctrl+N` needs a concrete destination folder, so it is a no-op in search
-results and in the flat virtual views (favourites, smart folders). A tag filter
-applied *inside* a folder does have one, and creates into that folder.
+`Cmd/Ctrl+N` and `Cmd/Ctrl+V` both need a concrete destination folder, so both
+are no-ops in search results, in the flat virtual views (favourites, liked,
+recently viewed, recently added, all files) and under a tag applied at the drive
+root. Nothing is said when you press them there — the screen has nowhere to put
+anything, so nothing happens. A tag filter applied *inside* a folder does have a
+destination, and both work into that folder.
 
 Copy / cut / paste act on the current selection, which is empty until you turn
 selection on, so they are no-ops until then.
