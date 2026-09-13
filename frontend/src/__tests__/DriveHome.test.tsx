@@ -91,6 +91,9 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { DriveHome } from "../components/DriveHome";
+// The catalogue itself, so a prompt's words are read from where a real
+// one would take them rather than guessed at here.
+import messages from "@/messages-core/en.json";
 import { AddButton } from "@/components/AddButton";
 import type { WatchHistoryItem } from "@/types";
 
@@ -378,6 +381,154 @@ describe("the drive home's content rows", () => {
   });
 });
 
+/**
+ * The stage-1 acceptance criteria this screen owns.
+ *
+ * Spec 2026-09-12-purpose-oriented-navigation §16. AC 2's accent half is
+ * held in `accent-budget.test.tsx`, which reaches this screen; the rest
+ * is here.
+ */
+/**
+ * Every way this app words an invitation to set up a profile.
+ *
+ * Read out of the catalogue rather than invented, because that is where
+ * a real prompt's words would come from — and because the shapes a test
+ * author imagines are not the shapes that ship. Measured: a `<p>` using
+ * `empty.noRecentNoProfileDescription` passes both a `/nickname/i` match
+ * and a sweep of the page's controls, which is what the two assertions
+ * this replaced were between them supposed to cover.
+ */
+const PROFILE_PROMPT_WORDS = [
+  messages.empty.noRecentNoProfileTitle,
+  messages.empty.noRecentNoProfileDescription,
+  messages.profile.setup,
+  messages.profile.nickname,
+  messages.profile.change,
+];
+
+/** Every section name on screen, read off the headings the rows draw. */
+function sectionNames(): string[] {
+  return screen.queryAllByRole("heading", { level: 2 }).map((h) => h.textContent ?? "");
+}
+
+describe("the drive home's acceptance criteria", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    slotIsRegistered.current = false;
+    mockProfile.nickname = null;
+    mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
+    mockGetWatchHistory.mockResolvedValue([]);
+  });
+
+  /**
+   * AC 3 — Recently Added includes every file type and every way a file
+   * arrived.
+   *
+   * The whole query is declared, not just the parts that should be
+   * there. `objectContaining` cannot see a narrowing: a `type: "video"`
+   * added later satisfies it, and so does `type: undefined`, which is
+   * why "the arguments do not contain `type`" is not the assertion
+   * either. A key appearing moves this side of the equality by itself.
+   */
+  it("asks for Recently Added without narrowing it to a type or a source", async () => {
+    render(<DriveHome driveName="media" />);
+    await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalled());
+
+    const recentAdded = mockGetDriveFiles.mock.calls.find(
+      ([, params]) => !(params as Record<string, unknown>).favorite && !(params as Record<string, unknown>).liked,
+    );
+    expect(recentAdded).not.toBeUndefined();
+    const [drive, params] = recentAdded as [string, Record<string, unknown>];
+    expect(drive).toBe("media");
+    // The key set first, then the values. `toEqual` on the object alone
+    // would let `type: undefined` through — it ignores keys whose value
+    // is undefined — and `type: undefined` is exactly how a narrowing
+    // gets written by accident.
+    expect(Object.keys(params).sort()).toEqual(["limit", "order", "sort"]);
+    expect(params).toEqual({ sort: "created_at", order: "desc", limit: 12 });
+  });
+
+  /**
+   * AC 6 — a reader with no profile gets neither watch row, and is not
+   * asked to make one.
+   *
+   * Both halves, because either alone passes over the other's failure: a
+   * page that hides the rows and nags still fails AC 6, and so does one
+   * that stays quiet and draws empty rows.
+   */
+  it("omits both watch rows for a reader with no profile, and does not ask for one", async () => {
+    mockProfile.nickname = null;
+    render(<DriveHome driveName="media" />);
+
+    // **Wait for the rows, not for the header.** `Add` is on the first
+    // paint; the three file rows are not. Each draws a skeleton with a
+    // *See all* link while loading, so asserting before they settle
+    // sees a page mid-fetch. That is what made this case fail about one
+    // shuffled run in eight — a race the shuffle perturbs, not an order
+    // dependency. This fixture's drive has no files, so every row removes
+    // itself once its fetch lands.
+    await waitFor(() => expect(sectionNames()).toEqual([]));
+
+    expect(sectionNames()).not.toContain("Continue Watching");
+    expect(sectionNames()).not.toContain("Recently Viewed");
+
+    expect(mockGetWatchHistory).not.toHaveBeenCalled();
+
+    // Spec §6.2: "No profile prompt is added to Home."
+    //
+    // Asserted against the words this app would use, taken from the
+    // catalogue, rather than against a shape. Two earlier attempts at
+    // this asserted a shape — the word "nickname", and the page's list
+    // of controls — and a paragraph carrying the app's own
+    // `empty.noRecentNoProfile…` copy walked through both.
+    //
+    // `document`, not the render's container: overlays here portal to
+    // `document.body`, so a prompt drawn as a modal or a banner would
+    // land outside a container by construction.
+    for (const words of PROFILE_PROMPT_WORDS) {
+      expect(document.body.textContent).not.toContain(words);
+    }
+
+    // And no control that leads to where a profile is set. A prompt does
+    // not have to say any of the words above to be one.
+    expect(document.querySelector('a[href*="/settings"]')).toBeNull();
+  });
+
+  it("takes both watch rows away again when the profile is cleared", async () => {
+    // The render gate, which the fetch gate cannot stand in for. Clearing
+    // a nickname in Settings flips `hasProfile` true → false on a live
+    // instance, and the two watch lists are only ever *written* under
+    // `hasProfile` — so nothing empties them and the rows would go on
+    // showing the history of a reader who has just asked not to be one.
+    mockProfile.nickname = "Alice";
+    mockGetWatchHistory.mockResolvedValue([makeWatchHistoryItem("v1")]);
+    const { rerender } = render(<DriveHome driveName="media" />);
+    await waitFor(() => expect(sectionNames()).toContain("Continue Watching"));
+
+    mockProfile.nickname = null;
+    rerender(<DriveHome driveName="media" />);
+
+    await waitFor(() => {
+      expect(sectionNames()).not.toContain("Continue Watching");
+      expect(sectionNames()).not.toContain("Recently Viewed");
+    });
+  });
+
+  it("draws both watch rows once a profile is set", async () => {
+    // The population for the case above: without this, hiding the rows
+    // unconditionally would satisfy it.
+    mockProfile.nickname = "Alice";
+    mockGetWatchHistory.mockResolvedValue([makeWatchHistoryItem("v1")]);
+    render(<DriveHome driveName="media" />);
+    await screen.findByRole("button", { name: "Add" });
+
+    await waitFor(() => {
+      expect(sectionNames()).toContain("Continue Watching");
+      expect(sectionNames()).toContain("Recently Viewed");
+    });
+  });
+});
+
 describe("the drive root's header", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -395,13 +546,28 @@ describe("the drive root's header", () => {
     expect(add.closest("header")).not.toBeNull();
   });
 
-  it("names no subject of its own", async () => {
-    // The breadcrumb is the subject on this screen, so `PageHeader` emits
-    // no `<h1>` (`page-headings.test.ts` holds the other side of this).
-    // Moving the header into that component must not have introduced one.
+  it("names itself, once, and says which drive it is", async () => {
+    // A trail here would stop at the drive and repeat the scope line, so
+    // this screen names itself instead (spec §6.1, arbitration 24).
+    //
+    // `toEqual` on the array holds the count as well as the word, and
+    // that is this line's job rather than someone else's:
+    // `page-headings.test.ts` scans *source text* for hand-written `<h1>`
+    // tags and cannot see one emitted through `PageHeader`, which is
+    // every heading on this screen. Relaxing this to `toContain` would
+    // delete the only check on AC 2's word "one".
     const { container } = render(<DriveHome driveName="media" />);
     await screen.findByRole("button", { name: "Add" });
-    expect(container.querySelectorAll("h1")).toHaveLength(0);
+    const headings = Array.from(container.querySelectorAll("h1")).map(
+      (h) => h.textContent,
+    );
+    expect(headings).toEqual(["Home"]);
+    // The trail, queried the way `Breadcrumb` draws it: a bare `<nav>`.
+    // It carries no `aria-label` of its own — only the home link inside
+    // it does — so a selector asking for one matches nothing whether the
+    // trail is there or not.
+    expect(container.querySelector("nav")).toBeNull();
+    expect(screen.getByText("media")).not.toBeNull();
   });
 
   /**

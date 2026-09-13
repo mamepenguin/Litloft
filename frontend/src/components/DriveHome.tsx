@@ -10,7 +10,6 @@ import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 import { AddButton } from "./AddButton";
 import { AddonSlot } from "./AddonSlot";
-import { Breadcrumb } from "./Breadcrumb";
 import { CarouselSection } from "./CarouselSection";
 import { ContinueWatchingSection } from "./ContinueWatchingSection";
 import { PageHeader } from "./PageHeader";
@@ -87,6 +86,11 @@ const SECTION_LIMIT = 12;
 
 export function DriveHome({ driveName }: DriveHomeProps) {
   const t = useTranslations("drive");
+  // The sidebar's name for this destination, not a second one. The row
+  // in the sidebar and the heading on the page name the same place, and
+  // two keys for that is two things to keep in step. Same choice as the
+  // Library root's title in `FolderBrowser`.
+  const tSidebar = useTranslations("sidebar");
   const { nickname } = useProfile();
   const hasProfile = nickname !== null;
   const refreshTree = useTreeRefresh();
@@ -289,9 +293,29 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       onUploadComplete={refreshPage}
       className="flex w-full min-w-0 flex-1 flex-col"
     >
-      {/* The same header the folder and file views draw, in its titleless
-          form: the breadcrumb is the subject here, so `PageHeader` emits
-          no `<h1>` and puts the actions on the trail row beside it.
+      {/* The same header the folder and file views draw. This screen
+          names itself: a trail here would stop at the drive and say
+          nothing the scope line does not (spec
+          2026-09-12-purpose-oriented-navigation §6.1).
+
+          What the trail did carry was this page's one link to the drive
+          picker — the home icon at its head, not the drive chip. That
+          link now lives only in the sidebar, which starts closed in
+          overlay mode. So with a pointer the picker is a hamburger away
+          rather than a press away.
+
+          A keyboard reaches it without opening anything: the closed
+          panel is moved off-screen by a transform and marked
+          `aria-hidden`, and neither takes its links out of the tab
+          order. That is the state WAI-ARIA forbids, it predates this
+          change, and it is the sidebar's to fix.
+
+          The tree toggle stays, against the same section of the spec.
+          It does not name the subject — it puts the folder tree away,
+          and this route mounts that pane, so a reader arriving with the
+          tree on would otherwise have nothing here to close it with
+          (arbitration 24; `driveHomeTreeClosable.test.tsx`).
+
           Y-aligned with FolderBrowser's, so the tree toggle sits at the
           same height on the drive root, in a sub folder and on a file.
 
@@ -301,7 +325,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           anything below it. */}
       <PageHeader
         leading={<TreeToggle drive={driveName} />}
-        breadcrumb={<Breadcrumb driveName={driveName} folderPath="" />}
+        title={tSidebar("home")}
+        scope={driveName}
         actions={
           <AddButton
             // Rightmost here, unlike the folder toolbar's leftmost one:

@@ -59,8 +59,28 @@ function sourceFiles(): string[] {
 
 const HEADING = /<h[1-6][\s/>]/g;
 
+/**
+ * Headings the file draws, not headings it mentions.
+ *
+ * `stripComments` first, for the reason `cardTiles` uses it: a comment
+ * that writes an element's own tag is the ordinary way to explain what
+ * the code around it does, and a scan that counts those is satisfied by
+ * prose. Measured: before this, an assertion that a file still drew a
+ * heading was green over a file whose heading had been deleted and
+ * mentioned in a comment.
+ *
+ * **Its limit.** The walker skips string literals so a `//` inside a URL
+ * is not read as a comment, and it does not know it is looking at JSX.
+ * A quote that never closes — `'`, `"` or a backtick, all three enter
+ * string state alike — therefore opens a span that runs to the next
+ * quote anywhere in the file, and comments inside it stay unblanked. An
+ * apostrophe in JSX text is the everyday way that happens; it is not the
+ * only one. `no comment survives the stripper` below holds this
+ * mechanically over the files this suite scans, so it cannot go quietly
+ * stale the way a survey written here would.
+ */
 function headingsIn(jsx: string): number {
-  return [...jsx.matchAll(HEADING)].length;
+  return [...stripComments(jsx).matchAll(HEADING)].length;
 }
 
 /**
@@ -226,17 +246,56 @@ describe("list mode holds the same line", () => {
 });
 
 describe("section headings are untouched", () => {
-  it("still marks up the drive home's section names", () => {
-    // The other half of D-5: an outline of six section names is the
-    // point, so this sweep must not have been satisfied by removing
-    // those too. `section-headings.test.ts` owns their styling; this
-    // asserts only that they are still headings, and that none of them
-    // sits inside a card.
+  /**
+   * The components that draw a drive-home section's name, and the
+   * number of headings each one emits.
+   *
+   * Declared per file, because the point of the other half of D-5 is
+   * that the card sweep did not take the section outline with it — and
+   * a lower bound cannot say that. This previously asked
+   * `DriveHome.tsx` for `headingsIn(body) > 0`, which was satisfied by
+   * the string `<h1>` inside one of that file's comments: the page has
+   * never drawn a section heading itself, its rows do.
+   */
+  const SECTION_HEADING_SOURCES: [string, number][] = [
+    ["frontend/src/components/CarouselSection.tsx", 1],
+    ["frontend/src/components/ContinueWatchingSection.tsx", 1],
+  ];
+
+  it.each(SECTION_HEADING_SOURCES)("%s still marks its name up as a heading", (rel, expected) => {
+    expect(headingsIn(readFileSync(resolve(REPO_ROOT, rel), "utf-8"))).toBe(expected);
+  });
+
+  /**
+   * No comment survives the stripper, in any file this suite counts
+   * headings in.
+   *
+   * `headingsIn` is only as good as `stripComments`, and that walker
+   * treats an unclosed quote in JSX text as the start of a string — so a
+   * `<span>Here's …</span>` above a heading leaves every comment after
+   * it intact and the count is then satisfied by prose. This holds the
+   * precondition mechanically instead of surveying for it by hand:
+   * whichever file first acquires such a quote goes red here, in CI,
+   * rather than quietly making a sibling assertion meaningless.
+   */
+  it("leaves no comment behind in the files whose headings are counted", () => {
+    const scanned = [
+      ...SECTION_HEADING_SOURCES.map(([rel]) => rel),
+      "frontend/src/components/FileListRow.tsx",
+      "frontend/src/components/FolderListRow.tsx",
+      "frontend/src/components/DriveHome.tsx",
+    ];
+    const leftovers = scanned.filter((rel) =>
+      stripComments(readFileSync(resolve(REPO_ROOT, rel), "utf-8")).includes("{/*"),
+    );
+    expect(leftovers).toEqual([]);
+  });
+
+  it("keeps the drive home itself free of card tiles", () => {
     const body = readFileSync(
       resolve(REPO_ROOT, "frontend/src/components/DriveHome.tsx"),
       "utf-8",
     );
-    expect(headingsIn(body)).toBeGreaterThan(0);
     expect(cardTiles(body)).toEqual([]);
   });
 });

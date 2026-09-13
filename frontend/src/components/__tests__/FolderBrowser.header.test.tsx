@@ -40,6 +40,7 @@ vi.mock("@/components/Breadcrumb", () => ({
       aria-label="Breadcrumb"
       data-drive={String(props.driveName ?? "")}
       data-folder={String(props.folderPath ?? "")}
+      data-drive-is-ancestor={props.driveIsAncestor ? "yes" : "no"}
       data-drop-props={props.getDropTargetProps ? "yes" : "no"}
       data-drop-target={props.isDropTarget ? "yes" : "no"}
     >
@@ -235,6 +236,76 @@ function renderFolder(
     <FolderBrowser driveName="main" folderPath="videos" {...props} />,
   );
 }
+
+/**
+ * Who names the subject, on the screens this PR's rule governs.
+ *
+ * Declared per state rather than derived from what renders, so a screen
+ * that stops naming itself moves this side of the equality on its own
+ * (`review-workflow.md` detector rule 5). The `<h1>` text is the whole
+ * expectation: `null` means the trail is the subject and `PageHeader`
+ * emits no heading.
+ *
+ * Spec §7.1 and arbitration 11. The Library root's trail stops at the
+ * drive, so it has no segment naming it; a subfolder's last segment
+ * names it, and a heading there would say the same thing twice.
+ *
+ * **Not every state this component reaches.** Search has a heading and
+ * no trail and is covered by its own `describe` below. The cross-drive
+ * views (`?view=favorites` and its siblings) render with no folder path
+ * at all: they name themselves nowhere and their trail has no segments,
+ * so the drive is drawn as a dead leaf. That is unchanged by this PR and
+ * left alone by spec §7.2, and it is why `Breadcrumb`'s docstring calls
+ * them a third kind rather than folding them into the pairing rule.
+ */
+const SUBJECT_BY_SCREEN: [string, () => React.ReactElement, string | null][] = [
+  [
+    "the Library root",
+    () => <FolderBrowser driveName="main" folderPath="" view="library" />,
+    "Library",
+  ],
+  [
+    "a folder under Library",
+    () => <FolderBrowser driveName="main" folderPath="videos" view="library" />,
+    null,
+  ],
+  [
+    "a folder reached by its path",
+    () => <FolderBrowser driveName="main" folderPath="videos" />,
+    null,
+  ],
+  [
+    "the drive root with no view at all",
+    () => <FolderBrowser driveName="main" folderPath="" />,
+    null,
+  ],
+];
+
+describe("which screen names itself in a heading", () => {
+  it.each(SUBJECT_BY_SCREEN)("%s", (_name, screen_, expected) => {
+    render(screen_());
+    const heading = screen.queryByRole("heading", { level: 1 });
+    expect(heading?.textContent ?? null).toBe(expected);
+  });
+
+  /**
+   * The other half of naming the subject once: a screen that names
+   * itself must also tell the trail to stop at the ancestor, or the
+   * drive is drawn as a bold leaf under a heading that already said it.
+   *
+   * **What this holds is the argument, not the rendering.** `Breadcrumb`
+   * is stood in for in this file, so what is read here is what
+   * `FolderBrowser` passes it. That the prop makes the drive a link is
+   * `Breadcrumb.test.tsx`'s "driveIsAncestor" describe, which is where
+   * the real component runs.
+   */
+  it.each(SUBJECT_BY_SCREEN)("%s tells the trail whether it is the subject", (_name, screen_, expected) => {
+    render(screen_());
+    expect(screen.getByLabelText("Breadcrumb").getAttribute("data-drive-is-ancestor")).toBe(
+      expected === null ? "no" : "yes",
+    );
+  });
+});
 
 describe("the folder header", () => {
 
@@ -554,6 +625,36 @@ describe("the trail's drop target", () => {
   it("is offered once a drag starts elsewhere in the app", () => {
     dragging.internal = true;
     renderFolder();
+    expect(dropProps()).toEqual({ handlers: "yes", target: "yes" });
+  });
+
+  /**
+   * Where the trail is offered, by screen.
+   *
+   * The cases above all run at `folderPath="videos"`, where a condition
+   * on the folder path and one without it agree — so they cannot see a
+   * gate that withholds the props at the root. A round of this PR added
+   * such a gate and a later one took it out again, and neither move
+   * turned anything red.
+   *
+   * The root is where it matters. The trail there carries one chip, the
+   * drive, and at the Library root that is the folder the reader is
+   * standing in — but it is also the destination for anything dragged
+   * out of the tree pane, which lists the whole drive. Both attributes
+   * are read, because `isDropTarget` is what draws the accent ring and
+   * `getDropTargetProps` is what accepts the drop; a gate reduced to one
+   * of them is a target that lights up and refuses, or one that takes a
+   * drop with no sign it would.
+   */
+  const OFFERED_BY_SCREEN: [string, () => React.ReactElement][] = [
+    ["a folder", () => <FolderBrowser driveName="main" folderPath="videos" />],
+    ["the Library root", () => <FolderBrowser driveName="main" folderPath="" view="library" />],
+    ["the drive root with no view", () => <FolderBrowser driveName="main" folderPath="" />],
+  ];
+
+  it.each(OFFERED_BY_SCREEN)("%s offers the trail while a drag is in flight", (_name, screen_) => {
+    dragging.internal = true;
+    render(screen_());
     expect(dropProps()).toEqual({ handlers: "yes", target: "yes" });
   });
 });
