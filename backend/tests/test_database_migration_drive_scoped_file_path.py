@@ -368,7 +368,7 @@ def test_resolve_db_path_conflict_ignores_other_drive(tmp_path):
     ghost_id = ghost.id
 
     # Free the slot for drive B — must leave drive A's ghost untouched.
-    resolve_db_path_conflict(db, "x.md", "B")
+    resolve_db_path_conflict(db, "x.md", "B", takes_thumbnail_slot=True)
     db.commit()
 
     refreshed = db.query(File).filter(File.id == ghost_id).one()
@@ -396,7 +396,7 @@ def test_resolve_db_path_conflict_still_handles_same_drive_ghost(tmp_path):
     db.commit()
     trashed_id = trashed.id
 
-    resolve_db_path_conflict(db, "y.md", "A")
+    resolve_db_path_conflict(db, "y.md", "A", takes_thumbnail_slot=True)
     db.commit()
 
     assert db.query(File).filter(File.id == trashed_id).first() is None

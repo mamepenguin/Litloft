@@ -4,7 +4,6 @@ import os
 import re
 import shutil
 import unicodedata
-from contextlib import ExitStack
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -159,7 +158,9 @@ def _ensure_empty_folder_tracked(db: Session, drive: str, folder_path: str) -> N
         db.add(EmptyFolder(drive=drive, path=folder_path))
 
 
-def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
+def resolve_db_path_conflict(
+    db: Session, new_rel: str, drive: str, *, takes_thumbnail_slot: bool
+) -> None:
     """Free the UNIQUE ``file_path`` slot at ``new_rel`` *within* ``drive``
     before a create / move / rename / upload writes that path.
 
@@ -203,14 +204,14 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
     if conflict.deleted_at is not None:
         db.delete(conflict)
     else:
-        # Only when the pointer names the slot the incoming path takes: leaving
-        # it there means the Missing row shows the new file's picture, and
+        # Only when the arriving file really writes this row's slot: leaving the
+        # pointer then means the Missing row shows the new file's picture, and
         # purging the row — the one action it is kept for — unlinks a thumbnail
-        # the live copy is using. A Markdown projection is keyed by row id
-        # instead, so nothing takes it over and clearing it only strands the
-        # JPEG, which no purge can then reach.
+        # the live copy is using. Clearing it in any other case is the same loss
+        # the other way round, because the purge reaches the JPEG through this
+        # pointer and nothing else ever will.
         folder, _, name = new_rel.rpartition("/")
-        if conflict.thumbnail_path == path_thumbnail_rel(
+        if takes_thumbnail_slot and conflict.thumbnail_path == path_thumbnail_rel(
             drive, folder, Path(name).stem
         ):
             conflict.thumbnail_path = None
@@ -266,12 +267,36 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     new_id = generate_nanoid()
     new_rel = f"{target_folder}/{new_filename}" if target_folder else new_filename
 
+    new_thumb_rel = path_thumbnail_rel(dst_drive, target_folder, Path(new_filename).stem)
+    new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
+    # Markdown thumbnails are projections owned by the note ID, so they are
+    # regenerated from the copy's own content instead of taking this slot.
+    old_thumb = (
+        config.THUMBNAILS_DIR / source.thumbnail_path
+        if source.thumbnail_path and not _is_markdown_file(source)
+        else None
+    )
+    # Only video thumbnails follow a move, so an image moved out of a folder
+    # still points at the thumbnail it left there, and copying it back names one
+    # file on both sides — which `copy2` refuses. `samefile` rather than a path
+    # comparison, because the drive is read through a mount that folds case and
+    # Unicode normalisation. The copy takes no pointer in that case: the slot
+    # belongs to the row already naming it, and two rows sharing one JPEG means
+    # purging either blanks the other.
+    fills_thumbnail_slot = (
+        old_thumb is not None
+        and old_thumb.exists()
+        and not (new_thumb.exists() and old_thumb.samefile(new_thumb))
+    )
+
     # Free the UNIQUE file_path slot if a stale ghost holds it. Done BEFORE
     # creating the FS file so an active 409 conflict doesn't leave an orphan
     # file on disk. (_resolve_copy_filename only avoids FS collisions; a DB
     # ghost with no FS copy would otherwise pass that check and then blow up
     # at db.commit with an IntegrityError.)
-    resolve_db_path_conflict(db, new_rel, dst_drive)
+    resolve_db_path_conflict(
+        db, new_rel, dst_drive, takes_thumbnail_slot=fills_thumbnail_slot
+    )
 
     # Atomic copy: create exclusive target then copy content to prevent TOCTOU race
     projected_thumb: Path | None = None
@@ -307,56 +332,27 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
             liked_at=None,
         )
 
-        # The thumbnail is published when the row that names it commits, and
-        # not before: the slot can already hold a retired record's picture, and
-        # writing onto it destroys that picture whatever happens next.
-        with ExitStack() as pending_thumbnail:
-            # Markdown thumbnails are projections owned by the note ID, so they
-            # must be regenerated below instead of copied to the generic
-            # path-based cache.
-            if source.thumbnail_path and not _is_markdown_file(source):
-                old_thumb = config.THUMBNAILS_DIR / source.thumbnail_path
-                new_thumb_rel = path_thumbnail_rel(
-                    dst_drive, target_folder, Path(new_filename).stem
-                )
-                new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
-                # Only video thumbnails follow a move, so an image moved out of
-                # a folder still points at the thumbnail it left there, and
-                # copying it back names one file on both sides — which `copy2`
-                # refuses, failing the whole copy for a file the reader can
-                # see. `samefile` rather than a path comparison, because the
-                # drive is read through a mount that folds case and Unicode
-                # normalisation: two spellings reach the one JPEG. The copy
-                # takes no pointer in that case; the slot belongs to the row
-                # already naming it, and two rows sharing one JPEG means
-                # purging either blanks the other.
-                if old_thumb.exists() and not (
-                    new_thumb.exists() and old_thumb.samefile(new_thumb)
-                ):
-                    staged_thumb = pending_thumbnail.enter_context(
-                        generating_file(new_thumb)
-                    )
-                    shutil.copy2(str(old_thumb), str(staged_thumb))
-                    new_file.thumbnail_path = new_thumb_rel
+        if fills_thumbnail_slot:
+            new_file.thumbnail_path = new_thumb_rel
 
-            try:
-                db.add(new_file)
-                if _is_markdown_file(new_file):
-                    content = _read_markdown_for_projection(new_full)
-                    if content is not None:
-                        project_markdown_thumbnail(db, new_file, content)
-                        if new_file.thumbnail_path:
-                            projected_thumb = (
-                                config.THUMBNAILS_DIR / new_file.thumbnail_path
-                            )
-                remove_empty_folder_if_has_files(db, dst_drive, target_folder)
-                db.commit()
-            except Exception as exc:
-                db.rollback()
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Copy failed (DB error, filesystem reversed): {exc}",
-                ) from exc
+        try:
+            db.add(new_file)
+            if _is_markdown_file(new_file):
+                content = _read_markdown_for_projection(new_full)
+                if content is not None:
+                    project_markdown_thumbnail(db, new_file, content)
+                    if new_file.thumbnail_path:
+                        projected_thumb = (
+                            config.THUMBNAILS_DIR / new_file.thumbnail_path
+                        )
+            remove_empty_folder_if_has_files(db, dst_drive, target_folder)
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Copy failed (DB error, filesystem reversed): {exc}",
+            ) from exc
     except Exception:
         try:
             new_full.unlink()
@@ -371,6 +367,16 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
             except OSError:
                 pass
         raise
+
+    # A thumbnail is a cache the scanner can rebuild, so it is filled after the
+    # row is durable and never inside the handler that reverses the filesystem:
+    # a copy that arrived must not be undone because its picture did not.
+    if fills_thumbnail_slot:
+        try:
+            with generating_file(new_thumb) as staged_thumb:
+                shutil.copy2(str(old_thumb), str(staged_thumb))
+        except OSError:
+            logger.warning("Copied %s but could not fill %s", new_rel, new_thumb_rel)
 
     db.refresh(new_file)
     return new_file
@@ -399,7 +405,12 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    resolve_db_path_conflict(db, new_rel, file.drive)
+    resolve_db_path_conflict(
+        db,
+        new_rel,
+        file.drive,
+        takes_thumbnail_slot=file.file_type == "video" and bool(file.thumbnail_path),
+    )
 
     old_full.rename(new_full)
 
@@ -477,7 +488,12 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    resolve_db_path_conflict(db, new_rel, dst_drive)
+    resolve_db_path_conflict(
+        db,
+        new_rel,
+        dst_drive,
+        takes_thumbnail_slot=file.file_type == "video" and bool(file.thumbnail_path),
+    )
 
     new_full.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(old_full), str(new_full))

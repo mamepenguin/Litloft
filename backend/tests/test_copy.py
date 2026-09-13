@@ -326,29 +326,27 @@ class TestBatchCopy:
         assert [e["id"] for e in data["errors"]] == [f2.id]
         assert (drive_dir / "dest" / "a.mp4").exists()
 
-    def test_a_failed_thumbnail_copy_leaves_no_file_behind(self, client, monkeypatch):
-        """The body lands before the thumbnail is copied, so a thumbnail that
-        fails strands a *complete* file with no row pointing at it.
+    def test_a_thumbnail_that_cannot_be_copied_does_not_fail_the_paste(
+        self, client, monkeypatch
+    ):
+        """A thumbnail is a cache the next scan rebuilds. Reversing a file the
+        user can see, because its picture did not follow, loses the only copy of
+        something and keeps the copy of something replaceable."""
+        import app.config as config
+        from app.models import File
 
-        Worse than the empty shell: it is byte-identical to a legitimate copy,
-        so the next scan indexes it as a genuine second file and the one that
-        did copy has already been suffixed around it.
-        """
         c, db, drive_dir, data_dir = client
         first = _seed_with_thumbnail(db, drive_dir, data_dir, "a.mp4", folder="one")
-        second = _seed(db, drive_dir, "a.mp4", folder="two")
+        second = _seed(db, drive_dir, "b.mp4", folder="two")
 
         real_copy2 = shutil.copy2
-        calls = {"n": 0}
 
-        def fail_second(src, dst, *args, **kwargs):
-            calls["n"] += 1
-            # The first call is the file body; the second is its thumbnail.
-            if calls["n"] == 2:
+        def fail_the_jpeg(src, dst, *args, **kwargs):
+            if str(dst).endswith(".jpg") or ".jpg." in Path(dst).name:
                 raise OSError(28, "No space left on device")
             return real_copy2(src, dst, *args, **kwargs)
 
-        monkeypatch.setattr("app.services.fileops.shutil.copy2", fail_second)
+        monkeypatch.setattr("app.services.fileops.shutil.copy2", fail_the_jpeg)
 
         res = c.post(
             "/api/files/batch/copy",
@@ -356,15 +354,21 @@ class TestBatchCopy:
         )
 
         assert res.status_code == 200
-        data = res.json()
-        assert data["copied"] == 1
-        # The file with the thumbnail is the one that failed. Without this
-        # the case passes just as well when the second `copy2` is another
-        # file's *body* — which is what it becomes the moment anything stops
-        # the thumbnail being copied here.
-        assert [e["id"] for e in data["errors"]] == [first.id]
-        assert calls["n"] == 3
-        assert sorted(p.name for p in (drive_dir / "dest").iterdir()) == ["a.mp4"]
+        assert res.json() == {"copied": 2, "errors": []}
+        assert sorted(p.name for p in (drive_dir / "dest").iterdir()) == [
+            "a.mp4",
+            "b.mp4",
+        ]
+        landed = (
+            db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.file_path == "dest/a.mp4")
+            .one()
+        )
+        assert c.get(f"/api/files/{landed.id}/thumbnail").status_code == 200
+        assert (
+            sorted(p.name for p in (config.THUMBNAILS_DIR / TEST_DRIVE / "dest").glob("*"))
+            == []
+        )
 
     def test_a_copy_onto_a_missing_record_keeps_that_record(self, client):
         """The other side of the ghost case, and the one that needs no error.
@@ -852,7 +856,20 @@ class TestBatchCopy:
         assert res.status_code == 200
         assert res.json() == {"copied": 1, "errors": []}
         assert (drive_dir / "dest" / "a.mp4").exists()
-        assert linked.read_bytes() == b"\xff\xd8\xff\xe0fake-jpeg"
+        copied_row = (
+            db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.file_path == "dest/a.mp4")
+            .one()
+        )
+        # One JPEG under two names is one JPEG: naming it from the copy as well
+        # means purging the copy takes the source's picture with it.
+        assert copied_row.thumbnail_path is None
+        assert c.delete(f"/api/files/{copied_row.id}").status_code == 200
+        assert c.delete(f"/api/files/{copied_row.id}/purge").status_code == 200
+        assert (
+            c.get(f"/api/files/{source.id}/thumbnail").content
+            == b"\xff\xd8\xff\xe0fake-jpeg"
+        )
 
     def test_a_thumbnail_that_fails_midway_leaves_nothing_in_the_cache(
         self, client, monkeypatch
@@ -879,7 +896,8 @@ class TestBatchCopy:
             "/api/files/batch/copy",
             json={"ids": [source.id], "target_folder_path": "dest"},
         )
-        assert res.json()["copied"] == 0
+        assert res.json() == {"copied": 1, "errors": []}
+        assert (drive_dir / "dest" / "a.mp4").exists()
         assert (
             sorted(p.name for p in (config.THUMBNAILS_DIR / TEST_DRIVE / "dest").glob("*"))
             == []
@@ -992,6 +1010,94 @@ class TestBatchCopy:
         )
         assert res.json()["copied"] == 0
         assert sorted(p.name for p in projections.iterdir()) == after_success
+
+    def test_a_thumbnail_that_cannot_be_published_leaves_the_copy_alone(
+        self, client, monkeypatch
+    ):
+        """The publish happens after the row is durable, so it must not run
+        inside the handler that reverses the filesystem: a copy that arrived and
+        was then deleted leaves a row naming nothing, which no later paste can
+        get past."""
+        from app.models import File
+        from app.services import atomic_write
+
+        c, db, drive_dir, data_dir = client
+        source = _seed_with_thumbnail(db, drive_dir, data_dir, "a.mp4", folder="one")
+        real_replace = atomic_write.os.replace
+
+        def refuse_the_jpeg(src, dst, *args, **kwargs):
+            if str(dst).endswith(".jpg"):
+                raise OSError(30, "Read-only file system")
+            return real_replace(src, dst, *args, **kwargs)
+
+        monkeypatch.setattr(atomic_write.os, "replace", refuse_the_jpeg)
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [source.id], "target_folder_path": "dest"},
+        )
+        monkeypatch.setattr(atomic_write.os, "replace", real_replace)
+
+        assert res.json() == {"copied": 1, "errors": []}
+        assert (drive_dir / "dest" / "a.mp4").exists()
+        landed = (
+            db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.file_path == "dest/a.mp4")
+            .one()
+        )
+        assert c.get(f"/api/files/{landed.id}/thumbnail").status_code == 200
+
+        again = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [source.id], "target_folder_path": "dest"},
+        )
+        assert again.json() == {"copied": 1, "errors": []}
+        assert (drive_dir / "dest" / "a_copy.mp4").exists()
+
+    def test_a_copy_that_writes_no_thumbnail_leaves_the_ghost_its_own(self, client):
+        """The retirement frees the *path*. A source with no thumbnail takes no
+        cache slot, and the record's picture is how the Missing view shows it —
+        and the only handle the purge has on that JPEG."""
+        import app.config as config
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        source = _seed(db, drive_dir, "a.mp4", folder="one")
+        (drive_dir / "dest").mkdir(exist_ok=True)
+        ghost_thumb_rel = f"{TEST_DRIVE}/dest/a.jpg"
+        ghost_thumb = config.THUMBNAILS_DIR / ghost_thumb_rel
+        ghost_thumb.parent.mkdir(parents=True, exist_ok=True)
+        ghost_thumb.write_bytes(b"\xff\xd8\xff\xe0GHOST-PICTURE")
+        ghost = File(
+            filename="a.mp4",
+            title="Gone",
+            drive=TEST_DRIVE,
+            folder_path="dest",
+            file_path="dest/a.mp4",
+            file_size=1,
+            file_type="video",
+            mime_type="video/mp4",
+            thumbnail_path=ghost_thumb_rel,
+            missing_since=datetime.now(UTC),
+        )
+        db.add(ghost)
+        db.commit()
+        ghost_id = ghost.id
+
+        assert (
+            c.post(
+                "/api/files/batch/copy",
+                json={"ids": [source.id], "target_folder_path": "dest"},
+            ).json()["copied"]
+            == 1
+        )
+
+        db.expire_all()
+        assert db.get(File, ghost_id).thumbnail_path == ghost_thumb_rel
+        assert c.get(f"/api/files/{ghost_id}/thumbnail").content == (
+            b"\xff\xd8\xff\xe0GHOST-PICTURE"
+        )
+        assert c.delete(f"/api/files/{ghost_id}/purge").status_code == 200
+        assert not ghost_thumb.exists(), "the purge could no longer reach the JPEG"
 
     def test_batch_copy_empty_ids(self, client):
         c, db, drive_dir, data_dir = client
