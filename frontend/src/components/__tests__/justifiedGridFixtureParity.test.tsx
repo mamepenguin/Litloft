@@ -1,43 +1,3 @@
-/**
- * The layout fixture's markup table, against the components it copies.
- *
- * `e2e-layout/fixtures/justified-grid.html` hand-writes the cells it
- * measures, and a browser suite can only see a selector that matches the
- * markup in front of it. So the fixture's fidelity is not a tidiness
- * question. Measured, three times: while the fixture drew one cell shape,
- * `button.justified-grid-cell`, `.justified-grid-cell.overflow-hidden` and
- * `.justified-grid-cell.select-none` all broke shipped cells and stayed
- * green; while it declared four of the six class lists,
- * `.justified-grid-cell.opacity-50.select-none` did; and while it copied
- * class lists only, `[draggable]`, `:has(.justified-grid-name)` and
- * `:has(> a[download])` did.
- *
- * This is the guard, and it is a parity test rather than one table read
- * twice: the fixture declares its markup as JSON in the page, and
- * everything below comes from **rendering the two components**.
- *
- * ## The shape of the comparison, which is the part that matters
- *
- * One render state is declared per row, by name, and each state's render
- * must equal its row — element, class list, attributes, descendant tree.
- * The row names and the state names are then compared as sets.
- *
- * It is written that way because the earlier version compared a
- * *flattened token vocabulary* across all rows, and two rows were missing
- * from the table without either side noticing: every token still appeared
- * somewhere, so the two sets stayed equal. That is detector rule 5 exactly
- * — an expected value built out of the observation catches wrong values
- * and unregistered additions but **cannot catch a deletion**, because the
- * removed element leaves both sides at once. Expected sets are declared
- * per state here for that reason, and the rule matters more than the two
- * rows it was found by: the next shape to arrive meets the same structure.
- *
- * Two callers write a `.justified-grid-cell` — `JustifiedFileCell` through
- * `FileGrid`, and `ArchiveEntryCard` through `ArchiveEntryGrid`. A third
- * would not be noticed here; it would have to arrive with rows in the
- * table and states below.
- */
-
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from "vitest";
 import { cleanup, render } from "@testing-library/react";
 import { readFileSync } from "node:fs";
@@ -121,7 +81,6 @@ vi.mock("@/lib/api", () => ({
 import { FileGrid } from "../FileGrid";
 import { ArchiveEntryGrid } from "../archive/ArchiveEntryGrid";
 
-/** One row of the table the fixture builds its cells from. */
 type Markup = {
   tag: string;
   class: string;
@@ -146,17 +105,12 @@ const SHAPES: Record<string, ShapeSpec> = JSON.parse(
   )![1],
 );
 
-/** Eight for `JustifiedFileCell`, two for `ArchiveEntryCard`. */
 const SHAPE_COUNT = 10;
 
 /**
- * Every class list `JustifiedFileCell` can put on a cell.
- *
- * Its class attribute is three **independent** conditionals, not a
- * three-way choice — `isDragging`, `isCutFile`, `draggable` — and
- * `FolderContent` passes `draggable={!selectable || selectedCount > 0}`,
- * so the pairs are all reachable. Declared here rather than collected from
- * the renders below, which is the whole point of finding 3.
+ * `JustifiedFileCell`'s class attribute is three independent conditionals,
+ * not a three-way choice — `isDragging`, `isCutFile`, `draggable` — so the
+ * pairs are all reachable.
  */
 const PHOTO_CELL_CLASSES = [
   "justified-grid-cell relative",
@@ -221,14 +175,10 @@ const archiveEntry = (path: string): ArchiveEntry => ({
 });
 
 /**
- * A render state, and the row it has to produce.
- *
  * `draggable` is `undefined` rather than `false` in `linkedOnly`, and the
  * difference is not cosmetic: React writes `draggable="false"` for the
  * boolean and omits the attribute for `undefined`, so
  * `.justified-grid-cell[draggable]` reaches one and not the other.
- * `CollectionDetail`, `RightPaneFolder` and the intelligence addon's
- * pickup page all render `FileGrid` without the prop.
  */
 type PhotoState = {
   shape: string;
@@ -293,22 +243,15 @@ const ARCHIVE_STATES = [
 ];
 
 /**
- * The declared markup, against the rendered element.
- *
- * Children are compared **positionally and exhaustively** — same count,
- * same order, same parentage — because anything looser cannot see a
- * deletion on the fixture's side. Measured: with children matched by
- * selector among the rendered ones, dropping the name span, the
- * `draggable` attribute or the archive's download link from the table all
- * left the suite green. The states below are rendered with the props that
+ * Children are compared positionally and exhaustively — same count, same
+ * order, same parentage — because anything looser cannot see a deletion on
+ * the fixture's side. The states below are rendered with the props that
  * make the tree exact (no `onFavoriteToggle`, an image with no duration),
  * so there is no conditional sibling to allow for.
  *
  * A node written without a `children` key is declared partially on
  * purpose and stops the walk: its declared attributes are checked, its
- * undeclared ones and its subtree are not. The table uses that twice —
- * the archive's download link, whose child is a lucide icon, and the
- * check mark `<svg>`, whose attributes are a drawing.
+ * undeclared ones and its subtree are not.
  *
  * An attribute value of `"*"` asks for presence only.
  */
@@ -324,12 +267,8 @@ function expectMarkup(el: Element, spec: Markup, where: string) {
     }
   }
 
-  // A node with no `children` key is declared partially on purpose, and
-  // stops here. Everything else is exhaustive from here down.
   if (spec.children === undefined) return;
 
-  // Exactly the declared attributes, and `class`, compared above. A
-  // subset check let the table drop `draggable` and stay green.
   expect(
     Array.from(el.attributes)
       .map((a) => a.name)
@@ -349,19 +288,9 @@ function expectMarkup(el: Element, spec: Markup, where: string) {
 }
 
 /**
- * What the two state loops below actually registered, recorded as they
- * register it.
- *
- * The state tables are already tied to the fixture's own `SHAPES` table
- * in both directions, so a state that goes missing from either side is
- * red. What none of that observes is the loop: a `continue` inside it
- * drops the cases it guards and leaves every table exactly as it was,
- * which is a state this file was measured in.
- *
- * The order of the two lines in each loop is the whole of it: `it()`
- * first, `push` second. Recorded first, anything between them keeps the
- * record and loses the registration. Recorded last, a skipped `it()`
- * takes its push with it.
+ * In each loop below, `it()` comes first and `push` second: recorded
+ * first, anything between them keeps the record and loses the
+ * registration.
  *
  * The guard is the last case in the file. Vitest collects every `it` in
  * a file before it runs any of them, so by the time it executes the two
@@ -375,9 +304,6 @@ const shapeCaseId = (shape: string) =>
 describe("the layout fixture's markup table", () => {
   it("has one row per declared render state, and no other", () => {
     expect(Object.keys(SHAPES)).toHaveLength(SHAPE_COUNT);
-    // The assertion the earlier vocabulary comparison could not make: a
-    // row deleted here has nothing to pair with, and a state added below
-    // has no row.
     expect(namesFrom("JustifiedFileCell")).toEqual(
       PHOTO_STATES.map((s) => s.shape).sort(),
     );
@@ -406,8 +332,6 @@ describe("the layout fixture's markup table", () => {
         cleanup();
         return cls;
       });
-      // Both comparisons have a declared side, so a class list that goes
-      // missing from the table cannot hide behind one that is still there.
       expect([...new Set(rendered)].sort()).toEqual(PHOTO_CELL_CLASSES);
       expect(
         [...new Set(shapesFrom("JustifiedFileCell").map(([, s]) => normalise(s.class)))].sort(),
@@ -430,9 +354,6 @@ describe("the layout fixture's markup table", () => {
 });
 
 it("registered a case for every state both tables declare", () => {
-  // Rebuilt from the two state tables, in the order the file walks them,
-  // so it does not follow a loop that has been walked back. `namesFrom`
-  // above is what stops a table losing a row quietly.
   expect(registered).toEqual([
     ...PHOTO_STATES.map((state) => shapeCaseId(state.shape)),
     ...ARCHIVE_STATES.map((state) => shapeCaseId(state.shape)),

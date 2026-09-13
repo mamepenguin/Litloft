@@ -96,9 +96,7 @@ describe("numbering a list", () => {
   it("draws no numbers when not asked", () => {
     // The folder listing's order is a sort the reader chose and can
     // change, so a fixed number beside each row would name a position
-    // that means nothing. Asserted as an absence on the same rows that
-    // carry numbers above, so "no numbers" cannot pass by rendering
-    // nothing at all.
+    // that means nothing.
     render(<FileList files={tracks} />);
     expect(screen.getAllByText(/^Track \d$/)).toHaveLength(3);
     for (const n of ["1", "2", "3"]) {
@@ -112,8 +110,7 @@ describe("who asks for numbers", () => {
     // A number beside a row is a claim that the order means something.
     // It does in a collection, which is an ordered thing; it does not in
     // a folder, where the order is a sort the reader can change from the
-    // toolbar. Scanned over the callers rather than asserted per screen,
-    // so a caller added later cannot pick it up unnoticed.
+    // toolbar.
     const callers = [
       "frontend/src/components/CollectionDetail.tsx",
       "frontend/src/components/folder/FolderContent.tsx",

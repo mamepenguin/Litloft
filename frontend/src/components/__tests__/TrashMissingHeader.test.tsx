@@ -2,19 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import type { FileItem } from "@/types";
 
-/**
- * The headers of Trash and Missing.
- *
- * Neither view had a test that rendered it, so the whole of their chrome was
- * unasserted: an independent review removed the breadcrumb, the title icon,
- * the count, the description and the view toggle one at a time, and showed the
- * empty-only guard to `true` so a full trash offered "Empty trash" over
- * nothing — and the suite stayed green through all of it.
- *
- * These two views also carry the change that gave them a route back to the
- * drive, which they had never had.
- */
-
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn() }),
@@ -35,12 +22,8 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   ...apiMocks,
 }));
 
-// Both views scroll infinitely, so both construct an IntersectionObserver on
-// mount. jsdom has none. This passed locally only because another file in the
-// same worker had already stubbed the global — the suite was green for a
-// reason that had nothing to do with this file, and CI, which shards
-// differently, threw `IntersectionObserver is not defined`. A file that needs
-// a global installs it.
+// Installed here, not left to another file in the same worker: CI shards
+// differently.
 vi.stubGlobal(
   "IntersectionObserver",
   class {
@@ -104,10 +87,8 @@ describe("Trash header", () => {
     expect(screen.getAllByText(/^Trash$/)).toHaveLength(1);
   });
 
-  // Scoped to the heading's own row. A bare `querySelector` for the icon found
-  // the one inside the "Empty Trash" button instead, so removing `titleIcon`
-  // altogether left this green — the assertion was answered by a different
-  // element that happens to use the same glyph.
+  // Scoped to the heading's own row: the "Empty Trash" button uses the same
+  // glyph.
   it("shows the title icon beside the heading, not only inside a button", async () => {
     render(<TrashView driveName="main" />);
     const heading = await screen.findByRole("heading", { level: 1 });
@@ -118,7 +99,6 @@ describe("Trash header", () => {
     expect(icons).toHaveLength(1);
   });
 
-  // "Empty trash" over an empty trash is an action with nothing to act on.
   it("offers Empty trash only when there is something in it", async () => {
     const { unmount } = render(<TrashView driveName="main" />);
     await waitFor(() =>
@@ -149,8 +129,6 @@ describe("Missing header", () => {
     expect(container.querySelector("svg.lucide-triangle-alert")).not.toBeNull();
   });
 
-  // Three rows became one, and each of the three things they carried has to
-  // survive the move: the description, the count, and the view toggle.
   it("keeps the description on the scope line", async () => {
     render(<MissingView driveName="main" />);
     await screen.findByRole("heading", { level: 1 });
@@ -158,10 +136,6 @@ describe("Missing header", () => {
     expect(header.textContent).toContain("not found on disk");
   });
 
-  // The second half asserts on the *count*, not on the view toggle. Asserting
-  // the toggle's absence there left the count's own guard untested: dropping
-  // it renders "0 items" under the heading of a view that is showing nothing,
-  // and nothing went red.
   it("keeps the count, and only while there is something to count", async () => {
     const { unmount } = render(<MissingView driveName="main" />);
     await waitFor(() => expect(screen.getByText(/2 items/)).toBeInTheDocument());
@@ -174,11 +148,8 @@ describe("Missing header", () => {
     expect(header.textContent).not.toMatch(/\d+ items/);
   });
 
-  // The number is the drive's total, not how much of it has scrolled in.
-  // A fixture where the two differ is the only thing that can tell them
-  // apart: with a page equal to the total, `files.length` and `total` agree
-  // and the swap is invisible. On a drive missing 500 files it would show
-  // "30 items" and climb as the reader scrolls.
+  // A fixture where the page and the total differ: with a page equal to the
+  // total, `files.length` and `total` agree and the swap is invisible.
   it("counts everything missing, not the page that has loaded", async () => {
     apiMocks.getMissing.mockResolvedValue({
       data: [file("a"), file("b")],
@@ -213,18 +184,6 @@ describe("Missing header", () => {
   });
 });
 
-/**
- * DESIGN.md §2.2: one accent fill per screen.
- *
- * Asserted here rather than in `accent-budget.test.tsx` because these two
- * views need eight mocks between them, and a second copy of a screen's
- * setup is a second copy to keep in step. That file's `SCREENS` table
- * names this one and fails if it stops reaching for `accentFills`.
- *
- * Neither view has a fill today, and zero is the assertion: they are
- * places to review and restore from, and the accent belongs to a screen's
- * one action.
- */
 describe("Trash and Missing spend no accent fill", () => {
   beforeEach(() => {
     vi.clearAllMocks();

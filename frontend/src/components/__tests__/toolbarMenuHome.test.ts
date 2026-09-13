@@ -7,16 +7,8 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../.."
 const ADDONS_DIR = resolve(REPO_ROOT, "addons");
 
 /**
- * Core's tree and every addon's, each read at its own root.
- *
- * Addons are linked into `frontend/src/addons` and share core's tsconfig
- * paths, so an addon component can write `@/components/folder/ToolbarMenu`
- * and resolve it. Walking `frontend/src` alone would reach addon files
- * through the link tree and report them under a core-relative path;
- * skipping that directory without
- * reading the trees would drop them from the scan entirely, which is the
- * shape this test exists to refuse. `escape-listeners.test.ts` reads them the
- * same way.
+ * Addons share core's tsconfig paths, so an addon component can import the
+ * menu by core's path; each addon tree is read at its own root.
  */
 const ROOTS = [
   resolve(REPO_ROOT, "frontend/src"),
@@ -46,12 +38,8 @@ function sourceFiles(root: string): string[] {
 }
 
 /**
- * Files naming a `ToolbarMenu` or `ViewMenu` module, by the path they name it
- * at. Every module specifier is read and then matched — a filter over names
- * that look like the ones we expect would score a `folder/ToolbarMenu` spelt
- * some other way as no import at all, which is the case this test exists to
- * catch. Both quote styles, `import(...)`, and an explicit extension are all
- * ways of writing the same specifier, so all four are read.
+ * Every module specifier is read and then matched, rather than filtered by
+ * names that look like the expected ones, so an oddly spelt path still counts.
  */
 function menuImporters(): Array<{ file: string; from: string }> {
   const out: Array<{ file: string; from: string }> = [];
@@ -68,18 +56,12 @@ function menuImporters(): Array<{ file: string; from: string }> {
       }
     }
   }
-  // Code-unit order, not `localeCompare`: collation is ICU-dependent, and the
-  // expected list below would then read differently on a machine with a
-  // different one.
+  // Code-unit order, not `localeCompare`: collation is ICU-dependent.
   return out.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
 }
 
 describe("the shared toolbar menu has one home", () => {
   it("is imported from components/, never from folder/", () => {
-    // P4V-5 moved `ToolbarMenu` and `ViewMenu` out of `folder/` because the
-    // archive toolbar became their second caller. A path left behind still
-    // resolves — the file is gone, but a `folder/`-shaped import can be
-    // written again by hand or by a rename that fixes only what it touched.
     const strays = menuImporters().filter(({ from }) =>
       /folder\/(ToolbarMenu|ViewMenu)$/.test(from)
     );
@@ -87,8 +69,6 @@ describe("the shared toolbar menu has one home", () => {
   });
 
   it("is imported by the callers that exist", () => {
-    // "None of them are in `folder/`" is also true of a walk that found no
-    // imports at all. These are the files that hold one.
     expect(menuImporters().map((i) => i.file)).toEqual([
       "frontend/src/components/OverflowMenu.tsx",
       "frontend/src/components/PdfPreview.tsx",
@@ -107,9 +87,8 @@ describe("the shared toolbar menu has one home", () => {
   });
 
   it("reads every addon tree, not only core's", () => {
-    // Asserted rather than assumed: a non-recursive clone has no addon
-    // sources, and the scan above would then be silently core-only. The
-    // roots are named so that state is visible instead of invisible.
+    // A non-recursive clone has no addon sources, and the scan above would
+    // then be silently core-only.
     const submodules = readFileSync(resolve(REPO_ROOT, ".gitmodules"), "utf-8")
       .split("\n")
       .flatMap((line) => line.match(/path\s*=\s*addons\/(.+)$/)?.[1] ?? []);

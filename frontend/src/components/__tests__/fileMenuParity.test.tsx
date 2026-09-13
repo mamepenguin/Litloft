@@ -1,18 +1,6 @@
 /**
- * The three menus agree, checked against the three real components.
- *
- * There were three definitions: the card grid's (`FileContextMenu`), the
- * list view's (built inline in `FileList`, with no "open in new tab"),
- * and the detail page's (`FileActions`, with no "add to collection" at
- * all). Right-clicking the same file in two views offered two different
- * sets of things to do with it.
- *
- * The first version of this test compared three `FileMenuContext`
- * literals to each other — a tautology, since all three went into the
- * same function and none of them was a real surface. It stayed green
- * while `FileActions` kept its own array. So these render the actual
- * components and read the actual menus, which is the only way the claim
- * "they agree" can be false.
+ * These render the actual components and read the actual menus, which is
+ * the only way the claim "they agree" can be false.
  */
 
 import { describe, it, expect, vi, beforeAll } from "vitest";
@@ -96,7 +84,6 @@ const file = {
 const labels = () =>
   screen.getAllByRole("menuitem").map((el) => el.textContent?.trim());
 
-/** Right-click a row in the list view and read its menu. */
 function listMenu(): (string | undefined)[] {
   render(<FileList files={[file as FileItemWithMatch]} />);
   fireEvent.contextMenu(screen.getAllByText("Notes")[0]);
@@ -105,7 +92,6 @@ function listMenu(): (string | undefined)[] {
   return out;
 }
 
-/** Right-click a card in the grid and read its menu. */
 function cardMenu(): (string | undefined)[] {
   render(<FileGrid files={[file as FileItemWithMatch]} />);
   fireEvent.contextMenu(screen.getAllByText("Notes")[0]);
@@ -114,7 +100,6 @@ function cardMenu(): (string | undefined)[] {
   return out;
 }
 
-/** Open the detail page's overflow and read its menu. */
 function detailMenu(): (string | undefined)[] {
   render(<FileActions file={file} />);
   fireEvent.click(screen.getByLabelText("File actions"));
@@ -139,8 +124,6 @@ describe("the file actions menu, across the three surfaces that draw it", () => 
   });
 
   it("offers all of them, not an accidentally empty intersection", () => {
-    // Without this, the equality above would also hold if every surface
-    // rendered nothing.
     expect(withoutContextual(cardMenu())).toEqual([
       "Download",
       "Add to collection",

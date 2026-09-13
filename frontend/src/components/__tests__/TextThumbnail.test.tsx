@@ -1,12 +1,3 @@
-/**
- * The text thumbnail shows the shape of a document, not its words — it
- * is drawn at 6px and is not meant to be read. That only works if the
- * first few lines are the document's own; a web clip whose frontmatter
- * outgrew the fetch window showed `id:` / `url:` / `origin:` instead,
- * identically on every note, and a clipped article's first line is an
- * image URL that is nobody's idea of a document's shape.
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
@@ -59,17 +50,13 @@ describe("stripPreviewText", () => {
   });
 
   it("shows nothing rather than metadata when the window is all frontmatter", () => {
-    // The delimiter is past the end of what was fetched. Rendering the
-    // fragment would put `id:` and `url:` on the card; rendering the
-    // title alone is at least true.
     const window = frontmatter(2000).slice(0, 1024);
     expect(stripPreviewText(window)).toBe("");
   });
 
   it("keeps a note that merely opens on a horizontal rule", () => {
     // `---` at the top of a note is a rule, not frontmatter, unless a
-    // `key: value` line follows it. Blanking those too would trade one
-    // silent failure for another.
+    // `key: value` line follows it.
     const out = stripPreviewText("---\nA paragraph after a rule.");
     expect(out).toContain("A paragraph after a rule.");
   });
@@ -153,7 +140,6 @@ describe("TextThumbnail", () => {
     const [, init] = fetchMock.mock.calls[0];
     const range = (init.headers as Record<string, string>).Range;
     const end = Number(/bytes=0-(\d+)/.exec(range)![1]);
-    // 400 was the old window, and a 327-character URL overran it.
     expect(end).toBeGreaterThanOrEqual(1023);
   });
 

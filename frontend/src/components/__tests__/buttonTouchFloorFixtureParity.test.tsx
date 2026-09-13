@@ -1,36 +1,11 @@
 /**
- * The touch-floor layout fixture's class-list table, against the two
- * emitters it copies.
- *
- * `e2e-layout/button-touch-floor.spec.ts` measures real boxes in
- * Chromium — 32 / 36 / 40 under a fine pointer, 44 under a coarse one —
- * and a browser suite can only see what the markup in front of it
- * produces. There the class lists *are* the measurement: the fixture
- * writes them out itself, so deleting `TOUCH_FLOOR_CLASS` from
- * `Button.tsx` leaves every case over there green, measuring a button
- * this app does not have.
- *
- * So this is the guard, and it is a parity test rather than one table
- * read twice: the fixture declares its class lists as JSON inside the
- * page, and everything below comes from **rendering the component** and
- * **calling `buttonClass()`**.
- *
- * One render state is declared per row, by name, and each state's output
- * must equal its row exactly — no subset, no token-set flattening. The
- * row names and the state names are then compared as sets. Declared per
- * state rather than collected from the renders, for the reason
- * `justifiedGridFixtureParity.test.tsx` gives at length: an expectation
- * built out of the observation cannot catch a deletion, because the
- * removed element leaves both sides at once (detector rule 5).
- *
- * **What this cannot hold.** jsdom lays nothing out, so nothing here is
- * evidence about a height. It holds that the strings the browser measures
- * are the strings the app ships. The heights are the other file's job.
+ * The touch-floor layout fixture writes its class lists out itself, so the
+ * browser suite measures them whatever the app ships; this compares them
+ * with the real emitters.
  *
  * `controls` is deliberately *not* checked against anything: it is the
  * fixed-height counter-example the spec needs in order to be able to fail,
- * and the app emits no such class list. It is asserted to be exactly that one
- * entry, so a shape cannot be quietly parked there to escape this table.
+ * and the app emits no such class list.
  */
 
 import { describe, it, expect, afterEach } from "vitest";
@@ -120,17 +95,11 @@ describe("the touch-floor fixture copies the emitters exactly", () => {
     expect(normalise(STATES[name]())).toBe(normalise(SPEC.shapes[name]));
   });
 
-  // The counter-example, and the one thing in the table the app does not
-  // emit. Pinned as a whole so nothing else can be added beside it, and
-  // pinned against the shape it is a counter-example *to*: it must be
-  // `buttonMd` with the floor respelled as a fixed height, or the wrapping
-  // case is comparing two boxes that differ in more than the one property.
+  // It must be `buttonMd` with the floor respelled as a fixed height, or the
+  // wrapping case compares two boxes that differ in more than one property.
   //
-  // The two class names below are code, not prose, and are sources for
-  // those utilities — which is harmless here because both are written by
-  // a dozen product files besides this one (`coarseNeedleSources.test.ts`
-  // classifies them). Prose in this file names utilities as selectors for
-  // the reason `e2e-layout/build-fixture-css.ts` gives.
+  // The two class names below are Tailwind sources, which is harmless only
+  // because product files write both as well.
   it("keeps the fixed-height control a respelling of buttonMd and nothing else", () => {
     expect(Object.keys(SPEC.controls)).toEqual(["wrapClamped"]);
     expect(normalise(SPEC.controls.wrapClamped)).toBe(
@@ -143,8 +112,6 @@ describe("the touch-floor fixture copies the emitters exactly", () => {
 
   // The label the fixture puts inside the boxes has to wrap in the column
   // it is given, or the `min-h` case measures a box that never overflowed.
-  // jsdom cannot lay it out, so what is held here is the premise's inputs:
-  // a multi-character CJK label and a column narrower than it.
   it("gives the wrapping case a label that cannot fit its column", () => {
     expect(SPEC.wrapColumnPx).toBe(120);
     expect(SPEC.wrappingLabel.length).toBeGreaterThan(12);

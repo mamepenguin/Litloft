@@ -1,20 +1,8 @@
-/**
- * The justified image grid, as the listing actually renders it.
- *
- * `deriveListMeta` decides *whether* to pack and is unit-tested next to
- * itself; this file checks that `FileGrid` obeys the answer in both
- * directions, and that a packed cell carries the geometry the CSS in
- * `globals.css` reads. A rule that is right and unwired looks exactly
- * like no rule at all.
- */
-
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// `TextThumbnail` observes itself into view; jsdom has no such observer,
-// and the preview fetch is not what these tests are about.
 beforeAll(() => {
   vi.stubGlobal(
     "IntersectionObserver",
@@ -118,14 +106,11 @@ const css = readFileSync(
  *  "height" in prose and would answer the assertions below. */
 const sheet = css.replace(/\/\*[\s\S]*?\*\//g, "");
 
-/** Every rule in the sheet, as `[selector, declarations]`. */
 const rules: [string, string][] = [
   ...sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g),
 ].map((m) => [m[1].trim(), m[2]]);
 
 /**
- * Every declaration the sheet makes for one selector, joined.
- *
  * Joined rather than "the first block": `.justified-grid` is written
  * twice, once plainly and once inside the container query, and both
  * blocks are declarations about the same element.
@@ -154,10 +139,6 @@ describe("FileGrid — justified rows", () => {
   });
 
   it("leaves videos on equal cards even carrying dimensions", () => {
-    // The scanner does not fill `image_width` for video — the thumbnail
-    // is padded to 16:9, so a true ratio would have nowhere to go. The
-    // rule tests the file type as well as the columns, so that a row
-    // that acquires them some other way still keeps its meta line.
     const files = clips(20).map((f) => ({
       ...f,
       image_width: 1920,
@@ -219,14 +200,9 @@ describe("FileGrid — justified rows", () => {
   });
 
   it("gives that absorber a grow factor that dominates the cells", () => {
-    // The element existing is not the property. Free space on a flex
-    // line is shared in proportion to the grow factors, and every cell
-    // carries `flex-grow: var(--jg-ratio)` — up to `JG_MAX_RATIO`, summed
-    // across the line. At `flex-grow: 1` the absorber took 129px of the
-    // 590 going spare and the last row still stretched 1.645x (measured
-    // in Chromium on a 1469px grid). jsdom lays nothing out, so the
-    // factor itself is what is pinned here; the layout is measured in a
-    // browser.
+    // Free space on a flex line is shared in proportion to the grow
+    // factors, and every cell carries `flex-grow: var(--jg-ratio)` — up
+    // to `JG_MAX_RATIO`, summed across the line.
     const tail = css.match(
       /\.justified-grid > \.justified-grid-tail \{([^}]*)\}/,
     );
@@ -238,12 +214,6 @@ describe("FileGrid — justified rows", () => {
   });
 
   describe("the append transition", () => {
-    /**
-     * The two rules carry the whole visible behaviour: `invert` is
-     * `transition: none` so the previous rect is taken without a play,
-     * and `play` is the 200ms that runs it back. Deleting either leaves
-     * the hook writing transforms nothing interpolates.
-     */
     const invertRule = rule('.justified-grid-cell[data-flip="invert"]');
     const playRule = rule('.justified-grid-cell[data-flip="play"]');
 
@@ -254,10 +224,6 @@ describe("FileGrid — justified rows", () => {
     });
 
     it("inverts about the corner a flex line lays out from, in both states", () => {
-      // `center` here and the invert lands on the wrong point: every
-      // cell starts half its own growth off its old position and drifts
-      // sideways as it plays. Both states need it — the value has to be
-      // in force for the write *and* for the release.
       for (const [name, decls] of [
         ["invert", invertRule],
         ["play", playRule],
@@ -268,20 +234,6 @@ describe("FileGrid — justified rows", () => {
       }
     });
 
-    /**
-     * The listing actually playing it.
-     *
-     * `useJustifiedFlip.test.tsx` renders its own fixture, which sets
-     * `data-flip-key` itself and calls the hook itself, so it cannot
-     * notice either connecting line disappearing — the
-     * `useJustifiedFlip(justifiedRef)` call in `FileGrid` or the
-     * attribute on the cell. This renders the real component and appends
-     * to it.
-     *
-     * jsdom lays nothing out, so the boxes are scripted: four cells on
-     * one unstretched last line, then two more arrive and that line
-     * fills the row.
-     */
     const boxes = new Map<string, [number, number, number, number]>();
     let realRect: PropertyDescriptor;
 
@@ -290,8 +242,6 @@ describe("FileGrid — justified rows", () => {
       for (const [key, value] of Object.entries(entries)) boxes.set(key, value);
     };
 
-    // Put back for the sibling tests in this file, which render the same
-    // component and would otherwise measure a script that is not theirs.
     beforeAll(() => {
       const found = Object.getOwnPropertyDescriptor(
         Element.prototype,
@@ -341,10 +291,6 @@ describe("FileGrid — justified rows", () => {
           rerender(<FileGrid files={photos(6)} />);
         });
 
-        // The post-condition, per cell: four carried and two faded in,
-        // each in the state whose rule carries the transition and each
-        // released — nothing inline still holding it off its layout box.
-        // Declared, not counted, and not read back off the elements.
         expect(
           [...container.querySelectorAll<HTMLElement>("[data-flip]")].map((cell) => ({
             key: cell.getAttribute("data-flip-key"),
@@ -367,13 +313,9 @@ describe("FileGrid — justified rows", () => {
     });
 
     it("agrees with the hook about how long the play lasts", () => {
-      // Two copies by necessity — a CSS declaration and a JS timer — and
-      // the drift is silent and one-directional. `settle` removes
-      // `data-flip` at `FLIP_DURATION_MS + 50`, which removes
-      // `transition-property` and cancels a play still running: a CSS
-      // duration longer than the constant makes every play jump to its
-      // end value part-way through. Read off the stylesheet by a
-      // different implementation than the one that writes it.
+      // `settle` removes `data-flip` at `FLIP_DURATION_MS + 50`, which
+      // cancels a play still running: a CSS duration longer than the
+      // constant makes every play jump to its end value part-way through.
       const durations = [...playRule.matchAll(/(\d+)ms/g)].map((m) => Number(m[1]));
       expect(durations).toHaveLength(2);
       for (const ms of durations) expect(ms).toBe(FLIP_DURATION_MS);
@@ -381,10 +323,6 @@ describe("FileGrid — justified rows", () => {
   });
 
   it("names every cell with the file's own id, for the transition to key on", () => {
-    // `useJustifiedFlip` recognises a cell across a re-render by this
-    // attribute and nothing else, and the hook's own suite renders a
-    // fixture that sets it by hand — so without this the attribute can
-    // be deleted from the real cell with every test still green.
     const files = photos(7);
     const { container } = render(<FileGrid files={files} />);
     expect(
@@ -393,41 +331,20 @@ describe("FileGrid — justified rows", () => {
   });
 
   it("carries no meta row", () => {
-    // The fixtures are chosen so the card form would draw all three
-    // columns: mixed extensions turn the badge on, and the sizes are
-    // whatever `formatFileSize` really produces. The previous version of
-    // this test matched `/1000 KB|1 MB/` against a 1024000-byte file,
-    // which formats as "1000.0 KB" — and every row was a `.jpg`, so the
-    // badge was already off. It passed with the whole feature deleted.
     const files = [
       ...photos(19),
       { ...photos(1)[0], id: "png", filename: "shot.png", title: "Shot PNG" },
     ];
     const { container } = render(<FileGrid files={files} />);
 
-    // The population is not empty, and it really is the justified form.
     expect(cells(container)).toHaveLength(20);
 
-    // The date, not the size. Every fixture here is an image, and a card
-    // leads an image with its dimensions or with nothing
-    // (`lib/primaryMeta.ts`) — so `formatFileSize` now produces a
-    // string no form in the app draws for these rows, and asserting its
-    // absence would pass whatever the cell rendered. The date is the one
-    // column the card form draws for every kind, which makes it the one
-    // that can tell the two forms apart. Computed rather than written
-    // out: `formatRelativeDate` changes shape once the fixture's year is
-    // not the current one.
+    // Computed rather than written out: `formatRelativeDate` changes shape
+    // once the fixture's year is not the current one.
     const date = formatRelativeDate(files[0].created_at);
     expect(screen.queryAllByText(date)).toHaveLength(0);
     expect(screen.queryAllByText(/^(jpg|png)$/i)).toHaveLength(0);
 
-    // And the same rows on the card form do draw a meta row — otherwise
-    // the assertions above are about fixtures that say nothing anywhere.
-    //
-    // Exact counts, not "more than none": twenty rows over two distinct
-    // extensions, so `deriveListMeta` turns the badge on for all of them
-    // and every card draws its date. Nineteen of twenty silently losing
-    // either would otherwise leave the control green.
     cleanup();
     render(<FileGrid files={files.map((f) => ({ ...f, image_width: null, image_height: null }))} />);
     expect(screen.queryAllByText(date)).toHaveLength(20);
@@ -441,10 +358,6 @@ describe("FileGrid — justified rows", () => {
   });
 
   it("draws the ten percent that are not photographs as themselves", () => {
-    // `JUSTIFY_THRESHOLD` admits 10% non-image rows on purpose, so the
-    // cell has to answer for them. Both of these have no thumbnail, and
-    // both were drawing the shared placeholder — one picture for two
-    // different files.
     const files = [
       ...photos(18),
       makeFile({
@@ -469,7 +382,6 @@ describe("FileGrid — justified rows", () => {
     const { container } = render(<FileGrid files={files} />);
 
     expect(cells(container)).toHaveLength(20);
-    // Eighteen photographs have a thumbnail; the other two must not.
     expect(container.querySelectorAll("img")).toHaveLength(18);
     expect(screen.getByTestId("text-thumbnail")).toBeInTheDocument();
     // The archive gets a type icon — an `<svg>` from lucide, which is
@@ -479,13 +391,9 @@ describe("FileGrid — justified rows", () => {
   });
 
   it("keeps a video's duration badge and mounts no player for it", () => {
-    // The badge is the half of the video answer the cell was dropping.
-    // The hover preview is the half it must not have: the grid host is a
-    // `container-type` context, and a containment context around a
-    // `<video>` renders its subtree rotated and spinning on iOS Safari
-    // (`DESIGN.md`, confirmed on device). Nothing on desktop reproduces
-    // that and no test can see it, so what is testable is the absence of
-    // the element — asserted here so nobody restores it for parity with
+    // The grid host is a `container-type` context, and a containment
+    // context around a `<video>` renders its subtree rotated and spinning
+    // on iOS Safari. Do not restore the hover preview for parity with
     // `FileCard`, which is not under a container query.
     const files = [
       ...photos(18),
@@ -506,11 +414,6 @@ describe("FileGrid — justified rows", () => {
   });
 
   it("names every cell the same way, whatever it draws", () => {
-    // The name is on the link, not derived from the caption band — the
-    // band is decorative (`opacity: 0`, `pointer-events: none`) and a
-    // later change could hide it without anything noticing. The text
-    // branch renders the title of its own accord, so a name computed
-    // from contents said it twice there and once everywhere else.
     const files = [
       ...photos(18),
       makeFile({
@@ -575,11 +478,6 @@ describe("FileGrid — justified rows", () => {
 });
 
 describe("justified row geometry", () => {
-  /**
-   * The row height is CSS, so this is where it is pinned. It is a
-   * container query rather than a media query because the grid renders
-   * beside a 280px tree pane — `DESIGN.md` §8.5.
-   */
   it("switches the row height on the grid's own width", () => {
     expect(css).toContain("--jg-row-h: 120px");
     expect(css).toContain("@container justified-grid (min-width: 40rem)");
@@ -588,59 +486,24 @@ describe("justified row geometry", () => {
   });
 
   it("reveals the name on hover and on focus", () => {
-    // Both halves of "ホバーとフォーカスの両方", each named. The hover
-    // selector had no assertion at all before.
     expect(css).toMatch(/\.group:hover > \.justified-grid-name/);
     expect(css).toMatch(/\.group:focus-within > \.justified-grid-name/);
   });
 
   it("shows the name without a hover where there is none", () => {
-    // `@media (pointer: coarse)` alone is not evidence: globals.css has
-    // carried such a block since before this feature, so `toContain`
-    // stayed green with the rule deleted. The block that has to exist is
-    // the one naming this class.
     expect(css).toMatch(
       /@media \(pointer: coarse\) \{\s*\.justified-grid-name \{[^}]*opacity:/,
     );
   });
 
-  /**
-   * What follows checks declarations, and nothing more than that.
-   *
-   * The property these rules exist for — that a cell is drawn at the
-   * shape of the picture inside it — is a layout property, and layout is
-   * not something this file can see. jsdom lays nothing out, so every
-   * `getBoundingClientRect()` here is zeros and a cell at the wrong ratio
-   * measures exactly like one at the right ratio. **It is not something
-   * CI sees either**: `.github/workflows/ci.yml` runs vitest, `tsc`,
-   * eslint and the image builds, and the Playwright specs under
-   * `frontend/e2e/` are not among them.
-   *
-   * So do not read these as guarding the geometry. There is no bound on
-   * the ways CSS can give the cell a height — a later rule at any
-   * specificity, `@media` / `@container` / `@layer`, an inline `style`,
-   * a `size-*` or `[height:…]` utility on the element. What these assert
-   * is narrower: that these declarations are present, and that one of
-   * them is not accompanied by a competing `height` in its own block.
-   * That catches a declaration going missing. It does not catch one
-   * being overridden.
-   *
-   * The geometry itself was measured in Chrome on the app's own grid with
-   * all 995 cells of the photo folder rendered, at five container widths.
-   */
   it("declares the cell's shape from its ratio", () => {
     expect(cellRule).toMatch(/aspect-ratio:\s*var\(--jg-ratio\)/);
-    // In this block, which is the block that sets the shape. A `height`
-    // beside `aspect-ratio` is the disagreement the ratio exists to end.
+    // A `height` beside `aspect-ratio` is the disagreement the ratio
+    // exists to end.
     expect(cellRule).not.toMatch(/(?:^|[;{\s])height\s*:/);
   });
 
   it("declares a ceiling on the height, in multiples of the basis", () => {
-    // Greedy line-breaking can leave one narrow cell holding a whole
-    // line, and the width it takes then becomes height. Past the ceiling
-    // the cell keeps its width and gives up its ratio, so the bound is
-    // the crop, deliberately — see DESIGN.md §8.5 for what the value
-    // costs at 2.0 and 3.0.
     expect(cellRule).toMatch(
       /max-height:\s*calc\(\s*var\(--jg-row-h\)\s*\*\s*var\(--jg-max-stretch\)\s*\)/,
     );
@@ -651,13 +514,6 @@ describe("justified row geometry", () => {
   });
 
   it("declares that a cell keeps its height to itself", () => {
-    // `stretch` is the flex default, and it hands the tallest cell's
-    // height to every cell beside it. With every cell carrying an
-    // `aspect-ratio` there is no tallest cell, so this is inert on
-    // everything the app renders today; what it guards is the cell whose
-    // ratio does not apply, or whose content is taller than its ratio
-    // height. See the comment on the declaration.
-    //
     // `start` and `flex-start` are the same value in a flex container;
     // rejecting the synonym would be a false failure at a later
     // refactor.

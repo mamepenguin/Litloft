@@ -1,31 +1,7 @@
 /**
- * The kind rule as every surface actually renders it.
- *
- * `primaryMeta` is unit-tested next to itself. What this file checks is
- * that every surface which leads with a fact about a file asks it and
- * obeys the answer — the failure that matters is a rule that is correct
- * and unwired, which looks identical to no rule at all. That was the
- * state of the tree before this suite existed: `lib/primaryMeta.ts` had
- * written the table down and only `FileCard` read it, so a list row and
- * a detail page went on saying "83 B" about a 19-minute video.
- *
- * `FileListRow` and the trash / missing rows each draw their meta twice
- * — once for `sm:` and up, once for below it — and jsdom holds both, so
- * every assertion here is made per branch. A single `getAllByText`
- * would have passed with one of the two branches still unfixed.
- *
- * The surfaces split on one thing only: whether they say the length
- * somewhere else already. `FileCard`, `FileListRow`, `TrashFileList` and
- * `MissingFileList` badge it, `AudioPlayer` has a transport bar;
- * `FileMetaBlock`, the two card forms and the duplicates row do not, and
- * draw it on the meta line themselves. `JustifiedFileCell` badges it and
- * draws no meta line at all.
- *
- * **Every one of them is rendered in this file, and both halves of each
- * are asserted.** Reading "video shows no size" off a surface that also
- * shows no length is how a card loses its length altogether, and the one
- * surface an earlier version of this suite did not mount — `FileCard` —
- * was the one where a mutation could do exactly that and stay green.
+ * `FileListRow` and the trash / missing rows each draw their meta twice —
+ * once for `sm:` and up, once for below it — and jsdom holds both, so
+ * every assertion here is made per branch.
  */
 
 import { describe, it, expect, vi, beforeAll } from "vitest";
@@ -112,8 +88,7 @@ const makeFile = (overrides: Partial<FileItem> = {}): FileItem => ({
   mime_type: "video/mp4",
   thumbnail_url: "",
   has_thumbnail: false,
-  // 83 B, D-3's number: a `.loft` reference file reports the pointer's
-  // size, not the media's.
+  // A `.loft` reference file reports the pointer's size, not the media's.
   file_size: 83,
   duration: null,
   liked_at: null,
@@ -143,9 +118,7 @@ const DOC = {
 
 /**
  * The two halves of a row's meta, told apart by the class that decides
- * which viewport sees them. Declared as the markup each state should
- * have rather than gathered by text: a query that only asks "is `83 B`
- * anywhere" cannot tell a fixed desktop branch from a fixed pair.
+ * which viewport sees them.
  */
 const desktopMeta = (container: HTMLElement) =>
   [...container.querySelectorAll("span.sm\\:inline")]
@@ -165,20 +138,14 @@ describe("FileListRow — the first fact, in both of its branches", () => {
     const { container } = render(
       <FileList files={[makeFile({ ...VIDEO, duration: 1438 })]} />,
     );
-    // Declared per branch, not merely "83 B is absent": a desktop span
-    // emitted twice, or an empty one left behind, is invisible to a
-    // `not.toContain` and is what a missing guard actually produces.
     const date = formatRelativeDate("2026-01-01T00:00:00");
     expect(desktopMeta(container)).toEqual([date]);
     expect(mobileMeta(container)).toEqual([date]);
-    // The length is not lost — it moved to where the card puts it too.
     expect(badges()).toHaveLength(1);
     expect(screen.getByText("23:58")).toBeInTheDocument();
   });
 
   it("says nothing at all for a video whose length was never probed", () => {
-    // 56 of the 60 rows of the measured `.loft` folder. Neither the
-    // badge nor a size: the date is what the row is left with.
     const { container } = render(<FileList files={[makeFile(VIDEO)]} />);
     const date = formatRelativeDate("2026-01-01T00:00:00");
     expect(desktopMeta(container)).toEqual([date]);
@@ -260,15 +227,9 @@ const metaBlockProps = {
 };
 
 /**
- * The block's meta line, named by the markup it has when it exists.
- * `nextElementSibling` off the title would not do: with the line gone
- * the next element is the tag row, and an empty one reads as a line
- * that is present and blank.
- *
- * Keyed to the title it follows and to the two tokens that say what the
- * line *is*, and deliberately **not** to `mt-1`: a detector that turns
- * red when someone changes a margin is reporting a defect that is not
- * there, and the next person learns to ignore it.
+ * `nextElementSibling` off the title would not do: with the line gone the
+ * next element is the tag row. Deliberately not keyed to `mt-1`, which is
+ * a margin rather than what the line is.
  */
 const metaLine = (container: HTMLElement) => {
   const el = container.querySelector("h1 ~ div.text-xs.text-text-muted");
@@ -286,7 +247,6 @@ describe("FileMetaBlock — the same rule, on a surface with no badge", () => {
     );
 
   it("drops the size from a video and keeps its length", () => {
-    // The line D-3 reported as `23:58 · 83 B`.
     const { container } = renderBlock(makeFile({ ...VIDEO, duration: 1438 }));
     expect(metaLine(container)).toBe("23:58");
   });
@@ -303,10 +263,8 @@ describe("FileMetaBlock — the same rule, on a surface with no badge", () => {
   });
 
   it("draws no line at all where the kind and the length are both silent", () => {
-    // This is the case that produced the bug report: with the size gone
-    // there is nothing left, and an always-drawn line would be a gap
-    // between the title and the description standing in for a fact
-    // nobody has.
+    // With the size gone there is nothing left, and an always-drawn line
+    // would be a gap between the title and the description.
     const { container } = renderBlock(makeFile(VIDEO));
     expect(metaLine(container)).toBeNull();
   });
@@ -331,14 +289,8 @@ describe("FileMetaBlock — the same rule, on a surface with no badge", () => {
 
 
 /**
- * The meta line of a card, every span of it, in order.
- *
- * The separator is included deliberately — dropping a fact without the
- * dot that separated it is a distinct failure from dropping neither.
- * Empty spans are included too: an earlier version of this helper ended
- * in `.filter(Boolean)`, which threw away exactly the artefact a missing
- * `length > 0` guard produces, so the mutation that removed one survived.
- * Not keyed to `mt-1`, for the reason above `metaLine`.
+ * Every span, separators and empty spans included: an orphaned dot or an
+ * empty span is the artefact a missing guard produces.
  */
 const cardMetaEl = (container: HTMLElement) =>
   container.querySelector("div.text-xs.text-text-muted");
@@ -419,10 +371,8 @@ describe("Trash and missing cards — no badge, so the length goes on the line",
     render(<MissingFileGrid files={[file]} onPurge={noop} />);
 
   it("draws a trashed video's length itself, since no badge does", () => {
-    // This is where copying the row's answer would have gone wrong: the
-    // card has no badge — the corner `FileCard` puts the length in is
-    // this surface's deadline — so "no first metadatum" would leave the
-    // length nowhere on the card at all.
+    // The card's corner holds the deadline rather than a length badge, so
+    // copying the row's answer would leave the length nowhere on the card.
     const { container } = trashCard(makeFile({ ...VIDEO, ...TRASHED, duration: 1438 }));
     expect(cardMeta(container)).toEqual([
       "23:58",
@@ -451,11 +401,8 @@ describe("Trash and missing cards — no badge, so the length goes on the line",
   });
 
   it("draws no meta line on a missing card that has neither half", () => {
-    // Both of this card's halves are optional — unlike the trash card,
-    // whose date is unconditional — so it is the one form that can
-    // reach "nothing to say" and render an empty row anyway. The API
-    // cannot produce a null `missing_since` in this view today, but the
-    // component guards the field, so the state is one it claims to
+    // The API cannot produce a null `missing_since` in this view today, but
+    // the component guards the field, so the state is one it claims to
     // handle.
     const { container } = missingCard(makeFile(VIDEO));
     expect(hasCardMetaLine(container)).toBe(false);
@@ -499,16 +446,9 @@ describe("FileCard — the badge and the line, on the surface the rule started f
   });
 
   it("badges an AUDIO file that has no thumbnail of its own", () => {
-    // The one case the suite could not see before, and the one where
-    // the two halves can disagree without either looking wrong.
-    // `hasThumbnail` is `has_thumbnail || video || image`, so it is
-    // false for exactly this file — and `primaryMetaText` is already
-    // null for audio. A badge condition that also required a thumbnail
-    // would leave this card carrying its title and its date and nothing
-    // else: no length anywhere, which is the failure `hasKnownLength`
-    // was extracted to make impossible. Measured 2026-09: all 53 audio
-    // files in the library have no stored thumbnail, so this is the
-    // ordinary case for the kind, not a corner.
+    // `hasThumbnail` is false for this file and `primaryMetaText` is null
+    // for audio, so a badge condition that also required a thumbnail would
+    // leave no length anywhere on the card.
     const { container } = card(
       makeFile({ ...AUDIO, duration: 1438, has_thumbnail: false }),
     );
@@ -535,10 +475,6 @@ describe("FileCard — the badge and the line, on the surface the rule started f
 
 describe("JustifiedFileCell — a badge and no line at all", () => {
   it("badges an audio cell, which is the half of the predicate nothing else pins", () => {
-    // This cell draws no meta row — unequal widths, so a caption would
-    // not line up into a column — so it correctly never asks the table.
-    // What it does share is the badge condition, and until it read
-    // `hasKnownLength` it spelled the predicate out for itself.
     const { container } = render(
       <JustifiedFileCell file={makeFile({ ...AUDIO, duration: 1438 })} />,
     );
@@ -562,10 +498,7 @@ describe("JustifiedFileCell — a badge and no line at all", () => {
 
 describe("AudioPlayer — the viewer column of the same file page", () => {
   it("puts no size under the filename", () => {
-    // The defect this PR is about, on the page it names, for one of the
-    // two kinds the table singles out: the inspector said "23:58" while
-    // the viewer said "83 B" directly under the filename. The length is
-    // on the transport bar of the <audio> below.
+    // The length is on the transport bar of the <audio> below.
     const { container } = render(
       <AudioPlayer file={makeFile({ ...AUDIO, duration: 1438, file_size: 83 })} />,
     );
@@ -604,9 +537,7 @@ describe("DuplicatesSection — a file row with a name and a fact under it", () 
   };
 
   it("gives a duplicated .loft video its length, not the pointer's 83 B", async () => {
-    // Measured on this library: real duplicate groups hold `.loft`
-    // video pairs whose rows both read "83 B" for a 5:34 video. No
-    // badge on the 40px thumbnail, so the length goes on the line.
+    // No badge on the row's thumbnail, so the length goes on the line.
     const { container } = await openGroup([
       makeFile({ ...VIDEO, id: "a", duration: 1438, file_size: 83 }),
       makeFile({ ...VIDEO, id: "b", duration: 1438, file_size: 83 }),

@@ -58,10 +58,8 @@ describe("isTextPreviewable", () => {
       ".env",
       "schema.sql",
       "Component.vue",
-      // Measured inside the image `backend/Dockerfile` builds: it carries no
-      // `/etc/mime.types`, so Python's own table answers, and these three
-      // come back `application/octet-stream` there. The name is the only
-      // thing left that knows what they are.
+      // The image `backend/Dockerfile` builds carries no `/etc/mime.types`,
+      // so these three come back `application/octet-stream` there.
       "server.ts",
       "docker-compose.yml",
       "config.yaml",
@@ -78,10 +76,8 @@ describe("isTextPreviewable", () => {
 
   it("refuses an executable named after the language it compiles", () => {
     // A `bin/` tree inside a ZIP is where an extension allowlist meets names
-    // with no extension. Matching those against the *extension* list opened
-    // ELF binaries and rendered them into a `<pre>` — and, being openable,
-    // they lost the download too. `usr/bin/env` is in a large share of
-    // tarball-shaped archives.
+    // with no extension; matching those against the *extension* list would
+    // render ELF binaries into a `<pre>`.
     for (const name of [
       "usr/bin/env",
       "bin/go",
