@@ -296,8 +296,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       {/* The same header the folder and file views draw. This screen
           names itself: a trail here would stop at the drive and say
           nothing the scope line does not (spec
-          2026-09-12-purpose-oriented-navigation §6.1), and the drive
-          picker it linked to is also in the sidebar's own title.
+          2026-09-12-purpose-oriented-navigation §6.1).
+
+          What the trail did carry was this page's one link to the drive
+          picker. That link now exists only in the sidebar's title, which
+          sits behind `aria-hidden` whenever the sidebar is closed — and
+          it is forced closed in overlay mode. Reaching the picker from
+          here is therefore two steps rather than one on a narrow
+          viewport. The trade is deliberate; it is not free.
 
           The tree toggle stays, against the same section of the spec.
           It does not name the subject — it puts the folder tree away,

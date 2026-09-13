@@ -30,9 +30,13 @@ interface BreadcrumbProps {
    * The pairing rule is "name the subject once": a page either lets the trail
    * name it — a folder, the inside of an archive, which pass neither this nor
    * `trailingSegment` — or names itself in an `<h1>` and sets this, so the
-   * trail carries only ancestors. Without it such a page renders the drive as
-   * a non-clickable leaf and has no way back to the drive at all, which is
-   * the state the first of them shipped in.
+   * trail carries only ancestors. A page of the second kind that omits it
+   * renders the drive as a non-clickable leaf, which is a trail with nothing
+   * on it to follow.
+   *
+   * The cross-drive views are a third kind and pass neither: they name
+   * themselves nowhere and their trail has no segments, so the drive is
+   * their leaf. Spec §7.2 leaves them as they are.
    *
    * Redundant with `trailingSegment`, which already makes the drive a link.
    * Passing both is harmless but says the same thing twice.

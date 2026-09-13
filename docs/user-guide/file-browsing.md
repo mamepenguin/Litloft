@@ -398,7 +398,7 @@ total, and both send you to the same place — Recently Viewed is the
 whole history, so it holds everything Continue watching was showing you
 and more.
 
-The files and folders that sit at the drive root are in Library, reached at `/drive/<name>?view=library`. It is the same listing a folder gets, with the same toolbar and the same filters — the root differs only where a folder's *path* is what a feature needs: view mode falls back to your global preference and sort to newest-first, neither being remembered for the root the way they are for a folder, and **Pin this folder** is not offered.
+The files and folders that sit at the drive root are in Library, reached at `/drive/<name>?view=library`. It is the same listing a folder gets, with the same toolbar and the same filters. The root differs in two ways. It names itself: the header reads **Library**, because the trail above it stops at the drive and so names no folder, while inside a folder the trail's last segment is the name and the header adds none. And where a folder's *path* is what a feature needs, the root has none — view mode falls back to your global preference and sort to newest-first, neither being remembered for the root the way they are for a folder, **Pin this folder** is not offered, and dragging a file onto the drive in the trail does nothing, since that is where it already is.
 
 ## Pinned folders
 

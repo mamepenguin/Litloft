@@ -238,7 +238,7 @@ function renderFolder(
 }
 
 /**
- * Who names the subject, per screen.
+ * Who names the subject, on the screens this PR's rule governs.
  *
  * Declared per state rather than derived from what renders, so a screen
  * that stops naming itself moves this side of the equality on its own
@@ -249,6 +249,14 @@ function renderFolder(
  * Spec §7.1 and arbitration 11. The Library root's trail stops at the
  * drive, so it has no segment naming it; a subfolder's last segment
  * names it, and a heading there would say the same thing twice.
+ *
+ * **Not every state this component reaches.** Search has a heading and
+ * no trail and is covered by its own `describe` below. The cross-drive
+ * views (`?view=favorites` and its siblings) render with no folder path
+ * at all: they name themselves nowhere and their trail has no segments,
+ * so the drive is drawn as a dead leaf. That is unchanged by this PR and
+ * left alone by spec §7.2, and it is why `Breadcrumb`'s docstring calls
+ * them a third kind rather than folding them into the pairing rule.
  */
 const SUBJECT_BY_SCREEN: [string, () => React.ReactElement, string | null][] = [
   [
@@ -291,6 +299,38 @@ describe("which screen names itself in a heading", () => {
    * `Breadcrumb.test.tsx`'s "driveIsAncestor" describe, which is where
    * the real component runs.
    */
+  /**
+   * Which screens hand the trail drag-and-drop props, and which do not.
+   *
+   * Every target the trail offers is an *ancestor* of where you are
+   * standing, so a screen whose trail has nothing above it has no target
+   * to offer. At the Library root the one chip on the trail is the folder
+   * the reader is already in: a folder dropped there is caught by
+   * `useDragAndDrop`'s same-location guard, but a **file** is not — it
+   * reaches `moveFile(id, "")`, the backend answers 409 because the path
+   * is unchanged, and the handler's `catch {}` says nothing. So the
+   * affordance is withheld rather than the drop being handled.
+   *
+   * Declared per screen for the same reason as the table above: a screen
+   * that stops offering targets, or starts, moves one side alone.
+   */
+  const TRAIL_TAKES_DROPS: [string, () => React.ReactElement, boolean][] = [
+    ["the Library root", () => <FolderBrowser driveName="main" folderPath="" view="library" />, false],
+    ["the drive root with no view", () => <FolderBrowser driveName="main" folderPath="" />, false],
+    ["a folder", () => <FolderBrowser driveName="main" folderPath="videos" />, true],
+    ["a folder under Library", () => <FolderBrowser driveName="main" folderPath="videos" view="library" />, true],
+  ];
+
+  it.each(TRAIL_TAKES_DROPS)("%s", (_name, screen_, offersTargets) => {
+    render(screen_());
+    // A drag has to be in flight for any screen to offer them, so the
+    // false rows would pass over a fixture that simply never drags.
+    fireEvent.click(screen.getByTestId("drag-source"));
+    expect(screen.getByLabelText("Breadcrumb").getAttribute("data-drop-props")).toBe(
+      offersTargets ? "yes" : "no",
+    );
+  });
+
   it.each(SUBJECT_BY_SCREEN)("%s tells the trail whether it is the subject", (_name, screen_, expected) => {
     render(screen_());
     expect(screen.getByLabelText("Breadcrumb").getAttribute("data-drive-is-ancestor")).toBe(

@@ -43,35 +43,24 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
   usePathname: () => pathname.current,
 }));
-vi.mock("next/link", () => ({
-  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
-    <a href={href} {...rest}>{children}</a>
-  ),
-}));
-vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
-vi.mock("@/components/AddonSlotsProvider", () => ({
-  useAddonSlots: () => ({ addons: {}, slots: {}, loading: false, getSlotEntries: () => [], hasSlot: () => false }),
-}));
-vi.mock("@/components/ProfileProvider", () => ({ useProfile: () => ({ nickname: null, loading: false }) }));
-vi.mock("@/components/SidebarProvider", () => ({
-  useSidebar: () => ({ isOpen: false, isOverlay: false, close: vi.fn(), setOverlay: vi.fn(), requestRefresh: vi.fn() }),
-  useOverlaySidebarWhen: () => {},
-}));
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({ clipboard: null, clear: vi.fn(), copy: vi.fn(), cut: vi.fn(), paste: vi.fn(), isCut: () => false }),
 }));
-vi.mock("@/hooks/useWebSocketRefresh", () => ({ useWebSocketRefresh: () => {} }));
 // The pane's own contents are not the subject — whether the pane is open
 // is. Standing it in keeps this file off the folder-tree fetch.
+//
+// It is the only stand-in here that is load-bearing, besides the
+// clipboard one. The providers this tree reaches without one — addon
+// slots, profile, sidebar, the WebSocket refresh — all answer from their
+// own default context values, which are the answers a stand-in would
+// have given; a `vi.mock` for any of them would assert this file
+// exercises a path it does not.
 vi.mock("@/components/folder/FolderTreePane", () => ({
   FolderTreePane: () => <div data-testid="tree-pane-contents" />,
 }));
 vi.mock("@/lib/api", () => ({
   getDriveFiles: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } }),
   getWatchHistory: vi.fn().mockResolvedValue([]),
-  getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
-  getDownloadUrl: () => "",
-  getStreamUrl: () => "",
 }));
 
 import DriveLayout from "@/app/drive/[name]/layout";

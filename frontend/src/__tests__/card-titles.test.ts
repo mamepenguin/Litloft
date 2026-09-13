@@ -59,8 +59,18 @@ function sourceFiles(): string[] {
 
 const HEADING = /<h[1-6][\s/>]/g;
 
+/**
+ * Headings the file draws, not headings it mentions.
+ *
+ * `stripComments` first, for the reason `cardTiles` uses it: a comment
+ * that writes an element's own tag is the ordinary way to explain what
+ * the code around it does, and a scan that counts those is satisfied by
+ * prose. Measured: before this, an assertion that a file still drew a
+ * heading was green over a file whose heading had been deleted and
+ * mentioned in a comment.
+ */
 function headingsIn(jsx: string): number {
-  return [...jsx.matchAll(HEADING)].length;
+  return [...stripComments(jsx).matchAll(HEADING)].length;
 }
 
 /**

@@ -444,11 +444,51 @@ describe("the drive home's acceptance criteria", () => {
     expect(sectionNames()).not.toContain("Recently Viewed");
 
     expect(mockGetWatchHistory).not.toHaveBeenCalled();
-    // The nag this forbids would be an invitation to identify yourself.
-    // Matched on the word rather than on a component, because what AC 6
-    // rules out is the prompt, however it is drawn.
-    expect(screen.queryByText(/nickname/i)).toBeNull();
-    expect(screen.queryByRole("textbox")).toBeNull();
+    // Spec §6.2: "No profile prompt is added to Home." A prompt can be
+    // written in words this file cannot guess, so it is ruled out by
+    // holding the screen's whole interactive surface instead: with no
+    // profile and no files, the only things to press are the header's
+    // controls. Anything inviting the reader to identify themselves —
+    // a link to Settings, a "Set up your profile" button — adds to this
+    // list, whatever it says.
+    const pressable = Array.from(
+      document.querySelectorAll("button, a, input, textarea, select"),
+    ).map(
+      (el) =>
+        el.getAttribute("aria-label") ||
+        el.textContent?.trim() ||
+        // The unnamed pair are `AddButton`'s hidden pickers — one for
+        // files, one for a directory — which carry neither a label nor
+        // text. Named by tag so a nameless control appearing is visible
+        // in the list rather than hidden in a run of blanks.
+        `<${el.tagName.toLowerCase()} unnamed>`,
+    );
+    expect(pressable).toEqual([
+      "Show tree",
+      "<input unnamed>",
+      "<input unnamed>",
+      "Add",
+    ]);
+  });
+
+  it("takes both watch rows away again when the profile is cleared", async () => {
+    // The render gate, which the fetch gate cannot stand in for. Clearing
+    // a nickname in Settings flips `hasProfile` true → false on a live
+    // instance, and the two watch lists are only ever *written* under
+    // `hasProfile` — so nothing empties them and the rows would go on
+    // showing the history of a reader who has just asked not to be one.
+    mockProfile.nickname = "Alice";
+    mockGetWatchHistory.mockResolvedValue([makeWatchHistoryItem("v1")]);
+    const { rerender } = render(<DriveHome driveName="media" />);
+    await waitFor(() => expect(sectionNames()).toContain("Continue Watching"));
+
+    mockProfile.nickname = null;
+    rerender(<DriveHome driveName="media" />);
+
+    await waitFor(() => {
+      expect(sectionNames()).not.toContain("Continue Watching");
+      expect(sectionNames()).not.toContain("Recently Viewed");
+    });
   });
 
   it("draws both watch rows once a profile is set", async () => {
@@ -485,17 +525,25 @@ describe("the drive root's header", () => {
 
   it("names itself, once, and says which drive it is", async () => {
     // A trail here would stop at the drive and repeat the scope line, so
-    // this screen names itself instead (spec §6.1, arbitration 24). The
-    // heading is read rather than counted: a second `<h1>` appearing is
-    // caught by `page-headings.test.ts`, and what this holds is that the
-    // one here says **Home** and not, say, the drive.
+    // this screen names itself instead (spec §6.1, arbitration 24).
+    //
+    // `toEqual` on the array holds the count as well as the word, and
+    // that is this line's job rather than someone else's:
+    // `page-headings.test.ts` scans *source text* for hand-written `<h1>`
+    // tags and cannot see one emitted through `PageHeader`, which is
+    // every heading on this screen. Relaxing this to `toContain` would
+    // delete the only check on AC 2's word "one".
     const { container } = render(<DriveHome driveName="media" />);
     await screen.findByRole("button", { name: "Add" });
     const headings = Array.from(container.querySelectorAll("h1")).map(
       (h) => h.textContent,
     );
     expect(headings).toEqual(["Home"]);
-    expect(container.querySelector("nav[aria-label]")).toBeNull();
+    // The trail, queried the way `Breadcrumb` draws it: a bare `<nav>`.
+    // It carries no `aria-label` of its own — only the home link inside
+    // it does — so a selector asking for one matches nothing whether the
+    // trail is there or not.
+    expect(container.querySelector("nav")).toBeNull();
     expect(screen.getByText("media")).not.toBeNull();
   });
 
