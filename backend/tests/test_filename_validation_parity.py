@@ -6,9 +6,6 @@ module stays authoritative. Two implementations of one rule drift in
 silence, so both sides read
 ``backend/tests/fixtures/filename_validation.json`` and one of the two
 suites fails as soon as they disagree.
-
-The frontend half is
-``frontend/src/lib/__tests__/filenameValidation.parity.test.ts``.
 """
 
 import json

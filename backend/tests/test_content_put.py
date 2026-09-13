@@ -1,15 +1,4 @@
-"""Tests for PUT /api/files/{id}/content — text file write API.
-
-Covers:
-- 200 success with new ETag
-- 412 Precondition Failed on ETag mismatch
-- 428 Precondition Required when If-Match is missing
-- 413 Payload Too Large when body exceeds 1 MB
-- 415 Unsupported Media Type for non-allowlisted mime types
-- 404 for missing / trashed files
-- Frontmatter → File.tags projection for .md writes (spec 2026-04-24, Phase 11)
-- loft:// links → file_relations sync for .md writes (spec 2026-05-06)
-"""
+"""Tests for PUT /api/files/{id}/content — text file write API."""
 import hashlib
 
 import pytest
@@ -147,7 +136,6 @@ class TestPutContent:
 
         api, session, drive_dir, _ = client
         file = _seed_md(session, drive_dir, "notes/memo.md")
-        # Soft-delete
         file.deleted_at = datetime.now(UTC).replace(tzinfo=None)
         session.commit()
 
@@ -226,13 +214,7 @@ class TestPutContent:
 
 
 class TestFrontmatterTagProjection:
-    """PUT /content on a .md file projects frontmatter tags onto File.tags.
-
-    Spec: docs/superpowers/specs/2026-04-24-knowledge-tag-unification.md §D1
-    (β canonical rule). Before Phase 11 this projection was done by a
-    separate knowledge-addon call; now it happens in the same handler
-    as the content write.
-    """
+    """PUT /content on a .md file projects frontmatter tags onto File.tags."""
 
     def _tag_names(self, session, file_id: str) -> list[str]:
         f = session.query(File).filter(File.id == file_id).first()
@@ -255,7 +237,7 @@ class TestFrontmatterTagProjection:
         assert self._tag_names(session, file.id) == ["cooking", "weeknight"]
 
     def test_removing_tags_clears_file_tags(self, client):
-        # β rule: absence of ``tags:`` means File.tags should be empty.
+        # Absence of ``tags:`` means File.tags should be empty.
         api, session, drive_dir, _ = client
         file = _seed_md(
             session, drive_dir, "notes/memo.md",
@@ -301,8 +283,6 @@ class TestFrontmatterTagProjection:
         assert (drive_dir / "notes/memo.md").read_text() == new_content
 
     def test_invalid_tag_names_are_silently_dropped(self, client):
-        # A frontmatter with mixed valid / invalid tags must project
-        # the valid ones only, not 422 the whole write.
         api, session, drive_dir, _ = client
         file = _seed_md(session, drive_dir, "notes/memo.md", "initial\n")
         new_content = (
@@ -400,10 +380,8 @@ class TestFrontmatterTagProjection:
 class TestLoftLinkRelationsSync:
     """PUT /content on a .md syncs loft:// links to file_relations.
 
-    Spec: docs/superpowers/specs/2026-05-06-knowledge-ask-citation-links.md
-    .md body is source of truth for file_relations (same pattern as
-    frontmatter.tags for tags). kind='related' rows are added/removed
-    to match the set of valid loft:// link targets in the body.
+    The .md body is the source of truth for file_relations: kind='related'
+    rows are added/removed to match the valid loft:// link targets in it.
     """
 
     def _relation_ids(self, session, file_id: str) -> set[str]:

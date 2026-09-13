@@ -1,22 +1,4 @@
-"""Tests for app.services.drive_seed and the lifespan seed/migration ordering.
-
-These cover spec 2026-05-19-gui-first-setup-cli-bootstrap §6 / plan 1c:
-
-- drives.json [] -> seed generates entries
-- drives.json non-empty (>=1) -> seed skipped
-- mount root empty -> drives.json stays []
-- GUI partial delete (>=1 remaining) -> no re-seed
-- GUI full delete ([]) -> re-seed
-- config._drives_cache invalidated after seed
-- drives_json_entry_count: missing/dir -> None, [] -> 0, N -> N
-- ordering: pre-seed [] + sentinel absent -> sentinel NOT touched
-  (new user reaches /setup) ; pre-seed non-empty + sentinel absent
-  -> sentinel touched (existing user skips) ; count None -> neither
-
-The monkeypatch pattern mirrors conftest.py's ``client`` fixture: we swap
-``config.DRIVES_CONFIG`` / ``config.DATA_DIR`` / ``config.DRIVES_MOUNT_ROOT``
-/ ``config._drives_cache`` against tmp_path and restore on teardown.
-"""
+"""Tests for app.services.drive_seed and the lifespan seed/migration ordering."""
 from __future__ import annotations
 
 import json
@@ -61,12 +43,8 @@ def _mkmounts(mount_root: Path, slugs: list[str]) -> None:
         (mount_root / slug).mkdir()
 
 
-# ── drives_json_entry_count ────────────────────────────────────────────────
-
-
 def test_entry_count_missing_file_returns_none(seed_env):
     drives_json, _data, _mount = seed_env
-    # File does not exist yet.
     assert not drives_json.exists()
     assert drive_seed.drives_json_entry_count() is None
 
@@ -103,9 +81,6 @@ def test_entry_count_invalid_json_returns_none(seed_env):
     assert drive_seed.drives_json_entry_count() is None
 
 
-# ── seed_drives_from_mounts ────────────────────────────────────────────────
-
-
 def test_seed_writes_entries_from_mount_dirs(seed_env):
     drives_json, _data, mount_root = seed_env
     _mkmounts(mount_root, ["photos", "videos", "docs"])
@@ -113,7 +88,6 @@ def test_seed_writes_entries_from_mount_dirs(seed_env):
     result = drive_seed.seed_drives_from_mounts()
 
     written = json.loads(drives_json.read_text())
-    # slug-sorted
     assert [d["name"] for d in written] == ["docs", "photos", "videos"]
     assert written == [
         {"name": "docs", "path": f"{mount_root}/docs"},
@@ -146,11 +120,9 @@ def test_seed_ignores_non_directory_entries(seed_env):
 
 def test_seed_with_no_mount_dirs_writes_nothing_and_returns_empty(seed_env):
     drives_json, _data, _mount = seed_env
-    # mount_root is empty.
     result = drive_seed.seed_drives_from_mounts()
 
     assert result == []
-    # Nothing written (caller decides whether [] file should exist).
     assert not drives_json.exists()
 
 
@@ -178,7 +150,7 @@ def test_seed_writes_auto_seeded_marker(seed_env):
 
     The marker is the discriminator that lets a later boot's migration tell
     "this non-empty drives.json was produced by our own seed" apart from
-    "a pre-GUI user hand-configured it" (see migration tests below).
+    "a pre-GUI user hand-configured it".
     """
     _drives_json, _data, mount_root = seed_env
     _mkmounts(mount_root, ["alpha"])
@@ -196,13 +168,9 @@ def test_seed_with_no_mount_dirs_does_not_write_marker(seed_env):
     writing the marker here would be meaningless (and misleading).
     """
     _drives_json, _data, _mount = seed_env
-    # mount_root is empty.
     drive_seed.seed_drives_from_mounts()
 
     assert not config._auto_seeded_marker().exists()
-
-
-# ── re-seed behaviour (allowed-spec) ───────────────────────────────────────
 
 
 def test_partial_delete_does_not_reseed(seed_env):
@@ -228,33 +196,16 @@ def test_full_delete_allows_reseed(seed_env):
     assert [d["name"] for d in written] == ["a", "b"]
 
 
-# ── lifespan ordering integration ──────────────────────────────────────────
-#
-# We exercise the real lifespan logic by simulating the exact sequence the
-# spec mandates: read pre-seed count ONCE -> migration -> seed. Rather than
-# spinning the whole app, we assert the ordering invariants via the helper
-# the lifespan delegates to. The full lifespan is covered separately by the
-# conftest ``client`` fixture (TestClient drives it); see
-# test_lifespan_client_fixture_still_works below.
-
-
 def _run_lifespan_seed_sequence():
-    """Replicate the spec-mandated startup sequence (pure helper).
-
-    Mirrors backend/app/main.py lifespan steps 1-3:
-      1. pre_seed_count = drives_json_entry_count()  (evaluated ONCE)
-      2. migration: count >= 1 and sentinel absent -> touch sentinel
-      3. seed:      count == 0 -> seed_drives_from_mounts()
-    """
+    """Replicate the spec-mandated startup sequence (pure helper)."""
     return drive_seed.run_startup_drive_bootstrap()
 
 
 def test_ordering_new_user_empty_array_does_not_touch_sentinel(seed_env):
     """pre-seed [] + sentinel absent -> seed fills it, sentinel NOT touched.
 
-    This is the reversal goal: a brand-new user (shrunk configure.py wrote
-    []) must reach /setup, so the sentinel must remain absent even though
-    seed populated drives.json afterward.
+    A brand-new user must reach /setup, so the sentinel must remain absent
+    even though the seed populated drives.json afterward.
     """
     drives_json, data_dir, mount_root = seed_env
     drives_json.write_text("[]\n")
@@ -264,10 +215,8 @@ def test_ordering_new_user_empty_array_does_not_touch_sentinel(seed_env):
 
     _run_lifespan_seed_sequence()
 
-    # Seed populated drives.json...
     written = json.loads(drives_json.read_text())
     assert [d["name"] for d in written] == ["fresh"]
-    # ...but the sentinel was NOT touched (new user reaches /setup).
     assert not sentinel.exists()
 
 
@@ -297,8 +246,7 @@ def test_ordering_new_user_restart_after_seed_does_not_touch_sentinel(seed_env):
     Boot 1 seeds drives.json (now non-empty) and records the marker. On boot
     2 the pre-seed count is >= 1, but because the marker shows the file is our
     own seed product (not a pre-GUI hand-config), the migration must NOT touch
-    the sentinel -> the user still reaches /setup. This is the exact bug the
-    auto-seed marker fixes.
+    the sentinel -> the user still reaches /setup.
     """
     drives_json, _data, mount_root = seed_env
     _mkmounts(mount_root, ["fresh"])
@@ -328,7 +276,6 @@ def test_ordering_footgun_count_none_touches_nothing(seed_env):
     _run_lifespan_seed_sequence()
 
     assert not sentinel.exists()
-    # Still a directory, nothing written into it.
     assert drives_json.is_dir()
     assert list(drives_json.iterdir()) == []
 
@@ -346,7 +293,6 @@ def test_ordering_sentinel_already_present_is_noop(seed_env):
     _run_lifespan_seed_sequence()
 
     assert sentinel.exists()
-    # not re-touched (mtime unchanged)
     assert sentinel.stat().st_mtime == before_mtime
     written = json.loads(drives_json.read_text())
     assert written == [{"name": "kept", "path": f"{mount_root}/kept"}]
@@ -361,21 +307,13 @@ def test_ordering_empty_array_no_mounts_stays_empty_no_sentinel(seed_env):
     _run_lifespan_seed_sequence()
 
     assert not sentinel.exists()
-    # drives.json stays [] (or unchanged empty array).
     assert json.loads(drives_json.read_text()) == []
 
 
 def test_lifespan_client_fixture_still_works(client):
-    """The conftest ``client`` fixture drives the real lifespan.
-
-    It writes a non-empty drives.json, so the new ordering must:
-      - touch the sentinel (count >= 1)
-      - NOT re-seed
-      - leave the app fully functional (health endpoint responds)
-    """
+    """The conftest ``client`` fixture drives the real lifespan."""
     c, _session, _drive_dir, data_dir = client
     resp = c.get("/api/health")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok"}
-    # Existing-user migration ran: sentinel present.
     assert (data_dir / "setup_completed").exists()

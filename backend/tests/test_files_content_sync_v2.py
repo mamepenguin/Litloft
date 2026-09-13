@@ -1,26 +1,4 @@
-"""Integration tests for ``_sync_md_file_relations`` v2 (Phase B).
-
-Spec: docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md
-§3.5 and Phase B.
-
-After Phase B, the sync function combines:
-
-- ``loft://`` ids extracted from the body (existing behaviour from
-  Phase 6's spec ``2026-05-06-knowledge-ask-citation-links.md``).
-- Resolved wiki-link targets from ``[[X]]`` syntax.
-
-Both contribute to ``target_ids`` and end up as ``file_relations``
-rows with ``kind='related'``.
-
-Ambiguous wiki targets DO NOT create relations — the user must
-disambiguate explicitly.  Unresolved targets DO NOT create relations.
-
-Phase A behaviours (loft:// only) must remain green — verified in
-``test_content_put.py:TestLoftLinkRelationsSync``; here we focus on
-new behaviours involving wiki-links.
-
-RED until Phase B lands.
-"""
+"""Integration tests for ``_sync_md_file_relations`` v2 (Phase B)."""
 from __future__ import annotations
 
 import hashlib
@@ -110,12 +88,8 @@ def _put(api, file_id: str, body: str, old_body: str):
     )
 
 
-# ---------------------------------------------------------------------------
-# Phase A behaviour preserved (regressions)
-# ---------------------------------------------------------------------------
-
 class TestLoftOnlyStillWorks:
-    """Pre-Phase-B behaviour: loft:// only must still produce relations."""
+    """loft:// only must still produce relations."""
 
     def test_pure_loft_link(self, client):
         api, session, drive_dir, _ = client
@@ -128,10 +102,6 @@ class TestLoftOnlyStillWorks:
         session.expire_all()
         assert _relation_targets(session, note.id) == {target.id}
 
-
-# ---------------------------------------------------------------------------
-# New Phase B behaviour: wiki-link → file_relations
-# ---------------------------------------------------------------------------
 
 class TestWikiLinkSync:
     def test_basename_wiki_link_creates_relation(self, client):
@@ -189,10 +159,6 @@ class TestWikiLinkSync:
         }
 
 
-# ---------------------------------------------------------------------------
-# Ambiguous / unresolved must not create relations
-# ---------------------------------------------------------------------------
-
 class TestAmbiguousAndUnresolvedNotCreated:
     def test_ambiguous_does_not_create_relation(self, client):
         api, session, drive_dir, _ = client
@@ -204,7 +170,6 @@ class TestAmbiguousAndUnresolvedNotCreated:
         r = _put(api, note.id, body, "initial\n")
         assert r.status_code == 200, r.text
         session.expire_all()
-        # Two candidates → ambiguous → no relation rows.
         assert _relation_targets(session, note.id) == set()
 
     def test_unresolved_does_not_create_relation(self, client):
@@ -216,10 +181,6 @@ class TestAmbiguousAndUnresolvedNotCreated:
         session.expire_all()
         assert _relation_targets(session, note.id) == set()
 
-
-# ---------------------------------------------------------------------------
-# Diff math: INSERT / DELETE
-# ---------------------------------------------------------------------------
 
 class TestSyncDiffMath:
     def test_remove_wiki_link_removes_relation(self, client):
@@ -280,13 +241,8 @@ class TestSyncDiffMath:
         )
         assert r.status_code == 200, r.text
         session.expire_all()
-        # alpha removed, beta added.
         assert _relation_targets(session, note.id) == {target_b.id}
 
-
-# ---------------------------------------------------------------------------
-# Self-exclusion
-# ---------------------------------------------------------------------------
 
 class TestSyncSelfExclusion:
     def test_wiki_link_to_self_via_basename_skipped(self, client):
@@ -304,14 +260,13 @@ class TestSyncSelfExclusion:
     def test_wiki_link_to_self_via_id_skipped(self, client):
         api, session, drive_dir, _ = client
         note = _seed_md(session, drive_dir, "note.md", "initial\n")
-        # After the first write, the note will receive an md_id via
-        # Phase A injection.  Subsequent wiki-link [[<that id>]]
-        # should be filtered as self.
+        # After the first write, the note receives an md_id; a subsequent
+        # wiki-link [[<that id>]] should be filtered as self.
         r = _put(api, note.id, "first write\n", "initial\n")
         assert r.status_code == 200, r.text
         session.expire_all()
         refreshed = session.query(File).filter(File.id == note.id).first()
-        # Phase A may not always inject when body lacks frontmatter;
+        # Injection may not happen when the body lacks frontmatter;
         # in that case the test skips the id self-link assertion.
         if not refreshed.md_id:
             pytest.skip("md_id not auto-injected on body without frontmatter")
@@ -331,14 +286,6 @@ class TestSyncSelfExclusion:
         session.expire_all()
         assert _relation_targets(session, note.id) == set()
 
-
-# ---------------------------------------------------------------------------
-# Drive boundary preserved
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# Frontmatter source_file_ids → file_relations
-# ---------------------------------------------------------------------------
 
 class TestFrontmatterSourceFileIds:
     """frontmatter ``source_file_ids`` contributes to file_relations."""
@@ -487,5 +434,4 @@ class TestSyncDriveBoundary:
         r = _put(api, note.id, "[[year-recap]]\n", "initial\n")
         assert r.status_code == 200, r.text
         session.expire_all()
-        # No relation: cross-drive resolution forbidden.
         assert _relation_targets(session, note.id) == set()

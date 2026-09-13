@@ -1,7 +1,6 @@
 """Migration test: legacy ``playlists`` / ``playlist_items`` tables are
 copied into the new ``collections`` / ``collection_items`` tables with
-NULL ``description``, then the legacy tables are dropped. Verifies the
-Phase 1 spec (2026-05-12-playlist-to-collection) backend migration.
+NULL ``description``, then the legacy tables are dropped.
 """
 
 
@@ -12,8 +11,6 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, _migrate
 
-# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
-# in ``conftest.py`` says why that must not be the shared one.
 pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 

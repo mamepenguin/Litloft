@@ -165,8 +165,7 @@ class TestUpdateProgress:
     def test_view_only_records_last_played(self, client):
         # Empty body POST = "page-opened" record for non-media files. Must
         # insert a WatchHistory row with playback_position=0/duration=0 and
-        # last_played_at = now so personal_history's Stage B can surface
-        # the file. Spec: 2026-04-26-intelligence-ask-personal-history-query.md.
+        # last_played_at = now.
         c, db, drive_dir, data_dir = client
         file = _seed_file(
             db, drive_dir, filename="note.md", file_type="text",
@@ -359,7 +358,6 @@ class TestDeleteProgress:
         )
         assert res.status_code == 204
 
-        # Verify it's gone
         res = c.get(
             f"/api/files/{file.id}/progress",
             cookies={"lit_viewer": "alice"},
@@ -401,18 +399,15 @@ class TestCascadeDelete:
             cookies={"lit_viewer": "alice"},
         )
 
-        # Verify progress was saved
         res = c.get(
             f"/api/files/{file_id}/progress",
             cookies={"lit_viewer": "alice"},
         )
         assert res.json()["position"] == 50.0
 
-        # Delete the file via API
         res = c.delete(f"/api/files/{file_id}")
         assert res.status_code == 200
 
-        # File no longer exists, so progress endpoint should 404
         res = c.get(
             f"/api/files/{file_id}/progress",
             cookies={"lit_viewer": "alice"},
@@ -566,7 +561,6 @@ class TestWatchHistoryList:
         file_obj.drive = "other-drive"
         db.commit()
 
-        # Watch history for TEST_DRIVE should not include the file
         res = c.get(
             f"/api/drives/{TEST_DRIVE}/watch-history",
             cookies={"lit_viewer": "alice"},
@@ -589,12 +583,9 @@ class TestWatchHistoryList:
 
 
 class TestCompletionIsPreserved:
-    """Spec 2026-08-10-media-import-watch-surface.md §4.2.
-
-    Players stopped deleting the history row at the end of playback and
-    now write the final position instead. These lock in the two halves
-    of that contract: the record survives, and it still does not come
-    back as unfinished work.
+    """The end of playback writes the final position instead of deleting the
+    row: the record survives, and it still does not come back as unfinished
+    work.
     """
 
     def test_completed_record_is_retained(self, client):
@@ -661,8 +652,7 @@ class TestCompletionIsPreserved:
         assert res.json()["data"] == []
 
     def test_explicit_delete_still_removes_the_record(self, client):
-        # Completion no longer deletes, so the only remaining caller of
-        # the delete path is the user's own "remove from history".
+        # The only caller of the delete path is the user's own "remove from history".
         c, db, drive_dir, data_dir = client
         file = _seed_file(db, drive_dir, filename="video1.mp4")
         c.post(

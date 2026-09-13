@@ -35,17 +35,14 @@ class TestClassify:
         assert file_type == "audio"
 
     def test_audio_m4a_uses_iana_mp4_mime(self):
-        """Phase 2F: Linux Docker's mimetypes DB lacks .m4a; the
-        extension fallback must register it as the IANA-standard
-        ``audio/mp4`` so the intelligence transcriber recognises it
-        (hako A-gF1mK3kDjRjS_dfuq1B + BDffxf4IyuwzRiZDnZuBZ)."""
+        """Linux Docker's mimetypes DB lacks .m4a; the extension fallback must
+        register it as the IANA-standard ``audio/mp4``."""
         file_type, mime_type = classify("podcast.m4a")
         assert file_type == "audio"
         assert mime_type == "audio/mp4"
 
     def test_audio_opus_uses_iana_mime(self):
-        """Phase 2F: same fix for Opus, which Linux Docker also
-        misses in its mimetypes DB."""
+        """Linux Docker's mimetypes DB also lacks .opus."""
         file_type, mime_type = classify("call.opus")
         assert file_type == "audio"
         assert mime_type == "audio/opus"
@@ -78,10 +75,9 @@ class TestClassify:
 
 
 class TestRefineClassificationWithProbe:
-    """Audio-only ``.mp4`` / ``.mov`` containers (e.g. iTunes ALAC/AAC-LC
-    saved with a ``.mp4`` extension, hako 4t5FWrH4IpLUlGDXxh7cO) get
-    downgraded to ``audio/mp4`` so the UI shows them as audio and cloud
-    STT providers don't reject them as malformed video."""
+    """Audio-only ``.mp4`` / ``.mov`` containers get downgraded to ``audio/mp4``
+    so the UI shows them as audio and cloud STT providers don't reject them as
+    malformed video."""
 
     _MP4_FORMAT = "mov,mp4,m4a,3gp,3g2,mj2"
 

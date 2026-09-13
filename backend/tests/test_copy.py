@@ -62,7 +62,6 @@ class TestCopyFileService:
         assert data["liked_at"] is None
         assert data["is_favorite"] is False
         assert (drive_dir / "旅行" / "test_copy.mp4").exists()
-        # Original still exists
         assert (drive_dir / "旅行" / "test.mp4").exists()
 
     def test_copy_to_different_folder(self, client):
@@ -140,7 +139,6 @@ class TestCopyFileService:
     def test_copy_preserves_metadata(self, client):
         c, db, drive_dir, data_dir = client
         file = _seed(db, drive_dir)
-        # Set description on original
         file.description = "Original description"
         db.commit()
 
@@ -181,10 +179,8 @@ class TestCopyFileService:
         )
         assert res.status_code == 200
         new_id = res.json()["id"]
-        # New thumbnail should exist for the copy
         new_thumb_rel = f"{TEST_DRIVE}/旅行/test_copy.jpg"
         assert (config.THUMBNAILS_DIR / new_thumb_rel).exists()
-        # Original thumbnail still exists
         assert (config.THUMBNAILS_DIR / file.thumbnail_path).exists()
 
 
@@ -204,7 +200,6 @@ class TestCopyFileCrossDrive:
         c, db, drive_dir, data_dir = client
         import app.config as config
 
-        # Add a second writable drive
         drive2_dir = drive_dir.parent / "drive2"
         drive2_dir.mkdir(parents=True)
         drives_json = config.DRIVES_CONFIG
@@ -224,7 +219,6 @@ class TestCopyFileCrossDrive:
         assert data["drive"] == "drive2"
         assert data["filename"] == "test.mp4"
         assert (drive2_dir / "test.mp4").exists()
-        # Original still in place
         assert (drive_dir / "旅行" / "test.mp4").exists()
 
 

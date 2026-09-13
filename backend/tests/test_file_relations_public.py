@@ -9,8 +9,8 @@ key additional behaviours tested here:
 * bidirectional symmetry (the row is discovered whether the source sits
   in ``file_id_a`` or ``file_id_b``)
 * ``kind`` query parameter
-* same-drive scoping (cross-drive rows can't materialise under spec R4
-  but we defensively filter anyway)
+* same-drive scoping (cross-drive rows can't materialise, but we
+  defensively filter anyway)
 """
 
 from __future__ import annotations

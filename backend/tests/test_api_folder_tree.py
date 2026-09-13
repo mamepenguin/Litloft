@@ -1,9 +1,4 @@
-"""Tests for GET /api/drives/{drive}/folder-tree endpoint and FolderResponse.dominant_kind.
-
-Spec: docs/superpowers/specs/2026-05-08-vault-core-merger-design-handoff.md
-- Topic 9: dominant_kind for layered viewMode fallback
-- Topic 10: GET /api/drives/{drive}/folder-tree endpoint for left tree pane
-"""
+"""Tests for GET /api/drives/{drive}/folder-tree endpoint and FolderResponse.dominant_kind."""
 
 import shutil
 from pathlib import Path
@@ -155,7 +150,6 @@ class TestFolderTree:
 
         res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=markdown&include_files=true")
         nodes = res.json()
-        # Folder is still listed even though it has no markdown files
         names = {n["name"] for n in nodes if n["kind"] == "folder"}
         assert "onlyvideos" in names
         # But file_count reflects matching count under filter
@@ -179,7 +173,6 @@ class TestFolderTree:
 
         res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?root=parent&include_files=true")
         nodes = res.json()
-        # `child` is a sub-folder under parent
         child_folder = next((n for n in nodes if n["name"] == "child"), None)
         assert child_folder is not None
         # has_children should be True for child since it has b.md inside
@@ -187,7 +180,6 @@ class TestFolderTree:
 
     def test_folder_has_children_false_when_empty(self, client):
         c, db, drive_dir, data_dir = client
-        # Create a folder via EmptyFolder marker
         from app.models import EmptyFolder
         db.add(EmptyFolder(drive=TEST_DRIVE, path="empty"))
         db.commit()
@@ -233,7 +225,7 @@ class TestFolderTree:
 
 
 class TestFolderTreeFlat:
-    """Spec 2026-05-09 tree filter: ``flat=true`` returns the entire tree."""
+    """``flat=true`` returns the entire tree."""
 
     def test_flat_returns_all_folders_and_files(self, client):
         c, db, drive_dir, data_dir = client
@@ -245,13 +237,11 @@ class TestFolderTreeFlat:
         res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true&include_files=true")
         assert res.status_code == 200
         nodes = res.json()
-        # Folders + files all returned regardless of depth.
         names = {n["name"] for n in nodes}
         assert "root.md" in names
         assert "a.md" in names
         assert "spec1.md" in names
         assert "v.mp4" in names
-        # Folder entries for every ancestor.
         folder_paths = {n["path"] for n in nodes if n["kind"] == "folder"}
         assert "docs" in folder_paths
         assert "docs/specs" in folder_paths
@@ -282,7 +272,6 @@ class TestFolderTreeFlat:
         names = {(n["kind"], n["name"]) for n in res.json()}
         assert ("file", "a.md") in names
         assert ("file", "movie.mp4") not in names
-        # Folder still listed (filter does not hide folders).
         assert ("folder", "docs") in names
 
     def test_flat_invalid_drive(self, client):
@@ -292,7 +281,7 @@ class TestFolderTreeFlat:
 
 
 class TestFolderTreeIncludeFiles:
-    """F-7: the tree is a map of the drive's shape, files are opt-in.
+    """The tree is a map of the drive's shape, files are opt-in.
 
     The pane beside the tree already lists the files in the folder you are
     standing in, so the tree drawing them too spends its height saying the
@@ -398,7 +387,7 @@ class TestFolderTreeIncludeFiles:
 
 
 class TestFolderResponseDominantKind:
-    """Topic 9: dominant_kind on FolderResponse for layered viewMode fallback."""
+    """dominant_kind on FolderResponse."""
 
     def test_dominant_kind_markdown(self, client):
         c, db, drive_dir, data_dir = client
@@ -459,7 +448,6 @@ class TestFolderResponseDominantKind:
 
         res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
         folders = res.json()
-        # Root view: only "parent" appears as a top-level folder
         parent = next(f for f in folders if f["name"] == "parent")
         # 2 markdown vs 1 video → markdown wins recursively
         assert parent["dominant_kind"] == "markdown"

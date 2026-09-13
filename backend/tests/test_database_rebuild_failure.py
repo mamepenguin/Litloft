@@ -13,21 +13,6 @@ passes through it again.
 The trigger used here is a name collision on ``files_new``, which fails the
 rebuild's first statement — before its ``COMMIT``. That is what makes "the rows
 are where they were" and "the schema did not change" true below.
-
-**The rebuild has a second failure and it is not this one.** Its
-``foreign_key_check`` guard raises *after* the ``COMMIT``, so the conversion is
-already durable when the exception escapes: the rows have moved, the new
-constraint is on disk, and the handler's rollback has nothing left to undo.
-``TestOrphanGuard`` below covers that path separately and asserts what it
-actually leaves, rather than folding it into the claims made about this one.
-
-The rebuild drives a raw DBAPI cursor rather than a SQLAlchemy connection, so
-whatever a statement raises comes out unwrapped — nothing in the path does the
-wrapping. **Which** exception that is depends on the statement: the collision
-below raises ``sqlite3.OperationalError``; an ``INSERT`` that finds two rows
-sharing ``(drive, file_path)`` raises ``sqlite3.IntegrityError``; the guard
-raises a ``RuntimeError`` of its own. Each test names the one it expects rather
-than the file claiming a single type for all of them.
 """
 
 from __future__ import annotations
@@ -38,8 +23,6 @@ from pathlib import Path
 import pytest
 from sqlalchemy import create_engine, event, inspect, text
 
-# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
-# in ``conftest.py`` says why that must not be the shared one.
 pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 # ``files`` as it was before the composite constraint: ``file_path`` carries a
@@ -177,9 +160,6 @@ def test_the_pre_existing_table_is_not_silently_adopted(stalled_rebuild):
         assert conn.execute(text("SELECT COUNT(*) FROM files_new")).scalar() == 0
 
 
-# --- the other failure inside the rebuild ---------------------------------
-
-
 @pytest.fixture()
 def orphaned_child_row(tmp_path):
     """A pre-composite database carrying one ``file_tags`` row with no file.
@@ -246,8 +226,7 @@ class TestOrphanGuard:
         """The claims the collision path makes do not hold here.
 
         This check runs after the rebuild's ``COMMIT``, so the raise cannot
-        undo it: the new constraint is on disk and the rows have moved. The
-        file's opening docstring says so; this is the assertion behind it.
+        undo it: the new constraint is on disk and the rows have moved.
         """
         from app.database import _migrate
 
@@ -267,9 +246,7 @@ class TestOrphanGuard:
         first boot committed it before raising. So the second boot skips the
         rebuild, never reaches the check, and starts normally with the orphan
         still on disk — and restarting is the first thing an operator does when
-        startup fails. Changing this is a decision about the migration, not
-        about the test; if it is taken, this test is what has to be rewritten,
-        which is the point of writing it down.
+        startup fails.
         """
         from app.database import _migrate
 

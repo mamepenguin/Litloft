@@ -1,11 +1,5 @@
 """Migration test: ``md_id VARCHAR(32)`` column added to ``files`` table.
 
-Spec: docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md §3.6 / §4 Phase A.
-
-Pattern mirrors the existing ``file_hash`` migration (database.py:327)
-and ``missing_since`` migration (database.py:342) — column existence
-check + ``ALTER TABLE ... ADD COLUMN`` + create index, all idempotent.
-
 The matching index is ``idx_files_drive_md_id`` on ``(drive, md_id)``
 (non-unique — collisions are resolved at write time with the 17-digit
 suffix, so we never need a UNIQUE constraint here).
@@ -18,8 +12,6 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, _migrate
 
-# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
-# in ``conftest.py`` says why that must not be the shared one.
 pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 
@@ -71,14 +63,12 @@ def test_md_id_column_added_to_files(tmp_path):
             VALUES ('aaaaaaaaaaaa', 'a.md', 'a.md', 'a.md', 1)
         """))
 
-    # Sanity: legacy schema lacks md_id.
     inspector = inspect(engine)
     cols = {c["name"] for c in inspector.get_columns("files")}
     assert "md_id" not in cols
 
     _migrate(engine)
 
-    # After migration the column exists, existing row preserved with NULL.
     inspector = inspect(engine)
     cols = {c["name"] for c in inspector.get_columns("files")}
     assert "md_id" in cols

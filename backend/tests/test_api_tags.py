@@ -259,19 +259,14 @@ class TestTagFilter:
 
 
 class TestFolderScopedTagCountAgreement:
-    """spec 2026-08-21-folder-scoped-tag-filter §11 — the headline invariant.
-
-    For the same folder and the same tag, the count shown in the sidebar
+    """For the same folder and the same tag, the count shown in the sidebar
     (`list_drive_tags?folder_path=`) and the number of results in the
     listing (`list_drive_files?path=&recursive=true&tag=`) must agree.
-    That equality is exactly what was broken: the sidebar narrowed its list
-    to the folder while a click filtered the whole drive.
 
     Fixture note: `list_drive_files` matches tags case-insensitively
     (`func.lower(Tag.name) == tag.lower()`) while `list_drive_tags` groups
     by `Tag.id`, so two tags differing only in case would make the sidebar
-    count smaller — pre-existing, and not this change's regression. Use a
-    single-case tag here.
+    count smaller. Use a single-case tag here.
     """
 
     def _seed_tagged(self, db, drive_dir):

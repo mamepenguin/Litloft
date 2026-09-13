@@ -1,7 +1,5 @@
 """WS event emissions for folder create/delete/move and text file create.
 
-Spec: 2026-05-09-tree-and-pane-refresh-sync.md.
-
 The frontend tree and right panes refresh when they see one of these
 events; without them, freshly created folders/files and empty-folder
 renames are invisible until something else happens.

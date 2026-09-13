@@ -1,19 +1,8 @@
 """One vocabulary, one classifier, for both surfaces that filter by kind.
 
-Two filters used to answer "show me only X" with two different
-implementations: the listing's ``?type=`` compared ``File.file_type``
-directly, while the tree's ``?type_filter=`` ran a four-bucket
-classifier that knew about markdown and PDF. A file could satisfy one
-and not the other, and the one case where that is visible — a ``.md``
-row whose ``mime_type`` never got recorded — landed on opposite sides
-of each.
-
-Both now go through ``_apply_kind_filter``. These tests hold the two
-endpoints to the same answers, which is the only durable way to state
-"there is one classifier": asserting it about the code would pass a
-second copy that happened to agree today.
-
-Spec: docs/superpowers/specs/2026-09-03-ui-redesign-p1-vocabulary.md item 1.
+Both surfaces go through ``_apply_kind_filter``. These tests hold the two
+endpoints to the same answers: asserting it about the code would pass a second
+copy that happened to agree today.
 """
 
 from pathlib import Path
@@ -109,17 +98,13 @@ class TestOneClassifier:
     @pytest.mark.parametrize("kind", ALL_KINDS)
     def test_the_tree_agrees_with_itself_in_both_modes(self, library, kind):
         # The tree answers in two shapes — a flat whole-drive list and a
-        # lazy one level at a time — and each builds its own query. Only
-        # the flat one was covered, so the depth-1 path could have lost
-        # the filter without this file noticing.
+        # lazy one level at a time — and each builds its own query.
         c, _, _ = library
         assert _tree_names(c, kind, flat=False) == _tree_names(c, kind)
 
     def test_they_agree_on_a_markdown_row_with_no_recorded_mime(self, library):
-        # The row this whole exercise is about. `classify()` always
-        # records a mime today, but rows predating it — and rows written
-        # by anything that skipped it — carry NULL, and the two filters
-        # then put the same file on opposite sides.
+        # `classify()` always records a mime today, but older rows and rows
+        # written by anything that skipped it carry NULL.
         c, db, drive_dir = library
         _add(db, drive_dir, filename="legacy.md", file_type="document", mime_type=None)
 
@@ -138,15 +123,7 @@ class TestOneClassifier:
 
         A row with no recorded mime got its ``file_type`` from the same
         writer that skipped the mime, so it is exactly the row most
-        likely to carry the wrong one. Demanding the column too would
-        drop precisely the rows the extension fallback exists for —
-        while the semantic index, which does not demand it, keeps
-        returning them. That is the two-surfaces-disagree defect this
-        whole item exists to end, reintroduced in the one direction that
-        looks like a correction.
-
-        ``addons/intelligence/tests/test_search_file_kind_filter.py``
-        seeds the mirror of this row for the same reason.
+        likely to carry the wrong one.
         """
         c, db, drive_dir = library
         _add(db, drive_dir, filename="stray.md", file_type="other", mime_type=None)
@@ -156,12 +133,7 @@ class TestOneClassifier:
 
 
 class TestTheRecentView:
-    """Watch history narrows through the same classifier.
-
-    It used to sift the fetched rows in the browser on ``file_type``
-    alone, so choosing Markdown or PDF — values that column never holds
-    — emptied the view no matter what was in the history.
-    """
+    """Watch history narrows through the same classifier."""
 
     @pytest.fixture
     def watched(self, library):

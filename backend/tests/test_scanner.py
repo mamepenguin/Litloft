@@ -17,24 +17,13 @@ from app.services.scanner import (
 
 
 class TestFilenameToTitle:
-    """The rule itself is measured in `test_filename_title_parity.py`.
-
-    Its cases used to live here as three inline tables, and the frontend
-    grew a fourth. They are one table now, in
-    `fixtures/filename_title.json`, which both suites read — the cases that
-    matter most to the frontend (interior capitals, apostrophes, digits)
-    were the ones only this file had.
-    """
+    """The rule itself is measured in `test_filename_title_parity.py`."""
 
     def test_is_measured_against_the_shared_table(self):
         from tests.test_filename_title_parity import CASES
 
-        # Not a redirect note in a comment: this fails if the parity file is
-        # deleted. The four names are the `str.title()` regressions --
-        # interior capitals, an apostrophe, a leading digit, a non-Latin
-        # script. They read as duplicates of the simpler cases, so a tidy-up
-        # is most likely to drop exactly these, and a count would not say
-        # which cases survived.
+        # The four names are the `str.title()` regressions -- interior
+        # capitals, an apostrophe, a leading digit, a non-Latin script.
         must_survive = {
             "02 charon's burden.mp3",
             "6484215695_3df06f6b39_o.jpg",
@@ -73,14 +62,6 @@ class TestGetFolderPath:
 class TestScanAllDrivesIsolation:
     """One drive's unexpected scan_drive failure must not strand every
     drive scheduled after it in the same startup sweep.
-
-    Regression for the case where an ffmpeg subprocess call raised an
-    uncaught UnicodeDecodeError partway through one drive's scan: the
-    for-loop in scan_all_drives had no per-drive try/except, so the
-    exception propagated out of the whole background task (visible only
-    as an easy-to-miss "Task exception was never retrieved" asyncio
-    warning) and every later drive in drives.json silently never got
-    scanned — on every restart, since the failure was deterministic.
     """
 
     def test_continues_past_a_failing_drive(self, monkeypatch):
@@ -96,11 +77,8 @@ class TestScanAllDrivesIsolation:
 
         monkeypatch.setattr(scanner_module, "scan_drive", fake_scan_drive)
 
-        # Not asyncio.run(): this repo's event-loop hygiene test forbids it
-        # in test files (it resets the thread's current-loop slot on exit,
-        # which can break unrelated tests run in the same session — see
-        # test_event_loop_hygiene.py). A private loop touches no shared
-        # state.
+        # Not asyncio.run(): it clears the thread's current-loop slot on exit.
+        # A private loop touches no shared state.
         loop = asyncio.new_event_loop()
         try:
             results = loop.run_until_complete(scanner_module.scan_all_drives())
@@ -109,15 +87,13 @@ class TestScanAllDrivesIsolation:
 
         # All three drives were attempted — "c" was not stranded by "b".
         assert calls == ["a", "b", "c"]
-        # Only the drives that actually succeeded appear in the result.
         assert set(results.keys()) == {"a", "c"}
 
 
 class TestAudioOnlyMp4Registration:
     """A ``.mp4`` file that contains only an audio stream must register
     as ``audio/mp4`` with ``file_type=audio`` so the UI shows the right
-    icon and the cloud STT pipeline doesn't try to send it as video
-    (hako 4t5FWrH4IpLUlGDXxh7cO)."""
+    icon and the cloud STT pipeline doesn't try to send it as video."""
 
     def test_audio_only_mp4_registers_as_audio(self, tmp_path, db_session, monkeypatch):
         drive_dir = tmp_path / "drive"
@@ -319,9 +295,7 @@ class TestLetterboxedThumbnailDetection:
     def test_a_thumbnail_path_pointing_at_nothing_is_not_a_letterbox(
         self, tmp_path, monkeypatch
     ):
-        # The row says there is a thumbnail and the disk disagrees. This
-        # is the branch the name above was reaching for and never
-        # entered: it returned early on the empty path instead.
+        # The row says there is a thumbnail and the disk disagrees.
         record = self._record(tmp_path, monkeypatch, (768, 1024), (320, 180))
         (tmp_path / "t.jpg").unlink()
         assert scanner_module._is_letterboxed_image_thumbnail(record) is False
@@ -339,23 +313,14 @@ class TestLetterboxedThumbnailDetection:
         self, tmp_path, monkeypatch
     ):
         # 640x361 fits to 320x180.5. Rounded to even that is 180, which
-        # reads as "already 320x180, leave it" — so this ratio kept its
-        # letterbox through every scan there would ever be. The
-        # generators round a half up, and so does the prediction.
+        # reads as "already 320x180, leave it". The generators round a half
+        # up, and so does the prediction.
         record = self._record(tmp_path, monkeypatch, (640, 361), (320, 180))
         assert scanner_module._is_letterboxed_image_thumbnail(record) is True
 
 
 class TestLetterboxedThumbnailReplacement:
-    """The scan actually replacing them, not just recognising them.
-
-    `TestLetterboxedThumbnailDetection` calls the predicate directly, so
-    it says nothing about the branch that acts on it: that the branch is
-    reachable at all, that it is handed the picture generator, that it
-    writes to the path the endpoint reads, or that the relocation branch
-    above it does not swallow the case first. Deleting the body left
-    every other test green.
-    """
+    """The scan actually replacing them, not just recognising them."""
 
     def _drive(self, tmp_path, monkeypatch):
         drive_dir = tmp_path / "drive"

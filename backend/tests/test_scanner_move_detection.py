@@ -4,8 +4,6 @@ Verifies that when files are renamed/moved on disk between scans, the
 scanner detects them via (file_hash, file_size) matching and rewrites
 the existing record (preserving file_id) rather than emitting a
 missing+add pair.
-
-Spec: docs/superpowers/specs/2026-05-03-hash-based-move-detection.md
 """
 from pathlib import Path
 from unittest.mock import patch
@@ -41,7 +39,6 @@ class TestSimpleRename:
         old_path = drive_dir / "original.bin"
         _write_unique_file(old_path, b"abc")
 
-        # Initial scan: file is added with hash
         _scan_and_register(db, TEST_DRIVE)
         db.expire_all()
         rec = db.query(File).filter(File.file_path == "original.bin").first()
@@ -50,7 +47,6 @@ class TestSimpleRename:
         original_id = rec.id
         original_hash = rec.file_hash
 
-        # Rename on disk
         new_path = drive_dir / "renamed.bin"
         old_path.rename(new_path)
 
@@ -59,7 +55,6 @@ class TestSimpleRename:
             result = _scan_and_register(db, TEST_DRIVE)
 
         db.expire_all()
-        # Same record should now point to the new path
         rec = db.query(File).filter(File.id == original_id).first()
         assert rec is not None
         assert rec.file_path == "renamed.bin"
@@ -67,16 +62,13 @@ class TestSimpleRename:
         assert rec.missing_since is None
         assert rec.file_hash == original_hash
 
-        # No duplicate record was created
         all_records = db.query(File).all()
         assert len(all_records) == 1
 
-        # Result counters
         assert result["moved"] == 1
         assert result["added"] == 0
         assert result["missing"] == 0
 
-        # files.moved was emitted, files.missing was NOT
         emitted = {evt for evt, _ in events}
         assert "files.moved" in emitted
         assert "files.missing" not in emitted
@@ -96,7 +88,6 @@ class TestFolderMove:
         rec = db.query(File).filter(File.file_path == "folder1/video.bin").first()
         original_id = rec.id
 
-        # Move across folders
         new_path = drive_dir / "folder2" / "video.bin"
         new_path.parent.mkdir(parents=True, exist_ok=True)
         old_path.rename(new_path)
@@ -144,18 +135,15 @@ class TestSafetyAgainstFalsePositives:
         db.expire_all()
         original_id = db.query(File).first().id
 
-        # Replace with a different file that has same head+tail but different size
         old_path.unlink()
         new_path = drive_dir / "b.bin"
         head = b"H" * HASH_CHUNK_SIZE
         tail = b"T" * HASH_CHUNK_SIZE + b"A"
-        # Different middle size
         new_path.write_bytes(head + b"M" * 5000 + tail)
 
         result = _scan_and_register(db, TEST_DRIVE)
         db.expire_all()
 
-        # Old record should be missing, new record inserted
         old_rec = db.query(File).filter(File.id == original_id).first()
         assert old_rec.missing_since is not None
         new_rec = db.query(File).filter(File.file_path == "b.bin").first()
@@ -169,7 +157,6 @@ class TestSafetyAgainstFalsePositives:
         """If two missing candidates share the same (hash, size), the match
         is ambiguous and we fall back to missing+add."""
         c, db, drive_dir, _ = client
-        # Two identical files
         a = drive_dir / "a.bin"
         b = drive_dir / "b.bin"
         _write_unique_file(a, b"ZZ")
@@ -179,7 +166,6 @@ class TestSafetyAgainstFalsePositives:
         ids_before = {f.id for f in db.query(File).all()}
         assert len(ids_before) == 2
 
-        # Delete both, add one new identical file at a third path
         a.unlink()
         b.unlink()
         c_path = drive_dir / "c.bin"
@@ -188,7 +174,6 @@ class TestSafetyAgainstFalsePositives:
         result = _scan_and_register(db, TEST_DRIVE)
         db.expire_all()
 
-        # Should be 2 missing + 1 added, no moves (ambiguous)
         assert result["moved"] == 0
         assert result["missing"] == 2
         assert result["added"] == 1
@@ -206,17 +191,14 @@ class TestSafetyAgainstFalsePositives:
         db.expire_all()
         original_id = db.query(File).first().id
 
-        # Copy to second path, keep original
         b = drive_dir / "b.bin"
         b.write_bytes(a.read_bytes())
 
         result = _scan_and_register(db, TEST_DRIVE)
         db.expire_all()
 
-        # Original record unchanged
         a_rec = db.query(File).filter(File.id == original_id).first()
         assert a_rec.file_path == "a.bin"
-        # New record for b
         b_rec = db.query(File).filter(File.file_path == "b.bin").first()
         assert b_rec is not None
         assert b_rec.id != original_id
@@ -238,7 +220,6 @@ class TestSafetyAgainstFalsePositives:
         rec.file_hash = None
         db.commit()
 
-        # Move on disk
         a.unlink()
         b = drive_dir / "new.bin"
         _write_unique_file(b, b"YY")
@@ -246,9 +227,7 @@ class TestSafetyAgainstFalsePositives:
         result = _scan_and_register(db, TEST_DRIVE)
         db.expire_all()
 
-        # No move detected — the record can't be matched without a hash
         assert result["moved"] == 0
-        # Old goes missing, new is added
         assert result["missing"] == 1
         assert result["added"] == 1
 
@@ -266,7 +245,6 @@ class TestIdempotency:
         first = _scan_and_register(db, TEST_DRIVE)
         assert first["moved"] == 1
 
-        # Second scan: nothing changes
         second = _scan_and_register(db, TEST_DRIVE)
         assert second["moved"] == 0
         assert second["added"] == 0
@@ -287,7 +265,6 @@ class TestThumbnailFollowsMove:
         # Force the record to look like a video so the thumbnail branch runs
         rec.file_type = "video"
         rec.mime_type = "video/mp4"
-        # Pre-place a fake thumbnail
         old_thumb_rel = f"{TEST_DRIVE}/a.jpg"
         old_thumb_full = data_dir / "thumbnails" / old_thumb_rel
         old_thumb_full.parent.mkdir(parents=True, exist_ok=True)
@@ -299,7 +276,6 @@ class TestThumbnailFollowsMove:
         # at "video" we use a known video extension.
         old_path.unlink()
         new_path = drive_dir / "b.mp4"
-        # Re-create the same content under new name
         head = b"H" * HASH_CHUNK_SIZE
         body = b"TT" * 200
         tail = b"T" * HASH_CHUNK_SIZE + b"T"
@@ -311,10 +287,8 @@ class TestThumbnailFollowsMove:
         assert result["moved"] == 1
         rec = db.query(File).first()
         assert rec.file_path == "b.mp4"
-        # New thumbnail path should reflect new stem
         new_thumb_rel = f"{TEST_DRIVE}/b.jpg"
         new_thumb_full = data_dir / "thumbnails" / new_thumb_rel
         assert rec.thumbnail_path == new_thumb_rel
         assert new_thumb_full.exists()
-        # Old thumbnail no longer present
         assert not old_thumb_full.exists()

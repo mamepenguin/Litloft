@@ -1,7 +1,5 @@
 """Tests for the ``likes`` → ``liked_at`` column migration.
 
-Spec: docs/superpowers/specs/2026-09-01-favorite-like-separation.md
-
 ``files.likes`` was an INTEGER counter that ``POST /files/{id}/like``
 incremented and ``/dislike`` decremented. It is replaced by ``liked_at``,
 a nullable timestamp that is both the "was this liked" flag and the sort
@@ -29,8 +27,6 @@ from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
 
-# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
-# in ``conftest.py`` says why that must not be the shared one.
 pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 

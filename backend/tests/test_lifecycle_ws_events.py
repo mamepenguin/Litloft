@@ -1,11 +1,7 @@
 """Core lifecycle changes reach the browser, not only addon webhooks.
 
-`event_hooks.emit*` used to send HTTP to addon listeners and nothing else,
-so a core-only install never learned about creates, deletes, restores,
-purges or folder changes. These tests pin the coarse WebSocket events that
-close that gap.
-
-Spec: `docs/superpowers/specs/2026-08-22-core-lifecycle-events-over-websocket.md`
+Core-only installs have no addon listeners. These tests pin the coarse
+WebSocket events that reach the browser anyway.
 """
 
 import asyncio
@@ -23,10 +19,7 @@ def _run(coro):
     """Drive a coroutine without disturbing the thread's current loop.
 
     Deliberately not ``asyncio.run``: that sets the new loop as current and
-    resets the slot to ``None`` on exit, which makes the next
-    ``asyncio.get_event_loop()`` in the suite raise "no current event loop".
-    ``test_ws.py`` still uses that deprecated call, so ``asyncio.run`` here
-    fails sixteen tests in another file.
+    resets the slot to ``None`` on exit.
     """
     loop = asyncio.new_event_loop()
     try:
@@ -63,8 +56,7 @@ class TestNoListenersStillBroadcasts:
     """The early return in emit/emit_sync must not swallow the broadcast.
 
     A core-only install has an empty `_hooks`. If the broadcast is placed
-    after the `if not listeners: return` guard it silently does nothing —
-    and every test that registers a listener would still pass.
+    after the `if not listeners: return` guard it silently does nothing.
     """
 
     def test_emit_broadcasts_with_no_listeners(self, captured, monkeypatch):

@@ -1,19 +1,4 @@
-"""Unit tests for ``app.services.frontmatter``.
-
-The parser backs ``PUT /api/files/{id}/content``'s synchronous tag
-projection (Phase 11) and must treat broken frontmatter as "skip the
-projection, keep the write". These tests lock in the behaviours that
-``put_file_content`` relies on:
-
-- well-formed frontmatter yields a ``dict`` for ``metadata``
-- missing / malformed frontmatter yields ``metadata={}`` (not an
-  exception) so the write path can fall back to no-op projection
-- body content is preserved byte-for-byte after the closing ``---``
-
-Kept in sync with the parallel knowledge parser at
-``addons/knowledge/app/services/frontmatter.py``; drift between the two
-breaks the β canonical rule.
-"""
+"""Unit tests for ``app.services.frontmatter``."""
 from __future__ import annotations
 
 import sys
@@ -61,13 +46,9 @@ def test_parse_unclosed_frontmatter_returns_body_unchanged() -> None:
 
 
 def test_parse_invalid_yaml_falls_back_to_no_metadata() -> None:
-    # Hostile or corrupted YAML must not raise — the write path needs
-    # to succeed even if the frontmatter is broken.
     content = "---\ntags: [unterminated\n---\n\nbody\n"
     result = parse(content)
     assert result.metadata == {}
-    # Body includes the whole original content on malformed YAML so
-    # nothing is lost.
     assert result.body == content
 
 
@@ -89,7 +70,6 @@ def test_parse_strips_bom_prefix() -> None:
 
 
 def test_parse_requires_newline_after_opening_delim() -> None:
-    # ``---foo`` is not a frontmatter opener, it's part of the body.
     content = "---foo\nbar\n"
     result = parse(content)
     assert result.metadata == {}
@@ -97,25 +77,16 @@ def test_parse_requires_newline_after_opening_delim() -> None:
 
 
 def test_parse_deeply_nested_flow_does_not_raise() -> None:
-    # Defence-in-depth: pathological flow-style nesting can surface as
-    # a non-YAMLError (e.g. RecursionError). The PUT /content handler
-    # relies on parse() never raising — the broad except at the
-    # safe_load call keeps that contract.
+    # Pathological flow-style nesting can surface as a non-YAMLError (e.g.
+    # RecursionError).
     #
-    # Two things make that contract testable rather than merely stated.
+    # The recursion budget is pinned to the depth this test starts from, so
+    # "safe_load overflows" does not depend on the interpreter's default limit
+    # or PyYAML's frames per nesting level. `depth` only has to be comfortably
+    # past the budget.
     #
-    # The recursion budget is pinned to the depth this test starts from,
-    # so "safe_load overflows" is guaranteed by this test rather than
-    # inferred from the interpreter's default limit and PyYAML's frames
-    # per nesting level. Either can change — CPython altered its frame
-    # accounting in 3.12 — and the test would then pass without ever
-    # reaching the except. `depth` only has to be comfortably past the
-    # budget; its exact value carries no meaning.
-    #
-    # And the body is asserted whole: the except arm is the only one that
-    # returns the original `content` as the body, so this distinguishes
-    # it. Asserting `metadata` is a dict cannot fail — every arm of
-    # parse() returns one.
+    # The body is asserted whole: the except arm is the only one that returns
+    # the original `content` as the body.
     depth = 500
     frontmatter = "[" * depth + "1" + "]" * depth
     content = f"---\nvalue: {frontmatter}\n---\n\nbody\n"
@@ -133,8 +104,6 @@ def test_parse_deeply_nested_flow_does_not_raise() -> None:
     finally:
         sys.setrecursionlimit(previous)
 
-    # Rejected and fallen back to empty — the payload cannot fit in the
-    # budget above. The critical assertion is that we didn't crash.
     assert result.metadata == {}
     assert result.body == content
 

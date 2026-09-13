@@ -10,11 +10,6 @@ import pytest
 from tests.conftest import TEST_DRIVE
 
 
-# ────────────────────────────────────────────────
-# Unit tests for app.auth module
-# ────────────────────────────────────────────────
-
-
 class TestLoadPasswords:
     def test_no_file_returns_empty(self, tmp_path):
         import app.auth as auth
@@ -294,11 +289,6 @@ class TestFilterDrives:
         drives = [{"name": "private", "access_group": "secret"}]
         result = filter_drives(drives, ["secret"])
         assert len(result) == 1
-
-
-# ────────────────────────────────────────────────
-# Integration tests for /api/auth endpoints
-# ────────────────────────────────────────────────
 
 
 def _make_auth_client(tmp_path, passwords=None, drives=None):
@@ -600,9 +590,7 @@ class TestStatusEndpoint:
 
     def test_admin_password_only_no_drive_groups_visitor_not_admin(self, tmp_path):
         # Same config, but a visitor who never entered the password must NOT
-        # be admin. This is the gap __admin__ introduced: with no group-
-        # protected drive, the old `if not required: return True` leaked
-        # admin to everyone. An __admin__ password makes admin earned.
+        # be admin: an __admin__ password makes admin earned.
         drive_dir = tmp_path / "drives" / "open"
         drive_dir.mkdir(parents=True)
         passwords = [{"password": "admin-pass", "groups": ["__admin__"]}]
@@ -671,10 +659,9 @@ class TestDriveAccessControl:
             cleanup()
 
     def test_locked_drive_file_count_not_leaked(self, tmp_path):
-        # spec 2026-05-19-root-home-enrichment §2.1/§6.1 (boundary):
-        # a locked protected drive must not appear in /api/drives at all,
-        # and a hidden drive's file_count (here 3) must not be attributed
-        # to any visible drive's count.
+        # A locked protected drive must not appear in /api/drives at all,
+        # and its file_count (here 3) must not be attributed to any visible
+        # drive's count.
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
 

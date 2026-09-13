@@ -284,8 +284,7 @@ def test_same_size_edit_is_deliberately_not_detected(client):
     An edit that lands on the exact byte count goes unnoticed and the
     chapters are not re-probed. Covering it would mean re-reading every
     media file on every scan; a re-encode or re-download does not produce
-    a byte-identical length. If this test ever needs to change, that is a
-    decision to make on purpose rather than a bug to fix.
+    a byte-identical length.
     """
     _, db, drive_dir, _ = client
     target = drive_dir / "same-size.mkv"

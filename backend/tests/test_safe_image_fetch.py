@@ -1,9 +1,4 @@
-"""The image fetcher's gate, from the URL string to the socket.
-
-Which IP addresses are refused is declared in
-``test_ssrf_blocked_addresses.py``; this file is about the path that carries an
-address to a socket — resolution, pinning, redirects and the response limits.
-"""
+"""The image fetcher's gate, from the URL string to the socket."""
 
 import http.client
 import io
@@ -97,9 +92,6 @@ def _stub_getaddrinfo(monkeypatch, mapping):
     monkeypatch.setattr(socket, "getaddrinfo", fake)
 
 
-# --- validate_image_url: structure, before any address is known -------------
-
-
 @pytest.mark.parametrize(
     "url",
     [
@@ -120,8 +112,8 @@ def test_validate_image_url_rejects_unsafe_structures(url):
 def test_the_hostname_is_normalised_before_the_denylist_is_consulted():
     """`BLOCKED_HOSTNAMES` holds ASCII, and IDNA folds more than case into it.
 
-    Measured: `"ⓛⓞⓒⓐⓛⓗⓞⓢⓣ".encode("idna")` is `localhost`. Consulting the
-    denylist against the hostname as written would let that through.
+    `"ⓛⓞⓒⓐⓛⓗⓞⓢⓣ".encode("idna")` is `localhost`, so consulting the denylist
+    against the hostname as written would let that through.
     """
     with pytest.raises(SafeImageFetchError, match="blocked_address"):
         validate_image_url("https://ⓛⓞⓒⓐⓛⓗⓞⓢⓣ/a.jpg")
@@ -201,9 +193,6 @@ def test_the_request_sends_the_normalised_hostname_as_its_host(monkeypatch):
     fetch_image("https://exämple.com/a.jpg")
 
     assert transport.requests[0][2]["Host"] == "xn--exmple-cua.com"
-
-
-# --- the address gate: resolution, and what is done with the answers --------
 
 
 def test_a_resolution_failure_is_reported_without_opening_a_socket(monkeypatch):
@@ -295,7 +284,7 @@ def test_a_numeric_spelling_of_loopback_is_refused_by_the_address_gate(url, monk
 def test_a_resolver_answering_an_embedded_destination_opens_no_socket(
     address, why, monkeypatch
 ):
-    """Measured where the security review measured it, not at the predicate.
+    """Refused with no connection object ever built.
 
     `_is_blocked_ip` returning True is not the same claim as "nothing was
     dialled": the address travels through `_validated_addresses` and a pinned
@@ -309,9 +298,6 @@ def test_a_resolver_answering_an_embedded_destination_opens_no_socket(
     with pytest.raises(SafeImageFetchError, match="blocked_address"):
         fetch_image("https://attacker.example/a.jpg")
     assert transport.connections == []
-
-
-# --- the pinning itself -----------------------------------------------------
 
 
 def test_the_socket_opens_to_the_pinned_address_and_keeps_the_tls_name(monkeypatch):
@@ -351,9 +337,6 @@ def test_the_socket_opens_to_the_pinned_address_and_keeps_the_tls_name(monkeypat
     assert opened["connect_timeout"] == 5.0
     assert opened["read_timeout"] == 15.0
     assert wrapped["server_hostname"] == "images.example.com"
-
-
-# --- redirects --------------------------------------------------------------
 
 
 def test_each_redirect_hop_is_resolved_and_pinned_again(monkeypatch):
@@ -428,9 +411,6 @@ def test_an_endless_redirector_stops_at_the_declared_limit(monkeypatch):
     assert exc.value.code == "redirect_rejected"
     assert exc.value.detail == "Redirect limit or Location is invalid"
     assert len(transport.connections) == 4
-
-
-# --- the response -----------------------------------------------------------
 
 
 def test_a_declared_content_length_over_the_limit_says_so(monkeypatch):
@@ -544,9 +524,6 @@ def test_the_connection_is_closed_on_the_failing_path_too(monkeypatch):
     assert transport.closed == 1
 
 
-# --- normalize_image --------------------------------------------------------
-
-
 def test_normalize_image_strips_metadata_and_resizes():
     source = Image.new("RGB", (5000, 100), "red")
     raw = io.BytesIO()
@@ -626,9 +603,6 @@ def test_pillows_own_bomb_guard_is_reported_as_a_pixel_limit():
 def test_a_body_that_is_not_an_image_is_refused():
     with pytest.raises(SafeImageFetchError, match="invalid_image"):
         normalize_image(b"<html>not an image</html>")
-
-
-# --- the seam ---------------------------------------------------------------
 
 
 def test_the_public_entry_point_validates_the_url_it_is_handed(monkeypatch):

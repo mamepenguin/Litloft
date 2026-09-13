@@ -62,8 +62,6 @@ class TestListDrives:
         assert drives[0]["name"] == TEST_DRIVE
 
     def test_drives_includes_file_count(self, client):
-        # spec 2026-05-19-root-home-enrichment §3.1: list_drives returns a
-        # per-drive active file_count via a single grouped query.
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)  # 2 active files (旅行/v.mp4, 料理/v.mp4)
         res = c.get("/api/drives")
@@ -79,8 +77,6 @@ class TestListDrives:
         assert res.json()[0]["file_count"] == 0
 
     def test_file_count_excludes_trash_and_missing(self, client):
-        # spec §3.1: counts must go through active_file_filter()
-        # (design-decisions.md "File state": trash/missing excluded).
         from datetime import datetime, timezone
 
         from app.models import File
@@ -117,7 +113,6 @@ class TestListDrives:
         db.commit()
         res = c.get("/api/drives")
         assert res.status_code == 200
-        # Only the 2 active files count; trash + missing excluded.
         assert res.json()[0]["file_count"] == 2
 
     def test_invalid_drive(self, client):
@@ -309,12 +304,7 @@ class TestListFolders:
         assert folders[0]["file_count"] == 0
 
     def test_no_thumbnail_file_id(self, client):
-        """The field is gone, and so is the scan that filled it.
-
-        Its only consumers were the folder card and the folder list row,
-        which both draw a glyph now. Leaving the field would keep a
-        whole-subtree scan running for something nothing reads — and the
-        assertion has to be that it is *absent*, since a renderer reading
+        """`thumbnail_file_id` is absent, not null: a renderer reading
         `undefined` looks exactly like one reading `null`.
         """
         c, db, drive_dir, data_dir = client
@@ -366,9 +356,6 @@ class TestListDriveFiles:
         assert len(res.json()["data"]) == 0
 
     def test_search_matches_folder_path_only(self, client):
-        # spec 2026-05-02-search-path-match: "旅行" は folder_path のみに含まれ
-        # title "V" には含まれない。filename match SQL の WHERE が title OR
-        # folder_path に拡張されたことで初めてヒットする。
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)
         res = c.get(f"/api/drives/{TEST_DRIVE}/files?search=旅行")
@@ -379,7 +366,6 @@ class TestListDriveFiles:
         assert body[0]["match_source"] == "path"
 
     def test_search_match_source_filename(self, client):
-        # title "V" にヒットし folder_path には無いケース。
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)
         res = c.get(f"/api/drives/{TEST_DRIVE}/files?search=V")
@@ -388,7 +374,6 @@ class TestListDriveFiles:
             assert item["match_source"] == "filename"
 
     def test_search_match_source_both(self, client):
-        # title と folder_path の両方にクエリ語が含まれる場合は "both"。
         from app.models import File
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)
@@ -420,7 +405,6 @@ class TestListDriveFiles:
             assert item["match_source"] is None
 
     def test_search_escapes_like_special_chars(self, client):
-        # "%" / "_" がリテラル扱いされ、無関係なファイルがヒットしないこと。
         from app.models import File
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)
@@ -486,11 +470,7 @@ def _seed_subtree(db, drive_dir, folders):
 
 
 class TestListDriveFilesRecursive:
-    """spec 2026-08-21-folder-scoped-tag-filter §3.
-
-    `recursive=True` widens `path` from an exact folder match to a subtree
-    match. The default stays False so every existing caller is unchanged.
-    """
+    """`recursive=True` widens `path` from an exact folder match to a subtree match."""
 
     def test_recursive_matches_folder_and_descendants(self, client):
         c, db, drive_dir, data_dir = client
@@ -519,8 +499,6 @@ class TestListDriveFilesRecursive:
         assert {item["folder_path"] for item in res.json()["data"]} == {"recipes"}
 
     def test_empty_path_non_recursive_returns_root_level_only(self, client):
-        # spec §3.1: RootFileListing.tsx and ImageGallery.tsx both send
-        # path="" with recursive=False and must keep meaning "root level".
         c, db, drive_dir, data_dir = client
         _seed_subtree(db, drive_dir, ["", "recipes", "recipes/soup"])
         res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=")
@@ -530,8 +508,6 @@ class TestListDriveFilesRecursive:
         assert body["meta"]["total"] == 1
 
     def test_empty_path_recursive_returns_whole_drive(self, client):
-        # spec §3.1: an empty prefix with recursive applies no folder
-        # predicate — a recursive search from the root is the whole drive.
         c, db, drive_dir, data_dir = client
         _seed_subtree(db, drive_dir, ["", "recipes", "recipes/soup"])
         res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=&recursive=true")
@@ -539,7 +515,6 @@ class TestListDriveFilesRecursive:
         assert res.json()["meta"]["total"] == 3
 
     def test_recursive_escapes_like_underscore(self, client):
-        # "my_docs" must not match "myXdocs" via an unescaped LIKE wildcard.
         c, db, drive_dir, data_dir = client
         _seed_subtree(db, drive_dir, ["my_docs", "my_docs/sub", "myXdocs", "myXdocs/sub"])
         res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=my_docs&recursive=true")
@@ -557,7 +532,6 @@ class TestListDriveFilesRecursive:
         assert {item["folder_path"] for item in body["data"]} == {"100%", "100%/sub"}
 
     def test_recursive_prefix_boundary_not_confused(self, client):
-        # "rec" must not swallow "recipes" — the separator is part of the match.
         c, db, drive_dir, data_dir = client
         _seed_subtree(db, drive_dir, ["rec", "recipes"])
         res = c.get(f"/api/drives/{TEST_DRIVE}/files?path=rec&recursive=true")
@@ -575,12 +549,10 @@ class TestListDriveFilesRecursive:
         assert res.status_code == 400
 
     def test_recursive_with_tag_scopes_to_subtree(self, client):
-        """The headline combination this spec exists for.
+        """The subtree and the tag must *both* narrow.
 
-        The subtree and the tag must *both* narrow. The fixture therefore
-        puts untagged and differently-tagged files inside the subtree as
-        well as a tagged file outside it — otherwise an implementation
-        that dropped either predicate would still pass.
+        The fixture puts untagged and differently-tagged files inside the
+        subtree as well as a tagged file outside it.
         """
         from app.models import File, Tag
 
@@ -634,11 +606,7 @@ class TestListDriveFilesRecursive:
         assert body["meta"]["total"] == 2
 
     def test_recursive_tag_predicate_is_not_ignored(self, client):
-        """Guard: with recursive=true, dropping the tag filter must matter.
-
-        Without this, `test_recursive_with_tag_scopes_to_subtree` alone
-        cannot tell a working tag predicate from an ignored one.
-        """
+        """Guard: with recursive=true, dropping the tag filter must matter."""
         from app.models import File, Tag
 
         c, db, drive_dir, data_dir = client
@@ -668,13 +636,10 @@ class TestKindVocabularyParity:
     menu offering *Archive*, and the two are expected to name the same
     forty rows. They are two functions — `_classify_kind` buckets a row,
     `_apply_kind_filter` selects rows of a bucket — so nothing but this
-    holds them together. It is the same shape as the toolbar/URL pair in
-    `frontend/src/__tests__/searchTypeVocabulary.test.ts`.
+    holds them together.
 
     Both sides run: each row is classified, then fetched back through
-    `?type=<that kind>`. A parity test whose two halves shared an
-    implementation would be asserting only that a function is
-    deterministic.
+    `?type=<that kind>`.
     """
 
     # (filename, file_type, mime_type, expected kind)

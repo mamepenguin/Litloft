@@ -1,13 +1,4 @@
-"""Verify that files.moved event is emitted on rename / move / folder ops.
-
-Covers all 6 mutation entry points:
-- PUT /files/{id}/rename            (single id)
-- PUT /files/{id}/move              (single id)
-- PUT /files/batch/move             (bulk ids)
-- PUT /files/batch/rename           (bulk ids)
-- PUT /drives/{drive}/folders        (folder rename, bulk ids)
-- PUT /drives/{drive}/folders/move   (folder move, bulk ids)
-"""
+"""Verify that files.moved event is emitted on rename / move / folder ops."""
 
 import shutil
 from pathlib import Path
@@ -187,15 +178,11 @@ class TestFolderRenameEmit:
     def test_no_emit_when_no_files_in_folder(self, client, captured_emits):
         c, db, drive_dir, _ = client
         (drive_dir / "empty").mkdir()
-        # Create a placeholder file in DB so folder is known? No — folders are
-        # tracked by EmptyFolder when truly empty. Let's just ensure the folder
-        # rename either succeeds (and emits []), or fails. Either way, no
-        # files.moved emission.
+        # An empty folder rename either succeeds (and emits []) or 404s.
         res = c.put(
             f"/api/drives/{TEST_DRIVE}/folders",
             json={"path": "empty", "new_name": "renamed"},
         )
-        # Either 200 (empty folder rename succeeded) or 404
         assert res.status_code in (200, 404)
         assert _moved_file_ids(captured_emits) == []
 

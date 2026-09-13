@@ -1,12 +1,9 @@
 """The coarse WS events survive the mutation they describe.
 
-These deliberately do **not** mock `_file_ids_to_drives`. The unit tests do,
-and that is exactly how two bugs got through review: resolving a file id to
-its drive can only ever see the state *after* the mutation, which is empty
+These deliberately do **not** mock `_file_ids_to_drives`: resolving a file id
+to its drive can only ever see the state *after* the mutation, which is empty
 for a purge (the row is gone) and wrong for a cross-drive move (only the
 destination remains).
-
-Spec: `docs/superpowers/specs/2026-08-22-core-lifecycle-events-over-websocket.md`
 """
 
 import json
@@ -75,9 +72,8 @@ def _structural(calls):
 class TestPurgeStillNotifies:
     """Every purge path deletes the row and commits before emitting.
 
-    A lookup after that returns nothing, so the fail-closed broadcast used
-    to stay silent for every purge — the notification most worth having,
-    since the file is gone and a stale list is now simply wrong.
+    A lookup after that returns nothing, so the broadcast cannot be derived
+    from the row.
     """
 
     def test_single_purge_notifies_the_drive(self, client, broadcasts):
@@ -212,9 +208,7 @@ def two_drives(tmp_path):
 class TestCrossDriveMoveNotifiesBothSides:
     """A cross-drive move changes two listings, not one.
 
-    Resolving the id after the move returns only the destination, so a tab
-    showing the source drive was never told and kept displaying a file that
-    had left.
+    Resolving the id after the move returns only the destination.
     """
 
     def test_single_move_notifies_source_and_destination(

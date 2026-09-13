@@ -414,9 +414,6 @@ class TestNormaliseChapters:
         ]
 
     def test_a_non_finite_start_survives_neither_storage_nor_encoding(self):
-        # Pins why the filter exists rather than only that it runs: both
-        # failure modes are reproduced here, so a future relaxation has
-        # to confront them.
         import json
         import math as _math
 

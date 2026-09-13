@@ -1,8 +1,6 @@
 from sqlalchemy import create_engine, inspect
 import pytest
 
-# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
-# in ``conftest.py`` says why that must not be the shared one.
 pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 

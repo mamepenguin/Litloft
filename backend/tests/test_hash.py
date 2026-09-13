@@ -37,7 +37,7 @@ class TestComputeFileHash:
         assert result == _expected_hash(head_content, tail_content)
 
     def test_tail_change_detected(self, tmp_path):
-        """Old algorithm (first 1MB only) would miss tail-only changes."""
+        """A tail-only change is detected."""
         a = tmp_path / "a.bin"
         b = tmp_path / "b.bin"
         head = b"H" * HASH_CHUNK_SIZE

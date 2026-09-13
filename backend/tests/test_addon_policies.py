@@ -1,34 +1,4 @@
-"""Tests for the public drive addon-policies endpoint.
-
-Phase 2 (spec 2026-05-10-markdown-document-layout § D4) introduces a public,
-read-only endpoint that exposes per-drive addon policy to the frontend so
-features like the Knowledge editor can be toggled per drive without leaking
-any policy machinery to addons that don't need it.
-
-Endpoint shape (TDD target):
-
-    GET /api/drives/{drive}/addon-policies
-
-    {
-      "addons": {
-        "<addon_name>": {
-          "default": bool,            # bool shorthand or implicit
-          "features": { "<feature>": bool, ... }  # empty if no per-feature dict
-        }
-      }
-    }
-
-Access control: piggybacks on the existing accessible_drives logic. Locked
-protected drives are hidden as 404 (consistent with .claude/rules/
-design-decisions.md "Access control" rule: 404 not 403).
-
-The endpoint lives under ``backend/app/routers/drive_policies.py`` (a public
-router). It is intentionally **not** placed under ``routers/internal.py``
-because the consumer is the browser, not addons. The Internal API Policy
-(R1-R5) therefore does not directly apply, but the design satisfies its
-spirit: read-only, generic shape (no addon name in the path/parameters), and
-the response is a generic dictionary.
-"""
+"""Tests for the public drive addon-policies endpoint."""
 
 import json
 from pathlib import Path
@@ -37,11 +7,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.conftest import TEST_DRIVE
-
-
-# ----------------------------------------------------------------------
-# Helpers
-# ----------------------------------------------------------------------
 
 
 def _rewrite_drives(monkeypatch, tmp_path: Path, drives: list[dict]) -> Path:
@@ -55,11 +20,6 @@ def _rewrite_drives(monkeypatch, tmp_path: Path, drives: list[dict]) -> Path:
     return path
 
 
-# ----------------------------------------------------------------------
-# 1. happy path: existing drive, no policy configured -> empty addons dict
-# ----------------------------------------------------------------------
-
-
 class TestAddonPoliciesShape:
     def test_returns_200_with_addons_key(self, client):
         """An accessible drive with no addon policy returns ``addons: {}``."""
@@ -67,8 +27,8 @@ class TestAddonPoliciesShape:
         res = c.get(f"/api/drives/{TEST_DRIVE}/addon-policies")
         assert res.status_code == 200
         body = res.json()
-        # The top-level shape is always { "addons": {...} } — even when no
-        # addons are configured. Generic shape (Internal API Policy R2 spirit).
+        # The top-level shape is always { "addons": {...} }, even when no
+        # addons are configured.
         assert body == {"addons": {}}
 
     def test_dict_policy_expands_to_features(self, tmp_path, monkeypatch):
@@ -180,11 +140,6 @@ class TestAddonPoliciesShape:
         assert addons["intelligence"] == {"default": False, "features": {}}
 
 
-# ----------------------------------------------------------------------
-# 2. missing addons key => empty dict (graceful degradation)
-# ----------------------------------------------------------------------
-
-
 class TestAddonPoliciesGracefulDegradation:
     def test_no_addons_key_returns_empty(self, tmp_path, monkeypatch):
         """A drive with no ``addons`` field at all returns ``addons: {}``."""
@@ -203,11 +158,6 @@ class TestAddonPoliciesGracefulDegradation:
         assert res.json() == {"addons": {}}
 
 
-# ----------------------------------------------------------------------
-# 3. unknown drive => 404
-# ----------------------------------------------------------------------
-
-
 class TestAddonPoliciesUnknownDrive:
     def test_unknown_drive_returns_404(self, client):
         c, _, _, _ = client
@@ -215,18 +165,9 @@ class TestAddonPoliciesUnknownDrive:
         assert res.status_code == 404
 
 
-# ----------------------------------------------------------------------
-# 4. access control: protected drive locked => 404 (not 403, not visible)
-# ----------------------------------------------------------------------
-
-
 class TestAddonPoliciesAccessControl:
     def test_protected_locked_drive_returns_404(self, tmp_path, monkeypatch):
-        """A locked protected drive must be invisible (404, not 403).
-
-        Mirrors the convention from .claude/rules/design-decisions.md
-        "Access control": 404 hides existence.
-        """
+        """A locked protected drive must be invisible (404, not 403)."""
         import app.auth as auth
         import app.config as config
         from app.main import app
@@ -254,7 +195,6 @@ class TestAddonPoliciesAccessControl:
         monkeypatch.setattr(auth, "_passwords_cache", None)
         monkeypatch.setattr(auth, "_jwt_secret", "test-jwt-secret")
 
-        # No unlock cookie -> drive must be hidden as 404.
         with TestClient(app) as c:
             res = c.get("/api/drives/secret-drive/addon-policies")
         assert res.status_code == 404
@@ -296,14 +236,6 @@ class TestAddonPoliciesAccessControl:
         assert res.status_code == 200
         body = res.json()
         assert body["addons"]["knowledge"]["features"] == {"editor": False}
-
-
-# ----------------------------------------------------------------------
-# 5. negative: invalid drives.json should not crash the endpoint
-# (best-effort: behaviour is defined by config.load_drives raising,
-#  so we expect a 500 only when an explicitly malformed drive is hit;
-#  for now we just assert the loader does its own validation.)
-# ----------------------------------------------------------------------
 
 
 class TestAddonPoliciesLoadFailures:

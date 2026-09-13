@@ -1,8 +1,5 @@
 """Generic addon proxy — drive-scope enforcement.
 
-Covers the scope=drive behaviour added for drive-scoped addons
-(originally motivated by the knowledge addon).
-
 What we guard:
 - scope=drive addons require ``X-Lit-Drive`` → 400 otherwise
 - scope=drive addons reject inaccessible drives → 403
@@ -180,11 +177,6 @@ def test_global_scope_still_validates_drive_if_provided(
         headers={"X-Lit-Drive": "does-not-exist"},
     )
     assert r.status_code == 403
-
-
-# ---------------------------------------------------------------------------
-# current_drive_only response filter
-# ---------------------------------------------------------------------------
 
 
 class _JsonClient:
@@ -428,11 +420,6 @@ def test_file_feature_policy_cannot_use_a_different_drive_header(
     )
 
     assert response.status_code == 404
-
-
-# ---------------------------------------------------------------------------
-# Per-route timeout override
-# ---------------------------------------------------------------------------
 
 
 class _TimeoutCapturingClient:

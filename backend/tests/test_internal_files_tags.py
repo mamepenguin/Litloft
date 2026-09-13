@@ -1,10 +1,7 @@
 """HTTP tests for POST /api/internal/files/{id}/tags.
 
-Replaces a file's tags via the trusted internal caller (typically the
-knowledge scanner projecting frontmatter.tags onto File.tags for .md
-files). Gated by CORE_INTERNAL_SECRET, same pattern as
-GET /files/{id}/content. Spec:
-``docs/superpowers/specs/2026-04-24-knowledge-tag-unification.md``.
+Replaces a file's tags via the trusted internal caller. Gated by
+CORE_INTERNAL_SECRET.
 """
 
 from __future__ import annotations
@@ -129,12 +126,10 @@ class TestInternalFileTagsReplace:
     def test_empty_list_clears_tags(self, client):
         c, db, drive_dir, _ = client
         f = _seed_file(db, drive_dir)
-        # seed with some tags
         c.post(
             f"/api/internal/files/{f.id}/tags",
             json={"tags": ["a", "b"]},
         )
-        # now clear
         r = c.post(
             f"/api/internal/files/{f.id}/tags",
             json={"tags": []},
@@ -188,7 +183,6 @@ class TestInternalFileTagsReplace:
             f"/api/internal/files/{f2.id}/tags",
             json={"tags": ["shared"]},
         )
-        # Single Tag row reused across both files
         rows = db.query(Tag).filter(Tag.name == "shared", Tag.drive == TEST_DRIVE).all()
         assert len(rows) == 1
         assert len(rows[0].files) == 2
@@ -213,9 +207,6 @@ class TestInternalFileTagsReplace:
         assert r.status_code == 422
 
     def test_existing_public_api_still_works(self, client):
-        """Regression: refactoring to shared helpers must not change
-        the behaviour of the public PUT /api/files/{id}/tags.
-        """
         c, db, drive_dir, _ = client
         f = _seed_file(db, drive_dir)
         r = c.put(f"/api/files/{f.id}/tags", json={"tags": ["public-api"]})
@@ -263,7 +254,6 @@ class TestInternalFileTagsReplace:
         c.post(f"/api/internal/files/{f1.id}/tags", json={"tags": ["shared"]})
         c.post(f"/api/internal/files/{f2.id}/tags", json={"tags": ["shared"]})
 
-        # Two separate Tag rows, one per drive
         rows = db.query(Tag).filter(Tag.name == "shared").all()
         drives = {r.drive for r in rows}
         assert drives == {TEST_DRIVE, "other-drive"}

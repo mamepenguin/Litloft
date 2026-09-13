@@ -1,26 +1,4 @@
-"""Tests for /api/admin/config/* endpoints (admin config GUI feature).
-
-Spec: docs/superpowers/specs/2026-04-30-config-gui.md
-
-These tests are written BEFORE the router exists (TDD RED phase).
-The router will live at backend/app/routers/admin_config.py and is
-guarded by `auth.require_admin` (already in auth.py).
-
-Validation rules (Y mode — all errors, no warnings):
-1. JSON syntax  → 400  {code: "json_syntax"}
-2. Required fields missing → 422 {code: "missing_field"}
-3. Drive name duplicates → 422 {code: "duplicate_name"}
-4. Path not absolute → 422 {code: "not_absolute_path"}
-5. Path not isdir → 422 {code: "path_not_found"}
-6. passwords.groups[] references unknown group → 422 {code: "unknown_group"}
-7. Duplicate password values → 422 {code: "duplicate_password"}
-8. Unknown addon name → 422 {code: "unknown_addon"}
-
-The new sentinel/flag paths:
-- data/setup_completed
-- data/restart_pending
-- drives.json.bak / passwords.json.bak (single-generation backups)
-"""
+"""Tests for /api/admin/config/* endpoints (admin config GUI feature)."""
 from __future__ import annotations
 
 import json
@@ -29,11 +7,6 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -104,14 +77,7 @@ def admin_setup(tmp_path, monkeypatch):
 
 
 def _reset_setup_sentinel(admin_setup):
-    """Delete the setup_completed sentinel created by lifespan startup.
-
-    The fixture pre-creates drives.json, so the corrected migration in
-    ``main.lifespan`` (which touches the sentinel whenever drives.json
-    exists, regardless of passwords.json state) fires before each test.
-    Tests that exercise ``setup-status`` semantics or first-run wizard
-    flows need the sentinel absent at the start of the test body.
-    """
+    """Delete the setup_completed sentinel created by lifespan startup."""
     sentinel = admin_setup["data_dir"] / "setup_completed"
     if sentinel.exists():
         sentinel.unlink()
@@ -189,11 +155,6 @@ def admin_client_with_sentinel(admin_setup):
         yield c, admin_setup
 
 
-# ---------------------------------------------------------------------------
-# Auth gate tests
-# ---------------------------------------------------------------------------
-
-
 def test_get_drives_403_without_admin(anonymous_client):
     c, _ = anonymous_client
     resp = c.get("/api/admin/config/drives")
@@ -226,17 +187,11 @@ def test_setup_status_no_auth_required(anonymous_client):
     assert "completed" in resp.json()
 
 
-# ---------------------------------------------------------------------------
-# GET endpoints
-# ---------------------------------------------------------------------------
-
-
 def test_get_drives_returns_full_json(admin_client):
     c, ctx = admin_client
     resp = c.get("/api/admin/config/drives")
     assert resp.status_code == 200
     body = resp.json()
-    # The response should mirror drives.json (a JSON array of drive entries).
     drives = body if isinstance(body, list) else body.get("drives")
     assert isinstance(drives, list)
     names = [d["name"] for d in drives]
@@ -253,12 +208,9 @@ def test_get_passwords_masks_password_values(admin_client):
     assert isinstance(entries, list)
     assert len(entries) == 2
     for entry in entries:
-        # Real password value must NEVER leak through GET.
         assert entry.get("password") == "***"
-        # Groups remain visible.
         assert isinstance(entry.get("groups"), list)
         assert len(entry["groups"]) >= 1
-    # Sanity: master entry still has both groups.
     all_groups = {tuple(sorted(e["groups"])) for e in entries}
     assert ("g1", "g2") in all_groups
 
@@ -268,13 +220,10 @@ def test_get_addon_policy_returns_addons_portion(admin_client):
     resp = c.get("/api/admin/config/addon-policy")
     assert resp.status_code == 200
     body = resp.json()
-    # Expected shape: { "<drive_name>": {<addon_name>: bool|dict} }
     assert isinstance(body, dict)
     # `beta` had {"intelligence": False}; `alpha` had no addons key.
     beta_policy = body.get("beta", {})
     assert beta_policy.get("intelligence") is False
-    # Drives without addons should appear (possibly empty dict) so the
-    # GUI can show them.
     assert "alpha" in body
 
 
@@ -317,32 +266,6 @@ def test_get_setup_status_completed_true_after_post_complete_setup(admin_client)
     resp = c.get("/api/admin/config/setup-status")
     assert resp.status_code == 200
     assert resp.json()["completed"] is True
-
-
-# ---------------------------------------------------------------------------
-# GET /setup-status — Phase 2 expansion (M1) + post-review security fix
-#
-# spec 2026-05-19-gui-first-setup-cli-bootstrap §3.3 / plan Phase 2.
-#
-# The endpoint stays unauthenticated and MUST keep the ``completed`` key
-# (SetupRedirector and others read it). It ALSO returns the seeded drives
-# so the /setup DriveStep can render them without hitting the admin-gated
-# GET /drives (first-run bypass does not cover that route).
-#
-# SECURITY (Phase 2 code review, HIGH): the drive list is exposed ONLY
-# during first-run (sentinel absent / ``completed == False``). After
-# completion this unauthenticated endpoint must NOT leak drive names,
-# container paths, or access groups to any network peer — that would
-# contradict the "hide protected drive existence (404)" rule in
-# .claude/rules/design-decisions.md. The DriveStep only runs during
-# first-run, so hiding drives post-completion costs zero functionality.
-#
-# A real first-run is reproduced by driving the lifespan with an empty
-# ``[]`` drives.json plus subdirectories under DRIVES_MOUNT_ROOT: the
-# startup bootstrap reads pre_seed_count == 0, the sentinel migration does
-# NOT touch the sentinel (count < 1), and the seed then populates
-# drives.json from the mount dirs while ``completed`` stays False.
-# ---------------------------------------------------------------------------
 
 
 def _first_run_seed_env(tmp_path, monkeypatch, slugs_with_groups):
@@ -394,13 +317,7 @@ def test_setup_status_keeps_completed_key(anonymous_client):
 
 
 def test_setup_status_returns_seeded_drives(tmp_path, monkeypatch):
-    """First-run: setup-status returns the drives the startup seed wrote.
-
-    Empty ``[]`` drives.json + two mount subdirectories → lifespan seeds
-    drives.json (pre_seed_count == 0, sentinel NOT touched) → the
-    unauthenticated read returns the seeded stubs while ``completed`` is
-    still False (the genuine first-run window).
-    """
+    """First-run: setup-status returns the drives the startup seed wrote."""
     mount_root = _first_run_seed_env(
         tmp_path, monkeypatch, [("media", None), ("docs", None)]
     )
@@ -411,7 +328,6 @@ def test_setup_status_returns_seeded_drives(tmp_path, monkeypatch):
         resp = c.get("/api/admin/config/setup-status")
         assert resp.status_code == 200
         body = resp.json()
-        # Genuine first-run: the seed ran but the sentinel was not touched.
         assert body["completed"] is False
         drives = body["drives"]
         assert isinstance(drives, list)
@@ -420,7 +336,6 @@ def test_setup_status_returns_seeded_drives(tmp_path, monkeypatch):
         # The seed writes path as f"{DRIVES_MOUNT_ROOT}/{slug}".
         assert by_name["media"]["path"] == f"{mount_root}/media"
         assert by_name["docs"]["path"] == f"{mount_root}/docs"
-        # Seeded stubs carry no access_group.
         assert "access_group" not in by_name["media"]
         assert "access_group" not in by_name["docs"]
 
@@ -433,10 +348,6 @@ def test_setup_status_hides_drives_after_completion(admin_setup):
     (``completed == True``). The unauthenticated endpoint must report
     completion but expose an empty ``drives`` list — no drive names, no
     container paths, no access groups to any network peer.
-
-    Before the Phase 2 review fix (drives returned unconditionally) this
-    test fails: ``body["drives"]`` would contain alpha/beta with their
-    paths and groups.
     """
     from app.main import app
 
@@ -463,12 +374,7 @@ def test_setup_status_hides_drives_after_completion(admin_setup):
 
 
 def test_setup_status_empty_drives_when_drives_json_empty(tmp_path, monkeypatch):
-    """No mounts: drives.json stays [] → setup-status returns drives: [].
-
-    Empty ``[]`` drives.json and an empty DRIVES_MOUNT_ROOT (no
-    subdirectories) → the seed writes nothing, ``completed`` is False, and
-    the response is the stable ``{completed, drives: []}`` shape.
-    """
+    """No mounts: drives.json stays [] → setup-status returns drives: []."""
     _first_run_seed_env(tmp_path, monkeypatch, [])
 
     from app.main import app
@@ -483,12 +389,7 @@ def test_setup_status_empty_drives_when_drives_json_empty(tmp_path, monkeypatch)
 
 
 def test_setup_status_drive_without_group_omits_access_group(tmp_path, monkeypatch):
-    """A seeded stub (no access_group) must not carry a null access_group.
-
-    First-run seed flow (so ``completed`` stays False and drives are
-    exposed): the startup seed writes ``{name, path}`` only. setup-status
-    must omit the ``access_group`` key entirely (not emit ``null``).
-    """
+    """A seeded stub (no access_group) must not carry a null access_group."""
     mount_root = _first_run_seed_env(
         tmp_path, monkeypatch, [("media", None)]
     )
@@ -507,11 +408,6 @@ def test_setup_status_drive_without_group_omits_access_group(tmp_path, monkeypat
         assert "access_group" not in drives[0]
 
 
-# ---------------------------------------------------------------------------
-# PUT /drives — happy path + validation
-# ---------------------------------------------------------------------------
-
-
 def test_put_drives_happy_path(admin_client):
     c, ctx = admin_client
     new_drives = [
@@ -521,17 +417,14 @@ def test_put_drives_happy_path(admin_client):
     resp = c.put("/api/admin/config/drives", json=new_drives)
     assert resp.status_code == 200, resp.text
 
-    # File rewritten on disk.
     on_disk = json.loads(ctx["drives_json"].read_text())
     assert on_disk == new_drives
 
-    # .bak created with old content.
     bak = ctx["drives_json"].with_suffix(".json.bak")
     assert bak.exists()
     bak_content = json.loads(bak.read_text())
     assert any(d["name"] == "alpha" for d in bak_content)
 
-    # restart_pending flag created in DATA_DIR.
     assert (ctx["data_dir"] / "restart_pending").exists()
 
 
@@ -541,7 +434,6 @@ def test_put_drives_missing_field_name(admin_client):
     resp = c.put("/api/admin/config/drives", json=bad)
     assert resp.status_code == 422
     body = resp.json()
-    # Pull the error code out of the response (FastAPI wraps with detail).
     detail = body.get("detail", body)
     flat = json.dumps(detail)
     assert "missing_field" in flat
@@ -587,11 +479,6 @@ def test_put_drives_path_not_found(admin_client, tmp_path):
     assert "path_not_found" in flat
 
 
-# ---------------------------------------------------------------------------
-# PUT /passwords — happy path + validation
-# ---------------------------------------------------------------------------
-
-
 def test_put_passwords_happy_path(admin_client):
     c, ctx = admin_client
     new_pwds = [
@@ -628,11 +515,7 @@ def test_put_passwords_rejects_masked_value(admin_client):
 def test_put_passwords_unknown_group_when_no_drive_has_access_group(
     tmp_path, monkeypatch
 ):
-    """When no drive declares access_group, passwords.groups[] must reject every value.
-
-    Previously the validator short-circuited (``if known_groups and ...``)
-    when ``known_groups`` was empty, silently letting any group through.
-    """
+    """When no drive declares access_group, passwords.groups[] must reject every value."""
     import app.config as config
     import app.auth as auth
     from app.main import app
@@ -720,11 +603,6 @@ def test_put_passwords_duplicate_password(admin_client):
     assert "duplicate_password" in flat
 
 
-# ---------------------------------------------------------------------------
-# POST /passwords/append — incremental add
-# ---------------------------------------------------------------------------
-
-
 def test_append_password_happy_path(admin_client):
     """Adding a new password via POST /append leaves existing entries untouched."""
     c, ctx = admin_client
@@ -739,12 +617,10 @@ def test_append_password_happy_path(admin_client):
 
     on_disk = json.loads(ctx["passwords_json"].read_text())
     assert len(on_disk) == 3
-    # Original two entries still intact.
     pw_values = [e["password"] for e in on_disk]
     assert "master-pw" in pw_values
     assert "alpha-only" in pw_values
     assert "fresh-pw" in pw_values
-    # Newly appended entry is the last one.
     assert on_disk[-1] == {"password": "fresh-pw", "groups": ["g1"]}
 
 
@@ -808,11 +684,6 @@ def test_append_password_touches_restart_flag(admin_client):
     assert flag.exists()
 
 
-# ---------------------------------------------------------------------------
-# DELETE /passwords/{index} — incremental remove
-# ---------------------------------------------------------------------------
-
-
 def test_delete_password_happy_path(admin_client):
     """DELETE /passwords/0 removes entry at index 0; remaining entries preserved."""
     c, ctx = admin_client
@@ -853,11 +724,6 @@ def test_delete_password_touches_restart_flag(admin_client):
     assert flag.exists()
 
 
-# ---------------------------------------------------------------------------
-# PUT /addon-policy — happy path + validation
-# ---------------------------------------------------------------------------
-
-
 def test_put_addon_policy_happy_path(admin_client, monkeypatch):
     c, ctx = admin_client
 
@@ -879,13 +745,11 @@ def test_put_addon_policy_happy_path(admin_client, monkeypatch):
         resp = c.put("/api/admin/config/addon-policy", json=new_policy)
         assert resp.status_code == 200, resp.text
 
-        # The drives.json was rewritten with addons portion merged.
         on_disk = json.loads(ctx["drives_json"].read_text())
         by_name = {d["name"]: d for d in on_disk}
         assert by_name["alpha"]["addons"]["intelligence"] is True
         assert by_name["beta"]["addons"]["intelligence"] is False
 
-        # restart_pending touched.
         assert (ctx["data_dir"] / "restart_pending").exists()
     finally:
         addon_registry._registry.clear()
@@ -935,11 +799,6 @@ def test_put_addon_policy_unknown_drive(admin_client):
     finally:
         addon_registry._registry.clear()
         addon_registry._registry.update(snap)
-
-
-# ---------------------------------------------------------------------------
-# Atomic write + .bak behaviour
-# ---------------------------------------------------------------------------
 
 
 def test_put_drives_creates_bak(admin_client):
@@ -1009,17 +868,11 @@ def test_put_drives_atomic_on_failure(admin_client, monkeypatch):
     resp = c.put("/api/admin/config/drives", json=new_drives)
     assert resp.status_code >= 500
 
-    # Restore for cleanup steps.
     monkeypatch.setattr(os, "replace", real_replace)
 
     assert ctx["drives_json"].read_text() == original
     tmp = ctx["drives_json"].with_suffix(".json.tmp")
     assert not tmp.exists(), "leftover .tmp file after failed write"
-
-
-# ---------------------------------------------------------------------------
-# Sentinel migration / restart-pending clear on startup
-# ---------------------------------------------------------------------------
 
 
 def test_startup_creates_sentinel_when_drives_exists_no_sentinel(
@@ -1127,11 +980,6 @@ def test_startup_clears_restart_pending_flag(tmp_path, monkeypatch):
     assert not flag.exists(), "startup must clear restart_pending flag"
 
 
-# ---------------------------------------------------------------------------
-# POST /complete-setup
-# ---------------------------------------------------------------------------
-
-
 def test_post_complete_setup_creates_sentinel(admin_client):
     c, ctx = admin_client
     sentinel = ctx["data_dir"] / "setup_completed"
@@ -1158,7 +1006,6 @@ def test_post_complete_setup_no_auth_required(anonymous_client):
     if sentinel.exists():
         sentinel.unlink()
     resp = c.post("/api/admin/config/complete-setup")
-    # Must NOT be 403 — wizard runs before any admin viewer exists.
     assert resp.status_code != 403
     assert resp.status_code in (200, 409)
 
@@ -1168,11 +1015,6 @@ def test_startup_migration_fires_when_drives_exists_and_passwords_exists(
 ):
     """An existing user with both drives.json AND passwords.json gets the
     sentinel auto-created on startup.
-
-    Before the C2 fix the migration only fired when passwords.json was
-    absent, which incorrectly excluded users who had set up protected mode
-    before this feature shipped — they got redirected to /setup and their
-    config was overwritten.
     """
     import app.config as config
     import app.auth as auth
@@ -1210,11 +1052,6 @@ def test_startup_migration_fires_when_drives_exists_and_passwords_exists(
         "startup must create sentinel for existing users with BOTH drives.json "
         "and passwords.json (the legacy protected-mode case)"
     )
-
-
-# ---------------------------------------------------------------------------
-# First-run admin bypass — write endpoints must work before any admin exists
-# ---------------------------------------------------------------------------
 
 
 def test_put_drives_no_auth_required_during_first_run(tmp_path, monkeypatch):
@@ -1264,11 +1101,7 @@ def test_put_drives_no_auth_required_during_first_run(tmp_path, monkeypatch):
 def test_put_drives_requires_admin_after_setup_completed(
     admin_setup, monkeypatch
 ):
-    """When sentinel exists, PUT /drives requires admin again.
-
-    The bypass closes the moment the sentinel is touched; from that
-    point on require_admin semantics resume.
-    """
+    """When sentinel exists, PUT /drives requires admin again."""
     from app.main import app
 
     sentinel = admin_setup["data_dir"] / "setup_completed"

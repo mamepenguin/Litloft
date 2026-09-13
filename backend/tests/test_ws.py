@@ -9,19 +9,12 @@ import pytest
 from tests.conftest import TEST_DRIVE
 
 
-# ────────────────────────────────────────────────
-# Helpers
-# ────────────────────────────────────────────────
-
-
 def _run(coro):
     """Run an async coroutine synchronously.
 
     Deliberately not ``asyncio.get_event_loop()``: since 3.12 that raises
     ``RuntimeError: There is no current event loop`` when the thread has no
-    loop set, which is the state ``asyncio.run()`` leaves behind. Any other
-    test file using ``asyncio.run`` would therefore break every test here,
-    and one did.
+    loop set, which is the state ``asyncio.run()`` leaves behind.
 
     Not ``asyncio.run`` either, for the same reason in reverse: it sets the
     new loop as current and clears the slot on exit, so it would export the
@@ -40,11 +33,6 @@ def _make_mock_ws():
     ws.send_json = AsyncMock()
     ws.accept = AsyncMock()
     return ws
-
-
-# ────────────────────────────────────────────────
-# Unit tests for ConnectionManager
-# ────────────────────────────────────────────────
 
 
 class TestConnectionManagerConnect:
@@ -216,9 +204,7 @@ class TestConnectionManagerBroadcast:
 
         _run(mgr.broadcast("test:event", {"x": 1}))
 
-        # Failed ws should be disconnected
         assert ws_fail not in mgr._connections
-        # Healthy ws should remain
         assert ws_ok in mgr._connections
         ws_ok.send_json.assert_awaited_once()
 
@@ -280,11 +266,6 @@ class TestConnectionManagerConcurrency:
             assert mgr._connections[ws] == [f"group_{i}"]
 
 
-# ────────────────────────────────────────────────
-# Integration tests for WebSocket endpoint
-# ────────────────────────────────────────────────
-
-
 class TestWebSocketEndpoint:
     def test_client_can_connect(self, client):
         c, _, _, _ = client
@@ -310,7 +291,6 @@ class TestWebSocketEndpoint:
         with c.websocket_connect("/api/ws"):
             from app.services.ws import manager
 
-            # Find the connection and verify empty groups
             found_empty = False
             for _, groups in manager._connections.items():
                 if groups == []:
@@ -327,7 +307,6 @@ class TestWebSocketEndpoint:
         with c.websocket_connect("/api/ws"):
             assert len(manager._connections) == initial_count + 1
 
-        # After disconnect, connection should be removed
         assert len(manager._connections) == initial_count
 
 
@@ -395,7 +374,6 @@ class TestWebSocketEndpointAuth:
                 with tc.websocket_connect("/api/ws") as ws:
                     from app.services.ws import manager
 
-                    # Find this connection and check its groups
                     found = False
                     for _, groups in manager._connections.items():
                         if groups == ["private", "vip"]:

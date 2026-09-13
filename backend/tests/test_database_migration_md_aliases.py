@@ -1,21 +1,4 @@
-"""Tests for the ``md_aliases`` column migration.
-
-Spec: docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md
-§3.6.
-
-The migration in ``app/database.py:_migrate`` must:
-
-1. Add ``md_aliases TEXT`` to the ``files`` table when absent.
-2. Be idempotent — re-running the migration on a DB that already has
-   the column must not raise.
-3. Coexist with the Phase A ``md_id`` migration (same idempotent
-   pattern).
-
-Pattern mirror: the existing ``md_id`` block (lines 431-446 of
-``database.py``) is the template Phase B follows.
-
-RED until the migration block is added.
-"""
+"""Tests for the ``md_aliases`` column migration."""
 
 from __future__ import annotations
 
@@ -24,8 +7,6 @@ from pathlib import Path
 import pytest
 from sqlalchemy import create_engine, inspect, text
 
-# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
-# in ``conftest.py`` says why that must not be the shared one.
 pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 
@@ -43,8 +24,6 @@ def _columns(engine, table: str) -> set[str]:
 
 class TestMdAliasesMigration:
     def test_fresh_db_has_md_aliases_column(self, tmp_path):
-        # Fresh ``create_all`` from current models must include the
-        # new column (because ``File.md_aliases`` is on the model).
         from app.database import Base, _migrate
 
         engine = _make_engine(tmp_path)
@@ -53,7 +32,7 @@ class TestMdAliasesMigration:
         assert "md_aliases" in _columns(engine, "files")
 
     def test_migration_adds_column_to_legacy_db(self, tmp_path):
-        # Simulate a pre-Phase-B database where the column is absent.
+        # Simulate a database where the column is absent.
         from app.database import Base, _migrate
 
         engine = _make_engine(tmp_path)
@@ -97,8 +76,6 @@ class TestMdAliasesMigration:
         assert "md_aliases" in _columns(engine, "files")
 
     def test_migration_is_idempotent(self, tmp_path):
-        # Running _migrate twice in a row must not raise (e.g. via
-        # ``IF NOT EXISTS`` or a column-existence check).
         from app.database import Base, _migrate
 
         engine = _make_engine(tmp_path)
@@ -108,7 +85,6 @@ class TestMdAliasesMigration:
         assert "md_aliases" in _columns(engine, "files")
 
     def test_md_id_and_md_aliases_coexist(self, tmp_path):
-        # Sanity: Phase A and Phase B columns both end up present.
         from app.database import Base, _migrate
 
         engine = _make_engine(tmp_path)

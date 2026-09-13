@@ -1,23 +1,4 @@
-"""HTTP tests for Internal API: GET /api/internal/viewer-history.
-
-Returns file_ids the caller has touched in a given drive within an
-optional time window. Used by the intelligence Ask pipeline (Stage B
-of the personal-history-query spec) to narrow retrieval scope by
-"what this viewer actually opened".
-
-Coverage targets:
-
-* viewer_id format validation (16-char SHA-256 prefix).
-* drive existence check (404 when unknown).
-* kind toggling between viewed and not_viewed, including the boundary
-  where the time window is empty.
-* drive isolation — a row whose ``File.drive`` is a different drive
-  must never appear in the response, even though watch_history itself
-  is drive-agnostic.
-* lifecycle filter — soft-deleted (``deleted_at``) and missing
-  (``missing_since``) files must be excluded.
-* time-window edges (after-only, before-only, both, half-open).
-"""
+"""HTTP tests for Internal API: GET /api/internal/viewer-history."""
 
 from __future__ import annotations
 
@@ -29,10 +10,7 @@ from app.models import File, WatchHistory
 from tests.conftest import TEST_DRIVE
 
 
-# Deterministic 16-char SHA-256 prefix used across the test cases.
-# Constant so the assertions stay readable even when the fixture set
-# grows; the auth module produces these via ``nickname_to_viewer_id``
-# but for tests a stable string suffices.
+# Deterministic 16-char SHA-256 prefixes used across the test cases.
 VIEWER_A = "0123456789abcdef"
 VIEWER_B = "fedcba9876543210"
 
@@ -264,7 +242,6 @@ class TestViewerHistoryTimeWindow:
         # Same wall-clock instant as the boundary, expressed three ways.
         _seed_view(db, VIEWER_A, f.id, when=datetime(2026, 4, 19, 0, 0, 0))
 
-        # +00:00 form must keep the row.
         res = c.get(
             "/api/internal/viewer-history",
             params={
@@ -275,7 +252,6 @@ class TestViewerHistoryTimeWindow:
         )
         assert res.json()["file_ids"] == [f.id]
 
-        # Z form must keep the row.
         res = c.get(
             "/api/internal/viewer-history",
             params={
@@ -349,7 +325,6 @@ class TestViewerHistoryNotViewed:
 
     def test_not_viewed_excludes_lifecycle_states(self, client):
         c, db, _, _ = client
-        # An active, never-viewed file should appear.
         unseen = _seed_file(db, "unseen.mp4")
         # Soft-deleted and missing files are not "viewable" today, so
         # they must be excluded from not_viewed too — otherwise the UI
