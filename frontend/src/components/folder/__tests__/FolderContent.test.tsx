@@ -245,6 +245,16 @@ describe("FolderContent", () => {
     expect(within(empty).getByRole("button", { name: "New note" })).toBeInTheDocument();
   });
 
+  it("creates a note once when the empty folder's New note is pressed", () => {
+    const onCreateFile = vi.fn();
+    render(
+      <FolderContent {...defaultProps} files={[]} folders={[]} onCreateFile={onCreateFile} />,
+    );
+    const empty = screen.getByTestId("empty-no-files");
+    fireEvent.click(within(empty).getByRole("button", { name: "New note" }));
+    expect(onCreateFile).toHaveBeenCalledTimes(1);
+  });
+
   it("offers neither where there is no folder to put them in", () => {
     render(<FolderContent {...defaultProps} files={[]} folders={[]} />);
     const empty = screen.getByTestId("empty-no-files");

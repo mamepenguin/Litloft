@@ -35,9 +35,13 @@ vi.mock("@/components/AddonSlotsProvider", () => ({
 }));
 
 const policy: Record<string, { enabled: boolean; isLoading: boolean }> = {};
+/** Which rows have rendered: a hidden row draws nothing, but it still asks its policy. */
+const policyAsked = new Set<string>();
 vi.mock("@/hooks/usePolicy", () => ({
-  usePolicy: (_drive: string, addon: string, feature: string) =>
-    policy[`${addon}.${feature}`] ?? { enabled: true, isLoading: false },
+  usePolicy: (_drive: string, addon: string, feature: string) => {
+    policyAsked.add(`${addon}.${feature}`);
+    return policy[`${addon}.${feature}`] ?? { enabled: true, isLoading: false };
+  },
 }));
 
 vi.mock("@/components/FolderPicker", () => ({
@@ -68,6 +72,7 @@ function renderAdd(context: { path: string; surface: "home" | "library" }, withF
 
 beforeEach(() => {
   for (const key of Object.keys(policy)) delete policy[key];
+  policyAsked.clear();
   localStorage.clear();
 });
 afterEach(cleanup);
@@ -75,8 +80,9 @@ afterEach(cleanup);
 describe.runIf(addonsLinked)("the Add menu with the bundled addon rows", () => {
   it("offers exactly one note row, the addon's, after the core rows", async () => {
     renderAdd({ path: "recipes", surface: "library" });
-    await screen.findByRole("menuitem", { name: "New note" });
-    expect(rows()).toEqual(["Files", "Folder", "New Folder", "Import from URL", "New note"]);
+    await waitFor(() =>
+      expect(rows()).toEqual(["Files", "Folder", "New Folder", "Import from URL", "New note"]),
+    );
     expect(rows().filter((r) => NOTE_ROW.test(r))).toHaveLength(1);
   });
 
@@ -88,6 +94,7 @@ describe.runIf(addonsLinked)("the Add menu with the bundled addon rows", () => {
     renderAdd({ path: "", surface: "library" });
     const other = label === "New note" ? "Import from URL" : "New note";
     await screen.findByRole("menuitem", { name: other });
+    await waitFor(() => expect(policyAsked.has(key)).toBe(true));
     expect(rows()).not.toContain(label);
     expect(rows().filter((r) => NOTE_ROW.test(r))).toHaveLength(label === "New note" ? 0 : 1);
   });
