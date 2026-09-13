@@ -100,6 +100,7 @@ describe("FolderToolbar", () => {
         drive: "test-drive",
         fileIds: ["file-1", "file-2"],
         path: "recipes/soup",
+        surface: "library",
       });
     });
 
@@ -107,6 +108,7 @@ describe("FolderToolbar", () => {
       render(<FolderToolbar {...defaultProps} />);
       openEvery();
       expect(menuSlots()[0].props.path).toBe("");
+      expect(menuSlots()[0].props.surface).toBe("library");
     });
 
     it("is not offered where there is no folder to write into", () => {

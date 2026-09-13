@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { dispatchUploadEvent, useFilePicker } from "./useFilePicker";
 import {
@@ -85,6 +85,7 @@ export function AddButton({
   const tf = useTranslations("folder");
   const t = useTranslations("toolbar");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addonDialogOpen, setAddonDialogOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -114,9 +115,17 @@ export function AddButton({
    * `FileActions` carries the same line for the same reason.
    */
   const closeMenu = useCallback(() => {
+    setAddonDialogOpen(false);
     setMenuOpen(false);
     triggerRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    // Set by an addon in another repository. Clearing it here means an entry
+    // that forgets `onDialogOpenChange(false)` cannot leave the next menu
+    // with no scrim and no Escape.
+    if (!menuOpen) setAddonDialogOpen(false);
+  }, [menuOpen]);
 
   // A popup must be dismissable from the keyboard. Without it the only
   // ways out are a press outside it or picking a row, so a keyboard user
@@ -149,8 +158,114 @@ export function AddButton({
         },
       },
     ],
-    menuOpen,
+    menuOpen && !addonDialogOpen,
     OVERLAY_PRIORITY,
+  );
+
+  const menu = (
+    <div
+      ref={menuRef}
+      role="menu"
+      // Capped and scrollable, like every other menu on this bar,
+      // and it keeps its own geometry rather than taking the shared
+      // surface.
+      //
+      // **Which side it grows from is not the reason.** That used
+      // to be it, and `useMenuSurface` took it away by growing an
+      // `align` parameter. The reason that is left is the form:
+      // every class the shared surface hands back is `sm:`-scoped,
+      // because that surface is a viewport-spanning sheet below
+      // 640px and an anchored panel above it. This menu is
+      // anchored at every width — its scrim says so and draws no
+      // tint — so taking those classes would leave it with no
+      // vertical placement at all under the breakpoint, and taking
+      // the sheet with them would turn a control on every folder
+      // toolbar into a bottom sheet on a phone.
+      //
+      // The *measurement* is shared even so: that is the part that
+      // was a near-copy, and it is `useAnchoredDirection` above.
+      //
+      // It grows with `folder-actions-menu`: three contributed rows
+      // take it from four to seven. Uncapped it runs past the fold
+      // of a landscape phone, and capped it fits and scrolls; the
+      // numbers are in the PR that measured them.
+      //
+      // `max-h` is against the viewport, not against the room below
+      // the trigger, so a cap is not a direction — which is why the
+      // hook decides that separately, and why this menu used to end
+      // below the fold with the cap doing its job.
+      className={`absolute z-30 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:max-h-[70vh] ${
+        ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
+      } ${
+        side === "right"
+          ? "right-0"
+          : "left-0"
+      } ${ANCHORED_ORIGIN[`${openUp ? "up" : "down"}-${side}`]}`}
+    >
+      <ActionMenuItem
+        icon={FileIcon}
+        label={tu("files")}
+        onClick={() => {
+          closeMenu();
+          filePicker.open();
+        }}
+      />
+      <ActionMenuItem
+        icon={Folder}
+        label={tu("folder")}
+        onClick={() => {
+          closeMenu();
+          folderInputRef.current?.click();
+        }}
+      />
+      {onCreateFolder && (
+        <ActionMenuItem
+          icon={FolderPlus}
+          label={tf("newFolder")}
+          onClick={() => {
+            closeMenu();
+            onCreateFolder();
+          }}
+        />
+      )}
+      {onCreateFile && (
+        <ActionMenuItem
+          icon={FilePlus}
+          label={tf("newFile")}
+          onClick={() => {
+            closeMenu();
+            onCreateFile();
+          }}
+        />
+      )}
+      {showAddonRows && (
+        /* The rule is this element's own border, not a sibling, so
+           `empty:hidden` can take both away together. `hasSlot` only
+           answers "did an addon declare this slot" — an entry that
+           did may still render nothing here (a drive with the
+           addon's feature policy off does exactly that), and the
+           rule would then hang under the last core row with nothing
+           beneath it. Ported from `FileActions`, which carries this
+           for the same reason.
+
+           `role="none"`: the rows inside must read as direct
+           children of `role="menu"`, and the rule is decoration. */
+        <div
+          role="none"
+          className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+        >
+          <AddonSlot
+            id={ADD_MENU_SLOT}
+            layout="stack"
+            props={{
+              ...addonProps,
+              onRequestClose: closeMenu,
+              onDialogOpenChange: setAddonDialogOpen,
+            }}
+          />
+        </div>
+      )}
+    </div>
   );
 
   return (
@@ -187,117 +302,23 @@ export function AddButton({
           {t("add")}
           <ChevronDown size={14} className="opacity-70" />
         </Button>
-        {menuOpen && (
-          <DismissScrim
-            onDismiss={() => setMenuOpen(false)}
-            // No tint: this menu stays anchored to its trigger at every
-            // width, so there is no sheet for a dim to explain.
-            className="fixed inset-0 z-30"
-          >
-            <div
-              ref={menuRef}
-              role="menu"
-              // Capped and scrollable, like every other menu on this bar,
-              // and it keeps its own geometry rather than taking the shared
-              // surface.
+        {menuOpen &&
+          (addonDialogOpen ? (
+            menu
+          ) : (
+            <DismissScrim
+              onDismiss={() => setMenuOpen(false)}
+              // No tint: this menu stays anchored to its trigger at every
+              // width, so there is no sheet for a dim to explain.
               //
-              // **Which side it grows from is not the reason.** That used
-              // to be it, and `useMenuSurface` took it away by growing an
-              // `align` parameter. The reason that is left is the form:
-              // every class the shared surface hands back is `sm:`-scoped,
-              // because that surface is a viewport-spanning sheet below
-              // 640px and an anchored panel above it. This menu is
-              // anchored at every width — its scrim says so and draws no
-              // tint — so taking those classes would leave it with no
-              // vertical placement at all under the breakpoint, and taking
-              // the sheet with them would turn a control on every folder
-              // toolbar into a bottom sheet on a phone.
-              //
-              // The *measurement* is shared even so: that is the part that
-              // was a near-copy, and it is `useAnchoredDirection` above.
-              //
-              // It grows with `folder-actions-menu`: three contributed rows
-              // take it from four to seven. Uncapped it runs past the fold
-              // of a landscape phone, and capped it fits and scrolls; the
-              // numbers are in the PR that measured them.
-              //
-              // `max-h` is against the viewport, not against the room below
-              // the trigger, so a cap is not a direction — which is why the
-              // hook decides that separately, and why this menu used to end
-              // below the fold with the cap doing its job.
-              className={`absolute z-30 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:max-h-[70vh] ${
-                ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
-              } ${
-                side === "right"
-                  ? "right-0"
-                  : "left-0"
-              } ${ANCHORED_ORIGIN[`${openUp ? "up" : "down"}-${side}`]}`}
+              // Not while a dialog raised from a row is up: the dialog
+              // portals out of the menu, and the scrim counts any press
+              // outside the menu as a dismissal.
+              className="fixed inset-0 z-30"
             >
-              <ActionMenuItem
-                icon={FileIcon}
-                label={tu("files")}
-                onClick={() => {
-                  closeMenu();
-                  filePicker.open();
-                }}
-              />
-              <ActionMenuItem
-                icon={Folder}
-                label={tu("folder")}
-                onClick={() => {
-                  closeMenu();
-                  folderInputRef.current?.click();
-                }}
-              />
-              {onCreateFolder && (
-                <ActionMenuItem
-                  icon={FolderPlus}
-                  label={tf("newFolder")}
-                  onClick={() => {
-                    closeMenu();
-                    onCreateFolder();
-                  }}
-                />
-              )}
-              {onCreateFile && (
-                <ActionMenuItem
-                  icon={FilePlus}
-                  label={tf("newFile")}
-                  onClick={() => {
-                    closeMenu();
-                    onCreateFile();
-                  }}
-                />
-              )}
-              {showAddonRows && (
-                /* The rule is this element's own border, not a sibling, so
-                   `empty:hidden` can take both away together. `hasSlot` only
-                   answers "did an addon declare this slot" — an entry that
-                   did may still render nothing here (a drive with the
-                   addon's feature policy off does exactly that), and the
-                   rule would then hang under the last core row with nothing
-                   beneath it. Ported from `FileActions`, which carries this
-                   for the same reason.
-
-                   `role="none"`: the rows inside must read as direct
-                   children of `role="menu"`, and the rule is decoration. */
-                <div
-                  role="none"
-                  className="mt-1 border-t border-bg-border pt-1 empty:hidden"
-                >
-                  <AddonSlot
-                    id={ADD_MENU_SLOT}
-                    layout="stack"
-                    props={{
-                      ...addonProps,
-                      onRequestClose: closeMenu,
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          </DismissScrim>
-        )}
+              {menu}
+            </DismissScrim>
+          ))}
       </div>
     </>
   );
