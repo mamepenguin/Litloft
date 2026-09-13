@@ -43,7 +43,7 @@ For local development (running the backend outside Docker) symlink the addon int
 
 | Flag | Default | What it does |
 |---|---|---|
-| `url_import` | `true` | Whether the addon accepts new URL imports for this drive. |
+| `url_import` | `true` | Hides **Import from URL** in the Add menu for this drive. Imports from the Media Import page and the API are not blocked by this flag. |
 
 If absent, graceful-degradation kicks in (`true`).
 
@@ -51,8 +51,8 @@ If absent, graceful-degradation kicks in (`true`).
 
 Two paths:
 
-- **From the UI** — open a folder and click *Import URL* in the folder action menu (contributed by the addon). Paste a URL, hit *Import*, the `.loft` file is created in that folder.
-- **From the API** — `POST /api/addons/media_import/import` with `{ "drive": "...", "folder": "...", "url": "..." }`.
+- **From the UI** — open **Add** on Home or in a Library folder and choose **Import from URL**. The dialog starts at that folder (the drive root on Home), imports a single video as a `.loft`, and keeps the URL and folder if the import fails so you can try again. Channel, playlist and feed URLs are not imported here; subscribe to them from the **Manage** view of the Media Import page.
+- **From the API** — `POST /api/addons/media_import/link` with `{ "drive": "...", "folder_path": "...", "url": "...", "stt_mode": "manual" }` and the `X-Lit-Drive` header.
 
 The pipeline:
 

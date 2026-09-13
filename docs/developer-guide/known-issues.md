@@ -110,9 +110,10 @@ the menu and remounts every row, so a row that keeps its dialog in its own state
 loses it. Reached from a file's `[...]` menu: knowledge's *Create note* and
 intelligence's *Index details* open nothing that stays.
 
-**Media Import's `url_import` feature switch does nothing.** It is documented in
-the addon's README, but no code reads it, so a drive with `url_import: false`
-still imports from URLs.
+**Media Import's `url_import` feature switch only hides a menu row.** With
+`url_import: false` the Add menu has no **Import from URL**, but the Media Import
+page and `POST /api/addons/media_import/link` still import from URLs on that
+drive.
 
 **A Web Clip left before it finishes stays "fetching" in Recent clips.** The job's
 state is updated only by the `knowledge.clip.ready` / `knowledge.clip.failed`
