@@ -1,13 +1,3 @@
-/**
- * The contract the folder toolbar's add menu and the empty folder now
- * share.
- *
- * It was one hidden `<input>` inside `AddButton`, and the extraction that
- * gave the empty state the same door left the whole of it — the event
- * name, the zone it is dispatched at, `multiple`, and the `value` reset —
- * asserted by nothing. A reviewer renamed the event, dropped `multiple`
- * and deleted the reset in one edit and the suite stayed green.
- */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
@@ -71,7 +61,7 @@ describe("useFilePicker", () => {
 
     fireEvent.change(input, { target: { files: [fileOf("a.txt")] } });
     // Without the reset the browser fires no second change event for an
-    // unchanged value, and the button looks broken rather than busy.
+    // unchanged value.
     expect(input.value).toBe("");
 
     fireEvent.change(input, { target: { files: [fileOf("a.txt")] } });
