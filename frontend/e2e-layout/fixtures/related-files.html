@@ -4,56 +4,20 @@
     <meta charset="utf-8" />
     <!--
       Without this, a context that sets `isMobile` lays the page out at
-      Chromium's mobile default instead of the viewport the spec asked
-      for, and every width-conditional rule answers for a page nobody
-      is measuring. `spec-viewport.spec.ts` opens this file under
-      exactly that context and reads the width back.
+      Chromium's mobile default instead of the viewport the spec asked for.
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>related files — layout fixture</title>
     <!--
-      The compiled globals.css, built by ../build-fixture-css.ts.
-
-      No <style> block of its own, for the reason the justified-grid
-      fixture has none: every declaration measured here has to have come
-      out of the app's own stylesheet, or the measurement is a test of
-      this page.
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
     -->
     <link rel="stylesheet" href="./globals.built.css" />
   </head>
   <body>
     <!--
-      The tile `RelatedFilesSection` renders, written out as the element,
-      the exact class list and the descendant tree.
-
-      The class lists are not decoration here — they are the geometry.
-      The tile's name column is what is left after `p-2` (16px), the
-      `w-24` thumbnail (96px), the `gap-3` between them (12px) and the
-      14px kind icon with its `gap-1.5`; drop any one of them from this
-      table and the fixture measures a name column the app never has, so
-      the character counts it reports stop being about this repository.
-      `relatedFilesFixtureParity.test.tsx` renders the real component and
-      fails if this table and the component come apart in either
-      direction.
-
-      Four shapes. The thumbnail box holds either an `<img>` or the kind
-      glyph and they are different subtrees; the glyph beside the name is
-      the file's kind, so `video` is its own row rather than `thumbnail`
-      with a different picture. `missing` is the third class list the
-      anchor can carry (`opacity-60`), and it adds a badge to the second
-      row — which takes width away from the folder path but not from the
-      name.
-
-      `video` is not here for its geometry, which is `thumbnail`'s. It is
-      here because the parity test's media guard has to have a video
-      relation to render: this repository mounts `<video>` behind
-      `file_type === "video"` and a hover delay, so a guard whose states
-      are all images and documents walks past the branch it exists to
-      catch. Measured — with three shapes, adding `VideoPreview` to the
-      tile under that condition survived every suite.
-
-      The lucide `<path>` children are a deliberate stop: their `d` is the
-      icon's business and moves no box.
+      `video` shares `thumbnail`'s geometry; it exists so the parity test
+      has a video relation to render.
     -->
     <script type="application/json" id="fixture-markup">
       {
@@ -240,16 +204,11 @@
       }
     </script>
 
-    <!-- The width the section is laid out at. `.related-files-host`
-         establishes the container the column count switches on, so this
-         is the only free variable on the page. -->
     <div id="frame"></div>
 
     <script>
-      // A 1x1 transparent GIF. The thumbnail box is `h-16 w-24` and the
-      // picture is `object-fit: cover` inside it, so the image's own size
-      // moves nothing — and a data URI needs no network, which is what
-      // lets this page run off file://.
+      // A 1x1 transparent GIF: a data URI needs no network, which lets
+      // this page run off file://.
       const PIXEL =
         "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
@@ -274,15 +233,6 @@
         return el;
       };
 
-      /**
-       * One tile of the named shape, built from the table above and
-       * nothing else, with the two truncating spans filled in.
-       *
-       * The name is the string the spec measures characters of, so it is
-       * passed in rather than baked here: a fixture that chose its own
-       * filename would report a character count about a name the library
-       * does not hold.
-       */
       const buildTile = (shape, name, folder) => {
         const spec = SHAPES[shape];
         if (!spec) throw new Error(`no such tile shape: ${shape}`);
@@ -295,16 +245,6 @@
         return tile;
       };
 
-      /**
-       * The section at a chosen width, in a viewport that could contain
-       * it.
-       *
-       * The viewport is sized to the frame for the reason the justified
-       * fixture gives: a rule keyed to `@media` rather than to the
-       * container is invisible to a suite that lays a 352px grid out in a
-       * 1280px window — and `sm:grid-cols-2`, the declaration this
-       * component was fixed for, is exactly that rule.
-       */
       window.buildRelated = ({ width, count, shapes, forceColumns, name, folder }) => {
         const frame = document.getElementById("frame");
         frame.style.width = `${width}px`;
@@ -314,11 +254,8 @@
         host.className = "related-files-host";
         const grid = document.createElement("div");
         grid.className = "related-files-grid grid gap-2";
-        // `forceColumns` overrides the stylesheet's answer, and is used
-        // for exactly one thing: laying out the column count a rejected
-        // threshold would have produced, so the reason it was rejected
-        // is a measurement in the suite rather than a paragraph in a
-        // comment. Nothing else may pass it.
+        // `forceColumns` overrides the stylesheet's answer; it exists only
+        // to lay out what a rejected threshold would have produced.
         if (forceColumns) {
           grid.style.gridTemplateColumns = `repeat(${forceColumns}, minmax(0, 1fr))`;
         }
@@ -332,13 +269,8 @@
       };
 
       /**
-       * Every tile's realized box, the grid's own, and how much of the
-       * filename each name column can actually show.
-       *
        * The character count is measured with the span's own resolved font
-       * through a canvas, not guessed from a width: what the reader gets
-       * is a number of glyphs, and that is the thing the threshold
-       * was chosen against.
+       * through a canvas, not guessed from a width.
        */
       window.measureRelated = () => {
         const grid = document.querySelector(".related-files-grid");
@@ -346,13 +278,9 @@
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
 
-        // The fractional box, not `clientWidth`. An integer width rounds
-        // the column down by up to a pixel, and at the one width where
-        // that matters — a name column wider than the whole name — it
-        // drops the last character and reports 26 of 27 for a filename
-        // that is entirely on screen. The half-pixel is sub-pixel
-        // tolerance, an order below a glyph, so it cannot buy a
-        // character anywhere the answer is close.
+        // The fractional box, not `clientWidth`: an integer width rounds
+        // down and can drop the last character of a name that fits. The
+        // half-pixel is an order below a glyph.
         const visibleChars = (span) => {
           const cs = getComputedStyle(span);
           ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
