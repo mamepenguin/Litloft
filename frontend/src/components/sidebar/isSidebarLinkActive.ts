@@ -62,3 +62,18 @@ export function samePath(pathname: string, hrefPath: string): boolean {
     return false;
   }
 }
+
+/**
+ * An addon owns every route under its own, so its row stays lit on a deep
+ * page. Core rows do not get this: `/drive/{d}` is a prefix of every page
+ * on the drive.
+ */
+export function isAddonNavRowActive(pathname: string, href: string): boolean {
+  if (samePath(pathname, href)) return true;
+  if (pathname.startsWith(`${href}/`)) return true;
+  try {
+    return pathname.startsWith(`${decodeURIComponent(href)}/`);
+  } catch {
+    return false;
+  }
+}

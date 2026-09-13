@@ -200,16 +200,22 @@ describe("sidebar top — item 10", () => {
     ]);
   });
 
-  it("names the addon group through the catalogue, not in English source", () => {
+  it("names the source group through the catalogue, not in English source", () => {
     render(
       <SidebarLibrarySection libraryActive={false}
         {...props}
-        addons={{ knowledge: { label: "Knowledge", icon: "notebook-pen", href: "/", scope: "drive" } }}
+        sourceAddons={[
+          {
+            name: "media_import",
+            href: "/drive/d/addons/media_import",
+            navigation: { label: "YouTube & Feeds", placement: "sources", priority: 10 },
+          },
+        ]}
       />,
     );
     // `getByText` returns the inner `<span class="truncate">`; the classes
     // under test are on its parent.
-    const label = screen.getByText("Addons");
+    const label = screen.getByText("Sources");
     const heading = label.parentElement!;
     expect(heading.className).toMatch(/text-\[11px\]/);
     expect(heading.className).not.toMatch(/uppercase|tracking-wider/);
