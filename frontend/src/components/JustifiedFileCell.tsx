@@ -59,11 +59,6 @@ function JustifiedFileCellImpl({
     sortQuery,
   });
   const ratio = justifiedRatio(file);
-  // The same three-way answer `FileCard` gives. A justified listing is
-  // at least 90% measurable images by construction, but the other 10%
-  // is real: a `notes.txt` and a `receipt.pdf` in a photo folder both
-  // have no thumbnail, and drawing the shared placeholder for each made
-  // them the same picture.
   const hasThumbnail =
     file.has_thumbnail ||
     file.file_type === "video" ||
@@ -77,11 +72,7 @@ function JustifiedFileCellImpl({
   return (
     <div
       className={`justified-grid-cell relative${isDragging ? " opacity-40" : ""}${isCutFile ? " opacity-50" : ""}${draggable ? " select-none" : ""}`}
-      // The ratio is per file, so it cannot live in a stylesheet. The
-      // row geometry that reads it is `.justified-grid` in globals.css.
       style={{ "--jg-ratio": ratio } as React.CSSProperties}
-      // What `useJustifiedFlip` recognises the same cell by across a
-      // re-render. The React key is not readable from the DOM.
       data-flip-key={file.id}
       draggable={draggable}
       onDragStart={onDragStart ? (e) => onDragStart(e, file) : undefined}
@@ -120,9 +111,7 @@ function JustifiedFileCellImpl({
           <img
             src={getThumbnailUrl(file.id)}
             // Empty on purpose. The cell is named by `aria-label` on the
-            // link itself, so every branch answers with the same string
-            // — a filled `alt` would say it a second time, and the text
-            // branch below already renders the title of its own accord.
+            // link itself — a filled `alt` would say it a second time.
             alt=""
             className="h-full w-full object-cover"
             loading="lazy"
@@ -139,34 +128,15 @@ function JustifiedFileCellImpl({
             />
           </div>
         )}
-        {/* No `VideoPreview` here, deliberately, and not for parity's
-            sake — `.justified-grid-host` is a `container-type` context,
-            and `DESIGN.md` records that a containment context around a
-            `<video>` renders its whole subtree rotated and spinning on
-            iOS Safari (confirmed on device 2026-08-12). `cardGrid.ts`
-            gives that as its reason for *not* using a container query
-            for the equal-card grid. Nothing on desktop reproduces it
-            and no test can, so the invariant is kept by not having the
-            element. The duration badge below is the half of the video
-            answer that costs nothing. */}
+        {/* No `VideoPreview` here, deliberately — `.justified-grid-host`
+            is a `container-type` context, and a containment context
+            around a `<video>` renders its whole subtree rotated and
+            spinning on iOS Safari. */}
         {hasKnownLength(file) && (
           <span className="absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
             {formatDuration(file.duration)}
           </span>
         )}
-        {/*
-          The name is the only meta a justified cell carries, and it is
-          hidden until asked for: the cells are unequal widths, so a
-          caption band under each one would not line up into a column
-          the way the card grid's meta row does. `pointer: coarse` has
-          no hover to ask with, so there it stays visible — see the
-          `.justified-grid-name` rule in globals.css.
-        */}
-        {/* Not `aria-hidden`. The `aria-label` above already decides
-            the name, so the band cannot add a second copy — and leaving
-            it in the tree means that if the label is ever dropped the
-            name degrades to the visible filename rather than to
-            nothing. */}
         <span className="justified-grid-name">{file.title}</span>
         {onFavoriteToggle && (
           <div
@@ -185,15 +155,4 @@ function JustifiedFileCellImpl({
   );
 }
 
-/**
- * One cell of a justified thumbnail row: the picture at its real
- * proportions, with no meta line under it. The 10% of rows that are not
- * measurable photographs get `FileCard`'s three-way answer — thumbnail,
- * text preview, or type icon — plus a duration badge for timed media.
- * See `DESIGN.md` §8.5 "Justified thumbnail rows".
- *
- * Memoized on the same terms as `FileCard`: every prop is a per-file
- * primitive or a referentially stable callback, because a folder that
- * reaches this component is a folder with hundreds of rows in it.
- */
 export const JustifiedFileCell = memo(JustifiedFileCellImpl);

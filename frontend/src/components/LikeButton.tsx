@@ -8,12 +8,9 @@ import { likeFile } from "@/lib/api";
 import type { FileItem } from "@/types";
 
 /**
- * "This was good" — a record of something already consumed, as opposed to
- * the favorite star's "open this again".
- *
  * Deliberately only on the file page. Pressing it is an act performed
- * after actually reading or watching, and that friction is what keeps the
- * two apart.
+ * after actually reading or watching, and that friction is what keeps it
+ * apart from the favorite star.
  */
 export function LikeButton({
   fileId,

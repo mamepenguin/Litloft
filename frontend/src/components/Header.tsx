@@ -50,14 +50,6 @@ export function Header() {
       // PWA safe-area: reserve the iOS status-bar inset above and
       // keep a stable 56px content area so the avatar / search /
       // menu button stay visually centred independently of the inset.
-      //
-      // The previous shape (`min-h-14 + padding-top`) measured against
-      // a 56px box total: with `box-sizing: border-box` the content
-      // area collapsed to (56 - inset) under PWA, then re-expanded
-      // to natural content height. `items-center` then centred against
-      // that drifting box and the chrome appeared subtly lower on PWA
-      // than in a regular browser tab. Phase 4 review L1, hako
-      // 5rtHKXzQd9VJY7WNU5Deg.
       style={{
         paddingTop: "env(safe-area-inset-top, 0px)",
         minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))",
