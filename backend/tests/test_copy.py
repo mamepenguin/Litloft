@@ -1,5 +1,7 @@
 import json
 import shutil
+
+import pytest
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -254,6 +256,41 @@ class TestBatchCopy:
         assert len(data["errors"]) == 1
         assert data["errors"][0]["id"] == "zzNOTFOUNDzz"
 
+    def test_a_failed_copy_leaves_no_file_behind(self, client, monkeypatch):
+        """The destination is created before it is written, and a write that
+        fails must not leave the empty shell holding the name.
+
+        The batch continues past a failure, so the shell is met by the files
+        after it: `_resolve_copy_filename` sees a name that is taken and
+        suffixes around it, and the drive scan later indexes an empty file
+        sitting beside the real one.
+        """
+        c, db, drive_dir, data_dir = client
+        first = _seed(db, drive_dir, "a.mp4", folder="one")
+        second = _seed(db, drive_dir, "a.mp4", folder="two")
+
+        real_copy2 = shutil.copy2
+        calls = {"n": 0}
+
+        def fail_first(src, dst, *args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise OSError(28, "No space left on device")
+            return real_copy2(src, dst, *args, **kwargs)
+
+        monkeypatch.setattr("app.services.fileops.shutil.copy2", fail_first)
+
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [first.id, second.id], "target_folder_path": "dest"},
+        )
+
+        assert res.status_code == 200
+        assert res.json()["copied"] == 1
+        # The one that copied keeps the name it asked for, because the one
+        # that failed left nothing holding it.
+        assert sorted(p.name for p in (drive_dir / "dest").iterdir()) == ["a.mp4"]
+
     def test_batch_copy_survives_a_filesystem_error_on_one_file(self, client, monkeypatch):
         """A copy that fails outside an HTTPException must not abort the batch.
 
@@ -287,6 +324,135 @@ class TestBatchCopy:
         assert data["copied"] == 1
         assert [e["id"] for e in data["errors"]] == [f2.id]
         assert (drive_dir / "dest" / "a.mp4").exists()
+
+    @pytest.mark.parametrize("failure", ["write", "exclusive-create"])
+    def test_a_failure_does_not_carry_a_ghost_into_the_next_commit(
+        self, client, monkeypatch, failure
+    ):
+        """A copy that fails after the path-conflict step must take its
+        pending session state with it.
+
+        ``resolve_db_path_conflict`` retires a Missing record's ``file_path``
+        and flushes it before anything touches the filesystem. If the copy
+        then fails and the loop carries on, the next file's commit writes that
+        retirement out — so an unrelated file failing strands the Missing
+        record's history under a placeholder nobody points at.
+
+        The failing id is **first**: with it last, nothing commits afterwards
+        and the rollback cannot be observed. The two parameters are the two
+        ways ``copy_file`` fails after the flush — a refused write, and the
+        exclusive create finding the path taken.
+        """
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        first = _seed(db, drive_dir, "a.mp4", folder="one")
+        second = _seed(db, drive_dir, "b.mp4", folder="one")
+        (drive_dir / "dest").mkdir(exist_ok=True)
+
+        ghost = File(
+            filename="a.mp4",
+            title="Gone",
+            drive=TEST_DRIVE,
+            folder_path="dest",
+            file_path="dest/a.mp4",
+            file_size=1,
+            file_type="video",
+            mime_type="video/mp4",
+            missing_since=datetime.now(UTC),
+        )
+        db.add(ghost)
+        db.commit()
+        ghost_id = ghost.id
+
+        if failure == "write":
+            real_copy2 = shutil.copy2
+            calls = {"n": 0}
+
+            def fail_first(src, dst, *args, **kwargs):
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    raise OSError(28, "No space left on device")
+                return real_copy2(src, dst, *args, **kwargs)
+
+            monkeypatch.setattr("app.services.fileops.shutil.copy2", fail_first)
+        else:
+            import os as _os
+
+            real_open = _os.open
+            calls = {"n": 0}
+
+            def fail_first_open(path, *args, **kwargs):
+                if str(path).endswith("dest/a.mp4"):
+                    calls["n"] += 1
+                    if calls["n"] == 1:
+                        raise FileExistsError()
+                return real_open(path, *args, **kwargs)
+
+            monkeypatch.setattr("app.services.fileops.os.open", fail_first_open)
+
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [first.id, second.id], "target_folder_path": "dest"},
+        )
+
+        assert res.status_code == 200
+        data = res.json()
+        # The population: the second file has to commit, or the rollback the
+        # first one needed is never put to the test.
+        assert data["copied"] == 1
+        assert [e["id"] for e in data["errors"]] == [first.id]
+
+        db.expire_all()
+        assert db.get(File, ghost_id).file_path == "dest/a.mp4"
+
+    def test_batch_copy_announces_the_copies_it_made(self, client, monkeypatch):
+        """A partial batch says what it created, and says the new ids.
+
+        Before the loop caught this failure the emit was skipped entirely,
+        even though the earlier copies were already committed — every open
+        tab learned of them only at the next scan.
+        """
+        c, db, drive_dir, data_dir = client
+        first = _seed(db, drive_dir, "a.mp4", folder="one")
+        second = _seed(db, drive_dir, "b.mp4", folder="one")
+
+        real_copy2 = shutil.copy2
+        calls = {"n": 0}
+
+        def fail_first(src, dst, *args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise OSError(28, "No space left on device")
+            return real_copy2(src, dst, *args, **kwargs)
+
+        monkeypatch.setattr("app.services.fileops.shutil.copy2", fail_first)
+
+        # `emit_from_thread` schedules onto a stored loop that the test
+        # client does not run, so it is the call itself that is observed.
+        emitted: list[tuple[str, dict]] = []
+        from app.services import event_hooks
+
+        monkeypatch.setattr(
+            event_hooks,
+            "emit_from_thread",
+            lambda event, data, drives=None: emitted.append((event, data)),
+        )
+
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [first.id, second.id], "target_folder_path": "dest"},
+        )
+        assert res.json()["copied"] == 1
+
+        created = [e for e in emitted if e[0] == "files.created"]
+        assert len(created) == 1
+        announced = created[0][1]["file_ids"]
+        # The copies, not the originals: these ids are freshly generated, and
+        # announcing the sources tells every consumer about files that were
+        # already there while the new ones reach nobody.
+        assert len(announced) == 1
+        assert announced[0] not in {first.id, second.id}
 
     def test_batch_copy_empty_ids(self, client):
         c, db, drive_dir, data_dir = client

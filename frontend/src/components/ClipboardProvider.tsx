@@ -136,11 +136,13 @@ export function ClipboardProvider({ children }: { children: ReactNode }) {
                 pasted: r.moved,
                 failed: r.errors.length,
               }));
-      } catch (error) {
+      } catch {
         // A count would be a guess here; the honest statement is that it
-        // did not happen. Rethrown so the caller still knows.
+        // did not happen. Not rethrown: this is the only place that knows
+        // what to say, and the one caller had an empty `catch` whose whole
+        // job was to absorb the rejection.
         toast.error(t("pasteRefused"));
-        throw error;
+        return;
       }
 
       // Cleared once something landed, so a second paste cannot duplicate

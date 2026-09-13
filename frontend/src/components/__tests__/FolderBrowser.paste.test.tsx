@@ -30,9 +30,22 @@ vi.mock("next/navigation", () => ({
 }));
 
 const mockPaste = vi.fn().mockResolvedValue(undefined);
-const held: { clipboard: { fileIds: string[]; drive: string; path: string; mode: string } | null } = {
-  clipboard: { fileIds: ["f1", "f2"], drive: "main", path: "other", mode: "copy" },
+// `ClipboardState`'s own field names. Spelled `drive`/`path`, every
+// assertion about a real field read `undefined` and passed for the wrong
+// reason.
+type HeldClipboard = {
+  fileIds: string[];
+  mode: "copy" | "cut";
+  sourceDrive: string;
+  sourcePath: string;
 };
+const CLIPBOARD: HeldClipboard = {
+  fileIds: ["f1", "f2"],
+  mode: "copy",
+  sourceDrive: "elsewhere",
+  sourcePath: "other",
+};
+const held: { clipboard: HeldClipboard | null } = { clipboard: { ...CLIPBOARD } };
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({
     get clipboard() {
@@ -177,7 +190,7 @@ const SCREENS: ReadonlyArray<{
 describe("where a clipboard can be pasted", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    held.clipboard = { fileIds: ["f1", "f2"], drive: "main", path: "other", mode: "copy" };
+    held.clipboard = { ...CLIPBOARD };
   });
   afterEach(cleanup);
 
@@ -197,7 +210,12 @@ describe("where a clipboard can be pasted", () => {
     // from inside a folder, or in the drive the files came from rather
     // than the one on screen, satisfies the count above.
     if (offersPaste) {
+      // The drive on screen, which the clipboard deliberately does not
+      // name: with both sides reading "main" no row could tell the two
+      // apart, and routing a paste through the clipboard's own drive
+      // moves files into a drive nobody is looking at.
       expect(mockPaste).toHaveBeenCalledWith("main", pastesInto);
+      expect(CLIPBOARD.sourceDrive).not.toBe("main");
     }
   });
 

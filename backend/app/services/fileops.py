@@ -261,7 +261,18 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         os.close(fd)
     except FileExistsError:
         raise HTTPException(status_code=409, detail="Target file already exists")
-    shutil.copy2(str(old_full), str(new_full))
+    try:
+        shutil.copy2(str(old_full), str(new_full))
+    except Exception:
+        # The exclusive create above already put an empty file at the
+        # destination. Left there it holds the name against everything that
+        # follows — the next file in the same batch is suffixed around it,
+        # and a later scan indexes it as a real, empty file.
+        try:
+            new_full.unlink()
+        except OSError:
+            pass
+        raise
 
     new_file = File(
         id=new_id,
