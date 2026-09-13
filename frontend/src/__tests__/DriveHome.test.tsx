@@ -466,8 +466,10 @@ describe("the drive home's acceptance criteria", () => {
     // sees a page mid-fetch. That is what made this case fail about one
     // shuffled run in eight — a race the shuffle perturbs, not an order
     // dependency. This fixture's drive has no files, so every row removes
-    // itself once its fetch lands.
-    await waitFor(() => expect(sectionNames()).toEqual([]));
+    // itself once its fetch lands and the page says so in their place.
+    await waitFor(() =>
+      expect(sectionNames()).toEqual([messages.empty.noHomeActivityTitle]),
+    );
 
     expect(sectionNames()).not.toContain("Continue Watching");
     expect(sectionNames()).not.toContain("Recently Viewed");
@@ -512,6 +514,21 @@ describe("the drive home's acceptance criteria", () => {
       expect(sectionNames()).not.toContain("Continue Watching");
       expect(sectionNames()).not.toContain("Recently Viewed");
     });
+  });
+
+  it("asks for the history again when a different reader takes over", async () => {
+    // The viewer travels in a cookie, so nothing the fetch closes over
+    // changes between two readers who both have a profile. Without a
+    // re-fetch Bob is shown Alice's history until the drive changes.
+    mockProfile.nickname = "Alice";
+    mockGetWatchHistory.mockResolvedValue([makeWatchHistoryItem("v1")]);
+    const { rerender } = render(<DriveHome driveName="media" />);
+    await waitFor(() => expect(mockGetWatchHistory).toHaveBeenCalledTimes(2));
+
+    mockProfile.nickname = "Bob";
+    rerender(<DriveHome driveName="media" />);
+
+    await waitFor(() => expect(mockGetWatchHistory).toHaveBeenCalledTimes(4));
   });
 
   it("draws both watch rows once a profile is set", async () => {

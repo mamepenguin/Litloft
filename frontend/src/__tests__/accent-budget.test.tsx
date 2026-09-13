@@ -569,15 +569,40 @@ describe("accent budget — drive root", () => {
     // and Liked. `not.toHaveLength(0)` here would stay green if two of
     // them stopped drawing at all (detector rule 1).
     expect(await screen.findAllByText(/See all \(1\)/)).toHaveLength(3);
-    expect(
-      [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
-    ).toEqual(["Add"]);
+    // Not de-duplicated: collapsing equal labels throws away the
+    // multiplicity, which is the property.
+    expect(accentFills(container).map((el) => el.textContent?.trim() ?? "")).toEqual(["Add"]);
   });
 
   it("puts Add in the header", async () => {
     render(<DriveHome driveName="main" />);
     const add = await screen.findByRole("button", { name: "Add" });
     expect(add.closest("header")).not.toBeNull();
+  });
+
+  it("still spends one on Add when there is nothing to show", async () => {
+    // The two states that draw a call to action of their own into the
+    // page body, where the header's Add is already the screen's one
+    // fill. Neither of them is on screen in the cases above.
+    mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0 } });
+
+    const { container } = render(<DriveHome driveName="main" />);
+    await screen.findByRole("link", { name: "Open Library" });
+
+    // Not de-duplicated: collapsing equal labels throws away the
+    // multiplicity, which is the property.
+    expect(accentFills(container).map((el) => el.textContent?.trim() ?? "")).toEqual(["Add"]);
+  });
+
+  it("still spends one on Add when nothing could be fetched", async () => {
+    mockGetDriveFiles.mockRejectedValue(new Error("network"));
+
+    const { container } = render(<DriveHome driveName="main" />);
+    await screen.findByRole("button", { name: "Try again" });
+
+    // Not de-duplicated: collapsing equal labels throws away the
+    // multiplicity, which is the property.
+    expect(accentFills(container).map((el) => el.textContent?.trim() ?? "")).toEqual(["Add"]);
   });
 
   it("still spends one on Add with a half-watched row on screen", async () => {
