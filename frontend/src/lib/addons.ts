@@ -1,3 +1,5 @@
+import type { AddonNavigation } from "./addonNavigation";
+
 export type AddonScope = "drive" | "global" | "both";
 
 export interface AddonMeta {
@@ -7,6 +9,7 @@ export interface AddonMeta {
   type?: "in_process" | "external_service";
   scope?: AddonScope;
   slots?: Record<string, SlotEntry[]>;
+  navigation?: AddonNavigation;
 }
 
 export function addonUrlFor(name: string, meta: AddonMeta, currentDrive: string | null): string | null {

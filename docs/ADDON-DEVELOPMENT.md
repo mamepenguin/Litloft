@@ -392,6 +392,25 @@ the block are passed through unchanged. `GET /api/addons/status` returns the
 block as declared, under the same per-drive `index` policy filtering as the rest
 of the addon's entry.
 
+The sidebar draws one row for the addon when it has a valid `navigation`, a
+top-level `href`, and a route it can build (a drive-scoped addon needs a current
+drive). The row links to that route, never to the `href` value.
+
+| `placement` | Where the row goes |
+|---|---|
+| `primary` | Right after **Library**, before the **Views** heading |
+| `sources` | Under a **Sources** heading after the views, before the user's own sections. The heading appears only when some addon declares `sources` |
+| `utility` | Unheaded, after the user's own sections and before **Trash** |
+
+Rows sort by `priority` within their placement, then by addon name. The label is
+the translation of `i18n_key` when that key resolves, otherwise `label`; the
+product `label` at the top level of the manifest is never shown there. The row
+is lit on the addon's route and on any page under it.
+
+Icon tokens the sidebar knows: `download`, `message-circle-question`,
+`notebook-pen`, `package`, `rss`. A missing or unknown token draws the `package`
+icon.
+
 #### `policy_features`
 
 Declare features that operators can toggle per drive in the admin GUI. Each entry:

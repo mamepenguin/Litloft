@@ -103,3 +103,43 @@ knowledge message namespace, `useActiveSummary`'s knowledge WebSocket event,
 `dirtyRegistry`'s `"knowledge-editor"` source, the knowledge active-summary URL
 in `lib/api.ts`, `semanticSearch` reading the intelligence catalogue entry and
 search URL, and `featureFlags`' inline knowledge editor flag.
+
+**A file menu row's dialog closes the moment it opens.** `FileActions` renders
+its menu without the dismiss scrim once a row reports a dialog, which re-parents
+the menu and remounts every row, so a row that keeps its dialog in its own state
+loses it. Reached from a file's `[...]` menu: knowledge's *Create note* and
+intelligence's *Index details* open nothing that stays.
+
+**Media Import's `url_import` feature switch does nothing.** It is documented in
+the addon's README, but no code reads it, so a drive with `url_import: false`
+still imports from URLs.
+
+**A Web Clip left before it finishes stays "fetching" in Recent clips.** The job's
+state is updated only by the `knowledge.clip.ready` / `knowledge.clip.failed`
+events that arrive while the Knowledge page is open, and the page does not
+re-read the state when it mounts. Reached by sending a clip and leaving the page;
+the row clears when its 24-hour entry expires.
+
+**A Web Clip whose placeholder file was edited during the fetch never reports.**
+When writing the fetched content answers 412 because the placeholder changed,
+the job publishes neither ready nor failed, so no screen hears its result.
+Reached by touching the placeholder file (or letting a scan do so) while the
+clip is fetching.
+
+**An in-process addon whose `scope` is a list or object stops loading its startup
+hook.** `_validate_scope` tests membership in a set, which raises for an
+unhashable value instead of rejecting it, so the addon's `on_startup` is skipped
+rather than the addon being cleanly refused. Reached only by writing such an
+`ADDON_META`.
+
+**Right after a drive switch, the previous drive's addon slots can render with the
+new drive's props.** `AddonSlotsProvider` keeps the old drive's `slots` until the
+new drive's catalogue arrives, so an addon turned off on the new drive (Home's
+Pickup, for example) can draw for a frame or more there, and may call its API
+for that drive. The proxy's `pre_check` should answer those calls with 404; that
+has not been measured. The sidebar's addon rows do not do this.
+
+**Re-sending a Web Clip whose earlier attempt failed offers to open the failed
+placeholder.** `GET /clips?url=` returns failed jobs too, so the duplicate notice
+appears and its "open existing" goes to the placeholder file the failed job left.
+Reached from the bookmarklet and from the Knowledge page's form alike.

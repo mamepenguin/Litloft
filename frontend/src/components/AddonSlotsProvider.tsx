@@ -22,6 +22,12 @@ export interface AddonStatus {
 
 interface AddonSlotsContextValue {
   addons: AddonsStatus["addons"];
+  /**
+   * The drive the loaded catalogue was fetched for. It lags the current
+   * drive between a switch and the new response, so a consumer that must not
+   * show one drive's addons on another compares the two.
+   */
+  catalogueDrive: string | null | undefined;
   slots: Record<string, SlotEntry[]>;
   loading: boolean;
   getSlotEntries: (slotId: string) => SlotEntry[];
@@ -34,6 +40,7 @@ const VALID_ADDON_NAME_FOR_PRELOAD = /^[a-z][a-z0-9_-]*$/;
 
 const AddonSlotsContext = createContext<AddonSlotsContextValue>({
   addons: {},
+  catalogueDrive: undefined,
   slots: {},
   loading: true,
   getSlotEntries: () => [],
@@ -44,6 +51,7 @@ export function AddonSlotsProvider({ children }: { children: ReactNode }) {
   const [addons, setAddons] = useState<AddonsStatus["addons"]>({});
   const [slots, setSlots] = useState<Record<string, SlotEntry[]>>({});
   const [loading, setLoading] = useState(true);
+  const [catalogueDrive, setCatalogueDrive] = useState<string | null | undefined>(undefined);
   const drive = useCurrentDrive();
 
   useEffect(() => {
@@ -53,6 +61,7 @@ export function AddonSlotsProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       setAddons(status.addons);
       setSlots(status.slots);
+      setCatalogueDrive(drive);
       setLoading(false);
       // Eagerly preload each active addon's slot module. Some addons
       // (e.g. media_import) rely on side-effect imports inside slots.ts
@@ -77,7 +86,7 @@ export function AddonSlotsProvider({ children }: { children: ReactNode }) {
 
   return (
     <AddonSlotsContext.Provider
-      value={{ addons, slots, loading, getSlotEntries, hasSlot }}
+      value={{ addons, catalogueDrive, slots, loading, getSlotEntries, hasSlot }}
     >
       {children}
     </AddonSlotsContext.Provider>

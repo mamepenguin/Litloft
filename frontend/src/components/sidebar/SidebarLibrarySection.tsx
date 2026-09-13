@@ -1,18 +1,12 @@
 import Link from "next/link";
-import { Clock, Download, FilePlus, Files, FolderTree, Home, NotebookPen, Package, Rss, Star, ThumbsUp, Warehouse, type LucideIcon } from "lucide-react";
+import { Clock, FilePlus, Files, FolderTree, Home, Star, ThumbsUp, Warehouse } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
-import { addonUrlFor, type AddonMeta } from "@/lib/addons";
+import type { AddonNavEntry } from "@/lib/addonNavigation";
 import type { Drive } from "@/types";
+import { AddonNavRows } from "./AddonNavRows";
 import { SidebarDriveSwitcher } from "./SidebarDriveSwitcher";
 import { SidebarSectionHeading } from "./SidebarSectionHeading";
-
-const ADDON_ICONS: Record<string, LucideIcon> = {
-  download: Download,
-  "notebook-pen": NotebookPen,
-  package: Package,
-  rss: Rss,
-};
 
 interface SidebarLibrarySectionProps {
   driveBase: string | null;
@@ -21,7 +15,8 @@ interface SidebarLibrarySectionProps {
   drives?: Drive[];
   linkClass: (href: string, active?: boolean) => string;
   close: () => void;
-  addons?: Record<string, AddonMeta>;
+  primaryAddons?: readonly AddonNavEntry[];
+  sourceAddons?: readonly AddonNavEntry[];
   /**
    * Whether the Library row is the selected one. Passed rather than
    * derived from its href: Library is selected on folder URLs it does
@@ -31,14 +26,8 @@ interface SidebarLibrarySectionProps {
   libraryActive: boolean;
 }
 
-export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, addons, libraryActive }: SidebarLibrarySectionProps) {
+export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, primaryAddons = [], sourceAddons = [], libraryActive }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
-
-  const addonEntries = addons
-    ? Object.entries(addons)
-        .map(([name, meta]) => ({ name, meta, href: addonUrlFor(name, meta, currentDrive) }))
-        .filter((entry): entry is { name: string; meta: AddonMeta; href: string } => entry.href !== null)
-    : [];
 
   return (
     <>
@@ -61,6 +50,11 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
             <FolderTree size={16} />
             {t("library")}
           </Link>
+        </>
+      )}
+      <AddonNavRows entries={primaryAddons} linkClass={linkClass} close={close} />
+      {driveBase && (
+        <>
           {/* What the heading names: each row under it is the whole
               drive seen through one question, where Library is the drive
               seen through its folders. They are pages in their own
@@ -90,18 +84,10 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
         </>
       )}
 
-      {addonEntries.length > 0 && (
+      {sourceAddons.length > 0 && (
         <>
-          <SidebarSectionHeading label={t("addons")} />
-          {addonEntries.map(({ name, meta, href }) => {
-            const Icon = ADDON_ICONS[meta.icon] ?? Package;
-            return (
-              <Link key={name} href={href} onClick={close} className={linkClass(href)}>
-                <Icon size={16} />
-                {meta.label}
-              </Link>
-            );
-          })}
+          <SidebarSectionHeading label={t("sources")} />
+          <AddonNavRows entries={sourceAddons} linkClass={linkClass} close={close} />
         </>
       )}
 
