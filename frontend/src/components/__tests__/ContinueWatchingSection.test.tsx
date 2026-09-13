@@ -129,8 +129,6 @@ describe("ContinueWatchingSection", () => {
     const { container } = render(
       <ContinueWatchingSection items={[item1]} loading={false} />,
     );
-    // FileCard renders a progress bar div when watchProgress.duration > 0.
-    // The fill bar uses inline style width — assert at least one element has width style.
     const progressFills = container.querySelectorAll('[style*="width"]');
     expect(progressFills.length).toBeGreaterThan(0);
   });
@@ -155,8 +153,7 @@ describe("ContinueWatchingSection", () => {
         <ContinueWatchingSection items={[item1]} loading={false} />,
       );
       const card = screen.getByText("Video One");
-      // Find the closest element that holds touch handlers (the wrapper).
-      // Fire at the visible text — bubbling reaches handlers.
+      // Fired at the visible text; bubbling reaches the wrapper's handlers.
       fireEvent.touchStart(card, {
         touches: [{ clientX: 50, clientY: 50 }],
       });
@@ -209,7 +206,6 @@ describe("ContinueWatchingSection", () => {
     await waitFor(() => {
       expect(deleteWatchProgress).toHaveBeenCalled();
     });
-    // onRemoveItem should not be invoked on failure
     expect(onRemoveItem).not.toHaveBeenCalled();
   });
 });

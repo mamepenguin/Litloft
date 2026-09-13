@@ -6,12 +6,8 @@ import { ShortcutsProvider } from "../ShortcutsProvider";
 
 const slotEntries = { current: 0 };
 /**
- * Whether the entry behind the slot draws anything *here*.
- *
- * Declaring a slot and filling it are different questions, and the gap
- * between them is a designed state: an addon whose feature is switched
- * off for this drive still declares the slot and still renders nothing
- * (`.claude/rules/design-decisions.md`, Addons: scope and policy).
+ * An addon whose feature is off for this drive still declares the slot and
+ * renders nothing.
  */
 const slotDraws = { current: true as boolean | "whitespace" };
 const addonSlotCalls: Array<Record<string, unknown>> = [];
@@ -41,32 +37,19 @@ describe("AddButton", () => {
   afterEach(cleanup);
 
   it("shows its label at every width", () => {
-    // The mobile rule is fewer controls, not nameless ones (00-basis
-    // モバイルの寸法規則), so nothing inside the trigger is `hidden`. jsdom
-    // applies no stylesheet, so this reads the class rather than the layout.
     render(<AddButton />);
     const trigger = screen.getByRole("button", { name: "Add" });
     expect(trigger).toHaveTextContent("Add");
-    // `getAttribute`, not `el.className`: the icons here are `<svg>`, whose
-    // `className` is an `SVGAnimatedString` that stringifies to
-    // "[object SVGAnimatedString]" — every class on them read as none.
+    // `getAttribute`, not `el.className`: an `<svg>`'s `className` is an
+    // `SVGAnimatedString`.
     for (const el of trigger.querySelectorAll("[class]")) {
       expect((el.getAttribute("class") ?? "").split(/\s+/)).not.toContain("hidden");
     }
   });
 
   it("closes on Escape and returns focus to the trigger", () => {
-    // The scrim is a pointer gesture, so without an Escape path a
-    // keyboard user who opens this menu cannot back out of it — and
-    // `docs/user-guide/overview.md` tells them it works. Measured before
-    // it was wired: the menu stayed open.
-    //
-    // Focus is moved **into the menu** before the press, which is where a
-    // keyboard user's focus is after arrowing to a row. Pressing with
-    // focus already on the trigger asserts nothing about the focus
-    // return: closing the menu does not move focus, so `toHaveFocus`
-    // passes whether or not the handler restores it. That was measured —
-    // deleting the focus line left three of these green.
+    // Focus is moved into the menu before the press: with focus already on
+    // the trigger, `toHaveFocus` passes whether or not the handler restores it.
     render(
       <ShortcutsProvider>
         <AddButton />
@@ -86,15 +69,8 @@ describe("AddButton", () => {
 
 
   it("closes on Escape even with focus in a text field", () => {
-    // What `editingOnly: false` buys, and the only state that needs it.
-    // Nothing traps focus inside these menus, so Tab walks out of the last
-    // row into whatever follows in the document — a search box, a filter
-    // field. `ShortcutsProvider` treats an INPUT as "editing", and without
-    // the flag a shortcut fires only when nothing is being edited, so
-    // Escape would do nothing there while the menu is still up.
-    //
-    // Measured before this case existed: deleting `editingOnly: false`
-    // left every other assertion green.
+    // Nothing traps focus inside these menus, so Tab can walk out into a
+    // field that `ShortcutsProvider` treats as "editing".
     render(
       <ShortcutsProvider>
         <AddButton />
@@ -145,10 +121,6 @@ describe("AddButton", () => {
   it.each(["Files", "Folder", "New Folder", "New Note"])(
     "returns focus to the trigger after %s",
     (label) => {
-      // The chosen row unmounts with the menu. Without this, focus lands on
-      // <body> and a keyboard user is put back at the top of the document.
-      // Every row, not the one that happened to be checked: they close
-      // through one path so that this cannot be true of only some of them.
       render(<AddButton onCreateFolder={vi.fn()} onCreateFile={vi.fn()} />);
       const trigger = screen.getByRole("button", { name: "Add" });
       open();
@@ -160,13 +132,6 @@ describe("AddButton", () => {
   );
 
   describe("which edge the menu grows from", () => {
-    // jsdom lays nothing out, so this reads the anchor rather than the
-    // geometry. That is the property the caller actually chooses: the
-    // panel is wider than its trigger, so the anchor decides whether it
-    // grows into the page or off the edge of it. On the folder toolbar
-    // Add is the leftmost control; in the drive root's page header it is
-    // the rightmost, 16px from the viewport edge, where a left anchor
-    // put ~60px of a 180px panel outside the window.
     const openPanel = () => {
       fireEvent.click(screen.getByRole("button", { name: "Add" }));
       return screen.getByRole("menu");
@@ -205,7 +170,6 @@ describe("AddButton", () => {
       render(<AddButton addonProps={{ drive: "d" }} />);
       open();
       expect(addonSlotCalls).toHaveLength(0);
-      // Nor the rule that would otherwise hang below the last row.
       expect(rule()).toBeNull();
     });
 
@@ -219,16 +183,8 @@ describe("AddButton", () => {
     });
 
     it("takes the rule away with the rows, when a declared entry draws nothing", () => {
-      // The rule is the wrapper's own border rather than a sibling, so
-      // `empty:hidden` removes both at once. jsdom loads no stylesheet, so
-      // this asserts the mechanism — an empty box carrying that class —
-      // rather than the pixels.
-      //
-      // `:empty`, not `childElementCount`. They are not the same predicate:
-      // CSS counts *nodes*, so a text node keeps a box non-empty while
-      // `childElementCount` still reads 0. Asserted the way the browser
-      // decides, or this test cannot tell the working case from the broken
-      // one (jsdom's nwsapi implements `:empty` to the CSS 3 definition).
+      // `:empty`, not `childElementCount`: CSS counts nodes, so a text node
+      // keeps a box non-empty while `childElementCount` still reads 0.
       slotEntries.current = 1;
       slotDraws.current = false;
       render(<AddButton addonProps={{ drive: "d" }} />);
@@ -239,10 +195,6 @@ describe("AddButton", () => {
     });
 
     it("cannot take the rule away from an entry that renders whitespace", () => {
-      // The boundary of the CSS mechanism, asserted so it is a known
-      // property rather than a surprise: `:empty` is about nodes, and a
-      // literal `{" "}` is a node. `docs/ADDON-DEVELOPMENT.md` tells
-      // entries to return `null`; this is what the other choice costs.
       slotEntries.current = 1;
       slotDraws.current = "whitespace";
       render(<AddButton addonProps={{ drive: "d" }} />);
@@ -252,8 +204,6 @@ describe("AddButton", () => {
     });
 
     it("keeps the rule out of the menu's role tree", () => {
-      // The rows inside must read as direct children of `role="menu"`, and
-      // a bare <div> between them breaks that relationship.
       slotEntries.current = 1;
       render(<AddButton addonProps={{ drive: "d" }} />);
       open();
@@ -262,8 +212,7 @@ describe("AddButton", () => {
 
     it("asks a slot of its own, not the toolbar's standalone one", () => {
       // Same id would mean an entry written as a button gets drawn inside a
-      // `role="menu"`, and every addon on the old slot would break the day
-      // this shipped rather than on the day it moved.
+      // `role="menu"`.
       slotEntries.current = 1;
       render(<AddButton addonProps={{ drive: "d" }} />);
       open();
@@ -283,9 +232,6 @@ describe("AddButton", () => {
     });
 
     it("keeps onRequestClose for itself", () => {
-      // Reserved, as `FileActions` reserves it: an entry that supplied its
-      // own would silently take over closing the host's menu. Applied after
-      // the context is spread, so the host's wins.
       slotEntries.current = 1;
       const theirs = vi.fn();
       render(
@@ -314,22 +260,9 @@ describe("AddButton", () => {
   });
 
   it("caps its own height and scrolls, like the bar's other menus", () => {
-    // This menu grows with the addon rows below the separator, and it is
-    // anchored inside a `sticky` bar — so an uncapped one puts its last
-    // rows past the bottom of the viewport and page scrolling cannot bring
-    // them back, because the menu travels with the bar.
-    //
-    // Measured in Chromium with three addon rows contributed, seven rows
-    // in total: uncapped it is 331px and runs 3px past the fold on a
-    // 852x393 landscape phone. Capped it clamps to 275 there and scrolls.
-    //
-    // The shared surface is still not reused, and the reason is the form
-    // rather than the side: every class `useMenuSurface` returns is
-    // `sm:`-scoped, because that surface is a viewport-spanning sheet
-    // below 640px. This menu is anchored at every width, so it takes the
-    // measurement and keeps its own height rules — which are the part
-    // this asserts. The direction it hangs in is
-    // `anchoredDropdownDefaults.test.tsx`'s.
+    // `useMenuSurface` is not reused: its classes are `sm:`-scoped because
+    // that surface is a sheet below 640px, and this menu is anchored at
+    // every width.
     render(<AddButton />);
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     const classes = [...screen.getByRole("menu").classList];

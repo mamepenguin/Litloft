@@ -72,17 +72,8 @@ describe("EditableTagChips", () => {
   });
 
   it("closes the field once the tag is accepted", async () => {
-    // The fourth exit, and the one the extraction is named for. Deleting
-    // `closeInput()` from `submitTag`'s success path left the whole suite
-    // green: the chip appeared, `adding` stayed true and `input` kept the
-    // text, so the field stayed open under the new chip with the word
-    // still in it and the suggestion list still under that — and Enter
-    // again fell into the duplicate branch, so leaving took two.
-    //
-    // Asserted on both pieces of state `closeInput` owns here, because the
-    // field going away is `adding` and the text going away is `input`, and
-    // a case that reads only the first passes on a field that reopens with
-    // the old word in it.
+    // Asserted on both pieces of state `closeInput` owns: the field going
+    // away is `adding` and the text going away is `input`.
     render(<EditableTagChips file={file} initialTags={[]} />);
     clickAdd();
     typeAndEnter("newtag");
@@ -109,17 +100,8 @@ describe("EditableTagChips", () => {
   });
 
   it("clears the error when the tag is one already present", async () => {
-    // Every exit from the add-a-tag interaction goes through one
-    // `closeInput`, and this is the path that needed it. `submitTag`'s
-    // duplicate branch closed the field without clearing `error`, and the
-    // error paragraph renders outside the `adding` branch — so a rejected
-    // tag followed by one that is already on the file left the complaint
-    // about the first on screen with nothing to correct.
-    //
-    // Not the *accepted*-tag path: `commit` clears the error itself, so
-    // that one was never stale. What that path does need is to close the
-    // field, and "closes the field once the tag is accepted" above is what
-    // holds it — this case does not.
+    // The error paragraph renders outside the `adding` branch, so closing
+    // the field does not by itself take a stale error off the screen.
     render(<EditableTagChips file={file} initialTags={["existing"]} />);
     clickAdd();
     typeAndEnter("bad name");
@@ -260,12 +242,9 @@ describe("EditableTagChips", () => {
 
   describe("save-cancel regression (2026-04-24 bug)", () => {
     it("debounced save still fires after parent passes a new onTagsChange ref", async () => {
-      // Reproduces the symptom-2 bug: our own onTagsChange optimistic
-      // update causes the parent to re-render with a fresh inline
-      // lambda. If the saver useMemo re-creates on that, the previous
-      // saver's useEffect cleanup cancels the pending timer before it
-      // fires — the save gets dropped. Fix: callbacks go through refs
-      // and are NOT saver useMemo deps.
+      // The optimistic onTagsChange re-renders the parent with a fresh
+      // lambda. If the saver re-creates on that, its cleanup cancels the
+      // pending timer and the save is dropped.
       function Harness() {
         const [rerenderKey, setRerenderKey] = useState(0);
         return (
@@ -375,7 +354,6 @@ describe("EditableTagChips", () => {
       );
       clickAdd();
       typeAndEnter("b");
-      // Wait for the content-mode path; no fetch should fire.
       await waitFor(() => expect(onContentChange).toHaveBeenCalled());
 
       // getDriveTags is mocked at module level so never hits fetch.

@@ -31,7 +31,6 @@ describe("Breadcrumb", () => {
   it("makes last segment non-clickable", () => {
     render(<Breadcrumb driveName="main" folderPath="photos/vacation" />);
     const vacation = screen.getByText("vacation");
-    // Last segment is a span, not a link
     expect(vacation.tagName).toBe("SPAN");
   });
 
@@ -51,10 +50,7 @@ describe("Breadcrumb", () => {
   });
 
   // The trail either names the current page or stops short of it, and which
-  // one is a decision the caller makes. Before this prop the second form was
-  // not expressible: a drive with nothing after it rendered as plain text, so
-  // Trash and Missing showed the drive's name with no way to click it and no
-  // route back to the drive at all.
+  // one is a decision the caller makes.
   describe("driveIsAncestor", () => {
     it("makes the drive a link the reader can follow back", () => {
       render(<Breadcrumb driveName="Videos" driveIsAncestor />);
@@ -115,8 +111,6 @@ describe("Breadcrumb", () => {
           trailingSegment="My Mix"
         />,
       );
-      // photos and vacation become intermediate Links because they are
-      // no longer the leaf.
       expect(screen.getByText("photos").closest("a")).toHaveAttribute(
         "href",
         "/drive/main/photos",
@@ -125,7 +119,6 @@ describe("Breadcrumb", () => {
         "href",
         "/drive/main/photos/vacation",
       );
-      // trailingSegment is the leaf.
       expect(screen.getByText("My Mix").tagName).toBe("SPAN");
     });
   });

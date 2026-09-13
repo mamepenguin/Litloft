@@ -1,18 +1,7 @@
-/**
- * The folder and search page header.
- *
- * The two modes used to render separate rows that happened to line up — a
- * `<header>` for search and a bare `<div>` for a folder — and they stated the
- * item count in different places: search in the header, a folder in the
- * toolbar. This is where that one fact now lives for both.
- */
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import { FolderBrowser } from "../FolderBrowser";
-
-// ---- heavy children / infrastructure ----------------------------------------
 
 vi.mock("@/components/folder/FolderContent", () => ({
   // Exposes the drag-start handler it is given, so a test can begin a drag
@@ -158,7 +147,6 @@ vi.mock("@/hooks/useCreateFile", () => ({
   useCreateFile: () => ({ createFile: vi.fn(), isCreating: false }),
 }));
 
-/** What the listing reports, and whether it is still fetching. */
 const dragging = vi.hoisted(() => ({ internal: false }));
 vi.mock("@/hooks/useIsInternalDragging", () => ({
   useIsInternalDragging: () => dragging.internal,
@@ -197,8 +185,6 @@ vi.mock("@/components/folder/useFolderFiles", () => ({
   }),
 }));
 
-// Stubbed like the rest: this file is about the header, and the per-folder
-// preference hooks only matter to the toolbar below it.
 vi.mock("@/hooks/useFolderViewMode", () => ({
   useFolderSort: () => ({ sort: "title" as const, order: "asc" as const, setSort: vi.fn() }),
   useFolderViewMode: () => ({ viewMode: "list" as const, setViewMode: vi.fn() }),
@@ -206,15 +192,8 @@ vi.mock("@/hooks/useFolderViewMode", () => ({
 
 
 /**
- * Every piece of mutable fixture state, reset once for the whole file.
- *
- * Per-`describe` resets were what shipped first, and each listed only the
- * fields its own tests touched — so `listing.loading`, added later by one
- * describe, leaked into two others. In source order they ran after it and
- * passed; under `--sequence.shuffle` they ran before it and failed on seed
- * 1788571302594. A shared mutable fixture with per-block resets asks every
- * block to remember every field, which is a thing to forget rather than a
- * thing to check.
+ * Reset once for the whole file: a shared mutable fixture with per-block
+ * resets asks every block to remember every field.
  */
 beforeEach(() => {
   listing.total = 42;
@@ -222,8 +201,6 @@ beforeEach(() => {
   listing.folders = [];
   dragging.internal = false;
 });
-
-// ---- the header --------------------------------------------------------------
 
 function renderFolder(
   props: {
@@ -237,27 +214,7 @@ function renderFolder(
   );
 }
 
-/**
- * Who names the subject, on the screens this PR's rule governs.
- *
- * Declared per state rather than derived from what renders, so a screen
- * that stops naming itself moves this side of the equality on its own
- * (`review-workflow.md` detector rule 5). The `<h1>` text is the whole
- * expectation: `null` means the trail is the subject and `PageHeader`
- * emits no heading.
- *
- * Spec §7.1 and arbitration 11. The Library root's trail stops at the
- * drive, so it has no segment naming it; a subfolder's last segment
- * names it, and a heading there would say the same thing twice.
- *
- * **Not every state this component reaches.** Search has a heading and
- * no trail and is covered by its own `describe` below. The cross-drive
- * views (`?view=favorites` and its siblings) render with no folder path
- * at all: they name themselves nowhere and their trail has no segments,
- * so the drive is drawn as a dead leaf. That is unchanged by this PR and
- * left alone by spec §7.2, and it is why `Breadcrumb`'s docstring calls
- * them a third kind rather than folding them into the pairing rule.
- */
+/** `null` means the trail is the subject and `PageHeader` emits no heading. */
 const SUBJECT_BY_SCREEN: [string, () => React.ReactElement, string | null][] = [
   [
     "the Library root",
@@ -288,17 +245,6 @@ describe("which screen names itself in a heading", () => {
     expect(heading?.textContent ?? null).toBe(expected);
   });
 
-  /**
-   * The other half of naming the subject once: a screen that names
-   * itself must also tell the trail to stop at the ancestor, or the
-   * drive is drawn as a bold leaf under a heading that already said it.
-   *
-   * **What this holds is the argument, not the rendering.** `Breadcrumb`
-   * is stood in for in this file, so what is read here is what
-   * `FolderBrowser` passes it. That the prop makes the drive a link is
-   * `Breadcrumb.test.tsx`'s "driveIsAncestor" describe, which is where
-   * the real component runs.
-   */
   it.each(SUBJECT_BY_SCREEN)("%s tells the trail whether it is the subject", (_name, screen_, expected) => {
     render(screen_());
     expect(screen.getByLabelText("Breadcrumb").getAttribute("data-drive-is-ancestor")).toBe(
@@ -320,8 +266,6 @@ describe("the folder header", () => {
     expect(screen.getAllByText("42 items")).toHaveLength(1);
   });
 
-  // Phase 0.5 (E-2) puts the arranging controls away for an empty folder but
-  // keeps the count. Moving the count to the header had to preserve that.
   it("keeps the count when the folder is empty", () => {
     listing.total = 0;
     renderFolder();
@@ -354,10 +298,6 @@ describe("the search header", () => {
     expect(screen.getByTestId("slot-search-modes")).toBeInTheDocument();
   });
 
-  // The comment on the header calls out that the tree toggle sits at the same
-  // height in folder, file and search mode alike — and search mode had no
-  // assertion at all: removing the toggle there, or moving it off the start of
-  // the row, both left the suite green.
   it("keeps the tree toggle, leftmost, in search mode too", () => {
     const { container } = renderFolder({ searchQuery: "cats" });
     const firstRow = container.querySelector("header > div")!;
@@ -376,9 +316,7 @@ describe("the search header", () => {
 describe("the count while a refetch is in flight", () => {
 
   // A refetch sets `total` to 0 and `loading` to true together, so the raw
-  // values are a false "0 items" and a blank. The old toolbar showed the
-  // false count; gating on `loading` alone made it vanish and reflow the
-  // breadcrumb beside it. Neither is what the header does now.
+  // values are a false "0 items" and a blank.
   it("keeps the last known count while loading", () => {
     const { rerender } = renderFolder();
     expect(screen.getByText("42 items")).toBeInTheDocument();
@@ -396,14 +334,9 @@ describe("the count while a refetch is in flight", () => {
     expect(screen.queryByText(/\d+ items/)).toBeNull();
   });
 
-  // The window the other tests jump over.
-  //
   // `reset()` is an effect, so on the render where the subject changes the
   // hook still reports `loading: false` and the previous subject's `total`.
-  // Every other test here assigns `listing.loading = true` *before*
-  // rerendering, which forges the state the real sequence has not reached yet
-  // — so they exercise the read side and never the adoption. Leaving `loading`
-  // alone is the whole point of this one.
+  // Leaving `loading` alone is the whole point of this one.
   it("does not adopt the old count when the subject changes before loading starts", () => {
     const { rerender } = renderFolder();
     expect(screen.getByText("42 items")).toBeInTheDocument();
@@ -432,14 +365,8 @@ describe("the count while a refetch is in flight", () => {
     expect(screen.getByText("42 items")).toBeInTheDocument();
   });
 
-  // The count is remembered per subject, not per component. This route is the
-  // same for every folder in a drive, so React keeps the state across a move
-  // and the previous folder's count would otherwise sit beside the new
-  // folder's trail — a confident wrong number about something else, which is
-  // worse than the "0 items" flash it replaced.
-  //
-  // The other tests here `rerender` with the *same* `folderPath`, so none of
-  // them can see this: they only ever exercise a subject that did not change.
+  // This route is the same for every folder in a drive, so React keeps the
+  // state across a move.
   it("forgets the count when the folder changes", () => {
     const { rerender } = renderFolder();
     expect(screen.getByText("42 items")).toBeInTheDocument();
@@ -461,16 +388,8 @@ describe("the count while a refetch is in flight", () => {
     expect(screen.queryByText(/\d+ items/)).toBeNull();
   });
 
-  // Every axis in the key, one test each.
-  //
-  // Three of the five were in the key and unexercised: dropping `driveName`,
-  // `view` or `tagFilter` from it left the suite green. All three change
-  // without a remount — one route serves every drive, view and tag — so each
-  // is a way for a count to outlive what it counted.
-  //
-  // Driven without touching `loading`, for the reason the test above exists:
-  // setting it first jumps the window where the adoption happens, and three
-  // more tests written that way would jump it three more times.
+  // Driven without touching `loading`: setting it first jumps the window
+  // where the adoption happens.
   it.each([
     ["the drive", { driveName: "other" }],
     ["the view", { view: "favorites" }],
@@ -484,12 +403,8 @@ describe("the count while a refetch is in flight", () => {
     expect(screen.queryByText(/\d+ items/)).toBeNull();
   });
 
-  // The type filter is in the key too, but it cannot be driven by a rerender:
-  // the prop only seeds internal state (`useState(typeFilterProp ?? …)`), and
-  // the value that matters afterwards is the one the toolbar sets. So it is
-  // driven the way a reader drives it. Before it was added to the key, picking
-  // a filter left the unfiltered count on screen until the filtered one
-  // arrived — the same defect as a folder move, inside one folder.
+  // Not driven by a rerender: the prop only seeds internal state, and the
+  // value that matters afterwards is the one the toolbar sets.
   it("forgets the count when the reader picks a type filter", () => {
     renderFolder();
     expect(screen.getByText("42 items")).toBeInTheDocument();
@@ -535,10 +450,6 @@ describe("what the header hands the breadcrumb", () => {
     expect(trail.getAttribute("data-folder")).toBe("videos");
   });
 
-  // The drop handlers are attached only while something is being dragged.
-  // Handing a live drop target to the trail at rest was expressible and
-  // unnoticed: the condition could be removed, inverted or reduced to one of
-  // its two terms with nothing failing.
   it("withholds the drop handlers when nothing is being dragged", () => {
     renderFolder();
     const trail = screen.getByLabelText("Breadcrumb");
@@ -549,19 +460,13 @@ describe("what the header hands the breadcrumb", () => {
 
 describe("what the header hands its children", () => {
 
-  // Sixteen mutations to these props passed before this: the stubs rendered
-  // and the tests only asked whether something appeared. They survived the
-  // move intact, but nothing said so.
   it("gives the tree toggle the drive it is browsing", () => {
     renderFolder();
     expect(screen.getByTestId("tree-toggle").getAttribute("data-drive")).toBe("main");
   });
 
-  // Non-default values throughout. `toHaveProperty("smartFolderId")` was
-  // satisfied by the `null` every render produces, and `filter` was asserted
-  // as `"all"` — which is the `?? "all"` fallback answering, so the left half
-  // of `typeFilter ?? "all"` was never once evaluated. An assertion written
-  // with a default is true before the code runs.
+  // Non-default values throughout: an assertion written with a default is
+  // true before the code runs.
   it("gives the save-search button the query, filter and smart folder", () => {
     renderFolder({ searchQuery: "cats", typeFilter: "video", smartFolderId: "sf1" });
     const props = JSON.parse(
@@ -573,18 +478,11 @@ describe("what the header hands its children", () => {
     expect(props.smartFolderId).toBe("sf1");
   });
 
-  // `onSelect` is the semantic-search result handler. Disconnecting it left
-  // the slot rendering and the suite green, and a reader clicking a semantic
-  // result would simply get nothing.
   it("gives the addon slot its query, drive, filter and select handler", () => {
     renderFolder({ searchQuery: "cats", typeFilter: "video" });
     const slot = screen.getByTestId("slot-search-modes");
     expect(slot.getAttribute("data-layout")).toBe("stack");
     const props = JSON.parse(slot.getAttribute("data-slot-props")!);
-    // The slot is mounted in one place; these four are what that place
-    // hands over, and anything else arriving fails here. Read off the key
-    // list rather than the serialized object, which cannot show a
-    // function.
     expect(slot.getAttribute("data-slot-prop-keys")).toBe(
       "drive,filter,onSelect,query",
     );
@@ -610,12 +508,6 @@ describe("the trail's drop target", () => {
     expect(dropProps()).toEqual({ handlers: "no", target: "no" });
   });
 
-  // The condition is an OR of two sources — this browser's own drag state and
-  // a drag started elsewhere in the app. Reducing it to either term, or
-  // turning it into an AND, left the suite green.
-  // The condition is an OR, and only one of its terms was ever driven. This
-  // one drives the other: a drag begun inside this browser, reported by
-  // `useDragAndDrop` rather than by the app-wide hook.
   it("is offered once a drag starts inside this browser", () => {
     renderFolder();
     fireEvent.click(screen.getByTestId("drag-source"));
@@ -629,22 +521,9 @@ describe("the trail's drop target", () => {
   });
 
   /**
-   * Where the trail is offered, by screen.
-   *
-   * The cases above all run at `folderPath="videos"`, where a condition
-   * on the folder path and one without it agree — so they cannot see a
-   * gate that withholds the props at the root. A round of this PR added
-   * such a gate and a later one took it out again, and neither move
-   * turned anything red.
-   *
-   * The root is where it matters. The trail there carries one chip, the
-   * drive, and at the Library root that is the folder the reader is
-   * standing in — but it is also the destination for anything dragged
-   * out of the tree pane, which lists the whole drive. Both attributes
-   * are read, because `isDropTarget` is what draws the accent ring and
-   * `getDropTargetProps` is what accepts the drop; a gate reduced to one
-   * of them is a target that lights up and refuses, or one that takes a
-   * drop with no sign it would.
+   * At the Library root the drive chip is the folder the reader is standing
+   * in, but it is also the destination for anything dragged out of the tree
+   * pane, which lists the whole drive.
    */
   const OFFERED_BY_SCREEN: [string, () => React.ReactElement][] = [
     ["a folder", () => <FolderBrowser driveName="main" folderPath="videos" />],

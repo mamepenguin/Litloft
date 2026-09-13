@@ -170,7 +170,6 @@ describe("BatchRenameDialog", () => {
   it("disables execute when no changes", () => {
     render(<BatchRenameDialog {...defaultProps} />);
     fireEvent.click(screen.getByText("Regex"));
-    // No pattern entered, so no changes
     const button = screen.getByText("Rename");
     expect(button).toBeDisabled();
   });

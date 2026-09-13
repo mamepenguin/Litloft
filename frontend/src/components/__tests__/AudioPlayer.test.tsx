@@ -67,13 +67,7 @@ describe("AudioPlayer", () => {
   });
 
   it("displays the filename, and no size under it", () => {
-    // The size was here, and it was the defect: this is a name with its
-    // first fact beneath it, so `lib/primaryMeta.ts` governs it, and for
-    // audio that table says `none`. The length is on the transport bar
-    // of the <audio> below and in the inspector; the size on a `.loft`
-    // reference is the pointer's, which is how a 23-minute track was
-    // labelled "83 B". The composition is asserted next to the rest of
-    // the rule in `primaryMetaRendering.test.tsx`.
+    // The size on a `.loft` reference is the pointer's, not the track's.
     const { container } = render(<AudioPlayer file={mockFile} />);
     expect(screen.getByText("song.mp3")).toBeInTheDocument();
     expect(container.textContent).not.toContain("4.8 MB");
@@ -97,10 +91,6 @@ describe("AudioPlayer", () => {
     expect(screen.getByText("Your browser does not support audio playback.")).toBeInTheDocument();
   });
 
-  // Regression: audio was the one backend with no teardown save, so
-  // navigating away discarded up to SAVE_INTERVAL seconds of listening.
-  // Video and the .loft player both had one. Closed by moving
-  // persistence into usePlaybackProgress.
   describe("teardown", () => {
     beforeEach(() => {
       vi.clearAllMocks();
@@ -113,10 +103,6 @@ describe("AudioPlayer", () => {
       vi.useRealTimers();
     });
 
-    // Regression: audio used RESUME_THRESHOLD 3 while video and .loft
-    // used 5, with nothing explaining the difference. A stored position
-    // of 4s used to be restored here and nowhere else; now it falls
-    // inside the shared dead zone.
     it("uses the same resume dead zone as every other backend", async () => {
       mockGetWatchProgress.mockResolvedValue({ position: 4, duration: 180 });
       render(<AudioPlayer file={mockFile} />);

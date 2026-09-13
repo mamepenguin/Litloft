@@ -13,8 +13,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-// The clock is C-0's shared poller. Driving it directly keeps this test
-// about the panel: which chapter is current for a given position, not
+// Driving the clock directly keeps this test about the panel: which chapter is current for a given position, not
 // how the position is observed.
 const clock = vi.hoisted(() => ({ currentTime: 0 }));
 vi.mock("@/lib/mediaClock", () => ({

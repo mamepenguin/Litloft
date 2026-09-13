@@ -49,12 +49,9 @@ describe("CurrentDriveProvider — drive from URL", () => {
 });
 
 describe("CurrentDriveProvider — folder path is published, not parsed from the URL", () => {
-  // hako review finding M1 (2026-08-02): a denylist of non-folder sibling
-  // routes under /drive/[name]/ (search, collections, addons/...) is
-  // structurally fragile — every new route must remember to update it, and
-  // nothing enforces that. Instead, only the folder page itself
-  // (app/drive/[name]/[...path]/page.tsx) calls setOverrideFolderPath; any
-  // other route simply never calls it, so it's null there for free.
+  // Only the folder page calls setOverrideFolderPath, rather than parsing the
+  // URL against a denylist of sibling routes that every new route would have
+  // to remember to update.
 
   it("starts null before anything publishes a folder path", () => {
     const { result } = renderCurrent();

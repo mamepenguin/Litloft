@@ -9,14 +9,8 @@ import { FilePreview } from "../FilePreview";
 import type { FileItem } from "@/types";
 
 /**
- * The layout fixture's declarations, for the one key this file owns.
- *
- * `e2e-layout/mobile-inspector-sheet.spec.ts` draws the player's bleed
- * wrapper from `playerBleed` and asserts, in a real browser, that the
- * player still starts at the scrollport's top edge with that negative
- * margin on the page. This is the half that says the app writes it — the
- * shell harness stubs `FilePreview`, so this is the only suite where the
- * class list exists at all.
+ * The layout fixture's declarations. The shell harness stubs `FilePreview`,
+ * so this is the only suite where the bleed wrapper's class list exists.
  */
 const FIXTURE: Record<string, string> = JSON.parse(
   readFileSync(
@@ -147,8 +141,6 @@ describe("FilePreview", () => {
   });
 
   it("renders SVG file via img tag with stream URL", () => {
-    // Regression guard for the stream XSS hardening
-    // (docs/superpowers/specs/2026-05-09-stream-xss-hardening.md):
     // SVG must keep going through <img> so that
     // ``Content-Disposition: attachment`` on the stream endpoint is
     // ignored as a sub-resource (browsers honour attachment only on
@@ -173,8 +165,7 @@ describe("FilePreview", () => {
 
   // The viewer is loaded with next/dynamic and ssr: false, so it arrives a
   // tick after render. That is deliberate: react-pdf evaluates pdfjs-dist,
-  // which needs DOMMatrix and therefore threw during SSR on every /drive/*
-  // route. See the comment on the dynamic() call in FilePreview.
+  // which needs DOMMatrix and throws during SSR.
   it("renders the selectable PDF viewer at the requested page", async () => {
     const file = makeFile({ file_type: "document", mime_type: "application/pdf", filename: "doc.pdf" });
     render(<FilePreview file={file} initialPage={4} />);
@@ -222,14 +213,8 @@ describe("FilePreview", () => {
   });
 
   it("carries the playable surface alone, in both player branches", () => {
-    // What the `.loft` branch used to also carry: the Media Import
-    // metadata panel, a channel name and three lines of description. It
-    // is inside `.media-detail-player` from there, and that box is the
-    // surface the Bottom Sheet's `half` stays clear of — so a `.loft`
-    // file's sheet stopped 80px below its video's bottom edge and no
-    // other file's did. Its host is `MediaPlayerBlock` now, outside that
-    // box. Both branches are asked, because the bleed wrapper is the same
-    // one and only one of them ever grew an occupant.
+    // The bleed wrapper is the surface the Bottom Sheet's `half` stays clear
+    // of, so anything else inside it pushes the sheet below the player.
     for (const file of [
       makeFile(),
       makeFile({
@@ -255,11 +240,8 @@ describe("FilePreview", () => {
   });
 
   /**
-   * The page said four times that it had nothing, and gave no way out. Both
-   * of these are `<a>`, not buttons: a download whose address cannot be
-   * copied or middle-clicked is a worse download, and
-   * `docs/user-guide/viewers-and-players.md` has described this action
-   * since before it existed.
+   * Both of these are `<a>`, not buttons: a download whose address cannot be
+   * copied or middle-clicked is a worse download.
    */
   it("offers the file itself when it cannot be previewed", () => {
     const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
@@ -288,15 +270,9 @@ describe("FilePreview", () => {
   });
 
   /**
-   * DESIGN.md §2.2 — one accent fill per screen, and this screen is the
-   * whole of the file's own area when nothing can be drawn in it.
-   *
-   * Through the shared detector, not a local re-implementation: the first
-   * draft of this test read `[class*='bg-accent']` and disagreed with
-   * `accentFills` about `hover:bg-accent` (a fill it must not count), about
-   * `bg-accent-cta` (one it must), and about `<svg>`, where `className` is
-   * an `SVGAnimatedString` rather than a string. That helper exists because
-   * two earlier hand-rolled versions were wrong in the expensive direction.
+   * One accent fill per screen. Counted through the shared detector rather
+   * than a `[class*='bg-accent']` selector, which miscounts `hover:bg-accent`,
+   * `bg-accent-cta` and `<svg>` class names.
    */
   it("spends one accent fill on the download", () => {
     const file = makeFile({ file_type: "other", mime_type: "application/octet-stream", filename: "data.bin" });
@@ -310,7 +286,6 @@ describe("FilePreview's PDF controller pass-through", () => {
   it("hands the viewer the callback the shell gave it", async () => {
     // The page-list tab exists only if this reaches the viewer, and nothing
     // in the shell's own suite can see the wire: it stubs `FilePreview`.
-    // Deleting the prop here used to leave every test green.
     const file = makeFile({ file_type: "document", mime_type: "application/pdf", filename: "doc.pdf" });
     render(<FilePreview file={file} onPdfController={vi.fn()} />);
 
