@@ -8,6 +8,15 @@ import Link from "next/link";
 
 import { Button, buttonClass } from "./Button";
 
+/**
+ * Exported so a test can draw every one of them.
+ *
+ * A union type cannot be enumerated at runtime, which is why three of these
+ * were covered and seven were not — and why a key renamed here but not in the
+ * catalogue reached `develop` with the suite green. The array is the single
+ * source: `EmptyVariant` is derived from it, so a variant cannot be added to
+ * one and missed by the other.
+ */
 export const EMPTY_VARIANTS = [
   "no-files",
   "no-results",
@@ -79,12 +88,24 @@ const variantConfig: Record<
   },
 };
 
+/**
+ * Something to do, or somewhere to go.
+ *
+ * The two are not interchangeable: a destination rendered as a `<button>`
+ * cannot be middle-clicked, copied, or opened in a new tab, and the one
+ * call to action this component has that *is* a destination — widening a
+ * tag filter to the whole drive — was previously drawn outside the
+ * component with its own hand-written accent recipe, sitting under a
+ * `-mt-8` that pulled it up into the space the actions row now occupies.
+ */
 export type EmptyStateAction =
   | { label: string; onClick: () => void; href?: never; newTab?: never; download?: never }
   /**
-   * The file endpoints must not get `next/link`, because `<Link>` prefetches
-   * an internal href on sight — which for `/api/files/{id}/stream` means
-   * fetching the file body when the empty state scrolls into view.
+   * A destination. `newTab` and `download` are what separate a route from
+   * a file: a route belongs to the router and gets `next/link`, and the
+   * file endpoints must not, because `<Link>` prefetches an internal href
+   * on sight — which for `/api/files/{id}/stream` means fetching the file
+   * body when the empty state scrolls into view.
    */
   | {
       label: string;
@@ -95,10 +116,23 @@ export type EmptyStateAction =
     };
 
 interface BaseProps {
+  /**
+   * The one accent-filled button, when the empty state has something to
+   * offer. Singular by type, not by convention: DESIGN.md §2.2 allows one
+   * accent fill per screen, and an `actions: [{variant}]` array would let a
+   * caller write two and find out at review time, or not at all.
+   *
+   * This is the same move `.claude/rules` calls for elsewhere — make the
+   * drift unrepresentable rather than detectable (hako
+   * `jADDX0HR4wxm4m8DxDLrE`). Two calls to action mean the screen has not
+   * decided what it wants.
+   */
   primaryAction?: EmptyStateAction;
+  /** Outlined buttons beside it. Rendered after the primary one. */
   secondaryActions?: readonly EmptyStateAction[];
 }
 
+/** Core screens name a variant and get core's own copy. */
 interface VariantProps extends BaseProps {
   variant: EmptyVariant;
   icon?: never;
@@ -107,8 +141,14 @@ interface VariantProps extends BaseProps {
 }
 
 /**
- * An addon cannot use a `variant`: adding a variant per addon would put the
- * addon's vocabulary into core.
+ * Addons pass their own strings.
+ *
+ * An addon cannot use a `variant`: its copy lives in its own catalogue
+ * (`.claude/rules/frontend-conventions.md` — "addon translation keys must only
+ * live in that addon's `frontend/messages/`"), and adding a variant per addon
+ * would put the addon's vocabulary into core, which
+ * `.claude/rules/internal-api-policy.md` R2 exists to prevent. Nothing here
+ * names an addon or a feature; it takes a title and an icon.
  */
 interface DirectProps extends BaseProps {
   variant?: never;
@@ -169,6 +209,11 @@ export function EmptyState(props: EmptyStateProps) {
 
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
+      {/* Explicit, unlike `PageTabs`, and for the same reason as `PageHeader`:
+          the icon sits outside the `<h2>`, so no accessible-name assertion can
+          reach it and `aria-hidden` is the only thing that governs whether it
+          is announced. `PageTabs` can leave this to lucide-react because its
+          icon is inside the link, where the link's name is the real check. */}
       <Icon size={48} className="mb-4 text-text-muted" aria-hidden="true" />
       <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
       {description !== undefined && description !== null && (
