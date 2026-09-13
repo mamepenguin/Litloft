@@ -378,6 +378,94 @@ describe("the drive home's content rows", () => {
   });
 });
 
+/**
+ * The stage-1 acceptance criteria this screen owns.
+ *
+ * Spec 2026-09-12-purpose-oriented-navigation §16. AC 2's accent half is
+ * held in `accent-budget.test.tsx`, which reaches this screen; the rest
+ * is here.
+ */
+/** Every section name on screen, read off the headings the rows draw. */
+function sectionNames(): string[] {
+  return screen.queryAllByRole("heading", { level: 2 }).map((h) => h.textContent ?? "");
+}
+
+describe("the drive home's acceptance criteria", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    slotIsRegistered.current = false;
+    mockProfile.nickname = null;
+    mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
+    mockGetWatchHistory.mockResolvedValue([]);
+  });
+
+  /**
+   * AC 3 — Recently Added includes every file type and every way a file
+   * arrived.
+   *
+   * The whole query is declared, not just the parts that should be
+   * there. `objectContaining` cannot see a narrowing: a `type: "video"`
+   * added later satisfies it, and so does `type: undefined`, which is
+   * why "the arguments do not contain `type`" is not the assertion
+   * either. A key appearing moves this side of the equality by itself.
+   */
+  it("asks for Recently Added without narrowing it to a type or a source", async () => {
+    render(<DriveHome driveName="media" />);
+    await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalled());
+
+    const recentAdded = mockGetDriveFiles.mock.calls.find(
+      ([, params]) => !(params as Record<string, unknown>).favorite && !(params as Record<string, unknown>).liked,
+    );
+    expect(recentAdded).not.toBeUndefined();
+    const [drive, params] = recentAdded as [string, Record<string, unknown>];
+    expect(drive).toBe("media");
+    // The key set first, then the values. `toEqual` on the object alone
+    // would let `type: undefined` through — it ignores keys whose value
+    // is undefined — and `type: undefined` is exactly how a narrowing
+    // gets written by accident.
+    expect(Object.keys(params).sort()).toEqual(["limit", "order", "sort"]);
+    expect(params).toEqual({ sort: "created_at", order: "desc", limit: 12 });
+  });
+
+  /**
+   * AC 6 — a reader with no profile gets neither watch row, and is not
+   * asked to make one.
+   *
+   * Both halves, because either alone passes over the other's failure: a
+   * page that hides the rows and nags still fails AC 6, and so does one
+   * that stays quiet and draws empty rows.
+   */
+  it("omits both watch rows for a reader with no profile, and does not ask for one", async () => {
+    mockProfile.nickname = null;
+    render(<DriveHome driveName="media" />);
+    await screen.findByRole("button", { name: "Add" });
+
+    expect(sectionNames()).not.toContain("Continue Watching");
+    expect(sectionNames()).not.toContain("Recently Viewed");
+
+    expect(mockGetWatchHistory).not.toHaveBeenCalled();
+    // The nag this forbids would be an invitation to identify yourself.
+    // Matched on the word rather than on a component, because what AC 6
+    // rules out is the prompt, however it is drawn.
+    expect(screen.queryByText(/nickname/i)).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+
+  it("draws both watch rows once a profile is set", async () => {
+    // The population for the case above: without this, hiding the rows
+    // unconditionally would satisfy it.
+    mockProfile.nickname = "Alice";
+    mockGetWatchHistory.mockResolvedValue([makeWatchHistoryItem("v1")]);
+    render(<DriveHome driveName="media" />);
+    await screen.findByRole("button", { name: "Add" });
+
+    await waitFor(() => {
+      expect(sectionNames()).toContain("Continue Watching");
+      expect(sectionNames()).toContain("Recently Viewed");
+    });
+  });
+});
+
 describe("the drive root's header", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -395,13 +483,20 @@ describe("the drive root's header", () => {
     expect(add.closest("header")).not.toBeNull();
   });
 
-  it("names no subject of its own", async () => {
-    // The breadcrumb is the subject on this screen, so `PageHeader` emits
-    // no `<h1>` (`page-headings.test.ts` holds the other side of this).
-    // Moving the header into that component must not have introduced one.
+  it("names itself, once, and says which drive it is", async () => {
+    // A trail here would stop at the drive and repeat the scope line, so
+    // this screen names itself instead (spec §6.1, arbitration 24). The
+    // heading is read rather than counted: a second `<h1>` appearing is
+    // caught by `page-headings.test.ts`, and what this holds is that the
+    // one here says **Home** and not, say, the drive.
     const { container } = render(<DriveHome driveName="media" />);
     await screen.findByRole("button", { name: "Add" });
-    expect(container.querySelectorAll("h1")).toHaveLength(0);
+    const headings = Array.from(container.querySelectorAll("h1")).map(
+      (h) => h.textContent,
+    );
+    expect(headings).toEqual(["Home"]);
+    expect(container.querySelector("nav[aria-label]")).toBeNull();
+    expect(screen.getByText("media")).not.toBeNull();
   });
 
   /**

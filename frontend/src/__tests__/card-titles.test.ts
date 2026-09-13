@@ -226,17 +226,31 @@ describe("list mode holds the same line", () => {
 });
 
 describe("section headings are untouched", () => {
-  it("still marks up the drive home's section names", () => {
-    // The other half of D-5: an outline of six section names is the
-    // point, so this sweep must not have been satisfied by removing
-    // those too. `section-headings.test.ts` owns their styling; this
-    // asserts only that they are still headings, and that none of them
-    // sits inside a card.
+  /**
+   * The components that draw a drive-home section's name, and the
+   * number of headings each one emits.
+   *
+   * Declared per file, because the point of the other half of D-5 is
+   * that the card sweep did not take the section outline with it — and
+   * a lower bound cannot say that. This previously asked
+   * `DriveHome.tsx` for `headingsIn(body) > 0`, which was satisfied by
+   * the string `<h1>` inside one of that file's comments: the page has
+   * never drawn a section heading itself, its rows do.
+   */
+  const SECTION_HEADING_SOURCES: [string, number][] = [
+    ["frontend/src/components/CarouselSection.tsx", 1],
+    ["frontend/src/components/ContinueWatchingSection.tsx", 1],
+  ];
+
+  it.each(SECTION_HEADING_SOURCES)("%s still marks its name up as a heading", (rel, expected) => {
+    expect(headingsIn(readFileSync(resolve(REPO_ROOT, rel), "utf-8"))).toBe(expected);
+  });
+
+  it("keeps the drive home itself free of card tiles", () => {
     const body = readFileSync(
       resolve(REPO_ROOT, "frontend/src/components/DriveHome.tsx"),
       "utf-8",
     );
-    expect(headingsIn(body)).toBeGreaterThan(0);
     expect(cardTiles(body)).toEqual([]);
   });
 });
