@@ -1,15 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  SHEET_PULL_DISMISS_PX,
   SHEET_PULL_DISMISS_VELOCITY,
   SHEET_PULL_HANDOFF_PX,
   SHEET_PULL_TOP_EPS_PX,
   advanceSheetPull,
   beginSheetPull,
   releaseSheetPull,
+  sheetDismissDistancePx,
   type SheetPullState,
 } from "../sheetPullGesture";
+
+/** A third of a sheet showing 240px. */
+const DISMISS_AT = 80;
 
 /** A scroller with room to move, so `maxScroll` is never the deciding term. */
 const TALL = 800;
@@ -53,11 +56,11 @@ const GESTURES: {
     begin: { scrollTop: 0, maxScroll: TALL },
     moves: [
       { dy: 10, scrollTop: 0 },
-      { dy: SHEET_PULL_DISMISS_PX + 1, scrollTop: 0 },
+      { dy: DISMISS_AT + 1, scrollTop: 0 },
     ],
     velocity: 0.05,
     owner: "sheet",
-    pull: SHEET_PULL_DISMISS_PX + 1,
+    pull: DISMISS_AT + 1,
     release: "dismiss",
   },
   {
@@ -65,11 +68,11 @@ const GESTURES: {
     begin: { scrollTop: 0, maxScroll: TALL },
     moves: [
       { dy: 10, scrollTop: 0 },
-      { dy: SHEET_PULL_DISMISS_PX - 10, scrollTop: 0 },
+      { dy: DISMISS_AT - 10, scrollTop: 0 },
     ],
     velocity: 0.05,
     owner: "sheet",
-    pull: SHEET_PULL_DISMISS_PX - 10,
+    pull: DISMISS_AT - 10,
     release: "settle",
   },
   {
@@ -77,11 +80,11 @@ const GESTURES: {
     begin: { scrollTop: 0, maxScroll: TALL },
     moves: [
       { dy: 12, scrollTop: 0 },
-      { dy: SHEET_PULL_DISMISS_PX - 10, scrollTop: 0 },
+      { dy: DISMISS_AT - 10, scrollTop: 0 },
     ],
     velocity: SHEET_PULL_DISMISS_VELOCITY + 0.2,
     owner: "sheet",
-    pull: SHEET_PULL_DISMISS_PX - 10,
+    pull: DISMISS_AT - 10,
     release: "dismiss",
   },
   {
@@ -222,14 +225,20 @@ describe("sheet pull gesture", () => {
       expect(move(-4)).toBe("scroller");
     });
 
-    it("dismisses at 72px, and at 0.5px/ms from any distance short of it", () => {
+    it("dismisses at a third of what is visible", () => {
+      expect(sheetDismissDistancePx(300)).toBe(100);
+      expect(sheetDismissDistancePx(0)).toBe(0);
+    });
+
+    it("dismisses at the distance it is given, and at 0.5px/ms from any distance short of it", () => {
       const at = (pull: number, velocity: number) =>
         releaseSheetPull(
           run({ scrollTop: 0, maxScroll: 0 }, [{ dy: pull, scrollTop: 0 }]),
           velocity,
+          DISMISS_AT,
         );
-      expect(at(71, 0)).toBe("settle");
-      expect(at(72, 0)).toBe("dismiss");
+      expect(at(DISMISS_AT - 1, 0)).toBe("settle");
+      expect(at(DISMISS_AT, 0)).toBe("dismiss");
       expect(at(20, 0.49)).toBe("settle");
       expect(at(20, 0.5)).toBe("dismiss");
       expect(at(0, 9)).toBe("settle");
@@ -250,7 +259,7 @@ describe("sheet pull gesture", () => {
       });
 
       it(`${release}s on release`, () => {
-        expect(releaseSheetPull(state, velocity)).toBe(release);
+        expect(releaseSheetPull(state, velocity, DISMISS_AT)).toBe(release);
       });
     },
   );
@@ -306,6 +315,6 @@ describe("sheet pull gesture", () => {
     ]);
     expect(state.owner).toBe("sheet");
     expect(state.pull).toBe(0);
-    expect(releaseSheetPull(state, -1)).toBe("settle");
+    expect(releaseSheetPull(state, -1, DISMISS_AT)).toBe("settle");
   });
 });

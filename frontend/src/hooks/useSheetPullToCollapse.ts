@@ -3,29 +3,20 @@
 import { useEffect, useRef, type RefObject } from "react";
 
 import {
+  SHEET_VELOCITY_WINDOW_MS,
+  releaseVelocity,
+  type VelocitySample,
+} from "@/lib/sheetDismiss";
+import {
   advanceSheetPull,
   beginSheetPull,
   releaseSheetPull,
+  sheetDismissDistancePx,
   type SheetPullState,
 } from "@/lib/sheetPullGesture";
 
-/**
- * Reduced motion needs nothing here: the rule at the top of `globals.css`
- * caps every `transition-duration` with `!important`, which an inline
- * style does not outrank.
- */
 const SETTLE_MS = 200;
 const SETTLE_EASING = "ease-out";
-
-/**
- * Short enough that a finger which stopped moving before lifting reads as
- * stopped — which is the gesture that must *not* be mistaken for a flick.
- *
- * **Measured against the moment the finger left, not against the last
- * move.** A finger that stops emits no further `touchmove`, so a window
- * applied only while moving never advances past the pause.
- */
-const VELOCITY_WINDOW_MS = 120;
 
 /**
  * **Touch events, not pointer events.** The only way to stop a browser
@@ -33,6 +24,11 @@ const VELOCITY_WINDOW_MS = 120;
  * `preventDefault()` on a non-passive `touchmove`. `touch-action` is
  * pointer events' only lever, and it is a static property, so it would
  * have to be set before knowing which gesture this is.
+ *
+ * **The surface's style is written only while the sheet owns the
+ * gesture.** iOS Safari abandons the scroll of a touch during which an
+ * ancestor of the scroller changed its transform, and the content stays
+ * frozen for every touch that follows.
  *
  * **Nothing here re-renders.** The sheet is drawn by writing a transform
  * on `surfaceRef`, at touch rate. A React state per frame would re-render
@@ -49,16 +45,21 @@ const VELOCITY_WINDOW_MS = 120;
 export function useSheetPullToCollapse({
   scroller,
   surfaceRef,
-  onCollapse,
+  onDismiss,
+  isDismissing,
 }: {
   scroller: HTMLElement | null;
   surfaceRef: RefObject<HTMLElement | null>;
-  onCollapse: () => void;
+  onDismiss: (release: { velocity: number }) => void;
+  /** A finger still down when the sheet starts leaving would pull it back. */
+  isDismissing: () => boolean;
 }): void {
   // Read through a ref so a new callback identity does not detach and
   // reattach the listeners — which, mid-gesture, would drop the gesture.
-  const onCollapseRef = useRef(onCollapse);
-  onCollapseRef.current = onCollapse;
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+  const isDismissingRef = useRef(isDismissing);
+  isDismissingRef.current = isDismissing;
 
   useEffect(() => {
     if (!scroller) return;
@@ -66,7 +67,8 @@ export function useSheetPullToCollapse({
     let state: SheetPullState | null = null;
     let touchId: number | null = null;
     let startY = 0;
-    let samples: { at: number; y: number }[] = [];
+    let dismissPx = 0;
+    let samples: VelocitySample[] = [];
 
     const surface = () => surfaceRef.current;
 
@@ -84,39 +86,17 @@ export function useSheetPullToCollapse({
       el.style.transform = "translate3d(0, 0, 0)";
     };
 
-    const clearTransform = () => {
-      const el = surface();
-      if (!el) return;
-      el.style.transition = "";
-      el.style.transform = "";
-    };
-
     const forget = () => {
       state = null;
       touchId = null;
       samples = [];
     };
 
-    /**
-     * The window is applied *here*, against the moment being asked about,
-     * which is what makes a pause before the lift read as a pause.
-     */
-    const velocityAt = (at: number) => {
-      const recent = samples.filter(
-        (sample) => at - sample.at <= VELOCITY_WINDOW_MS,
-      );
-      if (recent.length === 0) return 0;
-      const first = recent[0];
-      const last = recent[recent.length - 1];
-      const elapsed = last.at - first.at;
-      return elapsed > 0 ? (last.y - first.y) / elapsed : 0;
-    };
-
     const onTouchStart = (event: TouchEvent) => {
       // A second finger is not a second gesture: it makes this one
       // ambiguous, so the sheet gives it up and springs back.
       if (event.touches.length !== 1) {
-        if (state?.owner === "sheet") settle();
+        if (state?.owner === "sheet" && !isDismissingRef.current()) settle();
         forget();
         return;
       }
@@ -124,17 +104,21 @@ export function useSheetPullToCollapse({
       touchId = touch.identifier;
       startY = touch.clientY;
       samples = [{ at: event.timeStamp, y: touch.clientY }];
+      // Measured at rest, so a pull does not move its own threshold.
+      const top = surface()?.getBoundingClientRect().top ?? window.innerHeight;
+      dismissPx = sheetDismissDistancePx(window.innerHeight - top);
       state = beginSheetPull({
         scrollTop: scroller.scrollTop,
         maxScroll: scroller.scrollHeight - scroller.clientHeight,
       });
-      // A settle still playing would otherwise animate the sheet toward
-      // zero while the finger is asking for something else.
-      clearTransform();
     };
 
     const onTouchMove = (event: TouchEvent) => {
       if (!state || touchId === null) return;
+      if (isDismissingRef.current()) {
+        forget();
+        return;
+      }
       const touch = Array.from(event.touches).find(
         (candidate) => candidate.identifier === touchId,
       );
@@ -150,14 +134,11 @@ export function useSheetPullToCollapse({
       });
 
       samples.push({ at: event.timeStamp, y: touch.clientY });
-      // Trimmed here so the list stays bounded; the reading that matters
-      // is taken against the release, in `velocityAt`.
       samples = samples.filter(
-        (sample) => event.timeStamp - sample.at <= VELOCITY_WINDOW_MS,
+        (sample) => event.timeStamp - sample.at <= SHEET_VELOCITY_WINDOW_MS,
       );
 
       if (state.owner !== "sheet") return;
-      // Tell the browser not to treat this gesture as a scroll as well:
       // iOS Safari bounces an inner scroller past its own top, and the band
       // and the sheet would be two answers to one finger.
       //
@@ -169,21 +150,23 @@ export function useSheetPullToCollapse({
 
     const onTouchEnd = (event: TouchEvent) => {
       if (!state) return;
-      const outcome = releaseSheetPull(state, velocityAt(event.timeStamp));
+      if (isDismissingRef.current()) {
+        forget();
+        return;
+      }
+      const released = state;
+      const velocity = releaseVelocity(samples, event.timeStamp);
       forget();
-      if (outcome === "dismiss") {
-        // Reset before handing the state change over: the drawer is
-        // unmounted at `peek`, and a surface left translated would come
-        // back that way if it is ever reused.
-        clearTransform();
-        onCollapseRef.current();
+      if (released.owner !== "sheet") return;
+      if (releaseSheetPull(released, velocity, dismissPx) === "dismiss") {
+        onDismissRef.current({ velocity });
         return;
       }
       settle();
     };
 
     const onTouchCancel = () => {
-      const owned = state?.owner === "sheet";
+      const owned = state?.owner === "sheet" && !isDismissingRef.current();
       forget();
       if (owned) settle();
     };

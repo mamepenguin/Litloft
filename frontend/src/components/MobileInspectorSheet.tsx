@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
   type ReactElement,
   type ReactNode,
 } from "react";
@@ -16,8 +17,15 @@ import {
   SHEET_SNAP_FULL,
   SHEET_SNAP_HALF_FALLBACK,
   sheetDrawerHeightPx,
+  sheetTopAtSnap,
 } from "@/lib/sheetSnap";
+import {
+  knobReleaseDismisses,
+  releaseVelocity,
+  type VelocitySample,
+} from "@/lib/sheetDismiss";
 import { useViewportHeight } from "@/hooks/useViewportHeight";
+import { useSheetDismissMotion } from "@/hooks/useSheetDismissMotion";
 import { useSheetPullToCollapse } from "@/hooks/useSheetPullToCollapse";
 import { DialogPortalProvider } from "./DialogPortal";
 
@@ -94,11 +102,28 @@ export function MobileInspectorSheet({
   // has to re-run when it does.
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
-  const collapse = useCallback(
-    () => onStateChange(SHEET_STATE_PEEK),
-    [onStateChange],
-  );
-  useSheetPullToCollapse({ scroller, surfaceRef, onCollapse: collapse });
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const expanded = isSheetExpanded(state);
+  const { dismiss, isDismissing } = useSheetDismissMotion({
+    surfaceRef,
+    overlayRef,
+    expanded,
+    onDismissed: useCallback(
+      () => onStateChange(SHEET_STATE_PEEK),
+      [onStateChange],
+    ),
+  });
+  useSheetPullToCollapse({
+    scroller,
+    surfaceRef,
+    onDismiss: dismiss,
+    isDismissing,
+  });
+
+  const knobSamples = useRef<VelocitySample[] | null>(null);
+  // How fast the knob left, kept for the length of the release's own
+  // dispatch: when vaul decides to close, it does so inside that dispatch.
+  const knobReleaseVelocity = useRef(0);
   // A `vh` class here would size the box in the large viewport while
   // every snap point was computed in `window.innerHeight`.
   const viewportHeight = useViewportHeight();
@@ -107,7 +132,54 @@ export function MobileInspectorSheet({
   // offsets when this array changes identity, so an inline literal would
   // hand it a new list on every render of the page behind it.
   const snapPoints = useMemo(() => sheetSnapPoints(halfSnap), [halfSnap]);
-  const expanded = isSheetExpanded(state);
+
+  const onKnobPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    const onKnob = (event.target as Element).closest?.("[data-vaul-handle]");
+    knobSamples.current = onKnob
+      ? [{ at: event.timeStamp, y: event.clientY }]
+      : null;
+  };
+
+  const onKnobPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+    knobSamples.current?.push({ at: event.timeStamp, y: event.clientY });
+  };
+
+  /**
+   * Runs before vaul's own release, which with snap points settles on the
+   * nearest one however far below `half` the knob was let go. Stopping the
+   * event here is what keeps vaul from springing the sheet back while it
+   * leaves.
+   */
+  const onKnobPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
+    if (isDismissing()) {
+      event.stopPropagation();
+      return;
+    }
+    const samples = knobSamples.current;
+    knobSamples.current = null;
+    if (!samples) return;
+    const velocity = releaseVelocity(samples, event.timeStamp);
+    const dismisses = knobReleaseDismisses({
+      sheetTop: event.currentTarget.getBoundingClientRect().top,
+      halfTop: sheetTopAtSnap(window.innerHeight, halfSnap),
+      viewportHeight: window.innerHeight,
+      velocity,
+    });
+    if (dismisses) {
+      event.stopPropagation();
+      dismiss({ velocity });
+      return;
+    }
+    knobReleaseVelocity.current = velocity;
+    window.setTimeout(() => {
+      knobReleaseVelocity.current = 0;
+    }, 0);
+  };
+
+  /** vaul treats a pointer leaving the drawer as a release. */
+  const swallowWhileDismissing = (event: ReactPointerEvent<HTMLElement>) => {
+    if (isDismissing()) event.stopPropagation();
+  };
 
   if (!expanded) {
     return (
@@ -126,16 +198,21 @@ export function MobileInspectorSheet({
       open
       snapPoints={snapPoints}
       activeSnapPoint={state === SHEET_STATE_FULL ? SHEET_SNAP_FULL : halfSnap}
-      setActiveSnapPoint={(next) => onStateChange(sheetStateForSnap(next))}
+      setActiveSnapPoint={(next) => {
+        // vaul resets its snap point 500ms after it closes.
+        if (isDismissing()) return;
+        onStateChange(sheetStateForSnap(next));
+      }}
       fadeFromIndex={0}
       modal
       handleOnly
       onOpenChange={(next) => {
-        if (!next) collapse();
+        if (!next) dismiss({ velocity: knobReleaseVelocity.current });
       }}
     >
       <Drawer.Portal>
         <Drawer.Overlay
+          ref={overlayRef}
           data-testid="mobile-inspector-overlay"
           className="fixed inset-0 z-[45] bg-black/50"
         />
@@ -144,6 +221,10 @@ export function MobileInspectorSheet({
           data-snap={state}
           className="fixed bottom-0 left-0 right-0 z-[46] flex flex-col outline-none"
           style={{ height: drawerHeight }}
+          onPointerDownCapture={onKnobPointerDown}
+          onPointerMoveCapture={onKnobPointerMove}
+          onPointerUpCapture={onKnobPointerUp}
+          onPointerOutCapture={swallowWhileDismissing}
         >
           {/* The box a content pull translates. It carries the paint
               because `Drawer.Content` above cannot: vaul writes that

@@ -18,7 +18,6 @@ import { pathToFileURL } from "node:url";
 
 import { PAGE } from "./build-bundle";
 import {
-  SHEET_PULL_DISMISS_PX,
   SHEET_PULL_DISMISS_VELOCITY,
   SHEET_PULL_HANDOFF_PX,
 } from "../src/lib/sheetPullGesture";
@@ -39,6 +38,8 @@ const stepsFor = (down: number) =>
 
 const SCROLLER = "[data-testid='mobile-inspector-content']";
 const SURFACE = "[data-testid='mobile-inspector-surface']";
+const KNOB = "[data-vaul-handle]";
+const OVERLAY = "[data-testid='mobile-inspector-overlay']";
 
 let navigation = 0;
 
@@ -51,6 +52,9 @@ interface Reading {
   maxScrolled: number;
   /** `""` if nothing changed it. */
   state: string;
+  /** `NaN` until it collapses. */
+  surfaceTopAtCollapse: number;
+  viewportHeight: number;
 }
 
 async function read(page: Page): Promise<Reading> {
@@ -67,14 +71,27 @@ async function read(page: Page): Promise<Reading> {
         maxPull: Number(document.body.dataset.maxPull ?? -1),
         maxScrolled: Number(document.body.dataset.maxScroll ?? -1),
         state: document.body.dataset.sheetState ?? "",
+        surfaceTopAtCollapse: Number(
+          document.body.dataset.surfaceTopAtCollapse || NaN,
+        ),
+        viewportHeight: window.innerHeight,
       };
     },
     [SURFACE, SCROLLER],
   );
 }
 
+/**
+ * A third of the sheet still on screen, rounded up so a run of exactly
+ * this length is past it.
+ */
+async function dismissPx(page: Page): Promise<number> {
+  const { surfaceTop, viewportHeight } = await read(page);
+  return Math.ceil((viewportHeight - surfaceTop) / 3);
+}
+
 /** vaul animates the drawer up on mount, so wait for it to stop moving. */
-async function open(page: Page, arrangement: string): Promise<void> {
+async function open(page: Page, arrangement: string): Promise<number> {
   await page.goto(`${FIXTURE}?run=${++navigation}#${arrangement}`);
   await expect(page.locator("body")).toHaveAttribute("data-ready", "1");
   await expect(page.locator("body")).toHaveAttribute(
@@ -88,6 +105,7 @@ async function open(page: Page, arrangement: string): Promise<void> {
       return (await read(page)).surfaceTop === first ? "still" : "moving";
     })
     .toBe("still");
+  return dismissPx(page);
 }
 
 /**
@@ -101,9 +119,22 @@ async function open(page: Page, arrangement: string): Promise<void> {
  */
 async function swipe(
   page: Page,
-  { down, steps, gapMs }: { down: number; steps: number; gapMs: number },
+  {
+    down,
+    steps,
+    gapMs,
+    from = SCROLLER,
+    wait = true,
+  }: {
+    down: number;
+    steps: number;
+    gapMs: number;
+    from?: string;
+    /** `false` returns as the finger lifts, with the sheet still moving. */
+    wait?: boolean;
+  },
 ): Promise<void> {
-  const box = (await page.locator(SCROLLER).boundingBox())!;
+  const box = (await page.locator(from).boundingBox())!;
   const x = Math.round(box.x + box.width / 2);
   const y0 = Math.round(box.y + box.height / 2);
   const cdp = await page.context().newCDPSession(page);
@@ -123,6 +154,7 @@ async function swipe(
     touchPoints: [],
   });
   await cdp.detach();
+  if (!wait) return;
 
   // Wait for the fling and the spring-back to finish: two consecutive
   // equal readings of both.
@@ -181,11 +213,11 @@ test.describe("one gesture moves one thing", () => {
   test("pushing down from the top moves the sheet, and the scroller does not move at all", async ({
     page,
   }) => {
-    await open(page, "sheet-gesture");
+    const dismiss = await open(page, "sheet-gesture");
 
     await swipe(page, {
-      down: SHEET_PULL_DISMISS_PX - 20,
-      steps: stepsFor(SHEET_PULL_DISMISS_PX - 20),
+      down: dismiss - 20,
+      steps: stepsFor(dismiss - 20),
       ...PUSH,
     });
 
@@ -202,10 +234,10 @@ test.describe("what collapses the sheet", () => {
   test("a slow push from the top, past the dismiss distance", async ({
     page,
   }) => {
-    await open(page, "sheet-gesture");
+    const dismiss = await open(page, "sheet-gesture");
     await swipe(page, {
-      down: SHEET_PULL_DISMISS_PX + 60,
-      steps: stepsFor(SHEET_PULL_DISMISS_PX + 60),
+      down: dismiss + 60,
+      steps: stepsFor(dismiss + 60),
       ...PUSH,
     });
 
@@ -218,10 +250,10 @@ test.describe("what collapses the sheet", () => {
     page,
   }) => {
     // Same distance as "stops short" below, released fast instead of slow.
-    await open(page, "sheet-gesture");
+    const dismiss = await open(page, "sheet-gesture");
     await swipe(page, {
-      down: SHEET_PULL_DISMISS_PX - 20,
-      steps: stepsFor(SHEET_PULL_DISMISS_PX - 20),
+      down: dismiss - 20,
+      steps: stepsFor(dismiss - 20),
       ...FLICK,
     });
 
@@ -229,12 +261,12 @@ test.describe("what collapses the sheet", () => {
   });
 
   test("a sheet with nothing to scroll, pushed down", async ({ page }) => {
-    await open(page, "sheet-gesture-short");
+    const dismiss = await open(page, "sheet-gesture-short");
     expect((await read(page)).maxScroll).toBe(0);
 
     await swipe(page, {
-      down: SHEET_PULL_DISMISS_PX + 60,
-      steps: stepsFor(SHEET_PULL_DISMISS_PX + 60),
+      down: dismiss + 60,
+      steps: stepsFor(dismiss + 60),
       ...PUSH,
     });
 
@@ -244,37 +276,51 @@ test.describe("what collapses the sheet", () => {
   test("scrolling to the top without lifting, then pushing on", async ({
     page,
   }) => {
-    await open(page, "sheet-gesture");
+    const dismiss = await open(page, "sheet-gesture");
     await scrollTo(page, 120);
 
     // A clear run past the dismiss distance rather than one pixel past: a
     // remainder sitting on the threshold would be a coin toss on rounding.
     await swipe(page, {
-      down: 120 + SHEET_PULL_HANDOFF_PX + SHEET_PULL_DISMISS_PX * 2,
-      steps: stepsFor(120 + SHEET_PULL_HANDOFF_PX + SHEET_PULL_DISMISS_PX * 2),
+      down: 120 + SHEET_PULL_HANDOFF_PX + dismiss * 2,
+      steps: stepsFor(120 + SHEET_PULL_HANDOFF_PX + dismiss * 2),
       ...PUSH,
     });
 
     const after = await read(page);
     expect(after.state).toBe("peek");
-    expect(after.maxPull).toBeGreaterThan(SHEET_PULL_DISMISS_PX);
+    expect(after.maxPull).toBeGreaterThan(dismiss);
   });
 });
 
 test.describe("what leaves the sheet where it was", () => {
   test("a slow push from the top that stops short", async ({ page }) => {
-    await open(page, "sheet-gesture");
+    const dismiss = await open(page, "sheet-gesture");
     const before = await read(page);
 
     await swipe(page, {
-      down: SHEET_PULL_DISMISS_PX - 20,
-      steps: stepsFor(SHEET_PULL_DISMISS_PX - 20),
+      down: dismiss - 20,
+      steps: stepsFor(dismiss - 20),
       ...PUSH,
     });
 
     const after = await read(page);
     expect(after.state).toBe("");
     expect(after.surfaceTop).toBeCloseTo(before.surfaceTop, 0);
+  });
+
+  test("a slow push past a quarter of the sheet but short of a third", async ({
+    page,
+  }) => {
+    // Far enough apart that the threshold must be measured at rest: one
+    // re-measured under the finger has shrunk to a quarter by now.
+    await open(page, "sheet-gesture");
+    const { surfaceTop, viewportHeight } = await read(page);
+    const down = Math.floor((viewportHeight - surfaceTop) * 0.3);
+
+    await swipe(page, { down, steps: stepsFor(down), ...PUSH });
+
+    expect((await read(page)).state).toBe("");
   });
 
   test("a hard flick that only reaches the top on the way out", async ({
@@ -313,5 +359,163 @@ test.describe("what leaves the sheet where it was", () => {
     expect(after.maxPull).toBe(0);
     expect(after.surfaceTop).toBeCloseTo(before.surfaceTop, 0);
     expect(after.state).toBe("");
+  });
+});
+
+test.describe("how the sheet leaves", () => {
+  /** A pixel of rounding either way. */
+  const offScreen = (reading: Reading) =>
+    expect(reading.surfaceTopAtCollapse).toBeGreaterThanOrEqual(
+      reading.viewportHeight - 1,
+    );
+
+  test("a slow push slides it off the screen before it collapses", async ({
+    page,
+  }) => {
+    const dismiss = await open(page, "sheet-gesture");
+    await swipe(page, {
+      down: dismiss + 20,
+      steps: stepsFor(dismiss + 20),
+      ...PUSH,
+    });
+
+    const after = await read(page);
+    expect(after.state).toBe("peek");
+    offScreen(after);
+  });
+
+  test("a flick slides it off the screen before it collapses", async ({
+    page,
+  }) => {
+    const dismiss = await open(page, "sheet-gesture");
+    await swipe(page, {
+      down: dismiss - 20,
+      steps: stepsFor(dismiss - 20),
+      ...FLICK,
+    });
+
+    const after = await read(page);
+    expect(after.state).toBe("peek");
+    offScreen(after);
+  });
+
+  test("closing while it springs back still slides it off the screen", async ({
+    page,
+  }) => {
+    const dismiss = await open(page, "sheet-gesture");
+    await swipe(page, {
+      down: dismiss - 20,
+      steps: stepsFor(dismiss - 20),
+      ...PUSH,
+      wait: false,
+    });
+    await page.keyboard.press("Escape");
+
+    await expect(page.locator("body")).toHaveAttribute(
+      "data-sheet-state",
+      "peek",
+    );
+    offScreen(await read(page));
+  });
+
+  test("tapping the dimmed page slides it off the screen before it collapses", async ({
+    page,
+  }) => {
+    await open(page, "sheet-gesture");
+    await page.locator(OVERLAY).tap({ position: { x: 20, y: 20 } });
+
+    await expect(page.locator("body")).toHaveAttribute(
+      "data-sheet-state",
+      "peek",
+    );
+    offScreen(await read(page));
+  });
+});
+
+test.describe("dragging the knob down", () => {
+  test("past a third of the sheet, it leaves instead of springing back to half", async ({
+    page,
+  }) => {
+    const dismiss = await open(page, "sheet-gesture");
+    await swipe(page, {
+      from: KNOB,
+      down: dismiss + 20,
+      steps: stepsFor(dismiss + 20),
+      ...PUSH,
+    });
+
+    const after = await read(page);
+    expect(after.state).toBe("peek");
+    expect(after.surfaceTopAtCollapse).toBeGreaterThanOrEqual(
+      after.viewportHeight - 1,
+    );
+  });
+
+  test("closing while it springs back to half still slides it off the screen", async ({
+    page,
+  }) => {
+    const dismiss = await open(page, "sheet-gesture");
+    await swipe(page, {
+      from: KNOB,
+      down: dismiss - 30,
+      steps: stepsFor(dismiss - 30),
+      ...PUSH,
+      wait: false,
+    });
+    // Where the sheet was when the close arrived, and the highest it went
+    // after: frozen, it only ever moves down from there.
+    await page.evaluate((surfaceSel) => {
+      const top = () =>
+        document.querySelector(surfaceSel)?.getBoundingClientRect().top;
+      // On the window, which hears the key before the dialog's own
+      // listener on the document closes the sheet.
+      window.addEventListener(
+        "keydown",
+        () => {
+          const record = { atClose: top() ?? NaN, highest: top() ?? NaN };
+          (window as unknown as { closeRecord: typeof record }).closeRecord =
+            record;
+          const sample = () => {
+            const now = top();
+            if (now === undefined) return;
+            record.highest = Math.min(record.highest, now);
+            requestAnimationFrame(sample);
+          };
+          requestAnimationFrame(sample);
+        },
+        { capture: true, once: true },
+      );
+    }, SURFACE);
+    await page.keyboard.press("Escape");
+
+    await expect(page.locator("body")).toHaveAttribute(
+      "data-sheet-state",
+      "peek",
+    );
+    const after = await read(page);
+    expect(after.surfaceTopAtCollapse).toBeGreaterThanOrEqual(
+      after.viewportHeight - 1,
+    );
+    const record = await page.evaluate(
+      () =>
+        (window as unknown as { closeRecord: { atClose: number; highest: number } })
+          .closeRecord,
+    );
+    expect(record.highest).toBeGreaterThanOrEqual(record.atClose - 1);
+  });
+
+  test("short of a third, it springs back to half", async ({ page }) => {
+    const dismiss = await open(page, "sheet-gesture");
+    const before = await read(page);
+    await swipe(page, {
+      from: KNOB,
+      down: dismiss - 30,
+      steps: stepsFor(dismiss - 30),
+      ...PUSH,
+    });
+
+    const after = await read(page);
+    expect(after.state).toBe("");
+    expect(after.surfaceTop).toBeCloseTo(before.surfaceTop, 0);
   });
 });
