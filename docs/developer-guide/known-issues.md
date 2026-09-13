@@ -138,3 +138,8 @@ new drive's catalogue arrives, so an addon turned off on the new drive (Home's
 Pickup, for example) can draw for a frame or more there, and may call its API
 for that drive. The proxy's `pre_check` should answer those calls with 404; that
 has not been measured. The sidebar's addon rows do not do this.
+
+**Re-sending a Web Clip whose earlier attempt failed offers to open the failed
+placeholder.** `GET /clips?url=` returns failed jobs too, so the duplicate notice
+appears and its "open existing" goes to the placeholder file the failed job left.
+Reached from the bookmarklet and from the Knowledge page's form alike.
