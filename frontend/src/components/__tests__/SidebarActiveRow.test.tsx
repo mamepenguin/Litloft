@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 
 import { Sidebar } from "../Sidebar";
 import { FIXED_SIDEBAR_ROWS } from "../sidebar/__tests__/fixedRows";
+import type { CollectionSummary } from "@/types";
 
 /**
  * A drive whose name is not its own encoding, so the two independent
@@ -24,7 +25,9 @@ let overlay = false;
 const mockClose = vi.fn();
 const UNPINNED_PATH = "旅行";
 const SMART_FOLDER_NAME = "ケーキ";
+const COLLECTION_NAME = "旅の記録";
 let pins: { path: string }[] = [];
+let collections: CollectionSummary[] = [];
 
 let pathname = ENCODED;
 let search = new URLSearchParams();
@@ -63,7 +66,7 @@ vi.mock("../sidebar/useSidebarData", () => ({
     drives: [{ name: DRIVE, file_count: 1 }],
     tags,
     pins,
-    collectionList: [],
+    collectionList: collections,
     setCollectionList: vi.fn(),
     authStatus: { is_admin: isAdmin },
     driveSummary: { missing_count: 3 },
@@ -104,6 +107,7 @@ beforeEach(() => {
   search = new URLSearchParams();
   tags = null;
   pins = [];
+  collections = [];
   isAdmin = false;
   overlay = false;
   mockClose.mockClear();
@@ -133,6 +137,18 @@ describe("the column's three parts, in order", () => {
   it("puts the reader's own sections between the purpose rows and the drive's", () => {
     pins = [{ path: PINNED_PATH }];
     tags = { resolvedScope: { drive: DRIVE, folderPath: null }, items: [{ name: "soup", count: 2 }] };
+    collections = [
+      {
+        id: "c1",
+        name: COLLECTION_NAME,
+        description: null,
+        drive: DRIVE,
+        item_count: 1,
+        first_file_id: null,
+        created_at: "2026-01-01T00:00:00",
+        updated_at: "2026-01-01T00:00:00",
+      },
+    ];
     const { container } = render(<Sidebar />);
     const text = container.textContent ?? "";
     const at = (needle: string) => {
@@ -140,9 +156,13 @@ describe("the column's three parts, in order", () => {
       expect(i, `${needle} is not on the column`).not.toBe(-1);
       return i;
     };
+    // All four, because a chain drawn through one of them holds while
+    // any of the other three is missing from the column altogether.
     expect(at("Library")).toBeLessThan(at("All Files"));
-    expect(at("All Files")).toBeLessThan(at(PINNED_PATH));
-    expect(at(PINNED_PATH)).toBeLessThan(at("Trash"));
+    for (const own of [COLLECTION_NAME, PINNED_PATH, SMART_FOLDER_NAME, "soup"]) {
+      expect(at("All Files")).toBeLessThan(at(own));
+      expect(at(own)).toBeLessThan(at("Trash"));
+    }
   });
 });
 
