@@ -65,6 +65,21 @@ vi.mock("@/lib/api", () => ({
 
 import DriveLayout from "@/app/drive/[name]/layout";
 import { DriveHome } from "@/components/DriveHome";
+import { treeEnabledStore } from "@/lib/treeEnabledStore";
+
+/**
+ * Turn the drive's tree on through the door the app uses.
+ *
+ * Not `localStorage.setItem`. The store keeps a module-level cache and
+ * reads storage only on first ask, so a case that closes the pane leaves
+ * `false` in that cache and `localStorage.clear()` does not reach it —
+ * the next case then sets storage to "true" and is answered from the
+ * cache. Measured: under a shuffled order this file failed about one run
+ * in three.
+ */
+function driveHasTreeOn(drive: string): void {
+  treeEnabledStore.set(drive, true);
+}
 
 /** The `<aside>` the tree lives in, and what it says about itself. */
 function treePane(): HTMLElement {
@@ -88,13 +103,14 @@ function headerTreeControl(): HTMLElement {
 describe("the drive home and the tree pane", () => {
   beforeEach(() => {
     localStorage.clear();
+    treeEnabledStore.set("media", false);
     pathname.current = "/drive/media";
   });
 
   it("opens the pane when the drive's stored flag is on", async () => {
     // The population. Without this the closability assertion below is
     // vacuous — there would be nothing to close.
-    localStorage.setItem("tree:enabled:media", "true");
+    driveHasTreeOn("media");
     render(
       <DriveLayout>
         <DriveHome driveName="media" />
@@ -106,7 +122,7 @@ describe("the drive home and the tree pane", () => {
   });
 
   it("gives the reader a way to put it away again", async () => {
-    localStorage.setItem("tree:enabled:media", "true");
+    driveHasTreeOn("media");
     render(
       <DriveLayout>
         <DriveHome driveName="media" />

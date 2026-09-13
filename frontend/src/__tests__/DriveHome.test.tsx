@@ -437,7 +437,7 @@ describe("the drive home's acceptance criteria", () => {
    */
   it("omits both watch rows for a reader with no profile, and does not ask for one", async () => {
     mockProfile.nickname = null;
-    render(<DriveHome driveName="media" />);
+    const { container } = render(<DriveHome driveName="media" />);
     await screen.findByRole("button", { name: "Add" });
 
     expect(sectionNames()).not.toContain("Continue Watching");
@@ -451,8 +451,10 @@ describe("the drive home's acceptance criteria", () => {
     // controls. Anything inviting the reader to identify themselves —
     // a link to Settings, a "Set up your profile" button — adds to this
     // list, whatever it says.
+    // Scoped to what this render put on the page. Reading `document`
+    // picks up whatever else is mounted, which made this order-dependent.
     const pressable = Array.from(
-      document.querySelectorAll("button, a, input, textarea, select"),
+      container.querySelectorAll("button, a, input, textarea, select"),
     ).map(
       (el) =>
         el.getAttribute("aria-label") ||
