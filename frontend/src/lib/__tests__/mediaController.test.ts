@@ -5,21 +5,12 @@ import {
   type MediaController,
 } from "../mediaController";
 
-// ---------- helpers ----------
-
 type FakeVideo = HTMLVideoElement & {
   play: ReturnType<typeof vi.fn>;
   pause: ReturnType<typeof vi.fn>;
   requestFullscreen: ReturnType<typeof vi.fn>;
 };
 
-/**
- * Minimal TimeRanges stub. Only `length` and `end(i)` are consumed by
- * getBufferedFraction, which reads the LAST range rather than summing
- * every range: the seek bar shows "buffered up to here", and a video
- * seeked backwards leaves earlier ranges that would otherwise inflate
- * the number past what is contiguously available.
- */
 function fakeBuffered(ends: number[]): TimeRanges {
   return {
     length: ends.length,
@@ -122,7 +113,6 @@ function makeContainer(): HTMLElement & { requestFullscreen: ReturnType<typeof v
   };
 }
 
-// jsdom doesn't implement fullscreen API; back it with a mutable holder.
 const originalExitFullscreen = document.exitFullscreen;
 const originalFullscreenElement = Object.getOwnPropertyDescriptor(
   Document.prototype,
@@ -154,8 +144,6 @@ afterEach(() => {
     value: originalExitFullscreen,
   });
 });
-
-// ---------- createNativeVideoController ----------
 
 describe("createNativeVideoController", () => {
   describe("seek", () => {
@@ -260,8 +248,6 @@ describe("createNativeVideoController", () => {
     });
   });
 });
-
-// ---------- createYouTubeController ----------
 
 describe("createYouTubeController", () => {
   describe("seek", () => {
@@ -391,8 +377,6 @@ describe("createYouTubeController", () => {
     });
   });
 });
-
-// ---------- volume / rate / buffer (native) ----------
 
 describe("createNativeVideoController extended controls", () => {
   describe("isMuted", () => {
@@ -535,8 +519,6 @@ describe("createNativeVideoController extended controls", () => {
     });
   });
 });
-
-// ---------- volume / rate / buffer (YouTube) ----------
 
 describe("createYouTubeController extended controls", () => {
   describe("isMuted", () => {

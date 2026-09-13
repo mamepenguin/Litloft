@@ -134,9 +134,6 @@ describe("buildMatchMeta", () => {
   });
 
   it("collects clip_thumbnail score (no timestamp)", () => {
-    // Spec 2026-05-02-thumbnail-clip-default-shallow-search.md:
-    // representative-frame CLIP carries no time_range — surface as a
-    // score-only field distinct from the time-ranged ``clip`` array.
     const meta = buildMatchMeta(
       makeHit({
         match_types: ["clip_thumbnail"],
@@ -171,9 +168,8 @@ describe("buildMatchMeta", () => {
   });
 
   it("falls back to a placeholder transcript entry when match_types declares audio but no segment has a usable time_range", () => {
-    // Without the fallback the badge row would be empty even though
-    // intelligence reported a transcript hit. Using time_range=[-1,-1]
-    // surfaces the badge while the timestamp-pill renderer skips it.
+    // time_range=[-1,-1] surfaces the badge while the timestamp-pill renderer
+    // skips it.
     const meta = buildMatchMeta(
       makeHit({
         match_types: ["transcript"],
@@ -234,9 +230,6 @@ describe("buildMatchMeta", () => {
   });
 
   it("collects retrieval_keywords hits as chip-only with matched list", () => {
-    // SIRA-style LLM expansion. The backend emits MatchInfo with text
-    // = matched keyword string but no time_range / page; the UI shows
-    // a chip and lists the matched expansions.
     const meta = buildMatchMeta(
       makeHit({
         match_types: ["retrieval_keywords"],
@@ -253,15 +246,11 @@ describe("buildMatchMeta", () => {
     );
     expect(meta.retrieval_keywords?.score).toBe(0.6);
     expect(meta.retrieval_keywords?.matched).toEqual(["退職", "古典文学"]);
-    // Crucially: no transcript / clip jumps are synthesised.
     expect(meta.transcript).toBeUndefined();
     expect(meta.clip).toBeUndefined();
   });
 
   it("falls back to a chip-only retrieval_keywords badge when MatchInfo is missing", () => {
-    // Defensive: legacy backend that declares the channel in match_types
-    // but doesn't emit a per-segment MatchInfo entry still surfaces the
-    // chip via the top-level fallback path.
     const meta = buildMatchMeta(
       makeHit({
         match_types: ["retrieval_keywords"],
@@ -308,8 +297,6 @@ describe("computeHybridScore", () => {
   });
 
   it("adds path match with low weight (0.3)", () => {
-    // spec 2026-05-02-search-path-match: path-only hits use a lower weight
-    // (0.3) than filename×2.0 / metadata×1.0 to suppress noise.
     const score = computeHybridScore({ path: { score: 1 } });
     expect(score).toBeCloseTo(0.3);
   });
@@ -331,9 +318,6 @@ describe("computeHybridScore", () => {
   });
 
   it("stacks retrieval_keywords with body hits", () => {
-    // The user's design point: same file from text-embedding AND
-    // retrieval_keywords gets a boost from both channels. (Body hits
-    // dominate; the LLM expansion piles on.)
     const score = computeHybridScore({
       content: { score: 0.5 },
       retrieval_keywords: { score: 0.5 },
@@ -418,8 +402,6 @@ describe("mergeResults", () => {
   });
 
   it("sets match_meta.path when filename API reports match_source=path", () => {
-    // spec 2026-05-02-search-path-match: files where backend returns
-    // match_source="path" are classified with the path badge, not filename.
     const f = makeFile({ id: "p1", match_source: "path" });
     const { files } = mergeResults({
       filenameMatches: [f],

@@ -224,7 +224,6 @@ describe("usePlaybackProgress", () => {
       });
       expect(mc.seek).toHaveBeenCalledWith(300);
 
-      // Saving resumes normally once the restore has settled.
       state.currentTime = 320;
       tick();
       expect(mockSaveWatchProgress).toHaveBeenCalledWith("f1", 320, 600);
@@ -390,7 +389,6 @@ describe("usePlaybackProgress", () => {
       state.currentTime = 60;
       tick(4);
 
-      // A NaN duration used to reach the server on the native path.
       expect(mockSaveWatchProgress).not.toHaveBeenCalled();
       expect(mockSaveProgress).not.toHaveBeenCalled();
     });
@@ -410,7 +408,6 @@ describe("usePlaybackProgress", () => {
 
       // The row is what distinguishes "watched to the end" from "never
       // opened"; the 90% gate keeps it out of continue-watching anyway.
-      // Spec 2026-08-10-media-import-watch-surface.md §4.2.
       expect(mockSaveWatchProgress).toHaveBeenCalledWith("f1", 600, 600);
     });
 
@@ -471,7 +468,7 @@ describe("usePlaybackProgress", () => {
       tick();
       await act(async () => {});
 
-      // Between periodic saves — this is the window audio used to lose.
+      // Between periodic saves.
       state.currentTime = 4;
       unmount();
 

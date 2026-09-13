@@ -54,9 +54,8 @@ function stubController(overrides: Partial<StubState> = {}) {
     ...overrides,
   };
   const mc: MediaController = {
-    // The real controllers clamp inside seek(); that is verified in
-    // mediaController.test.ts. Here the stub records what was asked for,
-    // which is what this module is responsible for computing.
+    // The real controllers clamp inside seek(). Here the stub records what
+    // was asked for, which is what this module is responsible for computing.
     seek: vi.fn((seconds: number) => {
       state.currentTime = seconds;
     }),

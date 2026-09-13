@@ -1,12 +1,3 @@
-/**
- * The point of `mediaClock` is that consumers stop bringing their own
- * intervals. That is an integration property — no single hook can
- * assert it — so it gets its own file, exercising the two consumers
- * migrated in Phase C-0 against one controller.
- *
- * Spec: docs/superpowers/specs/2026-08-11-playback-clock-foundation.md §4.1
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { createRef } from "react";
@@ -38,9 +29,8 @@ function makeMc(overrides: Partial<MediaController> = {}): MediaController {
 
 /**
  * `vi.getTimerCount()` is no use here: the control bar also keeps an
- * auto-hide `setTimeout` pending, so a raw count conflates the two.
- * Track intervals specifically. Spies are installed after
- * `useFakeTimers` so they wrap the faked globals.
+ * auto-hide `setTimeout` pending. Spies are installed after `useFakeTimers`
+ * so they wrap the faked globals.
  */
 function spyOnIntervals() {
   return {
@@ -76,7 +66,6 @@ describe("mediaClock consumers", () => {
     const controls = renderHook(() => useMediaControlsState({ mc }));
     const mini = renderHook(() => useMiniPlayer({ containerRef, mc }));
 
-    // Before this phase these two hooks each owned a 250ms interval.
     expect(liveIntervals()).toBe(1);
 
     controls.unmount();
@@ -101,8 +90,6 @@ describe("mediaClock consumers", () => {
       vi.advanceTimersByTime(MEDIA_CLOCK_ACTIVE_MS);
     });
 
-    // Both now read the same tick, so the bar cannot claim playback is
-    // running while the mini player has already given up on it.
     expect(controls.result.current.paused).toBe(true);
     expect(mini.result.current.isMini).toBe(false);
   });
@@ -118,9 +105,6 @@ describe("mediaClock consumers", () => {
 
     const { result } = renderHook(() => useMediaControlsState({ mc }));
 
-    // Volume, mute, rate, buffered and captions have no business in a
-    // shared playback clock; the control bar samples them on the
-    // clock's cadence instead of starting its own interval.
     expect(result.current).toMatchObject({
       volume: 0.25,
       bufferedFraction: 0.75,
@@ -131,9 +115,6 @@ describe("mediaClock consumers", () => {
   });
 
   it("prefers the file's duration hint over whatever the player reports", () => {
-    // An ad break makes the player report the ad's length. The hint
-    // comes from our own metadata, which is why it is layered in the
-    // consumer rather than in the clock.
     const mc = makeMc({ getDuration: vi.fn().mockReturnValue(30) });
 
     const { result } = renderHook(() =>

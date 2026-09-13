@@ -118,9 +118,8 @@ describe("api", () => {
     });
 
     /**
-     * F-7. Everything above this layer mocks `@/lib/api`, so this is the
-     * only place the wire is looked at: the hook can pass
-     * `include_files: true` all day and the request still leave without it.
+     * Everything above this layer mocks `@/lib/api`, so this is the only
+     * place the wire is looked at.
      */
     it("sends include_files when the tree is asked for files", async () => {
       mockFetch.mockResolvedValueOnce(jsonResponse([]));
@@ -173,8 +172,8 @@ describe("api", () => {
       expect(url).toContain("page=2");
     });
 
-    // spec 2026-08-21-folder-scoped-tag-filter §4.1: typing the param
-    // without serialising it compiles cleanly and silently drops it.
+    // Typing the param without serialising it compiles cleanly and silently
+    // drops it.
     it("sends recursive=true when requested", async () => {
       mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
       await getDriveFiles("main", { path: "recipes", tag: "soup", recursive: true });

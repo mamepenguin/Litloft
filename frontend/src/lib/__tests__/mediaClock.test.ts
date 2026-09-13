@@ -9,12 +9,6 @@ import {
 } from "../mediaClock";
 import type { MediaController } from "../mediaController";
 
-/**
- * Mutable backing state for a stub controller. The clock only reads
- * four things, so the stub only has to be honest about those; the rest
- * of the MediaController surface is present to satisfy the type and is
- * never called.
- */
 interface StubState {
   currentTime: number;
   duration: number;
@@ -89,7 +83,6 @@ describe("mediaClock", () => {
       const stopB = subscribeMediaClock(mc, vi.fn());
 
       stopA();
-      // Still one subscriber left — the clock must keep running.
       expect(vi.getTimerCount()).toBe(1);
 
       stopB();
@@ -112,7 +105,6 @@ describe("mediaClock", () => {
       expect(getMediaClockSnapshot(a.mc).currentTime).toBe(10);
       expect(getMediaClockSnapshot(b.mc).currentTime).toBe(50);
 
-      // One controller tearing down must not stop the other's clock.
       stopA();
       expect(vi.getTimerCount()).toBe(1);
 
@@ -395,8 +387,6 @@ describe("mediaClock", () => {
         vi.advanceTimersByTime(MEDIA_CLOCK_ACTIVE_MS * 4);
       });
 
-      // Four ticks fired and every listener ran; the stable snapshot
-      // reference is what keeps React out of it.
       expect(renders).toBe(initial);
     });
 
@@ -424,7 +414,6 @@ describe("mediaClock", () => {
 
       rerender({ mc: second.mc });
 
-      // The old controller's interval must go, not accumulate.
       expect(vi.getTimerCount()).toBe(1);
       expect(result.current.currentTime).toBe(99);
     });
@@ -461,7 +450,6 @@ describe("mediaClock", () => {
 
       const stopAgain = subscribeMediaClock(mc, vi.fn());
       expect(vi.getTimerCount()).toBe(1);
-      // Refreshed at subscribe time rather than one interval later.
       expect(getMediaClockSnapshot(mc).currentTime).toBe(40);
 
       stopAgain();

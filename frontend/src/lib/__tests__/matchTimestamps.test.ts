@@ -29,7 +29,6 @@ describe("collectMatchTimestamps", () => {
   });
 
   /**
-   * The case this helper exists for: five segments naming two moments.
    * A transcript hit and a scene hit that land in the same second are two
    * rows in the backend's response and one moment to the reader.
    */
@@ -98,9 +97,8 @@ describe("collectMatchTimestamps", () => {
   });
 
   it("drops a segment that reached the badge without a time range", () => {
-    // `time_range` is declared required, and the optional chain is here
-    // because a badge-only segment has been seen without one. A fixture
-    // is what makes that belief checkable.
+    // `time_range` is declared required, but a badge-only segment has been
+    // seen without one.
     const { shown } = collectMatchTimestamps({
       transcript: [{ score: 0.5 } as unknown as MatchTimestamp],
     });
@@ -125,9 +123,6 @@ describe("collectMatchTimestamps", () => {
   });
 
   it("keeps a hit at the very start of the file", () => {
-    // `start > 0` instead of `>= 0` passes every other case here and
-    // silently drops the opening seconds of a video, where a transcript
-    // segment routinely begins.
     const { shown } = collectMatchTimestamps({
       transcript: [seg(0), seg(30)],
     });
@@ -135,9 +130,7 @@ describe("collectMatchTimestamps", () => {
   });
 
   it("keeps moments past the hour, which read differently", () => {
-    // `formatDuration` switches to H:MM:SS at sixty minutes, so a pill
-    // matcher written as /^\d+:\d{2}$/ stops seeing these — which is how
-    // a cap or a de-duplication bug on a long recording would hide.
+    // `formatDuration` switches to H:MM:SS at sixty minutes.
     const { shown, overflow } = collectMatchTimestamps({
       transcript: [seg(3600), seg(3661), seg(7322), seg(9000)],
     });

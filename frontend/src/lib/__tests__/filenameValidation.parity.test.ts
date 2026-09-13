@@ -1,14 +1,8 @@
 /**
- * Frontend half of the filename-validation parity contract.
- *
  * The inline rename editor rejects bad names locally so the user sees the
  * problem without a round-trip, but `fileops.validate_filename` stays
  * authoritative. Two implementations of one rule drift in silence, so
- * both sides read the same table and one of the two suites fails as soon
- * as they disagree.
- *
- * The backend half is
- * `backend/tests/test_filename_validation_parity.py`.
+ * both sides read the same table.
  */
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";

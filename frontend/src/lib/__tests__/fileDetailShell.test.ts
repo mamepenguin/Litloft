@@ -1,11 +1,3 @@
-/**
- * The predicate three places used to write out for themselves.
- *
- * It decides whether a file brings its own page row. When one of the
- * three had a copy that disagreed — the fullscreen host, which had no
- * copy at all — the result was two breadcrumbs on one page and, on a
- * phone, two back controls.
- */
 import { describe, it, expect } from "vitest";
 
 import type { FileType } from "@/types";
@@ -92,9 +84,6 @@ describe("ridesFileDetailShell", () => {
   });
 
   it("keeps documents on the shell on both surfaces", () => {
-    // A note has drawn its own page row on both for far longer than any
-    // of this. Taking it away on one of them would be a regression, not
-    // a scoping decision.
     for (const on of [canonical, collection]) {
       expect(on({ mimeType: "text/markdown", fileType: "document" })).toBe(true);
       expect(on({ mimeType: "text/html", fileType: "document" })).toBe(true);
@@ -102,10 +91,6 @@ describe("ridesFileDetailShell", () => {
   });
 
   it("routes the other viewers through the shell as well", () => {
-    // The three §7 named. Each had one column with the viewer on top and
-    // everything else under it, so the viewer's height came out of what
-    // was left — a 190-page archive got 100px of it and 440px of
-    // metadata. The shell makes the viewer the canvas.
     expect(canonical({ mimeType: "application/pdf", fileType: "document" })).toBe(
       true,
     );
@@ -116,11 +101,8 @@ describe("ridesFileDetailShell", () => {
   });
 
   it("goes by the kind, not by one mime per kind", () => {
-    // An archive is a `file_type`, and the backend classifies two mimes
-    // into it (`application/zip` and `application/x-zip-compressed`,
-    // `backend/app/services/filetype.py`). Keying on one of them would
-    // route one archive through the shell and leave the next on the old
-    // layout. Images are worse: `mimetypes` resolves a whole family.
+    // The backend classifies more than one mime into a kind, so keying on
+    // one mime would route one archive through the shell and not the next.
     expect(
       canonical({ mimeType: "application/x-zip-compressed", fileType: "archive" }),
     ).toBe(true);
@@ -138,13 +120,8 @@ describe("ridesFileDetailShell", () => {
   });
 
   it("routes the kinds that were only ever a fallthrough as well", () => {
-    // These used to keep the stacked layout, and the reason given was
-    // that §7 named three viewers. That was a description of who had
-    // been looked at, not a decision about these: an `.xlsx` had no
-    // inspector and no way to open one, and neither did `text/plain`,
-    // which was the biggest group left behind and does have a viewer.
-    // The shell is the skeleton for opening a file, so the surface
-    // decides and there is no list to be absent from.
+    // The shell is the skeleton for opening a file, so the surface decides
+    // and there is no list of kinds to be absent from.
     for (const mimeType of [
       "text/plain",
       "application/json",
@@ -161,24 +138,9 @@ describe("ridesFileDetailShell", () => {
   });
 
   it("leaves no file_type off the shell", () => {
-    // Enumerated over the union rather than over the kinds anyone
-    // happened to think of, which is how `subtitle` and `other` came to
-    // be on the old vertical stack without a decision being made about
-    // either.
-    //
-    // **What enforces the enumeration is `tsc`, not this test.** The
-    // mapped type below is what makes a `FileType` added or removed a
-    // compile error (`TS2741` / `TS2353`) — measured, both directions,
-    // and `pnpm test` stays green through both. `pnpm typecheck` runs
-    // it locally and CI runs `tsc --noEmit`. The `toHaveLength` beside
-    // the table is **not** the guard: it counts the literal four lines
-    // above it, so it can only ever agree with itself. It is here as
-    // the follow-up — once `tsc` has forced the table to change, the
-    // count has to be moved by hand, which is the moment somebody reads
-    // this comment.
-    //
-    // What this test *does* check at runtime is the answer for each
-    // representative mime, which is the part `tsc` cannot see.
+    // `tsc`, not this test, enforces the enumeration: the mapped type makes
+    // an added or removed `FileType` a compile error. The `toHaveLength`
+    // only counts the literal table.
     const REPRESENTATIVE: { [K in FileType]: string } = {
       video: "video/mp4",
       image: "image/jpeg",
@@ -195,16 +157,6 @@ describe("ridesFileDetailShell", () => {
   });
 
   it("answers by the surface, not by the kind", () => {
-    // The property that replaced the list, stated so a future kind
-    // cannot be silently left out of it: given a resolved file, the only
-    // thing that changes the answer on the canonical surface is the
-    // document form, which is `true` on both surfaces anyway.
-    //
-    // The expected side is written out. It was `kinds.map(() => true)`,
-    // which is detector rule 5 in its purest form — both sides derived
-    // from `kinds`, so deleting a row shrank them together and the
-    // suite stayed green having measured less. A row removed now leaves
-    // eight `true`s against seven answers.
     const kinds = [
       { mimeType: "video/mp4", fileType: "video" },
       { mimeType: "application/pdf", fileType: "document" },
@@ -228,11 +180,9 @@ describe("ridesFileDetailShell", () => {
   });
 
   it("says no before the file has resolved, so the host keeps drawing the row", () => {
-    // `fileType` is undefined exactly while the fetch is out. Answering
-    // "yes" there takes the page row off the host for the whole of the
-    // load and hands it back after, which is the jump the host draws its
-    // row early to avoid — and it is why `ridesFileDetailShell` still
-    // takes a `fileType` it otherwise has no use for.
+    // `fileType` is undefined exactly while the fetch is out, which is why
+    // `ridesFileDetailShell` still takes a `fileType` it otherwise has no
+    // use for.
     expect(canonical({})).toBe(false);
     expect(collection({})).toBe(false);
     expect(canonical({ mimeType: "application/pdf" })).toBe(false);

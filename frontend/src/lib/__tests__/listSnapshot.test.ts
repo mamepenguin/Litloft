@@ -128,9 +128,8 @@ describe("listSnapshot", () => {
     });
 
     it("evicts a snapshot holding a retired sort field", () => {
-      // Same hazard as the folderPrefs fallback: "likes" outlives the
-      // deploy that removed it, and replaying it would 422
-      // (spec 2026-09-01-favorite-like-separation).
+      // "likes" outlives the deploy that removed it, and replaying it
+      // would 422.
       const stale = {
         ...BASE_SNAPSHOT,
         filters: { ...BASE_SNAPSHOT.filters, sort: "likes" },

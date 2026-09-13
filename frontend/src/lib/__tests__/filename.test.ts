@@ -58,8 +58,6 @@ describe("selectStem", () => {
   });
 
   it("does not treat a leading dot as an extension boundary", () => {
-    // The backend rejects hidden files outright, so a dotfile must not
-    // degrade into an empty selection the user cannot see.
     const el = inputWith(".gitignore");
     selectStem(el);
     expect(el.selectionStart).toBe(0);
