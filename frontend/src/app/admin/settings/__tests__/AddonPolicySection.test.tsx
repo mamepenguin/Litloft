@@ -1,13 +1,3 @@
-// AddonPolicySection test (RED phase)
-//
-// Choices:
-// - Component fetches both /api/admin/config/addon-policy AND /api/addons/status
-//   (manifest list) on mount, in any order.
-// - Policy shape: { driveName: { addonName: bool | { feature: bool } } }
-// - Toggling a checkbox triggers PUT /api/admin/config/addon-policy with the full
-//   updated policy object.
-// - Errors render inline.
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
@@ -60,7 +50,6 @@ const addonsStatusResponse = {
 };
 
 function setupSuccessfulLoads() {
-  // Both calls can occur; mockImplementation routes based on URL.
   mockFetch.mockImplementation((url: string) => {
     if (url === "/api/admin/config/addon-policy") {
       return Promise.resolve(jsonResponse(initialPolicy));
@@ -73,12 +62,8 @@ function setupSuccessfulLoads() {
 }
 
 /**
- * Real backends label their addons; the identifier is the fallback.
- *
- * `label` is optional on `AddonStatusEntry` — `adminConfig.ts` says so
- * where it parses the response, and tolerating a backend that omits it is
- * the reason the fallback exists. So one entry here carries a label and
- * one does not, in the same fixture.
+ * `label` is optional on `AddonStatusEntry`, so one entry here carries a
+ * label and one does not, in the same fixture.
  */
 const labelledStatusResponse = {
   addons: {
@@ -110,16 +95,13 @@ describe("AddonPolicySection column headings", () => {
     const heads = await screen.findAllByRole("columnheader");
     const text = heads.map((h) => h.textContent?.trim());
     expect(text).toContain("Intelligence");
-    // The unlabelled one is still drawn, under its identifier, rather than
-    // the column vanishing or the row falling over.
     expect(text).toContain("knowledge");
     expect(text).not.toContain("intelligence");
   });
 
   /**
-   * The accessible name keeps the identifiers even though the heading no
-   * longer shows them. It has to be unique across the page, and `label` is
-   * neither required nor guaranteed distinct.
+   * The accessible name keeps the identifiers: it has to be unique across
+   * the page, and `label` is neither required nor guaranteed distinct.
    */
   it("addresses a cell by identifier even where the heading reads otherwise", async () => {
     setupLabelledLoads();
@@ -139,9 +121,7 @@ describe("AddonPolicySection layout", () => {
     );
     const cells = Array.from(row.children);
     // Column 0 is the row header; the switch belongs to intelligence's
-    // column, which is column 1. Reading them positionally is the point —
-    // "the toggle is under the checkbox that governs it" is a claim about
-    // which cell it is in, and nothing else says it.
+    // column, which is column 1.
     expect(cells[0]!.textContent).toContain("↳");
     expect(cells[0]!.querySelector('[role="switch"]')).toBeNull();
     const switchCell = cells.find((c) => c.querySelector('[role="switch"]'))!;
@@ -149,10 +129,6 @@ describe("AddonPolicySection layout", () => {
     expect(switchCell.className).toContain("text-center");
   });
 
-  /**
-   * A state, not a call to action. DESIGN.md §2.2 gives state colour to
-   * teal and keeps the accent fill for the one thing to press.
-   */
   it("paints an enabled feature switch teal, not accent", async () => {
     setupSuccessfulLoads();
     render(<AddonPolicySection />);
@@ -166,25 +142,6 @@ describe("AddonPolicySection layout", () => {
     expect(sw.className).not.toMatch(/bg-accent(?![-\w])/);
   });
 
-  /**
-   * The columns run off a narrow screen, and a scroll region that cannot
-   * take focus cannot be scrolled without a pointer — the last addon's
-   * column is then simply unreachable.
-   */
-  /**
-   * The name the region announces has to be a name.
-   *
-   * `src/test/setup.ts`'s global `next-intl` mock renders a miss as
-   * `` `${namespace}.${key}` `` — exactly what the real runtime does — so a
-   * key written in the wrong namespace renders as a developer identifier
-   * and no rendered assertion can tell the difference. The region shipped
-   * announcing "settings.addonPolicy.tableLabel", on the very control
-   * added for screen-reader reachability.
-   *
-   * So the key the component asked for is resolved against the real
-   * catalogues here. Whatever namespace it moves to, it has to exist in
-   * both.
-   */
   it("announces a name, not the key path", async () => {
     setupSuccessfulLoads();
     render(<AddonPolicySection />);
@@ -192,12 +149,10 @@ describe("AddonPolicySection layout", () => {
     const name = region.getAttribute("aria-label")!;
     expect(name).toBeTruthy();
     // next-intl renders a miss as the key path it could not resolve, so
-    // that shape *is* the symptom. Asserted as a shape rather than as one
-    // literal string, which would have to move every time the wording does.
+    // that shape *is* the symptom.
     expect(name, `announced a key path: ${name}`).not.toMatch(
       /^[a-z][\w]*(\.[\w]+)+$/,
     );
-    // And it is the message the catalogues hold, in both locales.
     for (const locale of ["en", "ja"]) {
       const messages = JSON.parse(
         readFileSync(
@@ -239,7 +194,6 @@ describe("AddonPolicySection", () => {
     expect(
       screen.getByRole("columnheader", { name: "knowledge" }),
     ).toBeInTheDocument();
-    // Drive labels also rendered
     expect(screen.getByText("main")).toBeInTheDocument();
     expect(screen.getByText("private")).toBeInTheDocument();
   });
@@ -253,7 +207,6 @@ describe("AddonPolicySection", () => {
       ).toBeInTheDocument();
     });
 
-    // Find a checkbox/toggle for main x knowledge (currently false)
     const toggles = screen.getAllByRole("checkbox");
     expect(toggles.length).toBeGreaterThan(0);
     fireEvent.click(toggles[0]);
@@ -276,13 +229,11 @@ describe("AddonPolicySection", () => {
       ).toBeInTheDocument();
     });
 
-    // main has intelligence: true → sub-toggle present
     const mainSubToggle = screen.queryByTestId(
       "feature-row-main-intelligence-transcription_cloud",
     );
     expect(mainSubToggle).toBeInTheDocument();
 
-    // private has intelligence: false → no sub-toggle
     const privateSubToggle = screen.queryByTestId(
       "feature-row-private-intelligence-transcription_cloud",
     );
@@ -359,41 +310,12 @@ describe("AddonPolicySection", () => {
   });
 });
 
-
-/**
- * The rule this section shares with the listings (`lib/listMeta.ts`): a
- * line whose words are the same on every row is not telling the reader
- * which row they are on.
- *
- * Measured on the running app before the change: the transcription
- * feature's help paragraph was rendered four times, once per drive with
- * intelligence enabled, in a 186px-wide column, and the table stood
- * 1152px tall against an 863px viewport. Without them it is 548px.
- *
- * **jsdom cannot see either of those numbers.** It lays nothing out, so
- * nothing here observes the column width, the table's height, or whether
- * the sticky column headings stay on screen — those were measured in
- * Chrome and are recorded in the PR. What this file can see, and what it
- * asserts, is how many times each paragraph is in the document.
- */
 describe("AddonPolicySection says each explanation once", () => {
   /**
-   * The rendered strings, read from the catalogue the component reads.
-   *
-   * Not the key paths: the global `next-intl` mock resolves against the
-   * real merged messages, so a key path is what a *miss* renders as —
-   * counting those would count zero copies of everything and pass.
-   *
-   * The strings are the intelligence addon's own, and
-   * `scripts/merge-addon-messages.mjs` builds `messages/` by walking the
-   * `messages` directory under each entry in `src/addons` — so with the
-   * addon unlinked the namespace is
-   * not in the file and reading through it threw at collection time,
-   * taking every case in this file down with it. `design-decisions.md`
-   * §Addons makes unlinking an addon the way it is disabled, so
-   * the block gates on the link rather than on the key: an absent
-   * addon skips, and an addon that is installed but has renamed the key
-   * is a defect and fails on the case below.
+   * The rendered strings, not the key paths: the global `next-intl` mock
+   * resolves against the real merged messages, so a key path is what a
+   * *miss* renders as. The strings exist only while the intelligence addon
+   * is linked, so the block gates on the link rather than on the key.
    */
   const ADDON_DIR = resolve(REPO_ROOT, "frontend/src/addons/intelligence");
   const intelligenceLinked =
@@ -417,16 +339,11 @@ describe("AddonPolicySection says each explanation once", () => {
   it.runIf(intelligenceLinked)(
     "reads a catalogue that still carries the feature it counts",
     () => {
-      // Without this the fallbacks above would turn a renamed key into
-      // three empty needles, and "how many copies of `''` are in the
-      // document" is a question every case here answers wrongly and
-      // quietly.
       expect(feature).toBeDefined();
       expect([HELP, WARNING, LABEL].every((s) => s.length > 0)).toBe(true);
     },
   );
 
-  /** Three drives, all with intelligence on: three rows, one legend. */
   const threeDrives = {
     main: { intelligence: true },
     photos: { intelligence: true },
@@ -449,24 +366,17 @@ describe("AddonPolicySection says each explanation once", () => {
     setupDrives(threeDrives);
     render(<AddonPolicySection />);
 
-    // Three rows, so three switches and three copies of the row's own
-    // name — that part is per-row and stays.
     await waitFor(() => {
       expect(screen.getAllByRole("switch")).toHaveLength(3);
     });
-    // The feature's *name* is per-row and stays per-row — one in each of
-    // the three rows — and the legend names it once more so its entry can
-    // be told from the next feature's. Counted by where they are rather
-    // than by text alone, because the two are different elements saying
-    // the same words on purpose.
+    // Counted by where they are rather than by text alone, because the row
+    // and the legend are different elements saying the same words on purpose.
     const named = (root: ParentNode, selector: string) =>
       Array.from(root.querySelectorAll(selector)).filter((el) =>
         el.textContent!.includes(LABEL),
       );
     expect(named(document.body, "tbody td")).toHaveLength(3);
     expect(named(document.body, "dt")).toHaveLength(1);
-    // `toBe(1)`, not `toBeLessThan(4)`: a bound would go green again the
-    // moment a second copy came back for a different reason.
     expect(screen.getAllByText(HELP)).toHaveLength(1);
   });
 
@@ -485,9 +395,6 @@ describe("AddonPolicySection says each explanation once", () => {
   });
 
   it.runIf(intelligenceLinked)("says nothing about a feature no drive is showing a row for", async () => {
-    // A legend entry for a control that is not on the page is the
-    // "heading for a thing that does not exist yet" the redesign's first
-    // principle rejects.
     setupDrives({ main: { intelligence: false }, photos: { intelligence: false } });
     render(<AddonPolicySection />);
 
@@ -502,10 +409,7 @@ describe("AddonPolicySection says each explanation once", () => {
 
   it.runIf(intelligenceLinked)("names the addon on each legend entry", async () => {
     // The only thing tying an entry to the column it explains: the rows
-    // draw `↳ <feature label>` and no addon name, so with two addons
-    // declaring a same-named feature the legend would be two entries a
-    // reader cannot tell apart. Measured before this case existed:
-    // blanking the addon label left all 98 jsdom tests green.
+    // draw `↳ <feature label>` and no addon name.
     setupDrives(threeDrives);
     render(<AddonPolicySection />);
 
@@ -519,10 +423,8 @@ describe("AddonPolicySection says each explanation once", () => {
   });
 
   it.runIf(intelligenceLinked)("draws no empty rule under the table when nothing declares a feature", async () => {
-    // `intelligence` is the only addon in the tree that declares
-    // `policy_features`, so every install without it takes this path. The
-    // `<dl>` carries `border-t` and `mt-6`, so an unguarded one is a
-    // stray rule under the table on all of them.
+    // The `<dl>` carries `border-t` and `mt-6`, so an unguarded one is a
+    // stray rule under the table.
     mockFetch.mockImplementation((url: string) => {
       if (url === "/api/admin/config/addon-policy") {
         return Promise.resolve(jsonResponse({ main: { knowledge: true } }));

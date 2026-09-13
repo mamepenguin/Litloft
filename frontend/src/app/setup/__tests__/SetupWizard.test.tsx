@@ -1,22 +1,3 @@
-// SetupWizard integration test (Phase 2: multi detected-drives).
-//
-// spec 2026-05-19-gui-first-setup-cli-bootstrap §3.3 / plan Phase 2.
-//
-// On mount the wizard fetches GET /api/admin/config/setup-status and
-// seeds its drive drafts from the returned `drives`. The DriveStep then
-// shows those detected drives (name + group editable, path read-only).
-// Final submit re-PUTs the whole drive array.
-//
-// Flow:
-//   Language → Welcome → Drive → AccessMode → (Password) → AddonPolicy → Complete
-// Password is skipped when access mode is 全公開 (public).
-// Final submit calls, in order:
-//   PUT  /api/admin/config/drives
-//   PUT  /api/admin/config/passwords (protected only)
-//   PUT  /api/admin/config/addon-policy
-//   POST /api/admin/config/complete-setup
-// then router.push('/admin').
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
@@ -42,7 +23,6 @@ function jsonResponse(data: unknown, status = 200) {
   });
 }
 
-// Default setup-status payload: two detected drives, setup not completed.
 const DETECTED = [
   { name: "media", path: "/app/drives/media" },
   { name: "docs", path: "/app/drives/docs" },
@@ -72,7 +52,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// Advance past the Welcome step (between Language and Drive).
 function passWelcomeStep() {
   const start =
     screen.queryByRole("button", { name: /get started|start|begin/i }) ??
@@ -80,7 +59,6 @@ function passWelcomeStep() {
   if (start) fireEvent.click(start);
 }
 
-// Drive the wizard from Language through the detected DriveStep.
 async function reachDriveStep() {
   fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
   fireEvent.click(screen.getByRole("button", { name: /next/i }));
@@ -91,7 +69,6 @@ async function reachDriveStep() {
     expect(start).not.toBeNull();
   });
   passWelcomeStep();
-  // Detected drive name inputs should be present (default = slug).
   await waitFor(() => {
     expect(screen.getByDisplayValue("media")).toBeInTheDocument();
   });
@@ -142,7 +119,6 @@ describe("SetupWizard (detected drives)", () => {
     fireEvent.change(firstName, { target: { value: "Movies" } });
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    // On AccessMode, go Back.
     fireEvent.click(screen.getByRole("button", { name: /back/i }));
 
     await waitFor(() => {
@@ -154,17 +130,14 @@ describe("SetupWizard (detected drives)", () => {
     render(<SetupWizard />);
     await reachDriveStep();
 
-    // Rename the first drive so we can assert it is sent.
     fireEvent.change(screen.getByDisplayValue("media"), {
       target: { value: "Movies" },
     });
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    // AccessMode: 全公開
     fireEvent.click(screen.getByLabelText(/public/i));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
-    // AddonPolicy: skip / next
     await waitFor(() => {
       expect(
         screen.getByRole("button", { name: /skip|next/i }),
@@ -175,7 +148,6 @@ describe("SetupWizard (detected drives)", () => {
       screen.getByRole("button", { name: /next/i });
     fireEvent.click(skipOrNext);
 
-    // Complete
     await waitFor(() => {
       expect(
         screen.getByRole("button", { name: /finish|complete/i }),
@@ -196,7 +168,6 @@ describe("SetupWizard (detected drives)", () => {
       );
     });
 
-    // The drives PUT body must be the full array with the rename applied.
     const drivesPut = mockFetch.mock.calls.find(
       ([url, opts]) =>
         url === "/api/admin/config/drives" &&
@@ -258,12 +229,10 @@ describe("SetupWizard (detected drives)", () => {
     expect(
       screen.getAllByText(/docker-compose\.override\.yml/i).length,
     ).toBeGreaterThan(0);
-    // Next on the empty DriveStep must be disabled.
     expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
   });
 });
 
-// Welcome-step ordering regression (kept from the original suite).
 describe("SetupWizard with WelcomeStep", () => {
   function findWelcomeStartButton(): HTMLElement | null {
     return (
@@ -284,7 +253,6 @@ describe("SetupWizard with WelcomeStep", () => {
     await waitFor(() => {
       expect(findWelcomeStartButton()).not.toBeNull();
     });
-    // Detected drive inputs should NOT be visible yet.
     expect(screen.queryByDisplayValue("media")).toBeNull();
   });
 

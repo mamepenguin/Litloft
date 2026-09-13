@@ -20,8 +20,6 @@ vi.mock("next/headers", () => ({
   cookies: () => mocks.cookies(),
 }));
 
-// Stub the FileDetailFullScreen so the collection path can be exercised
-// without pulling in the entire client-side tree.
 vi.mock("@/components/FileDetailFullScreen", () => ({
   FileDetailFullScreen: ({ fileId }: { fileId: string }) => ({
     type: "div",
@@ -113,11 +111,6 @@ describe("/files/[id] Server Component", () => {
     const target = mocks.redirect.mock.calls[0][0] as string;
     const url = new URL(`http://localhost${target}`);
     expect(url.searchParams.get("file")).toBe("abc");
-    // useCreateFile (Topic 12) navigates to ``/files/{id}?edit=1`` to
-    // open the new note in the editor. PR-5 made /files/{id} a
-    // redirect, and the original CARRIED_QUERY_KEYS list dropped
-    // ?edit; Pre-PR adds ``edit`` so the auto-edit-start signal
-    // survives the canonical-URL trip.
     expect(url.searchParams.get("edit")).toBe("1");
   });
 

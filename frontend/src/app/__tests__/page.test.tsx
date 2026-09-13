@@ -74,17 +74,13 @@ afterEach(() => {
 
 describe("/ root home (Server Component)", () => {
   it("heads the page once, over the drive list it is about", async () => {
-    // The wordmark used to sit in a bordered card with a tagline under
-    // it, and "Drives" was a second heading directly below — two
-    // headings and a fixed sentence above the only content on the page.
     setDrives([{ name: "Media", protected: false, file_count: 3 }]);
     render(await Home());
     const top = screen.getAllByRole("heading", { level: 1 });
     expect(top).toHaveLength(1);
     expect(top[0].textContent).toBe("Litloft");
-    // No second heading over the grid, and none inside the cells either:
-    // a grid of drive names is not a set of document sections
-    // (`card-titles.test.ts`).
+    // None inside the cells either: a grid of drive names is not a set of
+    // document sections.
     expect(screen.queryAllByRole("heading", { level: 2 })).toHaveLength(0);
     expect(screen.queryAllByRole("heading", { level: 3 })).toHaveLength(0);
     expect(screen.queryByText("tagline")).toBeNull();
@@ -104,8 +100,6 @@ describe("/ root home (Server Component)", () => {
   });
 
   it("forwards only access_token upstream, never lit_viewer (JWT/viewer orthogonality)", async () => {
-    // design-decisions.md: keep the access JWT and the personal-identity
-    // lit_viewer cookie orthogonal — lit_viewer must never reach the backend.
     mocks.cookies.mockResolvedValue({
       get: (name: string) =>
         name === "access_token"
@@ -190,11 +184,8 @@ describe("/ root home (Server Component)", () => {
     // cells match at every column count without either one saying a width.
     expect(link.className).not.toMatch(/\b(w-|h-|min-w-|max-w-)/);
 
-    // ...and the same box, which is not the same thing. A grid row
-    // stretches its cells to the tallest, so a difference only shows at
-    // one column — where the outlined cell came out 2px taller than the
-    // filled one until the filled one grew a transparent border of its
-    // own. Measured at 375 / 400 / 430: 80 vs 82.
+    // The same box as well: a grid row stretches its cells to the tallest,
+    // so a difference in border or padding only shows at one column.
     const drive = screen.getByRole("link", { name: /Media/ });
     const boxOf = (el: Element) =>
       el.className
@@ -205,10 +196,9 @@ describe("/ root home (Server Component)", () => {
   });
 
   /**
-   * The one check that keeps the access rule from leaking out of the
-   * backend. A locked drive is hidden by 404 rather than merely closed
-   * (`design-decisions.md`, Access control), so this card must not name
-   * what is behind it — not the drive, not how many, not the group.
+   * A locked drive is hidden by 404 rather than merely closed, so this card
+   * must not name what is behind it — not the drive, not how many, not the
+   * group.
    */
   it("says nothing about what is behind the lock", async () => {
     setDrives([{ name: "Media", protected: false, file_count: 10 }]);
@@ -272,9 +262,8 @@ describe("/ root home (Server Component)", () => {
   });
 
   /**
-   * 裁定 R2 — `/` is under the accent budget like every other screen, and
-   * it spends nothing today. Asserted so that the locked-drive card, the
-   * one thing on this page that could reach for a fill, cannot take it.
+   * `/` is under the accent budget like every other screen; the locked-drive
+   * card is the one thing here that could reach for a fill.
    */
   it("spends no accent fill", async () => {
     setDrives([

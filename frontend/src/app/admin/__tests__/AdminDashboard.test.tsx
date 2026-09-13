@@ -16,9 +16,8 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/admin",
 }));
 
-// The slots draw addon content this test has no business rendering, and
-// `accent-budget.test.tsx` stubs them for the same reason: a screen's own
-// budget is what it spends, not what an installed addon spends inside it.
+// A screen's own accent budget is what it spends, not what an installed
+// addon spends inside it.
 vi.mock("@/components/AddonSlot", () => ({
   AddonSlot: () => null,
 }));
@@ -66,11 +65,9 @@ describe("/admin dashboard", () => {
   async function renderDashboard(drives: ReturnType<typeof drive>[]) {
     mockGetDashboard.mockResolvedValue({ drives, system });
     const view = render(<AdminDashboardPage />);
-    // The rendered result, not the call that starts it. `getDashboard` is
+    // The rendered result, not the call that starts it: `getDashboard` is
     // invoked synchronously inside `render`'s act, so waiting for the mock
-    // returns while the skeletons may still be on screen — and a skeleton
-    // has no accent fill and no alerts wrapper either, so two of the
-    // assertions below would pass over nothing.
+    // returns while the skeletons may still be on screen.
     await screen.findAllByRole("heading", { level: 3 });
     return view;
   }
@@ -99,12 +96,6 @@ describe("/admin dashboard", () => {
     expect(breakdowns[0]).toContain("filter.type.image 0");
   });
 
-  /**
-   * A regression check, not a repair: `/admin` spent no accent fill
-   * before this either. It is here because the dashboard is where an
-   * addon widget and three card headings meet, and 裁定 R2 puts every
-   * core screen under the budget rather than only the ones that failed it.
-   */
   it("spends no accent fill", async () => {
     const { container } = await renderDashboard([
       drive("Media", { video: 500 }),
@@ -113,18 +104,13 @@ describe("/admin dashboard", () => {
   });
 
   it("keeps the alerts slot above everything that is fine", async () => {
-    // ADM-2 put "anything wrong" between the header and the drive cards.
     // The slot is stubbed to null here, so what is asserted is the
-    // wrapper's position in the document, which is what carries the rule.
+    // wrapper's position in the document.
     const { container } = await renderDashboard([drive("Media", { video: 1 })]);
     const alerts = container.querySelector(".empty\\:hidden");
     const drivesSection = container.querySelector("section");
     const header = container.querySelector("header");
     expect(alerts).not.toBeNull();
-    // Both bounds. With only the lower one, moving the band above the
-    // page's own title left this green — and "anything wrong, above
-    // everything that is fine" is a claim about a position inside the
-    // page, not above its heading.
     expect(
       header!.compareDocumentPosition(alerts!) &
         Node.DOCUMENT_POSITION_FOLLOWING,

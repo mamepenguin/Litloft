@@ -1,15 +1,5 @@
-// WelcomeStep test (RED phase)
-//
-// Choices:
-// - WelcomeStep is a localized intro screen between LanguageStep and DriveStep.
-// - Props: { onNext: () => void; onBack: () => void }.
-// - It uses i18n keys under `setup.welcome.*`. The global next-intl mock in
-//   src/test/setup.ts looks values up against messages/en.json; missing keys
-//   fall back to the dotted path string (e.g. "setup.welcome.greeting"),
-//   which is sufficient to assert structural rendering even before the JSON
-//   keys are added.
-// - The "5 setup items" must be rendered inside an <ol>.
-// - "Back" calls onBack; "Get started" calls onNext.
+// The global next-intl mock falls back to the dotted key path for a missing
+// key, so each query accepts either the localized text or that path.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
@@ -27,8 +17,6 @@ afterEach(() => {
 describe("WelcomeStep", () => {
   it("renders a top-level heading (greeting)", () => {
     render(<WelcomeStep onNext={vi.fn()} onBack={vi.fn()} />);
-    // Greeting is the only h1/h2 in this step. We accept either an actual
-    // localized greeting (after ja.json is updated) or the fallback key path.
     const heading =
       screen.queryByRole("heading", { name: /welcome/i }) ??
       screen.queryByRole("heading", { name: /setup\.welcome\.greeting/i });
@@ -37,8 +25,6 @@ describe("WelcomeStep", () => {
 
   it("renders the intro copy", () => {
     render(<WelcomeStep onNext={vi.fn()} onBack={vi.fn()} />);
-    // The intro paragraph either contains the localized text or the fallback
-    // key path.
     const intro =
       screen.queryByText(/self-host|file/i) ??
       screen.queryByText(/setup\.welcome\.intro/i);
@@ -66,7 +52,6 @@ describe("WelcomeStep", () => {
   it('has a primary "start" button that invokes onNext', () => {
     const onNext = vi.fn();
     render(<WelcomeStep onNext={onNext} onBack={vi.fn()} />);
-    // Match either the localized "Get started" or the i18n fallback key string.
     const startBtn =
       screen.queryByRole("button", { name: /get started|start|begin/i }) ??
       screen.getByRole("button", { name: /setup\.welcome\.startButton/i });

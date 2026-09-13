@@ -1,15 +1,3 @@
-// Stepper test (RED phase)
-//
-// Choices:
-// - Stepper is a presentational component for the wizard progress.
-// - Props: `steps: Array<{ id: string; label: string }>`, `currentIndex: number`.
-// - Each step indicator carries one of three visual states by class:
-//     completed (i < currentIndex)  -> contains "bg-accent-teal"
-//     active    (i === currentIndex)-> contains "bg-accent" and aria-current="step"
-//     future    (i > currentIndex)  -> contains "bg-warm-light"
-// - Step list is exposed as role="list" with role="listitem" children for a11y.
-// - The numeric label of each step is rendered as visible text.
-
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 
@@ -61,15 +49,12 @@ describe("Stepper", () => {
       <Stepper steps={PUBLIC_STEPS} currentIndex={0} />,
     );
 
-    // The active item should have aria-current="step" and an indicator with bg-accent.
     const active = container.querySelector('[aria-current="step"]');
     expect(active).not.toBeNull();
     expect(active!.innerHTML).toContain("bg-accent");
 
-    // No element should be marked completed (no bg-accent-teal indicator).
     expect(container.innerHTML).not.toContain("bg-accent-teal");
 
-    // Remaining indicators should be future (bg-warm-light) — at least 3.
     const futureMatches = container.innerHTML.match(/bg-warm-light/g) ?? [];
     expect(futureMatches.length).toBeGreaterThanOrEqual(3);
   });
@@ -81,17 +66,14 @@ describe("Stepper", () => {
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(4);
 
-    // Indices 0 and 1 should be completed (bg-accent-teal), no aria-current.
     expect(items[0].getAttribute("aria-current")).toBeNull();
     expect(items[0].innerHTML).toContain("bg-accent-teal");
     expect(items[1].getAttribute("aria-current")).toBeNull();
     expect(items[1].innerHTML).toContain("bg-accent-teal");
 
-    // Index 2 should be active (bg-accent + aria-current).
     expect(items[2].getAttribute("aria-current")).toBe("step");
     expect(items[2].innerHTML).toContain("bg-accent");
 
-    // Index 3 should be future (bg-warm-light, no aria-current).
     expect(items[3].getAttribute("aria-current")).toBeNull();
     expect(items[3].innerHTML).toContain("bg-warm-light");
   });
@@ -105,17 +87,14 @@ describe("Stepper", () => {
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(5);
 
-    // All but last are completed.
     for (let i = 0; i < lastIdx; i++) {
       expect(items[i].getAttribute("aria-current")).toBeNull();
       expect(items[i].innerHTML).toContain("bg-accent-teal");
     }
 
-    // Last is active.
     expect(items[lastIdx].getAttribute("aria-current")).toBe("step");
     expect(items[lastIdx].innerHTML).toContain("bg-accent");
 
-    // No future indicator (bg-warm-light) at all.
     expect(container.innerHTML).not.toContain("bg-warm-light");
   });
 
