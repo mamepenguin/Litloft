@@ -996,14 +996,20 @@ relationship, and rendering a button gives a button inside a dropdown.
 | Prop | Type | Meaning |
 |---|---|---|
 | `drive` | `string` | The drive being browsed. |
-| `fileIds` | `string[]` | The files the listing currently holds. |
-| `path` | `string` | The folder being browsed, drive-relative; `""` at the drive root. |
+| `surface` | `"home" \| "library"` | Which screen the menu is on: the drive's Home, or Library (the drive root or a folder). |
+| `path` | `string` | Where the entry writes, drive-relative: the folder being browsed in Library, `""` at the drive root and always `""` on Home. |
+| `fileIds` | `string[]` | The files the Library listing currently holds. Always `[]` on Home. |
 | `onRequestClose` | `() => void` | Ask the host to close the menu. Reserved: the host applies it after spreading the context above, so an entry cannot override it. |
+| `onDialogOpenChange` | `(open: boolean) => void` | Report that the entry opened (`true`) or closed (`false`) a dialog. Reserved, like `onRequestClose`. |
 
-There is no `onDialogOpenChange` here. This menu is not the file detail
-page's `[...]`, which stays open behind a modal so its subtree survives —
-an entry here that needs a dialog should render the dialog outside the
-menu's subtree from the start.
+An entry that opens a dialog renders it outside the menu (portal it to
+`document.body`), calls `onDialogOpenChange(true)`, and does not close the
+menu: closing it unmounts the entry and the dialog with it. While a dialog is
+reported open, pressing outside the menu does not close it and the menu does
+not answer Escape, so the dialog's own Escape applies. Call
+`onDialogOpenChange(false)` when the dialog is dismissed, then `onRequestClose`
+if the menu should close too. The host clears the flag whenever the menu
+closes, so a missed `false` does not leave the next menu undismissable.
 
 The host renders nothing at all — not even the separator — when no addon
 declares the slot, so an installed-but-idle addon costs the menu no

@@ -117,7 +117,7 @@ export function FolderToolbar({
     <AddButton
       onCreateFolder={() => onSetCreatingFolder(true)}
       onCreateFile={onCreateFile}
-      addonProps={{ fileIds, drive, path: folderPath ?? "" }}
+      addonProps={{ fileIds, drive, path: folderPath ?? "", surface: "library" }}
     />
   ) : null;
 

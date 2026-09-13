@@ -12,13 +12,36 @@ const slotEntries = { current: 0 };
 const slotDraws = { current: true as boolean | "whitespace" };
 const addonSlotCalls: Array<Record<string, unknown>> = [];
 
-vi.mock("@/components/AddonSlot", () => ({
+const slotDialog = { current: false };
+
+vi.mock("@/components/AddonSlot", async () => {
+  const { createPortal } = await import("react-dom");
+  return {
   AddonSlot: (props: Record<string, unknown>) => {
     addonSlotCalls.push(props);
+    const entry = props.props as Record<string, unknown>;
+    if (slotDialog.current) {
+      const setDialog = entry.onDialogOpenChange as (open: boolean) => void;
+      return (
+        <>
+          <button role="menuitem" onClick={() => setDialog(true)}>
+            open dialog
+          </button>
+          {createPortal(
+            <div role="dialog">
+              <input aria-label="dialog field" />
+              <button onClick={() => setDialog(false)}>dismiss dialog</button>
+            </div>,
+            document.body,
+          )}
+        </>
+      );
+    }
     if (slotDraws.current === "whitespace") return <>{" "}</>;
     return slotDraws.current ? <button role="menuitem">addon row</button> : null;
   },
-}));
+  };
+});
 
 vi.mock("@/components/AddonSlotsProvider", () => ({
   useAddonSlots: () => ({
@@ -32,6 +55,7 @@ describe("AddButton", () => {
   beforeEach(() => {
     slotEntries.current = 0;
     slotDraws.current = true;
+    slotDialog.current = false;
     addonSlotCalls.length = 0;
   });
   afterEach(cleanup);
@@ -255,6 +279,141 @@ describe("AddButton", () => {
       expect(props.path).toBe("p");
 
       act(() => (props.onRequestClose as () => void)());
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+
+    it("keeps onDialogOpenChange for itself", () => {
+      slotEntries.current = 1;
+      const theirs = vi.fn();
+      render(
+        <AddButton addonProps={{ drive: "d", onDialogOpenChange: theirs }} />,
+      );
+      open();
+      const props = addonSlotCalls[0].props as Record<string, unknown>;
+      expect(typeof props.onDialogOpenChange).toBe("function");
+      expect(props.onDialogOpenChange).not.toBe(theirs);
+      act(() => (props.onDialogOpenChange as (o: boolean) => void)(true));
+      expect(theirs).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a dialog raised from an addon row", () => {
+    const pressOn = (el: Element) => fireEvent.pointerDown(el, { button: 0 });
+    const escapeOn = (el: Element) => fireEvent.keyDown(el, { key: "Escape" });
+
+    const renderWithDialog = () => {
+      slotEntries.current = 1;
+      slotDialog.current = true;
+      render(
+        <ShortcutsProvider>
+          <AddButton addonProps={{ drive: "d", path: "" }} />
+          <p>outside</p>
+        </ShortcutsProvider>,
+      );
+      return screen.getByRole("button", { name: /Add/ });
+    };
+
+    it("puts the dialog outside the menu, so the press test is real", () => {
+      renderWithDialog();
+      open();
+      expect(screen.getByRole("menu").contains(screen.getByRole("dialog"))).toBe(false);
+    });
+
+    it("leaves the menu open when the dialog is pressed", () => {
+      renderWithDialog();
+      open();
+      fireEvent.click(screen.getByText("open dialog"));
+
+      pressOn(screen.getByLabelText("dialog field"));
+
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("closes the menu when the dialog is pressed without having been reported", () => {
+      renderWithDialog();
+      open();
+
+      pressOn(screen.getByLabelText("dialog field"));
+
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+
+    it("does not answer Escape while the dialog is open, and does once it closes", () => {
+      const trigger = renderWithDialog();
+      open();
+      fireEvent.click(screen.getByText("open dialog"));
+      const field = screen.getByLabelText("dialog field");
+      field.focus();
+
+      escapeOn(field);
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText("dismiss dialog"));
+      screen.getByText("open dialog").focus();
+      escapeOn(screen.getByText("open dialog"));
+
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+
+    it("closes on an outside press once the dialog closes", () => {
+      renderWithDialog();
+      open();
+      fireEvent.click(screen.getByText("open dialog"));
+      pressOn(screen.getByText("outside"));
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText("dismiss dialog"));
+      pressOn(screen.getByText("outside"));
+
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+
+    it.each([
+      [
+        "the entry asks to close",
+        () => {
+          const props = addonSlotCalls.at(-1)!.props as Record<string, unknown>;
+          act(() => (props.onRequestClose as () => void)());
+        },
+      ],
+      ["the trigger is pressed again", () => open()],
+    ])(
+      "is not stranded open by a dialog left reported when %s",
+      (_, closeWithDialogReported) => {
+        renderWithDialog();
+        open();
+        fireEvent.click(screen.getByText("open dialog"));
+
+        closeWithDialogReported();
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+        open();
+        pressOn(screen.getByText("outside"));
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+        open();
+        escapeOn(screen.getByText("outside"));
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      },
+    );
+
+    it("closes on an outside press and on Escape for a row that never reports a dialog", () => {
+      slotEntries.current = 1;
+      render(
+        <ShortcutsProvider>
+          <AddButton addonProps={{ drive: "d" }} />
+          <p>outside</p>
+        </ShortcutsProvider>,
+      );
+      open();
+      expect(screen.getByText("addon row")).toBeInTheDocument();
+      pressOn(screen.getByText("outside"));
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+      open();
+      escapeOn(screen.getByText("outside"));
       expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     });
   });

@@ -48,13 +48,17 @@ vi.mock("@/components/AddonSlotsProvider", () => ({
     hasSlot: (id: string) => id === ADD_MENU_SLOT_ID && slotIsRegistered.current,
   }),
 }));
+const addMenuSlotProps: Array<Record<string, unknown>> = [];
 vi.mock("@/components/AddonSlot", () => ({
-  AddonSlot: ({ id }: { id: string }) =>
-    id === ADD_MENU_SLOT_ID ? (
+  AddonSlot: ({ id, props }: { id: string; props?: Record<string, unknown> }) => {
+    if (id !== ADD_MENU_SLOT_ID) return null;
+    addMenuSlotProps.push(props ?? {});
+    return (
       <button type="button" role="menuitem">
         Addon row
       </button>
-    ) : null,
+    );
+  },
 }));
 
 const mockRefreshTree = vi.fn();
@@ -94,7 +98,6 @@ import { DriveHome } from "../components/DriveHome";
 // The catalogue itself, so a prompt's words are read from where a real
 // one would take them rather than guessed at here.
 import messages from "@/messages-core/en.json";
-import { AddButton } from "@/components/AddButton";
 import type { WatchHistoryItem } from "@/types";
 
 const makeWatchHistoryItem = (id: string): WatchHistoryItem => ({
@@ -624,6 +627,10 @@ describe("the drive root's header", () => {
     });
 
     await waitFor(() => expect(mockRefreshTree).toHaveBeenCalled());
+    expect(mockInitUpload).toHaveBeenCalledWith(
+      "media",
+      expect.objectContaining({ folder_path: "", filename: "note.txt" }),
+    );
   });
 
   it("offers uploading and nothing that acts on a folder", async () => {
@@ -641,36 +648,18 @@ describe("the drive root's header", () => {
     expect(rows).toEqual(["Files", "Folder"]);
   });
 
-  it("offers no addon rows either, on a drive where an addon has registered for them", async () => {
-    // The third prop, and the one the other case cannot reach: addon rows
-    // are gated on `hasSlot(ADD_MENU_SLOT)` as well as on the caller
-    // passing `addonProps`, so with no addon registered the caller's
-    // argument is unobservable. Registering one is what makes the second
-    // gate the only thing left, which is the gate this page owns.
-    //
-    // `docs/user-guide/file-browsing.md` tells a reader the addon rows are
-    // among what this menu does not offer, so it is a claim as much as the
-    // other two are.
+  it.each(["media", "books"])("offers addon rows below its own, writing to the root of %s", async (driveName) => {
     slotIsRegistered.current = true;
-    render(<DriveHome driveName="media" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
-    const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
-    expect(rows).toEqual(["Files", "Folder"]);
-  });
-
-  it("draws an addon row where one is registered and the caller asks for it", async () => {
-    // The population, asserted separately, because a claim that
-    // something happens now is unverified until its not happening
-    // breaks something. Without this, the case above passes over a
-    // stand-in that never draws — the state this file was in when
-    // `addonProps` was filed as inert.
-    slotIsRegistered.current = true;
-    render(
-      <AddButton align="right" addonProps={{ drive: "media", path: "" }} />,
-    );
+    addMenuSlotProps.length = 0;
+    render(<DriveHome driveName={driveName} />);
     fireEvent.click(await screen.findByRole("button", { name: "Add" }));
     const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
     expect(rows).toEqual(["Files", "Folder", "Addon row"]);
+
+    const { onRequestClose, onDialogOpenChange, ...context } = addMenuSlotProps[0];
+    expect(context).toEqual({ drive: driveName, path: "", surface: "home", fileIds: [] });
+    expect(typeof onRequestClose).toBe("function");
+    expect(typeof onDialogOpenChange).toBe("function");
   });
 
   it("opens its menu away from the edge it sits against", async () => {

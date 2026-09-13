@@ -381,6 +381,10 @@ export function DriveHome({ driveName }: DriveHomeProps) {
             // the menu is wider than its trigger, so anchored left it
             // would grow off the right edge of the page.
             align="right"
+            // `fileIds` is empty rather than the files the rows below show:
+            // rows that act on a listing's files would otherwise offer to
+            // run over a sample this page picked.
+            addonProps={{ drive: driveName, path: "", surface: "home", fileIds: [] }}
           />
         }
       />

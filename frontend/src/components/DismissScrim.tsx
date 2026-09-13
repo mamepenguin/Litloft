@@ -20,6 +20,12 @@ export interface DismissScrimProps {
    * control and does nothing but close.
    */
   label?: string;
+  /**
+   * Ignore presses while true, keeping the popup mounted. Rendering the
+   * popup without the scrim instead would change the element at its
+   * position and remount everything inside it.
+   */
+  disabled?: boolean;
   "data-testid"?: string;
 }
 
@@ -123,19 +129,23 @@ export function DismissScrim({
   children,
   className = MENU_SCRIM,
   label,
+  disabled = false,
   "data-testid": testId,
 }: DismissScrimProps): ReactElement {
   const scrimRef = useRef<HTMLElement | null>(null);
   const dismiss = useRef(onDismiss);
+  const ignoring = useRef(disabled);
 
   useEffect(() => {
     dismiss.current = onDismiss;
+    ignoring.current = disabled;
   });
 
   useEffect(() => {
     if (pressInFlight) swallowTheClickThisPressProduces(pressInFlight);
 
     const onPress = (e: Event) => {
+      if (ignoring.current) return;
       const popup = scrimRef.current?.nextElementSibling ?? null;
       const target = e.target;
       if (popup && target instanceof Node && popup.contains(target)) return;
