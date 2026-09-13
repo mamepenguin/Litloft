@@ -123,7 +123,7 @@ export function AddButton({
   useEffect(() => {
     // Set by an addon in another repository. Clearing it here means an entry
     // that forgets `onDialogOpenChange(false)` cannot leave the next menu
-    // with no scrim and no Escape.
+    // ignoring outside presses and Escape.
     if (!menuOpen) setAddonDialogOpen(false);
   }, [menuOpen]);
 
@@ -302,23 +302,21 @@ export function AddButton({
           {t("add")}
           <ChevronDown size={14} className="opacity-70" />
         </Button>
-        {menuOpen &&
-          (addonDialogOpen ? (
-            menu
-          ) : (
-            <DismissScrim
-              onDismiss={() => setMenuOpen(false)}
-              // No tint: this menu stays anchored to its trigger at every
-              // width, so there is no sheet for a dim to explain.
-              //
-              // Not while a dialog raised from a row is up: the dialog
-              // portals out of the menu, and the scrim counts any press
-              // outside the menu as a dismissal.
-              className="fixed inset-0 z-30"
-            >
-              {menu}
-            </DismissScrim>
-          ))}
+        {menuOpen && (
+          <DismissScrim
+            onDismiss={() => setMenuOpen(false)}
+            // No tint: this menu stays anchored to its trigger at every
+            // width, so there is no sheet for a dim to explain.
+            //
+            // Disabled while a dialog raised from a row is up: the dialog
+            // portals out of the menu, and the scrim counts any press
+            // outside the menu as a dismissal.
+            disabled={addonDialogOpen}
+            className="fixed inset-0 z-30"
+          >
+            {menu}
+          </DismissScrim>
+        )}
       </div>
     </>
   );

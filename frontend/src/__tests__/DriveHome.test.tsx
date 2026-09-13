@@ -648,16 +648,16 @@ describe("the drive root's header", () => {
     expect(rows).toEqual(["Files", "Folder"]);
   });
 
-  it("offers addon rows below its own, writing to the drive root", async () => {
+  it.each(["media", "books"])("offers addon rows below its own, writing to the root of %s", async (driveName) => {
     slotIsRegistered.current = true;
     addMenuSlotProps.length = 0;
-    render(<DriveHome driveName="media" />);
+    render(<DriveHome driveName={driveName} />);
     fireEvent.click(await screen.findByRole("button", { name: "Add" }));
     const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
     expect(rows).toEqual(["Files", "Folder", "Addon row"]);
 
     const { onRequestClose, onDialogOpenChange, ...context } = addMenuSlotProps[0];
-    expect(context).toEqual({ drive: "media", path: "", surface: "home", fileIds: [] });
+    expect(context).toEqual({ drive: driveName, path: "", surface: "home", fileIds: [] });
     expect(typeof onRequestClose).toBe("function");
     expect(typeof onDialogOpenChange).toBe("function");
   });
