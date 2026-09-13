@@ -42,7 +42,8 @@ Treat the DB not as an FS cache, but as an independent source of truth that hold
 - `files.purged` is emitted only on an explicit user-driven hard delete. The scanner never emits it.
 - Keep thumbnails for missing files (they are reused on recovery).
 - Missing files are not auto-purged. They are kept indefinitely until the user explicitly deletes them.
-- `purge_all_missing` commits in chunks of 200, then emits a single `files.purged` carrying every purged id after the loop (the startup auto-purge does the same with 100-row chunks). One event per run, not per batch.
+- `purge_all_missing` commits in chunks of 200, then emits a single `files.purged` carrying every purged id after the loop. One event per run, not per batch — and nothing at all if it raises partway, including for the chunks already committed.
+- The startup trash auto-purge emits one event per run too, but its transaction shape is **not** the same: it commits and rolls back each row on its own, so one file it cannot delete is skipped and retried on the next run instead of failing the run or riding out on another row's commit. Its `_PURGE_BATCH_SIZE` is a query page size, not a transaction size.
 
 ## Trash
 

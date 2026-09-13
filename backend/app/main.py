@@ -6,11 +6,12 @@ import pkgutil
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Callable, Coroutine
+from typing import Callable, Coroutine, Iterable
 
 import time
 
 from fastapi import FastAPI, Request
+from sqlalchemy.orm.exc import ObjectDeletedError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.database import SessionLocal, init_db
@@ -41,44 +42,119 @@ def _run_purge_batch(
 ) -> tuple[list[str], set[tuple[str, str]], set[str]]:
     """Synchronous purge work — runs in a thread via asyncio.to_thread.
 
-    Also returns the drives touched. They have to be collected here, while
-    the rows still exist: the purge notification is emitted after the
-    delete, when the ids no longer resolve to anything.
+    Also returns the drives touched, because the caller emits the purge
+    notification after this returns, when the ids no longer resolve to
+    anything.
+
+    Each of the following is load-bearing, with the failure it prevents:
+
+    ``skipped`` is what makes the loop terminate. The batch query is re-run
+    from the top rather than paged, so a row that raises and is only logged
+    comes back in the next batch unchanged; with nothing committed, the same
+    rows are re-read forever. **Every** failure arm has to add to it — an arm
+    that reasons its way out ("this row must be gone, so the query will not
+    return it") makes termination depend on why the row failed, which is the
+    one thing the loop cannot know.
+
+    **A row is committed, or rolled back, on its own.** ``physical_delete``
+    deletes and flushes the row before its last step, so a failure in that
+    tail leaves a pending DELETE in the session. Under a shared batch commit
+    that DELETE rides out on the next row's success — destroying the file and
+    the row while this function reports the id as unpurgeable and no
+    ``files.purged`` ever names it. Committing per row also puts the id in
+    ``all_purged_ids`` only once its delete is durable, so a commit that
+    raises cannot announce a purge that was rolled back.
+
+    ``_PURGE_BATCH_SIZE`` is therefore the size of a query page, not of a
+    transaction. A savepoint per row would be the other way to isolate a
+    failure, and it is not free here: as the engine is configured, pysqlite
+    emits no ``BEGIN`` of its own, so SQLite commits on ``RELEASE`` of the
+    outermost savepoint and the isolation would be imaginary. Making it real
+    means changing how every session in the application begins a
+    transaction — a wider blast radius than this function is worth.
+
+    The bookkeeping columns are read before the first commit, for the reason
+    in the comment at the loop.
+
+    The unlink is outside all of this and does not need to be inside it: a
+    tail failure leaves the bytes gone and the row back, and the retry finds
+    the file already absent, skips it, and completes.
     """
     all_purged_ids: list[str] = []
     folders_to_check: set[tuple[str, str]] = set()
     purged_drives: set[str] = set()
+    # Two sets, because they answer different questions and conflating them
+    # costs one property or the other. ``skipped`` is the termination
+    # invariant: every row this run failed to delete, for any reason, must
+    # leave the query or the loop re-reads it forever. ``retained`` is the
+    # operator signal: of those, the ones this run is reporting as left
+    # behind. It is not a census of the trash, and the gap is deliberate —
+    # see the arm below.
+    skipped: set[str] = set()
+    retained: set[str] = set()
     while True:
         db = SessionLocal()
         try:
-            batch = (
-                db.query(File)
-                .filter(File.deleted_at.isnot(None), File.deleted_at < cutoff)
-                .limit(_PURGE_BATCH_SIZE)
-                .all()
+            query = db.query(File).filter(
+                File.deleted_at.isnot(None), File.deleted_at < cutoff
             )
+            if skipped:
+                query = query.filter(File.id.notin_(skipped))
+            batch = query.limit(_PURGE_BATCH_SIZE).all()
             if not batch:
                 break
-            purged = 0
-            for file in batch:
+            # Take the bookkeeping columns before the first commit, which
+            # expires every instance — the primary key included, so reading
+            # any of them afterwards is a refresh SELECT. That is fine where
+            # it can be caught: ``physical_delete`` re-reads its own columns
+            # off the same expired instances and sits inside the per-row
+            # handler below. What could not be caught was reading them in the
+            # loop header, where a row another session purged in the meantime
+            # raises ``ObjectDeletedError`` past the handler, into the outer
+            # one, which ends the whole run. This moves that read out of the
+            # loop; it does not remove the refreshes.
+            rows = [(f, f.id, f.drive, f.folder_path) for f in batch]
+            for file, file_id, drive, folder_path in rows:
                 try:
-                    file_id = file.id
-                    purged_drives.add(file.drive)
-                    if file.folder_path:
-                        folders_to_check.add((file.drive, file.folder_path))
                     physical_delete(db, file)
-                    purged += 1
-                    all_purged_ids.append(file_id)
+                    db.commit()
+                except ObjectDeletedError:
+                    # Someone else purged it between the query and here — a
+                    # hard delete from the Trash view. Kept out of
+                    # ``retained`` so the warning does not report a trash
+                    # entry the user has already removed; that is a judgement
+                    # about the reachable cause, and it is only allowed to
+                    # decide the *message*. It goes into ``skipped`` like
+                    # every other failure, because termination is not allowed
+                    # to depend on the same judgement being right.
+                    db.rollback()
+                    skipped.add(file_id)
+                    logger.info(
+                        "File %s was purged by another session; skipping",
+                        file_id,
+                    )
+                    continue
                 except Exception:
-                    logger.exception("Failed to purge file %s", file.id)
-            if purged:
-                db.commit()
+                    db.rollback()
+                    skipped.add(file_id)
+                    retained.add(file_id)
+                    logger.exception("Failed to purge file %s", file_id)
+                    continue
+                all_purged_ids.append(file_id)
+                purged_drives.add(drive)
+                if folder_path:
+                    folders_to_check.add((drive, folder_path))
         except Exception:
             db.rollback()
             logger.exception("Error during trash purge")
             break
         finally:
             db.close()
+    if retained:
+        logger.warning(
+            "Trash purge left %d file(s) behind; they will be retried on the "
+            "next run", len(retained)
+        )
     return all_purged_ids, folders_to_check, purged_drives
 
 
@@ -103,7 +179,7 @@ async def purge_expired_trash() -> None:
 
 
 def _cleanup_empty_folders_after_purge(
-    folders: set[tuple[str, str]],
+    folders: Iterable[tuple[str, str]],
 ) -> None:
     """Remove empty directories left after purging files, walking up to drive root."""
     for drive_name, folder_path in folders:
@@ -134,6 +210,14 @@ def _rmdir_up_to_root(directory: Path, root: Path) -> None:
 _loaded_addons: dict[str, dict] = {}
 _addon_startup_fns: list[Callable[[], Coroutine]] = []
 
+#: Where in-process addons are discovered. A module-level name rather than an
+#: expression inside the loader so a test can point it at a directory it owns:
+#: writing packages into the real one leaves executables in a path that is
+#: gitignored, is not dockerignored, and that ``backend/Dockerfile`` copies
+#: into the runtime image, where a leftover from a killed run would mount as
+#: an addon with nothing in ``git status`` to say why.
+_ADDONS_DIR = Path(__file__).parent.parent / "addons"
+
 
 def _load_addons(app: FastAPI) -> None:
     """Discover and load addon routers from backend/addons/.
@@ -144,7 +228,7 @@ def _load_addons(app: FastAPI) -> None:
       ``{"label": "Download", "icon": "download", "href": "/download"}``
     - ``on_startup`` (optional): async function called during lifespan
     """
-    addons_path = Path(__file__).parent.parent / "addons"
+    addons_path = _ADDONS_DIR
     if not addons_path.is_dir():
         logger.info("No addons directory found (skipping)")
         return
