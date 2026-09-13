@@ -451,6 +451,29 @@ test.describe("dragging the knob down", () => {
     );
   });
 
+  test("closing while it springs back to half still slides it off the screen", async ({
+    page,
+  }) => {
+    const dismiss = await open(page, "sheet-gesture");
+    await swipe(page, {
+      from: KNOB,
+      down: dismiss - 30,
+      steps: stepsFor(dismiss - 30),
+      ...PUSH,
+      wait: false,
+    });
+    await page.keyboard.press("Escape");
+
+    await expect(page.locator("body")).toHaveAttribute(
+      "data-sheet-state",
+      "peek",
+    );
+    const after = await read(page);
+    expect(after.surfaceTopAtCollapse).toBeGreaterThanOrEqual(
+      after.viewportHeight - 1,
+    );
+  });
+
   test("short of a third, it springs back to half", async ({ page }) => {
     const dismiss = await open(page, "sheet-gesture");
     const before = await read(page);

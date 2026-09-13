@@ -63,6 +63,14 @@ export function useSheetDismissMotion({
         return;
       }
 
+      // vaul may still be springing the drawer back to a snap point, and
+      // the distance below is only right if the drawer stays where it is.
+      const drawer = surface.parentElement;
+      if (drawer) {
+        const now = getComputedStyle(drawer).transform;
+        drawer.style.transition = "none";
+        drawer.style.transform = now === "none" ? "" : now;
+      }
       const pull = translateYOf(getComputedStyle(surface).transform);
       const distance = Math.max(
         0,

@@ -1104,7 +1104,7 @@ number. A pane that scrolls itself sticks to its own top instead.
 - Do not use `scale()` hover or active on cards / buttons — preserve the static weight
 - Do not introduce additional brand colors — coral red + warm neutrals is the complete palette (the `--graph-cat-*` chart-only scale in §2.4 is the sole sanctioned exception, and only on chart surfaces)
 - Do not grow / darken `box-shadow` on hover. Resting `shadow-card` stays constant; hover changes surface color only
-- Do not handroll arbitrary `shadow-[0_*]` values, or stack `shadow-2xl` with `ring-*` — use the `shadow-card` (Level 1) or `shadow-lg` (Level 3) tokens
+- Do not handroll arbitrary `shadow-[0_*]` values, or stack `shadow-2xl` with `ring-*` — use the `shadow-card` (Level 1) or `shadow-lg` (Level 3) tokens. The one exception is not depth: a zero-blur shadow in the ground's own colour that extends a sticky strip's background a pixel upward (the inspector tab strip), because some engines round a stuck strip down and show a row of the content beneath
 - Do not use border-radius below 12px on outer surfaces
 - Do not use cool grays — always warm/olive-toned
 - Do not use pure black in dark mode — use warm plum dark (`#1a0e10`)

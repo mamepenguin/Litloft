@@ -757,6 +757,59 @@ test.describe(PLAYER_GROUPS[4], () => {
 });
 
 
+test.describe("no row of the tab body shows above the stuck strip", () => {
+  test.use({ deviceScaleFactor: 3 });
+
+  /**
+   * The same band screenshotted with the tab body painted and with it
+   * hidden: any difference is the body showing through.
+   */
+  async function bandAboveStrip(
+    page: import("@playwright/test").Page,
+    spec: Spec,
+  ): Promise<{ painted: Buffer; hidden: Buffer }> {
+    const m = await layout(page, spec, TO_THE_END);
+    expect(m.stripPosition).toBe("sticky");
+    const body = page.locator("[data-testid='inspector-panel'] > div").first();
+    const clip = {
+      x: 0,
+      y: Math.floor(m.strip.top) - 1,
+      width: spec.width,
+      height: 4,
+    };
+    await body.evaluate((el) => {
+      (el as HTMLElement).style.background = "#ff00ff";
+    });
+    const painted = await page.screenshot({ clip, animations: "disabled" });
+    await body.evaluate((el) => {
+      (el as HTMLElement).style.visibility = "hidden";
+    });
+    const hidden = await page.screenshot({ clip, animations: "disabled" });
+    return { painted, hidden };
+  }
+
+  test("375x812 at full", async ({ page }) => {
+    const { painted, hidden } = await bandAboveStrip(page, {
+      width: 375,
+      height: 812,
+      snap: 0.9,
+      headerPx: 812,
+    });
+    expect(painted.equals(hidden)).toBe(true);
+  });
+
+  test("375x667 at half, on a fractional scroller top", async ({ page }) => {
+    const { painted, hidden } = await bandAboveStrip(page, {
+      width: 375,
+      height: 667,
+      snap: 0.5,
+      headerPx: 667,
+      drawerPx: 667 * 0.9 + 0.37,
+    });
+    expect(painted.equals(hidden)).toBe(true);
+  });
+});
+
 test("every group ran at every case", () => {
   // The expected side is rebuilt from the declarations, so it does not
   // follow a loop that has been walked back.
