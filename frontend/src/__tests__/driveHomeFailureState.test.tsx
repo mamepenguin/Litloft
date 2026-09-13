@@ -174,7 +174,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
 
     render(<DriveHome driveName="media" />);
 
-    await screen.findByText("Continue Watching");
+    await waitFor(() => expect(screen.queryAllByText("Clip v1")).toHaveLength(2));
     expect(pageWideState()).toEqual([]);
   });
 
@@ -210,7 +210,10 @@ describe("what the drive home says when its rows have nothing to show", () => {
 
     render(<DriveHome driveName="media" />);
 
-    await screen.findByText(heading as string);
+    const row = await screen.findByText(heading as string);
+    await waitFor(() =>
+      expect(row.closest("section")!.textContent).toContain("Clip f1"),
+    );
     expect(pageWideState()).toEqual([]);
   });
 
@@ -365,7 +368,10 @@ describe("what the drive home says when its rows have nothing to show", () => {
 
     render(<DriveHome driveName="media" />);
 
-    await screen.findByText(heading as string);
+    const row = await screen.findByText(heading as string);
+    await waitFor(() =>
+      expect(row.closest("section")!.textContent).toContain("Clip v1"),
+    );
     expect(pageWideState()).toEqual([]);
   });
 
@@ -426,10 +432,11 @@ describe("what the drive home says when its rows have nothing to show", () => {
     mockGetWatchHistory.mockResolvedValue([aWatchItem("v1")]);
 
     const { rerender } = render(<DriveHome driveName="media" />);
-    await screen.findByText("Continue Watching");
     // Two: both watch rows read the same history, which is also why
     // neither of them going quiet on its own would be visible below.
-    expect(screen.queryAllByText("Clip v1")).toHaveLength(2);
+    // Waited for, not read off the heading — a row draws its heading
+    // while it is still a row of skeletons.
+    await waitFor(() => expect(screen.queryAllByText("Clip v1")).toHaveLength(2));
 
     mockGetWatchHistory.mockRejectedValue(new Error("network"));
     rerender(<DriveHome driveName="archive" />);
