@@ -1,27 +1,7 @@
 /**
- * spec 2026-08-21-folder-scoped-tag-filter §6 / §6.1 / §6.2
- *
- * `isFolderContext` answered three different questions with one flag, and
- * that ambiguity is what made the folder+tag gap hard to see (hako
- * a8r4bT7Wt1LQ6IBPTBm7N).
- *
- * Two predicates carry those questions now, and this file holds the line
- * between them:
- *
- * - `isFolderAnchored` — "is there a folder *path*?" A folder-scoped tag
- *   filter answers yes. Per-folder sort, view mode and pinning need a
- *   non-empty key, so they ask this one.
- * - `isWriteDestination` — "is there a place to write into?" The drive
- *   root answers yes as well, reached as a location (`folderPath === ""`),
- *   unless a tag is applied there: the listing is then the whole drive,
- *   which names no destination (spec
- *   2026-09-12-purpose-oriented-navigation §7.1, AC 10).
- *
  * These assertions go through FolderBrowser rather than the toolbar alone
- * on purpose: creation is gated twice (FolderBrowser decides whether to
- * pass `onCreateFile`, FolderToolbar decides whether to render the left
- * group at all), so a test that only checks the prop was passed would pass
- * while nothing reached the screen.
+ * because creation is gated twice: FolderBrowser decides whether to pass
+ * `onCreateFile`, FolderToolbar decides whether to render the group at all.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -33,10 +13,6 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 // ---- heavy children / infrastructure ----------------------------------------
 
 vi.mock("@/components/folder/FolderContent", () => ({
-  // Draws the two doors the browser hands it and nothing else. The point
-  // of the tests at the bottom of this file is *which* of them arrive and
-  // what happens when one is pressed, so a stand-in that swallowed them
-  // would leave both questions unasked.
   FolderContent: ({
     onAddFiles,
     onCreateFile,
@@ -67,9 +43,6 @@ vi.mock("@/components/UploadZone", () => ({
   UploadZone: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock("@/components/AddButton", () => ({
-  // Stands in for the one control that puts things in a folder. It renders a
-  // row per prop it is given, so a test can still see *which* of them
-  // FolderBrowser decided to offer — the real menu keeps them behind a click.
   AddButton: ({
     onCreateFolder,
     onCreateFile,
@@ -78,15 +51,10 @@ vi.mock("@/components/AddButton", () => ({
     onCreateFile?: () => void;
   }) => (
     <>
-      {/* Named by their text, as the real rows are: `ActionMenuItem` puts
-          the label in the button's content and carries no `aria-label`, so
-          a stand-in with one would let an assertion pass against a naming
-          path the product does not use. */}
       <button>Add</button>
       {onCreateFolder && (
-        // Called with no arguments, as `ActionMenuItem` calls it. Passing
-        // the click event instead hands the handler an event where it
-        // expects a name.
+        // Called with no arguments, as `ActionMenuItem` calls it: the handler
+        // expects a name, not a click event.
         <button onClick={() => onCreateFolder()}>New Folder</button>
       )}
       {onCreateFile && (
@@ -115,16 +83,12 @@ vi.mock("@/lib/listSnapshot", () => ({
   loadListSnapshot: () => null,
   saveListSnapshot: vi.fn(),
 }));
-// `handleTogglePin` is the name `FolderBrowser` destructures, and the
-// pin row travels with the handler: hand back a different name and the
-// control is absent for every input, which is indistinguishable from
-// "the root is not pinnable" (`.claude/rules/review-workflow.md`,
-// detector rule 4).
+// `handleTogglePin` is the name `FolderBrowser` destructures: under a
+// different name the pin row is absent for every input, which looks the same
+// as "the root is not pinnable".
 const mockTogglePin = vi.hoisted(() => vi.fn());
-// An always-empty set makes `isPinned` false and `isPinned` undefined
-// indistinguishable, and the row reads its label off that flag — so a
-// folder that *is* pinned has to be in here, or "Pin" and "Unpin" cannot
-// be told apart.
+// A pinned folder has to be in here, or "Pin" and "Unpin" cannot be told
+// apart.
 const pinnedPaths = vi.hoisted(() => new Set<string>(["recipes"]));
 vi.mock("@/components/folder/usePinnedFolders", () => ({
   usePinnedFolders: () => ({
@@ -157,9 +121,8 @@ vi.mock("@/hooks/useCreateFile", () => ({
 }));
 
 /**
- * How many files the listing reports. The toolbar puts its sort and
- * view controls away for a listing with nothing in it at all, so tests
- * that press those controls need a listing that holds something.
+ * The toolbar puts its sort and view controls away for an empty listing, so
+ * tests that press those controls need a listing that holds something.
  */
 const listing = vi.hoisted(() => ({
   total: 0,
@@ -194,8 +157,6 @@ vi.mock("@/components/folder/useFolderFiles", () => ({
   }),
 }));
 
-// The real per-folder preference hooks: this file's whole point is that
-// they are consulted with the anchored folder during a tag filter.
 const mockSetSort = vi.fn();
 const mockSetViewMode = vi.fn();
 const folderSortCalls: { drive: string; folderPath: string }[] = [];
@@ -223,20 +184,8 @@ const viewModeOf = () =>
   screen.getByTestId("folder-content").getAttribute("data-view-mode");
 
 /**
- * How many copies of an offered control this file sees.
- *
- * `FolderToolbar` renders its `leftActions` group twice — once in normal
- * flow for widths below 768px and once on the bar from 768 up — and CSS
- * hides one. That doubling is specific to `leftActions`: the `…` trigger,
- * the pin row, Rescan and Sort are each rendered once. jsdom lays nothing
- * out, so both copies of the doubled group are in the tree and both are
- * found here.
- *
- * It is also the stand-in's count, not the product's. `AddButton` is
- * mocked to a flat row of `<button>`s; the real component keeps New
- * Folder and New Note behind a click, as menu items. What two means here
- * is "this control was offered", and zero "it was withheld" — nothing
- * about what a viewer sees.
+ * `FolderToolbar` renders its `leftActions` group twice, one per breakpoint,
+ * and CSS hides one.
  */
 const OFFERED = 2;
 
@@ -245,20 +194,8 @@ const newFolderButtons = () =>
   screen.queryAllByRole("button", { name: "New Folder" });
 
 /**
- * Invoke a registered shortcut's handler.
- *
- * `useShortcuts` is mocked away here, so pressing the key reaches
- * nothing: without this the `Cmd+N` gate can be reverted and every test
- * in the file stays green. The registration is `FolderBrowser`'s own
- * output, so reading it back still measures this component.
- *
- * The `enabled` argument is checked, not just the list: `useShortcuts`
- * returns early when it is false, so a group registered disabled has no
- * live keys at all, and a helper that read only the list would report a
- * handler for a key that cannot be pressed.
- *
- * What it does not measure: that the key is bound to the handler. That
- * lives in the real hook.
+ * The `enabled` argument is checked as well as the list: a group registered
+ * disabled has no live keys at all.
  */
 function pressShortcut(key: string) {
   const groups = vi.mocked(useShortcuts).mock.calls.filter(
@@ -284,14 +221,6 @@ beforeEach(() => {
 
 // ---- tests -------------------------------------------------------------------
 
-/**
- * The two arranging controls, driven through their real menus.
- *
- * Both used to be stand-ins here — a `data-testid` button that called
- * `onChange` directly. What that could not see is the wiring between the
- * menu and the handler, which is the half `FolderBrowser` owns: the stub
- * would have gone on passing with `SortMenu` wired to nothing.
- */
 const sortTrigger = () => screen.queryAllByRole("button", { name: /^Sort/ });
 const chooseSort = (row: string) => {
   fireEvent.click(sortTrigger()[0]);
@@ -306,7 +235,6 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
   it("offers create-file and targets the anchored folder", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" tagFilter="soup" />);
 
-    // Both gates cleared: the button is actually on screen.
     expect(newNoteButtons()).toHaveLength(OFFERED);
 
     fireEvent.click(newNoteButtons()[0]);
@@ -338,7 +266,6 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
   });
 
   it("keeps sort and viewMode session-local in search mode", () => {
-    // No folder to anchor to — the per-folder stores must stay untouched.
     render(<FolderBrowser driveName="main" searchQuery="kyoto" />);
     chooseSort("Size smallest");
     expect(mockSetSort).not.toHaveBeenCalled();
@@ -354,8 +281,6 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
     expect(mockSetSort).not.toHaveBeenCalled();
   });
 
-  // spec §8: the door out of folder scope, offered from FolderBrowser to
-  // both the toolbar header and (via FolderContent) the empty state.
   it("offers the drive-wide widening link during a folder tag filter", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" tagFilter="soup" />);
     expect(
@@ -371,7 +296,6 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
   });
 
   it("offers no widening link for a drive-root tag filter", () => {
-    // Already drive-wide — there is nothing to widen to.
     render(<FolderBrowser driveName="main" tagFilter="soup" />);
     expect(
       screen.queryByRole("link", { name: "Search the whole drive" }),
@@ -391,7 +315,6 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
   });
 
   it("hides create-file for a drive-root tag filter", () => {
-    // No folderPath: there is no concrete folder to write into.
     render(<FolderBrowser driveName="main" tagFilter="soup" />);
     expect(newNoteButtons()).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
@@ -404,10 +327,6 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
 });
 
 describe("FolderBrowser — what the toolbar is told about emptiness", () => {
-  // The rule that puts the sort and view controls away lives in
-  // FolderToolbar and is tested there. What is only testable here is
-  // that FolderBrowser hands it the subfolder count: a rule that is
-  // correct and unwired looks exactly like no rule at all.
   it("puts the arranging controls away for a folder with nothing in it", () => {
     listing.total = 0;
     listing.folders = [];
@@ -423,15 +342,6 @@ describe("FolderBrowser — what the toolbar is told about emptiness", () => {
   });
 });
 
-/**
- * The empty folder's own doors, and the picker behind one of them.
- *
- * `FolderBrowser` owns the hidden `<input>` and `FolderContent` owns the
- * button several components away, so "the prop was passed" is not the
- * question — the question is whether pressing it reaches the file chooser.
- * The header of this file makes the same argument about creation being
- * gated twice.
- */
 describe("FolderBrowser — the empty folder's own doors", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -459,9 +369,6 @@ describe("FolderBrowser — the empty folder's own doors", () => {
     ).toBeInTheDocument();
   });
 
-  // The same gate the toolbar uses. A view with no concrete folder has
-  // nowhere to put a file, and offering the door anyway would upload into
-  // whatever the last folder happened to be.
   it.each([
     ["a special view", { driveName: "main", view: "favorites" as const }],
     ["a search", { driveName: "main", searchQuery: "cake" }],
@@ -475,17 +382,6 @@ describe("FolderBrowser — the empty folder's own doors", () => {
   });
 });
 
-/**
- * `nav=folder` is what lets the detail pane draw an `n / N` and walk the
- * folder's own order. The claim it makes is "the rows on screen are this
- * folder, in this order, and nothing else", which the Library root
- * satisfies: its rows are the drive root's children, asked for as
- * `path=""`.
- *
- * Measured here by rendering rather than by scanning the source, because
- * the gate that emits it takes `folderPath !== undefined` and a string
- * match cannot tell `""` from a path.
- */
 describe("FolderBrowser — which listings may be counted", () => {
   it("marks the Library root, whose rows are the root folder's own", () => {
     render(<FolderBrowser driveName="main" folderPath="" view="library" />);
@@ -502,10 +398,8 @@ describe("FolderBrowser — which listings may be counted", () => {
     expect(sortQueryOf()).not.toContain("nav=folder");
   });
 
-  // A flat view carrying a folder path is not a state the router builds,
-  // but it is the one the `!isSpecialView` conjunct exists for, and
-  // without a case the conjunct is held only by a scan for its own
-  // spelling.
+  // A flat view carrying a folder path is not a state the router builds, but
+  // it is the one the `!isSpecialView` conjunct exists for.
   it("withholds it from a flat view even when a folder path comes with it", () => {
     render(<FolderBrowser driveName="main" folderPath="" view="favorites" />);
     expect(sortQueryOf()).not.toContain("nav=folder");
@@ -517,30 +411,7 @@ describe("FolderBrowser — which listings may be counted", () => {
   });
 });
 
-/**
- * spec 2026-09-12-purpose-oriented-navigation §7.1 / AC 10 — the drive
- * root is a concrete write destination that is deliberately not
- * pinnable, and a tag applied there is not a destination at all.
- *
- * The write targets needed no change to reach the root: `useCreateFile`,
- * `useCreateFolder`, `clipboard.paste` and `UploadZone` all already
- * resolve an absent folder path to `""`. Of those, the first two are
- * measured here. The last two are **not gated by either predicate**, and
- * not uniformly gated at all: the "Paste here" banner is withheld in
- * search and nowhere else, `Cmd+V` is withheld nowhere — the shortcut
- * group is registered on every route this component renders, search
- * included — and the drop zone wraps everything but search. All of them
- * write into the drive root from a listing that names no destination.
- * That predates this and is not settled by it.
- *
- * `folderPath === ""` is what names the root, and only the route's
- * Library branch supplies it. A `FolderBrowser` with no folder path at
- * all is a listing that names no location, which is the last case below.
- */
 describe("FolderBrowser — the drive root as a write destination", () => {
-  // `useViewModeState` reads the global view-mode preference from
-  // localStorage on mount and `select` writes it, so this isolates the
-  // describe from that key rather than from an effect observed here.
   beforeEach(() => {
     localStorage.clear();
   });
@@ -595,9 +466,6 @@ describe("FolderBrowser — the drive root as a write destination", () => {
     ).toBeInTheDocument();
   });
 
-  // The row reads its label off `isPinned`, so a flag that never carries
-  // a value offers "Pin this folder" over an already-pinned folder and
-  // unpins on click.
   it("names the flip it is actually making", () => {
     listing.total = 3;
     render(<FolderBrowser driveName="main" folderPath="recipes" />);
@@ -607,8 +475,6 @@ describe("FolderBrowser — the drive root as a write destination", () => {
     ).toBeInTheDocument();
   });
 
-  // Library is the hierarchy seen from its top, not a view that cuts
-  // across it, so it keeps what the flat views lose.
   it("keeps Play All, which a flat virtual view does not", () => {
     listing.total = 1;
     listing.files = [{ id: "v1", file_type: "video" }];
@@ -621,9 +487,6 @@ describe("FolderBrowser — the drive root as a write destination", () => {
     expect(screen.queryAllByRole("button", { name: /Play/ })).toHaveLength(0);
   });
 
-  // A tag applied at the root widens the listing to the whole drive, so
-  // there is no folder under it to write into — the same rule that
-  // withholds them in a flat view.
   it("withholds everything when a tag is applied at the root", () => {
     render(<FolderBrowser driveName="main" folderPath="" view="library" tagFilter="soup" />);
     expect(newNoteButtons()).toHaveLength(0);
@@ -646,12 +509,8 @@ describe("FolderBrowser — the drive root as a write destination", () => {
     expect(mockCreateFile).not.toHaveBeenCalled();
   });
 
-  // Which of two stores the root reads. `useFolderViewMode` — the
-  // per-folder one — is stubbed to "list" throughout this file, so
-  // setting the single global preference names the store the mode came
-  // from. The root having no per-folder key is the documented rule
-  // (`docs/user-guide/file-browsing.md`: the drive root, the flat views
-  // and search "fall back to a single global preference").
+  // `useFolderViewMode` is stubbed to "list" throughout this file, so the
+  // global preference names the store the mode came from.
   it("draws the rows in the single global preference", () => {
     localStorage.setItem("video-share-view-mode", "grid");
     render(<FolderBrowser driveName="main" folderPath="" view="library" />);
@@ -670,9 +529,6 @@ describe("FolderBrowser — the drive root as a write destination", () => {
     expect(viewModeOf()).toBe("list");
   });
 
-  // Both halves of "session-local": the per-folder store is not written,
-  // *and* the choice takes effect on the listing. Without the second the
-  // root's sort control could be made inert and nothing would fail.
   it("keeps sort session-local at the root, and lets it take effect", () => {
     listing.total = 3;
     render(<FolderBrowser driveName="main" folderPath="" view="library" />);

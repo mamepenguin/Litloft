@@ -1,51 +1,8 @@
 /**
- * Tests for `AddonSlot` — focused on the new `includeIds` / `excludeIds`
- * filters introduced for the Markdown DocumentLayout split (spec
- * `2026-05-10-markdown-document-layout.md`).
- *
- * The dynamic-import path (`@/addons/<name>/slots.ts`) is exercised via
- * a `vi.mock` factory keyed by addon name. Each registered slot module
- * exports a `slotComponents` map matching the entry id; the component
- * renders a div whose data-testid is the entry id, so we can assert on
- * which entries actually mounted under various filter combinations.
- *
- * ## Why the mounting cases are gated on the addon being linked
- *
- * `design-decisions.md` §Addons: an in-process addon is enabled by being
- * checked out, and a core case that fails when an addon is not checked out
- * would make its absence a core failure. Cloning without
- * `--recurse-submodules` reaches that state, and so does any tree where a
- * submodule is deliberately left out.
- *
- * The gate is on the link tree under `src/addons` rather than on `addons/`,
- * and it has to be: `AddonSlot` reaches a slot module through
- * `@/addons/<name>/slots.ts`, so an addon that is checked out but not linked
- * is not importable here whatever the rule says about enablement.
- *
- * That this file *skips* rather than fails in that state is not a claim that
- * the state is fine. It is that the state is reported somewhere else —
- * `addon-link-tree.test.ts` fails on exactly it, because `setup-addons.sh`
- * builds that tree for everything under `addons/` and an unlinked addon means
- * the script has not been run. Two files, two questions, no disagreement.
- *
- * **A virtual mock is not available here, and that is a property of the
- * component rather than of vitest.** `AddonSlot` loads a slot module
- * through `import(\`@/addons/${name}/slots.ts\`)`, a *variable* dynamic
- * import: vite rewrites it into a lookup over a map it builds by globbing
- * the real directory at transform time. With no symlink the map has no
- * entry, and the call rejects before any module id exists for `vi.mock`
- * to key on — measured, `Unknown variable dynamic import:
- * ../addons/intelligence/slots.ts`, and the same message for a name that
- * has never existed. So the gate is the guard `file-kind-parity.test.ts`
- * and `componentFixtureParity.test.tsx` already use.
- *
- * What the gate costs is bounded on both sides. It closes only where no
- * addon is installed; CI checks out the submodules, runs
- * `setup-addons.sh`, and then asks the collector whether it picked up
- * each addon's tests, so the armed state is the one that gates merges.
- * And the claim the layout cases exist for — that a branch draws its own
- * chrome — is asserted separately below against a module that resolves in
- * neither state, so it holds whether or not anything is linked.
+ * Mounting cases are gated on the addon being linked under `src/addons`, not
+ * mocked virtually: `AddonSlot` uses a variable dynamic import that vite
+ * resolves by globbing the real directory, so with no symlink there is no
+ * module id for `vi.mock` to key on.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -60,21 +17,14 @@ import type { SlotEntry } from "@/lib/addons";
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 /**
- * Both addons whose slot modules the cases below mock, not either.
- *
- * The directory-not-empty half separates the two states
- * `file-kind-parity.test.ts` names: git materialises a directory for
- * every gitlink on checkout, so an uninitialised submodule is a present
- * empty directory rather than a missing one.
+ * Git materialises a directory for every gitlink on checkout, so an
+ * uninitialised submodule is a present empty directory rather than a missing one.
  */
 const addonsLinked = ["knowledge", "intelligence"].every((name) => {
   const dir = resolve(SRC, "addons", name);
   return existsSync(dir) && readdirSync(dir).length > 0;
 });
 
-// `useAddonSlots` is the single dependency that supplies the entry list.
-// Mock it so each test can pick the entry shape directly without
-// touching the addon registry / network.
 const slotsState = { entries: [] as SlotEntry[] };
 
 vi.mock("../AddonSlotsProvider", () => ({
@@ -89,9 +39,6 @@ vi.mock("../AddonSlotsProvider", () => ({
   }),
 }));
 
-// The dynamic `import("@/addons/<name>/slots.ts")` call is resolved by
-// vitest at module-graph time; we register a fake module per addon
-// name we use in the entries below.
 function makeStubModule(componentIds: string[]) {
   const slotComponents: Record<string, () => ReactElement> = {};
   for (const id of componentIds) {
@@ -266,16 +213,6 @@ describe("AddonSlot — filtering (includeIds / excludeIds)", () => {
   });
 });
 
-/**
- * What each layout actually draws.
- *
- * `addon-slot-layouts.test.ts` holds the union to the branches, but a
- * branch that returns exactly what the default returns satisfies it —
- * and did: replacing the body of the `tabs` branch with the stack's
- * output left all 353 files green, because nothing anywhere rendered
- * this component as tabs. A layout is a claim about output, so the
- * output is what is asserted here.
- */
 describe("AddonSlot — what a layout draws", () => {
   const twoEntries: SlotEntry[] = [
     { id: "intelligence-summary", label: "Summary", priority: 10, addonName: "intelligence" },
@@ -286,10 +223,6 @@ describe("AddonSlot — what a layout draws", () => {
     slotsState.entries = twoEntries;
     const { container } = render(<AddonSlot id="file-detail-sections" layout="stack" />);
     expect(container.querySelectorAll("button")).toHaveLength(0);
-    // *Every* entry, not the first: reading `firstElementChild` alone let a
-    // stack that dropped everything after the first pass this assertion
-    // while the file's other tests caught it — a test whose name outran
-    // what it looked at.
     await waitFor(() =>
       expect(screen.getByTestId("rendered-intelligence-similar")).toBeInTheDocument(),
     );
@@ -313,19 +246,8 @@ describe("AddonSlot — what a layout draws", () => {
   });
 
   /**
-   * The chrome each branch draws, with no addon installed.
-   *
-   * The two cases above are the stronger statement and they are gated on
-   * the symlinks; this one is what survives the gate. Its entries name an
-   * addon that resolves in neither state, so `SlotEntryRenderer` fails its
-   * load and renders nothing on both paths — which leaves exactly the
-   * difference between the branches, and that difference is what the
-   * describe's docstring says went undetected: a `tabs` branch returning
-   * the stack's output.
-   *
-   * It is a weaker claim than the gated pair, not a substitute for it: it
-   * holds the strip's existence and its labels, and says nothing about
-   * which entry mounts under it.
+   * An addon that resolves whether or not anything is linked, so the entries
+   * render nothing and only the branches' own chrome differs.
    */
   const UNRESOLVABLE_ADDON = "addon-that-is-not-installed";
 

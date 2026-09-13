@@ -34,9 +34,7 @@ vi.mock("@/lib/api", () => ({
   getFile: (...args: unknown[]) => mockGetFile(...args),
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
-  // Tree pane now mounts FolderContextMenu / FileContextMenu and reads
-  // pinned folders. The TwoPaneLayout tests don't exercise the menus.
-  // Use plain functions so afterEach's vi.restoreAllMocks() can't strip
+  // Plain functions so afterEach's vi.restoreAllMocks() can't strip
   // their resolved values mid-suite.
   getPins: () => Promise.resolve([]),
   addPin: () => Promise.resolve(undefined),
@@ -52,7 +50,6 @@ vi.mock("@/lib/api", () => ({
   getDownloadUrl: (id: string) => `/api/files/${id}/download`,
 }));
 
-// SidebarProvider is consumed by usePinnedFolders.
 // `overlayRequests` records what the tree asked the sidebar for, which is
 // how the exclusivity rule is observed without mounting a real sidebar.
 const overlayRequests = vi.hoisted(() => [] as boolean[]);
@@ -63,7 +60,6 @@ vi.mock("@/components/SidebarProvider", () => ({
   },
 }));
 
-// Clipboard provider is consumed by FileContextMenu.
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({
     clipboard: null,
@@ -81,11 +77,6 @@ vi.mock("@/components/FilePreview", () => ({
   ),
 }));
 
-// PR-4: RightPaneFile now renders FileDetailContent (not FilePreview
-// directly). Stub FileDetailContent + ImageGallery + useFileNav + TreeToggle
-// so the TwoPaneLayout tests focus on host-level wiring (folder click
-// pushes / file click replaces / chrome composition) rather than the
-// per-file detail body, which has its own tests in PR-3.
 vi.mock("@/components/FileDetailContent", () => ({
   FileDetailContent: ({ fileId }: { fileId: string }) => (
     <div data-testid="file-detail-content">detail:{fileId}</div>
@@ -101,7 +92,7 @@ vi.mock("@/hooks/useFileNav", () => ({
   useFileNav: vi.fn(() => ({ prevId: null, nextId: null })),
 }));
 
-// Stub virtualizer (jsdom layout) — keep parity with FolderTreePane test.
+// Stub virtualizer (jsdom layout).
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: (i: number) => number }) => {
     const rows = Array.from({ length: count }, (_, i) => ({
@@ -189,9 +180,6 @@ beforeEach(() => {
   localStorage.removeItem("rightPaneFolder:viewMode");
   navigationGuard.reset();
   dirtyRegistry.reset();
-  // TwoPaneLayout now lazy-mounts FolderTreePane (DriveLayout keeps the
-  // wrapper mounted regardless of tree state). Enable the tree by default
-  // so existing host-level wiring tests still get a rendered tree pane.
   treeEnabledStore.reset();
   treeEnabledStore.set("work", true);
   treeEnabledStore.set("my drive", true);
@@ -319,7 +307,6 @@ describe("TwoPaneLayout", () => {
     await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Q1"));
 
-    // router.push held back until confirm fires
     expect(mockPush).not.toHaveBeenCalled();
     expect(navigationGuard.getPending()).not.toBeNull();
     act(() => {
@@ -351,9 +338,6 @@ describe("TwoPaneLayout", () => {
   });
 
   it("renders the leftPane prop instead of FolderTreePane when provided", async () => {
-    // Spec ``2026-05-12-playlist-to-collection.md`` PR-B redo: the
-    // optional ``leftPane`` prop lets the collection detail page swap
-    // the left aside content without forking the layout shell.
     render(
       <TwoPaneLayout
         drive="work"
@@ -368,17 +352,12 @@ describe("TwoPaneLayout", () => {
     expect(screen.getByTestId("custom-left")).toHaveTextContent(
       "custom left content",
     );
-    // FolderTreePane fetch must not happen because the default left
-    // pane was overridden.
     expect(mockGetFolderTree).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Custom items")).toBeInTheDocument();
   });
 });
 
 /**
- * NAV-2. The sidebar and the tree both name where you are, and one such
- * surface at a time is design principle 3.
- *
  * The waits below are on the answer itself rather than on `overlayRequests`
  * growing — the array's length is a proxy for the thing being asserted, and
  * an unmade request reads `undefined` here, so nothing can pass vacuously.
@@ -419,19 +398,16 @@ describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
   });
 
   /**
-   * MB-5. Below `md` the tree takes the whole viewport and the content
+   * Below `md` the tree takes the whole viewport and the content
    * `<section>` is `hidden`, so a stored "tree open" carried onto a phone
    * lands the reader on a screen with nothing on it.
    */
   describe("a narrow window", () => {
     /**
-     * ...on the very first painted frame, not after an effect corrects it.
      * A passive effect runs after paint, so a width read there would paint
      * one frame of the exact screen this rule prevents — and
      * `hasEverEnabled` latches inside that frame, mounting the tree pane
-     * and firing its folder-tree fetch and WebSocket subscription for a
-     * tree that is then suppressed for the whole session, on the device
-     * where that costs most. A settled measurement cannot see either half.
+     * and firing its folder-tree fetch.
      */
     it("never renders a frame of the tree over the content", async () => {
       besideMatches = false;
@@ -520,13 +496,8 @@ describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
     });
 
     /**
-     * MB-5 is a claim about the content `<section>`, not about the tree's
-     * `<aside>`: the defect was a phone showing a full-viewport tree with
-     * nothing of the folder behind it. Tailwind classes are inert in jsdom,
-     * so what is asserted is the class the section is given — the one
-     * decision the component makes — and each case first checks that the
-     * section is holding the content it would be hiding, because "it is
-     * hidden" is also true of an empty box.
+     * Each case first checks that the section is holding the content it
+     * would be hiding, because "it is hidden" is also true of an empty box.
      */
     describe("the content section", () => {
       const section = () => document.querySelector("section")!;
@@ -595,8 +566,7 @@ describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
 
     /**
      * The ✕ in the tree's own header is the only way off a full-viewport
-     * tree on a phone — `docs/user-guide/file-browsing.md` says so, and the
-     * toolbar's toggle is behind the tree at that width.
+     * tree on a phone: the toolbar's toggle is behind the tree at that width.
      */
     it("closes again from the ✕ in the tree's header", async () => {
       besideMatches = false;
@@ -647,10 +617,9 @@ describe("TwoPaneLayout — the tree borrows the sidebar's place", () => {
 });
 
 /**
- * NAV-2 rule 2. Making the two surfaces exclusive is only safe because a
- * third thing names your location in every combination of them — the
- * breadcrumb in `PageHeader`, which the right pane draws. The rule is
- * "do not break this", so it needs something that notices if it breaks.
+ * Making the two surfaces exclusive is only safe because a third thing
+ * names your location in every combination of them — the breadcrumb in
+ * `PageHeader`, which the right pane draws.
  */
 describe("TwoPaneLayout — the breadcrumb survives every combination", () => {
   const combinations: Array<[string, { tree: boolean; beside: boolean }]> = [

@@ -1,26 +1,8 @@
 /**
- * The two forms of the file's action row, declared per file type.
- *
- * `docs/user-guide/viewers-and-players.md` §"On a phone" says the resting
- * strip and the head of the raised sheet's column draw the same row, and
- * that the sheet's copy carries what the strip leaves out. Which of the
- * two a surface gets is one prop: `FileDetailContainer` passes `compact`
- * when it builds the strip, `FileMetaBlock` does not when it builds the
- * sheet's header.
- *
- * That is a **decision** — which children the row renders for a given
- * `compact` and file type — so jsdom holds it. It holds nothing about
- * where either row lands, how wide it is, or whether the strip's controls
- * reach the touch floor; those are `e2e-layout`'s and are measured in
- * `MediaShell.test.tsx` and `mediaDetailTheaterCss.test.ts` respectively.
- *
- * `CastButton` is stubbed, and that is what makes the video branch
- * observable at all: the real one returns `null` unless the browser
- * reports a remote playback device, so against an unmocked render a row
- * that had dropped Cast entirely would look exactly like a correct one.
- * `FavoriteButton` is stubbed too, so the label probe below reads Like's
- * label and not Favorite's — one of the two is enough to tell the compact
- * form from the full one, and the stub cannot carry a label.
+ * `CastButton` is stubbed because the real one returns `null` unless the
+ * browser reports a remote playback device, which would make a row that
+ * dropped Cast look correct. `FavoriteButton` is stubbed so the label probe
+ * reads Like's label and not Favorite's.
  */
 import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
@@ -52,12 +34,8 @@ vi.mock("@/lib/api", () => ({
 }));
 
 /**
- * What the row can carry beyond the pair every form has.
- *
- * Named by role and probed one way each, so a control that moves house
- * inside the row still answers. The addon slot is deliberately not a
- * probe: what it draws depends on which addons are symlinked, and this
- * file has to say the same thing with none of them.
+ * The addon slot is deliberately not a probe: what it draws depends on which
+ * addons are checked out.
  */
 const PROBES = {
   trust: (row: HTMLElement) =>
@@ -74,11 +52,6 @@ const PROBES = {
 
 type Probe = keyof typeof PROBES;
 
-/**
- * Declared, not read back off either render, and declared **per state**:
- * a control deleted from the component leaves the sheet's row short of
- * its own literal rather than merely equal to the strip's.
- */
 const EXPECTED: {
   kind: string;
   file: Parameters<typeof makeFile>[0];
@@ -140,9 +113,6 @@ const rowCaseId = (kind: string) =>
   `${kind}: the strip sheds what the sheet's column keeps`;
 
 describe("the action row's two forms", () => {
-  // The probe vocabulary, declared beside the table that uses it. A probe
-  // dropped from both at once is the deletion detector rule 5 names, and
-  // this is the second literal that has to move with it.
   it("probes exactly the controls the guide's sentence is about", () => {
     expect(Object.keys(PROBES).sort()).toEqual([
       "cast",

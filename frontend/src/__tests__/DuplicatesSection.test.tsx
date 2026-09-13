@@ -58,12 +58,8 @@ const makeDuplicatesResponse = (groups: DuplicatesResponse["groups"]): Duplicate
 };
 
 /**
- * Wait for the drive list to reach the select, and hand it back.
- *
- * The combobox is rendered before the drives arrive, so waiting for the
- * element itself is satisfied while the placeholder is its only option.
- * Selecting "media" then sets a value the select does not have, the
- * change is dropped, and no fetch is ever made.
+ * The combobox is rendered before the drives arrive, so waiting for it alone
+ * lets a change to "media" be dropped as a value the select does not have.
  */
 async function selectWithDrives(): Promise<HTMLElement> {
   await screen.findByRole("option", { name: "media" });
@@ -102,11 +98,9 @@ describe("DuplicatesSection", () => {
       expect(screen.getByText("Duplicate Files")).toBeTruthy();
     });
 
-    // Verify the skeleton is shown (animate-pulse class)
     const skeleton = document.querySelector(".animate-pulse");
     expect(skeleton).toBeTruthy();
 
-    // Resolve to clean up
     resolvePromise!(makeDuplicatesResponse([]));
   });
 
@@ -145,7 +139,6 @@ describe("DuplicatesSection", () => {
       expect(screen.getByText("1 groups")).toBeTruthy();
     });
 
-    // Group header shows filename and file count
     expect(screen.getByText("photo.jpg")).toBeTruthy();
     expect(screen.getByText(/2 files/)).toBeTruthy();
   });
@@ -171,19 +164,15 @@ describe("DuplicatesSection", () => {
       expect(screen.getByText("photo.jpg")).toBeTruthy();
     });
 
-    // Expand the group
     fireEvent.click(screen.getByText("photo.jpg"));
 
     await waitFor(() => {
-      // Both files should be visible with their folder paths
       const folderPaths = screen.getAllByText(/\/(photos|backup)/);
       expect(folderPaths.length).toBeGreaterThanOrEqual(2);
     });
 
-    // First file should be marked as "keep" by default
     expect(screen.getByText("Keep")).toBeTruthy();
 
-    // Checkboxes should exist
     const checkboxes = screen.getAllByRole("checkbox");
     expect(checkboxes.length).toBe(2);
   });
@@ -209,18 +198,15 @@ describe("DuplicatesSection", () => {
       expect(screen.getByText("photo1.jpg")).toBeTruthy();
     });
 
-    // Expand
     fireEvent.click(screen.getByText("photo1.jpg"));
 
     await waitFor(() => {
       expect(screen.getAllByRole("checkbox").length).toBe(2);
     });
 
-    // Click on second file's checkbox to make it the kept one
     const checkboxes = screen.getAllByRole("checkbox");
     fireEvent.click(checkboxes[1]);
 
-    // The "Keep" badge should still exist (now on the second file)
     expect(screen.getByText("Keep")).toBeTruthy();
   });
 
@@ -245,17 +231,15 @@ describe("DuplicatesSection", () => {
       expect(screen.getByText("photo.jpg")).toBeTruthy();
     });
 
-    // Expand group
     fireEvent.click(screen.getByText("photo.jpg"));
 
     await waitFor(() => {
       expect(screen.getByText(/Delete Selected/)).toBeTruthy();
     });
 
-    // Click delete button (opens confirmation dialog)
     fireEvent.click(screen.getByText(/Delete Selected/));
 
-    // Confirm in the dialog — the last button with this label is inside the dialog
+    // The last button with this label is the one inside the dialog.
     await waitFor(() => {
       expect(screen.getByText(/Move.*to trash/i)).toBeTruthy();
     });
@@ -263,11 +247,9 @@ describe("DuplicatesSection", () => {
     fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {
-      // Should call batchDelete with the non-kept file IDs
       expect(mockBatchDelete).toHaveBeenCalledWith(["file2"]);
     });
 
-    // Should refresh duplicates after delete
     expect(mockGetDuplicates).toHaveBeenCalledTimes(2);
   });
 });

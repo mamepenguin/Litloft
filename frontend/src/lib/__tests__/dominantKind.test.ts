@@ -39,11 +39,8 @@ describe("deriveDominantKind", () => {
   });
 
   it("wants a majority, not a plurality", () => {
-    // "What the folder mostly holds" is what the view-mode rule and the
-    // user guide both say this answers, and the difference is whether a
-    // viewer's global preference is ever consulted: `viewModeForKind`
-    // has an answer for every kind, so a plurality here would make the
-    // global default unreachable in every non-empty folder.
+    // `viewModeForKind` has an answer for every kind, so a plurality here
+    // would make the global default unreachable in every non-empty folder.
     const mix = [
       file({ id: "a", file_type: "other" }),
       file({ id: "b", file_type: "other" }),
@@ -66,8 +63,7 @@ describe("deriveDominantKind", () => {
     expect(deriveDominantKind(threeOfFive)).toBe("audio");
 
     // Exactly half is not more than half — a folder split evenly between
-    // two kinds has no answer, which is the same rule
-    // `dominantCollectionKind` applies on the other surface.
+    // two kinds has no answer.
     const half = [
       file({ id: "a", file_type: "audio", mime_type: "audio/mpeg" }),
       file({ id: "b", file_type: "audio", mime_type: "audio/mpeg" }),

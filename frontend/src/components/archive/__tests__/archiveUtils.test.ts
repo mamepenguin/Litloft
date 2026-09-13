@@ -191,8 +191,6 @@ describe("defaultArchiveViewMode", () => {
   });
 
   it("gives an evenly split level a list", () => {
-    // "A majority", not "at least half": the grid costs a 193px square per
-    // entry and half the entries would not fill one.
     expect(defaultArchiveViewMode([...images(5), ...texts(5)])).toBe("list");
   });
 

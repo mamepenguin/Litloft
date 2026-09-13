@@ -1,11 +1,7 @@
 /**
- * The tab strip is where core and addon meet, and the one place in
- * Phase 2 where getting the design wrong is a rules violation rather
- * than a defect: `.claude/rules/design-decisions.md` forbids core from
- * knowing anything addon-specific, and "Transcript" is the intelligence
- * addon's word.
- *
- * So these tests never name an addon either. They pass slot entries —
+ * The tab strip is where core and addon meet:
+ * `.claude/rules/design-decisions.md` forbids core from knowing anything
+ * addon-specific, so these tests never name an addon either. They pass slot entries —
  * the generic container core already defines — and check that what
  * comes back depends only on how many there are and what they hold.
  */
@@ -42,11 +38,8 @@ describe("buildInspectorTabs", () => {
   });
 
   it("drops a core tab that has nothing in it", () => {
-    // The redesign's first principle: a thing that does not exist yet
-    // does not take a row, and a tab is a row. This is what lets §7's
-    // "archives get a page-list tab" mean "when there is a page list",
-    // so Phase 4 can give the PDF viewer one and its tab appears with
-    // no edit here.
+    // A thing that does not exist yet does not take a row, and a tab is a
+    // row.
     const tabs = buildInspectorTabs({
       info,
       coreTabs: [
@@ -69,8 +62,6 @@ describe("buildInspectorTabs", () => {
         { entry: entry("b", 20), label: "B", content: "b" },
       ],
     });
-    // Exactly three: one core, two addon. A lower bound would pass on a
-    // build that dropped one of them.
     expect(tabs).toHaveLength(3);
     expect(tabs.map((t) => t.id)).toEqual(["info", "a", "b"]);
   });
@@ -141,9 +132,6 @@ describe("buildInspectorTabs", () => {
 
 describe("showsTabStrip", () => {
   it("is false for one tab", () => {
-    // A strip with a single tab is chrome answering a question nobody
-    // asked — and it is what makes a Markdown note's inspector look
-    // exactly as it did before any of this, which the design asked for.
     expect(showsTabStrip(buildInspectorTabs({ info }))).toBe(false);
   });
 

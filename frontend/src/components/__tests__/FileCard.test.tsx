@@ -55,10 +55,6 @@ describe("FileCard", () => {
   });
 
   it("leaves the size off a video, whose length the badge already says", () => {
-    // `mockFile` is a video. A card leads with the one fact it has not
-    // said yet (`lib/primaryMeta.ts`), and for video that is
-    // nothing — the size on a `.loft` reference row is the pointer's,
-    // which is how D-3 got "19 minutes, 83 B".
     render(<FileCard file={mockFile} />);
     expect(screen.queryByText("1.0 MB")).toBeNull();
   });
@@ -187,7 +183,6 @@ describe("FileCard", () => {
           onTouchMove={onTouchMove}
         />
       );
-      // selectable mode renders a div with role=button instead of a link
       const button = screen.getByRole("button");
       fireEvent.touchStart(button, { touches: [{ clientX: 10, clientY: 10 }] });
       fireEvent.touchEnd(button);
@@ -217,8 +212,6 @@ describe("FileCard", () => {
           <FileCard file={mockFile} />
         </FileNavigationOverrideProvider>,
       );
-      // With the override, the card renders a <div role="button">
-      // instead of a <Link>, so there is no anchor to follow.
       expect(screen.queryByRole("link")).toBeNull();
       fireEvent.click(screen.getByRole("button"));
       expect(onNavigate).toHaveBeenCalledWith("abc123def456");
@@ -263,7 +256,6 @@ describe("FileCard", () => {
   });
 });
 
-
 describe("FileCard's text preview for Office files", () => {
   beforeEach(() => {
     // `TextThumbnail` waits to be scrolled into view before it fetches.
@@ -291,8 +283,6 @@ describe("FileCard's text preview for Office files", () => {
   });
 
   it("draws the extracted-text card for an Office file with no thumbnail", () => {
-    // The three mimes moved into `lib/officeFiles.ts` so the detail page's
-    // excerpt and this card cannot drift. This is the card's half of that.
     render(<FileCard file={office(XLSX)} />);
     expect(document.querySelector('[data-testid="text-thumbnail"]')).not.toBeNull();
   });

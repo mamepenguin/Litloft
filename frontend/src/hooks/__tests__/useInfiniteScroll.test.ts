@@ -59,16 +59,11 @@ describe("useInfiniteScroll", () => {
   });
 
   it("stops loading when an empty append page is returned (reachedEnd)", async () => {
-    // Simulates the search-cache hydration bug:
-    // initial hydration has 8 items (popup limit) with total=30.
-    // The search page then loads with limit=30. Page 2 (offset 30)
-    // comes back empty because the 30-item total was exhausted by
-    // items 1-30 on the server, but items 9-30 were skipped due to
-    // the limit mismatch. Without the reachedEnd guard, hasMore stays
-    // true forever and page loads loop infinitely.
+    // Hydrated with 8 items of 30 under a different page limit, so page 2
+    // (offset 30) comes back empty while the server still reports 30.
     const fetchPage = vi.fn().mockResolvedValueOnce({
-      data: [],   // page 2 is empty
-      total: 30,  // server still reports full total
+      data: [],
+      total: 30,
     });
 
     // Object container prevents TypeScript 5.4+ from narrowing the closed-over
@@ -91,17 +86,14 @@ describe("useInfiniteScroll", () => {
 
     render(createElement(Wrapper));
 
-    // Observer is created because hasMore=true (8 < 30) and sentinel is mounted
     await waitFor(() =>
       expect(MockIntersectionObserver.instances.length).toBeGreaterThan(0),
     );
 
-    // Sentinel intersects → triggers loadPage(2, true)
     act(() => MockIntersectionObserver.instances[0].fire(true));
 
     await waitFor(() => expect(hookRef.current?.loadingMore).toBe(false));
 
-    // reachedEnd=true because page 2 returned 0 items → hasMore must be false
     expect(hookRef.current?.hasMore).toBe(false);
     expect(hookRef.current?.items).toHaveLength(8);
   });
@@ -130,10 +122,8 @@ describe("useInfiniteScroll", () => {
     expect(result.current.items[0]?.id).toBe("init-0");
     expect(result.current.loading).toBe(false);
 
-    // Wait for the swap itself. Waiting on `loading` cannot work here: this
-    // revalidation deliberately never raises it — that is what "without hiding
-    // restored pages" means — so the condition is already true and the wait
-    // returns before the fetch resolves, leaving the assertions below to race it.
+    // Wait for the swap itself, not `loading`: this revalidation never raises
+    // it, so a wait on it returns before the fetch resolves.
     await waitFor(() => expect(result.current.items[0]?.id).toBe("fresh-0"));
 
     expect(fetchPage).toHaveBeenCalledWith(1, 60);

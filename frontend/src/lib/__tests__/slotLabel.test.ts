@@ -1,7 +1,6 @@
 /**
  * A manifest's `label` is an English literal, because a manifest is a
- * declaration and not a catalogue. Rendering it directly is how the
- * addon tab reading "Transcript" ended up in a row of Japanese ones.
+ * declaration and not a catalogue.
  */
 import { describe, it, expect, vi } from "vitest";
 

@@ -1,19 +1,10 @@
 /**
- * spec 2026-08-21-file-list-deep-scroll-cost §6.1
- *
  * The snapshot write is debounced, so a pending write has to be flushed
  * when the component unmounts — an in-app navigation never fires
  * `pagehide`. The trap is *where the offset comes from*: the scroll
  * container belongs to TwoPaneLayout and outlives FolderBrowser, so by
  * the time the unmount flush runs React has already removed the rows,
- * the container has collapsed, and `scrollTop` reads 0. A flush that
- * re-reads the DOM therefore overwrites a good offset with zero on
- * every navigation into a file — which is exactly the regression these
- * tests pin down.
- *
- * The existing FolderBrowser tests cannot catch it: they mock
- * `useScrollContainer` to null and hand the browser an empty file list,
- * and `save` bails out on both.
+ * the container has collapsed, and `scrollTop` reads 0.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -23,8 +14,6 @@ import { createRef } from "react";
 import { FolderBrowser } from "../FolderBrowser";
 import { saveListSnapshot } from "@/lib/listSnapshot";
 import type { FileItem } from "@/types";
-
-// ---- heavy children / infrastructure ----------------------------------------
 
 vi.mock("@/components/folder/FolderContent", () => ({
   FolderContent: () => <div data-testid="folder-content" />,
@@ -140,8 +129,7 @@ describe("FolderBrowser — snapshot scroll offset", () => {
     });
 
     // React removes our rows before the unmount flush runs, so the
-    // shared container collapses back to the top. Re-reading it here is
-    // what used to clobber the snapshot.
+    // shared container collapses back to the top.
     scroller.scrollTop = 0;
     act(() => { unmount(); });
 

@@ -1,10 +1,6 @@
 /**
- * The per-file "have I anything" answers a slot entry gives core.
- *
- * No addon is named here. The hook takes entry ids as opaque strings —
- * that is the whole point of it, since core asking "does the transcript
- * have anything" by name is the core-to-addon dependency
- * `.claude/rules/design-decisions.md` forbids.
+ * No addon is named here: entry ids are opaque strings, since core asking
+ * "does the transcript have anything" by name is a core-to-addon dependency.
  */
 import { describe, it, expect } from "vitest";
 import { useEffect } from "react";
@@ -14,9 +10,8 @@ import { useSlotAvailability } from "../useSlotAvailability";
 
 describe("useSlotAvailability", () => {
   it("treats an entry that has said nothing as available", () => {
-    // Silence is the state every addon written before this signal is
-    // permanently in. If it meant "unavailable", adding the signal
-    // would have taken a working tab away from all of them.
+    // An entry that never reports is permanently silent; if silence meant
+    // "unavailable", it would lose a working tab.
     const { result } = renderHook(() => useSlotAvailability("f1"));
 
     expect(result.current.isAvailable("anything-at-all")).toBe(true);

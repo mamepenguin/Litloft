@@ -1,11 +1,5 @@
-// AddonPolicyStep test (RED phase)
-//
-// Choices:
-// - Step is optional. It loads the addon manifest list from /api/addons/status
-//   and shows a matrix of (drive × addon) toggles, where the drives come from
-//   props (passed from the wizard, not from /admin/config/drives — at this
-//   point drives haven't been saved yet).
-// - "スキップ" button calls onNext without committing changes.
+// Drives come from props, not from /admin/config/drives: at this point in the
+// wizard they haven't been saved yet.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -54,10 +48,7 @@ describe("AddonPolicyStep", () => {
     );
 
     await waitFor(() => {
-      // Two now, and on purpose: the legend names the addon once and the
-      // drive's row names it once. `getAllByText` rather than a looser
-      // query, so a third copy — the per-drive description this change
-      // removed — would still fail here.
+      // The legend names the addon once and the drive's row names it once.
       expect(screen.getAllByText("intelligence")).toHaveLength(2);
     });
     expect(screen.getAllByText("knowledge")).toHaveLength(2);
@@ -65,10 +56,6 @@ describe("AddonPolicyStep", () => {
   });
 
   it("renders the addon description from the API (no 'no description' fallback)", async () => {
-    // Regression: addon manifests had no `description` and the
-    // /api/addons/status allowlist stripped it, so every row showed the
-    // "no description" fallback. When the API surfaces a description it
-    // must be rendered.
     mockFetch.mockResolvedValue(
       jsonResponse({
         addons: {
@@ -119,11 +106,7 @@ describe("AddonPolicyStep", () => {
     );
 
     await waitFor(() => {
-      // `toHaveLength(2)`, not a bound: `getByText` used to throw on a
-      // second match, so the diff that introduced a legend had to loosen
-      // this — and `>= 1` is green for any number of copies, which is the
-      // one thing this file is about. Two: the legend names the addon
-      // once, the drive's row names it once.
+      // The legend names the addon once, the drive's row names it once.
       expect(screen.getAllByText("intelligence")).toHaveLength(2);
     });
 
@@ -153,17 +136,8 @@ describe("AddonPolicyStep", () => {
 
 
 /**
- * The same rule as the settings table's feature legend, and as
- * `lib/listMeta.ts`: a line whose words do not change from row to row is
- * not telling the reader which row they are on.
- *
- * Measured on the running wizard before the change, with the four drives
- * this library has: sixteen description paragraphs saying four things,
- * one under every toggle on every card.
- *
- * **jsdom cannot see the layout** — how wide the paragraph wrapped, or
- * how far the reader had to scroll. Those were measured in Chrome and
- * are in the PR. What is asserted here is the number of copies.
+ * A line whose words do not change from row to row is not telling the
+ * reader which row they are on.
  */
 describe("AddonPolicyStep says each addon's description once", () => {
   const DRIVES = [
@@ -200,8 +174,6 @@ describe("AddonPolicyStep says each addon's description once", () => {
     await waitFor(() => {
       expect(screen.getAllByRole("checkbox")).toHaveLength(6);
     });
-    // `toBe(1)`, not a bound. A bound goes green again the moment a
-    // second copy comes back for a different reason.
     expect(screen.getAllByText("Semantic search and AI summaries.")).toHaveLength(1);
     expect(screen.getAllByText("A linked Markdown notes vault.")).toHaveLength(1);
   });
@@ -257,12 +229,8 @@ describe("AddonPolicyStep says each addon's description once", () => {
 
 describe("AddonPolicyStep explains only controls that are on the page", () => {
   it("draws no legend when there is no drive to switch anything on", async () => {
-    // `drives` really can be empty: `SetupWizard` starts it there and
-    // leaves it there when the drive probe returns nothing, which is the
-    // path `DriveStep`'s mount guidance exists for. A card of addon
-    // descriptions above "you can skip this" explains four controls that
-    // are not on the page — the rule the settings side already follows
-    // and `DESIGN.md` now states.
+    // `drives` really can be empty: the wizard leaves it so when the drive
+    // probe returns nothing.
     mockFetch.mockResolvedValue(
       jsonResponse({
         addons: {
@@ -294,10 +262,7 @@ describe("AddonPolicyStep explains only controls that are on the page", () => {
   });
 
   it("gives the legend a heading, so it is not a drive card without a name", async () => {
-    // Before it had one it was `rounded-xl border border-bg-border
-    // bg-bg-card p-5` — the drive card's own class list — carrying the
-    // same four addon names in the same order, directly above the real
-    // cards. Asserted as "it is not that surface" as well as "it has a
+    // Asserted as "it is not the drive card's surface" as well as "it has a
     // name", because either alone leaves the confusion.
     mockFetch.mockResolvedValue(
       jsonResponse({ addons: { intelligence: { scope: "drive" } }, slots: {} }),

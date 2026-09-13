@@ -1,16 +1,3 @@
-/**
- * The list row's overflow button.
- *
- * Rename, move, copy, cut, add-to-collection and trash used to be
- * reachable from a list row only by right-clicking it, so a keyboard
- * could not reach them at all — the row's own link was the only
- * focusable thing in it.
- *
- * The rules it follows are the ones `MatchOverlay` already established
- * for a repeated icon-only control, plus the hit-area and naming
- * requirements from hako `Prwd_iaXmCjWfY24KjFz2`.
- */
-
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
@@ -133,7 +120,6 @@ describe("the list row's overflow button", () => {
   it("holds its place instead of appearing, so the row does not reflow", () => {
     render(<FileListRow file={file} onContextMenu={vi.fn()} />);
     const cls = actions()!.className;
-    // Present but transparent, revealed by hover and by focus.
     expect(cls).toContain("opacity-0");
     expect(cls).toContain("group-hover:opacity-100");
     expect(cls).toContain("focus-visible:opacity-100");
@@ -188,9 +174,6 @@ describe("FileListRow's text preview for Office files", () => {
   });
 
   it("draws the extracted-text card for a format the backend can extract", () => {
-    // The list view's half of the `OFFICE_MIMES` consolidation. Deleting the
-    // Office branch here used to leave the whole suite green: only the grid's
-    // copy was covered.
     render(<FileListRow file={office(XLSX)} onContextMenu={vi.fn()} />);
     expect(document.querySelector('[data-testid="text-thumbnail"]')).not.toBeNull();
   });
@@ -203,7 +186,6 @@ describe("FileListRow's text preview for Office files", () => {
   });
 
   it("still draws it for a plain text file", () => {
-    // The inline chain the consolidation replaced also admitted `text/*`.
     render(
       <FileListRow file={office("text/plain")} onContextMenu={vi.fn()} />,
     );

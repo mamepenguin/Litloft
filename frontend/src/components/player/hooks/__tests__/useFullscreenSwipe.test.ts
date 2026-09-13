@@ -141,8 +141,6 @@ describe("useFullscreen — swipe to dismiss", () => {
   });
 
   it("ignores a gesture that starts on the scrub bar", async () => {
-    // Dragging it travels downward as often as not; treating that as a
-    // dismiss would make scrubbing impossible.
     const { result } = await enterPseudo();
     const seekBar = controlBar.firstElementChild!;
     swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, seekBar);
@@ -150,16 +148,12 @@ describe("useFullscreen — swipe to dismiss", () => {
   });
 
   it("still dismisses from elsewhere on the control bar", async () => {
-    // Only the scrub bar has a drag of its own. Excluding the whole bar
-    // meant a swipe starting on a button did nothing at all.
     const { result } = await enterPseudo();
     swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, controlBar);
     expect(result.current.isPseudo).toBe(false);
   });
 
   it("does not read a two-finger drag as a dismiss", async () => {
-    // Two fingers is a pinch, judged on how far apart they end up
-    // rather than where they travelled.
     const { result } = await enterPseudo();
     act(() => {
       videoArea.dispatchEvent(
@@ -210,8 +204,6 @@ describe("useFullscreen — suppressed swipes", () => {
   }
 
   it("holds the frame while a gesture owns the video", async () => {
-    // A long press for the speed boost keeps the finger planted; the
-    // drift that comes with it must not be read as "put this away".
     const { result } = await enterPseudoWith(true);
     swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, videoArea);
     expect(result.current.isPseudo).toBe(true);
@@ -259,7 +251,6 @@ describe("useFullscreen — gestures into fullscreen", () => {
   });
 
   it("ignores a gesture that starts on the scrub bar", async () => {
-    // Dragging it travels upward as often as not.
     const { result } = renderInPage();
     const seekBar = controlBar.firstElementChild!;
     await swipeAsync({ x: 100, y: 300 }, { x: 105, y: 180 }, seekBar);
@@ -267,9 +258,6 @@ describe("useFullscreen — gestures into fullscreen", () => {
   });
 
   it("opens from a swipe that starts on a button", async () => {
-    // The play button sits dead centre of the frame — the obvious place
-    // to put a finger — and excluding the whole control bar made a
-    // swipe from there do nothing.
     const { result } = renderInPage();
     await swipeAsync({ x: 100, y: 300 }, { x: 105, y: 180 }, controlBar);
     expect(result.current.isFullscreen).toBe(true);
@@ -300,7 +288,6 @@ describe("useFullscreen — gestures into fullscreen", () => {
   });
 
   it("stays put while a gesture already owns the video", async () => {
-    // A long press for the speed boost keeps fingers on the frame.
     const view = renderHook(
       (props: { suppressSwipe: boolean }) =>
         useFullscreen({

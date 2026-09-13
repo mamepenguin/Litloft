@@ -1,12 +1,7 @@
 /**
- * Tag rows do not route through here: their href toggles between
- * applying and clearing the tag, so it stops carrying `?tag=` at exactly
- * the moment the row is selected, and an href-derived highlight would
- * vanish there. SidebarTagsSection computes the highlight from the tag
- * name — see SidebarTagsScope.test.tsx.
- *
- * What remains here is every other sidebar link, including the bare drive
- * link, which must *not* light up while a tag filter is applied.
+ * Tag rows do not route through here: their href stops carrying `?tag=` at
+ * exactly the moment the row is selected, so an href-derived highlight would
+ * vanish there.
  */
 
 import { describe, it, expect } from "vitest";
@@ -16,13 +11,8 @@ import { VIEW_ROWS } from "./fixedRows";
 const base = { currentDrive: "main", activeView: null, activeTag: null };
 
 /**
- * A drive whose name is not its own encoding.
- *
- * `drives.json.example` names all five of its drives in Japanese and
- * nothing validates a drive name to ASCII, so this is the ordinary case,
- * not an exotic one. `base` is always built encoded while `usePathname()`
- * may report either spelling, and a drive called "main" is exactly the
- * fixture that cannot tell those apart.
+ * `usePathname()` may report the path encoded or decoded, and a drive called
+ * "main" cannot tell those apart.
  */
 const WIDE_DRIVE = "家族ビデオ & co";
 const wideBase = `/drive/${encodeURIComponent(WIDE_DRIVE)}`;
@@ -187,8 +177,6 @@ describe("samePath", () => {
   });
 
   it("holds a malformed percent sequence to the raw comparison", () => {
-    // `decodeURIComponent` throws on this, and the catch answers with the
-    // comparison that already ran rather than with a blanket true.
     expect(samePath("/drive/main/%", "/drive/main/%")).toBe(true);
     expect(samePath("/drive/main/%", "/drive/other/%")).toBe(false);
   });

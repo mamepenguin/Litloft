@@ -355,7 +355,7 @@ describe("useDragAndDrop — end-of-drag watchdog", () => {
     // of the window) dispatches `dragend` only at the detached node, so
     // React's delegated handler never sees it. Native drag suppresses
     // mouse events for its whole duration, so the first pointermove is
-    // proof the drag is over. Measured in Chromium, 2026-08-21.
+    // proof the drag is over.
     const { result } = renderHook(() =>
       useDragAndDrop({ drive: "main", selectedIds: new Set(), onComplete }),
     );

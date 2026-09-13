@@ -6,16 +6,6 @@ import { resolve, dirname, relative } from "node:path";
 import { stripComments } from "./helpers/sourceScan";
 
 /**
- * One tab style in the application, and `PageTabs` owns it.
- *
- * Three were in the tree before Phase 3 — Media Import's underline,
- * intelligence's `ModeTabs` pill, and `/admin/settings`'s segmented
- * control — and the pill's selected tab was `bg-accent text-white`, which
- * spent the page's one accent fill on saying which tab you are already
- * looking at. Phase 3 converted two of them and sent the third forward as
- * an open point; 案 16 converted it, and this is what keeps a fourth from
- * arriving.
- *
  * Written as a scan and not as a list of screens, because the failure it
  * is aimed at is a *new* tab row somewhere nobody thought to look.
  */
@@ -67,14 +57,8 @@ function sourceFiles(): Array<{ rel: string; body: string }> {
 }
 
 /**
- * Every class list in a file — written at the point of use, or held in a
- * `*_CLASS` constant.
- *
- * The constant half is not optional: a shared component exists precisely so
- * a recipe lives in one place, which moves it out of `className=` and into
- * a `const`. `PageTabs` keeps both of its states that way, so a scan that
- * read only attributes found nothing in the very file that owns the style.
- * `button-adoption.test.ts` makes the same point about `Button.tsx`.
+ * The `*_CLASS` constant half is not optional: a shared component moves its
+ * recipe out of `className=` and into a `const`, as `PageTabs` does.
  */
 function classStrings(body: string): string[] {
   const out: string[] = [];
@@ -90,34 +74,20 @@ function classStrings(body: string): string[] {
   return out;
 }
 
-/** The shape the retired underline style was written in. */
 const STYLES: Array<[name: string, pattern: RegExp]> = [
-  // The underline. `PageTabs` owns it, and `InspectorShell` is the one
-  // documented second writer — see `UNDERLINE_EXCEPTIONS`.
+  // `PageTabs` owns it, and `InspectorShell` is the one documented second
+  // writer — see `UNDERLINE_EXCEPTIONS`.
   ["underline (border-b-2)", /\bborder-b-2\b/],
   // The segmented control needs **both** halves, because either alone is
-  // something else this tree legitimately has. A filled, padded track on
-  // its own is a control group — the drive root's sort/view/`…` cluster
-  // sits in one. Equal-width pills on their own are two ordinary buttons
-  // in a row — the knowledge graph's Open/Centre pair. It is a segmented
-  // *tab* control only when the pills are inside the track, and a first
-  // draft of this file flagged both of those innocents by matching one
-  // half each.
+  // something else this tree legitimately has; see `drawsSegmentedControl`.
 ];
 
 /**
- * Two `className` values in one file: the track, and a pill inside it.
+ * A predicate rather than one regex because both halves have to be *sets*
+ * of tokens, not an ordered substring.
  *
- * Written as a predicate rather than one regex because both halves have to
- * be *sets* of tokens, not an ordered substring — `bg-bg-elevated
- * rounded-2xl p-1` is the same control written in a different order, and a
- * sequence pattern would let it through untouched.
- *
- * The scope is the file, not the element, and that is a real limit: a file
- * already carrying a track (the drive root's sort/view/`…` cluster) would
- * be flagged by an unrelated `flex-1 rounded-xl` added anywhere in it. The
- * narrower form — both halves inside one element — needs a JSX parse, and
- * the false positive it would prevent is one this tree has not produced.
+ * The scope is the file, not the element: a file already carrying a track
+ * would be flagged by an unrelated `flex-1 rounded-xl` added anywhere in it.
  */
 const TRACK_TOKENS = ["rounded-2xl", "bg-bg-elevated", "p-1"];
 const PILL_TOKENS = ["flex-1", "rounded-xl"];
@@ -130,16 +100,9 @@ function drawsSegmentedControl(body: string): boolean {
 }
 
 /**
- * The inspector's tab strip writes the underline out by hand, and stays.
- *
- * It is not a fourth style — it is `PageTabs`'s style, asserted below to be
- * the same recipe class for class — but it is a second implementation, and
- * the reason it is not folded into `PageTabs` is a behaviour `PageTabs` does
- * not have: a roving `tabIndex`, one stop for the whole strip with the arrow
- * keys moving inside it. A file's tabs can run to a dozen, and every one of
- * them being a tab stop is what makes a long strip tedious to get past.
- * Giving `PageTabs` a roving tabindex for one caller, or taking it away from
- * the inspector, are both worse than saying so here.
+ * The inspector's tab strip is not folded into `PageTabs` because of a
+ * behaviour `PageTabs` does not have: a roving `tabIndex`, one stop for the
+ * whole strip with the arrow keys moving inside it.
  */
 const UNDERLINE_EXCEPTIONS = [
   "frontend/src/components/FileDetail/inspector/InspectorShell.tsx",
@@ -172,18 +135,9 @@ describe("one tab style", () => {
   });
 
   /**
-   * The exception earns its place by looking identical, so this compares
-   * the two selected-state class strings rather than searching whole
-   * files for tokens. A file-wide `toContain` is true the moment the token
-   * appears anywhere, for any reason — which is how the first version of
-   * this test passed while the inspector's selected tab was missing
-   * `font-semibold` entirely.
-   *
-   * `font-semibold` is the token that matters most here, and DESIGN.md
-   * §Tabs says why: it is the second, non-colour signal for which tab is
-   * current, and without it a 2px underline is the only one. That section
-   * also records that an earlier draft got this wrong and that the
-   * mutation proving it went unnoticed by every test.
+   * Compares the state class strings rather than searching whole files for
+   * tokens: a file-wide `toContain` is true the moment the token appears
+   * anywhere, for any reason.
    */
   const SELECTED_TOKENS = ["border-accent", "font-semibold", "text-text-primary"];
   const UNSELECTED_TOKENS = ["border-transparent", "text-text-muted"];
@@ -195,7 +149,6 @@ describe("one tab style", () => {
       expect(f, `${rel} is not in the population`).toBeDefined();
       return f!.body;
     };
-    /** The class string that paints a tab in one of the two states. */
     const stateClasses = (body: string, marker: string) =>
       classStrings(body).filter((c) => c.includes(marker));
 

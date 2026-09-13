@@ -115,10 +115,9 @@ describe("TreeToggle", () => {
   });
 
   /**
-   * NAV-2 rule 3. The tree toggle and the sidebar's hamburger decide which
-   * surface names where you are, and only one of them holds that job at a
-   * time — so both have to show whether they hold it. This one carried
-   * `aria-pressed` and looked identical either way.
+   * The tree toggle and the sidebar's hamburger decide which surface names
+   * where you are, and only one holds that job at a time — so both have to
+   * show whether they hold it.
    */
   describe("pressed state", () => {
     const activeClasses = ["bg-bg-elevated", "text-text-primary"];
@@ -153,10 +152,8 @@ describe("TreeToggle", () => {
   });
 
   /**
-   * MB-5. Below `md` the tree covers the viewport and the content is
-   * hidden, so a stored "on" carried onto a phone is suppressed. The
-   * button has to say so: reporting "on" over a tree that is not on
-   * screen is the screen lying about itself.
+   * Below `md` the tree covers the viewport, so a stored "on" carried onto a
+   * phone is suppressed, and the button has to say so.
    */
   describe("on a narrow window", () => {
     it("reads unpressed even where the setting says on", () => {

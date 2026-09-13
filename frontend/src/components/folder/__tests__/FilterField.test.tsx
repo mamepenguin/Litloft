@@ -1,8 +1,3 @@
-/**
- * Tests for the shared <FilterField> component (right-pane + tree-pane filter UI).
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §4
- * (chip inline 化、2026-05-09 改訂版).
- */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,8 +37,6 @@ describe("FilterField", () => {
         onTypeFilterChange={vi.fn()}
       />,
     );
-    // The trigger now reads "Filter by type" — chip replaces the labeled
-    // dropdown when a type is selected.
     expect(
       screen.getByRole("button", {
         name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
@@ -78,12 +71,10 @@ describe("FilterField", () => {
         onTypeFilterChange={vi.fn()}
       />,
     );
-    // The chip body is a button advertising "click to change".
     const chip = screen.getByRole("button", {
       name: /click to change|filter\.chipChange|クリックで変更/i,
     });
     expect(chip).toBeInTheDocument();
-    // The chip label includes the translated type name.
     expect(chip.textContent ?? "").toMatch(/video|動画/i);
   });
 
@@ -156,7 +147,6 @@ describe("FilterField", () => {
     });
     fireEvent.click(chip);
 
-    // The dropdown opens and the user can pick a different type.
     const imageOption = await screen.findByRole("menuitem", {
       name: /image|画像/i,
     });
@@ -283,7 +273,6 @@ describe("FilterField", () => {
 
     const input = screen.getByPlaceholderText("search...") as HTMLInputElement;
     input.focus();
-    // Caret in the middle of the text.
     input.setSelectionRange(2, 2);
     fireEvent.keyDown(input, { key: "Backspace" });
 
@@ -291,9 +280,6 @@ describe("FilterField", () => {
   });
 
   it("Backspace at caret-0 with non-empty text does NOT remove the chip (Linear convention)", () => {
-    // The chip should only disappear via Backspace when the input is fully
-    // empty. Otherwise users who deliberately moved the caret to the start
-    // would lose their type filter unexpectedly.
     const onTypeFilterChange = vi.fn();
     render(
       <FilterField
@@ -327,7 +313,6 @@ describe("FilterField", () => {
 
     const input = screen.getByPlaceholderText("search...") as HTMLInputElement;
     input.focus();
-    // Selection from 0 to 2 — caret is at start but a range is highlighted.
     input.setSelectionRange(0, 2);
     fireEvent.keyDown(input, { key: "Backspace" });
 
@@ -378,9 +363,6 @@ describe("FilterField", () => {
     fireEvent.keyDown(menu, { key: "ArrowDown" });
     fireEvent.keyDown(menu, { key: "Enter" });
 
-    // The chip now offers the whole vocabulary in the order the
-    // toolbar lists it, so the first entry after "All" is Video. It
-    // used to be Markdown, when this menu knew only four kinds.
     expect(onTypeFilterChange).toHaveBeenCalledWith("video");
   });
 
@@ -401,11 +383,7 @@ describe("FilterField", () => {
       }),
     );
     const items = await screen.findAllByRole("menuitem");
-    // All + eight kinds. A drive of audio or archives had no way to
-    // name what was in it before.
     expect(items).toHaveLength(9);
-    // Same order as the toolbar's, so the same nine words do not appear
-    // in two arrangements depending on which pane you are looking at.
     expect(items.map((el) => el.textContent)).toEqual([
       "All", "Video", "Image", "Audio", "Document", "Markdown", "PDF",
       "Archive", "Other",
@@ -413,8 +391,6 @@ describe("FilterField", () => {
   });
 
   it("renders no kind control at all when the caller does not offer one", () => {
-    // The listings dropped their kind filter when the toolbar's
-    // server-side one became the only one. Absent, not disabled.
     render(<FilterField text="" onTextChange={vi.fn()} placeholder="..." />);
 
     expect(
@@ -446,7 +422,6 @@ describe("FilterField", () => {
     fireEvent.keyDown(menu, { key: "ArrowUp" });
     fireEvent.keyDown(menu, { key: "Enter" });
 
-    // Last in the shared order.
     expect(onTypeFilterChange).toHaveBeenCalledWith("other");
   });
 
@@ -469,10 +444,6 @@ describe("FilterField", () => {
   });
 
   describe("the two shapes", () => {
-    // The tree's filter and the listing's were the same component drawn
-    // identically, forty pixels apart. Telling them apart is the point
-    // of the variant, so the test is about the difference, not about
-    // either one's class list.
     const classesFor = (variant?: "pill" | "underline") => {
       const { unmount } = render(
         <FilterField

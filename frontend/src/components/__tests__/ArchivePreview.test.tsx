@@ -151,9 +151,7 @@ afterEach(() => {
   localStorage.clear();
   // Restored by hand, not with `vi.unstubAllGlobals()`: the
   // `IntersectionObserver` stub above is installed once at module scope, and
-  // unstubbing everything takes it away with the fetch — after which every
-  // later render of a grid cell throws and the failure lands somewhere else
-  // entirely. Only visible under `--sequence.shuffle`.
+  // unstubbing everything takes it away with the fetch.
   globalThis.fetch = originalFetch;
 });
 
@@ -168,7 +166,6 @@ describe("ArchivePreview", () => {
     expect(screen.getByText("readme.txt")).toBeInTheDocument();
     expect(screen.getByText("cover.jpg")).toBeInTheDocument();
     expect(screen.getByText("data.bin")).toBeInTheDocument();
-    // Files in subdirectory should not appear at root
     expect(screen.queryByText("001.jpg")).not.toBeInTheDocument();
   });
 
@@ -179,7 +176,6 @@ describe("ArchivePreview", () => {
       expect(screen.getByText("chapter1")).toBeInTheDocument();
     });
 
-    // The directory entry should be a button
     const dirButton = screen.getByText("chapter1").closest("button");
     expect(dirButton).toBeTruthy();
     expect(dirButton).not.toBeDisabled();
@@ -194,25 +190,20 @@ describe("ArchivePreview", () => {
 
     fireEvent.click(screen.getByText("chapter1"));
 
-    // Should navigate via router.push with archivePath param
     expect(mockPush).toHaveBeenCalledWith("?archivePath=chapter1");
   });
 
   it("breadcrumb navigation works", async () => {
-    // Simulate being inside chapter1
     mockSearchParams.set("archivePath", "chapter1");
     render(<ArchivePreview fileId="test-id" />);
 
-    // Breadcrumb should show Archive > chapter1
     expect(await screen.findByText("Archive")).toBeInTheDocument();
     expect(screen.getByText("chapter1")).toBeInTheDocument();
     // This level is nothing but pages, so the grid stops repeating
-    // their names under the thumbnails — see ArchiveEntryGrid.
+    // their names under the thumbnails.
     expect(screen.queryByText("001.jpg")).toBeNull();
-    // Click "Archive" to go back to root
     fireEvent.click(screen.getByText("Archive"));
 
-    // Should navigate to root (no query params, uses pathname)
     expect(mockPush).toHaveBeenCalledWith(window.location.pathname);
   });
 
@@ -229,7 +220,6 @@ describe("ArchivePreview", () => {
       expect(screen.getByAltText("cover.jpg")).toBeInTheDocument();
     });
 
-    // Should show counter
     expect(screen.getByText("1 / 1")).toBeInTheDocument();
   });
 
@@ -249,7 +239,6 @@ describe("ArchivePreview", () => {
     fireEvent.keyDown(document, { key: "Escape" });
 
     await waitFor(() => {
-      // Should be back to listing
       expect(screen.getByText("readme.txt")).toBeInTheDocument();
       expect(screen.queryByAltText("cover.jpg")).not.toBeInTheDocument();
     });
@@ -267,10 +256,6 @@ describe("ArchivePreview", () => {
     });
   });
 
-  // D-14, and the reason it is a regression test rather than a fix note: the
-  // text viewer used to be the file listing's `children`, so pressing a text
-  // entry in the grid set `viewerMode` to "text" and drew nothing at all. The
-  // press looked like it had missed.
   it("opens the text viewer from the grid, not only from the listing", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => "hello from the zip" }) as unknown as typeof fetch;
     // The root level derives a list (one image among three files), so the
@@ -284,11 +269,9 @@ describe("ArchivePreview", () => {
     await waitFor(() => {
       expect(screen.getByText("readme.txt")).toBeInTheDocument();
     });
-    // The precondition, asserted rather than assumed: this test reaches the
-    // grid through `useArchiveViewMode`'s storage, and a change to that key
-    // or its shape would silently turn it into a second copy of the listing
-    // test below — leaving D-14 uncovered with the suite green. The listing
-    // renders a `<ul role="list">`; the grid does not.
+    // Asserted rather than assumed: this test reaches the grid through
+    // `useArchiveViewMode`'s storage. The listing renders a
+    // `<ul role="list">`; the grid does not.
     expect(screen.queryByRole("list")).toBeNull();
 
     fireEvent.click(screen.getByText("readme.txt"));
@@ -306,15 +289,11 @@ describe("ArchivePreview", () => {
     });
     fireEvent.click(screen.getByText("huge.log"));
 
-    // The gate lives in `handleFileClick`, not in the viewer, so the viewer's
-    // own tests — which take `textConfirmed` as a prop — never reach it.
     expect(await screen.findByText("Load")).toBeInTheDocument();
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it("opens it from the listing too", async () => {
-    // The assertion above is only interesting if the listing still works —
-    // moving the viewer out of the listing is what could have broken it.
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => "hello from the zip" }) as unknown as typeof fetch;
     render(<ArchivePreview fileId="test-id" />);
 
@@ -335,8 +314,6 @@ describe("ArchivePreview", () => {
     });
     fireEvent.click(screen.getByText("readme.txt"));
 
-    // Not a bare red sentence: the entry turned out not to be openable, and
-    // the download is the way out of that.
     await screen.findByText("This file could not be opened");
     // Named exactly "Download": the viewer's own header link is named
     // "Download readme.txt", so this picks out the empty state's action
@@ -349,7 +326,7 @@ describe("ArchivePreview", () => {
   });
 
   it("opens a source file the mime table has no name for", async () => {
-    // ARC-1. `isTextPreviewable` reads the entry's name here because the mime
+    // `isTextPreviewable` reads the entry's name here because the mime
     // is `application/octet-stream` — the same value `data.bin` carries, so
     // the mime alone cannot tell the two apart.
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, text: async () => "void main() {}" }) as unknown as typeof fetch;
@@ -383,14 +360,9 @@ describe("ArchivePreview", () => {
 
 
 /**
- * The controller, once it actually holds the archive.
- *
  * Reading `getState()` straight after the grid appears assumes the
  * store's effect has run for the *loaded* archive rather than for the
- * `null` the fetch sets first. That assumption held in file order and
- * broke under `--sequence.shuffle` in CI, where the lookup returned
- * `undefined` and the press threw on `entry.is_dir`. Waiting for the
- * thing being read removes the assumption instead of hiding it.
+ * `null` the fetch sets first.
  */
 async function loadedEntries(
   controller: () => import("@/lib/archiveController").ArchiveController | null,
@@ -415,9 +387,7 @@ function entryAt(entries: ArchiveEntry[], path: string) {
 describe("ArchivePreview — the index's press", () => {
   it("publishes the whole archive and the level to the inspector", async () => {
     // The controller is handed over once and updated in place — the
-    // inspector subscribes, it is not re-mounted per level. So what is
-    // asserted is the state it holds once the archive has loaded, not
-    // what it held at the moment it was handed over.
+    // inspector subscribes, it is not re-mounted per level.
     const published: Array<import("@/lib/archiveController").ArchiveController> =
       [];
     renderWithShortcuts(
@@ -430,11 +400,9 @@ describe("ArchivePreview — the index's press", () => {
     );
     await screen.findByText("cover.jpg");
     expect(published).toHaveLength(1);
-    // Waited for, not read straight after the row appears. The store is
-    // filled from a `useEffect` — deliberately, because `set` notifies
-    // its subscribers synchronously and one of them is a component — so
-    // it lands a flush later than the row that `findByText` sees. Read
-    // without waiting, this passes locally and fails under load.
+    // The store is filled from a `useEffect` — deliberately, because `set`
+    // notifies its subscribers synchronously and one of them is a
+    // component — so it lands a flush later than the row `findByText` sees.
     await waitFor(() =>
       expect(published[0].getState().entries).toHaveLength(8),
     );
@@ -461,7 +429,7 @@ describe("ArchivePreview — the index's press", () => {
     );
     await screen.findByText("cover.jpg");
     // Same flush gap as above: the row is rendered, the store is filled
-    // by an effect. This is the assertion that failed on develop.
+    // by an effect.
     await waitFor(() =>
       expect(controller!.getState().entries).toHaveLength(8),
     );
@@ -515,9 +483,6 @@ describe("ArchivePreview — the index's press", () => {
   it("moves to the level first for a leaf that is not on this one, then opens it", async () => {
     // `handleFileClick` reads the *current* level's image list, so
     // calling it before the move lands opens the wrong page or none.
-    // The whole point is the second half — the earlier version of this
-    // test stopped at the URL write, never moved `mockSearchParams`, and
-    // so stayed green with `pendingOpen` deleted outright.
     let controller: import("@/lib/archiveController").ArchiveController | null =
       null;
     const view = renderWithShortcuts(
@@ -552,8 +517,7 @@ describe("ArchivePreview — the index's press", () => {
     await act(async () => {});
 
     // The navigation lands. `useSearchParams` is a mock, so the level
-    // change has to be delivered by hand — which is exactly the step
-    // whose absence made the old test vacuous.
+    // change has to be delivered by hand.
     mockSearchParams.set("archivePath", "chapter1");
     view.rerender(
       <ShortcutsProvider>
@@ -656,7 +620,6 @@ describe("ArchivePreview — the index's press", () => {
     );
     // The level really did change — chapter1's pages are on screen.
     await screen.findByAltText("001.jpg");
-    // And nothing opened itself.
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 

@@ -23,10 +23,9 @@ vi.mock("../ShortcutsProvider", () => ({
 }));
 
 /**
- * NAV-2 rule 3. The hamburger and `TreeToggle` decide which surface names
- * where you are, and one of them holds that job at a time — so both have
- * to show whether they hold it. This one said nothing at all: no
- * `aria-pressed`, and the same appearance open or closed.
+ * The hamburger and `TreeToggle` decide which surface names where you are,
+ * and one of them holds that job at a time — so both have to show whether
+ * they hold it.
  */
 describe("the sidebar's menu button", () => {
   const button = () => screen.getByRole("button", { name: /menu/i });

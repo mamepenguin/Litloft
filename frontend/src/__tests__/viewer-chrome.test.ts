@@ -20,8 +20,6 @@ function sourceFiles(): string[] {
     }
   };
   walk(SRC);
-  // A population built by a walk is worth nothing if the walk is wrong,
-  // and "every file satisfies the rule" is true of an empty set.
   expect(out.length).toBeGreaterThan(100);
   return out;
 }
@@ -38,9 +36,6 @@ describe("full-screen viewer chrome", () => {
   ];
 
   it("has no native select in either viewer", () => {
-    // `DESIGN.md` §Over-video chrome: settings do not go in a bar over
-    // media as bare native controls. Both viewers had one, and the
-    // document that forbids it named neither.
     for (const viewer of VIEWERS) {
       const source = read(viewer);
       expect(source.length).toBeGreaterThan(0);
@@ -58,9 +53,6 @@ describe("full-screen viewer chrome", () => {
   });
 
   it("has exactly two callers of the auto-hiding chrome hook", () => {
-    // One per viewer. A third would mean something else grew chrome that
-    // withdraws, which is worth noticing; none would mean a viewer went
-    // back to its own timer.
     const callers = sourceFiles().filter(
       (f) =>
         !f.endsWith(join("hooks", "useAutoHidingChrome.ts")) &&

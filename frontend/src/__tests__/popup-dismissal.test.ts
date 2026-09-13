@@ -14,62 +14,11 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname, relative } from "node:path";
 
 /**
- * Every popup in core is dismissed by one primitive.
+ * Every popup in core is dismissed by `DismissScrim`, which answers the
+ * press and swallows the click that press produces.
  *
- * Three behaviours coexisted here, and two of them handed the click
- * through to whatever was under the finger:
- *
- *  - a `document` listener on `mousedown` / `pointerdown` / `touchstart`,
- *    which answers on the *press* and leaves the element underneath as
- *    the target of the `click` that follows;
- *  - a scrim dismissed on `pointerDown`, which unmounts itself before the
- *    tap's `click` is dispatched and so hit-tests to the same place;
- *  - a scrim dismissed on its own `click`, which was right only while the
- *    scrim was what the tap reached — a claim about stacking that lost
- *    three times running.
- *
- * `DismissScrim` now answers the press **and swallows the click that
- * press produces**, so no popup depends on where its scrim is painted.
- *
- * A mouse hides the first two: cancelling `pointerdown` suppresses the
- * compatibility mouse events, so only a phone finds them. The user did.
- *
- * ## Core only, and why that is not laziness
- *
- * `escape-listeners.test.ts` scans core *and* every addon, and can,
- * because it asserts an empty set that holds on both sides of a
- * submodule pointer bump. This one asserts an exact population — which a
- * pinned submodule makes impossible to state truthfully. Between an
- * addon's fix merging and core pinning it, the checked-out tree has the
- * old file; a set that admits both states is a lower bound, and rule 1
- * of the detector rules is that a lower bound is not a detector.
- *
- * So each repository asserts over its own tree. `addons/knowledge` has
- * its copy, over `WikiLinkAutocomplete`. The addons with no copy today —
- * `intelligence`, `media_import` and `cloud-sync` — are unguarded by
- * anything, and that is the hole: it closes one addon repository at a
- * time, not from here.
- *
- * `intelligence`'s `FileAIActionsButton` was the one to look at first,
- * and it has been looked at: it dismissed on its own scrim's `click` by
- * hand, and now goes through `DismissScrim` like everything in core. What
- * remains unguarded in those three repositories is whatever is added
- * next, which is the hole this paragraph is about.
- *
- * ## What this file claims, and what it cannot
- *
- * It claims that the population is enumerated, that each member goes
- * through `DismissScrim`, and that nothing else in core answers a
- * document-level press — a spelling check over source text, run in node
- * with nothing rendered. It claims nothing about the mechanism itself:
- * that a press outside dismisses, that the click it produces is taken
- * once, and that the control underneath is spared, is
- * `DismissScrim.test.tsx`'s, and the same outcome under real stacking is
- * measured with a real touch in Chromium by
- * `e2e-layout/popup-dismiss.spec.ts`.
- *
- * **No tier is asserted here any longer.** See the paragraph above
- * `An outside press` for what three rounds of trying cost.
+ * Core only: an exact population cannot be stated across a pinned
+ * submodule, whose checked-out tree may predate the addon's own fix.
  */
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -85,8 +34,7 @@ function sourceFiles(dir: string): string[] {
       const full = resolve(d, entry.name);
       if (entry.name === "node_modules" || entry.name.startsWith(".")) continue;
       if (entry.name === "__tests__" || /\.test\.tsx?$/.test(entry.name)) continue;
-      // `frontend/src/addons/*` links the submodules in. They are another
-      // repository's files, asserted over there.
+      // `frontend/src/addons/*` links the submodules in.
       if (full.startsWith(ADDON_LINK_DIR)) continue;
       if (!existsSync(full)) continue;
       if (statSync(full).isDirectory()) walk(full);
@@ -101,22 +49,7 @@ function read(rel: string): string {
   return readFileSync(resolve(REPO_ROOT, rel), "utf-8");
 }
 
-/**
- * The file with its comments removed.
- *
- * The needles below are attribute spellings, and a docstring that names
- * one is describing a popup rather than declaring one. Measured: deleting
- * every ARIA attribute from `SortButton` left it in the population,
- * because a comment beside the rows quotes `role="menu"` while explaining
- * why they carry a role at all. The population would then have rested on
- * a sentence.
- *
- * Two branches, and each has a case below whose only match it removes. A
- * third — dropping lines that begin with `*` — was here and is gone: the
- * block strip already takes every JSDoc line, so nothing could tell the
- * two apart and either one could be deleted with the suite green. A
- * branch no case needs is not a guard.
- */
+/** A comment that quotes a needle describes a popup rather than declaring one. */
 function withoutComments(text: string): string {
   return text
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -126,56 +59,12 @@ function withoutComments(text: string): string {
 }
 
 /**
- * What a popup **is**, in two independent spellings.
+ * What a popup *is* (its ARIA, or geometry hung off its trigger), not how it
+ * dismisses: dismissal is the property being fixed, so the broken popups are
+ * exactly the ones a dismissal-shaped needle misses.
  *
- * Earlier rounds defined this population by how a popup dismissed itself —
- * an ARIA declaration, then a global pointer listener — and each round a
- * popup was missed. The reason is structural: dismissal is the property
- * being *fixed*, so the broken ones are exactly the ones that do not match
- * the definition. `EditableTagChips`'s tag suggestions were the fifth, and
- * they escaped all three guards at once: no ARIA beyond an `aria-label`,
- * no `document` listener (an `onBlur` and a `setTimeout` instead), and no
- * scrim for the reverse scan to find.
- *
- * So these say what a popup *is*:
- *
- *  - **It says it is one.** The ARIA a popup surface declares, plus the
- *    attribute its trigger carries. `role="menuitem` is a prefix, so
- *    `menuitemradio` and `menuitemcheckbox` ride on it — ended at the
- *    quote it missed the spelling this unit itself introduced.
- *  - **It hangs off its trigger.** `top-full` / `bottom-full` is how an
- *    anchored surface is drawn against the edge of the control that opened
- *    it. It is geometry, not behaviour, so no dismissal style can hide it,
- *    and it is what catches a popup that declares nothing.
- *
- * Wider than "things that render a scrim" on purpose: it also catches a
- * menu *row*, a modal dialog, and a file that only opens someone else's
- * panel, so each of those is named below with where its dismissal lives.
- *
- * **The limit, stated properly this time.** An earlier version of this
- * paragraph said the only gap was "no ARIA *and* positioned by inline
- * coordinates", and that was wrong: every modal dialog with a hand-rolled
- * `fixed inset-0` backdrop and no `role` is outside these needles too —
- * `ConfirmDialog`, `MoveDialog`, `RenameDialog`, `CollectionPicker`,
- * `GlobalSearch` and the rest. Which modals are in the population is an
- * accident of which ones happen to spell `role="dialog"`.
- *
- * That is tolerable only because a modal is a different pattern: it paints
- * its own backdrop over the whole viewport, dismisses on that backdrop's
- * `click`, and has nothing behind it a stray click could reach. The
- * population this file guards is **anchored popups** — a surface hung off
- * a control, with a live page behind it. A modal that grows an anchored
- * menu inside it is caught by the menu, not by the modal.
- *
- * A popup declaring no ARIA and positioned only by inline coordinates is
- * still invisible here. `ContextMenu` is that shape and is in by its rows'
- * `role="menuitem"`; one written with neither would be missed.
- *
- * **The array is the definition.** `POPUP_NEEDLE` is joined from it and the
- * cases below iterate it, so a spelling cannot leave the alternation while
- * its case quietly goes too — measured: deleting `role="listbox"` and
- * `role="option"` from the regex *and* from a hand-written case list left
- * the file green.
+ * A popup with no ARIA positioned only by inline coordinates is not found,
+ * nor is a modal without `role="dialog"`.
  */
 const NEEDLES = [
   'role="menu"',
@@ -213,12 +102,6 @@ interface PopupEntry {
   why: string;
 }
 
-/**
- * Every file the sweep finds, and where its dismissal lives.
- *
- * Enumerated, not counted: a file that disappears leaves its key here
- * with nothing to match, and a file that appears is not in the table.
- */
 const POPUPS: Record<string, PopupEntry> = {
   "frontend/src/components/ActionMenuItem.tsx": {
     dismissedIn: null,
@@ -309,12 +192,8 @@ const POPUPS: Record<string, PopupEntry> = {
     why: "the bin's kind-filter menu, below 640px",
   },
 
-  // Modal surfaces. They arrive with `role="dialog"` in the needle set,
-  // and they are not anchored popups: each paints its own backdrop over
-  // the whole viewport and is dismissed by that backdrop or by Escape,
-  // with nothing behind it a stray click could reach. Enumerated rather
-  // than excluded by a path rule, so a dialog that grows a menu inside it
-  // is already named here.
+  // Modal surfaces: each paints its own full-viewport backdrop, so nothing
+  // behind it can take a stray click.
   "frontend/src/app/admin/settings/DrivesSection.tsx": {
     dismissedIn: null,
     why: "modal dialogs with their own backdrop",
@@ -346,42 +225,10 @@ const POPUPS: Record<string, PopupEntry> = {
 };
 
 /**
- * A `document`- or `window`-level pointer listener.
+ * `click` belongs here as much as the press: at window scope the popup
+ * closes and the element under the finger still receives the same click.
  *
- * The event, not the handler's body: a pointer listener at this scope
- * either belongs to the one primitive that dismisses popups, or is one of
- * the enumerated exceptions, or is a popup closing itself by hand — which
- * is the defect. A listener on a specific element is a gesture on that
- * element and is not in scope.
- *
- * **`click` is in the alternation, and it is the one that matters most.**
- * A hand-written press listener is obviously wrong: it answers before the
- * click, so the click lands on whatever is underneath. A `click` listener
- * at this scope *looks* right and fails the same way, because `window` is
- * not in front of anything — the popup closes and the element under the
- * finger receives the very same click. That is what the sidebar's
- * collection menu did, and it declared no ARIA at all, so this scan is the
- * only thing that could have named it.
- *
- * `DismissScrim` now answers the press here too, and the difference is
- * the second half it carries with it: it takes the click that press
- * produces, once, before anything else can see it. That is the whole of
- * why the exception below is not the defect, and it is pinned in
- * `DismissScrim.test.tsx` — remove the swallow and that file goes red,
- * which is what makes this entry an exception rather than a hole.
- *
- * **The up-events are in the alternation too.** A popup closing on
- * `pointerup`, `mouseup` or `touchend` fails in exactly the way one
- * closing on the press does — all three are dispatched before the `click`,
- * so the click is still the page's. They were missing while the paragraph
- * above claimed the scan covers "a popup closing itself by hand"; the four
- * literals cost nothing and the sentence is now true of them.
- *
- * `document.body` is there for the same reason: it is the same scope by
- * any behavioural measure. What a text scan cannot reach is an alias —
- * `const d = document; d.addEventListener(…)` — and there is no spelling
- * to add for that. It is a limit of the instrument, stated rather than
- * papered over.
+ * An alias (`const d = document; d.addEventListener(…)`) is not caught.
  */
 const GLOBAL_POINTER_LISTENER =
   /\b(?:document|window|document\.body)\.addEventListener\(\s*["'](?:click|mousedown|pointerdown|touchstart|mouseup|pointerup|touchend)["']/g;
@@ -401,20 +248,8 @@ function globalPointerListeners(roots: string[] = [CORE_ROOT]): string[] {
 }
 
 /**
- * The listeners that are not popup dismissals, with the reason each.
- *
- * Paths only, since the scan reports a line and an edit above one of
- * these should not have to be paid for here. A file may hold more than
- * one — `FilterField` carried a `mousedown` and a `touchstart` for the
- * same popup — so what is compared is the set of files.
- *
- * Two of these arrived with the up-events: a gesture that *began* on an
- * element finishes at window scope because a finger leaves the element it
- * started on. That is not the shape this scan is about — nothing is
- * dismissed and no click is handed anywhere — but they are enumerated
- * rather than excluded by a pattern, because "it is only a drag" is
- * exactly what a dismissal added to one of these files would look like
- * from a distance.
+ * Enumerated rather than excluded by a pattern: "it is only a drag" is what
+ * a dismissal added to one of these files would look like from a distance.
  */
 const GLOBAL_POINTER_EXCEPTIONS: Record<string, string> = {
   "frontend/src/components/DismissScrim.tsx":
@@ -445,24 +280,6 @@ describe("Every popup surface in core", () => {
   });
 
   it("keeps its geometry needle load-bearing", () => {
-    // The claim this unit was re-opened to make good is that geometry —
-    // not a dismissal style, and not ARIA — is what finds a popup that
-    // declares nothing. As first shipped it was false: every file the
-    // geometry matched also carried an ARIA needle, so deleting both
-    // geometry spellings left the population byte-identical.
-    //
-    // This asserts the redundancy directly, on the real file rather than a
-    // synthetic one: strip every ARIA needle from `EditableTagChips` and
-    // it must still be a popup.
-    //
-    // **Geometry is three spellings, not two**, and which one a given file
-    // writes moved when the sweep landed: a panel that decides its own
-    // direction no longer writes `top-full` at all — it writes
-    // `ANCHORED_VERTICAL`, the way a consumer of the shared surface writes
-    // `useMenuSurface` rather than the classes inside it. Both halves are
-    // asserted below, so a file converted to the hook and a file still
-    // spelling its corner by hand are each found by the half that applies
-    // to it.
     const ariaNeedles = NEEDLES.filter(
       (n) => n.startsWith("role=") || n.startsWith("aria-"),
     );
@@ -472,41 +289,21 @@ describe("Every popup surface in core", () => {
         withoutComments(read(rel)),
       );
 
-    // The converted half: named for the identifier its direction comes
-    // from. `EditableTagChips` declares `role="listbox"` / `role="option"`
-    // and nothing else a dismissal scan would see.
     const measured = strip("frontend/src/components/EditableTagChips.tsx");
     for (const needle of ariaNeedles) expect(measured).not.toContain(needle);
     expect(measured).toContain("ANCHORED_VERTICAL");
     expect(POPUP_NEEDLE.test(measured)).toBe(true);
 
-    // The hand-spelled half, which is not hypothetical: `SelectionBar`
-    // opens upward by construction and is the exception the rule
-    // accommodates, so `bottom-full` stays a live spelling in the tree.
     const declared = strip("frontend/src/components/SelectionBar.tsx");
     expect(declared).toContain("bottom-full");
     expect(POPUP_NEEDLE.test(declared)).toBe(true);
   });
 
   it("sees a popup that reuses the shared menu surface", () => {
-    // Five menus here call `useMenuSurface` — the identifier, not the
-    // classes — so the geometry and the direction inside it belong to
-    // `ToolbarMenu.tsx` and no consumer matches on either. All five happen
-    // to also write `role="menu"`; a sixth would not have to. A probe of
-    // exactly that shape was in the population of nothing until the shared
-    // surface became a needle of its own.
-    //
-    // The identifier moved when the surface stopped being a constant and
-    // started measuring its own direction. It is the same needle doing the
-    // same job: what a consumer writes, rather than what it renders.
     const dir = mkdtempSync(join(tmpdir(), "popup-surface-"));
     const file = join(dir, "Sixth.tsx");
-    // The probe does not write the `import` line a real caller would.
-    // `toolbarMenuHome.test.ts` enumerates the files that import the
-    // module, and it caught this file when the string was here — an
-    // enumerating detector finding a new one, which is the shape working.
-    // The needle is the identifier, so the probe still carries what the
-    // sweep looks for.
+    // No `import` line: `toolbarMenuHome.test.ts` enumerates the files that
+    // import the module, and would count this one.
     writeFileSync(
       file,
       "export const Sixth = () => {\n" +
@@ -522,35 +319,13 @@ describe("Every popup surface in core", () => {
   });
 
   it("defines its population in one place", () => {
-    // The count is here so that dropping a spelling is a failure rather
-    // than a shorter list: the alternation and the cases below are built
-    // from the same array, so an author trimming "branches with no live
-    // example" removes both halves at once and nothing else objects.
-    // Measured before this was joined from `NEEDLES`: deleting
-    // `role="listbox"` and `role="option"` from the regex and from a
-    // hand-written case list left the file green.
-    // One literal, and it is the pin. A second assertion comparing
-    // `POPUP_NEEDLE.source.split("|")` to `NEEDLES.length` was here and
-    // could not fail: the regex is joined from the array on the line
-    // above, so the two sides were the same observation.
     expect(NEEDLES).toHaveLength(10);
   });
 
 /**
- * A whole, well-formed declaration for each needle.
- *
- * Written as a table rather than derived by string surgery: the derived
- * version produced `aria-haspopupradio"="menu"` for `aria-haspopup`,
- * because the branch that closes the `role="menuitem` prefix fired on it
- * too. The case still passed — a needle is a substring — so nothing said
- * the fixture had stopped containing anything a real trigger writes.
- *
- * The keys are checked against `NEEDLES` below, so a needle cannot be
- * added without a declaration to exercise it, and each case asserts that
- * the declaration it runs actually contains its own needle — without that
- * the table was pinned on neither axis: setting all nine values to
- * `role="menu"` left nine "is found by" cases green, eight of them
- * measuring a spelling they are not named for.
+ * Written out rather than derived from the needle by string surgery: a
+ * derived declaration still contains its needle after it stops resembling
+ * anything a real trigger writes.
  */
 const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
   'role="menu"': 'role="menu"',
@@ -572,17 +347,6 @@ const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
   it.each(
     NEEDLES.map((needle) => [needle, NEEDLE_DECLARATIONS[needle]]),
   )("is found by %s", (needle, declaration) => {
-    // Each spelling separately, against a tree written for it. Without a
-    // case of its own a spelling is a branch that could be deleted with
-    // every other assertion green — which is not hypothetical: two of
-    // these were deleted from the regex and from a hand-written case list
-    // in one edit, and the file stayed green. The cases are generated from
-    // `NEEDLES` now, so that edit cannot be made in one hand.
-    //
-    // The needle first: the fixture landing in `popupFiles` says it is *a*
-    // popup, never that this spelling is why. `role="menuitem` is a prefix
-    // and is satisfied by `role="menuitemradio"`, which is what the
-    // declaration writes.
     expect(declaration).toContain(needle);
 
     const dir = mkdtempSync(join(tmpdir(), "popup-needle-"));
@@ -603,11 +367,6 @@ const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
       '/**\n * Rows inside a `role="menu"` must be menuitems.\n */\nexport const x = 1;\n',
     ],
   ])("is not declared by %s", (_label, source) => {
-    // One case per branch of `withoutComments`, because the branches were
-    // individually deletable while the whole function was killed: the
-    // only live evidence in core was one JSDoc block, and both branches
-    // removed it. The single-line block form is what separates them — the
-    // line filter does not touch it.
     const dir = mkdtempSync(join(tmpdir(), "popup-comment-"));
     const file = join(dir, "Prose.tsx");
     writeFileSync(file, source);
@@ -619,7 +378,6 @@ const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
   });
 
   it("still sees a declaration on a line that also carries a comment", () => {
-    // The other side of the same guard: stripping must not eat the code.
     const dir = mkdtempSync(join(tmpdir(), "popup-comment-"));
     const file = join(dir, "Menu.tsx");
     writeFileSync(file, 'export const x = <div role="menu" />; // the panel\n');
@@ -649,9 +407,6 @@ const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
   });
 
   it("is the only thing in core rendering a scrim", () => {
-    // The other direction. Without it a scrim could be added to a file
-    // the sweep does not reach, and the table above would still be
-    // complete about the files it does.
     const rendering = sourceFiles(CORE_ROOT)
       .filter((f) => /<DismissScrim\b/.test(withoutComments(readFileSync(f, "utf-8"))))
       .map((f) => relative(REPO_ROOT, f))
@@ -666,28 +421,8 @@ const NEEDLE_DECLARATIONS: Record<(typeof NEEDLES)[number], string> = {
 });
 
 /**
- * The scrim's tier is not asserted anywhere, and that is the change.
- *
- * Three rounds of this file held a rule about `z`: a band, then a floor
- * read from the sticky bars, then a ceiling. Each was beaten by an
- * arrangement it had not foreseen — `z-[9]` under a tab strip, `z-10`
- * tying that strip and losing on document order, a `fixed bottom-0 z-50`
- * selection bar no scrim was allowed to clear, five scrims inside a
- * toolbar's own stacking context where every value behaves alike, and the
- * shared default which the rule skipped altogether.
- *
- * They were beaten because the rule was the wrong instrument, not because
- * it was written badly. `.claude/rules/review-workflow.md` says it under
- * "What a test here cannot hold": there is no bounded list of ways one box
- * ends up over another, so a whitelist of positions loses to the next
- * position.
- *
- * `DismissScrim` no longer needs the scrim to be hit, so no value of `z`
- * changes what a dismissing tap does. What replaced the rule is the
- * mechanism's own tests — `DismissScrim.test.tsx` for the event order,
- * `e2e-layout/popup-dismiss.spec.ts` for the same outcome measured in
- * Chromium with a real touch at four different stacking arrangements,
- * including the two this file's rules could not express.
+ * No z-index tier is asserted: `DismissScrim` does not need the scrim to be
+ * hit, and a whitelist of stacking positions loses to the next arrangement.
  */
 
 describe("An outside press", () => {
@@ -702,19 +437,8 @@ describe("An outside press", () => {
   });
 
   it("looks at the whole tree it claims to", () => {
-    // The scan is core's, and it is the *whole* of core's.
-    //
-    // `toBe`, not a bound. This was `toBeGreaterThan(200)` against a real
-    // population of 409, which tolerated losing half the tree — and a
-    // plausible edit ("skip `app`, `hooks` and `lib`, there are no popups
-    // in them") did exactly that with every assertion in this file still
-    // green, because no member of `POPUPS` lives outside `components/`.
-    // `review-workflow.md` rule 1 names that spelling directly.
-    //
-    // The cost is that adding or deleting any source file under
-    // `frontend/src` edits this number. That is the intended price: it is
-    // one line, and the alternative is a guard that reads as a floor and
-    // functions as nothing.
+    // Adding or deleting any source file under `frontend/src` changes this
+    // number.
     expect(relative(REPO_ROOT, CORE_ROOT)).toBe("frontend/src");
     expect(sourceFiles(CORE_ROOT).length).toBe(417);
   });
@@ -731,23 +455,6 @@ describe("An outside press", () => {
     ["mousedown", "window"],
     ["pointerdown", "document.body"],
   ])("still bites on a %s at %s", (event, target) => {
-    // Guards the scan end to end rather than re-testing its regex: an
-    // assertion of "only the exceptions" passes trivially once the walk
-    // stops returning files.
-    //
-    // **Every branch of the alternation has a case here**, which is the
-    // rule this table exists for: a scan whose alternation has no live
-    // example is a branch nothing would notice losing. Measured when the
-    // up-events and `document.body` were added to the needle and not to
-    // this table: `touchend` and `document.body` could both be deleted
-    // from the scan with the whole file green, because core carries no
-    // occurrence of either. `mouseup` and `pointerup` survived only
-    // because the same change enumerated two real listeners that use
-    // them.
-    //
-    // Seven events and three scopes, enumerated rather than counted — the
-    // sentence here used to say "all three events and both scopes" and
-    // was already wrong before the needle was widened.
     const dir = mkdtempSync(join(tmpdir(), "popup-dismiss-scan-"));
     const file = join(dir, "Sample.tsx");
     writeFileSync(
@@ -771,10 +478,6 @@ describe("An outside press", () => {
   });
 
   it("does not mistake a listener on an element for one on the document", () => {
-    // The player's frame, the transcript list and the graph canvas all
-    // bind a press. They are gestures on the element that got the press,
-    // not "did this land outside my popup", and flagging them would push
-    // the next author to allowlist rather than to look.
     const dir = mkdtempSync(join(tmpdir(), "popup-dismiss-scan-"));
     const file = join(dir, "Gesture.tsx");
     writeFileSync(
@@ -790,23 +493,8 @@ describe("An outside press", () => {
 });
 
 /**
- * The `fixed … bottom-4` sheet form, and where it may be spelled.
- *
- * `DESIGN.md` §Context Menus / Dropdowns used to keep this as a list of
- * component names, and that list was wrong in both directions twice: it
- * dropped one that reaches the form through an imported constant and
- * added three that do not have it at all. A list of names in prose cannot
- * be checked by the reader who is adding the next component.
- *
- * So the claim is the one thing about the form that matters — **nothing
- * drawn inside the Bottom Sheet or its resting strip spells it** — and it
- * is the file set rather than the sentence that is pinned here. Neither
- * of the two files below is reachable from the sheet; a third appearing
- * is a decision somebody has to make, and this is where they are asked.
- *
- * The needle is the literal a bar's menu writes. A component reaching the
- * form through a shared constant is found because the constant lives in
- * one of these two files.
+ * Nothing drawn inside the Bottom Sheet or its resting strip may spell the
+ * `fixed … bottom-4` form; a third file here is a decision to make.
  */
 describe("the pinned-to-the-screen menu form", () => {
   const SHEET_FORM = /fixed inset-x-2 bottom-4/;
@@ -822,9 +510,6 @@ describe("the pinned-to-the-screen menu form", () => {
   }
 
   it("is spelled in the two bar menus and nowhere else in core", () => {
-    // Written out, not derived from the scan: a file that stops spelling
-    // it disappears from both sides of a comparison built from the
-    // observation (detector rule 5).
     expect(filesSpellingSheetForm()).toEqual([
       "frontend/src/components/SortButton.tsx",
       "frontend/src/components/ToolbarMenu.tsx",

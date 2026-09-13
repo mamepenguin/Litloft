@@ -189,8 +189,6 @@ describe("PointerControlsPresenter", () => {
     });
 
     it("stands as a panel rather than a full-width sheet", () => {
-      // The mouse layout can see the whole frame at once; a sheet
-      // spanning it would cover the video to show six chips.
       renderControls({ settingsOpen: true });
       expect(screen.getByTestId("settings-sheet")).toHaveAttribute(
         "data-placement",

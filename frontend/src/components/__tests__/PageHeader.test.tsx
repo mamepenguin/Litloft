@@ -11,20 +11,16 @@ describe("PageHeader", () => {
     });
 
     // Folders and the inside of an archive name themselves in the trail. A
-    // second heading repeating the last segment is one subject stated twice —
-    // and it is the state that produced four h1 sizes across the app.
+    // second heading repeating the last segment is one subject stated twice.
     it("emits no heading when the breadcrumb is the subject", () => {
       render(<PageHeader breadcrumb={<nav>Documents / 2024</nav>} />);
       expect(screen.queryByRole("heading")).toBeNull();
     });
 
-    // DESIGN.md §3.2 now gives H1 a Size. The size living in one component is
-    // the reason it can stay one value.
     it("gives the heading the single H1 size from DESIGN.md §3.2", () => {
       render(<PageHeader title="Trash" />);
       const h1 = screen.getByRole("heading", { level: 1 });
       expect(h1.classList.contains("text-2xl")).toBe(true);
-      // §3.2 states a weight in the same row as the size.
       expect(h1.classList.contains("font-bold")).toBe(true);
       const otherSizes = [...h1.classList].filter(
         (c) => /^text-(xs|sm|base|lg|xl|3xl|4xl)$/.test(c),
@@ -62,17 +58,12 @@ describe("PageHeader", () => {
       const rows = container.querySelectorAll("header > div");
       expect(rows).toHaveLength(1);
       // `firstElementChild`, not `querySelector("button")`: the latter finds a
-      // button anywhere in the row, so it asserts the control exists and says
-      // nothing about where. Moving `leading` to the end of the row — which is
-      // the failure "leftmost" is about — left it green.
+      // button anywhere in the row.
       expect(rows[0].firstElementChild?.textContent).toBe("Tree");
     });
 
-    // The title row draws `leading` when there is no trail above it, and
-    // "exactly once" was only asserted for the case where both rows exist —
-    // so drawing it twice *within* the title row passed. A duplicated control
-    // is not cosmetic here: `TreeToggle` is stateful, and two of them means
-    // the hidden one still answers clicks and keyboard focus.
+    // A duplicated control is not cosmetic here: `TreeToggle` is stateful,
+    // and two of them means the hidden one still answers clicks and focus.
     it("renders the leading control exactly once on a title-only header", () => {
       render(<PageHeader leading={<button>Tree</button>} title="Results" />);
       expect(screen.getAllByRole("button", { name: "Tree" })).toHaveLength(1);
@@ -91,7 +82,6 @@ describe("PageHeader", () => {
   });
 
   describe("scope and actions without a title", () => {
-    // "Documents / 2024 · 138 items" reads as one subject with its measure.
     it("puts the scope on the trail row", () => {
       const { container } = render(
         <PageHeader breadcrumb={<nav>Documents</nav>} scope="138 items" />,
@@ -158,9 +148,6 @@ describe("PageHeader", () => {
       expect(container.querySelectorAll("header > div")).toHaveLength(1);
     });
 
-    // DESIGN.md §Page Header states these two values outright ("Padding
-    // `px-4 py-2`, rows separated by `gap-1`"), and a stated value with
-    // nothing measuring it is how §3.2's H1 row came to be blank.
     it("uses the padding and row spacing DESIGN.md states", () => {
       const { container } = render(<PageHeader title="Settings" />);
       const header = container.querySelector("header")!;
@@ -171,9 +158,7 @@ describe("PageHeader", () => {
   });
 
   // Conditional JSX yields `null` and `false` at least as often as
-  // `undefined`. Recognising only `undefined` made the contract depend on
-  // which falsy value a caller reached for, and `actions={cond ? <X/> : null}`
-  // — the natural spelling — drew an empty flex box that took up the row.
+  // `undefined`.
   describe("an absent slot is absent however it is spelled", () => {
     it.each([
       ["null", null],
@@ -218,21 +203,9 @@ describe("PageHeader", () => {
       expect(container.querySelector("svg")).not.toBeNull();
     });
 
-    // Two wrong versions of this test preceded it, and the second is the more
-    // instructive. First it asserted `aria-hidden`, which measured
-    // lucide-react: the attribute is supplied by the library, so the assertion
-    // held with this component's own copy deleted. It was then "fixed" to
-    // assert the heading's accessible name — which here is vacuous in a
-    // stronger way, because the icon is a *sibling* of the `<h1>` and can
-    // never enter its name at all. Giving the icon an `aria-label` left all
-    // nineteen tests green. In `PageTabs` the same replacement is sound, since
-    // there the icon really is inside the link; the reasoning was copied
-    // across a difference in DOM shape without rechecking it.
-    //
-    // What actually governs whether this icon is announced is `aria-hidden`,
-    // so that is what is asserted — knowing it also pins lucide's default.
-    // That is a real regression guard on a behaviour the design depends on,
-    // and it is labelled as such rather than dressed up as a test of this file.
+    // `aria-hidden` is supplied by lucide-react, so this also pins the
+    // library's default. The icon is a sibling of the `<h1>`, so it never
+    // enters the heading's accessible name.
     it("hides the icon from assistive technology", () => {
       const { container } = render(<PageHeader titleIcon={Trash2} title="Trash" />);
       const svg = container.querySelector("svg");

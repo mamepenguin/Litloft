@@ -1,12 +1,3 @@
-/**
- * The archive grid's cells, at the pages' own proportions.
- *
- * The column count used to come from viewport breakpoints
- * (`grid-cols-2 sm: md: lg: xl:`) while the grid renders beside a 384px
- * inspector — it was counting columns for a width it does not have. A
- * justified row has no column count at all, which is why the rule it
- * broke is gone rather than corrected.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 import { readFileSync } from "node:fs";
@@ -101,16 +92,11 @@ describe("archive grid cells", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("counts no columns of its own", () => {
-    // The rule the old grid broke, asserted as its absence: `toBe(0)`,
-    // over the rendered markup rather than the source, so a breakpoint
-    // reintroduced anywhere under here is caught.
     const { container } = renderGrid(pages(12));
     const withColumnClass = Array.from(
       container.querySelectorAll("[class]"),
     ).filter((el) => /(^|[\s:])grid-cols-/.test(el.className.toString()));
     expect(withColumnClass).toHaveLength(0);
-    // The population is not empty: something really was rendered for
-    // the rule to be false of.
     expect(cells(container)).toHaveLength(12);
   });
 
@@ -167,7 +153,6 @@ describe("archive grid cells", () => {
     // from this number, so a page outside the stops is a band rather
     // than a row. Inside them it is cropped by `object-fit: cover`, the
     // same trade the file grid makes for an extreme photograph.
-    // Literals, not the constants, for the reason the 0.7 test gives.
     for (const [w, h, want] of [
       [12000, 1000, 3],
       [1000, 12000, 0.5],
@@ -220,8 +205,7 @@ describe("the canvas viewer's floor", () => {
   );
 
   it("gives every cell a zero minimum, because the archive puts text in flow", () => {
-    // The grid these replaced was `repeat(N, minmax(0, 1fr))`. A flex
-    // item's automatic minimum is its min-content width instead, and an
+    // A flex item's automatic minimum is its min-content width, and an
     // archive cell carries a `truncate` — `white-space: nowrap` —
     // filename in flow, so one long name would become the cell's
     // minimum and the row would stop justifying.
@@ -242,9 +226,7 @@ describe("the canvas viewer's floor", () => {
     // `min-height` on the wrapper alone reserves the space and stops:
     // a block box does not stretch its in-flow children, so the viewer
     // kept its content height and the reserved space became emptiness
-    // inside the wrapper — the same picture as before, one element up.
-    // Measuring `.media-detail-player` cannot tell the two apart, which
-    // is why this pins the mechanism that carries the height down.
+    // inside the wrapper.
     const wrapper = css.match(
       /main\[data-canvas-floor="true"\] \.media-detail-player \{([^}]*)\}/,
     );
@@ -260,7 +242,7 @@ describe("the canvas viewer's floor", () => {
   });
 
   it("establishes no containment context on the canvas", () => {
-    // The reason is not tidiness. `container-type: size` implies
+    // `container-type: size` implies
     // `contain: layout`, which makes the canvas the containing block for
     // every `position: fixed` descendant — and the archive canvas holds
     // two that are not portalled: `ArchiveImageViewer`'s full-screen
@@ -279,15 +261,8 @@ describe("the canvas viewer's floor", () => {
   });
 
   it("keeps the unportalled fixed overlays that the containment would have caught", () => {
-    // The population the rule above protects. If either of these is ever
-    // portalled or stops being `fixed`, this test says so — and the
+    // If either of these is ever portalled or stops being `fixed`, the
     // containment answer becomes available again.
-    //
-    // The toolbar's is one step away now: it renders `DismissScrim` with
-    // no `className`, so the box is `MENU_SCRIM`'s. Both halves are
-    // asserted — the default being `fixed inset-0` says nothing if the
-    // toolbar has started passing a box of its own, and the toolbar
-    // taking the default says nothing if the default has moved.
     const viewer = readFileSync(
       join(__dirname, "..", "ArchiveImageViewer.tsx"),
       "utf8",
@@ -310,8 +285,7 @@ describe("the canvas viewer's floor", () => {
 
 describe("which viewers get a floor", () => {
   it("names them, rather than matching a mime prefix", () => {
-    // `startsWith("text/")` was unreachable *and* a trap: it also
-    // matches `text/html`, which is rendered in a sandboxed
+    // Not `startsWith("text/")`: it also matches `text/html`, which is rendered in a sandboxed
     // (opaque-origin) iframe.
     expect(viewerTakesCanvasFloor("archive", "application/zip")).toBe(true);
     expect(viewerTakesCanvasFloor("document", "application/pdf")).toBe(true);

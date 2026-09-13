@@ -208,7 +208,6 @@ describe("FileContextMenu", () => {
   });
 
   it("calls onUpdate after successful rename via RenameDialog", async () => {
-    // Re-mock RenameDialog to expose onRename callback
     const RenameDialogModule = await import("../RenameDialog");
     const renameSpy = vi
       .spyOn(RenameDialogModule, "RenameDialog")

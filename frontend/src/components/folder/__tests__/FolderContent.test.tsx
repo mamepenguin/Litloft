@@ -21,10 +21,8 @@ vi.mock("@/components/FileList", () => ({
 }));
 
 /**
- * The real component is exercised in its own file. This stub keeps the
- * variant visible as a testid — and now draws the actions too, because
- * the calls to action moved *inside* it: a stub that swallowed them would
- * make every assertion about them pass whether or not this file passes any.
+ * Draws the actions too: a stub that swallowed them would make every
+ * assertion about them pass whether or not this component passes any.
  */
 vi.mock("@/components/EmptyState", () => ({
   EmptyState: ({
@@ -62,11 +60,9 @@ vi.mock("@/components/FolderCard", () => ({
 }));
 
 /**
- * `FolderCard` stays stubbed — the grid path is covered by its own file —
- * but `FolderListRow` is rendered for real. A stub that reads only
- * `folder.name` cannot tell a row that was handed the drop target, the
- * rename and the menu from one that was handed nothing, which is the
- * claim this file exists to make.
+ * `FolderListRow` is deliberately not stubbed: a stub that reads only
+ * `folder.name` cannot tell a row handed the drop target, the rename and the
+ * menu from one handed nothing.
  */
 vi.mock("@/components/FolderContextMenu", () => ({
   FolderContextMenu: ({ open, target }: { open: boolean; target: Folder | null }) =>
@@ -154,10 +150,6 @@ describe("FolderContent", () => {
     expect(screen.queryByTestId("file-grid")).not.toBeInTheDocument();
   });
 
-  /**
-   * F-8. A grid of folder cards sitting above a column of file rows is
-   * two answers to "what am I looking at" on one screen.
-   */
   describe("folders follow the view mode", () => {
     const withFolders = {
       ...defaultProps,
@@ -176,30 +168,20 @@ describe("FolderContent", () => {
       expect(screen.queryAllByTestId("folder-card")).toHaveLength(0);
     });
 
-    /**
-     * The claim the shape is for: one set of props, two shapes. A row
-     * handed nothing renders identically until you try to use it, and
-     * three of F-8's acceptance conditions are about using it.
-     */
     it("hands the row the same menu, drop target and rename the card gets", async () => {
       const { container } = render(<FolderContent {...withFolders} viewMode="list" />);
       const row = screen.getByText("travel").closest("div.group") as HTMLElement;
       expect(row).not.toBeNull();
 
-      // The one `FolderContextMenu`, from the row's own `⋮`...
       fireEvent.click(
         within(row).getByRole("button", { name: /Actions for travel/i }),
       );
       expect(await screen.findByTestId("folder-menu")).toHaveTextContent("travel");
 
-      // ...and from right-click, which is the same handler.
       fireEvent.contextMenu(row);
       expect(screen.getByTestId("folder-menu")).toBeInTheDocument();
 
-      // A drop target, and a drag source.
       expect(row).toHaveAttribute("draggable", "true");
-      // `rename.cardProps` reaches it: focus is tracked so the host can
-      // bind F2 to the focused row.
       expect(container.querySelector("[data-rename-focus]")).not.toBeNull();
     });
 
@@ -248,14 +230,6 @@ describe("FolderContent", () => {
     expect(screen.getByTestId("empty-no-recent-added")).toBeInTheDocument();
   });
 
-  // spec 2026-08-21-folder-scoped-tag-filter §8 / §8.1
-  /**
-   * The empty folder's two doors, asserted where they are drawn.
-   *
-   * `FolderBrowser`'s own test presses them, but through a stand-in for
-   * this component — so it holds the wiring and not the rendering. Removing
-   * both actions here left that test green.
-   */
   it("offers files and a note when the folder is empty", () => {
     render(
       <FolderContent
@@ -287,8 +261,6 @@ describe("FolderContent", () => {
       />,
     );
     expect(screen.getByTestId("empty-no-tag-matches")).toBeInTheDocument();
-    // "No matches in this folder" with no way out is a dead end — this is
-    // the case the affordance matters most for.
     expect(
       screen.getByRole("link", { name: "Search the whole drive" }),
     ).toHaveAttribute("href", "/drive/main?tag=soup");
@@ -303,9 +275,6 @@ describe("FolderContent", () => {
   });
 
   it("renders nothing in search mode, even with a tag scope present", () => {
-    // The semantic-search section above is a separate result axis; an
-    // empty state here would contradict it. The two branches must not be
-    // collapsed into one.
     const { container } = render(
       <FolderContent
         {...defaultProps}
@@ -335,26 +304,15 @@ describe("FolderContent", () => {
   });
 
   it("hides sentinel when isRecent", () => {
-    // The sentinel is the infinite-scroll trigger: `FolderContent` renders it
-    // under `!isRecent` and hands it `sentinelRef`, so the ref is the thing
-    // to look at rather than a class substring.
-    //
-    // This used to assert only that no `.animate-spin` had rendered. That is
-    // true whether or not a sentinel is there — the spinner needs
-    // `loadingMore`, which is false by default — so the test passed without
-    // ever looking at its own subject.
     const attached = createRef<HTMLDivElement>();
     const { container: withSentinel, unmount } = render(
       <FolderContent {...defaultProps} sentinelRef={attached} isRecent={false} />,
     );
-    // Rule 7: the absence asserted below is only worth anything if there is
-    // something to be absent. One sentinel exists when `isRecent` is off.
     expect(attached.current).toBeInstanceOf(HTMLElement);
     expect(withSentinel.querySelectorAll("[class*='py-4']")).toHaveLength(1);
     unmount();
 
-    // `loadingMore` on, which is the only state that draws the spinner — so
-    // the spinner claim below says something now instead of being vacuous.
+    // `loadingMore` on: it is the only state that draws the spinner.
     const detached = createRef<HTMLDivElement>();
     const { container } = render(
       <FolderContent
@@ -379,13 +337,6 @@ describe("FolderContent", () => {
   });
 });
 
-/**
- * Phase 4 — right-pane filter tests.
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §2.
- *
- * RED phase — these assertions exercise the FilterField wiring that ships
- * with phase 4.4.
- */
 describe("FolderContent right-pane filter (Phase 4)", () => {
   const mdFile: FileItem = {
     ...mockFile("doc"),
@@ -448,10 +399,6 @@ describe("FolderContent right-pane filter (Phase 4)", () => {
   });
 
   it("offers no kind filter of its own — the toolbar's is the one that is right", async () => {
-    // This pane used to carry a second kind filter forty pixels below
-    // the toolbar's. The toolbar asks the server; this one sifted the
-    // rows already loaded, so on a folder past its first page of thirty
-    // the same choice gave two different answers.
     render(
       <FolderContent
         {...defaultProps}
@@ -464,7 +411,6 @@ describe("FolderContent right-pane filter (Phase 4)", () => {
         name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
       }),
     ).toBeNull();
-    // The text filter stays.
     expect(
       screen.getByPlaceholderText(
         /filter in this folder|filter\.placeholder\.folder|このフォルダで絞り込み/i,
@@ -557,7 +503,6 @@ describe("FolderContent right-pane filter (Phase 4)", () => {
     fireEvent.change(input, { target: { value: "zzz" } });
 
     await waitFor(() => {
-      // Folder card still renders even when file list is empty.
       expect(screen.getByTestId("folder-card")).toBeInTheDocument();
     });
   });

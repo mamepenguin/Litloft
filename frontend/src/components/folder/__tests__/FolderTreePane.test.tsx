@@ -4,18 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { treeIncludeFilesStore } from "@/lib/treeIncludeFilesStore";
 
 const mockGetFolderTree = vi.fn();
-// Spies (not plain functions) because the inline-rename tests assert on
-// their arguments; reset in beforeEach like mockGetFolderTree.
 const mockRenameFolder = vi.fn();
 const mockRenameFile = vi.fn();
-/**
- * The endpoint's own rule, in the mock: folders only unless asked.
- *
- * Without it the flag is invisible here — every test seeding `kind:"file"`
- * nodes renders file rows whatever the toggle says, so a test written
- * against the old default keeps passing against the new one and nothing
- * says it has stopped describing the product.
- */
+/** The endpoint's own rule, in the mock: folders only unless asked. */
 function applyIncludeFiles(
   nodes: unknown,
   params: { include_files?: boolean } | undefined,
@@ -30,8 +21,7 @@ vi.mock("@/lib/api", () => ({
     params: { include_files?: boolean } | undefined,
     ...rest: unknown[]
   ) => applyIncludeFiles(await mockGetFolderTree(drive, params, ...rest), params),
-  // Pin and mutation surfaces consumed by the new context menus on the
-  // tree rows. afterEach calls vi.restoreAllMocks() which would erase
+  // afterEach calls vi.restoreAllMocks() which would erase
   // mockResolvedValue from a `vi.fn()`, so we use plain functions for
   // anything that *must* return a promise.
   getPins: () => Promise.resolve([]),
@@ -121,10 +111,7 @@ afterEach(() => {
   // Unmount any rendered components before vi.restoreAllMocks so a
   // pending debounce timer cannot fire after the api mock has been
   // wiped (which would crash on the next fetchPath round-trip with
-  // a "Cannot read .then of undefined" error). Spec 2026-05-09: the
-  // tree filter triggers a flat-mode refetch when text becomes
-  // non-empty, so leftover timers now reach the api layer where they
-  // didn't before.
+  // a "Cannot read .then of undefined" error).
   cleanup();
   vi.restoreAllMocks();
   localStorage.removeItem(driveExpKey("work"));
@@ -134,11 +121,7 @@ afterEach(() => {
 describe("FolderTreePane", () => {
   /**
    * These fixtures put files in the tree, which is the "Show files too"
-   * state rather than the default one. Kept rather than rewritten: what
-   * they assert — chevrons, selection, the filter's cascade, spring-load,
-   * inline rename — is true of a tree with files in it, and that is a
-   * state the product still has. F-7 changed which state is the default,
-   * not which states exist.
+   * state rather than the default one.
    */
   beforeEach(() => {
     treeIncludeFilesStore.set("work", true);
@@ -166,8 +149,6 @@ describe("FolderTreePane", () => {
   });
 
   it("row click selects a folder but does NOT expand it", async () => {
-    // Spec 2026-05-09-tree-pane-separated-interaction.md: row click =
-    // selection only. Expansion is the chevron's exclusive job.
     mockGetFolderTree.mockImplementation((_drive: string, params: { root?: string }) => {
       if (params.root === "" || params.root === undefined) {
         return Promise.resolve([
@@ -197,8 +178,6 @@ describe("FolderTreePane", () => {
     fireEvent.click(screen.getByText("Q1"));
     expect(onSelectFolder).toHaveBeenCalledWith("Q1");
 
-    // Row click MUST NOT trigger child loading — the child fetch only
-    // runs when the chevron toggles expansion.
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByText("a.md")).not.toBeInTheDocument();
   });
@@ -230,16 +209,12 @@ describe("FolderTreePane", () => {
 
     await waitFor(() => expect(screen.getByText("Q1")).toBeInTheDocument());
 
-    // Chevron carries the i18n aria-label "expand" / "collapse" /
-    // tree.expand / 展開. Pick whichever matches.
     const chevron = screen.getByRole("button", {
       name: /^expand$|tree\.expand|展開/i,
     });
     fireEvent.click(chevron);
 
-    // Selection must NOT have changed — the chevron is expansion-only.
     expect(onSelectFolder).not.toHaveBeenCalled();
-    // Children must now load.
     await waitFor(() => expect(screen.getByText("a.md")).toBeInTheDocument());
   });
 
@@ -293,7 +268,6 @@ describe("FolderTreePane", () => {
 
     await waitFor(() => expect(mockGetFolderTree).toHaveBeenCalledTimes(1));
 
-    // The type filter is now opened via the funnel icon (chip inline UI).
     const trigger = await screen.findByRole("button", {
       name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
     });
@@ -338,22 +312,10 @@ describe("FolderTreePane", () => {
   });
 });
 
-/**
- * Phase 4 — tree filter (text + type) tests.
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §3.
- *
- * RED phase — these assertions exercise behavior that ships with the
- * <FilterField> integration (phase 4.6). They are expected to fail until
- * then.
- */
 describe("FolderTreePane filter (Phase 4)", () => {
   /**
    * These fixtures put files in the tree, which is the "Show files too"
-   * state rather than the default one. Kept rather than rewritten: what
-   * they assert — chevrons, selection, the filter's cascade, spring-load,
-   * inline rename — is true of a tree with files in it, and that is a
-   * state the product still has. F-7 changed which state is the default,
-   * not which states exist.
+   * state rather than the default one.
    */
   beforeEach(() => {
     treeIncludeFilesStore.set("work", true);
@@ -371,14 +333,10 @@ describe("FolderTreePane filter (Phase 4)", () => {
       />,
     );
 
-    // The tree's field says a different verb from the listing's, in a
-    // different shape, inside a pane heading — the listing narrows the
-    // folder you are looking at, this searches the whole drive's tree.
     const input = await screen.findByPlaceholderText(
       /find a folder|filter\.placeholder\.treeSearch|フォルダを探す/i,
     );
     expect(input).toBeInTheDocument();
-    // Underlined, not the listing's bordered pill.
     expect(input.className).toContain("border-b");
     expect(input.className).not.toContain("rounded-2xl");
   });
@@ -436,10 +394,8 @@ describe("FolderTreePane filter (Phase 4)", () => {
 
     await waitFor(() => {
       expect(screen.getByText("specs")).toBeInTheDocument();
-      // descendant is visible because parent matched
       expect(screen.getByText("child.md")).toBeInTheDocument();
     });
-    // unrelated sibling file is hidden
     expect(screen.queryByText("other.md")).not.toBeInTheDocument();
   });
 
@@ -462,7 +418,6 @@ describe("FolderTreePane filter (Phase 4)", () => {
     );
     fireEvent.change(input, { target: { value: "nothingmatches" } });
 
-    // Empty state for tree — copy may be EN/JA/key fallback.
     await waitFor(() => {
       expect(
         screen.getByText(
@@ -494,8 +449,8 @@ describe("FolderTreePane filter (Phase 4)", () => {
     const input = await screen.findByPlaceholderText(
       /find a folder|filter\.placeholder\.treeSearch|フォルダを探す/i,
     );
-    // Filter to a non-matching string so the empty-state UI (which now
-    // owns the "Clear filters" button per spec §3.8 / H1) appears.
+    // Filter to a non-matching string so the empty-state UI, which owns
+    // the "Clear filters" button, appears.
     fireEvent.change(input, { target: { value: "zzz-no-match" } });
 
     const clearBtn = await screen.findByRole("button", {
@@ -510,17 +465,10 @@ describe("FolderTreePane filter (Phase 4)", () => {
   });
 });
 
-/**
- * Spring-loaded drag — spec 2026-08-21-inline-rename-and-spring-loaded-drag §6.
- */
 describe("FolderTreePane spring-loaded expansion", () => {
   /**
    * These fixtures put files in the tree, which is the "Show files too"
-   * state rather than the default one. Kept rather than rewritten: what
-   * they assert — chevrons, selection, the filter's cascade, spring-load,
-   * inline rename — is true of a tree with files in it, and that is a
-   * state the product still has. F-7 changed which state is the default,
-   * not which states exist.
+   * state rather than the default one.
    */
   beforeEach(() => {
     treeIncludeFilesStore.set("work", true);
@@ -656,8 +604,6 @@ describe("FolderTreePane spring-loaded expansion", () => {
   });
 
   it("leaves a branch the user had already opened alone", async () => {
-    // Only branches this drag opened are tracked, so the user's own
-    // expansion state survives a drag that passes over it.
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       localStorage.setItem(driveExpKey("work"), JSON.stringify(["Q1"]));
@@ -712,17 +658,10 @@ describe("FolderTreePane spring-loaded expansion", () => {
   });
 });
 
-/**
- * Inline rename — spec 2026-08-21-inline-rename-and-spring-loaded-drag §3.
- */
 describe("FolderTreePane inline rename", () => {
   /**
    * These fixtures put files in the tree, which is the "Show files too"
-   * state rather than the default one. Kept rather than rewritten: what
-   * they assert — chevrons, selection, the filter's cascade, spring-load,
-   * inline rename — is true of a tree with files in it, and that is a
-   * state the product still has. F-7 changed which state is the default,
-   * not which states exist.
+   * state rather than the default one.
    */
   beforeEach(() => {
     treeIncludeFilesStore.set("work", true);
@@ -776,7 +715,6 @@ describe("FolderTreePane inline rename", () => {
       name: /new name/i,
     })) as HTMLInputElement;
     expect(input.value).toBe("Notes");
-    // The dialog heading must not be on screen.
     expect(screen.queryByRole("heading", { name: /^Rename$/i })).not.toBeInTheDocument();
   });
 
@@ -843,8 +781,6 @@ describe("FolderTreePane inline rename", () => {
   });
 
   it("hands focus back to the row when the edit is abandoned", async () => {
-    // F2 is a keyboard entry point; dropping focus to <body> on every
-    // rename would lose the user's place in the tree.
     await renderPane();
     const label = screen.getByText("Notes").closest("button") as HTMLElement;
     // Async act: focusing schedules setFocusedPath -> useShortcuts push ->
@@ -904,10 +840,6 @@ describe("FolderTreePane inline rename", () => {
   });
 });
 
-/**
- * F-7. The tree is a map of the drive's shape; the pane beside it already
- * lists the files in the folder you are standing in.
- */
 describe("FolderTreePane — show files too", () => {
   // The default state, which the describes above deliberately leave.
   beforeEach(() => {
@@ -973,9 +905,6 @@ describe("FolderTreePane — show files too", () => {
   });
 
   it("reports nothing found in the words the field asked in", async () => {
-    // The filter searches what the tree lists. Told there is no matching
-    // *file* after asking for a folder, the reader would be reading about
-    // a search the pane did not run.
     mockGetFolderTree.mockResolvedValue([
       { kind: "folder", name: "Notes", path: "Notes", file_count: 1, has_children: false },
     ]);

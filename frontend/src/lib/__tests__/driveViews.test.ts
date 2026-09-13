@@ -46,34 +46,16 @@ describe("isDriveCollectionPath", () => {
 });
 
 /**
- * spec 2026-09-12-purpose-oriented-navigation §7.1 — Library keeps the
- * folder tree and its toggle, because Library is the hierarchy seen from
- * its root rather than a view that cuts across it.
+ * Library keeps the folder tree and its toggle, because Library is the
+ * hierarchy seen from its root rather than a view that cuts across it.
  *
- * What this holds: `library` classifies as neither a cross-folder nor a
- * standalone view, and `routeHidesTree` therefore leaves the tree in
- * place. Putting `library` into either set — the way a later reading of
- * "it is a ?view= value like the others" would — turns these red.
- *
- * The two lists below are this block's own statement of the canonical
- * set, checked against the count 裁定 3 fixes externally so that
- * shrinking one cannot silently delete cases. They are written out
- * rather than read from the module: reading the same table the code
- * reads is not an independent check of it
- * (`.claude/rules/review-workflow.md`, detector rule 2).
- *
- * What is still not held: a value nothing declares being *added* to
- * either set in the module. Nothing here can see that.
+ * The two lists below are written out rather than read from the module:
+ * reading the same table the code reads is not an independent check of it.
  */
 describe("the Library root view", () => {
   const CROSS_FOLDER = ["all", "favorites", "recent", "recent-added", "liked"];
   const STANDALONE = ["trash", "missing"];
 
-  // The two lists below feed every `it.each` in this block, so walking
-  // either of them back silently deletes cases. The numbers are not this
-  // test's own invention: 裁定 3 of the stage-1 brief fixes the canonical
-  // `?view=` set at seven values, five of which cut across the folder
-  // hierarchy and two of which own their own page.
   it("measures the whole canonical set", () => {
     expect(CROSS_FOLDER).toHaveLength(5);
     expect(STANDALONE).toHaveLength(2);
@@ -122,14 +104,9 @@ describe("the Library root view", () => {
   });
 
   /**
-   * The values a weakened comparison would admit.
-   *
-   * 裁定 3 of the stage-1 brief keeps an unrecognised `?view=` value
-   * falling through to the drive-wide listing, and forbids the classifier
-   * reading such a value as Library. A hand-picked list of unknowns that
-   * happens to contain nothing a lenient comparison would swallow proves
-   * nothing about that: each of these is admitted by exactly one of
-   * `toLowerCase()`, `trim()`, `startsWith` or `includes`.
+   * An unrecognised `?view=` value falls through to the drive-wide listing
+   * and must not be read as Library. Each of these is admitted by exactly
+   * one of `toLowerCase()`, `trim()`, `startsWith` or `includes`.
    */
   it.each(["Library", "LIBRARY", "library ", " library", "my-library", "library/", "librar"])(
     "does not read %o as the Library root",

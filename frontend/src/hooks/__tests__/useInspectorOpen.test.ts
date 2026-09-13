@@ -1,20 +1,3 @@
-/**
- * Tests for `useInspectorOpen(drive)` — drive-scoped Inspector open/closed
- * state for the Markdown DocumentLayout.
- *
- * Spec: `docs/superpowers/specs/2026-05-10-markdown-document-layout.md` §D3.
- *
- * Requirements:
- * - localStorage key per-drive: `inspector-open:{drive}` (mirrors the
- *   `tree:enabled:{drive}` convention; hako rOloIC47lE4P3MyCtf1Vv).
- * - Default depends on viewport width:
- *   - >= 1120px CSS px → open (true)
- *   - <  1120px        → closed (false)
- * - localStorage value, when present, takes precedence over the
- *   viewport-driven default.
- * - `toggle()` flips state and persists.
- * - Switching the `drive` argument re-reads its own persisted value.
- */
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -30,9 +13,7 @@ function setViewportWidth(width: number) {
     writable: true,
     value: width,
   });
-  // Some implementations key off matchMedia for breakpoints — be safe.
   window.matchMedia = vi.fn().mockImplementation((query: string) => {
-    // Match any min-width/max-width predicate against `width`.
     const minMatch = query.match(/min-width:\s*(\d+)px/);
     const maxMatch = query.match(/max-width:\s*(\d+)px/);
     let matches = false;
@@ -53,7 +34,7 @@ function setViewportWidth(width: number) {
 
 beforeEach(() => {
   localStorage.clear();
-  setViewportWidth(1440); // wide by default
+  setViewportWidth(1440);
 });
 
 afterEach(() => {
@@ -88,10 +69,6 @@ describe("useInspectorOpen", () => {
   });
 
   it("opens the band the media layout needed", () => {
-    // Between 1120 and 1279 the redesign's default — the transcript and
-    // chapters as inspector tabs — had nowhere to be: both panels were
-    // mounted behind an inspector that started closed, with nothing on
-    // screen and nothing pressed.
     for (const width of [1120, 1200, 1279]) {
       setViewportWidth(width);
       const { result } = renderHook(() => useInspectorOpen("work"));
@@ -173,14 +150,13 @@ describe("useInspectorOpen", () => {
   });
 
   it("survives unmount/remount (page boundary crossing)", () => {
-    setViewportWidth(1024); // narrow → would default to closed
+    setViewportWidth(1024);
     const { result, unmount } = renderHook(() => useInspectorOpen("work"));
     expect(result.current.open).toBe(false);
 
     act(() => result.current.setOpen(true));
     unmount();
 
-    // Re-mount: viewport still narrow, but persisted true should win.
     const { result: result2 } = renderHook(() => useInspectorOpen("work"));
     expect(result2.current.open).toBe(true);
   });

@@ -52,8 +52,6 @@ const apiMocks = {
   removeCollectionItem: vi.mocked(api.removeCollectionItem),
 };
 
-// FileGrid / FileList both render the title text we assert on; stub them
-// for speed and to avoid pulling in their context-menu trees.
 vi.mock("@/components/folder/TwoPaneLayout", () => ({
   TwoPaneLayout: ({
     children,
@@ -212,11 +210,8 @@ describe("CollectionDetail", () => {
   });
 
   it("numbers its rows, whichever way the list was reached", async () => {
-    // A collection's order *is* the collection — unlike a folder, where
-    // the order is a sort the reader picked. So the numbers are not a
-    // property of the audio default that put this list on screen; they
-    // are asked for unconditionally, and this reaches the list through
-    // the toggle to say so.
+    // A collection's order *is* the collection, so the numbers are asked for
+    // unconditionally, not as a property of the default that chose the list.
     render(<CollectionDetail drive="main" collectionId="c1" />);
     await waitFor(() => expect(screen.getByTestId("file-grid")).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText("List view"));
@@ -237,10 +232,6 @@ describe("CollectionDetail", () => {
     );
   });
 
-  // The name is click-to-edit, and moving it into PageHeader's <h1> turned the
-  // heading itself into the trigger. Nothing covered any of that: blanking the
-  // handler, dropping the Escape revert and dropping the blur save all left
-  // the suite green.
   describe("the editable name", () => {
     it("opens an input when the heading is clicked", async () => {
       render(<CollectionDetail drive="main" collectionId="c1" />);
@@ -271,9 +262,6 @@ describe("CollectionDetail", () => {
       expect(apiMocks.updateCollection).not.toHaveBeenCalled();
     });
 
-    // "Name the subject once": the trail stops at the drive, and the heading
-    // carries the name. Adding it back to the trail is the state this
-    // migration removed.
     it("names the collection once, in the heading and not the trail", () => {
       render(<CollectionDetail drive="main" collectionId="c1" />);
       return waitFor(() => {
@@ -343,19 +331,6 @@ describe("CollectionDetail", () => {
   });
 });
 
-/**
- * DESIGN.md §2.2: one accent fill per screen.
- *
- * Here rather than in `accent-budget.test.tsx` for the same reason as
- * Trash and Missing — twelve mocks, and a second copy of them would be a
- * second thing to keep in step. `SCREENS` names this file.
- *
- * One, not zero. A collection is a playlist and playing it is what the
- * screen is for, so the fill is spent correctly here — the folder toolbar
- * gives Play a border because *there* the fill belongs to Add, and a
- * collection has nothing to add to. §2.2 asks for one action to own it,
- * not for the same action to own it everywhere.
- */
 describe("deleting a collection", () => {
   const openMenu = async () => {
     const trigger = await screen.findByRole("button", {
@@ -373,18 +348,14 @@ describe("deleting a collection", () => {
       name: /More actions for My Collection/,
     });
     expect(trigger).toHaveAttribute("aria-haspopup", "menu");
-    // Both states. Asserted only after opening, a hard-coded `"true"`
-    // would pass — the property is that it reflects the menu, not that
-    // it says the word.
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
   });
 
   it("closes on Escape", async () => {
-    // Without this the only ways out of a menu are an outside click and
-    // picking a row. Handled on the box rather than on `document`, so it
-    // cannot answer a press aimed at whatever is stacked above it.
+    // Handled on the box rather than on `document`, so it cannot answer a
+    // press aimed at whatever is stacked above it.
     render(<CollectionDetail drive="main" collectionId="c1" />);
     await openMenu();
     expect(screen.getByRole("menuitem")).toBeInTheDocument();
@@ -402,7 +373,7 @@ describe("deleting a collection", () => {
   it("offers nothing that already has a path of its own", async () => {
     // Renaming, the description and the order are each reachable
     // already — the title and scope edit in place, the order is the
-    // items pane. A second route to one action is 原則 3.
+    // items pane.
     render(<CollectionDetail drive="main" collectionId="c1" />);
     await openMenu();
     expect(screen.getAllByRole("menuitem")).toHaveLength(1);
@@ -417,9 +388,8 @@ describe("deleting a collection", () => {
     expect(screen.queryByRole("menuitem")).toBeNull();
     expect(await screen.findByText("Delete collection?")).toBeInTheDocument();
 
-    // The dialog's confirm carries the same words as the row that
-    // opened it, which is what a confirm button should say; the row is
-    // gone by now, so the name is unambiguous.
+    // The dialog's confirm carries the same words as the row that opened
+    // it; the row is gone by now, so the name is unambiguous.
     fireEvent.click(screen.getByRole("button", { name: "Delete collection" }));
     await waitFor(() =>
       expect(apiMocks.deleteCollection).toHaveBeenCalledWith("main", "c1"),
@@ -441,9 +411,6 @@ describe("an empty collection", () => {
   });
 
   it("says what to do about it, and where", async () => {
-    // It was a bare `<p>No items</p>` — not an `EmptyState` call site at
-    // all, which is why Phase 3's pass over the other ten did not reach
-    // it. The one obvious next step is not on this screen.
     render(<CollectionDetail drive="main" collectionId="c1" />);
     expect(
       await screen.findByText("Nothing in this collection yet"),
@@ -491,10 +458,6 @@ describe("a collection spends its accent fill on Play", () => {
       <CollectionDetail drive="main" collectionId="c1" />,
     );
     await waitFor(() => expect(container.querySelector("h1")).toBeTruthy());
-    // Not zero any more, and still one: Play is gone with nothing to
-    // play, and the empty state's one call to action takes the budget
-    // instead. By label, because "one fill somewhere" would also be true
-    // of Play returning beside a collection that holds nothing.
     expect(accentFills(container).map((el) => el.textContent?.trim())).toEqual([
       "Browse the drive",
     ]);
@@ -505,8 +468,6 @@ describe("a collection spends its accent fill on Play", () => {
       <CollectionDetail drive="main" collectionId="c1" />,
     );
     await waitFor(() => expect(container.querySelector("h1")).toBeTruthy());
-    // The destructive control is behind `…` now, so it is neither a fill
-    // nor a tap target beside Play.
     expect(
       screen.queryByRole("button", { name: "Delete collection" }),
     ).toBeNull();

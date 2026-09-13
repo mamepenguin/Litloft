@@ -3,10 +3,8 @@ import { LOFT_MIME, playerKind } from "../playerKind";
 
 describe("playerKind", () => {
   it("recognises a .loft reference before anything else", () => {
-    // The trap this helper exists for: filetype classification reports
-    // .loft as `video` so that search's file_type filters include it,
-    // but a native <video> cannot load a YouTube URL. Checking
-    // file_type first would send every .loft to the wrong player.
+    // `.loft` is classified as `video` for search filters, but a native
+    // <video> cannot load its URL.
     expect(
       playerKind({ mime_type: LOFT_MIME, file_type: "video" }),
     ).toBe("loft");
@@ -29,7 +27,6 @@ describe("playerKind", () => {
   });
 
   it("falls back to file_type when the mime is missing", () => {
-    // Scanned files occasionally reach the client without one.
     expect(playerKind({ file_type: "video" })).toBe("video");
     expect(playerKind({ mime_type: "", file_type: "audio" })).toBe("audio");
     expect(playerKind({ mime_type: null, file_type: "video" })).toBe("video");
@@ -41,8 +38,6 @@ describe("playerKind", () => {
   });
 
   it("matches the .loft mime exactly", () => {
-    // Substring or prefix matching here would misroute anything that
-    // merely mentions the vendor string.
     expect(
       playerKind({ mime_type: "application/vnd.litloft.loft+json; charset=utf-8", file_type: "video" }),
     ).toBe("video");

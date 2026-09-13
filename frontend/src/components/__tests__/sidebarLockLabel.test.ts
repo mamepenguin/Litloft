@@ -8,14 +8,8 @@ import { stripComments } from "@/__tests__/helpers/sourceScan";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 /**
- * The sidebar's lock control said "Lock" in every language.
- *
- * `i18n-keys.test.ts` compares catalogue against catalogue, so a string
- * that never reached a catalogue is invisible to it — which is how this
- * one sat in a Japanese sidebar for months with every i18n check green.
- * Asserted on the source because that is where the defect lives; a
- * rendered test with a stubbed `useTranslations` would report the key
- * whether or not the key was ever used.
+ * Asserted on the source: a rendered test with a stubbed `useTranslations`
+ * would report the key whether or not the key was ever used.
  */
 describe("the sidebar's lock control", () => {
   const src = stripComments(

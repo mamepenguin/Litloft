@@ -1,12 +1,7 @@
 /**
- * The canvas measurement the floor is a fraction of.
- *
  * It exists instead of `70cqh` because `container-type: size` implies
  * `contain: layout`, which would make the canvas the containing block
- * for the archive's unportalled full-screen viewer. Nothing about that
- * is visible in jsdom, so what is pinned here is the contract: the
- * property is published from a measurement, only while enabled, and is
- * taken off again when it stops being.
+ * for the archive's unportalled full-screen viewer.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";

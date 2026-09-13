@@ -3,15 +3,6 @@ import { act, render, screen } from "@testing-library/react";
 
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 
-/**
- * The floor has to reach the DOM, not just the pure function.
- *
- * `columnsFor` can be right while the grid still renders one column,
- * because the measured value only matters if the element carries the ref
- * and the style reads the state. This mounts a grid and reads back the
- * template it actually got.
- */
-
 let resize: (() => void) | undefined;
 
 beforeEach(() => {
@@ -89,8 +80,6 @@ describe("a mounted card grid", () => {
   });
 
   it("stops observing the element it is taken off", () => {
-    // Nothing else asserts the teardown, and a leaked observer keeps a
-    // detached node alive and re-measures a grid that is gone.
     const disconnected: number[] = [];
     let instances = 0;
     class CountingObserver {

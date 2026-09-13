@@ -47,7 +47,6 @@ vi.mock("@/lib/format", () => ({
 }));
 
 const expandSection = () => {
-  // Section is collapsed by default; click the header button to expand.
   fireEvent.click(screen.getByRole("button", { name: /Comments/ }));
 };
 

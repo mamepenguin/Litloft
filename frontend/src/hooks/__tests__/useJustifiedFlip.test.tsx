@@ -8,14 +8,6 @@ import { dirname, resolve } from "node:path";
 
 import { useJustifiedFlip, FLIP_DURATION_MS } from "../useJustifiedFlip";
 
-/**
- * How long `.justified-grid-cell[data-flip="play"]` says the play lasts,
- * read off the stylesheet. The other end of the pair the timer below has
- * to outlast — `justifiedGrid.test.tsx` compares the same declaration
- * against `FLIP_DURATION_MS`; this file compares it against the delay
- * the hook actually schedules, which is the term the invariant is about
- * and which no constant is proof of.
- */
 const CSS_PLAY_MS = (() => {
   const sheet = readFileSync(
     resolve(dirname(fileURLToPath(import.meta.url)), "../../app/globals.css"),
@@ -27,47 +19,6 @@ const CSS_PLAY_MS = (() => {
   if (durations.length === 0) throw new Error("no duration in the play rule");
   return Math.max(...durations);
 })();
-
-/**
- * What is pinned here is the **branching**, not the geometry.
- *
- * jsdom does no layout, so every box it reports is zero and no assertion
- * made here is evidence about what the animation looks like: whether the
- * inverted cell lands on its old rect, whether the scale is uniform,
- * whether a horizontal scrollbar opens while it plays. Those were
- * measured in Chrome against the 995-photograph folder and the numbers
- * are in the PR body; nothing in this file would notice if they changed.
- *
- * The rects below are a script, not a layout. They let the arithmetic
- * and the four ways out of it be exercised — which is what breaks when
- * someone edits the hook.
- *
- * ## What stays green here, and is meant to
- *
- * Five deletions leave this file passing, and none of them can be
- * reached from jsdom. They are recorded rather than covered, because a
- * jsdom assertion for any of them would pass for a reason unrelated to
- * why the line exists, and would then have to be maintained as if it
- * were evidence:
- *
- * - `void grid.offsetWidth`. The reflow between writing the invert and
- *   arming the play. Deleting it stops every play from animating, and
- *   jsdom resolves no styles, so nothing here can tell. The most
- *   load-bearing line in the hook that no test reads.
- * - `settle()` at the top of the layout effect. It exists so the
- *   measurement reads the layout rather than a cell mid-play; the
- *   fixtures script their rects, so a transform in flight changes
- *   nothing they report.
- * - `ease-out` → `linear` in the two CSS transitions.
- * - `Math.round` on the measured width.
- * - The unmount cleanup.
- *
- * All five want a browser. That is PR 1e's subject — `frontend/e2e/`
- * exists but CI runs none of it, and a detector that does not run is not
- * a detector. Adding jsdom stand-ins for them here would put the fourth
- * instance of this PR's recurring defect into the file written to stop
- * it: an assertion that looks like coverage and observes nothing.
- */
 
 interface Box {
   left: number;
@@ -95,16 +46,6 @@ function box(b: Box): DOMRect {
   } as DOMRect;
 }
 
-/**
- * Put back, not left in place: the patch is on a prototype the whole
- * environment shares, and a file should leave the environment as it
- * found it.
- *
- * Not because it would otherwise reach another file. Vitest builds a
- * fresh jsdom per test file, and `--sequence.shuffle` reorders files
- * without making them share a window, so today nothing downstream can
- * see this. The restore does not depend on that staying true.
- */
 const realRect = Object.getOwnPropertyDescriptor(
   Element.prototype,
   "getBoundingClientRect",
@@ -145,18 +86,9 @@ function Grid({ keys }: { keys: string[] }) {
 }
 
 /**
- * Everything the hook writes to a cell, captured as it is written: the
- * inline `transform` / `opacity`, **and** the `data-flip` state the two
- * CSS rules read. Both, because either one alone is a hole.
- *
- * The hook sets a value and clears it in one synchronous pass, so the
- * element's own attributes afterwards say nothing about what went
- * through them — the same reason the browser measurement had to watch
- * mutations rather than read the DOM. And `style` alone cannot see the
- * invert→play handoff, which is the entire mechanism: with the play
- * state never entered, the CSS rule in force is `transition: none` and
- * the transform is written and cleared in one frame, while every style
- * write this file used to assert on still happens.
+ * Captured as written: the hook sets a value and clears it in one
+ * synchronous pass, so the element's attributes afterwards say nothing
+ * about what went through them.
  */
 interface Motion {
   /** Inline `style` values carrying a transform or an opacity, in order. */
@@ -214,29 +146,9 @@ function watchMotion(container: HTMLElement): Motion {
 }
 
 /**
- * Where a FLIP has to leave a cell once the play is armed — asked of the
- * cell, not of a log of what the hook wrote.
- *
- * A log of writes cannot answer this. Every value the hook writes is
- * also written by a hook that never takes it back: `invert` sets the
- * transform, `play` clears it, and both land in one microtask, so the
- * same strings appear in the record stream whether or not the release
- * happened. Deleting `cell.style.transform = ""` used to pass every
- * assertion in this file while, in a browser, holding the cell at its
- * old rect for 250ms and then teleporting it — worse than not animating
- * at all.
- *
- * The post-condition has no such blind spot, because it is a statement
- * about the cell rather than about the hook: the cell is in the state
- * whose rule carries the transition, and nothing inline is still holding
- * it off the position the layout gave it. A missing release fails it, a
- * missing `play` fails it, and both missing fails it.
- *
- * What it cannot say is that the position the layout gave it is the
- * right one. jsdom lays nothing out and the rects here are a script, so
- * "released to its layout box" is as far as this goes; that the box is
- * the one the previous rect was inverted from is measured in a browser,
- * not here.
+ * Asked of the cell, not of a log of writes: `invert` and `play` land in
+ * one microtask, so the same strings appear in the log whether or not the
+ * transform was released.
  */
 function armed(container: HTMLElement) {
   return [...container.querySelectorAll<HTMLElement>("[data-flip]")].map((cell) => ({
@@ -282,11 +194,6 @@ function reducedMotion(matches: boolean) {
   }));
 }
 
-/**
- * One line of two cells, and the second page that completes it. `a` is
- * where a line starts so it never moves; `b` both widens and slides
- * right, which is the pair the measurement found on every append.
- */
 function firstPage() {
   layout.set(GRID, { left: 0, top: 0, width: 1000, height: 200 });
   layout.set("a", { left: 0, top: 0, width: 300, height: 200 });
@@ -323,8 +230,6 @@ describe("useJustifiedFlip", () => {
 
     const inverts = motion.styles.map(invert).filter((v) => v !== null);
     // `a` grew 300→450 in place; `b` grew 200→300 and moved 308→458.
-    // Declared, not read back off the elements: an expectation built from
-    // what the hook produced would agree with whatever it produced.
     expect(inverts).toEqual(
       expect.arrayContaining([
         { dx: 0, dy: 0, sx: 300 / 450, sy: 200 / 300 },
@@ -338,16 +243,11 @@ describe("useJustifiedFlip", () => {
     expect(motion.styles.filter((w) => /opacity: 0/.test(w))).toHaveLength(1);
     expect(motion.styles.filter((w) => /opacity: 0/.test(w))[0]).not.toContain("transform");
 
-    // The post-condition. Every animated cell is in the state whose rule
-    // carries the transition, and nothing inline is still holding it off
-    // its layout box. This is the assertion that a missing `play`, a
-    // missing release, or both together all fail — see `armed`.
     expect(armed(container)).toEqual([
       { key: "a", flip: "play", transform: "", opacity: "" },
       { key: "b", flip: "play", transform: "", opacity: "" },
       { key: "c", flip: "play", transform: "", opacity: "" },
     ]);
-    // And each of them got there the one way that arms a transition.
     for (const key of ["a", "b", "c"]) {
       expect(motion.flip(key), `data-flip on ${key}`).toEqual(["invert", "play"]);
     }
@@ -452,8 +352,6 @@ describe("useJustifiedFlip", () => {
     await act(async () => {
       rerender(<Grid keys={["a", "b", "c"]} />);
     });
-    // Declared per cell, not counted: `secondPage()` moves `a` and `b`
-    // and adds `c`, so all three are armed and released, every time.
     expect(armed(container)).toEqual([
       { key: "a", flip: "play", transform: "", opacity: "" },
       { key: "b", flip: "play", transform: "", opacity: "" },
@@ -472,13 +370,8 @@ describe("useJustifiedFlip", () => {
   });
 
   it("keeps the marks on for at least as long as the stylesheet plays", async () => {
-    // The limit, written into the test rather than left in prose.
-    // `settle` removes `data-flip`, which removes `transition-property`
-    // and cancels a play still running, so the delay has to outlast the
-    // CSS duration — in that direction only. The constant is one of the
-    // two terms and proves neither: this runs the clock against the
-    // timer the hook actually schedules, and reads the other term out of
-    // the stylesheet.
+    // `settle` removes `data-flip`, which cancels a play still running, so
+    // the delay has to outlast the CSS duration.
     expect(CSS_PLAY_MS).toBe(FLIP_DURATION_MS);
     vi.useFakeTimers();
     try {
@@ -490,7 +383,6 @@ describe("useJustifiedFlip", () => {
       });
       expect(armed(container)).toHaveLength(3);
 
-      // Still playing at the last moment the stylesheet is animating.
       await act(async () => {
         vi.advanceTimersByTime(CSS_PLAY_MS);
       });
@@ -499,7 +391,6 @@ describe("useJustifiedFlip", () => {
         `marks came off before the ${CSS_PLAY_MS}ms play finished`,
       ).toHaveLength(3);
 
-      // And gone once the delay is up.
       await act(async () => {
         vi.advanceTimersByTime(1000);
       });
@@ -514,9 +405,8 @@ describe("useJustifiedFlip", () => {
     const { container, rerender } = render(<Grid keys={["a", "b"]} />);
     const motion = watchMotion(container);
 
-    // `b` moves the same way it does in the append above, but from far
-    // below the fold. A re-sort moves every cell in a folder of 995 and
-    // the work has to stay proportional to the screen.
+    // `b` moves as in the append above, but from far below the fold; the
+    // work has to stay proportional to the screen.
     layout.set(GRID, { left: 0, top: 0, width: 1000, height: 400 });
     layout.set("a", { left: 0, top: 0, width: 450, height: 300 });
     layout.set("b", { left: 458, top: 90_000, width: 300, height: 300 });
@@ -527,8 +417,6 @@ describe("useJustifiedFlip", () => {
 
     const inverts = motion.styles.map(invert).filter((v) => v !== null);
     expect(inverts).toEqual([{ dx: 0, dy: 0, sx: 300 / 450, sy: 200 / 300 }]);
-    // `c` is new and on screen, so it fades; `b` is off the bottom and
-    // is not touched at all.
     expect(armed(container)).toEqual([
       { key: "a", flip: "play", transform: "", opacity: "" },
       { key: "c", flip: "play", transform: "", opacity: "" },
@@ -536,13 +424,9 @@ describe("useJustifiedFlip", () => {
   });
 
   it("leaves the first change after a width change to snap as well", async () => {
-    // Recorded behaviour, not an aspiration. The stored width is only
-    // rewritten when the cell set changes, and a window resize changes
-    // no cell set — in the packed branch it re-renders nothing at all.
-    // So the width the next append is compared against is the pre-resize
-    // one, that append snaps, and the one after it plays. The user guide
-    // says so; if this test starts failing because someone refreshed the
-    // measurement on a resize, that page is what to update.
+    // Recorded behaviour, not an aspiration: the stored width is only
+    // rewritten when the cell set changes. The user guide documents it, so
+    // changing this behaviour means updating that page.
     firstPage();
     const { container, rerender } = render(<Grid keys={["a", "b"]} />);
     const motion = watchMotion(container);

@@ -1,11 +1,3 @@
-// LanguageStep test (RED phase)
-//
-// Choices:
-// - Component receives `value` (current locale) and `onChange` callback.
-// - "Next" button is the parent's responsibility, but we test that selecting
-//   ja/en triggers onChange. The Next button being "enabled" once a value
-//   is set is parent-level, but step exposes a primary action that calls onNext.
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 

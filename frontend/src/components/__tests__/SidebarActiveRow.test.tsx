@@ -1,31 +1,3 @@
-/**
- * What the sidebar actually highlights, measured through `Sidebar` itself.
- *
- * `isSidebarLinkActive` has close unit coverage and its call site had none:
- * nothing in the suite mounted `Sidebar`, so `linkClass`'s
- * `active ?? isActive(href)`, the `?view=` and `?tag=` reads that feed it,
- * and the `driveBase` the rows are built from could each be deleted with
- * the whole suite green.
- *
- * Two things are held here:
- *
- * - the fixed rows a drive renders, in order, with the `?view=` value each
- *   one carries — declared in `sidebar/__tests__/fixedRows.ts` and compared
- *   against the DOM, so a deleted row, a reordered pair or a typo'd href
- *   fails. `SidebarDriveSwitcher.test.tsx` holds their *labels* the same
- *   way; what is only here is the `?view=` value and the `Missing Files`
- *   row, which that fixture does not render;
- * - that **exactly one** of them is highlighted for a given URL, and which.
- *   That part is here and nowhere else.
- *   Counting is the point: asserting only that the expected row is lit
- *   cannot see a second row lit beside it, which spec
- *   2026-09-12-purpose-oriented-navigation §5.2 forbids ("Only one purpose
- *   or view destination is selected at a time").
- *
- * Not held here: focus, layout, or which of two responsive copies a viewer
- * sees — jsdom lays nothing out (`.claude/rules/review-workflow.md`).
- */
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@testing-library/react";
 
@@ -35,9 +7,7 @@ import { FIXED_SIDEBAR_ROWS } from "../sidebar/__tests__/fixedRows";
 /**
  * A drive whose name is not its own encoding, so the two independent
  * constructions of the drive's URL base — `Sidebar`'s `driveBase` and
- * `isSidebarLinkActive`'s `base` — have somewhere to disagree. With a
- * drive called "main" they cannot (`.claude/rules/review-workflow.md`,
- * detector rule 2: two sides, two implementations, one test through both).
+ * `isSidebarLinkActive`'s `base` — have somewhere to disagree.
  */
 const DRIVE = "家族ビデオ & co";
 const ENCODED = `/drive/${encodeURIComponent(DRIVE)}`;
@@ -102,9 +72,6 @@ vi.mock("../sidebar/useSidebarData", () => ({
 
 vi.mock("@/hooks/useShortcuts", () => ({ useShortcuts: vi.fn() }));
 
-// Its own hook, not `useSidebarData` — so the Smart Folders section is
-// absent from this file's tree unless it is mocked, and the `close` it is
-// handed is unreachable.
 vi.mock("@/hooks/useSmartFolders", () => ({
   useSmartFolders: () => ({
     smartFolders: smartFolders(),
@@ -116,11 +83,9 @@ const smartFolders = () => [{ id: "sf1", name: SMART_FOLDER_NAME, query: "cake",
 
 
 
-/** Every rendered link that points into this drive, in document order. */
 function driveRows() {
   // Filtered in JS rather than with an attribute selector: the encoded
-  // drive name carries `%` and `&`, and a CSS selector is the wrong place
-  // to reason about either.
+  // drive name carries `%` and `&`.
   return Array.from(document.querySelectorAll<HTMLAnchorElement>("a")).filter(
     (a) => (a.getAttribute("href") ?? "").startsWith(ENCODED),
   );
@@ -128,9 +93,6 @@ function driveRows() {
 
 const HIGHLIGHT = "bg-bg-elevated";
 
-/** The labels of the rows rendering as selected — `font-medium` is on the
- *  same class list, but `bg-bg-elevated` is also the hover colour, so the
- *  resting selection is read from the non-hover class. */
 function highlighted() {
   return driveRows()
     .filter((a) => a.className.split(/\s+/).includes(HIGHLIGHT))
@@ -167,20 +129,6 @@ describe("the drive's fixed sidebar rows", () => {
   });
 });
 
-/**
- * Where the three parts of the column sit relative to each other.
- *
- * The rows are held by the set above; their *position* is not, and it is
- * the whole of what this change does to the shape of the column (spec
- * §5.1). Moving `SidebarSystemSection` above `{order.map(…)}` is a
- * one-line edit that no other case can see.
- *
- * It needs the reader's own sections to actually render: with every
- * section empty there is no "below" for the system rows to be below, and
- * the assertion would hold over a column with only two parts. The pin is
- * what supplies that — the tag rows beside it are scenery here, because
- * the middle position is read off the pin.
- */
 describe("the column's three parts, in order", () => {
   it("puts the reader's own sections between the purpose rows and the drive's", () => {
     pins = [{ path: PINNED_PATH }];
@@ -192,23 +140,12 @@ describe("the column's three parts, in order", () => {
       expect(i, `${needle} is not on the column`).not.toBe(-1);
       return i;
     };
-    // Library and All Files are the ends of the purpose block; Pins is a
-    // section the reader owns; Trash is the first of the drive's own.
     expect(at("Library")).toBeLessThan(at("All Files"));
     expect(at("All Files")).toBeLessThan(at(PINNED_PATH));
     expect(at(PINNED_PATH)).toBeLessThan(at("Trash"));
   });
 });
 
-/**
- * What `Sidebar` hands `SidebarSystemSection`.
- *
- * `SidebarSystemSection.test.tsx` renders that component directly with
- * props of its own, so it can say what the component does with them and
- * nothing about what `Sidebar` passes. Both are new call sites, and two of
- * them carry a stated contract: the dashboard is admin-only, and choosing
- * a destination dismisses the sidebar in overlay mode alone (spec §5.2).
- */
 describe("what Sidebar hands the system section", () => {
   it("keeps the dashboard off the column for a viewer who is not an admin", () => {
     render(<Sidebar />);
@@ -221,15 +158,6 @@ describe("what Sidebar hands the system section", () => {
     expect(document.body.textContent).toContain("Dashboard");
   });
 
-  /**
-   * Spec §5.2: choosing a destination closes the sidebar in overlay mode
-   * and leaves it alone inline.
-   *
-   * Across the parts of the column rather than at one row. `Sidebar`
-   * threads one `closeIfOverlay` through every section it renders, and a
-   * case pinned to a single row leaves the others free to be handed the
-   * raw `close` — which is what happened to this file once already.
-   */
   it.each([
     ["a purpose row", "Library"],
     ["a view row", "All Files"],
@@ -240,9 +168,7 @@ describe("what Sidebar hands the system section", () => {
   ])("dismisses an overlay sidebar from %s, and leaves an inline one alone", (_part, label) => {
     const press = () => {
       // By text over the whole nav, not over `driveRows()`: a Smart
-      // Folder row is a `<button>` that navigates in JS and carries no
-      // href, so an anchor-only search cannot reach the section it
-      // belongs to.
+      // Folder row is a `<button>` that carries no href.
       const row = Array.from(document.querySelectorAll<HTMLElement>("nav a, nav button")).find(
         (el) => el.textContent?.includes(label),
       );
@@ -283,19 +209,6 @@ describe("which row the sidebar highlights", () => {
     expect(highlighted()).toEqual([label]);
   });
 
-  /**
-   * The pin states, through the mounted sidebar rather than through the
-   * predicate.
-   *
-   * `libraryRowActive.test.ts` hands the predicate a `pinnedHrefs` list it
-   * builds itself, which shows the predicate consumes a list — not that
-   * `Sidebar` supplies one. The memo that builds it, its `pins`
-   * dependency, and the shared `pinHrefFor` are only reachable from here,
-   * and cutting the memo to `[]` is what a renamed `pin.path` or a dropped
-   * dependency degrades to. What that looks like on screen is arbitration
-   * 15 reversed: the Pin row **and** Library lit at once, which is why
-   * these assert the whole lit set and not just Library's absence.
-   */
   it("lights the Pin alone inside a pinned folder, and Library yields", () => {
     pins = [{ path: PINNED_PATH }];
     pathname = `${ENCODED}/${encodeURIComponent(PINNED_PATH)}`;
@@ -304,9 +217,6 @@ describe("which row the sidebar highlights", () => {
   });
 
   it("yields to the pin on the decoded path too", () => {
-    // The half `samePath` carries. With a plain comparison the pin row
-    // goes dark here and Library lights instead, so this separates the
-    // two spellings rather than the two rows.
     pins = [{ path: PINNED_PATH }];
     pathname = `${DECODED}/${PINNED_PATH}`;
     render(<Sidebar />);
@@ -314,10 +224,6 @@ describe("which row the sidebar highlights", () => {
   });
 
   it("follows the pins when they arrive after the first render", () => {
-    // The memo's dependency array, which a single static mount cannot
-    // reach: with `pins` already final on first render the list is right
-    // whatever the array says. `useSidebarData` fetches, so the first
-    // render of a real session has none.
     pins = [];
     pathname = `${ENCODED}/${encodeURIComponent(PINNED_PATH)}`;
     const { rerender } = render(<Sidebar />);
@@ -329,9 +235,6 @@ describe("which row the sidebar highlights", () => {
   });
 
   it("lights Library in a folder that is not the pinned one", () => {
-    // The complement: with a pin in the list and the reader somewhere
-    // else, Library keeps the highlight. Without this, "Library yields"
-    // is satisfied by a Library row that never lights on a folder at all.
     pins = [{ path: PINNED_PATH }];
     pathname = `${ENCODED}/${encodeURIComponent(UNPINNED_PATH)}`;
     render(<Sidebar />);
@@ -339,11 +242,6 @@ describe("which row the sidebar highlights", () => {
   });
 
   it("lights Library inside a folder, which is the subject there", () => {
-    // Library is selected on a URL it does not link to, so its highlight
-    // cannot come from its href — `Sidebar` passes it as the override
-    // `linkClass` takes. Measured through the mounted sidebar and not
-    // only against the predicate, because the override is the half that
-    // a unit test of the predicate cannot reach.
     pathname = `${ENCODED}/recipes`;
     render(<Sidebar />);
     expect(highlighted()).toEqual(["Library"]);
@@ -362,13 +260,6 @@ describe("which row the sidebar highlights", () => {
   });
 });
 
-/**
- * A tag row's href is a toggle — it stops carrying `?tag=` at the moment
- * the row is selected — so its highlight cannot come from the href.
- * `Sidebar`'s `linkClass(href, active?)` takes an explicit answer for
- * exactly this, and discarding that parameter leaves the design the
- * classifier's own docstring rests on with nothing holding it up.
- */
 describe("a row whose highlight cannot come from its href", () => {
   beforeEach(() => {
     tags = {

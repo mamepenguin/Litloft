@@ -1,17 +1,3 @@
-/**
- * The inspector as it is actually rendered.
- *
- * `tabs.test.ts` covers the composition rules as arithmetic. These
- * mount the thing, because the §2 acceptance criteria are all stated
- * about the real surface — "no tab strip with no addons", "『情報｜文字
- * 起こし』 with one", "three tabs with two" — and a pure-function test
- * of the composer is not that surface.
- *
- * No addon is named here either. Tabs arrive as slot entries, which is
- * the generic container core defines, so these read the same whether
- * the second tab comes from the intelligence addon or from something
- * written next year.
- */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
@@ -53,8 +39,6 @@ const tabs = () => screen.queryAllByRole("tab");
 
 describe("InspectorShell", () => {
   it("draws no tab strip when nothing has claimed a tab", () => {
-    // With no addon installed there is one tab, so the inspector looks
-    // exactly as it did before any of this — which the design asked for.
     renderShell();
 
     expect(strip()).toBeNull();
@@ -66,7 +50,6 @@ describe("InspectorShell", () => {
     renderShell([{ entry: entry("a"), label: "文字起こし", content: <p>a body</p> }]);
 
     expect(strip()).not.toBeNull();
-    // Exactly two. A lower bound would pass on a strip that lost one.
     expect(tabs()).toHaveLength(2);
     expect(tabs().map((t) => t.textContent)).toEqual(["Info", "文字起こし"]);
   });
@@ -81,8 +64,6 @@ describe("InspectorShell", () => {
   });
 
   it("keeps the header out of the region that scrolls", () => {
-    // The whole point of the split: the per-file actions stay in one
-    // place instead of being somewhere in a long column.
     renderShell([{ entry: entry("a"), label: "A", content: <p>a body</p> }]);
 
     const header = screen.getByTestId("header");
@@ -92,24 +73,12 @@ describe("InspectorShell", () => {
   });
 
   it("defaults to that split, so a caller has to ask for the other one", () => {
-    // The sheet asks; every other caller keeps the pinned header. A
-    // default of `column` would silently unpin the desktop pane, where
-    // the header is what the split was built for.
     renderShell();
     expect(screen.getByTestId("inspector-shell").dataset.scroll).toBe("panel");
   });
 });
 
 describe("InspectorShell in column mode", () => {
-  /**
-   * The form the mobile sheet takes: one scroller, and it is the
-   * enclosing box rather than anything here.
-   *
-   * jsdom lays nothing out, so these are claims about what the component
-   * asks for — which box declares an overflow, and which one is sticky.
-   * Whether that produces a reachable end and a pinned strip is measured
-   * in `e2e-layout/mobile-inspector-sheet.spec.ts`.
-   */
   const renderColumn = () =>
     renderShell(
       [{ entry: entry("a"), label: "A", content: <p>a body</p> }],
@@ -133,9 +102,6 @@ describe("InspectorShell in column mode", () => {
   });
 
   it("takes no height to fill, which is what would make the panel a scroller again", () => {
-    // `h-full min-h-0` is the pair that bounds the panel. Left on, the
-    // panel has a height to fill and puts its overflow inside itself —
-    // the nested pair the sheet exists to avoid.
     renderColumn();
 
     const root = screen.getByTestId("inspector-shell");
@@ -149,13 +115,10 @@ describe("InspectorShell in column mode", () => {
     const strip = screen.getByTestId("inspector-tabs");
     expect(strip.className).toContain("sticky");
     expect(strip.className).toContain("top-0");
-    // Opaque, or the tab body travels visibly through it.
     expect(strip.className).toContain("bg-bg-card");
   });
 
   it("and the pinned form's strip is not sticky, because nothing scrolls past it", () => {
-    // The contrast, as its own case. Without it "sticky" could be
-    // unconditional and the case above would not notice.
     renderShell([{ entry: entry("a"), label: "A", content: <p>a body</p> }]);
 
     expect(screen.getByTestId("inspector-tabs").className).not.toContain(
@@ -164,8 +127,6 @@ describe("InspectorShell in column mode", () => {
   });
 
   it("still puts the header above the strip and the strip above the panel", () => {
-    // The order is what makes the sticky strip mean anything: a strip
-    // drawn after the panel would pin the bottom of the column.
     renderColumn();
 
     const root = screen.getByTestId("inspector-shell");
@@ -176,9 +137,6 @@ describe("InspectorShell in column mode", () => {
   });
 
   it("keeps every panel mounted, the same as the pinned form", () => {
-    // The mode changes which box scrolls and nothing else. Unmounting on
-    // a tab switch would re-fetch the transcript and lose the reader's
-    // place, in either form.
     renderColumn();
 
     expect(screen.getByText("info body")).toBeInTheDocument();
@@ -187,11 +145,8 @@ describe("InspectorShell in column mode", () => {
   });
 
   it("mounts every panel and hides the ones not selected", () => {
-    // Not an optimisation — a correctness requirement. The companion's
-    // occupants fetch, subscribe to the playback clock and hold a scroll
-    // position; `globals.css` records the same invariant for the grid
-    // form. Unmounting on every tab switch would re-fetch the transcript
-    // and lose the reader's place whenever they glanced at the tags.
+    // Not an optimisation: unmounting on a tab switch would re-fetch the
+    // transcript and lose the reader's place.
     renderShell([{ entry: entry("a"), label: "A", content: <p>a body</p> }]);
 
     expect(screen.getByText("info body")).toBeInTheDocument();
@@ -212,7 +167,6 @@ describe("InspectorShell in column mode", () => {
       "aria-selected",
       "true",
     );
-    // The same node, not a new one: a remount would replace it.
     expect(screen.getByText("a body")).toBe(before);
   });
 
@@ -239,8 +193,6 @@ describe("InspectorShell in column mode", () => {
   });
 
   it("names the strip in the reader's language, not in English", () => {
-    // The commit this belongs to is about an English literal turning up
-    // in a row of Japanese headings; the strip's own name is one.
     renderShell([{ entry: entry("a"), label: "A", content: <p>a body</p> }]);
 
     expect(screen.getByRole("tablist")).toHaveAccessibleName(
@@ -249,10 +201,6 @@ describe("InspectorShell in column mode", () => {
   });
 
   it("follows the selection when its tab goes away, and does not spring back", () => {
-    // A tab really does vanish: the reader moves the transcript below
-    // the player, or a file turns out to have no chapters. Remembering
-    // the dead id means the selection jumps off whatever they are
-    // reading the moment that tab returns.
     const withTab = [
       { entry: entry("a"), label: "A", content: <p>a body</p> },
     ];
@@ -304,16 +252,13 @@ describe("InspectorShell in column mode", () => {
       { entry: entry("a"), label: "A", content: <p>a body</p>, available: false },
     ]);
 
-    // No strip at all: the only other tab has no button, so Info is
-    // alone and a strip of one is no strip.
     expect(strip()).toBeNull();
     expect(screen.queryByRole("tab", { name: "A" })).toBeNull();
   });
 
   it("keeps the unlisted panel mounted, because it is what reports", () => {
-    // The panel is the reporter. Unmounting it on the first "nothing"
-    // would make that answer permanent — the file's transcript could
-    // arrive and no one would be left to say so.
+    // The panel is the reporter: unmounting it on the first "nothing" would
+    // make that answer permanent.
     renderShell([
       { entry: entry("a"), label: "A", content: <p>a body</p>, available: false },
     ]);
@@ -324,9 +269,6 @@ describe("InspectorShell in column mode", () => {
   });
 
   it("does not call the unlisted panel a tabpanel", () => {
-    // `role="tabpanel"` is a promise that a tab points at it, and none
-    // does. A screen reader walking the tablist would be told the group
-    // has three panels and find two buttons.
     renderShell([
       { entry: entry("a", 10), label: "A", content: <p>a body</p> },
       {
@@ -345,9 +287,6 @@ describe("InspectorShell in column mode", () => {
   });
 
   it("never lets the selection land on an unlisted tab", () => {
-    // Two listed and one not: the arrows have to walk past the unlisted
-    // one rather than through it, or one press shows a panel whose own
-    // entry has just said it is empty.
     renderShell([
       { entry: entry("a", 10), label: "A", content: <p>a body</p> },
       {
@@ -366,12 +305,8 @@ describe("InspectorShell in column mode", () => {
       "true",
     );
 
-    // Wrapping goes back to Info, not on to the unlisted one — and the
-    // focus goes with it. The selection alone would not show this: the
-    // shell already corrects a selection that lands on an unlisted tab,
-    // so a walk that steps onto one still *ends* on Info. What it loses
-    // is the focus, which stays behind on a tab that is no longer
-    // selected, because the unlisted tab has no button to move it to.
+    // The focus is asserted as well as the selection: the shell corrects a
+    // selection that lands on an unlisted tab, but not the focus.
     fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" });
     const info = screen.getByRole("tab", { name: "Info" });
     expect(info).toHaveAttribute("aria-selected", "true");
@@ -382,18 +317,6 @@ describe("InspectorShell in column mode", () => {
   });
 
   it("lets go of a tab that is unlisted while it is the one open", () => {
-    // The arrow-key test above walks the strip and so never reaches the
-    // line that resolves the selection — a separate expression, and the
-    // one this path uses. What reaches it is the entry answering "I have
-    // nothing" *while the reader is looking at it*: an empty fetch
-    // settles, a transcript is deleted, the host swaps the file under a
-    // reused mount.
-    //
-    // Resolved against every tab rather than the listed ones, the panel
-    // the entry has just called empty stays on screen — and worse, no
-    // button matches the selection, so none is `aria-selected` and the
-    // roving tabindex leaves every one of them at -1: the whole strip
-    // drops out of the keyboard tab order.
     const shell = (available: boolean) => (
       <InspectorShell
         header={<div data-testid="header">header</div>}
@@ -418,8 +341,6 @@ describe("InspectorShell in column mode", () => {
     expect(document.getElementById("inspector-panel-a")).toHaveAttribute(
       "hidden",
     );
-    // And the strip is still reachable: exactly one button is selected,
-    // and it is the one the keyboard can get to.
     const selected = tabs().filter(
       (tab) => tab.getAttribute("aria-selected") === "true",
     );
@@ -428,9 +349,6 @@ describe("InspectorShell in column mode", () => {
   });
 
   it("gives an unlisted panel back its button when the entry changes its mind", () => {
-    // The whole reason the panel stays mounted. A transcript that was
-    // still fetching says "nothing" first and "something" a moment
-    // later, and the tab has to come back.
     const shell = (available: boolean) => (
       <InspectorShell
         header={<div data-testid="header">header</div>}
@@ -450,7 +368,6 @@ describe("InspectorShell in column mode", () => {
     rerender(shell(true));
 
     expect(screen.getByRole("tab", { name: "A" })).toBeInTheDocument();
-    // The same node: it was hidden, not rebuilt.
     expect(screen.getByText("a body")).toBe(before);
   });
 
@@ -462,9 +379,6 @@ describe("InspectorShell in column mode", () => {
 
 describe("InspectorShell — no addon ids in core", () => {
   it("renders whatever a slot entry is called, without knowing what it is", () => {
-    // The §2 guarantee, stated as a test: a second `player-side` entry
-    // from an addon nobody has written yet gets a tab, and core needed
-    // no edit to give it one.
     const invented = vi.fn(() => <p>invented body</p>);
     renderShell([
       {

@@ -1,12 +1,5 @@
-// PasswordsSection test
-//
-// Choices:
-// - GET /api/admin/config/passwords returns masked entries (password is "***").
-// - Adding a password POSTs to /passwords/append with the new entry only
-//   (avoids round-tripping masked "***" values through PUT, which the
-//   backend correctly rejects).
-// - Deleting goes through DELETE /passwords/{index}.
-// - Empty list shows a "全公開モード" notice and a CTA "パスワード保護を有効化".
+// Adding a password POSTs to /passwords/append with the new entry only, which
+// avoids round-tripping masked "***" values through PUT.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -34,16 +27,8 @@ function jsonResponse(data: unknown, status = 200) {
 
 describe("PasswordsSection accent budget", () => {
   /**
-   * 裁定 R2, in all three of this section's states.
-   *
-   * The page's one fill belongs to the thing it is for — saving a
-   * password — which lives inside the modal. "Add a password" is how you
-   * reach the form, not the act itself, so the header button is
-   * `secondary`; so is the public-mode button, which does the same thing
-   * from an empty list.
-   *
-   * All three are measured because all three were edited and nothing saw
-   * them: reverting either `secondary` left the whole suite green.
+   * The page's one fill belongs to saving a password, which lives inside
+   * the modal; "Add a password" is how you reach the form, not the act itself.
    */
   it("spends nothing with a list on screen and the modal closed", async () => {
     mockFetch.mockResolvedValueOnce(
@@ -125,7 +110,6 @@ describe("PasswordsSection", () => {
       );
       expect(appendCall).toBeTruthy();
       const body = JSON.parse((appendCall![1] as RequestInit).body as string);
-      // POST body is a single entry, never a masked-laden array
       expect(body.password).toBe("newSecret");
       expect(body.groups).toContain("secret");
     });
@@ -171,19 +155,11 @@ describe("PasswordsSection", () => {
   it("empty passwords list shows 全公開モード notice and CTA", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse([]));
     render(<PasswordsSection />);
-    // Wait for the CTA, which is what this test is about, rather than for the
-    // notice above it. The two render together today, but `/public/i` is loose
-    // enough to match earlier text, and gating on it let the synchronous
-    // assertion below run one render too soon — observed once as
-    // `Unable to find an accessible element with the role "button"` in CI, on
-    // a tree that was green locally and green on a rerun.
+    // Wait for the CTA rather than for the notice above it: `/public/i` is
+    // loose enough to match earlier text.
     const cta = await screen.findByRole("button", {
       name: /パスワード保護を有効化|enable/i,
     });
-    // The notice through the CTA's own container, not by a document-wide text
-    // match. `/public/i` matches more than one element once the section has
-    // settled, so the original `waitFor` on it resolved on whichever appeared
-    // first — which is not necessarily the render that puts the CTA on screen.
     expect(cta.closest("div")).toHaveTextContent(/全公開モード|public/i);
   });
 });

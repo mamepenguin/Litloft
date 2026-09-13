@@ -19,16 +19,6 @@ describe("ToolbarMenu", () => {
   afterEach(cleanup);
   afterEach(() => vi.restoreAllMocks());
 
-  /**
-   * State the wrapper's box and the menu's, so a case can reach a corner
-   * the zeroes jsdom reports cannot.
-   *
-   * jsdom lays nothing out: without this every rect is zero, the menu fits
-   * everywhere and only the downward form is ever drawn. Stating the boxes
-   * makes a case evidence about the *spelling* the decision resolves to,
-   * and about nothing geometric — `e2e-components/` measures whether the
-   * box that spelling produces is on screen.
-   */
   function stubMenuBoxes(
     wrapper: { top: number; bottom: number },
     menu: { height: number; width: number },
@@ -46,11 +36,7 @@ describe("ToolbarMenu", () => {
   }
 
   it("names itself for the control and for the state", () => {
-    // WCAG 2.5.3: the accessible name has to contain the visible label, so
-    // a voice user saying what they read reaches the control. The face reads
-    // the state, so the name is `control: state` and containment holds in
-    // both directions — the word for what it does is findable without
-    // knowing the state.
+    // WCAG 2.5.3: the accessible name has to contain the visible label.
     render(
       <ToolbarMenu label="Sort" value="Newest first" icon={Filter}>
         {rows}
@@ -62,9 +48,6 @@ describe("ToolbarMenu", () => {
   });
 
   it("says one thing once when the state is the control's own word", () => {
-    // Reachable: an order the screen does not offer — `relevance` outside a
-    // search — falls back to naming the control, and "Sort: Sort" is a name
-    // that repeats itself.
     render(
       <ToolbarMenu label="Sort" value="Sort" icon={Filter}>
         {rows}
@@ -85,19 +68,13 @@ describe("ToolbarMenu", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
     // On the box, not on the menu: opening leaves focus on the trigger,
-    // which is outside the menu. `FilterMenu` records the measurement that
-    // a handler on the menu only fires for someone already tabbed into it.
+    // which is outside the menu.
     fireEvent.keyDown(trigger, { key: "Escape" });
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-    // The row that was focused unmounts with the menu; without the return,
-    // focus lands on <body>.
     expect(document.activeElement).toBe(trigger);
   });
 
   it("stops Escape rather than letting the shortcut stack answer it twice", () => {
-    // `escape-listeners.test.ts` records the mechanism: a React `onKeyDown`
-    // is invisible to the shortcut registry, so an Escape that also reaches
-    // the document gets answered by both.
     const outer = vi.fn();
     render(
       <div onKeyDown={outer}>
@@ -142,29 +119,7 @@ describe("ToolbarMenu", () => {
   it("keeps the popover's recipe, which is what keeps it on screen", () => {
     // A literal, not the string `useMenuSurface` builds. Comparing the
     // element's class to the recipe it is set from compares the recipe to
-    // itself:
-    // an independent review deleted `sm:absolute` — the token that decides
-    // between a bottom sheet and a menu anchored to its trigger, the most
-    // consequential one in the string — and all 143 tests passed. The copy
-    // is the assertion. `FilterMenu.test.tsx` writes its own recipe out for
-    // the same reason.
-    //
-    // jsdom lays nothing out, so nothing here can see the shape; what it can
-    // see is that the recipe has not been edited without being re-measured.
-    // `sm:max-h-[70vh]` with the scroll kept is load-bearing above 640: the
-    // menu holds ten rows below 768 — `View` and `Sort` are sections of it
-    // there — and is anchored inside a sticky bar, so an uncapped one puts
-    // six of them past the bottom of a landscape phone with no way to
-    // scroll to them. Below 640 the sheet form is already capped at 60vh.
-    //
-    // Measured in Chromium on the folder toolbar, after the open animation
-    // settles (`animate-fade-in-scale` starts at `scale(.95)`, and reading
-    // the box during it reports 95% of every number). At 375px, through the
-    // overflow — which is the only trigger on the bar at that width — it is
-    // the bottom sheet: left 8, 359x480, the width the viewport leaves
-    // between `inset-x-2` and the height `max-h-[60vh]` caps. At 1512px the
-    // sort menu is 200x290 hanging under its own trigger, right edges
-    // aligned at 1366.
+    // itself.
     render(
       <ToolbarMenu label="Sort" value="Newest first" icon={Filter}>
         {rows}
@@ -185,16 +140,8 @@ describe("ToolbarMenu", () => {
   });
 
   it("spells the upward form as the mirror of the downward one", () => {
-    // The direction is measured now, so both spellings have to be written
-    // somewhere a reader can compare them — and the up form is reachable
-    // in this file only by stating the boxes, since jsdom lays nothing out
-    // and every rect is zero without that.
-    //
-    // What the mirror has to get right is not the pair of edges but the
-    // pair of *cancellations*: the sheet form below 640 is `bottom-4`, and
-    // above it exactly one of `sm:bottom-auto` (down) and `sm:bottom-full`
-    // (up) has to override it. Leave both out and the anchored menu sits
-    // 16px off the floor of the screen at every width.
+    // The sheet form below 640 is `bottom-4`, and above it exactly one of
+    // `sm:bottom-auto` (down) and `sm:bottom-full` (up) has to override it.
     stubMenuBoxes({ top: 700, bottom: 740 }, { height: 300, width: 200 });
     render(
       <ToolbarMenu label="Sort" value="Newest first" icon={Filter}>
@@ -212,22 +159,12 @@ describe("ToolbarMenu", () => {
       "sm:top-auto",
       "sm:bottom-full",
       "sm:mb-1",
-      // The corner the open animation grows from follows the direction as
-      // well as the side. `animate-fade-in-scale` starts at `scale(.95)`,
-      // so an origin naming the top while the panel hangs from the bottom
-      // grows it away from the trigger it is attached to — the one
-      // combination the downward-only form could not reach.
       "sm:origin-bottom-right",
     ]);
   });
 
   it("ties the gap it measures with to the gap it draws", () => {
-    // `MENU_SURFACE_GAP_PX` is what the direction arithmetic adds to the
-    // menu's height; `sm:mt-1` / `sm:mb-1` is what the browser draws. A
-    // constant that only states the gap is one that can be halved with
-    // everything green, so the number is read back out of the class rather
-    // than compared with a second copy of itself. Tailwind's spacing unit
-    // is 4px, which is the one fact this asserts from outside.
+    // Tailwind's spacing unit is 4px.
     const spacing = (cls: string) => {
       const n = /^sm:m[tb]-(\d+)$/.exec(cls);
       return n ? Number(n[1]) * 4 : null;
@@ -248,13 +185,6 @@ describe("ToolbarMenu", () => {
   });
 
   it("hangs the anchored form from the edge the caller names", () => {
-    // The archive toolbar's menus sit at the *left* of its bar, where the
-    // default runs off the screen the way the default's absence would run
-    // off it on the folder's: measured in Chromium at 768 and 1512, the
-    // 200px-wide sort menu hung from a trigger ending at x=145 and put its
-    // left edge at **-55**. It cannot be scrolled back into view — the menu
-    // is `absolute` inside a bar the page does not scroll sideways.
-    //
     // Only the anchored form has a side. The sheet below 640 spans the
     // viewport, so `inset-x-2` is asserted to be the same in both.
     render(
@@ -278,9 +208,6 @@ describe("MenuSeparator", () => {
   afterEach(cleanup);
 
   it("is a separator to something that cannot see the line", () => {
-    // A `role="menu"` publishes only menuitem / group / separator children —
-    // the same rule this file's group test cites. A rule dropped to a bare
-    // <div> divides nothing for anyone not looking at it.
     render(<MenuSeparator />);
     expect(screen.getByRole("separator")).toBeInTheDocument();
   });
@@ -290,9 +217,6 @@ describe("MenuRadioGroup", () => {
   afterEach(cleanup);
 
   it("marks every row as a radio, not only the one that is on", () => {
-    // `aria-checked` is required on every `menuitemradio`; a row missing it
-    // stops being a radio to assistive technology, and asserting only the
-    // checked one cannot see that.
     render(
       <MenuRadioGroup
         heading="View"
@@ -312,9 +236,6 @@ describe("MenuRadioGroup", () => {
   });
 
   it("gives the group a name without reading the heading back as a row", () => {
-    // A `role="menu"` publishes only menuitem / group / separator children,
-    // so a bare <p> heading reaches assistive technology as nothing at all —
-    // and these menus hold rows whose words repeat across sections.
     render(
       <MenuRadioGroup
         heading="View"
@@ -332,9 +253,7 @@ describe("MenuRadioGroup", () => {
   it("draws a focused row's ring inside the row", () => {
     // The menu scrolls on both axes — CSS resolves `overflow-x` to `auto`
     // once the other axis is not `visible` — so an outline drawn around a
-    // full-width row is clipped at the padding edges. A negative offset
-    // puts it inside. Dropping the cap that causes this is not the
-    // alternative: it is what makes a ten-row menu reachable at 640-767.
+    // full-width row is clipped at the padding edges.
     render(
       <MenuRadioGroup
         heading="View"

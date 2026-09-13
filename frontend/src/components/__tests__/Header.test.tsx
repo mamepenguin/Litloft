@@ -56,7 +56,6 @@ describe("Header", () => {
   it("does NOT render LanguageSwitcher", () => {
     render(<Header />);
     expect(screen.queryByTestId("language-switcher")).not.toBeInTheDocument();
-    // Also check no "Language:" aria-labels (real LanguageSwitcher fingerprint)
     expect(screen.queryByLabelText(/Language:/i)).not.toBeInTheDocument();
   });
 
@@ -70,14 +69,12 @@ describe("Header", () => {
     render(<Header />);
     const button = screen.getByRole("button", { name: "Alice" });
     fireEvent.click(button);
-    // Dropdown items should not appear
     expect(screen.queryByText("Rename")).not.toBeInTheDocument();
     expect(screen.queryByText("Clear profile")).not.toBeInTheDocument();
   });
 
   it("does NOT render the ProfileSetup modal", () => {
     render(<Header />);
-    // ProfileSetup modal contains a heading with profile.setup text
     expect(screen.queryByRole("heading", { name: "Profile Setup" })).not.toBeInTheDocument();
   });
 
@@ -107,11 +104,7 @@ describe("Header", () => {
       const header = container.querySelector("header");
       expect(header).not.toBeNull();
       // jsdom's CSS parser drops a bare `env(...)` from inline styles
-      // but preserves it inside `calc(...)`. We assert only what
-      // survives the round-trip: the min-height growing with the
-      // inset is the structural fix (chrome stays 56px after padding).
-      // Padding-top is still emitted in the rendered HTML — we trust
-      // the source file for that.
+      // but preserves it inside `calc(...)`.
       const style = header!.getAttribute("style") ?? "";
       expect(style).toMatch(
         /min-height:\s*calc\(3\.5rem\s*\+\s*env\(safe-area-inset-top/,
@@ -122,7 +115,6 @@ describe("Header", () => {
   describe("when nickname is unset (User icon mode)", () => {
     it("renders a profile button with User icon", () => {
       render(<Header />);
-      // profile.setup translation = "Profile Setup"
       const button = screen.getByRole("button", { name: "Profile Setup" });
       expect(button).toBeInTheDocument();
     });

@@ -2,11 +2,6 @@ import { describe, it, expect } from "vitest";
 
 import { parseMediaTimestamps } from "../mediaTimestamps";
 
-/**
- * Convenience readers. The parser returns a mixed run/match list, and
- * asserting on the whole shape every time buries what each test is
- * about.
- */
 function marks(text: string, duration: number | null = null) {
   return parseMediaTimestamps(text, duration).filter(
     (segment) => segment.kind === "timestamp",
@@ -44,8 +39,6 @@ describe("parseMediaTimestamps", () => {
 
   describe("rejected shapes", () => {
     it("rejects single-digit minutes when hours are present", () => {
-      // `1:2:03` is not a form `formatDuration` can emit, so reading it
-      // would mean accepting something the app never writes.
       expect(seconds("1:2:03")).toEqual([]);
     });
 
@@ -69,16 +62,12 @@ describe("parseMediaTimestamps", () => {
     });
 
     it("rejects a match butted against a digit", () => {
-      // Both directions, and both must reject the shorter candidate the
-      // rescan finds inside the number as well: `191:23` must not fall
-      // back to `91:23`, nor `1:234` to `1:23`.
+      // `191:23` must not fall back to `91:23`, nor `1:234` to `1:23`.
       expect(seconds("191:23")).toEqual([]);
       expect(seconds("1:234")).toEqual([]);
     });
 
     it("does not treat a letter as a digit", () => {
-      // Only digits and colons continue a number. A word running into a
-      // timestamp leaves a readable timestamp.
       expect(seconds("第2部1:23")).toEqual([83]);
     });
   });
@@ -94,7 +83,6 @@ describe("parseMediaTimestamps", () => {
 
   describe("duration bound", () => {
     it("rejects a timestamp past the file's length", () => {
-      // The wall-clock false positive this bound exists to kill.
       expect(seconds("配信は 21:00 開始", 600)).toEqual([]);
     });
 
@@ -103,8 +91,6 @@ describe("parseMediaTimestamps", () => {
     });
 
     it("does not apply the bound when the duration is unknown", () => {
-      // Not knowing the range is not grounds for claiming something is
-      // outside it.
       expect(seconds("21:00", null)).toEqual([1260]);
     });
 

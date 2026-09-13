@@ -1,14 +1,3 @@
-/**
- * Reading a preference must not be able to take the app down.
- *
- * A browser configured to block site data throws a `SecurityError` from
- * `localStorage.getItem` — from the call, not from touching the object
- * — and an unguarded read inside a provider's effect does not get
- * swallowed: it leaves `render()` and reaches the error boundary. Two of
- * the three providers that read preferences were doing exactly that, so
- * fixing the pre-paint script alone made the first paint correct and
- * then lost the app a moment later.
- */
 import { describe, it, expect, afterEach, vi } from "vitest";
 
 import { readStored, writeStored } from "../safeStorage";
@@ -41,9 +30,6 @@ describe("safeStorage", () => {
   });
 
   it("answers null instead of throwing when the read is blocked", () => {
-    // `null` is the same answer a first-time visitor gets, which every
-    // caller already handles — so a blocked store degrades to "no
-    // preference" rather than to an error boundary.
     const { getItem } = stubThrowingStorage();
 
     expect(() => readStored("k")).not.toThrow();

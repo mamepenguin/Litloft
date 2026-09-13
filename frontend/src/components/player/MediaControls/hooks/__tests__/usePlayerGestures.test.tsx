@@ -14,11 +14,8 @@ const WITHIN = 50;
 const BEYOND = 100;
 
 /**
- * jsdom implements no PointerEvent, and testing-library's
- * `fireEvent.pointerDown` silently drops every coordinate when it falls
- * back to a plain Event. Building the event by hand is the only way to
- * deliver clientX — verified to reach both React synthetic handlers and
- * window listeners.
+ * testing-library's `fireEvent.pointerDown` silently drops every coordinate
+ * when it falls back to a plain Event, so the event is built by hand.
  */
 function firePointer(
   target: EventTarget,
@@ -121,7 +118,6 @@ function setup(overrides: Partial<UsePlayerGesturesOptions> = {}) {
   return { ...utils, overlay, mc: mc as MediaController };
 }
 
-/** A press and release at one spot, with no travel in between. */
 function tap(overlay: HTMLElement, x: number) {
   firePointer(overlay, "pointerdown", { clientX: x, clientY: 50 });
   firePointer(window, "pointerup", { clientX: x, clientY: 50 });

@@ -71,7 +71,6 @@ describe("useSidebarSectionOrder", () => {
     mockStorage.setItem(KEY, JSON.stringify(["tags", "pins"]));
     const withAddon = ["collections", "pins", "smart-folders", "tags", "addon-x"];
     const { result } = renderHook(() => useSidebarSectionOrder(withAddon));
-    // saved kept (tags, pins); new ones at default positions
     expect([...result.current.order].sort()).toEqual([...withAddon].sort());
     expect(result.current.order.indexOf("tags")).toBeLessThan(
       result.current.order.indexOf("pins"),

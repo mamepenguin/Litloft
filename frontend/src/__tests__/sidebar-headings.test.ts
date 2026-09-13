@@ -5,49 +5,13 @@ import { resolve, dirname, relative } from "node:path";
 
 import { SIDEBAR_HEADING_CLASSES } from "@/test/sidebarHeadingClasses";
 
-/**
- * The sidebar's section headings had drifted apart on four axes at once
- * — element (`div` vs `button`), chevron, who owned the vertical margin
- * (the heading or its parent `div`), and width (`w-full` vs `flex-1`) —
- * on top of the two that Phase 0 fixed by hand. Editing five class
- * strings to match would leave the drift free to start again, so they
- * are drawn by one component and this fixes that there is still only
- * one.
- *
- * Two claims, both about counting:
- *
- *   1. Exactly one place in the sidebar writes the heading's classes,
- *      and it is `SidebarSectionHeading`. A heading written by hand
- *      fails here even if it copies the classes perfectly.
- *   2. The files that draw them are exactly the ones enumerated below,
- *      and the number of uses is the number written there. Exact, not a
- *      lower bound: the failure worth catching is a *new* heading the
- *      scan cannot see, and under `>=` that stays green. Counts written
- *      from a reading of the code came out low every time in this
- *      redesign, so the number lives beside what it counts and nowhere
- *      else.
- */
-
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const SELF = fileURLToPath(import.meta.url);
 const SIDEBAR_DIR = resolve(REPO_ROOT, "frontend/src/components/sidebar");
-/**
- * `Sidebar.tsx` sits one level above the directory and is the file most
- * likely to grow the next heading — it already owns the Lock block and
- * the reorderable-section map. Scanning only the directory made both
- * claims below one directory narrower than they read.
- */
 const SIDEBAR_ROOT_FILE = resolve(REPO_ROOT, "frontend/src/components/Sidebar.tsx");
 
-/**
- * The classes that make a sidebar section heading look like one, from the
- * one file that names them — `SidebarDriveSwitcher.test.tsx` asks the same
- * question of the rendered DOM and has to be asking it about the same
- * classes.
- */
 const HEADING_CLASSES = [...SIDEBAR_HEADING_CLASSES];
 
-/** Every class list in a file, `className="…"` or a template literal. */
 function classLists(text: string): string[] {
   return [
     ...[...text.matchAll(/className="([^"]*)"/g)].map((m) => m[1]),
@@ -94,11 +58,6 @@ describe("sidebar section headings", () => {
   });
 
   it("draws every one of them from it", () => {
-    // Views and Addons at the top, Collections, Pins, Smart folders and
-    // Tags in the reader's own order, Administration at the bottom.
-    // Adding a section means updating this number — which is the point,
-    // because it makes someone look at the list.
-    //
     // The count is of *uses*, not of distinct labels: one file draws two
     // of them, so the set below is shorter than the number above and the
     // two are not redundant.
@@ -117,9 +76,6 @@ describe("sidebar section headings", () => {
   });
 
   it("labels them all through the catalogue, never in English source", () => {
-    // "Pins", "Tags", "Addons" were hardcoded English in a column that
-    // otherwise renders Japanese, which is what let `uppercase` look
-    // like it was doing something.
     const stray: string[] = [];
     for (const file of files) {
       const text = readFileSync(file, "utf-8");
@@ -138,11 +94,8 @@ describe("tracking-wider", () => {
   /**
    * `DESIGN.md` §3.5 allows `uppercase tracking-wider` on hardcoded
    * English-only labels. Once the sidebar's headings are translated,
-   * nothing in the app qualifies — so the allowance describes an empty
-   * set, and this is the assertion that keeps that true. If a real use
-   * appears, `DESIGN.md` §3.5 gets a real example and this number
-   * changes with it. Tests are not scanned: a class name quoted in an
-   * assertion is not a use.
+   * nothing in the app qualifies. Tests are not scanned: a class name
+   * quoted in an assertion is not a use.
    */
   const ADDONS_DIR = resolve(REPO_ROOT, "addons");
   const ROOTS = [
@@ -177,28 +130,12 @@ describe("section header labels", () => {
    * Japanese, where the property does nothing, so in a column that
    * mixes scripts it stops being what makes the headings look alike.
    *
-   * Core only. Fourteen labels across three addons still write
-   * `uppercase` — mostly `<h2>` / `<h3>` section headings. Counted the
-   * way `DESIGN.md` §Section Header Labels counts them, so the two
-   * numbers can be compared: occurrences of the string `uppercase` in
-   * each addon's non-test `.tsx` (`media_import` 11, `knowledge` 2,
-   * `intelligence` 1, `cloud-sync` 0) — occurrences, not files and not
-   * headings. Same shape, same sweep wanted, but it reaches three
-   * submodules and is recorded in `DESIGN.md` §Section Header Labels
-   * as a backlog rather than smuggled into this change.
-   *
-   * The exception is an addon heading rendered into a *core* surface —
-   * `cloud-sync`'s dashboard widget shared a screen with `/admin`'s own
-   * headings, so it was a visible mismatch on one page and was fixed
-   * rather than deferred.
+   * Core only: addon headings are a backlog recorded in `DESIGN.md`.
    */
   it("does not shout, anywhere in core", () => {
-    // Matched on the *element*, not on a combination of classes. The
-    // first version of this asked for `uppercase` + `font-semibold` +
-    // `text-text-muted` together, which let the cheat sheet's own
-    // `font-medium` heading through — a real violation, invisible to
-    // the guard. A heading tag is what makes something a heading; the
-    // weight it happens to carry is not.
+    // Matched on the *element*, not on a combination of classes: a heading
+    // tag is what makes something a heading; the weight it happens to
+    // carry is not.
     //
     // `<dt>` labels in a properties table and extension badges on a
     // row are deliberately outside this: they are field labels and

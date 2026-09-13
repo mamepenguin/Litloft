@@ -38,8 +38,6 @@ describe("shouldShowMini", () => {
   });
 });
 
-// ---------- Hook integration ----------
-
 interface IOInstance {
   cb: IntersectionObserverCallback;
   target?: Element;
@@ -231,13 +229,10 @@ describe("useMiniPlayer", () => {
     expect(mc.pause).toHaveBeenCalled();
   });
 
-  // ---------- root option (PR-1, B1) ----------
-
   it("creates IntersectionObserver with viewport root when no root option is provided", () => {
     const mc = makeMc(false);
     renderWithRef(mc);
     const inst = ioInstances[ioInstances.length - 1];
-    // Default = viewport (root undefined or null in init dict).
     expect(inst.options?.root ?? null).toBeNull();
   });
 

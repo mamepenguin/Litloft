@@ -1,16 +1,6 @@
 /**
- * spec 2026-08-21-folder-scoped-tag-filter §5.0 / §9.2
- *
- * SidebarTagsScope.test.tsx pins the render gate against a scope handed in
- * directly. This file pins the thing the gate exists for: the window
- * between asking for a new scope and receiving it, driven through
- * `useSidebarData` itself.
- *
  * Every fetch here is a deferred promise, so the in-flight window is
- * *observed* rather than raced past. The failure this guards against is
- * silent: a drive-wide (or previous-folder) result is indistinguishable
- * from a correct one at a glance, so a click in that window navigates to
- * the wrong scope with nothing to show for it.
+ * *observed* rather than raced past.
  */
 
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
@@ -18,8 +8,6 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 
 import { SidebarTagsSection } from "../SidebarTagsSection";
 import { useSidebarData } from "../useSidebarData";
-
-// ---- localStorage mock (tag sort mode reads it on render) --------------------
 
 function makeLocalStorageMock(): Storage {
   const store = new Map<string, string>();
@@ -52,8 +40,6 @@ afterAll(() => {
   }
 });
 
-// ---- mocks -------------------------------------------------------------------
-
 vi.mock("next/link", () => ({
   default: ({ children, href, onClick, className }: {
     children: React.ReactNode;
@@ -82,8 +68,6 @@ vi.mock("@/hooks/useWebSocket", () => ({
 
 import { getDriveTags } from "@/lib/api";
 import type { Tag } from "@/types";
-
-// ---- deferred-fetch harness --------------------------------------------------
 
 type Deferred = { resolve: (tags: Tag[]) => void; promise: Promise<Tag[]> };
 
@@ -118,8 +102,6 @@ function makeDeferredTags() {
   };
 }
 
-// ---- component under test ----------------------------------------------------
-
 function TagsUnderNavigation({
   drive,
   folderPath,
@@ -146,8 +128,6 @@ function hrefs(): string[] {
   return screen.getAllByRole("link").map((a) => a.getAttribute("href") ?? "");
 }
 
-// ---- tests -------------------------------------------------------------------
-
 describe("sidebar tags — scope agreement across navigations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -157,8 +137,7 @@ describe("sidebar tags — scope agreement across navigations", () => {
   it("null → folder: drive-wide links first, then folder-scoped links", async () => {
     // Mirrors opening a folder URL directly. currentFolderPath is null
     // until the folder page publishes it, and the drive-wide answer is the
-    // agreed one during that moment — which is exactly what Litloft does
-    // today, so the links stay live (§9.2).
+    // agreed one during that moment, so the links stay live.
     const deferred = makeDeferredTags();
     const { rerender } = render(<TagsUnderNavigation drive="main" folderPath={null} />);
 
@@ -186,7 +165,6 @@ describe("sidebar tags — scope agreement across navigations", () => {
     rerender(<TagsUnderNavigation drive="main" folderPath="dev" />);
 
     expect(screen.getByText("soup")).toBeInTheDocument();
-    // The bug this design removes: "soup" rendered with a /dev href.
     expect(screen.queryAllByRole("link")).toHaveLength(0);
 
     await deferred.settle("main", "dev", [{ name: "rust", count: 4 }]);
@@ -209,9 +187,7 @@ describe("sidebar tags — scope agreement across navigations", () => {
 
   it("drive A → drive B: A's tags never render as links under B", async () => {
     // Both scopes have folderPath === null, so a folder-only comparison
-    // would pass here. Drive is a security boundary
-    // (hako cRNeIvcbhz449BwTmof5m) — a tag-shaped leak across drives is
-    // precisely what that principle exists to prevent.
+    // would pass here.
     const deferred = makeDeferredTags();
     const { rerender } = render(<TagsUnderNavigation drive="work" folderPath={null} />);
 
@@ -227,7 +203,7 @@ describe("sidebar tags — scope agreement across navigations", () => {
   });
 
   it("a failed fetch leaves the rows recoverable, not stranded", async () => {
-    // §5.0: the catch records the scope it was fetching for. If it left
+    // The catch records the scope it was fetching for. If it left
     // the previous value in place, nothing would ever match again and the
     // old rows would stay inert forever.
     vi.mocked(getDriveTags).mockResolvedValueOnce([{ name: "soup", count: 3 }]);

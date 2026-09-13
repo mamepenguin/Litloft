@@ -33,7 +33,6 @@ function renderControls(overrides: Partial<MediaControlsPresenterProps> = {}) {
   return { ...utils, props };
 }
 
-/** The absolutely-positioned blocks that hold the controls. */
 function controlBlocks(container: HTMLElement): HTMLElement[] {
   return Array.from(
     container.querySelectorAll<HTMLElement>(
@@ -50,8 +49,6 @@ describe("TouchControlsPresenter", () => {
     });
 
     it("leaves skipping to the gesture", () => {
-      // A double tap targets half the frame. Buttons for the same thing
-      // would only cover the video to duplicate it.
       renderControls();
       expect(
         screen.queryByRole("button", { name: "Forward 10 seconds" }),
@@ -93,8 +90,6 @@ describe("TouchControlsPresenter", () => {
     });
 
     it("leaves the OS speed dropdown behind", () => {
-      // A native <select> popup is drawn by the platform and looks
-      // nothing like the rest of the player; speed moved into a sheet.
       renderControls();
       expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     });
@@ -135,10 +130,6 @@ describe("TouchControlsPresenter", () => {
     });
 
     it("draws the knob and the track on one shared line", () => {
-      // Regression: the track was painted against the row while the
-      // native thumb was positioned against its own track
-      // pseudo-element. Two coordinate systems, so the knob floated
-      // above the bar it belonged to. One parent, one baseline.
       const { container } = renderControls();
       const line = container.querySelector<HTMLElement>('[data-testid="seek-line"]');
       expect(line?.querySelector('[data-testid="played-range"]')).toBeInTheDocument();
@@ -157,17 +148,13 @@ describe("TouchControlsPresenter", () => {
     });
 
     it("sits on the bottom edge of the frame", () => {
-      // The row keeps a finger-sized target; the bar itself belongs on
-      // the very edge, the way mobile players draw it. 28px down a 40px
-      // row leaves the 12px line flush with the bottom.
+      // 28px down a 40px row leaves the 12px line flush with the bottom.
       const { container } = renderControls();
       const line = container.querySelector<HTMLElement>('[data-testid="seek-line"]');
       expect(line?.style.top).toBe("28px");
     });
 
     it("leaves a hairline behind once the controls fade out", () => {
-      // Mobile players keep a sense of position without keeping a whole
-      // bar on screen.
       renderControls({ visible: false });
       expect(screen.getByTestId("progress-hairline")).toBeInTheDocument();
     });
@@ -197,12 +184,7 @@ describe("TouchControlsPresenter", () => {
   });
 
   describe("visibility", () => {
-    /**
-     * The elements that set pointer-events for themselves. Everything
-     * else inside the bottom bar inherits it, pointer-events being a
-     * inherited property — only the standalone transport buttons and
-     * the bar itself have to say anything.
-     */
+    /** Everything else inside inherits pointer-events, so only these set it. */
     function gatedElements(container: HTMLElement): HTMLElement[] {
       const bottom = container.querySelector<HTMLElement>(
         '[data-testid="bottom-controls"]',
@@ -217,8 +199,6 @@ describe("TouchControlsPresenter", () => {
     }
 
     it("stops faded controls from taking taps", () => {
-      // An invisible play button under the viewer's finger would toggle
-      // playback on the tap that was only meant to bring it back.
       const { container } = renderControls({ visible: false });
       const gated = gatedElements(container);
       expect(gated).toHaveLength(3);
@@ -239,10 +219,6 @@ describe("TouchControlsPresenter", () => {
 
   describe("gesture coexistence", () => {
     it("lets the frame-covering container pass every pointer through", () => {
-      // Regression: this box spans the whole frame to position its
-      // children and sits above the gesture overlay. Taking input here
-      // swallowed every tap, long press and double tap on the video —
-      // the controls could not even be summoned back.
       const { container } = renderControls();
       const root = container.querySelector<HTMLElement>(
         '[data-testid="touch-controls-root"]',
@@ -251,8 +227,6 @@ describe("TouchControlsPresenter", () => {
     });
 
     it("keeps iOS from claiming a long press as a text selection", () => {
-      // Without this the selection loupe comes up over the player and
-      // the speed boost never engages.
       const { container } = renderControls();
       const root = container.querySelector<HTMLElement>(
         '[data-testid="touch-controls-root"]',
@@ -262,10 +236,6 @@ describe("TouchControlsPresenter", () => {
     });
 
     it("lets the gaps between the transport buttons fall through", () => {
-      // The three buttons span a box about 220px wide. If that whole box
-      // took input, a double tap landing in a gap between the buttons
-      // would hit nothing at all — a dead zone in the middle of the
-      // frame, which is exactly where people tap.
       const { container } = renderControls();
       const transport = container.querySelector<HTMLElement>(
         '[data-testid="transport"]',
@@ -281,9 +251,6 @@ describe("TouchControlsPresenter", () => {
     });
 
     it("lets a swipe from a button reach the frame", () => {
-      // Only the scrub bar opts out of swipes. A button has no drag of
-      // its own, and excluding it made an upward swipe from dead centre
-      // of the frame do nothing at all.
       renderControls();
       expect(screen.getByRole("button", { name: "Pause" })).not.toHaveAttribute(
         "data-player-scrub",
@@ -291,9 +258,6 @@ describe("TouchControlsPresenter", () => {
     });
 
     it("refuses to be scrolled while the controls are up", () => {
-      // The gesture layer underneath already refuses, but the controls
-      // sit on top of it: without the same refusal here, a swipe that
-      // starts on a button is taken by the page as a scroll.
       const { container } = renderControls();
       const root = container.querySelector<HTMLElement>(
         '[data-testid="touch-controls-root"]',
@@ -304,9 +268,6 @@ describe("TouchControlsPresenter", () => {
 
   describe("swipe-to-dismiss coexistence", () => {
     it("marks only the blocks that take input", () => {
-      // Everything between the blocks has to fall through to the
-      // gestures underneath; a container filling the frame would take
-      // the lot.
       const { container } = renderControls();
       const blocks = controlBlocks(container);
       expect(blocks.length).toBeGreaterThan(0);
@@ -318,9 +279,6 @@ describe("TouchControlsPresenter", () => {
 
   describe("fullscreen safe areas", () => {
     it("keeps the bottom block clear of the home indicator and the notch", () => {
-      // Applies to either kind of fullscreen: both put the frame
-      // against the physical screen edge, where the home indicator
-      // takes touches meant for the bar.
       const { container } = renderControls({ isFullscreen: true });
       const bottom = container.querySelector<HTMLElement>(
         '[data-testid="bottom-controls"]',
@@ -331,8 +289,6 @@ describe("TouchControlsPresenter", () => {
     });
 
     it("adds no insets in the normal in-page layout", () => {
-      // In the page there is no screen edge to avoid, and the bar
-      // belongs on the frame's own boundary.
       const { container } = renderControls();
       const bottom = container.querySelector<HTMLElement>(
         '[data-testid="bottom-controls"]',

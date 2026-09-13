@@ -1,10 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
-// ────────────────────────────────────────────────
-// Mock WebSocket class
-// ────────────────────────────────────────────────
-
 type MockWebSocketInstance = {
   url: string;
   onopen: (() => void) | null;
@@ -37,10 +33,6 @@ class MockWebSocket {
   }
 }
 
-// ────────────────────────────────────────────────
-// Tests for useWebSocket hook
-// ────────────────────────────────────────────────
-
 describe("useWebSocket", () => {
   beforeEach(() => {
     mockWebSocketInstances = [];
@@ -63,8 +55,6 @@ describe("useWebSocket", () => {
   it("returns event data when message received", async () => {
     const { useWebSocket } = await import("@/hooks/useWebSocket");
 
-    // We need to wrap in WebSocketProvider for context
-    // Since useWebSocket reads from context, test it via the provider
     const { result } = renderHook(() => useWebSocket());
 
     // Without provider, should return null (context default)
@@ -87,10 +77,6 @@ describe("useWebSocket", () => {
     expect(result.current).toBeNull();
   });
 });
-
-// ────────────────────────────────────────────────
-// Tests for WebSocketProvider
-// ────────────────────────────────────────────────
 
 describe("WebSocketProvider", () => {
   beforeEach(() => {
@@ -152,26 +138,22 @@ describe("WebSocketProvider", () => {
 
     expect(mockWebSocketInstances).toHaveLength(1);
 
-    // Simulate connection close
     const ws1 = mockWebSocketInstances[0];
     act(() => {
       ws1.onclose?.();
     });
 
-    // After 1s (first backoff), should reconnect
     act(() => {
       vi.advanceTimersByTime(1000);
     });
 
     expect(mockWebSocketInstances).toHaveLength(2);
 
-    // Simulate second close
     const ws2 = mockWebSocketInstances[1];
     act(() => {
       ws2.onclose?.();
     });
 
-    // After 2s (second backoff), should reconnect
     act(() => {
       vi.advanceTimersByTime(2000);
     });
@@ -190,7 +172,6 @@ describe("WebSocketProvider", () => {
         createElement(WebSocketProvider, null, children),
     });
 
-    // Close and reconnect once
     const ws1 = mockWebSocketInstances[0];
     act(() => {
       ws1.onclose?.();
@@ -199,13 +180,11 @@ describe("WebSocketProvider", () => {
       vi.advanceTimersByTime(1000);
     });
 
-    // Simulate successful open (resets counter)
     const ws2 = mockWebSocketInstances[1];
     act(() => {
       ws2.onopen?.();
     });
 
-    // Close again - should use 1s delay (reset), not 4s
     act(() => {
       ws2.onclose?.();
     });
@@ -227,8 +206,6 @@ describe("WebSocketProvider", () => {
         createElement(WebSocketProvider, null, children),
     });
 
-    // Simulate many failures to exceed 30s cap
-    // 1s, 2s, 4s, 8s, 16s, 32s->30s
     for (let i = 0; i < 6; i++) {
       const ws = mockWebSocketInstances[mockWebSocketInstances.length - 1];
       act(() => {
@@ -240,19 +217,16 @@ describe("WebSocketProvider", () => {
       });
     }
 
-    // 7th attempt should also use 30s cap
     const lastWs = mockWebSocketInstances[mockWebSocketInstances.length - 1];
     act(() => {
       lastWs.onclose?.();
     });
 
-    // At 29s, should not have reconnected yet
     act(() => {
       vi.advanceTimersByTime(29000);
     });
     const countBefore = mockWebSocketInstances.length;
 
-    // At 30s, should reconnect
     act(() => {
       vi.advanceTimersByTime(1000);
     });
@@ -272,7 +246,6 @@ describe("WebSocketProvider", () => {
 
     const ws = mockWebSocketInstances[0];
 
-    // Simulate page becoming hidden
     Object.defineProperty(document, "hidden", {
       value: true,
       writable: true,
@@ -284,7 +257,6 @@ describe("WebSocketProvider", () => {
 
     expect(ws.close).toHaveBeenCalled();
 
-    // Restore
     Object.defineProperty(document, "hidden", {
       value: false,
       writable: true,
@@ -305,7 +277,6 @@ describe("WebSocketProvider", () => {
 
     expect(mockWebSocketInstances).toHaveLength(1);
 
-    // Go hidden
     Object.defineProperty(document, "hidden", {
       value: true,
       writable: true,
@@ -315,7 +286,6 @@ describe("WebSocketProvider", () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
 
-    // Go visible
     Object.defineProperty(document, "hidden", {
       value: false,
       writable: true,
@@ -325,10 +295,8 @@ describe("WebSocketProvider", () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
 
-    // Should have created a new connection
     expect(mockWebSocketInstances.length).toBeGreaterThanOrEqual(2);
 
-    // Restore
     Object.defineProperty(document, "hidden", {
       value: false,
       writable: true,
@@ -350,7 +318,6 @@ describe("WebSocketProvider", () => {
 
     expect(result.current).toBeNull();
 
-    // Simulate receiving a message
     const ws = mockWebSocketInstances[0];
     act(() => {
       ws.onmessage?.({
@@ -381,7 +348,6 @@ describe("WebSocketProvider", () => {
 
     const ws = mockWebSocketInstances[0];
 
-    // Send non-matching event
     act(() => {
       ws.onmessage?.({
         data: JSON.stringify({
@@ -391,10 +357,8 @@ describe("WebSocketProvider", () => {
       });
     });
 
-    // Should return null for non-matching event
     expect(result.current).toBeNull();
 
-    // Send matching event
     act(() => {
       ws.onmessage?.({
         data: JSON.stringify({

@@ -7,27 +7,11 @@ import { resolve, dirname, relative } from "node:path";
 import { classValues, stripComments } from "./helpers/sourceScan";
 import type { FileItem, WatchHistoryItem } from "@/types";
 
-/**
- * The drive home's shelves do not scroll sideways any more.
- *
- * A strip that scrolls and hides its own scrollbar says nothing about how
- * much is off the right-hand edge — 00-basis 原則 5, "what is cut off
- * should look cut off". The rows are grids now (`SectionRow`), showing as
- * many cards as fit and saying the rest in words on "See all".
- *
- * Two things have to hold for that to be true rather than merely started:
- * no `className` anywhere still hides a scrollbar, and the utility that
- * made it possible is gone from `globals.css`. A live definition is an
- * invitation — the next person to reach for a sideways strip finds it
- * ready-made and does not learn why it was removed.
- */
-
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const SELF = fileURLToPath(import.meta.url);
 const ADDONS_DIR = resolve(REPO_ROOT, "addons");
 const ADDON_LINK_DIR = resolve(REPO_ROOT, "frontend/src/addons");
 
-/** Core plus every addon beside it; see `design-tokens.test.ts` for why. */
 const SOURCE_ROOTS = [
   "frontend/src",
   ...(existsSync(ADDONS_DIR)
@@ -70,8 +54,6 @@ function classNameSites(token: RegExp): string[] {
 
 describe("no shelf hides its own scrollbar", () => {
   it("scans the source it claims to scan", () => {
-    // "Nothing matches" is also true of a scan that reads nothing, and
-    // this one walks four addon repos whose checkouts can be absent.
     const files = sourceFiles();
     expect(files.length).toBeGreaterThan(500);
     for (const root of SOURCE_ROOTS) {
@@ -82,8 +64,6 @@ describe("no shelf hides its own scrollbar", () => {
   });
 
   it("leaves no `scrollbar-hide` in any className", () => {
-    // Comments are blanked by `classValues`, so `SelectionBar`'s note about
-    // the row it used to be is not a hit.
     expect(classNameSites(/\bscrollbar-hide\b/)).toEqual([]);
   });
 
@@ -93,17 +73,11 @@ describe("no shelf hides its own scrollbar", () => {
       "utf-8",
     );
     expect(css).not.toMatch(/@utility\s+scrollbar-hide\b/);
-    // The sibling utilities are still there — this asserts a deletion,
-    // and a file that failed to load would pass the line above.
+    // A file that failed to load would pass the line above.
     expect(css).toMatch(/@utility\s+scrollbar-hover\b/);
   });
 
   it("leaves the sideways scrolling that is correct alone", () => {
-    // Tab strips, breadcrumbs and filmstrips scroll sideways on purpose:
-    // their content is a single row that has no second line to fall to.
-    // Scoping the sweep above to `scrollbar-hide` rather than to
-    // `overflow-x-auto` is what keeps them out of it, so the survivors are
-    // named here — a sweep that quietly took them too would go unnoticed.
     expect(new Set(classNameSites(/\boverflow-x-auto\b/))).toEqual(
       new Set([
         "frontend/src/app/admin/settings/AddonPolicySection.tsx",
@@ -129,18 +103,11 @@ describe("the shelf shape is written once", () => {
         readFileSync(resolve(REPO_ROOT, rel), "utf-8"),
       );
       expect(body).toMatch(/<SectionRow>/);
-      // The card row, not just the import: a shelf that kept its own
-      // flex strip beside an unused import would still read as migrated.
       expect(body).not.toMatch(/\bsnap-x\b/);
     }
   });
 
   it("does not offer `ContinueWatchingSection` a total it cannot have", () => {
-    // `getWatchHistory` returns a bare array, so there is no total to
-    // pass. The prop is absent rather than optional-and-never-passed:
-    // an optional prop reads as an oversight and invites a caller to
-    // invent a number. `lib/api.ts` is asserted too, because the day it
-    // grows an envelope is the day this constraint stops applying.
     const props = readFileSync(
       resolve(REPO_ROOT, "frontend/src/components/ContinueWatchingSection.tsx"),
       "utf-8",
@@ -155,8 +122,6 @@ describe("the shelf shape is written once", () => {
     );
   });
 });
-
-// --- Rendering -------------------------------------------------------
 
 vi.mock("next/link", () => ({
   default: ({
@@ -264,12 +229,6 @@ function atWidth(width: number) {
   widths.mockReturnValue(width);
 }
 
-/**
- * Cards actually in the DOM — the row renders them or it does not.
- *
- * By title text, not by heading role: a card title is not a heading
- * (`card-titles.test.ts`).
- */
 function cardCount(): number {
   return screen.queryAllByText(/^Clip \d+$/).length;
 }
@@ -293,7 +252,6 @@ describe("a shelf shows what fits and no more", () => {
   });
 
   it("re-counts when the canvas changes width", () => {
-    // The tree pane opening is a resize, not a remount.
     atWidth(1480);
     render(
       <CarouselSection title="Recently added" files={twelveFiles} loading={false} />,
@@ -301,33 +259,21 @@ describe("a shelf shows what fits and no more", () => {
     expect(cardCount()).toBe(5);
 
     atWidth(343);
-    // The `act` boundary is load-bearing: without it React never commits
-    // the observer's state update and the row keeps its old count while
-    // the assertion reads a stale DOM.
     act(() => resize!());
     expect(cardCount()).toBe(4);
   });
 
   it("does not keep the cards it drops where they can still be reached", () => {
-    // Not `overflow: hidden` — a clipped card is still focusable and still
-    // read out, which is the defect GAL-2 reported against the gallery.
     atWidth(343);
     const { container } = render(
       <CarouselSection title="Recently added" files={twelveFiles} loading={false} />,
     );
-    // Both absences below are also true of a row that rendered nothing,
-    // and "every dropped card is gone" is true of the empty set.
     expect(cardCount()).toBe(4);
     expect(container.textContent).not.toContain("Clip 5");
     expect(screen.queryByText("Clip 11")).toBeNull();
   });
 
   it("draws the floor, not a guess, before it has been measured", () => {
-    // No stubbed width: a server render, a `display:none` subtree, or the
-    // frame before the observer reports. The row cannot know how wide it
-    // is, and the floor is the only count that is right at every width —
-    // guessing higher overflows a phone, and there is nothing to catch it
-    // because this frame is the one that paints before hydration.
     const { container } = render(
       <CarouselSection title="Recently added" files={twelveFiles} loading={false} />,
     );
@@ -383,9 +329,6 @@ describe("`See all` says how much is past the edge", () => {
   });
 
   it("says nothing rather than zero when the fetch failed", () => {
-    // `applyFileSections` leaves `total` undefined on a rejected section,
-    // and a row that printed "See all (0)" beside twelve visible cards
-    // would be stating something false.
     atWidth(1480);
     render(
       <CarouselSection

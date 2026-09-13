@@ -91,15 +91,6 @@ describe("MarkdownImagesPresenter", () => {
     expect(onHostToggle).toHaveBeenCalledWith("cdn.example.net");
   });
 
-  /**
-   * This screen is two steps and the fill follows whichever one is
-   * current — Analyze until there is an analysis, Import afterwards.
-   *
-   * Both states are rendered and measured. Measuring one would go green
-   * with half the swap working: leave Analyze `primary` after the
-   * analysis arrives and the "before" state still spends exactly one,
-   * while the screen the user is actually looking at spends two.
-   */
   it("spends exactly one accent fill in each of its two states", () => {
     const before = renderPresenter(new Set(), false);
     const beforeFills = accentFills(before.container);

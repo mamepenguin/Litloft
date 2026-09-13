@@ -18,15 +18,9 @@ describe("FilterMenu", () => {
   afterEach(cleanup);
 
   it("carries a word before anything is filtered", () => {
-    // The two chips it replaces were bare icons until something was
-    // selected, so nothing on the bar said what either one did. 案 2's
-    // target for this toolbar is one unlabelled icon, the overflow.
     render(<FilterMenu {...base} />);
     expect(trigger()).toHaveAccessibleName("Filter");
-    // The face's own recipe, at rest. It is not classless any more, but it
-    // carries no cap either: one axis reaches 95px, and capping that at 96
-    // would put a single-axis face one label-length away from eliding for
-    // no reason. The cap arrives with the second axis — asserted below.
+    // No width cap at rest; the cap arrives with the second axis.
     expect([...trigger().querySelector("span")!.classList]).toEqual(["truncate"]);
   });
 
@@ -119,14 +113,9 @@ describe("FilterMenu", () => {
   });
 
   it("closes on a press outside it", () => {
-    // With two chips there were two ways out. There is one now.
-    //
-    // The dim is still checked for, as the menu's *previous sibling*
-    // rather than by asking the document for the first `[aria-hidden]`:
-    // lucide marks its icons that way, so the loose query returned the
-    // icon inside the trigger. It is that position `DismissScrim` reads
-    // as "inside", so a menu that stopped being the element after the
-    // scrim would take every outside press with it.
+    // The scrim is found as the menu's previous sibling, not as the first
+    // `[aria-hidden]` in the document: lucide marks its icons that way. That
+    // position is also what `DismissScrim` reads as "inside".
     render(<FilterMenu {...base} />);
     fireEvent.click(trigger());
     const menu = screen.getByRole("menu");
@@ -142,9 +131,8 @@ describe("FilterMenu", () => {
   it("names what is on, and keeps the word in front of it", () => {
     const { rerender } = render(<FilterMenu {...base} typeFilter="audio" />);
     // The tree pane's own kind filter is named "Filter by type" and narrows
-    // the *tree*. Without the prefix this one answers to "Audio" while the
-    // narrower control holds the broader word — and a test would have to
-    // know the state to find it.
+    // the *tree*. Without the prefix the narrower control would hold the
+    // broader word.
     expect(trigger()).toHaveAccessibleName("Filter: Audio");
 
     rerender(
@@ -230,11 +218,9 @@ describe("FilterMenu", () => {
   });
 
   it("keeps the popover's recipe, which is what keeps it on screen", () => {
-    // `sm:max-h-[70vh]` and dropping `sm:overflow-visible` are what make a
-    // twelve-row menu fit: measured in Chromium, reverting to
-    // `sm:max-h-none` leaves 74% of it visible at 1280x480 and 79% at
-    // 768x520. jsdom cannot see that, so the recipe is pinned whole —
-    // any edit to it comes here and has to be re-measured.
+    // `sm:max-h-[70vh]` without `sm:overflow-visible` is what makes a
+    // twelve-row menu fit a short screen; any edit to this recipe has to be
+    // re-measured in a browser.
     render(<FilterMenu {...base} />);
     fireEvent.click(trigger());
     expect(
@@ -251,10 +237,6 @@ describe("FilterMenu", () => {
   });
 
   it("keeps both of the trigger's recipes, resting and filtering", () => {
-    // The menu's class list is a constant, so pinning it guards nothing that
-    // can vary. The *trigger* is where the branch is, and swapping its two
-    // arms — filtering looking idle, idle looking filtered — passed every
-    // test in this file.
     const RESTING = [
       "flex", "items-center", "gap-1.5", "rounded-2xl", "border", "px-3",
       "py-2", "text-sm", "transition-colors", "pointer-coarse:min-h-11",
@@ -277,8 +259,7 @@ describe("FilterMenu", () => {
 
   it("marks every row as a radio, not only the one that is on", () => {
     // `aria-checked` is required on every `menuitemradio`; a row missing it
-    // stops being a radio to assistive technology. Asserting only the
-    // checked ones cannot see that.
+    // stops being a radio to assistive technology.
     render(
       <FilterMenu
         {...base}
@@ -319,10 +300,8 @@ describe("FilterMenu", () => {
     ["a row, once the reader has tabbed in", () => screen.getAllByRole("menuitemradio")[0]],
     ["the menu itself", () => screen.getByRole("menu")],
   ])("lets a keyboard out from %s", (_label, target) => {
-    // Every path, because the first version only worked from one. Focus
-    // stays on the trigger when the menu opens, and the handler was on the
-    // menu — so Escape after a click, after Enter and after Space all left
-    // it open, while the test dispatched on the menu element and passed.
+    // Focus stays on the trigger when the menu opens, so a handler on the
+    // menu alone would never see Escape.
     render(<FilterMenu {...base} />);
     fireEvent.click(trigger());
     fireEvent.keyDown(target(), { key: "Escape" });
@@ -340,9 +319,9 @@ describe("FilterMenu", () => {
     fireEvent.click(trigger());
     fireEvent.keyDown(trigger(), { key: "ArrowDown" });
     expect(onKeyDown).toHaveBeenCalledTimes(1);
-    // Escape is answered here and stopped: `escape-listeners.test.ts`
-    // records that a React handler is invisible to the shortcut registry,
-    // so one that also reached the document would be answered twice.
+    // Escape is answered here and stopped: a React handler is invisible to
+    // the shortcut registry, so one that also reached the document would be
+    // answered twice.
     fireEvent.keyDown(trigger(), { key: "Escape" });
     expect(onKeyDown).toHaveBeenCalledTimes(1);
   });

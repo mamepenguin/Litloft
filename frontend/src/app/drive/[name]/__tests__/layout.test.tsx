@@ -62,11 +62,9 @@ afterEach(() => {
 
 describe("DriveLayout", () => {
   it("keeps children mounted with tree hidden when tree is disabled", () => {
-    // Tree toggle is now a CSS-driven show/hide so children (FolderBrowser /
-    // DriveHome / search) survive the toggle without re-mounting. The
-    // `<aside>` wrapper is always mounted but aria-hidden, and the
-    // `FolderTreePane` is lazy-mounted on first enable so we don't pay
-    // for its tree fetch while the user has the tree closed.
+    // Tree toggle is a CSS-driven show/hide so children survive the toggle
+    // without re-mounting, and `FolderTreePane` is lazy-mounted on first
+    // enable so its tree fetch is not paid while the tree is closed.
     render(
       <DriveLayout>
         <div data-testid="page">drive home</div>

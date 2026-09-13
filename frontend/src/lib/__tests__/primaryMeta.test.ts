@@ -37,12 +37,6 @@ const file = (overrides: Partial<FileItem> = {}): FileItem => ({
   ...overrides,
 });
 
-/**
- * Every `FileType`, so a new one cannot be added without deciding what
- * its cards lead with. Typed as a mapped type rather than an array with
- * a length assertion: a hand-written list is a claim about a constant
- * this file owns, true of any future version of the union.
- */
 const EXPECTED: { [K in FileType]: "none" | "size" | "dimensions" } = {
   video: "none",
   audio: "none",
@@ -68,11 +62,8 @@ describe("primaryMeta", () => {
   });
 
   it("gives an unprobed image the date alone, not its size", () => {
-    // A fallback would make "kind → first metadatum" stop being a
-    // function: two image cards side by side would describe themselves
-    // differently for a reason invisible to the reader. Measured on
-    // 2026-09: 3 of 1063 active images have no dimensions, all of them
-    // broken JPEGs — the branch is walked, not theoretical.
+    // A fallback would have two image cards side by side describe
+    // themselves differently for a reason invisible to the reader.
     expect(primaryMeta(file({ file_type: "image" })).kind).toBe("none");
     expect(
       primaryMeta(file({ file_type: "image", image_width: 1920 })).kind,
@@ -91,10 +82,7 @@ describe("primaryMeta", () => {
   });
 
   it("says nothing for a video whose length was never probed either", () => {
-    // Neither the badge nor this: the card is left with its date. The
-    // size is the number that would be wrong — a `.loft` reference file
-    // reports the pointer's size, which is how D-3 got "19 minutes,
-    // 83 B".
+    // Not the size: a `.loft` reference file reports the pointer's size.
     expect(primaryMeta(file({ file_type: "video", duration: null })).kind).toBe(
       "none",
     );
@@ -122,16 +110,10 @@ describe("primaryMetaText", () => {
   });
 
   it("never substitutes the size for dimensions it does not have", () => {
-    // The whole point of the null: a caller that treated it as "fall
-    // back to something" would put two different first facts on two
-    // image rows for a reason the reader cannot see.
     expect(primaryMetaText(file({ file_type: "image", file_size: 2295580 }))).toBeNull();
   });
 
   it("agrees with the rule it renders, for every file type", () => {
-    // The adapter is the only thing three surfaces call, so a branch
-    // that drifted from `primaryMeta` would be invisible in the table
-    // test above.
     for (const file_type of Object.keys(EXPECTED) as FileType[]) {
       const probed =
         file_type === "image" ? { image_width: 1920, image_height: 1080 } : {};
@@ -143,10 +125,6 @@ describe("primaryMetaText", () => {
 
 describe("hasKnownLength", () => {
   it("is true for exactly the two kinds that have one, and only once probed", () => {
-    // Every badge in the app used to spell this out for itself. One
-    // definition is the point: a surface that badged under one
-    // condition and suppressed its size under another would drop a
-    // fact off the card with neither half looking wrong.
     const EXPECTED_TRUE: FileType[] = ["video", "audio"];
     for (const file_type of Object.keys(EXPECTED) as FileType[]) {
       expect(hasKnownLength(file({ file_type, duration: 1438 }))).toBe(
@@ -157,13 +135,6 @@ describe("hasKnownLength", () => {
   });
 });
 
-/**
- * What the badgeless surfaces draw, declared per kind rather than
- * bounded. An earlier version asserted
- * `primaryMetaParts(...).length <= 1`, which stays green if the function
- * returns nothing for every kind — a bound, not an expectation
- * (detector rule 1 / 5).
- */
 const EXPECTED_LINE: {
   [K in FileType]: { probed: string | null; unprobed: string | null };
 } = {
@@ -199,11 +170,8 @@ describe("primaryMetaLine", () => {
   });
 
   it("returns a value, so no caller can carry a separator it never reaches", () => {
-    // The length and the table's answer are mutually exclusive by
-    // construction: `hasKnownLength` is true only for the kinds
-    // `primaryMeta` answers `none` for. Returning an array and joining
-    // it with " · " made that invariant something a reader had to take
-    // on trust, and the join was dead code that read as load-bearing.
+    // `hasKnownLength` is true only for the kinds `primaryMeta` answers
+    // `none` for, so the two are mutually exclusive.
     for (const file_type of Object.keys(EXPECTED) as FileType[]) {
       const line = primaryMetaLine(
         file({ file_type, duration: 1438, image_width: 1920, image_height: 1080 }),

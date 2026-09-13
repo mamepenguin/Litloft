@@ -32,14 +32,9 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({}),
 }));
 
-// Stub the heavy detail content; PR-3's tests cover its internals.
-// We capture the props it received so the host's wiring (drive,
-// callbacks, miniPlayerRoot) can be asserted.
 const fileDetailProps: Array<Record<string, unknown>> = [];
-// The stub reads the file-nav context, because that is the thing being
-// tested here: the real consumer is four components below this slot and
-// is not mounted, so without this the two `<FileNavProvider>` lines
-// could be deleted with the whole suite still green.
+// The stub reads the file-nav context because the real consumer is four
+// components below this slot and is not mounted.
 vi.mock("@/components/FileDetailContent", async () => {
   const { useFileNavState } = await import("@/lib/fileNavContext");
   return {
@@ -78,14 +73,8 @@ vi.mock("@/components/TreeToggle", () => ({
   TreeToggle: () => <button data-testid="tree-toggle">tree</button>,
 }));
 
-// useFileNav fetches neighbors and registers shortcuts; stub it so
-// RightPaneFile's host wiring is what we test, not the hook's internals
-// (PR-2 has its own tests). PR-5 dropped the per-host dirty dialog —
-// the global ``<DirtyBlocker />`` owns it now.
-// The mock's shape is the hook's whole contract as far as this host is
-// concerned, and `vi.mock` factories are not type-checked — an
-// incomplete one hands `undefined` to the provider, which
-// `FileNavControls` then formats. All six fields, deliberately.
+// `vi.mock` factories are not type-checked, and an incomplete one hands
+// `undefined` to the provider. All six fields, deliberately.
 const fileNavResult = {
   prevId: null as string | null,
   nextId: null as string | null,
@@ -115,11 +104,8 @@ vi.mock("@/hooks/useSelectedFile", () => ({
 
 import { RightPaneFile } from "../RightPaneFile";
 
-// Default fixture is a plain-text document, which is a kind that still
-// gets its page row from this host. Everything that brings its own —
-// Markdown, media, and since 2026-09 PDF, archives and images — takes
-// the other branch, where drawing a header here would be the second
-// one. The dedicated tests below cover both paths.
+// Default fixture is a plain-text document, a kind that does not bring its
+// own page header.
 const baseFile = {
   id: "abc123",
   filename: "doc.txt",
@@ -151,7 +137,6 @@ beforeEach(() => {
   mockSelectFile.mockReset();
   fileDetailProps.length = 0;
   imageGalleryProps.length = 0;
-  // Reset search params
   for (const k of Array.from(mockSearchParams.keys())) {
     mockSearchParams.delete(k);
   }
@@ -175,19 +160,7 @@ describe("RightPaneFile", () => {
     );
   });
 
-  // The "falls back to filename when title is empty" case was here, and
-  // it was about this host's own page-row title. That row is gone from
-  // the resolved state — `FileDetailShell` draws it now, for every kind
-  // — so the fallback moved with it. `ShellLayout.test.tsx` asserts it
-  // where it lives; leaving a copy here would have gone on passing
-  // against a row nobody draws.
-
   it("suppresses the PaneShell header for Markdown files (DocumentLayout owns chrome)", async () => {
-    // 2026-05-11 chrome consolidation: when the file is text/markdown
-    // and the Knowledge editor policy is enabled (fail-open default),
-    // FileDetailContent will mount MarkdownDocumentLayout whose own
-    // unified chrome renders the title. PaneShell hides its own
-    // header to avoid a duplicate title row.
     mockGetFile.mockResolvedValue({
       ...baseFile,
       filename: "note.md",
@@ -197,7 +170,6 @@ describe("RightPaneFile", () => {
     await waitFor(() =>
       expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
     );
-    // Header title (PaneShell) must NOT be rendered for markdown.
     expect(screen.queryByText("My Document")).toBeNull();
     expect(
       screen.queryByRole("button", { name: /back to tree/i }),
@@ -205,10 +177,6 @@ describe("RightPaneFile", () => {
   });
 
   it("suppresses the header for a PDF too, now that it brings its own", async () => {
-    // Same reason as Markdown, and the reason the fixture above is a
-    // text file: PDF, archives and images joined the shell in 2026-09,
-    // so the host drawing a header for them would put two page rows and,
-    // on a phone, two back controls on one screen.
     for (const file of [
       { filename: "paper.pdf", mime_type: "application/pdf", file_type: "document" },
       { filename: "comic.cbz", mime_type: "application/x-zip-compressed", file_type: "archive" },
@@ -253,8 +221,6 @@ describe("RightPaneFile", () => {
       expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
     );
     rerender(<RightPaneFile fileId="z9" drive="work" />);
-    // Observed on what this host actually publishes — the id it hands
-    // down — rather than on a title only its old page row rendered.
     await waitFor(() =>
       expect(screen.getByTestId("file-detail-content")).toHaveTextContent(
         "detail:z9",
@@ -264,10 +230,6 @@ describe("RightPaneFile", () => {
   });
 
   it("does NOT render a 'Back to tree' affordance (mobile back-gesture replaces it)", async () => {
-    // 2026-05-12 chrome polish: the previous floating "back to tree"
-    // button briefly flashed before the markdown layout suppressed
-    // the PaneShell header; it was redundant with the browser / OS
-    // back gesture so we dropped it.
     mockGetFile.mockResolvedValue(baseFile);
     render(<RightPaneFile fileId="abc123" drive="work" />);
     await waitFor(() =>
@@ -317,7 +279,6 @@ describe("RightPaneFile", () => {
     await waitFor(() =>
       expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
     );
-    // The mock captured FileDetailContent's onRequestImageGallery prop
     const lastProps = fileDetailProps[fileDetailProps.length - 1];
     const onRequest = lastProps.onRequestImageGallery as () => void;
     onRequest();
@@ -353,16 +314,11 @@ describe("RightPaneFile", () => {
     expect(mockClearFile).toHaveBeenCalledTimes(1);
   });
 
-  // `FileDetailContent` is stubbed here, so counting rows would count
-  // only this host's — and the duplicate a file detail page can get
-  // comes from the shell inside that stub. What is testable, and is
-  // where the equivalent bug lived on the other host, is whether this
-  // one decides to draw a row at all.
+  // `FileDetailContent` is stubbed here, so what is testable is whether
+  // this host decides to draw a row at all.
   describe("the page row", () => {
     it("draws the row while the file is still being fetched", async () => {
-      // The one state where this host still owns the row: nothing is
-      // mounted yet that could draw one, so the breadcrumb is here and
-      // the title is empty because there is no title to know.
+      // Nothing is mounted yet that could draw one.
       let resolveFile: (f: unknown) => void = () => {};
       mockGetFile.mockReturnValue(
         new Promise((resolve) => {
@@ -381,12 +337,6 @@ describe("RightPaneFile", () => {
     });
 
     it("draws no row of its own once the file has resolved, whatever it is", async () => {
-      // Every kind, and that is the change: this host is the canonical
-      // surface, where `ridesFileDetailShell` is now true for anything
-      // that has resolved. It used to be a list, and a file outside it
-      // — a plain text file, an `.xlsx` — got this host's row and no
-      // inspector at all, because the row and the inspector are one
-      // thing and the shell owns both.
       for (const file of [
         baseFile,
         { ...baseFile, filename: "sheet.xlsx", mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
@@ -409,11 +359,6 @@ describe("RightPaneFile", () => {
     });
 
     it("leaves it to the shell for a video too, on this surface", async () => {
-      // This host is the canonical URL, where media rides the shell as
-      // of 2026-09. The predicate that decides it takes a surface now,
-      // and a host reading the old two-argument one would draw a second
-      // row under the shell's — two breadcrumbs, two inspector toggles.
-      // The collection host asserts the opposite, in its own suite.
       mockGetFile.mockResolvedValue({
         ...baseFile,
         filename: "clip.mp4",
@@ -464,11 +409,6 @@ describe("RightPaneFile — the prev/next walk it publishes", () => {
   });
 
   it("mounts the provider the page row reads", async () => {
-    // The wire that makes the feature exist: `FileNavProvider` has one
-    // production caller and `useFileNavState` one consumer, and deleting
-    // the two provider lines left the whole suite green. A file kind
-    // that draws the controls is what proves the wire, so this is an
-    // image.
     mockGetFile.mockResolvedValue({
       ...baseFile,
       filename: "DSC_0412.jpg",
@@ -487,10 +427,8 @@ describe("RightPaneFile — the prev/next walk it publishes", () => {
   });
 
   it("asks for the ordering the listing declared, and counts only what it marked", async () => {
-    // The URL is what the listing wrote and the redirect carried. An
-    // earlier version read `folderPrefs` here instead, which the drive
-    // root never writes and which let the arrows and the full-screen
-    // gallery walk two different orderings of one folder.
+    // Not `folderPrefs`: the drive root never writes it, so the arrows and
+    // the full-screen gallery would walk two different orderings.
     mockSearchParams.set("sort", "title");
     mockSearchParams.set("order", "asc");
     mockSearchParams.set("nav", "folder");

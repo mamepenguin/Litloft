@@ -39,10 +39,8 @@ describe("SidebarSystemSection", () => {
   });
 
   it("hides Dashboard and its heading until the viewer is known to be admin", () => {
-    // Three states, declared rather than derived: unknown (the prop is
-    // absent while the auth probe is in flight), known-not-admin, and
-    // admin. The first two must look the same — flashing an admin row and
-    // taking it away is the failure the default guards against.
+    // The prop is absent while the auth probe is in flight; flashing an
+    // admin row and taking it away is the failure the default guards against.
     for (const props of [{}, { isAdmin: false }]) {
       const { unmount } = render(
         <SidebarSystemSection driveBase="/drive/main" linkClass={linkClass} close={vi.fn()} {...props} />,

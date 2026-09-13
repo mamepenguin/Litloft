@@ -8,13 +8,8 @@ function globalsCss(): string {
 }
 
 /**
- * The `.media-detail-player` rule with no further selector on it.
- *
- * `^` under `/m`, so this cannot match one of the qualified rules —
- * `[data-sheet-snap] .media-detail-player`,
- * `.media-detail-player[data-framed="true"]`,
- * `main[data-canvas-floor="true"] .media-detail-player`. Two cases below
- * read this, and both of them are about what the *base* rule says.
+ * Anchored with `^` under `/m`: unanchored, a deleted base rule silently
+ * retargets onto a qualified rule such as `[data-sheet-snap] .media-detail-player`.
  */
 function baseRule(): RegExpMatchArray | null {
   return globalsCss().match(/^\.media-detail-player\s*\{[^}]*\}/m);
@@ -28,10 +23,8 @@ describe("media detail theater sizing", () => {
   });
 
   it("keeps an explicit width alongside the auto margins", () => {
-    // An auto inline margin turns off a grid item's default `stretch`,
-    // so without this the item sizes from its contents — a <video> with
-    // no metadata yet, which reports the CSS default 300x150. The player
-    // rendered at 300px wide until the file loaded, then snapped.
+    // An auto inline margin turns off a grid item's default `stretch`, so
+    // without this a <video> with no metadata yet sizes to 300x150.
     const rule = globalsCss().match(
       /\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
     );
@@ -40,17 +33,8 @@ describe("media detail theater sizing", () => {
   });
 
   it("leaves the unframed player column alone", () => {
-    // The cap inverts a 16:9 ratio, so it only means anything for a
-    // player whose height follows its width. Applying it to an image,
-    // a PDF or a text preview would narrow them on a short window for
-    // no reason, which is why the selector carries `data-framed`.
-    //
-    // Anchored at a line start, because the unanchored form finds the
-    // *first textual occurrence* of the selector: rename or delete the
-    // base rule and it silently retargets onto
-    // `[data-sheet-snap] .media-detail-player { position: sticky … }`,
-    // which carries neither declaration and so passes while asserting
-    // nothing. Measured — it did, for a whole commit.
+    // The cap inverts a 16:9 ratio, so on an image, PDF or text preview it
+    // would narrow them on a short window for no reason.
     const rule = baseRule();
     expect(rule).not.toBeNull();
     expect(rule![0]).not.toMatch(/max-width/);
@@ -58,18 +42,11 @@ describe("media detail theater sizing", () => {
   });
 
   it("keeps the player itself the grid item, and nothing around it", () => {
-    // Two claims in one place because they are one decision. The legacy
-    // layout is a grid of named areas, so the player needs an area of its
-    // own — and the `loft-metadata` occupant under it needs a *different*
-    // one, rather than a box wrapping the player to hold both. A wrapper
-    // is what takes `position: sticky`'s travel away: sticky moves only
-    // inside its own containing block, and a box whose height is the
-    // player's own leaves none. Measured: the player scrolled off the top
-    // of the canvas at every scroll offset, on every file kind.
+    // A box wrapping the player and its occupant would take away
+    // `position: sticky`'s travel, which exists only inside the containing block.
     const rule = baseRule();
     expect(rule).not.toBeNull();
     expect(rule![0]).toMatch(/grid-area:\s*player;/);
-    // And the occupant's area exists and is not the player's.
     const aside = globalsCss().match(
       /^\.media-detail-player-aside\s*\{[^}]*\}/m,
     );
@@ -78,33 +55,11 @@ describe("media detail theater sizing", () => {
   });
 
   it("gives the occupant a row only where there is an occupant", () => {
-    // A named row is laid out whether or not anything is in it, and `gap`
-    // is drawn on both sides of it — so an unconditional row costs the
-    // full gap twice under every player that has no occupant, which is
-    // most of them.
+    // A named row is laid out even when empty and `gap` is drawn on both
+    // sides of it, so an unconditional row costs the gap twice.
     //
-    // **Both halves of each rule are compared whole, not searched.**
-    // Neither a selector nor a `grid-template-areas` value has a bounded
-    // list of ways to be wrong, and three rounds of this case searched one
-    // or the other:
-    //
-    // - `:has(` matched `:has(.media-detail-player)`, a condition that is
-    //   always true;
-    // - the occupant's class matched `:not(:has(…))`, that condition
-    //   inverted;
-    // - and a boolean "does the value mention `player-aside`" matched a
-    //   value with the rows *reordered* (the occupant drawn below `rest`,
-    //   at the foot of the page) and one with the `"player"` row deleted
-    //   (the player itself auto-placed after everything, its bottom edge
-    //   352px below the companion's top). Both measured.
-    //
-    // So the four rules that are right are written out — selector and
-    // value — and anything else fails.
-    //
-    // Comments are stripped before the blocks are split, and that is not
-    // decoration: the split is on `{` and `}`, so a brace anywhere cuts a
-    // block in two, and this file's own comments contain `/files/{id}`
-    // twelve lines above the first rule measured here.
+    // Comments are stripped first because the split is on braces, and
+    // globals.css comments contain braces.
     const withoutComments = globalsCss().replace(/\/\*[\s\S]*?\*\//g, "");
     const oneLine = (s: string) => s.replace(/\s+/g, " ").trim();
     const templates = withoutComments
@@ -122,7 +77,6 @@ describe("media detail theater sizing", () => {
 
     const OCCUPIED = ":has(> .media-detail-player-aside:not(:empty))";
     const WIDE = '[data-media-layout="beside"] [data-media-width="wide"] ';
-    // The one-column grid and the two-column variant, each in both forms.
     expect(templates).toEqual([
       { selector: ".media-detail-grid", areas: '"player" "companion" "rest"' },
       {
@@ -142,22 +96,8 @@ describe("media detail theater sizing", () => {
   });
 });
 
-/**
- * The companion below the player, on the shell.
- *
- * jsdom does no layout, so nothing else in the suite can see any of
- * this: a `min-width` that is not there, a `flex-basis` that resolves
- * against the wrong axis, a box with no bound on it. The rules are read
- * as text instead, which catches the one failure mode that matters here
- * — someone deleting a declaration whose reason is not visible from the
- * declaration.
- */
 describe("media detail, companion below the player", () => {
   it("gives both surfaces one height budget, measured", () => {
-    // The box under the player and the rail beside it are the same
-    // question asked on two surfaces. A number per layout is how the
-    // two come to disagree, so the value is derived once on the host
-    // and read twice.
     const host = globalsCss().match(/\.media-detail-host\s*\{[^}]*\}/);
     expect(host).not.toBeNull();
     expect(host![0]).toMatch(
@@ -174,19 +114,14 @@ describe("media detail, companion below the player", () => {
   });
 
   it("bounds the below box rather than trusting its occupant", () => {
-    // `max-height` on a row container clamps the line's cross size, not
-    // the main axis, so the mechanism that bounds the column form does
-    // not apply here. An occupant that ignores `fillHeight` would run
-    // past the box with nothing to stop it.
+    // `max-height` on a row container clamps the line's cross size, so an
+    // occupant that ignores `fillHeight` would otherwise run past the box.
     const rule = globalsCss().match(/\.media-detail-below\s*\{[^}]*\}/);
     expect(rule![0]).toMatch(/overflow:\s*hidden;/);
   });
 
   it("gives the index a floor equal to its base, and a ceiling", () => {
-    // Floor equal to base is what stops it shrinking, so it is frozen
-    // rather than shrunk-then-clamped when the canvas is narrow. The
-    // ceiling is its own number: past about 350px a column of
-    // timestamps stops reading as an index.
+    // Past about 350px a column of timestamps stops reading as an index.
     const rule = globalsCss().match(/\.media-detail-below-index\s*\{[^}]*\}/);
     expect(rule).not.toBeNull();
     expect(rule![0]).toMatch(/flex:\s*1 1 12\.5rem;/);
@@ -195,12 +130,8 @@ describe("media detail, companion below the player", () => {
   });
 
   it("bases the body at its measure, not at zero", () => {
-    // Free space is shared from the bases, so a body based at 0 arrives
-    // 200px behind the index and stays there: at a 500px canvas that is
-    // a 340px chapter list beside a 140px transcript, the short index
-    // outgrowing the long body it indexes. `min-width: 0` is the half
-    // everyone forgets — without it a flex item refuses to go below its
-    // content and the overflow moves up a level instead of scrolling.
+    // Free space is shared from the bases, so a body based at 0 stays
+    // narrower than the short index beside it.
     const rule = globalsCss().match(/\.media-detail-below-body\s*\{[^}]*\}/);
     expect(rule).not.toBeNull();
     expect(rule![0]).toMatch(/flex:\s*1 1 68ch;/);
@@ -210,12 +141,8 @@ describe("media detail, companion below the player", () => {
   });
 
   it("hides the empty box rather than letting the layout drop it", () => {
-    // `display: none` and not the layout omitting the box: its
-    // occupants are what report whether they have anything for the
-    // file, so a box removed because they had nothing yet would remove
-    // the reporters too and freeze the answer at its first guess. The
-    // attribute is what the layout writes and what the test in
-    // `MediaShell` asserts; this binds it to a rule that does something.
+    // Not omitted from the layout: the occupants report whether they have
+    // anything, so removing the box would freeze the answer at its first guess.
     const rule = globalsCss().match(
       /\.media-detail-below\[data-occupied="false"\]\s*\{[^}]*\}/,
     );
@@ -224,16 +151,10 @@ describe("media detail, companion below the player", () => {
   });
 
   it("keeps the reading measure in one place", () => {
-    // It was written out in `MarkdownPreview` and then again on the
-    // media canvas's description, which is the drift this rule exists
-    // to make unrepresentable rather than merely detectable.
     expect(globalsCss()).toMatch(/\.reading-measure\s*\{\s*max-width:\s*860px;\s*\}/);
   });
 
   it("passes the height on to whatever the slot puts in the body", () => {
-    // The wrapper is only safe as long as it is itself a flex container
-    // that hands the height through; otherwise the occupant lays itself
-    // out at full length and the box clips it silently.
     const rule = globalsCss().match(
       /\.media-detail-below-body\s*>\s*\*\s*\{[^}]*\}/,
     );
@@ -243,18 +164,9 @@ describe("media detail, companion below the player", () => {
   });
 });
 
-/**
- * The inspector's overlay form.
- *
- * jsdom does no layout, so the positioning that makes "covers the
- * canvas rather than narrowing it" true is only readable as text.
- */
 describe("inspector overlay placement", () => {
   it("takes the pane out of flow without touching its width", () => {
-    // Narrowing was tried and rejected — under 320px Japanese wraps at
-    // 12–14 characters a line — so the pane keeps `w-96` and covers the
-    // canvas instead. A `width` here would be that rejected design
-    // arriving through the back door.
+    // Not narrowed: under 320px Japanese wraps at 12–14 characters a line.
     const rule = globalsCss().match(
       /\[data-inspector-fit="overlay"\]\s+\.inspector-pane\s*\{[^}]*\}/,
     );
@@ -267,11 +179,8 @@ describe("inspector overlay placement", () => {
   });
 
   it("stays under everything that has to stay reachable over it", () => {
-    // The mini player is ~320px against the right edge, so it lands
-    // entirely inside this panel's band; at 40 it was buried, close
-    // button and all. Below the sidebar's backdrop at 30 too — the
-    // sidebar is modal while open, and a bright interactive panel above
-    // its dim is the page claiming to be two things at once.
+    // The mini player sits inside this panel's band, and the sidebar's
+    // backdrop (z 30) is modal while open.
     const rule = globalsCss().match(
       /\[data-inspector-fit="overlay"\]\s+\.inspector-pane\s*\{[^}]*\}/,
     );
@@ -281,10 +190,6 @@ describe("inspector overlay placement", () => {
   });
 
   it("gives it no shadow", () => {
-    // DESIGN.md §4 keeps properties panels at Level 0 and names
-    // decorative use on flat-surface components as forbidden. The pane
-    // already separates by surface colour and a left border, which is
-    // the depth that section asks for first.
     const rule = globalsCss().match(
       /\[data-inspector-fit="overlay"\]\s+\.inspector-pane\s*\{[^}]*\}/,
     );
@@ -294,14 +199,8 @@ describe("inspector overlay placement", () => {
 
 describe("the sheet's resting action row", () => {
   it("grows its controls to the touch floor on a coarse pointer", () => {
-    // Not the row: a tall row with `items-center` never stretches a
-    // child into it, which is how the targets stayed 28px inside a 44px
-    // row. Grown rather than overhung, because these controls sit 2-4px
-    // apart and 44px hit areas would overlap by a third — the later
-    // sibling would then win the hit test for its neighbour's edge.
-    //
-    // The selector covers both rows. It named the compact one alone, and
-    // the inspector's row — same controls, 4px gap — stayed at 32px.
+    // Grown rather than overhung: the controls sit 2-4px apart, so 44px hit
+    // areas would overlap and the later sibling would steal its neighbour's edge.
     const css = globalsCss();
     const rule = css.match(
       /@media \(pointer: coarse\) \{\s*\.file-action-row-touch > \*\s*\{[^}]*\}/,
@@ -310,27 +209,10 @@ describe("the sheet's resting action row", () => {
     expect(rule![0]).toMatch(/min-width:\s*2\.75rem;/);
     expect(rule![0]).toMatch(/min-height:\s*2\.75rem;/);
 
-    // The other three, measured load-bearing and previously pinned by
-    // nothing. They are one unit rather than a box rule plus two garnishes:
-    // `align-items` is observable at all only because `display: inline-flex`
-    // gives a flex context to children that have none, and removing either of
-    // those alone leaves the gallery icon 6px off centre inside the box the
-    // rule just grew. `justify-content` centres it horizontally in three
-    // controls.
     expect(rule![0]).toMatch(/display:\s*inline-flex;/);
     expect(rule![0]).toMatch(/align-items:\s*center;/);
     expect(rule![0]).toMatch(/justify-content:\s*center;/);
 
-    // At the top level, not nested in another at-rule.
-    //
-    // This test reads the stylesheet as text, so it can say the rule is
-    // written and never that it reaches a screen. Wrapping the whole block in
-    // `@media print { … }` leaves the substring above intact and passes —
-    // measured, with the floor gone everywhere: the compact strip back to
-    // 28x28 and the inspector row to 32. Counting braces closes that.
-    //
-    // **It does not close a later block overriding these declarations**, and
-    // nothing here can: that needs a browser this suite does not have.
     const depth = [...css.slice(0, rule!.index!)].reduce(
       (d, c) => (c === "{" ? d + 1 : c === "}" ? d - 1 : d),
       0,
@@ -341,11 +223,8 @@ describe("the sheet's resting action row", () => {
 
 describe("the player on a phone", () => {
   it("sticks the wrapper, which is the element that can travel", () => {
-    // A sticky box moves only within its own containing block. On the
-    // frame, whose parent holds the frame and an action row that is
-    // usually `empty:hidden`, the travel was zero — the player scrolled
-    // away exactly as it did before. The wrapper's parent is the canvas
-    // host, as tall as everything under the player.
+    // A sticky box moves only within its containing block; the frame's parent
+    // is barely taller than the frame, so sticking the frame has no travel.
     const rule = globalsCss().match(
       /\[data-sheet-snap\]\s+\.media-detail-player\s*\{[^}]*\}/,
     );
@@ -355,14 +234,9 @@ describe("the player on a phone", () => {
   });
 
   it("caps it from a variable that cannot drift while it is stuck", () => {
-    // `--player-avail` comes from this element's own offset, which is a
-    // constant zero while stuck against a scroll position that keeps
-    // growing — the cap would tighten as the reader scrolls. Dropping
-    // the cap is not the answer either: phone landscape is still under
-    // the mobile breakpoint, and an uncapped 667px-wide player is
-    // taller than its scrollport, so its control bar sits below the
-    // fold. `--rail-avail` is the scrollport itself and knows nothing
-    // about the player.
+    // `--player-avail` derives from this element's own offset, so the cap
+    // would tighten as a stuck player scrolls. Dropping the cap instead puts
+    // the control bar below the fold in phone landscape.
     const rule = globalsCss().match(
       /\[data-sheet-snap\]\s+\.media-detail-player\[data-framed="true"\]\s*\{[^}]*\}/,
     );

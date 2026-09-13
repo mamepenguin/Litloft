@@ -1,38 +1,8 @@
 /**
- * AC 22 — the sidebar as an overlay: what holds today, and what does not.
- *
- * Spec 2026-09-12-purpose-oriented-navigation §16 asks for three things.
- * This file measures the current behaviour of each and says plainly which
- * of them the app does **not** do, so that a reader is not left believing
- * a green suite means the criterion is met (arbitration 12).
- *
- * **Overlay is two inputs, not one.** `isOverlay = routeOverlay || narrow`
- * (`SidebarProvider.tsx:51`): a viewport below 1200px, *or* a route that
- * asked for overlay through `useOverlaySidebar` — which is how the
- * two-pane layout borrows the sidebar's place while the folder tree is
- * open beside the content, at any width. A test that reaches overlay only
- * by shrinking the window measures one of the two and calls it the
- * feature, so every case here is run through both doors.
- *
- * **What is not implemented, and is therefore pinned as absent:**
- *
- * - *Keyboard dismissal.* Nothing binds Escape; the sidebar has no
- *   keydown handler and no `useShortcuts` entry that closes it. The
- *   criterion's "keyboard-dismissable" is unmet, and a case below fails
- *   if a handler appears without this docstring being revisited.
- * - *"Navigation closes it only in overlay mode."* Every row calls
- *   `close()` unconditionally. In wide, non-overlay mode `close()` also
- *   writes the stored preference, so following a link there collapses
- *   the sidebar and remembers it collapsed.
- *
- * Both are recorded rather than fixed: this file is a detector, and
- * changing either is a behaviour change that belongs in its own PR.
- *
- * **What this cannot hold.** jsdom lays nothing out, so nothing here is
- * evidence about whether the overlay covers the content, what it does at
- * 1199px versus 1201px, or where focus goes
- * (`.claude/rules/review-workflow.md`, "What a test here cannot hold").
- * The width door is reached by driving `matchMedia`, not by measuring one.
+ * Overlay is two inputs, not one: a narrow viewport, *or* a route that asked
+ * for overlay through `useOverlaySidebar`. Every case here is run through
+ * both. Keyboard dismissal and overlay-only close-on-navigation are not
+ * implemented, and are pinned as absent.
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
@@ -45,12 +15,7 @@ import {
   SIDEBAR_INLINE_MIN_WIDTH,
 } from "../SidebarProvider";
 
-/**
- * The width AC 22 names, written here rather than read from the module.
- * The provider builds its query from `SIDEBAR_INLINE_MIN_WIDTH`, so this
- * is the one place the criterion's own number and the implementation's
- * can disagree.
- */
+/** Written here rather than read from the module, so the two can disagree. */
 const AC22_INLINE_MIN_WIDTH = 1200;
 const NARROW_QUERY = `(max-width: ${SIDEBAR_INLINE_MIN_WIDTH - 1}px)`;
 
@@ -118,11 +83,6 @@ function mount(routeAsksForOverlay = false) {
 
 const reads = (id: string) => screen.getByTestId(id).textContent;
 
-/**
- * The two ways a screen becomes an overlay, declared rather than
- * collected: a door that stops working drops out of this table and takes
- * its own cases with it.
- */
 const DOORS: [string, () => void][] = [
   ["a viewport under 1200px", () => setViewportNarrow(true)],
   ["a route that asks for it", () => {}],
@@ -140,8 +100,6 @@ describe("the sidebar in overlay mode", () => {
   });
 
   it("is not in overlay when neither door is open", () => {
-    // The population: without this, every case above passes over a
-    // provider that reports overlay unconditionally.
     mount(false);
     expect(reads("overlay")).toBe("false");
   });
@@ -170,10 +128,7 @@ describe("the sidebar in overlay mode", () => {
 describe("AC 22's unmet halves, pinned as unmet", () => {
   it("has no keyboard dismissal: Escape does nothing", () => {
     // If this goes red because Escape now closes it, that is the
-    // criterion being met — update this file's docstring with it rather
-    // than deleting the case. Run in overlay, where the criterion asks
-    // for the behaviour, and where an overlay with no keyboard exit is
-    // the trap it describes.
+    // behaviour arriving, not a regression.
     mount(false);
     setViewportNarrow(true);
     fireEvent.click(screen.getByRole("button", { name: "toggle" }));
@@ -188,13 +143,8 @@ describe("AC 22's unmet halves, pinned as unmet", () => {
   });
 
   it("closes on navigation in wide mode too, and remembers it closed", () => {
-    // AC 22 asks for "navigation closes it only in overlay mode". Every
-    // sidebar row calls `close()` with no test of the mode, and in wide
-    // mode `close()` also writes the stored preference — so following a
-    // link collapses the sidebar and the next visit finds it collapsed.
-    //
-    // Wide mode starts open with nothing stored, which is the state a
-    // first-time reader is in, so no toggle is needed to reach it.
+    // Every sidebar row calls `close()` with no test of the mode, and in
+    // wide mode `close()` also writes the stored preference.
     mount(false);
     expect(reads("overlay")).toBe("false");
     expect(reads("open")).toBe("true");

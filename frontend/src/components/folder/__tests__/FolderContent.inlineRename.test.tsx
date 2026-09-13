@@ -1,7 +1,4 @@
 /**
- * Inline rename on folder cards — spec
- * 2026-08-21-inline-rename-and-spring-loaded-drag §3.
- *
  * Separate from FolderContent.test.tsx because that file stubs
  * FolderCard, and the point here is the real card.
  */
@@ -132,9 +129,8 @@ describe("FolderContent inline rename", () => {
 
   it("starts editing the focused card on F2", async () => {
     renderContent();
-    // Async act: see the note in FolderTreePane.test.tsx — the shortcut
-    // context is pushed through an effect cascade that the synchronous
-    // form does not reliably drain.
+    // Async act: the shortcut context is pushed through an effect cascade
+    // that the synchronous form does not reliably drain.
     await act(async () => {
       (screen.getByText("Notes").closest("a") as HTMLElement).focus();
     });

@@ -1,12 +1,3 @@
-/**
- * The distinct rule as the listings actually render it.
- *
- * `deriveListMeta` is unit-tested next to itself; what this file checks
- * is that `FileGrid` and `FileList` ask it and obey the answer, in both
- * directions — the failure that matters is a rule that is correct and
- * unwired, which looks identical to no rule at all.
- */
-
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
 
@@ -108,7 +99,6 @@ describe("FileGrid — repeated columns", () => {
 
   it("badges every eligible card once the extensions differ", () => {
     render(<FileGrid files={[...photos(5), ...photos(1, "png")]} />);
-    // Both values are drawn — the column is doing work again.
     expect(badges().length).toBeGreaterThan(1);
     expect(screen.getAllByText(/^png$/i)).toHaveLength(1);
   });

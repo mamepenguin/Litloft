@@ -5,24 +5,6 @@ import { resolve, dirname, relative } from "node:path";
 
 import { classAttributeSpans, stripComments } from "./helpers/sourceScan";
 
-/**
- * A card's title is not a heading.
- *
- * The drive root's outline used to read as six section names with thirty
- * file and folder names spliced between them at the same depth, because
- * every card put its title in an `<h3>` (D-5). A heading level is a claim
- * about document structure, and thirty siblings in a grid are not thirty
- * sections; the name survives as the accessible name of the card's link,
- * which is what a screen reader navigates a listing by.
- *
- * **The population is every card component in the tree**, core and addon
- * alike — an addon that ships a card of its own is drawing into the same
- * outline. It is built from the file's own tokens rather than from its
- * name: `*Card.tsx` would be a naming pattern, and this repo has both
- * cards that are not named `Card` and files named `Card` that are not
- * cards.
- */
-
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const SELF = fileURLToPath(import.meta.url);
 const ADDONS_DIR = resolve(REPO_ROOT, "addons");
@@ -60,24 +42,12 @@ function sourceFiles(): string[] {
 const HEADING = /<h[1-6][\s/>]/g;
 
 /**
- * Headings the file draws, not headings it mentions.
+ * `stripComments` first: a comment that writes an element's own tag would
+ * otherwise satisfy the scan.
  *
- * `stripComments` first, for the reason `cardTiles` uses it: a comment
- * that writes an element's own tag is the ordinary way to explain what
- * the code around it does, and a scan that counts those is satisfied by
- * prose. Measured: before this, an assertion that a file still drew a
- * heading was green over a file whose heading had been deleted and
- * mentioned in a comment.
- *
- * **Its limit.** The walker skips string literals so a `//` inside a URL
- * is not read as a comment, and it does not know it is looking at JSX.
- * A quote that never closes — `'`, `"` or a backtick, all three enter
- * string state alike — therefore opens a span that runs to the next
- * quote anywhere in the file, and comments inside it stay unblanked. An
- * apostrophe in JSX text is the everyday way that happens; it is not the
- * only one. `no comment survives the stripper` below holds this
- * mechanically over the files this suite scans, so it cannot go quietly
- * stale the way a survey written here would.
+ * The walker does not know it is looking at JSX, so a quote that never
+ * closes (an apostrophe in JSX text) opens a string span that leaves the
+ * comments after it unblanked.
  */
 function headingsIn(jsx: string): number {
   return [...stripComments(jsx).matchAll(HEADING)].length;
@@ -88,14 +58,10 @@ function headingsIn(jsx: string): number {
  *
  * The property is per-element, not per-file: a page may hold both a card
  * and its own `<h1>`, and a file-level heading count cannot tell the two
- * apart — it would demand a page drop the heading that names the page.
- * So the card tile is cut out and only its inside is read.
+ * apart.
  *
- * Matching is on element tags, counting opens against closes and treating
- * a self-closing tag as neither. Good enough because this reads eight
- * files of ordinary JSX; it would not survive a `<` inside an expression,
- * and `cardTiles` asserts the extent it found is plausible so a
- * mis-parse fails loudly instead of silently returning an empty subtree.
+ * Matching counts element opens against closes; it would not survive a
+ * `<` inside an expression.
  */
 function elementAt(body: string, at: number): string | null {
   const start = body.lastIndexOf("<", at);
@@ -105,9 +71,6 @@ function elementAt(body: string, at: number): string | null {
   const name = tag[1];
 
   /**
-   * The `>` that ends the opening tag at `from`, and whether it closed
-   * the element outright.
-   *
    * Not `indexOf(">")`: the first `>` after a tag name is very often
    * inside an attribute — `onClick={() => …}` is the common case — and
    * taking it misreads a plain element as self-closing, which drops its
@@ -176,8 +139,7 @@ function cardTiles(body: string): string[] {
   // `classAttributeSpans`, not a regex for `className="…"`: this tree
   // writes class lists as ternaries, `cn(…)` calls and constants too,
   // and a scan that reads only the two literal forms drops those
-  // elements out of the population without failing. `MiniPlayerContainer`
-  // is one — its `shadow-card` sits inside a ternary.
+  // elements out of the population without failing.
   for (const [from, to] of classAttributeSpans(stripped)) {
     if (!/\bshadow-card\b/.test(stripped.slice(from, to))) continue;
     const subtree = elementAt(stripped, from);
@@ -185,9 +147,8 @@ function cardTiles(body: string): string[] {
     expect(subtree, `unparsed card tile at offset ${from}`).not.toBeNull();
     out.push(subtree!);
   }
-  // And the count itself: every `shadow-card` in the file is one tile.
-  // Without this a class form the scan cannot reach shrinks the
-  // population silently, which is the failure this whole file is for.
+  // Every `shadow-card` in the file is one tile. Without this a class form
+  // the scan cannot reach shrinks the population silently.
   const mentions = [...stripped.matchAll(/\bshadow-card\b/g)].length;
   expect(out.length).toBe(mentions);
   return out;
@@ -207,10 +168,8 @@ describe("no card titles itself with a heading", () => {
     // "None of them holds a heading" is also true of an empty set, and
     // this walk crosses four addon repos whose checkouts can be absent.
     expect(tiles.length).toBeGreaterThan(0);
-    // The three the finding is about, by name, so a refactor that renames
-    // or splits them cannot quietly drop them from the population. The
-    // drive picker was deferred here until 案 9 rebuilt its header; it is
-    // in the sweep now, which is what removing an exemption has to mean.
+    // By name, so a refactor that renames or splits them cannot quietly
+    // drop them from the population.
     for (const named of [
       "frontend/src/components/FileCard.tsx",
       "frontend/src/components/FolderCard.tsx",
@@ -225,18 +184,12 @@ describe("no card titles itself with a heading", () => {
       .map((t) => ({ rel: t.rel, n: headingsIn(t.tile) }))
       .filter((t) => t.n > 0)
       .map((t) => `${t.rel} — ${t.n}`);
-    // Not a floor: one heading in one card is the whole defect.
     expect(offenders).toEqual([]);
   });
 });
 
 describe("list mode holds the same line", () => {
-  /**
-   * List rows are not card tiles, so the sweep above cannot see them —
-   * and list mode is one click from grid mode in the same folder, with
-   * the same thirty names in it. Asserted directly rather than left to
-   * the tile scan, which is keyed on a treatment a row does not carry.
-   */
+  /** List rows are not card tiles, so the tile scan cannot see them. */
   it.each([
     "frontend/src/components/FileListRow.tsx",
     "frontend/src/components/FolderListRow.tsx",
@@ -246,17 +199,6 @@ describe("list mode holds the same line", () => {
 });
 
 describe("section headings are untouched", () => {
-  /**
-   * The components that draw a drive-home section's name, and the
-   * number of headings each one emits.
-   *
-   * Declared per file, because the point of the other half of D-5 is
-   * that the card sweep did not take the section outline with it — and
-   * a lower bound cannot say that. This previously asked
-   * `DriveHome.tsx` for `headingsIn(body) > 0`, which was satisfied by
-   * the string `<h1>` inside one of that file's comments: the page has
-   * never drawn a section heading itself, its rows do.
-   */
   const SECTION_HEADING_SOURCES: [string, number][] = [
     ["frontend/src/components/CarouselSection.tsx", 1],
     ["frontend/src/components/ContinueWatchingSection.tsx", 1],
@@ -267,16 +209,10 @@ describe("section headings are untouched", () => {
   });
 
   /**
-   * No comment survives the stripper, in any file this suite counts
-   * headings in.
-   *
    * `headingsIn` is only as good as `stripComments`, and that walker
    * treats an unclosed quote in JSX text as the start of a string — so a
    * `<span>Here's …</span>` above a heading leaves every comment after
-   * it intact and the count is then satisfied by prose. This holds the
-   * precondition mechanically instead of surveying for it by hand:
-   * whichever file first acquires such a quote goes red here, in CI,
-   * rather than quietly making a sibling assertion meaningless.
+   * it intact and the count is then satisfied by prose.
    */
   it("leaves no comment behind in the files whose headings are counted", () => {
     const scanned = [

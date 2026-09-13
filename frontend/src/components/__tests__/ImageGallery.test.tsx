@@ -66,17 +66,13 @@ function setupMock(data: FileItem[] = images) {
 }
 
 /**
- * Put a reader back in front of the frame.
- *
  * `runAllTimersAsync` settles the image load, and it also runs the
  * chrome's 2s idle timer, so anything that asserts on the chrome has to
  * say that someone is still there.
  *
  * Both signals, because the viewer listens to different ones per pointer
  * mode: a coarse pointer produces no movement, so `pointermove` is not
- * bound there. Sending only that one made these tests depend on which
- * pointer mode the previous test happened to leave stubbed — the
- * shuffled-order run is what said so.
+ * bound there.
  */
 function wakeChrome() {
   act(() => {
@@ -171,9 +167,6 @@ describe("ImageGallery", () => {
   });
 
   it("closes on Escape even after the chrome has withdrawn", async () => {
-    // What withdraws is the chrome, not the viewer. Escape has to reach
-    // the reader's way out whether or not the bar with the close button
-    // in it is on screen.
     renderWithShortcuts(<ImageGallery {...defaultProps} />);
 
     await act(async () => {
@@ -241,7 +234,6 @@ describe("ImageGallery", () => {
     expect(screen.queryByLabelText("Slideshow interval")).toBeNull();
   });
 
-  /** Answer the pointer queries the way a given device would. */
   function stubPointer(mode: "fine" | "coarse") {
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: query.includes(mode),
@@ -265,9 +257,6 @@ describe("ImageGallery", () => {
   }
 
   it("gives a mouse the popover and a finger the sheet", async () => {
-    // `DESIGN.md` §Over-video chrome names two shapes, not one that
-    // stretches. The panel is the video player's own shell, so this also
-    // pins that the viewers are using it rather than a lookalike.
     stubPointer("fine");
     expect(await openIntervalPanel()).toHaveAttribute(
       "data-placement",
@@ -284,8 +273,6 @@ describe("ImageGallery", () => {
   });
 
   it("does not dim behind the popover", async () => {
-    // §Over-video chrome: a mouse user sees the whole frame at once and
-    // the panel covers very little of it, so there is nothing to dim.
     stubPointer("fine");
     await openIntervalPanel();
     const backdrop = screen.getByTestId("slideshow-interval-backdrop");
@@ -294,12 +281,7 @@ describe("ImageGallery", () => {
 
   it("parks the popover under the bar that opened it, not above it", async () => {
     // The panel's shell was written for the player, whose controls are
-    // at the bottom of the frame. These viewers' bar is at the top, and
-    // the shell parked against the bottom edge regardless: measured at
-    // 1512x757, the panel opened 621px from the button that opened it,
-    // in the opposite corner. With the anchor it is 78px away and clears
-    // the 54px bar by 2. jsdom lays nothing out, so the margin that
-    // decides it is what can be pinned here.
+    // at the bottom of the frame. These viewers' bar is at the top.
     stubPointer("fine");
     const panel = await openIntervalPanel();
     expect(panel.className).toMatch(/(^|\s)mt-14(\s|$)/);
@@ -307,10 +289,8 @@ describe("ImageGallery", () => {
   });
 
   it("enters from the edge it hangs off", async () => {
-    // The anchor moved where the panel comes to rest and left where it
-    // comes *from* alone: a top-anchored panel rising from below starts
-    // a panel-height down the frame, in open space, and travels toward
-    // its own trigger. The anchor's defect over again, in time.
+    // A top-anchored panel rising from below starts a panel-height down
+    // the frame, in open space, and travels toward its own trigger.
     stubPointer("fine");
     const panel = await openIntervalPanel();
     expect(panel.className).toMatch(/animate-slide-down-bar/);
@@ -320,9 +300,7 @@ describe("ImageGallery", () => {
   it("dismisses the panel on Escape without closing the viewer", async () => {
     // The panel's own handler only sees keys whose React path runs
     // through it, and opening it leaves focus on the trigger — a sibling
-    // of the portal. So Escape went past to the viewer's shortcut, and a
-    // reader dismissing a three-option menu lost their place in the
-    // folder. The `<select>` this replaced swallowed Escape.
+    // of the portal.
     stubPointer("fine");
     await openIntervalPanel();
 
@@ -333,10 +311,6 @@ describe("ImageGallery", () => {
   });
 
   it("holds the chrome open while the interval panel is up", async () => {
-    // Reading a panel is not idleness. Measured in the browser before
-    // this hold existed: 2.6s after opening the panel the bar was
-    // `opacity: 0` and `inert` while the panel stayed at full opacity —
-    // a panel floating where the control that opened it used to be.
     stubPointer("fine");
     const panel = await openIntervalPanel();
 
@@ -351,7 +325,7 @@ describe("ImageGallery", () => {
   });
 
   it("puts withdrawn chrome out of reach, not just out of sight", async () => {
-    // §Layering. An `opacity: 0` element keeps its place in the tab
+    // An `opacity: 0` element keeps its place in the tab
     // order, so a keyboard user lands on controls nobody can see.
     render(<ImageGallery {...defaultProps} />);
     await act(async () => {
@@ -367,7 +341,7 @@ describe("ImageGallery", () => {
   });
 
   it("offers the interval as over-frame chrome rather than a native select", async () => {
-    // `DESIGN.md` §Over-video chrome: a bare `<select>` in a bar over
+    // A bare `<select>` in a bar over
     // media is sized by its widest option and drawn by the OS, so it
     // matches nothing else in the row.
     render(<ImageGallery {...defaultProps} />);
@@ -392,10 +366,6 @@ describe("ImageGallery", () => {
   });
 });
 
-// DESIGN.md §Layering: an immersive viewer takes the page out of reach, not
-// just out of sight. `useInertBackdrop` is well covered on its own, but the
-// hook being right proves nothing about this component being wired to it —
-// deleting the ref from the root left the whole suite green.
 describe("ImageGallery backdrop", () => {
   function outsideTheViewer() {
     const viewer = document.querySelector('[role="dialog"]');

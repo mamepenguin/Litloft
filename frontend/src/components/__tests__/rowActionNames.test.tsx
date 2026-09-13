@@ -1,19 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
-/**
- * A name per row, not per control (DESIGN.md §Row Actions).
- *
- * The trash and missing views draw thirty of these at a time and every
- * one of them was called "Restore" or "Permanently delete". A screen
- * reader user tabbing the page hears the same two words over and over
- * with nothing saying which file is about to be deleted for good.
- *
- * All four surfaces are rendered from the same fixture, because the
- * defect was in all four and a test that covers one of them would have
- * been satisfied by the first fix.
- */
-
 vi.mock("next-intl", () => ({
   useTranslations: (namespace: string) => {
     const t = (key: string, values?: Record<string, unknown>) =>
@@ -40,7 +27,6 @@ import { TrashFileList } from "../trash/TrashFileList";
 import { MissingFileGrid } from "../missing/MissingFileGrid";
 import { MissingFileList } from "../missing/MissingFileList";
 
-/** Five, because "no two names collide" is trivially true of one row. */
 const titles = [
   "旧_打ち合わせメモ",
   "Quarterly plan",
@@ -88,21 +74,6 @@ const SURFACES = [
   ["missing list", () => <MissingFileList files={files} onPurge={vi.fn()} />],
 ] as const;
 
-/**
- * Every button these four surfaces render — no filter.
- *
- * The first version of this kept only labels matching `/Named:/`, which is
- * to say only the buttons that were *already correct*. A button that
- * regressed to the shared name fell out of the population before any
- * assertion saw it, and on the two trash surfaces the other action's five
- * distinct names kept every test green. Reverting `restoreNamed` to
- * `restore` — five buttons on screen all called "Restore", the exact
- * defect this file is named for — left 12/12 passing.
- *
- * A population must not be filtered by a pattern that means "already
- * satisfies the property under test". These surfaces render nothing but
- * their row actions, so the population is simply all of them.
- */
 function rowActionNames(): string[] {
   return screen
     .getAllByRole("button")
@@ -116,9 +87,6 @@ describe.each(SURFACES)("%s", (_name, renderSurface) => {
     render(renderSurface());
     const names = rowActionNames();
     expect(names.length).toBeGreaterThan(0);
-    // Every one of them, not merely one per title: an action that dropped
-    // back to the shared name is still in this list, and this is where it
-    // is seen.
     for (const name of names) {
       expect(
         titles.some((t) => name.includes(t)),
@@ -131,14 +99,8 @@ describe.each(SURFACES)("%s", (_name, renderSurface) => {
   });
 
   /**
-   * Titles are unique in this fixture, so the names are too. Two trashed
-   * files that share a title — two `README.md` in different folders — do
-   * still collide, because the name interpolates the title alone. That is
-   * an accepted narrowing rather than an oversight: it is thirty-way
-   * ambiguity reduced to two-way, the trash lists a whole drive so the
-   * case is reachable, and resolving it means putting a folder path into
-   * a button's name. Recorded so the property this file claims is not
-   * read as wider than it is.
+   * Two files sharing a title in different folders still collide, because the
+   * name interpolates the title alone; that narrowing is accepted.
    */
   it("gives no two actions the same name", () => {
     render(renderSurface());
@@ -147,9 +109,8 @@ describe.each(SURFACES)("%s", (_name, renderSurface) => {
   });
 
   /**
-   * §Row Actions: with an `aria-label` present, `title` becomes the
-   * accessible *description*, which NVDA and JAWS read after the name —
-   * so setting both to the same string has the sentence announced twice.
+   * With an `aria-label` present, `title` becomes the accessible description,
+   * so setting both to the same string has it announced twice.
    */
   it("does not repeat the name in a title attribute", () => {
     render(renderSurface());
@@ -162,13 +123,9 @@ describe.each(SURFACES)("%s", (_name, renderSurface) => {
 });
 
 /**
- * In the footer the action strip is in flow, so whether it is *mounted*
- * is a layout question and not only a visibility one.
- *
- * Selection starts with a Cmd/Ctrl-click on a card, so unmounting the
- * strip at that moment takes ~40px off every card in the grid at once and
- * the whole thing jumps under the pointer that just aimed at it.
- * `visibility: hidden` keeps the box and still drops the tab stop.
+ * The strip is in flow, so unmounting it when selection starts would reflow
+ * the grid under the pointer; `visibility: hidden` keeps the box and still
+ * drops the tab stop.
  */
 describe.each(GRIDS)("%s in selection mode", (_name, renderGrid) => {
   it("keeps the action strip's box, and takes it out of the tab order", () => {

@@ -25,10 +25,6 @@ const mixedFolder: Folder = {
 
 describe("FolderCard", () => {
   it("draws a glyph, and never a photograph", () => {
-    // The card used to borrow a picture from the first video or image
-    // anywhere beneath the folder, so a row of folders mixed photos and
-    // line art in one column. Asserted on the mixed folder, which is
-    // exactly the case that used to produce a photo.
     const { container } = render(
       <FolderCard folder={mixedFolder} {...baseFolderProps} />,
     );
@@ -52,8 +48,6 @@ describe("FolderCard", () => {
       />,
     );
     expect(screen.getByText("12 items · Document")).toBeInTheDocument();
-    // The number is already to its left; saying it twice is the shape
-    // `lib/listMeta.ts` calls a column with one distinct value.
     expect(screen.queryByText(/Document 12/)).toBeNull();
   });
 
@@ -74,22 +68,12 @@ describe("FolderCard", () => {
   });
 
   it("gives the breakdown the card's full width, not the strip beside the glyph", () => {
-    // Measured, not guessed: beside a 48px glyph inside a 160px card at
-    // 375px the meta had 68px, which cut "3 items · Document" mid-word —
-    // less than the bare count it replaced. Its own row gives it 128px
-    // there. jsdom lays nothing out, so what is pinned is the structure
-    // that produces the width: the meta is a sibling of the row holding
-    // the glyph, not a child of it.
     const { container } = render(
       <FolderCard folder={mixedFolder} {...baseFolderProps} />,
     );
     const meta = screen.getByText("138 items · Video 135 · Document 3");
     const glyph = container.querySelector("svg")!;
-    // The meta's own parent spans the card: it holds the glyph too, one
-    // row up. In the layout this replaced, the meta lived inside the
-    // narrow text column beside the glyph, whose box holds no glyph.
     expect(meta.parentElement!.contains(glyph)).toBe(true);
-    // And it is not inside the glyph's row, which is the strip.
     const glyphRow = glyph.parentElement!.parentElement!;
     expect(glyphRow.contains(meta)).toBe(false);
   });
@@ -100,9 +84,8 @@ describe("FolderCard", () => {
   });
 
   it("puts no heading on the title", () => {
-    // A grid of thirty cards used to emit thirty `<h3>`s at the same
-    // depth as the six section names above them (D-5). The name is still
-    // the link's accessible name, which is what a reader navigates by.
+    // The name is still the link's accessible name, which is what a reader
+    // navigates by.
     const { container } = render(
       <FolderCard folder={mixedFolder} {...baseFolderProps} />,
     );

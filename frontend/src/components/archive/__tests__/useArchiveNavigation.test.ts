@@ -58,10 +58,8 @@ describe("useArchiveNavigation", () => {
       useArchiveNavigation(sampleArchive, "", "", mockRouter)
     );
     const paths = result.current.currentEntries.map((e) => e.path);
-    // dirs first
     expect(paths[0]).toBe("docs/");
     expect(paths[1]).toBe("photos/");
-    // then files
     expect(paths[2]).toBe("readme.txt");
   });
 

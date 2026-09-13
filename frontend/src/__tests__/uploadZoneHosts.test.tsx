@@ -1,35 +1,7 @@
 /**
- * Every screen that offers a way to upload has a zone under it.
- *
- * `dispatchUploadEvent` does not receive the zone as a prop — it resolves
- * `document.querySelector("[data-upload-zone]")` at the moment the file
- * chooser returns (`useFilePicker.tsx:19`) and does nothing when it finds
- * none. `UploadZone.tsx` is that attribute's only producer, and it also
- * supplies the `dragover` cancel without which the browser navigates away
- * from the app to a dropped file.
- *
- * So an upload control and its zone can be separated by a deletion in
- * another component, and the failure is silent in both directions: the
- * chooser opens, takes the reader's files and drops them; the drop
- * replaces the page. Measured once per screen, because a screen is the
- * unit that can lose one.
- *
- * **`UploadZone` is deliberately not mocked here**, unlike in every
- * `FolderBrowser` test. A fixture that writes `data-upload-zone` and then
- * reads it is one implementation twice, which is what detector rule 2
- * forbids — and `useFilePicker.test.tsx` already covers the consumer side
- * against exactly such a fixture. What is only here is that a real screen
- * mounts the real producer.
- *
- * **Where the files land is measured with them.** A zone that is present
- * but names the wrong folder fails in the same silent way a missing one
- * does, and from the same cause: the control that dispatches cannot see
- * the destination, so nothing it does can disagree with it. Presence and
- * destination are therefore one subject, not two.
- *
- * Not held: that a drop actually uploads. jsdom fires no user-agent
- * default action, so the navigation this prevents is not observable here
- * (`.claude/rules/review-workflow.md`, "What a test here cannot hold").
+ * The upload control finds its zone with `document.querySelector` and does
+ * nothing when there is none, so a missing zone fails silently.
+ * `UploadZone` is deliberately not mocked here.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -80,15 +52,6 @@ vi.mock("@/lib/api", () => ({
 import { DriveHome } from "@/components/DriveHome";
 import { FolderBrowser } from "@/components/FolderBrowser";
 
-/**
- * Declared per screen, not collected from what renders: a screen dropped
- * from this table takes its own assertion with it, which is the deletion
- * this file exists to catch (detector rule 5).
- *
- * The third column is the folder that screen's zone writes into, written
- * out per row for the same reason — read off the rendered zone it would
- * agree with whatever the component happened to pass.
- */
 const SCREENS: [string, () => React.ReactElement, string][] = [
   ["the drive home", () => <DriveHome driveName="main" />, ""],
   ["the Library root", () => <FolderBrowser driveName="main" folderPath="" view="library" />, ""],
@@ -111,10 +74,6 @@ describe("screens that can upload mount exactly one zone", () => {
     const { container } = render(screen());
     const zone = container.querySelector("[data-upload-zone]")!;
 
-    // The event `useFilePicker` dispatches once the chooser returns,
-    // and the same one the drop handler raises. Going in this way is
-    // what makes the destination observable at all: it is carried by
-    // the zone's props, never by the control that started the upload.
     zone.dispatchEvent(
       new CustomEvent("upload-files", { detail: [new File(["x"], "note.txt")] }),
     );

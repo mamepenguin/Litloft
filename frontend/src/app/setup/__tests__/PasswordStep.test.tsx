@@ -1,12 +1,3 @@
-// PasswordStep test (RED phase)
-//
-// Choices:
-// - PasswordStep receives `groups` (the union of groups from previous DriveStep)
-//   and forces the master password entry to cover ALL groups.
-// - Validation is client-side: the entry's groups must equal the input groups
-//   set. We model this by having the component show a checkbox per group that
-//   defaults to checked, and disabling Next when any group is unchecked.
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
@@ -96,7 +87,6 @@ describe("PasswordStep", () => {
     // wizard must not dead-end.
     const next = screen.getByRole("button", { name: /次へ|next/i });
     expect(next).not.toBeDisabled();
-    // The group checkbox picker is not rendered when there are no groups.
     expect(screen.queryByRole("checkbox")).toBeNull();
   });
 });

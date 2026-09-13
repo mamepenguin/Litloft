@@ -155,9 +155,6 @@ describe("resolveCollectionViewMode", () => {
   });
 
   it("opens an album as a list, not fifty identical glyphs", () => {
-    // COL-1's own example. `audio` used to map to `grid`, where a card
-    // can draw nothing but `FileTypeIcon` — the same headphone shape,
-    // once per track, four times the height of a row.
     expect(
       resolveCollectionViewMode({
         drive: "main",
@@ -178,8 +175,6 @@ describe("resolveCollectionViewMode", () => {
   });
 
   it("lets a stored choice beat the table", () => {
-    // The change of default must not overrule a viewer who has already
-    // switched an audio collection to a grid.
     mockStorage.setItem(
       "collectionPrefs:main",
       JSON.stringify({ c1: { viewMode: "grid" } }),
@@ -230,10 +225,6 @@ describe("useCollectionViewMode", () => {
   });
 
   it("resolves on the first items it is given, not on an empty mount", () => {
-    // A listing mounts before its items arrive, so the first render has
-    // no dominant kind. Resolving then and correcting later paints the
-    // wrong layout first — a fifty-track album flashing fifty grid cards
-    // on the way to the list this rule exists to give it.
     const audioItems = [
       makeItem(makeFile("a", "audio", "audio/mpeg")),
       makeItem(makeFile("b", "audio", "audio/mpeg"), 1, 2),
@@ -248,9 +239,6 @@ describe("useCollectionViewMode", () => {
   });
 
   it("does not restyle a listing the reader is already reading", () => {
-    // The kind is latched at the first answer. Items can keep arriving —
-    // a folder's next page, a collection re-fetched after an edit — and
-    // the mode a listing opened in stays the mode it is in.
     const audioItems = [
       makeItem(makeFile("a", "audio", "audio/mpeg")),
       makeItem(makeFile("b", "audio", "audio/mpeg"), 1, 2),

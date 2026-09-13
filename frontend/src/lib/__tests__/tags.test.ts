@@ -51,12 +51,8 @@ describe("saveFileTags dispatcher", () => {
   });
 
   it(".md files round-trip content → rewrite frontmatter → PUT content", async () => {
-    // Since Phase 11, core projects frontmatter tags in the content
-    // PUT handler. Frontend flow is exactly two requests: fetch + PUT.
     fetchSpy
-      // 1. getFileTextContent
       .mockResolvedValueOnce(textResponse("---\ntags: [old]\n---\nbody\n"))
-      // 2. putFileTextContent
       .mockResolvedValueOnce(new Response("", { status: 200, headers: { etag: '"new"' } }));
 
     await saveFileTags(mdFile(), ["new1", "new2"]);
@@ -73,9 +69,8 @@ describe("saveFileTags dispatcher", () => {
   });
 
   it(".md: does not call the knowledge resync endpoint", async () => {
-    // Guard rail — a regression that re-introduces the resync call
-    // would re-couple core to the knowledge addon and break .md tag
-    // saves on knowledge-less deployments.
+    // The resync call would couple core to the knowledge addon and break .md
+    // tag saves on knowledge-less deployments.
     fetchSpy
       .mockResolvedValueOnce(textResponse("---\ntags: [old]\n---\nbody\n"))
       .mockResolvedValueOnce(new Response("", { status: 200, headers: { etag: '"new"' } }));
@@ -91,7 +86,6 @@ describe("saveFileTags dispatcher", () => {
     fetchSpy.mockResolvedValueOnce(
       textResponse("---\ntags: [a, b]\n---\nbody\n")
     );
-    // No PUT — saveFileTags detects the body would be unchanged.
     await saveFileTags(mdFile(), ["a", "b"]);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -178,11 +172,9 @@ describe("createDebouncedTagSaver", () => {
     saver.schedule(["a"]);
     saver.schedule(["a", "b"]);
     saver.schedule(["a", "b", "c"]);
-    // Not fired pre-save
     expect(onSuccess).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(10);
     await saver.flush();
-    // Coalesces to exactly one call with the final tag list
     expect(onSuccess).toHaveBeenCalledTimes(1);
     expect(onSuccess).toHaveBeenCalledWith(["a", "b", "c"]);
   });

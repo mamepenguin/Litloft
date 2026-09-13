@@ -10,13 +10,6 @@ function messages(locale: string): Record<string, Record<string, string>> {
   return JSON.parse(readFileSync(join(CORE, `${locale}.json`), "utf8"));
 }
 
-/**
- * The label taught the wrong idea, and this is the evidence: the person
- * who wrote the feature remembered it backwards. "Spread mode" was a
- * toggle that *undid* a spread — it cut a wide scan in half. It now also
- * puts two tall pages side by side, and the word has to mean the reading
- * rather than the operation.
- */
 describe("the spread vocabulary", () => {
   it("has no `splitMode` left in either namespace of either locale", () => {
     for (const locale of LOCALES) {
@@ -50,8 +43,6 @@ describe("the spread vocabulary", () => {
   });
 
   it("names both states in the toggle's label, not the current one", () => {
-    // "Toggle spread mode" is what produced the misreading: it never
-    // said which state it was describing.
     for (const locale of LOCALES) {
       const m = messages(locale);
       for (const ns of NAMESPACES) {

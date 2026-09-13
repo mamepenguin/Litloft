@@ -1,18 +1,3 @@
-/**
- * Media on `FileDetailShell` — the 2026-09 layout.
- *
- * The structural claim under test is that in the beside form the
- * companion region stops being a column of a CSS grid and becomes
- * inspector tabs, while in the below form it is a bounded box in the
- * canvas. What must hold across that is that its occupants are mounted
- * in exactly one of the two: the transcript fetches, follows the
- * playback clock and holds a scroll position, so a second copy is not a
- * duplicate render but a second, competing reader of the same file.
- *
- * The shell is left real here. Stubbing it is what let a second page
- * row ship once already, and every claim below is about what the shell
- * does with what it is handed.
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { readFileSync } from "node:fs";
@@ -129,14 +114,8 @@ async function renderMedia(file: FileItem = makeFile({ has_chapters: true })) {
 }
 
 /**
- * Render and wait for the page row rather than the action row.
- *
- * `loaded()` waits for `file-actions`, which lives in the inspector —
- * so it never arrives where the inspector starts closed, whether that
- * is a phone's unopened sheet or a stored preference. The page row is
- * the first thing the shell commits, and the toggle beside it is gated
- * on the same resolved file, so nothing asserted after this is still
- * pending.
+ * `loaded()` waits for `file-actions`, which lives in the inspector, so it
+ * never arrives where the inspector starts closed.
  */
 async function renderMediaAwaitingChrome(
   file: FileItem = makeFile({ has_chapters: true }),
@@ -160,9 +139,6 @@ describe("media on the shell, beside", () => {
     withTranscript();
     await renderMedia();
 
-    // Exactly three, not "at least three": the point of the strip is
-    // that it says what is there, so an extra tab nobody named is the
-    // failure this is watching for.
     expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
   });
 
@@ -186,16 +162,12 @@ describe("media on the shell, beside", () => {
 
     expect(screen.getAllByTestId("slot-entry-transcript")).toHaveLength(1);
     expect(screen.getAllByTestId("chapters-panel")).toHaveLength(1);
-    // The canvas box is the other home. It must be empty, not merely
-    // hidden — a second transcript would fetch and follow the clock.
     expect(container.querySelector(".media-detail-below")).toBeNull();
   });
 
   it("gives every tab the touch floor, on the row", async () => {
-    // `DESIGN.md` §Row Actions: 44px under `pointer: coarse`, reached on
-    // the row so its members inherit it. `classList` rather than a
-    // substring test — `pointer-coarse:min-h-11` contains `min-h-11`,
-    // so `toContain` would pass on the conditional class alone.
+    // `classList` rather than a substring test: `pointer-coarse:min-h-11`
+    // contains `min-h-11`, so `toContain` would pass on the conditional class alone.
     withTranscript();
     await renderMedia();
 
@@ -217,11 +189,6 @@ describe("media on the shell, beside", () => {
   });
 
   it("draws the addon's derived relations in the Info tab", async () => {
-    // The primary home of `file-relations`, and the point of the move
-    // this phase asked an addon to make: an entry that left
-    // `file-detail-sections` is reachable only through this slot, so a
-    // layout that stopped mounting it would take the section off every
-    // canonical file detail page — on every kind — and say nothing.
     withTranscript();
     claimSlot("file-relations", [
       { id: "derived", label: "Derived", priority: 10, addonName: "some-addon" },
@@ -233,9 +200,6 @@ describe("media on the shell, beside", () => {
   });
 
   it("keeps the beside/below toggle off a phone", async () => {
-    // `onBeside` opens the desktop pane's bit; a phone's sheet is the
-    // shell's own state and has nothing to do with that store. Drawn
-    // there, the control would write a preference and open nothing.
     withTranscript();
     setViewport(400);
     await renderMediaAwaitingChrome();
@@ -244,8 +208,6 @@ describe("media on the shell, beside", () => {
   });
 
   it("tells the occupant its name is already on the button", async () => {
-    // The tab button carries the label, so a panel that draws its own
-    // heading spends a line repeating what the reader just pressed.
     withTranscript();
     await renderMedia();
 
@@ -258,10 +220,6 @@ describe("media on the shell, beside", () => {
 
 describe("an occupant with nothing for this file", () => {
   it("loses its tab but not its mount", async () => {
-    // The symptom this fixes: a video nobody has transcribed grows a
-    // Transcript tab that opens on an empty panel. Core cannot look
-    // inside the panel to find that out — asking by name is the
-    // dependency the rules forbid — so the entry says so itself.
     withTranscript();
     await renderMedia();
     expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
@@ -270,15 +228,10 @@ describe("an occupant with nothing for this file", () => {
     fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
 
     expect(tabs()).toEqual(["Info", "Chapters"]);
-    // Still the same node. It is the thing doing the reporting: unmount
-    // it and its first answer becomes its last.
     expect(screen.getByTestId("slot-entry-transcript")).toBe(before);
   });
 
   it("gets the tab back the moment it has something", async () => {
-    // A transcript that is still fetching answers "nothing" first. If
-    // the first answer were final, every slow fetch would cost the
-    // reader the tab for the rest of the file.
     withTranscript();
     await renderMedia();
     fireEvent.click(screen.getByTestId("slot-entry-transcript-empty"));
@@ -290,9 +243,6 @@ describe("an occupant with nothing for this file", () => {
   });
 
   it("takes the layout toggle with it when it is the only occupant", async () => {
-    // The toggle moves the companion between two places. With nothing
-    // in it, both are empty and pressing it changes nothing a reader
-    // can see — the row that only says a feature exists.
     withTranscript();
     await renderMedia(makeFile({ has_chapters: false }));
     expect(layoutToggle()).not.toBeNull();
@@ -303,8 +253,6 @@ describe("an occupant with nothing for this file", () => {
   });
 
   it("leaves the toggle alone while core still fills the region", async () => {
-    // Chapters are core's own occupant, and an addon having nothing
-    // says nothing about them.
     withTranscript();
     await renderMedia(makeFile({ has_chapters: true }));
 
@@ -323,7 +271,6 @@ describe("an occupant with nothing for this file", () => {
     rerender(<FileDetailContent fileId="f2" drive="main" />);
     await loaded();
 
-    // A different file, so the previous file's "nothing" says nothing.
     expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
   });
 });
@@ -334,10 +281,6 @@ describe("an occupant with nothing for this file, below", () => {
   });
 
   it("hides the box without unmounting what is in it", async () => {
-    // The below form has no button to take away, so the box is hidden
-    // in CSS instead. Dropping it from the tree would drop the reporter
-    // — and in the below form the reporter is the only one there is, so
-    // the answer could never change back.
     withTranscript();
     const { container } = await renderMedia(makeFile({ has_chapters: false }));
     const box = () => container.querySelector(".media-detail-below");
@@ -354,12 +297,8 @@ describe("an occupant with nothing for this file, below", () => {
   });
 
   it("keeps the order the addons declared", async () => {
-    // The tab path sorts inside the composer; this path does not go
-    // through it. `getSlotEntries` hands back the catalogue's raw order
-    // and `AddonSlot` — which sorts — is no longer in this path, so
-    // building the nodes by hand drops the ordering unless it is redone
-    // here. Declared out of order on purpose: with them already sorted
-    // an unsorted build would be indistinguishable from a sorted one.
+    // Declared out of order on purpose: with them already sorted an
+    // unsorted build would be indistinguishable from a sorted one.
     claimSlot("player-side", [
       { ...TRANSCRIPT, id: "late", priority: 90 },
       { ...TRANSCRIPT, id: "early", priority: 10 },
@@ -374,8 +313,6 @@ describe("an occupant with nothing for this file, below", () => {
   });
 
   it("does not claim the canvas already named the occupant", async () => {
-    // There is no heading over the box, so an occupant told otherwise
-    // would draw nothing to say what it is.
     withTranscript();
     await renderMedia();
 
@@ -399,8 +336,6 @@ describe("media on the shell, below", () => {
     expect(box).not.toBeNull();
     expect(box!.querySelector(".media-detail-below-index")).not.toBeNull();
     expect(box!.querySelector(".media-detail-below-body")).not.toBeNull();
-    // With the occupants gone from the strip the inspector is back to
-    // the single-tab shape a note has always had.
     expect(tabs()).toEqual([]);
   });
 
@@ -408,10 +343,6 @@ describe("media on the shell, below", () => {
     withTranscript();
     const { container } = await renderMedia();
 
-    // One node per entry here as well: the availability callback is per
-    // entry, so the canvas builds them one at a time rather than handing
-    // one props object to the whole slot. It is still the same occupant,
-    // and there is still one of it — in the canvas and not in a tab.
     const entries = screen.getAllByTestId("slot-entry-transcript");
     expect(entries).toHaveLength(1);
     expect(container.querySelector(".media-detail-below-body")).toContainElement(
@@ -422,9 +353,6 @@ describe("media on the shell, below", () => {
   });
 
   it("draws no box at all when nothing would go in it", async () => {
-    // Below, desktop, a video with neither chapters nor an addon: an
-    // empty box would still take its own margin, and the toggle is
-    // hidden in that state, so the reader could not get out of it.
     const { container } = await renderMedia(makeFile({ has_chapters: false }));
 
     expect(container.querySelector(".media-detail-below")).toBeNull();
@@ -444,10 +372,6 @@ describe("media on the shell, below", () => {
 
 describe("switching between the two forms", () => {
   it("moves the companion without rebuilding the player", async () => {
-    // The player is not what moves, and it must not be rebuilt as if it
-    // were: a fresh <video> starts at zero, and the `ended` handler that
-    // writes the final position is re-bound to a player that never
-    // played. `.claude/rules/design-decisions.md`, watch history.
     withTranscript();
     const { container } = await renderMedia();
     const player = screen.getByTestId("file-preview");
@@ -467,10 +391,6 @@ describe("switching between the two forms", () => {
   });
 
   it("opens the inspector when the swap puts the panel in it", async () => {
-    // Beside means an inspector tab, so pressing it with the inspector
-    // closed moves the panel somewhere the reader cannot see and says
-    // nothing. Going the other way must not open it: below is in the
-    // canvas, which is already on screen.
     window.localStorage.setItem("media-layout-preference", "stacked");
     window.localStorage.setItem(inspectorOpenStorageKey("main"), "false");
     withTranscript();
@@ -515,11 +435,6 @@ describe("switching between the two forms", () => {
 
 describe("media on the shell, on a phone", () => {
   beforeEach(() => {
-    // Below is the stored preference, and a phone has no beside to
-    // honour it against: the inspector is a sheet, so the occupants go
-    // there and the page keeps one scroll. A canvas box on top of that
-    // is the nested scroller MB-1 is about — the one where the page
-    // stops moving the moment a finger lands on the transcript.
     window.localStorage.setItem("media-layout-preference", "stacked");
     setViewport(400);
   });
@@ -532,10 +447,6 @@ describe("media on the shell, on a phone", () => {
   });
 
   it("rests at the peek row, with the file's name and its actions", async () => {
-    // The point of the strip: on a phone the per-file controls used to
-    // be somewhere in a column the reader had to find. Exactly one
-    // action row on the page — the inspector's copy is hoisted away,
-    // because two would be two `⋮` menus over one file.
     await renderMediaAwaitingChrome(
       makeFile({ has_chapters: false, title: "Sample" }),
     );
@@ -543,47 +454,21 @@ describe("media on the shell, on a phone", () => {
     const peek = await screen.findByTestId("mobile-inspector-peek");
     expect(peek).toHaveTextContent("Sample");
     expect(peek).toContainElement(screen.getByTestId("file-action-row"));
-    // One on screen. The inspector draws its own, but only while the
-    // sheet is up — and the strip is gone then, so the two are
-    // mutually exclusive returns rather than a gate someone has to
-    // keep in step.
     expect(screen.getAllByTestId("file-action-row")).toHaveLength(1);
   });
 
   it("carries only the four controls the strip is specified as", async () => {
-    // 題名 ＋ ♡ ☆ AI ▾ ⋮. The state chip belongs to the inspector's
-    // fixed part, and Cast and the gallery launcher to the file's own
-    // row — lifting them here is what took the strip past 375px with
-    // the title at zero width. The sizing rules say reduce the number
-    // of controls before stripping labels, and this is that reduction;
-    // the labels come off afterwards because the row shares a line with
-    // the name.
     await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
 
     const peek = await screen.findByTestId("mobile-inspector-peek");
     expect(peek.querySelector("[data-testid='trust-tier-state']")).toBeNull();
     expect(peek).not.toHaveTextContent(/Unverified|未検証/);
-    // The floor is reached by the controls, not by the row: a tall row
-    // with `items-center` leaves 28px targets inside it. The rule that
-    // grows them is CSS — jsdom does no layout — so this pins the hook
-    // the rule selects on and `mediaDetailTheaterCss` pins the rule.
     const row = screen.getByTestId("file-action-row");
     expect(row.classList.contains("file-action-row-compact")).toBe(true);
-    // And the hook the CSS actually selects on. It named the compact class
-    // alone, so the inspector's row — same controls, 4px gap instead of 2 —
-    // sat at 32px while this strip cleared the floor.
     expect(row.classList.contains("file-action-row-touch")).toBe(true);
   });
 
   it("gives the raised sheet the row in full, not the strip's compaction", async () => {
-    // The other half of the pair, and the half `docs/user-guide/
-    // viewers-and-players.md` describes: raising the sheet is what gets
-    // the reader back what the strip sheds. Which form each surface asks
-    // for is one prop at two call sites — `FileDetailContainer` passes
-    // `compact` for the strip, `FileMetaBlock` does not for the sheet —
-    // and only a test that opens the sheet can see the second one.
-    // `FileActionRowForms.test.tsx` holds what the prop then decides;
-    // this holds which surface asks for which.
     await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
     await screen.findByTestId("mobile-inspector-peek");
 
@@ -593,26 +478,17 @@ describe("media on the shell, on a phone", () => {
     expect(screen.queryByTestId("mobile-inspector-peek")).toBeNull();
     const row = screen.getByTestId("file-action-row");
     expect(row.classList.contains("file-action-row-compact")).toBe(false);
-    // And what that costs the strip, stated as the control rather than as
-    // the class: this file is a video, so the full form carries trust and
-    // Cast, and the case above asserts the strip carries neither.
     expect(row.querySelector("[data-testid='trust-tier-state']")).not.toBeNull();
     expect(row.querySelector("[data-testid='cast']")).not.toBeNull();
   });
 
   it("ends the page above the strip it rests behind", async () => {
-    // Without this the last thing in the canvas is permanently behind
-    // the 56px row and cannot be scrolled to.
     const { container } = await renderMediaAwaitingChrome();
     const main = container.querySelector("main");
     expect(main?.style.paddingBottom).toBe(`${SHEET_PEEK_PX}px`);
   });
 
   it("raises the sheet to half, not straight to full", async () => {
-    // Half keeps the player on screen, which is the reason the design
-    // asks for three states rather than two. Asserted as *which*
-    // expanded state: a test that only says "expanded" passes for full
-    // as well, and full is the one that covers the player.
     await renderMediaAwaitingChrome();
     expect(screen.getByTestId("mobile-inspector-peek")).toBeInTheDocument();
 
@@ -624,10 +500,6 @@ describe("media on the shell, on a phone", () => {
   });
 
   it("does not rebuild the player when the sheet goes up and comes back", async () => {
-    // The test §4.4 asks for before anything near the player is
-    // touched. A remounted `<video>` restarts at zero and rebinds
-    // `ended`, and a re-parented `.loft` iframe reloads outright — the
-    // browser's rule, not React's. The sheet must move without either.
     await renderMediaAwaitingChrome();
     const player = screen.getByTestId("file-preview");
 
@@ -641,10 +513,6 @@ describe("media on the shell, on a phone", () => {
   });
 
   it("publishes where the sheet is, for the player to read in CSS", async () => {
-    // The player is never handed the sheet's state. It is published on
-    // the shell root and a stylesheet acts on it, because handing it
-    // down means re-rendering the player, and re-rendering is what
-    // reloads a `.loft` iframe and restarts a `<video>` at zero.
     await renderMediaAwaitingChrome();
     const shell = screen.getByTestId("file-detail-shell");
     expect(shell.dataset.sheetSnap).toBe("peek");
@@ -659,11 +527,6 @@ describe("media on the shell, on a phone", () => {
   });
 
   it("keeps the same player element across every sheet transition", async () => {
-    // The guard §4.4 asks for, at each hop: a re-parented iframe
-    // reloads (the browser's rule, not React's) and a remounted
-    // `<video>` restarts at zero with `ended` rebound, which is how a
-    // completion path comes to write a position nobody played. Element
-    // identity is the proxy — jsdom has no `currentTime` to survive.
     await renderMediaAwaitingChrome();
     const player = screen.getByTestId("file-preview");
 
@@ -677,16 +540,6 @@ describe("media on the shell, on a phone", () => {
   });
 
   it("puts the scroller inside the part of the drawer that is on screen", async () => {
-    // vaul keeps the drawer at its full height and slides it down, so
-    // its last `--snap-point-height` pixels are always below the fold.
-    // The scroller lives inside a box that is the drawer less exactly
-    // that, and takes no cap of its own — a cap written here would be a
-    // second definition of the same number, which is what the `50vh` it
-    // replaces was.
-    //
-    // jsdom lays nothing out, so this is evidence about the expression
-    // the sheet renders and not about where the box lands;
-    // `e2e-layout/mobile-inspector-sheet.spec.ts` measures that.
     await renderMediaAwaitingChrome();
     fireEvent.click(screen.getByTestId("inspector-toggle"));
 
@@ -700,15 +553,6 @@ describe("media on the shell, on a phone", () => {
   });
 
   it("gives the sheet one scroller, and the inspector inside it is not a second", async () => {
-    // The C-1 defect stated directly. `MobileInspectorSheet` scrolls,
-    // and the shell it is handed must therefore be the column form: a
-    // `panel` shell inside it is `overflow-auto` inside `overflow-auto`,
-    // which is the nested pair on a phone the sheet was built to remove.
-    //
-    // Counted over what core renders. An addon occupant may still scroll
-    // inside itself — that is its own repository's business, and the
-    // stub here draws none — so this is a claim about the sheet's own
-    // chrome, which is where the split was.
     withTranscript();
     await renderMediaAwaitingChrome();
     fireEvent.click(screen.getByTestId("inspector-toggle"));
@@ -726,10 +570,6 @@ describe("media on the shell, on a phone", () => {
   });
 
   it("keeps the tab strip reachable by pinning it to that one scroller", async () => {
-    // What replaces the pinned header. The strip is the only thing that
-    // stays: `sticky top-0` resolves against the nearest scrollport,
-    // which in the column form is the sheet's own scroller rather than
-    // anything the shell draws.
     withTranscript();
     await renderMediaAwaitingChrome();
     fireEvent.click(screen.getByTestId("inspector-toggle"));
@@ -738,7 +578,6 @@ describe("media on the shell, on a phone", () => {
     const strip = screen.getByTestId("inspector-tabs");
     expect(strip.className).toContain("sticky");
     expect(strip.className).toContain("top-0");
-    // Opaque, or the rows travelling under it show through.
     expect(strip.className).toContain("bg-bg-card");
   });
 
@@ -754,10 +593,6 @@ describe("media on the shell, on a phone", () => {
   });
 
   it("hands the heavy summaries to the sheet and not also to the canvas", async () => {
-    // The sheet takes them on a phone because a 90vh drawer at viewport
-    // width has room for a markdown table. Drawing them in the canvas as
-    // well mounts `ActiveSummaryHost` twice — two fetches for one file,
-    // and two of whatever the detailed-summary section fetches.
     await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
     fireEvent.click(screen.getByTestId("inspector-toggle"));
     await screen.findByTestId("mobile-inspector-sheet");
@@ -773,24 +608,12 @@ describe("media on the shell, on a phone", () => {
 });
 
 /**
- * `half` is where the player ends.
- *
- * **Not geometry.** jsdom lays nothing out, so the player's rect is
- * stubbed here and nothing below is evidence that the sheet's top edge
- * actually clears the player — `e2e-layout/mobile-inspector-sheet.spec.ts`
- * measures that in Chromium. What these cases are about is the decision:
- * which number is derived, whether it reaches vaul, and which surfaces
- * get it at all.
- *
- * The snap is written out rather than recomputed. `halfSnapUnderPlayer`
- * has its own table in `lib/__tests__/sheetSnap.test.ts`; calling it here
- * would make this pass against any derivation, including one that
- * ignored the player.
+ * The snap is written out rather than recomputed: calling
+ * `halfSnapUnderPlayer` here would pass against any derivation, including
+ * one that ignored the player.
  */
 describe("the sheet's half, derived from the player", () => {
-  /** jsdom's window, which is what vaul reads. */
   const VIEWPORT_HEIGHT = 768;
-  /** Where the stub puts the player's foot. */
   const PLAYER_BOTTOM = 315;
   /** `1 − (0.9 × 768 − (768 − 315)) / 768`, by hand. */
   const DERIVED = 0.689844;
@@ -813,13 +636,8 @@ describe("the sheet's half, derived from the player", () => {
   });
 
   /**
-   * Give `.media-detail-player` a box, and leave every other element at
-   * jsdom's zeros.
-   *
-   * The wrapper rather than the frame inside it, because the wrapper is
-   * what `globals.css` sticks to the top of the canvas and therefore what
-   * has to stay clear of the sheet — the action row under the frame
-   * included.
+   * The wrapper rather than the frame inside it: the wrapper is what sticks
+   * to the top of the canvas and has to stay clear of the sheet.
    */
   function stubPlayerBox(bottom: number) {
     playerBottom = bottom;
@@ -840,23 +658,14 @@ describe("the sheet's half, derived from the player", () => {
   }
 
   /**
-   * The snap vaul was handed, read back off the variable it publishes.
-   *
    * Divided by the window *as it is now*, not by the height the suite
-   * started at: the cases below move `innerHeight`, and vaul's offset is
-   * a fraction of whatever it was at that render.
+   * started at: the cases below move `innerHeight`.
    */
   const publishedSnap = (drawer: HTMLElement) =>
     1 -
     Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height")) /
       window.innerHeight;
 
-  /**
-   * The height jsdom reports, which is the number vaul and the hook read.
-   *
-   * A URL bar collapsing is this and nothing else: the window grows and
-   * nothing on the page moves.
-   */
   function setViewportHeight(height: number) {
     Object.defineProperty(window, "innerHeight", {
       configurable: true,
@@ -865,38 +674,22 @@ describe("the sheet's half, derived from the player", () => {
     });
   }
 
-  /** A window this much taller, which is a URL bar's worth. */
   const URL_BAR_PX = 80;
 
   /**
-   * The room the sheet has on screen, read entirely off the drawer.
-   *
-   * The drawer's own height less what vaul slid past the bottom edge —
-   * both of them values the component wrote on the element at its last
-   * render, so this is a reading and not an arithmetic. That matters for
-   * the viewport cases: `publishedSnap` divides by the window *now*, so
-   * moving the window moves the quotient with nothing having
-   * re-rendered, and a case comparing two of those would pass against a
-   * component that ignored the change entirely. Measured — it did.
+   * Read entirely off values the component wrote at its last render:
+   * `publishedSnap` divides by the window *now*, so comparing two of those
+   * would pass against a component that ignored a viewport change.
    */
   const roomOnScreen = (drawer: HTMLElement) =>
     Number.parseFloat(drawer.style.height) -
     Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height"));
 
   /**
-   * A `ResizeObserver` that records what each instance watched and
-   * whether it was let go.
-   *
-   * jsdom ships none, so every case that needs one installs this. It is
-   * evidence about the hook's wiring — which node it observed, and
-   * whether the cleanup released it — and nothing at all about when a
-   * browser would fire.
-   *
-   * **Fired through `observe`, not over the callbacks.** More than one
-   * hook on this page builds an observer, and calling every callback
-   * that was ever constructed re-derives the snap whether or not
-   * anything was observed — measured: deleting `observer.observe(node)`
-   * from the hook left the version of this that did so green.
+   * Cases fire only the instances that observed the player, not every
+   * constructed callback: more than one hook on this page builds an
+   * observer, so firing them all re-derives the snap whether or not
+   * anything was observed.
    */
   interface Instance {
     cb: ResizeObserverCallback;
@@ -932,17 +725,9 @@ describe("the sheet's half, derived from the player", () => {
     };
   }
 
-  /** The instances that were pointed at the player wrapper itself. */
   const watching = (instances: Instance[], player: Element) =>
     instances.filter((i) => i.nodes.includes(player));
 
-  /**
-   * An `EventTarget` standing in for `window.visualViewport`.
-   *
-   * jsdom has none. Installing one is what lets a case fire the channel
-   * the URL bar reports on first — without it, that listener can be
-   * deleted with every suite green, which is what happened.
-   */
   function stubVisualViewport(): { target: EventTarget; restore: () => void } {
     const target = new EventTarget();
     const had = Object.getOwnPropertyDescriptor(window, "visualViewport");
@@ -974,10 +759,6 @@ describe("the sheet's half, derived from the player", () => {
   });
 
   it("moves with the player, not with the window", async () => {
-    // The claim the whole unit rests on, stated as a difference. A sheet
-    // that took a fixed fraction would publish the same number for both
-    // of these; the derivation makes the taller player buy the shorter
-    // sheet.
     stubPlayerBox(PLAYER_BOTTOM);
     const first = await renderMediaAwaitingChrome(
       makeFile({ has_chapters: false }),
@@ -994,30 +775,12 @@ describe("the sheet's half, derived from the player", () => {
   });
 
   it("falls back to the fixed fraction with no player measured", async () => {
-    // No stub: every rect is jsdom's zeros, which is what an unpainted
-    // subtree looks like and is the same answer a page with no player at
-    // all gets.
     await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
 
     const drawer = await openSheet();
     expect(publishedSnap(drawer)).toBeCloseTo(SHEET_SNAP_HALF_FALLBACK, 5);
   });
 
-  /**
-   * The window's own channels, each fired on its own.
-   *
-   * A URL bar collapsing is a taller window with nothing on the page
-   * having moved, so the player's box is held still and `innerHeight` is
-   * what changes — the opposite of the version this replaces, which
-   * moved the player and fired `resize`, and so would have passed with
-   * the window ignored entirely.
-   *
-   * Three rows because they are three listeners. `resize` is the one
-   * every browser fires; `orientationchange` is belt-and-braces; the
-   * visual viewport is the one iOS reports the URL bar on first, and it
-   * is the only one of the three that a phone is guaranteed to get.
-   * Sharing one case between them would let two of the three be deleted.
-   */
   const VIEWPORT_CHANNELS = [
     {
       what: "a window resize",
@@ -1036,23 +799,9 @@ describe("the sheet's half, derived from the player", () => {
     },
   ] as const;
   expect(VIEWPORT_CHANNELS).toHaveLength(3);
-  // Three distinct signatures, so the guard below can tell the three
-  // apart at all: two channels sharing one would let either stand in for
-  // the other with the dispatch check still green.
   expect(new Set(VIEWPORT_CHANNELS.map((c) => c.dispatches)).size).toBe(3);
 
   /**
-   * The event a case actually put on a target, read off the DOM.
-   *
-   * `dispatches` above is the declaration; this is the observation, and
-   * they are produced by different things — one is a string in this
-   * file, the other is what a listener on the target saw. Without it,
-   * both sides of the register guard are recomputed from the same two
-   * arrays and **which channel a case fires never enters the check**:
-   * measured, with a `<video>`-remounting `key` on `orientationchange`
-   * in the tree, having every case fire `resize` instead of its own
-   * channel left the whole suite green.
-   *
    * Listening rather than wrapping `fire`: a listener sees the event
    * whatever route it arrived by, where a wrapper only sees calls that
    * went through the wrapper.
@@ -1084,45 +833,12 @@ describe("the sheet's half, derived from the player", () => {
     };
   }
 
-  /**
-   * Every group that walks the channels, by name.
-   *
-   * Declared rather than counted, so deleting a whole group is red as
-   * well: the guard at the end of this describe rebuilds the expected
-   * register from this list and the channel list.
-   */
   const CHANNEL_GROUPS = [
     "re-derives when the window reports a taller viewport",
     "keeps the player element",
   ] as const;
   expect(CHANNEL_GROUPS).toHaveLength(2);
 
-  /**
-   * What the loops below actually registered, recorded as they register it.
-   *
-   * Pinning `VIEWPORT_CHANNELS.length` does not observe a loop, and a
-   * loop that runs inside one `it()` is worse still: a `slice` there does
-   * not even change the count, so the identity group was shortened to one
-   * channel with a `<video>`-remounting `key` in the tree and all 5,909
-   * tests stayed green. So every case that walks the three window
-   * channels goes through `eachChannel`, which registers the test and
-   * **then** records it — recorded first, a `continue` between the two
-   * lines drops the registration and leaves the record. Recorded last, a
-   * skipped push leaves the register short of the declarations and the
-   * guard red, and anything that skips the `it()` takes its push with it;
-   * the two directions are caught by different halves, not by one
-   * impossibility.
-   *
-   * The `ResizeObserver` cases are the fourth channel and cannot be
-   * fired off the window, so they are two hand-written `it()`s. They get
-   * their own declared register below rather than sitting outside every
-   * guard, where deleting one would be silent.
-   *
-   * This is the shape `e2e-layout/mobile-inspector-sheet.spec.ts` uses,
-   * and its limit is the same: the expected set is written in this file,
-   * so what the guard buys is that removing a case has to disagree with
-   * something, not proof from outside.
-   */
   const registeredChannelCases: string[] = [];
 
   const channelCaseId = (group: string, what: string) =>
@@ -1139,8 +855,7 @@ describe("the sheet's half, derived from the player", () => {
       it(channelCaseId(group, channel.what), async () => {
         // The stub and the recorder belong to the helper, not to the
         // body: the listener has to be on the visual viewport before
-        // anything renders, and a body that installed its own could
-        // observe a different target from the one it fired at.
+        // anything renders.
         const vv = stubVisualViewport();
         const seen = recordDispatches(vv.target);
         try {
@@ -1149,24 +864,12 @@ describe("the sheet's half, derived from the player", () => {
           seen.restore();
           vv.restore();
         }
-        // The dispatch, against the declaration — this is what the
-        // register cannot see. A body handed some other channel, or one
-        // that fires nothing at all, disagrees here even though its name
-        // and its registration are untouched.
         expect(seen.signatures).toEqual([channel.dispatches]);
       });
       registeredChannelCases.push(channelCaseId(group, channel.what));
     }
   }
 
-  /**
-   * The fourth channel's two cases, by name.
-   *
-   * A `ResizeObserver` is fired through a stub's recorded callbacks
-   * rather than off a target, so these cannot go through `eachChannel`
-   * and each group spells its own out. Declared here so that deleting
-   * one disagrees with something.
-   */
   const RESIZE_OBSERVER_CASES = [
     "re-derives when the player's own box changes",
     "keeps the player element when the player's own box changes",
@@ -1187,10 +890,6 @@ describe("the sheet's half, derived from the player", () => {
     const before = roomOnScreen(drawer);
     expect(before).toBeCloseTo(VIEWPORT_HEIGHT - PLAYER_BOTTOM, 0);
 
-    // The window grows; the player does not move. The room under it
-    // is therefore larger, and the sheet takes exactly that room —
-    // which is the claim, restated at the new window rather than
-    // compared against the old number.
     setViewportHeight(VIEWPORT_HEIGHT + URL_BAR_PX);
     act(() => {
       channel.fire(vvTarget);
@@ -1207,10 +906,6 @@ describe("the sheet's half, derived from the player", () => {
   });
 
   resizeObserverCase(RESIZE_OBSERVER_CASES[0], async () => {
-    // The other channel, and the one the window's events cannot cover: a
-    // `.loft` frame resolving its ratio, or `--rail-avail` moving the
-    // width cap, changes the player's height without changing the
-    // window's.
     const ro = stubResizeObserver();
     try {
       stubPlayerBox(PLAYER_BOTTOM);
@@ -1221,16 +916,8 @@ describe("the sheet's half, derived from the player", () => {
 
       const player = container.querySelector(".media-detail-player")!;
       const watchingThePlayer = watching(ro.instances, player);
-      // The player wrapper, not some ancestor: an observer on the page
-      // would fire for reasons that have nothing to do with the video.
-      //
-      // Declared, not a lower bound. Two hooks point an observer at this
-      // wrapper — `useSheetHalfSnap` and `useCompanionMetrics`'s rail
-      // observer — and `watching` counts every instance ever built at
-      // it, released ones included, so the number is a property of this
-      // page rather than of this hook. A `>= 1` here stays green when
-      // the hook under test stops observing the wrapper at all, which is
-      // the failure the line exists to catch.
+      // Two hooks observe this wrapper and `watching` counts released
+      // instances too, so the number is a property of this page.
       expect(watchingThePlayer.length).toBe(3);
 
       stubPlayerBox(PLAYER_BOTTOM * 1.5);
@@ -1249,12 +936,6 @@ describe("the sheet's half, derived from the player", () => {
   });
 
   it("lets the old observer go when it takes a new one", async () => {
-    // The effect re-runs on a file change, on a rotation across the
-    // mobile breakpoint, and on every viewport change — so an observer
-    // that is not disconnected is not a tidiness point. Each one keeps a
-    // closure over the node and the window it was built for and goes on
-    // writing the snap from them, and two live observers write two
-    // different answers to the same question.
     const ro = stubResizeObserver();
     try {
       stubPlayerBox(PLAYER_BOTTOM);
@@ -1265,22 +946,15 @@ describe("the sheet's half, derived from the player", () => {
 
       const player = container.querySelector(".media-detail-player")!;
       // Counted live, not by instance: more than one hook on this page
-      // observes this wrapper, so "was the first one released" is a
-      // question about somebody else's observer as much as this one's.
-      // What has to hold is that a re-run does not leave a second live
-      // observer behind — the leak, stated as the leak.
+      // observes this wrapper.
       const live = () =>
         watching(ro.instances, player).filter((i) => !i.disconnected).length;
       const built = () => watching(ro.instances, player).length;
       const liveAtRest = live();
-      // Declared for the same reason as the count above, and a different
-      // number because this one is live rather than built: of the three
-      // instances pointed at this wrapper, one has already been released
-      // by the effect that built it re-running.
+      // Of the three instances pointed at this wrapper, one has already
+      // been released by the effect that built it re-running.
       expect(liveAtRest).toBe(2);
 
-      // A viewport change re-runs the effect, which is the commonest way
-      // a second observer is built on the same still-mounted page.
       const builtAtRest = built();
       setViewportHeight(VIEWPORT_HEIGHT + URL_BAR_PX);
       act(() => {
@@ -1291,7 +965,6 @@ describe("the sheet's half, derived from the player", () => {
       });
       expect(live()).toBe(liveAtRest);
 
-      // And they all go when the page does.
       unmount();
       expect(live()).toBe(0);
     } finally {
@@ -1300,15 +973,6 @@ describe("the sheet's half, derived from the player", () => {
   });
 
   it("re-measures for the next file, by being built again with it", async () => {
-    // Why the hook takes no `fileId`. `useFileDetailData` does
-    // `setFile(null)` the moment the id changes, so `FileDetailContainer`
-    // returns its spinner and this subtree — shell, canvas, player, hook
-    // — is unmounted and built again. Both halves are asserted: the
-    // wrapper really is a different element afterwards, which is the
-    // mechanism, and the snap really did move with the new player's box,
-    // which is what the reader gets. A dependency on the id would have
-    // been a second answer to a question already settled, justified by a
-    // claim about element identity that this case would have failed.
     stubPlayerBox(PLAYER_BOTTOM);
     setApiResponses(makeFile({ has_chapters: false }));
     const { container, rerender } = render(
@@ -1324,42 +988,15 @@ describe("the sheet's half, derived from the player", () => {
     await screen.findByTestId("file-detail-chrome");
 
     expect(container.querySelector(".media-detail-player")).not.toBe(wrapper);
-    // The shell is built again, so this is the next raise rather than
-    // the same one.
     const after = publishedSnap(await openSheet());
     expect(after).toBeLessThan(before);
   });
 
-  /**
-   * The player element, across every channel this hook now re-measures on.
-   *
-   * `design-decisions.md` (watch history) makes this a rule rather than a
-   * preference: a remounted `<video>` restarts at zero with `ended`
-   * rebound and writes a position nobody played, and a re-parented
-   * `.loft` iframe reloads. What this unit added is a re-render driven by
-   * `resize`, `orientationchange`, the visual viewport and a
-   * `ResizeObserver` — so the identity has to hold across each of them,
-   * not only across the raise. Measured: with only the raise covered, a
-   * `key` bumped on a `window` `resize` rebuilt the whole player and the
-   * entire suite stayed green.
-   *
-   * One case per channel, through `eachChannel`, rather than one case
-   * walking them: measured, with that same `key` in the tree, a walk cut
-   * to a single channel left the whole suite green because nothing
-   * compared the channels that ran against the ones declared — and
-   * measured again, one round later, with every case firing `resize`
-   * under its own name, which is why `eachChannel` now watches the
-   * target as well as the register. The `ResizeObserver` is the fourth
-   * channel and cannot be fired off the window, so it has its own case
-   * below.
-   */
   eachChannel(CHANNEL_GROUPS[1], async (channel, vvTarget) => {
     stubPlayerBox(PLAYER_BOTTOM);
     await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
     const player = screen.getByTestId("file-preview");
 
-    // The raise itself, which re-renders this subtree for its own
-    // reason and so has to hold before the channel is fired at all.
     await openSheet();
     expect(screen.getByTestId("file-preview")).toBe(player);
 
@@ -1382,10 +1019,6 @@ describe("the sheet's half, derived from the player", () => {
       await openSheet();
 
       const watchers = watching(ro.instances, wrapper);
-      // Declared rather than bounded below, for the reason the sibling
-      // case above gives: `>= 1` cannot tell "the sheet's observer went"
-      // from "somebody else's is still there", and it is the exact line
-      // that let an observer moved off this wrapper survive.
       expect(watchers.length).toBe(3);
 
       stubPlayerBox(PLAYER_BOTTOM * 1.2);
@@ -1399,44 +1032,15 @@ describe("the sheet's half, derived from the player", () => {
   });
 
   it("registered every channel, in every group that walks them", () => {
-    // Both sides enumerated rather than counted, and the expected side
-    // recomputed from the two declarations rather than read off the
-    // register — so a `slice` in either loop is red, and so is dropping
-    // a group.
-    //
-    // What this cannot see is which channel each case fired; the
-    // register is built from the same declarations it is compared
-    // against. That is asserted inside each case instead, against a
-    // listener on the target (`recordDispatches`).
     expect(registeredChannelCases).toEqual(
       CHANNEL_GROUPS.flatMap((group) =>
         VIEWPORT_CHANNELS.map((c) => channelCaseId(group, c.what)),
       ),
     );
-    // And the fourth channel's two, which are hand-written.
     expect(registeredResizeObserverCases).toEqual([...RESIZE_OBSERVER_CASES]);
   });
 });
 
-/**
- * The layout fixture's page, against the shell that page imitates.
- *
- * `e2e-layout/mobile-inspector-sheet.spec.ts` derives the sheet's `half`
- * from a player it draws itself, out of class lists written into the
- * fixture's JSON. Change the shell — take `data-sheet-snap` off the root,
- * drop `overflow-auto` from the canvas, rename the player's class — and
- * every one of those browser cases stays green, because the fixture never
- * asked the shell anything.
- *
- * This is what asks, and it lives here rather than beside the sheet's own
- * parity cases because this is the file with a real shell already
- * mounted: `FileDetailShell`, `FileDetailChrome` and `MediaPlayerBlock`
- * are three components and a page's worth of context, and comparing a
- * copy of them would be comparing a copy.
- *
- * jsdom lays nothing out, so nothing here is evidence about a position.
- * That is the browser spec's, and this is what connects the two.
- */
 describe("the layout fixture's page, against the shell", () => {
   const FIXTURE_PATH = resolve(
     dirname(fileURLToPath(import.meta.url)),
@@ -1458,13 +1062,6 @@ describe("the layout fixture's page, against the shell", () => {
   });
 
   it("declares the five boxes the derived snap is measured against", async () => {
-    // Five, not four. `.media-detail-host` sits between the canvas and
-    // the player and carries `p-4`; a fixture without it measures a page
-    // whose sticky player has no travel in front of it for the wrong
-    // reason — because the padding is absent rather than because the
-    // stylesheet took it off — and the case that asserts one bottom edge
-    // for the whole of a scroll would be proving it about markup with the
-    // offending box removed.
     const { container } = await renderMediaAwaitingChrome(
       makeFile({ has_chapters: false }),
     );
@@ -1483,29 +1080,14 @@ describe("the layout fixture's page, against the shell", () => {
     );
     expect(sorted(player.className)).toEqual(sorted(SPEC.player as string));
 
-    // And the nesting, which no pair of class lists states: the host
-    // between the two, and the player inside it.
-    //
-    // **`parentElement`, not `toContainElement`.** A descendant check is
-    // satisfied at any depth, so a box inserted between the host and the
-    // player is invisible to it — and such a box is not a cosmetic
-    // difference: `position: sticky` travels only inside its own
-    // containing block, so a wrapper whose height is the player's own
-    // takes the pinning away. One was added and shipped green past this
-    // line, and the browser spec could not see it either, because the
-    // fixture draws the flat tree this asserts.
+    // `parentElement`, not `toContainElement`: `position: sticky` travels
+    // only inside its own containing block, so a wrapper inserted between
+    // the host and the player takes the pinning away.
     expect(canvas).toContainElement(mediaHost as HTMLElement);
     expect(player.parentElement).toBe(mediaHost);
   });
 
-
   it("declares the ratio a framed player's height comes from", async () => {
-    // The fixture draws its player with a `padding-top` shim and lets the
-    // stylesheet's width cap decide the height, which is how the app
-    // draws a `.loft` embed and — through `aspect-video` — a `<video>`.
-    // `data-framed` is what puts the cap on it at all, so a shell that
-    // stopped writing it would leave the landscape case measuring an
-    // uncapped player, which is not a shape this page can draw.
     const { container } = await renderMediaAwaitingChrome(
       makeFile({ has_chapters: false }),
     );
@@ -1514,17 +1096,12 @@ describe("the layout fixture's page, against the shell", () => {
         .querySelector(".media-detail-player")!
         .getAttribute("data-framed"),
     ).toBe("true");
-    // 56.25% is 9/16 written as the shim writes it.
     expect(
       Number.parseFloat(SPEC.framedShimPaddingTop as string) / 100,
     ).toBeCloseTo(9 / 16, 6);
   });
 
   it("declares the attribute that makes the player sticky at all", async () => {
-    // The fixture writes `data-sheet-snap` on its own root, and the
-    // stylesheet rule the browser cases depend on is scoped to it. The
-    // shell writing it somewhere else — or not at all on a phone —
-    // would leave those cases measuring a player in normal flow.
     await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
     expect(screen.getByTestId("file-detail-shell").dataset.sheetSnap).toBe(
       "peek",
@@ -1556,10 +1133,6 @@ describe("what the canvas keeps and what the inspector takes", () => {
   });
 
   it("keeps an addon section the canvas does not draw", async () => {
-    // The inspector excludes what the canvas took. The document canvas
-    // takes `knowledge-edit` — the note editor — and the media canvas
-    // does not, so excluding it on both left a video with the knowledge
-    // addon's "create a note" card in neither column.
     await renderMedia(makeFile({ has_chapters: false }));
 
     const inspectorSlot = screen.getByTestId(
@@ -1574,12 +1147,8 @@ describe("what the canvas keeps and what the inspector takes", () => {
   });
 
   it("pads itself by the amount the beside threshold budgets for", async () => {
-    // `CANVAS_PADDING_REM` is a term in the width at which the
-    // inspector stops sitting beside the canvas, and it is there
-    // because the player is *inside* this padding. Nothing derives the
-    // class from the constant, so this is the seam: widening the
-    // padding without widening the term silently takes the difference
-    // back out of the player.
+    // Nothing derives the class from `CANVAS_PADDING_REM`, so the two are
+    // kept in step here.
     const { container } = await renderMedia(makeFile({ has_chapters: false }));
 
     const canvas = container.querySelector(".media-detail-host");
@@ -1590,9 +1159,6 @@ describe("what the canvas keeps and what the inspector takes", () => {
   });
 
   it("keeps the desktop pane's header pinned, which is where the split earns its keep", async () => {
-    // The column form is the sheet's, not the inspector's in general. A
-    // 384px column beside a tall canvas is exactly where the per-file
-    // actions being in one place is worth the height they take.
     await renderMedia();
 
     const shell = screen.getByTestId("inspector-shell");
@@ -1601,9 +1167,6 @@ describe("what the canvas keeps and what the inspector takes", () => {
   });
 
   it("publishes no sheet state on a desktop, so its rules cannot apply", async () => {
-    // The attribute's presence is the mobile test the stylesheet makes.
-    // Published unconditionally, a desktop player would go sticky and
-    // lose its height budget with nothing on screen explaining why.
     await renderMedia(makeFile({ has_chapters: false }));
 
     expect(
@@ -1620,13 +1183,8 @@ describe("what the canvas keeps and what the inspector takes", () => {
   });
 
   it("measures the height budget against the shell's scroll container", async () => {
-    // Not the host's wrapper: on the shell that wrapper never scrolls,
-    // so measuring it would report the height of the whole document.
-    // `--rail-top: 0px` is the tell — it is only zero when the metrics
-    // were given a pane rather than falling back to the window.
     // Two different heights, so the assertion can only be satisfied by
-    // the right element. One height for both would pass whichever of
-    // the two was measured, which is the question.
+    // the right element.
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(
       function (this: HTMLElement) {
         return this.tagName === "MAIN" ? 500 : 999;

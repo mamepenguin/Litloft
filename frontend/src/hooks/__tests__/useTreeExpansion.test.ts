@@ -139,8 +139,6 @@ describe("useTreeExpansion.collapseMany", () => {
   });
 
   it("is a no-op for an empty list, without touching localStorage", () => {
-    // Every drag end calls this; a drag that spring-loaded nothing must
-    // not cost a write.
     const { result } = renderHook(() => useTreeExpansion("work"));
     act(() => {
       result.current.expand("a");

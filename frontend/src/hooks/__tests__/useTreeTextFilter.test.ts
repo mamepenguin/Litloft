@@ -1,9 +1,3 @@
-/**
- * Tests for useTreeTextFilter — the tree-pane text filter (no persistence).
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §3.7.
- *
- * RED phase — the hook does not exist yet.
- */
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -29,8 +23,6 @@ describe("useTreeTextFilter", () => {
     act(() => {
       result.current.setText("hello");
     });
-    // The implementation must NOT write to localStorage.
-    // Iterate every key looking for the value.
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);

@@ -45,7 +45,6 @@ describe("MergedResultItem", () => {
 
     expect(screen.getByText("Filename")).toBeInTheDocument();
     expect(screen.queryByText("Transcript")).not.toBeInTheDocument();
-    // No timestamp pill in the DOM.
     expect(screen.queryAllByTestId("match-timestamp-pill")).toEqual([]);
   });
 
@@ -61,7 +60,6 @@ describe("MergedResultItem", () => {
 
     expect(screen.getByText("Transcript")).toBeInTheDocument();
     expect(screen.queryByText("Filename")).not.toBeInTheDocument();
-    // formatDuration(120) → "2:00"
     expect(screen.getByText("2:00")).toBeInTheDocument();
   });
 
@@ -101,7 +99,6 @@ describe("MergedResultItem", () => {
       <MergedResultItem file={file} onSelect={onSelect} />,
     );
 
-    // The row is the outermost interactive container.
     const row = container.querySelector(
       '[data-testid="merged-result-item"]',
     ) as HTMLElement | null;
@@ -167,8 +164,6 @@ describe("MergedResultItem", () => {
     const onSelect = vi.fn();
     render(<MergedResultItem file={file} onSelect={onSelect} />);
 
-    // Enumerated, not counted: a `<=` bound holds at every cap from zero
-    // to the bound.
     expect(
       screen.getAllByTestId("match-timestamp-pill").map((p) => p.textContent),
     ).toEqual([
@@ -180,20 +175,12 @@ describe("MergedResultItem", () => {
   });
 
   /**
-   * S-1. A title starts life as `filenameToTitle(filename)`, so the
-   * filename under it usually repeats it with ".mp4" glued back on. The
-   * line draws only when it has something else to say.
-   *
-   * The titles here are the ones a backend can actually produce — the
-   * first draft of these cases used "kyoto" for `kyoto.mp4`, which is not
-   * a title this system ever writes, and they passed against a rule that
-   * did nothing for real files.
+   * A title starts life as `filenameToTitle(filename)`, so the filename
+   * under it usually repeats it with ".mp4" glued back on. The titles here
+   * are the ones a backend can actually produce.
    */
   describe("the second line", () => {
     it("draws the title, which is what the second line is second to", () => {
-      // Nothing in this file said the first line exists, so folding the
-      // two into one `<p>{subtitle ?? file.title}</p>` passed every
-      // `<p>`-count assertion below while the title disappeared.
       render(
         <MergedResultItem
           file={makeFile({

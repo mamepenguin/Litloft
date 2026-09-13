@@ -1,14 +1,3 @@
-/**
- * Rescan says what happened.
- *
- * The button sits in an overflow menu that closes on click, so the
- * spinner driven by `scanning` rendered inside a menu nobody could
- * still see — pressing Rescan looked like pressing nothing. A 409 (a
- * scan already running) and a real failure were both swallowed by a
- * bare `catch`, so "working", "already working" and "broken" were three
- * identical silences.
- */
-
 import { renderHook, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -69,9 +58,6 @@ describe("useDriveScan", () => {
   });
 
   it("puts each count against its own word", async () => {
-    // Distinct values, checked in position: three numbers that merely
-    // appear somewhere in the string would pass with any two of them
-    // swapped, which is the mistake worth catching here.
     vi.mocked(scanDrive).mockResolvedValue({
       added: 11, missing: 33, recovered: 22, updated: 0, total: 40,
     });
@@ -90,15 +76,12 @@ describe("useDriveScan", () => {
     await act(async () => {
       await result.current.handleScan();
     });
-    // Not the counts message — three zeroes read as a puzzle.
     expect(toast.success).toHaveBeenCalledWith(
       expect.stringMatching(/nothing changed/i),
     );
   });
 
   it("tells a 409 apart from a failure", async () => {
-    // The scanner takes one run per drive at a time. Being told so is
-    // an answer; being told "failed" would be wrong.
     vi.mocked(scanDrive).mockRejectedValueOnce(
       new ApiStatusError(409, "API error: 409 Conflict"),
     );

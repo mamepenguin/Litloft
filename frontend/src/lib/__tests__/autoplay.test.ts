@@ -19,7 +19,7 @@ describe("readAutoplayPreference", () => {
       window.localStorage.setItem("video-share-autoplay", "true");
       expect(readAutoplayPreference()).toBe(true);
     } catch {
-      // localStorage unavailable in this test env — behaviour is verified elsewhere
+      // localStorage unavailable in this test env
     }
   });
 

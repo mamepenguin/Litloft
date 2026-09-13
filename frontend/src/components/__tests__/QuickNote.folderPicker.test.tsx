@@ -1,12 +1,7 @@
 /**
- * Quick Note with the real FolderPicker mounted.
- *
  * FolderPicker seeds its browse path and its all-folders cache once, on first
  * open, so reusing one instance across a drive change would leave the previous
- * drive's breadcrumb and search results selectable — and a folder picked from
- * that stale list would be created in the new drive. A drive is a security
- * boundary, so the panel keys the picker by drive; this test is what keeps
- * that key in place.
+ * drive's breadcrumb and search results selectable.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
@@ -110,7 +105,6 @@ describe("QuickNote + FolderPicker across drives", () => {
       expect(screen.getByText("photos / Inbox/Alpha")).toBeInTheDocument(),
     );
 
-    // Switch drives.
     fireEvent.change(screen.getByLabelText("Drive"), { target: { value: "notes" } });
     await waitFor(() => expect(screen.getByText("notes / Inbox")).toBeInTheDocument());
 

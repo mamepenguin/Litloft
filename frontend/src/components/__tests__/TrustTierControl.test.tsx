@@ -55,12 +55,8 @@ describe("TrustTierControl", () => {
     );
   });
 
-  // The four states of spec §3. The migrated row (verified, never reviewed)
-  // is the one worth guarding: it grounds Ask today, so it must not read as
-  // unverified, but it also has not actually been judged by anyone.
-  // The badge reports the tier alone. Whether anyone has ruled on the file is
-  // a separate question, answered by the "not reviewed" listing filter —
-  // surfacing it here made every untouched file look like a warning.
+  // The badge reports the tier alone; whether anyone has reviewed the file is
+  // answered by the "not reviewed" listing filter.
   it.each([
     ["unverified", null, "trust"],
     ["unverified", REVIEWED, "trust"],
@@ -77,15 +73,6 @@ describe("TrustTierControl", () => {
   );
 
   it("names the state in words, whichever state it is", () => {
-    // Verified used to be a bare shield, on the reasoning that a label
-    // repeated across a library is noise — true of list rows, and this
-    // control renders once, on the detail page. Next to an unverified
-    // state that says so in words, the silent half made the reader
-    // supply the meaning of a shield.
-    //
-    // Reviewed-ness is deliberately not in here: whether anyone has
-    // *ruled* on the file is a different question from which tier it is
-    // in, and mixing them made every untouched file look like a warning.
     for (const reviewedAt of [null, REVIEWED]) {
       const { unmount } = render(
         <TrustTierControl
@@ -101,9 +88,6 @@ describe("TrustTierControl", () => {
   });
 
   it("uses one stem for the state on both sides", () => {
-    // 検証 / 確認 / 信用 were three stems for a two-valued state, and
-    // "未検証" and "未確認のみ" did not even name the same set. The
-    // state is 検証 now; 信用 survives only as the verb on the action.
     const { unmount } = render(
       <TrustTierControl file={makeFile("verified", REVIEWED)} onChange={vi.fn()} />,
     );
@@ -113,7 +97,6 @@ describe("TrustTierControl", () => {
       <TrustTierControl file={makeFile("unverified", null)} onChange={vi.fn()} />,
     );
     const unverified = screen.getByTestId("trust-tier-state").textContent;
-    // Same key family, so the two read as one pair rather than two ideas.
     expect(verified).toBe("stateVerified");
     expect(unverified).toBe("stateUnverified");
   });
@@ -128,8 +111,6 @@ describe("TrustTierControl", () => {
   });
 
   it("is a single control, so it fits the Markdown inspector", () => {
-    // Regression: a state chip beside an action button put two text labels in
-    // a row that also renders in the inspector and on a phone.
     render(
       <TrustTierControl file={makeFile("verified", REVIEWED)} onChange={vi.fn()} />,
     );

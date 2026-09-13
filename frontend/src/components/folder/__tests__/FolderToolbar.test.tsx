@@ -13,34 +13,19 @@ vi.mock("@/components/AddonSlot", () => ({
 }));
 
 // The real provider's default context answers `hasSlot: () => false`, which
-// would make the Add menu's addon rows unreachable from this file — and the
-// wiring that feeds them is FolderToolbar's, not AddButton's.
+// would make the Add menu's addon rows unreachable from this file.
 vi.mock("@/components/AddonSlotsProvider", () => ({
   useAddonSlots: () => ({ hasSlot: () => true }),
 }));
 
-// `AddButton` is *not* mocked here. It is the toolbar's one accent fill and
-// it now holds upload, new folder and new note, so a stand-in would leave
-// this file asserting the stand-in's shape rather than the group the toolbar
-// actually renders. It appears twice — mobile row and desktop sticky bar —
-// so every lookup takes the first.
+// `AddButton` appears twice — mobile row and desktop sticky bar — so every
+// lookup takes the first.
 const openAddMenu = () => {
   fireEvent.click(screen.getAllByRole("button", { name: "Add" })[0]);
 };
 
-/**
- * The sort control on the bar, by its accessible name.
- *
- * Not a stand-in. An earlier version of this file mocked `SortButton` and
- * asserted the stand-in's `data-testid`, which is the shape `toolbarLabels`
- * records as having hidden a control from a count. `SortMenu` names itself
- * `Sort: <the order that is on>`, so the prefix finds it at every order —
- * including the fallback where the order is one this screen does not offer
- * and the name is the bare word.
- */
 const sortControl = () => screen.queryByRole("button", { name: /^Sort/ });
 
-/** The rows of the sort menu, which is where reshuffle now lives. */
 const openSortMenu = () => fireEvent.click(sortControl()!);
 
 const defaultProps = {
@@ -79,15 +64,6 @@ describe("FolderToolbar", () => {
   });
 
   it("offers addons the menu, and no longer a place on the bar", () => {
-    // `folder-actions` drew a second button beside `Add` — a control this
-    // bar has no room for, measured wrapping it onto two rows between 768
-    // and 785px. `folder-actions-menu` is the way in.
-    //
-    // The menu is opened first, because the slot is only asked for once it
-    // is. Without that, `addonSlotIds` is empty and the second assertion
-    // is true of nothing — which left the half of this test's name about
-    // the menu unearned, and deleting `addonProps` from the `AddButton`
-    // call passed it.
     render(<FolderToolbar {...defaultProps} />);
     screen
       .getAllByRole("button", { name: "Add" })
@@ -97,16 +73,12 @@ describe("FolderToolbar", () => {
     expect(addonSlotIds.every((id) => id === "folder-actions-menu")).toBe(true);
   });
 
-  // The point of the PR: the Add menu's addon rows. Removing `addonProps`
-  // from the AddButton call kills the slot in production, and until this
-  // existed nothing failed when it did.
   describe("the add menu's addon slot", () => {
     const menuSlots = () =>
       addonSlotProps.filter((s) => s.id === "folder-actions-menu");
 
-    // The slot lives inside the menu, so it is only asked for once the menu
-    // is open — and the toolbar draws the whole left group twice, once per
-    // breakpoint, each with its own menu.
+    // The slot is only asked for once the menu is open, and the toolbar
+    // draws one menu per breakpoint.
     const openEvery = () =>
       screen
         .getAllByRole("button", { name: "Add" })
@@ -141,7 +113,6 @@ describe("FolderToolbar", () => {
       render(
         <FolderToolbar {...defaultProps} isSearch isWriteDestination={false} />,
       );
-      // There is no Add button to open at all there.
       expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
       expect(menuSlots()).toHaveLength(0);
     });
@@ -149,8 +120,6 @@ describe("FolderToolbar", () => {
 
   it("puts upload and new folder behind one add menu", () => {
     render(<FolderToolbar {...defaultProps} />);
-    // Nothing on the bar until it is opened: the three controls that used to
-    // sit here are rows now.
     expect(screen.queryByText("Files")).not.toBeInTheDocument();
     expect(screen.queryByText("New Folder")).not.toBeInTheDocument();
     openAddMenu();
@@ -192,10 +161,6 @@ describe("FolderToolbar", () => {
     expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
-  // spec 2026-08-21-folder-scoped-tag-filter §6.2: the toolbar's gate is
-  // the second of two, and it nulls the whole left group — so passing
-  // onCreateFile without moving this predicate changes nothing visible.
-  // What it actually tests is "is there a folder to write into?".
   it("shows upload, new folder and new note during a folder-anchored tag filter", () => {
     const onCreateFile = vi.fn();
     render(
@@ -214,7 +179,6 @@ describe("FolderToolbar", () => {
   });
 
   it("hides the add menu for a tag filter with no folder anchor", () => {
-    // A drive-root tag filter has no concrete folder to write into.
     render(
       <FolderToolbar {...defaultProps} tagFilter="nature" isWriteDestination={false} />,
     );
@@ -226,7 +190,6 @@ describe("FolderToolbar", () => {
     expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
-  // spec 2026-08-21-folder-scoped-tag-filter §8
   it("offers the drive-wide widening link during a folder tag filter", () => {
     render(
       <FolderToolbar
@@ -256,7 +219,6 @@ describe("FolderToolbar", () => {
 
   it("shows folder creation input when creatingFolder is true", () => {
     render(<FolderToolbar {...defaultProps} creatingFolder={true} />);
-    // Input appears in both mobile and desktop rows.
     expect(screen.getAllByPlaceholderText("Folder name...").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Create").length).toBeGreaterThan(0);
   });
@@ -305,10 +267,6 @@ describe("FolderToolbar", () => {
     expect(screen.getAllByText("Invalid folder name").length).toBeGreaterThan(0);
   });
 
-  // The count moved to `PageHeader`'s scope line, where search mode had
-  // always kept it — the toolbar and the header used to state the same fact
-  // in two places and two wordings. Asserted here as an absence so the two
-  // cannot quietly both come back.
   it("does not state the count; the page header does", () => {
     render(<FolderToolbar {...defaultProps} />);
     expect(screen.queryByText(/\d+ items/)).toBeNull();
@@ -333,9 +291,6 @@ describe("FolderToolbar", () => {
 
   it("shows play all button when hasPlayableFiles", () => {
     render(<FolderToolbar {...defaultProps} hasPlayableFiles={true} />);
-    // Named by the label a sighted reader sees, not by an `aria-label` that
-    // said something else. It used to carry both, so screen readers heard
-    // "Play all" where the button read "Play".
     expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
   });
 
@@ -374,11 +329,6 @@ describe("FolderToolbar", () => {
     expect(screen.getByText("Selection mode")).toBeInTheDocument();
   });
 
-  // Reshuffle used to be a bare `⇄` sitting on the bar beside the sort
-  // button, appearing and disappearing as the order changed. It is a row of
-  // the sort menu now — the row that turns the random order on is two lines
-  // above it, and a control that is only meaningful in one of seven states
-  // is not what the bar is for.
   it("offers reshuffle inside the sort menu when the order is random", () => {
     const onReshuffle = vi.fn();
     render(<FolderToolbar {...defaultProps} sort="random" onReshuffle={onReshuffle} />);
@@ -410,10 +360,6 @@ describe("FolderToolbar", () => {
   });
 
   describe("an empty folder", () => {
-    // Sort order, view mode and the type filter are ways of arranging
-    // things. With nothing to arrange they are seven controls above an
-    // empty page. What stays is everything that puts something in the
-    // folder, plus the count that says it is empty.
     const empty = {
       ...defaultProps,
       total: 0,
@@ -438,27 +384,18 @@ describe("FolderToolbar", () => {
 
     it("keeps the way back to a rescan", () => {
       render(<FolderToolbar {...empty} />);
-      // Rescan is how an empty folder stops being empty. The count that used
-      // to be asserted alongside it is the header's now, and an empty folder
-      // still shows it — `FolderBrowser.header.test.tsx` holds that.
       expect(screen.getByLabelText("More actions")).toBeInTheDocument();
     });
 
     it("keeps them all when only the files are gone", () => {
-      // Subfolders are laid out by the same view toggle. A folder of
-      // eight folders and no files is not an empty folder.
       render(<FolderToolbar {...empty} folderCount={8} />);
       expect(sortControl()).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /^View/ })).toBeInTheDocument();
     });
 
     it("keeps them all when a filter is what emptied it", () => {
-      // Hiding the type chip that produced the empty result would leave
-      // the user with no way back to the full listing.
       render(<FolderToolbar {...empty} typeFilter="audio" />);
       expect(sortControl()).toBeInTheDocument();
-      // Named by what it is filtering by, not by the word "Filter": that is
-      // how the control says why the folder looks empty.
       expect(screen.getByRole("button", { name: "Filter: Audio" })).toBeInTheDocument();
     });
 
@@ -479,15 +416,12 @@ describe("FolderToolbar", () => {
     });
 
     it("keeps them all for an empty search", () => {
-      // A search that found nothing still needs its sort and its type
-      // chip: they are how the query gets widened.
       render(<FolderToolbar {...empty} isSearch />);
       expect(sortControl()).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /^Filter/ })).toBeInTheDocument();
     });
 
     it("keeps them all when the folder count is simply not known", () => {
-      // Callers that never pass folderCount must behave as they did.
       const { folderCount: _ignored, ...withoutCount } = empty;
       render(<FolderToolbar {...withoutCount} />);
       expect(sortControl()).toBeInTheDocument();
@@ -497,10 +431,6 @@ describe("FolderToolbar", () => {
   describe("the kinds it offers", () => {
     const kindMenu = () => {
       fireEvent.click(screen.getByRole("button", { name: /^Filter/ }));
-      // Only the kind section: the trust rows follow it under their own
-      // heading, and this is about the vocabulary of kinds.
-      // The kind section only: `role="group"` separates the two axes now,
-      // so ask for the one this is about rather than slicing a flat list.
       return within(screen.getByRole("group", { name: "File type" }))
         .getAllByRole("menuitemradio")
         .map((el) => el.textContent);
@@ -515,17 +445,6 @@ describe("FolderToolbar", () => {
     });
 
     it("offers the same vocabulary in search", () => {
-      // For a while it offered two fewer here: intelligence's index
-      // stores `file_type`, which never holds `markdown` or `pdf`, so
-      // narrowing a search to either dropped every semantic hit and
-      // fell back to filename matches without saying so. The addon
-      // learned the nested kinds (`app/file_kind.py`), so both surfaces
-      // now understand the question — which is the point of there being
-      // one vocabulary. They still answer it at different points in
-      // their pipelines (core filters in SQL before paging; the addon
-      // filters after retrieval has produced its candidates), so a
-      // narrow search can still come back short. That is how the six
-      // flat kinds have always behaved.
       render(<FolderToolbar {...defaultProps} isSearch />);
       expect(kindMenu()).toEqual([
         "All", "Video", "Image", "Audio", "Document", "Markdown", "PDF",

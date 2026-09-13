@@ -83,10 +83,6 @@ describe("useFolderTreeQuery", () => {
     );
   });
 
-  /**
-   * F-7. The two answers are different lists, so serving one for the other
-   * is what makes a toggle look broken: you press it and nothing moves.
-   */
   it("drops cache when includeFiles changes", async () => {
     mockGetFolderTree.mockResolvedValue([]);
 
@@ -155,15 +151,12 @@ describe("useFolderTreeQuery", () => {
       expect(result.current.childrenByPath.has("")).toBe(true);
     });
 
-    // Single fetch in flat mode, even though pathsToLoad would normally
-    // ask for more.
     expect(mockGetFolderTree).toHaveBeenCalledTimes(1);
     expect(mockGetFolderTree).toHaveBeenCalledWith(
       "work",
       { type_filter: null, flat: true, include_files: false },
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
-    // All three nodes (including the deep one) live under "".
     expect(result.current.childrenByPath.get("")).toHaveLength(3);
   });
 
@@ -193,7 +186,6 @@ describe("useFolderTreeQuery", () => {
     rerender({ flatLoad: false });
 
     await waitFor(() => expect(mockGetFolderTree).toHaveBeenCalledTimes(2));
-    // The second call is the lazy-load form (root + depth).
     expect(mockGetFolderTree).toHaveBeenLastCalledWith(
       "work",
       { root: "", type_filter: null, depth: 1, include_files: false },

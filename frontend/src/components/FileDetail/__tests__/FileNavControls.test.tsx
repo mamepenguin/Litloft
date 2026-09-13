@@ -1,12 +1,3 @@
-/**
- * The visible prev / next pair and its `n / N` readout.
- *
- * The arrow keys have walked to the neighbouring file since long before
- * this; what is new is a handle on the same walk. So the assertions
- * that matter are (a) the buttons go through the *same* navigate
- * callbacks the keys do, and (b) the readout never claims a file the
- * buttons cannot reach.
- */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
@@ -67,29 +58,20 @@ describe("FileNavControls", () => {
   });
 
   it("draws no readout at all when the ordering cannot rank the file", () => {
-    // `/neighbors` reports both halves null together — a file that is
-    // not in the sequence has no place in it and no reason to report
-    // its size. Half a fraction is not a smaller readout, it is a wrong
-    // one.
     renderControls(nav({ position: null, total: null }));
     expect(readout()).toBeNull();
-    // The buttons stay, so the row does not change shape.
     expect(prev()).toBeInTheDocument();
     expect(next()).toBeInTheDocument();
   });
 
   it("drops the readout below 640px and keeps the buttons", () => {
-    // jsdom loads no stylesheet, so the width rule is asserted as the
-    // class that carries it — `00-basis.md`: a row of controls does not
-    // wrap, the thing that does not fit is dropped.
     renderControls(nav());
     expect(readout()).toHaveClass("hidden", "sm:inline");
   });
 
   it("gives the buttons a 44px target where there is no cursor", () => {
     // On the button itself, not a wrapper: a padded parent leaves the
-    // 44px on an element that does not answer the press. Phase 3 shipped
-    // that mistake once already.
+    // 44px on an element that does not answer the press.
     renderControls(nav());
     for (const button of [prev(), next()]) {
       expect(button).toHaveClass("pointer-coarse:h-11", "pointer-coarse:w-11");
@@ -97,11 +79,6 @@ describe("FileNavControls", () => {
   });
 
   it("draws no readout for a listing the arrows do not match", () => {
-    // The ruling: a count is drawn only when the readout, the arrows and
-    // the listing are the same sequence. `useFileNav` nulls both halves
-    // when they are not, so this component needs no rule of its own —
-    // but a null `position` beside a real `total` would still format, so
-    // the pair is what is asserted.
     renderControls(nav({ position: null, total: 995 }));
     expect(readout()).toBeNull();
     renderControls(nav({ position: 12, total: null }));

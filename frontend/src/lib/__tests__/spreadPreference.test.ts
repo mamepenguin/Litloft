@@ -17,8 +17,6 @@ describe("the spread preference", () => {
   });
 
   it("carries the old key over, once, and takes it away", () => {
-    // The setting was called `split-mode` when splitting was all it did.
-    // A reader who had it on should not have to turn it on again.
     localStorage.setItem(LEGACY_SPLIT_MODE_KEY, "true");
 
     expect(readSpreadMode()).toBe(true);
@@ -34,9 +32,6 @@ describe("the spread preference", () => {
   });
 
   it("lets a later choice stand over the migrated one", () => {
-    // The reason the old key is consumed rather than left behind: it is
-    // the one that used to win, so leaving it would revert every "off"
-    // on the next read.
     localStorage.setItem(LEGACY_SPLIT_MODE_KEY, "true");
     expect(readSpreadMode()).toBe(true);
 
@@ -45,11 +40,7 @@ describe("the spread preference", () => {
   });
 
   it("still answers with the migrated value when the write is refused", () => {
-    // Safari in private browsing reads and refuses to write. The
-    // `setItem` used to throw past the answer and into a `catch` that
-    // returned the default, so the one reader this migration exists for
-    // opened in single-page mode — every time, since the removal never
-    // ran either.
+    // Safari in private browsing reads and refuses to write.
     localStorage.setItem(LEGACY_SPLIT_MODE_KEY, "true");
     const setItem = localStorage.setItem.bind(localStorage);
     vi.spyOn(Storage.prototype, "setItem").mockImplementation((k, v) => {

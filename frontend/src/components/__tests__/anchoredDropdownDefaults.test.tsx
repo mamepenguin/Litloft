@@ -12,53 +12,9 @@ import { FilterField } from "@/components/folder/FilterField";
 import { TrashToolbar } from "@/components/trash/TrashToolbar";
 
 /**
- * The edge each converted dropdown hangs from when it has the room.
- *
- * ## Why the *default* is what needs a test of its own
- *
- * The sweep put eight panels on one hook, and the hook takes the preferred
- * side as a parameter. The sides were not uniform before it: five preferred
- * the left edge, two the right, one is `inset-x-0` and has no side at all,
- * and one takes its preference from a prop its two callers disagree about.
- * Misreading one class list during the conversion silently moves a menu to
- * the other edge of its trigger — a change no assertion about the *hook*
- * can see, because the hook did what it was asked.
- *
- * So this is a table of what each site asks for, checked against what each
- * site renders.
- *
- * ## What jsdom can hold here, and what it cannot
- *
- * **Every `getBoundingClientRect()` in jsdom is zeros.** That is not a
- * limitation to work around here — it is what makes this deterministic.
- * With every box at the origin the room below and the room above are both
- * `0`, so `spaceAbove > spaceBelow` is false and the panel keeps the
- * direction it reads as everywhere; the panel's width is `0`, so it never
- * exceeds its preferred side's room and the side is the preference. Both
- * answers are therefore the *declared* ones, and this file measures whether
- * each component asked for the right thing and put the answer on the box.
- *
- * It says nothing whatever about geometry: not whether the corner is
- * reachable, not where the panel lands, not whether flipping works. Those
- * are `useAnchoredDirection.test.tsx`'s (the decision, with boxes stubbed)
- * and the two browser targets' (the boxes).
- *
- * **Two mutations survive this file, and neither is a gap to be papered
- * over here.** Both were run:
- *
- *  - Passing `open: false` to a site's hook, so it never measures at all.
- *  - Handing a site's hook the *wrong* positioned wrapper — `FilterField`
- *    has two, and they are exclusive.
- *
- * With every box at the origin, "measured and got the default", "measured
- * the wrong box and got the default" and "never measured" are the same
- * three zeros. Nothing that reads a class list in jsdom can tell them
- * apart, and a scan for the spelling `open: false` would be a whitelist of
- * ways to write it — `review-workflow.md`'s "there is no bounded list",
- * applied to a boolean. What separates them is a frame with a real size,
- * which is `e2e-components/` — and the arrangements there imitate frames
- * rather than components, so closing these means a fixture per site.
- * Recorded rather than claimed away.
+ * Every `getBoundingClientRect()` in jsdom is zeros, which is what makes
+ * this deterministic: with no room above and a zero-width panel, both the
+ * direction and the side are the *declared* ones.
  */
 
 vi.mock("@/lib/api", () => ({
@@ -195,9 +151,7 @@ const FORMS = [
   {
     name: "FilterField's type menu, hanging off the chip",
     // The chip sits at the field's 28px offset rather than at its left
-    // edge, so `left-7` is what the left side means in this form. It is the
-    // one member of the family whose preferred edge is not `left-0`, which
-    // is why it is a row here rather than a note.
+    // edge, so `left-7` is what the left side means in this form.
     side: "left-7",
     step: 1,
     open: () => {
@@ -285,10 +239,7 @@ describe("the sides the converted dropdowns prefer", () => {
       const panel = await form.open();
       const classes = [...panel.classList];
 
-      // Downward, which is what zero-sized boxes decide. The classes come
-      // from the table rather than being spelled here, so a step whose
-      // entry was edited is caught by `anchoredDropdowns.test.ts` reading
-      // the number back out of the class, not by a second copy of it.
+      // Downward, which is what zero-sized boxes decide.
       for (const token of ANCHORED_VERTICAL[form.step].down.split(" ")) {
         expect(classes).toContain(token);
       }

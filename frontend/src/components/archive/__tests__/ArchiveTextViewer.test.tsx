@@ -53,10 +53,6 @@ describe("ArchiveTextViewer", () => {
   });
 
   it("offers the file itself when it could not be read", () => {
-    // The two assertions above are satisfied by the empty state's
-    // description alone, so deleting the action left them green. The point of
-    // the empty state here is that the entry turned out not to be openable
-    // and the download is the way out of that.
     render(
       <ArchiveTextViewer {...defaultProps} textConfirmed={true} textError="500 Server Error" />
     );
@@ -66,9 +62,6 @@ describe("ArchiveTextViewer", () => {
   });
 
   it("offers the file itself while it is being read, too", () => {
-    // ARC-1 (b) took the download off the openable row, and the page-turner
-    // has always carried one for images. Without this the text viewer is the
-    // only place in the archive with no route to the file on disk.
     render(
       <ArchiveTextViewer
         {...defaultProps}

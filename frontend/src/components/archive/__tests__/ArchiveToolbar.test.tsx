@@ -40,7 +40,6 @@ function renderToolbar(
   return { ...render(<ArchiveToolbar {...props} />), props };
 }
 
-/** The row of controls, i.e. everything below the breadcrumb bar. */
 function controlsRow(): HTMLElement {
   return screen.getByTestId("archive-controls");
 }
@@ -66,10 +65,6 @@ describe("ArchiveToolbar", () => {
     expect(handleBreadcrumbClick).toHaveBeenCalledWith("");
   });
 
-  // ARC-2. The folder toolbar answers this question with menus and the
-  // archive answered it with three OS-drawn selects, on the same app one
-  // click apart. A count, not a spot check: the sort select was the one the
-  // survey photographed, and there were two more beside it.
   it("draws no <select>", () => {
     const { container } = renderToolbar();
     expect(container.querySelectorAll("select").length).toBe(0);
@@ -78,8 +73,6 @@ describe("ArchiveToolbar", () => {
   it("offers order and direction as one menu of six rows", () => {
     renderToolbar();
 
-    // One control, not two: field and direction were separate selects, and
-    // "Name" + "Descending" is a sentence the reader had to assemble.
     expect(
       within(controlsRow()).getAllByRole("button", { name: /^Sort: / }).length
     ).toBe(1);
@@ -141,9 +134,7 @@ describe("ArchiveToolbar", () => {
     fireEvent.click(within(menu).getByRole("menuitemradio", { name: "Image" }));
     expect(onTypeFilterChange).toHaveBeenCalledWith("image");
 
-    // Choosing a row closes the menu, so "All" needs it opened again. `null`
-    // rather than the empty string the removed `<select>` carried: the value
-    // and its absence are now the same type.
+    // Choosing a row closes the menu, so "All" needs it opened again.
     const reopened = openMenu(/^File type: /);
     fireEvent.click(within(reopened).getByRole("menuitemradio", { name: "All" }));
     expect(onTypeFilterChange).toHaveBeenCalledWith(null);
@@ -162,11 +153,8 @@ describe("ArchiveToolbar", () => {
     expect(onViewModeChange).toHaveBeenCalledWith("list");
   });
 
-  // Measured in Chromium at 768 and 1512 before it was fixed: these two
-  // triggers are at the *left* of the bar, and the default right-anchored
-  // menu put its left edge at -55 with two columns of every row off the
-  // frame. jsdom computes no layout, so what is asserted here is the class
-  // that decides it — the geometry is recorded in `ToolbarMenu.tsx`.
+  // These two triggers are at the *left* of the bar, so the default
+  // right-anchored menu would hang off the frame.
   it("hangs its two left-hand menus from their left edges", () => {
     renderToolbar();
     for (const trigger of [/^Sort: /, /^File type: /]) {
@@ -177,9 +165,8 @@ describe("ArchiveToolbar", () => {
     }
   });
 
-  // 案 2's rule, applied to the second toolbar that takes these menus: a
-  // control on the bar says what it is in a word. The archive's download link
-  // lives in the breadcrumb bar above and is out of scope for this row.
+  // The archive's download link lives in the breadcrumb bar above and is out
+  // of scope for this row.
   it("has no unlabelled control in the row of controls", () => {
     renderToolbar();
     const unlabelled = Array.from(
@@ -189,20 +176,15 @@ describe("ArchiveToolbar", () => {
   });
 
   it("looks at a row that actually holds the controls", () => {
-    // Every control in an empty row is labelled. This is what says the
-    // selector above found the row rather than an empty div. Four, not
-    // three: jsdom computes no layout, so both scopes of the bar are in the
-    // tree at once — Sort, File type, the `…` that holds them below 640, and
-    // View.
+    // Four, not three: both scopes of the bar are in the tree at once —
+    // Sort, File type, the `…` that holds them below 640, and View.
     renderToolbar();
     expect(controlsRow().querySelectorAll("button").length).toBe(4);
   });
 
-  // The folder toolbar's rule, and the reason it is a test rather than a
-  // comment: `BAR_ROOMY` and `sm:hidden` are two halves of one decision, and
-  // a control removed from the bar without arriving here is a function the
-  // reader can no longer reach at that width. Nothing in the layout fails
-  // when that happens.
+  // `BAR_ROOMY` and `sm:hidden` are two halves of one decision: a control
+  // removed from the bar without arriving in the overflow is a function the
+  // reader can no longer reach at that width.
   it("says which controls leave the bar in an attribute, not only in a class", () => {
     renderToolbar();
     const scoped = Array.from(
@@ -230,11 +212,6 @@ describe("ArchiveToolbar", () => {
     expect(overflow.className).toContain(`${breakpoint}:hidden`);
   });
 
-  // The contract `ToolbarMenu` documents and its own test asserts, applied to
-  // the one menu on this bar that is written by hand. Without the Escape the
-  // menu cannot be dismissed from the keyboard at all; without the focus
-  // return it unmounts with focus on `<body>` and the next Tab restarts from
-  // the top of the document.
   it("closes the overflow on Escape and hands focus back to its trigger", () => {
     renderToolbar();
     const trigger = screen.getByRole("button", { name: "More actions" });
@@ -269,10 +246,8 @@ describe("ArchiveToolbar", () => {
     expect(onDocumentEscape).not.toHaveBeenCalled();
   });
 
-  // The anchored form of every menu here is `absolute` inside this card. A
-  // clipping ancestor paints about four pixels of a 290px popover and hides
-  // every row at 640 and up — measured only by opening it, which jsdom cannot
-  // do, so what is asserted is the property that decides it.
+  // The anchored form of every menu here is `absolute` inside this card, so
+  // a clipping ancestor hides its rows.
   it("does not clip the popovers its own menus open", () => {
     const { container } = renderToolbar();
     const card = container.firstElementChild as HTMLElement;

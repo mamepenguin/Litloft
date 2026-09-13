@@ -2,13 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MEDIA_CLOCK_ACTIVE_MS, MEDIA_CLOCK_IDLE_MS } from "@/lib/mediaClock";
 
-// Mock profile context
 const mockProfile = { nickname: null as string | null, setNickname: vi.fn(), clearNickname: vi.fn() };
 vi.mock("@/components/ProfileProvider", () => ({
   useProfile: () => mockProfile,
 }));
 
-// Mock API
 const mockGetWatchProgress = vi.fn();
 const mockSaveWatchProgress = vi.fn();
 const mockDeleteWatchProgress = vi.fn();
@@ -19,7 +17,6 @@ vi.mock("@/lib/api", () => ({
   deleteWatchProgress: (...args: unknown[]) => mockDeleteWatchProgress(...args),
 }));
 
-// Mock recentlyPlayed
 const mockGetSavedProgress = vi.fn().mockReturnValue(0);
 const mockSaveProgress = vi.fn();
 const mockClearProgress = vi.fn();
@@ -54,7 +51,6 @@ describe("VideoPlayer", () => {
     render(<VideoPlayer videoId="abc123" />);
     const video = document.querySelector("video")!;
 
-    // Simulate loadedmetadata
     Object.defineProperty(video, "duration", { value: 300, writable: true });
     fireEvent.loadedMetadata(video);
 
@@ -78,12 +74,6 @@ describe("VideoPlayer", () => {
     expect(mockGetSavedProgress).not.toHaveBeenCalled();
   });
 
-  // Periodic saving is driven by the shared playback clock rather than
-  // the element's `timeupdate`, so that native media and the .loft
-  // player share one implementation. These cover the wiring — that the
-  // player really does hand a controller to usePlaybackProgress, and
-  // that the profile fork reaches the right store. The rules themselves
-  // are covered in lib/__tests__/playbackProgress.test.ts.
   describe("periodic saving", () => {
     beforeEach(() => {
       vi.useFakeTimers();
@@ -107,18 +97,15 @@ describe("VideoPlayer", () => {
         configurable: true,
       });
       // jsdom reports a media element as paused forever, which would
-      // leave the clock on its idle heartbeat. We are testing a video
-      // that is playing.
+      // leave the clock on its idle heartbeat.
       Object.defineProperty(video, "paused", {
         value: false,
         configurable: true,
       });
 
-      // The clock subscribed while the element still looked paused, so
-      // it opened on the idle interval; this first tick is the one that
-      // notices playback and speeds up. It also starts the resume read,
-      // and saving deliberately stands still until that settles so it
-      // cannot write back the position being restored.
+      // The clock subscribed while the element still looked paused, so the
+      // first tick is on the idle interval. Saving waits for the resume read
+      // to settle.
       act(() => {
         vi.advanceTimersByTime(MEDIA_CLOCK_IDLE_MS);
       });
@@ -150,11 +137,8 @@ describe("VideoPlayer", () => {
     });
   });
 
-  // Spec 2026-08-10-media-import-watch-surface.md §4.2: reaching the end
-  // must leave a *completed* history record. The continue-watching query
-  // filters it out via its own 90% gate, so deleting the row here only
-  // destroyed the distinction between "watched to the end" and "never
-  // opened".
+  // Reaching the end records a completed history record rather than deleting
+  // it: the continue-watching query filters it out via its own 90% gate.
   it("records the final position on ended when profile is set", () => {
     mockProfile.nickname = "Alice";
     const onEnded = vi.fn();
@@ -187,9 +171,6 @@ describe("VideoPlayer", () => {
     expect(onEnded).toHaveBeenCalled();
   });
 
-  // "Do not fabricate a completed state" (spec §7). A live stream or a
-  // media element that never probed its length has no duration to
-  // compare a position against, so the last periodic save stands.
   it("does not write a completion record when duration is unknown", () => {
     mockProfile.nickname = "Alice";
     const onEnded = vi.fn();
@@ -202,8 +183,6 @@ describe("VideoPlayer", () => {
 
     expect(mockSaveWatchProgress).not.toHaveBeenCalled();
     expect(mockDeleteWatchProgress).not.toHaveBeenCalled();
-    // Playback lifecycle still fires — an unobservable duration must not
-    // make the video unplayable or break collection advance.
     expect(onEnded).toHaveBeenCalled();
   });
 });

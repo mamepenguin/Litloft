@@ -35,8 +35,6 @@ describe("useArchiveViewMode", () => {
     );
 
     act(() => result.current.setViewMode("list"));
-    // A new level of the same archive would derive `grid`. It does not win:
-    // the reader has seen that answer and said otherwise.
     rerender({ derived: "grid" });
     expect(result.current.viewMode).toBe("list");
   });
@@ -67,9 +65,6 @@ describe("useArchiveViewMode", () => {
   });
 
   it("ignores the superseded global key", () => {
-    // `archive-view-mode` held one answer for every archive. Honouring it
-    // would hand that reader a grid of folder icons forever, which is the
-    // face ARC-3 exists to stop.
     window.localStorage.setItem("archive-view-mode", "grid");
 
     const { result } = renderHook(() => useArchiveViewMode("zip-1", "list"));

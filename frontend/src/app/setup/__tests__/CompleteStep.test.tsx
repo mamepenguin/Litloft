@@ -1,11 +1,3 @@
-// CompleteStep test (RED phase)
-//
-// Choices:
-// - Clicking "完了" calls POST /api/admin/config/complete-setup. On success,
-//   it calls a router.push('/admin') (mocked next/navigation).
-// - We don't test redirect behavior of next/navigation directly — we assert
-//   that the mocked router.push receives '/admin'.
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
@@ -63,10 +55,6 @@ describe("CompleteStep", () => {
   });
 
   it("submit button shows a resolved label, not a raw i18n key", async () => {
-    // Regression: the button used t('complete') under the "setup"
-    // namespace, but setup.complete is an object namespace, so next-intl
-    // rendered the literal key path. The label must be a real string and
-    // must not leak the "setup." key prefix.
     render(<CompleteStep onBack={vi.fn()} summary={DEFAULT_SUMMARY} />);
     const buttons = screen.getAllByRole("button");
     const submit = buttons[buttons.length - 1];
@@ -85,13 +73,6 @@ describe("CompleteStep", () => {
   });
 });
 
-// Additional tests (RED phase) for the redesigned CompleteStep summary card.
-// These rely on the new `summary` prop, which is required after the
-// 2026-04-30 setup-wizard-redesign spec. The summary block must show:
-//   - driveCount with localized unit
-//   - accessMode label ("全公開" or "パスワード保護")
-//   - addonOnCount with localized unit
-// In addition, a "next steps" section with three ordered items must render.
 describe("CompleteStep summary card", () => {
   it("renders driveCount value", () => {
     render(
@@ -100,7 +81,6 @@ describe("CompleteStep summary card", () => {
         summary={{ driveCount: 3, accessMode: "public", addonOnCount: 0 }}
       />,
     );
-    // Match "3 件" or "3" (locale unit may live in adjacent text).
     expect(screen.getByText(/\b3\b/)).toBeInTheDocument();
   });
 
@@ -131,8 +111,6 @@ describe("CompleteStep summary card", () => {
         summary={{ driveCount: 1, accessMode: "public", addonOnCount: 2 }}
       />,
     );
-    // Find a "2" in the rendered output (the addonOnCount value).
-    // We assert there is at least one node containing the literal "2".
     const matches = screen.getAllByText(/\b2\b/);
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
@@ -144,16 +122,12 @@ describe("CompleteStep summary card", () => {
         summary={{ driveCount: 1, accessMode: "public", addonOnCount: 0 }}
       />,
     );
-    // Heading: localized "次の手順" / "完了ボタンを押すと" or fallback key
-    // path "setup.complete.nextStepsTitle".
     const heading =
       screen.queryByText(/次の手順|完了ボタン|next step/i) ??
       screen.queryByText(/setup\.complete\.nextStepsTitle/i);
     expect(heading).not.toBeNull();
 
-    // The next-steps list should be an <ol> with 3 <li>.
     const ols = container.querySelectorAll("ol");
-    // At least one <ol> with 3 children corresponds to the next-steps list.
     const matchedOl = Array.from(ols).find(
       (ol) => ol.querySelectorAll("li").length === 3,
     );

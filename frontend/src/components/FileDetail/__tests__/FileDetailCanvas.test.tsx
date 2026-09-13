@@ -14,11 +14,7 @@ import {
   usePolicyMock,
 } from "./harness";
 
-// Heavy children are mocked: these suites are about FileDetail's own
-// contract, not about what the children render — those have their own
-// tests. The stub bodies live in ./harness so the three suites that
-// need the same set do not each carry a copy; `vi.mock` itself has to
-// stay here, because it is hoisted per file.
+// `vi.mock` has to stay in this file because it is hoisted per file.
 
 vi.mock("../../FilePreview", async () => ({
   FilePreview: (await import("./harness")).FilePreviewStub,
@@ -35,11 +31,9 @@ vi.mock("../../ExifSection", async () => ({
 vi.mock("../../AddonSlotsProvider", async () => ({
   useAddonSlots: (await import("./harness")).useAddonSlotsStub,
 }));
-// Both exports: `ShellLayout` takes `SlotEntryRenderer` by name, so a
-// factory that returns only `AddonSlot` leaves it `undefined`. It is
-// harmless while no suite here claims a `player-side` entry, and the
-// moment one does the failure is `Element type is invalid` pointing at
-// nothing in particular.
+// Both exports: `ShellLayout` takes `SlotEntryRenderer` by name, and a
+// missing one fails only as `Element type is invalid` once a suite claims
+// a `player-side` entry.
 vi.mock("../../AddonSlot", async () => {
   const harness = await import("./harness");
   return {
@@ -91,14 +85,8 @@ vi.mock("../../SidebarProvider", async () => {
 });
 
 /**
- * The legacy vertical stack, which is the collection-playback route's
- * layout — `/files/{id}` with `?collection=` or `?folder_play=1`.
- *
- * It is not a leftover. The canonical URL is a file's address, so the
- * design deliberately did not give this route a second inspector, and
- * "not investing in a surface" is not the same as taking the rail it
- * already has off it. Every case below is therefore still shipped
- * behaviour; what changed in 2026-09 is only which surface it is on.
+ * The collection-playback route's layout (`?collection=` or `?folder_play=1`).
+ * It is still shipped behaviour, not a leftover of the older stack.
  */
 describe("FileDetailContent companion region (collection route)", () => {
   beforeEach(() => {
@@ -130,8 +118,6 @@ describe("FileDetailContent companion region (collection route)", () => {
   it("renders nothing at all when no addon claims the slot", async () => {
     const { container } = await renderFile(makeFile());
 
-    // Not merely hidden: with no occupant the grid never appears, so
-    // the page keeps exactly the layout it had before this existed.
     expect(screen.queryByTestId("addon-slot-player-side")).toBeNull();
     expect(grid(container)).toBeNull();
   });
@@ -294,10 +280,6 @@ describe("FileDetailContent companion region (collection route)", () => {
   });
 
   it("marks video and .loft as framed, and nothing else", async () => {
-    // The theater width cap inverts a 16:9 ratio, so it is only
-    // meaningful where the height follows the width. An image sizes
-    // itself from `max-h-[70vh]`; a PDF or text preview has no ratio at
-    // all. Capping their column would narrow them on a short window.
     const framed = async (file: FileItem) => {
       const { container, unmount } = await renderFile(file);
       const wrapper = container.querySelector<HTMLElement>(
@@ -367,9 +349,6 @@ describe("FileDetailContent companion region (collection route)", () => {
     ]);
   });
 
-  // Spec 2026-08-11-media-chapters.md §6. Core is an occupant now, not
-  // only the host, so "is anyone here" stopped being the same question
-  // as "has an addon claimed the slot".
   it("gives the rail to a file with chapters and no addon occupant", async () => {
     const { container } = await renderFile(makeFile({ has_chapters: true }));
 
@@ -400,23 +379,12 @@ describe("FileDetailContent companion region (collection route)", () => {
 
   it("keeps the chapters through a mutation that answers without them", async () => {
     // like / dislike / favourite / metadata / rename all reply with the
-    // plain FileResponse, which has no `has_chapters`. Storing that whole
-    // object used to erase the flag, so liking a video made its chapters
-    // vanish until the next reload.
+    // plain FileResponse, which has no `has_chapters`.
     const { container } = await renderFile(makeFile({ has_chapters: true }));
     expect(grid(container)).not.toBeNull();
 
-    // `makeFile` carries no `has_chapters` unless asked, which is exactly
-    // the shape these endpoints answer with.
-    //
-    // The distinct title is a positive control for the merge. What could
-    // erase the flag is the response being stored, not the request being
-    // sent, so waiting on the mock having been called waits for the wrong
-    // event — it happens to work only because the resolution lands inside
-    // waitFor's first poll. The panel is already on screen from the initial
-    // render, so if that timing ever went the other way this would pass
-    // without the merge having happened, and say nothing. Waiting for the
-    // new title waits for the merge itself.
+    // The distinct title is what is waited for: the panel is already on
+    // screen, so waiting on the mock call would not wait for the merge.
     (api.likeFile as ReturnType<typeof vi.fn>).mockResolvedValue(
       makeFile({ liked_at: "2026-09-01T00:00:00Z", title: "Sample (liked)" }),
     );
@@ -491,9 +459,6 @@ describe("FileDetailContent companion region (collection route)", () => {
   });
 
   it("gives the slot a wrapper that carries the height on", async () => {
-    // The wrapper C-1 avoided. It is only safe because it is itself a
-    // flex container in the chain; if it ever stops being one the
-    // transcript lays itself out at full length and gets clipped.
     slotMocks.occupied.add("player-side");
     const { container } = await renderFile(makeFile({ has_chapters: true }));
 
@@ -515,11 +480,6 @@ describe("FileDetailContent companion region (collection route)", () => {
   });
 
   it("always asks the occupant to fill, because the host always bounds", async () => {
-    // Deciding this by file kind was wrong: which form is in use is a
-    // container-width question answered in CSS, so a video in a narrow
-    // pane got the fill treatment with nothing bounding it and the
-    // occupant ran to full length. The host now holds the height in
-    // both forms and the occupant simply fills what it is given.
     slotMocks.occupied.add("player-side");
 
     const video = await renderFile(makeFile());
@@ -537,9 +497,6 @@ describe("FileDetailContent companion region (collection route)", () => {
   });
 });
 
-// Spec 2026-08-11-media-layout-toggle.md §2. Whether the button is
-// *visible* is a container query (untestable here); whether it is
-// rendered at all is the host's decision and is.
 describe("FileDetailContent layout toggle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -602,16 +559,9 @@ describe("FileDetailContent layout toggle", () => {
 });
 
 describe("FileDetailContent rail width", () => {
-  // The rail form used to be selected by a container query. `@container`
-  // establishes a containment context, and on iOS Safari one wrapped
-  // around a <video> or a cross-origin iframe renders the whole subtree
-  // rotated and spinning (confirmed on device 2026-08-12, invisible on
-  // desktop). The width question is unchanged — this surface renders
-  // both full-width and inside the 2-pane right pane — so it is now
-  // measured and published as an attribute instead.
-  //
-  // Which is also why these assertions can exist at all: jsdom does not
-  // evaluate container queries, but it does have attributes.
+  // Measured rather than a container query: on iOS Safari a containment
+  // context around a <video> or cross-origin iframe renders the subtree
+  // rotated and spinning.
   let resize: (() => void) | undefined;
 
   beforeEach(() => {
@@ -675,9 +625,7 @@ describe("FileDetailContent rail width", () => {
 
   it("measures a wrapper that only appears once an addon claims the slot", async () => {
     // `getFile` routinely wins the race against the addon catalogue, so
-    // the wrapper mounts on a later commit than the one the measuring
-    // effect ran on. A dependency list would have to name every reason
-    // it can appear; the callback ref does not care which one it was.
+    // the wrapper mounts on a later commit than the measuring effect.
     slotMocks.occupied.clear();
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1200);
     setApiResponses(makeFile());
@@ -702,8 +650,7 @@ describe("FileDetailContent rail width", () => {
   });
 
   it("scales the threshold with the root font size", async () => {
-    // 60rem at a 20px root is 1200px, so 960 is no longer enough. The
-    // rail and player minimums the number came from are in rem too.
+    // 60rem at a 20px root is 1200px, so 960 is no longer enough.
     vi.spyOn(window, "getComputedStyle").mockImplementation(
       ((element: Element) =>
         element === document.documentElement
@@ -729,13 +676,8 @@ describe("the collection route and the Related group", () => {
   });
 
   it("reaches an addon's derived relations, which moved out of the other slot", async () => {
-    // An addon publishing to `file-relations` has *moved* its entry
-    // there — left in both, core would render it twice and could not
-    // detect that. So a host drawing only `file-detail-sections` does
-    // not merely style the section differently: it loses it. This route
-    // is the one host in that position, and the confirmed decision not
-    // to give it an inspector is not a decision to take a section off
-    // it (user ruling, 2026-09-04).
+    // An addon publishing to `file-relations` has moved its entry out of
+    // `file-detail-sections`, so a host drawing only the latter loses it.
     claimSlot("file-relations", [
       { id: "derived", label: "Derived", priority: 10, addonName: "some-addon" },
     ]);
@@ -745,19 +687,12 @@ describe("the collection route and the Related group", () => {
 
     expect(screen.getByTestId("addon-slot-file-relations")).toBeInTheDocument();
     expect(screen.getByTestId("related-files")).toBeInTheDocument();
-    // Under one heading, not as two lists side by side. Core's own
-    // relations and an addon's derived ones answer the same question,
-    // and this column has no inspector to make that obvious some other
-    // way.
     expect(screen.getByRole("heading", { level: 3 })).toBeInTheDocument();
   });
 
   it("draws no grouping heading where there is nothing to group with", async () => {
-    // A grouping heading over a single group is a row saying only that a
-    // category exists. Asked of the catalogue and not of the DOM: a
-    // derived source may be a collapsed control that has computed
-    // nothing yet, so what it rendered says nothing about whether it is
-    // there.
+    // Asked of the catalogue and not of the DOM: a derived source may be a
+    // collapsed control that has rendered nothing yet.
     setApiResponses(makeFile());
     render(<FileDetailContent fileId="f1" drive="main" surface="collection" />);
     await loaded();

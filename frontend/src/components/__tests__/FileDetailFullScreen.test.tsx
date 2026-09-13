@@ -76,8 +76,6 @@ vi.mock("@/components/CollectionPanel", () => ({
   getCollectionOnEnded: () => null,
 }));
 
-// useFileNav is stubbed: PR-2 has its own tests; PR-5 moved the
-// dirty-navigation dialog to the global ``<DirtyBlocker />``.
 vi.mock("@/hooks/useFileNav", () => ({
   useFileNav: vi.fn(() => ({ prevId: null, nextId: null })),
 }));
@@ -242,13 +240,8 @@ describe("FileDetailFullScreen", () => {
     );
   });
 
-
-  // `FileDetailContent` is stubbed in this file, so counting page rows
-  // here would count only the ones this host draws — which is exactly
-  // how a duplicate row shipped: the second one comes from the shell
-  // inside the stub, and an assertion that cannot see it passes while
-  // the page has two. What is testable here, and is where that bug
-  // lived, is whether the host decides to draw one at all.
+  // `FileDetailContent` is stubbed here, so page rows drawn by the shell
+  // inside it are invisible; only whether this host draws one is testable.
   describe("the page row", () => {
     it("gains the breadcrumb it never had, over its own way back", async () => {
       mockGetFile.mockResolvedValue(baseFile);
@@ -258,17 +251,12 @@ describe("FileDetailFullScreen", () => {
       );
 
       expect(screen.getByTestId("file-detail-chrome")).toHaveTextContent("main");
-      // A button running this route's handler, not a Link to the file's
-      // folder: from a collection, back means the collection.
       expect(screen.getByTestId("file-detail-back").tagName).toBe("BUTTON");
     });
 
     it("draws no row for a file that brings its own", async () => {
-      // A Markdown note rides `FileDetailShell`, which draws the row
-      // itself because it owns the inspector toggle sitting in it. This
-      // host drawing one too is two breadcrumbs and, on a phone, two
-      // back controls. The knowledge editor policy is fail-open, so the
-      // default resolution is the one that reaches the shell.
+      // The knowledge editor policy is fail-open, so the default resolution
+      // is the one that reaches the shell.
       mockGetFile.mockResolvedValue({
         ...baseFile,
         filename: "note.md",
@@ -284,9 +272,6 @@ describe("FileDetailFullScreen", () => {
     });
 
     it("hands its back handler to the shell rather than losing it there", async () => {
-      // The guard above would otherwise trade a duplicate row for a
-      // silently wrong one: the shell's own row links to the parent
-      // folder, which is not where back goes from a collection.
       mockGetFile.mockResolvedValue({
         ...baseFile,
         filename: "note.md",

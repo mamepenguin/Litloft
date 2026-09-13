@@ -55,9 +55,6 @@ describe("pdfPageWidth", () => {
   });
 
   it("does not let whole-page grow past the width it has", () => {
-    // A very tall box would otherwise ask for a page wider than the
-    // canvas, which is horizontal scrolling in the mode whose whole
-    // promise is that nothing is cut off.
     const width = pdfPageWidth({
       mode: "fit-page",
       available: 400,
@@ -97,9 +94,6 @@ describe("pdfPageWidth", () => {
   });
 
   it("does not cap actual size, which would make it a different size", () => {
-    // A0 is 2384pt wide. Capping it at 900 would be a mode that claims
-    // to show the page at its own size while showing it at a third of
-    // it; the cap exists to keep a *fitted* line comfortable to read.
     const a0 = pdfPageWidth({
       mode: "actual",
       available: 2000,
@@ -121,13 +115,10 @@ describe("pdfPageWidth", () => {
         }),
       ).toBe(640);
     }
-    // The loop above is vacuous unless there are modes in it.
     expect(PDF_ZOOM_MODES).toHaveLength(3);
   });
 
   it("treats a box with no height as not laid out yet", () => {
-    // `<Page width={0}>` gives react-pdf `scale: 0` and a zero-area
-    // canvas; a negative height gives a negative scale.
     for (const availableHeight of [0, -1]) {
       expect(
         pdfPageWidth({
@@ -141,14 +132,6 @@ describe("pdfPageWidth", () => {
   });
 
   it("never draws a fitted page wider than the box it is fitted to", () => {
-    // The promise each fitted mode's name makes. A `fit-page` page wider
-    // than its box has a horizontal scrollbar, and a "whole page" you
-    // scroll sideways to see is not one; `fit-width` that overflows the
-    // width is the same contradiction. Below what used to be the floor
-    // the page is drawn small instead — 266px of box gives 266px of
-    // page, not 280 with 14 of it past the edge.
-    // Derived, not listed: every mode but `actual`, which is exempt by
-    // its own claim. A fourth fitted mode is covered the day it exists.
     const fitted = PDF_ZOOM_MODES.filter((mode) => mode !== "actual");
     expect(fitted.length).toBeGreaterThan(0);
     for (const available of [266, 200, 120, 40, 1]) {
@@ -169,10 +152,6 @@ describe("pdfPageWidth", () => {
   });
 
   it("fits a box too short to hold a floor's worth of page", () => {
-    // The height side of the same promise. `availableHeight` of 50 used
-    // to be raised to 200, which drew a 141px-wide page 200px tall in a
-    // 50px box — overflowing the one direction the mode exists to keep
-    // whole.
     const width = pdfPageWidth({
       mode: "fit-page",
       available: 900,
@@ -184,11 +163,6 @@ describe("pdfPageWidth", () => {
   });
 
   it("returns a positive width for a box that has measured nothing", () => {
-    // The state the guard above is named for — `display: none`, detached,
-    // observed before first layout — reports zero on *both* axes, and a
-    // zero width reaches `<Page>` as `scale: 0` exactly like a zero
-    // height. Every mode, so the floor is the function's contract rather
-    // than one branch's.
     for (const mode of PDF_ZOOM_MODES) {
       for (const pageBox of [A4, null]) {
         expect(
@@ -251,16 +225,12 @@ describe("rasterPixelRatio", () => {
   });
 
   it("drops the ratio rather than the size when the budget bites", () => {
-    // A0 at actual size, zoomed to 200%, on a DPR-2 screen: the raster
-    // the browser was being asked for is ~228M pixels, which Safari
-    // refuses — and the page then paints blank with nothing thrown.
+    // A0 at actual size, zoomed to 200%.
     const a0x2 = { cssWidth: 3178 * 2, cssHeight: 4493 * 2 };
     const ratio = rasterPixelRatio({ ...a0x2, devicePixelRatio: 2 });
     expect(ratio).toBeLessThan(2);
     const pixels = a0x2.cssWidth * ratio * (a0x2.cssHeight * ratio);
     expect(pixels).toBeLessThanOrEqual(MAX_RASTER_PIXELS + 1);
-    // And the layout is untouched — that is the whole point of budgeting
-    // pixels rather than width.
     expect(a0x2.cssWidth).toBe(6356);
   });
 

@@ -1,29 +1,3 @@
-/**
- * The layout fixture's class lists, against the components it copies.
- *
- * `e2e-layout/mobile-inspector-sheet.spec.ts` measures where the drawer,
- * the box inside it and the scroller land at each snap, and it can only
- * measure the markup in front of it — markup that file writes itself.
- * Take `scroll="column"` off the sheet's inspector, or put the
- * hand-written `max-height` back on the scroller, and every case there
- * stays green, because the fixture never asked the components anything.
- *
- * This is what asks. Both forms of `InspectorShell` and the sheet's own
- * chrome are rendered from the real components and compared with the
- * fixture's declarations, whole and in both directions: a class dropped
- * from either side is red.
- *
- * It also pins the one thing the fixture reproduces rather than copies —
- * vaul's `--snap-point-height`. The fixture computes it as
- * `innerHeight × (1 − snap)`; the case at the bottom renders a real vaul
- * drawer at each snap and reads the variable back off the DOM, so a vaul
- * upgrade that changes the formula fails here rather than making every
- * browser case measure a drawer nobody ships.
- *
- * jsdom lays nothing out, so nothing here is evidence about a position.
- * That is the browser spec's, and this is what connects the two.
- */
-
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
@@ -89,8 +63,8 @@ const entry = (id: string): SlotEntry => ({
 
 /**
  * Two tabs, because the fixture draws a strip and there is no strip with
- * one tab (`tabs.ts` rule 2). A one-tab render would compare the fixture's
- * strip against nothing and pass.
+ * one tab. A one-tab render would compare the fixture's strip against
+ * nothing and pass.
  */
 function renderShell(scroll: InspectorScroll) {
   const view = render(
@@ -121,13 +95,9 @@ function renderShell(scroll: InspectorScroll) {
 }
 
 /**
- * The drawer at one snap.
- *
  * Takes the snap rather than the state, because what the browser fixture
- * reproduces is vaul's arithmetic on a *number* — including the derived
- * ones `half` now takes. `full`'s own value is the one fixed point, so
- * it is the state used to reach it and everything else goes through
- * `half`'s `halfSnap`.
+ * reproduces is vaul's arithmetic on a *number*, including the derived
+ * ones `half` takes.
  */
 function renderSheet(snap: number) {
   render(
@@ -174,10 +144,6 @@ describe("the sheet's own chrome", () => {
   });
 
   it("declares the handle, which is what stands between the drawer's top edge and the scroller", () => {
-    // The reason the replaced `max-height` cap was short: it capped the
-    // scroller by the snap and then pushed it down by whatever was above
-    // it. The fixture has to draw the same thing above the scroller or
-    // its "the cap ends below the screen" case is about a different gap.
     renderSheet(SHEET_SNAP_HALF_FALLBACK);
     const handle = document.querySelector<HTMLElement>("[data-vaul-handle]")!;
     expectSameClasses(handle.className, str("handle"));
@@ -188,9 +154,6 @@ describe("the sheet's own chrome", () => {
 
     expect(visible.style.height).toBe(SHEET_VISIBLE_HEIGHT);
     expect(str("visibleHeight")).toBe(SHEET_VISIBLE_HEIGHT);
-    // And nothing else caps the scroller. A `max-height` here would be a
-    // second definition of the same number and the fixture's `cap-50vh`
-    // case would be measuring what ships.
     expect(scroller.style.maxHeight).toBe("");
     // Through the constant rather than through the rendered style: jsdom
     // reorders the arguments of an `env()` it re-serialises, so the
@@ -200,10 +163,6 @@ describe("the sheet's own chrome", () => {
 
   it("declares the drawer's height as the fraction the browser cases are arithmetic on", () => {
     const { drawer } = renderSheet(SHEET_SNAP_HALF_FALLBACK);
-    // `drawerVh` is the fixture's copy of `SHEET_DRAWER_VH`, and the
-    // browser spec sizes its own drawer from it. This is the line that
-    // makes it a claim about the app — the height the component actually
-    // wrote on the element, in px, against jsdom's own window.
     expect(SPEC.drawerVh).toBe(SHEET_DRAWER_VH);
     expect(drawer.style.height).toBe(
       `${sheetDrawerHeightPx(window.innerHeight)}px`,
@@ -211,13 +170,9 @@ describe("the sheet's own chrome", () => {
   });
 
   it("gives the drawer no viewport unit of its own", () => {
-    // The first finding of round two, as a rule rather than as the one
-    // spelling it arrived in. CSS `vh` is the large viewport and vaul
-    // solves every snap in `window.innerHeight`; `svh`, `lvh` and `dvh`
-    // are three more answers to "which viewport", and a `calc()` or a
-    // `min()` around any of them is a fourth. The drawer's height comes
-    // from `sheetDrawerHeightPx` and there is no second definition of it
-    // anywhere on the element.
+    // CSS `vh` is the large viewport and vaul solves every snap in
+    // `window.innerHeight`; any viewport unit is a second answer to "which
+    // viewport".
     const { drawer } = renderSheet(SHEET_SNAP_HALF_FALLBACK);
     const written = `${drawer.className} ${drawer.getAttribute("style") ?? ""}`;
     expect(written).not.toMatch(/\d\s*(?:[sld]?vh|vmin|vmax)\b/);
@@ -225,18 +180,6 @@ describe("the sheet's own chrome", () => {
   });
 
   it("mounts the scroller inside the visible box, and the child inside the scroller", () => {
-    // **The component's tree, not the fixture's.** The class lists above
-    // would still match if the sheet stopped nesting these — a scroller
-    // beside the box instead of inside it carries the same utilities and
-    // does none of the work — so this is what says the box encloses the
-    // scroller here.
-    //
-    // The fixture's own nesting is not reachable from this file: it is
-    // JavaScript in `fixtures/mobile-inspector-sheet.html` that nothing
-    // here executes. Measured: rebuilding the fixture to append them as
-    // siblings left every case in this file green and turned 29 browser
-    // cases red, so the fixture's half is held by the browser suite. Do
-    // not read this case as covering it.
     const { visible, scroller } = renderSheet(SHEET_SNAP_FULL);
     expect(visible).toContainElement(scroller);
     expect(scroller).toContainElement(screen.getByTestId("sheet-child"));
@@ -244,20 +187,14 @@ describe("the sheet's own chrome", () => {
 });
 
 describe("both forms of the inspector", () => {
-  // Declared as a table rather than two hand-written cases, and the loop
-  // records what it registered so shrinking it disagrees with the
-  // declaration rather than passing quietly.
   const FORMS = [
     { scroll: "column", keys: ["columnRoot", "columnHeader", "columnStrip", "columnPanel"] },
     { scroll: "panel", keys: ["panelRoot", "panelHeader", "panelStrip", "panelPanel"] },
   ] as const;
   const compared: string[] = [];
 
-  // Recorded **after** the `it()` it belongs to, not before. With the
-  // push first, anything between the two lines — a `continue`, a
-  // condition, a `throw` — drops the registration and leaves the record,
-  // and this guard goes on agreeing with a loop that registered nothing.
-  // With it last, a skipped `it()` takes its push with it.
+  // Recorded **after** the `it()` it belongs to, not before, so a skipped
+  // `it()` takes its push with it.
   it("compares exactly the two forms the fixture declares", () => {
     expect(compared).toEqual(["column", "panel"]);
     expect(FORMS.flatMap((form) => [...form.keys]).sort()).toEqual(
@@ -301,9 +238,6 @@ describe("both forms of the inspector", () => {
   });
 
   it("puts the scroller in the column form and in the panel form's panel, and nowhere else", () => {
-    // The C-1 defect as a comparison rather than as a count: the two
-    // forms differ in *which* box declares the overflow, and that is the
-    // whole of it.
     const overflowing = (className: string) =>
       [...tokens(className)].filter((token) =>
         /^overflow(-y)?-(auto|scroll)$/.test(token),
@@ -314,26 +248,14 @@ describe("both forms of the inspector", () => {
     expect(overflowing(str("columnPanel"))).toEqual([]);
     expect(overflowing(str("panelPanel"))).toEqual(["overflow-auto"]);
     expect(overflowing(str("scroller"))).toEqual(["overflow-auto"]);
-    // The strip scrolls sideways in both forms — which is why the browser
-    // spec names the box that scrolls instead of counting scroll
-    // containers, since `overflow-x: auto` computes `overflow-y` to
-    // `auto` as well.
     expect(tokens(str("columnStrip"))).toContain("overflow-x-auto");
     expect(tokens(str("panelStrip"))).toContain("overflow-x-auto");
   });
 });
 
 describe("vaul's snap arithmetic, which the fixture reproduces", () => {
-  // Two implementations, not one table read twice: vaul computes the
-  // offset inside a React render from `window.innerHeight`, and the
-  // expectation is the published formula written out here. A vaul upgrade
-  // that changes either the formula or the variable's name fails this.
-  //
-  // Three, not two: `half` is no longer a constant — it is derived from
-  // the player's bottom edge — so a value that is neither of the two the
-  // component knows is exactly what vaul is handed on a video page. A
-  // table of the two named snaps would leave "vaul accepts an arbitrary
-  // snap point" untested, which is the premise unit D rests on.
+  // `half` is derived from the player's bottom edge, so a value that is
+  // neither of the two named snaps is what vaul is handed on a video page.
   const SNAPS = [SHEET_SNAP_HALF_FALLBACK, 0.627736, SHEET_SNAP_FULL];
   expect(SNAPS).toHaveLength(3);
 
@@ -361,10 +283,6 @@ describe("vaul's snap arithmetic, which the fixture reproduces", () => {
   }
 
   it("is the same expression the fixture computes it with", () => {
-    // A text match, and it is the only tie there can be: the fixture's
-    // copy runs in a browser this file never opens. What the case above
-    // buys is that the formula is vaul's; what this one buys is that the
-    // fixture is using that formula and not another.
     expect(FIXTURE_HTML).toContain("window.innerHeight * (1 - snap)");
     expect(FIXTURE_HTML).toContain("--snap-point-height");
   });
@@ -372,19 +290,6 @@ describe("vaul's snap arithmetic, which the fixture reproduces", () => {
 
 describe("the fixture's declarations", () => {
   /**
-   * Every key, and which file compares it against a component.
-   *
-   * The fixture's builders index `SPEC` by name, so a key removed here
-   * and there together would leave both halves agreeing about nothing —
-   * and a key added with nothing comparing it is a class list the
-   * browser cases measure and no component has ever been asked about.
-   *
-   * The `page` half is compared in
-   * `FileDetail/__tests__/MediaShell.test.tsx`, which is where a real
-   * `FileDetailShell` is already mounted; the `sheet` half is compared
-   * above; and the player's bleed in `FilePreview.test.tsx`, which is the
-   * only suite that renders the real `FilePreview` — the shell harness
-   * stubs it, so the class list is not on the page there at all.
    * Splitting the *list* would let either side grow a key the others did
    * not know about, so the list stays whole and only the comparisons are
    * elsewhere.
@@ -440,15 +345,6 @@ describe("the fixture's declarations", () => {
   });
 
   it("points at the files that compare the other two lists", () => {
-    // Detector rule 4: the paragraph above says which file compares
-    // which keys. Until this file can fail when that stops being true,
-    // that is a sentence. It reads the other files and checks each key is
-    // named in one of them.
-    //
-    // **Both lists, not one.** The census at the top balances on list
-    // *membership*, so a key nobody compares anywhere keeps it green —
-    // which is what happened when the third list was added with the
-    // paragraph and without this loop.
     const elsewhere: [readonly string[], string, string][] = [
       [
         COMPARED_IN_MEDIA_SHELL,

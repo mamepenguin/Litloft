@@ -54,20 +54,12 @@ describe("ViewToggle (controlled)", () => {
     render(<ViewToggle mode="list" onChange={vi.fn()} />);
     const list = screen.getByLabelText("List view");
     const grid = screen.getByLabelText("Grid view");
-    // `classList.contains`, not `className.toContain`: the old assertion
-    // matched "bg-accent" as a substring, so it would also have passed on
-    // `bg-accent/10` or `bg-accent-teal`.
     expect(list.classList.contains("border-accent")).toBe(true);
     expect(grid.classList.contains("border-accent")).toBe(false);
   });
 
-  // DESIGN.md §2.2: one accent fill per screen, and it belongs to what the
-  // screen is for. A view switch is not what any screen is for, so wherever
-  // this control rides it was spending a budget that belonged elsewhere —
-  // which is why the fill came off here rather than at each call site. Which
-  // screens those are, and so which backgrounds the contrast was measured
-  // against, is enumerated by the test at the bottom of this file and not by
-  // this sentence.
+  // One accent fill per screen, and it belongs to what the screen is for. A
+  // view switch is not what any screen is for.
   it("does not spend an accent fill on the selected view", () => {
     render(<ViewToggle mode="list" onChange={vi.fn()} />);
     for (const label of ["List view", "Grid view"]) {
@@ -81,11 +73,7 @@ describe("ViewToggle (controlled)", () => {
 
   // Selection has to be *visible*, which a surface cannot do here: `--bg-card`
   // and `--bg-primary` are both `#ffffff` in the light theme, so a
-  // card-coloured selected state is the page background. The first attempt at
-  // removing the accent fill shipped exactly that. Neither jsdom nor a class
-  // assertion can see a colour, so what is pinned instead is the *device*:
-  // selection is a border, and both buttons carry a border box so nothing
-  // shifts when it changes colour.
+  // card-coloured selected state is the page background.
   it("marks selection with a border that both buttons reserve room for", () => {
     render(<ViewToggle mode="list" onChange={vi.fn()} />);
     const list = screen.getByLabelText("List view");
@@ -106,13 +94,6 @@ describe("ViewToggle (controlled)", () => {
   });
 });
 
-// Where this control actually appears.
-//
-// A comment naming these screens was maintained by hand and was wrong by two,
-// and that same list was the list of backgrounds its contrast was measured
-// against — so the prose was doing the job of an enumeration. That is the `>=`
-// hazard in sentence form: what it omitted could not contradict it. The set is
-// asserted here instead, and the comments there cite this test.
 describe("where ViewToggle is used", () => {
   const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -139,10 +120,7 @@ describe("where ViewToggle is used", () => {
   it("appears on exactly the screens its comment names", () => {
     // A screen keeps the toggle where the bar it sits on has room for two
     // adjacent icons; a bar competing for room carries a labelled
-    // `View: <layout>` menu instead, which is what both folder listings
-    // draw. The set is enumerated rather than counted, because a screen
-    // that lost the control and a screen that never had it are the same
-    // number.
+    // `View: <layout>` menu instead.
     expect(callSites()).toEqual([
       "components/CollectionDetail.tsx",
       "components/missing/MissingView.tsx",

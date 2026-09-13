@@ -7,25 +7,9 @@ import { Filter } from "lucide-react";
 import { MENU_SURFACE_GAP_PX, ToolbarMenu } from "@/components/ToolbarMenu";
 
 /**
- * What `e2e-layout/fixtures/toolbar-menu.html` writes, against what
- * `ToolbarMenu` renders.
- *
- * The fixture draws its own markup — it has to, since a static page off
- * `file://` cannot import a `.tsx` — so it drifts away from what it claims
- * to reproduce and keeps every case title. This is the pin: the browser
- * spec measures a recipe, and this says the recipe is the app's.
- *
- * **What is pinned and what is not.** Every string the *component* owns is
- * compared: the wrapper, the trigger, and the surface in the four pieces
- * `useMenuSurface` assembles it from. The fixture's `bar` and `row` are the
- * page's own — a sticky bar for the wrapper to sit on and a row to give the
- * menu a height — and no component owns those exact lists. Nothing the
- * spec asserts is a function of either: it reads boxes relative to the
- * trigger and the viewport, never an absolute number that a different
- * padding would move.
- *
- * jsdom lays nothing out, so this file can say the strings agree and
- * nothing about where they put a box. That is the browser spec's half.
+ * The fixture draws its own markup because a static page off `file://`
+ * cannot import a `.tsx`, so its class lists are pinned against the
+ * component here. `bar` and `row` are the page's own and not compared.
  */
 const FIXTURE = readFileSync(
   resolve(__dirname, "../../../e2e-layout/fixtures/toolbar-menu.html"),
@@ -43,11 +27,8 @@ const tokens = (list: string) => list.split(/\s+/).filter(Boolean);
 const sorted = (list: string[]) => [...list].sort();
 
 /**
- * The rendered list is exactly the union of the declared parts.
- *
- * A union rather than a subset on purpose: `toContain` per part would stay
- * green when the component grows a token the fixture never draws, which is
- * the drift this file exists to catch.
+ * Equality with the union rather than `toContain` per part, which would stay
+ * green when the component grows a token the fixture never draws.
  */
 function expectComposedOf(rendered: string, parts: string[]) {
   const expected = new Set<string>();
@@ -55,14 +36,6 @@ function expectComposedOf(rendered: string, parts: string[]) {
   expect(sorted(tokens(rendered))).toEqual(sorted([...expected]));
 }
 
-/**
- * State the wrapper's box and the menu's, so a case can reach a corner the
- * zeroes jsdom reports cannot.
- *
- * Without this every rect is zero, the menu fits everywhere and only the
- * downward form is ever drawn — so the `up` half of the fixture would be
- * pinned against nothing.
- */
 function stubBoxes(
   wrapper: { top: number; bottom: number },
   menu: { height: number; width: number },
@@ -79,7 +52,6 @@ function stubBoxes(
   );
 }
 
-/** Open a `ToolbarMenu` resolved to the requested corner. */
 function openAt(corner: { up: boolean; align: "start" | "end" }) {
   if (corner.up) stubBoxes({ top: 700, bottom: 740 }, { height: 300, width: 200 });
   const { container } = render(
@@ -91,15 +63,6 @@ function openAt(corner: { up: boolean; align: "start" | "end" }) {
   return container;
 }
 
-/**
- * The four corners the fixture declares, and the keys each of them is
- * built from.
- *
- * Declared per corner rather than derived from the two axes: deriving both
- * sides from one table is what makes a deletion invisible, because the
- * removed element leaves the expectation and the observation at the same
- * time.
- */
 const CORNERS = [
   { up: false, align: "end", direction: "down", side: "right" },
   { up: false, align: "start", direction: "down", side: "left" },
@@ -112,7 +75,6 @@ describe("the toolbar-menu layout fixture's class lists", () => {
   afterEach(() => vi.restoreAllMocks());
 
   it("declares the four corners the component can resolve to", () => {
-    // Counted as well as enumerated, so the table cannot be walked back.
     expect(CORNERS).toHaveLength(4);
     expect([...new Set(CORNERS.map((c) => c.direction))]).toEqual([
       "down",
@@ -145,11 +107,6 @@ describe("the toolbar-menu layout fixture's class lists", () => {
   }
 
   it("declares the gap the component reserves for the menu", () => {
-    // The fixture measures the gap Chromium leaves against `SPEC.gapPx`,
-    // and the component adds `MENU_SURFACE_GAP_PX` to the panel's height
-    // before asking whether it fits. Two numbers in two files, tied here,
-    // so the browser measurement is a measurement of the component's
-    // arithmetic rather than of a literal beside it.
     expect(SPEC.gapPx).toBe(MENU_SURFACE_GAP_PX);
   });
 });

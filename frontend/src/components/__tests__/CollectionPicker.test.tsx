@@ -1,15 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
-/**
- * The create-and-add button.
- *
- * It had no test at all, which the Phase 3 button sweep made expensive:
- * deleting its `onClick` left 4314 tests green, and the user-visible result is
- * a Create button that does nothing at all. A sweep that edits the line above
- * a handler needs something watching the handler.
- */
-
 const apiMocks = vi.hoisted(() => ({
   getCollections: vi.fn(),
   createCollection: vi.fn(),
@@ -55,8 +46,7 @@ describe("CollectionPicker create-and-add", () => {
     );
   });
 
-  // The same handler is reachable two ways, and the sweep touched only one of
-  // them. A test that pressed Enter would pass with the button inert.
+  // A test that pressed Enter would pass with the button inert.
   it("creates on Enter as well as on the button", async () => {
     const input = await startCreating();
     fireEvent.change(input, { target: { value: "Reading" } });

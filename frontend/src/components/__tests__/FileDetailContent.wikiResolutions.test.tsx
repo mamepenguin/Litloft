@@ -2,37 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 
 /**
- * Phase C wiring, spec 2026-05-12-markdown-link-three-forms.md §3.8.
- *
- * ``MarkdownFileViewer`` already fetches the .md body on mount (and on
- * ``externalReloadKey`` bumps). Phase C extends it to also fetch
- * ``GET /api/files/{id}/wiki-resolutions`` and pass the resulting map
- * to ``<MarkdownPreview wikiResolution={...} />``.
- *
- * Contract:
- *  - On mount: fetch resolutions; pass them through. Preview renders
- *    immediately with the body even if resolutions are still in flight
- *    (no blocking loader).
- *  - On externalReloadKey change: re-fetch both body and resolutions.
- *  - On fetch failure (network / 5xx): the preview still renders.
- *    ``wikiResolution`` falls back to undefined so links render as
- *    unresolved (pessimistic default).
- *  - Non-.md files: the viewer is not even mounted here; this contract
- *    applies only to ``MarkdownFileViewer`` callers and is enforced
- *    indirectly by ``FilePreview``'s mime-type switch.
- *
- * Test mechanics: the original draft of this file mocked
- * ``MarkdownPreview`` so the test could inspect the props it received.
- * That pattern collides with Vitest 3.2.x's handling of circular
- * re-exports — when ``MarkdownPreview.tsx`` re-exports
- * ``MarkdownFileViewer`` from a sibling that imports ``MarkdownPreview``
- * back from the same path, the sibling's import is satisfied by the
- * actual module (not the mock) because the load happens inside the
- * mock factory's ``vi.importActual``. So instead of mocking, we assert
- * on the real DOM the actual MarkdownPreview emits. The behavioural
- * contract is preserved: a resolved wiki-link renders as
- * ``<a class="wiki-resolved">``, an unresolved one as
- * ``<span class="wiki-unresolved">``.
+ * `MarkdownPreview` is not mocked: it re-exports `MarkdownFileViewer` from a
+ * sibling that imports it back, so the sibling would get the real module
+ * rather than the mock. Assertions read the real DOM instead.
  */
 
 const { MarkdownFileViewer } = await import("@/components/MarkdownPreview");
@@ -105,8 +77,6 @@ describe("MarkdownFileViewer + wiki resolutions wiring", () => {
     const { container } = render(<MarkdownFileViewer fileId="fMd000000001" />);
 
     await waitFor(() => expect(getResolutionCalls()).toBe(1));
-    // The renderer flips the wiki-link to its "resolved" form once the
-    // resolutions map lands.
     await waitFor(() => {
       const link = container.querySelector<HTMLAnchorElement>(
         'a.wiki-link[data-wiki-target="Alpha"]',
@@ -118,9 +88,6 @@ describe("MarkdownFileViewer + wiki resolutions wiring", () => {
   });
 
   it("renders the preview immediately without waiting for resolutions", async () => {
-    // Spec contract: don't block render. The body should render and
-    // the link should appear in its unresolved (pessimistic) form
-    // until the resolutions request lands.
     let resolveResolutions!: (r: Response) => void;
     fetchMock.mockImplementation((url: string | URL) => {
       const href = typeof url === "string" ? url : url.toString();
@@ -137,8 +104,6 @@ describe("MarkdownFileViewer + wiki resolutions wiring", () => {
 
     const { container } = render(<MarkdownFileViewer fileId="fMd000000001" />);
 
-    // The body renders before the resolutions fetch resolves; the
-    // link sits in its unresolved fallback state.
     await waitFor(() => {
       const span = container.querySelector(
         'span.wiki-link[data-wiki-target="X"]',
@@ -147,7 +112,6 @@ describe("MarkdownFileViewer + wiki resolutions wiring", () => {
       expect(span!.classList.contains("wiki-unresolved")).toBe(true);
     });
 
-    // Resolve the pending fetch; the link transitions to resolved.
     resolveResolutions(
       new Response(
         JSON.stringify({
@@ -173,8 +137,6 @@ describe("MarkdownFileViewer + wiki resolutions wiring", () => {
     });
     const { container } = render(<MarkdownFileViewer fileId="fMd000000001" />);
 
-    // The body still renders; the link sits in its unresolved
-    // fallback state because the resolutions fetch failed.
     await waitFor(() => {
       const span = container.querySelector(
         'span.wiki-link[data-wiki-target="Foo"]',
