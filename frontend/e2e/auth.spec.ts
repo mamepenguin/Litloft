@@ -37,7 +37,6 @@ test.describe("Auth", () => {
     const submitBtn = page.locator('button[type="submit"]');
     await submitBtn.click();
 
-    // Should show error message
     const error = page.locator("text=Invalid password");
     await expect(error).toBeVisible({ timeout: 5_000 });
   });
@@ -46,10 +45,8 @@ test.describe("Auth", () => {
     await page.goto("/");
     await waitForApp(page);
 
-    // Without authentication, protected drives should be hidden
     const status = await getAuthStatus();
     expect(status.has_protected_drives).toBe(true);
-    // unlocked_groups should be empty (fresh session)
-    // Note: this may not be empty if cookies persist from other tests
+    // unlocked_groups is not asserted: cookies can persist from other tests.
   });
 });

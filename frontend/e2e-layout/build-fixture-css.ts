@@ -1,62 +1,16 @@
 /**
  * Compiles `src/app/globals.css` into the sheet the layout fixture links.
  *
- * The fixture is a static page with no app and no backend behind it, so
- * the one thing that makes it evidence about this repository is that the
- * cells obey *this* stylesheet — Tailwind's preflight included, since
- * `box-sizing`, `body { margin }` and `img { display: block }` all move
- * the numbers the spec measures. Compiling it is therefore part of the
- * test, not a build step that may be skipped: `playwright-layout.config.ts`
- * runs this as its `globalSetup`, so the local command and the CI job
- * cannot diverge: `pnpm test:e2e:layout` on a fresh clone builds the sheet
- * it is about to measure, every time.
- *
  * Tailwind walks out from the input file to `frontend/` and scans
  * everything under it that .gitignore does not exclude, so the fixture's
- * own HTML is a source too and any utility it uses is generated — checked
- * by adding a class nothing else in the tree carries and finding it in the
- * output.
+ * own HTML is a source too. The `@source "../addons"` in globals.css is
+ * skipped silently when that link tree is absent.
  *
- * It does not need `frontend/src/addons` to exist: the `@source
- * "../addons"` in globals.css resolves to that gitignored link tree, and
- * Tailwind skips it silently when it is absent. That is why
- * the CI job checks out without submodules and never runs
- * `setup-addons.sh` — no addon writes a rule the justified grid reads.
- *
- * `@tailwindcss/cli` carries the same `^4` as `tailwindcss` and
- * `@tailwindcss/postcss` deliberately. The three publish in lockstep at
- * identical version numbers, so one range for all three is what makes
- * `pnpm update` move them together; an exact pin on this one would have
- * meant an update moving the other two and leaving the fixture's compiler
- * behind, after which the sheet measured here is emitted by a different
- * Tailwind from the one that builds the app — different preflight,
- * possibly different `@container` or `aspect-ratio` output — and the claim
- * above quietly stops being true.
- *
- * `assertSameCompiler` is the guard, and it is not redundant with the
- * ranges: nothing enforces that Tailwind keeps publishing the three
- * together, and a `resolutions`/`overrides` entry or a partial update can
- * separate them at any time. The `REQUIRED` needles below are all
- * version-insensitive, so nothing here would notice.
- *
- * It is exported because it is no longer the only caller of that binary:
- * `src/__tests__/line-clamp-display.test.ts` compiles the same stylesheet to
- * ask whether its own class names leaked into it, and under a skew it would
- * be answering that about a sheet no one ships. A second caller of a recipe
- * takes the recipe's guard with it.
- *
- * **Grepped by role, that leaves one caller uncovered.**
- * `src/__tests__/design-tokens.test.ts` puts the same question to a Tailwind
- * compiler through the `tailwindcss` package rather than this binary — it
- * compiles every class the tree writes and asserts which of them produce no
- * CSS, which is a claim about the shipped sheet and exactly the thing a
- * version moves — and it does not call this. Measured, with `tailwindcss`
- * pinned to a skewed version: that file stays green and silent, while
- * `line-clamp-display.test.ts` goes red, because this function compares all
- * three packages and not only the one its caller used. So a skew *is*
- * reported and CI does turn red; what is not true is that the file making the
- * claim is the file that notices, and that holds only while the two stay in
- * one vitest job. One import in `design-tokens.test.ts` closes it.
+ * `@tailwindcss/cli` carries the same range as `tailwindcss` and
+ * `@tailwindcss/postcss` deliberately: an exact pin on this one would let
+ * `pnpm update` move the other two and leave the fixture's compiler behind.
+ * Nothing makes Tailwind keep publishing the three together, hence
+ * `assertSameCompiler`.
  */
 
 import { execFileSync } from "node:child_process";
@@ -67,64 +21,22 @@ export const INPUT_CSS = join(__dirname, "..", "src", "app", "globals.css");
 export const FIXTURE_CSS = join(__dirname, "fixtures", "globals.built.css");
 
 /**
- * Rules the fixture cannot be a test of if they are missing. An empty or
- * half-compiled sheet lays every cell out at `auto` and measures like a
- * page with no opinions at all, which is exactly the shape of green this
- * whole job exists to remove — so ask the output what it contains rather
- * than trusting that the compiler exited 0.
+ * Asks the output what it contains rather than trusting that the compiler
+ * exited 0: an empty or half-compiled sheet lays every cell out at `auto`.
  *
- * ## What a needle can hold, and what it cannot
+ * A needle for a utility the tree writes in many places cannot report its
+ * absence; it catches a sheet that did not compile, or compiled without a
+ * whole layer.
  *
- * **A needle's teeth are a property of the utility, not of how it is
- * spelled.** The rule it asks for goes missing only when *nothing* in the
- * scanned tree writes that class any more — so a needle for a utility the
- * tree writes in dozens of places records what the sheet must contain and
- * cannot report its absence, however it is written here. Two rounds of
- * comments in this file said otherwise, on two different theories, and both
- * were wrong.
+ * Two spelling traps, both of which add rules to the shipped sheet:
  *
- * Measure before claiming, with Tailwind's own scanner rather than by
- * reading: compile a stylesheet that is `@import "tailwindcss" source(none)`
- * plus one `@source` line naming a single file, and see whether the rule
- * comes out. Run that per file across the tree and the answer is a list of
- * owners rather than a guess. The owner counts for the entries below are in
- * the PR that added them, because a count in a comment goes stale without
- * going red.
+ * - A selector written in prose is a source for its own utility — the
+ *   leading `.` is a token boundary for the extractor.
+ * - A CSS escape is a boundary too, so an escaped selector is a source for
+ *   its unescaped head. Splitting the token across two literals emits
+ *   nothing.
  *
- * So what is the list for, if most of it cannot fail? The failure it was
- * written against, and still catches: **a sheet that did not compile, or
- * compiled without a whole layer.** That misses every needle at once, and
- * `globalSetup` names them before a browser opens instead of the specs
- * reporting a page laid out at `auto`. A needle is *additionally* a guard
- * over one recipe when that recipe is the only writer of its class — which
- * in practice means an arbitrary value or a variant-prefixed class, not
- * because of the backslash but because those are the classes only one place
- * writes.
- *
- * ## Two spelling facts, measured, both the opposite of what this file said
- *
- * Neither changes the paragraph above. Both decide whether this file and the
- * prose around it quietly add rules to the sheet every viewer loads.
- *
- * - **A selector written in prose is a source for its own utility.** The
- *   leading `.` is a token boundary for the extractor, so `.h-8` in a
- *   docstring emits that rule. Writing the compiled selector never hid a
- *   class from the scanner.
- * - **A CSS escape is a boundary too, so an escaped selector is a source for
- *   its unescaped head.** The escaped spelling of the `lg` padding emits the
- *   `md` one's rule, not its own. The convention earlier comments
- *   recommended as protection creates a different rule instead of protecting
- *   the one it names. Splitting the token across two literals emits nothing,
- *   which is what `coarseNeedleSources.test.ts` does and why.
- *
- * `globals.css` takes this file itself out of the scan with `@source not`,
- * and `coarseNeedleSources.test.ts` pins that line.
- */
-/**
- * Exported for `src/__tests__/coarseNeedleSources.test.ts`, which reads the
- * `pointer-coarse:` entries back out of this list rather than respelling
- * them: a test that writes one of these classes whole becomes a source for
- * it, which is the failure that test exists to catch.
+ * `globals.css` takes this file itself out of the scan with `@source not`.
  */
 export const REQUIRED = [
   ".justified-grid-host",
@@ -132,215 +44,51 @@ export const REQUIRED = [
   ".justified-grid-tail",
   "--jg-row-h",
   "box-sizing",
-  // A sheet missing these does not pass — `related-files.spec.ts` goes
-  // red, measured: four cases, the one-column ones among them, because
-  // with no rules the tile is not the width the case names and the name
-  // column is not the app's. What the needles buy is the *diagnosis*.
-  // Without them the failure is four measurements that do not say why,
-  // and a reader traces them back to an empty stylesheet by hand; with
-  // them `globalSetup` throws before a browser opens, naming the sheet
-  // and the missing rule.
   ".related-files-host",
   ".related-files-grid",
-  // The class selectors alone are not the rule. A sheet that compiled
-  // both and dropped the query would lay every tile out at one column
-  // and be caught only by the spec — the failure this list exists to
-  // pre-empt, one step later.
   "@container related-files",
-  // `addon-policy.spec.ts` measures a sticky heading. Without the
-  // utilities that make it one, the fixture lays out a plain table and
-  // the cases go red naming positions rather than the missing sheet —
-  // this fails at `globalSetup` instead, with the sheet named.
   "max-h-\\[70vh\\]",
   ".sticky",
-  // `file-actions-menu.spec.ts` measures which side of a trigger a popup
-  // lands on. Without these two the boxes sit at the wrapper's own origin,
-  // every case reads the same numbers, and the ones asserting "the same"
-  // pass for that reason.
-  //
   // Written with the brace, because the test is `includes` on the whole
-  // sheet: `.mt-1` is satisfied by `.mt-14`, and `.left-0` by `.left-0\.5`,
-  // both of which Tailwind emits here. A needle that cannot be absent
-  // asserts nothing.
+  // sheet: `.mt-1` is satisfied by `.mt-14`, and `.left-0` by `.left-0\.5`.
   ".top-full {",
   ".bottom-full {",
-  // The gap, which is not "which side": without these the boxes land on the
-  // correct side with a 0px gap. Measured by stripping them — the first
-  // thing that goes red is the strip case's `toBeLessThan(GAP_PX)`, not the
-  // `toBeCloseTo(GAP_PX, 1)` pair after it.
   ".mt-1 {",
   ".mb-1 {",
-  // Which side, and only which side. Measured by stripping them: the
-  // toast's own left/right case goes red and every gap assertion stays
-  // green, because `GAP_PX` is compared on the vertical axis alone.
   ".left-0 {",
   ".right-0 {",
-  // A third kind again: this is what keeps a long message from wrapping,
-  // which is the premise of the column cases rather than their subject.
   ".whitespace-nowrap {",
-  // `toolbar-menu.spec.ts` measures the shared toolbar surface on both
-  // sides of `sm`. These are the variant-prefixed halves — the ones that
-  // exist only because `ToolbarMenu.tsx` writes them, and the ones whose
-  // absence turns the anchored cases into a page that is still the sheet
-  // at 768 and reports it as a wrong box rather than as a missing rule.
-  //
-  // Written whole rather than split across two literals, which the escape
-  // rules above would otherwise require: `globals.css` takes this file out
-  // of the scan with `@source not`, so nothing here is a source for
-  // anything.
   ".sm\\:absolute {",
   ".sm\\:top-full {",
   ".sm\\:bottom-full {",
   ".sm\\:bottom-auto {",
-  // `mobile-inspector-sheet.spec.ts` measures a drawer whose foot is off
-  // the screen and a sticky tab strip inside the one box that scrolls.
-  // Every rule below is load-bearing for a different case, and each one's
-  // absence would be read as a finding about the sheet rather than about
-  // an empty sheet: `overflow-auto` is the only scroller, without which
-  // nothing scrolls anywhere and "the end is on screen" passes for the
-  // wrong reason; `min-h-0` and `flex-1` are what let that scroller be shorter
-  // than its content inside a flex column; `top-0` is the sticky offset,
-  // and a strip with `top: auto` is not sticky to anything; `bg-bg-card`
-  // is the ground the opacity case asserts; and `overflow-x-auto` is what
-  // makes the strip a scroll container in both axes, which is the reason
-  // the scrolling box is named rather than counted.
-  //
-  // The drawer's own height is not among them any more. It is written on
-  // the element in px, off the viewport vaul solves its snaps in, so
-  // there is no arbitrary-valued height utility on it to require — and a
-  // `vh` class there would be the defect rather than a missing rule.
-  //
-  // Every needle in this file is written as the compiled selector rather
-  // than as the class, and deliberately: Tailwind scans this file too, so
-  // a class spelled bare in a comment is itself a source for that utility,
-  // after which the needle for it cannot go missing. Measured on
-  // `develop`, against the height utility this list used to carry: with
-  // the class taken out of both the component and the fixture, the sheet
-  // still carried the rule and the mobile cases failed on their own
-  // numbers instead of the setup naming the sheet.
   ".overflow-auto {",
   ".min-h-0 {",
   ".flex-1 {",
   ".top-0 {",
   ".bg-bg-card {",
   ".overflow-x-auto {",
-  // `popup-dismiss.spec.ts` taps through a scrim that is only over the
-  // page because of these three. Without them the scrim has no box, and a
-  // case that reads a click count goes red naming the count rather than
-  // the empty sheet that caused it.
-  //
-  // `.inset-0` and `.z-30` carry the brace for the reason `.mt-1` does:
-  // `.inset-0` is satisfied by `.inset-0\.5` and `.z-30` by nothing today,
-  // but a needle that a longer class name can satisfy asserts less than it
-  // reads as.
   ".fixed {",
   ".inset-0 {",
   ".z-30 {",
-  // The tiers the four *arrangements* are made of: a `z-10` bar written
-  // after the scrim, a `z-50` bar pinned to the bottom, and the `z-20` box
-  // the nested arrangement puts the scrim inside. Each pair of cases is a
-  // contrast between two stacking orders, so a missing rule collapses the
-  // pair into one page and the contrast stops being a contrast. Like the
-  // common utilities above and unlike the arbitrary-valued ones, the tree
-  // writes all three in dozens of places: they are here for the diagnosis
-  // rather than because they could plausibly go missing.
   ".z-10 {",
   ".z-20 {",
   ".z-50 {",
   ".bottom-0 {",
-  // Unit D measures the player the sheet's `half` is derived from. The
-  // sticky rule is the premise of every one of those cases — without it
-  // the player is in flow, scrolls away under the sheet, and "it stayed
-  // whole" would be a claim about a box that had left the screen.
   "[data-sheet-snap] .media-detail-player {",
-  // And the canvas it travels inside. `h-12` gives the page row the
-  // height the player starts below; a page row of nothing puts the
-  // player at the viewport top, where a fixed snap would clear it too
-  // and the replaced-arrangement cases would pass for the wrong reason.
   ".h-12 {",
-  // The width cap is what makes a phone held sideways draw a player as
-  // tall as its own scrollport, which is the viewport where the derived
-  // snap has nothing to offer and hands back the fixed fraction. Without
-  // this rule the landscape case draws an uncapped player and measures a
-  // shape the app does not have.
   '[data-sheet-snap] .media-detail-player[data-framed="true"] {',
-  // And the padding the same surface takes off the host, which is what
-  // leaves the sticky player no travel. Compiled away, the player starts
-  // `p-4` below the scrollport, drifts by it, and the case asserting one
-  // bottom edge for the whole of a scroll goes red naming a position
-  // rather than a missing rule.
   "[data-sheet-snap] .media-detail-host {",
-  // The host's own padding, which is the other half of that: the rule
-  // above is a correction to `p-4` and cannot be read without it.
   ".p-4 {",
-  // And the *third* term in the same subtraction: the player's first
-  // child bleeds with `-mt-4`, which the rule above no longer has a
-  // padding to cancel. Without this one the player's flow position is
-  // 16px above the scrollport — behind the page chrome where nothing
-  // follows it, and corrected downward by `sticky` where something does,
-  // which moves the box the derived snap was solved from.
   "[data-sheet-snap] .media-detail-player > :first-child {",
-  // The bleed itself, for the reason `.p-4` is here: the cancellation
-  // cannot be read without the margin it cancels, and a fixture with
-  // neither measures a page that never had the problem.
   ".-mt-4 {",
-  // `list-row-furniture.spec.ts` measures touch targets and a name column
-  // under `@media (pointer: coarse)`. Every one of these is a *coarse-only*
-  // declaration, which is the kind a missing sheet hides best: without them
-  // the fixture lays out the fine-pointer row at every viewport, reports
-  // 28px and 24px controls, and the cases asserting the floor fail naming
-  // a box rather than the sheet.
-  //
-  // Written with the brace for the reason the two above are: the test is
-  // `includes` over the whole sheet, and `.pointer-coarse\\:w-11` is
-  // satisfied by nothing else here, but `.pointer-coarse\\:pr-0` would be
-  // satisfied by a hypothetical `pr-0.5`. A needle that cannot be absent
-  // asserts nothing.
   ".pointer-coarse\\:h-11 {",
   ".pointer-coarse\\:w-11 {",
   ".pointer-coarse\\:pr-0 {",
   ".pointer-coarse\\:-ml-3 {",
   ".pointer-coarse\\:gap-0 {",
-  // The row's own spacing, which is what the coarse rules above cancel.
-  // Without them there is nothing to cancel and the two layouts the spec
-  // compares are the same layout.
   ".gap-3 {",
   ".p-2\\.5 {",
-  // `button-touch-floor.spec.ts` measures the 44px floor and the three
-  // padding heights under it. Each of these is a different case's whole
-  // subject, and each one's absence reads as a finding rather than as an
-  // empty sheet: without the floor every coarse measurement is the fine
-  // one and the two halves of the spec agree for the wrong reason;
-  // without the three padding rules the "32 / 36 / 40" cases all measure a
-  // 20px line box; and without the overhang the icon-only case reports
-  // `content: none` under a coarse pointer, which is the defect it exists
-  // to catch.
-  //
-  // `.pointer-coarse\:h-11` is not repeated here. It is needled in the block
-  // above, and the two specs need it for different reasons: the row furniture
-  // sizes its controls with it, and `button-touch-floor.spec.ts` uses it as
-  // the control its own floor case has to be able to fail against. One
-  // needle, two readers.
-  //
-  // Written with the brace throughout, for the reason the two blocks above
-  // are: the test is `includes` over the whole sheet, and the padding
-  // needle without one is satisfied by its own `.5` sibling's selector.
-  //
-  // **None of the five plain entries below is a guard over this recipe**,
-  // and the two variant ones are guards only in the sense the block above
-  // is. Every class here is written across the tree — the paddings by most
-  // dialogs and toolbars in the app, the icon box by the header, the tree
-  // toggle, the gallery and two dozen more — so taking one out of
-  // `SIZE_CLASS` or `ICON_BOX_CLASS` leaves its rule in the sheet. They are
-  // here for the failure the header names: a sheet that did not compile
-  // misses all of them at once. Owner counts, measured per file with
-  // `source(none)`, are in the PR.
-  //
-  // What does hold the two recipes is `buttonTouchFloorFixtureParity`:
-  // widening the icon box in `Button.tsx` leaves this list silent and the
-  // browser suite green — the fixture writes its own class lists — and
-  // reddens the parity test alone. That is the division of labour, and it
-  // is worth knowing which file to read when one of them fails.
   ".pointer-coarse\\:min-h-11 {",
   ".pointer-coarse\\:before\\:-inset-1\\.5 {",
   ".py-1\\.5 {",
@@ -349,7 +97,6 @@ export const REQUIRED = [
   ".h-8 {",
   ".w-8 {",
 ];
-
 /**
  * The compiler that emits this sheet is the compiler that builds the app.
  *

@@ -4,66 +4,24 @@
     <meta charset="utf-8" />
     <!--
       Without this, a context that sets `isMobile` lays the page out at
-      Chromium's mobile default instead of the viewport the spec asked
-      for, and every width-conditional rule answers for a page nobody
-      is measuring. `spec-viewport.spec.ts` opens this file under
-      exactly that context and reads the width back.
+      Chromium's mobile default instead of the viewport the spec asked for.
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>justified grid — layout fixture</title>
     <!--
-      The compiled globals.css, built by ../build-fixture-css.ts.
-
-      This page carries no <style> block of its own on purpose. Every
-      declaration a cell obeys has to have come out of the app's own
-      stylesheet, or the measurement is a test of the fixture.
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
     -->
     <link rel="stylesheet" href="./globals.built.css" />
   </head>
   <body>
     <!--
-      The cell shapes the app puts inside `.justified-grid`, written out as
-      the element type, the exact class list, the attributes and the
-      descendant tree the component renders.
+      `children` is compared exactly: same count, order and parentage. A
+      node written without a `children` key is a deliberate stop — its
+      subtree is not compared.
 
-      A browser suite can only see a selector that matches the markup in
-      front of it, so this table decides the whole reach of
-      `justified-grid.spec.ts`. Its three axes each cost something when they
-      were missing: a class list (`.justified-grid-cell.opacity-50.select-none`
-      — cut a file in a folder grid), an attribute
-      (`.justified-grid-cell[draggable]`, which React writes on every photo
-      cell, `"false"` included), and a descendant
-      (`:has(.justified-grid-name)`, `:has(> a[download])`).
-
-      **What the rows cover, exactly.** Every distinct class list the cell can
-      carry — six for `JustifiedFileCell`, two for `ArchiveEntryCard` — and
-      every element, attribute and class either component can put inside a
-      cell. They are **not** the cross product of those with the wrapper
-      states: `selectable` with something already selected can pair the
-      select-mode wrapper with any of the four `draggable` class lists, and
-      only one of those eight pairings has a row. One pairing is missing
-      outright and is named rather than drawn: `CollectionDetail` renders the
-      wrapper as a `<div>` through `useFileNavigationOverride` with no
-      checkbox beside it.
-
-      **This table is not the components' own; it is a second copy.**
-      `justifiedGridFixtureParity.test.tsx` declares one render state per row,
-      renders it, and requires the row to match — so a row deleted from here
-      is red, a row invented here is red, and a class, attribute or element
-      that appears on either side alone is red. Editing one side alone does
-      not compile.
-
-      `children` is the tree the builder nests, in order, and it is compared
-      **exactly**: same count, same order, same parentage. A node written
-      without a `children` key is a deliberate stop — its own subtree is not
-      compared, which here is only the lucide icon inside the archive's
-      download link and the check mark's `<path>`. The exactness is what
-      makes a deletion here fail; a subset check let three of them through.
-
-      `attrs` is compared exactly too: the rendered element may carry no
-      attribute this table does not name, apart from `class`. A value of
-      `"*"` means "present, any value" — `data-flip-key` carries a file id,
-      `style` carries the cell's own ratio, `aria-label` the filename.
+      `attrs` is compared exactly too, apart from `class`. A value of `"*"`
+      means "present, any value".
     -->
     <script type="application/json" id="fixture-markup">
       {
@@ -505,16 +463,11 @@
       }
     </script>
 
-    <!-- The width the grid is laid out at. The spec sets it per case;
-         `.justified-grid-host` establishes the container the row height
-         switches on, so this is the only free variable in the page. -->
     <div id="frame"></div>
 
     <script>
-      // A 1x1 transparent GIF. The cell's shape comes from `--jg-ratio`
-      // and `object-fit: cover`, never from the picture's own size, so
-      // the smallest decodable image is the honest one to use — and it
-      // needs no network, which is what lets this page run off file://.
+      // A 1x1 transparent GIF: the cell's shape comes from `--jg-ratio`,
+      // and a data URI lets this page run off file://.
       const PIXEL =
         "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
@@ -544,12 +497,6 @@
         return el;
       };
 
-      /**
-       * One cell of the named shape, built from the table above and
-       * nothing else — so a shape that drifts from the table cannot be
-       * drawn, and the table is the only thing the parity test has to
-       * keep honest.
-       */
       const buildCell = (shape, ratio, index, flip) => {
         const spec = SHAPES[shape];
         if (!spec) throw new Error(`no such cell shape: ${shape}`);
@@ -561,16 +508,6 @@
         return cell;
       };
 
-      /**
-       * The grid, at a chosen width and in a viewport that could contain
-       * it.
-       *
-       * The viewport matters: a rule keyed to `@media (max-width: …)`
-       * rather than to the container is invisible to a suite that leaves
-       * the window at its default 1280px while laying out a 420px grid,
-       * and 420px is a phone. Sizing the window to the grid means the
-       * narrow cases are measured in a window a phone could have.
-       */
       window.buildGrid = ({ ratios, width, flip, shapes }) => {
         const frame = document.getElementById("frame");
         frame.style.width = `${width}px`;
@@ -602,12 +539,8 @@
       });
 
       /**
-       * Every cell's realized box, plus the ratio it was asked for and
-       * the markup it was built as.
-       *
-       * `getBoundingClientRect` rather than `offsetWidth`: the layout
-       * engine resolves flex to a fraction of a pixel and the integer
-       * accessors would hand the spec a rounding error to explain away.
+       * `getBoundingClientRect` rather than `offsetWidth`: flex resolves to
+       * a fraction of a pixel and the integer accessors round.
        */
       window.measureCells = () =>
         Array.from(document.querySelectorAll(".justified-grid-cell")).map(
@@ -630,7 +563,6 @@
           },
         );
 
-      /** The grid's own content box — what a line has to add up to. */
       window.measureGrid = () => {
         const grid = document.querySelector(".justified-grid");
         const style = getComputedStyle(grid);
@@ -640,7 +572,6 @@
         };
       };
 
-      /** The resolved transition on the first cell, in its `data-flip` state. */
       window.measureFlip = () => {
         const style = getComputedStyle(
           document.querySelector(".justified-grid-cell"),

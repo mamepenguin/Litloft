@@ -4,51 +4,20 @@
     <meta charset="utf-8" />
     <!--
       Without this, a context that sets `isMobile` lays the page out at
-      Chromium's mobile default instead of the viewport the spec asked
-      for, and every width-conditional rule answers for a page nobody
-      is measuring. `spec-viewport.spec.ts` opens this file under
-      exactly that context and reads the width back.
+      Chromium's mobile default instead of the viewport the spec asked for.
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>mobile inspector sheet — layout fixture</title>
     <!--
-      The compiled globals.css, built by ../build-fixture-css.ts. No
-      <style> of its own, for the reason the other fixtures have none:
-      every declaration measured here has to have come out of the app's
-      own stylesheet, or the measurement is a test of this page.
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
     -->
     <link rel="stylesheet" href="./globals.built.css" />
   </head>
   <body>
     <!--
-      The class lists the sheet and the inspector render, written out.
-
-      Both forms of the inspector are here, because the spec measures the
-      column form *and* the two-tier form it replaced: a case that only
-      draws the shipped arrangement cannot show that the arrangement is
-      what makes the difference. `mobileInspectorSheetFixtureParity.test.tsx`
-      renders both from the real components and fails if either drifts.
-
-      `visibleHeight` is the whole of C-2. vaul slides the drawer down by
-      `--snap-point-height` and the drawer is anchored to the bottom
-      edge, so that many pixels of it are always past the fold; this box
-      is the drawer less exactly that, taken from vaul's own published
-      number rather than from a snap value repeated here.
-
-      The last keys are the page *behind* the sheet, for unit D: the
-      shell root that publishes `data-sheet-snap`, the page row, the
-      canvas that scrolls, the media host the canvas holds and the player
-      wrapper the stylesheet sticks to the top of it. Without them there
-      is nothing for the derived snap to be measured against.
-      `MediaShell.test.tsx` renders the real shell and compares these five
-      class lists and the padding; the case at the bottom of
-      `mobileInspectorSheetFixtureParity.test.tsx` is what says every key
-      is compared somewhere.
-
-      The host is not decoration between the canvas and the player. It
-      carries `p-4`, and a top padding is travel in front of a sticky box
-      — the stylesheet takes that one side off under `[data-sheet-snap]`,
-      and a fixture without the host could not tell whether it had.
+      `visibleHeight` is the drawer less vaul's published
+      `--snap-point-height`, rather than a snap value repeated here.
     -->
     <script type="application/json" id="fixture-markup">
       {
@@ -80,8 +49,6 @@
       }
     </script>
 
-    <!-- The page the sheet covers. Empty for every case that is only
-         about the drawer, so nothing below it moves. -->
     <div id="page"></div>
     <div id="frame"></div>
 
@@ -90,33 +57,13 @@
         document.getElementById("fixture-markup").textContent,
       );
 
-      /**
-       * vaul's own arithmetic, reproduced.
-       *
-       * `snapPointsOffset` maps each fractional snap point to
-       * `window.innerHeight - snap * window.innerHeight` and the active
-       * one is published on the drawer as `--snap-point-height`. It is
-       * the same expression in vaul 1.1.2's `useSnapPoints`, and
-       * `MobileInspectorSheet.test.tsx` reads the variable back off a
-       * real vaul render at each snap so that this copy cannot drift
-       * from it silently.
-       */
+      /** vaul's `useSnapPoints` arithmetic, reproduced. */
       const snapPointHeight = (snap) => window.innerHeight * (1 - snap);
 
       /**
-       * The sheet at one snap, in one of the two inspector forms, with a
-       * chosen bound on the scroller.
-       *
-       * `bound` is what makes the mutants expressible:
-       *
-       * - `visible-box` is what ships — a box of `100% -
-       *   var(--snap-point-height)` between the drawer and the scroller.
-       * - `cap-50vh` is what it replaced: no box, and a `max-height` of
-       *   the snap written into the scroller by hand. It lands a drag
-       *   handle's height too low and is a second definition of a number
-       *   vaul already publishes.
-       * - `none` is the scroller filling the drawer, which is what the
-       *   drawer's own overhang then does to it.
+       * `bound`: `visible-box` is what ships; `cap-50vh` is a hand-written
+       * `max-height` of the snap on the scroller; `none` lets the scroller
+       * fill the drawer.
        */
       window.buildSheet = ({
         snap,
@@ -133,17 +80,11 @@
         const drawer = document.createElement("div");
         drawer.className = SPEC.drawer;
         drawer.dataset.testid = "mobile-inspector-sheet";
-        // The component's own height, in px, off the viewport vaul
-        // solves its snaps in — `sheetDrawerHeightPx(innerHeight)`.
-        // `drawerPx` overrides it for the case that draws the drawer at
-        // a *different* viewport's `90vh`, which is what a CSS viewport
-        // unit does on a phone showing its URL bar.
+        // `drawerPx` draws the drawer at a *different* viewport's height,
+        // which is what a CSS viewport unit does on a phone showing its
+        // URL bar.
         drawer.style.height = `${drawerPx ?? SPEC.drawerVh * window.innerHeight}px`;
         drawer.style.setProperty("--snap-point-height", `${offset}px`);
-        // vaul writes this inline on the same element; the CSS form it
-        // also ships (`data-vaul-delayed-snap-points`) reads the same
-        // variable. Either way the drawer is translated down by it, and
-        // that is the whole reason its foot is off the screen.
         drawer.style.transform = `translate3d(0, ${offset}px, 0)`;
 
         const scroller = document.createElement("div");
@@ -155,10 +96,6 @@
         handle.className = SPEC.handle;
         handle.dataset.testid = "mobile-inspector-handle";
 
-        // The painted surface, which is also the box a content pull
-        // translates. `h-full`, so the visible box below it still
-        // subtracts from the drawer's own height: every case here that
-        // measures where that box lands measures through this one.
         const surface = document.createElement("div");
         surface.className = SPEC.surface;
         surface.dataset.testid = "mobile-inspector-surface";
@@ -186,10 +123,6 @@
         const header = document.createElement("div");
         header.className = column ? SPEC.columnHeader : SPEC.panelHeader;
         header.dataset.testid = "inspector-header";
-        // A box of a stated height rather than the real header's own
-        // content: the header's height is a property of the file, and
-        // the cases below vary it deliberately against the height of the
-        // sheet they are drawn in.
         header.style.height = `${headerPx}px`;
 
         const strip = document.createElement("div");
@@ -211,20 +144,14 @@
 
         const body = document.createElement("div");
         body.style.height = `${bodyPx}px`;
-        // Positioned, standing in for the tab content that is: an addon
-        // section with a `relative` wrapper, a popover anchor, a chip
-        // row. Two positioned boxes at `z-index: auto` paint in document
-        // order, and the panel comes after the strip — so without a
-        // stacking order of its own the strip is the one underneath,
-        // and the tab body travels visibly over it.
+        // Positioned, standing in for tab content that is (an addon
+        // section with a `relative` wrapper, a popover anchor).
         body.style.position = "relative";
         body.style.background = "var(--color-bg-card, #fff)";
         const end = document.createElement("div");
         end.dataset.testid = "inspector-end";
-        // The last line of the tab, and the thing the reader is trying to
-        // reach. Given a height of its own so "its bottom is on screen"
-        // is a claim about a box rather than about a zero-height marker
-        // that any rounding would satisfy.
+        // A height of its own, so "its bottom is on screen" is not
+        // satisfied by a zero-height marker under rounding.
         end.style.height = "24px";
         end.textContent = "the end of the tab";
         panel.append(body, end);
@@ -235,25 +162,10 @@
       };
 
       /**
-       * The page behind the sheet: chrome, a canvas that scrolls, and a
-       * player stuck to the top of it.
-       *
-       * Unit D derives `half` from this player's bottom edge, so the
-       * fixture has to draw a player before there is anything to derive
-       * from — and it has to draw it inside the box the app sticks it in,
-       * because `position: sticky` travels only within its own containing
-       * block and the whole claim is that the player does not move while
-       * the reader scrolls.
-       *
        * `data-sheet-snap` on the shell root is the mobile test the
        * stylesheet makes; without it the player is in flow and scrolls
-       * away, and the case would be measuring a different page.
-       *
-       * The shell's height is the fixture's own — the app's root layout
-       * gives it — and so is `bodyPx`. The player's height is not: a
-       * framed player gets the ratio shim and the stylesheet's own width
-       * cap, so how tall it is at a given viewport is measured here
-       * rather than declared.
+       * away. A framed player's height is measured, not declared: it gets
+       * the ratio shim and the stylesheet's width cap.
        */
       window.buildPage = ({ playerPx, framed, bodyPx }) => {
         const host = document.getElementById("page");
@@ -272,13 +184,8 @@
         const canvas = document.createElement("main");
         canvas.className = SPEC.canvas;
         canvas.dataset.testid = "file-detail-canvas";
-        // The page ends above the resting strip; the shell writes this
-        // inline for the same reason the fixture does.
         canvas.style.paddingBottom = `${SPEC.peekPx}px`;
 
-        // The box `MediaCanvas` draws around the player and everything
-        // under it. It carries the padding the stylesheet takes off one
-        // side of, and it is where `--rail-avail` is published.
         const mediaHost = document.createElement("div");
         mediaHost.className = SPEC.mediaHost;
         mediaHost.dataset.testid = "media-detail-host";
@@ -288,25 +195,14 @@
         player.dataset.testid = "media-detail-player";
         const frame = document.createElement("div");
         frame.style.background = "#000";
-        // The player's first child bleeds to the screen edges, and its
-        // negative top margin is the other half of the `p-4` the
-        // stylesheet takes off the host. Drawn here because without it
-        // the fixture's player starts at the scrollport's top edge for
-        // the wrong reason — because there is no margin rather than
-        // because the stylesheet cancelled one — and the case that says
-        // the player has nowhere to travel would be proving it about a
-        // page with the offending margin removed.
+        // The negative top margin is drawn so the player starts at the
+        // scrollport's edge because the stylesheet cancels it, not because
+        // there is no margin.
         frame.className = SPEC.playerBleed;
         if (framed) {
-          // A framed player's height is a function of its width — the
-          // `.loft` embed's `padding-top: 56.25%` shim, which is the same
-          // 16:9 `aspect-video` gives native video — so the stylesheet's
-          // width cap is what decides it. Nothing here states a height.
           player.dataset.framed = "true";
           frame.style.paddingTop = SPEC.framedShimPaddingTop;
         } else {
-          // A control bar and nothing above it: no ratio to invert, so
-          // the height is the fixture's own input.
           frame.style.height = `${playerPx}px`;
         }
         player.append(frame);
@@ -314,8 +210,7 @@
         const below = document.createElement("div");
         below.dataset.testid = "media-detail-below";
         below.style.height = `${bodyPx}px`;
-        // Empty at zero, or the text gives the box a line's height and
-        // "nothing follows the player" is off by it.
+        // Empty at zero, or the text gives the box a line's height.
         below.textContent = bodyPx
           ? "the description, the comments, the summaries"
           : "";
@@ -325,16 +220,12 @@
         shell.append(chrome, canvas);
         host.append(shell);
 
-        // `--rail-avail` is the scroll container's visible height,
-        // measured — `useCompanionMetrics` reads `pane.clientHeight` and
-        // `mediaHostStyle` publishes it here. It is what caps a framed
-        // player's width, and therefore what makes a phone held sideways
-        // draw a player as tall as its own scrollport. Set after the
-        // append, because there is nothing to measure before it.
+        // `--rail-avail` is the scroll container's visible height, which
+        // caps a framed player's width. Set after the append, because there
+        // is nothing to measure before it.
         mediaHost.style.setProperty("--rail-avail", `${canvas.clientHeight}px`);
       };
 
-      /** Scrolls the canvas, which is what the sticky player travels in. */
       window.scrollCanvas = (to) => {
         const canvas = document.querySelector(
           "[data-testid='file-detail-canvas']",
@@ -343,18 +234,10 @@
       };
 
       /**
-       * Where everything landed, and which box the browser will actually
-       * scroll.
-       *
-       * `verticallyScrollable` is the C-1 question asked directly: not
-       * "is there a scroller" but "which element has more content than
-       * box in the block axis". The two-tier form answers
-       * `inspector-panel` and the column form answers
-       * `mobile-inspector-content`, and that difference is the defect.
-       * The tab strip is a scroll container too — `overflow-x: auto`
-       * computes `overflow-y` to `auto` — so a count of scroll containers
-       * would not separate them, and a count of anything would not say
-       * which one it found.
+       * `verticallyScrollable` names the elements with more content than
+       * box in the block axis. The tab strip is a scroll container too —
+       * `overflow-x: auto` computes `overflow-y` to `auto` — so a count of
+       * scroll containers would not separate the two forms.
        */
       window.measureSheet = (scrollTo) => {
         const drawer = document.querySelector(
@@ -404,15 +287,6 @@
             getComputedStyle(drawer).getPropertyValue("--snap-point-height"),
           ),
           drawer: rect(drawer),
-          // `100%` inside the surface resolves against its content box,
-          // which `border-t` puts a pixel below its border box. That
-          // pixel is above the visible box rather than inside it, so the
-          // box still ends exactly at the fold — but the arithmetic only
-          // balances with the border named.
-          //
-          // Read off the surface, which is the box that carries it: the
-          // drawer is unpainted so that a content pull can translate the
-          // surface without dragging a second card behind it.
           surfaceBorderTop: Number.parseFloat(
             getComputedStyle(surface).borderTopWidth,
           ),
@@ -421,51 +295,23 @@
           strip: rect(strip),
           header: rect(header),
           end: rect(end),
-          // Null for every case that draws no page, which is every case
-          // that is only about the drawer.
           player: player ? rect(player) : null,
           playerPosition: player ? getComputedStyle(player).position : null,
-          // The scrollport the player travels in, which is also what
-          // `--rail-avail` is measured from and therefore what caps a
-          // framed player's width. Null for the cases that draw no page.
           canvasClientHeight: canvas ? canvas.clientHeight : null,
-          // The scrollport's own top edge, so "the player is stuck to the
-          // top of the canvas" can be asked as a comparison rather than
-          // read off a `position` that says only that it *might* be.
           canvasTop: canvas ? canvas.getBoundingClientRect().top : null,
-          // How tall what follows the player is.
-          //
-          // The group that measures the player's own flow position needs
-          // a page with nothing under it: a sticky box travels only
-          // inside its containing block, so slack below the player is
-          // what lets `sticky` correct the position and make that reading
-          // right whatever the margins did. "The player's bottom is
-          // inside the scrollport" was the first form of the guard and is
-          // inert — true of 40px of slack as well — and "the canvas
-          // cannot scroll" is false at the viewport where the player
-          // takes the whole scrollport and the page still reserves room
-          // below it for the resting strip. The height of the box after
-          // the player is the property itself.
           belowHeight: below ? below.getBoundingClientRect().height : null,
-          // Relative to the box that scrolls: "the strip is at the top of
-          // its scrollport" is the sticky property, and an absolute
-          // viewport coordinate would also be satisfied by a page that
-          // never scrolled.
+          // Relative to the box that scrolls: an absolute viewport
+          // coordinate would also be satisfied by a page that never
+          // scrolled.
           stripTopInScroller: strip.getBoundingClientRect().top - scrollerBox.top,
           headerTopInScroller:
             header.getBoundingClientRect().top - scrollerBox.top,
           stripPosition: getComputedStyle(strip).position,
-          // The premise of the stacking case, stated so it cannot be
-          // satisfied by a fixture that quietly stopped positioning the
-          // tab body — at which point the strip would win by default and
-          // the case would pass for the wrong reason.
           bodyPosition: getComputedStyle(
             drawer.querySelector("[data-testid='inspector-panel'] > div"),
           ).position,
-          // What is actually drawn at the middle of the strip. "Sticky"
-          // is only half the property: a strip pinned to the right place
-          // and painted under the tab body is not on screen either, and
-          // no rectangle says so.
+          // A strip pinned to the right place and painted under the tab
+          // body is not on screen either, and no rectangle says so.
           stripHit: (() => {
             const box = strip.getBoundingClientRect();
             const el = document.elementFromPoint(

@@ -4,37 +4,17 @@
     <meta charset="utf-8" />
     <!--
       Without this, a context that sets `isMobile` lays the page out at
-      Chromium's mobile default instead of the viewport the spec asked
-      for, and every width-conditional rule answers for a page nobody is
-      measuring. This fixture is entirely about width-conditional rules.
+      Chromium's mobile default instead of the viewport the spec asked for.
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>toolbar menu — layout fixture</title>
     <!--
-      The compiled globals.css, built by ../build-fixture-css.ts. No
-      <style> of its own, like the other fixtures: every declaration
-      measured here has to have come out of the app's own stylesheet, or
-      the measurement is a test of this page.
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
     -->
     <link rel="stylesheet" href="./globals.built.css" />
   </head>
   <body>
-    <!--
-      The surface `useMenuSurface` builds, in the four pieces it builds it
-      from.
-
-      This is the recipe five panels and ten call sites share, and it is
-      the one whose form changes with the viewport: a sheet spanning the
-      screen below 640 and a panel anchored to its trigger above it. The
-      `sm:` half is what nothing measured before this fixture — the other
-      browser targets draw `FileActions`, which has no `sm:` in its class
-      list, and the component target runs at 393px where `sm:` cannot
-      apply at all.
-
-      `toolbarMenuFixtureParity.test.tsx` renders the real `ToolbarMenu`
-      and fails if any string here drifts from what it emits, so what the
-      spec measures is the app's recipe rather than this page's idea of it.
-    -->
     <script type="application/json" id="fixture-markup">
       {
         "bar": "sticky bottom-0 flex items-center justify-end gap-2 bg-bg-card px-4 py-2",
@@ -61,14 +41,6 @@
         document.getElementById("fixture-markup").textContent,
       );
 
-      /**
-       * A bar pinned to the foot of the page with one menu open on it.
-       *
-       * Pinned to the foot because that is where the folder toolbar's is
-       * once the page has scrolled, and because it is the arrangement in
-       * which the downward form has nowhere to go — the state the
-       * measurement exists to answer.
-       */
       window.buildBar = function ({ direction, align, rows }) {
         const frame = document.getElementById("frame");
         frame.innerHTML = "";
@@ -110,14 +82,11 @@
         wrapper.append(menu);
 
         bar.append(wrapper);
-        // Tall enough that the page scrolls and the sticky bar is at the
-        // foot of the viewport rather than in the middle of the document.
         const filler = document.createElement("div");
         filler.style.height = "2000px";
         frame.append(filler, bar);
       };
 
-      /** The boxes the spec reads, plus the properties it asks CSS for. */
       window.measureMenu = function () {
         const box = (el) => {
           if (!el) return null;

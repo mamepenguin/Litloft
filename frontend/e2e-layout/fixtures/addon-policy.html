@@ -4,32 +4,20 @@
     <meta charset="utf-8" />
     <!--
       Without this, a context that sets `isMobile` lays the page out at
-      Chromium's mobile default instead of the viewport the spec asked
-      for, and every width-conditional rule answers for a page nobody
-      is measuring. `spec-viewport.spec.ts` opens this file under
-      exactly that context and reads the width back.
+      Chromium's mobile default instead of the viewport the spec asked for.
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>addon policy table — layout fixture</title>
     <!--
-      The compiled globals.css, built by ../build-fixture-css.ts. No
-      <style> of its own, for the reason the other fixtures have none:
-      every declaration measured here has to have come out of the app's
-      own stylesheet, or the measurement is a test of this page.
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
     -->
     <link rel="stylesheet" href="./globals.built.css" />
   </head>
   <body>
     <!--
-      The two class lists the sticky heading depends on, written out.
-
-      They are the whole mechanism: `sticky top-0` on the `th` resolves
-      against the nearest scrollport, and the wrapper is that scrollport
-      only because it is bounded. Take `max-h-[70vh]` off and the head
-      sticks to a box that never scrolls, which looks exactly like no
-      rule at all — measured on the running app, 290px above the
-      viewport. `addonPolicyFixtureParity.test.tsx` renders the real
-      section and fails if either list drifts from what is written here.
+      `sticky top-0` on the `th` resolves against the nearest scrollport,
+      and the wrapper is that scrollport only because it is bounded.
     -->
     <script type="application/json" id="fixture-markup">
       {
@@ -55,15 +43,8 @@
       );
 
       /**
-       * The table at a chosen size, in the app's own row shape.
-       *
-       * Not `rows` identical rows: the section emits a drive row and then
-       * one sub-row per feature the drive has enabled, and the two are
-       * different heights (`py-3` against `py-2`, a 16px checkbox against
-       * a 24px switch). Four drives with two features each is twelve rows
-       * and 548px, which is the number every claim about this table is
-       * arithmetic on — twelve uniform rows measure 588px and would make
-       * all of them wrong by 40px.
+       * Not identical rows: a drive row and its feature sub-rows are
+       * different heights.
        */
       window.buildPolicyTable = ({ width, drives, featuresPerDrive, columns }) => {
         const frame = document.getElementById("frame");
@@ -130,8 +111,6 @@
             sub.append(name);
             for (let c = 0; c < columns; c++) {
               const cell = document.createElement("td");
-              // Only the addon's own column carries the switch; the rest
-              // are the empty cells the section renders.
               if (c === 0) {
                 cell.className = SPEC.featureToggleCell;
                 const sw = document.createElement("button");
@@ -156,12 +135,8 @@
       };
 
       /**
-       * Where the heading is, relative to the box it is supposed to stick
-       * to, after the wrapper has been scrolled.
-       *
-       * Relative and not absolute: "the heading is at the top of its
-       * scrollport" is the property, and an absolute viewport coordinate
-       * would also be satisfied by a page that had not scrolled at all.
+       * Relative to the scrollport: an absolute viewport coordinate would
+       * also be satisfied by a page that had not scrolled at all.
        */
       window.measurePolicyTable = (scrollTop) => {
         const wrapper = document.querySelector("#frame div[tabindex]");
@@ -171,15 +146,9 @@
         wrapper.scrollTop = scrollTop ?? 0;
         const box = wrapper.getBoundingClientRect();
         return {
-          // The width the frame was actually built at, read off the box
-          // rather than taken from the caller. Without it a case that
-          // asserts only booleans is satisfied by any width that shares
-          // its answers.
           frameWidth: document.querySelector("#frame").getBoundingClientRect().width,
-          // The cap, and the box it actually resolved to. They are not
-          // the same number and conflating them is what made the earlier
-          // cases wrong: `max-height` is a ceiling, so a table shorter
-          // than it leaves the box at the table's own height.
+          // The cap and the box it resolved to differ: `max-height` is a
+          // ceiling.
           capPx: Number.parseFloat(getComputedStyle(wrapper).maxHeight),
           wrapperHeight: wrapper.clientHeight,
           tableHeight: table.getBoundingClientRect().height,

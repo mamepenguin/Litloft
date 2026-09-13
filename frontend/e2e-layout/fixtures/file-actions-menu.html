@@ -4,38 +4,17 @@
     <meta charset="utf-8" />
     <!--
       Without this, a context that sets `isMobile` lays the page out at
-      Chromium's mobile default instead of the viewport the spec asked
-      for, and every width-conditional rule answers for a page nobody
-      is measuring. `spec-viewport.spec.ts` opens this file under
-      exactly that context and reads the width back.
+      Chromium's mobile default instead of the viewport the spec asked for.
     -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>file actions menu — layout fixture</title>
     <!--
-      The compiled globals.css, built by ../build-fixture-css.ts. No
-      <style> of its own, like the other fixtures: every declaration
-      measured here has to have come out of the app's own stylesheet, or
-      the measurement is a test of this page.
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
     -->
     <link rel="stylesheet" href="./globals.built.css" />
   </head>
   <body>
-    <!--
-      The class lists `FileActions` draws, written out, plus the strip
-      `MobileInspectorSheet` draws them inside at rest.
-
-      `top-full mt-1` and `bottom-full mb-1` are the two answers the
-      component's measurement chooses between, and `left-0` / `right-0`
-      the two on the other axis. What the spec measures is where each of
-      them actually puts the box; `fileActionsMenuFixtureParity.test.tsx`
-      renders the real components and fails if any list here drifts from
-      what they emit.
-
-      The two numbers are pinned by the same parity test rather than
-      restated here: `stripHeightPx` against `SHEET_PEEK_PX` and `gapPx`
-      against `MENU_GAP_PX`, the value the component adds to the menu's
-      height before asking whether the menu fits.
-    -->
     <script type="application/json" id="fixture-markup">
       {
         "wrapper": "relative",
@@ -65,7 +44,6 @@
         '<circle cx="8" cy="3" r="1.5" /><circle cx="8" cy="8" r="1.5" />' +
         '<circle cx="8" cy="13" r="1.5" /></svg>';
 
-      /** The `.relative` wrapper, its trigger, and whichever popups a case asks for. */
       function anchor({ direction, align, items, error, toastAlign }) {
         const wrapper = document.createElement("div");
         wrapper.className = SPEC.wrapper;
@@ -106,19 +84,8 @@
       }
 
       /**
-       * The Bottom Sheet at rest: a 56px strip on the viewport floor, the
-       * file's name, and the `⋮` at the right end of it.
-       *
-       * This is the surface the whole decision exists for. `fixed
-       * bottom-0` means the trigger's bottom edge is a few pixels from
-       * the viewport's, so a menu hung downward has nowhere to go.
-       *
-       * The strip's other occupant — the file's name — is left out. It
-       * decides where along the row the `⋮` sits, and nothing measured
-       * here is about that; the horizontal axis is measured in the column
-       * cases instead. Leaving it in would put a class list in this
-       * fixture that the parity test cannot reach without mounting the
-       * whole file-detail container.
+       * The strip's file name is left out: it decides where along the row
+       * the `⋮` sits, which the column cases measure instead.
        */
       window.buildStrip = ({ direction, items }) => {
         const frame = document.getElementById("frame");
@@ -133,12 +100,6 @@
         frame.append(strip);
       };
 
-      /**
-       * A trigger near the left edge of a narrow scrolling column.
-       *
-       * `overflow: auto` is what makes the column a clipping ancestor,
-       * which is the frame both axes of the decision resolve against.
-       */
       window.buildColumn = ({
         direction,
         align,

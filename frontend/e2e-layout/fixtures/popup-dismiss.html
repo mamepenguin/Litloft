@@ -5,39 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>popup dismissal — layout fixture</title>
     <!--
-      The compiled globals.css, built by ../build-fixture-css.ts. Every
-      tier on this page comes from that stylesheet, so an arrangement that
-      says "the bar is above the scrim" is one the app's own rules produce.
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
     -->
     <link rel="stylesheet" href="./globals.built.css" />
   </head>
   <body>
     <!--
-      Four ways to dismiss a popup, crossed with four things that can be
-      stacked over the scrim.
-
-      `shipped` is `DismissScrim`: a `document` press outside the popup
-      closes it, and the `click` that press produces is swallowed once, in
-      the capture phase. `scrim-click` is what this unit shipped for three
-      rounds — the scrim takes the click, which is only true while the
-      scrim is what the tap reaches. `scrim-press` is what `ContextMenu`
-      did, and `document-press` is what seven menus did: both answer the
-      press and leave the click to the page.
-
-      The arrangement is the second half of the URL (`#strategy:arrangement`)
-      and it is the point of the file. `plain` is a scrim over one `z-0`
-      button — the page this fixture used to be, on which *every* scrim
-      tier passes. The other three are real arrangements from the app: the
-      inspector's `sticky top-0 z-10` tab strip written after the scrim,
-      the selection bar's `fixed bottom-0 z-50`, and that same bar with the
-      scrim nested inside a `sticky top-0 z-20` box of its own — the folder
-      toolbar, where the scrim's number is compared only against its
-      siblings and so cannot be raised to answer the bar at all.
-
-      `scrimClass` is compared against `MENU_SCRIM` by
-      `popupDismissFixtureParity.test.tsx`, and `dismissOn` / `swallows` /
-      `scrimPointerEvents` against what the component actually does when it
-      is driven. Without that this page is a test of itself.
+      The URL hash is `#strategy:arrangement`.
     -->
     <script type="application/json" id="fixture-markup">
       {
@@ -62,9 +37,6 @@
         location.hash.slice(1) || "shipped"
       ).split(":");
 
-      // The whole viewport, so that wherever the spec taps in the `plain`
-      // arrangement is over it. A real page has a control somewhere under
-      // the scrim; which one is not the point.
       const underneath = document.createElement("button");
       underneath.type = "button";
       underneath.id = "underneath";
@@ -80,9 +52,8 @@
       state.hidden = true;
       document.body.append(state);
 
-      // Where the scrim and the menu are written. `nested` puts them
-      // inside a box that is its own stacking context, which is the
-      // arrangement in which a scrim's `z` decides nothing at all.
+      // `nested` puts the scrim inside its own stacking context, where its
+      // `z` is compared only against its siblings.
       let host = document.body;
       if (arrangement === "nested") {
         const nest = document.createElement("div");
@@ -114,9 +85,7 @@
       }
       host.append(menu);
 
-      // The chrome, written *after* the scrim, which is what the app does:
-      // the tab strip comes later in the inspector's column, and the
-      // selection bar is mounted by the page around the toolbar.
+      // The chrome is written *after* the scrim, as in the app.
       let target = underneath;
       if (arrangement !== "plain") {
         const bar = document.createElement("button");
@@ -135,9 +104,6 @@
           el.dataset.clicks = String(Number(el.dataset.clicks) + 1);
         });
       }
-      // A row that opens a context menu answers this and re-raises the
-      // menu on itself. Counting it is how "the gesture reached the row"
-      // is observed without building a second menu.
       underneath.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         underneath.dataset.contextmenus =
@@ -145,9 +111,6 @@
       });
 
       if (strategy === "shipped") {
-        // `DismissScrim`. The press decides, and the click that press
-        // produces is taken once in the capture phase — so nothing here
-        // depends on which element the tap reached.
         scrim.style.pointerEvents = SPEC.scrimPointerEvents;
         const onPress = (e) => {
           if (menu.contains(e.target)) return;
@@ -177,8 +140,6 @@
           document.addEventListener("pointercancel", abandon, true);
         }
       } else if (strategy === "scrim-click") {
-        // Three rounds of this unit. Correct exactly while the scrim is
-        // the element the tap lands on.
         scrim.addEventListener("click", dismiss);
       } else if (strategy === "scrim-press") {
         scrim.addEventListener("pointerdown", (e) => {
@@ -186,7 +147,6 @@
           dismiss();
         });
       } else {
-        // No scrim: nothing between the finger and the page.
         const onPress = () => dismiss();
         document.addEventListener("mousedown", onPress);
         document.addEventListener("touchstart", onPress);

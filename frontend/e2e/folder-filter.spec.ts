@@ -2,19 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { getDriveFiles, getFirstDrive, waitForApp } from "./helpers";
 
 /**
- * E2E coverage for the right-pane folder filter.
- *
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §2
- *   - Text + type filter UI sits below the toolbar on /drive/{name}
- *     and /drive/{name}/{path}.
- *   - Type "Markdown" narrows to .md files.
- *   - Folder navigation clears the filter.
- *   - Empty result shows "該当なし" + clear button.
- *
- * Selector strategy: i18n placeholders / aria-labels resolved against
- * the ja.json copy (the cookie-only NEXT_LOCALE defaults to ja in
- * dev). If the running app is in en the placeholders branch out via
- * the regex matchers below.
+ * Placeholders and labels match both the ja and en copy, since the locale
+ * cookie defaults to ja in dev.
  */
 
 let driveName: string;
@@ -35,8 +24,6 @@ test.beforeAll(async () => {
   if (!drive) return;
   driveName = drive.name;
 
-  // Look at the first 200 items to discover top-level folders we can
-  // navigate into and a reference file we can search for.
   const root = await getDriveFiles(driveName, { limit: 200 });
   const folders = new Set<string>();
   for (const f of root.data) {
@@ -49,9 +36,6 @@ test.beforeAll(async () => {
   if (folderList[0]) firstFolderPath = folderList[0];
   if (folderList[1]) secondFolderPath = folderList[1];
 
-  // Pick a reference file that lives inside firstFolderPath so the
-  // filter test can run inside that folder (where FolderContent
-  // renders FilterField at the top of the visible scroll area).
   if (firstFolderPath) {
     const inFolder = root.data.find((f) =>
       (f.folder_path ?? "").startsWith(firstFolderPath as string),
@@ -66,8 +50,6 @@ test.beforeAll(async () => {
     firstFileFolderPath = root.data[0].folder_path ?? "";
   }
 
-  // Probe for at least one markdown file in the drive so the type
-  // filter test can assert a non-empty result.
   try {
     const md = await getDriveFiles(driveName, { type: "markdown", limit: 1 });
     hasMarkdownFile = md.meta.total > 0;
@@ -76,7 +58,6 @@ test.beforeAll(async () => {
   }
 });
 
-/** Build a folder URL from a posix-style path (encodes each segment). */
 function folderUrl(drive: string, path: string): string {
   const segs = path.split("/").filter(Boolean).map(encodeURIComponent).join("/");
   return segs
@@ -84,19 +65,12 @@ function folderUrl(drive: string, path: string): string {
     : `/drive/${encodeURIComponent(drive)}`;
 }
 
-/** Locate the right-pane filter input (placeholder is the stable signal). */
 function folderFilterInput(page: Page) {
   return page.locator(`input[placeholder*="このフォルダ"], input[placeholder*="this folder"]`).first();
 }
 
-/**
- * Count files visible in the right pane. The grid/list rows are
- * rendered as `main a[href*="/files/"]`. We exclude any links inside
- * the (optional) tree pane so we only count right-pane rows.
- */
 async function countFolderFiles(page: Page): Promise<number> {
-  // Right pane lives in the main scroll area; tree pane (when open)
-  // sits in an aside. Filter by ancestor to avoid double-counting.
+  // The tree pane, when open, sits in an aside inside main.
   return await page
     .locator(`main a[href*="/files/"]`)
     .filter({ hasNot: page.locator("aside a") })
@@ -104,8 +78,6 @@ async function countFolderFiles(page: Page): Promise<number> {
 }
 
 async function openTypeDropdown(page: Page) {
-  // The type trigger is the only button right after the filter input
-  // exposing aria-haspopup="menu" inside the filter row.
   const trigger = page.locator('button[aria-haspopup="menu"]').filter({
     hasText: TYPE_DROPDOWN_LABEL_RE,
   }).first();
@@ -122,8 +94,7 @@ test.describe("Folder filter (right pane)", () => {
     await waitForApp(page);
 
     const input = folderFilterInput(page);
-    // Use toHaveCount rather than toBeVisible — the input may be in
-    // the DOM but below the fold on small viewports / long lists.
+    // Not toBeVisible: the input may be below the fold on long lists.
     await expect(input).toHaveCount(1, { timeout: 10_000 });
     await expect(input).toHaveAttribute("placeholder", FOLDER_PLACEHOLDER_RE);
   });
@@ -135,7 +106,6 @@ test.describe("Folder filter (right pane)", () => {
     await page.goto(folderUrl(driveName, firstFileFolderPath as string));
     await waitForApp(page);
 
-    // Wait for the listing to populate.
     await page
       .locator(`main a[href*="/files/"]`)
       .first()
@@ -164,7 +134,6 @@ test.describe("Folder filter (right pane)", () => {
     await page.goto(folderUrl(driveName, firstFolderPath as string));
     await waitForApp(page);
 
-    // Wait for any files to load before measuring baseline.
     const initialList = page.locator(`main a[href*="/files/"]`).first();
     const hasInitial = await initialList.isVisible().catch(() => false);
     test.skip(!hasInitial, "Drive root has no files to count");
@@ -173,17 +142,13 @@ test.describe("Folder filter (right pane)", () => {
     const input = folderFilterInput(page);
     await input.scrollIntoViewIfNeeded();
 
-    // Use a deliberately unlikely substring so we *probably* drop the
-    // count without erroring if data happens to contain it.
     await input.fill("zzqxnoresultz");
     await page.waitForTimeout(500);
 
-    // Now click the X clear button inside the filter row.
     const clearBtn = page.getByRole("button", { name: /clear|クリア/i }).first();
     if (await clearBtn.isVisible().catch(() => false)) {
       await clearBtn.click();
     } else {
-      // Fallback: clear via keyboard.
       await input.fill("");
     }
     await page.waitForTimeout(500);
@@ -204,7 +169,6 @@ test.describe("Folder filter (right pane)", () => {
     const input = folderFilterInput(page);
     await input.scrollIntoViewIfNeeded();
     await openTypeDropdown(page);
-    // Pick the Markdown menuitem inside the open menu.
     const md = page
       .locator('[role="menuitem"]')
       .filter({ hasText: /^Markdown$/ })
@@ -212,19 +176,12 @@ test.describe("Folder filter (right pane)", () => {
     await md.click();
     await page.waitForTimeout(500);
 
-    // After Markdown filter the dropdown trigger label should read
-    // "Markdown" rather than "All / すべて".
     const trigger = page
       .locator('button[aria-haspopup="menu"]')
       .filter({ hasText: TYPE_DROPDOWN_LABEL_RE })
       .first();
     await expect(trigger).toContainText(/Markdown/);
 
-    // Verify the visible rows really only point at .md content. We
-    // sample up to 5 file links and inspect the rendered name (cards
-    // typically expose either a title or filename next to a file-type
-    // icon). Loose check: at least one visible row, and none of the
-    // filenames we can read end in clearly non-markdown extensions.
     const links = page.locator(`main a[href*="/files/"]`);
     const sample = Math.min(5, await links.count());
     expect(sample).toBeGreaterThan(0);
@@ -247,17 +204,14 @@ test.describe("Folder filter (right pane)", () => {
     await page.waitForTimeout(400);
     await expect(input).toHaveValue("abc");
 
-    // Navigate directly to a sibling top-level folder (or the root if
-    // we don't know a second one). Direct goto exercises the same
-    // unmount/remount cycle as a card click.
+    // A direct goto exercises the same unmount/remount cycle as a card
+    // click.
     const target = secondFolderPath
       ? folderUrl(driveName, secondFolderPath)
       : `/drive/${encodeURIComponent(driveName)}`;
     await page.goto(target);
     await waitForApp(page);
 
-    // After navigation the filter input must be re-rendered empty
-    // (folder filter does not persist across navigation per spec §2.6).
     const inputAfter = folderFilterInput(page);
     if ((await inputAfter.count()) > 0) {
       await expect(inputAfter).toHaveValue("");
@@ -269,8 +223,6 @@ test.describe("Folder filter (right pane)", () => {
     await page.goto(folderUrl(driveName, firstFolderPath as string));
     await waitForApp(page);
 
-    // Skip if the folder is empty to begin with — we have nothing to
-    // hide via filtering.
     const anyFile = page.locator(`main a[href*="/files/"]`).first();
     const visible = await anyFile.isVisible().catch(() => false);
     test.skip(!visible, "Folder has no files; empty-state path is moot");
@@ -280,12 +232,9 @@ test.describe("Folder filter (right pane)", () => {
     await input.fill("zzz_no_match_xyz_12345");
     await page.waitForTimeout(500);
 
-    // Empty-state message exists in the spec/messages file.
     const empty = page.getByText(EMPTY_FOLDER_RE);
     await expect(empty).toBeVisible({ timeout: 5_000 });
 
-    // The X clear control inside the filter input itself counts as
-    // the spec's "filter clear" affordance.
     const clearBtn = page.getByRole("button", { name: CLEAR_FILTERS_RE }).first();
     const fallbackClear = page.getByRole("button", { name: /clear|クリア/i }).first();
     const target = (await clearBtn.isVisible().catch(() => false)) ? clearBtn : fallbackClear;

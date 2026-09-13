@@ -1,49 +1,11 @@
 /**
  * What a dismissing tap does to the control underneath, measured in
- * Chromium with a real touch — at four arrangements, because the
- * arrangement is what beat this unit three times.
+ * Chromium with a real touch.
  *
- * ## Why this exists at all
- *
- * `DismissScrim.test.tsx` drives the component and
- * `popup-dismissal.test.ts` reads source text. Neither can see a browser's
- * two contributions: hit testing, and the `click` synthesised after
- * `touchend`. A popup that closes on the press and leaves that click alone
- * activates whatever the popup was drawn over.
- *
- * ## What it measures now
- *
- * Two axes. **Strategy** is how the popup dismisses: `shipped` is the
- * mechanism (a `document` press outside the popup, then the click that
- * press produces swallowed once in the capture phase); `scrim-click` is
- * what this unit shipped for three rounds (the scrim takes the click);
- * `scrim-press` and `document-press` are the two shapes the tree carried
- * before it.
- *
- * **Arrangement** is what is stacked over the scrim: nothing, the
- * inspector's `sticky top-0 z-10` tab strip written after it, the
- * selection bar's `fixed bottom-0 z-50`, and that same bar with the scrim
- * nested inside a `sticky top-0 z-20` box of its own.
- *
- * The pair is the finding. `shipped` reaches the same outcome at all four.
- * `scrim-click` is right at two of them — the plain page, which is the
- * only one this file used to have, and the tab strip, which is what three
- * rounds of tier rules were spent getting right — and wrong at the two
- * where the chrome is a `z-50` bar. That is the argument for changing the
- * instrument, as a measurement rather than as prose: the rule was not
- * badly written, it was answering a question with no bounded answer.
- *
- * ## What it cannot see
- *
- * **Nothing here runs `DismissScrim`.** The fixture writes its own markup
- * and its own listeners, so deleting the component would leave every case
- * green. `popupDismissFixtureParity.test.tsx` is what ties the fixture's
- * class list, its dismiss event, the event it swallows and its
- * `pointer-events` to the component's.
- *
- * **No app is running**, so vaul's transform, the sheet's `pointer-events:
- * none` body and the addon slots are all absent. The nested arrangement is
- * a stacking context of the same kind, not the drawer itself.
+ * **Strategy** is how the popup dismisses: `shipped` is a `document` press
+ * outside the popup, then the click that press produces swallowed once in
+ * the capture phase; `scrim-click`, `scrim-press` and `document-press` are
+ * the alternatives. **Arrangement** is what is stacked over the scrim.
  */
 
 import { test, expect } from "@playwright/test";
@@ -54,7 +16,6 @@ import { pathToFileURL } from "node:url";
 const FIXTURE_FILE = resolve(__dirname, "fixtures", "popup-dismiss.html");
 const FIXTURE = pathToFileURL(FIXTURE_FILE).href;
 
-/** The declarations the page builds itself from, read rather than restated. */
 const SPEC: Record<string, string> = JSON.parse(
   readFileSync(FIXTURE_FILE, "utf8").match(
     /<script type="application\/json" id="fixture-markup">([\s\S]*?)<\/script>/,
@@ -64,26 +25,14 @@ const SPEC: Record<string, string> = JSON.parse(
 let navigation = 0;
 
 /**
- * Both sides of the scrim's one breakpoint.
- *
- * `MENU_SCRIM` is `bg-black/30 sm:bg-transparent`: above 640px the scrim
- * is invisible. Invisible is not the same as absent — it still draws a
- * box — but a case run only at 375 would be measuring the tinted form and
- * saying nothing about the one every desktop menu uses.
+ * Above `sm` the scrim is transparent but still draws a box, so both sides
+ * of the breakpoint are run.
  */
 const VIEWPORTS = [
   { name: "375x667 (tinted, below sm)", width: 375, height: 667 },
   { name: "820x1180 (transparent, above sm)", width: 820, height: 1180 },
 ];
 
-/**
- * What is stacked over the scrim, and what a finger lands on there.
- *
- * `plain` is the page this file used to be: a scrim over one `z-0` button,
- * where every scrim tier from `z-1` upward is on top and passes. The other
- * three are the arrangements that beat a `z` rule, each one real and named
- * beside it.
- */
 const ARRANGEMENTS = [
   {
     id: "plain",
@@ -117,11 +66,9 @@ async function open(
   strategy: string,
   arrangement = "plain",
 ): Promise<void> {
-  // The query is a cache-buster, and it is load-bearing: the strategy is
-  // read from `location.hash` when the script runs, and going from one
-  // hash to another on the same document is a hash change, not a
-  // navigation — the script does not re-run and the page keeps the first
-  // strategy. The `data-strategy` assertion below is what caught that.
+  // The query is a cache-buster: the strategy is read from
+  // `location.hash` when the script runs, and a hash change on the same
+  // document is not a navigation.
   await page.goto(`${FIXTURE}?run=${++navigation}#${strategy}:${arrangement}`);
   await expect(page.locator("body")).toHaveAttribute("data-ready", "1");
   await expect(page.locator("body")).toHaveAttribute("data-strategy", strategy);
@@ -147,7 +94,6 @@ async function read(
   }, target);
 }
 
-/** Tap the centre of whatever the arrangement puts under the finger. */
 async function tap(
   page: import("@playwright/test").Page,
   target: string,
@@ -156,15 +102,6 @@ async function tap(
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
 }
 
-/**
- * The expectation for each strategy at each arrangement, declared before
- * any of them was run.
- *
- * `shipped` is one row because it is one answer: the popup closes and the
- * page is spared, at every arrangement. `scrim-click` is four, because
- * that is the claim being broken — it holds exactly where the scrim is
- * what the tap reaches.
- */
 const SHIPPED: Reading = { dismissed: 1, activated: 0 };
 
 const SCRIM_CLICK: Record<string, Reading & { why: string }> = {
@@ -192,12 +129,6 @@ const SCRIM_CLICK: Record<string, Reading & { why: string }> = {
 
 test.describe("the populations these cases are generated from", () => {
   test("are the ones the file names", () => {
-    // Three tables, and every case below is generated from them, so a
-    // deletion is a silently shorter run: dropping `fixed-bar` and
-    // `nested` takes the two arrangements this round's whole argument
-    // rests on and leaves the rest green. Declared here rather than
-    // derived, because a length read off the table it is checking cannot
-    // disagree with it (detector rule 5).
     expect(ARRANGEMENTS.map((a) => a.id)).toEqual([
       "plain",
       "sticky-bar",
@@ -216,10 +147,8 @@ test.describe("the populations these cases are generated from", () => {
 
 for (const viewport of VIEWPORTS) {
   test.describe(viewport.name, () => {
-    // `hasTouch` is what makes `page.touchscreen.tap` dispatch touch
-    // events and let Chromium synthesise the `click` from `touchend` —
-    // the whole mechanism under test. Without it the tap is a no-op and
-    // every case below reads zeros.
+    // Without `hasTouch` the tap is a no-op and Chromium synthesises no
+    // `click` from `touchend`.
     test.use({
       viewport: { width: viewport.width, height: viewport.height },
       hasTouch: true,
@@ -239,9 +168,6 @@ for (const viewport of VIEWPORTS) {
     });
 
     test.describe("the scrim taking the click instead", () => {
-      // The instrument this replaces, measured rather than argued with.
-      // Three of these four are defects that shipped or were one review
-      // away from shipping.
       for (const arrangement of ARRANGEMENTS) {
         const want = SCRIM_CLICK[arrangement.id];
         test(`scrim-click, ${arrangement.id}: ${want.why}`, async ({ page }) => {
@@ -256,9 +182,6 @@ for (const viewport of VIEWPORTS) {
     });
 
     test.describe("the two shapes the tree carried before any scrim", () => {
-      // Kept in the same run as the right one: a case that only asserts
-      // "the button was not pressed" passes on a page where nothing can
-      // press it.
       for (const [strategy, why] of Object.entries({
         "scrim-press":
           "pointerdown unmounts the scrim, and the touch's click still lands",
@@ -276,10 +199,8 @@ for (const viewport of VIEWPORTS) {
     });
 
     test.describe("the same gesture with a mouse", () => {
-      // A mouse hides one of the two old defects completely: cancelling
-      // `pointerdown` suppresses the compatibility mouse events, so
-      // `scrim-press` looks correct here. That asymmetry is why the tree
-      // could hold several behaviours with nobody noticing.
+      // Cancelling `pointerdown` suppresses the compatibility mouse
+      // events, so `scrim-press` looks correct with a mouse.
       for (const [strategy, want] of Object.entries({
         shipped: { dismissed: 1, activated: 0 },
         "scrim-press": { dismissed: 1, activated: 0 },
@@ -297,10 +218,8 @@ for (const viewport of VIEWPORTS) {
       test("dismisses, and its own menu event reaches the row", async ({
         page,
       }) => {
-        // Retargeting, which `ContextMenu` needs: right-clicking a second
-        // row moves the menu there. It used to be a `preventDefault` and
-        // an `elementFromPoint` re-dispatch a frame later; with the scrim
-        // out of the way the `contextmenu` arrives on its own.
+        // `ContextMenu` needs retargeting: right-clicking a second row
+        // moves the menu there.
         await open(page, "shipped");
         await page.mouse.click(200, 500, { button: "right" });
         expect(
@@ -316,10 +235,8 @@ for (const viewport of VIEWPORTS) {
       });
 
       test("leaves the click after it to the page", async ({ page }) => {
-        // The boundary of the swallow. A right-press produces no `click`,
-        // so a swallow that stayed armed would eat the next ordinary one.
-        // Measured rather than reasoned about: "armed forever" and "armed
-        // for one interaction" look identical until something asks.
+        // A right-press produces no `click`, so a swallow that stayed
+        // armed would eat the next ordinary one.
         await open(page, "shipped");
         await page.mouse.click(200, 500, { button: "right" });
         await page.mouse.click(200, 500);
@@ -329,10 +246,6 @@ for (const viewport of VIEWPORTS) {
 
     test.describe("the scrim itself", () => {
       test("is not what a pointer reaches", async ({ page }) => {
-        // The statement the whole change rests on: the scrim is
-        // appearance. Over the middle of it, the element at the point is
-        // the page — and the tap outcome above is the same either way,
-        // which is what makes the tier a matter of taste now.
         await open(page, "shipped");
         expect(
           await page.evaluate(() => {
@@ -348,9 +261,6 @@ for (const viewport of VIEWPORTS) {
       });
 
       test("covers the viewport", async ({ page }) => {
-        // What makes the dim a dim. Read back from the page rather than
-        // restated: a copy of the number in `test.use` could not disagree
-        // with it.
         await open(page, "shipped");
         expect(await page.locator("#scrim").boundingBox()).toEqual({
           x: 0,
