@@ -5,6 +5,7 @@ import pytest
 from datetime import UTC, datetime
 from pathlib import Path
 
+from app.services import fileops
 from tests.conftest import TEST_DRIVE
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -355,7 +356,14 @@ class TestBatchCopy:
         )
 
         assert res.status_code == 200
-        assert res.json()["copied"] == 1
+        data = res.json()
+        assert data["copied"] == 1
+        # The file with the thumbnail is the one that failed. Without this
+        # the case passes just as well when the second `copy2` is another
+        # file's *body* — which is what it becomes the moment anything stops
+        # the thumbnail being copied here.
+        assert [e["id"] for e in data["errors"]] == [first.id]
+        assert calls["n"] == 3
         assert sorted(p.name for p in (drive_dir / "dest").iterdir()) == ["a.mp4"]
 
     def test_a_copy_onto_a_missing_record_keeps_that_record(self, client):
@@ -369,7 +377,9 @@ class TestBatchCopy:
         from app.models import File, WatchHistory
 
         c, db, drive_dir, data_dir = client
-        source = _seed(db, drive_dir, "a.mp4", folder="one")
+        # With a thumbnail on both sides, because the cache slot is derived
+        # from the path: the copy takes the name and the slot together.
+        source = _seed_with_thumbnail(db, drive_dir, data_dir, "a.mp4", folder="one")
         (drive_dir / "dest").mkdir(exist_ok=True)
 
         ghost = File(
@@ -381,6 +391,7 @@ class TestBatchCopy:
             file_size=1,
             file_type="video",
             mime_type="video/mp4",
+            thumbnail_path=f"{TEST_DRIVE}/dest/a.jpg",
             missing_since=datetime.now(UTC),
         )
         db.add(ghost)
@@ -411,6 +422,117 @@ class TestBatchCopy:
         assert (
             db.query(WatchHistory).filter(WatchHistory.file_id == ghost_id).count() == 1
         )
+        # And stops pointing at the thumbnail slot the copy has taken over.
+        # Two rows naming one cache file means the Missing view shows the
+        # other file's picture, and purging the ghost deletes a thumbnail
+        # the live copy is using.
+        copied_row = (
+            db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.file_path == "dest/a.mp4")
+            .one()
+        )
+        assert copied_row.thumbnail_path == f"{TEST_DRIVE}/dest/a.jpg"
+        assert kept.thumbnail_path != copied_row.thumbnail_path
+
+    def test_copying_a_moved_file_back_where_its_thumbnail_stayed(self, client):
+        """No error injected: this is a file the reader can see, into a folder
+        they can see.
+
+        Only video thumbnails follow a move, so an image moved out of a folder
+        still points at the thumbnail it left behind. Copying it back names
+        that one file as both source and destination, which `copy2` refuses —
+        and the copy did not happen, with nothing said.
+        """
+        c, db, drive_dir, data_dir = client
+        f = _seed_with_thumbnail(db, drive_dir, data_dir, "photo.png", folder="dest")
+        f.file_type = "image"
+        f.mime_type = "image/png"
+        db.commit()
+
+        res = c.put(
+            f"/api/files/{f.id}/move",
+            json={"target_folder_path": "one"},
+        )
+        assert res.status_code == 200
+
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [f.id], "target_folder_path": "dest"},
+        )
+
+        assert res.status_code == 200
+        data = res.json()
+        assert data["errors"] == []
+        assert data["copied"] == 1
+        assert (drive_dir / "dest" / "photo.png").exists()
+
+    def test_a_database_failure_leaves_no_file_behind(self, client, monkeypatch):
+        """The third way out of the copy, and the one the two above cannot reach.
+
+        The body is written and the thumbnail is copied before anything is
+        committed, so a database error arrives with a complete file already at
+        the destination. Both other failures are OSErrors; this one is not,
+        and it is what a concurrent scan locking SQLite looks like.
+        """
+        c, db, drive_dir, data_dir = client
+        first = _seed(db, drive_dir, "a.mp4", folder="one")
+        second = _seed(db, drive_dir, "a.mp4", folder="two")
+
+        from sqlalchemy.exc import SQLAlchemyError
+
+        real = fileops.remove_empty_folder_if_has_files
+        calls = {"n": 0}
+
+        def fail_first(*args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise SQLAlchemyError("database is locked")
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(fileops, "remove_empty_folder_if_has_files", fail_first)
+
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [first.id, second.id], "target_folder_path": "dest"},
+        )
+
+        assert res.status_code == 200
+        data = res.json()
+        assert data["copied"] == 1
+        assert [e["id"] for e in data["errors"]] == [first.id]
+        # The message the user is handed says the filesystem was reversed.
+        assert "filesystem reversed" in data["errors"][0]["error"]
+        assert sorted(p.name for p in (drive_dir / "dest").iterdir()) == ["a.mp4"]
+
+    def test_losing_the_race_leaves_the_winner_s_file_alone(self, client, monkeypatch):
+        """The 409 is raised outside the cleanup on purpose.
+
+        Losing the exclusive create means another writer owns that path, so
+        this request must not touch it. Patching `os.open` cannot show that —
+        with no file on disk there is nothing for a stray unlink to remove —
+        so the race is built instead: the name is free when it is chosen and
+        taken by the time the create runs.
+        """
+        c, db, drive_dir, data_dir = client
+        source = _seed(db, drive_dir, "a.mp4", folder="one")
+        (drive_dir / "dest").mkdir(exist_ok=True)
+
+        owned = drive_dir / "dest" / "a.mp4"
+
+        def take_the_name(target_dir, original_filename):
+            owned.write_bytes(b"OWNED-BY-THE-OTHER-REQUEST")
+            return original_filename
+
+        monkeypatch.setattr(fileops, "_resolve_copy_filename", take_the_name)
+
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [source.id], "target_folder_path": "dest"},
+        )
+
+        assert res.json()["copied"] == 0
+        assert owned.exists(), "the 409 deleted a file this request did not create"
+        assert owned.read_bytes() == b"OWNED-BY-THE-OTHER-REQUEST"
 
     @pytest.mark.parametrize("failure", ["write", "exclusive-create"])
     def test_a_failure_does_not_carry_a_ghost_into_the_next_commit(

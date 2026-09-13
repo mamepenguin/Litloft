@@ -197,6 +197,12 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
         db.delete(conflict)
     else:
         conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
+        # The thumbnail cache key is derived from drive + folder + stem just
+        # as the path is, so whatever takes this path takes that slot too.
+        # Leaving the pointer means the Missing row shows the new file's
+        # picture, and purging the row — the one action it is kept for —
+        # unlinks a thumbnail the live copy is using.
+        conflict.thumbnail_path = None
     db.flush()
 
 
@@ -292,14 +298,19 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         # be regenerated below instead of copied to the generic path-based cache.
         if source.thumbnail_path and not _is_markdown_file(source):
             old_thumb = config.THUMBNAILS_DIR / source.thumbnail_path
-            if old_thumb.exists():
-                new_stem = Path(new_filename).stem
-                new_thumb_rel = (
-                    f"{dst_drive}/{target_folder}/{new_stem}.jpg"
-                    if target_folder
-                    else f"{dst_drive}/{new_stem}.jpg"
-                )
-                new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
+            new_stem = Path(new_filename).stem
+            new_thumb_rel = (
+                f"{dst_drive}/{target_folder}/{new_stem}.jpg"
+                if target_folder
+                else f"{dst_drive}/{new_stem}.jpg"
+            )
+            new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
+            # `old_thumb != new_thumb`, because only video thumbnails follow
+            # a move: an image moved out of a folder still points at the
+            # thumbnail it left there, and copying it back names that same
+            # file on both sides — which `copy2` refuses, failing the whole
+            # copy for a file the reader can see.
+            if old_thumb.exists() and old_thumb != new_thumb:
                 new_thumb.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(str(old_thumb), str(new_thumb))
                 new_file.thumbnail_path = new_thumb_rel
