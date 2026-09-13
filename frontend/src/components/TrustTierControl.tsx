@@ -8,8 +8,6 @@ import { setFileTrustTier } from "@/lib/api";
 import type { FileItem, TrustTier } from "@/types";
 
 /**
- * Vouch for a file as a source, or withdraw that vouch.
- *
  * `trust_tier` and `trust_reviewed_at` encode four states, and the control
  * differs across them: an unreviewed file is being asked a question, whereas
  * a decided one is offering a reversal. `verified` with no stamp is the
@@ -18,8 +16,6 @@ import type { FileItem, TrustTier } from "@/types";
  *
  * Withdrawing trust destroys nothing (the file stays, and anything distilled
  * from it keeps its own standing), so there is no confirmation step.
- *
- * Spec `2026-08-29-web-clip-promotion.md` §3.
  */
 export function TrustTierControl({
   file,
@@ -47,25 +43,17 @@ export function TrustTierControl({
   const target: TrustTier = verified ? "unverified" : "verified";
   const action = verified ? t("withdraw") : t("trust");
 
-  // Both states carry their label.
-  //
-  // Verified used to be an icon alone, on the reasoning that a label
-  // repeated across a whole library is noise. That reasoning is about
-  // list rows, and this control does not appear in one — it renders
-  // once, on the file detail page. What the bare shield cost instead
-  // was a reader having to know that a shield means verified, next to
-  // an unverified state that says so in words. One of two states
-  // spelling itself out is not a pair.
+  // Both states carry their label: this control renders once, on the file
+  // detail page, so the "label repeated across a library is noise" argument
+  // for list rows does not apply.
   //
   // The badge deliberately reports the tier alone. Whether anyone has *ruled*
-  // on the file is a different question, and the one place it actually helps
-  // is the "not reviewed" listing filter; putting it here made every
+  // on the file is a different question; putting it here made every
   // untouched file look like a warning.
   //
   // One button rather than a chip beside an action button: state and action
-  // are the same axis, so the click does the opposite of what is shown, as
-  // the favourite star already does in this row. The action is the accessible
-  // name so it is never guesswork.
+  // are the same axis, so the click does the opposite of what is shown. The
+  // action is the accessible name so it is never guesswork.
   return (
     <button
       onClick={() => apply(target)}

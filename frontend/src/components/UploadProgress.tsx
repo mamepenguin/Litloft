@@ -41,7 +41,6 @@ export function UploadProgress({
   return (
     <div className="fixed bottom-0 right-0 z-40 w-full max-w-md">
       <div className="m-3 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg">
-        {/* Header */}
         <button
           onClick={() => setCollapsed((prev) => !prev)}
           className="flex w-full items-center justify-between px-4 py-3 text-left"
@@ -75,7 +74,6 @@ export function UploadProgress({
           </div>
         </button>
 
-        {/* Upload list */}
         {!collapsed && (
           <div className="max-h-64 overflow-y-auto border-t border-bg-border">
             {uploads.map((upload) => (
@@ -116,7 +114,6 @@ export function UploadProgress({
                   </div>
                 </div>
 
-                {/* Progress bar */}
                 {(upload.status === "uploading" ||
                   upload.status === "processing") && (
                   <div className="h-1.5 overflow-hidden rounded-full bg-bg-elevated">

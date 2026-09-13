@@ -65,20 +65,13 @@ function ShortcutList({ shortcuts }: { shortcuts: ShortcutDef[] }) {
 
 /**
  * The sheet binds no key of its own. `ShortcutsProvider` answers Escape
- * for it before it consults the stack at all, so the listener that used
- * to live here was a second answer to the same press — kept as a
- * "safety net in case the provider's listener order differs", which is
- * a guess about code in the same repository.
+ * for it before it consults the stack at all.
  */
 export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetProps) {
   const t = useTranslations("shortcuts");
 
   if (!open) return null;
 
-  // Show every non-global layer in the same order the provider resolves them
-  // (overlay tiers first, then most recently pushed), with global at the
-  // bottom. Walking the full stack lets a mid-stack context (e.g. an addon
-  // root that also has an editor pushed on top) keep its shortcuts visible.
   const globalCtx = stack.find((c) => c.id === "global");
   const sections: ShortcutContextDef[] = orderContexts(stack).filter(
     (ctx) => ctx.id !== "global",
@@ -87,21 +80,18 @@ export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetP
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
         aria-hidden
       />
 
-      {/* Panel */}
       <div
         className="relative z-10 mx-4 w-full max-w-sm rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale"
         role="dialog"
         aria-modal
         aria-label={t("title")}
       >
-        {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-text-primary">{t("title")}</h2>
           <button

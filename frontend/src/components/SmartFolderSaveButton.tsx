@@ -22,30 +22,15 @@ interface SmartFolderSaveButtonProps {
   drive: string;
   query: string;
   /**
-   * The listing's active kind, saved with the smart folder.
-   *
-   * Smart folders accept only four of them
+   * Smart folders accept only four kinds
    * (`_SMART_FOLDER_FILE_TYPES`: video / image / audio / document), so
    * saving one narrowed to any other kind fails with the existing
-   * "could not save" error. That gap predates the shared vocabulary —
-   * `archive` and `other` were already offered and already unsaveable —
-   * and closing it means migrating saved rows, which is Phase 4's
-   * (spec 2026-09-03-ui-redesign-p1-vocabulary.md, carry-over table).
+   * "could not save" error.
    */
   typeFilter?: FileKind | null;
   smartFolderId: string | null;
 }
 
-/**
- * Renders next to the search results heading. Two visual modes:
- *
- *  - "save": no smart_folder_id in URL → "★ Save" button. Clicking opens
- *    the name dialog. After save, replaces the URL with smart_folder_id.
- *  - "saved": smart_folder_id matches an existing SF → "★ Saved: {name}"
- *    chip with a dropdown for "Update / Rename / Delete".
- *
- * Drive-scoped: always operates on the current drive.
- */
 export function SmartFolderSaveButton({
   drive,
   query,
@@ -73,10 +58,6 @@ export function SmartFolderSaveButton({
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const menuWrapperRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  // The search bar this hangs from sits at the top of its column, so the
-  // downward answer is the one it reads as almost everywhere — but the bar
-  // travels with a `sticky` header and the column scrolls under it, and
-  // "almost everywhere" is what the measurement replaces.
   const { openUp, side } = useAnchoredDirection({
     triggerRef: menuWrapperRef,
     panelRef: menuRef,
@@ -91,23 +72,14 @@ export function SmartFolderSaveButton({
     return () => clearTimeout(timer);
   }, [error]);
 
-  // A popup must be dismissable from the keyboard. Without it the only
-  // ways out are a press outside it or picking a row, so a keyboard user
-  // who opens this menu cannot back out of it.
-  //
   // On the shortcut stack, not on `document`: a listener does not know
-  // what is stacked above it, and `escape-listeners.test.ts` records the
-  // presses that were answered twice before this was the rule.
-  // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
-  // while it is open. `FileActions` carries the same block and the
-  // reasoning in full.
+  // what is stacked above it.
   //
   // `editingOnly: false` because nothing traps focus inside this menu, so
   // Tab walks out of the last row into whatever follows in the document.
   // The provider counts a focused field as "editing", and the default
   // fires only when nothing is — which would leave Escape inert exactly
-  // there, with the menu still up. The test case for that state is what
-  // makes the flag checkable.
+  // there, with the menu still up.
   useShortcuts(
     "smart-folder-menu",
     "Dialog",
@@ -192,7 +164,6 @@ export function SmartFolderSaveButton({
     }
   }, [current, remove, router, buildSearchUrl, t]);
 
-  // Don't show the button at all if the search query is empty (defensive).
   if (!query.trim()) return null;
 
   const inSavedMode = !!current;
@@ -218,19 +189,11 @@ export function SmartFolderSaveButton({
           {menuOpen && (
             <DismissScrim
               onDismiss={() => setMenuOpen(false)}
-              // Under the `z-40` menu, over the search bar it hangs from.
               className="fixed inset-0 z-30"
             >
               <div
                 ref={menuRef}
                 role="menu"
-                // `top-full` is spelled out where the panel used to take
-                // its static position. The two land in the same place — an
-                // `absolute` box with neither offset stays where it would
-                // have been in flow, and the only flow content above it is
-                // the trigger — but a direction that is decided has to be
-                // written on both sides, and there is no `bottom-*`
-                // spelling of "wherever flow put it".
                 className={`absolute z-40 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale ${
                   ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
                 } ${side === "left" ? "left-0" : "right-0"} ${

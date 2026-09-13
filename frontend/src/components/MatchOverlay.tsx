@@ -1,28 +1,5 @@
 "use client";
 
-/**
- * MatchOverlay — per-card match metadata for the unified search list.
- *
- * Spec: `2026-05-02-search-results-unification-phase3.md`. Filename
- * match and semantic hits live in one list now; each card surfaces a
- * `MatchMeta` describing why it matched. Backend channels are
- * collapsed by `buildMatchMeta` into 6 user-facing buckets so a card
- * never shows e.g. "audio" + "audio keyword" side by side:
- *   filename / metadata / audio / content / scene / thumbnail
- *
- * Color usage follows DESIGN.md §2.2 (warm palette only):
- *   filename / metadata → accent (primary surface, file-level)
- *   transcript          → accent-teal (audio = nature)
- *   clip / clip_thumbnail → accent-amber (visual = focus)
- *   content             → warm-light (neutral, body text)
- *
- * The last row is a search snippet: the single strongest quotable excerpt
- * behind the hit, rendered as a quiet quotation rather than a surface so a
- * dense grid of cards does not turn into a wall of boxes. Addons hang their
- * per-hit actions off that row through `search-result-actions`; the snippet
- * itself is core, so a drive without Knowledge still sees where it matched.
- */
-
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { FileItemWithMatch, MatchMeta } from "@/types";
@@ -54,16 +31,8 @@ function TimestampLink({
     <Link
       href={`/files/${fileId}?t=${Math.floor(seconds)}`}
       onClick={(e) => {
-        // FileCard wraps the whole card in a clickable area; the
-        // overlay container already calls stopPropagation, but keep
-        // preventDefault here as a belt-and-braces guard so the
-        // browser doesn't double-fire with the wrapping <a>.
         e.stopPropagation();
       }}
-      // The pill's identity for the parity detector, which must not have to
-      // recognise a pill by the shape of the text inside it: a pill that
-      // stopped formatting as a time would leave the population instead of
-      // failing the assertion.
       data-testid="match-timestamp-pill"
       className="rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
     >
@@ -91,9 +60,8 @@ export function MatchOverlay({
   const activeTypes: string[] = [];
   if (match.filename) activeTypes.push("filename");
   else if (match.metadata) activeTypes.push("metadata");
-  // path stands independently from filename/metadata (spec
-  // 2026-05-02-search-path-match) — show both badges when the query hit both
-  // title and folder_path so the user can see where it matched.
+  // path stands independently from filename/metadata — show both badges
+  // when the query hit both title and folder_path.
   if (match.path) activeTypes.push("path");
   if (match.transcript && match.transcript.length > 0) {
     activeTypes.push("transcript");

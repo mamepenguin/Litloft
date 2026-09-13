@@ -86,11 +86,6 @@ export function RelatedFilesSection({ fileId }: { fileId: string }) {
 
   if (!relations || relations.length === 0) return null;
 
-  // Grouped, this is one part of "Related" and not a section of its
-  // own: it sheds the card and drops a step in weight, so the heading
-  // above it is the louder of the two. Ungrouped — the collection route,
-  // which stacks everything in one column — it is a section and keeps
-  // the card every other section there has.
   return (
     <section
       className={
@@ -111,11 +106,8 @@ export function RelatedFilesSection({ fileId }: { fileId: string }) {
         </span>
       </div>
       {/* The column count is a question about this grid's own width,
-          not the window's: the same markup renders in the 24rem
-          inspector rail and in the full-width legacy stack, and
-          `sm:grid-cols-2` answered it with the viewport — two columns
-          in a 351px rail. `globals.css` has the threshold and why the
-          container is a wrapper here rather than the section. */}
+          not the window's: the same markup renders in the inspector
+          rail and in the full-width legacy stack. */}
       <div className="related-files-host">
         <div className="related-files-grid grid gap-2">
           {relations.map((item) => (

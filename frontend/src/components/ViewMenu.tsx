@@ -22,13 +22,9 @@ interface ViewProps {
 }
 
 /**
- * The "which layout" rows, without a control around them.
- *
- * The folder toolbar draws these twice — inside `ViewMenu` on the bar, and
- * inside `…` at the widths where the bar has no room for it. Both take the
- * mode from the toolbar rather than each holding their own, or the phone and
- * the desktop would disagree about which layout is on. The archive toolbar
- * has room for the control at every width and takes only `ViewMenu`.
+ * The folder toolbar draws these twice. Both take the mode from the toolbar
+ * rather than each holding their own, or the phone and the desktop would
+ * disagree about which layout is on.
  */
 export function ViewGroup({ mode, onSelect }: ViewProps) {
   const t = useTranslations("view");
@@ -42,18 +38,6 @@ export function ViewGroup({ mode, onSelect }: ViewProps) {
   );
 }
 
-/**
- * Grid or list, as one labelled control.
- *
- * It was two adjacent icon buttons, and the selected one carried a border
- * because it could not carry a fill (`ViewToggle` records that measurement).
- * A menu says which layout is on in a word instead of in a border, which is
- * what lets a toolbar reach 案 2's target of one wordless control. Two
- * toolbars take it — the folder's and the archive's — which is why this and
- * `ToolbarMenu` sit under `components/` rather than under `folder/`. The four
- * screens that are neither keep `ViewToggle`; which those are is
- * enumerated by `ViewToggle.test.tsx`, not counted here.
- */
 export function ViewMenu({
   mode,
   onSelect,

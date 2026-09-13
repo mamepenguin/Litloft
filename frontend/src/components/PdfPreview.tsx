@@ -48,17 +48,9 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 /**
- * The message key for each mode, spelled out.
- *
- * What this buys is exhaustiveness, not key checking. `satisfies
- * Record<PdfZoomMode, string>` makes adding or renaming a mode a type
- * error here, where the label it needs is decided.
- *
- * It does not catch a typo in the key itself: next-intl only checks keys
- * against an augmented `AppConfig["Messages"]`, this frontend augments
- * nothing, so `Messages` is `Record<string, any>` and `t` accepts any
- * string. That is also why the `as never` casts this replaced were
- * turning off a check that was never on — they read as if it were.
+ * `satisfies Record<PdfZoomMode, string>` makes adding or renaming a mode a
+ * type error here. It does not catch a typo in the key itself: this
+ * frontend augments no next-intl `Messages`, so `t` accepts any string.
  */
 const MODE_LABEL_KEY = {
   "fit-width": "pdfZoomMode_fit-width",
@@ -67,23 +59,12 @@ const MODE_LABEL_KEY = {
 } as const satisfies Record<PdfZoomMode, string>;
 
 /**
- * `p-4` top plus bottom, at the default root font size.
- *
- * The fallback only, for environments that compute no styles — jsdom, in
- * this project. Everywhere else the padding is read off the element,
- * because `p-4` is `1rem` and a reader whose browser default is 20px has
- * 40px of it, not 32; a hard 32 there fits every "whole page" 8px too
- * tall and gives the mode the permanent scrollbar it exists to avoid.
+ * The fallback only, for environments that compute no styles. Everywhere
+ * else the padding is read off the element, because `p-4` is `1rem` and a
+ * reader whose browser default is 20px has 40px of it, not 32.
  */
 const PAGE_BOX_PADDING_Y = 32;
 
-/**
- * The scroll box's vertical padding, in used pixels.
- *
- * `getComputedStyle` resolves the `rem` that the class is written in.
- * The test pins `p-4` on the element so the fallback above cannot drift
- * away from the class it names.
- */
 function pageBoxPaddingY(box: Element): number {
   const style = getComputedStyle(box);
   const top = parseFloat(style.paddingTop);
@@ -110,7 +91,6 @@ export function PdfPreview({
   onDocumentCaptureController?: (
     controller: DocumentCaptureController | null,
   ) => void;
-  /** Published upward so the inspector's page list can read and move it. */
   onPdfController?: (controller: PdfController | null) => void;
 }) {
   const t = useTranslations("file");
@@ -122,12 +102,10 @@ export function PdfPreview({
   );
   const [zoom, setZoom] = useState(1);
   const [availableWidth, setAvailableWidth] = useState(800);
-  // The scroll box's height, for "whole page". Its own measurement
-  // rather than a share of the viewport: §7's floor makes the box a
+  // Its own measurement rather than a share of the viewport: the box is a
   // fraction of the canvas, which is not the window.
   const [availableHeight, setAvailableHeight] = useState(600);
   const pageBoxRef = useRef<HTMLDivElement>(null);
-  /** The current page's size in PDF points, once the document says. */
   const [pageBox, setPageBox] = useState<PageBox | null>(null);
   const [zoomMode, setZoomMode] = useState<PdfZoomMode>(DEFAULT_PDF_ZOOM_MODE);
   const [renderFailed, setRenderFailed] = useState(false);
@@ -151,8 +129,6 @@ export function PdfPreview({
   const pdfStore = useMemo(() => new PdfDocumentStore(), []);
 
   /**
-   * What this mount last loaded.
-   *
    * The reset below must not run on the first pass: `<Document>` reports
    * `onLoadSuccess` from a child effect, which React runs *before* this one,
    * so an unguarded reset would clear the count the document had just given.
@@ -208,37 +184,17 @@ export function PdfPreview({
   useEffect(() => {
     const box = pageBoxRef.current;
     if (!box || typeof ResizeObserver === "undefined") return;
-    // One observer, on the scroll box. Two axes, read from two of that
-    // element's boxes, because each has to be immune to a different
-    // scrollbar.
-    //
     // Width comes from the content box, which excludes `p-4` and the
     // vertical scrollbar's gutter — reserved unconditionally below, so
     // the number does not move when the scrollbar comes and goes.
     //
-    // Height comes from the *border* box, minus that same padding. The
-    // content box would be the tidier read, but a horizontal scrollbar
-    // takes its thickness out of it, and `fit-page` turns height into
-    // width: a shorter box makes a narrower page, a narrower page
-    // retires the scrollbar, the height grows back. The border box is
-    // `h-[80vh]` whether or not anything is scrolling.
-    //
-    // Neither number is a function of the page any more, which is what
-    // makes the cycle unavailable rather than merely unlikely.
-    //
-    // What it costs: when a horizontal scrollbar *is* drawn — which for
-    // a fitted mode means above zoom 1, since neither fit function
-    // returns more than `available` — the height still reads as though
-    // it were not, so it overstates the visible height by the
-    // scrollbar's own thickness. That is ~15px classic, 0 overlay, and
-    // it makes a fitted page about 10px wider than a true fit. The page
-    // was already overflowing in that state.
+    // Height comes from the *border* box, minus that same padding. A
+    // horizontal scrollbar takes its thickness out of the content box, and
+    // `fit-page` turns height into width: a shorter box makes a narrower
+    // page, a narrower page retires the scrollbar, the height grows back.
     //
     // `borderBoxSize` postdates `ResizeObserver` itself, so the guard at
-    // the top of this effect does not cover it. Falling back to the
-    // content box restores the merely-imperfect reading rather than
-    // throwing inside the callback and freezing the height at its
-    // default.
+    // the top of this effect does not cover it.
     const observer = new ResizeObserver(([entry]) => {
       const borderHeight = entry.borderBoxSize?.[0]?.blockSize;
       setAvailableWidth(entry.contentRect.width);
@@ -270,19 +226,15 @@ export function PdfPreview({
   }, [page, numPages, src, pdfStore]);
 
   /**
-   * A draft is about the page it was typed on top of.
-   *
-   * The page can move underneath it — an Ask citation arriving as a new
-   * `initialPage`, or a press in the page list — and a box still reading `9`
+   * The page can move underneath a draft, and a box still reading `9`
    * while the canvas is on 3 is a counter that lies about where the reader
-   * is, with nothing to make it stop.
+   * is.
    */
   useEffect(() => {
     setPageDraft(null);
   }, [page]);
 
   /**
-   * The outline is a property of the loaded document, so it costs no request.
    * `getOutline()` answers `null` for a PDF that has none, which is a
    * different fact from "not asked yet" — `flattenOutline` turns it into `[]`
    * and the store's `null` keeps the distinction.
@@ -299,9 +251,7 @@ export function PdfPreview({
             const target = resolved[0];
             // Most destinations name a page by reference, which only the
             // document can resolve. Some name it by 0-based index outright,
-            // and `getPageIndex` throws on those — a table of contents whose
-            // rows were all dead because every one of them took the wrong
-            // branch is indistinguishable from a document with no outline.
+            // and `getPageIndex` throws on those.
             if (typeof target === "number") return target + 1;
             const index = await pdf.getPageIndex(target);
             return index + 1;
@@ -347,13 +297,9 @@ export function PdfPreview({
   );
 
   /**
-   * Whether the reader is inside the viewer.
-   *
-   * §8 (b) scopes the page keys to "while the viewer is in the focus scope",
-   * and the reason is concrete: `ShortcutsProvider` calls `preventDefault` on
-   * every match, so an unscoped binding stops `PageDown` scrolling the
-   * inspector — whose panel is `tabIndex={0}` precisely so a keyboard reader
-   * can scroll it — and stops it scrolling a page zoomed past the canvas box.
+   * `ShortcutsProvider` calls `preventDefault` on every match, so an
+   * unscoped page-key binding stops `PageDown` scrolling the inspector and
+   * a page zoomed past the canvas box.
    *
    * Body counts as inside: a reader who has clicked nothing has focused
    * nothing, and the viewer is what the page is for.
@@ -378,17 +324,9 @@ export function PdfPreview({
   }, []);
 
   /**
-   * `PageUp` / `PageDown`, and deliberately not `←` / `→`.
-   *
-   * `useFileNav` binds the arrows to the previous and next file in the folder
-   * whenever `playerKind` is null, which a PDF is, and
-   * `docs/user-guide/keyboard-shortcuts.md` has published that meaning. One
-   * kind of file where the arrows mean something else is a thing the reader
-   * has to remember.
-   *
-   * Typing a number is not also a page turn, and that is the registry's own
-   * default rather than a gate here: a `ShortcutDef` with no `editingOnly`
-   * fires only when nothing editable has focus.
+   * Deliberately not `←` / `→`: `useFileNav` binds the arrows to the
+   * previous and next file in the folder whenever `playerKind` is null,
+   * which a PDF is.
    */
   useShortcuts(
     "pdf-viewer",
@@ -409,12 +347,8 @@ export function PdfPreview({
   );
 
   /**
-   * Held apart from the rest of the toolbar's render.
-   *
-   * Every keystroke in the page box is a state change, and a 225-page PDF
-   * cannot afford to re-render the canvas on each of them. The element
-   * depends on the page and the width and on nothing else, so a draft the
-   * reader has not confirmed yet costs a toolbar render and no more.
+   * Every keystroke in the page box is a state change, and a large PDF
+   * cannot afford to re-render the canvas on each of them.
    */
   const baseWidth = pdfPageWidth({
     mode: zoomMode,
@@ -433,7 +367,7 @@ export function PdfPreview({
         // A budget for pixels, not for layout. The page keeps the size
         // the mode promises; only the raster behind it gets coarser, and
         // only where the browser would otherwise refuse the allocation
-        // and paint nothing. See `rasterPixelRatio`.
+        // and paint nothing.
         devicePixelRatio={rasterPixelRatio({
           cssWidth: drawWidth,
           cssHeight: pageBox
@@ -470,12 +404,9 @@ export function PdfPreview({
   );
 
   /**
-   * Set for the length of one blur, by the Escape path.
-   *
    * `blur()` re-enters React's `onBlur` synchronously, and the handler there
-   * closes over the `pageDraft` from *before* `setPageDraft(null)` — so
-   * Escape committed the number it was meant to throw away. A ref is read at
-   * the moment the blur runs, which a state update is not.
+   * closes over the `pageDraft` from *before* `setPageDraft(null)`. A ref is
+   * read at the moment the blur runs, which a state update is not.
    */
   const abandoningRef = useRef(false);
 
@@ -508,9 +439,8 @@ export function PdfPreview({
         </button>
         <span className="flex items-center gap-1 text-xs font-mono text-text-muted">
           {/* `text`, not `number`: the spinner a browser draws does not fit a
-              box sized to the page count, and it is chrome the OS owns —
-              the same reason the viewers' `<select>`s went. `inputMode`
-              still brings up the numeric keypad. */}
+              box sized to the page count. `inputMode` still brings up the
+              numeric keypad. */}
           <input
             ref={pageInputRef}
             type="text"
@@ -525,11 +455,8 @@ export function PdfPreview({
             onKeyDown={(e) => {
               // An IME is mid-conversion: every key belongs to it. And the
               // key that *confirms* a conversion arrives afterwards looking
-              // exactly like a bare press, which is why `lib/ime.ts` exists
-              // and why the grace window is needed as well as `isComposing`.
-              // `InlineNameEditor` is the same shape of field and guards the
-              // same way; this box was the only Enter/Escape field that did
-              // not.
+              // exactly like a bare press, which is why the grace window is
+              // needed as well as `isComposing`.
               if (e.nativeEvent.isComposing || e.keyCode === IME_KEY_CODE)
                 return;
               if (
@@ -555,8 +482,6 @@ export function PdfPreview({
                 pageInputRef.current?.blur();
               }
             }}
-            // Sized by the page count's digits, so a 9-page document does not
-            // carry a box built for 2000.
             style={{ width: `${String(numPages || 1).length + 2}ch` }}
             className="rounded-2xl border border-bg-border bg-bg-primary px-1 py-0.5 text-center text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           />
@@ -633,53 +558,15 @@ export function PdfPreview({
         ref={pageBoxRef}
         // `safe center`, not `center`. A flex container centres an
         // overflowing child by pushing half the overflow past its *start*
-        // edge, and there is nothing to scroll to there: measured on an
-        // A0 page at actual size, 1176px of a 3178px page was
-        // unreachable. `safe` falls back to `start` exactly when the
-        // child does not fit, which is the case where centring has
-        // nothing to centre anyway.
+        // edge, and there is nothing to scroll to there.
         //
-        // The gutter reservation is load-bearing, not cosmetic. Without
-        // it a classic vertical scrollbar takes its width out of
-        // `contentRect.width` when it appears, and `fit-width` oscillates:
-        // a wider box makes a taller page, a taller page raises the
-        // scrollbar, the scrollbar narrows the box, the shorter page
-        // retires it. Reserving the gutter unconditionally makes the width
-        // the same number in both states. Overlay scrollbars (macOS) never
-        // took the width in the first place, and the property is inert
-        // there.
+        // The gutter reservation is load-bearing: without it a classic
+        // vertical scrollbar takes its width out of `contentRect.width`
+        // when it appears, and `fit-width` oscillates.
         //
-        // `both-edges`, not plain `stable`, and the second word is the
-        // one doing the work. In "whole page" the page is fitted to the
-        // height and no vertical scrollbar is ever drawn, so a one-sided
-        // reservation stays empty and `safe center` centres the page
-        // inside the box that strip was taken out of: on classic
-        // scrollbars the page sits ~15px left of true centre. The mode is
-        // called "whole page", and what that name promises is the page
-        // entire and centred — a position decided by which side the
-        // browser keeps its scrollbar on is not that. Reserving the same
-        // strip on both edges makes the centring true, and makes it the
-        // same in every mode — no mode is centred against a different
-        // box. Which is not to say every mode is centred: `safe center`
-        // above falls back to `start` for a page that does not fit, so
-        // `actual` on a large page pins left while "whole page" centres.
-        // That is the alignment rule's doing, not the gutter's.
-        //
-        // What it costs, so that the next person to find it expensive can
-        // see the trade rather than only the argument: 15px per edge, so
-        // 30px of content width wherever scrollbars are classic. Nothing
-        // on overlay scrollbars, which is every touch device. A fitted
-        // page is that much narrower, and since the fit functions no
-        // longer floor the width, below roughly 389px of viewport
-        // (page width is about `viewport - 109` there) that is the whole
-        // of the page's size. Reverting to plain `stable` buys 15px of
-        // it back and returns the off-centre page.
-        //
-        // Where the property is unsupported (Safari before 18.2) *and*
-        // scroll bars are set to always show, the oscillation above comes
-        // back exactly as it was. That pairing is rare because the
-        // platform without the property is usually the platform with
-        // overlay scrollbars, but it is a setting, not an impossibility.
+        // `both-edges`, not plain `stable`: in "whole page" no vertical
+        // scrollbar is ever drawn, so a one-sided reservation stays empty
+        // and the page sits off true centre.
         className="flex h-[80vh] [justify-content:safe_center] overflow-auto [scrollbar-gutter:stable_both-edges] bg-bg-elevated p-4"
       >
         <Document

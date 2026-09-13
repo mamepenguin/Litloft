@@ -8,13 +8,9 @@ import { Button } from "@/components/Button";
 
 interface NameInputDialogProps {
   open: boolean;
-  /** Dialog title shown at the top. */
   title: string;
-  /** Optional input placeholder. */
   placeholder?: string;
-  /** Optional submit-button label (defaults to common.create). */
   submitLabel?: string;
-  /** Optional initial value (typically empty). */
   initialValue?: string;
   onSubmit: (name: string) => void;
   onCancel: () => void;
@@ -43,7 +39,7 @@ export function NameInputDialog({
   // `editingOnly: false` is load-bearing: the dialog focuses its own
   // field, and the provider counts a focused input as "editing", where
   // the flag's default ("only when nothing is being edited") means the
-  // shortcut never fires. Escape looked bound and did nothing.
+  // shortcut never fires.
   useShortcuts(
     "name-input-dialog",
     "Dialog",

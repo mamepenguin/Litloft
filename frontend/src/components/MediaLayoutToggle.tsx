@@ -6,36 +6,19 @@ import { useTranslations } from "next-intl";
 import { useMediaLayoutPreference } from "@/lib/mediaLayout";
 
 /**
- * Swaps the companion region between beside the player and below it.
- *
  * Whether it is shown at all is a CSS decision — the container query in
- * `globals.css` reveals it only where the rail can actually fit, since
- * a button that does nothing when pressed is worse than no button. The
- * host still decides whether to render it: audio never gets the rail,
- * and neither does a file whose companion slot has no occupant.
- *
- * Spec: docs/superpowers/specs/2026-08-11-media-layout-toggle.md
+ * `globals.css` reveals it only where the rail can actually fit.
  */
 interface MediaLayoutToggleProps {
   /**
-   * Hide the button unless a rail can actually fit beside the player.
-   *
-   * True on the legacy stack, where "beside" means a second grid column
-   * and a narrow host has nowhere to put it — a control that does
-   * nothing when pressed is worse than no control. False on the shell,
-   * where "beside" means an inspector tab: the inspector is a fixed
-   * column that is already there, so both forms are reachable at every
-   * width and gating the button would only strand the reader in
-   * whichever one they were last in.
+   * False on the shell, where "beside" means an inspector tab: the inspector
+   * is already there, so gating the button would only strand the reader in
+   * whichever form they were last in.
    */
   railGated?: boolean;
   /**
-   * Called when the press chooses the beside form.
-   *
-   * On the shell "beside" means an inspector tab, so pressing it with
-   * the inspector closed moves the panel somewhere the reader cannot
-   * see and gives no sign of it. The host uses this to open the
-   * inspector, so the press lands the reader where the panel went.
+   * On the shell, pressing beside with the inspector closed moves the panel
+   * somewhere the reader cannot see. The host uses this to open the inspector.
    */
   onBeside?: () => void;
 }

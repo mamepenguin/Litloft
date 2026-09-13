@@ -9,13 +9,9 @@ import { getFile } from "@/lib/api";
 import type { FileItem } from "@/types";
 import { EditableTagChips } from "@/components/EditableTagChips";
 
-// Recommended keys — rendered with typed renderers in a fixed order.
-// Unknown keys (including legacy ``approved_at`` / ``clipped_at`` left
-// over from pre-2026-04-24 writes) fall through to a plain-text
-// renderer. The backend note_scanner still reads those legacy keys for
-// DB consistency, but the UI intentionally does not promote them to
-// the "作成" slot — only new writes (``created``) get that treatment.
-// Spec 2026-04-24-knowledge-frontmatter-schema-and-display.
+// Unknown keys (including legacy ``approved_at`` / ``clipped_at``) fall
+// through to a plain-text renderer: the UI intentionally does not promote
+// them to the "作成" slot — only new writes (``created``) get that treatment.
 const RESERVED_KEYS = [
   "origin",
   "url",
@@ -52,14 +48,10 @@ function normalise(
   for (const key of RESERVED_KEYS) {
     if (hideTags && key === "tags") {
       // Mark consumed so the unknown-key fallback does not pick it
-      // back up. The canvas fm-card delegates tag editing to the
-      // inspector's EditableTagChips (spec 2026-05-10 §D2 / hako
-      // B5QG4AcZjbn47MDErmQAO).
+      // back up.
       consumed.add("tags");
       continue;
     }
-    // ``source_file_ids`` is written by distill but we present it under
-    // the friendlier label "sources".
     const actualKey = key === "sources" ? "source_file_ids" : key;
     if (frontmatter[actualKey] === undefined || frontmatter[actualKey] === null) {
       continue;
@@ -390,25 +382,6 @@ function renderValue(
   }
 }
 
-/**
- * Obsidian-style Properties Panel for Markdown frontmatter.
- *
- * - Recognised keys (`tags`, `aliases`, `description`, `created`,
- *   `url`, `origin`, `source_file_ids`) get typed renderers; unknown
- *   keys fall through to plain-text (graceful fallback).
- * - Legacy date keys (`approved_at`, `clipped_at`) are read as
- *   aliases of `created` so older `.md` files render naturally.
- * - Renders `null` when the frontmatter is empty so `.md` files without
- *   frontmatter do not get a stray panel — unless ``editable`` is
- *   passed, in which case an empty-tags chip row is shown so the user
- *   has a surface to add tags on.
- * - When ``editable`` is passed, the `tags` row becomes an in-place
- *   editor backed by ``saveFileTags`` (spec §D3/D4). Other rows stay
- *   read-only in v1.
- *
- * Spec: 2026-04-24-knowledge-frontmatter-schema-and-display.md and
- * 2026-04-24-knowledge-tag-unification.md.
- */
 export function PropertiesPanel({
   frontmatter,
   editable,
@@ -421,43 +394,21 @@ export function PropertiesPanel({
   frontmatter: Record<string, unknown>;
   /**
    * Suppress the ``tags`` row entirely **and** disable the
-   * editable-mode auto-injection of an empty ``tags`` row. Used by the
-   * document-layout canvas fm-card so tag editing stays in the
-   * inspector's ``EditableTagChips`` and does not appear in two
-   * surfaces at once (spec 2026-05-10 §D2, hako
-   * B5QG4AcZjbn47MDErmQAO). In practice this means: even when
-   * ``editable`` is also passed, no tag chip surface is rendered here
-   * — the caller is expected to own that surface elsewhere.
+   * editable-mode auto-injection of an empty ``tags`` row, even when
+   * ``editable`` is also passed.
    */
   hideTags?: boolean;
-  /**
-   * When provided, the ``tags`` row becomes an editable chip group
-   * backed by ``saveFileTags`` for the file.
-   */
   editable?: EditableRef;
-  /**
-   * Optional callback fired with the desired tag list as soon as the
-   * user edits a chip — lets the parent update its own optimistic
-   * state (e.g. a file list's chip column) without waiting for the
-   * backend round-trip.
-   */
   onTagsChange?: (tags: string[]) => void;
   /**
-   * Fires once per debounced save after the backend confirms.
-   * Intended for cross-surface sync: the file detail page uses this
-   * to refetch ``file`` (so the outer ``File.tags`` chip row matches
-   * the freshly-projected state) and bump the Markdown source reload
-   * key (so this same panel's frontmatter display is authoritative).
    * Only forwarded in standalone mode — content mode has no save to
    * hook onto.
    */
   onTagsSaved?: (tags: string[]) => void;
   /**
-   * Content-mode opt-in (see ``MarkdownPreview.onSourceChange``). When
-   * ``source`` + ``onSourceChange`` are both supplied, chip edits
+   * When ``source`` + ``onSourceChange`` are both supplied, chip edits
    * rewrite the full ``.md`` source and flow back out — the panel
-   * never writes on its own. Intended for surfaces like the Knowledge
-   * editor where a sibling textarea already owns the save path.
+   * never writes on its own.
    */
   source?: string;
   onSourceChange?: (next: string) => void;
@@ -472,11 +423,8 @@ export function PropertiesPanel({
   };
   let entries = normalise(frontmatter, labels, hideTags);
 
-  // Edit affordance: ensure there's always a ``tags`` row to click
-  // when the caller wants editing. Without this, a ``.md`` that has
-  // never been tagged would show no panel at all and the user would
-  // have no surface to start from. Skipped when ``hideTags`` is set —
-  // the inspector owns tag editing in that surface.
+  // Without this, a ``.md`` that has never been tagged would show no
+  // panel at all and the user would have no surface to start from.
   if (editable && !hideTags && !entries.some((e) => e.key === "tags")) {
     entries = [
       { key: "tags", label: labels("tags"), kind: "tags", value: [] },

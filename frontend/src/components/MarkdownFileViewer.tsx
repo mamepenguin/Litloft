@@ -11,21 +11,10 @@ import { MarkdownPreview } from "@/components/MarkdownPreview";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 /**
- * Fetch-and-render wrapper for use in FilePreview. Loads the file
- * content then pipes it through MarkdownPreview.
- *
- * Phase C (spec 2026-05-12 §3.8): also fetches wiki-link resolutions
- * from ``GET /api/files/{id}/wiki-resolutions`` so the renderer can
- * decorate ``[[X]]`` links as resolved / unresolved / ambiguous. The
- * resolutions fetch is intentionally decoupled from the body fetch —
+ * The resolutions fetch is intentionally decoupled from the body fetch —
  * the preview renders immediately with the body and links flip from
  * the pessimistic "unresolved" default to their real state once the
  * resolutions request returns.
- *
- * Lives in its own module (re-exported from ``MarkdownPreview.tsx``
- * for backward-compatible imports) so the file naming matches the
- * spec deliverable list and the editor preview path can grow without
- * making ``MarkdownPreview.tsx`` even larger.
  */
 export function MarkdownFileViewer({
   fileId,
@@ -41,19 +30,12 @@ export function MarkdownFileViewer({
     filename: string;
     drive: string;
   };
-  /**
-   * Bump this from the parent to force a source refetch. Combined
-   * with ``fileId`` so a change to either triggers the reload.
-   */
   externalReloadKey?: number;
   /**
-   * Fires after the Properties Panel chip's debounced save lands.
    * The parent is responsible for bumping ``externalReloadKey`` and
-   * refreshing any sibling state (outer ``File.tags`` chip row,
-   * sidebar tag list).
+   * refreshing any sibling state.
    */
   onTagsSaved?: (tags: string[]) => void;
-  /** Forwarded to MarkdownPreview for citation jump. */
   highlight?: string;
   onDocumentCaptureController?: (
     controller: DocumentCaptureController | null,
@@ -93,8 +75,6 @@ export function MarkdownFileViewer({
         if (!cancelled) setWikiResolution(map);
       })
       .catch(() => {
-        // Swallow — links degrade to their pessimistic unresolved
-        // default, the body still renders fine.
         if (!cancelled) setWikiResolution(undefined);
       });
     return () => {

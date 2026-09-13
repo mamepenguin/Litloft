@@ -8,7 +8,6 @@ import { Button } from "@/components/Button";
 
 interface SmartFolderSaveDialogProps {
   open: boolean;
-  /** "save" | "rename" — controls dialog title only. */
   mode?: "save" | "rename";
   initialName?: string;
   description?: string;
@@ -33,7 +32,6 @@ export function SmartFolderSaveDialog({
   useEffect(() => {
     if (open) {
       setName(initialName);
-      // Defer focus to next tick so the input is mounted.
       setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -44,7 +42,7 @@ export function SmartFolderSaveDialog({
   // `editingOnly: false` is load-bearing: the dialog focuses its own
   // field, and the provider counts a focused input as "editing", where
   // the flag's default ("only when nothing is being edited") means the
-  // shortcut never fires. Escape looked bound and did nothing.
+  // shortcut never fires.
   useShortcuts(
     "smart-folder-save-dialog",
     "Dialog",

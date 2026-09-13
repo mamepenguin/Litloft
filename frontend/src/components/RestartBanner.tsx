@@ -1,10 +1,5 @@
 "use client";
 
-// RestartBanner: shown on /admin pages when there are pending config
-// changes that require a backend restart. Reads /api/admin/config/restart-status
-// on mount, renders nothing when `pending: false`. Includes a copy button
-// that puts the restart command on the user's clipboard.
-
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, Copy, Check } from "lucide-react";

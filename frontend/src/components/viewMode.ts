@@ -12,18 +12,7 @@ function isViewMode(value: unknown): value is ViewMode {
 }
 
 /**
- * The controlled/uncontrolled split every view switcher shares.
- *
- * Two components call it: `ViewToggle`, which is a switcher in its own
- * right, and `FolderToolbar`, which holds the state on behalf of the
- * `ViewMenu` it draws. Each has to answer the same
- * question: is a controller passing the mode down, or is this switcher the
- * one that remembers it? Left in both components, the storage key and the
- * fallback would be written twice, and a switcher that persisted under a
- * second key would look identical while forgetting what the other one saved.
- *
- * `select` is the only writer. Reading happens once, on mount, and only when
- * uncontrolled: a controlled switcher's owner (`useFolderViewMode`) has
+ * Reading happens only when uncontrolled: a controlled switcher's owner has
  * already read from its own per-folder key, and a second read here would
  * overwrite that with the global default.
  */
