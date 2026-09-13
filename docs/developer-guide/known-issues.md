@@ -80,3 +80,26 @@ place and "added" in the other.
 **A failed inline rename keeps its message for three seconds across a drive
 switch.** `useInlineRename` clears the message on a timer rather than on
 navigation, so it can be read against the new drive's contents.
+
+## Addons
+
+**`GET /api/addons/status?drive=` tells anyone whether a locked drive exists.**
+It takes no credentials. A drive name that is not configured gets an empty
+catalogue; a configured drive gets its catalogue whether or not it is unlocked.
+Reachable without logging in, by guessing names.
+
+**An addon whose container is down is still listed.** The catalogue checks only
+that the addon's proxy target variable is set. `health_check` is declared in the
+intelligence and knowledge manifests and documented, but nothing reads it, so
+the sidebar link and slots stay while the service is down.
+
+**Core still branches on bundled addon names.** "Core contains no conditional
+behaviour keyed to an addon name" holds only for the sidebar navigation and Add
+menu code. It does not hold for: the admin settings intelligence tab,
+`usePolicy(drive, "knowledge", "editor")` in `FileDetailFullScreen` and
+`FileDetailContainer`, `fileDetailShell`'s knowledge editor shell, the
+intelligence subtitle URL in `VideoPlayer`, `MarkdownViewModeToggle` reading the
+knowledge message namespace, `useActiveSummary`'s knowledge WebSocket event,
+`dirtyRegistry`'s `"knowledge-editor"` source, the knowledge active-summary URL
+in `lib/api.ts`, `semanticSearch` reading the intelligence catalogue entry and
+search URL, and `featureFlags`' inline knowledge editor flag.
