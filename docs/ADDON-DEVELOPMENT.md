@@ -835,9 +835,25 @@ props that say which, in addition to the usual slot props:
 
 | Prop | Meaning |
 |---|---|
-| `fillHeight: boolean` | The host has given you a height budget: fill it as a flex item and scroll inside yourself. `true` in both current placements. Do not use `h-full` — the budget is a `max-height` clamp, and a percentage height against that resolves to `auto`, so the list lays itself out at full length and is silently clipped. |
+| `fillHeight: boolean` | The host may have given you a height budget: fill it as a flex item and scroll inside yourself. `true` in every current placement. Do not use `h-full` — the budget is a `max-height` clamp, and a percentage height against that resolves to `auto`, so the list lays itself out at full length and is silently clipped. **On a phone the inspector is one column with no budget**, so your list grows to its full length and the sheet around it is what scrolls; see below. |
 | `labelledByHost: boolean` | The host has already written your name above you — the tab button carries it. Drop your own title when this is `true`, or the reader reads the name of the thing they just pressed twice. `false` in the box below the player, which has no heading of its own. |
 | `onAvailability: (available: boolean) => void` | Whether you have anything for this file. |
+
+**Scrolling and pinning inside a panel.** Do not assume your own list is
+the box that scrolls. In the one-column inspector it is not, and a
+`scrollTo` on it does nothing. Find the nearest ancestor that actually
+scrolls, starting with your own element, and scroll that. Inside the
+column the host's tab strip is pinned over the top of that scroller.
+The host publishes the strip's height as the CSS variable
+`--inspector-sticky-top`, on the inspector's root, so:
+
+- pin anything of your own with `position: sticky; top: var(--inspector-sticky-top, 0px)`
+  and a `z-index` below `10`, so it sits under the strip rather than over it;
+- when you scroll something into view, count the top `--inspector-sticky-top`
+  pixels of the scroller as covered.
+
+The variable is `0px` in the column when there is no strip. It is not set
+where the panel scrolls below the strip, which is why the fallback is `0px`.
 
 **`onAvailability` is how a tab stops appearing on files it has nothing
 for.** Core cannot look inside your panel — asking "does the transcript

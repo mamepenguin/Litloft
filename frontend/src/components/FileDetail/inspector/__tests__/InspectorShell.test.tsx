@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { InspectorShell, type InspectorScroll } from "../InspectorShell";
@@ -116,6 +116,50 @@ describe("InspectorShell in column mode", () => {
     expect(strip.className).toContain("sticky");
     expect(strip.className).toContain("top-0");
     expect(strip.className).toContain("bg-bg-card");
+  });
+
+  describe("tells the panels where the strip's bottom edge is", () => {
+    const STRIP_PX = 45;
+    let restore: () => void = () => undefined;
+
+    beforeEach(() => {
+      const own = Object.getOwnPropertyDescriptor(
+        HTMLElement.prototype,
+        "offsetHeight",
+      );
+      Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.getAttribute("role") === "tablist" ? STRIP_PX : 0;
+        },
+      });
+      restore = () => {
+        if (own) Object.defineProperty(HTMLElement.prototype, "offsetHeight", own);
+      };
+    });
+
+    afterEach(() => restore());
+
+    const stickyTop = () =>
+      screen
+        .getByTestId("inspector-shell")
+        .style.getPropertyValue("--inspector-sticky-top");
+
+    it("as the strip's own height, in the column form", () => {
+      renderColumn();
+      expect(stickyTop()).toBe(`${STRIP_PX}px`);
+    });
+
+    it("as nothing, when there is no strip to stick under", () => {
+      renderShell([], [], "column");
+      expect(strip()).toBeNull();
+      expect(stickyTop()).toBe("0px");
+    });
+
+    it("not at all in the pinned form, where the panel scrolls below the strip", () => {
+      renderShell([{ entry: entry("a"), label: "A", content: <p>a body</p> }]);
+      expect(stickyTop()).toBe("");
+    });
   });
 
   it("and the pinned form's strip is not sticky, because nothing scrolls past it", () => {
