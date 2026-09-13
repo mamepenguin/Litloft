@@ -19,17 +19,10 @@ interface FolderCardProps {
   onTouchStart?: (e: React.TouchEvent) => void;
   onTouchEnd?: (e: React.TouchEvent) => void;
   onTouchMove?: (e: React.TouchEvent) => void;
-  /**
-   * Renders the name as an editable field instead of a label. Folder
-   * cards show the real folder name, so editing here edits exactly the
-   * string on screen (spec 2026-08-21-inline-rename-and-spring-loaded-
-   * drag §2).
-   */
   isEditing?: boolean;
   /** Rejecting with an `Error` shows its message inside the card. */
   onRenameCommit?: (next: string) => Promise<void>;
   onRenameCancel?: (error?: string) => void;
-  /** Focus tracking so the host can bind F2 to the focused card. */
   onCardFocus?: () => void;
   onCardBlur?: () => void;
 }
@@ -61,25 +54,15 @@ export function FolderCard({
   const dragEnabled = draggable && !isEditing;
   const editing = isEditing && onRenameCommit && onRenameCancel;
 
-  // One glyph, always. A folder card used to show a photograph borrowed
-  // from the first video or image anywhere beneath it, and this glyph
-  // when there was none — so a row of folders mixed pictures and line art
-  // in the same column, and the picture said nothing about the folder
-  // that a name and a count did not (D-4). Which of the two a folder got
-  // was decided by what happened to be inside it, so the column could not
-  // be made consistent by choosing the other side.
   const icon = (
     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated">
       <Folder size={20} className="text-text-muted" />
     </div>
   );
 
-  // What the count is made of, in place of the picture.
   const breakdown = folderKindBreakdown(folder.kind_counts);
   const meta = [
     t("items", { count: folder.file_count }),
-    // A single kind is named without repeating the number that is already
-    // to its left.
     ...(breakdown.length === 1
       ? [tFilter(`type.${breakdown[0].kind}`)]
       : breakdown.map((s) => `${tFilter(`type.${s.kind}`)} ${s.count}`)),
@@ -124,20 +107,13 @@ export function FolderCard({
         >
           <div className="flex min-w-0 items-center gap-3">
             {icon}
-            {/* Not a heading. A grid of cards used to put an `<h3>` on
-                every title, so the drive root's outline read as six
-                section names with thirty file and folder names spliced
-                between them at the same depth (D-5). The accessible name
-                is the link's, which is unchanged. */}
+            {/* Not a heading: an `<h3>` on every title makes the drive
+                root's outline read as section names with file and folder
+                names spliced between them at the same depth. */}
             <span className="min-w-0 truncate font-semibold text-text-primary">
               {folder.name}
             </span>
           </div>
-          {/* Its own row, spanning the card. Beside the glyph it had the
-              68px left over inside a 160px card at 375px, which cut
-              "3 件 · Markdown" mid-word — less than the bare count it
-              replaced. Full width it is 136px there, and the count plus
-              the first kind fit. */}
           <p className="truncate text-sm text-text-muted">{meta}</p>
         </Link>
       )}

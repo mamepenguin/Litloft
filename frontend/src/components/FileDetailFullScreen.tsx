@@ -23,26 +23,7 @@ interface FileDetailFullScreenProps {
   fileId: string;
 }
 
-/**
- * Fullscreen route host for ``/files/{id}``. Used in two situations
- * (per spec §4.6 / §4.7):
- *
- * 1. ``?collection=`` (legacy alias: ``?playlist=``) / ``?folder_play=1``
- *    is set — the spec keeps the collection-exception route fullscreen
- *    (2-pane离脱) so the CollectionPanel and the player share the same
- *    visual focus.
- * 2. (Future) any URL the Server Component decides not to redirect.
- *
- * Composes ``<FileDetailContent>`` with the chrome the legacy
- * `/files/[id]/page.tsx` carried: a back button, ImageGallery on
- * Maximize, CollectionPanel when in collection mode, useOverlaySidebar
- * to collapse the global sidebar to overlay, and useFileNav for
- * arrow-key navigation in non-collection mode.
- */
 export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
-  // Unlike RightPaneFile, the fullscreen host DOES collapse the
-  // global sidebar — there's no tree pane next to us, so the inline
-  // sidebar would just steal width from the player.
   useOverlaySidebar();
 
   const router = useRouter();
@@ -51,9 +32,7 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
 
   const sort = normalizeSortParam(searchParams.get("sort"));
   const order = searchParams.get("order") || undefined;
-  // Spec 2026-05-12-playlist-to-collection §6.4: prefer ``?collection=``
-  // but accept the legacy ``?playlist=`` for one release so bookmarks
-  // and external links keep working. Phase 4 removes the legacy alias.
+  // `?playlist=` is accepted so bookmarks and external links keep working.
   const collectionId =
     searchParams.get("collection") || searchParams.get("playlist") || undefined;
   const folderPlay = searchParams.get("folder_play") === "1";
@@ -64,9 +43,8 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const initialPage = pageParam ? Number(pageParam) : undefined;
   const highlight = searchParams.get("highlight") || undefined;
 
-  // Local file state for chrome (back nav, ImageGallery, override drive).
-  // FileDetailContent does its own getFile internally — accepted dual
-  // fetch is short and cheap.
+  // FileDetailContent does its own getFile internally; the dual fetch is
+  // accepted.
   const [file, setFile] = useState<FileItem | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
 
@@ -77,14 +55,10 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
       .then((f) => {
         if (cancelled) return;
         setFile(f);
-        // Tell the global sidebar what drive we're "on" since the
-        // URL doesn't carry it.
         setOverrideDrive(f.drive);
       })
       .catch(() => {
-        // 404 / network errors fall through to a blank chrome; the
-        // FileDetailContent below renders its own loading spinner
-        // and the user can navigate away with the browser's back.
+        // FileDetailContent below renders its own error state.
       });
     return () => {
       cancelled = true;
@@ -105,13 +79,8 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
     [collectionId, folderPlay, sort, order],
   );
 
-  // Arrow-key navigation. Disabled in collection mode — the collection
-  // owns "next" semantics there; ArrowLeft/Right would conflict.
-  // PR-5: ``router.replace`` here is the legacy router (no
-  // useGuardedRouter wrapper) but it doesn't matter — the dirty
-  // editor lives in the 2-pane host, not the fullscreen host. The
-  // global popstate / beforeunload listeners in ``<DirtyBlocker />``
-  // catch any escape paths.
+  // Plain `router.replace` rather than useGuardedRouter: the dirty editor
+  // lives in the 2-pane host, not the fullscreen host.
   useFileNav({
     fileId: !hasCollection && file ? fileId : null,
     sort,
@@ -156,11 +125,8 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   }, [router, file]);
 
   // A Markdown note or an HTML preview rides `FileDetailShell`, which
-  // draws the page row itself. Drawing one here too would put two
-  // breadcrumbs on the page and, on a phone, two back controls — the
-  // thing this row exists to stop. Same predicate as the 2-pane host
-  // and the content itself, from one place so it cannot be got right in
-  // two of the three.
+  // draws the page row itself; drawing one here too would put two
+  // breadcrumbs on the page.
   const knowledgeEditorPolicy = usePolicy(file?.drive ?? "", "knowledge", "editor");
   const contentBringsItsOwnRow = ridesFileDetailShell({
     surface: "collection",
@@ -176,11 +142,9 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
     <div
       className={`mx-auto w-full flex-1 px-4 py-6 ${hasCollection ? "max-w-6xl" : "max-w-5xl"}`}
     >
-      {/* The same page row every other file detail surface wears. The
-          back control keeps this route's own handler: "back" from a
+      {/* The back control keeps this route's own handler: "back" from a
           collection means the collection you were playing, not the
-          folder the current track happens to live in. The tree pane
-          does not exist here, so its toggle is left out. */}
+          folder the current track happens to live in. */}
       {!contentBringsItsOwnRow && (
         <div className="mb-4 -mx-4 -mt-6">
           {file ? (
@@ -192,9 +156,8 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
               showTreeToggle={false}
             />
           ) : (
-            // The row cannot be drawn before the file names its own
-            // folder, but it can hold its place: without this the whole
-            // page steps down 48px the moment the fetch lands.
+            // Holds the row's place so the page does not step down when
+            // the fetch lands.
             <div
               aria-hidden
               className="h-12 border-b border-bg-border bg-bg-card"
@@ -216,12 +179,6 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
             onRequestImageGallery={() => setGalleryOpen(true)}
             onAfterDelete={handleAfterDelete}
             onBack={handleBack}
-            // Collection playback keeps the legacy stack: the canonical
-            // URL is a file's address, so building this route a second
-            // inspector would be work to throw away. Media therefore
-            // stays out of the shell here — and the beside/below rail
-            // it already has stays with it, because not investing in a
-            // surface is not the same as taking something off it.
             surface="collection"
           />
 

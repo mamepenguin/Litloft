@@ -5,17 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { mergeOrder } from "./orderMerge";
 
 /**
- * Persisted order of the reorderable sidebar sections.
- *
  * Stored under a single **global** key — which section sits where is a
- * workstyle preference, not drive-dependent (hako eWZedtDkm8PuWgoaatdzh, same
- * rationale as `sidebar:section:*:collapsed`). Only Collections / Pins /
- * Smart Folders / Tags participate; Library and Drives stay fixed and are
- * never passed in.
- *
- * The persisted value is just an ID list; {@link mergeOrder} reconciles it
- * with `availableIds` so a new (e.g. addon) section appears at its default
- * position and a removed one vanishes.
+ * workstyle preference, not drive-dependent.
  */
 
 const STORAGE_KEY = "sidebar:order:sections";
@@ -66,7 +57,6 @@ export function useSidebarSectionOrder(availableIds: readonly string[]): {
     try {
       window.localStorage.removeItem(STORAGE_KEY);
     } catch {
-      // ignore
     }
   }, []);
 

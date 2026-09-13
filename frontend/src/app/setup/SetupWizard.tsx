@@ -1,13 +1,5 @@
 "use client";
 
-// SetupWizard: drives the first-run flow. Owns the cross-step state
-// (locale, drive draft, access mode, master password, addon policy)
-// and orchestrates the final submit.
-//
-// Step order: Language -> Welcome -> Drive -> AccessMode -> [Password] -> AddonPolicy -> Complete
-// Password is skipped when access mode is "public".
-// Stepper is shown for Drive..Complete only (Language/Welcome are intro screens).
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
 
@@ -61,8 +53,6 @@ const ORDER_PUBLIC: StepId[] = [
   "complete",
 ];
 
-// Steps that appear in the visual Stepper. Language and Welcome are
-// intentionally excluded because they are pre-progress screens.
 const STEPPER_PROTECTED: Exclude<StepId, "language" | "welcome">[] = [
   "drive",
   "accessMode",
@@ -103,9 +93,8 @@ function SetupWizardInner({
   const tStepper = useTranslations("setup.stepper");
   const [internalStepIndex, setInternalStepIndex] = useState(0);
   // The backend seeds drives.json from the container mounts on startup,
-  // so /setup begins with N detected stubs. We initialise the draft list
-  // from GET /api/admin/config/setup-status (unauthenticated, covers the
-  // first-run read path that GET /drives does not — spec §3.3, M1).
+  // so /setup begins with N detected stubs, read from the unauthenticated
+  // setup-status endpoint that covers the first-run path GET /drives does not.
   const [drives, setDrives] = useState<DriveDraft[]>([]);
 
   useEffect(() => {
@@ -178,8 +167,6 @@ function SetupWizardInner({
     return Array.from(set);
   }, [drives]);
 
-  // Sync the master password's groups with the detected drive groups so
-  // the UI can pre-check them without further user action.
   const passwordValue = useMemo<PasswordDraft>(() => {
     if (password.groups.length === 0 && groupsForPassword.length > 0) {
       return { ...password, groups: groupsForPassword };
@@ -187,10 +174,8 @@ function SetupWizardInner({
     return password;
   }, [groupsForPassword, password]);
 
-  // Drive list to ship to the backend on final submit.
   const drivesForSubmit = useMemo(() => drives, [drives]);
 
-  // Summary values for the Complete step.
   const driveCount = useMemo(
     () => drivesForSubmit.filter((d) => d.name.trim().length > 0).length,
     [drivesForSubmit],
@@ -250,8 +235,6 @@ function SetupWizardInner({
       body: JSON.stringify(addonPolicy),
     });
 
-    // Auto-unlock with the setup password so the wizard completer arrives
-    // at /admin as an admin without having to unlock manually.
     if (accessMode === "protected" && password.password) {
       await fetch("/api/auth/unlock", {
         method: "POST",
@@ -357,14 +340,10 @@ function SetupWizardInner({
 
 const MESSAGES_BY_LOCALE = { en: enMessages, ja: jaMessages } as const;
 
-// Outer wrapper: owns the wizard locale and supplies a client-side
-// NextIntlClientProvider for the subtree. The app's root provider binds
-// its messages at request time from the NEXT_LOCALE cookie, so a
-// LanguageStep selection could not change the language of later steps
-// within the same SPA session without this nested provider. Selecting a
-// language here swaps the provider's messages and re-renders every step
-// immediately (no full reload — SPA navigation policy), and the cookie
-// is still written so the post-complete redirect to /admin keeps it.
+// The app's root provider binds its messages at request time from the
+// NEXT_LOCALE cookie, so a LanguageStep selection could not change the
+// language of later steps within the same SPA session without this nested
+// provider.
 export function SetupWizard(): React.ReactElement {
   const [locale, setLocaleState] = useState<Locale>(defaultLocale);
 

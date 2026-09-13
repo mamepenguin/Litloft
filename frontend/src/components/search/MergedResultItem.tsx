@@ -1,16 +1,5 @@
 "use client";
 
-/**
- * MergedResultItem — popup launcher row for the unified search list.
- *
- * Style + badge-selection logic mirrors `MatchOverlay.tsx` (page-side
- * card overlay) so popup quick-pick rows and the search-results page
- * read consistently. Color tokens follow DESIGN.md §2.2 (warm palette
- * only). The popup variant differs from MatchOverlay in its row layout
- * (thumbnail + text column) rather than a card overlay; the timestamp
- * pills follow one rule on both, from `lib/matchTimestamps.ts`.
- */
-
 import { useTranslations } from "next-intl";
 import { formatDuration } from "@/lib/format";
 import { filenameToTitle } from "@/lib/filenameTitle";
@@ -21,7 +10,7 @@ import type { FileItemWithMatch, MatchMeta } from "@/types";
 function selectActiveBadgeKeys(meta: MatchMeta | undefined): string[] {
   if (!meta) return [];
   const keys: string[] = [];
-  // filename and metadata are semantically close — collapse to one (same rule as MatchOverlay).
+  // filename and metadata are semantically close — collapse to one.
   if (meta.filename) keys.push("filename");
   else if (meta.metadata) keys.push("metadata");
   if (meta.path) keys.push("path");
@@ -34,31 +23,14 @@ function selectActiveBadgeKeys(meta: MatchMeta | undefined): string[] {
 }
 
 /**
- * The second line carries two different facts, and only sometimes both.
- *
- * A file's title starts life as `filenameToTitle(filename)`, so repeating
- * the filename under it usually repeats the title with an extension glued
- * back on. Not always: the title is editable, and a row built from an
- * unhydrated semantic hit is titled with the raw filename instead. And the
- * line is also where the folder path lives.
- *
- * So it says whichever of the two facts is new:
- *   the title still derives from the filename  →  the folder path alone,
- *                                                 or nothing at all
- *   it does not                                →  the path and the filename
- *
  * The comparison goes through `filenameToTitle` rather than through the
- * stem, because deriving a title is three steps and the stem is one of
- * them: `kyoto.mp4` is titled "Kyoto", so comparing stems answers "no" for
- * every filename that starts with a lower-case letter — which is most of
- * them.
+ * stem: `kyoto.mp4` is titled "Kyoto", so comparing stems answers "no" for
+ * every filename that starts with a lower-case letter.
  */
 function secondLine(file: FileItemWithMatch): string | null {
   const folder = file.folder_path ? `${file.folder_path}/` : "";
-  // Both suppressions matter. The derived title is the ordinary case; the
-  // exact match is the row `mergeResults` builds without a file record and
-  // titles with the raw filename, extension and all (`searchMerge.ts`
-  // `title: hit.filename`).
+  // The exact match is the row built without a file record, titled with
+  // the raw filename, extension and all.
   const saysNothingNew =
     file.filename === file.title || filenameToTitle(file.filename) === file.title;
   return saysNothingNew ? folder || null : `${folder}${file.filename}`;
@@ -85,9 +57,6 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
     <button
       type="button"
       data-testid="merged-result-item"
-      // Which file this row is, for tests about the highlight: the
-      // highlight follows a file rather than a position, so a test that
-      // identified rows by position could not tell the two apart.
       data-file-id={file.id}
       onClick={() => onSelect(`/files/${file.id}`)}
       className={`flex w-full items-start gap-3 px-4 py-2.5 text-left transition-colors ${isSelected ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
@@ -135,8 +104,6 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
                     onSelect(`/files/${file.id}?t=${Math.floor(ts.seconds)}`);
                   }
                 }}
-                // See `MatchOverlay`'s pill: the detector selects on this
-                // rather than on the shape of the rendered time.
                 data-testid="match-timestamp-pill"
                 className="cursor-pointer rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
               >

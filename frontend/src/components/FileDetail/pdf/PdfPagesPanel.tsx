@@ -13,8 +13,6 @@ import { Document, Page } from "react-pdf";
 import type { PdfController } from "@/lib/pdfController";
 
 /**
- * How many thumbnails are mounted before anything has scrolled.
- *
  * A 225-page PDF drawn all at once locks pdf.js for tens of seconds, so the
  * rail mounts a window and grows it as the reader scrolls. The number is a
  * page and a bit of an inspector column at 72px plus the row's label, chosen
@@ -22,14 +20,11 @@ import type { PdfController } from "@/lib/pdfController";
  */
 export const INITIAL_THUMBNAIL_WINDOW = 8;
 
-/** How many more arrive each time the sentinel comes into view. */
 const THUMBNAIL_PAGE_SIZE = 8;
 
 const THUMBNAIL_WIDTH = 72;
 
 /**
- * The reader's place in a document, and the two ways of moving it.
- *
  * Both halves are optional and neither creates the tab on its own — the shell
  * drops a tab whose content is null, so a one-page PDF with no outline never
  * grows a tab strip.
@@ -49,17 +44,13 @@ export function PdfPagesPanel({
   );
   const [window_, setWindow] = useState(INITIAL_THUMBNAIL_WINDOW);
   /**
-   * The last page pdf.js has finished drawing.
-   *
    * The sentinel is only mounted once the window it follows has painted.
    * Without that gate the rail grows a second time before the first eight
    * thumbnails have any height: an unpainted `<Page>` is a zero-height box,
    * so eight of them do not fill the column, the sentinel is in view at t=0,
-   * and a 225-page document opens having mounted sixteen. Measured in
-   * Chromium — 16 in the rail before this, 8 after.
+   * and a 225-page document opens having mounted sixteen.
    */
   const [paintedTo, setPaintedTo] = useState(0);
-  /** The first page in the window. Moves when the canvas leaves it. */
   const [first, setFirst] = useState(1);
   const sentinelRef = useRef<HTMLLIElement>(null);
   const currentRef = useRef<HTMLButtonElement>(null);
@@ -86,8 +77,7 @@ export function PdfPagesPanel({
 
   // A new document starts its rail over. Without this, a reader who grew
   // document A's rail to 40 opens document B with 40 thumbnails mounted at
-  // once — the bounded-first-render property, lost on the second PDF of a
-  // session.
+  // once.
   const [seenSrc, setSeenSrc] = useState(state.src);
   if (seenSrc !== state.src) {
     setSeenSrc(state.src);
@@ -100,10 +90,8 @@ export function PdfPagesPanel({
    * The window moves to hold the page the canvas is on.
    *
    * The rail marks the current page and scrolls it into view, and neither is
-   * possible while that page is outside the window: a jump to 180 left the
-   * rail showing 1-8, marking nothing, with no way to reach 180 but scrolling
-   * to the sentinel twenty-two times. *Extending* to 180 would answer that
-   * and mount a hundred and eighty rasters at once, which is the freeze the
+   * possible while that page is outside the window. *Extending* the window would
+   * mount every raster up to it at once, which is the freeze the
    * bound exists to prevent — so the window is re-seated instead. The
    * current page sits second in it, so the one before is still there.
    */
@@ -203,25 +191,16 @@ export function PdfPagesPanel({
 }
 
 /**
- * The panel plus the second `<Document>` it needs.
- *
  * The canvas's `PDFDocumentProxy` is not reachable from here — react-pdf's
  * `<Page>` reads it from a `<Document>` context — so the rail opens the same
  * URL again, taken from the controller. The bytes come from the browser's
  * cache; what is paid twice is pdf.js's parse, and the alternative is
  * threading a proxy through the shell as a prop, which makes the shell depend
- * on pdf.js in a tree the server renders. (`lib/pdfDependencies.test.ts`
- * asserts the pdfjs and react-pdf versions agree; keeping the worker out of
- * the server bundle is what `next/dynamic` with `ssr: false` does, and
- * `FilePreview` loads the viewer the same way.)
+ * on pdf.js in a tree the server renders.
  */
 /**
- * Whether this subtree has ever been on screen.
- *
  * `InspectorShell` mounts every panel and hides the ones that are not
- * selected — the invariant is written into that file, and it is there so a
- * panel does not lose a fetch or a scroll position when the reader tabs away.
- * A thumbnail rail has neither, and mounting it eagerly is not free: pdf.js
+ * selected, and mounting this eagerly is not free: pdf.js
  * opens the document a second time and rasterises eight pages behind a
  * `display: none`, for every multi-page PDF, whether or not anyone opens the
  * tab. A hidden element has no layout, so this is exactly what

@@ -11,19 +11,10 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 /**
- * The tokens this menu does not share with the toolbar's.
- *
- * A sheet below 640 and a panel anchored to the trigger above it, like
- * every other menu on a bar — but uncapped and visible-overflow above
- * `sm`, and 180 rather than 200 wide. Those three are why the base is
- * written here instead of taken from `ToolbarMenu`: a merged string would
+ * Written here instead of taken from `ToolbarMenu`: a merged string would
  * carry `sm:max-h-[70vh]` and `sm:max-h-none` at once, and which of them
  * applied would be decided by the order Tailwind emits its utilities in
  * rather than by anything readable in this file.
- *
- * The direction and the side are *not* in here. `useMenuSurface` supplies
- * both, so the part of this string that used to be a near-copy of the
- * shared one is now the shared one.
  */
 const SORT_MENU_SURFACE_BASE =
   "fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl " +
@@ -35,11 +26,6 @@ interface SortButtonProps {
   sort: SortField;
   order: SortOrder;
   onChange: (sort: SortField, order: SortOrder) => void;
-  /**
-   * When true, expose the search-only "relevance" option at the top
-   * of the menu. Kept opt-in because relevance is meaningless outside
-   * a search query.
-   */
   allowRelevance?: boolean;
 }
 
@@ -48,23 +34,14 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // A popup must be dismissable from the keyboard. Without it the only
-  // ways out are a press outside it or picking a row, so a keyboard user
-  // who opens this menu cannot back out of it.
-  //
   // On the shortcut stack, not on `document`: a listener does not know
-  // what is stacked above it, and `escape-listeners.test.ts` records the
-  // presses that were answered twice before this was the rule.
-  // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
-  // while it is open. `FileActions` carries the same block and the
-  // reasoning in full.
+  // what is stacked above it.
   //
   // `editingOnly: false` because nothing traps focus inside this menu, so
   // Tab walks out of the last row into whatever follows in the document.
   // The provider counts a focused field as "editing", and the default
   // fires only when nothing is — which would leave Escape inert exactly
-  // there, with the menu still up. The test case for that state is what
-  // makes the flag checkable.
+  // there, with the menu still up.
   useShortcuts(
     "sort-menu",
     "Dialog",
@@ -119,11 +96,6 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
             return (
               <button
                 key={`${opt.sort}-${opt.order}`}
-                // The same contract `MenuRadioGroup` gives the identical
-                // rows on the toolbar: a tick drawn as an unlabelled
-                // `<svg>` says which one is on only to people who can see
-                // it, and a `role="menu"` publishes nothing but
-                // menuitem / group / separator children.
                 role="menuitemradio"
                 aria-checked={selected}
                 onClick={() => {

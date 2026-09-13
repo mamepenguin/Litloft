@@ -13,10 +13,6 @@ export function useActiveSummary(
 } {
   const [data, setData] = useState<ActiveSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  // Spec 2026-04-30-file-active-summary-to-knowledge renamed the WS
-  // event from ``core.file_active_summary.changed`` (broadcast from
-  // core) to ``knowledge.active_summary.changed`` (broadcast from the
-  // knowledge addon via the addon-events bridge).
   const summaryEvent = useWebSocket("knowledge.active_summary.changed");
 
   useEffect(() => {

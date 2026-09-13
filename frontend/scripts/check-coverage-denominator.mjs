@@ -1,36 +1,13 @@
 #!/usr/bin/env node
 /**
- * Ask the collector what it measured, and compare it with a declared population.
+ * The coverage thresholds are lower bounds: shrink the denominator and the
+ * percentage goes up, so the population is checked against a declared one.
  *
- * The thresholds in `vitest.config.ts` are lower bounds, and a lower bound is
- * not a detector on its own: shrink the denominator and the percentage goes up.
- * This step is what makes them legitimate. It reads
- * `coverage/coverage-summary.json` — the population the collector actually
- * produced — and checks it against what this file says it should be.
+ * It reads the collector's own report, never a glob: `tinyglobby` descends a
+ * symlinked directory and node-`glob` does not.
  *
- * There are three sides, not two, and the third is the one that is easy to
- * leave out. The collector's report and the walk of `src/` both read the
- * working tree, so anything deleted there leaves both of them in the same step
- * and the comparison stays satisfied over a smaller population. `git ls-files`
- * is the side that does not move when files are deleted. See `trackedSources`.
- *
- * Four things about how it does that are deliberate.
- *
- * **It reads the collector's own report, never a glob.** A glob written here
- * would be a second guess at the same question, and the two libraries disagree:
- * `tinyglobby` descends a symlinked directory and node-`glob` does not. A probe
- * of our own would happily report that every addon file is present while the
- * collector had measured none of them. That is not hypothetical — it is the bug
- * this whole line of work started from.
- *
- * **It is a script, not a vitest test.** A test cannot read a report that does
- * not exist during an ordinary non-coverage run; and core's suite is executed by
- * four addon repositories' CI against core's `develop` tip, so a new test here
- * ships into four other pipelines unannounced.
- *
- * **A missing report is a failure.** With `reportOnFailure: true` set beside the
- * thresholds, a red suite still writes one, so absence now means something went
- * wrong with coverage itself rather than with a test.
+ * It is a script, not a vitest test: core's suite is executed by the addon
+ * repositories' CI, so a new test here ships into their pipelines unannounced.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
@@ -43,21 +20,8 @@ const SUMMARY = join(FRONTEND, "coverage", "coverage-summary.json");
 
 /**
  * Files with nothing to instrument, which istanbul therefore does not list.
- *
  * Declared by name rather than derived, because "whatever the report happened
- * to contain" cannot notice a tenth file dropping out for some other reason.
- * Each of these is a barrel re-export or a type-only module: between them they
- * hold seven statements, all of which disappear at compile time.
- *
- * Worth knowing why this list exists at all: the v8 provider *did* list these
- * nine, and gave the never-imported ones `branches 1/1 = 100%` — a branch it
- * invented, counted as covered. The plan's first requirement for the frontend
- * was that never-imported files reach the denominator, and v8 appeared to
- * satisfy it while inflating the result. istanbul counts their real statements,
- * which for these nine is nearly none, and omits them.
- *
- * If a file here grows real code, this check fails and the entry should be
- * removed rather than the failure suppressed.
+ * to contain" cannot notice a file dropping out for some other reason.
  */
 const NO_INSTRUMENTABLE_CODE = [
   "src/addons/media_import/watch/index.ts",
@@ -72,55 +36,19 @@ const NO_INSTRUMENTABLE_CODE = [
 ];
 
 /**
- * Addons whose frontends must be in the denominator.
- *
- * Declared, never discovered. Reading `addons/` at run time made the
- * expectation an observation of the same tree the collector was measuring, so
- * an addon that was not there left both sides at once — detector rule 5, in the
- * file written to hold a denominator. Measured, with `readdirSync`:
- *
- *     addons/cloud-sync removed  ->  511 files / 3 addons   exit 0
- *     all of addons/ removed     ->  403 files / 0 addons   exit 0
- *
- * 112 files leaving the population was a pass. The names are therefore written
- * out: adding or removing an addon is then an edit to this line, which a
- * reviewer sees, rather than a number that moves on its own.
- *
- * `.gitmodules` is not read instead, for the same reason: a parse that returns
- * nothing is silent, and a file one edit away from the tree is not independent
- * of it.
- *
- * A checkout without submodules is a real state — `git clone` without
- * `--recursive` leaves these directories empty — and it is named below rather
- * than accepted. CI checks out `submodules: recursive`, so four is the
- * invariant there.
+ * Declared, never discovered: reading `addons/` or `.gitmodules` at run time
+ * makes the expectation an observation of the same tree the collector
+ * measures, so an addon that was not there would leave both sides at once.
  */
 const ADDONS = ["cloud-sync", "intelligence", "knowledge", "media_import"];
 
 /**
- * The production sources a repository's *pinned commit* holds, from its index.
+ * The walk below and the collector both read the working tree, so emptying a
+ * directory takes it out of `declared` and `measured` in the same step. The
+ * index does not move when files are deleted.
  *
- * This is the third side, and it exists because the other two can lose a file
- * together. The walk below and the collector both read the working tree, so
- * emptying a directory takes it out of `declared` and `measured` in the same
- * step and the check passes. Measured, before this was here:
- *
- *     addons/intelligence/frontend emptied  ->  470 files, exit 0, and the
- *                                               log still said "4 declared addons"
- *     frontend/src/components/player removed -> 493 files, exit 0
- *
- * The second is core's own code, so the hole was never addon-specific.
- * `existsSync` on the addon directory did not close it: an empty directory
- * exists.
- *
- * `git ls-files` answers from the index instead — what a fresh clone would
- * contain — which no amount of deleting in the working tree changes.
- *
- * Only one direction is enforced. A tracked file that is missing from the walk
- * is a failure; a file in the walk that git does not know about is not, because
- * that is what a new component looks like before it is committed, and failing
- * there would make the check hostile to the person writing one. The walk and
- * the report still hold that direction between them.
+ * Only one direction is enforced: a file in the walk that git does not know
+ * about is what a new component looks like before it is committed.
  */
 function trackedSources(repoDir, pathspec, prefix) {
   const out = execFileSync("git", ["-C", repoDir, "ls-files", "-z", pathspec], {
@@ -141,20 +69,10 @@ function trackedSources(repoDir, pathspec, prefix) {
     .map((p) => `${prefix}${p}`);
 }
 
-/**
- * Production sources under a directory, by the same predicates the config uses.
- *
- * `lstat` is never followed into a symlinked directory here because there are
- * none to follow: `setup-addons.sh` builds `src/addons/<name>` as a real
- * directory of per-file links precisely so that a walk like this one reaches
- * every file.
- */
 function productionSources(root, prefix) {
   const out = [];
-  // A missing root is not an error here. It means a directory this check
-  // expects has been deleted, and the comparison against the index below is
-  // what says so, by name. Throwing an ENOENT out of a readdir would report
-  // the same fact as a stack trace.
+  // A missing root is not an error here: the comparison against the index
+  // below is what reports it, by name.
   if (!existsSync(root)) return out;
   const walk = (dir, rel) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -215,12 +133,9 @@ if (unlinkedAddons.length) {
   ]);
 }
 
-// The declared population: core's sources plus the four declared addons',
-// enumerated from `addons/` (the real trees), minus the files that compile to
-// nothing. Building it from `src/addons/` instead would derive the expectation
-// from the same place the collector read, and an addon that was never linked
-// would go missing from both sides at once. The names above are what stops
-// `addons/` itself being that same observation one level up.
+// Enumerated from `addons/`, not `src/addons/`: the latter is the same place
+// the collector read, and an addon that was never linked would go missing from
+// both sides at once.
 const declared = new Set([
   ...productionSources(join(FRONTEND, "src"), "src/").filter(
     (p) =>
@@ -236,21 +151,9 @@ const declared = new Set([
   ),
 ]);
 // `Set.delete` reports whether the entry was there, and that answer is the
-// check. A declared absence is a claim about a file, so it is checked like
-// one: an entry naming a file that no longer exists removes nothing, fails
-// nothing, and goes on being counted in the "declared absent" line.
-//
-// This is rule 5 arriving from the other side. `ADDONS` above is a declared
-// name that was not checked for contributing anything; this is a declared
-// absence that was not checked for still having a subject. Today the nine hold
-// seven statements between them, so nothing moves when one rots — which is
-// exactly why it would stay unnoticed, and why it matters more as the list
-// grows rather than less.
+// check.
 const staleAbsences = NO_INSTRUMENTABLE_CODE.filter((p) => !declared.delete(p));
 
-// The third side: what the pinned commits hold. `declared` and `measured` both
-// read the working tree, so a directory emptied there leaves both at once; the
-// index does not move when files are deleted.
 const tracked = new Set([
   ...trackedSources(REPO_ROOT, "frontend/src", "src/").filter(
     (p) =>
@@ -262,30 +165,18 @@ const tracked = new Set([
     trackedSources(join(REPO_ROOT, "addons", name), "frontend", `src/addons/${name}/`),
   ),
 ]);
-// The same discarded return value as above, and it is the fact that separates
-// the two cases the message has to choose between: git still knowing about the
-// file means it was deleted from the working tree and should come back, while
-// git not knowing about it means the entry outlived its file and should go.
+// Git still knowing about the file means it was deleted from the working tree
+// and should come back; git not knowing about it means the entry outlived its
+// file and should go.
 const stillTracked = new Set(
   NO_INSTRUMENTABLE_CODE.filter((p) => tracked.delete(p)),
 );
 
 const untracked = [...tracked].filter((p) => !declared.has(p)).sort();
 
-// Both conditions are one report, and which one leads is the finding rather
-// than a preference.
-//
 // A deleted directory takes any declared-absent file inside it down with it, so
 // both fire together — and "delete the entry" is the wrong instruction for that
-// case, where the entry is right and the files should come back. Reported the
-// other way round, the stale list also *replaced* the real damage: measured,
-// removing `src/components/player` named three declared-absent entries and said
-// nothing about the 22 tracked files that had gone.
-//
-// They are also both incomplete alone. The 25 files that directory holds are 22
-// tracked plus 3 declared absent, and each check sees only its own share, so a
-// single count from either is wrong about the deletion. Printing both is what
-// makes the report add up.
+// case, where the entry is right and the files should come back.
 if (untracked.length || staleAbsences.length) {
   const lines = [];
   if (untracked.length) {
@@ -299,8 +190,7 @@ if (untracked.length || staleAbsences.length) {
     );
   }
   // Split by whether git still has the file, not by whether some *other* file
-  // is also missing. Keyed on the latter, the advice about one entry changed
-  // when an unrelated deletion appeared beside it.
+  // is also missing.
   const recoverable = staleAbsences.filter((p) => stillTracked.has(p));
   const orphaned = staleAbsences.filter((p) => !stillTracked.has(p));
   if (recoverable.length) {

@@ -11,20 +11,6 @@ import {
 } from "react";
 import { CheckCircle2, Info, X, XCircle } from "lucide-react";
 
-/**
- * Lightweight toast notification system. Built in-house (no third-party
- * dependency) since the only need today is surfacing failed mutations
- * that previously fell into empty ``catch`` blocks.
- *
- * Usage:
- *   const toast = useToast();
- *   toast.error("Failed to rename collection");
- *
- * Toasts stack bottom-right (bottom-center on narrow screens), auto-
- * dismiss after 5 s, and can be dismissed by clicking the X. Multiple
- * toasts queue rather than replace.
- */
-
 type ToastKind = "error" | "success" | "info";
 
 interface Toast {
@@ -55,9 +41,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (kind: ToastKind, message: string) => {
       const id = nextIdRef.current++;
       setToasts((prev) => [...prev, { id, kind, message }]);
-      // Auto-dismiss. ``setTimeout`` handle isn't tracked because
-      // dismissing on click is also handled by the ``setToasts`` filter
-      // — the timer firing for an already-removed id is a no-op.
+      // ``setTimeout`` handle isn't tracked because the timer firing for an
+      // already-removed id is a no-op.
       if (typeof window !== "undefined") {
         window.setTimeout(() => dismiss(id), DEFAULT_DURATION_MS);
       }
@@ -82,9 +67,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export function useToast(): ToastApi {
   const ctx = useContext(ToastContext);
   if (!ctx) {
-    // Defensive: hooks called outside the provider get a no-op API so
-    // callers don't have to guard. This shouldn't happen in practice
-    // because the provider lives in the root layout.
+    // Hooks called outside the provider get a no-op API so callers don't
+    // have to guard.
     return {
       error: () => {},
       success: () => {},

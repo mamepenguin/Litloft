@@ -8,14 +8,8 @@ export interface ProgressHairlineProps {
 }
 
 /**
- * The sliver of progress that stays visible once the controls fade
- * out, matching how mobile players keep a sense of position without
- * keeping a whole bar on screen.
- *
- * Non-interactive by design: the scrub target is the real SeekBar, and
- * a tap here should surface the controls like a tap anywhere else on
- * the frame. It is `aria-hidden` because the SeekBar carries the
- * position for assistive tech whenever it can be acted on.
+ * Non-interactive by design: a tap here should surface the controls like a
+ * tap anywhere else on the frame.
  */
 export function ProgressHairline({
   playedFraction,

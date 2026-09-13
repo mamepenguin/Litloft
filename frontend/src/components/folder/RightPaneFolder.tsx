@@ -21,10 +21,6 @@ interface RightPaneFolderProps {
 }
 
 /**
- * 2-pane right column when a folder is selected.
- *
- * v1 keeps this minimal: it lists immediate children with a small
- * grid/list toggle (separate from the outer 2-pane viewMode).
  * Selection, drag/drop and pin operations are not provided here — for
  * those, the user switches the outer viewMode to grid or list.
  */

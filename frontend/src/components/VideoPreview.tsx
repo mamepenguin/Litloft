@@ -7,7 +7,6 @@ import { getStreamUrl } from "@/lib/api";
 const HOVER_DELAY_MS = 200;
 const LONG_PRESS_MS = 500;
 
-// Shared mute state across all cards (YouTube-style)
 let globalMuted = true;
 const muteListeners = new Set<(muted: boolean) => void>();
 function setGlobalMuted(muted: boolean) {
@@ -17,7 +16,6 @@ function setGlobalMuted(muted: boolean) {
   }
 }
 
-// Singleton: only one preview plays at a time
 let activeStopFn: (() => void) | null = null;
 
 interface VideoPreviewProps {
@@ -37,7 +35,6 @@ export function VideoPreview({ fileId }: VideoPreviewProps) {
   const longPressActiveRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Sync global mute state
   useEffect(() => {
     const listener = (m: boolean) => setMuted(m);
     muteListeners.add(listener);
@@ -68,7 +65,6 @@ export function VideoPreview({ fileId }: VideoPreviewProps) {
   }, [clearTimers]);
 
   const startPreview = useCallback(() => {
-    // Stop any other active preview
     if (activeStopFn && activeStopFn !== stopPreview) {
       activeStopFn();
     }
@@ -236,7 +232,6 @@ export function VideoPreview({ fileId }: VideoPreviewProps) {
           >
             {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
           </button>
-          {/* Seek bar - tall hit area, bar floats above bottom */}
           <div
             className="absolute bottom-0 left-0 right-0 z-[2] h-8 cursor-pointer group/seek"
             onMouseDown={handleSeekStart}

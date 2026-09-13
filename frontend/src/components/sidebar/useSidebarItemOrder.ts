@@ -5,13 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { mergeOrder } from "./orderMerge";
 
 /**
- * Persisted order of the items inside one sidebar section, scoped per drive.
- *
- * Unlike section order (global), item identity is entirely drive-dependent — a
- * pin in drive A does not exist in drive B — so the key is drive-scoped, same
- * granularity as `tree:expanded:{drive}` / `folderPrefs:{drive}` (hako
- * rOloIC47lE4P3MyCtf1Vv / 2Q6UrppcejT4n0oYMEPbI).
- *
  * `currentIds` must be the server-provided order (the default position for any
  * item not yet in the saved order).
  */

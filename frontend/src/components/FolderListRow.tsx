@@ -10,19 +10,6 @@ import {
   ROW_OVERFLOW_BUTTON,
 } from "./rowFurniture";
 
-/**
- * A folder as one row of the list view, beside `FileListRow`.
- *
- * A separate component rather than a second layout inside `FolderCard`:
- * that card already carries the drop target, the inline rename and the
- * context menu, and a part holding two layouts has no line left to draw
- * between what it is and how it looks
- * (`.claude/rules/frontend-conventions.md`, Container/Presenter).
- *
- * Every one of those behaviours reaches this row through the same props
- * the card takes, from the same call site — there is one folder menu
- * definition and one rename hook, not a second set for the list.
- */
 interface FolderListRowProps {
   folder: FolderType;
   driveName: string;
@@ -40,7 +27,6 @@ interface FolderListRowProps {
   /** Rejecting with an `Error` shows its message inside the row. */
   onRenameCommit?: (next: string) => Promise<void>;
   onRenameCancel?: (error?: string) => void;
-  /** Focus tracking so the host can bind F2 to the focused row. */
   onCardFocus?: () => void;
   onCardBlur?: () => void;
 }
@@ -74,12 +60,6 @@ export function FolderListRow({
 
   // The same 14×24 frame `FileListRow` gives a thumbnail, so folder rows
   // and file rows line their text up on the same left edge.
-  //
-  // A glyph, never a photograph, for the reason the folder card gives:
-  // borrowing a picture from somewhere beneath the folder mixed pictures
-  // and line art in one column and said nothing the name did not (D-4).
-  // The row keeps its bare count rather than the card's breakdown — it is
-  // a fixed-width column beside a name that already truncates.
   const thumbnail = (
     <div className="flex h-14 w-24 flex-shrink-0 items-center justify-center rounded-lg bg-bg-elevated">
       <Folder size={22} className="text-text-muted" />
@@ -133,10 +113,6 @@ export function FolderListRow({
         >
           {thumbnail}
           <div className="flex min-w-0 max-w-list-row flex-1 items-center gap-2">
-            {/* Not a heading, for the reason the cards are not (D-5):
-                thirty sibling names in a listing are not thirty
-                sections, and list mode is one click from grid mode in
-                the same folder. The name is the row's link's. */}
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
               {folder.name}
             </span>
@@ -144,24 +120,8 @@ export function FolderListRow({
           </div>
         </Link>
       )}
-      {/* The same trailing group `FileListRow` draws, holding one control
-          instead of two. A group either way: these rows and the file rows
-          are the same column on the same screen, so a trailing edge that
-          moved in one and not the other would leave two `⋮` columns
-          that do not line up (`rowFurniture.ts`).
-
-          The same reason `FileListRow` has one: right-click and long-press
-          are the only other ways in, and a keyboard has neither. Without
-          it a column of rows shows a `⋮` on every file and none on the
-          folders, which reads as the folder being a different kind of
-          thing rather than as an omission.
-
-          It holds its place with `opacity-0` rather than appearing on
-          hover, so the row does not reflow under the pointer; it shows on
-          focus for the keyboard and stays put on touch, where there is no
-          hover to reveal it. Sized past its 16px glyph to a 24px target
-          (hako `Prwd_iaXmCjWfY24KjFz2`), and 44px where the pointer is a
-          finger (`00-basis.md`). */}
+      {/* It holds its place with `opacity-0` rather than appearing on
+          hover, so the row does not reflow under the pointer. */}
       {onContextMenu && (
         <div className={ROW_FURNITURE_GROUP}>
           <button

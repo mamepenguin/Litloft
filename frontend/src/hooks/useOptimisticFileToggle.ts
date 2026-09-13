@@ -5,9 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import type { FileItem } from "@/types";
 
 /**
- * An on/off control over a file that shows its new state before the
- * server confirms it.
- *
  * The pending flag is what makes syncing from the prop safe: the parent's
  * value is authoritative except while a request is in flight, when the
  * local guess has to stand or the control would visibly snap back and

@@ -13,22 +13,9 @@ interface SectionRowProps {
 }
 
 /**
- * The card row on the drive home: as many cards as fit, and no more.
- *
- * The shelves used to be a `flex` strip that scrolled sideways, which
- * said nothing about how much was off the edge — 00-basis 原則 5, "what
- * is cut off should look cut off". They are a grid now, and the count
- * that would have overflowed is simply not rendered.
- *
  * **Not rendered, not hidden.** Clipping the overflowing rows with
- * `overflow: hidden` would leave focusable cards behind the edge, which
- * is the same defect GAL-2 reported against the gallery's missing
- * `inert`. So the children are sliced.
- *
- * Two hosts render this shape (`CarouselSection` and
- * `ContinueWatchingSection`) and their heads genuinely differ — one has a
- * refresh control, the other a history-removal menu. Only the row is
- * shared, which is the part that would otherwise drift.
+ * `overflow: hidden` would leave focusable cards behind the edge, so the
+ * children are sliced.
  */
 export function SectionRow({ children }: SectionRowProps) {
   const { ref, columns } = useCardColumns();

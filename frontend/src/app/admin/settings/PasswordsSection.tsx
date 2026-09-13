@@ -1,7 +1,6 @@
 "use client";
 
-// PasswordsSection: lists masked passwords (server returns "***"), lets the
-// admin add new entries. The masked value is never sent back — when adding
+// The masked value the server returns is never sent back — when adding
 // or editing, the input starts blank and the user must enter a fresh value.
 
 import { useCallback, useEffect, useState } from "react";
@@ -135,8 +134,6 @@ export function PasswordsSection(): React.ReactElement {
 
   return (
     <section className="rounded-xl border border-bg-border bg-bg-card p-6">
-      {/* See `DrivesSection` for why the left side gives and the button
-          does not. */}
       <div className="mb-6 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-text-primary">

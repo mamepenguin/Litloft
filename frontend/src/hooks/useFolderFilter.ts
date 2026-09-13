@@ -16,18 +16,9 @@ export interface FolderFilterApi<T extends FileItem> {
 }
 
 /**
- * Right-pane filter for the current folder: a case-insensitive substring
- * match on filename, which also hides folders whose name does not
- * contain it.
- *
- * Text only. It used to carry a type filter as well, forty pixels below
- * the toolbar's — but the toolbar asks the server and this sifted the
- * rows already loaded, so on a folder past its first page of thirty the
- * same choice gave two different answers. The toolbar's is the one that
- * can be right.
- *
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §2,
- * narrowed by 2026-09-03-ui-redesign-p1-vocabulary.md item 1.
+ * Text only: the toolbar's type filter asks the server, and this sifts the
+ * rows already loaded, so on a folder past its first page the same choice
+ * would give two different answers.
  */
 export function useFolderFilter<T extends FileItem>(
   files: T[],
@@ -36,7 +27,6 @@ export function useFolderFilter<T extends FileItem>(
   const [text, setTextState] = useState("");
   const [debouncedText, setDebouncedText] = useState("");
 
-  // Debounce text input to keep the filter responsive on large folders.
   useEffect(() => {
     if (text === debouncedText) return;
     const handle = window.setTimeout(() => {

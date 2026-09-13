@@ -14,13 +14,6 @@ interface MetadataEditorProps {
   onCancel: () => void;
 }
 
-/**
- * The title / description form the `[...]` menu's *Edit* opens.
- *
- * Replaces the meta block in place rather than opening a dialog: the
- * two fields are the meta block, so editing them somewhere else would
- * mean showing the same two values twice.
- */
 export function MetadataEditor({
   title,
   description,

@@ -3,31 +3,14 @@
 import type { ComponentType } from "react";
 
 export interface ActionMenuItemProps {
-  /**
-   * Accepts the same shape as `MenuItem.icon` so a row can be drawn
-   * from the shared file-menu definition without restating its type.
-   */
   icon: ComponentType<{ size?: number }>;
   label: string;
   onClick: () => void;
   disabled?: boolean;
-  /** Destructive actions (delete, purge). Uses the danger token per DESIGN.md §Buttons. */
   danger?: boolean;
-  /**
-   * A row that toggles something which is currently on — Select mode.
-   * Drawn as a held state and announced as one, so the menu says which
-   * of its rows is in effect rather than leaving it to the trigger.
-   */
   active?: boolean;
 }
 
-/**
- * One row of a `[...]` overflow menu.
- *
- * Shared so that an addon rendering into a menu slot (`file-actions-menu`)
- * draws a row indistinguishable from the host's own, instead of restating
- * the classes and drifting from the menu around it.
- */
 export function ActionMenuItem({
   icon: Icon,
   label,

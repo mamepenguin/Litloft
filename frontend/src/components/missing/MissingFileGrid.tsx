@@ -160,14 +160,6 @@ export function MissingFileGrid({
                 <h3 className="line-clamp-2 text-sm font-semibold text-text-muted">
                   {file.title}
                 </h3>
-                {/* No badge on this card either — see `TrashFileGrid` —
-                    so the length goes on the line. Unlike the trash
-                    card, *both* halves here are optional: the sibling
-                    grid draws its date unconditionally, this one guards
-                    `missing_since`. So the separator belongs to neither
-                    of them, and the line itself is not drawn when
-                    neither half is there — an empty row of the same
-                    height is the thing `DESIGN.md` says not to draw. */}
                 {(metaLine !== null || file.missing_since) && (
                   <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
                     {metaLine !== null && (
@@ -184,10 +176,6 @@ export function MissingFileGrid({
                   </div>
                 )}
 
-                {/* See `TrashFileGrid` for why this is in the footer with a
-                    word on it rather than an unlabelled glyph over the
-                    thumbnail. This one is the irreversible half on its own,
-                    which is the stronger case for saying what it does. */}
                 {/* Mounted in both modes, and made `invisible` in
                     selection mode rather than dropped. In the footer the
                     strip is in flow, so unmounting it takes ~40px off every

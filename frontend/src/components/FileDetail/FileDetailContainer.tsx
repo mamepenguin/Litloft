@@ -24,95 +24,20 @@ import { useSlotAvailability } from "./hooks/useSlotAvailability";
 
 export interface FileDetailContentProps {
   fileId: string;
-  /**
-   * Drive name passed in from the host. Both hosts (the 2-pane right
-   * pane and the collection-exception fullscreen route) already know
-   * the drive — passing it as a prop avoids waiting for ``getFile``
-   * to resolve before AddonSlot / EditableTagChips can render. The
-   * resolved file's ``drive`` matches this prop in practice (the API
-   * returns the file's drive), so they stay in sync.
-   */
   drive: string;
-  /** Forwarded to ``FilePreview`` for media seek-on-mount. */
   initialTime?: number;
-  /** Forwarded to ``FilePreview`` for PDF page anchor. */
   initialPage?: number;
-  /** Forwarded to ``FilePreview`` for text/Markdown citation jump. */
   highlight?: string;
-  /**
-   * Notified upward whenever the active media controller changes.
-   * Hosts that care about citation jump etc. supply a stable setter.
-   */
   onMediaController?: (mc: MediaController | null) => void;
-  /**
-   * IntersectionObserver root for the mini player. The 2-pane host
-   * passes its scroll container ref; the fullscreen host omits it
-   * (document scroll, viewport root). Forwarded through ``FilePreview``
-   * to ``MiniPlayerContainer``.
-   */
   miniPlayerRoot?: Element | null;
-  /**
-   * Called when the user taps the image-gallery launcher. The host
-   * (RightPaneFile / FileDetailFullScreen) owns the actual
-   * ``<ImageGallery>`` mount + open state, so this component stays
-   * agnostic of how the gallery should open.
-   */
   onRequestImageGallery?: () => void;
-  /**
-   * Called when the host should refetch its own neighbors / navigate
-   * away after a delete. Optional because the 2-pane host can fall
-   * back to clearing ``?file=``.
-   */
   onAfterDelete?: () => void;
-  /**
-   * Overrides the page row's back control. Supplied by a host where
-   * "back" is not "up one folder" — collection playback, where it is
-   * the collection being played. Reaches the row whether it is drawn by
-   * the host or by ``FileDetailShell``, so the two surfaces cannot
-   * disagree about it.
-   */
   onBack?: () => void;
-  /**
-   * Forwarded to ``FilePreview``: callback when video / audio playback
-   * ends. The collection-exception fullscreen route uses this to
-   * advance to the next item; the 2-pane right pane omits it
-   * (collection mode lives on the fullscreen route per §4.6).
-   */
   onEnded?: () => void;
-  /** Forwarded to ``FilePreview``: kick off playback on mount. */
   autoPlay?: boolean;
-  /**
-   * Which file-detail surface this is. Defaults to the canonical URL,
-   * which is where every host but the collection-playback route sits.
-   * See ``lib/fileDetailShell.ts`` for why the two differ.
-   */
   surface?: FileDetailSurface;
 }
 
-/**
- * The full per-file detail surface, sans navigation chrome.
- *
- * PR-3 of the right-pane equivalence merger
- * (docs/superpowers/specs/2026-05-09-right-pane-full-detail.md, §3.2):
- * extracts the body of the legacy ``/files/[id]/page.tsx`` so both
- * the 2-pane right pane and the collection-exception fullscreen route
- * share a single rendering. Each host wraps this with its own chrome
- * (back button / TreeToggle / ImageGallery mount / CollectionPanel /
- * useOverlaySidebar / arrow nav).
- *
- * Spec contract — what this component intentionally does **not** do
- * (§3.4):
- *   - call ``useOverlaySidebar()`` (host-side, varies by mode)
- *   - mount ``ImageGallery`` (host-side, on a callback)
- *   - mount ``CollectionPanel`` (collection mode lives outside the 2pane)
- *   - register arrow-key navigation (host uses ``useFileNav`` hook)
- *   - own searchParams (host extracts and passes initialTime etc.)
- *
- * This file is the container half of the Container/Presenter split
- * (`frontend-conventions.md`): state, data, and the derived facts about
- * the file. Everything about *where* things are drawn lives in
- * `FileDetailPresenter` and below.
- */
 export function FileDetailContainer({
   fileId,
   drive,
@@ -135,9 +60,6 @@ export function FileDetailContainer({
   const { file, setFile } = data;
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  // Mirrors the published controller locally so children that need
-  // it (FileActions for casting, addon slots for citation jump) can
-  // pick it up.
   const [mediaController, setMediaController] =
     useState<MediaController | null>(null);
   const [documentCaptureController, setDocumentCaptureController] =
@@ -149,7 +71,7 @@ export function FileDetailContainer({
   // `enabled` here so the periodic refetch does not flip the layout
   // branch out from under an open Editor, which would unmount the
   // textarea, reset viewMode to "preview" and re-fire every child
-  // `useEffect([fileId])` — observed as a 30-second reload while typing.
+  // `useEffect([fileId])`.
   const knowledgeEditorPolicy = usePolicy(drive, "knowledge", "editor");
 
   const ridesShell = ridesFileDetailShell({
@@ -186,14 +108,6 @@ export function FileDetailContainer({
     [onMediaController],
   );
 
-  // Phase 3.5 (spec 2026-05-10 §D2 / hako ZWLqXgdTwt9le4dAI3U8C): the
-  // inspector's tag chips need to subscribe to the markdown content
-  // registry so they can run in content-mode against the editor's
-  // shared `content` state. That subscription is now isolated inside
-  // ``<MarkdownAwareTagChips>`` so an editor keystroke does NOT pulse
-  // a re-render of this entire FileDetail tree on every typed
-  // character — only the chips component re-evaluates.
-
   if (!file) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -210,44 +124,18 @@ export function FileDetailContainer({
    */
   const isTimedMedia = file.file_type === "video" || file.file_type === "audio";
 
-  // Which player, if any, plays this file — and therefore whether a
-  // companion region is possible at all and whether it may take the
-  // rail form. `playerKind` owns the .loft-before-file_type ordering.
   const companionKind = playerKind(file);
   // Asked once and passed down. Two spellings of "does a player play
   // this" is how the description ends up rendered twice, or nowhere.
   const hasPlayer = companionKind !== null;
   const railEligible = companionKind === "video" || companionKind === "loft";
-  /**
-   * Whether the player's height is a function of its width.
-   *
-   * The same two kinds as `railEligible` today, and derived here rather
-   * than in each layout because it was written out in both — with the
-   * same paragraph explaining it twice — and they answer different
-   * questions: one is "can a rail fit beside it", this is "is its
-   * height expressible as a width cap". Only video and `.loft` build a
-   * fixed 16:9 frame; an image sizes itself from `max-h-[70vh]`, and
-   * PDF, text and archive previews have no ratio to invert.
-   */
   const playerFramed = railEligible;
 
-  // Core is an occupant of the companion region now, not just its host:
-  // chapters are a core entity and `AddonSlot` can only load addon
-  // components. So every question that used to be "does an addon fill
-  // this?" becomes "does anyone?".
-  //
-  // Two answers to it, not one, and the difference is load-bearing.
-  //
   // `companionMountable` is "could anyone fill it", and it is what
   // decides whether the occupants are mounted at all. It must not
   // consult availability: the occupants are what report availability, so
   // a region unmounted because nothing was available yet would take the
   // reporters down with it and freeze that answer for good.
-  //
-  // `companionOccupied` is "does anyone, for this file", and it is what
-  // the chrome reads — the layout toggle, the box the below form draws.
-  // A control that moves an empty region between two empty places is
-  // the "row that only says a feature exists" the redesign is removing.
   const companionMountable = hasSlot("player-side") || data.chaptersPresent;
   const companionOccupied =
     data.chaptersPresent ||
@@ -266,8 +154,6 @@ export function FileDetailContainer({
   );
 
   /**
-   * Whether the shell's canvas holds a viewer rather than the editor.
-   *
    * The negation and not a list of kinds: everything the shell carries
    * is either the document form (a note, and the HTML preview that
    * borrows its single-scroll layout) or a viewer, so naming the viewer
@@ -278,28 +164,12 @@ export function FileDetailContainer({
   const usesCanvasViewer = !useDocumentLayout;
 
   /**
-   * Whether the canvas owns the description, rather than the inspector.
-   *
-   * The confirmed layout keeps the viewer and the long things belonging
-   * to it in the canvas, and for media the description is one of those:
-   * a video's description is its show notes, not a property of the file.
+   * A video's description is its show notes, not a property of the file.
    * A PDF's is a property of the file, so it stays with the title and
    * the size where every other kind's is.
-   *
-   * `hasPlayer` and not `usesCanvasViewer` — and computed once, because
-   * the two readers of it are on opposite sides of the page. Two
-   * spellings of this is exactly how the description ends up rendered
-   * twice, which is what happened the moment PDFs joined the canvas.
    */
   const descriptionInCanvas = ridesShell && hasPlayer;
 
-  // Wire the inspector's tag chips through the editor's shared content
-  // state when both (a) we're in the DocumentLayout fork and (b) the
-  // editor has registered an entry. Falls back to standalone mode
-  // otherwise — non-Markdown files have no editor, and a brief gap
-  // before the editor mounts must not leave the chip group unable to
-  // save. The registry subscription lives inside this wrapper so
-  // editor keystrokes don't bubble re-renders up to this component.
   const tagChipNode = (
     <MarkdownAwareTagChips
       fileId={fileId}
@@ -314,8 +184,6 @@ export function FileDetailContainer({
     />
   );
 
-  // Shared addon slot props. Same shape regardless of layout fork so
-  // every slot entry receives an identical context.
   const addonSlotProps = {
     fileId,
     drive,
@@ -326,9 +194,6 @@ export function FileDetailContainer({
     fileType: file.file_type,
     mimeType: file.mime_type,
     documentCaptureController,
-    // Generic file context, same as fileType/mimeType: lets a section decide
-    // whether it applies without a second round-trip for the file it is
-    // already being rendered for.
     trustTier: file.trust_tier,
     trustReviewedAt: file.trust_reviewed_at,
     onFileChange: setFile,

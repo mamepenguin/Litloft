@@ -1,21 +1,14 @@
 /**
- * Destination resolution and device-local preferences for Quick Note.
- *
- * Everything here is convenience state, not user data: it records where the
- * last successful save went so the next note lands in the same place. It is
- * never treated as authoritative — the accessible-drive response from the
- * API always has the final say, so a stale entry can never reveal or select
+ * Everything here is convenience state, not user data. It is never
+ * treated as authoritative — the accessible-drive response from the API
+ * always has the final say, so a stale entry can never reveal or select
  * a drive the viewer can no longer see.
- *
- * Spec `docs/superpowers/specs/2026-08-13-global-quick-note.md` §6.
  */
 
-/** Where a drive's first note goes when nothing has been chosen yet. */
 export const QUICK_NOTE_DEFAULT_FOLDER = "Inbox";
 
 export const QUICK_NOTE_LAST_DRIVE_KEY = "quick-note:last-drive";
 
-/** Generous cap; a real folder path is far shorter than this. */
 const MAX_FOLDER_LENGTH = 200;
 
 export function quickNoteDestinationKey(drive: string): string {
@@ -23,8 +16,6 @@ export function quickNoteDestinationKey(drive: string): string {
 }
 
 /**
- * Whether a stored folder value is usable as a relative destination.
- *
  * The empty string is valid and means the drive root — that is a real choice
  * in the folder picker, not a missing value.
  */
@@ -62,7 +53,6 @@ function writeStorage(key: string, value: string): void {
   }
 }
 
-/** Read the remembered folder for a drive, falling back to `Inbox`. */
 export function readQuickNoteFolder(drive: string): string {
   const raw = readStorage(quickNoteDestinationKey(drive));
   if (!raw) return QUICK_NOTE_DEFAULT_FOLDER;
@@ -77,8 +67,8 @@ export function readQuickNoteFolder(drive: string): string {
 }
 
 /**
- * Remember a drive's folder. Called only after a save succeeds, so a rejected
- * destination never becomes the next default.
+ * Called only after a save succeeds, so a rejected destination never
+ * becomes the next default.
  */
 export function writeQuickNoteFolder(drive: string, folder: string): void {
   if (!isValidQuickNoteFolder(folder)) return;
@@ -95,17 +85,12 @@ export function writeQuickNoteLastDrive(drive: string): void {
 }
 
 export interface ResolveDriveParams {
-  /** Drive of the screen the panel was opened from, if any. */
   currentDrive: string | null;
-  /** Drive of the last successful save, if any. */
   lastDrive: string | null;
-  /** Drives the API says this viewer can reach right now. */
   accessibleDrives: string[];
 }
 
 /**
- * Pick the drive a freshly opened panel should target.
- *
  * Returns `null` when several drives are accessible and neither the current
  * screen nor history points at one of them: writing a note into the wrong
  * security boundary is worse than asking for one click, so there is

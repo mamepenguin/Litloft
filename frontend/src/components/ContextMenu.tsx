@@ -12,7 +12,7 @@ export interface MenuItem {
    * The action exists here but cannot be run on this file right now —
    * downloading one whose bytes have gone missing, say. Greyed and
    * inert rather than removed, so the menu keeps the same shape and the
-   * row below does not move under the pointer (案 11).
+   * row below does not move under the pointer.
    */
   disabled?: boolean;
   danger?: boolean;
@@ -82,7 +82,7 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
               }}
               // `:hover` still matches a disabled button, so the override
               // stops a greyed row tinting under the pointer while
-              // refusing the click. Same treatment as ActionMenuItem.
+              // refusing the click.
               className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 disabled:hover:bg-transparent ${
                 item.danger
                   ? "text-danger hover:bg-accent/10"

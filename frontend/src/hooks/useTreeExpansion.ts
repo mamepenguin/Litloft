@@ -37,10 +37,8 @@ export interface TreeExpansionApi {
   expand: (path: string) => void;
   collapse: (path: string) => void;
   /**
-   * Collapse several paths as one state update and one write. Spring-
-   * loaded drag calls this on every drag end to undo the branches it
-   * opened, so the common case — a drag that opened nothing — must not
-   * cost a render or a localStorage write.
+   * Spring-loaded drag calls this on every drag end, so the common case — a
+   * drag that opened nothing — must not cost a render or a localStorage write.
    */
   collapseMany: (paths: Iterable<string>) => void;
 }

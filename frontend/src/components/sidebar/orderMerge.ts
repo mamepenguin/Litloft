@@ -1,17 +1,4 @@
 /**
- * Pure ordering helpers shared by the sidebar reorder hooks.
- *
- * Both section order (global key) and item order (drive-scoped key) persist
- * only a list of stable IDs. At render time the saved list is reconciled with
- * the IDs that actually exist via {@link mergeOrder} (layered fallback): a
- * deleted ID disappears, a brand-new ID lands at its default position. This is
- * what makes the feature forward-compatible (a new addon section, a freshly
- * created pin, a removed collection all "just work").
- */
-
-/**
- * Reconcile a saved order with the IDs that currently exist.
- *
  * - Saved IDs that still exist are kept in their saved order.
  * - IDs not present in the saved order (new ones) are inserted at their
  *   *default position*: immediately after their nearest preceding neighbour
@@ -45,11 +32,6 @@ export function mergeOrder(saved: readonly string[], currentIds: readonly string
   return result;
 }
 
-/**
- * Immutably move `fromId` so it sits directly before or after `toId`.
- * Returns a new array; the input is never mutated. Unknown IDs or a no-op
- * move return a shallow copy unchanged.
- */
 export function reorder(
   ids: readonly string[],
   fromId: string,

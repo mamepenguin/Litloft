@@ -11,25 +11,16 @@ import { INTERVAL_OPTIONS } from "@/lib/slideshow";
 export interface SlideshowIntervalMenuProps {
   value: number;
   onChange: (seconds: number) => void;
-  /** The full-screen frame the panel is drawn inside. */
   frameRef: RefObject<HTMLElement | null>;
-  /** Names the control and its group. The two viewers own their wording. */
   label: string;
   closeLabel: string;
   formatSeconds: (seconds: number) => string;
-  /** Lets the frame hold its chrome open while this panel is up. */
   onOpenChange?: (open: boolean) => void;
 }
 
 /**
- * The slideshow interval, as over-frame chrome rather than a `<select>`.
- *
- * `DESIGN.md` §Over-video chrome rules out a bare native control in a
- * bar over media: a `<select>` is sized by its widest option and drawn
- * by the OS, so it matches nothing else in the row. The two shapes it
- * names — bottom sheet for touch, `w-64` popover for a mouse — come from
- * `OverFrameSettingsPanel`, the same shell the video player's settings
- * use.
+ * Over-frame chrome rather than a `<select>`: a `<select>` is sized by its
+ * widest option and drawn by the OS, so it matches nothing else in the row.
  *
  * The panel is portalled into the frame rather than rendered where the
  * button sits: it lays itself out with `absolute inset-0`, and the
@@ -52,18 +43,10 @@ export function SlideshowIntervalMenu({
   };
 
   // Report the one close the callback cannot see: this component going
-  // away with the panel still up.
-  //
-  // The archive's viewer can be closed out from under an open panel —
-  // `ArchivePreview` closes it from an effect on `currentPath`, which is
-  // URL-backed, so browser Back does it. The hold lives in
-  // `useImageViewer`, which outlives this component, so without this the
-  // flag latches on and the chrome never withdraws again for the life of
-  // the page. State derived from a child's lifetime but stored in a
-  // parent that outlives it is the shape that latches.
-  // Only when it was actually open: a cleanup that always reported
-  // would be claiming a transition that never happened, and the frame
-  // would hear "closed" from a panel that was never up.
+  // away with the panel still up. The hold lives in `useImageViewer`,
+  // which outlives this component, so without this the flag latches on
+  // and the chrome never withdraws again for the life of the page.
+  // Only when it was actually open.
   const reportRef = useRef(onOpenChange);
   reportRef.current = onOpenChange;
   const openRef = useRef(open);
@@ -100,9 +83,7 @@ export function SlideshowIntervalMenu({
           <OverFrameSettingsPanel
             placement={placement}
             // The viewers' chrome bar is at the top of the frame, so the
-            // popover parks under it. Measured: parked against the
-            // bottom edge it opened 549px below the button that opened
-            // it, in the opposite corner of a 1512x757 frame.
+            // popover parks under it.
             anchor="top"
             onClose={() => setOpenAndReport(false)}
             closeLabel={closeLabel}

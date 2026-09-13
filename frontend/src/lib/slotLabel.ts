@@ -3,13 +3,6 @@
 import type { SlotEntry } from "./addons";
 
 /**
- * What to call a slot entry on screen.
- *
- * A manifest's `label` is an English literal — `"Transcript"` — because
- * a manifest is a declaration, not a catalogue. Rendering it directly
- * is how an English tab ended up in a row of Japanese ones. An entry
- * may name a translation key instead, and this prefers it.
- *
  * Falls back rather than throwing, in both directions: an entry with no
  * key keeps working, and so does one whose key is missing from the
  * catalogue — an addon can ship a key before its translations reach the

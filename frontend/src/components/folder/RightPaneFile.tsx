@@ -21,37 +21,16 @@ interface RightPaneFileProps {
 }
 
 /**
- * 2-pane right column: full file detail equivalent to the legacy
- * ``/files/{id}`` page, sans navigation chrome.
- *
- * PR-4 of the right-pane equivalence merger spec
- * (docs/superpowers/specs/2026-05-09-right-pane-full-detail.md, hako
- * HI8TFfXzwyPVtgBqlR6P1, §3.4 host responsibilities). Reverses the
- * Topic 7 "minimal preview" model: the pane now hosts ``<FileDetailContent>``
- * (PR-3) plus the host-side concerns the spec keeps out of that
- * shared component:
- *
- *   - ``<ImageGallery>`` mount + galleryOpen state (H2)
- *   - ``useFileNav`` arrow-key navigation (PR-2; `?file=` swap)
- *   - scroll-container ref forwarded as ``miniPlayerRoot`` so the
- *     mini player's IntersectionObserver lives on the right-pane
- *     scroll surface (PR-1, B1)
- *   - chrome: TreeToggle + close ✕ (mobile back ←)
- *
- * Per §3.4 the right pane intentionally **does not** call
- * ``useOverlaySidebar``; the global sidebar stays inline because the
- * tree pane already owns the left-of-content slot. Collection mode is
- * 2-pane-exempt (§4.6) and lives in the PR-5 fullscreen route, so we
- * never need ``<CollectionPanel>`` here.
+ * The right pane intentionally **does not** call ``useOverlaySidebar``;
+ * the global sidebar stays inline because the tree pane already owns the
+ * left-of-content slot.
  */
 export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   const t = useTranslations("rightPane");
   const { clearFile, selectFile } = useSelectedFile();
   const searchParams = useSearchParams();
 
-  // Chrome title + ImageGallery + useFileNav need the file metadata
-  // before <FileDetailContent> renders (and FileDetailContent does
-  // its own fetch internally, per spec §3.2). The double fetch is
+  // FileDetailContent does its own fetch internally. The double fetch is
   // cheap and short-lived; sharing through context is overkill for
   // a single host that only needs file_type / mime_type / filename.
   const [state, setState] = useState<
@@ -62,7 +41,7 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   // Callback ref + state so FileDetailContent receives the actual DOM
   // element on first render (a useRef value would be null on the
-  // initial pass). The mini player's IO uses this as its root.
+  // initial pass).
   const [scrollRoot, setScrollRoot] = useState<Element | null>(null);
   const setScrollRootCb = useCallback((el: HTMLDivElement | null) => {
     setScrollRoot(el);
@@ -85,15 +64,6 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   const file = state.status === "loaded" ? state.file : null;
 
-  // Drive arrow-key navigation through useFileNav (PR-2). selectFile
-  // swaps ``?file=id`` so FileDetailContent re-mounts with the
-  // neighbor's id. Sort / order from the URL keep the nav order in
-  // sync with what the folder view used before the user dove in.
-  // PR-5: ``selectFile`` itself routes through ``navigationGuard`` so
-  // a dirty editor on the current file gets the global ``DirtyBlocker``
-  // dialog before the swap fires; this hook stays surface-agnostic.
-  // The listing said what it was showing; this reads it. See
-  // `lib/fileNavOrdering.ts` for why nothing here may infer it.
   const navOrdering = resolveFileNavOrdering({ params: searchParams });
 
   const fileNav = useFileNav({
@@ -107,9 +77,6 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
     onNavigate: selectFile,
   });
 
-  // Forward URL hints into FilePreview via FileDetailContent. ``t`` /
-  // ``page`` / ``highlight`` are deep-link locators (citation jumps,
-  // PDF anchors, Markdown highlights); they tolerate being undefined.
   const tParam = searchParams.get("t");
   const pageParam = searchParams.get("page");
   const initialTime = tParam ? Number(tParam) : undefined;
@@ -142,21 +109,13 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
     <>
       <PaneShell
         // No chrome from this host, ever. `FileDetailShell` draws the
-        // row, inspector toggle and all, and on the canonical surface —
-        // which is the only surface this host is — every resolved file
-        // now rides it. Handing PaneShell a second row would stack two
-        // identical bars, which is what a `ridesFileDetailShell` branch
-        // here used to prevent; with the predicate answering "yes" for
-        // every kind, the other half of that branch became unreachable
-        // and a conditional that cannot take one of its paths is a claim
-        // that it can. The loading and error states above still draw the
+        // row, and handing PaneShell a second row would stack two
+        // identical bars. The loading and error states above still draw the
         // row, because there is no shell mounted yet to draw it.
         chrome={undefined}
         scrollRef={setScrollRootCb}
       >
-        {/* Published rather than passed down: the page row that draws
-            the visible prev / next sits four components below here, and
-            the hook has to stay with the host because only the host
+        {/* The hook has to stay with the host because only the host
             knows what "navigate" means in its URL model. */}
         <FileNavProvider value={fileNav}>
           <FileDetailContent
@@ -179,9 +138,6 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
           order={orderQuery}
           onClose={(currentFileId) => {
             setGalleryOpen(false);
-            // ImageGallery may have advanced the user to a sibling
-            // image while open; reflect that selection in `?file=`
-            // so the right pane shows the same file it left them on.
             if (currentFileId && currentFileId !== fileId) {
               selectFile(currentFileId);
             }
@@ -197,17 +153,7 @@ function PaneShell({
   scrollRef,
   children,
 }: {
-  /**
-   * The page row. Omitted when the inner content supplies its own —
-   * `FileDetailShell` carries the same `FileDetailChrome` internally
-   * because it also owns the inspector toggle that sits in it.
-   */
   chrome?: React.ReactNode;
-  /**
-   * Optional callback ref attached to the scroll container so the
-   * outer ``RightPaneFile`` can pass it down to the mini player as
-   * its IntersectionObserver root.
-   */
   scrollRef?: (el: HTMLDivElement | null) => void;
   children: React.ReactNode;
 }) {

@@ -8,7 +8,6 @@ import { COMPOSITION_GRACE_MS, IME_KEY_CODE } from "@/lib/ime";
 
 
 export interface InlineNameEditorProps {
-  /** The name as it stands. Shown with its stem pre-selected. */
   initialName: string;
   /**
    * Perform the rename. Reject with an `Error` whose `message` is fit to
@@ -22,18 +21,14 @@ export interface InlineNameEditorProps {
    * the editor is no longer around to show.
    */
   onCancel: (error?: string) => void;
-  /** Falls back to the generic "New name" label. */
   ariaLabel?: string;
   className?: string;
 }
 
 /**
- * Rename a file or folder in place.
- *
  * Only mounted on surfaces that display the real filename — the tree rows
  * and folder cards. Grid and list cards show `file.title`, a cosmetic
- * derivation, so editing there would show one string and save another
- * (spec 2026-08-21-inline-rename-and-spring-loaded-drag §2).
+ * derivation, so editing there would show one string and save another.
  */
 export function InlineNameEditor({
   initialName,

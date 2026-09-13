@@ -47,14 +47,9 @@ function FileCardImpl({
   onShiftSelect?: (id: string) => void;
   sortQuery?: string;
   /**
-   * Whether this listing's extension badges say anything. Resolved once
-   * by the grid and handed down as a plain boolean — see
-   * `lib/listMeta.ts` for the rule, and the memo note at the bottom of
-   * this file for why it arrives as a primitive.
-   *
-   * Defaults to drawing it: the drive-home rows render cards
-   * directly and are mixed by construction, so the rule would only ever
-   * confirm what the default already does.
+   * Resolved once by the grid and handed down as a plain boolean. Defaults
+   * to drawing it: the drive-home rows render cards directly and are mixed
+   * by construction.
    */
   showExtensionBadge?: boolean;
   draggable?: boolean;
@@ -62,12 +57,6 @@ function FileCardImpl({
   onDragStart?: (e: React.DragEvent, file: FileItem) => void;
   onDragEnd?: (e: React.DragEvent) => void;
   watchProgress?: WatchProgress;
-  /**
-   * Optional content rendered below the meta row inside the card body.
-   * Used by addons (e.g. intelligence semantic search) to surface
-   * match metadata such as timestamp pills or page references. Kept
-   * generic — the core card has no awareness of its caller's domain.
-   */
   matchOverlay?: ReactNode;
 }) {
   const formatRelativeDate = useRelativeDate();
@@ -175,8 +164,6 @@ function FileCardImpl({
           )}
         </div>
         <div className="p-3">
-          {/* Not a heading — see `FolderCard`. The accessible name is the
-              card's link, which is unchanged. */}
           <span className="line-clamp-2 text-sm font-semibold text-text-primary">
             {file.title}
           </span>
@@ -217,8 +204,5 @@ function FileCardImpl({
  * `isSelected: (id) => boolean` or a `string[]` of dragged ids defeats
  * this entirely, because its identity changes whenever the selection or
  * drag state changes and so every card's props change with it.
- * Measured 2026-08-21: re-rendering 995 unmemoized cards blocked the
- * main thread for ~142 ms (spec `2026-08-21-file-list-deep-scroll-cost`
- * §5.4, hako `v3BsEd0wEZeBvImaMUOj2`).
  */
 export const FileCard = memo(FileCardImpl);

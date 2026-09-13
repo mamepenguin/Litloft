@@ -1,10 +1,5 @@
 "use client";
 
-// CompleteStep: final wizard screen. Renders an input summary card and
-// a "next steps" list, then POSTs /api/admin/config/complete-setup and
-// navigates to /admin on success. Surfaces failures inline and leaves
-// the user on this step so they can retry.
-
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

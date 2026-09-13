@@ -1,32 +1,11 @@
 import type { MatchMeta, MatchTimestamp } from "@/types";
 
-/**
- * The timestamp pills under a search result — one rule, shared by both
- * core surfaces that draw them (`MergedResultItem` in the Cmd+K popup and
- * `MatchOverlay` on the results page), so the two cannot drift apart.
- *
- * The rule has two halves. A cap, because a row is a row. And
- * de-duplication, because a transcript hit and a scene hit landing in the
- * same second are two segments with different `time_range`s and one
- * moment to the reader: without it a file shows
- * `13:19 13:19 14:49 14:49 14:49` — five pills naming two moments.
- */
-
-/** Whole-second start of one moment, plus where it came from. */
 export interface MatchTimestampPill {
   /**
    * The segment's raw start, unrounded. De-duplication floors it and so
    * does rendering; a caller that builds a `?t=` link must floor it too.
    */
   seconds: number;
-  /**
-   * Which channel produced it. Nothing draws differently for it — to the
-   * reader a moment is a moment — and after de-duplication it is not
-   * needed to keep React keys unique either, since no two pills in
-   * `shown` share a floored second. It is here so a caller can say which
-   * channel a moment came from, and so a test can pin which one wins a
-   * tie: the earlier raw value, because the sort is stable and by time.
-   */
   kind: "transcript" | "clip";
 }
 
@@ -56,12 +35,7 @@ export function collectMatchTimestamps(
 
   const all: MatchTimestampPill[] = [];
   // `Number.isFinite` rather than `typeof … === "number"`: it rejects NaN
-  // and Infinity by construction rather than by the coincidence that
-  // `NaN >= 0` is false, and it rejects a string the types say cannot be
-  // there. `formatDuration(Infinity)` renders the string
-  // "Infinity:NaN:NaN"; a pill is not the place to find that out.
-  // `time_range` is optional-chained because a segment that reached the
-  // badge without one must not take a pill with it.
+  // and Infinity, and `formatDuration(Infinity)` renders "Infinity:NaN:NaN".
   const collect = (
     segments: MatchTimestamp[] | undefined,
     kind: MatchTimestampPill["kind"],

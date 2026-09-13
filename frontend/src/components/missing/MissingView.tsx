@@ -71,9 +71,6 @@ export function MissingView({ driveName }: MissingViewProps) {
 
   return (
     <div className="min-w-0 w-full flex-1 py-4 sm:py-6">
-      {/* Three rows became one: the description and the count share the scope
-          line, and the view toggle joins the actions instead of sitting on a
-          row of its own below them. */}
       <PageHeader
         breadcrumb={<Breadcrumb driveName={driveName} driveIsAncestor />}
         titleIcon={AlertTriangle}
@@ -97,9 +94,6 @@ export function MissingView({ driveName }: MissingViewProps) {
         }
       />
 
-      {/* `px-4`, matching PageHeader's own padding. The page used to be
-          `px-2 sm:px-4` throughout; keeping that here would leave the header
-          at 16px and the file list at 8px below `sm`. */}
       <div className="px-4">
 
       {loading ? (

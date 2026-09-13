@@ -10,27 +10,14 @@ import { SeekBar } from "./parts/SeekBar";
 import { TimeDisplay } from "./parts/TimeDisplay";
 
 /**
- * The layout for a frame too narrow to hold the pointer row — in
- * practice the 320x180 mini player, and any other fine-pointer frame
- * under `COMPACT_MAX_WIDTH`.
- *
- * Not the touch layout. That one is shaped by the finger as much as by
- * the size: its hero button exists because a single tap is spoken for
- * (it toggles the controls), and it can drop the skip buttons because a
- * double tap does the skipping. Under a mouse a click on the frame
- * already toggles playback, so the hero would be a redundant disc over
- * the middle of a small window, and the double click means fullscreen,
- * so nothing would be left holding skip.
- *
- * What survives is what someone who scrolled away to read still wants:
- * stop it, see how much is left, move roughly, silence it. Speed and
- * captions are decided before scrolling away and persist across the
- * transition; expanding is the mini window's own restore button, which
- * is already on screen.
+ * Not the touch layout. That one's hero button exists because a single
+ * tap is spoken for, and it can drop the skip buttons because a double
+ * tap does the skipping. Under a mouse a click on the frame already
+ * toggles playback, and the double click means fullscreen, so nothing
+ * would be left holding skip.
  *
  * Colours are white-on-scrim rather than theme tokens, since the
- * backdrop is always a black video frame (DESIGN.md, "Over-video
- * chrome").
+ * backdrop is always a black video frame.
  */
 export function CompactControlsPresenter({
   displayTime,
@@ -125,9 +112,7 @@ export function CompactControlsPresenter({
       </div>
 
       {/* Outside the faded container: this is what remains once the
-          controls go away. It matters more here than anywhere else —
-          the window is off in a corner and mostly looked at rather than
-          hovered. */}
+          controls go away. */}
       {!visible && (
         <ProgressHairline
           playedFraction={playedFraction}

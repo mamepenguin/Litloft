@@ -32,8 +32,6 @@ export function SidebarPinsSection({
   const t = useTranslations("sidebar");
   const { collapsed, toggle } = useSidebarSectionCollapsed("pins");
 
-  // Stable id list (pin.path). Memoised so the reorder hooks keep a steady
-  // reference and do not churn `order` identity on every render.
   const currentIds = useMemo(() => pins.map((p) => p.path), [pins]);
   const { order, setOrder } = useSidebarItemOrder("pins", drive ?? null, currentIds);
   const itemDnd = useReorderableDnD({

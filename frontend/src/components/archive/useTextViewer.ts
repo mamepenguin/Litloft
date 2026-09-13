@@ -26,7 +26,6 @@ export function useTextViewer(
   const [textError, setTextError] = useState<string | null>(null);
   const [textConfirmed, setTextConfirmed] = useState(false);
 
-  // Text viewer: load content
   useEffect(() => {
     if (viewMode !== "text" || !viewingEntry || !textConfirmed) return;
 

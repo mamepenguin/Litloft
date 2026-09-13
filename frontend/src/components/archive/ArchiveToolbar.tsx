@@ -37,13 +37,8 @@ interface SortValue {
 }
 
 /**
- * Field and direction as one table, the way the folder toolbar offers them.
- *
- * `SortMenu` itself cannot be reused: its `SortField` is the folder's
- * vocabulary (`created_at`, `title`, `random`) and an archive entry has none
- * of those — a ZIP carries no per-entry timestamp this viewer reads. What is
- * shared is the shape, so this table is built on the same `MenuRadioGroup`
- * rather than on a second menu primitive.
+ * `SortMenu` cannot be reused: its `SortField` is the folder's vocabulary
+ * (`created_at`, `title`, `random`) and an archive entry has none of those.
  */
 const SORT_OPTIONS: Array<{ value: SortValue; labelKey: string }> = [
   { value: { sort: "name", order: "asc" }, labelKey: "sortNameAsc" },
@@ -64,21 +59,9 @@ const TYPE_FILTERS: Array<{ value: FileType | null; labelKey: string }> = [
 ];
 
 /**
- * The scope a control on this bar keeps.
- *
- * `sm`, not the folder toolbar's `md`. Measured in Chromium with a coarse
- * pointer at 375 / 400 / 430 / 768 / 1512, both locales, all three orders:
- * the widest row is Japanese with the size order — `サイズ 大→小` 129 +
- * `すべて` 87 + `グリッド表示` 126, two 8px gaps and 32px of `px-4` =
- * **390**, and it is the one combination that took two rows at 375. So the
- * measured need is a fold below 390, not below 640.
- *
- * The breakpoint is 640 anyway, and deliberately: 390 is a *translation's*
- * width, not the layout's, and a longer word in a locale nobody measured
- * moves it. A standard breakpoint with 250px of headroom absorbs that; an
- * arbitrary `min-[400px]` fits today's strings exactly and breaks on the
- * next one. The cost is the 430-639 band folding two controls it had room
- * for, where the folder toolbar — six controls, not three — folds anyway.
+ * A standard breakpoint rather than an arbitrary `min-[400px]`: the width the
+ * controls need is a translation's width, not the layout's, and a longer word
+ * in another locale moves it.
  */
 export const BAR_ROOMY = {
   className: "hidden sm:flex",
@@ -91,7 +74,6 @@ interface SortGroupProps {
   onSelect: (value: SortValue) => void;
 }
 
-/** The "which order" rows, without a control around them. */
 function ArchiveSortGroup({ sort, order, onSelect }: SortGroupProps) {
   const t = useTranslations("archive");
   const tSort = useTranslations("sort");
@@ -110,7 +92,6 @@ interface TypeGroupProps {
   onSelect: (value: FileType | null) => void;
 }
 
-/** The "which kind of entry" rows, without a control around them. */
 function ArchiveTypeGroup({ typeFilter, onSelect }: TypeGroupProps) {
   const t = useTranslations("archive");
   const tToolbar = useTranslations("toolbar");
@@ -143,17 +124,9 @@ export function ArchiveToolbar({
   const tToolbar = useTranslations("toolbar");
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLButtonElement>(null);
-  // Inert while the wrapper below is `sm:hidden`: the only widths this
-  // menu exists at are the ones where the surface resolves to the
-  // viewport-spanning `fixed` sheet, and a sheet has no direction to pick.
-  // Taken anyway, because the surface is one recipe and the day this
-  // control stops being `sm:hidden` is not the day anyone will remember to
-  // wire it.
   const moreSurface = useMenuSurface(moreOpen);
 
-  // Closing must put focus back on the trigger; without it the menu unmounts
-  // with focus on `<body>` and the next Tab restarts from the top of the
-  // document.
+  // Without restoring focus the menu unmounts with focus on `<body>`.
   const closeMore = () => {
     setMoreOpen(false);
     moreRef.current?.focus();
@@ -165,12 +138,8 @@ export function ArchiveToolbar({
   const activeFilter = TYPE_FILTERS.find((f) => f.value === typeFilter);
 
   return (
-    // No `overflow-hidden`, and it is load-bearing: the anchored form of
-    // every menu on this bar is `absolute` inside this card, so clipping to
-    // the card's box paints about four pixels of a 290px popover and hides
-    // every row at 640 and up. The rule it used to enforce — the breadcrumb
-    // row's `border-b` inside the rounded corners — never needed it: that
-    // border sits at y≈45, well inside the straight part of a 12px radius.
+    // No `overflow-hidden`: every menu on this bar is `absolute` inside
+    // this card, so clipping to the card's box would hide the popovers.
     <div className="mb-3 rounded-xl bg-bg-card">
       <div className="flex flex-wrap items-center gap-2 border-b border-bg-border px-4 py-2.5">
         <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -231,10 +200,6 @@ export function ArchiveToolbar({
               sort={sort}
               order={order}
               onSelect={(v) => {
-                // Two setters behind one row: `useArchiveSort` keeps field
-                // and direction apart, and this menu is the only caller that
-                // moves both. Collapsing them in the hook would leave its own
-                // tests asserting a shape nothing renders.
                 onSortChange(v.sort);
                 onOrderChange(v.order);
                 close();
@@ -261,14 +226,10 @@ export function ArchiveToolbar({
           )}
         </ToolbarMenu>
 
-        {/* The same rows, at the widths where the two controls are off the
-            bar. `sm:hidden` and `BAR_ROOMY` are the two halves of one
-            decision: a control that leaves the bar has to arrive here, or a
-            reader who finds neither has lost the function. */}
-        {/* `sm:hidden` written out, not built from `BAR_ROOMY`: Tailwind
-            emits a utility only when it finds the literal token in a source
-            file, and a class assembled at runtime produces no CSS at all.
-            That the two widths agree is asserted in the test instead. */}
+        {/* `sm:hidden` and `BAR_ROOMY` are the two halves of one decision:
+            a control that leaves the bar has to arrive here. Written out,
+            not built from `BAR_ROOMY`: Tailwind emits a utility only when
+            it finds the literal token in a source file. */}
         <div
           ref={moreSurface.wrapperRef}
           className="relative sm:hidden"
@@ -276,7 +237,6 @@ export function ArchiveToolbar({
           // trigger, which is outside the menu. `stopPropagation` because a
           // React `onKeyDown` is invisible to the shortcut registry, and an
           // Escape that also reaches `ShortcutsProvider` gets answered twice.
-          // Same contract `ToolbarMenu` documents and its test asserts.
           onKeyDown={(e) => {
             if (!moreOpen || e.key !== "Escape") return;
             e.stopPropagation();

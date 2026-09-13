@@ -1,10 +1,7 @@
 "use client";
 
-// Stepper: visual progress indicator for the setup wizard. Renders an
-// ordered list of step indicators with three states (completed / active /
-// future) keyed off the supplied `currentIndex`. Receives only the step
-// list it should display — Language and Welcome are upstream concerns and
-// must be excluded by the parent before rendering.
+// Language and Welcome must be excluded from the step list by the parent
+// before rendering.
 
 interface Step {
   id: string;
@@ -44,16 +41,12 @@ export function Stepper({ steps, currentIndex }: Props): React.ReactElement {
 
   return (
     <div className="w-full">
-      {/* Mobile: compact progress display ("3 / 5") only. Detailed
-          per-step labels live in the desktop list below — duplicating
-          them on mobile would force test queries to disambiguate. */}
       <div className="flex items-center justify-between gap-3 md:hidden">
         <span className="text-sm font-medium text-text-primary">
           {safeIndex + 1} / {total}
         </span>
       </div>
 
-      {/* Desktop: full numbered list */}
       <ol role="list" className="hidden md:flex md:items-center md:gap-2">
         {steps.map((step, i) => {
           const state = getState(i, currentIndex);

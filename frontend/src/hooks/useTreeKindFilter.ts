@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import type { FileKind } from "@/types";
 
 const PREFIX = "tree:typeFilter:";
-// The whole vocabulary, not the four buckets the tree used to know.
 // A value that is no longer valid falls back to "no filter" below, so a
 // persisted choice from an older build degrades quietly.
 const VALID: FileKind[] = [

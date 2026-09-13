@@ -43,27 +43,12 @@ export interface ShellLayoutProps {
   drive: string;
   isMobile: boolean;
   isHtmlPreview: boolean;
-  /** Whether a player plays this file at all. */
   hasPlayer: boolean;
-  /**
-   * Whether the canvas is a viewer rather than the Knowledge editor.
-   *
-   * True for everything the shell carries except a Markdown note and an
-   * HTML preview: media, and — since 2026-09 — PDF, archives and images.
-   * Not the same question as `hasPlayer`: a PDF has no player, but it
-   * has a viewer, and before this the two were conflated because the
-   * shell only carried media.
-   */
   usesCanvasViewer: boolean;
-  /** Whether the canvas owns the description, rather than the inspector. */
   descriptionInCanvas: boolean;
-  /** Whether anyone could fill the companion. Decides what is mounted. */
   companionMountable: boolean;
-  /** Whether anyone does, for this file. Decides what chrome is drawn. */
   companionOccupied: boolean;
-  /** Per-file "have I anything" answers from the slot entries. */
   slotAvailability: SlotAvailability;
-  /** Whether the player's height is a function of its width. */
   playerFramed: boolean;
   isTimedMedia: boolean;
   chaptersPresent: boolean;
@@ -79,7 +64,6 @@ export interface ShellLayoutProps {
   initialPage?: number;
   highlight?: string;
   miniPlayerRoot?: Element | null;
-  /** The shell owns the scroll container; the container needs it back. */
   onScrollRootChange: (node: HTMLElement | null) => void;
   onEnded?: () => void;
   autoPlay?: boolean;
@@ -87,30 +71,10 @@ export interface ShellLayoutProps {
   onMarkdownTagsSaved: () => void;
   onRename: (newFilename: string) => Promise<void>;
   onBack?: () => void;
-  /** Title, meta, action row and tags — placed, not built, here. */
   meta: ReactNode;
-  /** The Bottom Sheet's 56px resting row, on the surfaces that have one. */
   sheetPeek?: ReactNode;
 }
 
-/**
- * File detail as chrome, canvas and inspector.
- *
- * Every kind that has been moved onto the shell is drawn from here, and
- * the differences between them are two: what goes in the canvas, and
- * which tabs the inspector grows. The fixed part of the inspector, the
- * "Info" tab, the page row and the Bottom Sheet are the same for all of
- * them — which is the point of the shell, and the reason a PDF and a
- * video no longer disagree about where a file's tags live.
- *
- * Media joined in 2026-09. The one structural consequence is worth
- * stating: in the beside form, the companion region stops being a
- * column of a CSS grid and becomes inspector tabs. The measuring
- * machinery it used to drive stays exactly where it was — `--rail-avail`
- * still bounds the box below the player and `--player-avail` was never
- * about the companion at all — and the grid itself is still live on the
- * collection-playback route, which keeps the legacy stack.
- */
 export function ShellLayout({
   file,
   fileId,
@@ -151,32 +115,17 @@ export function ShellLayout({
   const tabLabels = useTranslations("inspector.tabs");
 
   /**
-   * Where the sheet's `half` state stops, for this file.
-   *
    * On a phone the player is stuck to the top of the canvas, so a sheet
    * that took a fixed fraction of the window covered it at some viewport
    * heights and left a gap at others. Derived from the player's own
    * bottom edge instead, `half` is exactly the room under it: the video
    * stays whole and everything below goes to the tab.
-   *
-   * Measured here rather than in `FileDetailShell` because this is where
-   * the player wrapper's ref is, and passed down as a number so the
-   * shell holds a state and not a measurement. `hasPlayer` and not
-   * `usesCanvasViewer`: a PDF has a viewer and no player, and a page
-   * nobody is watching has nothing to stay clear of.
    */
   const sheetHalfSnap = useSheetHalfSnap(
     metrics.playerWrapperRef,
     isMobile && hasPlayer,
   );
 
-  /**
-   * The PDF canvas viewer's page state, when the canvas holds one.
-   *
-   * Same shape as `mediaController`: the canvas publishes it upward, because
-   * only the thing that loaded the document knows what is in it, and the
-   * inspector's page list is in a different subtree.
-   */
   const [pdfController, setPdfController] = useState<PdfController | null>(null);
   const pdfState = usePdfState(pdfController);
   const [archiveController, setArchiveController] =
@@ -198,51 +147,18 @@ export function ShellLayout({
   );
 
   /**
-   * Where chapters and the `player-side` occupants are mounted.
+   * The tab list and the canvas must not both claim them: the transcript
+   * fetches, subscribes to the playback clock and holds a scroll position,
+   * so a second copy is not a duplicate render but a second, competing
+   * reader of the same file.
    *
-   * One value, read by both the tab list and the canvas, because they
-   * must not both claim them: the transcript fetches, subscribes to the
-   * playback clock and holds a scroll position, so a second copy is not
-   * a duplicate render but a second, competing reader of the same file.
-   *
-   * "Beside" is the inspector's tab strip and "below" is the canvas box.
    * On a phone there is no beside — the inspector is a sheet — so the
-   * tabs are where they go regardless of the stored preference, and the
-   * page keeps a single scroll.
+   * tabs are where they go regardless of the stored preference.
    */
   const companionInTabs = isMobile || mediaLayout === "beside";
-  /**
-   * A PDF has a canvas viewer but no playback clock, so nothing follows
-   * it: the companion, the tabs it can occupy and the control that moves
-   * it between the two are all a *player's*, and a viewer that is not
-   * one has none of them. `hasPlayer` and not `usesCanvasViewer` at
-   * each.
-   *
-   * **Three gates, and each has to be able to fail on its own.** There
-   * were five. Two of them could not: one read `hasPlayer &&
-   * companionOccupied` inside the branch that only runs when
-   * `hasPlayer`, and one put `!hasPlayer` into `companionInTabs`, where
-   * it was already implied by the gate on the companion itself — so
-   * either could be deleted with nothing to show for it, and only
-   * deleting *both* of the latter pair changed anything. Belt and braces
-   * reads as safety and is the opposite: it is what makes a guard
-   * untestable, and an untestable guard is one nobody can tell has
-   * stopped working.
-   */
 
   const playerSideEntries = hasPlayer ? getSlotEntries("player-side") : [];
 
-  /**
-   * What each `player-side` entry is given, wherever it is placed.
-   *
-   * `onAvailability` is the entry's channel for saying it has nothing
-   * for this file — the generic form of `ChaptersPanel.onResolved`, and
-   * the only way core can gate an addon's tab without knowing what the
-   * addon is. `labelledByHost` says the host has already written the
-   * entry's name above it, so it should not write it again: in the tab
-   * strip the button carries the label, and a panel that repeats it
-   * spends a line saying what the reader just pressed.
-   */
   const playerSideProps = (entryId: string, labelledByHost: boolean) => ({
     ...addonSlotProps,
     fillHeight: true,
@@ -251,11 +167,9 @@ export function ShellLayout({
   });
 
   /**
-   * The same occupants, for the below form.
-   *
    * Built here rather than by `AddonSlot` inside the canvas because the
    * availability callback is per entry, and `AddonSlot` hands one props
-   * object to all of them. Ordering is `AddonSlot`'s own rule, kept.
+   * object to all of them.
    */
   const playerSideNodes = sortSlotEntries(playerSideEntries).map((entry) => (
     <SlotEntryRenderer
@@ -266,15 +180,9 @@ export function ShellLayout({
   ));
 
   /**
-   * The `file-detail-sections` entries the canvas draws itself.
-   *
    * The inspector excludes exactly these, so a section lands in one
-   * column or the other and never in both — or, as `knowledge-edit`
-   * briefly did, in neither: it was excluded from the inspector on
-   * every kind while only the document canvas drew it, so a video lost
-   * the knowledge addon's "create a note" card entirely.
+   * column or the other and never in both.
    *
-   * These two ids predate this file and are the only ones core names.
    * Do not add a third: the general answer is a slot of its own, the
    * way `file-relations` is, not another id core has to know.
    */
@@ -304,11 +212,7 @@ export function ShellLayout({
   // Index-Details placeholders would be noise rather than affordance.
   const infoTabContent = (withHeavySummaries: boolean) => (
     <>
-      {/* One heading over both kinds of relation. Core's own
-          `file_relations` and whatever an addon derives from the file
-          were two headings answering the same question, so a reader had
-          to guess which one a given connection was filed under. The
-          addon half arrives through a slot rather than by id: core
+      {/* The addon half arrives through a slot rather than by id: core
           naming `similar-files` here would be exactly the core-to-addon
           dependency the rules forbid. */}
       <RelatedGroup>
@@ -337,14 +241,6 @@ export function ShellLayout({
       },
       coreTabs: [
         {
-          /**
-           * A table of contents, a thumbnail rail, or neither.
-           *
-           * Null is how a tab is dropped (`buildInspectorTabs` rule 1), so a
-           * one-page PDF with no outline grows no tab — and with `info` alone
-           * left, no tab strip either (rule 2). The condition is about what
-           * the document has, not about what kind of file it is.
-           */
           id: "pages",
           label: tabLabels("pages"),
           content: pdfController ? (
@@ -352,10 +248,6 @@ export function ShellLayout({
               <PdfPagesTab controller={pdfController} />
             ) : null
           ) : archiveController && archiveState.entries.length > 1 ? (
-            /* One entry is not an index: the canvas already shows it,
-               and rule 1 drops a tab whose content adds nothing. With
-               `info` left alone there is then no tab strip either
-               (rule 2). */
             <ArchivePagesPanel controller={archiveController} fileId={fileId} />
           ) : null,
         },
@@ -379,19 +271,11 @@ export function ShellLayout({
             entry,
             label: slotEntryLabel(entry, tGlobal),
             available: slotAvailability.isAvailable(entry.id),
-            // What this wrapper does depends on which surface asked.
-            //
             // In the desktop pane (`buildTabs(false)`) the panel is the
             // height budget, so this continues the flex chain and the
             // occupant fills it and scrolls inside itself. Without it the
             // chain stops here and a transcript lays itself out at full
             // length inside a bounded box, which clips it silently.
-            //
-            // In the sheet (`buildTabs(true)`) the panel is
-            // `scroll="column"` and has no height, so `h-full` resolves
-            // to `auto` and this box is inert: the occupant lays out at
-            // its natural length and the sheet's own scroller carries it,
-            // which is the one scroller `column` mode exists to leave.
             // `fillHeight` stays `true` on both — on this path it tells
             // the occupant about a budget it does not have, and it is
             // still the right value, because `false` would give
@@ -415,13 +299,8 @@ export function ShellLayout({
 
   // Only when actually on mobile, so the sections inside mount exactly
   // once across the two surfaces rather than once per surface.
-  //
   // `scroll="column"` is the sheet's half of the arrangement: the drawer
   // is the scroller, so the inspector inside it must not be a second one.
-  // The header — the file's name and its action row — scrolls away with
-  // it and is reached by scrolling back, which is the trade the user
-  // confirmed. The resting strip carries the same name and row while the
-  // sheet is *down*; it is not drawn while the sheet is up.
   const mobileSheet = isMobile ? (
     <InspectorShell
       header={meta}
@@ -442,16 +321,10 @@ export function ShellLayout({
         canvasFloor={viewerTakesCanvasFloor(file.file_type, file.mime_type)}
         chromeControls={
           <>
-            {/* Only where there is something to move. With no chapters
-                and no `player-side` occupant the two forms are
-                identical, and a control that changes nothing is worse
-                than no control. Same value the canvas box is drawn
-                from, so the two cannot come to disagree about whether
-                the region has an occupant. `!isMobile` is not only
-                about space: `onBeside` opens the desktop pane, and a
-                phone's sheet is `FileDetailShell`'s own state, not this
-                store. Rendering the toggle on a phone would write a
-                preference and open nothing. */}
+            {/* `!isMobile` is not only about space: `onBeside` opens the
+                desktop pane, and a phone's sheet is `FileDetailShell`'s own
+                state, not this store. Rendering the toggle on a phone would
+                write a preference and open nothing. */}
             {!isMobile && hasPlayer && companionOccupied && (
               <MediaLayoutToggle onBeside={() => setInspectorOpen(true)} />
             )}
@@ -511,9 +384,6 @@ export function ShellLayout({
     );
   }
 
-  // The document form: a note's own body is the canvas, and the shell's
-  // Markdown chrome (save dot, view-mode toggle, click-to-edit filename)
-  // comes with it.
   return (
     <MarkdownDocumentLayout
       drive={drive}
@@ -532,9 +402,7 @@ export function ShellLayout({
           against the layout's scrolling <main>), and the editor region
           takes whatever the footer leaves. Without this, a short note
           ended at its own content height and the sections under it
-          floated in the middle of the screen with dead space below.
-          Long notes are unaffected: both boxes keep their automatic
-          minimum size and the page scrolls. */}
+          floated in the middle of the screen with dead space below. */}
       <div className="flex flex-1 flex-col">
         <div className="relative isolate flex flex-1 flex-col bg-bg-primary">
           {isHtmlPreview ? (
@@ -548,11 +416,6 @@ export function ShellLayout({
             />
           )}
         </div>
-        {/* Canvas footer carries the table-heavy summaries on desktop
-            only; on mobile the same sections live in the Bottom Sheet so
-            the user does not have to scroll past a long note to reach
-            them. HTML preview skips them — intelligence does not index
-            HTML and the placeholder UI would be misleading. */}
         {!isMobile && !isHtmlPreview && (
           <div className="relative isolate space-y-6 border-t border-bg-border bg-bg-primary px-6 py-8 empty:hidden">
             {heavySummaries}

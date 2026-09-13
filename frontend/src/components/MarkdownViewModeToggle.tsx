@@ -17,14 +17,6 @@ const ALL_OPTIONS: Option[] = [
   { id: "preview", icon: Eye, labelKey: "preview" },
 ];
 
-/**
- * Segmented edit / split / preview toggle. Lives in core so both the
- * standalone Knowledge route (addon) and the unified chrome render the
- * same control.
- *
- * `hideSplit` drops the middle option on viewports too narrow for a
- * side-by-side editor (Spec §D5 / hako sFXCwZDluTPZZkbYuozwJ).
- */
 export function MarkdownViewModeToggle({
   mode,
   onChange,

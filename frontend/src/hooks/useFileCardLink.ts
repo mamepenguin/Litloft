@@ -19,24 +19,6 @@ interface FileCardLink {
   wrapperProps: Record<string, unknown>;
 }
 
-/**
- * What "click this card" means, for every shape of card in a listing.
- *
- * Three modes, in priority order:
- *
- * - **select** — multi-select is on, so the click selects rather than
- *   opens, and shift extends the range. Cmd/Ctrl still escapes to
- *   `onMetaSelect` so power users can multi-select from anywhere.
- * - **override** — a host (currently `CollectionDetail`) absorbs the
- *   click into its own `?file=` selection instead of letting the
- *   canonical `/files/{id}` redirect take over. See
- *   `lib/fileNavigationOverride.tsx`.
- * - **link** — the default `<Link>`.
- *
- * Shared rather than written per card shape: the equal card and the
- * justified cell are two drawings of one row, and a second copy of this
- * is where the selection semantics would quietly diverge between them.
- */
 export function useFileCardLink({
   file,
   selectable,
@@ -93,10 +75,6 @@ export function useFileCardLink({
             fileNavigationOverride!(file.id);
           }
         },
-        // Offered so the override host can look clickable even though
-        // the underlying element is a `<div>` rather than a `<Link>`. A
-        // caller that sets its own `className` after spreading these
-        // props takes it over.
         className: "cursor-pointer",
       },
     };

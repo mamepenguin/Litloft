@@ -10,8 +10,7 @@ interface OverflowMenuProps {
   /**
    * The accessible name. Required, and required to be specific: a screen
    * with two `…` buttons on it needs to say which is which, and "More"
-   * on its own says nothing about what it holds (hako
-   * `Prwd_iaXmCjWfY24KjFz2`).
+   * on its own says nothing about what it holds.
    */
   label: string;
   /**
@@ -24,32 +23,11 @@ interface OverflowMenuProps {
 }
 
 /**
- * The `…` overflow menu: trigger, panel, and how it closes.
- *
- * Written once so that a bar needing one does not grow its own copy of
- * the trigger, the panel and the dismissal. The panel is anchored to the
- * right of its trigger, which is
- * where a `…` sits on every bar in this app; `AddButton` keeps its own
- * geometry because its trigger is a labelled primary button that can sit
- * at either end of a row (see the `align` note there).
- *
- * A pointer closes it on `DismissScrim`, which is where the reason for
- * dismissing on the click rather than the press is written down.
- *
  * Escape is answered by a React `onKeyDown` on the box, not by a
  * `document` listener: a listener does not know what is stacked above
  * it and would answer a press aimed at the dialog in front. It stops
  * there, because a press that also reached `ShortcutsProvider` would be
- * answered twice. `ToolbarMenu` records the same reasoning, and
- * `escape-listeners.test.ts` permits exactly this shape.
- *
- * The surface is `useMenuSurface` — a sheet below 640px, and above it a
- * dropdown anchored to its trigger in the direction and on the side the
- * measurement picks — because every other menu on a bar in this app is
- * that surface, and a `…` rendering two ways on two screens that hold the
- * same rows is the drift this component exists to end. `AddButton` is the
- * one menu on a bar that does not use it yet; its side is a parameter of
- * the recipe now, so what is left there is the conversion, not a reason.
+ * answered twice.
  */
 export function OverflowMenu({ label, children }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);
@@ -79,8 +57,6 @@ export function OverflowMenu({ label, children }: OverflowMenuProps) {
         aria-expanded={open}
         aria-label={label}
         title={label}
-        // 44px on a coarse pointer, as every icon-only control on a bar
-        // gets (`Button`'s note on the same floor).
         className="flex items-center justify-center rounded-lg p-2 text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11 pointer-coarse:min-w-11"
       >
         <MoreHorizontal size={16} />

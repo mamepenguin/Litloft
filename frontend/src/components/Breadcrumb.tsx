@@ -9,37 +9,13 @@ interface BreadcrumbProps {
   getDropTargetProps?: (targetPath: string) => Record<string, (e: React.DragEvent) => void>;
   isDropTarget?: (targetPath: string) => boolean;
   /**
-   * Optional non-navigable trailing label rendered as the last
-   * breadcrumb segment. Used by virtual-folder hosts (e.g. the
-   * collection detail page) to surface a name that lives outside
-   * the folder hierarchy without abusing ``folderPath``'s ``/``
-   * splitting. When set, the drive name becomes a Link (since this
-   * trailing label is the actual current location).
-   *
-   * A node rather than a string when the leaf needs to be more than
-   * text — the file detail page row hands its filename here, and on a
-   * Markdown note that filename is click-to-edit. A node is rendered
-   * as given, so the caller owns its truncation and styling; a string
-   * gets the leaf styling the folder segments use.
+   * A node is rendered as given, so the caller owns its truncation and
+   * styling; a string gets the leaf styling the folder segments use.
    */
   trailingSegment?: ReactNode;
   /**
    * The page names its own location in a heading, so the trail stops at the
    * drive and the drive becomes a Link rather than the leaf.
-   *
-   * The pairing rule is "name the subject once": a page either lets the trail
-   * name it — a folder, the inside of an archive, which pass neither this nor
-   * `trailingSegment` — or names itself in an `<h1>` and sets this, so the
-   * trail carries only ancestors. A page of the second kind that omits it
-   * renders the drive as dead text, so the trail names the place the reader
-   * came from and offers no way back to it.
-   *
-   * The cross-drive views are a third kind and pass neither: they name
-   * themselves nowhere and their trail has no segments, so the drive is
-   * their leaf. Spec §7.2 leaves them as they are.
-   *
-   * Redundant with `trailingSegment`, which already makes the drive a link.
-   * Passing both is harmless but says the same thing twice.
    */
   driveIsAncestor?: boolean;
 }
@@ -54,9 +30,6 @@ export function Breadcrumb({
 }: BreadcrumbProps) {
   const t = useTranslations("toolbar");
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
-  // When a trailing virtual segment is provided, the drive itself is no
-  // longer the leaf — render it as a Link, the same way it behaves when
-  // ``folderPath`` carries real segments.
   const driveIsLeaf = segments.length === 0 && !trailingSegment && !driveIsAncestor;
 
   return (
@@ -113,9 +86,8 @@ export function Breadcrumb({
           <ChevronRight size={14} className="flex-shrink-0" />
           {typeof trailingSegment === "string" ? (
             // `title` because this is the one segment that is routinely
-            // too long for the row — both page headers this replaced
-            // carried one, and without it a truncated filename cannot be
-            // read at all.
+            // too long for the row; without it a truncated filename cannot
+            // be read at all.
             <span
               className="font-medium text-text-primary truncate"
               title={trailingSegment}

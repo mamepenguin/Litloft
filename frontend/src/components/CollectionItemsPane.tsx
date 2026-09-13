@@ -16,24 +16,9 @@ interface CollectionItemsPaneProps {
 }
 
 /**
- * Left-aside content for the collection detail page. Substitutes for
- * ``FolderTreePane`` inside the shared ``<TwoPaneLayout>`` shell, so the
- * top-left ``<TreeToggle>`` controls a single "show/hide the left pane"
- * concept whether the right pane is in folder context or collection
- * context.
- *
- * Spec ``2026-05-12-playlist-to-collection.md`` PR-B redo.
- *
  * Reorder controls are intentionally always visible (no
  * ``group-hover:flex`` reveal). Mobile / touch devices cannot trigger a
  * hover state, and keyboard users benefit from tab-reachable controls.
- * The trade-off is a slightly denser row on desktop; the icons are
- * compact and the row already truncates the title, so the visual cost
- * is small.
- *
- * Reorder also animates via FLIP (capture rects before update, animate
- * from delta back to zero after the new layout settles) so users get a
- * visual cue that the change happened.
  */
 export function CollectionItemsPane({
   items,
@@ -44,38 +29,24 @@ export function CollectionItemsPane({
   const t = useTranslations("collection");
   const { fileId, selectFile } = useSelectedFile();
 
-  // FLIP: track each row's DOM node by item id, capture its bounding
-  // rect after every commit, and on the next commit animate any row
-  // whose top shifted. Newly-mounted rows (e.g. just added) have no
-  // previous rect, so they skip the animation. Removed rows have
-  // already unmounted so they're never animated either — only rows
-  // that survive a re-order get the slide.
-  //
-  // Subsequent reorders also need to cancel any in-flight animation
-  // before measuring — ``getBoundingClientRect()`` reflects active
-  // transforms, so reading it mid-animation would yield the visually
-  // offset rect instead of the layout position and break the
-  // delta calculation on the next swap (regression seen 2026-05-12).
+  // Reorders must cancel any in-flight animation before measuring —
+  // ``getBoundingClientRect()`` reflects active transforms, so reading it
+  // mid-animation would break the delta calculation on the next swap.
   const rowRefs = useRef(new Map<number, HTMLLIElement>());
   const prevRectsRef = useRef(new Map<number, DOMRect>());
   const animationsRef = useRef(new Map<number, Animation>());
 
   useLayoutEffect(() => {
-    // 1. Cancel any in-flight animations so the elements snap back to
-    //    their layout position before we measure.
     for (const anim of animationsRef.current.values()) {
       anim.cancel();
     }
     animationsRef.current.clear();
 
-    // 2. Measure the post-commit layout position for every current row.
     const newRects = new Map<number, DOMRect>();
     for (const [id, el] of rowRefs.current) {
       newRects.set(id, el.getBoundingClientRect());
     }
 
-    // 3. For each row that survived, animate from its previous rect
-    //    back to the new rect (FLIP: First, Last, Invert, Play).
     const prev = prevRectsRef.current;
     for (const [id, prevRect] of prev) {
       const newRect = newRects.get(id);
@@ -103,9 +74,9 @@ export function CollectionItemsPane({
         });
     }
 
-    // 4. Save the measured layout rects (not a fresh
-    //    getBoundingClientRect, which would now include the freshly
-    //    applied transform) for the next reorder.
+    // Save the measured layout rects (not a fresh
+    // getBoundingClientRect, which would now include the freshly
+    // applied transform) for the next reorder.
     prevRectsRef.current = newRects;
   }, [items]);
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 const storageKey = (section: string) => `sidebar:section:${section}:collapsed`;
 
-// Spec 2026-05-12-playlist-to-collection: copy the old "playlists" collapse
+// Copy the old "playlists" collapse
 // state across once so users who collapsed Playlists keep Collections
 // collapsed.
 const SECTION_MIGRATIONS: Record<string, string> = {

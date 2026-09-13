@@ -3,38 +3,15 @@
 import { useCallback, useEffect, useRef } from "react";
 
 /**
- * The custom property the CSS floor reads.
- *
- * The fraction and the absolute minimum are *not* here. They live in
- * the `min-height` in `globals.css` and nowhere else: a copy in TypeScript
- * would be a second statement of one rule that nothing forces to agree,
- * and this file cannot apply them anyway — it publishes a height.
+ * The fraction and the absolute minimum live in the `min-height` in
+ * `globals.css` and nowhere else.
  */
 export const CANVAS_HEIGHT_VAR = "--canvas-h";
 
 /**
- * Publish the canvas's own height so the viewer inside it can take a
- * floor as a fraction of it.
- *
- * **Measured, not `cqh`.** The obvious spelling is `min-height:
- * max(320px, 70cqh)` with `container-type: size` on the canvas, and it
- * is wrong here for a reason that has nothing to do with the height:
- * `container-type: size` implies `contain: layout`, which makes the
- * element the containing block for every `position: fixed` descendant
- * and gives it a stacking context of its own. The archive canvas holds
- * two — `ArchiveImageViewer`'s full-screen page-turner and the
- * toolbar's overflow backdrop, neither portalled. Under containment the
- * page-turner's `inset-0` resolves to the canvas rather than the
- * viewport: it covers the column, cannot rise above the header, and
- * scrolls away with the content, while `useInertBackdrop` has already
- * made everything behind it unclickable.
- *
- * Fixing that by portalling the viewer would move the inert semantics
- * that Bug-4 settled, and the toolbar backdrop would still need its own
- * answer. So the height is measured instead — the mechanism
- * `lib/cardGrid.ts` already uses for the card grids, and the same
- * `data-*`-attribute shape `DESIGN.md` prescribes wherever a subtree
- * may contain media.
+ * **Measured, not `cqh`.** `container-type: size` implies `contain: layout`,
+ * which makes the element the containing block for every `position: fixed`
+ * descendant, and the archive canvas holds un-portalled ones.
  */
 export function useCanvasFloor(
   enabled: boolean,
@@ -42,15 +19,9 @@ export function useCanvasFloor(
   const hostRef = useRef<HTMLElement | null>(null);
   const observerRef = useRef<ResizeObserver | null>(null);
   /**
-   * Read through a ref, not a dependency.
-   *
-   * The returned callback ref has to keep one identity for the life of
-   * the mount: the host composes it with `onScrollRootChange`, and a new
-   * identity makes React detach and reattach, which sends that setter
-   * `null` and back. Downstream that tears down the mini-player portal
-   * root and re-initialises the companion metrics — on a rotation across
-   * the mobile breakpoint, or on paging from an archive to a video,
-   * neither of which is a scroll-root change at all.
+   * Read through a ref, not a dependency: the returned callback ref has to
+   * keep one identity for the life of the mount, or React detaches and
+   * reattaches it.
    */
   const enabledRef = useRef(enabled);
 

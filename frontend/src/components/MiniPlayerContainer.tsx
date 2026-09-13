@@ -8,49 +8,22 @@ import type { MediaController } from "@/lib/mediaController";
 
 interface MiniPlayerContainerProps {
   mc: MediaController | null;
-  /**
-   * Underlying native media element, if any. Enables precise OS PiP
-   * detection (document.pictureInPictureElement comparison). LoftRef
-   * callers pass null/undefined.
-   */
   mediaEl?: HTMLMediaElement | null;
   /**
-   * Optional scroll container that owns the IntersectionObserver
-   * viewport. Forwarded to ``useMiniPlayer``. Hosts whose own
-   * ``overflow-y: auto`` handles scrolling (e.g. the 2-pane right
-   * pane) must pass their scroll element here; document-scroll
-   * hosts (existing /files/{id} fullscreen route) can omit it.
+   * Hosts whose own ``overflow-y: auto`` handles scrolling must pass their
+   * scroll element here.
    */
   root?: Element | null;
   children: ReactNode;
 }
 
 /**
- * Wraps a player so that once it scrolls out of view on desktop, it
- * reflows into a fixed-position 320x180 mini window at the bottom
- * right of the viewport. When mini is active, the outer anchor div
- * keeps the player's original layout space (placeholder) while the
- * inner div moves to a fixed position.
+ * The outer anchor div never moves, so isIntersecting reflects the player's
+ * REAL position; observing the moved element would make mini mode oscillate.
  *
- * Structure:
- *   - outer div (anchorRef): always at the natural scroll position.
- *     The IntersectionObserver watches this; it never moves, so
- *     isIntersecting reflects the player's REAL position rather than
- *     the mini window's position. Without this separation, mini mode
- *     would oscillate: moving the observed element to bottom-right
- *     would immediately flip isIntersecting back to true.
- *   - inner div: swaps between in-flow and position:fixed based on
- *     isMini. Children (native <video> / YouTube iframe) remain
- *     mounted across the switch — no remount, no reload.
- *
- * Why we do NOT use createPortal to move the player element:
- * React Portal mounts children under a different parent via
- * appendChild, which reloads any <iframe> in the subtree (browser
- * spec, not a React bug). LoftRef (YouTube IFrame Player) loses its
- * current time, player state, and API binding on reload. By instead
- * applying position:fixed to the existing wrapper, the element stays
- * in the React tree and the DOM, so both <video> currentTime and
- * YouTube IFrame state survive the transition.
+ * Why we do NOT use createPortal to move the player element: it reloads any
+ * <iframe> in the subtree, and LoftRef (YouTube IFrame Player) loses its
+ * current time, player state, and API binding on reload.
  */
 export function MiniPlayerContainer({
   mc,
@@ -72,8 +45,6 @@ export function MiniPlayerContainer({
       ref={anchorRef}
       aria-hidden={isMini || undefined}
       className={
-        // Placeholder styling: reserve the original 16:9 slot so the
-        // page below doesn't jump up when the player lifts out.
         isMini ? "aspect-video w-full rounded-xl bg-bg-card" : "w-full"
       }
     >

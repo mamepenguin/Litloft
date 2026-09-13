@@ -3,30 +3,22 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 interface SidebarSectionHeadingProps {
-  /** Already-translated label. */
   label: string;
   /** Omit both `collapsed` and `onToggle` for a heading that cannot collapse. */
   collapsed?: boolean;
   onToggle?: () => void;
-  /** The section reorder grip, positioned by the caller's own hover group. */
   dragHandle?: React.ReactNode;
-  /** Trailing controls (create, sort) that belong to the section, not the label. */
   actions?: React.ReactNode;
 }
 
 /**
- * The one shape a sidebar section heading takes.
- *
- * The five headings had drifted apart on four axes at once — element
- * (`div` vs `button`), chevron, who owned the vertical margin (the
- * heading vs its parent `div`), and width (`w-full` vs `flex-1`) — so
- * "make them look alike" was not a class-string edit. The margin lives
+ * The margin lives
  * here, never on a parent, which is what kept the spacing from being
  * re-derived per section.
  *
  * `uppercase` is deliberately absent: it does nothing to Japanese, so in
  * a column that mixes scripts it stops being the thing that makes the
- * headings look alike. See `DESIGN.md` §Section Header Labels.
+ * headings look alike.
  */
 export function SidebarSectionHeading({
   label,
@@ -38,18 +30,15 @@ export function SidebarSectionHeading({
   const t = useTranslations("sidebar");
   // `min-w-0` on both the row and the label: a flex item defaults to
   // `min-width: auto`, which for `truncate` (`white-space: nowrap`)
-  // is the full width of the text. Without it the tags heading —
-  // "Tags — under {folder}" — pushes the sort control off the
-  // 240px sidebar instead of ellipsing.
+  // is the full width of the text.
   const labelClass =
     "flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold text-text-muted transition-colors";
   const Chevron = collapsed ? ChevronRight : ChevronDown;
 
   // `title` on the row: the scoped tags heading puts its variable part
-  // last ("Tags — under {folder}"), and the column leaves it around
-  // 100px, so the folder name is the half that ellipses away. The
-  // attribute is the hover disclosure for it. (Screen readers read the
-  // full text either way — CSS truncation hides nothing from them.)
+  // last ("Tags — under {folder}"), so the folder name is the half that
+  // ellipses away. The
+  // attribute is the hover disclosure for it.
   return (
     <div
       title={label}

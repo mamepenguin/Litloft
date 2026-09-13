@@ -86,10 +86,7 @@ export function TrashFileGrid({
             ? getDaysRemaining(file.deleted_at)
             : 0;
           // No badge on this card to hang a length on: the corner
-          // `FileCard` puts it in is this surface's deadline. So the
-          // length is drawn on the meta line itself, ahead of whatever
-          // `lib/primaryMeta.ts` adds — the same shape the file page
-          // uses, and for the same reason.
+          // `FileCard` puts it in is this surface's deadline.
           const metaLine = primaryMetaLine(file);
 
           return (
@@ -99,14 +96,10 @@ export function TrashFileGrid({
                 selectable ? "cursor-pointer select-none" : ""
               } ${selected ? "ring-2 ring-accent bg-bg-card" : ""}`}
               /* Not gated on `selectable`: Cmd/Ctrl-click is how a
-                 selection is *started* here, which is why the host's
-                 handler turns selection mode on before it toggles. With
-                 the handler attached only in selection mode there was no
-                 way in, and the press did nothing at all. */
+                 selection is *started* here. */
               onClick={(e) => {
                 // Shift first once a selection is running: Cmd/Ctrl+Shift
-                // extends the range rather than toggling one file, which is
-                // the order `useFileCardLink` uses in the ordinary listing.
+                // extends the range rather than toggling one file.
                 if (selectable && e.shiftKey && onShiftSelect) {
                   e.preventDefault();
                   onShiftSelect(file.id);
@@ -200,26 +193,14 @@ export function TrashFileGrid({
                   </span>
                 </div>
 
-                {/* In the footer, with words on them. These were two
-                    unlabelled 26px glyphs over the thumbnail: no room for a
-                    label, no way to tell restore from delete-forever except
-                    by the picture, and one of the two cannot be undone.
-
-                    §Row Actions: the row carries the named group and the
-                    44px floor, the action carries the reveal.
-                    `opacity-0` and not `hidden`, so the button stays in the
+                {/* `opacity-0` and not `hidden`, so the button stays in the
                     tab order for `group-focus-within` to fire on;
                     `pointer-coarse:opacity-100` because `group-hover`
-                    compiles inside `@media (hover: hover)` and a touch
-                    device would otherwise never see either control. */}
-                {/* Mounted in both modes, and made `invisible` in
-                    selection mode rather than dropped. In the footer the
-                    strip is in flow, so unmounting it takes ~40px off every
-                    card at once — and in the trash the gesture that *starts*
-                    a selection is a Cmd/Ctrl-click on a card, so the grid
-                    would jump under the pointer that had just aimed at it.
-                    `visibility: hidden` keeps the box and still drops the
-                    tab stop, which is the pair `hidden` cannot give. */}
+                    compiles inside `@media (hover: hover)`. */}
+                {/* Made `invisible` in selection mode rather than dropped:
+                    the strip is in flow, so unmounting it would make the
+                    grid jump under the Cmd/Ctrl-click that starts a
+                    selection. */}
                 <div
                   className={`mt-2 flex flex-wrap items-center gap-1 opacity-0 transition-opacity group-hover/trash-item:opacity-100 group-focus-within/trash-item:opacity-100 pointer-coarse:min-h-11 pointer-coarse:opacity-100 ${
                     selectable ? "invisible" : ""

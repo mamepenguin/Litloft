@@ -1,15 +1,8 @@
 /**
- * Decides whether a sidebar link renders as the active row.
- *
- * Extracted from Sidebar's render body because it fails cosmetically and
- * silently when wrong — nothing errors; the sidebar just stops showing a
- * selection.
- *
  * Tag rows deliberately do **not** go through here. Their href is a
  * toggle (apply the tag, or clear it), so it stops carrying `?tag=` at
  * exactly the moment the row is selected — deriving the highlight from
- * the href would drop it. SidebarTagsSection computes both from the tag
- * name instead and passes the answer to `linkClass`. `activeTag` is
+ * the href would drop it. `activeTag` is
  * still read below, so a bare drive link is not marked active while a
  * tag filter is applied.
  */
@@ -42,15 +35,6 @@ export function isSidebarLinkActive({
   // a row whose value is absent from it renders unselected, and nothing
   // errors or warns, so the omission is only visible to someone looking
   // at the sidebar for that one view.
-  //
-  // The trade runs the other way instead, and it is the sharper edge: a
-  // row carrying a value no route consumes renders *selected*, over a
-  // listing that is not what the row names, because an unrecognised
-  // `view` falls through to the drive-wide file list rather than
-  // erroring. A confident wrong answer is harder to notice than a
-  // missing highlight, and nothing here can catch it: what keeps it out
-  // is that every row's `?view=` value is pinned against a declared set
-  // where the rows are rendered, not this comparison.
   const viewPrefix = `${base}?view=`;
   if (href.startsWith(viewPrefix)) {
     return atDriveRoot && activeView === href.slice(viewPrefix.length);

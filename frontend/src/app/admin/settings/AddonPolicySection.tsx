@@ -1,21 +1,5 @@
 "use client";
 
-// AddonPolicySection: matrix of (drive × addon) toggles for editing
-// drives.json.addons. Loads /api/admin/config/addon-policy and
-// /api/addons/status, displays a checkbox grid, PUTs the full updated
-// policy on every toggle change.
-//
-// Feature sub-toggles: when an addon's manifest declares ``policy_features``
-// — e.g. intelligence ships ``{name: "transcription_cloud", default: true,
-// i18n_key: "intelligence.policyFeatures.transcriptionCloud"}`` — the
-// matrix renders a sub-row underneath the drive row when that addon is
-// enabled. Storing the flag requires the drive's addon policy value to be
-// a feature dict {feature: bool} rather than a plain bool.
-//
-// Core treats the manifest's policy_features list as an opaque dictionary:
-// it does not interpret addon names or feature names. Adding or changing
-// per-feature toggles is a manifest + addon-i18n change, no core edits.
-
 import {
   Fragment,
   useCallback,
@@ -83,20 +67,8 @@ function readFeature(
 }
 
 /**
- * One entry per feature the table is currently showing a row for.
- *
- * The same rule the listings use for a repeated column
- * (`lib/listMeta.ts`): a paragraph whose words do not change from row to
- * row is not telling the reader which row they are on. A feature's help
- * text is a property of the feature and the drive is not in it, so four
- * drives got four copies of it — measured, one identical 186px-wide
- * paragraph rendered four times, and the table stood 1152px tall.
- *
- * `offAnywhere` is why the warning is here too rather than left inline.
- * It is drawn only for a switch that is off, so it looked per-row; the
- * words are the same on every row that draws it, which is the same
- * failure with a smaller population. What is genuinely per-row is the
- * switch, and the switch stays in the row.
+ * A paragraph whose words do not change from row to row is not telling the
+ * reader which row they are on.
  */
 interface LegendEntry {
   key: string;
@@ -113,9 +85,6 @@ function legendEntries(
   const entries: LegendEntry[] = [];
   for (const addon of addons) {
     for (const feature of addon.policy_features ?? []) {
-      // Only where the table has a row for it: a legend explaining a
-      // control nobody can see is the "heading for a thing that does not
-      // exist yet" the redesign's first principle is against.
       const shown = drives.filter((drive) =>
         readToggle(policy, drive, addon.name),
       );
@@ -216,15 +185,8 @@ export function AddonPolicySection(): React.ReactElement {
   );
 
   /**
-   * Whether the table is actually wider than the room it has.
-   *
    * The fade says "there is more to the right", so it has to be false when
-   * there is not: at 1512px the region is 686px wide for a 686px table and
-   * an unconditional fade dimmed the last column for nothing.
-   *
-   * Measured on mount in a layout effect, so the first paint is already
-   * right, and re-measured by a `ResizeObserver` for the pane and window
-   * changes that follow.
+   * there is not.
    */
   const scrollRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
@@ -252,44 +214,21 @@ export function AddonPolicySection(): React.ReactElement {
       {loaded && drives.length > 0 && addons.length > 0 && (
         // `tabindex` is what makes the right-hand columns reachable at all
         // without a pointer: a scroll region that cannot take focus cannot
-        // be scrolled by keyboard, so the last addon's column is simply
-        // unreachable on a narrow screen. The fade says the same thing to
-        // the eye — that there is more to the right — which `overflow-x-auto`
-        // alone never showed.
+        // be scrolled by keyboard.
         <div className="relative">
           <div
             ref={scrollRef}
             // Bounded, and that is what makes the column headings stick.
             // `position: sticky` resolves against the nearest scrollport,
             // and `overflow-x: auto` already made this element one in both
-            // axes — so a `sticky` head inside it stuck to a box that never
-            // scrolled and did nothing at all. Measured: with the wrapper
-            // unbounded the head stayed 290px above the viewport; bounded,
-            // it sits at the wrapper's top edge through a 500px scroll.
-            //
-            // The mechanism, and not a promise about any particular
-            // screen: the table is capped at 70% of the viewport and
-            // scrolls inside that cap wherever it is taller. Which
-            // screens those are is arithmetic on the table's own height,
-            // and the height is a function of how many drives there are
-            // — at four it is 548px, so the wrapper scrolls below a
-            // 783px viewport and does not above it. **Every phone is
-            // below that**, so a phone gets a nested scroller in both
-            // axes; what it buys there is the headings, which are what
-            // the four checkbox columns are unreadable without.
-            //
-            // The alternative, sticking to the page, needs this element
-            // not to be a scrollport, and it has to be one: the columns
-            // run off a narrow screen.
+            // axes.
             className="max-h-[70vh] overflow-x-auto overflow-y-auto"
             tabIndex={0}
             role="region"
             aria-label={t("tableLabel")}
           >
-            {/* `min-w-full`, not `w-full`. `w-full` made the table fold its
-                own headings mid-word to fit the container — the scroll it
-                already had was never used. `min-w-full` keeps it from
-                shrinking below the container when there are few columns. */}
+            {/* `min-w-full`, not `w-full`: `w-full` makes the table fold its
+                own headings mid-word to fit the container. */}
             <table className="min-w-full border-collapse text-sm">
               {/* `sticky top-0` on the cells, not on the row: a `<tr>` is
                   not a positioned box in most engines, so the offset has to
@@ -304,10 +243,6 @@ export function AddonPolicySection(): React.ReactElement {
                       key={addon.name}
                       className="sticky top-0 z-10 whitespace-nowrap bg-bg-card px-4 py-2 text-center text-sm font-medium text-text-primary"
                     >
-                      {/* The display name, falling back to the identifier.
-                        `label` is optional on `AddonStatusEntry` and an older
-                        backend returns entries without it — `adminConfig.ts`
-                        says so where it parses them. */}
                       {addon.label ?? addon.name}
                     </th>
                   ))}
@@ -355,17 +290,6 @@ export function AddonPolicySection(): React.ReactElement {
                             key={`${drive}-${addon.name}-${feature.name}`}
                             data-testid={`feature-row-${drive}-${addon.name}-${feature.name}`}
                           >
-                            {/* The name of the thing goes in the row-header
-                              column, under the drive it belongs to; the
-                              switch goes in its addon's column, centred
-                              like the checkbox directly above it, which
-                              is what says which column governs it. */}
-                            {/* The name of the feature, and nothing else.
-                              What it does and what happens when it is
-                              turned off are the same words on every
-                              drive's row, so `legendEntries` collects
-                              them and the `<dl>` below the table says
-                              each once. */}
                             <td className="whitespace-nowrap py-2 pr-6 pl-4">
                               <div className="flex items-center gap-2">
                                 <span
@@ -400,9 +324,6 @@ export function AddonPolicySection(): React.ReactElement {
                                     onClick={() =>
                                       toggleFeature(drive, addon.name, feature)
                                     }
-                                    // Teal, not accent: this is a state, not a
-                                    // call to action, and DESIGN.md §2.2 gives
-                                    // state colour to teal.
                                     className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-focus-ring focus:ring-offset-2 ${
                                       featureChecked
                                         ? "bg-accent-teal"
@@ -433,9 +354,7 @@ export function AddonPolicySection(): React.ReactElement {
             <div
               // `from-bg-card`, the surface this actually sits on. Both
               // tokens are `#ffffff` in the light theme, so the wrong one
-              // measures identically there and shows up only in dark, as a
-              // darker smear down the right edge of the card — DESIGN.md
-              // records that coincidence as a trap for exactly this reason.
+              // shows up only in dark.
               className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-bg-card to-transparent"
               aria-hidden
             />

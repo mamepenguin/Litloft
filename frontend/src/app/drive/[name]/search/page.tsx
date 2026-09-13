@@ -7,17 +7,10 @@ import { useCallback } from "react";
 import { FolderBrowser } from "@/components/FolderBrowser";
 import type { FileKind } from "@/types";
 
-// The kinds a search can honour end to end — the same eight the folder
-// toolbar offers, since intelligence learned the nested two
-// (`addons/intelligence/app/file_kind.py`). `subtitle` is not here for
-// the reason it is not in the toolbar: nothing registers a row for it.
-//
-// This is the second copy of that list, and the copy that decides
-// whether a shared or reloaded `?type=` survives. If it falls behind
-// the toolbar, the chip is selectable, the URL carries the value, and
-// the reload quietly widens the listing back to All — a kind of
-// failure that shows up as "my link didn't work" and nothing else.
-// `searchTypeVocabulary.test.ts` compares the two.
+// `subtitle` is not here for the reason it is not in the toolbar: nothing
+// registers a row for it. If this list falls behind the toolbar, the chip is
+// selectable, the URL carries the value, and the reload quietly widens the
+// listing back to All.
 export const VALID_TYPES: ReadonlyArray<FileKind> = [
   "video",
   "image",
@@ -35,11 +28,6 @@ function parseTypeFilter(raw: string | null): FileKind | null {
 }
 
 /**
- * Scene-search toggle. When checked, semantic search unions in
- * scene-frame CLIP embeddings (`embedding_type="clip"`) alongside the
- * default representative-frame route (`embedding_type="clip_thumbnail"`).
- * Spec `2026-05-02-thumbnail-clip-default-shallow-search.md`.
- *
  * Off by default — most "videos about X" queries get noise from
  * incidental phone/object appearances when scene CLIP is on. Users who
  * specifically want "find a moment with X" can opt in.
@@ -84,9 +72,6 @@ export default function SearchPage() {
 
   const handleToggle = useCallback(
     (next: boolean) => {
-      // Push a fresh URLSearchParams so we don't accidentally drop
-      // unrelated params (e.g. type, smart_folder_id) and so the
-      // browser back button restores the previous toggle state.
       const nextParams = new URLSearchParams(searchParams.toString());
       if (next) {
         nextParams.set("include_scene_clip", "true");

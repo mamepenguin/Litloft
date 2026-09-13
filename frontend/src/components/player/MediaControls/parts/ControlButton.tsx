@@ -3,9 +3,7 @@
 import type { ReactNode } from "react";
 
 /**
- * Shared surface for every button drawn over the video. Transparent at
- * rest with a white wash on hover, per DESIGN.md "Over-video chrome" —
- * the backdrop is a black frame, so theme tokens would render pale
+ * The backdrop is a black frame, so theme tokens would render pale
  * controls on it in light mode.
  */
 const BASE_CLASS =
@@ -13,11 +11,6 @@ const BASE_CLASS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring " +
   "disabled:opacity-40 motion-reduce:transition-none";
 
-/**
- * `bar` sits in a row of controls; `hero` stands alone over the video,
- * which per DESIGN.md means it carries its own dark disc rather than
- * relying on the bar's scrim for legibility.
- */
 export type ControlButtonSize = "bar" | "hero";
 
 // The hero disc is deliberately lighter than the small standalone
@@ -34,7 +27,6 @@ export interface ControlButtonProps {
   onClick: () => void;
   disabled?: boolean;
   size?: ControlButtonSize;
-  /** For callers that position the button themselves. */
   className?: string;
   children: ReactNode;
 }

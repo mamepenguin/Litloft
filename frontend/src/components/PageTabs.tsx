@@ -3,34 +3,20 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 
-/**
- * The one tab style. Three were in the tree before Phase 3 — underline
- * (Media Import), pill (intelligence `ModeTabs`), and a segmented control
- * (`/admin/settings`) — and the pill's selected tab was `bg-accent text-white`,
- * which spent the page's one accent fill (DESIGN.md §2.2) on saying which tab
- * you are already looking at. The underline spends a 2px border instead.
- */
 export interface PageTabItem {
   key: string;
   label: string;
-  /**
-   * Given, the tab is a `<Link>`; omitted, a `<button>`. intelligence's Ask
-   * and Find are separate routes, Media Import's two views are one page.
-   */
+  /** Given, the tab is a `<Link>`; omitted, a `<button>`. */
   href?: string;
   icon?: LucideIcon;
   /**
-   * The `id` of the `role="tabpanel"` this tab swaps in.
-   *
-   * Only meaningful on a row that does not navigate: `role="tab"` promises
-   * a screen reader there is a panel, and without `aria-controls` there is
-   * no way to say which. A navigating row replaces the page and has no
-   * panel to point at, so it is ignored there.
+   * The `id` of the `role="tabpanel"` this tab swaps in. Ignored on a row
+   * that navigates, which replaces the page and has no panel to point at.
    */
   controls?: string;
   /**
    * The `id` put on the rendered tab, so its panel can point back with
-   * `aria-labelledby`. `InspectorShell` already pairs the two this way.
+   * `aria-labelledby`.
    */
   id?: string;
 }
@@ -39,7 +25,6 @@ export interface PageTabsProps {
   items: readonly PageTabItem[];
   current: string;
   onSelect?: (key: string) => void;
-  /** Accessible name for the tab row. Pass a translated string. */
   label: string;
 }
 
@@ -52,14 +37,10 @@ const SELECTED_CLASS = "border-accent font-semibold text-text-primary";
 const UNSELECTED_CLASS = "border-transparent text-text-muted hover:text-text-primary";
 
 /**
- * Whether these tabs navigate.
- *
  * A row that navigates is not a tablist: `role="tab"` promises a screen
  * reader that activating it swaps a panel in the same view, and a `<Link>`
- * replaces the page instead. `ModeTabs` carried both, which is the pairing
- * this predicate exists to keep apart. Mixed input is treated as navigating —
- * the weaker promise is the safe one, and a mixed row is a bug the caller
- * should see rather than a shape to support.
+ * replaces the page instead. Mixed input is treated as navigating — the
+ * weaker promise is the safe one.
  */
 function navigates(items: readonly PageTabItem[]): boolean {
   return items.some((item) => item.href !== undefined);
@@ -75,9 +56,7 @@ export function PageTabs({ items, current, onSelect, label }: PageTabsProps) {
       className="flex gap-1 overflow-x-auto border-b border-bg-border"
     >
       {/* The icons carry no `aria-hidden`: lucide-react adds it itself unless
-          an a11y prop is passed, so writing it here would be a duplicate that
-          a test could only confirm by asserting the dependency's default.
-          What is asserted instead is the tab's accessible name. */}
+          an a11y prop is passed. */}
       {items.map((item) => {
         const active = item.key === current;
         const className = `${BASE_CLASS} ${active ? SELECTED_CLASS : UNSELECTED_CLASS}`;
@@ -111,11 +90,7 @@ export function PageTabs({ items, current, onSelect, label }: PageTabsProps) {
             aria-selected={isNav ? undefined : active}
             aria-controls={isNav ? undefined : item.controls}
             // No `aria-current="page"` here. It names the current *page* in a
-            // set of navigations, and this branch does not navigate — the
-            // state a tab is in is `aria-selected`, and carrying both says the
-            // same thing twice in two vocabularies. That pairing is the one
-            // this component exists to take apart, so repeating it on the
-            // button side would undo the point.
+            // set of navigations, and this branch does not navigate.
             onClick={() => onSelect?.(item.key)}
             className={className}
           >

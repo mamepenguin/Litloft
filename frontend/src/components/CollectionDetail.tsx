@@ -36,19 +36,6 @@ interface CollectionDetailProps {
   collectionId: string;
 }
 
-/**
- * Collection detail page (folder-like view).
- *
- * Spec ``docs/superpowers/specs/2026-05-12-playlist-to-collection.md`` §6.3
- * + PR-A / PR-B redo: a Collection behaves as a "virtual folder" rather
- * than a playback queue.
- *
- * Re-uses the existing ``<TwoPaneLayout>`` shell so the top-left
- * ``<TreeToggle>`` continues to control a single "show/hide left pane"
- * concept. The left pane content is swapped from ``FolderTreePane`` to
- * ``CollectionItemsPane`` — same shell, different sidebar — instead of
- * inventing a parallel two-pane primitive inside the main column.
- */
 export function CollectionDetail({ drive, collectionId }: CollectionDetailProps) {
   const router = useRouter();
   const t = useTranslations("collection");
@@ -250,13 +237,9 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
       }
       leftPaneAriaLabel={t("itemListLabel")}
     >
-      {/* No `px-4` here: PageHeader carries its own (DESIGN.md §Page Header),
-          and an outer one would indent the header past everything under it.
-          The rest of the page gets it from the wrapper below. */}
+      {/* No `px-4` here: PageHeader carries its own, and an outer one would
+          indent the header past everything under it. */}
       <div className="mx-auto w-full max-w-6xl py-6">
-        {/* The name was in the trail and in the heading, saying the same thing
-            twice. The heading keeps it — it is the editable one — and the
-            trail carries only the drive. */}
         <PageHeader
           leading={<TreeToggle drive={drive} />}
           breadcrumb={<Breadcrumb driveName={drive} driveIsAncestor />}
@@ -280,8 +263,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
               />
             ) : (
               // A <button>, not an <h1>: PageHeader supplies the heading, and
-              // nesting one inside it would be invalid. Size and weight come
-              // from the heading too, so they are not repeated.
+              // nesting one inside it would be invalid.
               <button
                 type="button"
                 onClick={() => {
@@ -345,14 +327,9 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
                   {t("play")}
                 </Button>
               )}
-              {/* Behind `…`, with its name on it. An icon-only Trash
-                  standing beside the screen's primary action put a
-                  destructive control one mis-aimed tap from Play, named
-                  only by a tooltip nobody on a phone can see (COL-2).
-                  Renaming, the description and the order are not in here:
-                  each already has a path — the title and scope are edited
-                  in place, the order is the items pane — and a second
-                  route to one action is 原則 3. */}
+              {/* Behind `…`: an icon-only Trash beside the screen's primary
+                  action put a destructive control one mis-aimed tap from
+                  Play. */}
               <OverflowMenu label={t("moreActions", { name: detail.name })}>
                 {(close) => (
                   <ActionMenuItem
@@ -372,10 +349,6 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
 
         <div className="px-4">
         {items.length === 0 ? (
-          // Was a bare `<p>No items</p>`, which is why Phase 3's pass over
-          // the ten `EmptyState` call sites did not reach it — it was not
-          // a call site. An empty collection has one obvious next step,
-          // and it is not on this screen.
           <EmptyState
             icon={ListPlus}
             title={t("emptyTitle")}

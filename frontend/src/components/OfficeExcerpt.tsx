@@ -7,19 +7,8 @@ import { getPreviewTextUrl } from "@/lib/api";
 import { wantsOfficeExcerpt } from "@/lib/officeFiles";
 
 /**
- * The first few lines of an Office file, under the "no preview" panel.
- *
  * Not a viewer, and deliberately not one: no scrolling, no page turning, no
- * fetching more. The detail page for a DOCX or an XLSX says the format cannot
- * be displayed and offers a download, which leaves nothing on screen to
- * remind the reader *which* document this is — and the backend has been
- * extracting exactly that text for the listing thumbnail and for search since
- * before this page existed. Ten lines answer "is this the 2019 return or the
- * 2020 one" without opening anything.
- *
- * Nothing is drawn when the extraction comes back empty, which is the same
- * rule the rest of the redesign follows: a section that would only announce
- * that it has nothing is not a section.
+ * fetching more.
  */
 export function OfficeExcerpt({
   fileId,
@@ -30,7 +19,6 @@ export function OfficeExcerpt({
   fileId: string;
   mimeType: string | null | undefined;
   fileSize: number;
-  /** A file the scanner can no longer find. Streaming it answers 410. */
   missing?: boolean;
 }) {
   const t = useTranslations("file");
@@ -38,9 +26,8 @@ export function OfficeExcerpt({
 
   useEffect(() => {
     // Cleared first, unconditionally. This mount is reused when the reader
-    // moves between files, and an excerpt left standing while the next one is
-    // in flight — or after it fails — is the previous document's text under
-    // this document's name.
+    // moves between files, and an excerpt left standing is the previous
+    // document's text under this document's name.
     setText(null);
     if (missing || !wantsOfficeExcerpt(mimeType, fileSize)) return;
 
@@ -54,8 +41,6 @@ export function OfficeExcerpt({
     })
       .then((res) => (res.ok ? res.text() : ""))
       .then((raw) => setText(raw.trim() || null))
-      // A failed extraction leaves the panel above exactly as it was. There
-      // is nothing to say about it: the reader was not promised this.
       .catch(() => {});
     return () => controller.abort();
   }, [fileId, mimeType, fileSize, missing]);

@@ -133,8 +133,8 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   // One controller for the life of this element, held in state so the
   // hooks below re-run when it appears. Building a fresh one per call
-  // — as the shortcut handlers used to — would hand the playback clock
-  // a different key every time and defeat its per-controller sharing.
+  // would hand the playback clock a different key every time and defeat
+  // its per-controller sharing.
   const [mc, setMc] = useState<MediaController | null>(null);
 
   const handleUseBrowserControls = useCallback(() => {
@@ -174,9 +174,7 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
 
   // Reaching the end records the final position instead of erasing the
   // history row. The row is what makes "completed" distinguishable from
-  // "never started", and the continue-watching query drops it anyway
-  // through its 90% gate — deleting it here threw that state away.
-  // Spec: 2026-08-10-media-import-watch-surface.md §4.2.
+  // "never started".
   const handleEnded = useCallback(() => {
     setPlaying(false);
     notifyEnded();

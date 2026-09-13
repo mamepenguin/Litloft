@@ -1,8 +1,3 @@
-/**
- * The contract both layouts implement. Keeping one shape means the
- * container picks a presenter by input device without also deciding
- * what each one is allowed to know.
- */
 import type { ReactNode } from "react";
 import type { CaptionsState } from "@/lib/mediaController";
 
@@ -42,7 +37,6 @@ export interface MediaControlsPresenterProps {
   onVolumeChange: (volume: number) => void;
   onPlaybackRateChange: (rate: number) => void;
   onToggleFullscreen: () => void;
-  /** `"unavailable"` leaves every caption control out. */
   captions: CaptionsState;
   onToggleCaptions: (enabled: boolean) => void;
   /**
@@ -53,12 +47,9 @@ export interface MediaControlsPresenterProps {
   settingsOpen?: boolean;
   onSettingsOpenChange?: (open: boolean) => void;
   /**
-   * Extra rows for the settings sheet, supplied by whoever owns the
-   * frame. Kept opaque: a backend may have settings core has no
-   * concept of, and core should not grow a branch per backend to
-   * describe them.
+   * Kept opaque: a backend may have settings core has no concept of, and
+   * core should not grow a branch per backend to describe them.
    */
   settingsExtra?: ReactNode;
-  /** On/off settings drawn as icons beside core's own. */
   settingsToggles?: ReactNode;
 }

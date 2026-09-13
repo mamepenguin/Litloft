@@ -11,7 +11,7 @@ export default function SettingsPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl py-8">
-      {/* PageHeader carries its own `px-4` (DESIGN.md §Page Header), so the
+      {/* PageHeader carries its own `px-4`, so the
           sections get theirs from a wrapper rather than from <main>, which
           would otherwise pad the header twice. */}
       <PageHeader title={t("title")} />

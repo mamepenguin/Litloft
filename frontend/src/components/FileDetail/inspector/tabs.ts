@@ -3,39 +3,22 @@ import type { ReactNode } from "react";
 import { sortSlotEntries, type SlotEntry } from "@/lib/addons";
 
 export interface InspectorTab {
-  /** Stable across renders; used as the React key and the panel id. */
   id: string;
   label: string;
   content: ReactNode;
   /**
-   * Whether the strip offers a button for it.
-   *
    * An unlisted tab is still built and still mounted — it is the thing
-   * that reports whether it has anything, so dropping it would take the
-   * reporter with it and the answer could never change. It simply has
-   * no button and can never be the selection.
+   * that reports whether it has anything.
    */
   listed: boolean;
 }
 
 export interface BuildInspectorTabsInput {
-  /** Always present. The universal half of the inspector. */
   info: { label: string; content: ReactNode };
-  /**
-   * Core tabs that exist only for some file kinds — chapters for media,
-   * EXIF for an image, a page list for an archive. Each is dropped when
-   * it has nothing in it.
-   */
   coreTabs?: Array<{ id: string; label: string; content: ReactNode | null }>;
   /**
-   * Addon-supplied tabs, one per `player-side` entry, already resolved
-   * to a label and a rendered node by the caller.
-   *
-   * `available` is the entry's own answer to "have I anything for this
-   * file". `undefined` means it has not answered — either it never will
-   * (an addon written before the signal existed) or its fetch is still
-   * out — and an unanswered tab is listed, so nothing that works today
-   * stops working. Only an explicit `false` unlists it.
+   * `available` undefined means the entry has not answered, and an
+   * unanswered tab is listed. Only an explicit `false` unlists it.
    */
   addonTabs?: Array<{
     entry: SlotEntry;
@@ -45,38 +28,7 @@ export interface BuildInspectorTabsInput {
   }>;
 }
 
-/**
- * Which tabs the inspector shows, and in what order.
- *
- * The order is core-before-addon and, within the addons, whatever
- * priority the catalogue already sorted them into. Core's own tabs are
- * listed by the caller in the order they should appear.
- *
- * Two rules, both of which exist to keep the strip honest:
- *
- * 1. **A tab with no content is not a tab.** The redesign's first
- *    principle is that a thing which does not exist yet should not take
- *    a row — a heading that only says a feature could exist. A tab is a
- *    row. So "the archive gets a page-list tab" means "when there is a
- *    page list", and when Phase 4 gives the PDF viewer one, its tab
- *    appears without anyone editing this file.
- * 2. **One tab is no tab strip.** A strip with a single tab is chrome
- *    that answers a question nobody asked; a Markdown note's inspector
- *    then looks exactly as it did before any of this, which is what the
- *    design asked for.
- * 3. **An entry that says it has nothing gets no button.** Core cannot
- *    look inside an addon's panel — asking "will you draw anything for
- *    this file" by id would be the core-to-addon dependency the rules
- *    forbid — so the entry says so itself, through the same generic
- *    signal core's own `ChaptersPanel.onResolved` already uses. Its
- *    panel stays mounted: the panel is the thing doing the reporting.
- *
- * Nothing here knows an addon's id or name. Tabs arrive as slot entries
- * — the generic container core already defines — so an addon publishing
- * a second `player-side` entry gets a second tab with no core change,
- * and core never learns the word "transcript"
- * (`.claude/rules/design-decisions.md`, "No core-to-addon dependencies").
- */
+/** Nothing here knows an addon's id or name: no core-to-addon dependencies. */
 export function buildInspectorTabs({
   info,
   coreTabs = [],
@@ -95,10 +47,8 @@ export function buildInspectorTabs({
         content: tab.content,
         listed: true,
       })),
-    // Sorted here rather than by the caller. `getSlotEntries` hands
-    // back the catalogue's raw order, and `AddonSlot` — which does its
-    // own sort — is not in this path, so a caller composing tabs by
-    // hand would silently drop the ordering an addon declared.
+    // Sorted here rather than by the caller: `getSlotEntries` hands
+    // back the catalogue's raw order.
     ...sortSlotEntries(
       addonTabs.map((tab) => ({ ...tab, priority: tab.entry.priority })),
     )
@@ -111,12 +61,10 @@ export function buildInspectorTabs({
   ];
 }
 
-/** The tabs that get a button. */
 export function listedTabs(tabs: InspectorTab[]): InspectorTab[] {
   return tabs.filter((tab) => tab.listed);
 }
 
-/** Whether the strip is worth drawing at all. */
 export function showsTabStrip(tabs: InspectorTab[]): boolean {
   return listedTabs(tabs).length > 1;
 }

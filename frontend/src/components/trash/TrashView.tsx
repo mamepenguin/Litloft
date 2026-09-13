@@ -107,9 +107,6 @@ export function TrashView({ driveName }: TrashViewProps) {
 
   return (
     <div className="min-w-0 w-full flex-1 py-4 sm:py-6">
-      {/* This page names itself in its heading, so the trail carries only the
-          drive — "name the subject once". `driveIsAncestor` is also what
-          gives the view a way back to the drive; it had none. */}
       <PageHeader
         breadcrumb={<Breadcrumb driveName={driveName} driveIsAncestor />}
         titleIcon={Trash2}
@@ -124,9 +121,7 @@ export function TrashView({ driveName }: TrashViewProps) {
         }
       />
 
-      {/* `px-4`, matching PageHeader's own padding. The page used to be
-          `px-2 sm:px-4` throughout; keeping that here would leave the header
-          at 16px and the file list at 8px below `sm`. */}
+      {/* `px-4`, matching PageHeader's own padding. */}
       <div className="px-4">
       <TrashToolbar
         sort={sort}

@@ -116,7 +116,6 @@ export function MoveDialog({
           </button>
         </div>
 
-        {/* Breadcrumb */}
         <div className="mb-3 flex items-center gap-1 text-xs text-text-muted">
           <button
             onClick={() => {
@@ -144,9 +143,7 @@ export function MoveDialog({
           })}
         </div>
 
-        {/* Folder list */}
         <div className="mb-4 max-h-64 min-h-[120px] overflow-y-auto rounded-lg border border-bg-border bg-bg-elevated">
-          {/* Root / parent option */}
           {browsePath && (
             <button
               onClick={handleNavigateUp}
@@ -156,7 +153,6 @@ export function MoveDialog({
             </button>
           )}
 
-          {/* Current directory selection */}
           <button
             onClick={handleSelectRoot}
             className={`flex w-full items-center gap-2 border-b border-bg-border px-3 py-2 text-left text-sm transition-colors ${
@@ -213,7 +209,6 @@ export function MoveDialog({
           )}
         </div>
 
-        {/* Actions */}
         <div className="flex items-center justify-between">
           <span className="truncate text-xs text-text-muted">
             {t("moveTarget", { path: selectedPath || t("moveRoot") })}

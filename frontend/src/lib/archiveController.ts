@@ -1,20 +1,9 @@
 import type { ArchiveEntry } from "@/types";
 
 /**
- * What the archive's canvas viewer publishes upward, and what the
- * inspector's page list presses back.
- *
- * Same shape and same reason as `PdfController`: the two live in
- * different subtrees — the viewer is the canvas, the index is a tab in
- * the inspector — and only the viewer has read the zip's directory. A
- * store rather than a plain object because the level changes while both
+ * A store rather than a plain object because the level changes while both
  * are mounted, and state read through a prop is one render behind the
  * panel that just moved it.
- *
- * The index is deliberately the whole archive, not the level. The
- * canvas answers "what is in here"; a 2439-file source zip needs
- * something that answers "where is `main.dart`", and walking down to it
- * one directory at a time is not that.
  */
 export interface ArchiveState {
   /** Every entry in the archive, at every depth. */

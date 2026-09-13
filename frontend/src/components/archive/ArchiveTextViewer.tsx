@@ -43,10 +43,6 @@ export function ArchiveTextViewer({
         </button>
         <span className="flex items-center gap-2 text-sm text-text-muted">
           {viewingEntry.filename}
-          {/* An openable entry keeps a way to the file itself, the way the
-              page-turner does for images. Removing it from the listing row
-              (ARC-1 (b) — an openable row says nothing extra) left a text
-              entry with no route to disk short of the whole archive. */}
           <a
             href={getArchiveEntryUrl(fileId, viewingEntry.path)}
             download={viewingEntry.filename}
@@ -76,10 +72,6 @@ export function ArchiveTextViewer({
           <p className="text-sm text-text-muted">{tt("loading")}</p>
         </div>
       ) : textError ? (
-        // The one place in this viewer that is genuinely a dead end, and so
-        // the one place `EmptyState` belongs: the entry is not openable after
-        // all, and the download is the way out. A bare red sentence said what
-        // went wrong and offered nothing.
         <EmptyState
           icon={FileWarning}
           title={t("textLoadFailedTitle")}

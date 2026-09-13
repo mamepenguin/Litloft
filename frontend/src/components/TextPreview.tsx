@@ -8,7 +8,7 @@ import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
-const MAX_AUTO_LOAD_SIZE = 1024 * 1024; // 1MB
+const MAX_AUTO_LOAD_SIZE = 1024 * 1024;
 
 const TEXT_MIME_PREFIXES = ["text/"] as const;
 const TEXT_MIME_EXACT = new Set([
@@ -26,18 +26,12 @@ const TEXT_MIME_EXACT = new Set([
 ]);
 
 /**
- * Extensions this viewer can read that no mime says so for.
- *
- * The mime an archive entry carries comes from `classify(decoded_name)`
- * (`backend/app/services/filetype.py`), which is the same table core's search,
- * type labels and drive filters read. Teaching *it* about `.dart` would move
- * every `.dart` file in every drive into the "document" bucket of a listing —
- * a different question from whether this component can render one. So the
- * allowlist lives here, beside the renderer whose capability it describes.
+ * Teaching the backend's `classify` about `.dart` would move every `.dart`
+ * file in every drive into the "document" bucket of a listing — a different
+ * question from whether this component can render one.
  *
  * An allowlist, not a denylist: `.bin`, `.raw` and `a.out` have to stay
- * unreadable, and a rule shaped as "anything but these" admits every format
- * nobody has thought of yet.
+ * unreadable.
  */
 const TEXT_SUFFIXES = new Set([
   "dart", "rs", "go", "kt", "kts", "swift", "rb", "php", "lua", "r",
@@ -52,9 +46,6 @@ const TEXT_SUFFIXES = new Set([
   "py", "sh", "bash", "zsh", "tf", "tfvars",
 ]);
 
-/**
- * Files whose whole name is the type. No extension to read.
- */
 const TEXT_FILENAMES = new Set([
   "makefile", "dockerfile", "license", "licence", "readme", "changelog",
   "authors", "contributing", "notice", "copying", "codeowners", "procfile",
@@ -62,13 +53,10 @@ const TEXT_FILENAMES = new Set([
 ]);
 
 /**
- * Can this viewer render the entry?
- *
  * `filename` is optional because the callers that pass a real file have a
- * mime worth trusting — it was set by the same `classify` on the way in. The
- * archive is the caller that does not: a ZIP entry's mime is guessed from a
- * name, and the guess is `application/octet-stream` for anything the drive
- * listing has no bucket for.
+ * mime worth trusting. A ZIP entry's mime is guessed from a name, and the
+ * guess is `application/octet-stream` for anything the drive listing has no
+ * bucket for.
  */
 export function isTextPreviewable(mimeType: string, filename?: string): boolean {
   if (TEXT_MIME_PREFIXES.some((prefix) => mimeType.startsWith(prefix))) {
@@ -89,11 +77,9 @@ export function isTextPreviewable(mimeType: string, filename?: string): boolean 
   }
 
   const dot = base.lastIndexOf(".");
-  // No extension at all, and the whole-filename list above already said no.
-  // Matching such a name against the *extension* list is how `bin/go`,
-  // `usr/bin/env` and `bin/patch` — ELF binaries named after the languages
-  // and tools on that list — would be opened and rendered as text, which is
-  // the outcome an allowlist exists to prevent.
+  // Matching an extensionless name against the *extension* list is how
+  // `bin/go`, `usr/bin/env` and `bin/patch` — ELF binaries — would be
+  // rendered as text.
   if (dot < 0) return false;
   return TEXT_SUFFIXES.has(base.slice(dot + 1));
 }

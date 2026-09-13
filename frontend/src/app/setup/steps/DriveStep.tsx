@@ -1,14 +1,7 @@
 "use client";
 
-// DriveStep (Phase 2: detected drives).
-//
-// The backend seeds drives.json from the container mount directories on
-// startup, so by the time /setup runs there are N stub drives. This step
-// renders that detected list: the display name and access group are
-// editable; the container path is shown read-only (the user does NOT
-// type a host path here — mounts are wired by configure.py /
-// docker-compose.override.yml). Next validates the whole array against
-// PUT /api/admin/config/drives unless `skipValidate` is set.
+// The container path is shown read-only: mounts are wired by configure.py /
+// docker-compose.override.yml, not typed here.
 
 import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -24,10 +17,9 @@ interface Props {
   onChange: (draft: DriveDraft[]) => void;
   onNext: () => void;
   onBack: () => void;
-  // When true, skip the server validation fetch on Next. The wizard sets
-  // this so its async-free step transitions stay deterministic; the final
-  // Complete step re-PUTs drives so we still hit validation before the
-  // sentinel is touched.
+  // The wizard sets this so its async-free step transitions stay
+  // deterministic; the final Complete step re-PUTs drives so we still hit
+  // validation before the sentinel is touched.
   skipValidate?: boolean;
 }
 
@@ -44,8 +36,6 @@ export function DriveStep({
 
   const hasDrives = value.length > 0;
 
-  // Immutable per-field update: replace exactly one entry with a fresh
-  // object, leaving the others (and the original array) untouched.
   const updateField = useCallback(
     (index: number, field: "name" | "access_group", next: string) => {
       onChange(

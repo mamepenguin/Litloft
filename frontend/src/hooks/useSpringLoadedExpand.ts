@@ -9,16 +9,8 @@ import { useCallback, useEffect, useRef } from "react";
 export const SPRING_LOAD_DELAY_MS = 600;
 
 export interface UseSpringLoadedExpandOptions {
-  /**
-   * The single row the drag is currently hovering, straight from
-   * `useDragAndDrop`'s `dragState`. Its enter/leave bookkeeping already
-   * guarantees at most one, and it can only ever hold a folder path or
-   * `""` for the drive-root band — non-folder and drop-disabled rows
-   * never receive drop handlers, so they cannot appear here.
-   */
   dropTargetPath: string | null;
   isDragging: boolean;
-  /** True for a folder that is worth opening: has children, not already open. */
   isSpringLoadable: (path: string) => boolean;
   expand: (path: string) => void;
   collapseMany: (paths: Iterable<string>) => void;
@@ -34,19 +26,15 @@ export interface SpringLoadedExpandApi {
   notifyDrop: (targetPath: string) => void;
 }
 
-/** True when `candidate` is `path` itself or an ancestor folder of it. */
 function isSelfOrAncestorOf(candidate: string, path: string): boolean {
   return path === candidate || path.startsWith(candidate + "/");
 }
 
 /**
- * Expand a folder the drag has dwelt on, and undo it afterwards.
- *
  * Passing over a folder is not an instruction to reshape the tree, so
  * branches opened this way close again when the drag ends — everything
  * except the drop target's own chain, which stays open so the user can
- * see where the items landed. Branches the user had already opened are
- * never tracked here and so are never touched.
+ * see where the items landed.
  */
 export function useSpringLoadedExpand({
   dropTargetPath,

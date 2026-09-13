@@ -12,11 +12,6 @@ interface UploadZoneProps {
   folderPath: string;
   onUploadComplete?: () => void;
   children: ReactNode;
-  /**
-   * Extra Tailwind classes applied to the root wrapper div. Callers that
-   * need the zone to fill its flex-column parent should pass
-   * `"flex-1 flex flex-col"`.
-   */
   className?: string;
 }
 
@@ -37,7 +32,6 @@ export function UploadZone({
     onUploadComplete,
   );
 
-  // Listen for upload-files custom event (File[] or UploadFileEntry[])
   useEffect(() => {
     const el = zoneRef.current;
     if (!el) return;
@@ -152,8 +146,7 @@ export function UploadZone({
     >
       {children}
 
-      {/* Drag overlay — `select-none` prevents text selection; no
-          `pointer-events-none` so drop events fire on this element
+      {/* No `pointer-events-none` so drop events fire on this element
           and bubble up to the parent's onDrop handler. */}
       {isDragging && (
         <div className="select-none fixed inset-0 z-50 flex items-center justify-center bg-accent/10 backdrop-blur-sm">
@@ -166,7 +159,6 @@ export function UploadZone({
         </div>
       )}
 
-      {/* Upload progress panel */}
       {hasActiveUploads && (
         <UploadProgress
           uploads={uploads}

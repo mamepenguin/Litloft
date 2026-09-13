@@ -1,57 +1,21 @@
 @import "tailwindcss";
 
 /* Tailwind finds its own sources by walking out from this file, and it
-   skips two things on the way: paths a .gitignore excludes, and
-   symlinks. `src/addons/*` is caught by both — it is listed in the
-   repository-root .gitignore, and every file `setup-addons.sh` puts in it
-   is a link into an addon repository — so every utility class that appears
-   ONLY in an addon generated no CSS at all here.
-   Core's `group-hover/snippet` was in the output; the intelligence
-   addon's `group-hover/cue` was not, and a button written to be revealed
-   on hover was simply invisible.
-
-   Docker never had the problem, which is why it took this long to
-   notice: `frontend/Dockerfile` discards `src/addons` and copies the
-   addon trees in as real files, and the image carries no .gitignore that
-   covers them. So the production build was always right and every local
-   one was wrong — the worst way round, since the local build is the one
-   anybody looks at while working on an addon's UI.
-
-   Naming the directory explicitly overrides both exclusions. */
+   skips paths a .gitignore excludes and symlinks. `src/addons/*` is caught
+   by both, so every utility class that appears ONLY in an addon generated
+   no CSS at all here. Naming the directory explicitly overrides both
+   exclusions. */
 @source "../addons";
 
-/* That same walk reaches `src/__tests__`, and the scanner does not know a
-   test from a component: it reads utility names out of a detector's
-   enumeration, its case table, and its prose. `line-clamp-display.test.ts`
-   writes every display utility and a row of arbitrary spellings as data, so
-   Tailwind generated a rule for each one — dead CSS in the sheet every viewer
-   loads, some of it out of a sentence in a docstring. Re-measure by deleting
-   this line and diffing what `e2e-layout/build-fixture-css.ts` compiles; the
-   figures at the time it was added are in the PR that added it.
-
-   Only that one file is excluded. Whether the rest of the test directories can
-   go too is a separate question with a trap in it: a class a component
-   composes at runtime and a test spells out literally would leave the sheet
-   with nothing turning red, which is the failure mode the comment above is
-   already about. Answering it means auditing each rule that disappears, and
-   that is not this change. */
+/* The scanner does not know a test from a component:
+   `line-clamp-display.test.ts` writes every display utility as data, so
+   Tailwind generated a rule for each one. */
 @source not "../__tests__/line-clamp-display.test.ts";
 
-/* And the same hazard one directory over, in its purest form: the needle
-   list in `e2e-layout/build-fixture-css.ts` asserts that the compiled
-   sheet contains a rule for `p-4`, and it asserts it by holding that
-   class in a string — so the scanner reads the candidate out of the
-   assertion itself and the assertion cannot fail. Measured: with the
-   class taken out of every component, fixture, spec and comment in the
-   tree, the rule was still in the sheet and the browser cases failed on
-   their own numbers instead of the setup naming the sheet.
-
-   Escaping hid that rather than fixing it. A selector needing a
-   backslash — the arbitrary-valued height, the `pointer-coarse` variants
-   — is not a candidate, so those needles were falsifiable while every
-   needle whose class is spelled exactly as the scanner reads it was not.
-   Excluding the file makes the property hold for all of them instead of
-   for the ones whose selectors happen to need a backslash.
+/* The needle list in `e2e-layout/build-fixture-css.ts` asserts that the
+   compiled sheet contains a rule by holding that class in a string, so the
+   scanner reads the candidate out of the assertion itself and the
+   assertion cannot fail.
 
    (No brace-and-selector spellings in this comment: `mediaDetailTheaterCss`
    counts braces to check a rule is at the top level, and it counts the
@@ -59,8 +23,6 @@
 @source not "../../e2e-layout/build-fixture-css.ts";
 
 /* ===== Pinterest Design System ===== */
-/* Warm white canvas · Coral Red (#d63031) · Plum Black (#211922) */
-/* Dark variant: warm plum dark (#1a0e10) · Bright Coral (#e85d5e) */
 
 :root,
 [data-theme="light"] {
@@ -76,7 +38,6 @@
   --accent-cta: #d63031;
   --accent-teal: #103c25;
   --accent-amber: #78350f;
-  /* Pinterest-specific tokens */
   --sand: #e5e5e0;
   --sand-hover: #d5d5d0;
   --warm-light: #e0e0d9;
@@ -88,15 +49,13 @@
   --highlight-bg: #fff8c5;
   --kbd-shadow: inset 0 -1px 0 #b8c0c8;
   --shadow-card: 0 1px 2px rgba(33, 25, 34, 0.04), 0 1px 3px rgba(33, 25, 34, 0.04);
-  /* Chart-only categorical scale (NOT brand colors — see DESIGN.md §2.4).
-     Warm/earthy-anchored so it sits with coral+olive identity, tuned for
-     6-way distinguishability as solid small fills on the white canvas. */
-  --graph-cat-1: #d63031; /* coral  */
-  --graph-cat-2: #1f7a5a; /* green  */
-  --graph-cat-3: #c2740a; /* ochre  */
-  --graph-cat-4: #8e4585; /* plum   */
-  --graph-cat-5: #7c7a45; /* olive  */
-  --graph-cat-6: #3f6fa3; /* dusty blue */
+  /* Chart-only categorical scale (NOT brand colors). */
+  --graph-cat-1: #d63031;
+  --graph-cat-2: #1f7a5a;
+  --graph-cat-3: #c2740a;
+  --graph-cat-4: #8e4585;
+  --graph-cat-5: #7c7a45;
+  --graph-cat-6: #3f6fa3;
   color-scheme: light;
 }
 
@@ -124,13 +83,12 @@
   --highlight-bg: rgba(244, 198, 116, 0.55);
   --kbd-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
-  /* Chart-only categorical scale — lifted for the warm plum dark canvas. */
-  --graph-cat-1: #e85d5e; /* coral  */
-  --graph-cat-2: #4caf80; /* green  */
-  --graph-cat-3: #f0a847; /* honey  */
-  --graph-cat-4: #c98bc0; /* orchid */
-  --graph-cat-5: #bdb869; /* olive  */
-  --graph-cat-6: #7fa6d4; /* dusty blue */
+  --graph-cat-1: #e85d5e;
+  --graph-cat-2: #4caf80;
+  --graph-cat-3: #f0a847;
+  --graph-cat-4: #c98bc0;
+  --graph-cat-5: #bdb869;
+  --graph-cat-6: #7fa6d4;
   color-scheme: dark;
 }
 
@@ -162,16 +120,11 @@
   --color-graph-cat-5: var(--graph-cat-5);
   --color-graph-cat-6: var(--graph-cat-6);
   --shadow-card: var(--shadow-card);
-  /* `max-w-list-row`. A listing row stretches to whatever width the
-     window has, so on a wide screen a title and its size sit at opposite
-     ends of the screen with half a metre of nothing between them and the
-     eye has to travel to pair them up. See DESIGN.md §3.6.
-     Named rather than written as `max-w-[60rem]` at each call site
-     because DESIGN.md §8.5 already has a 60rem that answers a different
-     question ("can a rail sit beside the player"), and two unrelated
-     rules wearing the same number get merged by the next reader. */
+  /* Named rather than written as `max-w-[60rem]` at each call site because
+     another 60rem answers a different question ("can a rail sit beside the
+     player"), and two unrelated rules wearing the same number get merged by
+     the next reader. */
   --container-list-row: 60rem;
-  /* Pin Sans font stack: system-ui with broad CJK fallbacks */
   --font-sans: -apple-system, system-ui, "Segoe UI", Roboto, "Oxygen-Sans",
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", Ubuntu, Cantarell,
     "Fira Sans", "Droid Sans", "Helvetica Neue", Helvetica,
@@ -190,20 +143,15 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* ===== ja Typography (jp-ui-contracts: base + saas profile) ===== */
-
-/* Core ja line-breaking rules */
 html:lang(ja) {
   line-break: strict;
   word-break: normal;
   overflow-wrap: anywhere;
   font-kerning: auto;
   font-feature-settings: normal;
-  /* Progressive enhancement: auto-space between CJK and Latin */
   text-autospace: normal;
 }
 
-/* Paragraph / list / definition items */
 p,
 li,
 dd {
@@ -212,7 +160,6 @@ dd {
   overflow-wrap: anywhere;
 }
 
-/* Heading line-break and kerning */
 :lang(ja) h1,
 :lang(ja) h2,
 :lang(ja) h3,
@@ -223,12 +170,10 @@ dd {
   font-kerning: auto;
 }
 
-/* ja heading line-height scale */
 :lang(ja) h1 { line-height: 1.35; }
 :lang(ja) h2 { line-height: 1.4; }
 :lang(ja) h3 { line-height: 1.45; }
 
-/* Form elements: separate density from body text */
 :lang(ja) label,
 :lang(ja) input,
 :lang(ja) textarea,
@@ -274,9 +219,6 @@ dd {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* The same entrance for a panel that hangs from the top edge: it has to
-   come from the edge it belongs to, or it reads as arriving from
-   somewhere else and travelling toward its own trigger. */
 @keyframes slide-down-bar {
   from { opacity: 0; transform: translateY(-100%); }
   to { opacity: 1; transform: translateY(0); }
@@ -323,12 +265,6 @@ dd {
 
 /* ===== Markdown Preview Styles ===== */
 
-/* Reading typography — candidate A per docs/citation-ui-mockup.html §3.
-   16px base (inherited from html), line-height 1.625, heading scale
-   1.75em / 1.35em / 1.15em / 1.03em with phrase-wrapping-friendly
-   margins. Applied to MarkdownPreview (FilePreview .md, Ask answers,
-   knowledge preview) AND the detailed-summary segment wrappers so the
-   reading surface is consistent across all long-form markdown. */
 .markdown-body {
   color: var(--text-primary);
   line-height: 1.625;
@@ -408,8 +344,6 @@ dd {
   margin-bottom: 0.35em;
 }
 
-/* blockquote — accent left bar + soft elevated fill, rounded-xl at
-   the trailing edges per DESIGN.md card radius. */
 .markdown-body blockquote {
   border-left: 3px solid var(--accent);
   margin: 1em 0;
@@ -459,12 +393,8 @@ dd {
 
 .markdown-body a:hover { color: var(--accent-hover); }
 
-/* Table — "quiet reading table" per H3 variant (docs/citation-ui-mockup.html §4.5).
-   border-collapse: separate so individual cells can carry their own
-   border-left accent (weak tier) without colliding with neighbour cell
-   borders. No zebra stripes; no cell side-borders; thead has no fill —
-   the bottom rule + font-weight carries the header role. Matches the
-   "divider + weight only" editorial table aesthetic. */
+/* border-collapse: separate so individual cells can carry their own
+   border-left accent without colliding with neighbour cell borders. */
 .markdown-body table {
   border-collapse: separate;
   border-spacing: 0;
@@ -552,15 +482,11 @@ dd {
 
 /* Reset the UA-default yellow on ``<mark>`` so Tailwind utilities
    (e.g. ``bg-highlight-bg``) apply wherever a mark is used outside
-   MarkdownPreview. ``.markdown-body mark`` below is unlayered and so
-   still wins inside the Markdown pipeline.
+   MarkdownPreview.
 
    **The layer is load-bearing.** Tailwind v4 emits its utilities into
    ``@layer utilities``, and unlayered rules beat layered ones whatever
-   their specificity — so as plain CSS this reset silently defeated
-   every utility a caller put on a mark, which is the opposite of what
-   it is for. In ``@layer base`` it loses to utilities and still beats
-   the UA default. */
+   their specificity. */
 @layer base {
   mark {
     background-color: transparent;
@@ -585,42 +511,17 @@ dd {
   font-weight: 600;
 }
 
-/* Segment-level MarkdownPreview variant used by the detailed-summary
-   citation-anchored view. Each ``data-citation-section-path`` wrapper
-   renders one segment (paragraph / bullet body / table row) through
-   MarkdownPreview. The only difference from a normal MarkdownPreview
-   render is that we strip the first/last-child outer margins so each
-   segment stacks tightly next to the citation marker — otherwise the
-   inherited ``.markdown-body`` rules add phantom top/bottom gutters
-   that would break the segment-aligned layout. Typography (color,
-   line-height, headings, code, quotes, tables, etc.) stays identical
-   to the rest of the app. */
 .markdown-segment > *:first-child { margin-top: 0; }
 .markdown-segment > *:last-child { margin-bottom: 0; }
 
 .markdown-body > :first-child { margin-top: 0; }
 .markdown-body > :last-child { margin-bottom: 0; }
 
-/* =====================================================================
-   Citation segment host (docs/citation-ui-mockup.html §4 `.segment`).
-
-   Each paragraph / bullet / table-row that carries a citation marker is
-   wrapped with ``data-citation-section-path``. The host paints a quiet
-   sand tint on hover (Verify ON only) and a stronger tint when the
-   accordion is expanded. A 12px border-radius keeps the tint rounded
-   off against the surrounding prose.
-
-   scroll-margin-top anchors the segment at ~20vh so expanding pins the
-   clicked line to the top of the viewport instead of the very edge. */
 [data-citation-section-path] {
   scroll-margin-top: 20vh;
   transition: background-color 120ms ease;
 }
 
-/* Hover / expanded tint — applied only when Verify is ON. The global
-   data-citation-verify attribute is hoisted onto the ``[data-citation-host]``
-   wrapper that surrounds the whole summary so a single DOM attribute
-   gates every segment below it without per-segment duplication. */
 [data-citation-host="on"]
   [data-citation-section-path]:not(tr):not(:focus-visible):hover {
   background: color-mix(in srgb, var(--sand) 55%, transparent);
@@ -631,8 +532,7 @@ dd {
 }
 
 /* Table rows can't carry the tint themselves because a cell's border
-   paints over the row background; we tint the cells instead, matching
-   the mockup rule ``tr.segment[aria-expanded="true"] > td``. */
+   paints over the row background; we tint the cells instead. */
 [data-citation-host="on"]
   tr[data-citation-section-path]:hover > td {
   background: color-mix(in srgb, var(--sand) 40%, transparent);
@@ -642,15 +542,6 @@ dd {
   background: color-mix(in srgb, var(--sand) 55%, transparent);
 }
 
-/* Paragraph / bullet segments breathe with -8px horizontal negative
-   margin + 8px horizontal padding so the hover / expanded tint
-   extends a hair past the text box. A symmetric 4px vertical padding
-   lets the tint have a small halo above/below the text even when
-   collapsed; because every segment (citation-bearing or not) sits
-   inside the same wrapper, the 4px applies uniformly and doesn't
-   shift the text baseline relative to neighbouring non-citation
-   content. Table rows skip this entirely — the cell padding already
-   carries the inset. */
 [data-citation-section-path]:not(tr):not(td):not(th) {
   border-radius: 12px;
 }
@@ -667,7 +558,6 @@ div[data-citation-section-path]:not(tr) {
   outline-offset: 2px;
 }
 
-/* Task lists */
 .markdown-body .task-list-item {
   list-style: none;
   margin-left: -1.25em;
@@ -683,7 +573,6 @@ div[data-citation-section-path]:not(tr) {
   cursor: default;
 }
 
-/* Code blocks with syntax highlighting */
 .markdown-body .code-block {
   background: var(--bg-elevated);
   border: 1px solid var(--bg-border);
@@ -702,7 +591,6 @@ div[data-citation-section-path]:not(tr) {
   font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
 }
 
-/* highlight.js token colors — light */
 .hljs-comment, .hljs-quote { color: #6a737d; font-style: italic; }
 .hljs-keyword, .hljs-selector-tag, .hljs-deletion { color: #d73a49; }
 .hljs-string, .hljs-attr, .hljs-addition { color: #032f62; }
@@ -715,7 +603,6 @@ div[data-citation-section-path]:not(tr) {
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 700; }
 
-/* highlight.js token colors — dark */
 [data-theme="dark"] .hljs-comment,
 [data-theme="dark"] .hljs-quote { color: #8b949e; }
 [data-theme="dark"] .hljs-keyword,
@@ -736,7 +623,6 @@ div[data-citation-section-path]:not(tr) {
 [data-theme="dark"] .hljs-attribute { color: #79c0ff; }
 [data-theme="dark"] .hljs-meta { color: #e3b341; }
 
-/* Mermaid diagrams */
 .mermaid-diagram {
   margin-bottom: 1em;
   overflow-x: auto;
@@ -758,8 +644,6 @@ div[data-citation-section-path]:not(tr) {
   margin-bottom: 1em;
 }
 
-/* Mobile adjustments — keep the reading-A heading scale, only trim
-   table font-size to avoid horizontal overflow on narrow viewports. */
 @media (max-width: 767px) {
   .markdown-body table { font-size: 0.93em; }
 }
@@ -798,9 +682,6 @@ div[data-citation-section-path]:not(tr) {
   }
 }
 
-/* Ask citation jump — temporary highlight applied by useHighlightPassage
-   when the user clicks a citation card. Uses the existing --highlight-bg
-   token so the colour adapts to light/dark theme automatically. */
 .ask-citation-highlight {
   background-color: var(--highlight-bg);
   color: inherit;
@@ -809,12 +690,6 @@ div[data-citation-section-path]:not(tr) {
   box-shadow: 0 0 0 1px var(--highlight-bg);
 }
 
-/* Wiki-link rendering — spec 2026-05-12 §3.8 / DESIGN.md §2.3.
-   Three visual states applied by MarkdownPreview's wiki_link inline rule.
-   - resolved   → canonical accent red (matches all other in-app links)
-   - unresolved → muted text colour + dashed underline (affordance for
-     "this might become a link if you create it")
-   - ambiguous  → warning amber (multiple matches; user must disambiguate) */
 .wiki-link {
   text-decoration: none;
   border-bottom: 1px solid transparent;
@@ -844,48 +719,20 @@ div[data-citation-section-path]:not(tr) {
 /* ------------------------------------------------------------------
    Media file detail: player column with an optional companion rail.
 
-   One occupant, two positions. The companion (transcript today,
-   chapters next) must not be mounted twice — it fetches, subscribes to
+   The companion must not be mounted twice — it fetches, subscribes to
    the playback clock and holds scroll state — so the grid moves it
    rather than the markup duplicating it.
 
-   The switch is on a MEASURED WIDTH published as `data-media-width`,
-   not on a breakpoint. The same content renders in the full-screen
-   route and inside the 2-pane right pane, which is 280px narrower than
-   the viewport; a viewport breakpoint would split the pane into two
-   columns at widths where it does not fit.
-
-   It was a container query until 2026-08-12. Do not put it back:
-   `container-type` establishes a containment context, and on iOS
-   Safari one wrapped around a <video> or a cross-origin iframe renders
-   the whole subtree rotated and spinning. See DESIGN.md
-   §"Measure against the container, not the viewport" and hako
-   7bFYOh3vFZP9EEuf9Ym_5.
-
-   60rem = 552px player + 384px rail + 24px gap.
+   Not a container query: `container-type` establishes a containment
+   context, and on iOS Safari one wrapped around a <video> or a
+   cross-origin iframe renders the whole subtree rotated and spinning.
    ------------------------------------------------------------------ */
-/* The media host, in either layout. Publishes the one height budget
-   the companion gets, so the box below the player and the rail beside
-   it cannot end up with two different answers to the same question.
-
-   60% of whatever scrolls — "60vh" as the confirmed design states it,
-   but measured, because a self-scrolling pane is not the viewport. The
-   fallback is the literal 60dvh, which is what it resolves to before
-   the first measurement lands. */
+/* The one height budget the companion gets, so the box below the player
+   and the rail beside it cannot end up with two different answers. */
 .media-detail-host {
   --companion-box-h: calc(var(--rail-avail, 100dvh) * 0.6);
 }
 
-/* The legacy vertical stack's own grid, and only it.
-
-   It is live on `/files/{id}` — the collection-playback theatre, which
-   keeps this layout because the canonical URL is a file's address and
-   giving this route a second inspector would be work to throw away. On
-   the canonical surface the companion is not a grid column any more;
-   it is an inspector tab, and `FileDetailShell` draws the page. */
-/* The long-form reading measure (DESIGN.md §3.4). A utility rather than
-   a number, because it was already written out in `MarkdownPreview` and
-   a second copy is how the two come to disagree. */
 .reading-measure {
   max-width: 860px;
 }
@@ -905,41 +752,16 @@ div[data-citation-section-path]:not(tr) {
 }
 
 /* The occupant under the player gets a row, **and only when it is
-   there.**
+   there.** A named row is laid out whether or not anything occupies it,
+   and `gap` is drawn on **both** sides of it.
 
-   Why it is a sibling of the player at all: `.media-detail-player` is
-   the playable surface the reader must keep whole — what the Bottom
-   Sheet's `half` clears (`useSheetHalfSnap`), what `--player-avail` caps
-   as a width, and what a phone makes `position: sticky` — so content
-   does not go inside it, and a box *around* it is worse than content in
-   it. Sticky travels only inside its own containing block, and a wrapper
-   whose height is the player's own leaves it none; that is the defect
-   the note above the sticky rule records, and it has now been made
-   twice.
+   A sibling of the player rather than a box around it: sticky travels
+   only inside its own containing block, and a wrapper whose height is
+   the player's own leaves it none.
 
-   Why the row is conditional: a named row is laid out whether or not
-   anything occupies it, and `gap` is drawn on **both** sides of it. An
-   unoccupied row therefore costs the gap twice over, so an
-   unconditional fourth row doubles the space under the player on every
-   file with no occupant — which is most of them.
-
-   Why `:not(:empty)` and not the class alone: the box being in the
-   document does not mean its occupant drew anything. An addon slot whose
-   entry renders nothing leaves the box there and empty, which is an
-   ordinary state rather than a failure, and the class alone would give
-   that box a row. `empty:hidden` on the box takes its own layout away;
-   this takes the row's. Both, because a `display: none` grid item is not
-   auto-placed and an item with no area is — so one without the other
-   either keeps the gap or moves the occupant into a cell that is not
-   its own.
-
-   The condition has to be the occupant's own class, un-negated: measured,
+   The condition has to be the occupant's own class, un-negated:
    `:has(.media-detail-player)` and `:not(:has(…))` are both conditions
-   that read as conditional and are not.
-
-   In the shell layout there is no grid at all and the occupant is simply
-   the next block down, which is why this is two rules and not one
-   property on the box. */
+   that read as conditional and are not. */
 .media-detail-grid:has(> .media-detail-player-aside:not(:empty)) {
   grid-template-areas:
     "player"
@@ -952,30 +774,15 @@ div[data-citation-section-path]:not(tr) {
   grid-area: player-aside;
 }
 
-/* Bound the player to the visible height of whatever scrolls, so it
-   stops running off the bottom of the screen.
-
-   Expressed as a width cap rather than `max-height`, because the two
-   players build their aspect ratio differently — `aspect-video` for
-   native, a `padding-top: 56.25%` shim for the `.loft` iframe — and
-   padding is not collapsed by `max-height`: the box clamps, the padding
-   does not, and the contents spill behind `overflow-hidden`. Capping
-   the width lets each one's existing machinery produce the right
-   height, which also keeps this a core-only change.
-
-   Only for a player whose height IS a function of its width. An image
-   sizes itself from `max-h-[70vh]` with `w-auto`, and PDF, text and
-   archive previews have no aspect ratio to invert, so applying this to
-   them would just shrink them on a short, wide window. The host sets
-   `data-framed` for the two kinds that qualify. */
+/* Expressed as a width cap rather than `max-height`, because the `.loft`
+   iframe builds its aspect ratio from a `padding-top: 56.25%` shim, and
+   padding is not collapsed by `max-height`. Only for a player whose
+   height IS a function of its width; the host sets `data-framed` for
+   those. */
 .media-detail-player[data-framed="true"] {
   /* `width` before the auto margins, and not optional: an auto inline
-     margin turns off a grid item's default `stretch`, so the item falls
-     back to sizing from its contents. A <video> with no metadata yet
-     reports the CSS default 300x150, which is what the player was
-     rendered at until the file loaded and then snapped to full width.
-     Asking for the column width explicitly keeps the box the same size
-     before and after metadata arrives. */
+     margin turns off a grid item's default `stretch`, and a <video> with
+     no metadata yet reports the CSS default 300x150. */
   width: 100%;
   max-width: calc(var(--player-avail, 100dvh) * 16 / 9);
   margin-inline: auto;
@@ -983,12 +790,9 @@ div[data-citation-section-path]:not(tr) {
 .media-detail-companion { grid-area: companion; }
 .media-detail-rest { grid-area: rest; }
 
-/* The host bounds the companion in BOTH forms, not just the rail.
-   Whether the rail form is in use is a container-width decision made
-   here in CSS, while the occupant is handed its props in JS — so the
+/* The host bounds the companion in BOTH forms, not just the rail: the
    occupant cannot know which form it is in and must not be the one
-   holding the height. Stacked it is a box; beside the player it takes
-   the scroll container's height (below). */
+   holding the height. */
 .media-detail-companion-inner {
   display: flex;
   flex-direction: column;
@@ -996,32 +800,10 @@ div[data-citation-section-path]:not(tr) {
   overflow: hidden;
 }
 
-/* Two kinds of occupant now, so the chain forks rather than treating
-   every child alike. A blanket `> *` rule would hand both an equal
-   share, which is right for neither: the lead is a short index and the
-   fill is the long body it indexes.
-
-   `min-height: 0` is the half everyone forgets, and it applies to both:
-   without it a flex item refuses to shrink below its content and the
-   overflow moves up a level instead of scrolling. */
-
-/* Lead — core's own occupant (chapters). Sizes to its content, scrolls
-   inside its cap, and **must not shrink**.
-
-   `flex-shrink: 1` here collapses it to a sliver. The reason is not
-   obvious: the fill's `flex-basis: 0%` does not resolve to 0 in this
-   box. A percentage basis resolves against the container's main size,
-   and this container has `max-height` rather than `height`, so that
-   size is content-derived and the percentage falls back to content —
-   making the fill's flex base size the transcript's full length,
-   thousands of pixels against a box of a few hundred. Shrinkage is
-   distributed by `flex-shrink × base`, so the lead's share of that
-   shortfall, small as a proportion, is many times its own height. It
-   was measured at 14px against 36px of content, clipping its own
-   header.
-
-   So the cap is what bounds the lead, not shrinking. jsdom does no
-   layout, which is why this reached a browser to be found. */
+/* Lead — **must not shrink**. This container has `max-height` rather
+   than `height`, so the fill's `flex-basis: 0%` falls back to content,
+   and the lead's share of that shortfall collapses it to a sliver. The
+   cap is what bounds the lead, not shrinking. */
 .media-detail-companion-lead {
   flex: 0 0 auto;
   min-height: 0;
@@ -1030,10 +812,7 @@ div[data-citation-section-path]:not(tr) {
 
 /* Fill — whatever the slot machinery puts here has to take the
    remaining height and hand it on, or the occupant lays itself out at
-   full length and this box silently clips it. This is the wrapper div
-   C-1 avoided for that reason; it is safe as long as it is itself a
-   flex container that passes the height through, which is what these
-   two rules are. */
+   full length and this box silently clips it. */
 .media-detail-companion-fill {
   display: flex;
   flex-direction: column;
@@ -1054,24 +833,9 @@ div[data-citation-section-path]:not(tr) {
 }
 
 /* The rail needs BOTH a wide enough host and the viewer having asked
-   for it. The width is measured and the preference is stored, so they
-   are ANDed here rather than reconciled: either saying no leaves the
-   stacked layout. Two conditions that must agree eventually disagree —
-   C-1 shipped exactly that bug — while two that are ANDed cannot.
+   for it; either saying no leaves the stacked layout.
 
-   `data-media-width` is set by the host from a measured width, NOT by a
-   container query. The question is still "how much width does this
-   element have", which a viewport breakpoint cannot answer (the same
-   content renders full-width and inside the 2-pane right pane, 280px
-   narrower). But `@container` cannot be the answer here: it establishes
-   a containment context, and on iOS Safari a containment context around
-   a <video> or a cross-origin iframe makes the whole subtree render
-   rotated and spinning. Measured on device 2026-08-12; invisible on
-   every desktop browser. hako 7bFYOh3vFZP9EEuf9Ym_5.
-
-   Threshold 60rem = 552px player + 384px rail + 24px gap, resolved
-   against the root font size so a viewer who scales text still gets the
-   layout the numbers were chosen for. */
+   Threshold 60rem = 552px player + 384px rail + 24px gap. */
 [data-media-layout="beside"] [data-media-width="wide"] .media-detail-grid {
   grid-template-columns: minmax(0, 1fr) 24rem;
   grid-template-areas:
@@ -1079,11 +843,9 @@ div[data-citation-section-path]:not(tr) {
     "rest     companion";
 }
 
-/* The occupant's row again, in the two-column variant, and conditional
-   for the reason the one-column rule gives. Written out rather than
-   inherited: `grid-template-areas` is one value, so the variant above
-   replaces the whole template and a row added only to the base is lost
-   here. */
+/* Written out rather than inherited: `grid-template-areas` is one value,
+   so the variant above replaces the whole template and a row added only
+   to the base is lost here. */
 [data-media-layout="beside"]
   [data-media-width="wide"]
   .media-detail-grid:has(> .media-detail-player-aside:not(:empty)) {
@@ -1093,24 +855,13 @@ div[data-citation-section-path]:not(tr) {
     "rest         companion";
 }
 
-/* Offering the swap only where it can happen. A control that does
-   nothing when pressed is worse than no control. */
 [data-media-width="wide"] .media-detail-layout-toggle {
   display: inline-flex;
 }
 
-/* The rail spans both rows, so the reader can scroll the left column
-   through metadata and summaries while it stays put and keeps
-   following playback.
-
-   --rail-top is set by the host: 0 inside a pane that scrolls itself,
-   the header's measured height when the document scrolls and the
-   sticky header would otherwise cover the rail.
-
-   --rail-avail is the scroll container's visible height, measured by
-   the host. It cannot be computed in CSS: a self-scrolling pane is
-   not simply the viewport minus the app header — it carries its own
-   chrome as well — and the difference is not knowable from here. */
+/* --rail-avail is the scroll container's visible height, measured by
+   the host. It cannot be computed in CSS: a self-scrolling pane carries
+   its own chrome as well as the app header. */
 [data-media-layout="beside"]
   [data-media-width="wide"]
   .media-detail-companion-inner {
@@ -1119,16 +870,9 @@ div[data-citation-section-path]:not(tr) {
   max-height: calc(var(--rail-avail, 100dvh) - 2rem);
 }
 
-/* The lead can afford more here. Stacked it shares the box with the
-   body it indexes, and a 12rem cap leaves most of that box to the body;
-   the rail is as tall as the scroll container, so the same list can
-   stay open without crowding what it indexes.
-
-   Bounded by the measured rail as well as by the absolute value,
-   because the lead no longer shrinks: on a short window 22rem could
-   be most of the region, and nothing else would give it back.
-   `--rail-avail` is the host's measurement of the scroll container,
-   already published for `.media-detail-companion-inner`. */
+/* Bounded by the measured rail as well as by the absolute value,
+   because the lead does not shrink: on a short window 22rem could be
+   most of the region, and nothing else would give it back. */
 [data-media-layout="beside"]
   [data-media-width="wide"]
   .media-detail-companion-lead {
@@ -1138,65 +882,35 @@ div[data-citation-section-path]:not(tr) {
 /* ------------------------------------------------------------------
    The companion, below the player, on the shell.
 
-   The reader has asked for the transcript under the player rather than
-   beside it, so it goes in the canvas — directly under the description,
-   which is where the confirmed layout puts it.
-
-   Two columns, and they are not the grid above: a short index on the
-   left at a fixed 200px and the body it indexes on the right, capped at
-   the reading measure. A time-ordered transcript must not be set in two
-   text columns — reading one to the bottom and back up to the top of
-   the next is exactly the wrong way through a clock — so the width that
-   is left over goes to the index instead of to a second column of text.
-
-   The box is bounded and scrolls inside itself. Letting it run to full
-   length puts the page in motion every time playback crosses a cue,
-   which takes the summaries under it out from under the reader.
+   A time-ordered transcript must not be set in two text columns, so the
+   width that is left over goes to the index instead of to a second
+   column of text. The box is bounded and scrolls inside itself: letting
+   it run to full length puts the page in motion every time playback
+   crosses a cue.
    ------------------------------------------------------------------ */
 .media-detail-below {
   display: flex;
   gap: 1.5rem;
   align-items: stretch;
   max-height: var(--companion-box-h);
-  /* Belt and braces. `max-height` on a row container clamps the line's
-     cross size, so the children are handed a definite height and scroll
-     inside themselves — but that is a subtler mechanism than the
-     main-axis shrink that bounds the column form, and an occupant that
-     ignores `fillHeight` would otherwise run past the box unnoticed. */
+  /* Belt and braces: an occupant that ignores `fillHeight` would
+     otherwise run past the box unnoticed. */
   overflow: hidden;
 }
 
 /* Hidden, not removed. The occupants of this box are what report
    whether they have anything for the file, so a box the layout dropped
-   because they had nothing yet would drop the reporters with it and
-   freeze the answer at its first guess. `display: none` keeps them
-   mounted, fetching and answering — the same bargain the inspector's
-   unlisted tab makes. */
+   would drop the reporters with it and freeze the answer at its first
+   guess. */
 .media-detail-below[data-occupied="false"] {
   display: none;
 }
 
-/* The index takes the width the body's measure leaves — which means the
-   body has to claim that measure as its flex base, not merely as a cap.
-
-   Free space is shared from the bases, so a body based at 0 arrives
-   200px behind the index and stays there: at a 500px canvas that put a
-   340px chapter list beside a 140px transcript, the short index
-   outgrowing the long body it indexes.
-
-   With the body based at its measure the two never compete, because
-   each one's base is also the limit it cannot cross: the body's cap
-   equals its base so it can never grow, and the index's floor equals
-   its base so it can never shrink. Below 200 + 68ch the body absorbs
-   the whole deficit while the index sits frozen at its floor; above it
-   the body freezes at its measure and every surplus pixel goes to the
-   index, to a ceiling of 22rem. There is no case where they split a
-   difference.
-
-   200px is the confirmed floor. 22rem is a ceiling of its own: past
-   about 350px a column of timestamps and short titles stops reading as
-   an index and starts competing with what it indexes. It is not the
-   rail's `lead cap`, which is a height. */
+/* The body has to claim its measure as its flex base, not merely as a
+   cap: free space is shared from the bases, so a body based at 0 hands
+   the surplus to the index. 22rem is a ceiling of its own: past it a
+   column of timestamps and short titles starts competing with what it
+   indexes. */
 .media-detail-below-index {
   flex: 1 1 12.5rem;
   min-width: 12.5rem;
@@ -1204,13 +918,6 @@ div[data-citation-section-path]:not(tr) {
   min-height: 0;
 }
 
-/* 68ch is the reading measure, not a round number picked here, and it
-   is the flex base rather than only a cap — see the index above for why
-   basing it at 0 hands the surplus to the wrong column.
-
-   `min-width: 0` is the half everyone forgets: without it a flex item
-   refuses to shrink below its content and the overflow moves up a level
-   instead of scrolling. */
 .media-detail-below-body {
   display: flex;
   flex-direction: column;
@@ -1228,67 +935,29 @@ div[data-citation-section-path]:not(tr) {
 /* ------------------------------------------------------------------
    The inspector, when the row cannot hold it beside the canvas.
 
-   It keeps its 384px and covers the canvas instead of narrowing it.
-   Narrowing was tried and rejected: below 320px Japanese wraps at 12–14
-   characters a line (`DESIGN.md` §8.5), so a "responsive" inspector is
-   an unreadable one.
-
-   The measurement is on the row, published by `useInspectorFit` — see
-   there for why this is a container question and the default-open
-   threshold next to it is a viewport one. Doing it in CSS from an
-   attribute means the pane is never re-rendered when the form changes,
-   which is load-bearing: it holds the tab panels, and a transcript's
-   scroll position and clock subscription would not survive a window
-   drag otherwise.
-
-   No shadow either. DESIGN.md §4 keeps properties panels at Level 0 and
-   asks for depth from surface colour and border first; the pane already
-   carries `bg-bg-card` against the canvas's `bg-bg-primary` and a left
-   border, which is the separation §4 describes. A shadow here would be
-   the decorative use that section forbids by name.
-
-   No backdrop, deliberately. The canvas keeps its left portion visible
-   and interactive — this is a panel that has run out of room, not a
-   modal asking a question — and the page row's toggle and `Cmd+\` are
-   both still there to close it.
+   It keeps its width and covers the canvas instead of narrowing it:
+   below 320px Japanese wraps at 12–14 characters a line. Doing it in CSS
+   from an attribute means the pane is never re-rendered when the form
+   changes, which is load-bearing: a transcript's scroll position and
+   clock subscription would not survive a window drag otherwise.
    ------------------------------------------------------------------ */
 [data-inspector-fit="overlay"] .inspector-pane {
   position: absolute;
   inset-block: 0;
   inset-inline-end: 0;
-  /* In-flow chrome (DESIGN.md §Layering), not a floating surface. It is
-     above the canvas it covers and below everything that has to stay
-     reachable over it: the mini player and the upload progress at 40,
-     the sidebar's backdrop at 30 — the sidebar is modal while it is
-     open, and a bright interactive panel above its dim is the page
-     claiming to be two things at once. Sitting at 40 buried the mini
-     player outright, since it is 320px wide against the right edge and
-     lands entirely inside this band. */
+  /* Below everything that has to stay reachable over it: the mini player
+     and the upload progress at 40, the sidebar's backdrop at 30. */
   z-index: 20;
 }
 
 /* ------------------------------------------------------------------
    The action row in the Bottom Sheet's resting strip.
 
-   44px targets on a coarse pointer (`DESIGN.md` §Row Actions,
-   `00-basis.md` sizing rules). Grown here rather than by a class on
-   each control, because three of the four are not the row's to style:
-   two are shared buttons with their own sizing and one is whatever an
-   addon put in `file-detail-actions`.
-
-   Grown rather than overhung. The recipe's `::before` overhang keeps an
-   icon at 32px and is right in a list, where the row pitch is what
-   makes it safe; here the controls sit 2px apart on one line, so 44px
-   hit areas would overlap by a third and the later sibling would win
-   the hit test for its neighbour's edge. Four boxes at 44 come to
-   182px, which still leaves the file's name ~150px at 375px.
-
-   Both rows, not only the compact one. The inspector's row is the same
-   shape at a 4px gap, and it sat at 32px while the strip above it
-   cleared the floor — which §Row Actions names as the outcome that buys
-   nothing: "a list whose secondary action clears the floor while its
-   primary one does not". Measured in a browser before this was widened:
-   the AI trigger 44, Like / Favorite / gallery / overflow 32.
+   Grown here rather than by a class on each control, because three of
+   the four are not the row's to style. Grown rather than overhung: the
+   controls sit 2px apart on one line, so overhung 44px hit areas would
+   overlap and the later sibling would win the hit test for its
+   neighbour's edge.
    ------------------------------------------------------------------ */
 @media (pointer: coarse) {
   .file-action-row-touch > * {
@@ -1303,137 +972,54 @@ div[data-citation-section-path]:not(tr) {
 /* ------------------------------------------------------------------
    The player on a phone: stuck to the top of the canvas.
 
-   `data-sheet-snap` is on the shell root and is written only on a
-   phone, so its presence is the mobile test and the stylesheet needs no
-   second one.
-
    **On the wrapper, not on the frame inside it.** A sticky box travels
-   only within its own containing block, and the frame's parent holds
-   the frame and an action row that is usually `empty:hidden` — so its
-   travel was zero and the "sticky" player scrolled away exactly as
-   before. The wrapper's parent is the canvas host, which is as tall as
-   the description, the companion and the summaries under it.
+   only within its own containing block, and the frame's parent is
+   usually no taller than the frame.
 
-   Nothing is re-parented and nothing is re-rendered. A portal moves
-   children by `appendChild`, which reloads any <iframe> in the subtree
-   by the browser's own rule — a `.loft` embed loses its position, its
-   player state and its API binding — and a remounted <video> restarts
-   at zero with `ended` rebound, which is how a completion path comes to
-   write a position nobody played (`.claude/rules/design-decisions.md`,
-   watch history). `MiniPlayerContainer` reached the same conclusion for
-   the desktop mini player.
+   Nothing is re-parented: a portal moves children by `appendChild`,
+   which reloads any <iframe> in the subtree, and a remounted <video>
+   restarts at zero.
    ------------------------------------------------------------------ */
 [data-sheet-snap] .media-detail-player {
   position: sticky;
   top: 0;
   /* Above the canvas that scrolls under it, below the resting strip and
-     the sheet (DESIGN.md §Layering). */
+     the sheet. */
   z-index: 10;
 }
 
-/* The player starts at the scrollport's own top edge, so it has nowhere
-   to travel before it pins.
-
-   **This follows the sticky rule above, and so has the same scope.**
-   `MediaCanvas` is the host inside `[data-sheet-snap]`: the attribute is
-   written on the shell root, `ShellLayout` puts that canvas inside it,
-   and the canvas host is `media-detail-host w-full space-y-4 p-4` — the
-   `p-4` this rule cancels, spelled the same way in
-   `e2e-layout/fixtures/mobile-inspector-sheet.html`'s `mediaHost`. The
-   canvas puts the player wrapper inside that host on every branch it
-   returns, so cancelling the padding gives a sticky box no travel in
-   front of it — one bottom edge for the whole of a scroll rather than
-   two — whether or not anything on the page reads it. The sheet's `half`
-   (`useSheetHalfSnap`) is one consumer of the pinned edge rather than
-   the reason for it: solved while scrolled and then scrolled back, its
-   top edge lands over the player by exactly this padding.
-
-   `FileDetailCanvas` draws the same host and is deliberately not named
-   here: `FileDetailPresenter` returns it as its own root in the branch
-   where `ridesFileDetailShell` is false, which is never inside
-   `[data-sheet-snap]`, and its hosts are `media-detail-host w-full` with
-   no padding to cancel in the first place.
-
-   The mechanism, since the selector does not show it: the wrapper is the
-   host's first child, so a top padding puts it that far below the
-   scrollport and `top: 0` only catches it once the reader has scrolled
-   past it.
-
-   Zero here rather than a smaller value: the video against the page row
-   is the arrangement a sticky player wants, and any non-zero amount is
-   the same defect with a smaller number in it. The inline padding and
-   the gaps below are untouched. */
+/* The wrapper is the host's first child, so a top padding puts it that
+   far below the scrollport and `top: 0` only catches it once the reader
+   has scrolled past it. Zero here rather than a smaller value: any
+   non-zero amount is the same defect with a smaller number in it. */
 [data-sheet-snap] .media-detail-host {
   padding-top: 0;
 }
 
-/* The other half of the same subtraction.
-
-   The player's own first child bleeds to the screen edges with negative
-   margins that cancel the host's `p-4` — and the rule above has already
-   cancelled the top one. What is left is a net −16px, which puts the
-   player's flow position *above* the scrollport's top edge, and that is
-   worse than the padding it was written to answer:
-
-   - where nothing follows the player, the top of the video is drawn
-     behind the chrome, on a page that cannot be scrolled to reach it;
-   - where something does, `position: sticky` corrects it to the
-     scrollport's edge — so the player's box moves without its size
-     changing, which is exactly the channel `useSheetHalfSnap` does not
-     watch. Anything that appears under the player *after* the snap has
-     been solved therefore moves it, and the sheet then overlaps the
-     bottom of the video by this margin.
-
-   Cancelling it here rather than in the component: the bleed is right on
-   every other surface, and the component cannot be told which one it is
-   on — `MediaPlayerBlock`'s own docstring is the reason, a player must
-   not re-render to learn about its host. Inline is untouched, so the
-   picture still reaches both screen edges. */
+/* The player's own first child bleeds with negative margins that cancel
+   the host's `p-4`, and the rule above has already cancelled the top
+   one, so the net −16px puts the player above the scrollport's top edge.
+   Cancelled here rather than in the component: the bleed is right on
+   every other surface, and a player must not re-render to learn about
+   its host. */
 [data-sheet-snap] .media-detail-player > :first-child {
   margin-top: 0;
 }
 
-/* The same height budget, from a variable that does not drift.
-
-   `--player-avail` is derived from this element's own offset, and while
-   it is stuck that offset is a constant zero against a scroll position
-   that keeps growing — so the cap tightens as the reader scrolls and
-   the video shrinks under them. Mobile browsers resize on URL-bar
-   collapse, so the observer fires mid-scroll and it really happens.
-
-   Dropping the cap instead was wrong, and phone *landscape* is where it
-   showed: 667×375 is still under the mobile breakpoint, and an uncapped
-   player there is 375px tall against a ~327px scrollport. A sticky box
-   taller than its scrollport pins at the top and its own control bar is
-   below the fold until it unsticks.
-
-   `--rail-avail` is the scrollport's visible height, published on the
-   same host and measured from the pane or the window alone — nothing
-   about the player enters it, so it cannot drift while the player is
-   stuck. It also carries no `PLAYER_PEEK_PX` subtraction, which is
-   right here: that allowance exists so a little of what follows shows
-   under the player, and a player pinned at `top: 0` has the whole
-   scrollport to answer to. */
+/* `--player-avail` is derived from this element's own offset, which is a
+   constant zero while it is stuck, so the cap would tighten as the reader
+   scrolls. Dropping the cap instead is wrong: in phone landscape a sticky
+   box taller than its scrollport hides its own control bar. */
 [data-sheet-snap] .media-detail-player[data-framed="true"] {
   max-width: calc(var(--rail-avail, 100dvh) * 16 / 9);
 }
 
-/* Justified thumbnail rows — DESIGN.md §8.5.
+/* Justified thumbnail rows. `flex-grow` is distributed *per wrapped
+   line*, so giving every cell a basis proportional to its aspect ratio
+   makes each line fill the row exactly.
 
-   A folder whose rows are all photographs is drawn at the pictures'
-   own proportions instead of in equal 16:9 cards, because the cards
-   letterbox three or four out of every ten. Flexbox already does the
-   arithmetic: `flex-grow` is distributed *per wrapped line*, so giving
-   every cell a basis proportional to its aspect ratio makes each line
-   fill the row exactly. No observer and no container query.
-
-   The container query is only for the row height, and it is a
-   container query rather than a media query because these cells hold
-   `<img>` and nothing else — no `<video>`, `<audio>` or cross-origin
-   iframe — so establishing a containment context here is safe (see
-   DESIGN.md, "Which mechanism depends on what is inside"). The grid
-   renders beside a 280px tree pane, so the window is not the width it
-   has. */
+   A container query is safe here only because these cells hold `<img>`
+   and nothing else — no `<video>`, `<audio>` or cross-origin iframe. */
 .justified-grid-host {
   container-type: inline-size;
   container-name: justified-grid;
@@ -1443,22 +1029,7 @@ div[data-citation-section-path]:not(tr) {
   --jg-gap: 0.5rem;
   /* The height a line is laid out from, not the height it ends at: this
      is the basis every cell's width is measured against, so it decides
-     how many cells a line holds, and the line then takes whatever height
-     those cells' ratios ask for. A phone row fits two or three portrait
-     cells at 120px; the desktop value is where a 3:1 panorama stops
-     out-resolving its 320px thumbnail.
-
-     Neither figure has to move for a line to take its height from its
-     ratios, because a cell's height cannot reach its width — flex
-     resolves the main axis first, and the widths measure identical
-     either way.
-
-     That is only half of what the 200px figure was chosen against:
-     `cover` scales the stored thumbnail by however much the cell exceeds
-     it, and the cell's height term is `--jg-row-h * --jg-max-stretch`
-     rather than `--jg-row-h`, so more of the grid is drawn above 1:1. The trade is deliberate — the alternative to
-     upscaling the picture is cropping it — and DESIGN.md carries the
-     measurement. */
+     how many cells a line holds. */
   --jg-row-h: 120px;
   /* How far past `--jg-row-h` a line may grow before the picture starts
      being cropped again — see the `max-height` below. */
@@ -1466,19 +1037,9 @@ div[data-citation-section-path]:not(tr) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--jg-gap);
-  /* Every cell takes the height its own ratio asks for. Cells on one
-     line all ask for the same one — they share the line's stretch
-     factor — so the row is level either way, and with every cell
-     carrying an `aspect-ratio` this declaration is inert on everything
-     the app draws.
-
-     What it guards is the cell that has no ratio to take a height from,
-     or whose content is taller than the one it has: there `stretch`
-     hands that height to every picture on the line, and `flex-start`
-     leaves it to the one cell. Nothing reaches that state today — no
-     cell is laid out outside the stops, and the archive's text branch
-     clips — which is why it does not show up as a difference. It is the
-     reason the two are not the same choice. */
+  /* What this guards is the cell that has no ratio to take a height
+     from: there `stretch` hands that height to every picture on the line,
+     and `flex-start` leaves it to the one cell. */
   align-items: flex-start;
 }
 
@@ -1493,73 +1054,31 @@ div[data-citation-section-path]:not(tr) {
   flex-basis: calc(var(--jg-ratio) * var(--jg-row-h));
   /* No `height`: the cell is the shape of its picture, so that the only
      thing `object-fit: cover` has left to remove is the thumbnail's own
-     padding. Flex resolves the main axis first, so this reads a width
-     that has already been stretched to fill the line, and the height
-     follows it — which is how a line ends up with a height of its own
-     without anything measuring. */
+     padding. */
   aspect-ratio: var(--jg-ratio);
-  /* The ceiling, and the one place the crop comes back.
-
-     Line-breaking is greedy, so a line can end up holding one narrow
-     cell, and the width it then takes becomes height. Not the *whole*
-     width: a lone cell is the whole line, so its grow factor is its
-     ratio, and a factor under 1 distributes only that fraction of the
-     free space (Flexbox 9.7.4). The stops therefore bound this, but not
-     usefully — driven to the worst line a grid width admits, a cell
-     reaches 2.4x to 4.1x the basis, depending on the width.
-
-     A cell that reaches this height keeps its width and gives up its
-     ratio, so the crop returns for exactly the lines that need bounding
-     and nowhere else. 2.5 rather than 2.0 or 3.0 is a measured trade
-     between how many pictures the ceiling re-crops and how tall it lets
-     a line become; DESIGN.md carries the three of them side by side. */
+  /* The ceiling, and the one place the crop comes back. Line-breaking is
+     greedy, so a line can end up holding one narrow cell, and the width
+     it then takes becomes height. */
   max-height: calc(var(--jg-row-h) * var(--jg-max-stretch));
-  /* A flex item's automatic minimum is its min-content width, and the
-     grid these cells replaced was `repeat(N, minmax(0, 1fr))` — a floor
-     of zero. The photo cell keeps every string out of flow so it never
-     noticed; the archive cell puts a `truncate` filename in flow, and
-     `truncate` is `white-space: nowrap`, so one long name became the
-     cell's minimum. The row then stopped justifying and `cover` went
-     back to cropping its neighbours, which is the defect the justified
-     rows exist to remove. */
+  /* A flex item's automatic minimum is its min-content width, and a
+     `truncate` filename in flow would make one long name the cell's
+     minimum, so the row stops justifying. */
   min-width: 0;
 }
 
-/* The last line does not stretch. Without this, two leftover cells
-   would blow up to half a row each and read as the most important
-   pictures in the folder. A zero-height absorber takes the slack; the
-   height is zero rather than absent so the `gap` above it does not open
-   an empty row.
-
-   The grow factor has to *dominate*, not merely participate. Free space
-   on a flex line is shared in proportion to the grow factors, and every
-   cell already carries `flex-grow: var(--jg-ratio)` — up to 3, and
-   summed across the line. At `flex-grow: 1` the absorber lost that
-   argument: measured on a 1469px grid, a three-cell last row still
-   stretched 1.645x while the absorber took 129px of the 590 going
-   spare. 9999 is three orders above the largest total a line can
-   present (3 x however many cells fit), so the residue is under a pixel
-   — measured 150.1px against a 150px basis. */
+/* The last line does not stretch. The grow factor has to *dominate*, not
+   merely participate: every cell already carries
+   `flex-grow: var(--jg-ratio)`, summed across the line. The height is
+   zero rather than absent so the `gap` above it does not open an empty
+   row. */
 .justified-grid > .justified-grid-tail {
   flex-grow: 9999;
   flex-basis: 0;
   height: 0;
 }
 
-/* The two states `useJustifiedFlip` puts a cell through when the set of
-   cells changes. The transform is per cell and written from JS; the
-   duration and the easing are here, with the rest of DESIGN.md §7 — and
-   the tests read the 200ms below against both of the hook's own copies,
-   because the hook takes its marks off after a delay of its own and a
-   longer duration here would cut every play short.
-
-   `top left` in both: the hook inverts a change to the cell's own box by
-   its top-left corner, which is the corner a flex line lays out from.
-
-   The `prefers-reduced-motion` rule at the top of this file shortens the
-   play to nothing, but the hook does not get that far — it asks
-   `matchMedia` and writes no transform at all, so the inverted frame is
-   never painted either. */
+/* The hook takes its marks off after a delay of its own, so a longer
+   duration here would cut every play short. */
 .justified-grid-cell[data-flip="invert"] {
   transform-origin: top left;
   transition: none;
@@ -1610,38 +1129,14 @@ div[data-citation-section-path]:not(tr) {
   }
 }
 
-/* A floor under the canvas viewer — DESIGN.md §8.5.
-
-   An archive of seven entries drew a 200px band with the rest of the
-   canvas empty under it, and the viewer is the whole reason the page
-   exists. It gets 70% of the canvas: the scrollport left after the page
-   row and beside the inspector, which is 384px narrower and a row
-   shorter than the window.
-
-   `--canvas-h` is published by `useCanvasFloor` from a ResizeObserver
-   on the canvas itself — not `70cqh`. `container-type: size` implies
-   `contain: layout`, which would make the canvas the containing block
-   for every `position: fixed` descendant and give it its own stacking
-   context; the archive canvas holds two unportalled fixed elements
-   (the full-screen page-turner and the toolbar's overflow backdrop),
-   and under containment the page-turner covers the column instead of
-   the viewport while the backdrop has already made the rest inert.
-   Measuring is also the mechanism `lib/cardGrid.ts` uses and the shape
-   DESIGN.md prescribes wherever a subtree may hold media.
-
-   A floor, not a ceiling: a 2439-entry archive still grows past it. The
-   320px absolute is for a short desktop window. `--canvas-h` is absent
-   until the canvas has been measured, and the `max()` then resolves to
-   the absolute alone rather than to nothing. */
+/* A floor under the canvas viewer. `--canvas-h` is measured rather than
+   `70cqh`: `container-type: size` implies `contain: layout`, which would
+   make the canvas the containing block for its unportalled
+   `position: fixed` descendants. */
 main[data-canvas-floor="true"] .media-detail-player {
   min-height: max(320px, calc(var(--canvas-h, 0px) * 0.7));
   /* The `min-height` alone reserves the height on this wrapper and
-     stops there: it is a block box, and a block box does not stretch
-     its in-flow children. The viewer inside kept its content height and
-     the reserved space became emptiness *inside* the wrapper — the same
-     picture as before the floor, with the gap moved up one element.
-     Measuring `.media-detail-player` cannot see that; measure the
-     viewer's own box. */
+     stops there: a block box does not stretch its in-flow children. */
   display: flex;
   flex-direction: column;
 }
@@ -1651,60 +1146,14 @@ main[data-canvas-floor="true"] .media-detail-player > :first-child {
   min-height: 0;
 }
 
-/* Related files: two tiles per row only where two tiles are readable.
+/* Related files: two tiles per row only where each is at least as wide
+   as the rail's one column. The rail leaves the grid 22rem before its
+   scrollbar, so 2 x 22rem + the 0.5rem gap = 44.5rem, and the rounding
+   to a whole rem GOES UP.
 
-   The grid had `sm:grid-cols-2`, and `sm:` is a VIEWPORT breakpoint.
-   The section renders in two places whose widths have nothing to do
-   with the window: the inspector rail, fixed at 24rem, and the legacy
-   stack, which is whatever is left after the sidebar. So a 1512px
-   window put two columns inside a 351px rail — a 172px tile whose name
-   column is 37px, showing four characters of a 27-character filename,
-   on all eleven tiles. DESIGN.md §"Measure against the container, not
-   the viewport": the rule was already written, this grid was not
-   following it.
-
-   THE THRESHOLD IS THE RAIL'S OWN COLUMN. A wide surface must not
-   produce a tile narrower than the narrow surface does; that is
-   backwards, and it is what the stacked layout did at a 768px window
-   (456px grid, 224px tiles, five of ten characters of a Japanese
-   filename). So two columns are worth having exactly where each of them
-   is at least as wide as the one column the rail already gives.
-
-   The rail leaves the grid 22rem (352px) before the inspector pane's
-   scrollbar, so the sum is 2 x 22rem + the 0.5rem gap = 44.5rem, and
-   the rounding to a whole rem GOES UP. Rounding down inverts the rule
-   it comes from: at 44rem each column is (704 - 8) / 2 = 348px, four
-   pixels UNDER the rail's 352, and the tile that was supposed to read
-   at least as well reads one character worse — measured on
-   `15792094940_54b0fd8f84_o.jpg`, 26 characters in the rail against 25
-   at a 44rem switch. At 45rem each column is 356px and every real name
-   measured reads the same or better. 44rem shipped in df1474e5 and was
-   wrong for exactly this reason.
-
-   `22rem` is the rail before its scrollbar, and that is the form to
-   derive from rather than an average: where the pane draws a classic
-   15px scrollbar the list gets 336px instead, and the threshold has to
-   satisfy the WIDEST rail it can face, not the narrowest. Either way
-   the rail itself is nowhere near 45rem, so its own column count does
-   not depend on which.
-
-   A CONTAINER QUERY, and the host is a wrapper rather than the
-   section. `container-type` establishes a containment context, and on
-   iOS Safari one wrapped around a <video>, <audio> or cross-origin
-   iframe renders the whole subtree rotated and spinning (globals.css
-   line ~820, hako 7bFYOh3vFZP9EEuf9Ym_5) — so this is only safe
-   because the scope holds `<img>`, lucide `<svg>` and text and nothing
-   else, and because `RelatedFilesSection` takes no children and mounts
-   no addon slot, so nothing external can enter it. The sibling
-   `file-relations` slot is outside this wrapper. Same reasoning, and
-   the same shape, as `.justified-grid-host`.
-
-   The wrapper is what makes the threshold mean one thing. The section
-   itself carries `p-4` when it stands alone and no padding when it is
-   part of the Related group, so its inline size is the grid's width in
-   one case and 2rem more in the other, and a single number could not be
-   right for both. The wrapper has no padding, so its inline size IS the
-   grid's width. */
+   A CONTAINER QUERY is only safe because the scope holds `<img>`, lucide
+   `<svg>` and text and nothing else. The host is a wrapper with no
+   padding, so its inline size IS the grid's width. */
 .related-files-host {
   container-type: inline-size;
   container-name: related-files;

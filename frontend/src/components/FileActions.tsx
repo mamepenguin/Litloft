@@ -27,17 +27,9 @@ import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
 
 /**
- * The menu's `mt-1` / `mb-1`, in pixels. The gap is part of the room the
- * menu needs, so it belongs inside the comparison: without it a menu whose
- * height lands in the last 4px of the space below is kept downward and its
- * final pixels sit past the edge.
- *
- * Read out of the same table entry the classes come from, so the number and
- * the margin it names cannot become different facts. Exported because the
- * claim is checked outside this file:
- * `fileActionsMenuFixtureParity.test.tsx` pins it against the number the
- * layout fixture builds its boxes from, and `e2e-layout` measures the gap
- * Chromium actually leaves against that same number.
+ * The gap is part of the room the menu needs, so it belongs inside the
+ * comparison: without it a menu whose height lands in the last 4px of the
+ * space below is kept downward and its final pixels sit past the edge.
  */
 export const MENU_GAP_PX = ANCHORED_VERTICAL[1].px;
 
@@ -47,11 +39,8 @@ interface FileActionsProps {
   onDelete?: () => void;
   onEdit?: () => void;
   /**
-   * File context handed to the `file-actions-menu` slot, and the opt-in
-   * that renders the slot at all: an entry cannot do anything useful
-   * without knowing which file it is acting on, so a call site with no
-   * context to give gets no addon entries. Today only the file detail page
-   * passes it.
+   * The opt-in that renders the `file-actions-menu` slot at all: an entry
+   * cannot do anything useful without knowing which file it is acting on.
    */
   addonProps?: Record<string, unknown>;
 }
@@ -71,20 +60,11 @@ export function FileActions({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
   const [addonDialogOpen, setAddonDialogOpen] = useState(false);
-  // document.body everywhere except inside the mobile Bottom Sheet,
-  // which hands out a host in its own subtree — see DialogPortal.
   const dialogHost = useDialogPortalTarget();
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuBoxRef = useRef<HTMLDivElement>(null);
-  // Which corner of the trigger the menu hangs from, on both axes.
-  // `useAnchoredDirection` carries the reasoning and the ancestor walk;
-  // what is local here is the gap the classes below spell and the side the
-  // menu prefers. The error toast reads the same answer, which is
-  // `DESIGN.md` §Context Menus / Dropdowns' rule for a second box on one
-  // trigger — and why the hook does not clear its answer on close, since
-  // the toast is raised after the menu has gone.
   const { openUp, side } = useAnchoredDirection({
     triggerRef: menuRef,
     panelRef: menuBoxRef,
@@ -93,24 +73,17 @@ export function FileActions({
   });
 
   useEffect(() => {
-    // The flag belongs to a subtree that only exists while the menu is
-    // open, and it is set by an addon in another repository. Clearing it
-    // here means a caller that forgets `onDialogOpenChange(false)` cannot
-    // strand `anyDialogOpen` at true and leave the menu unclosable.
+    // Set by an addon in another repository. Clearing it here means a caller
+    // that forgets `onDialogOpenChange(false)` cannot strand `anyDialogOpen`
+    // at true and leave the menu unclosable.
     if (!menuOpen) setAddonDialogOpen(false);
   }, [menuOpen]);
 
   const anyDialogOpen =
     renameOpen || moveOpen || deleteOpen || addonDialogOpen;
 
-  // A popup must be dismissable from the keyboard. Without this the only
-  // ways out are an outside click or picking an item, so a keyboard user
-  // who opens the menu cannot back out of it.
-  //
   // On the stack, not on `document`: the menu can open a dialog, and two
-  // listeners would answer one press. `anyDialogOpen` already keeps it
-  // from firing then, but push order is what makes that true for the
-  // next thing to open over it as well.
+  // listeners would answer one press.
   useShortcuts(
     "file-actions-menu",
     "Dialog",
@@ -173,11 +146,8 @@ export function FileActions({
     }
   }, [file.id, onDelete, t]);
 
-  // Every surface's menu comes from here, including this one. It used
-  // to build its own array, which is how it ended up without
-  // "add to collection" at all — the entry the card and list menus both
-  // had. Each handler closes the menu first: the dialogs portal out of
-  // this subtree, and leaving it open would stack a menu over them.
+  // Each handler closes the menu first: the dialogs portal out of this
+  // subtree, and leaving it open would stack a menu over them.
   const menuItems = useFileMenuItems(file, {
     onEdit: onEdit
       ? () => {
@@ -203,10 +173,6 @@ export function FileActions({
     },
   });
 
-  // Built here rather than in place: the menu stays mounted while a
-  // dialog raised from it is up (closing would unmount the dialog with
-  // it), and in that state it is drawn without a dismissal layer — see
-  // the two branches below.
   const menu = (
     <div
       ref={menuBoxRef}
@@ -226,21 +192,14 @@ export function FileActions({
         />
       ))}
       {addonProps && (
-        /* `empty:hidden` carries the separator: no addon claims this
-           slot on a stock install, and an entry that does claim it may
-           still render nothing for a given file. Either way the rule
-           would otherwise float under the last core item with nothing
-           beneath it.
+        /* `empty:hidden` carries the separator: an entry that claims this
+           slot may still render nothing for a given file.
 
            An entry here must NOT close the menu when it opens a
            dialog: closing unmounts this subtree, taking the dialog
-           with it. Entries open their dialog, report it through
-           `onDialogOpenChange` so the outside-click and Escape
-           listeners stand down, and call `onRequestClose` only once
-           the dialog is dismissed. */
+           with it. Entries report it through `onDialogOpenChange` and
+           call `onRequestClose` only once the dialog is dismissed. */
         <div
-          /* Presentational: the menuitems inside must read as direct
-             children of role="menu", and the rule itself is decoration. */
           role="none"
           className="mt-1 border-t border-bg-border pt-1 empty:hidden"
         >
@@ -277,13 +236,8 @@ export function FileActions({
           // The touch floor on the control, because the row's rule cannot
           // reach it: `.file-action-row-touch > *` grows the *direct child*,
           // and this button sits inside the `.relative` wrapper the menu
-          // needs — so the wrapper became 44x44 and the button stayed 28x28.
-          // §Row Actions asks for exactly this ("give the row's own controls
-          // the same class wherever alignment stops them inheriting that
-          // height"); `addons/knowledge/frontend/MediaCaptureAction.tsx` is
-          // the shape being copied, centring included. `p-1.5` has no
-          // `display`, so `h-11 w-11` alone would leave the glyph against the
-          // left padding edge — measured 6/14/22/14 instead of 14 all round.
+          // needs. `p-1.5` has no `display`, so `h-11 w-11` alone would leave
+          // the glyph against the left padding edge.
           className="inline-flex items-center justify-center rounded-lg p-1.5 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
@@ -307,11 +261,9 @@ export function FileActions({
           ) : (
             <DismissScrim
               onDismiss={() => setMenuOpen(false)}
-              // The dim's own tier. Not while a dialog raised from this
-              // menu is up: the dialog portals out of this subtree and a
-              // layer behind it would answer the presses meant for it.
-              // Same condition the `document` listener this replaced
-              // stood down on.
+              // Not while a dialog raised from this menu is up: the dialog
+              // portals out of this subtree and a layer behind it would
+              // answer the presses meant for it.
               className="fixed inset-0 z-30"
             >
               {menu}
@@ -320,11 +272,10 @@ export function FileActions({
 
         {error && (
           <div
-            /* Both axes follow the menu's, per DESIGN.md §Context Menus /
-               Dropdowns. This box does not wrap, so its width is whatever
-               the message is: on a trigger near its column's left edge a
-               `right-0` toast crosses exactly the edge the side decision exists
-               to keep the menu inside. */
+            /* This box does not wrap, so its width is whatever the message
+               is: on a trigger near its column's left edge a `right-0` toast
+               crosses exactly the edge the side decision exists to keep the
+               menu inside. */
             className={`absolute z-30 whitespace-nowrap rounded-2xl bg-danger px-3 py-1.5 text-xs text-white ${
               ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
             } ${side === "left" ? "left-0" : "right-0"}`}
@@ -357,9 +308,8 @@ export function FileActions({
           dialogHost
         )}
 
-      {/* Through the same portal as the others. Opened from inside the
-          mobile Bottom Sheet, a dialog rendered in place is buried by
-          the sheet it was opened from. */}
+      {/* Opened from inside the mobile Bottom Sheet, a dialog rendered in
+          place is buried by the sheet it was opened from. */}
       {collectionPickerOpen && dialogHost &&
         createPortal(
           <CollectionPicker

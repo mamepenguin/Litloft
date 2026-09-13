@@ -8,11 +8,8 @@ import type { WatchHistoryItem } from "@/types";
 import { FileTypeIcon } from "../FileTypeIcon";
 
 /**
- * A row shown while the search query is empty.
- *
- * Modelled as a discriminated union rather than two separate lists so that
- * keyboard navigation in the parent walks one index space, whatever mix of
- * row kinds is present.
+ * One union rather than two separate lists so that keyboard navigation in
+ * the parent walks one index space.
  */
 export type EmptyItem =
   | { kind: "file"; file: WatchHistoryItem }
@@ -20,9 +17,7 @@ export type EmptyItem =
 
 interface SearchEmptyStateProps {
   items: EmptyItem[];
-  /** Index of the row the parent's keyboard navigation has selected, or -1. */
   selectedIndex: number;
-  /** Where the file rows stop and the term rows begin, for the headings. */
   recentFileCount: number;
   mobile: boolean;
   onOpenFile: (file: WatchHistoryItem) => void;
@@ -31,13 +26,6 @@ interface SearchEmptyStateProps {
   onRemoveTerm: (term: string, e: MouseEvent) => void;
 }
 
-/**
- * The body of the search modal before anything is typed: recently-opened
- * files, then previously-used search terms.
- *
- * Purely presentational — every piece of state and every side effect lives in
- * GlobalSearch.
- */
 export function SearchEmptyState({
   items,
   selectedIndex,

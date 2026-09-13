@@ -21,13 +21,9 @@ import { TimeDisplay } from "./parts/TimeDisplay";
 import { VolumeSlider } from "./parts/VolumeSlider";
 
 /**
- * The mouse layout: one row of controls under a scrub bar, everything
- * reachable without a gesture. Pure presentation — every value and
- * every callback arrives as a prop.
- *
  * Colours are deliberately not theme tokens: this bar always sits on
  * top of a black video frame, so it stays white-on-scrim in both light
- * and dark themes (DESIGN.md, "Over-video chrome").
+ * and dark themes.
  */
 export function PointerControlsPresenter({
   displayTime,
@@ -156,13 +152,6 @@ export function PointerControlsPresenter({
               </div>
             </div>
 
-            {/* Speed used to be a bare <select> here. Its width was set by
-                the widest option, so "1x" sat a gap away from the arrow
-                the OS drew, and the whole control matched nothing else in
-                the row. It moves into the settings panel, which is also
-                the only place the caption toggle and whatever the frame's
-                owner contributes could be reached from — neither had a
-                route on the mouse layout at all. */}
             <ControlButton
               label={t("settings")}
               onClick={() => onSettingsOpenChange?.(!settingsOpen)}

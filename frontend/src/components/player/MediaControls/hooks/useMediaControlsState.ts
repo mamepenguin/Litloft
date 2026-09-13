@@ -8,14 +8,6 @@ import { getMediaClockSnapshot, subscribeMediaClock } from "@/lib/mediaClock";
  * MediaController is a pull-shaped contract: it exposes getters, not
  * events. Turning it into a push contract would ripple through every
  * backend (native, YouTube, Vimeo, anything added later), so we poll.
- *
- * The polling itself lives in `lib/mediaClock`, shared with every other
- * consumer watching the same controller — the mini player, the
- * transcript highlight, Media Session. This hook subscribes to that
- * cadence and samples the extra fields it needs on top: volume, mute,
- * rate, buffered and captions have no business in a shared playback
- * clock, and giving them their own interval would put us back where we
- * started.
  */
 const DEFAULT_AUTO_HIDE_MS = 3000;
 
@@ -37,9 +29,7 @@ const SEEK_SETTLE_TIMEOUT_MS = 3000;
  * The volume slider needs the same treatment as the scrub bar, and for
  * a sharper reason: it is dragged continuously, so a level that only
  * catches up on the next poll trails the pointer by up to a full idle
- * interval — a second, on a paused player. The knob is drawn by the
- * browser and follows the finger regardless, so the painted fill would
- * visibly lag behind its own knob.
+ * interval.
  *
  * The tolerance is under one step of the slider (0.05), so a level the
  * player rounded on its way through is still recognised as arrival.
@@ -74,10 +64,6 @@ const EMPTY_SNAPSHOT: MediaControlsSnapshot = {
 
 export interface UseMediaControlsStateOptions {
   mc: MediaController | null;
-  /**
-   * Duration from our own metadata, which is trustworthy even when the
-   * player is reporting something else (an ad, or nothing yet).
-   */
   durationHint?: number | null;
   autoHideMs?: number;
   /**
@@ -94,18 +80,10 @@ export interface MediaControlsState extends MediaControlsSnapshot {
   scrubbing: boolean;
   controlsVisible: boolean;
   revealControls: () => void;
-  /**
-   * Put the bar away now. Used by the touch layer, where a tap toggles
-   * the controls and a skip gesture takes the frame over.
-   */
   hideControls: () => void;
   beginScrub: (seconds: number) => void;
   updateScrub: (seconds: number) => void;
   endScrub: () => void;
-  /**
-   * Write a level (0-1) to the player and show it straight away, rather
-   * than waiting for the poll to confirm it. See VOLUME_SETTLE.
-   */
   setVolume: (value: number) => void;
 }
 
@@ -175,8 +153,6 @@ export function useMediaControlsState({
   // Same idea for the level the viewer just dragged to.
   const [pendingVolume, setPendingVolume] = useState<number | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
-  // Bumping this restarts the auto-hide countdown declaratively, so the
-  // timer lives in one effect instead of being juggled across refs.
   const [revealNonce, setRevealNonce] = useState(0);
 
   // The scrub position is mirrored in a ref so endScrub can read the
@@ -195,9 +171,7 @@ export function useMediaControlsState({
           next = readSnapshot(mc, durationHint);
         } catch {
           // The YouTube player throws while it swaps media. Hold the
-          // last good reading rather than blanking the bar. (The clock
-          // already suppresses ticks whose own read threw; this covers
-          // the getters sampled here.)
+          // last good reading rather than blanking the bar.
           return prev;
         }
         // Returning the previous object lets React bail out, so a

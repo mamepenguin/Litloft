@@ -18,15 +18,11 @@ export interface GestureOverlayProps {
 }
 
 /**
- * The transparent surface that turns pointer input over the video into
- * player commands, plus the feedback for the two gestures that have no
- * button of their own.
- *
  * A cross-origin iframe never delivers its own events, so this overlay
  * is the only way to react to a tap on the video at all.
  *
  * Colours are white-on-scrim rather than theme tokens: the backdrop is
- * always a black video frame (DESIGN.md, "Over-video chrome").
+ * always a black video frame.
  */
 export function GestureOverlay({
   interactive,
@@ -48,9 +44,7 @@ export function GestureOverlay({
     >
       {/* Gated on `interactive` as well: the ripple covers half the
           frame, and leaving one on screen when an ad takes over would
-          obscure the ad itself. Hiding the player visually is a clearer
-          terms violation than covering it, and pointer-events does
-          nothing about that. */}
+          obscure the ad itself. */}
       {interactive && skip && (
         <div
           data-testid="skip-feedback"

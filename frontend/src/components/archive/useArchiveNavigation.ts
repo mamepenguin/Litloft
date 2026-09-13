@@ -24,20 +24,17 @@ export function useArchiveNavigation(
 ): ArchiveNavigationResult {
   const t = useTranslations("archive");
 
-  // Compute entries for current directory
   const currentEntries = archive
     ? [
         ...getEntriesInDir(archive.entries, currentPath),
         ...inferDirectories(archive.entries, currentPath),
       ].sort((a, b) => {
-        // Directories first, then alphabetical
         if (a.is_dir && !b.is_dir) return -1;
         if (!a.is_dir && b.is_dir) return 1;
         return a.filename.localeCompare(b.filename);
       })
     : [];
 
-  // Get image entries in current directory for the image viewer
   const imageEntries = useMemo(
     () =>
       archive
@@ -53,7 +50,6 @@ export function useArchiveNavigation(
     [archive, currentPath]
   );
 
-  // Breadcrumb segments
   const pathSegments = currentPath ? currentPath.split("/") : [];
   const breadcrumbs = [
     { label: t("rootBreadcrumb"), path: "" },
@@ -63,7 +59,6 @@ export function useArchiveNavigation(
     })),
   ];
 
-  // Navigate within archive by updating URL (adds to browser history)
   const navigateArchive = useCallback(
     (path: string) => {
       const params = new URLSearchParams(searchParamsString);
@@ -78,7 +73,6 @@ export function useArchiveNavigation(
     [router, searchParamsString]
   );
 
-  // Navigation handlers
   const handleDirClick = useCallback(
     (entry: ArchiveEntry) => {
       const dirPath = entry.path.endsWith("/")

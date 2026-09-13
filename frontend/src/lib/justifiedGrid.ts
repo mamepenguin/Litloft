@@ -1,18 +1,6 @@
 import type { FileItem } from "@/types";
 
 /**
- * The geometry of a justified thumbnail row — see `DESIGN.md` §8.5
- * "Justified thumbnail rows" for why the rows exist at all.
- *
- * The height a line starts from is CSS (`--jg-row-h` in `globals.css`),
- * because it switches on the grid's own width and nothing here
- * measures; the height it ends at follows from these ratios in the
- * browser's own flex pass. What lives here is the per-cell ratio, which
- * comes from the file and so has to be computed per row and handed to
- * CSS as an inline value.
- */
-
-/**
  * Ratio stops. A 10:1 panorama laid out at the row height would be
  * three screens wide on its own and push everything after it onto the
  * next row; a 1:10 strip would be a hairline. Both are cropped by
@@ -23,8 +11,6 @@ export const JG_MIN_RATIO = 0.5;
 export const JG_MAX_RATIO = 3;
 
 /**
- * What a cell with no stored dimensions is drawn as.
- *
  * Square rather than 16:9: a justified row is mostly portrait
  * photographs, and a single 16:9 cell among them is the widest thing on
  * the row — the one placement a reader would read as meaningful. A
@@ -33,25 +19,14 @@ export const JG_MAX_RATIO = 3;
 export const JG_FALLBACK_RATIO = 1;
 
 /**
- * The stops, applied to a ratio measured from a picture.
- *
  * A cell's height comes from its ratio, so a ratio outside the stops is
- * not a wide cell that `object-fit: cover` crops but a band. Both places
- * that measure a picture pass through here: `justifiedRatio` below, for
- * the dimensions the scanner stored, and the archive grid, for the
- * `naturalWidth` of a page it has decoded.
- *
- * The values that stand in for a picture — `JG_FALLBACK_RATIO`, and the
- * archive's `UNMEASURED_PAGE_RATIO` and `NON_IMAGE_RATIO` — do not pass
- * through here. They are inside the stops as written, and
- * `archiveJustifiedCells.test.tsx` is where that is asserted.
+ * not a wide cell that `object-fit: cover` crops but a band.
  */
 export function clampRatio(ratio: number): number {
   if (!Number.isFinite(ratio) || ratio <= 0) return JG_FALLBACK_RATIO;
   return Math.min(JG_MAX_RATIO, Math.max(JG_MIN_RATIO, ratio));
 }
 
-/** The aspect ratio a justified cell is laid out at, stops applied. */
 export function justifiedRatio(file: {
   image_width: number | null;
   image_height: number | null;
@@ -65,7 +40,6 @@ export function justifiedRatio(file: {
   return clampRatio(w / h);
 }
 
-/** Whether this row can be laid out at its real proportions. */
 export function hasKnownRatio(file: FileItem): boolean {
   return (
     file.file_type === "image" &&

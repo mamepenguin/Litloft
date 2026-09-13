@@ -16,8 +16,8 @@ import { PropertiesPanel } from "@/components/PropertiesPanel";
 
 export type { WikiResolveResult };
 
-// Mermaid is loaded lazily (≈4 MB).  Initialize only once so that calling
-// mermaid.initialize() on subsequent re-renders doesn't reset internal state.
+// Initialize only once so that calling mermaid.initialize() on subsequent
+// re-renders doesn't reset internal state.
 let mermaidRenderCount = 0;
 const getMermaid = (() => {
   let promise: Promise<typeof import("mermaid")["default"]> | null = null;
@@ -33,14 +33,8 @@ const getMermaid = (() => {
 })();
 
 /**
- * Render a single wiki-link to a safe HTML string.
- *
- * The display text is HTML-escaped through markdown-it's own escapeHtml
- * (which DOMPurify would also catch later, but escaping at emission
- * time keeps the sanitizer's job simple and avoids relying on it for
- * correctness). data-wiki-target carries the *raw* target so consumers
- * (the Knowledge unresolved-link click handler) can identify the link
- * regardless of how the user customised its display text.
+ * data-wiki-target carries the *raw* target so consumers can identify the
+ * link regardless of how the user customised its display text.
  */
 function renderWikiLinkHtml({
   md,
@@ -75,7 +69,6 @@ function renderWikiLinkHtml({
       `title="${safeTitle}">${safeDisplay}</span>`
     );
   }
-  // Default: unresolved (also covers the "no map" / "key absent" cases).
   return (
     `<span class="wiki-link wiki-unresolved" ` +
     `data-wiki-target="${safeTarget}">${safeDisplay}</span>`
@@ -84,27 +77,14 @@ function renderWikiLinkHtml({
 
 function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): MarkdownIt {
   const md = new MarkdownIt({
-    html: false,       // Do not trust raw HTML embedded in markdown
-    linkify: true,     // Auto-link plain URLs
+    html: false,
+    linkify: true,
     typographer: false,
     breaks: false,
   });
 
   md.use(taskLists, { enabled: true, label: true });
 
-  // Wiki-link inline rule. Spec 2026-05-12 §3.8.
-  //
-  // Detects ``[[X]]`` / ``[[X|display]]`` / ``[[X#heading]]`` at the
-  // current source position and emits either:
-  //   - resolved   -> <a class="wiki-link wiki-resolved" ...>
-  //   - unresolved -> <span class="wiki-link wiki-unresolved" ...>
-  //   - ambiguous  -> <span class="wiki-link wiki-ambiguous" ...>
-  //
-  // The resolution map flows through ``env.wikiResolution``; when it is
-  // missing (or the target is absent) we render the pessimistic
-  // ``unresolved`` form so the UI never briefly flashes "resolved" while
-  // the resolutions request is still in flight.
-  //
   // Registered ``before("link", ...)`` so the bracketed pair is consumed
   // before linkify gets a chance to auto-link the inner text (a payload
   // like ``[[example.com]]`` would otherwise become a clickable external
@@ -115,13 +95,11 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
     if (src.charCodeAt(start) !== 0x5b /* [ */) return false;
     if (src.charCodeAt(start + 1) !== 0x5b /* [ */) return false;
 
-    // Find the closing ``]]``; bail if absent within this line.
     const max = state.posMax;
     let end = -1;
     for (let i = start + 2; i < max - 1; i++) {
       const ch = src.charCodeAt(i);
-      // Stop at newlines — wiki-links don't span lines, matching
-      // Obsidian / Foam behaviour.
+      // Wiki-links don't span lines, matching Obsidian / Foam behaviour.
       if (ch === 0x0a) return false;
       if (ch === 0x5d && src.charCodeAt(i + 1) === 0x5d) {
         end = i;
@@ -131,17 +109,11 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
     if (end < 0) return false;
 
     const inner = src.slice(start + 2, end);
-    // Empty ``[[]]`` is not a wiki-link.
     if (inner.length === 0) return false;
-    // ``]`` or ``[`` inside the inner text means the parser ran off
-    // the rails (nested brackets); bail so markdown-it's standard link
-    // pass can deal with it.
+    // Nested brackets: bail so markdown-it's standard link pass can deal
+    // with it.
     if (inner.indexOf("[") >= 0) return false;
 
-    // Pull out optional display / heading suffix.
-    // ``[[target|display]]`` -> target, displayOverride
-    // ``[[target#heading]]`` -> target, "target#heading" (display)
-    // ``[[target#heading|display]]`` -> target, displayOverride
     let target = inner;
     let display: string | null = null;
     const pipeIdx = inner.indexOf("|");
@@ -165,13 +137,6 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
       const resolution: WikiResolveResult | undefined =
         env?.wikiResolution?.[target];
 
-      // Display precedence:
-      //   1. Explicit ``|display`` alias from the source.
-      //   2. ``target`` + heading suffix when the user wrote ``[[X#h]]``.
-      //   3. For id-form resolved targets (``[[20260512143028]]``), the
-      //      resolved file's basename — keeps the rendered preview
-      //      readable instead of showing an opaque timestamp.
-      //   4. Fall back to the raw target.
       const isIdForm = /^\d{12,17}$/.test(target);
       const resolvedBasename =
         resolution && resolution.kind === "resolved"
@@ -207,7 +172,6 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
     const href = token.attrGet("href") ?? "";
     const lower = href.trim().toLowerCase();
 
-    // loft://file_id[?params] — resolve to the internal file detail URL.
     // file_ids are globally unique so no drive context is needed.
     // Validate file_id matches the backend 12-char pattern to prevent
     // path traversal (e.g. loft://../../admin becoming /files/../../admin).
@@ -219,7 +183,6 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
         token.attrSet("href", "#");
         return defaultLinkRender(tokens, idx, options, env, self);
       }
-      // Whitelist query string to t= and page= params only.
       const rawQs = qIdx >= 0 ? rest.slice(qIdx) : "";
       const safeQs = rawQs.replace(/[^?&=A-Za-z0-9_.\-]/g, "");
       const resolved = `/files/${fileId}${safeQs}`;
@@ -237,9 +200,6 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
     return defaultLinkRender(tokens, idx, options, env, self);
   };
 
-  // loft://file_id images — resolve to /api/files/{id}/stream and wrap in
-  // a detail-page link so clicking navigates to /files/{id}, consistent
-  // with how loft:// text links behave (link_open rule above).
   md.renderer.rules.image = function (tokens, idx, options, env, self) {
     const token = tokens[idx];
     const src = token.attrGet("src") ?? "";
@@ -263,8 +223,6 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
       );
     }
 
-    // Non-loft image: replicate the default markdown-it image renderer
-    // (populate alt from children tokens, then renderToken).
     const altIdx = token.attrIndex("alt");
     if (altIdx >= 0 && token.attrs) {
       token.attrs[altIdx][1] = self.renderInlineAsText(
@@ -301,20 +259,10 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
     return `<pre class="code-block"><code class="hljs">${escaped}</code></pre>\n`;
   };
 
-  // Group consecutive images (no blank line between them, i.e. the same
-  // paragraph / list item / table cell) into a single
-  // <span class="markdown-image-group"> so CSS can lay them out as an
-  // equal-height flex row (Craft-style grouping). Markdown syntax and the
-  // rendering of each individual image are untouched — this only wraps
-  // runs of >=2 image tokens after inline parsing has finished.
-  //
-  // Implemented as a core rule (not an inline rule) because grouping
-  // needs lookahead: whether a run has 2+ images is only known once the
-  // whole children array is parsed. Whitespace-only separators
-  // (softbreak/hardbreak, or a blank text token from a bare newline) are
-  // dropped from the group rather than kept — the CSS `gap` supplies
-  // spacing, so a leftover whitespace node wouldn't just be redundant,
-  // it would unevenly widen that one gap.
+  // A core rule (not an inline rule) because grouping needs lookahead.
+  // Whitespace-only separators are dropped from the group rather than
+  // kept — the CSS `gap` supplies spacing, so a leftover whitespace node
+  // would unevenly widen that one gap.
   md.core.ruler.push("image_group", (state) => {
     const isImage = (t: Token) => t.type === "image";
     const isWhitespaceSep = (t: Token) =>
@@ -335,8 +283,6 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
           continue;
         }
 
-        // Scan the maximal run of image/whitespace tokens from here, then
-        // trim trailing whitespace so the run ends on an image token.
         let j = i;
         let lastImage = i;
         while (
@@ -390,9 +336,8 @@ function renderMarkdownToSafeHtml(
 } {
   const parsed = matter(source);
   const md = withMermaid ? mdWithMermaid : mdPlain;
-  // ``wikiResolution`` rides on the env object so the inline rule can
-  // pick it up without a module-level singleton (which would race on
-  // concurrent renders).
+  // On the env object rather than a module-level singleton, which would
+  // race on concurrent renders.
   const env: { wikiResolution?: Record<string, WikiResolveResult> } = {};
   if (wikiResolution) env.wikiResolution = wikiResolution;
   const rawHtml = md.render(parsed.content, env);
@@ -407,17 +352,9 @@ function renderMarkdownToSafeHtml(
 }
 
 /**
- * Render markdown content as sanitized HTML with optional frontmatter
- * metadata. Used by FilePreview for `text/markdown` files and intended
- * for reuse by the knowledge addon's editor preview pane.
- *
- * - `chrome` (default true): wrap the body in a card (rounded-lg/bg) and render
- *   the frontmatter panel. Set false when the parent already provides chrome
- *   (e.g. the Ask answer panel).
- * - `mermaid` (default true): process ```mermaid fences into rendered SVG
- *   diagrams. Disable for untrusted content — mermaid's securityLevel:"loose"
- *   click directives can bypass DOMPurify since mermaid injects SVG via
- *   innerHTML after the sanitizer runs.
+ * `mermaid`: disable for untrusted content — mermaid's securityLevel:"loose"
+ * click directives can bypass DOMPurify since mermaid injects SVG via
+ * innerHTML after the sanitizer runs.
  */
 export function MarkdownPreview({
   source,
@@ -440,29 +377,17 @@ export function MarkdownPreview({
   mermaid?: boolean;
   className?: string;
   /**
-   * Wiki-link resolution map from the caller. Each key is the raw
-   * target text of a ``[[X]]`` (without ``|display`` / ``#heading``
-   * suffix); each value tells the renderer whether the target resolved
-   * to a single file, none, or multiple. When omitted (or a target is
-   * absent), the renderer emits the pessimistic "unresolved" form so
-   * the UI never flashes a brief "resolved -> unresolved" while the
-   * server fetch is in flight. Spec 2026-05-12 §3.8.
+   * Each key is the raw target text of a ``[[X]]`` (without ``|display`` /
+   * ``#heading`` suffix).
    */
   wikiResolution?: Record<string, WikiResolveResult>;
   onDocumentCaptureController?: (
     controller: DocumentCaptureController | null,
   ) => void;
-  /**
-   * Drive name used to resolve ``loft://file_id`` internal file links.
-   * Required for Knowledge editor preview; optional elsewhere.
-   */
   drive?: string;
   /**
-   * When provided, the frontmatter's ``tags`` row renders as an
-   * editable chip group (spec §D4). The caller must refetch
-   * ``source`` after a successful save to see the new frontmatter;
-   * the component itself does not mutate ``source`` unless
-   * ``onSourceChange`` is also provided (content mode).
+   * The caller must refetch ``source`` after a successful save to see the
+   * new frontmatter, unless ``onSourceChange`` is also provided.
    */
   editable?: {
     id: string;
@@ -471,30 +396,14 @@ export function MarkdownPreview({
     drive: string;
   };
   onTagsChange?: (tags: string[]) => void;
-  /**
-   * Fires after the standalone-mode debounced save lands. Intended
-   * for the file-detail page to refetch its own ``file.tags`` and
-   * bump its source reload key so both chip rows on the page stay in
-   * sync with the backend's projection.
-   */
   onTagsSaved?: (tags: string[]) => void;
   /**
-   * Content-mode opt-in: when provided together with ``editable``,
-   * chip edits rewrite ``source`` in-place via ``withTags`` and flow
-   * the new string back through this callback. The Properties Panel
-   * becomes a write-through editor on the parent's content state
-   * (used by Knowledge editor to avoid a second writer racing its
-   * own textarea auto-save). Without this, chip edits use the
-   * standalone debounced save path.
+   * When provided together with ``editable``, chip edits rewrite
+   * ``source`` and flow the new string back through this callback instead
+   * of saving, so there is no second writer racing the parent's own
+   * auto-save.
    */
   onSourceChange?: (nextSource: string) => void;
-  /**
-   * Optional passage to scroll-and-highlight after render, used by
-   * intelligence Ask citation cards. The hook locates the quote in
-   * the rendered DOM (whitespace-tolerant) and wraps the first match
-   * in a `<mark class="ask-citation-highlight">`. No-op when the
-   * quote is absent or cannot be located.
-   */
   highlight?: string;
 }) {
   const { frontmatter, html } = useMemo(
@@ -508,18 +417,11 @@ export function MarkdownPreview({
     onDocumentCaptureController,
     { includeHeading: true },
   );
-  // The hook is wired to the rendered body. It runs after the html
-  // is set, and re-runs when source or highlight changes.
   useHighlightPassage(containerRef, highlight, html.length > 0);
 
-  // After every render, scan for any unprocessed mermaid placeholders and
-  // replace them with rendered SVG.  We deliberately do NOT depend on [html]
-  // because React may re-apply dangerouslySetInnerHTML when the parent
-  // re-renders (e.g. a sibling toggle), wiping out previously-rendered SVG and
-  // restoring the original <pre class="mermaid-source"> placeholders.  Running
-  // on every render with an early-return when nothing is pending keeps the
-  // preview correct without churning when nothing changed.  Mermaid itself is
-  // loaded lazily (≈4 MB) and only initialized once via getMermaid().
+  // Deliberately does NOT depend on [html]: React may re-apply
+  // dangerouslySetInnerHTML when the parent re-renders, wiping out
+  // previously-rendered SVG and restoring the placeholders.
   useEffect(() => {
     if (!mermaid) return;
     const container = containerRef.current;
@@ -560,14 +462,9 @@ export function MarkdownPreview({
     };
   });
 
-  // chrome mode renders the file detail Markdown viewer, the Ask
-  // answer panel, and the knowledge editor preview. We deliberately
-  // *do not* clamp the body with `max-h-[80vh] overflow-auto` here —
-  // having a nested scroll container inside the page broke citation
-  // jump (the highlight target was inside an off-screen scroll
-  // viewport that the page-level scroll could not reach). Letting the
-  // page itself scroll keeps `scrollIntoView` deterministic and
-  // matches how PDF / text previews now behave.
+  // No nested scroll container here: it breaks citation jump, because the
+  // highlight target lands inside an off-screen scroll viewport that the
+  // page-level scroll cannot reach.
   const bodyClass = `markdown-body ${
     chrome
       ? `reading-measure mx-auto px-6 py-6 text-base leading-relaxed text-text-primary${className ? ` ${className}` : ""}`
@@ -605,8 +502,4 @@ export function MarkdownPreview({
   );
 }
 
-// MarkdownFileViewer is re-exported from a sibling module so it isn't
-// loaded as a transitive dependency of MarkdownPreview.tsx itself —
-// keeps Vitest mocks of this module clean (see file header of
-// MarkdownFileViewer.tsx for the full rationale).
 export { MarkdownFileViewer } from "@/components/MarkdownFileViewer";

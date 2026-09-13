@@ -1,30 +1,17 @@
 "use client";
 
 export interface ControlBarScrimProps {
-  /**
-   * True while the backend draws chrome of its own over the frame — an
-   * ad, or an end screen.
-   */
   backendOwnsFrame?: boolean;
 }
 
 /**
- * The legibility layer under a control bar that sits in the frame's
- * bottom strip. On its own `-z-10` layer so it can carry a blur without
- * the controls above it being blurred too (DESIGN.md, "Over-video
- * chrome").
+ * On its own `-z-10` layer so it can carry a blur without the controls above
+ * it being blurred too. The blur keeps an embedded backend's own chrome in
+ * this strip from reading as a second row of controls.
  *
- * An embedded backend draws chrome of its own in this same strip —
- * YouTube's pause overlay puts a share pill, a related-video card and
- * its wordmark exactly where the transport and right-hand controls sit
- * — and a thin scrim lets that read as a second, broken row of
- * controls. Blurring what is behind us settles it: the backend's chrome
- * falls back to being a backdrop, and ours reads as the layer in front.
- *
- * Not while the backend owns the frame, though. An ad's skip button and
- * the end screen's links live in this strip too, and those have to stay
- * legible — obscuring them breaks the player and, for ads, the API
- * terms. Then the scrim goes back to the plain gradient.
+ * Not while the backend owns the frame: an ad's skip button and the end
+ * screen's links have to stay legible — obscuring them breaks the player
+ * and, for ads, the API terms.
  */
 export function ControlBarScrim({
   backendOwnsFrame = false,

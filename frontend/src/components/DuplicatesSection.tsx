@@ -121,12 +121,6 @@ function FileRow({
               {file.folder_path || "/"}
             </span>
           </span>
-          {/* A name with a fact under it, so the table in
-              `lib/primaryMeta.ts` governs it — measured: this drive's
-              duplicate groups include `.loft` video pairs that read
-              "83 B" for a 5:34 video. No badge on the 40px thumbnail,
-              so the length goes on the line. The group's own byte
-              figure is one line up, on the header. */}
           {metaLine !== null && <span>{metaLine}</span>}
         </div>
       </div>

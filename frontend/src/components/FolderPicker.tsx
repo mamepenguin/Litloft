@@ -35,7 +35,6 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
 
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
-  // browsePath tracks which level we're navigating; starts at the selected value.
   const [browsePath, setBrowsePath] = useState(value);
   const [currentFolders, setCurrentFolders] = useState<Folder[]>([]);
   const [allFolders, setAllFolders] = useState<FolderTreeNode[]>([]);
@@ -43,15 +42,6 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
   const allLoadedRef = useRef(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  // Four of this picker's six callers are dialogs, and a dialog root here
-  // is `fixed inset-0` — the walk stops there and falls back to the
-  // visible band, which is the right frame: a centred dialog leaves the
-  // page behind it with nothing to scroll.
-  //
-  // This panel's height is also the one in the family that does not follow
-  // the viewport. The list below caps at `max-h-48`, a fixed 192px, rather
-  // than at a fraction of the screen the way the bar's menus do — so a
-  // short viewport shrinks the room without shrinking the panel.
   const { openUp } = useAnchoredDirection({
     triggerRef: wrapperRef,
     panelRef,
@@ -59,11 +49,7 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
     gapPx: ANCHORED_VERTICAL[2].px,
   });
 
-  // Escape closes the picker through the shortcut stack. As its own
-  // listener it fired alongside the listener of whatever dialog holds
-  // the picker, so one press closed both layers; on the stack the
-  // picker pushes later and wins outright. `editingOnly: false`
-  // because the picker sits beside a focused filename field.
+  // `editingOnly: false` because the picker sits beside a focused filename field.
   useShortcuts(
     "folder-picker",
     "Dialog",
@@ -80,7 +66,6 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
     OVERLAY_PRIORITY,
   );
 
-  // Load current-level folders whenever browsePath or open state changes.
   useEffect(() => {
     if (!open) return;
     setLoadingCurrent(true);
@@ -90,7 +75,6 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
       .finally(() => setLoadingCurrent(false));
   }, [drive, browsePath, open]);
 
-  // Load all folders once (for keyword filtering).
   useEffect(() => {
     if (!open || allLoadedRef.current) return;
     allLoadedRef.current = true;
@@ -127,7 +111,6 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
     navigate(path);
   }
 
-  // Clicking a filtered result selects it and closes the picker.
   function handleFilteredClick(path: string) {
     navigate(path);
     setOpen(false);
@@ -137,7 +120,6 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
 
   return (
     <div ref={wrapperRef} className="relative w-full min-w-0">
-      {/* Toggle button */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -161,14 +143,9 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
       {open && (
         <DismissScrim
           onDismiss={() => setOpen(false)}
-          // Under the panel, which is `z-50`. Four of this picker's six
-          // callers are dialogs, and a dialog root is `fixed z-50` — a
+          // Under the panel, which is `z-50`. A dialog root is `fixed z-50` — a
           // stacking context, so inside one these two numbers are compared
-          // against each other and nothing else. The two plain-page callers
-          // put the scrim in the floating-surface band (DESIGN.md
-          // §Layering) rather than the popover one it belongs to, and that
-          // follows from the panel's own `z-50`; renumbering the panel is
-          // the fix, and it is not this change's.
+          // against each other and nothing else.
           className="fixed inset-0 z-40"
         >
           <div
@@ -182,7 +159,6 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
               ANCHORED_VERTICAL[2][openUp ? "up" : "down"]
             }`}
           >
-            {/* Filter input */}
             <div className="border-b border-bg-border px-3 py-2">
               <div className="relative">
                 <Search
@@ -209,7 +185,6 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
               </div>
             </div>
 
-            {/* Breadcrumb (navigation mode only) */}
             {!isFiltering && (
               <div className="flex flex-wrap items-center gap-1 border-b border-bg-border px-3 py-2 text-xs text-text-muted">
                 <button
@@ -234,7 +209,6 @@ export function FolderPicker({ drive, value, onChange }: FolderPickerProps) {
               </div>
             )}
 
-            {/* Folder list */}
             <div className="max-h-48 overflow-y-auto">
               {isFiltering ? (
                 filteredFolders.length === 0 ? (

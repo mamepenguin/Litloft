@@ -23,13 +23,6 @@ const BASE_SORT_OPTIONS: SortOption[] = [
 ];
 
 /**
- * The orders a listing offers, in one place.
- *
- * `SortButton` held this table and `SortMenu` needs the same one. A second
- * copy would not fail anywhere: both menus would keep working, offering
- * different orders on different screens, and the only symptom would be a
- * folder that can be sorted by something Trash cannot.
- *
  * `relevance` is opt-in because it is meaningless outside a search query —
  * the caller says whether there is one.
  */
@@ -39,13 +32,6 @@ export function sortOptionsFor(allowRelevance?: boolean): SortOption[] {
     : BASE_SORT_OPTIONS;
 }
 
-/**
- * Is this order the one the screen starts in?
- *
- * Relevance is the search-mode default, so it counts as untouched there and
- * as a deliberate choice everywhere else. Callers use it to decide whether
- * the control should name the order it is holding or just name itself.
- */
 export function isDefaultSort(
   sort: SortField,
   order: SortOrder,
