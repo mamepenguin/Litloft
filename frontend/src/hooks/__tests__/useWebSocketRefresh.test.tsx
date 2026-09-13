@@ -6,8 +6,6 @@ import { WebSocketContext } from "@/components/WebSocketProvider";
 import { useWebSocketRefresh } from "../useWebSocketRefresh";
 import type { WebSocketEvent } from "@/types";
 
-// Test harness: a controllable WS context provider plus a probe
-// component that calls the hook and counts callback invocations.
 function Harness({
   events,
   onMatch,
@@ -149,7 +147,6 @@ describe("useWebSocketRefresh", () => {
       />,
     );
     await act(async () => {
-      // Two events back-to-back inside the same tick should yield one call.
       setter({ event: "files.moved", data: { file_ids: ["a"] } });
       setter({ event: "files.moved", data: { file_ids: ["b"] } });
       await flushMicrotasks();
@@ -195,8 +192,6 @@ describe("useWebSocketRefresh", () => {
       const onMatch = vi.fn();
       fire("photos", "movies", onMatch);
       await flushMicrotasks();
-      // Two public drives are both deliverable, so the access filter does
-      // not save us here — refetching another drive's listing is waste.
       expect(onMatch).not.toHaveBeenCalled();
     });
 
@@ -204,8 +199,6 @@ describe("useWebSocketRefresh", () => {
       const onMatch = vi.fn();
       fire("photos", undefined, onMatch);
       await flushMicrotasks();
-      // Never drop a refresh over a payload shape we did not expect: a
-      // missed update is visible to the user, a spare refetch is not.
       expect(onMatch).toHaveBeenCalledTimes(1);
     });
 
@@ -242,8 +235,6 @@ describe("useWebSocketRefresh", () => {
       const onMatch = vi.fn();
       render(<Reconnectable onMatch={onMatch} />);
       await flushMicrotasks();
-      // Consumers already fetch on mount; firing here would double every
-      // page load.
       expect(onMatch).not.toHaveBeenCalled();
     });
 
@@ -258,9 +249,6 @@ describe("useWebSocketRefresh", () => {
 
       setConnected(true);
       await flushMicrotasks();
-      // The socket is closed whenever the tab is hidden, so anything that
-      // happened while the user was away arrived nowhere. Refetch on the
-      // way back rather than waiting for the next event.
       expect(onMatch).toHaveBeenCalledTimes(1);
     });
 

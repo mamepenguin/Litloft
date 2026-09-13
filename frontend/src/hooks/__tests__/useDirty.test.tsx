@@ -85,7 +85,6 @@ describe("useIsDirty", () => {
     act(() => {
       dirtyRegistry.set("file-2", "knowledge-editor", true);
     });
-    // file-2 is dirty but we are watching file-1.
     expect(result.current).toBe(false);
 
     act(() => {

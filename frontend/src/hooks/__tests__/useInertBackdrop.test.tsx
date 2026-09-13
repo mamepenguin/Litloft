@@ -3,9 +3,8 @@ import { render, cleanup } from "@testing-library/react";
 import { useInertBackdrop } from "../useInertBackdrop";
 
 /**
- * Mirrors the shape an immersive viewer actually renders into: the viewer is
- * nested inside the page root rather than beside it, so the page it has to
- * neutralise is an ancestor's other subtree, not a sibling of <body>.
+ * The viewer is nested inside the page root rather than beside it, as an
+ * immersive viewer actually renders.
  */
 function Page({ open }: { open: boolean }) {
   const ref = useInertBackdrop<HTMLDivElement>(open);
@@ -96,8 +95,6 @@ describe("useInertBackdrop", () => {
     const { getByText, rerender } = render(<Vanishing open={false} />);
     (getByText("only while closed") as HTMLButtonElement).focus();
     rerender(<Vanishing open />);
-    // The opener unmounts on open, so the cleanup has nothing live to restore
-    // to; it must not throw on the detached node.
     expect(() => rerender(<Vanishing open={false} />)).not.toThrow();
   });
 

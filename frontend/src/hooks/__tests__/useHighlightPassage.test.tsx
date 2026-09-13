@@ -65,7 +65,6 @@ describe("useHighlightPassage", () => {
       />,
     );
     const mark = container.querySelector("mark.ask-citation-highlight");
-    // The fallback shrinks tokens until 4+ tokens still match.
     expect(mark?.textContent).toMatch(/^alpha beta gamma/);
   });
 
@@ -98,9 +97,6 @@ describe("useHighlightPassage", () => {
   });
 
   it("matches across smart-quote vs straight-quote divergence", () => {
-    // Source has straight ASCII apostrophe; LLM-generated quote has
-    // typographic curly apostrophe. Without the normalisation layer
-    // these would silently fail to match.
     const { container } = render(
       <HarnessFixture
         html="<p>It's a hot day in summer.</p>"
@@ -112,10 +108,7 @@ describe("useHighlightPassage", () => {
   });
 
   it("matches a contiguous N-word window when head and tail both diverge", () => {
-    // Source has a verbatim 4-word phrase ("multi-stage retrieval
-    // pipeline before") in the middle, but the head and tail of the
-    // LLM quote are both paraphrased away. Without the N-token
-    // window fallback, prefix and suffix shrink would both miss.
+    // Head and tail both diverge, so prefix and suffix shrink would both miss.
     const { container } = render(
       <HarnessFixture
         html="<p>Some intro text. The indexer applies a multi-stage retrieval pipeline before ranking. Closing thoughts.</p>"
@@ -129,11 +122,7 @@ describe("useHighlightPassage", () => {
   });
 
   it("matches a contiguous CJK character run (no whitespace tokens)", () => {
-    // Reproduces the user's reported case: Japanese quote and source
-    // share a verbatim phrase「書く文化」を持たない多数派 in the
-    // middle, but the LLM paraphrased the head and tail. With no
-    // spaces in the text, word-token fallbacks never engage — the
-    // character-sliding fallback is the only thing that hits.
+    // No spaces in the text, so the word-token fallbacks never engage.
     const { container } = render(
       <HarnessFixture
         html="<p>HomeVault は元々ファイル管理アプリだが、Obsidian/Notion が要求する「書く文化」を持たない多数派にとって第二の脳の最後の砦になりうる。</p>"
@@ -141,14 +130,11 @@ describe("useHighlightPassage", () => {
       />,
     );
     const mark = container.querySelector("mark.ask-citation-highlight");
-    // Exact extent depends on the greedy expansion, but the highlight
-    // must at least cover the canonical shared phrase.
+    // Exact extent depends on the greedy expansion.
     expect(mark?.textContent).toMatch(/「書く文化」を持たない多数派/);
   });
 
   it("falls back to a character prefix when mid-quote diverges", () => {
-    // Source rephrased "(parenthetical)" relative to the quote; the
-    // first 25-60 chars still match exactly.
     const { container } = render(
       <HarnessFixture
         html="<p>The protagonist arrives in the silent city at dusk.</p>"

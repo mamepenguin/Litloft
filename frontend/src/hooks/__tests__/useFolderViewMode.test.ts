@@ -77,10 +77,6 @@ describe("resolveFolderViewMode (layered fallback, grid|list)", () => {
   ] as const)(
     "opens a %s-dominant folder as a %s, like a collection of the same",
     (dominantKind, expected) => {
-      // The folder half of the change, and the half with the wider blast
-      // radius — every folder page, not just collections. Asserted on
-      // behaviour so a re-introduced local table fails here and not only
-      // in a source scan.
       localStorage.setItem(GLOBAL_KEY, expected === "grid" ? "list" : "grid");
       expect(
         resolveFolderViewMode({ drive: "work", folderPath: "f", dominantKind }),
@@ -89,11 +85,6 @@ describe("resolveFolderViewMode (layered fallback, grid|list)", () => {
   );
 
   it("layer 3 is reached only by a mixed folder", () => {
-    // `viewModeForKind` is total over `FolderKind` now, so every folder
-    // with a dominant kind is answered at layer 2 — `document` used to
-    // fall through here, on the strength of a `default:` arm rather than
-    // of a decision about what its cards look like. The global default
-    // is what a folder with *no* dominant kind falls back to.
     localStorage.setItem(GLOBAL_KEY, "list");
     expect(
       resolveFolderViewMode({
@@ -180,10 +171,7 @@ describe("useFolderSort", () => {
   });
 
   it("falls back to the default when the stored field was retired", () => {
-    // A sort selection outlives the deploy that removes it. "likes" was
-    // stored per folder, so without this fallback that folder would send
-    // a rejected sort on every load until localStorage was cleared by
-    // hand (spec 2026-09-01-favorite-like-separation).
+    // A sort selection outlives the deploy that removes it.
     localStorage.setItem(
       driveKey("work"),
       JSON.stringify({ Q1: { sort: "likes", order: "desc" } }),

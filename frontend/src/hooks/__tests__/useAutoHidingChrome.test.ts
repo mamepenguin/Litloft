@@ -43,10 +43,7 @@ describe("chrome that withdraws when the frame is left alone", () => {
 
   it("never listens for a press, on either pointer", () => {
     // The viewer's own centre tap toggles the chrome. A press that also
-    // restored it here would cancel itself: the bar appears for the
-    // length of the press and is gone on release, however many times you
-    // try. That was written down as a touch-only hazard and scoped out
-    // of the coarse set alone; it cancels wherever both are bound.
+    // restored it here would cancel itself.
     for (const mode of ["fine", "coarse"] as const) {
       stubPointer(mode);
       const { result, unmount } = renderHook(() => useAutoHidingChrome());
@@ -83,10 +80,9 @@ describe("chrome that withdraws when the frame is left alone", () => {
   });
 
   it("restarts the clock when a finger lands on the chrome itself", () => {
-    // On a coarse pointer the document hears nothing a reader does, so a
-    // bar summoned by a centre tap had a flat two seconds and withdrew
-    // mid-reach. `chromeProps.onPointerDown` is bound on the bar, where
-    // no toggle handler competes with it.
+    // On a coarse pointer the document hears nothing a reader does.
+    // `chromeProps.onPointerDown` is bound on the bar, where no toggle
+    // handler competes with it.
     stubPointer("coarse");
     const { result } = renderHook(() => useAutoHidingChrome());
 

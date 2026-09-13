@@ -127,7 +127,6 @@ describe("useFileNav", () => {
         }),
       { wrapper: Wrapper },
     );
-    // enabled=false also gates the fetch — neighbors should not be requested.
     await Promise.resolve();
     expect(api.getFileNeighbors).not.toHaveBeenCalled();
     await dispatchKey("ArrowLeft");
@@ -205,7 +204,6 @@ describe("useFileNav", () => {
     await waitFor(() =>
       expect(api.getFileNeighbors).toHaveBeenCalled(),
     );
-    // Wait an extra microtask to let the promise resolve and state update.
     await waitFor(() =>
       expect(api.getFileNeighbors).toHaveBeenCalledTimes(1),
     );

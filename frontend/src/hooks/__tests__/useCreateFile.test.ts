@@ -73,7 +73,6 @@ describe("useCreateFile", () => {
     });
 
     const [, body] = mockedCreate.mock.calls[0]!;
-    // No leading slash and no "Notes/" prefix.
     expect(body.path.startsWith("/")).toBe(false);
     expect(body.path).toMatch(/^untitled-\d{8}-\d{6}\.md$/);
     expect(pushMock).toHaveBeenCalledWith("/files/root1?edit=1");
@@ -133,12 +132,9 @@ describe("useCreateFile", () => {
       await result.current.createFile();
     });
 
-    // The hook must not navigate on failure.
     expect(pushMock).not.toHaveBeenCalled();
-    // User-visible feedback was raised (i18n key surfaced via mock).
     expect(alertSpy).toHaveBeenCalledTimes(1);
     expect(alertSpy).toHaveBeenCalledWith("createFileFailed");
-    // After failure isCreating must reset so the user can retry.
     await waitFor(() => {
       expect(result.current.isCreating).toBe(false);
     });

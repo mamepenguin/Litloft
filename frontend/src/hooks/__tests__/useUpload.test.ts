@@ -62,7 +62,6 @@ describe("useUpload", () => {
       result.current.addFileEntries(entries);
     });
 
-    // Wait for async processing
     await vi.waitFor(() => {
       expect(initUpload).toHaveBeenCalledWith("drive1", expect.objectContaining({
         relative_path: "myfolder/a.txt",

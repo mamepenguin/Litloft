@@ -1,9 +1,3 @@
-/**
- * Tests for useFolderFilter — the right-pane (current folder) filter hook.
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §2.
- *
- * RED phase — the hook does not exist yet.
- */
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -75,7 +69,6 @@ describe("useFolderFilter", () => {
     act(() => {
       result.current.setText("SPEC");
     });
-    // Debounce 300ms.
     act(() => {
       vi.advanceTimersByTime(300);
     });
@@ -85,11 +78,8 @@ describe("useFolderFilter", () => {
   });
 
   it("no longer classifies — that is the toolbar's job, and the server's", () => {
-    // This hook carried a second kind filter forty pixels below the
-    // toolbar's. The toolbar asks the server; this sifted the rows
-    // already loaded, so past the first page of thirty the same choice
-    // gave two answers. The vocabulary and its one classifier now live
-    // in the backend (tests/test_file_kind_filter.py).
+    // A client-side kind filter only sees the rows already loaded, so past
+    // the first page it disagrees with the server's.
     const { result } = renderHook(() => useFolderFilter(sampleFiles));
     expect(result.current).not.toHaveProperty("typeFilter");
     expect(result.current).not.toHaveProperty("setTypeFilter");
@@ -101,7 +91,6 @@ describe("useFolderFilter", () => {
     act(() => {
       result.current.setText("spec");
     });
-    // Before debounce fires, files are still unfiltered.
     expect(result.current.files.length).toBe(sampleFiles.length);
     act(() => {
       vi.advanceTimersByTime(299);
@@ -121,9 +110,6 @@ describe("useFolderFilter", () => {
     act(() => {
       result.current.setText("foo");
     });
-    // Mid-debounce: text is set on the input, but the debounced filter
-    // hasn't applied yet — isActive must still be false so the empty
-    // state doesn't flash.
     expect(result.current.text).toBe("foo");
     expect(result.current.isActive).toBe(false);
 
@@ -174,7 +160,6 @@ describe("useFolderFilter", () => {
   });
 
   beforeEach(() => {
-    // ensure each test starts with real timers; some tests opt into fake timers locally.
     vi.useRealTimers();
   });
 
