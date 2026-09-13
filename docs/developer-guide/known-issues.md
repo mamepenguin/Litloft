@@ -1,14 +1,18 @@
 # Known issues
 
-Defects and doubts that are known and deliberately open. A review finding that
-is neither fixed nor listed here has been discarded.
+Defects that are known, deliberately open, and **reachable by a user or an
+addon**.
 
 **What goes here** — bucket B and C findings from `.claude/rules/review-workflow.md`
-R-4: something that breaks no declared invariant but reads wrong, and any
-pre-existing defect a change surfaced but did not introduce.
+R-4 that somebody can actually hit: something that breaks no declared invariant
+but is wrong on screen or in the data, and any pre-existing defect a change
+surfaced but did not introduce.
 
-**What does not** — anything that breaks a declared invariant. Those are fixed
-before the change merges.
+**What does not** — anything that breaks a declared invariant, which is fixed
+before the change merges; and anything nobody can reach, such as a gap in test
+coverage over correct behaviour. Those stay in the findings files under
+`docs/developer-guide/reviews/<pr>/`, which are the record. A ledger that
+collects every closed finding stops being read.
 
 **One line each, plus how it is reached.** A reader must be able to decide
 whether they have hit it. No investigation notes: those belong to a spec under
@@ -46,17 +50,6 @@ the picture the live file is showing. Reachable with no error: a file goes
 missing, and another of the same name is moved into its folder. Copying does not
 do this — `copy_file` takes the name away from the retired record once the JPEG
 is written.
-
-**A paste that copies a thumbnail is not held by any test.** Deleting the line
-that points the new row at the JPEG just written for it leaves the whole suite
-green, at `develop` as well: the ordinary outcome of the feature — paste a
-video, see its picture — has no observer. The two tests that touch the
-assignment do so incidentally, through Missing records.
-
-**Copying onto a Trashed record is untested end to end.** The `db.flush()` that
-separates the ghost's DELETE from the copy's INSERT is load-bearing — remove it
-and a real paste fails with a UNIQUE violation — and no test seeds a trashed
-record at a copy, move or rename destination.
 
 ## Navigation
 
