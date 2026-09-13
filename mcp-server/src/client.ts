@@ -121,12 +121,9 @@ function buildUrl(
 }
 
 // Every write goes through the same public /api/* surface the frontend
-// uses (hako yOp7JPjCTJVe_Ui5rWrEV): this client is intentionally a thin
-// fetch wrapper with no Litloft-specific business logic, so the backend's
-// existing validation/access-control stays the single source of truth.
-// A hung/unresponsive backend must not block a tool call forever — mirrors
-// the AbortSignal.timeout pattern the project's own SSR fetches use
-// (backend PR fixing page.tsx SSR hangs).
+// uses: this client is intentionally a thin fetch wrapper with no
+// Litloft-specific business logic, so the backend's existing
+// validation/access-control stays the single source of truth.
 export function createLitloftClient(config: LitloftClientConfig): LitloftClient {
   const baseUrl = config.baseUrl.replace(/\/+$/, "");
   const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;

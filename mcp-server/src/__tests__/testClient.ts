@@ -31,10 +31,8 @@ export interface RecordedSseCall {
   options?: LitloftSseRequestOptions;
 }
 
-// A test double standing in for the real HTTP client. The wire-level
-// behavior (headers, query serialization, error mapping) is already
-// covered by client.test.ts; these fakes let tool tests assert only the
-// delta they own: which method/path/body a tool call maps to.
+// A test double standing in for the real HTTP client, so tool tests assert
+// only which method/path/body a tool call maps to.
 export function fakeClient(
   impl: (call: RecordedCall) => Promise<unknown>,
   rawImpl?: (call: RecordedRawCall) => Promise<LitloftRawResponse>,
