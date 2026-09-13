@@ -803,7 +803,7 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | `sidebar-sections` | Sidebar | Stack | Per-addon shortcuts |
 | `loft-player` | File detail (external-source files) | Stack | Embedded player for URL-only files |
 | `active-summary-view` | File detail | Stack | Knowledge-promoted summary note rendering. Hidden when no addon registers — file detail page falls back to the AI summary section. |
-| `drive-home-sections` | Drive home page | Stack | Per-drive feature widgets (e.g. "Pickup" recommendations) |
+| `drive-home-sections` | Drive home page, between *Continue watching* and *Recently Viewed* | Stack | Per-drive feature widgets (e.g. "Pickup" recommendations) |
 | `admin-settings-sections` | Admin settings page | Stack | Additional settings sections contributed by addons |
 | `admin-intelligence-sections` | Intelligence admin page (`/drive/{drive}/addons/intelligence/admin`) | Stack | Intelligence-specific settings panels (features, LLM provider, transcription, RAG) |
 

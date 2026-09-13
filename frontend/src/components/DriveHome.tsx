@@ -353,6 +353,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         />
       )}
 
+      {/* Between the two watch rows, not after them. What fills this
+          slot is a suggestion — something to pick up that the reader has
+          not already told the page about — so it belongs beside "what
+          you were in the middle of" and ahead of the plain record of
+          what you opened (spec §6.2, arbitration 7). It is ungated: a
+          suggestion does not need a profile to be worth making. */}
+      <AddonSlot id="drive-home-sections" props={{ drive: driveName }} />
+
       {hasProfile && (
         <ContinueWatchingSection
           items={recentlyPlayed}
@@ -363,8 +371,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           onRemoveItem={handleRemoveWatchItem}
         />
       )}
-
-      <AddonSlot id="drive-home-sections" props={{ drive: driveName }} />
 
       <CarouselSection
         title={t("recentAdded")}
