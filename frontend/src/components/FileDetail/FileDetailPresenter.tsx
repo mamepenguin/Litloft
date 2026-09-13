@@ -21,24 +21,16 @@ export interface FileDetailPresenterProps {
   fileId: string;
   drive: string;
   isMobile: boolean;
-  /** Whether this file, on this surface, is drawn by `FileDetailShell`. */
   ridesShell: boolean;
   isHtmlPreview: boolean;
   companionKind: string | null;
-  /** Whether a player plays this file at all — `companionKind !== null`. */
   hasPlayer: boolean;
-  /** Whether the canvas is a viewer rather than the Knowledge editor. */
   usesCanvasViewer: boolean;
-  /** Whether the canvas owns the description, rather than the inspector. */
   descriptionInCanvas: boolean;
-  /** Whether the player's height is a function of its width. */
   playerFramed: boolean;
   railEligible: boolean;
-  /** Whether anyone could fill the companion. Decides what is mounted. */
   companionMountable: boolean;
-  /** Whether anyone does, for this file. Decides what chrome is drawn. */
   companionOccupied: boolean;
-  /** Per-file "have I anything" answers from the slot entries. */
   slotAvailability: SlotAvailability;
   isTimedMedia: boolean;
   chaptersPresent: boolean;
@@ -60,24 +52,14 @@ export interface FileDetailPresenterProps {
   markdownReloadKey: number;
   onMarkdownTagsSaved: () => void;
   onRename: (newFilename: string) => Promise<void>;
-  /** Host override for the page row's back control; see the container. */
   onBack?: () => void;
-  /** Title, meta, action row and tags — placed, not built, here. */
   meta: ReactNode;
-  /** The Bottom Sheet's 56px resting row, on the surfaces that have one. */
   sheetPeek?: ReactNode;
 }
 
 /**
- * Which shape this file's detail page takes, and nothing else.
- *
- * Two of them: the shell — a page row, a canvas and an inspector, worn
- * by every kind that has been moved onto it — and the legacy vertical
- * stack, which survives on the collection-playback route. That route is
- * deliberately not getting an inspector (the canonical URL is a file's
- * address, so a second one there would be work to throw away), so the
- * stack is not dead code waiting to be deleted; it is that surface's
- * layout.
+ * The legacy vertical stack survives on the collection-playback route. It
+ * is not dead code waiting to be deleted; it is that surface's layout.
  */
 export function FileDetailPresenter({
   file,
@@ -161,20 +143,16 @@ export function FileDetailPresenter({
     );
   }
 
-  // Legacy vertical stack. Everything under the player, in one column.
   const rest = (
     <>
       {meta}
 
       <div className="mt-4 space-y-4">
         <ActiveSummaryHost fileId={fileId} drive={drive} />
-        {/* The same grouping the inspector draws, for the same reason:
-            core's own relations and whatever an addon derives are two
-            answers to one question. It is here at all because an addon
-            publishing to `file-relations` has *moved* its entry out of
-            `file-detail-sections` — the slot below no longer reaches it
-            — so this column would otherwise lose the section outright
-            rather than merely style it differently. */}
+        {/* Here because an addon publishing to `file-relations` has
+            *moved* its entry out of `file-detail-sections` — the slot below
+            no longer reaches it — so this column would otherwise lose the
+            section outright. */}
         <RelatedGroup>
           <RelatedFilesSection fileId={fileId} />
           <AddonSlot id="file-relations" layout="stack" props={addonSlotProps} />

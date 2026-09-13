@@ -11,47 +11,18 @@ import { TreeToggle } from "../TreeToggle";
 
 interface FileDetailChromeProps {
   drive: string;
-  /** Drive-relative folder the file sits in; empty at the drive root. */
   folderPath?: string;
-  /** Leaf label. Plain text unless `titleNode` replaces it. */
   title: string;
-  /**
-   * Replacement for the leaf label — a Markdown note hands its
-   * click-to-edit filename here. Given to the breadcrumb as its
-   * trailing segment, so the folder path above it stays navigable.
-   */
   titleNode?: ReactNode;
-  /**
-   * Overrides the mobile back control. Without it the control is a
-   * `Link` to the parent folder, which is what "back" means on this
-   * page. The collection surface passes its own handler because there
-   * "back" means the collection you came from, not the file's folder.
-   */
   onBack?: () => void;
-  /** Type-specific controls, between the leaf and the inspector toggle. */
   children?: ReactNode;
-  /** Omitted where there is no inspector to toggle. */
   inspector?: {
     open: boolean;
     onToggle: () => void;
   };
-  /** The tree pane has no meaning outside the 2-pane host. */
   showTreeToggle?: boolean;
 }
 
-/**
- * The one page row every file detail surface wears.
- *
- * Before this there were three of them and none carried a breadcrumb:
- * the 2-pane header showed a bare filename, the Markdown shell showed a
- * filename plus editor controls, and the collection route showed a back
- * link and nothing else — so on a phone the canonical URL had no way
- * back at all (M-6 / MB-3). One row, one answer: the path on a wide
- * screen, its last step on a narrow one.
- *
- * Navigation is `Link` throughout (hako project_spa_navigation): nothing
- * here reloads the app to move one folder up.
- */
 export function FileDetailChrome({
   drive,
   folderPath,
@@ -74,8 +45,6 @@ export function FileDetailChrome({
   // One instance, placed.
   const isMobile = useIsMobile();
 
-  // What "up" is from here. A file at the drive root has the drive
-  // itself as its parent, which is also what the breadcrumb shows.
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
   const parentName = segments.length > 0 ? segments[segments.length - 1] : drive;
   const parentHref =
@@ -85,9 +54,6 @@ export function FileDetailChrome({
           .join("/")}`
       : `/drive/${encodeURIComponent(drive)}`;
 
-  // The full path does not fit a phone, and the sizing rules forbid
-  // wrapping it (00-basis.md). One step up is the part that is actually
-  // load-bearing there, so that is the step that survives.
   // "Back to <folder>" is only true when back means "up". A host that
   // supplied `onBack` has said it does not: during collection playback
   // it returns to the collection. Labelling that control with the
@@ -139,13 +105,9 @@ export function FileDetailChrome({
           and hiding one costs a duplicate DOM node and buys a layout
           that needs no measurement to decide between them.
 
-          Except where the host supplied `onBack`. That is a host saying
-          the breadcrumb cannot express where back goes — during
-          collection playback it is the collection, not the folder this
-          track happens to sit in — so the control it gave has to survive
-          the width at which the breadcrumb takes over. It shares the row
-          there rather than replacing it: the path still answers "where
-          is this file", which the collection cannot. */}
+          Where the host supplied `onBack`, the breadcrumb cannot express
+          where back goes, so the control it gave has to survive the width
+          at which the breadcrumb takes over. */}
       <div
         className={
           onBack

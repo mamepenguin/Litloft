@@ -11,36 +11,14 @@ import { canOpenArchiveEntry } from "@/components/archive/archiveUtils";
 import type { ArchiveEntry, FileType } from "@/types";
 
 /**
- * How many rows are drawn before the filter has narrowed anything.
- *
- * A 2439-file source zip is the case this tab exists for, and mounting
- * 2439 rows to show the first twenty of them is the same freeze the PDF
- * rail bounds itself against. Typing is how the rest is reached, which
- * is also how anyone finds a path in a tree that size.
+ * Mounting every row of a large archive to show the first twenty of them
+ * freezes the page. Typing is how the rest is reached.
  */
 export const INITIAL_ROWS = 200;
 
 /**
- * A flat index of the whole archive, with a filter.
- *
- * The canvas shows the level you are on; this shows what is in the
- * archive. They do not overlap, which is the condition for the tab
- * existing at all (`buildInspectorTabs` rule 1) — walking down to
- * `lib/main.dart` one directory at a time is not a way of finding it.
- *
- * The filter is plain substring matching, not the semantic search
- * behind Cmd+K. `00-basis.md` F-4: a filter that moves you somewhere has
- * to be predictable, and a ranked answer to "main" is not.
- */
-/**
- * One path, pressable or not.
- *
- * The same rule the canvas keeps: an entry the viewer cannot open is
- * not a control in the off position, so it is not a button. Pressing one
- * used to move the canvas into a folder nobody asked for and then do
- * nothing — `handleFileClick` matches neither the image nor the text
- * arm and returns silently. The download is the way out, exactly as it
- * is in the listing.
+ * An entry the viewer cannot open is not a control in the off position,
+ * so it is not a button.
  */
 function IndexRow({
   entry,
@@ -61,10 +39,9 @@ function IndexRow({
       className="flex-shrink-0 text-text-muted"
     />
   );
-  /* Truncated from the *left*: in a 384px column the tail of
-     `lib/src/widgets/main.dart` is the part that tells two paths apart,
-     and `direction: rtl` is what makes the ellipsis land at the front.
-     `bdi` keeps the path itself reading left-to-right inside it. */
+  /* Truncated from the *left*: the tail of a path is the part that tells
+     two paths apart, and `direction: rtl` is what makes the ellipsis land
+     at the front. `bdi` keeps the path itself reading left-to-right. */
   const path = (
     <span className="min-w-0 flex-1 truncate text-left text-xs [direction:rtl]">
       <bdi>{entry.path}</bdi>
@@ -106,13 +83,17 @@ function IndexRow({
   );
 }
 
+/**
+ * The filter is plain substring matching, not the semantic search behind
+ * Cmd+K: a filter that moves you somewhere has to be predictable, and a
+ * ranked answer to "main" is not.
+ */
 export function ArchivePagesPanel({
   controller,
   fileId,
   className = "",
 }: {
   controller: ArchiveController;
-  /** For the download an unopenable entry offers instead of a press. */
   fileId: string;
   className?: string;
 }) {

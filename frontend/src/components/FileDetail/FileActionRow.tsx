@@ -22,31 +22,12 @@ export interface FileActionRowProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   addonSlotProps: Record<string, unknown>;
   /**
-   * The peek row's form: the four controls the design names, no labels.
-   *
-   * `00-basis.md` gives the strip as 題名 ＋ ♡ ☆ AI ▾ ⋮ and says to
-   * reduce the *number* of controls rather than strip labels when a row
-   * will not fit. Both happen here, and in that order: trust, Cast and
-   * the gallery launcher are not dropped but *not lifted* — they live
-   * in the inspector's fixed part, which is where the confirmed layout
-   * puts the state chip. What remains then sheds its words, because it
-   * is sharing a 375px line with the file's name.
-   *
-   * Measured: the four at 375px come to about 180px including gaps,
-   * leaving the title ~155px. With trust and Cast it was ~370px and the
-   * title had none.
+   * Trust, Cast and the gallery launcher are not dropped but *not lifted* —
+   * they live in the inspector's fixed part.
    */
   compact?: boolean;
 }
 
-/**
- * Like, favourite, trust, the addon entries, and the overflow menu.
- *
- * One row, drawn in one of two places and never both: with the rest of
- * the file's metadata in the inspector, or in the Bottom Sheet's peek
- * row on a phone, where it is what the reader can reach without raising
- * the sheet at all.
- */
 export function FileActionRow({
   file,
   onFileChange,
@@ -66,22 +47,11 @@ export function FileActionRow({
       // Wraps because it also renders inside the 384px inspector. The
       // peek row is the one place it must not: there it shares a line
       // with the title, so it stays on one line and sheds its labels.
-      // The touch floor is on the class, not on the row's height.
       // `pointer-coarse:min-h-11` alone was wrong here: it makes the row
-      // 44px and `items-center` never stretches a child into it, so the
-      // targets stayed 28px inside a tall row — the case `DESIGN.md`
-      // §Row Actions names when it says to give the row's own controls
-      // the same treatment wherever alignment stops them inheriting it.
+      // 44px and `items-center` never stretches a child into it.
       // `file-action-row-touch` grows each control to 44px on a coarse
       // pointer instead, in CSS, because three of the four are not this
       // component's to give a class to — one is an addon's.
-      //
-      // On **both** rows. They hold the same controls at the same 2-4px
-      // pitch, and only the strip had the floor: the inspector's row left
-      // Like, Favorite, the gallery button and the overflow at 32px while an
-      // addon's trigger reached 44 on its own — which §Row Actions names as
-      // the outcome that buys nothing. `file-action-row-compact` stays as the
-      // compact row's identity, which its own test asserts.
       className={
         compact
           ? "file-action-row-touch file-action-row-compact flex flex-shrink-0 items-center gap-0.5"
@@ -113,11 +83,8 @@ export function FileActionRow({
       {!compact && file.file_type === "video" && (
         <CastButton mediaRef={videoRef} />
       )}
-      {/* Named for what it holds, not for where it sits: this row is
-          drawn in the inspector's fixed header, and on a phone with the
-          sheet collapsed in the 56px strip instead — so entries bring
-          their own trigger and take no sizing from the host. Before the
-          overflow menu, so `⋮` stays last as it reads everywhere. */}
+      {/* Entries bring their own trigger and take no sizing from the host.
+          Before the overflow menu, so `⋮` stays last as it reads everywhere. */}
       <AddonSlot
         id="file-detail-actions"
         layout="stack"

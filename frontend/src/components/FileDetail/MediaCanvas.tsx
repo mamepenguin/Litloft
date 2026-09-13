@@ -15,23 +15,11 @@ interface MediaCanvasProps
   file: FileItem;
   fileId: string;
   metrics: CompanionMetrics;
-  /** Whether the player's height follows its width (video and `.loft`). */
   framed: boolean;
   isTimedMedia: boolean;
-  /**
-   * Whether the description belongs here rather than in the inspector.
-   *
-   * A media file's description is its show notes and reads with the
-   * player; a PDF's is a property of the file and reads with its title
-   * and size. Decided once by the container, because the inspector is
-   * making the opposite half of the same decision and the two must not
-   * be spelled separately — that is how it came to be drawn twice.
-   */
   showDescription: boolean;
   mediaController: MediaController | null;
   /**
-   * The companion's occupants, when this canvas is where they live.
-   *
    * `null` means they are inspector tabs instead. The distinction is
    * made once by the layout and passed down, because chapters and the
    * transcript must be mounted in exactly one of the two places — the
@@ -40,9 +28,7 @@ interface MediaCanvasProps
    */
   companion: {
     chaptersPresent: boolean;
-    /** Whether anything in the box has content for this file. */
     occupied: boolean;
-    /** The `player-side` entries, already built by the layout. */
     slots: ReactNode;
   } | null;
   chaptersVersion: number;
@@ -55,17 +41,6 @@ interface MediaCanvasProps
   heavySummaries: ReactNode;
 }
 
-/**
- * What a media file's detail page keeps in the canvas.
- *
- * The viewer, and the long things that belong to the viewer: the
- * description, the transcript when the reader has put it below rather
- * than beside, and the table-heavy summaries. Everything else — title,
- * tags, relations, comments, the addon sections — is in the inspector,
- * which is the whole point of the 2026-09 layout: a 190-page archive or
- * a 19-minute video used to get a strip of page for the thing it
- * actually is, with metadata stacked under it.
- */
 export function MediaCanvas({
   file,
   fileId,
@@ -100,11 +75,7 @@ export function MediaCanvas({
         layoutToggle={null}
       />
 
-      {/* Capped at the long-form measure. It is the file's show notes
-          and can run to many paragraphs; the canvas is the page minus
-          the inspector, which is well past comfortable.
-
-          Left-aligned rather than centred, unlike the player above it.
+      {/* Left-aligned rather than centred, unlike the player above it.
           The player is centred because its width is a function of the
           height budget, so it is narrower than the column it sits in;
           everything below it is a reading column and lines up with the
@@ -119,18 +90,11 @@ export function MediaCanvas({
       )}
 
       {companion && (
-        // Directly under the description, which is where the confirmed
-        // layout puts it: the reader has said they want the transcript
-        // below the player, so it goes below the player and not below
-        // the summaries that are about it.
-        //
         // `data-occupied="false"` hides the box in CSS rather than
         // dropping it, and that is the whole mechanism: its occupants
         // are what report whether they have anything, so a box removed
         // because they had nothing yet would remove the reporters and
-        // leave the answer stuck at its first guess. Same shape as the
-        // inspector's unlisted tab, which stays mounted and loses only
-        // its button.
+        // leave the answer stuck at its first guess.
         <div
           className="media-detail-below"
           data-occupied={companion.occupied ? "true" : "false"}

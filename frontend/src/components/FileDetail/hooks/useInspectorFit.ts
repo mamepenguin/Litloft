@@ -5,30 +5,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { INSPECTOR_BESIDE_MIN_REM } from "@/lib/layoutSizes";
 
 /**
- * Whether the inspector can sit beside the canvas or has to cover it.
- *
- * **Measured, not a breakpoint**, and this is the axis `DESIGN.md` §8.5
- * means by "measure against the container": the shell renders full-width
- * on one route and inside the 2-pane right pane on another, where an
- * inline sidebar and a 280px tree have already taken up to 520px that
- * the viewport says nothing about. A viewport rule put a 296px video on
- * screen at 1200px — wider than the window where the same rule was
- * correct.
- *
- * It is the second of the two axes the design separates, and the pair
- * has to stay separate:
- *
- * - **Viewport** decides whether the inspector *starts* open
- *   (`inspectorOpenStore`, 1120px). A stored choice outranks it.
- * - **Container** decides whether it can be *beside* rather than over.
- *   Nothing outranks it: it is a fact about the space, not a preference.
- *
- * Published as an attribute rather than held in state, the way
- * `data-media-width` is. The placement is decided entirely in CSS, so a
- * window drag costs no React work and the inspector does not re-mount
- * when it changes form — which matters, because its tab panels hold a
- * transcript's scroll position and its subscription to the playback
- * clock.
+ * **Measured, not a breakpoint**: the shell renders full-width on one route
+ * and inside the 2-pane right pane on another.
  *
  * Measured on the row that holds both, never on the canvas: the canvas
  * is what changes width when the inspector opens, so measuring it would

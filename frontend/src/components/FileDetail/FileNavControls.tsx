@@ -6,21 +6,12 @@ import { useTranslations } from "next-intl";
 import { useFileNavState } from "@/lib/fileNavContext";
 
 /**
- * Prev / `n / N` / next, in the page row.
- *
- * The arrow keys have always walked to the neighbouring file; this is
- * the same walk with a handle on it. Both go through the host's
- * `onNavigate`, so the dirty-editor confirm fires either way — a second
- * path into "go to the next file" is how one of them ends up skipping
- * `navigationGuard`.
- *
- * Drawn for images only. The keys are bound for archives, PDFs and text
- * too, but those are surfaces for reading *into* a file, and a pair of
- * arrows in the page row there reads as the viewer's own paging.
+ * Both go through the host's `onNavigate`, so the dirty-editor confirm
+ * fires either way — a second path into "go to the next file" is how one
+ * of them ends up skipping `navigationGuard`.
  *
  * The ends are disabled rather than hidden: a control that vanishes
- * says nothing about why, and "you are at the end of the folder" is
- * exactly what the reader is asking when they press it.
+ * says nothing about why.
  */
 export function FileNavControls() {
   const t = useTranslations("file");
@@ -56,11 +47,9 @@ export function FileNavControls() {
         <ChevronLeft size={16} />
       </button>
 
-      {/* The readout is what goes when the row runs out of width: the
-          buttons still move, and `00-basis.md` forbids wrapping a row of
-          controls. It is also dropped when the ordering cannot rank this
-          file — `/neighbors` reports null for both halves there, and
-          half a fraction is not a smaller readout, it is a wrong one. */}
+      {/* It is dropped when the ordering cannot rank this file —
+          `/neighbors` reports null for both halves there, and half a
+          fraction is not a smaller readout, it is a wrong one. */}
       {position !== null && total !== null && (
         <span
           data-testid="file-nav-position"
