@@ -209,12 +209,13 @@ describe("every card grid goes through lib/cardGrid", () => {
 
   it("finds the card grids it is meant to be checking", () => {
     // "None of them counts columns" is also true of an empty set, so the
-    // population has to be asserted before the property is.
-    expect(sites.length).toBeGreaterThan(0);
+    // population has to be asserted before the property is. Declared,
+    // not bounded: `toBeGreaterThan(0)` stays green when the scan stops
+    // reaching all but one of them.
+    expect(sites.length).toBe(6);
     expect(new Set(sites.map((s) => s.file))).toEqual(
       new Set([
         "frontend/src/components/FileGrid.tsx",
-        "frontend/src/components/DriveHome.tsx",
         "frontend/src/components/SectionRow.tsx",
         "frontend/src/components/folder/FolderContent.tsx",
         "frontend/src/components/folder/RightPaneFolder.tsx",
@@ -232,10 +233,11 @@ describe("every card grid goes through lib/cardGrid", () => {
   });
 
   it("hands every grid element the measuring ref", () => {
-    // Eight grid elements over seven components: `DriveHome` renders its
-    // skeleton and its loaded folder row from one hook.
-    expect(sites.length).toBe(8);
-    expect(useCardColumnsCallSites().length).toBe(7);
+    // One grid element per component here. A component that renders two
+    // from one hook — a skeleton and a loaded row, say — would make
+    // these two numbers differ, which is why both are declared.
+    expect(sites.length).toBe(6);
+    expect(useCardColumnsCallSites().length).toBe(6);
 
     // Counting the hook calls is not enough: a component can call it and
     // never attach the ref, in which case the element is laid out by the

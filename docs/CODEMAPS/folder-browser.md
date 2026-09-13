@@ -78,7 +78,7 @@ For very large drives (10k+ files) this strategy is acceptable as a Phase 4 ceil
 
 ### Tree-pane context menu (2026-05-09)
 
-The `FolderTreePane` ports the Knowledge sidebar's right-click menu to the core, reusing the existing `FolderContextMenu` and `FileContextMenu` (mounted by `FolderContent` / `DriveHome` for the right pane). The menus accept new opt-in callback props that the right pane leaves unset — call sites that don't pass them keep the original menu.
+The `FolderTreePane` ports the Knowledge sidebar's right-click menu to the core, reusing the existing `FolderContextMenu` and `FileContextMenu` (mounted by `FolderContent` for the right pane). The menus accept new opt-in callback props that the right pane leaves unset — call sites that don't pass them keep the original menu.
 
 | Path | Change |
 |---|---|

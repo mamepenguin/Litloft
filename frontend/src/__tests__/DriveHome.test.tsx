@@ -12,18 +12,11 @@ vi.mock("@/components/ProfileProvider", () => ({
   ProfileProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-// Mock sidebar
-vi.mock("@/components/SidebarProvider", () => ({
-  useSidebar: () => ({
-    isOpen: false,
-    toggle: vi.fn(),
-    close: vi.fn(),
-    refreshKey: 0,
-    requestRefresh: vi.fn(),
-  }),
-}));
-
-// Mock clipboard
+// Not the page's own. Each content row renders one `FileContextMenu`
+// beside its cards — not per card — and `useFileMenuItems` reaches for
+// the clipboard from there. A row renders while it is still loading, so
+// this is on the path even where the page draws no cards at all, which
+// is every case in this file. Removing the stand-in throws on render.
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({
     clipboard: null,
@@ -35,16 +28,31 @@ vi.mock("@/components/ClipboardProvider", () => ({
   }),
 }));
 
-// Mock drag and drop
-vi.mock("@/hooks/useDragAndDrop", () => ({
-  useDragAndDrop: () => ({
-    dragState: { isDragging: false, draggedFolderPath: null },
-    handleFolderDragStart: vi.fn(),
-    handleDragEnd: vi.fn(),
-    getDropTargetProps: vi.fn(),
-    isDropTarget: vi.fn(),
-    isDropDisabled: vi.fn(),
+// Whether an addon has registered the Add menu's slot. `AddButton` gates
+// its addon rows on this *as well as* on the caller passing `addonProps`,
+// so a fixture that leaves it false cannot see the second gate at all.
+const slotIsRegistered = { current: false };
+vi.mock("@/components/AddonSlotsProvider", () => ({
+  useAddonSlots: () => ({
+    addons: {},
+    slots: {},
+    loading: false,
+    getSlotEntries: () => [],
+    hasSlot: () => slotIsRegistered.current,
   }),
+}));
+vi.mock("@/components/AddonSlot", () => ({
+  AddonSlot: ({ id }: { id: string }) =>
+    id === "folder-actions-menu" ? (
+      <button type="button" role="menuitem">
+        Addon row
+      </button>
+    ) : null,
+}));
+
+const mockRefreshTree = vi.fn();
+vi.mock("@/components/TreeRefreshContext", () => ({
+  useTreeRefresh: () => mockRefreshTree,
 }));
 
 // Mock next/link
@@ -61,29 +69,30 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-// Mock API
+// What this page and the real components under it reach for. A binding
+// here that the tree never calls reads as "the page does this and we are
+// suppressing it", which is how a folder grid stayed in this file's
+// fixture after the page stopped drawing one.
 const mockGetDriveFiles = vi.fn();
-const mockGetFolders = vi.fn();
-const mockGetPins = vi.fn();
 const mockGetWatchHistory = vi.fn();
-const mockCreateFolder = vi.fn();
+const mockInitUpload = vi.fn();
 vi.mock("@/lib/api", () => ({
-  createFolder: (...args: unknown[]) => mockCreateFolder(...args),
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
-  getFolders: (...args: unknown[]) => mockGetFolders(...args),
-  getPins: (...args: unknown[]) => mockGetPins(...args),
   getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
-  addPin: vi.fn(),
-  removePin: vi.fn(),
-  deleteFile: vi.fn(),
-  renameFile: vi.fn(),
-  moveFile: vi.fn(),
+  // The real `UploadZone` runs here, so an upload started on this page
+  // goes all the way through `useUpload` and out the far side as
+  // `onUploadComplete`.
+  initUpload: (...args: unknown[]) => mockInitUpload(...args),
+  uploadChunk: vi.fn().mockResolvedValue(undefined),
+  completeUpload: vi.fn().mockResolvedValue(undefined),
+  cancelUpload: vi.fn().mockResolvedValue(undefined),
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
   getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
 }));
 
 import { DriveHome } from "../components/DriveHome";
+import { AddButton } from "@/components/AddButton";
 import type { WatchHistoryItem } from "@/types";
 
 const makeWatchHistoryItem = (id: string): WatchHistoryItem => ({
@@ -116,13 +125,12 @@ const makeWatchHistoryItem = (id: string): WatchHistoryItem => ({
 
 describe("DriveHome", () => {
   beforeEach(() => {
+    mockRefreshTree.mockClear();
     vi.clearAllMocks();
+    slotIsRegistered.current = false;
     mockProfile.nickname = null;
     mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
-    mockGetFolders.mockResolvedValue([]);
-    mockGetPins.mockResolvedValue([]);
     mockGetWatchHistory.mockResolvedValue([]);
-    mockCreateFolder.mockResolvedValue(undefined);
   });
 
   it("asks the backend for liked files, ordered by when they were liked", async () => {
@@ -235,6 +243,21 @@ describe("DriveHome", () => {
       );
     });
 
+    it("tells the folder tree the drive changed shape", async () => {
+      // The tree pane is on this page — the header draws its toggle — and
+      // nothing else here tells it. The signal used to reach the tree
+      // through the folder grid's own refresh, which is gone; both of
+      // `refreshPage`'s entrances need it, and this is the one with an
+      // emitter to press.
+      render(<Live initial={null} />);
+      await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalled());
+      mockRefreshTree.mockClear();
+
+      emit("drive.structure_changed", "media");
+
+      await waitFor(() => expect(mockRefreshTree).toHaveBeenCalled());
+    });
+
     it("refetches on a content update, so favourites stay current", async () => {
       render(<Live initial={null} />);
       await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalled());
@@ -291,9 +314,8 @@ describe("the drive home's content rows", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    slotIsRegistered.current = false;
     mockProfile.nickname = null;
-    mockGetFolders.mockResolvedValue([]);
-    mockGetPins.mockResolvedValue([]);
     mockGetWatchHistory.mockResolvedValue([]);
   });
 
@@ -360,12 +382,10 @@ describe("the drive home's content rows", () => {
 describe("the drive root's header", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    slotIsRegistered.current = false;
     mockProfile.nickname = null;
     mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
-    mockGetFolders.mockResolvedValue([]);
-    mockGetPins.mockResolvedValue([]);
     mockGetWatchHistory.mockResolvedValue([]);
-    mockCreateFolder.mockResolvedValue(undefined);
   });
 
   it("carries Add beside the breadcrumb", async () => {
@@ -402,6 +422,73 @@ describe("the drive root's header", () => {
     expect(document.querySelectorAll("[data-upload-zone]")).toHaveLength(1);
   });
 
+  it("tells the folder tree when an upload finishes here", async () => {
+    // The second of the two entrances into `refreshPage`. The socket one
+    // is held next door; this one has no emitter, so it is pressed by
+    // handing the zone the same `upload-files` event `useFilePicker`
+    // dispatches when the file chooser returns. An upload landing at the
+    // drive root changes the drive's shape, and the tree pane on this
+    // page is what would otherwise go on showing the old one.
+    mockInitUpload.mockResolvedValue({ upload_id: "upload-1" });
+    const { container } = render(<DriveHome driveName="media" />);
+    await screen.findByRole("button", { name: "Add" });
+    mockRefreshTree.mockClear();
+
+    const zone = container.querySelector("[data-upload-zone]")!;
+    await act(async () => {
+      zone.dispatchEvent(
+        new CustomEvent("upload-files", { detail: [new File(["x"], "note.txt")] }),
+      );
+    });
+
+    await waitFor(() => expect(mockRefreshTree).toHaveBeenCalled());
+  });
+
+  it("offers uploading and nothing that acts on a folder", async () => {
+    // This screen holds no folders, so its Add menu holds no folder
+    // actions (spec 2026-09-12-purpose-oriented-navigation §6.1/§6.4).
+    // `AddButton` grows **New Folder** and **New Note** each from a prop
+    // the caller passes, so the rule lives in what this caller does not
+    // pass, and nothing else can witness it. The rows it does draw are
+    // declared rather than counted: one appearing moves this side of the
+    // equality by itself.
+    //
+    render(<DriveHome driveName="media" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
+    const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
+    expect(rows).toEqual(["Files", "Folder"]);
+  });
+
+  it("offers no addon rows either, on a drive where an addon has registered for them", async () => {
+    // The third prop, and the one the other case cannot reach: addon rows
+    // are gated on `hasSlot(ADD_MENU_SLOT)` as well as on the caller
+    // passing `addonProps`, so with no addon registered the caller's
+    // argument is unobservable. Registering one is what makes the second
+    // gate the only thing left, which is the gate this page owns.
+    //
+    // `docs/user-guide/file-browsing.md` tells a reader the addon rows are
+    // among what this menu does not offer, so it is a claim as much as the
+    // other two are.
+    slotIsRegistered.current = true;
+    render(<DriveHome driveName="media" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
+    const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
+    expect(rows).toEqual(["Files", "Folder"]);
+  });
+
+  it("draws an addon row where one is registered and the caller asks for it", async () => {
+    // The population, asserted separately (detector rule 7). Without it
+    // the case above passes over a stand-in that never draws — which is
+    // the state this file was in when `addonProps` was filed as inert.
+    slotIsRegistered.current = true;
+    render(
+      <AddButton align="right" addonProps={{ drive: "media", path: "" }} />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
+    const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
+    expect(rows).toEqual(["Files", "Folder", "Addon row"]);
+  });
+
   it("opens its menu away from the edge it sits against", async () => {
     // Add is the rightmost control in the header, and the panel is wider
     // than the trigger. `AddButton.test.tsx` holds the two anchors; this
@@ -414,73 +501,4 @@ describe("the drive root's header", () => {
     expect(classes).not.toContain("left-0");
   });
 
-  it("opens the name field under the header, and creates from it", async () => {
-    const { container } = render(<DriveHome driveName="media" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
-    fireEvent.click(screen.getByText("New Folder"));
-
-    const field = screen.getByPlaceholderText("Folder name...");
-
-    // Where it opens is the requirement, not merely that it is on the
-    // page: a field further down splits one action across the length of
-    // it. Pinned as adjacency rather than as document order, because
-    // "somewhere after the header" also holds for a field at the very
-    // bottom of the page.
-    const header = container.querySelector("header")!;
-    expect(header.nextElementSibling).toBe(field.parentElement);
-    fireEvent.change(field, { target: { value: "Reading" } });
-
-    const foldersBefore = mockGetFolders.mock.calls.length;
-    fireEvent.keyDown(field, { key: "Enter" });
-
-    await waitFor(() =>
-      expect(mockCreateFolder).toHaveBeenCalledWith("media", "", "Reading"),
-    );
-    // The folder row has to be refetched, or the folder the user just made
-    // is not there. `refreshFolders` also refreshes the tree.
-    // Exactly one refetch. `>=` would also pass a change that refetched
-    // twice, which is the shape "refresh the folder row, leave the file
-    // listing alone" exists to avoid.
-    await waitFor(() =>
-      expect(mockGetFolders.mock.calls.length).toBe(foldersBefore + 1),
-    );
-    await waitFor(() =>
-      expect(screen.queryByPlaceholderText("Folder name...")).toBeNull(),
-    );
-  });
-
-  it("rejects a name with a path separator without calling the API", async () => {
-    render(<DriveHome driveName="media" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
-    fireEvent.click(screen.getByText("New Folder"));
-
-    const field = screen.getByPlaceholderText("Folder name...");
-    fireEvent.change(field, { target: { value: "a/b" } });
-    fireEvent.keyDown(field, { key: "Enter" });
-
-    // Announced, not just printed: a rejected name is the only feedback
-    // there is, and a field that silently refuses is indistinguishable
-    // from one that is still working.
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Invalid folder name",
-    );
-    expect(screen.getByPlaceholderText("Folder name...")).toHaveAttribute(
-      "aria-invalid",
-      "true",
-    );
-    expect(mockCreateFolder).not.toHaveBeenCalled();
-    // The row stays open on a rejection — the name is still there to fix.
-    expect(screen.getByPlaceholderText("Folder name...")).toBeInTheDocument();
-  });
-
-  it("closes the name field on Escape", async () => {
-    render(<DriveHome driveName="media" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
-    fireEvent.click(screen.getByText("New Folder"));
-
-    const field = screen.getByPlaceholderText("Folder name...");
-    fireEvent.keyDown(field, { key: "Escape" });
-    expect(screen.queryByPlaceholderText("Folder name...")).toBeNull();
-    expect(mockCreateFolder).not.toHaveBeenCalled();
-  });
 });

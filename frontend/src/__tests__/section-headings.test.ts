@@ -97,8 +97,8 @@ const SECTION_COMPONENTS = ["CarouselSection", "ContinueWatchingSection"];
 const DRIVE_HOME_GLYPHS = existsSync(
   resolve(REPO_ROOT, "addons/intelligence/frontend"),
 )
-  ? 7
-  : 6;
+  ? 6
+  : 5;
 
 const REQUIRED_COLOUR = "text-text-muted";
 const REQUIRED_SIZE = 20;
@@ -246,8 +246,8 @@ describe("section heading icons", () => {
         : "frontend/src";
       perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
     }
-    // Six drive-home sections plus the admin dashboard's two cards.
-    expect(perRoot.get("frontend/src")).toBe(8);
+    // Five drive-home sections plus the admin dashboard's two cards.
+    expect(perRoot.get("frontend/src")).toBe(7);
 
     const EXPECTED_ADDON_ICONS: Record<string, number> = {
       // "Pickup" on the drive home, and the index-status card on /admin.

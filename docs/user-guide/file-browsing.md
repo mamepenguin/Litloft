@@ -1,12 +1,12 @@
 # Browsing files
 
-Files and folders are browsed on the Library screen, which opens at the drive root (`/drive/<name>?view=library`) and walks down from there; subfolders open at `/drive/<name>/<path>`. The drive home page (`/drive/<name>`) is what the drive opens on, and it answers a different question — what is worth continuing or returning to. The breadcrumb row carries the tree toggle on the left and the **Add** button on the right; below it you find a folder grid and several *content rows* (Continue watching, Recently played, Recently added, Favourites, Liked). It lists no files of its own — the ones sitting at the drive root are in Library, like the rest. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
+Files and folders are browsed on the Library screen, which opens at the drive root (`/drive/<name>?view=library`) and walks down from there; subfolders open at `/drive/<name>/<path>`. The drive home page (`/drive/<name>`) is what the drive opens on, and it answers a different question — what is worth continuing or returning to. The breadcrumb row carries the tree toggle on the left and the **Add** button on the right; below it are *content rows* (Continue watching, Recently Viewed, Recently added, Favourites, Liked). It draws no folder cards, and the files it draws are the ones those rows surfaced — the folders and files that *sit at the drive root* are in Library. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
 
 ## Drive home layout
 
-![Annotated drive home page showing the breadcrumb, folder grid, file grid, and content rows](../images/user-guide/drive-home-overview.png)
+![Drive home page as it was before this layout: a breadcrumb row, a Folders heading with folder cards under it, then the Continue Watching, Recently Viewed and Pickup rows](../images/user-guide/drive-home-overview.png)
 
-The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity rows that surface recent or in-progress items. The screenshot predates the current layout: the home page no longer lists files of its own, **Add** sits at the right-hand end of the breadcrumb row, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail.
+The screenshot predates the current layout: the home page draws no folder cards now — those are Library's — **Add** sits at the right-hand end of the breadcrumb row, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail.
 
 ## The sidebar
 
@@ -25,10 +25,10 @@ At most one row is highlighted at a time — none, on a URL that is no row's sub
 - Folders show a file count and what that count is made of: *138 items · Video 135 · Document 3*. Both the count and the breakdown are **recursive** — they cover every active file in the folder *and* its subfolders. When everything in a folder is one kind, that kind is named without repeating the number: *12 items · Document*. At most the two largest kinds are named; the rest is the difference from the total.
 - Folder cards and folder rows carry the folder glyph, never a picture borrowed from inside the folder. What a folder holds is said in words, where it can be read; a photograph of one file in it could not be, and only some folders had one.
 - Clicking opens that folder.
-- Right-click (or long-press on touch) opens the **folder menu**: Open, New file here, New folder here, Pin / Unpin, Rename, Move, Delete. Which entries appear depends on the surface — the tree pane offers the create actions, the folder grid does not.
+- Right-click (or long-press on touch) opens the **folder menu**: Open, New file here, New folder here, Pin / Unpin, Rename, Move, Delete. Which entries appear depends on the surface — the tree pane offers the create actions, the grid in Library does not.
 - Addon actions appear in this menu too, below a separator under the app's own rows — *intelligence* offers its batch AI actions there, for the files the listing is showing.
 - The folder list is derived from the paths of the files in the drive, so a folder holding no files at all would otherwise vanish. Those are recorded in the `empty_folders` table and merged back into the listing with a count of 0.
-- The grid draws the first eight folders. When the drive has more, **Show more (N)** beside the *Folders* heading names how many are left and reveals them in the same grid — you stay on the drive home, and **Show less** puts them away again. The sidebar's **All Files** is a different thing: a flat listing of every file in the drive, with no folders in it.
+- Library draws the folders of the location you are standing in, all of them, above that location's files. The sidebar's **All Files** is a different thing: a flat listing of every file in the drive, with no folders in it.
 
 ## File grid and list modes
 
@@ -56,7 +56,7 @@ A toolbar above the grid lets you:
 - **Pin this folder** to the sidebar, also from the overflow menu — the same pin the folder's own right-click menu offers, for the folder you are standing in. It is not offered on the drive root, which has no folder to pin.
 - **Add** anything to the folder, from the one **Add** button: upload files, upload a folder, create a folder, create a note. It is the only filled button on the bar. An addon can contribute further rows, which appear below a separator at the bottom of the menu.
 
-  On the drive home this button is in the breadcrumb row instead, because that page draws no folder toolbar to carry it. That one offers uploading and **New Folder** only; creating a note and the addon rows come with the folder toolbar, which the home page does not have. **New Folder** opens its name field directly under the breadcrumb row.
+  On the drive home this button is in the breadcrumb row instead, because that page draws no folder toolbar to carry it. There it offers the two upload rows and nothing else, and what they upload goes to the drive root — so **Upload a folder** does put a new folder there, by uploading one. What is missing is the **New Folder** and **New Note** commands and the addon rows: those act on a folder you are standing in, and this page is not standing in one.
 - **Play** everything playable in the folder, on folders that hold something playable.
 
 **Folders follow the mode too.** In grid mode they are cards above the file
@@ -202,7 +202,7 @@ Renaming happens inline, in the row or card you are looking at — there is no d
 
 Where this applies:
 
-- **Folders** — in the tree pane and on folder cards, everywhere folder cards are shown (drive home and inside folders).
+- **Folders** — in the tree pane, and on the folder cards in Library and in a folder.
 - **Files** — in the **tree pane only**. The tree shows real filenames, so what you edit is exactly the string on screen.
 - **File cards in the grid and list** still rename through the old dialog, because a card shows the title rather than the filename and editing there would show one string and save another.
 
@@ -398,7 +398,7 @@ total, and both send you to the same place — Recently played is the
 whole history, so it holds everything Continue watching was showing you
 and more.
 
-The drive home does not list files of its own. The files that sit at the drive root are an ordinary folder listing of the root, reached at `/drive/<name>?view=library`. It is the same listing a folder gets, with the same toolbar and the same filters — the root differs only where a folder's *path* is what a feature needs: view mode falls back to your global preference and sort to newest-first, neither being remembered for the root the way they are for a folder, and **Pin this folder** is not offered.
+The files and folders that sit at the drive root are in Library, reached at `/drive/<name>?view=library`. It is the same listing a folder gets, with the same toolbar and the same filters — the root differs only where a folder's *path* is what a feature needs: view mode falls back to your global preference and sort to newest-first, neither being remembered for the root the way they are for a folder, and **Pin this folder** is not offered.
 
 ## Pinned folders
 
@@ -440,7 +440,7 @@ The payload of each event is in [WebSocket events](../reference/websocket-events
 
 Two different things travel by drag:
 
-- **Files from your computer.** Drop one or more files (or a whole folder, in browsers that support it) onto the file grid to upload them. The drive home takes a drop too, even though it lists no files of its own: what lands there goes to the drive root, which is what its **Add** button acts on. See [upload and file operations](upload-and-fileops.md) for chunking and limits.
+- **Files from your computer.** Drop one or more files (or a whole folder, in browsers that support it) onto the file grid to upload them. The drive home takes a drop too, even though it is not a listing of the drive root: what lands there goes to the drive root, which is what its **Add** button acts on. See [upload and file operations](upload-and-fileops.md) for chunking and limits.
 - **Files and folders already in the drive.** Dragging a card or a tree row and dropping it on a folder **moves** it. Valid drop targets are folder cards, folder rows in the tree, the breadcrumb, and the drop band at the top of the tree that stands for the drive root. Drops onto a folder itself, or into its own descendants, are refused. Drags work across panes — pick a card up in the file list and drop it on a tree row.
 
 If several files are selected, dragging any one of them moves the whole selection.
