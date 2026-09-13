@@ -1,12 +1,5 @@
 "use client";
 
-// Admin layout: gates everything under /admin behind admin-viewer status.
-// On mount it pulls /api/admin/config/setup-status (to redirect to /setup
-// when first-run hasn't completed) and /api/admin/config/restart-status
-// (which doubles as the admin-gate probe — the route is admin-only, so
-// 403 here means "not an admin viewer", and the same response feeds the
-// RestartBanner once we know the viewer is allowed in).
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -71,18 +64,12 @@ export default function AdminLayout({
 
   if (gate === "forbidden") {
     return (
-      // 403 is what this route displays, so "you cannot see this" is the
-      // page's subject and gets the page's heading — not a special case
-      // that keeps a hand-written one.
       <div className="mx-auto w-full min-w-0 max-w-2xl py-8">
         <PageHeader title={t("forbiddenTitle")} scope={t("forbiddenMessage")} />
       </div>
     );
   }
 
-  // Avoid flashing admin children to non-admin viewers during the gate
-  // probe. The probe is fast (single fetch) so a neutral placeholder is
-  // less disruptive than rendering then yanking content away.
   if (gate === "loading") {
     return <div aria-busy="true" />;
   }

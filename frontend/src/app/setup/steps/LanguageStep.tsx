@@ -1,9 +1,5 @@
 "use client";
 
-// LanguageStep: language-agnostic intro screen. Renders the brand mark
-// and a tiny neutral subtitle only. Two large language buttons drive the
-// locale selection and a small arrow advances to the Welcome step.
-
 import { useTranslations } from "next-intl";
 
 import type { Locale } from "@/i18n/config";

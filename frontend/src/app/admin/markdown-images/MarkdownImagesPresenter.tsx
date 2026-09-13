@@ -85,9 +85,7 @@ function JobStatus({ job, onCancel }: { job: MarkdownImageImportJob; onCancel: (
         )}
       </div>
 
-      {/* Teal, for the reason `IndexStatusWidget` already gives about its
-          own bar: a filled accent bar at 100% reads as the thing to press,
-          and DESIGN.md §2.2 keeps the accent for the call to action. */}
+      {/* Teal: a filled accent bar at 100% reads as the thing to press. */}
       <div className="h-2 overflow-hidden rounded-full bg-bg-elevated">
         <div
           className="h-full bg-accent-teal transition-[width]"
@@ -155,7 +153,6 @@ export function MarkdownImagesPresenter(props: Props) {
         title={t("title")}
       />
 
-      {/* `PageHeader` brings `px-4`; the body matches it. */}
       <div className="px-4 pb-4">
 
         {props.error && (

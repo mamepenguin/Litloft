@@ -53,22 +53,13 @@ export default function AdminSettingsPage(): React.ReactElement {
     // `w-full` is not decoration. This div is a flex item of the
     // AppShell's `<main>`, and `mx-auto` gives it automatic cross-axis
     // margins, which opt it out of `stretch` — so its width becomes
-    // fit-content, i.e. its own min-content, and the policy table's
-    // headings do not wrap. Measured at 375px: `main` 360, this div
-    // **608**; the whole page scrolled sideways and the table's own
-    // `overflow-x-auto` never scrolled, because it had been handed all
-    // the room it asked for. `w-full` makes the width definite again;
-    // `max-w-3xl` still caps it and `mx-auto` still centres it.
-    // `MarkdownImagesPresenter` and `/settings` already carried this pair,
-    // which is why neither of them ever showed the defect.
+    // its own min-content and the policy table's `overflow-x-auto` never
+    // scrolls.
     <div className="mx-auto w-full min-w-0 max-w-3xl py-2">
       <PageHeader
         title={t("title")}
         // One tab is not a choice, so with intelligence absent the row is
-        // not drawn at all rather than drawn holding a single selected
-        // item — and the panel below then drops `role="tabpanel"` with it.
-        // A tabpanel whose whole meaning is "the tab above swapped me in"
-        // has nothing to attach to when there is no tab above.
+        // not drawn at all.
         tabs={
           tabbed ? (
             <PageTabs
@@ -81,9 +72,6 @@ export default function AdminSettingsPage(): React.ReactElement {
         }
       />
 
-      {/* `PageHeader` brings its own `px-4`; the panels match it. Both stay
-          mounted and are hidden with `display:none`, which also takes them
-          out of the focus order. */}
       <div className="px-4 pb-6 pt-4">
         <div
           id={PANEL_ID.system}

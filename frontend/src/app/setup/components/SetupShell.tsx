@@ -1,10 +1,5 @@
 "use client";
 
-// SetupShell: outer chrome for the first-run wizard. Provides the warm
-// canvas gradient background, a brand header, and a centered content
-// container. Children render the active step (and optionally the
-// Stepper) without re-implementing the layout each time.
-
 import { useTranslations } from "next-intl";
 
 interface Props {

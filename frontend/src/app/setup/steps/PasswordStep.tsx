@@ -1,12 +1,5 @@
 "use client";
 
-// PasswordStep: collects the master password. The master entry must
-// cover every group present in the setup, so we render a chip per
-// group (visually a tonal pill, structurally a checkbox label) and
-// disable Next while any group is unchecked. A short admin-authorisation
-// explainer above the input clarifies *why* every group must be
-// covered.
-
 import { useTranslations } from "next-intl";
 
 export interface PasswordDraft {
@@ -34,11 +27,9 @@ export function PasswordStep({
   const t = useTranslations("setup");
   const tPw = useTranslations("setup.password");
 
-  // Empty `groups` means no drive carries an access_group, i.e. every drive
-  // is public. That is a valid "protected mode" config: the master password
-  // (always tagged __admin__ on submit) then guards only /admin while drives
-  // stay browsable. So coverage is vacuously satisfied when there are no
-  // groups — gating Next here would dead-end the wizard.
+  // Empty `groups` means every drive is public. That is a valid "protected
+  // mode" config where the master password guards only /admin, so gating
+  // Next here would dead-end the wizard.
   const hasGroups = groups.length > 0;
   const allCovered = groups.every((g) => value.groups.includes(g));
   const isValid = value.password.trim().length > 0 && allCovered;

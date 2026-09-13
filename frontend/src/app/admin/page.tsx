@@ -115,10 +115,6 @@ function FileTypeBreakdown({
   const t = useTranslations("filter.type");
   const entries = useMemo(() => driveTypeCounts(fileTypes), [fileTypes]);
 
-  // One wrapping line of text rather than a row of icon pills. The pills
-  // carried a glyph and a number and no word, so reading one meant
-  // knowing the legend; and being pills, they could only be dropped when
-  // empty, which is what made the set vary per drive.
   return (
     <p className="text-xs text-text-muted">
       {entries.map(({ type, count }, i) => (
@@ -249,8 +245,6 @@ function SystemCard({ system }: { system: DashboardSystemInfo }) {
         />
       </div>
 
-      {/* One row per filesystem, naming the drives that share it —
-          which is the fact the per-drive bars could not express. */}
       {system.filesystems.length > 0 && (
         <div className="mt-4 space-y-3 border-t border-bg-border pt-4">
           {system.filesystems.map((fs) => (
@@ -320,9 +314,6 @@ export default function AdminDashboardPage() {
 
   if (forbidden) {
     return (
-      // The page's subject in this state is that it cannot be shown, so
-      // the refusal takes the heading rather than sitting under the
-      // dashboard's name as if the dashboard were merely empty.
       <div className="mx-auto w-full min-w-0 max-w-2xl py-8">
         <PageHeader title={t("title")} scope={t("forbidden")} />
       </div>
@@ -362,12 +353,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* Anything wrong, above everything that is fine.
-          An addon reporting a problem — intelligence's failed indexing
-          jobs are the first — had nowhere above the fold to say so, so
-          it said it at the bottom of a widget three sections down. No
-          wrapper and no heading: an alert supplies its own, and
-          `empty:hidden` keeps the margin from being the only thing on
+        {/* `empty:hidden` keeps the margin from being the only thing on
           screen when nothing is wrong. */}
         <div className="mb-8 space-y-3 empty:hidden">
           <AddonSlot id="dashboard-alerts" layout="stack" />

@@ -1,9 +1,5 @@
 "use client";
 
-// DrivesSection: lists drives.json entries, lets the admin add / edit /
-// delete entries via a modal. Submits the full array via PUT, surfaces
-// 422 validation errors inline.
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -155,10 +151,8 @@ export function DrivesSection(): React.ReactElement {
   return (
     <section className="rounded-xl border border-bg-border bg-bg-card p-6">
       {/* The prose gives, the button does not. Without `min-w-0` on the
-          left and `flex-shrink-0` on the right, a long heading and its
-          sentence squeeze the button until its label breaks over two
-          lines — and `Button` is sized by padding, so the label wrapping
-          is what `whitespace-nowrap` has to stop. */}
+          left and `flex-shrink-0` on the right, a long heading squeezes the
+          button until its label breaks over two lines. */}
       <div className="mb-6 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-text-primary">

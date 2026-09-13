@@ -1,14 +1,5 @@
 "use client";
 
-// AddonPolicyStep: optional first-run step. Loads the addon manifest list
-// from /api/addons/status and shows per-drive cards with switch-style
-// toggles (one row per addon). The drives come from props (the wizard
-// owns them; they aren't persisted yet).
-//
-// Each toggle is rendered as a sr-only checkbox inside a clickable
-// switch row to preserve the `role="checkbox"` semantics existing tests
-// rely on, while presenting an iOS-style switch visually.
-
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
@@ -72,13 +63,8 @@ function AddonRow({
           }`}
         />
       </span>
-      {/* The name, and nothing under it. What the addon does is the
-          same sentence on every drive's card — four drives gave four
-          copies of each of the four descriptions, sixteen paragraphs
-          saying four things — so it is said once, in the list above.
-          Same rule as the settings table's feature legend and as
-          `lib/listMeta.ts`: a line whose words do not change from row to
-          row is not telling the reader which row they are on. */}
+      {/* What the addon does is the same sentence on every drive's card,
+          so it is said once, in the list above. */}
       <span className="flex-1 font-medium text-text-primary">
         {addon.name}
       </span>
@@ -150,22 +136,6 @@ export function AddonPolicyStep({
         {tAddon("skipNote")}
       </div>
 
-      {/* What each addon is, once, before the drives it can be turned on
-          for. Above the cards rather than inside them: the reader needs it
-          to decide, and the decision is repeated per drive while the
-          description is not.
-          
-          Gated on the same pair as the cards below. A list explaining
-          controls that are not on the page is the "heading for a thing
-          that does not exist" the redesign's first principle rejects, and
-          `drives` really can be empty — the wizard starts it there and
-          leaves it there when the drive probe finds nothing, which is the
-          mount-guidance path.
-          
-          Titled, and not on `bg-bg-card` with a border. Untitled and with
-          the drive cards' own surface it read as a drive card that had
-          lost its name, or as a fifth drive: the same four addon names in
-          the same order, one card above the real ones. */}
       {drives.length > 0 && addons.length > 0 && (
         <section className="rounded-xl bg-warm-light/30 p-5">
           <h3 className="mb-3 text-sm font-semibold text-text-muted">
