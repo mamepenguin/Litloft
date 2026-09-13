@@ -65,9 +65,30 @@ vi.mock("@/lib/api", () => ({
 import { DriveHome } from "@/components/DriveHome";
 import type { FileItem, WatchHistoryItem } from "@/types";
 
-const file = (id: string) => ({ id, title: id, filename: `${id}.mp4` }) as FileItem;
+/**
+ * A file complete enough for `FileCard` to render.
+ *
+ * `tags` in particular: the card reads `file.tags.length` unguarded, and
+ * a fixture without it throws inside React's render — which vitest
+ * reports as an unhandled error rather than a failing case, so the suite
+ * goes green and the run still fails.
+ */
+const file = (id: string) =>
+  ({
+    id,
+    title: id,
+    filename: `${id}.mp4`,
+    file_type: "video",
+    mime_type: "video/mp4",
+    tags: [],
+    subtitles: [],
+  }) as unknown as FileItem;
+
 const watched = (id: string) =>
-  ({ id, title: id, filename: `${id}.mp4`, watch_progress: { position: 1, duration: 10 } }) as WatchHistoryItem;
+  ({
+    ...file(id),
+    watch_progress: { position: 1, duration: 10 },
+  }) as unknown as WatchHistoryItem;
 
 /**
  * The sequence, top to bottom, with a profile and every section holding
