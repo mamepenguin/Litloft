@@ -835,9 +835,31 @@ props that say which, in addition to the usual slot props:
 
 | Prop | Meaning |
 |---|---|
-| `fillHeight: boolean` | The host has given you a height budget: fill it as a flex item and scroll inside yourself. `true` in both current placements. Do not use `h-full` — the budget is a `max-height` clamp, and a percentage height against that resolves to `auto`, so the list lays itself out at full length and is silently clipped. |
+| `fillHeight: boolean` | The host may have given you a height budget: fill it as a flex item and scroll inside yourself. `true` in every current placement. Do not use `h-full` — the budget is a `max-height` clamp, and a percentage height against that resolves to `auto`, so the list lays itself out at full length and is silently clipped. **On a phone the inspector is one column with no budget**, so your list grows to its full length and the sheet around it is what scrolls; see below. |
 | `labelledByHost: boolean` | The host has already written your name above you — the tab button carries it. Drop your own title when this is `true`, or the reader reads the name of the thing they just pressed twice. `false` in the box below the player, which has no heading of its own. |
 | `onAvailability: (available: boolean) => void` | Whether you have anything for this file. |
+
+**Scrolling and pinning inside a panel.** The one-column inspector (the
+phone's sheet) gives your panel no height, so your list grows to its full
+length and a `scrollTo` on it does nothing: the host scrolls it. The host
+marks that scroller with the attribute `data-inspector-scroller`, and sets
+the CSS variable `--inspector-sticky-top` on the inspector's root to the
+height of its tab strip, which is pinned over the top of that scroller.
+
+- **Find the scroller with `element.closest("[data-inspector-scroller]")`**.
+  When there is one, scroll it, count its top `--inspector-sticky-top`
+  pixels (read with `getComputedStyle` on your element) as covered, and
+  listen for the reader's `wheel` / `touchmove` on it rather than on your
+  list. It is shared with the other tabs, so ignore those while your panel
+  is inside a `[hidden]` ancestor.
+- **When there is none, scroll only your own list.** Do not look for an
+  ancestor that overflows: on the file page the box around a short list
+  is the canvas holding the video, and scrolling that moves the player off
+  the screen; in the sheet the scroller may not overflow yet when you ask.
+- Pin anything of your own with `position: sticky; top: var(--inspector-sticky-top, 0px)`
+  and a `z-index` below `10`, so it sits under the strip rather than over it.
+
+In the column the variable is `0px` when there is no strip.
 
 **`onAvailability` is how a tab stops appearing on files it has nothing
 for.** Core cannot look inside your panel — asking "does the transcript

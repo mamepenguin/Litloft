@@ -243,6 +243,14 @@ describe("MobileInspectorSheet", () => {
     }
   });
 
+  it("marks its scroller as the one that scrolls the inspector's panels", async () => {
+    renderSheet(SHEET_STATE_HALF);
+    const panel = await screen.findByTestId("inspector-content");
+    expect(panel.closest("[data-inspector-scroller]")).toBe(
+      screen.getByTestId("mobile-inspector-content"),
+    );
+  });
+
   it("hosts dialogs opened from inside it, where they stay interactive", async () => {
     function DialogFromInsideTheSheet() {
       const target = useDialogPortalTarget();

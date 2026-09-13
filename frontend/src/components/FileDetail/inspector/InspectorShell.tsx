@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useTranslations } from "next-intl";
 
 import { listedTabs, showsTabStrip, type InspectorTab } from "./tabs";
@@ -72,9 +79,40 @@ export function InspectorShell({
   );
 
   const column = scroll === "column";
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const stripRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * In the column form the panels scroll under the strip, so a panel that
+   * pins something of its own has to pin it below the strip. The strip's
+   * height depends on the pointer and on the font, so it is measured rather
+   * than written down.
+   */
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!column || !root) return;
+    const publish = () => {
+      root.style.setProperty(
+        "--inspector-sticky-top",
+        `${stripRef.current?.offsetHeight ?? 0}px`,
+      );
+    };
+    publish();
+    const node = stripRef.current;
+    const observer =
+      node && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(publish)
+        : null;
+    if (node) observer?.observe(node);
+    return () => {
+      observer?.disconnect();
+      root.style.removeProperty("--inspector-sticky-top");
+    };
+  }, [column, strip]);
 
   return (
     <div
+      ref={rootRef}
       data-testid="inspector-shell"
       data-scroll={scroll}
       // `h-full min-h-0` is what makes the panel below a bounded box, so
@@ -89,6 +127,7 @@ export function InspectorShell({
 
       {strip && (
         <div
+          ref={stripRef}
           role="tablist"
           aria-label={t("tablistLabel")}
           data-testid="inspector-tabs"

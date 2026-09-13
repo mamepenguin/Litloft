@@ -254,6 +254,7 @@ export function MobileInspectorSheet({
               <div
                 ref={setScroller}
                 data-testid="mobile-inspector-content"
+                data-inspector-scroller=""
                 className="min-h-0 flex-1 overflow-auto overscroll-contain"
                 style={{ paddingBottom: SHEET_SCROLLER_PADDING_BOTTOM }}
               >
