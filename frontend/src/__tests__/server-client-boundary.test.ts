@@ -10,21 +10,9 @@ import {
 } from "./helpers/serverClientBoundary";
 
 /**
- * A Server Component may not hand a component to a Client Component.
- *
- * Props cross that boundary by being serialised, and a React component is
- * a function. The failure is invisible to this suite by construction: a
- * unit test renders `await Page()` as one ordinary React tree, where there
- * is no boundary and no serialisation, so `titleIcon={Warehouse}` passed
- * from `app/page.tsx` rendered green in all 5,393 tests and answered every
- * request in the running app with
- * "Functions cannot be passed directly to Client Components" — a 500 on
- * the home page. It was found by opening the page in a browser.
- *
- * The scan cannot see everything a boundary can carry wrongly. What it
- * covers, and what it does not, is written out in the cases below rather
- * than claimed in prose — an earlier draft's comment said it caught a
- * locally-declared component and it did not.
+ * Props cross the server/client boundary by being serialised, and a React
+ * component is a function. A unit test renders `await Page()` as one
+ * ordinary React tree, where there is no boundary, so only a scan sees it.
  */
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -54,8 +42,7 @@ const rel = (f: string) => relative(REPO_ROOT, f);
 /**
  * `app/` is where a Server Component can live. Everything under
  * `components/` is reached from one of these, and a file there without
- * the directive is rendered inside a client parent — a premise the last
- * test in this file turns into a check rather than leaving as a comment.
+ * the directive is rendered inside a client parent.
  */
 function serverComponentFiles(): string[] {
   return tsxUnder(APP, (n) => n === "__tests__" || n === "addons")
@@ -66,9 +53,6 @@ function serverComponentFiles(): string[] {
 describe("the server/client boundary carries no components", () => {
   const files = serverComponentFiles();
 
-  // Exact, not a floor. A heuristic population that quietly shrank to
-  // nothing would make every assertion below pass over an empty list,
-  // and `page-headings.test.ts` argues the same case at length.
   it("scans exactly the server components this repository has", () => {
     expect(files.map(rel)).toEqual([
       "frontend/src/app/files/[id]/page.tsx",
@@ -87,14 +71,8 @@ describe("the server/client boundary carries no components", () => {
   });
 
   /**
-   * The premise that justifies scanning `app/` alone.
-   *
-   * A shared component without the directive is fine while it is only
-   * ever rendered inside a client parent. It stops being fine the moment
-   * a Server Component imports one, because then it is server code that
-   * this scan does not read. Checked from this side rather than by
-   * widening the walk, which would misread every client-rendered shared
-   * component as a server one and need an exemption list.
+   * Checked from this side rather than by widening the walk, which would
+   * misread every client-rendered shared component as a server one.
    */
   it("reaches no server code outside app/", () => {
     const outside = files.flatMap((f) =>
@@ -111,16 +89,8 @@ describe("the boundary scanner", () => {
   const pageFile = resolve(APP, "page.tsx");
 
   /**
-   * The exact code that shipped the 500 — sitting beside the prop shape
-   * it shipped *next to*.
-   *
-   * The first version of this scanner matched an element with a regex
-   * that allowed one level of braces, and the greeting prop below holds
-   * two (`t("greeting", { name })`). The element therefore never matched
-   * at all, so the leak on the same tag went unread and the scan called
-   * the file clean. Both props are in this fixture for that reason: the
-   * failure was not in the attribute pattern, it was in finding the
-   * element.
+   * The greeting prop holds two levels of braces, which an element matcher
+   * has to get past to reach the leak on the same tag.
    */
   it("catches the one that got through, in the shape it got through in", () => {
     const original = `
@@ -176,12 +146,7 @@ export default function Home({ greeting }) {
     expect(boundaryLeaks(fine, pageFile)).toEqual([]);
   });
 
-  /**
-   * A component handed to another *server* component never serialises,
-   * so flagging it would be a false positive — and a detector that cries
-   * about safe code gets an exemption list, which is how it stops being
-   * read.
-   */
+  /** A component handed to another *server* component never serialises. */
   it("says nothing when the receiver is a server component", () => {
     const serverToServer = `
 import { Warehouse } from "lucide-react";

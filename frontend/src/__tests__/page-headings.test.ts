@@ -16,23 +16,9 @@ import { stripComments } from "./helpers/sourceScan";
 import { addonPresent } from "./helpers/addonPresent";
 
 /**
- * Every `<h1>` in core and in every addon checked out beside it.
- *
- * The UI redesign found H1 rendered at four different sizes across fourteen
- * page headers, and the cause was partly in the spec: DESIGN.md §3.2 left the
- * Size cell empty, so each call site chose. §3.2 now says `text-2xl` and
- * `PageHeader` is the one component that emits the tag — this is what keeps
- * both true as screens migrate.
- *
- * **Why the whole tree and an exact count, rather than the migrated screens.**
- * The acceptance criterion this replaces read "the size that appears on `<h1>`
- * is one kind (migrated screens only)". Measuring a set you chose is the same
- * defect as asserting `>=` on a count: what you did not look at cannot fail
- * you, and a screen left out of the list is invisible in exactly the way that
- * matters. `search-compare.tsx` was missing from the spec's own table of
- * fourteen for that reason. So every `<h1>` is listed, the total is asserted
- * exactly, and a screen that has not migrated yet is named below with why —
- * which makes leaving it a decision someone wrote down rather than a gap.
+ * Every `<h1>` in core and in every addon checked out beside it. The whole
+ * tree rather than a chosen set of screens: a screen left out of a chosen
+ * set cannot fail.
  */
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -61,12 +47,9 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   "frontend/src/app/unlock/page.tsx": "unlock gate, outside the AppShell",
 
 
-  // Purpose-built chrome that PageHeader has to absorb rather than replace.
-  // The inspector's fixed block. It heads a region rather than the page, so it
-  // wants to be an <h2> — but `FileDetailChrome` does not emit a page heading
-  // yet, so demoting it now would leave the file detail page with no <h1> at
-  // all until PR A2b. Both halves move together there. Its `text-xl` is
-  // likewise off §3.2 until then.
+  // The inspector's fixed block heads a region and wants to be an <h2>, but
+  // `FileDetailChrome` emits no page heading yet, so demoting it now would
+  // leave the file detail page with no <h1> at all.
   "frontend/src/components/FileDetail/FileMetaBlock.tsx":
     "inspector heading; demoted with the FileDetailChrome migration (PR A2b)",
 
@@ -120,22 +103,10 @@ function headings(): Heading[] {
   return found;
 }
 
-/**
- * Which of `paths` no longer earns its place on the not-yet-migrated list.
- *
- * Reads the tree. It took an injected observation while the migration
- * windows existed, because the state that made the rule's excuses do
- * anything was one no checkout held. Both of those are gone: there is one
- * excuse left, and the tests below reach it from disk — an addon that is not
- * checked out is any path under a directory this repository does not have.
- */
 function staleEntries(paths: string[], root: string = REPO_ROOT): string[] {
   return paths.filter((f) => {
-    // An addon that is not checked out is absent, not stale. The *addon*,
-    // not the file: this read the file's own path, so a listed file deleted
-    // or renamed inside a checked-out addon was excused forever rather than
-    // reported — the one thing this test exists to catch, in the one place it
-    // could not see.
+    // The *addon* being absent excuses an entry, not the file: a listed file
+    // deleted inside a checked-out addon is stale.
     if (f.startsWith("addons/") && !addonPresent(root, f)) return false;
     const full = resolve(root, f);
     if (!existsSync(full)) return true;
@@ -155,18 +126,8 @@ describe("page headings", () => {
   // already-listed file is caught too — the allowlist is keyed by file, and a
   // second heading inside one of them would otherwise slip through.
   it("finds exactly the headings it expects", () => {
-    // Counted per source root, not as one total.
-    //
-    // A single number over core plus every addon is a number that depends on
-    // which submodules happen to be checked out. `git clone` without
-    // `--recurse-submodules` would fail this with "expected 18, got 17" and
-    // nothing pointing at the cause — and the stale check two tests down
-    // already treats an absent addon as absent rather than wrong, so a single
-    // total would have the file disagreeing with itself.
-    //
-    // Core's 11 is the number this repository can always assert. Each addon is
-    // asserted only when it is present, which still catches a heading added or
-    // removed inside one.
+    // Counted per source root: a single total would depend on which
+    // submodules happen to be checked out.
     const perRoot = new Map<string, number>();
     for (const h of headings()) {
       const root = h.file.startsWith("addons/")
@@ -174,13 +135,8 @@ describe("page headings", () => {
         : "frontend/src";
       perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
     }
-    // Five, and this is the end of the migration: the three brand surfaces
-    // the list keeps (`WelcomeStep`, `LanguageStep`, `unlock/page.tsx`),
-    // the inspector's block, and `PageHeader`'s own — `OWNER` is excluded
-    // from the allowlist check above, never from this count.
-    // `app/admin/page.tsx` used to contribute two of its own, one per
-    // branch: precisely the case a per-file allowlist cannot see, which is
-    // why counts are asserted at all.
+    // `OWNER` is excluded from the allowlist check above, never from this
+    // count.
     expect(perRoot.get("frontend/src")).toBe(5);
 
     const EXPECTED_ADDON_HEADINGS: Record<string, number> = {
@@ -191,9 +147,7 @@ describe("page headings", () => {
 
     for (const [root, expected] of Object.entries(EXPECTED_ADDON_HEADINGS)) {
       // The scanned path, not the submodule directory: an uninitialised
-      // submodule leaves `addons/<name>/` behind as an empty directory, so
-      // testing that would report a checkout that has nothing in it as
-      // present. `frontend/` is what the walk actually reads.
+      // submodule leaves `addons/<name>/` behind as an empty directory.
       if (!existsSync(resolve(REPO_ROOT, root, "frontend"))) continue;
       expect(perRoot.get(`${root}/frontend`) ?? 0).toBe(expected);
     }
@@ -204,9 +158,6 @@ describe("page headings", () => {
     expect(owned).toHaveLength(1);
   });
 
-  // DESIGN.md §3.2 gives H1 one Size. The migrated screens do not set one at
-  // all — they pass a title to `PageHeader` — so the only place a size can be
-  // written is the component, and that is what this pins.
   it("gives the owned heading the §3.2 size and nothing else", () => {
     const [owned] = headings().filter((h) => h.file === OWNER);
     expect(owned.tag).toContain("text-2xl");
@@ -221,28 +172,9 @@ describe("page headings", () => {
     expect(staleEntries(Object.keys(NOT_YET_MIGRATED))).toEqual([]);
   });
 
-  // The rule above, against paths the real ledger does not contain.
-  //
-  // The assertion the real ledger makes is `staleEntries(...) === []`, and
-  // the excuse only ever *removes* paths from that result — widening an
-  // empty set leaves it empty. So the real assertion cannot go red when the
-  // excuse is too broad; only one that expects something *back* can, and
-  // that is what these are.
+  // The real ledger asserts an empty result, which cannot go red when the
+  // excuse is too broad; these cases expect something back.
   describe("what counts as stale", () => {
-    /**
-     * A tree of its own, not this repository's.
-     *
-     * These four cases used to name real files inside `addons/knowledge`,
-     * which made them fail on a `git clone` without `--recurse-submodules` —
-     * the one checkout where "an absent addon is absent, not stale" is the
-     * rule being exercised, and the only one where it could not be. They
-     * also could not survive the files they named being deleted, which is a
-     * thing addons do.
-     *
-     * The ledger's own assertion above still reads this repository. What
-     * moves here is only the rule's own behaviour, which is about paths and
-     * file contents and needs no particular repository to be true.
-     */
     let root: string;
 
     beforeAll(() => {
@@ -268,14 +200,6 @@ describe("page headings", () => {
       ).toEqual([]);
     });
 
-    /**
-     * One case, not the two this used to be.
-     *
-     * They were "a file that no longer writes one" and "a file the *other*
-     * ledger knows about" — but `staleEntries` does not consult the other
-     * ledger, so the second was the first with a different story attached
-     * to it. Naming two real files made them look like two rules.
-     */
     it("reports a listed file that writes no heading", () => {
       expect(
         staleEntries(["addons/present/frontend/NoHeading.tsx"], root),
