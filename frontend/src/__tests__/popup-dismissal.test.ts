@@ -716,7 +716,7 @@ describe("An outside press", () => {
     // one line, and the alternative is a guard that reads as a floor and
     // functions as nothing.
     expect(relative(REPO_ROOT, CORE_ROOT)).toBe("frontend/src");
-    expect(sourceFiles(CORE_ROOT).length).toBe(415);
+    expect(sourceFiles(CORE_ROOT).length).toBe(417);
   });
 
   it.each([

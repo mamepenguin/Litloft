@@ -58,7 +58,7 @@ const DRIVES: Drive[] = [
 function SidebarSlice() {
   const currentDrive = useCurrentDrive();
   return (
-    <SidebarLibrarySection
+    <SidebarLibrarySection libraryActive={false}
       driveBase={currentDrive ? `/drive/${currentDrive}` : null}
       currentDrive={currentDrive}
       drives={DRIVES}
@@ -202,7 +202,7 @@ describe("the root page's sidebar", () => {
     pathname.value = "/";
     render(
       <CurrentDriveProvider>
-        <SidebarLibrarySection
+        <SidebarLibrarySection libraryActive={false}
           driveBase={null}
           currentDrive={null}
           drives={[DRIVES[0]!]}

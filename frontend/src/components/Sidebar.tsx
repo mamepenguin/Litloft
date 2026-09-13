@@ -14,6 +14,8 @@ import { useSidebarData } from "./sidebar/useSidebarData";
 import { isSidebarLinkActive } from "./sidebar/isSidebarLinkActive";
 import { useCollectionManagement } from "./sidebar/useCollectionManagement";
 import { SidebarLibrarySection } from "./sidebar/SidebarLibrarySection";
+import { SidebarSystemSection } from "./sidebar/SidebarSystemSection";
+import { isLibraryRowActive, pinHrefFor } from "./sidebar/libraryRowActive";
 import { SidebarCollectionsSection } from "./sidebar/SidebarCollectionsSection";
 import { SidebarPinsSection } from "./sidebar/SidebarPinsSection";
 import { SidebarSmartFoldersSection } from "./sidebar/SidebarSmartFoldersSection";
@@ -94,6 +96,21 @@ function SidebarNav() {
   const isActive = (href: string) =>
     isSidebarLinkActive({ href, pathname, currentDrive, activeView, activeTag });
 
+  // The Pins section builds its hrefs the same way, from the same helper,
+  // so "am I standing in a pinned folder" cannot be answered differently
+  // by the row that yields and the row it yields to.
+  const pinnedHrefs = useMemo(
+    () => (driveBase ? pins.map((pin) => pinHrefFor(driveBase, pin.path)) : []),
+    [driveBase, pins],
+  );
+  const libraryActive = isLibraryRowActive({
+    pathname,
+    driveBase,
+    activeView,
+    activeTag,
+    pinnedHrefs,
+  });
+
   // `active` overrides the href-derived answer. Tag rows need it: their
   // href toggles between "apply this tag" and "clear it", so the href
   // alone cannot say whether the row is the selected one.
@@ -107,7 +124,7 @@ function SidebarNav() {
   return (
     <nav className="scrollbar-hover flex h-full flex-col gap-1 overflow-y-auto p-3">
       {/* Library section: fixed at top, never reordered */}
-      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} drives={drives} linkClass={linkClass} close={closeIfOverlay} addons={addons} driveSummary={driveSummary} isAdmin={authStatus?.is_admin === true} />
+      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} drives={drives} linkClass={linkClass} close={closeIfOverlay} addons={addons} libraryActive={libraryActive} />
 
       {/* Reorderable sections */}
       {order.map((id) => {
@@ -187,6 +204,11 @@ function SidebarNav() {
 
         return null;
       })}
+
+      {/* Below the reader's own sections, per spec §5.1: these are about
+          the drive rather than about what is in it, and are reached
+          rarely. */}
+      <SidebarSystemSection driveBase={driveBase} linkClass={linkClass} close={closeIfOverlay} driveSummary={driveSummary} isAdmin={authStatus?.is_admin === true} />
 
       {/* Lock: fixed at bottom, never reordered */}
       {authStatus?.has_protected_drives && authStatus.unlocked_groups.length > 0 && (

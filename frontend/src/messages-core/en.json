@@ -38,6 +38,8 @@
   },
   "sidebar": {
     "home": "Home",
+    "library": "Library",
+    "views": "Views",
     "favorites": "Favorites",
     "liked": "Liked",
     "recentPlay": "Recently Viewed",
@@ -68,7 +70,8 @@
       "toggle": "Toggle tag sort order"
     },
     "clearTag": "Clear tag filter",
-    "lock": "Lock"
+    "lock": "Lock",
+    "administration": "Administration"
   },
   "drive": {
     "empty": "No drives found",

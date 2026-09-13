@@ -2,7 +2,13 @@
  * The fixed rows a drive's sidebar renders, in render order, with the
  * `?view=` value each one carries.
  *
- * Shared by the two detectors that need the value, not just the label:
+ * Render order spans two components: Library and the views come from
+ * `SidebarLibrarySection` at the top, Trash / Missing Files from
+ * `SidebarSystemSection` below the reader's own sections (spec
+ * 2026-09-12-purpose-oriented-navigation §5.1). The order is the column's,
+ * not one file's, which is why this list is compared against the DOM.
+ *
+ * Shared by the detectors that need the value and not just the label:
  * `components/__tests__/SidebarActiveRow.test.tsx` compares it against
  * the rendered DOM, and `sidebar/__tests__/isSidebarLinkActive.test.ts`
  * drives its per-value cases from it. A literal compared only against its
@@ -19,6 +25,7 @@
  */
 export const FIXED_SIDEBAR_ROWS: readonly { label: string; view: string | null }[] = [
   { label: "Home", view: null },
+  { label: "Library", view: "library" },
   { label: "Favorites", view: "favorites" },
   { label: "Liked", view: "liked" },
   { label: "Recently Viewed", view: "recent" },

@@ -10,6 +10,7 @@ import { useSidebarItemOrder } from "./useSidebarItemOrder";
 import { useReorderableDnD } from "./useReorderableDnD";
 import { ItemDragHandle } from "./ItemDragHandle";
 import { SidebarSectionHeading } from "./SidebarSectionHeading";
+import { pinHrefFor } from "./libraryRowActive";
 
 interface SidebarPinsSectionProps {
   driveBase: string;
@@ -55,7 +56,7 @@ export function SidebarPinsSection({
         order.map((id) => {
           const pin = pins.find((p) => p.path === id);
           if (!pin) return null;
-          const pinHref = `${driveBase}/${pin.path.split("/").map(encodeURIComponent).join("/")}`;
+          const pinHref = pinHrefFor(driveBase, pin.path);
           const pinName = pin.path.split("/").pop() ?? pin.path;
           return (
             <div

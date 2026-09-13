@@ -38,6 +38,8 @@
   },
   "sidebar": {
     "home": "ホーム",
+    "library": "ライブラリ",
+    "views": "ビュー",
     "favorites": "お気に入り",
     "liked": "Liked",
     "recentPlay": "最近見た",
@@ -68,7 +70,8 @@
       "toggle": "タグの並び順を切り替え"
     },
     "clearTag": "タグ絞り込みを解除",
-    "lock": "ロックする"
+    "lock": "ロックする",
+    "administration": "管理"
   },
   "drive": {
     "empty": "ドライブがありません",

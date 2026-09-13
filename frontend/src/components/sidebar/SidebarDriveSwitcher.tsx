@@ -67,10 +67,10 @@ export function SidebarDriveSwitcher({ drives, currentDrive, close }: SidebarDri
   );
 
   // Off a drive, the fold is named by what it holds. Not a
-  // `SidebarSectionHeading`: Phase 1 cut the sidebar to five headings and
-  // `sidebar-headings.test.ts` pins that count, and this is not a section
-  // label — it is the same fold-here row as the current-drive one, in the
-  // place that row would occupy.
+  // `SidebarSectionHeading`, because it is not a section label — it is the
+  // same fold-here row as the current-drive one, in the place that row
+  // would occupy. `sidebar-headings.test.ts` enumerates which files may
+  // draw one, and this is not among them.
   const allDrivesRow = !current && others.length > 1 && (
     <button
       type="button"
