@@ -158,9 +158,7 @@ def _ensure_empty_folder_tracked(db: Session, drive: str, folder_path: str) -> N
         db.add(EmptyFolder(drive=drive, path=folder_path))
 
 
-def resolve_db_path_conflict(
-    db: Session, new_rel: str, drive: str, *, takes_thumbnail_slot: bool
-) -> None:
+def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> str | None:
     """Free the UNIQUE ``file_path`` slot at ``new_rel`` *within* ``drive``
     before a create / move / rename / upload writes that path.
 
@@ -187,7 +185,11 @@ def resolve_db_path_conflict(
       • Missing (missing_since set)
             → retire the ghost's file_path to a placeholder. The record is
               preserved (watch-history / tags / comments survive) and stays
-              visible in the Missing view for the user to purge later.
+              visible in the Missing view for the user to purge later. Its id
+              is returned: it still names the thumbnail cache slot derived from
+              the freed path, and the caller that goes on to *write* that slot
+              has to take the name away — but only once it has written it. The
+              purge reaches a JPEG through that pointer and nothing else does.
     """
     conflict = (
         db.query(File)
@@ -195,7 +197,7 @@ def resolve_db_path_conflict(
         .first()
     )
     if conflict is None:
-        return
+        return None
     if conflict.missing_since is None and conflict.deleted_at is None:
         raise HTTPException(
             status_code=409,
@@ -203,20 +205,28 @@ def resolve_db_path_conflict(
         )
     if conflict.deleted_at is not None:
         db.delete(conflict)
-    else:
-        # Only when the arriving file really writes this row's slot: leaving the
-        # pointer then means the Missing row shows the new file's picture, and
-        # purging the row — the one action it is kept for — unlinks a thumbnail
-        # the live copy is using. Clearing it in any other case is the same loss
-        # the other way round, because the purge reaches the JPEG through this
-        # pointer and nothing else ever will.
-        folder, _, name = new_rel.rpartition("/")
-        if takes_thumbnail_slot and conflict.thumbnail_path == path_thumbnail_rel(
-            drive, folder, Path(name).stem
-        ):
-            conflict.thumbnail_path = None
-        conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
+        db.flush()
+        return None
+    conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
     db.flush()
+    return conflict.id
+
+
+def _rename_thumbnail_owner(
+    db: Session, owner: File, thumb_rel: str, retired_id: str | None
+) -> None:
+    """Point ``owner`` at the JPEG just written, and stop a record retired out
+    of that path from naming it. Its own commit, because the JPEG is a cache: a
+    database error here must not take back a file that has already arrived."""
+    try:
+        owner.thumbnail_path = thumb_rel
+        retired = db.get(File, retired_id) if retired_id is not None else None
+        if retired is not None and retired.thumbnail_path == thumb_rel:
+            retired.thumbnail_path = None
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.warning("Wrote %s but could not record who owns it", thumb_rel)
 
 
 def _resolve_copy_filename(target_dir: Path, original_filename: str) -> str:
@@ -294,9 +304,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     # file on disk. (_resolve_copy_filename only avoids FS collisions; a DB
     # ghost with no FS copy would otherwise pass that check and then blow up
     # at db.commit with an IntegrityError.)
-    resolve_db_path_conflict(
-        db, new_rel, dst_drive, takes_thumbnail_slot=fills_thumbnail_slot
-    )
+    retired_id = resolve_db_path_conflict(db, new_rel, dst_drive)
 
     # Atomic copy: create exclusive target then copy content to prevent TOCTOU race
     projected_thumb: Path | None = None
@@ -331,9 +339,6 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
             is_favorite=False,
             liked_at=None,
         )
-
-        if fills_thumbnail_slot:
-            new_file.thumbnail_path = new_thumb_rel
 
         try:
             db.add(new_file)
@@ -370,13 +375,17 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
 
     # A thumbnail is a cache the scanner can rebuild, so it is filled after the
     # row is durable and never inside the handler that reverses the filesystem:
-    # a copy that arrived must not be undone because its picture did not.
+    # a copy that arrived must not be undone because its picture did not. Which
+    # row names the JPEG is decided here too, from the write that happened —
+    # naming it beforehand hands the picture to whoever the write then missed.
     if fills_thumbnail_slot:
         try:
             with generating_file(new_thumb) as staged_thumb:
                 shutil.copy2(str(old_thumb), str(staged_thumb))
         except OSError:
             logger.warning("Copied %s but could not fill %s", new_rel, new_thumb_rel)
+        else:
+            _rename_thumbnail_owner(db, new_file, new_thumb_rel, retired_id)
 
     db.refresh(new_file)
     return new_file
@@ -405,12 +414,7 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    resolve_db_path_conflict(
-        db,
-        new_rel,
-        file.drive,
-        takes_thumbnail_slot=file.file_type == "video" and bool(file.thumbnail_path),
-    )
+    resolve_db_path_conflict(db, new_rel, file.drive)
 
     old_full.rename(new_full)
 
@@ -488,12 +492,7 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
 
-    resolve_db_path_conflict(
-        db,
-        new_rel,
-        dst_drive,
-        takes_thumbnail_slot=file.file_type == "video" and bool(file.thumbnail_path),
-    )
+    resolve_db_path_conflict(db, new_rel, dst_drive)
 
     new_full.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(old_full), str(new_full))

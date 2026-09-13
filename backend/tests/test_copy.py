@@ -1099,6 +1099,156 @@ class TestBatchCopy:
         assert c.delete(f"/api/files/{ghost_id}/purge").status_code == 200
         assert not ghost_thumb.exists(), "the purge could no longer reach the JPEG"
 
+    def test_a_publish_that_fails_leaves_the_picture_where_it_was(
+        self, client, monkeypatch
+    ):
+        """Who names a JPEG follows the write, not the intention to write. The
+        record retired out of this path is the only handle the purge has on its
+        thumbnail, and the arriving row must not inherit a picture that is not
+        of it."""
+        import app.config as config
+        from app.models import File
+        from app.services import atomic_write
+
+        c, db, drive_dir, data_dir = client
+        source = _seed_with_thumbnail(db, drive_dir, data_dir, "a.mp4", folder="one")
+        (drive_dir / "dest").mkdir(exist_ok=True)
+        ghost_thumb_rel = f"{TEST_DRIVE}/dest/a.jpg"
+        ghost_thumb = config.THUMBNAILS_DIR / ghost_thumb_rel
+        ghost_thumb.parent.mkdir(parents=True, exist_ok=True)
+        ghost_thumb.write_bytes(b"\xff\xd8\xff\xe0GHOST-PICTURE")
+        ghost = File(
+            filename="a.mp4",
+            title="Gone",
+            drive=TEST_DRIVE,
+            folder_path="dest",
+            file_path="dest/a.mp4",
+            file_size=1,
+            file_type="video",
+            mime_type="video/mp4",
+            thumbnail_path=ghost_thumb_rel,
+            missing_since=datetime.now(UTC),
+        )
+        db.add(ghost)
+        db.commit()
+        ghost_id = ghost.id
+
+        real_replace = atomic_write.os.replace
+
+        def refuse_the_jpeg(src, dst, *args, **kwargs):
+            if str(dst).endswith(".jpg"):
+                raise OSError(30, "Read-only file system")
+            return real_replace(src, dst, *args, **kwargs)
+
+        monkeypatch.setattr(atomic_write.os, "replace", refuse_the_jpeg)
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [source.id], "target_folder_path": "dest"},
+        )
+        monkeypatch.setattr(atomic_write.os, "replace", real_replace)
+
+        assert res.json() == {"copied": 1, "errors": []}
+        db.expire_all()
+        landed = (
+            db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.file_path == "dest/a.mp4")
+            .one()
+        )
+        assert landed.thumbnail_path is None
+        kept = db.get(File, ghost_id)
+        assert kept.thumbnail_path == ghost_thumb_rel
+        assert c.get(f"/api/files/{ghost_id}/thumbnail").content == (
+            b"\xff\xd8\xff\xe0GHOST-PICTURE"
+        )
+        assert c.delete(f"/api/files/{ghost_id}/purge").status_code == 200
+        assert not ghost_thumb.exists(), "the purge could no longer reach the JPEG"
+
+    def test_a_copy_leaves_a_retired_record_pointing_elsewhere_alone(self, client):
+        """Being retired out of the path is not the same as owning the slot the
+        arriving file writes. A record whose picture lives somewhere else keeps
+        it — the purge has no other way to reach that JPEG."""
+        import app.config as config
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        source = _seed_with_thumbnail(db, drive_dir, data_dir, "a.mp4", folder="one")
+        (drive_dir / "dest").mkdir(exist_ok=True)
+        elsewhere_rel = f"{TEST_DRIVE}/attic/a.jpg"
+        elsewhere = config.THUMBNAILS_DIR / elsewhere_rel
+        elsewhere.parent.mkdir(parents=True, exist_ok=True)
+        elsewhere.write_bytes(b"\xff\xd8\xff\xe0GHOST-PICTURE")
+        ghost = File(
+            filename="a.mp4",
+            title="Gone",
+            drive=TEST_DRIVE,
+            folder_path="dest",
+            file_path="dest/a.mp4",
+            file_size=1,
+            file_type="video",
+            mime_type="video/mp4",
+            thumbnail_path=elsewhere_rel,
+            missing_since=datetime.now(UTC),
+        )
+        db.add(ghost)
+        db.commit()
+        ghost_id = ghost.id
+
+        assert (
+            c.post(
+                "/api/files/batch/copy",
+                json={"ids": [source.id], "target_folder_path": "dest"},
+            ).json()["copied"]
+            == 1
+        )
+
+        db.expire_all()
+        assert db.get(File, ghost_id).thumbnail_path == elsewhere_rel
+        assert c.delete(f"/api/files/{ghost_id}/purge").status_code == 200
+        assert not elsewhere.exists(), "the purge could no longer reach the JPEG"
+
+    def test_a_copied_note_does_not_take_the_path_slot(self, client):
+        """A note's picture is a projection keyed by its row id. Copying it into
+        the generic slot would hand that slot to a row that does not own it."""
+        import app.config as config
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        (drive_dir / "one").mkdir(exist_ok=True)
+        (drive_dir / "one" / "n.md").write_text("# note\n", encoding="utf-8")
+        projection_rel = f"{TEST_DRIVE}/.markdown/source-image.jpg"
+        projection = config.THUMBNAILS_DIR / projection_rel
+        projection.parent.mkdir(parents=True, exist_ok=True)
+        projection.write_bytes(b"\xff\xd8\xff\xe0NOTE-PROJECTION")
+        note = File(
+            filename="n.md",
+            title="Note",
+            drive=TEST_DRIVE,
+            folder_path="one",
+            file_path="one/n.md",
+            file_size=7,
+            file_type="document",
+            mime_type="text/markdown",
+            thumbnail_path=projection_rel,
+        )
+        db.add(note)
+        db.commit()
+
+        assert (
+            c.post(
+                "/api/files/batch/copy",
+                json={"ids": [note.id], "target_folder_path": "dest"},
+            ).json()["copied"]
+            == 1
+        )
+
+        copied_row = (
+            db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.file_path == "dest/n.md")
+            .one()
+        )
+        assert copied_row.thumbnail_path != f"{TEST_DRIVE}/dest/n.jpg"
+        assert not (config.THUMBNAILS_DIR / TEST_DRIVE / "dest" / "n.jpg").exists()
+
     def test_batch_copy_empty_ids(self, client):
         c, db, drive_dir, data_dir = client
         res = c.post(
