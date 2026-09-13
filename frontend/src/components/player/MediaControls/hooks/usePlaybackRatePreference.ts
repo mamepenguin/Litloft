@@ -42,9 +42,6 @@ export function readPlaybackRatePreference(): number {
 }
 
 /**
- * Playback speed that survives across files and sessions, mirroring
- * how `useAutoplayPreference` handles the autoplay toggle.
- *
  * Returns the user's *preferred* rate. The rate a player actually
  * applied is read back from the MediaController — the two can diverge
  * when a backend refuses the requested speed.

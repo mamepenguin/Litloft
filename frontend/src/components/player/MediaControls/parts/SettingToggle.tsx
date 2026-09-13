@@ -3,23 +3,13 @@
 import type { ReactNode } from "react";
 
 /**
- * An on/off setting in the settings sheet, drawn as a single icon.
- *
- * The sheet rises inside the player frame, which on a phone is a 16:9
- * box about 220px tall. A label-plus-labelled-button row costs ~60px,
- * so four of them pushed the speed selector — the thing most often
- * wanted — below the fold. As icons they fit on one line.
- *
- * The name is carried by `aria-label` rather than visible text, and
- * `title` repeats it for pointer users, so nothing is lost to a screen
- * reader or a hover. State is `aria-checked` plus the wash, matching
- * how the speed and track selectors already show their current value.
+ * Drawn as a single icon: the sheet rises inside the player frame, and
+ * labelled rows push the speed selector below the fold on a phone.
  */
 export interface SettingToggleProps {
   label: string;
   checked: boolean;
   onChange: (next: boolean) => void;
-  /** The icon. Callers may swap it on `checked` where that reads better. */
   children: ReactNode;
 }
 

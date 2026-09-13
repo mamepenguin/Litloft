@@ -16,35 +16,20 @@ import {
 
 const DEFAULT_RATE = 1;
 
-/**
- * Kept as an alias so callers naming the player's own type still read
- * naturally; the two shapes are described on `OverFramePlacement`.
- */
 export type SettingsSheetPlacement = OverFramePlacement;
 
 export interface SettingsSheetProps {
   /** The rate the player reports, which may not be one we offer. */
   playbackRate: number;
   onSelectRate: (rate: number) => void;
-  /** `"unavailable"` leaves the caption row out entirely. */
   captions: CaptionsState;
   onToggleCaptions: (enabled: boolean) => void;
   onClose: () => void;
-  /** Rows contributed by the frame's owner; see MediaControlsPresenterProps. */
   extra?: ReactNode;
-  /**
-   * On/off settings contributed by the frame's owner, rendered as icons
-   * on the same line as core's own. Kept apart from `extra` because
-   * that one is a stack of blocks and this is a single row.
-   */
   toggles?: ReactNode;
   placement?: SettingsSheetPlacement;
 }
 
-/**
- * Player settings, in the frame-local panel `OverFrameSettingsPanel`
- * provides. This file owns the rows; the panel owns the shape.
- */
 export function SettingsSheet({
   playbackRate,
   onSelectRate,

@@ -25,8 +25,6 @@ function readMode(): PointerMode {
 }
 
 /**
- * The primary input device, resolved after mount.
- *
  * Deliberately starts `"unknown"` and only resolves in an effect. The
  * server has no matchMedia at all, so reading it during render would
  * produce markup that disagrees with the client's first paint.

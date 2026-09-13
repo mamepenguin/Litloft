@@ -20,9 +20,6 @@ export function readCaptionsPreference(): CaptionsPreference {
 }
 
 /**
- * Whether the viewer wants subtitles, remembered across files and
- * sessions — the same treatment autoplay and playback speed get.
- *
  * An unset preference stays null so each backend keeps its own default:
  * native video honors `<track default>`, while YouTube already starts
  * captions off through `cc_load_policy: 0`.

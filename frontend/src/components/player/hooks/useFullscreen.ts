@@ -4,16 +4,8 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import { useShortcuts } from "@/hooks/useShortcuts";
 
 /**
- * Fullscreen for a player frame, with a fallback for platforms that
- * have no element fullscreen at all.
- *
- * No Apple mobile browser implements `Element.requestFullscreen` —
- * measured on iPadOS, the standard and prefixed entry points and
- * fullscreenEnabled are all undefined. The one thing they can put
- * fullscreen, a `<video>` via `webkitEnterFullscreen()`, is out of
- * reach inside a cross-origin iframe. With the provider's controls
- * turned off there is no route left, so we fake it: pin the existing
- * frame over the viewport with `position: fixed`.
+ * No Apple mobile browser implements `Element.requestFullscreen`, so the
+ * fallback pins the existing frame over the viewport with `position: fixed`.
  *
  * The frame is styled in place and never re-parented. Moving an iframe
  * to a new parent reloads it, losing playback position and the player
@@ -24,30 +16,16 @@ const HISTORY_MARKER = "litloftFullscreen";
 const COARSE_POINTER_QUERY = "(pointer: coarse)";
 const LANDSCAPE_QUERY = "(orientation: landscape)";
 
-/**
- * Vertical travel that counts as a request to change size: down for
- * "put this away", up for "fill the screen".
- */
 const SWIPE_DISMISS_PX = 80;
 
-/**
- * How much two fingers have to spread or close before it reads as a
- * deliberate pinch. Generous margins on both sides so an imprecise
- * two-finger tap does nothing at all.
- */
+/** Generous margins on both sides so an imprecise two-finger tap does nothing at all. */
 const PINCH_ENTER_RATIO = 1.25;
 const PINCH_EXIT_RATIO = 0.8;
 
 /**
- * Marks the scrub bar so swipes that begin there are left alone.
- * Dragging it travels vertically as often as not, and reading that as
- * a request to change size would make scrubbing impossible.
- *
- * Deliberately just the scrub bar. Marking the whole control bar meant
- * a swipe starting on the play button — dead centre of the frame, the
- * obvious place to put a finger — did nothing at all. Buttons have no
- * drag of their own, so the distance threshold is enough to tell a
- * deliberate swipe from a slip.
+ * Swipes that begin on the scrub bar are left alone: dragging it travels
+ * vertically as often as not. Deliberately just the scrub bar, so a swipe
+ * starting on the play button still works.
  */
 const SCRUB_SELECTOR = "[data-player-scrub]";
 
@@ -61,7 +39,6 @@ interface TouchLikeEvent extends Event {
   changedTouches: ArrayLike<TouchPoint>;
 }
 
-/** How the current fullscreen session was started. */
 type EntryReason = "manual" | "rotate";
 
 export interface UseFullscreenOptions {
@@ -82,15 +59,12 @@ export interface UseFullscreenOptions {
 }
 
 export interface FullscreenState {
-  /** True for either backing mechanism. */
   isFullscreen: boolean;
-  /** True only for the CSS fallback; drives the frame's layout swap. */
   isPseudo: boolean;
   toggle: () => void;
   exit: () => void;
 }
 
-/** Distance between the first two touch points. */
 function spread(touches: ArrayLike<TouchPoint>): number {
   return Math.hypot(
     touches[0].clientX - touches[1].clientX,
@@ -216,8 +190,6 @@ export function useFullscreen({
     enter("manual");
   }, [isFullscreen, enter, exit]);
 
-  // --- rotation ---
-
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
       return;
@@ -237,20 +209,9 @@ export function useFullscreen({
     return () => mq.removeEventListener("change", onChange);
   }, [autoRotateEnabled, enter, exit]);
 
-  // --- escape ---
-
-  // Only pseudo-fullscreen needs this: the native kind is left to the
-  // browser. Registered on the shortcut stack rather than on `window`
-  // so a dialog opened over the player wins the press — as a listener
-  // it answered every Escape in pseudo-fullscreen, dialog or not.
-  //
-  // Plain tier, deliberately. `OVERLAY_PRIORITY` means "I am the
-  // frontmost layer", and this is not: it is enabled by player state,
-  // which is established *before* anything opens on top of it. Put in
-  // the overlay tier it would outrank every tier-0 Escape in the app —
-  // the sidebar overlay, a confirm dialog, a context menu — and take
-  // the key from things that really are in front. Push order alone
-  // gives the right answer here.
+  // Registered on the shortcut stack rather than on `window` so a dialog
+  // opened over the player wins the press. Plain tier, deliberately: in the
+  // overlay tier it would outrank every tier-0 Escape in the app.
   //
   // `editingOnly: false` because a comment box or a rename field can
   // hold focus while the player fills the screen.
@@ -268,8 +229,6 @@ export function useFullscreen({
     ],
     pseudoActive,
   );
-
-  // --- swipe and pinch ---
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -376,8 +335,6 @@ export function useFullscreen({
     // every transition would drop a gesture already in flight.
   }, [frameRef, enter, exit]);
 
-  // --- document side effects ---
-
   useEffect(() => {
     if (!pseudoActive) return;
     const root = document.documentElement;
@@ -409,8 +366,6 @@ export function useFullscreen({
       window.scrollTo(0, scrollY);
     };
   }, [pseudoActive]);
-
-  // --- history ---
 
   useEffect(() => {
     if (!pseudoActive) return;

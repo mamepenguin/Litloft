@@ -9,13 +9,11 @@ import type {
 import type { MediaController } from "@/lib/mediaController";
 import type { PointerMode } from "@/components/player/hooks/usePointerMode";
 
-/** How long a finger has to stay put before the speed boost engages. */
 export const LONG_PRESS_MS = 500;
 /** Included in PLAYBACK_RATES; YouTube ignores rates outside that set. */
 export const BOOST_RATE = 2;
 /** Travel that hands the gesture over to a scroll or a swipe. */
 const MOVE_CANCEL_PX = 10;
-/** Gap within which a second tap counts as a double tap. */
 export const DOUBLE_TAP_MS = 400;
 /**
  * How long a skip stays open for further taps, and stays on screen.
@@ -50,13 +48,9 @@ export interface UsePlayerGesturesOptions {
   duration: number;
   /** Rate to return to when a long press ends. */
   preferredRate: number;
-  /** Single tap on touch. */
   onToggleControls: () => void;
-  /** A skip took over; get the bar out of the way. */
   onHideControls: () => void;
-  /** Single click with a mouse. */
   onTogglePlay: () => void;
-  /** Double click with a mouse. */
   onToggleFullscreen: () => void;
 }
 
@@ -66,11 +60,8 @@ export type GestureHandlers = Pick<
 >;
 
 export interface PlayerGestures {
-  /** Spread onto the overlay element. */
   handlers: GestureHandlers;
-  /** Non-null while the skip feedback should be on screen. */
   skip: SkipFeedback | null;
-  /** True while the long-press speed boost is engaged. */
   boosting: boolean;
   /**
    * Forget any tap in progress. Called when a control button handles a
@@ -87,13 +78,11 @@ interface ActivePress {
   side: SkipSide;
   /** Travelled too far, or otherwise no longer a candidate for a tap. */
   cancelled: boolean;
-  /** The long press completed and the rate is currently overridden. */
   boosted: boolean;
   timer: ReturnType<typeof setTimeout> | null;
 }
 
 interface SkipBurst extends SkipFeedback {
-  /** Timestamp of the most recent tap in this burst. */
   at: number;
 }
 
@@ -102,10 +91,6 @@ function distance(ax: number, ay: number, bx: number, by: number): number {
 }
 
 /**
- * Touch gestures over a player frame: long press to boost the speed,
- * double tap either side to skip, single tap to surface the controls.
- * Mouse input keeps the click / double-click behaviour it always had.
- *
  * Everything the handlers read lives in refs. The overlay attaches
  * window listeners for the duration of a press — a finger that leaves
  * the frame mid-gesture must still deliver its pointerup, or the boost
@@ -161,7 +146,6 @@ export function usePlayerGestures({
   const burstRef = useRef<SkipBurst | null>(null);
   const burstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Held so pointerdown can hand the same references to removeEventListener.
   const detachRef = useRef<(() => void) | null>(null);
 
   const restoreRate = useCallback(() => {

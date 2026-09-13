@@ -3,26 +3,19 @@
 import { useCallback, useRef, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 
-/**
- * The row is a finger-sized target; the visible line inside it is only
- * as tall as the knob. Both are needed as numbers, because the native
- * track has to be offset to land on the same line as the painted one.
- */
 const ROW_PX = 40;
 const LINE_PX = 12;
 
-/** One decimal is plenty for a progress bar, and it keeps float noise
- *  (0.42 * 100 === 42.00000000000001) out of the rendered style. */
+/** Rounding keeps float noise (0.42 * 100 === 42.00000000000001) out of
+ *  the rendered style. */
 export function toPercent(fraction: number): string {
   const clamped = Math.min(Math.max(fraction, 0), 1);
   return `${Math.round(clamped * 1000) / 10}%`;
 }
 
 /**
- * Keys that actually move a range input. Treating *every* keydown as
- * the start of a scrub means Tab-ing through the bar commits a seek to
- * the position already playing — harmless in principle, but the
- * YouTube player re-buffers on any seekTo, so it shows up as a stutter.
+ * Treating *every* keydown as the start of a scrub means Tab-ing through
+ * the bar commits a seek, and the YouTube player re-buffers on any seekTo.
  */
 const SCRUB_KEYS = new Set([
   "ArrowLeft",
@@ -35,19 +28,6 @@ const SCRUB_KEYS = new Set([
   "PageDown",
 ]);
 
-/**
- * The seek bar's input: invisible, but doing three jobs.
- *
- * The knob is painted separately so it shares a coordinate system with
- * the track. Dragging/tapping is computed by hand from pointer
- * coordinates (see `secondsFromClientX`) rather than left to the
- * browser's own thumb-drag handling, so the native thumb's exact
- * position and hit-box size no longer matter for input — only for the
- * focus ring and screen-reader semantics a native `<input type="range">`
- * gives for free. The native track is still pushed down by
- * `--seek-track-offset` to land on the painted line, for that same
- * cosmetic/semantic reason.
- */
 const SEEK_INPUT_CLASS =
   "h-full w-full cursor-pointer touch-none appearance-none bg-transparent focus-visible:outline-none disabled:cursor-not-allowed " +
   "[&::-webkit-slider-runnable-track]:h-3 [&::-webkit-slider-runnable-track]:bg-transparent " +
@@ -63,24 +43,13 @@ export interface SeekBarProps {
   displayTime: number;
   duration: number;
   bufferedFraction: number;
-  /** Nothing to seek through: no duration, or an ad owns the clock. */
   disabled: boolean;
   onScrubStart: (seconds: number) => void;
   onScrubChange: (seconds: number) => void;
   onScrubEnd: () => void;
-  /**
-   * `edge` pins the line to the bottom of the row so it can sit on the
-   * very edge of the video frame, the way mobile players draw it, while
-   * the row above it stays a finger-sized target.
-   */
   variant?: "centered" | "edge";
 }
 
-/**
- * The scrub surface: three painted layers (empty / buffered / played)
- * plus a knob, with a transparent range input laid over them for input
- * and semantics.
- */
 export function SeekBar({
   displayTime,
   duration,
@@ -98,11 +67,7 @@ export function SeekBar({
 
   // The browser's own "click the track to jump" behaviour is a mouse-only
   // default action: WebKit and Blink under touch only move the value when
-  // the drag starts on the (invisible, 24px) native thumb itself, so a tap
-  // anywhere else on the bar is silently ignored. Computing the position
-  // ourselves from the pointer's coordinates — instead of leaning on that
-  // default action — makes the whole row the drag/tap target on every
-  // pointer type, not just mouse.
+  // the drag starts on the native thumb itself.
   const secondsFromClientX = useCallback(
     (clientX: number) => {
       const rect = rowRef.current?.getBoundingClientRect();
@@ -114,14 +79,11 @@ export function SeekBar({
   );
 
   // The knob's travel is the track minus its own width, which is what
-  // keeps a native thumb from hanging off either end. Reproduced here
-  // because the knob is ours now.
+  // keeps a native thumb from hanging off either end.
   const knobLeft = `calc(${playedFraction * 100}% + ${
     (0.5 - playedFraction) * LINE_PX
   }px)`;
 
-  // Where the line sits in the row, and therefore how far the native
-  // track has to be pushed down to meet it.
   const trackOffsetPx = variant === "edge" ? ROW_PX - LINE_PX : (ROW_PX - LINE_PX) / 2;
 
   return (
@@ -143,10 +105,6 @@ export function SeekBar({
         value={displayTime}
         disabled={disabled}
         onPointerDown={(e) => {
-          // Captured so a drag that wanders outside the row's bounds
-          // (a finger sliding up off the bar, say) keeps reporting to
-          // this element instead of losing the gesture. jsdom (tests)
-          // has no implementation of pointer capture at all.
           e.currentTarget.setPointerCapture?.(e.pointerId);
           onScrubStart(secondsFromClientX(e.clientX));
         }}
@@ -164,14 +122,11 @@ export function SeekBar({
         onKeyUp={(e) => {
           if (SCRUB_KEYS.has(e.key)) onScrubEnd();
         }}
-        // Safety net: a pointer released outside the input, or focus
-        // lost mid-drag, would otherwise leave the scrub uncommitted
-        // and the bar frozen on the drag position.
+        // A pointer released outside the input, or focus lost mid-drag,
+        // would otherwise leave the scrub uncommitted.
         onBlur={onScrubEnd}
       />
 
-      {/* Everything visible shares this one line, so the track and the
-          knob cannot drift apart vertically. */}
       <div
         data-testid="seek-line"
         style={{ top: `${trackOffsetPx}px` }}

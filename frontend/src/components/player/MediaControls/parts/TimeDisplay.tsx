@@ -5,11 +5,7 @@ import { formatDuration } from "@/lib/format";
 export interface TimeDisplayProps {
   displayTime: number;
   duration: number;
-  /**
-   * During an ad the player's clock belongs to the ad, not the file.
-   * Both halves blank out rather than presenting the ad's position as
-   * the viewer's place in the video.
-   */
+  /** During an ad the player's clock belongs to the ad, not the file. */
   interrupted: boolean;
 }
 

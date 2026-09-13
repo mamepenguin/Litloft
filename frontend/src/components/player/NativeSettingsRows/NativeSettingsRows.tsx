@@ -50,9 +50,6 @@ export function PictureInPictureToggle({ video }: VideoRowProps) {
     <SettingToggle
       label={t("pictureInPicture")}
       checked={active}
-      // Both directions, because this renders as a switch. The effect
-      // above also hears the platform's own events, so a window closed
-      // from the OS chrome settles the state too.
       onChange={(next) => {
         void (next ? enterPictureInPicture(video) : exitPictureInPicture(video))
           .then(() => setActive(isInPictureInPicture(video)))
@@ -80,12 +77,6 @@ export interface NativePlayerUiToggleProps {
   onChange: (browser: boolean) => void;
 }
 
-/**
- * Hands the frame back to the browser's own controls, and takes it
- * again. What it actually sets is the `controls` attribute; the visible
- * consequence is that the browser draws its own bar, which is also
- * where the platform's fullscreen and AirPlay entries live.
- */
 export function NativePlayerUiToggle({
   browser,
   onChange,
@@ -124,8 +115,7 @@ export function SubtitleTrackPicker({ video }: VideoRowProps) {
     };
   }, [video]);
 
-  // One track is what the core toggle already covers; a picker would
-  // just be a second control for the same thing.
+  // One track is what the core toggle already covers.
   if (tracks.length <= 1) return null;
 
   const selected = tracks.findIndex((track) => track.mode === "showing");
@@ -188,11 +178,6 @@ export interface NativeToggleButtonsProps extends VideoRowProps {
   onBrowserControlsChange: (browser: boolean) => void;
 }
 
-/**
- * The native backend's on/off settings, for the settings sheet's icon
- * row. The subtitle track picker is not here: it has more than two
- * states, so it stays a labelled group in `settingsExtra`.
- */
 export function NativeToggleButtons({
   video,
   browserControls,
