@@ -1,13 +1,3 @@
-// Merge addon translation files into core messages.
-//
-// Reads src/messages-core/{locale}.json (core-only, git-tracked),
-// deep-merges src/addons/*/messages/{locale}.json into it,
-// and writes the result to src/messages/{locale}.json (generated, gitignored).
-//
-// Usage:  node scripts/merge-addon-messages.mjs
-// Called: Dockerfile (after addon frontend copy, before pnpm build)
-//         Direct host deployment: run once before pnpm build / pnpm dev
-
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'node:fs'
 import { resolve, basename, dirname } from 'node:path'
 
@@ -40,7 +30,6 @@ if (!existsSync(CORE_DIR)) {
 
 mkdirSync(MERGED_DIR, { recursive: true })
 
-// Collect addon message files
 const addonFiles = []
 if (existsSync(ADDONS_DIR)) {
   for (const addonName of readdirSync(ADDONS_DIR, { withFileTypes: true })) {
@@ -64,7 +53,6 @@ for (const entry of addonFiles) {
   byLocale.get(entry.locale).push(entry)
 }
 
-// Process each core locale file
 for (const file of readdirSync(CORE_DIR)) {
   if (!file.endsWith('.json')) continue
   const locale = basename(file, '.json')

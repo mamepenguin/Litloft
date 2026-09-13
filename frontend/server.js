@@ -1,4 +1,3 @@
-// Proxy wrapper: Next.js standalone server + WebSocket proxy to backend
 // This file runs in Docker production. For local dev, use `pnpm dev`.
 const http = require("http");
 const httpProxy = require("http-proxy");
@@ -8,7 +7,6 @@ const WS_BACKEND = process.env.BACKEND_URL || "http://backend:8000";
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const HOSTNAME = process.env.HOSTNAME || "0.0.0.0";
 
-// Start Next.js standalone on internal port
 process.env.PORT = String(NEXT_PORT);
 process.env.HOSTNAME = "127.0.0.1";
 require("./server-next.js");
@@ -16,8 +14,7 @@ require("./server-next.js");
 // agent:false disables keep-alive pooling for the Next.js internal proxy.
 // Node.js 20 changed globalAgent to keepAlive:true, causing connections to
 // accumulate when upstream errors (ECONNRESET from addon restarts) leave
-// pooled sockets in a half-open state. Using per-request connections avoids
-// this leak while keeping latency acceptable (loopback ~0.1ms overhead).
+// pooled sockets in a half-open state.
 const nextProxy = httpProxy.createProxyServer({
   target: `http://127.0.0.1:${NEXT_PORT}`,
   agent: false,
@@ -55,15 +52,9 @@ abortUpstreamOnClientClose(nextProxy);
 abortUpstreamOnClientClose(backendProxy);
 
 // The backend's Internal API (/api/internal/*) is intended for the
-// Docker-internal network only (addon ↔ core service-to-service). It is
-// NOT drive-access gated the way the public API is, and several write
-// endpoints (file_relations, addon-events, files/{id}/tags) accept
-// requests with no viewer cookie. The Next.js rewrite rule
-// (`/api/:path*` → backend:8000) would otherwise expose these to any
-// browser on the LAN. Reject them at the edge so the only path to the
-// Internal API stays the Docker network. Returning 404 (not 403) keeps
-// the endpoint's existence hidden, matching the project's
-// "404 not 403" access-control rule.
+// Docker-internal network only. It is NOT drive-access gated the way the
+// public API is, and several write endpoints accept requests with no viewer
+// cookie. Returning 404 (not 403) keeps the endpoint's existence hidden.
 function isInternalApiPath(pathname) {
   return pathname === "/api/internal" || pathname.startsWith("/api/internal/");
 }
@@ -73,8 +64,6 @@ function isInternalApiPath(pathname) {
 // (browser → nextProxy → Next.js fetch → backend) causes downloads to stall
 // near completion: the response body arrives in full but the final
 // connection-close signal is delayed, leaving the browser waiting forever.
-// Direct proxying mirrors how WebSocket (/api/ws) is already handled.
-// Authentication is preserved — the browser's hv_token cookie is forwarded.
 const _streamPathRe = /^\/api\/files\/\d+\/stream$/;
 function isStreamPath(pathname) {
   return _streamPathRe.test(pathname);
