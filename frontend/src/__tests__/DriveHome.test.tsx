@@ -12,21 +12,11 @@ vi.mock("@/components/ProfileProvider", () => ({
   ProfileProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-// Mock sidebar
-vi.mock("@/components/SidebarProvider", () => ({
-  useSidebar: () => ({
-    isOpen: false,
-    toggle: vi.fn(),
-    close: vi.fn(),
-    refreshKey: 0,
-    requestRefresh: vi.fn(),
-  }),
-}));
-
-// Not the page's own: the content rows draw `FileCard`s, each of which
-// renders a `FileContextMenu` whose `useFileMenuItems` reaches for the
-// clipboard (`useFileMenuItems.ts:60`). Removing this stand-in throws
-// on render.
+// Not the page's own. Each content row renders one `FileContextMenu`
+// beside its cards — not per card — and `useFileMenuItems` reaches for
+// the clipboard from there. A row renders while it is still loading, so
+// this is on the path even where the page draws no cards at all, which
+// is every case in this file. Removing the stand-in throws on render.
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({
     clipboard: null,
@@ -36,6 +26,28 @@ vi.mock("@/components/ClipboardProvider", () => ({
     clear: vi.fn(),
     isCut: () => false,
   }),
+}));
+
+// Whether an addon has registered the Add menu's slot. `AddButton` gates
+// its addon rows on this *as well as* on the caller passing `addonProps`,
+// so a fixture that leaves it false cannot see the second gate at all.
+const slotIsRegistered = { current: false };
+vi.mock("@/components/AddonSlotsProvider", () => ({
+  useAddonSlots: () => ({
+    addons: {},
+    slots: {},
+    loading: false,
+    getSlotEntries: () => [],
+    hasSlot: () => slotIsRegistered.current,
+  }),
+}));
+vi.mock("@/components/AddonSlot", () => ({
+  AddonSlot: ({ id }: { id: string }) =>
+    id === "folder-actions-menu" ? (
+      <button type="button" role="menuitem">
+        Addon row
+      </button>
+    ) : null,
 }));
 
 const mockRefreshTree = vi.fn();
@@ -80,6 +92,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { DriveHome } from "../components/DriveHome";
+import { AddButton } from "@/components/AddButton";
 import type { WatchHistoryItem } from "@/types";
 
 const makeWatchHistoryItem = (id: string): WatchHistoryItem => ({
@@ -114,6 +127,7 @@ describe("DriveHome", () => {
   beforeEach(() => {
     mockRefreshTree.mockClear();
     vi.clearAllMocks();
+    slotIsRegistered.current = false;
     mockProfile.nickname = null;
     mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
     mockGetWatchHistory.mockResolvedValue([]);
@@ -300,6 +314,7 @@ describe("the drive home's content rows", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    slotIsRegistered.current = false;
     mockProfile.nickname = null;
     mockGetWatchHistory.mockResolvedValue([]);
   });
@@ -367,6 +382,7 @@ describe("the drive home's content rows", () => {
 describe("the drive root's header", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    slotIsRegistered.current = false;
     mockProfile.nickname = null;
     mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
     mockGetWatchHistory.mockResolvedValue([]);
@@ -437,16 +453,40 @@ describe("the drive root's header", () => {
     // declared rather than counted: one appearing moves this side of the
     // equality by itself.
     //
-    // **What this does not reach.** `addonProps` is the third such prop,
-    // and its rows are gated on `hasSlot(ADD_MENU_SLOT)` as well
-    // (`AddButton.tsx:106`). No addon registers that slot here, so
-    // passing `addonProps` from this page changes nothing a test can
-    // see — measuring it means standing in for the slot registry, which
-    // is `AddonSlot`'s subject and not this page's.
     render(<DriveHome driveName="media" />);
     fireEvent.click(await screen.findByRole("button", { name: "Add" }));
     const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
     expect(rows).toEqual(["Files", "Folder"]);
+  });
+
+  it("offers no addon rows either, on a drive where an addon has registered for them", async () => {
+    // The third prop, and the one the other case cannot reach: addon rows
+    // are gated on `hasSlot(ADD_MENU_SLOT)` as well as on the caller
+    // passing `addonProps`, so with no addon registered the caller's
+    // argument is unobservable. Registering one is what makes the second
+    // gate the only thing left, which is the gate this page owns.
+    //
+    // `docs/user-guide/file-browsing.md` tells a reader the addon rows are
+    // among what this menu does not offer, so it is a claim as much as the
+    // other two are.
+    slotIsRegistered.current = true;
+    render(<DriveHome driveName="media" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
+    const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
+    expect(rows).toEqual(["Files", "Folder"]);
+  });
+
+  it("draws an addon row where one is registered and the caller asks for it", async () => {
+    // The population, asserted separately (detector rule 7). Without it
+    // the case above passes over a stand-in that never draws — which is
+    // the state this file was in when `addonProps` was filed as inert.
+    slotIsRegistered.current = true;
+    render(
+      <AddButton align="right" addonProps={{ drive: "media", path: "" }} />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
+    const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
+    expect(rows).toEqual(["Files", "Folder", "Addon row"]);
   });
 
   it("opens its menu away from the edge it sits against", async () => {

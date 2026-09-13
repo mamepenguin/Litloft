@@ -2,21 +2,6 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { FileItem, PaginatedResponse, WatchHistoryItem } from "@/types";
 
-vi.mock("next/link", () => ({
-  default: ({
-    children,
-    href,
-    ...props
-  }: {
-    children: React.ReactNode;
-    href: string;
-    [key: string]: unknown;
-  }) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
-}));
 
 const getDriveFiles = vi.fn<(drive: string, params: Record<string, unknown>) => Promise<PaginatedResponse>>();
 const getWatchHistory = vi.fn<(drive: string, limit: number, scope?: string) => Promise<WatchHistoryItem[]>>();
@@ -29,7 +14,12 @@ vi.mock("@/lib/api", () => ({
   getWatchHistory: (drive: string, limit: number, scope?: string) => getWatchHistory(drive, limit, scope),
 }));
 
-vi.mock("../AddonSlot", () => ({ AddonSlot: () => <div /> }));
+// The header, stood in for as a unit. Nothing it would draw — the tree
+// toggle, the trail, the links inside it — is reached from here, so none
+// of those needs a stand-in of its own, and one for any of them would be
+// a claim that this file exercises it.
+vi.mock("../PageHeader", () => ({ PageHeader: () => <div /> }));
+
 // The two watch rows are the same component twice, told apart by
 // `title`: the first is rendered without one and falls back to the
 // component's own default, so the stand-in restates that default. This
@@ -47,8 +37,6 @@ vi.mock("../ContinueWatchingSection", () => ({
     </section>
   ),
 }));
-vi.mock("../PageHeader", () => ({ PageHeader: () => <div /> }));
-vi.mock("../TreeToggle", () => ({ TreeToggle: () => <div /> }));
 
 // The rows are the surface this file reads state through, so they are
 // stood in for by something that draws what it was handed and nothing
@@ -181,6 +169,12 @@ const DRIVE_A_WATCH: WatchRowItems = {
 const DRIVE_B_WATCH: WatchRowItems = {
   continueWatching: "bravo-continuing",
   recentlyPlayed: "bravo-played",
+};
+
+/** What the first drive's history holds when it is opened again. */
+const DRIVE_A_REVISIT_WATCH: WatchRowItems = {
+  continueWatching: "alfa-continuing-after",
+  recentlyPlayed: "alfa-played-after",
 };
 
 function page(title: string): PaginatedResponse {
@@ -695,6 +689,54 @@ describe("DriveHome across a drive change", () => {
     // links, and "remove from history" on one of them would act on a
     // file this drive may not even hold.
     expect(rowsOnScreen()).toEqual(expectedPageWithWatchRows(DRIVE_B_FILES, DRIVE_B_WATCH));
+    for (const name of Object.values(DRIVE_A_WATCH)) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
+  });
+
+  it("keeps a watch fetch from an earlier visit to this drive off the revisit", async () => {
+    // The axis the case above cannot reach. There the two runs were made
+    // for different drives, so a guard comparing drive names satisfies it
+    // by construction; here the same drive is on both ends of the trip and
+    // only the page load tells the two runs apart. The component is not
+    // remounted in between — `/drive/[name]` renders it with no `key` — so
+    // the first visit's fetches are still in flight on this instance when
+    // the third render arrives.
+    profile.nickname = "someone";
+    driveHasFiles(DRIVE_UNDER_TEST, DRIVE_A_FILES);
+    driveHasWatchHistory(DRIVE_UNDER_TEST, DRIVE_A_WATCH);
+
+    const firstVisit = holdWatchFetches(DRIVE_UNDER_TEST);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await expectWatchFetchesStillHeld(firstVisit.promises);
+
+    driveHasFiles(SECOND_DRIVE, DRIVE_B_FILES);
+    driveHasWatchHistory(SECOND_DRIVE, DRIVE_B_WATCH);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
+    await waitFor(() =>
+      expect(rowsOnScreen()).toEqual(expectedPageWithWatchRows(DRIVE_B_FILES, DRIVE_B_WATCH)),
+    );
+
+    driveHasFiles(DRIVE_UNDER_TEST, DRIVE_A_REVISIT_FILES);
+    driveHasWatchHistory(DRIVE_UNDER_TEST, DRIVE_A_REVISIT_WATCH);
+    rerender(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await waitFor(() =>
+      expect(rowsOnScreen()).toEqual(
+        expectedPageWithWatchRows(DRIVE_A_REVISIT_FILES, DRIVE_A_REVISIT_WATCH),
+      ),
+    );
+
+    await act(async () => {
+      firstVisit.resolve(DRIVE_A_WATCH);
+    });
+
+    // The revisit's rows survive. What a user does to reach this is press
+    // the drive switcher twice: the first visit's history comes back after
+    // the second one's is already on screen, and puts a file they have
+    // since finished back into Continue watching.
+    expect(rowsOnScreen()).toEqual(
+      expectedPageWithWatchRows(DRIVE_A_REVISIT_FILES, DRIVE_A_REVISIT_WATCH),
+    );
     for (const name of Object.values(DRIVE_A_WATCH)) {
       expect(screen.queryByText(name)).toBeNull();
     }

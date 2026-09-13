@@ -1,12 +1,12 @@
 # Browsing files
 
-Files and folders are browsed on the Library screen, which opens at the drive root (`/drive/<name>?view=library`) and walks down from there; subfolders open at `/drive/<name>/<path>`. The drive home page (`/drive/<name>`) is what the drive opens on, and it answers a different question — what is worth continuing or returning to. The breadcrumb row carries the tree toggle on the left and the **Add** button on the right; below it are *content rows* (Continue watching, Recently played, Recently added, Favourites, Liked). It draws no folder cards, and the files it draws are the ones those rows surfaced — the folders and files that *sit at the drive root* are in Library. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
+Files and folders are browsed on the Library screen, which opens at the drive root (`/drive/<name>?view=library`) and walks down from there; subfolders open at `/drive/<name>/<path>`. The drive home page (`/drive/<name>`) is what the drive opens on, and it answers a different question — what is worth continuing or returning to. The breadcrumb row carries the tree toggle on the left and the **Add** button on the right; below it are *content rows* (Continue watching, Recently Viewed, Recently added, Favourites, Liked). It draws no folder cards, and the files it draws are the ones those rows surfaced — the folders and files that *sit at the drive root* are in Library. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
 
 ## Drive home layout
 
-![Drive home page as it was before this layout: a breadcrumb above a folder grid and a file grid, with the content rows below them](../images/user-guide/drive-home-overview.png)
+![Drive home page as it was before this layout: a breadcrumb row, a Folders heading with folder cards under it, then the Continue Watching, Recently Viewed and Pickup rows](../images/user-guide/drive-home-overview.png)
 
-The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity rows that surface recent or in-progress items. The screenshot predates the current layout in several ways: the home page now shows only the activity rows — the folder cards and file cards it draws are Library's — **Add** sits at the right-hand end of the breadcrumb row, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail.
+The screenshot predates the current layout: the home page draws no folder cards now — those are Library's — **Add** sits at the right-hand end of the breadcrumb row, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail.
 
 ## The sidebar
 

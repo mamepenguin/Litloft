@@ -181,14 +181,19 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   /**
    * One fetch of everything this page shows.
    *
-   * **It re-runs for reasons that are not a drive change.** `hasProfile`
-   * and `nickname` are in its dependencies, so a nickname set in Settings
-   * starts a second run on the drive already in front of you, with the
-   * first still in flight. A guard that compared drive names alone would
-   * see nothing wrong with the older run landing last. That is why the
-   * rows carry their identity on the response (`ResponseIdentity`) and
-   * the watch rows carry theirs on the page load (`pageLoadRef`), rather
-   * than on this effect.
+   * **Two runs of it can be for the same drive.** Leaving a drive and
+   * coming back re-runs it on the same instance — `/drive/[name]` renders
+   * this component with no `key`, so nothing unmounts between the two —
+   * and the visit being left may still have fetches in flight. A guard
+   * comparing drive names sees nothing wrong with the earlier visit's
+   * response landing last. That is why the rows carry their identity on
+   * the response (`ResponseIdentity`) and the watch rows carry theirs on
+   * the page load (`pageLoadRef`), rather than on this effect.
+   *
+   * `hasProfile` and `nickname` are in its dependencies too, but no
+   * screen changes a nickname with this one mounted: the only writer is
+   * `settings/ProfileSection`, on a route that is not under
+   * `/drive/[name]`.
    *
    * **A known wart, measured and not introduced here**: because the rows
    * are blanked on every run, a re-fetch that fails leaves them empty for
