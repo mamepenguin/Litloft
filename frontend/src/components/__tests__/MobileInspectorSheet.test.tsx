@@ -197,6 +197,19 @@ describe("MobileInspectorSheet", () => {
       expect(calls).toEqual([SHEET_STATE_PEEK, SHEET_STATE_PEEK]);
     });
 
+    it("stays closed after a close from full", async () => {
+      calls.length = 0;
+      render(<Host />);
+      await screen.findByTestId("mobile-inspector-sheet");
+      act(() => setHostState(SHEET_STATE_FULL));
+      fireEvent.keyDown(document, { key: "Escape" });
+      await screen.findByTestId("peek-content");
+      await wait(900);
+
+      expect(screen.queryByTestId("mobile-inspector-sheet")).toBeNull();
+      expect(calls).toEqual([SHEET_STATE_PEEK]);
+    });
+
     it("is not closed by a close that was cut short before it opened", async () => {
       calls.length = 0;
       render(<Host />);
@@ -565,6 +578,41 @@ describe("pulling the sheet down by its content", () => {
     expect(surface.getAttribute("style")).toBe(leaving);
     await waitFor(() => {
       expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    });
+  });
+
+  describe("is not sprung back by a finger that was already down when it started leaving", () => {
+    const leaving = () => {
+      const view = mount({ scrollTop: 0, maxScroll: 900 });
+      at(view.scroller, "touchStart", touch(300), START_AT);
+      at(view.scroller, "touchMove", touch(340), START_AT + 200);
+      fireEvent.keyDown(document, { key: "Escape" });
+      return { ...view, style: view.surface.getAttribute("style") };
+    };
+
+    it("lifting without moving again", () => {
+      const { scroller, surface, style } = leaving();
+      at(scroller, "touchEnd", lift(340), START_AT + 400);
+      expect(surface.getAttribute("style")).toBe(style);
+    });
+
+    it("cancelled by the browser", () => {
+      const { scroller, surface, style } = leaving();
+      fireEvent.touchCancel(scroller, lift(340));
+      expect(surface.getAttribute("style")).toBe(style);
+    });
+
+    it("joined by a second finger", () => {
+      const { scroller, surface, style } = leaving();
+      const finger = { identifier: 7, clientY: 340, clientX: 0 };
+      const other = { identifier: 8, clientY: 500, clientX: 0 };
+      at(
+        scroller,
+        "touchStart",
+        { touches: [finger, other], changedTouches: [other] },
+        START_AT + 400,
+      );
+      expect(surface.getAttribute("style")).toBe(style);
     });
   });
 

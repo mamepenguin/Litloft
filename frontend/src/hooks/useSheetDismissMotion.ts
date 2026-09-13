@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, type RefObject } from "react";
 import {
   SHEET_DISMISS_EASING,
   sheetDismissDurationMs,
+  translateYOf,
 } from "@/lib/sheetDismiss";
 
 /** Past the transition's own length, for a `transitionend` that never comes. */
@@ -40,6 +41,8 @@ export function useSheetDismissMotion({
   const dismissingRef = useRef(false);
   const cancelRef = useRef<(() => void) | null>(null);
 
+  // Stays set while collapsed: vaul resets its snap point 500ms after a
+  // close, and from `full` that would reopen the sheet.
   useEffect(() => {
     if (expanded) dismissingRef.current = false;
     // Collapsed by some other route while leaving: the surface is gone, and
@@ -60,10 +63,7 @@ export function useSheetDismissMotion({
         return;
       }
 
-      const drawn = /translate3d\(0(?:px)?, (-?[\d.]+)px/.exec(
-        surface.style.transform,
-      );
-      const pull = drawn ? Number(drawn[1]) : 0;
+      const pull = translateYOf(getComputedStyle(surface).transform);
       const distance = Math.max(
         0,
         window.innerHeight - surface.getBoundingClientRect().top,

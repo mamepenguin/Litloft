@@ -79,3 +79,17 @@ export function releaseVelocity(
   const elapsed = last.at - first.at;
   return elapsed > 0 ? (last.y - first.y) / elapsed : 0;
 }
+
+/**
+ * A computed transform is a matrix; an inline one is what was written.
+ * The computed one is where the surface is now, which during a transition
+ * is not where it is going.
+ */
+export function translateYOf(transform: string): number {
+  const matrix3d = /^matrix3d\(([^)]+)\)/.exec(transform);
+  if (matrix3d) return Number(matrix3d[1].split(",")[13]) || 0;
+  const matrix = /^matrix\(([^)]+)\)/.exec(transform);
+  if (matrix) return Number(matrix[1].split(",")[5]) || 0;
+  const translate = /translate3d\([^,]+,\s*(-?[\d.]+)px/.exec(transform);
+  return translate ? Number(translate[1]) : 0;
+}

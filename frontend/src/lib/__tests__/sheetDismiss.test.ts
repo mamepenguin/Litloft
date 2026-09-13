@@ -7,6 +7,7 @@ import {
   knobReleaseDismisses,
   releaseVelocity,
   sheetDismissDurationMs,
+  translateYOf,
 } from "../sheetDismiss";
 import { SHEET_PULL_DISMISS_VELOCITY } from "../sheetPullGesture";
 
@@ -84,5 +85,24 @@ describe("the speed the finger left at", () => {
       { at: 50, y: 200 },
     ];
     expect(releaseVelocity(samples, 50 + SHEET_VELOCITY_WINDOW_MS + 1)).toBe(0);
+  });
+});
+
+describe("where a transform puts the surface", () => {
+  it("reads what a browser computes, mid-transition included", () => {
+    expect(translateYOf("matrix(1, 0, 0, 1, 0, 57.25)")).toBe(57.25);
+    expect(
+      translateYOf("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 138.097, 0, 1)"),
+    ).toBe(138.097);
+  });
+
+  it("reads what was written, fractions included", () => {
+    expect(translateYOf("translate3d(0, 40.3333px, 0)")).toBe(40.3333);
+    expect(translateYOf("translate3d(0px, 12px, 0px)")).toBe(12);
+  });
+
+  it("reads nothing as no offset", () => {
+    expect(translateYOf("none")).toBe(0);
+    expect(translateYOf("")).toBe(0);
   });
 });

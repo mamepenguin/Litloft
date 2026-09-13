@@ -124,7 +124,15 @@ async function swipe(
     steps,
     gapMs,
     from = SCROLLER,
-  }: { down: number; steps: number; gapMs: number; from?: string },
+    wait = true,
+  }: {
+    down: number;
+    steps: number;
+    gapMs: number;
+    from?: string;
+    /** `false` returns as the finger lifts, with the sheet still moving. */
+    wait?: boolean;
+  },
 ): Promise<void> {
   const box = (await page.locator(from).boundingBox())!;
   const x = Math.round(box.x + box.width / 2);
@@ -146,6 +154,7 @@ async function swipe(
     touchPoints: [],
   });
   await cdp.detach();
+  if (!wait) return;
 
   // Wait for the fling and the spring-back to finish: two consecutive
   // equal readings of both.
@@ -388,6 +397,25 @@ test.describe("how the sheet leaves", () => {
     const after = await read(page);
     expect(after.state).toBe("peek");
     offScreen(after);
+  });
+
+  test("closing while it springs back still slides it off the screen", async ({
+    page,
+  }) => {
+    const dismiss = await open(page, "sheet-gesture");
+    await swipe(page, {
+      down: dismiss - 20,
+      steps: stepsFor(dismiss - 20),
+      ...PUSH,
+      wait: false,
+    });
+    await page.keyboard.press("Escape");
+
+    await expect(page.locator("body")).toHaveAttribute(
+      "data-sheet-state",
+      "peek",
+    );
+    offScreen(await read(page));
   });
 
   test("tapping the dimmed page slides it off the screen before it collapses", async ({
