@@ -300,12 +300,15 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
           What the trail did carry was this page's one link to the drive
           picker — the home icon at its head, not the drive chip. That
-          link now exists only in the sidebar, whose panel is
-          `aria-hidden` while closed and is forced closed in overlay
-          mode. So on a narrow viewport the picker is a hamburger away
-          rather than a press away. The trade is deliberate; it is not
-          free, and what it costs a keyboard user specifically was not
-          measured here.
+          link now lives only in the sidebar, which starts closed in
+          overlay mode. So with a pointer the picker is a hamburger away
+          rather than a press away.
+
+          A keyboard reaches it without opening anything: the closed
+          panel is moved off-screen by a transform and marked
+          `aria-hidden`, and neither takes its links out of the tab
+          order. That is the state WAI-ARIA forbids, it predates this
+          change, and it is the sidebar's to fix.
 
           The tree toggle stays, against the same section of the spec.
           It does not name the subject — it puts the folder tree away,

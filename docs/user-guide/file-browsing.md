@@ -441,7 +441,7 @@ The payload of each event is in [WebSocket events](../reference/websocket-events
 Two different things travel by drag:
 
 - **Files from your computer.** Drop one or more files (or a whole folder, in browsers that support it) onto the file grid to upload them. The drive home takes a drop too, even though it is not a listing of the drive root: what lands there goes to the drive root, which is what its **Add** button acts on. See [upload and file operations](upload-and-fileops.md) for chunking and limits.
-- **Files and folders already in the drive.** Dragging a card or a tree row and dropping it on a folder **moves** it. Valid drop targets are folder cards, folder rows in the tree, the breadcrumb, and the drop band at the top of the tree that stands for the drive root. Drops onto a folder itself, or into its own descendants, are refused. Drags work across panes — pick a card up in the file list and drop it on a tree row.
+- **Files and folders already in the drive.** Dragging a card or a tree row and dropping it on a folder **moves** it. Valid drop targets are folder cards, folder rows in the tree, the breadcrumb, and the drop band at the top of the tree that stands for the drive root. Dropping a **folder** onto itself, or into its own descendants, is refused. Dropping a **file** where it already is — onto the drive in the breadcrumb while you are at the drive root, say, or onto the tree's root band — is not: the target lights up, the drop is taken, and nothing happens and nothing is said. That is a known gap rather than a design. Drags work across panes — pick a card up in the file list and drop it on a tree row.
 
 If several files are selected, dragging any one of them moves the whole selection.
 

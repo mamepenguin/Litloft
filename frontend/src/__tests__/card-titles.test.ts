@@ -69,14 +69,15 @@ const HEADING = /<h[1-6][\s/>]/g;
  * heading was green over a file whose heading had been deleted and
  * mentioned in a comment.
  *
- * **Its limit, measured rather than assumed.** The walker skips string
- * literals so a `//` inside a URL is not read as a comment, and it does
- * not know it is looking at JSX — so an apostrophe in a JSX *text* node
- * opens a string that runs to the next quote anywhere in the file, and
- * comments inside that span stay unblanked. One `<span>Here's …</span>`
- * above a heading is enough to put this scan back where it was. No file
- * under `frontend/src` or `addons/` is in that state today; nothing
- * stops the next one.
+ * **Its limit.** The walker skips string literals so a `//` inside a URL
+ * is not read as a comment, and it does not know it is looking at JSX.
+ * A quote that never closes — `'`, `"` or a backtick, all three enter
+ * string state alike — therefore opens a span that runs to the next
+ * quote anywhere in the file, and comments inside it stay unblanked. An
+ * apostrophe in JSX text is the everyday way that happens; it is not the
+ * only one. `no comment survives the stripper` below holds this
+ * mechanically over the files this suite scans, so it cannot go quietly
+ * stale the way a survey written here would.
  */
 function headingsIn(jsx: string): number {
   return [...stripComments(jsx).matchAll(HEADING)].length;
@@ -263,6 +264,31 @@ describe("section headings are untouched", () => {
 
   it.each(SECTION_HEADING_SOURCES)("%s still marks its name up as a heading", (rel, expected) => {
     expect(headingsIn(readFileSync(resolve(REPO_ROOT, rel), "utf-8"))).toBe(expected);
+  });
+
+  /**
+   * No comment survives the stripper, in any file this suite counts
+   * headings in.
+   *
+   * `headingsIn` is only as good as `stripComments`, and that walker
+   * treats an unclosed quote in JSX text as the start of a string — so a
+   * `<span>Here's …</span>` above a heading leaves every comment after
+   * it intact and the count is then satisfied by prose. This holds the
+   * precondition mechanically instead of surveying for it by hand:
+   * whichever file first acquires such a quote goes red here, in CI,
+   * rather than quietly making a sibling assertion meaningless.
+   */
+  it("leaves no comment behind in the files whose headings are counted", () => {
+    const scanned = [
+      ...SECTION_HEADING_SOURCES.map(([rel]) => rel),
+      "frontend/src/components/FileListRow.tsx",
+      "frontend/src/components/FolderListRow.tsx",
+      "frontend/src/components/DriveHome.tsx",
+    ];
+    const leftovers = scanned.filter((rel) =>
+      stripComments(readFileSync(resolve(REPO_ROOT, rel), "utf-8")).includes("{/*"),
+    );
+    expect(leftovers).toEqual([]);
   });
 
   it("keeps the drive home itself free of card tiles", () => {

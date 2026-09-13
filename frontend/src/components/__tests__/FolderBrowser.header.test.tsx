@@ -627,4 +627,34 @@ describe("the trail's drop target", () => {
     renderFolder();
     expect(dropProps()).toEqual({ handlers: "yes", target: "yes" });
   });
+
+  /**
+   * Where the trail is offered, by screen.
+   *
+   * The cases above all run at `folderPath="videos"`, where a condition
+   * on the folder path and one without it agree — so they cannot see a
+   * gate that withholds the props at the root. A round of this PR added
+   * such a gate and a later one took it out again, and neither move
+   * turned anything red.
+   *
+   * The root is where it matters. The trail there carries one chip, the
+   * drive, and at the Library root that is the folder the reader is
+   * standing in — but it is also the destination for anything dragged
+   * out of the tree pane, which lists the whole drive. Both attributes
+   * are read, because `isDropTarget` is what draws the accent ring and
+   * `getDropTargetProps` is what accepts the drop; a gate reduced to one
+   * of them is a target that lights up and refuses, or one that takes a
+   * drop with no sign it would.
+   */
+  const OFFERED_BY_SCREEN: [string, () => React.ReactElement][] = [
+    ["a folder", () => <FolderBrowser driveName="main" folderPath="videos" />],
+    ["the Library root", () => <FolderBrowser driveName="main" folderPath="" view="library" />],
+    ["the drive root with no view", () => <FolderBrowser driveName="main" folderPath="" />],
+  ];
+
+  it.each(OFFERED_BY_SCREEN)("%s offers the trail while a drag is in flight", (_name, screen_) => {
+    dragging.internal = true;
+    render(screen_());
+    expect(dropProps()).toEqual({ handlers: "yes", target: "yes" });
+  });
 });

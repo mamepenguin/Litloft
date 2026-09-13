@@ -91,6 +91,9 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { DriveHome } from "../components/DriveHome";
+// The catalogue itself, so a prompt's words are read from where a real
+// one would take them rather than guessed at here.
+import messages from "@/messages-core/en.json";
 import { AddButton } from "@/components/AddButton";
 import type { WatchHistoryItem } from "@/types";
 
@@ -386,26 +389,21 @@ describe("the drive home's content rows", () => {
  * is here.
  */
 /**
- * What the drive home settles into for this describe's fixture, whose
- * drive answers every query with no files.
+ * Every way this app words an invitation to set up a profile.
  *
- * While a row is loading it draws its heading and a *See all* link;
- * once the fetch lands empty the row removes itself entirely
- * (`CarouselSection` returns null when `!loading && files.length === 0`).
- * So "settled" here is **no section headings at all**, and the four
- * controls below are the whole of what one `DriveHome` leaves on an
- * otherwise empty page. Both measured, not reasoned to.
+ * Read out of the catalogue rather than invented, because that is where
+ * a real prompt's words would come from — and because the shapes a test
+ * author imagines are not the shapes that ship. Measured: a `<p>` using
+ * `empty.noRecentNoProfileDescription` passes both a `/nickname/i` match
+ * and a sweep of the page's controls, which is what the two assertions
+ * this replaced were between them supposed to cover.
  */
-const SETTLED_SECTION_HEADINGS: string[] = [];
-const SETTLED_CONTROLS = [
-  "Show tree",
-  // `AddButton`'s hidden pickers — one for files, one for a directory.
-  // Neither carries a label or text, so they are named by tag: a
-  // nameless control appearing is then visible in the list rather than
-  // hidden in a run of blanks.
-  "<input unnamed>",
-  "<input unnamed>",
-  "Add",
+const PROFILE_PROMPT_WORDS = [
+  messages.empty.noRecentNoProfileTitle,
+  messages.empty.noRecentNoProfileDescription,
+  messages.profile.setup,
+  messages.profile.nickname,
+  messages.profile.change,
 ];
 
 /** Every section name on screen, read off the headings the rows draw. */
@@ -464,38 +462,36 @@ describe("the drive home's acceptance criteria", () => {
 
     // **Wait for the rows, not for the header.** `Add` is on the first
     // paint; the three file rows are not. Each draws a skeleton with a
-    // *See all* link while `loading` is true, so asserting before they
-    // settle counts three links on their way out. That is what made this
-    // case fail about one shuffled run in eight — a race the shuffle
-    // perturbs, not an order dependency.
-    await waitFor(() => expect(sectionNames()).toEqual(SETTLED_SECTION_HEADINGS));
+    // *See all* link while loading, so asserting before they settle
+    // sees a page mid-fetch. That is what made this case fail about one
+    // shuffled run in eight — a race the shuffle perturbs, not an order
+    // dependency. This fixture's drive has no files, so every row removes
+    // itself once its fetch lands.
+    await waitFor(() => expect(sectionNames()).toEqual([]));
 
     expect(sectionNames()).not.toContain("Continue Watching");
     expect(sectionNames()).not.toContain("Recently Viewed");
 
     expect(mockGetWatchHistory).not.toHaveBeenCalled();
 
-    // Spec §6.2: "No profile prompt is added to Home." Two assertions,
-    // because neither is the other's superset. The word is what a prompt
-    // most likely uses, and it catches one made only of text; the list of
-    // things to press catches one written in words this file cannot
-    // guess. A `<p>` nag passes the second; a "Set up your profile"
-    // button that never says "nickname" passes the first.
-    expect(screen.queryByText(/nickname/i)).toBeNull();
+    // Spec §6.2: "No profile prompt is added to Home."
+    //
+    // Asserted against the words this app would use, taken from the
+    // catalogue, rather than against a shape. Two earlier attempts at
+    // this asserted a shape — the word "nickname", and the page's list
+    // of controls — and a paragraph carrying the app's own
+    // `empty.noRecentNoProfile…` copy walked through both.
+    //
+    // `document`, not the render's container: overlays here portal to
+    // `document.body`, so a prompt drawn as a modal or a banner would
+    // land outside a container by construction.
+    for (const words of PROFILE_PROMPT_WORDS) {
+      expect(document.body.textContent).not.toContain(words);
+    }
 
-    // `document`, not the render's container: every overlay in this tree
-    // portals to `document.body`, so a prompt drawn as a modal or a
-    // banner lands outside a container by construction. What this holds
-    // is what one `DriveHome` puts on an otherwise empty page.
-    const pressable = Array.from(
-      document.querySelectorAll("button, a, input, textarea, select"),
-    ).map(
-      (el) =>
-        el.getAttribute("aria-label") ||
-        el.textContent?.trim() ||
-        `<${el.tagName.toLowerCase()} unnamed>`,
-    );
-    expect(pressable).toEqual(SETTLED_CONTROLS);
+    // And no control that leads to where a profile is set. A prompt does
+    // not have to say any of the words above to be one.
+    expect(document.querySelector('a[href*="/settings"]')).toBeNull();
   });
 
   it("takes both watch rows away again when the profile is cleared", async () => {
