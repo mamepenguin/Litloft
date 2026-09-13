@@ -42,7 +42,11 @@ from app.services.thumbnail import (
     write_thumbnail_atomically,
 )
 from app.services import event_hooks
-from app.services.fileops import _cleanup_empty_parents, _filename_to_title
+from app.services.fileops import (
+    _cleanup_empty_parents,
+    _filename_to_title,
+    path_thumbnail_rel,
+)
 from app.services.ws import broadcast_from_thread
 
 _MD_READ_MAX_BYTES = 1 * 1024 * 1024
@@ -125,11 +129,7 @@ def _get_folder_path(file_path: Path, base_dir: Path) -> str:
 
 
 def _expected_thumbnail_path(drive_name: str, folder_path: str, nfc_stem: str) -> str:
-    return (
-        f"{drive_name}/{folder_path}/{nfc_stem}.jpg"
-        if folder_path
-        else f"{drive_name}/{nfc_stem}.jpg"
-    )
+    return path_thumbnail_rel(drive_name, folder_path, nfc_stem)
 
 
 # The size a picture thumbnail had while it was letterboxed onto a frame.

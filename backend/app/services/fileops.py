@@ -118,6 +118,11 @@ def _cleanup_empty_parents(directory: Path, stop_at: Path) -> None:
             break
 
 
+def path_thumbnail_rel(drive: str, folder_path: str, stem: str) -> str:
+    """The thumbnail cache slot a file at this path owns."""
+    return f"{drive}/{folder_path}/{stem}.jpg" if folder_path else f"{drive}/{stem}.jpg"
+
+
 def remove_empty_folder_if_has_files(db: Session, drive: str, folder_path: str) -> None:
     existing = (
         db.query(EmptyFolder)
@@ -196,13 +201,19 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
     if conflict.deleted_at is not None:
         db.delete(conflict)
     else:
+        # Only when the pointer names the slot the incoming path takes: leaving
+        # it there means the Missing row shows the new file's picture, and
+        # purging the row — the one action it is kept for — unlinks a thumbnail
+        # the live copy is using. A Markdown projection is keyed by row id
+        # instead, so nothing takes it over and clearing it only strands the
+        # JPEG, which no purge can then reach.
+        retired = Path(new_rel)
+        parent = str(retired.parent)
+        if conflict.thumbnail_path == path_thumbnail_rel(
+            drive, "" if parent == "." else parent, retired.stem
+        ):
+            conflict.thumbnail_path = None
         conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
-        # The thumbnail cache key is derived from drive + folder + stem just
-        # as the path is, so whatever takes this path takes that slot too.
-        # Leaving the pointer means the Missing row shows the new file's
-        # picture, and purging the row — the one action it is kept for —
-        # unlinks a thumbnail the live copy is using.
-        conflict.thumbnail_path = None
     db.flush()
 
 
@@ -262,6 +273,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     resolve_db_path_conflict(db, new_rel, dst_drive)
 
     # Atomic copy: create exclusive target then copy content to prevent TOCTOU race
+    copied_thumb: Path | None = None
     try:
         fd = os.open(str(new_full), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
         os.close(fd)
@@ -298,21 +310,22 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         # be regenerated below instead of copied to the generic path-based cache.
         if source.thumbnail_path and not _is_markdown_file(source):
             old_thumb = config.THUMBNAILS_DIR / source.thumbnail_path
-            new_stem = Path(new_filename).stem
-            new_thumb_rel = (
-                f"{dst_drive}/{target_folder}/{new_stem}.jpg"
-                if target_folder
-                else f"{dst_drive}/{new_stem}.jpg"
+            new_thumb_rel = path_thumbnail_rel(
+                dst_drive, target_folder, Path(new_filename).stem
             )
             new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
-            # `old_thumb != new_thumb`, because only video thumbnails follow
-            # a move: an image moved out of a folder still points at the
-            # thumbnail it left there, and copying it back names that same
-            # file on both sides — which `copy2` refuses, failing the whole
-            # copy for a file the reader can see.
-            if old_thumb.exists() and old_thumb != new_thumb:
-                new_thumb.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(str(old_thumb), str(new_thumb))
+            if old_thumb.exists():
+                # Only video thumbnails follow a move, so an image moved out of
+                # a folder still points at the thumbnail it left there, and
+                # copying it back names one file on both sides — which `copy2`
+                # refuses, failing the whole copy for a file the reader can
+                # see. Compared with `samefile` rather than by path, because
+                # the drive is read through a mount that folds case and Unicode
+                # normalisation: two spellings reach the one JPEG.
+                if not (new_thumb.exists() and old_thumb.samefile(new_thumb)):
+                    new_thumb.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(str(old_thumb), str(new_thumb))
+                    copied_thumb = new_thumb
                 new_file.thumbnail_path = new_thumb_rel
 
         try:
@@ -334,6 +347,15 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
             new_full.unlink()
         except OSError:
             pass
+        # The span writes two files. The thumbnail is the one that can land on
+        # a slot another row owns, so leaving it turns a failed copy into that
+        # row showing this file's picture.
+        if copied_thumb is not None:
+            try:
+                copied_thumb.unlink()
+                _cleanup_empty_parents(copied_thumb.parent, config.THUMBNAILS_DIR)
+            except OSError:
+                pass
         raise
 
     db.refresh(new_file)

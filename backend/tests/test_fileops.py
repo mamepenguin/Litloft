@@ -82,6 +82,50 @@ class TestMoveFile:
         assert res.status_code == 400
 
 
+    def test_a_move_onto_a_missing_note_keeps_its_picture(self, client):
+        """The retirement is shared by copy, move and rename. A note's
+        thumbnail is keyed by its row id, so the arriving file takes the path
+        and not the slot: clearing the pointer strands the JPEG."""
+        from datetime import UTC, datetime
+
+        import app.config as config
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        source = _seed(db, drive_dir, "a.mp4", folder="one")
+        (drive_dir / "dest").mkdir(exist_ok=True)
+        ghost = File(
+            filename="a.mp4",
+            title="Gone",
+            drive=TEST_DRIVE,
+            folder_path="dest",
+            file_path="dest/a.mp4",
+            file_size=1,
+            file_type="document",
+            mime_type="text/markdown",
+            missing_since=datetime.now(UTC),
+        )
+        db.add(ghost)
+        db.commit()
+        ghost_id = ghost.id
+
+        projection_rel = f"{TEST_DRIVE}/.markdown/{ghost_id}-abcdefghijkl.jpg"
+        projection = config.THUMBNAILS_DIR / projection_rel
+        projection.parent.mkdir(parents=True, exist_ok=True)
+        projection.write_bytes(b"\xff\xd8\xff\xe0ghost-projection")
+        ghost.thumbnail_path = projection_rel
+        db.commit()
+
+        res = c.put(
+            f"/api/files/{source.id}/move", json={"target_folder_path": "dest"}
+        )
+        assert res.status_code == 200
+
+        db.expire_all()
+        assert db.get(File, ghost_id).thumbnail_path == projection_rel
+        assert projection.exists()
+
+
 class TestDeleteFile:
     def test_delete(self, client):
         c, db, drive_dir, data_dir = client
