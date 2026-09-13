@@ -2,15 +2,6 @@ import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import { MarkdownPreview } from "@/components/MarkdownPreview";
 
-/**
- * spec 2026-07-05-markdown-image-auto-grouping.md
- *
- * Consecutive images within the same inline run (no blank line between
- * them, i.e. same paragraph / list item / table cell) are wrapped in a
- * single <span class="markdown-image-group"> so CSS can lay them out as
- * an equal-height flex row. Markdown syntax itself is untouched — this
- * is a renderer-only transform on the parsed token tree.
- */
 describe("MarkdownPreview image auto-grouping", () => {
   it("wraps two consecutive images (no blank line) in one markdown-image-group span", () => {
     const { container } = render(
@@ -80,7 +71,6 @@ describe("MarkdownPreview image auto-grouping", () => {
     expect(imgs.length).toBe(2);
     expect(imgs[0].getAttribute("src")).toBe("/api/files/abc123def456/stream");
     expect(imgs[1].getAttribute("src")).toBe("https://example.com/b.jpg");
-    // loft image's click-through link must survive being wrapped in the group
     const loftLink = groups[0].querySelector("a.loft-image-link");
     expect(loftLink).not.toBeNull();
     expect(loftLink?.getAttribute("href")).toBe("/files/abc123def456");

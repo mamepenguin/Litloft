@@ -40,8 +40,7 @@ describe("PageTabs", () => {
 
   describe("a row that navigates is not a tablist", () => {
     // `role="tab"` promises that activating the control swaps a panel in this
-    // view. A `<Link>` replaces the page. `ModeTabs` carried both, which is the
-    // pairing this component exists to separate.
+    // view. A `<Link>` replaces the page.
     it("gives link tabs no tab roles", () => {
       render(<PageTabs items={LINK_ITEMS} current="ask" label="Modes" />);
       expect(screen.queryAllByRole("tab")).toHaveLength(0);
@@ -55,8 +54,6 @@ describe("PageTabs", () => {
       expect(screen.queryAllByRole("link")).toHaveLength(0);
     });
 
-    // Mixed input takes the weaker promise. Asserted rather than left to the
-    // reader, because "some" in the predicate is the whole decision.
     it("treats a mixed row as navigating", () => {
       render(
         <PageTabs
@@ -94,9 +91,6 @@ describe("PageTabs", () => {
       ).toBe("false");
     });
 
-    // The reason the underline replaced the pill: `ModeTabs`'s selected tab was
-    // `bg-accent text-white`, spending the page's one accent fill (DESIGN.md
-    // §2.2) on saying which tab you are already looking at.
     it("marks selection with a border, never an accent fill", () => {
       render(<PageTabs items={BUTTON_ITEMS} current="watch" label="Views" />);
       const selected = screen.getByRole("tab", { name: "Watch" });
@@ -105,9 +99,6 @@ describe("PageTabs", () => {
       expect(selected.classList.contains("text-white")).toBe(false);
     });
 
-    // DESIGN.md §Tabs states the selected state as
-    // `border-accent font-semibold text-text-primary`. Asserting only the
-    // border left two thirds of the sentence unenforced.
     it("gives the selected tab the weight and colour DESIGN.md states", () => {
       render(<PageTabs items={BUTTON_ITEMS} current="watch" label="Views" />);
       const selected = screen.getByRole("tab", { name: "Watch" });
@@ -115,11 +106,8 @@ describe("PageTabs", () => {
       expect(selected.classList.contains("text-text-primary")).toBe(true);
     });
 
-    // The mirror of the assertion above, and the reason it is a *negative*
-    // one: `aria-current="page"` names the current page in a set of
-    // navigations. A tab swaps a panel, so its state is `aria-selected` and
-    // nothing else. Carrying both would say one thing in two vocabularies —
-    // the exact pairing this component was written to separate.
+    // `aria-current="page"` names the current page in a set of navigations.
+    // A tab swaps a panel, so its state is `aria-selected` and nothing else.
     it("puts no aria-current on a tab that does not navigate", () => {
       render(<PageTabs items={BUTTON_ITEMS} current="manage" label="Views" />);
       for (const tab of screen.getAllByRole("tab")) {
@@ -127,10 +115,7 @@ describe("PageTabs", () => {
       }
     });
 
-    // `aria-selected` belongs to a tab. On a link it is invalid ARIA, and it
-    // is the half of "a row that navigates is not a tablist" that the role
-    // assertions do not reach — adding it changes no role, so nothing else
-    // here would notice.
+    // `aria-selected` belongs to a tab. On a link it is invalid ARIA.
     it("puts no aria-selected on a navigating tab", () => {
       render(<PageTabs items={LINK_ITEMS} current="ask" label="Modes" />);
       for (const link of screen.getAllByRole("link")) {
@@ -146,12 +131,8 @@ describe("PageTabs", () => {
     });
   });
 
-  // The requirement is the *name a screen reader reads*, not the attribute
-  // that produces it. Asserting `aria-hidden` on the icon looked like a test
-  // and was not one: lucide-react adds that attribute itself whenever no a11y
-  // prop is passed, so the assertion held with the component's own copy of it
-  // deleted — it measured the dependency. An exact-name match fails whenever
-  // the icon becomes announced, whichever layer stopped hiding it.
+  // Not an `aria-hidden` assertion on the icon: lucide-react adds that
+  // attribute itself whenever no a11y prop is passed.
   it("names the tab by its label alone, with the icon unannounced", () => {
     render(<PageTabs items={LINK_ITEMS} current="ask" label="Modes" />);
     const names = screen.getAllByRole("link").map((el) => el.textContent);
@@ -172,10 +153,6 @@ describe("PageTabs", () => {
       ).toBe(true);
     });
 
-    // DESIGN.md §Row Actions: the floor is stated under the mobile sizing
-    // rules, so it governs touch and says nothing against a denser row on a
-    // fine pointer. An ungated `min-h-11` would satisfy the coarse assertion
-    // above while quietly imposing the height everywhere.
     it("is not imposed on a fine pointer", () => {
       render(<PageTabs items={BUTTON_ITEMS} current="watch" label="Views" />);
       const ungated = [...screen.getByRole("tab", { name: "Watch" }).classList].filter(
@@ -185,13 +162,6 @@ describe("PageTabs", () => {
     });
   });
 
-  /**
-   * A mixed row is treated as navigating, and a navigating row has no
-   * panel — so the `<button>` half must not claim one. Mixed is the only
-   * shape where the guard is reachable: an all-`href` row never renders a
-   * button, so dropping `isNav ? undefined :` regressed nothing any test
-   * could see.
-   */
   it("emits no aria-controls on a row that navigates", () => {
     render(
       <PageTabs

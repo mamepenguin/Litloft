@@ -1,8 +1,6 @@
 /**
- * The Quick Note action must sit in the header on every screen, including the
- * root, admin, and settings pages where there is no active drive. That is the
- * reason it is mounted directly instead of through the drive-scoped
- * `header-actions` addon slot, so it is worth pinning down here.
+ * Quick Note is mounted directly rather than through the drive-scoped
+ * `header-actions` slot so it also appears on screens with no active drive.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";

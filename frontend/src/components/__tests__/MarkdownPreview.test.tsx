@@ -76,7 +76,6 @@ describe("MarkdownPreview", () => {
     renderWithIntl(
       <MarkdownPreview source='![alt](https://example.com/x.jpg "title")' />,
     );
-    // markdown-it renders image as <img> — our sanitizer should pass safe img
     const img = document.querySelector("img");
     expect(img).not.toBeNull();
     expect(img?.getAttribute("onerror")).toBeNull();
@@ -138,7 +137,6 @@ describe("MarkdownPreview", () => {
 
   it("displays frontmatter metadata when present via the Properties Panel", () => {
     // Unknown keys fall through to plain text rendering (label = raw key).
-    // Recognised keys get typed renderers; see PropertiesPanel.test.tsx.
     const md = `---
 source_url: https://example.com
 author: Tarou
@@ -154,7 +152,6 @@ author: Tarou
 
   it("hides frontmatter section when empty", () => {
     renderWithIntl(<MarkdownPreview source="just content\n" />);
-    // No <dl> rendered for empty frontmatter
     expect(document.querySelector("dl")).toBeNull();
   });
 
@@ -175,11 +172,8 @@ text`;
   });
 
   it("forwards onTagsSaved to the Properties Panel in standalone mode", () => {
-    // Smoke test: the prop is piped through MarkdownPreview →
-    // PropertiesPanel → EditableTagChips.onSaveSuccess. Rendering the
-    // component tree without errors is enough for this layer; the
-    // actual save-callback wiring is exercised in
-    // EditableTagChips.test.tsx.
+    // Smoke test: rendering the component tree without errors is enough for
+    // this layer.
     const md = `---
 tags: [a]
 ---
@@ -196,15 +190,10 @@ body`;
         onTagsSaved={() => {}}
       />,
     );
-    // The editable chip group renders an Add button.
     expect(screen.getByRole("button", { name: /Add tag/ })).toBeInTheDocument();
   });
 
   it("applies text-base typography to the chrome body for 16px reading", () => {
-    // Phase 1 typography upgrade: the chrome body now renders at
-    // ``text-base`` (16px) with leading-relaxed (1.625) so long-form
-    // summary prose matches the mockup design (DESIGN.md §3.2). The
-    // old ``text-sm`` rendered at 14px and felt cramped.
     const { container } = renderWithIntl(
       <MarkdownPreview source={"# Hello\n\nWorld"} />,
     );
@@ -242,9 +231,8 @@ describe("MarkdownFileViewer", () => {
       if (href.includes("/tags")) {
         return Promise.resolve(makeResp("[]", "application/json"));
       }
-      // Phase C (spec 2026-05-12 §3.8): MarkdownFileViewer now also
-      // fetches wiki-link resolutions. Serve an empty map so it
-      // doesn't count toward the stream-call total.
+      // Serve an empty wiki-link resolution map so it doesn't count toward
+      // the stream-call total.
       if (href.includes("/wiki-resolutions")) {
         return Promise.resolve(
           makeResp(JSON.stringify({ resolutions: {} }), "application/json"),
@@ -257,12 +245,8 @@ describe("MarkdownFileViewer", () => {
   }
 
   it("refetches source when externalReloadKey changes", async () => {
-    // Regression guard for the bilateral chip-sync wiring: bumping the
-    // parent's reload key must refetch the .md so the Properties
-    // Panel's frontmatter display matches the post-save disk state.
-    // Without this, editing the outer File.tags chip row on the file
-    // detail page leaves the inner frontmatter chips stale until the
-    // user navigates away.
+    // Without the refetch, editing the outer File.tags chip row leaves the
+    // inner frontmatter chips stale until the user navigates away.
     const getStreamCalls = routeByUrl();
 
     const { rerender } = renderWithIntl(
@@ -297,8 +281,6 @@ describe("MarkdownFileViewer", () => {
     );
     await waitFor(() => expect(getStreamCalls()).toBe(1));
 
-    // Re-render with the same key + identical props: useEffect deps
-    // unchanged, so no second request.
     rerender(
       <NextIntlClientProvider
         locale="en"
@@ -307,7 +289,6 @@ describe("MarkdownFileViewer", () => {
         <MarkdownFileViewer fileId="f1" externalReloadKey={5} />
       </NextIntlClientProvider>,
     );
-    // Give any potential effect a tick.
     await new Promise((r) => setTimeout(r, 20));
     expect(getStreamCalls()).toBe(1);
   });

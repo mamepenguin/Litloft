@@ -51,11 +51,9 @@ describe("FolderPicker", () => {
     const trigger = screen.getByRole("button", { name: /Save to:/ });
     fireEvent.click(trigger);
     expect(await screen.findByText("No subfolders")).toBeInTheDocument();
-    // Pressed from inside the picker's own filter field, not at
-    // `document`. A press at `document` has no `HTMLElement` target, so
-    // the provider reads it as "not editing" and the test passes even
-    // with `editingOnly: false` removed — which is the whole claim the
-    // picker's comment makes.
+    // Pressed from inside the picker's own filter field, not at `document`:
+    // a press at `document` has no `HTMLElement` target, so the provider
+    // would read it as "not editing".
     const filter = screen.getByRole("textbox");
     filter.focus();
     fireEvent.keyDown(filter, { key: "Escape" });
@@ -64,11 +62,8 @@ describe("FolderPicker", () => {
     fireEvent.click(trigger);
     expect(await screen.findByText("No subfolders")).toBeInTheDocument();
 
-    // The scrim, not the button behind it. That button is what the picker
-    // used to close on — a `pointerdown` anywhere outside — and the press
-    // that closed it also pressed the button, which is the defect
-    // `DismissScrim` exists to end. Whether the scrim really is what a tap
-    // reaches is a hit test jsdom does not run; `e2e-layout` measures it.
+    // The press that closes the picker must not also press the button
+    // behind it.
     const outside = screen.getByRole("button", { name: "Outside" });
     const pressed = vi.fn();
     outside.addEventListener("click", pressed);
@@ -78,10 +73,8 @@ describe("FolderPicker", () => {
   });
 
   it("stays open while its own panel is being worked", async () => {
-    // The other half of the mechanism, stated so that giving
-    // `DismissScrim` the wrong subtree fails here: a press inside the
-    // panel is the user picking a folder, and closing on it would also
-    // swallow the click that does the picking.
+    // A press inside the panel is the user picking a folder, and closing on
+    // it would also swallow the click that does the picking.
     render(
       <ShortcutsProvider>
         <FolderPicker drive="recipes" value="" onChange={vi.fn()} />

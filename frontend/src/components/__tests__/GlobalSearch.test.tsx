@@ -112,11 +112,8 @@ function makeHit(overrides: Partial<SemanticHit> = {}): SemanticHit {
   };
 }
 
-// jsdom does not implement scrollIntoView, which the selection effect calls
-// whenever selectedIndex >= 0. Only tests that move the selection hit it.
 Element.prototype.scrollIntoView = vi.fn();
 
-// jsdom does not implement matchMedia
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({
@@ -152,30 +149,16 @@ describe("GlobalSearch", () => {
   });
 
   afterEach(() => {
-    // Flush pending setTimeout callbacks (e.g., openSearch's focus timer)
     vi.runAllTimers();
     vi.useRealTimers();
   });
 
-  /**
-   * The cheat sheet answered `?` and nothing on screen said so. This is the
-   * one entry, and it is on both draws of the modal — the mobile full
-   * screen and the desktop centre — because the shortcut it advertises is
-   * the same one either way.
-   */
   describe("the keyboard entry", () => {
     const openModal = () => {
       renderWithShortcuts(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
     };
 
-    /**
-     * The mobile draw, which no test in this file had ever rendered:
-     * `matchMedia` is stubbed `matches: false` at the top, so
-     * `isMobileViewport` was false everywhere and the whole branch was
-     * unreachable. Deleting that footer left the suite green while the PR
-     * claimed the entry was "in both render paths".
-     */
     it("is on the mobile draw too, which is a different branch", () => {
       const mql = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
       mql.mockImplementation((query: string) => ({
@@ -213,33 +196,17 @@ describe("GlobalSearch", () => {
     it("is in the footer, inside the panel and outside the scrolling results", () => {
       openModal();
       const entry = screen.getByRole("button", { name: /Keyboard Shortcuts/ });
-      // Not inside the list: 案 5's semantic hits arrive after the name
-      // matches, and a row in that list slides as they land.
       expect(entry.closest(".overflow-y-auto")).toBeNull();
 
-      // ...and inside the card that paints the modal. "Outside the list"
-      // alone is also true of a footer that has escaped the card entirely,
-      // which is how one shipped: no background of its own, and a second
-      // child for `justify-center` to centre, which drags the panel left.
       const panel = screen
         .getByPlaceholderText(/Search/)
         .closest(".bg-bg-primary");
       expect(panel).not.toBeNull();
       expect(panel).toContainElement(entry);
 
-      // The centring wrapper holds the backdrop and that card, nothing else.
       expect(panel!.parentElement!.children).toHaveLength(2);
     });
 
-    /**
-     * S-3. The modal is portalled to `document.body` and its backdrop covers
-     * the viewport, so the panel is centred on the viewport while every other
-     * surface is centred on the content area inside the 240px sidebar. At
-     * 1512px with the sidebar inline those two centres are 120px apart, and
-     * the fix is not to give the overlay a second coordinate system but to
-     * make the panel wide enough that the offset stops reading as "left of
-     * centre": 120px is 23% of 512px and 16% of 768px.
-     */
     it("is 768px wide on the desktop centre, not 512px", () => {
       openModal();
       const panel = screen
@@ -250,11 +217,6 @@ describe("GlobalSearch", () => {
       expect(panel!.className).not.toContain("max-w-lg");
     });
 
-    /**
-     * ...and the widening stops at the desktop branch. Below 640px the sheet
-     * is full-screen, so any `max-w-*` on it would cap a surface that is
-     * meant to be the whole viewport.
-     */
     it("leaves the mobile sheet uncapped", () => {
       const mql = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
       mql.mockImplementation((query: string) => ({
@@ -293,7 +255,6 @@ describe("GlobalSearch", () => {
       openModal();
       fireEvent.click(screen.getByRole("button", { name: /Keyboard Shortcuts/ }));
 
-      // The modal's own input is gone, and the sheet is up.
       expect(screen.queryByPlaceholderText(/Search/)).toBeNull();
       expect(
         screen.getByRole("heading", { name: /Keyboard Shortcuts/ }),
@@ -320,7 +281,6 @@ describe("GlobalSearch", () => {
   it("opens search panel on click", () => {
     render(<GlobalSearch />);
     fireEvent.click(screen.getByLabelText("Search"));
-    // Both mobile and desktop inputs should exist
     const inputs = screen.getAllByRole("textbox");
     expect(inputs.length).toBeGreaterThanOrEqual(1);
   });
@@ -338,7 +298,6 @@ describe("GlobalSearch", () => {
     expect(screen.getAllByRole("textbox").length).toBeGreaterThanOrEqual(1);
 
     fireEvent.keyDown(document, { key: "Escape" });
-    // Search button should still be visible
     expect(screen.getByLabelText("Search")).toBeInTheDocument();
   });
 
@@ -403,9 +362,6 @@ describe("GlobalSearch", () => {
     expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
   });
 
-  // The modal's own context sits on top of the stack, so an addon that bound
-  // the same chord for editing (Knowledge uses ctrl+k to insert a link) must
-  // not win it while the modal is open.
   it("closing wins ctrl+k over an editing context registered beneath", () => {
     const addonHandler = vi.fn();
 
@@ -433,10 +389,7 @@ describe("GlobalSearch", () => {
     expect(addonHandler).not.toHaveBeenCalled();
   });
 
-  // Same collision, but the editing context enables *after* the modal is
-  // already open. Knowledge gates its editor shortcuts on `content !== null`,
-  // so opening the modal while a note is still loading produces exactly this
-  // order. Push order alone would hand the chord to the editor.
+  // Push order alone would hand the chord to the editor.
   it("closing wins ctrl+k over an editing context registered after it", () => {
     const addonHandler = vi.fn();
 
@@ -472,7 +425,6 @@ describe("GlobalSearch", () => {
       vi.advanceTimersByTime(60);
     });
 
-    // The note finishes loading while the modal is open.
     fireEvent.click(screen.getByTestId("finish-load"));
 
     fireEvent.keyDown(document.activeElement!, { key: "k", ctrlKey: true });
@@ -480,9 +432,6 @@ describe("GlobalSearch", () => {
     expect(addonHandler).not.toHaveBeenCalled();
   });
 
-  // Guards the contract the Knowledge editor's ctrl+k (insert link,
-  // editingOnly: true) relies on. That shortcut lives in a separate
-  // repository, so a regression here would not surface in its tests.
   it("does not open on Cmd+K while an editing element has focus", () => {
     renderWithShortcuts(
       <>
@@ -497,10 +446,6 @@ describe("GlobalSearch", () => {
     expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
   });
 
-  // The empty-query state (search-term history) had no coverage before the
-  // Phase 2 refactor that moved it onto a single flat item list. These pin
-  // the behaviour so the list restructure — and the rows Phase 3 adds beside
-  // it — cannot silently change how the rows render or navigate.
   describe("empty query state", () => {
     function seedHistory(terms: string[]) {
       localStorage.setItem("search-history:main", JSON.stringify(terms));
@@ -514,12 +459,6 @@ describe("GlobalSearch", () => {
       }
     });
 
-    // Anything can end up under this localStorage key: a hand-edited value, an
-    // older schema, another tab. Before Phase 2 a non-array was tolerated by
-    // accident (`history.length > 0` was falsy), so the modal rendered nothing
-    // rather than crashing. The flat-list refactor maps over it unconditionally,
-    // which turns that silent tolerance into a TypeError unless getHistory
-    // validates the shape.
     it("ignores a persisted history value that is not an array", () => {
       localStorage.setItem(
         "search-history:main",
@@ -586,8 +525,6 @@ describe("GlobalSearch", () => {
       fireEvent.click(screen.getByLabelText("Search"));
 
       const input = screen.getAllByRole("textbox")[0];
-      // Three presses against two rows: the index must clamp, not overrun
-      // into a non-existent row.
       fireEvent.keyDown(input, { key: "ArrowDown" });
       fireEvent.keyDown(input, { key: "ArrowDown" });
       fireEvent.keyDown(input, { key: "ArrowDown" });
@@ -706,8 +643,6 @@ describe("GlobalSearch", () => {
       expect(mockGetWatchHistory).not.toHaveBeenCalled();
     });
 
-    // A viewer without a nickname has no viewer_id, so the endpoint returns an
-    // empty list. The section is simply absent rather than an empty heading.
     it("renders no section when the response is empty", async () => {
       mockGetWatchHistory.mockResolvedValue([]);
 
@@ -717,10 +652,6 @@ describe("GlobalSearch", () => {
       expect(screen.queryByText("Recent files")).toBeNull();
     });
 
-    // The list is built after the fetch resolves, but the user can navigate it
-    // before then. selectedIndex is a position, so prepending rows underneath a
-    // live selection silently retargets it — Enter would open a file the user
-    // never highlighted.
     it("does not retarget a live selection when the fetch resolves late", async () => {
       localStorage.setItem(
         "search-history:main",
@@ -736,7 +667,6 @@ describe("GlobalSearch", () => {
       render(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
 
-      // Only the search-term row exists so far; select it.
       const input = screen.getAllByRole("textbox")[0];
       fireEvent.keyDown(input, { key: "ArrowDown" });
 
@@ -752,10 +682,6 @@ describe("GlobalSearch", () => {
       expect(mockRouterPush).not.toHaveBeenCalledWith("/files/r1");
     });
 
-    // GlobalSearch lives in the header under the root layout, so it survives
-    // drive navigation. A drive is a security boundary; rows from the drive the
-    // user just left must not stay selectable while the new request is in
-    // flight.
     it("drops the previous drive's files immediately when the drive changes", async () => {
       mockGetWatchHistory.mockResolvedValue([
         makeRecent({ id: "r1", filename: "meeting-notes.md", title: "meeting-notes.md" }),
@@ -834,7 +760,6 @@ describe("GlobalSearch", () => {
       fireEvent.click(screen.getByLabelText("Search"));
       await typeQuery("video");
 
-      // availability should be checked
       await waitFor(() => {
         expect(mockIsSemanticSearchAvailable).toHaveBeenCalledWith("main");
       });
@@ -850,24 +775,6 @@ describe("GlobalSearch", () => {
       );
     });
 
-    /**
-     * The accent budget, for the screen `accent-budget.test.tsx` names but
-     * cannot set up: the modal needs a router, an API and fake timers
-     * before it draws a row at all.
-     *
-     * Zero is the assertion. The modal is a place to pick from, and every
-     * row in it is equally the thing you might want — a fill on one of
-     * them would be the screen claiming a primary action it does not have.
-     * The match badges tint with `bg-accent/15` and friends, which are
-     * transparencies rather than this fill, and the timestamp pills are
-     * `text-text-muted`, which is not a fill at all.
-     *
-     * So this is a forward guard, not a check on the colour change that
-     * put the modal in `SCREENS`: `accentFills` counts `bg-accent` at
-     * rest and nothing here ever painted one, before or after. What makes
-     * it a claim rather than a formality is the case below — adding one
-     * fill to this screen turns it red.
-     */
     it("spends no accent fill, with badges and pills on screen", async () => {
       mockGetDriveFiles.mockResolvedValue({
         data: [makeFile({ id: "f1", title: "filename-hit" })],
@@ -890,9 +797,6 @@ describe("GlobalSearch", () => {
       await waitFor(() =>
         expect(screen.getAllByTestId("merged-result-item").length).toBe(2),
       );
-      // The population the name claims. Without this the segment mapping
-      // could break, no pill would render, and zero fills would still be
-      // found on a screen that was never measured.
       expect(screen.getAllByText(/^\d+:\d{2}$/)).toHaveLength(2);
       expect(screen.getByText("Transcript")).toBeInTheDocument();
 
@@ -913,8 +817,6 @@ describe("GlobalSearch", () => {
         expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1),
       );
 
-      // The mutation, applied in the test rather than argued for in the
-      // PR body: one resting `bg-accent` anywhere on this screen.
       const row = screen.getAllByTestId("merged-result-item")[0];
       row.classList.add("bg-accent");
       expect(accentFills(document.body)).toHaveLength(1);
@@ -945,17 +847,9 @@ describe("GlobalSearch", () => {
       await waitFor(() => {
         expect(screen.getByText("filename-hit")).toBeInTheDocument();
       });
-      // Both rows should be rendered.
       expect(screen.getByText("semantic-hit.mp4")).toBeInTheDocument();
     });
 
-    /**
-     * The two stages.
-     *
-     * Semantic search takes around five seconds on a cold index. Waiting for
-     * it before drawing anything meant the name match the user was almost
-     * certainly after sat behind a spinner for those five seconds.
-     */
     describe("two stages", () => {
       const neverResolves = () => new Promise<never>(() => {});
 
@@ -987,23 +881,16 @@ describe("GlobalSearch", () => {
         await typeQuery("hit");
 
         const pending = await screen.findByText(/Also searching by meaning/);
-        // In the results list it would push every row down the moment the
-        // second stage landed, which is what the footer row exists to avoid.
         expect(pending.closest(".overflow-y-auto")).toBeNull();
         const panel = screen
           .getByPlaceholderText(/Search/)
           .closest(".bg-bg-primary");
         expect(panel).toContainElement(pending);
-        // "Inside the panel, outside the list" is also true of a line put
-        // under the input, above the results — which is the placement this
-        // row exists instead of. It is the footer's second column.
         const entry = screen.getByRole("button", { name: /Keyboard Shortcuts/ });
         const legend = screen.getByRole("button", { name: /What the badges mean/ });
         const entries = entry.parentElement!;
         const footer = entries.parentElement!;
         expect(footer).toContainElement(pending);
-        // Two columns: the ways in on the left, what the second stage is
-        // doing on the right.
         expect([...footer.children]).toEqual([entries, pending]);
         expect([...entries.children]).toEqual([entry, legend]);
       });
@@ -1052,17 +939,10 @@ describe("GlobalSearch", () => {
         await waitFor(() =>
           expect(screen.getByText("filename-hit")).toBeInTheDocument(),
         );
-        // Not "0 semantic results": on a drive without the addon that is the
-        // absence of a feature, not the outcome of a search.
         expect(screen.queryByText(/Also searching by meaning/)).toBeNull();
         expect(mockFetchSemanticHits).not.toHaveBeenCalled();
       });
 
-      /**
-       * ...and it stays silent while the answer to "does this drive have
-       * semantic search" is itself outstanding. Announcing a second stage
-       * before knowing there is one is the same claim, made earlier.
-       */
       it("says nothing while it is still finding out whether there is a second stage", async () => {
         mockIsSemanticSearchAvailable.mockImplementation(neverResolves);
         mockGetDriveFiles.mockResolvedValue({
@@ -1080,12 +960,6 @@ describe("GlobalSearch", () => {
         expect(screen.queryByText(/Also searching by meaning/)).toBeNull();
       });
 
-      /**
-       * Two stages that resolve independently can interleave with a new
-       * query's stages. The abort on the old query is what keeps them apart,
-       * so this resolves the old query's slow stage *after* the new query has
-       * already painted.
-       */
       it("does not let a stage from an abandoned query paint over the current one", async () => {
         const releases: Array<(hits: SemanticHit[]) => void> = [];
         mockFetchSemanticHits.mockImplementation(
@@ -1127,12 +1001,6 @@ describe("GlobalSearch", () => {
         expect(screen.getByText("new-query-row")).toBeInTheDocument();
       });
 
-      /**
-       * "No results" is a verdict, and stage one alone cannot reach it:
-       * the phrase a semantic search exists for is exactly the one no
-       * filename matches. Every other test here seeds a non-empty name
-       * result, so this branch had nothing holding it.
-       */
       it("does not call it empty while the second stage is still out", async () => {
         mockGetDriveFiles.mockResolvedValue({
           data: [],
@@ -1179,7 +1047,6 @@ describe("GlobalSearch", () => {
       });
 
       it("says so straight away on a drive with no second stage", async () => {
-        // The verdict is not delayed by a stage that does not exist.
         mockIsSemanticSearchAvailable.mockResolvedValue(false);
         mockGetDriveFiles.mockResolvedValue({
           data: [],
@@ -1196,12 +1063,6 @@ describe("GlobalSearch", () => {
         expect(screen.queryByText(/Also searching by meaning/)).toBeNull();
       });
 
-      /**
-       * ...and only then. A second stage that adds nothing produces the
-       * same rows in the same order; taking the highlight off a list that
-       * never moved sends the user's next Enter to the search page
-       * instead of to the row they were on.
-       */
       it("keeps the keyboard selection when the second stage changes nothing", async () => {
         mockGetDriveFiles.mockResolvedValue({
           data: [
@@ -1246,12 +1107,6 @@ describe("GlobalSearch", () => {
         expect(selectedTitles()).toEqual(before);
       });
 
-      /**
-       * The abandoned stage the other test holds open is the semantic one.
-       * The name stage resolves promptly there, so its own abort check and
-       * `paint()`'s are never the guard that fires — delete either and that
-       * test stays green. This one holds the *name* stage open instead.
-       */
       it("does not let an abandoned name stage paint over the current one", async () => {
         mockFetchSemanticHits.mockResolvedValue([]);
         const releases: Array<(res: unknown) => void> = [];
@@ -1285,11 +1140,6 @@ describe("GlobalSearch", () => {
         expect(screen.getByText("new-query-row")).toBeInTheDocument();
       });
 
-      /**
-       * The cleanup clears the flag as well as the `.finally`, because a
-       * modal closed mid-stage-two never reaches that `.finally` for the
-       * generation the user is looking at next.
-       */
       it("stops saying it is searching when the modal closes mid-stage", async () => {
         mockGetDriveFiles.mockResolvedValue({
           data: [makeFile({ id: "f1", title: "filename-hit" })],
@@ -1313,32 +1163,11 @@ describe("GlobalSearch", () => {
         );
 
         fireEvent.click(screen.getByLabelText("Search"));
-        // Reopened with no query typed: there is no second stage running,
-        // so the footer must not still be reporting one.
         expect(screen.queryByText(/Also searching by meaning/)).toBeNull();
       });
 
-      /**
-       * Relevance sorting sees only name matches until the second stage
-       * arrives, so the row under the highlight afterwards is a different
-       * file. Enter would open something the user never picked.
-       */
-      /**
-       * The highlight is a promise about where the next Enter lands, and
-       * the accident worth preventing is exactly one: **the next Enter
-       * goes somewhere the reader did not choose.**
-       *
-       * So these assert where Enter lands, not what `selectedIndex` holds
-       * and not which row wears the selected token. A highlight that is on
-       * the right row for the wrong reason passes those; only the landing
-       * point is the thing the reader was promised.
-       */
-      /**
-       * A hit that outranks a name match, which takes several channels at
-       * once: a name match scores `1 x FILENAME_BOOST` = 2.0, and this is
-       * what a file whose audio, picture and text all match looks like.
-       * Without it, "the list reordered" is a claim no assertion can see.
-       */
+      // A name match scores `1 x FILENAME_BOOST` = 2.0, so outranking one
+      // takes several channels at once.
       const strongHit = (id: string) =>
         makeHit({
           file_id: id,
@@ -1406,8 +1235,6 @@ describe("GlobalSearch", () => {
         await waitFor(() =>
           expect(screen.getAllByTestId("merged-result-item")).toHaveLength(2),
         );
-        // The highlighted file really did move — without this the test
-        // cannot tell "follows its file" from "kept its position".
         expect(rowIds()).toEqual(["s0", "f1"]);
 
         mockRouterPush.mockClear();
@@ -1416,10 +1243,6 @@ describe("GlobalSearch", () => {
       });
 
       it("keeps the view-all row on the end of the list, not on a number", async () => {
-        // "View all results" is a position, but a position in the list's
-        // shape. Pinned to its index it becomes a file row as soon as the
-        // list grows past it, and Enter opens something the reader never
-        // highlighted.
         const { release } = oneNameHit();
 
         render(<GlobalSearch />);
@@ -1448,9 +1271,6 @@ describe("GlobalSearch", () => {
       });
 
       it("does not let a late watch-history reply take the highlight", async () => {
-        // The history request is about the empty state's list, which is not
-        // on screen. It has nothing to say about a result the reader has
-        // highlighted, and the ruling allows exactly one reason to let go.
         let releaseHistory: (items: unknown[]) => void = () => {};
         mockGetWatchHistory.mockImplementation(
           () => new Promise((r) => (releaseHistory = r as (i: unknown[]) => void)),
@@ -1481,10 +1301,6 @@ describe("GlobalSearch", () => {
       });
 
       it("lets go once the file it was pointing at is gone", async () => {
-        // The popup keeps eight rows. Enough name matches to fill it, and
-        // semantic hits that outrank the highlighted one, and the file the
-        // reader chose is sliced off the end — the one case where there is
-        // nothing left to point at.
         mockGetDriveFiles.mockResolvedValue({
           data: Array.from({ length: 8 }, (_, i) =>
             makeFile({ id: `n${i}`, title: `filename-hit ${i}` }),
@@ -1503,16 +1319,12 @@ describe("GlobalSearch", () => {
           expect(screen.getAllByTestId("merged-result-item")).toHaveLength(8),
         );
 
-        // Highlight the last row, which is the one with the least to hold
-        // its place.
         const input = screen.getAllByRole("textbox")[0];
         for (let i = 0; i < 8; i++) fireEvent.keyDown(input, { key: "ArrowDown" });
         const lastId = screen.getAllByTestId("merged-result-item")[7].getAttribute("data-file-id");
 
         // A name match scores `1 × FILENAME_BOOST` = 2.0, so displacing one
-        // takes a hit that is strong on several channels at once — which is
-        // what a hit on a file whose audio, picture and text all match
-        // looks like.
+        // takes a hit that is strong on several channels at once.
         const strongHit = (i: number) =>
           makeHit({
             file_id: `s${i}`,
@@ -1546,20 +1358,12 @@ describe("GlobalSearch", () => {
 
         mockRouterPush.mockClear();
         fireEvent.keyDown(input, { key: "Enter" });
-        // The query, not a file: with nothing to point at, Enter must not
-        // open whatever slid into that position.
         expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/search?q=hit");
       });
 
       it("does not pin a highlight the reader never moved", async () => {
-        // An untouched default is not about any file, so a paint must not
-        // fasten it to one — the row that is first afterwards is first for
-        // its own reasons.
-        //
-        // Two paints, because one cannot see the failure: an
-        // implementation that writes the first row's id down on paint one
-        // only acts on it when a later paint moves that file. The cached
-        // snapshot gives the first, the fetch gives the second.
+        // Two paints: the cached snapshot gives the first, the fetch gives
+        // the second.
         mockReadSearchCache.mockReturnValue({
           filenameMatches: [makeFile({ id: "f1", title: "filename-hit" })],
           filenameTotal: 1,
@@ -1578,7 +1382,6 @@ describe("GlobalSearch", () => {
 
         await waitFor(() => expect(rowIds()).toEqual(["s0", "f1"]));
 
-        // The reader never pressed an arrow key.
         mockRouterPush.mockClear();
         const input = screen.getAllByRole("textbox")[0];
         fireEvent.keyDown(input, { key: "Enter" });
@@ -1603,9 +1406,6 @@ describe("GlobalSearch", () => {
       const lastCall = mockWriteSearchCache.mock.calls.at(-1)!;
       const [key, partial] = lastCall;
       expect(key).toMatchObject({ drive: "main", query: "video" });
-      // Lengths, not `expect.any(Array)`: an empty array satisfies that,
-      // and a cache entry holding a name-only list is served for the next
-      // 60 seconds as if it were the finished answer.
       expect(partial).toMatchObject({ filenameTotal: 1 });
       expect((partial as { filenameMatches: unknown[] }).filenameMatches).toHaveLength(1);
       expect((partial as { semanticHits: unknown[] }).semanticHits).toHaveLength(1);
@@ -1655,29 +1455,11 @@ describe("GlobalSearch", () => {
         await Promise.resolve();
       });
 
-      // Enumerated rather than bounded. The signal is the *whole*
-      // generation guard — every write in the effect is behind
-      // `ctrl.signal.aborted` — so "at least one was aborted" is not
-      // enough to carry it: lower bounds hold at every count above the
-      // bound, and a conditional assertion is vacuous whenever its
-      // condition is false.
-      //
-      // The first change is abandoned before its debounce fires, so its
-      // request never goes out at all; exactly one signal is issued, and
-      // it is live because it belongs to the query that is on screen.
-      //
-      // So this measures the debounce, not the abort — the name used to
-      // say "aborts the prior request" and the body proves the opposite,
-      // because there is no prior request to abort. The generation guard
-      // is carried by `does not let an abandoned name stage paint over
-      // the current one`, which holds a request open across the change
-      // and does go red when `ctrl.abort()` is removed.
       expect(capturedSignals.length).toBe(1);
       expect(capturedSignals.map((s) => s.aborted)).toEqual([false]);
     });
 
     it("cache hit → readSearchCache returns data; rows render before debounce fires", async () => {
-      // Pre-seed the cache with a same-query entry.
       mockReadSearchCache.mockReturnValue({
         filenameMatches: [makeFile({ id: "f1", title: "from-cache" })],
         filenameTotal: 1,
@@ -1689,18 +1471,13 @@ describe("GlobalSearch", () => {
       fireEvent.click(screen.getByLabelText("Search"));
 
       const input = screen.getAllByRole("textbox")[0];
-      // Synchronous render: cache should populate before any debounce.
       fireEvent.change(input, { target: { value: "video" } });
-      // Allow React to flush state updates from the cache hit.
       await act(async () => {
         await Promise.resolve();
       });
 
-      // Cache lookup happened.
       expect(mockReadSearchCache).toHaveBeenCalled();
-      // The cached row is visible WITHOUT advancing the debounce timer.
       expect(screen.getByText("from-cache")).toBeInTheDocument();
-      // No fetch should have been issued yet (debounce not flushed).
       expect(mockGetDriveFiles).not.toHaveBeenCalled();
     });
 
@@ -1725,9 +1502,6 @@ describe("GlobalSearch", () => {
 
   describe("the highlight on the empty state", () => {
     it("stays on its row when a row above it is removed", async () => {
-      // The recent files and the saved terms are one index space, and
-      // taking a row out shifts everything below it up. The highlight is a
-      // promise about where Enter lands here too.
       localStorage.setItem(
         "search-history:main",
         JSON.stringify(["alpha", "beta", "gamma"]),
@@ -1756,43 +1530,26 @@ describe("GlobalSearch", () => {
     });
   });
 
-  /**
-   * S-4. The badges say why a file matched, in one word each — "Visual",
-   * "Keyword". Those are the search's words, not the reader's, and there
-   * was nowhere at all to find out what they meant.
-   */
   describe("the badge legend", () => {
     const openLegend = async () => {
       renderWithShortcuts(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
-      // The panel is portalled and its viewport question settles in an
-      // effect, so wait for the thing being asserted about rather than
-      // assuming the click painted it.
       await screen.findByRole("button", { name: /What the badges mean/ });
       fireEvent.click(screen.getByRole("button", { name: /What the badges mean/ }));
     };
 
     it("explains every badge, not the ones that happen to be on screen", async () => {
       await openLegend();
-      // Enumerated from the table both surfaces draw from, so a badge
-      // added without a sentence fails here rather than shipping mute.
       expect(MATCH_BADGES.length).toBe(8);
       for (const badge of MATCH_BADGES) {
         const help = enMessages.search[badge.helpKey as keyof typeof enMessages.search];
-        // The sentence exists in core's own catalogue...
         expect(typeof help).toBe("string");
-        // ...and it is on screen.
         expect(screen.getByText(help as string)).toBeInTheDocument();
       }
     });
 
     it("does not close the search to say it", async () => {
-      // The reader asked what a badge means while looking at results. A
-      // legend that took the results away to answer would make them run
-      // the search again.
       await openLegend();
-      // Exactly one: this component draws one branch or the other, and a
-      // lower bound passes on a popup drawn twice.
       expect(screen.getAllByPlaceholderText("Search in main...")).toHaveLength(1);
     });
 
@@ -1800,23 +1557,15 @@ describe("GlobalSearch", () => {
       await openLegend();
       fireEvent.keyDown(document, { key: "Escape" });
 
-      // The legend is gone...
       const firstHelp = enMessages.search.matchFilenameHelp;
       expect(screen.queryByText(firstHelp)).toBeNull();
-      // ...and the search the reader opened is still there.
       expect(screen.getAllByPlaceholderText("Search in main...")).toHaveLength(1);
 
-      // A second Escape closes that, so nothing has been made harder to
-      // leave — only ordered.
       fireEvent.keyDown(document, { key: "Escape" });
       expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
     });
 
     it("answers on the mobile draw too, which is a different branch", async () => {
-      // The two draws build the body from separate branch chains, and the
-      // legend is most needed here: `title` — the alternative §4 rejected —
-      // does not exist on a touch screen at all. A saved term puts the
-      // empty state on screen, which is what the popup opens on.
       const mql = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
       const answer = (matches: boolean) => (query: string) => ({
         matches,
@@ -1833,7 +1582,6 @@ describe("GlobalSearch", () => {
         localStorage.setItem("search-history:main", JSON.stringify(["kyoto"]));
         renderWithShortcuts(<GlobalSearch />);
         fireEvent.click(screen.getByLabelText("Search"));
-        // The mobile sheet's back arrow, so this pins the branch as well.
         expect(screen.getByLabelText("Close")).toBeInTheDocument();
 
         fireEvent.click(
@@ -1849,13 +1597,9 @@ describe("GlobalSearch", () => {
     });
 
     it("is a target a thumb can hit", async () => {
-      // `pointer-coarse:min-h-11` is 44px on a touch screen, matching the
-      // shortcut entry beside it.
       await openLegend();
       const entry = screen.getByRole("button", { name: /What the badges mean/ });
       expect(entry.className).toContain("pointer-coarse:min-h-11");
-      // And it is not inside the list that moves when the second stage
-      // lands.
       expect(entry.closest(".overflow-y-auto")).toBeNull();
     });
   });

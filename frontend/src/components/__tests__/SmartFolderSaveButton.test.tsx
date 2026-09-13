@@ -4,13 +4,11 @@ import type { SmartFolder } from "@/types/smartFolder";
 import { SmartFolderSaveButton } from "../SmartFolderSaveButton";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 
-// Mock router
 const routerReplace = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: routerReplace }),
 }));
 
-// Mock hook so we can drive its return shape directly.
 const createMock = vi.fn();
 const updateMock = vi.fn();
 const removeMock = vi.fn();
@@ -27,7 +25,6 @@ vi.mock("@/hooks/useSmartFolders", () => ({
   }),
 }));
 
-// Stub heavy dialog components so we can interrogate them by testid.
 vi.mock("../SmartFolderSaveDialog", () => ({
   SmartFolderSaveDialog: ({
     open,
@@ -194,17 +191,10 @@ describe("SmartFolderSaveButton", () => {
   });
 
   it("closes its menu on Escape and returns focus to the trigger", () => {
-    // The scrim is a pointer gesture, so without an Escape path a
-    // keyboard user who opens this menu cannot back out of it — and
-    // `docs/user-guide/overview.md` tells them it works. Measured before
-    // it was wired: the menu stayed open.
-    //
-    // Focus is moved **into the menu** before the press, which is where a
-    // keyboard user's focus is after arrowing to a row. Pressing with
+    // Focus is moved **into the menu** before the press. Pressing with
     // focus already on the trigger asserts nothing about the focus
     // return: closing the menu does not move focus, so `toHaveFocus`
-    // passes whether or not the handler restores it. That was measured —
-    // deleting the focus line left three of these green.
+    // passes whether or not the handler restores it.
     mockSmartFolders = [SAMPLE];
     render(
       <ShortcutsProvider>
@@ -230,15 +220,9 @@ describe("SmartFolderSaveButton", () => {
 
 
   it("closes on Escape even with focus in a text field", () => {
-    // What `editingOnly: false` buys, and the only state that needs it.
-    // Nothing traps focus inside these menus, so Tab walks out of the last
-    // row into whatever follows in the document — a search box, a filter
-    // field. `ShortcutsProvider` treats an INPUT as "editing", and without
-    // the flag a shortcut fires only when nothing is being edited, so
-    // Escape would do nothing there while the menu is still up.
-    //
-    // Measured before this case existed: deleting `editingOnly: false`
-    // left every other assertion green.
+    // What `editingOnly: false` buys. Nothing traps focus inside these
+    // menus, so Tab walks out of the last row into whatever follows in the
+    // document, and `ShortcutsProvider` treats an INPUT as "editing".
     mockSmartFolders = [SAMPLE];
     render(
       <ShortcutsProvider>

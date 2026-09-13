@@ -66,8 +66,6 @@ describe("SeekableDescription", () => {
   it("labels each button from the message catalogue", () => {
     renderDescription("1:23");
 
-    // The mock echoes `key:{values}`, so a hardcoded string could not
-    // produce this.
     expect(
       screen.getByRole("button", { name: /^seekToTime:/ }),
     ).toHaveAccessibleName('seekToTime:{"time":"1:23"}');
@@ -104,10 +102,9 @@ describe("SeekableDescription", () => {
   });
 
   it("styles an unusable timestamp as body text, not as a dimmed link", () => {
-    // Pins spec §5.5. A controller may never arrive, so the disabled
-    // state is not only transient, and the reflex here — dimming the
-    // accent colour with `disabled:opacity-50` — would leave a
-    // permanently dead link looking like a link.
+    // A controller may never arrive, so the disabled state is not only
+    // transient, and `disabled:opacity-50` would leave a permanently dead
+    // link looking like a link.
     renderDescription("1:23", { controller: null });
 
     const className = screen.getByRole("button").className;

@@ -22,7 +22,6 @@ function type(input: HTMLInputElement, value: string) {
   fireEvent.change(input, { target: { value } });
 }
 
-/** A click somewhere else on the page. */
 function clickOutside() {
   fireEvent.pointerDown(document.body);
 }
@@ -87,9 +86,6 @@ describe("InlineNameEditor", () => {
 
   describe("blur is deliberately not a commit trigger", () => {
     it("ignores a plain blur", async () => {
-      // The tree is virtualized: scrolling the row out of the window
-      // unmounts the input and fires blur. Committing there would rename
-      // a file because the user scrolled.
       const { input, onCommit } = setup();
       type(input, "renamed.mp4");
       await act(async () => {
@@ -178,7 +174,6 @@ describe("InlineNameEditor", () => {
     });
 
     it("hands the message to the host and leaves, after a click away", async () => {
-      // Staying open here would drag focus back on every click — a trap.
       const onCommit = rejecting();
       const { input, onCancel } = setup({ onCommit });
       type(input, "taken.mp4");
@@ -236,11 +231,9 @@ describe("InlineNameEditor", () => {
 
 describe("IME composition", () => {
   /**
-   * Measured in Chromium: confirming a conversion fires `compositionend`
-   * and then a `keydown` that is indistinguishable from a bare Enter
-   * (`isComposing: false`, `keyCode: 13`). Checking `isComposing` alone
-   * does not catch it, so these fixtures reproduce the real ordering
-   * rather than the one the naive guard assumes.
+   * Chromium fires `compositionend` and then a `keydown` indistinguishable
+   * from a bare Enter (`isComposing: false`, `keyCode: 13`); this reproduces
+   * that ordering.
    */
   function confirmConversion(input: HTMLInputElement, text: string) {
     fireEvent.compositionStart(input);
@@ -306,8 +299,6 @@ describe("IME composition", () => {
   });
 
   it("still commits an Enter pressed long after a composition ended", async () => {
-    // Choosing a candidate with the mouse also ends the composition; the
-    // Enter that follows is a deliberate confirmation of the rename.
     vi.useFakeTimers();
     try {
       const { input, onCommit } = setup();

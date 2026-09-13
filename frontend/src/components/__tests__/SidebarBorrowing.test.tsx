@@ -58,11 +58,10 @@ function fireFlip() {
 }
 
 /**
- * NAV-2 rule 1. The folder tree borrows the sidebar's place while it is
- * open. "Borrow" is the whole design: the reader's stored preference has
- * to survive the trip, which is why this is overlay mode and not
- * `close()` — `close()` writes `false` into `localStorage` when the
- * sidebar is inline, so there would be nothing left to restore.
+ * The reader's stored preference has to survive the borrow, which is why
+ * this is overlay mode and not `close()` — `close()` writes `false` into
+ * `localStorage` when the sidebar is inline, so there would be nothing left
+ * to restore.
  */
 describe("lending the sidebar its place", () => {
   beforeEach(() => {
@@ -134,12 +133,8 @@ describe("lending the sidebar its place", () => {
   });
 
   it("gives the place back when the borrower goes away without warning", () => {
-    // A borrower does not always get to say it is finished. Navigating
-    // from a folder with the tree open to `/`, `/admin`, an addon route or
-    // `?view=trash` unmounts the whole layout that was holding the space,
+    // Navigating away unmounts the whole layout that was holding the space,
     // and the only thing left to hand it back is the effect's own cleanup.
-    // Without it the count never returns to zero and the sidebar takes no
-    // width anywhere, at any width, until the tab is reloaded.
     localStorage.setItem("sidebar-open", "true");
     render(<UnmountHarness />);
     expect(overlay()).toBe("true");

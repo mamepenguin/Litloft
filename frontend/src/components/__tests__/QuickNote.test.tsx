@@ -246,9 +246,6 @@ describe("QuickNote focus containment", () => {
     expect(screen.getByLabelText("Note text").closest("[inert]")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Cancel" }).closest("[inert]")).not.toBeNull();
 
-    // jsdom does not implement native tab traversal, so only the wrapping
-    // moves the trap makes itself are observable — which is exactly what
-    // keeps focus from escaping into the inert panel behind.
     const dialog = screen.getByRole("dialog");
     fireEvent.keyDown(dialog, { key: "Tab" });
     expect(keepButton).toHaveFocus();

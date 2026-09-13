@@ -28,16 +28,6 @@ import {
   type SheetState,
 } from "@/components/MobileInspectorSheet";
 
-/**
- * The sheet rests, it does not close.
- *
- * Three states as of 2026-09: a 56px `peek` carrying the file's name
- * and the controls that act on it, and `half` / `full` bringing the
- * rest of the inspector up over the page. The state it does not have is
- * "gone" — on a phone the per-file actions used to be somewhere in a
- * column the reader had to find, and the point of the strip is that
- * they are in the same place on every file.
- */
 function renderSheet(
   state: SheetState = SHEET_STATE_PEEK,
   onStateChange = vi.fn(),
@@ -56,15 +46,6 @@ function renderSheet(
   return { ...utils, onStateChange };
 }
 
-/**
- * Make a scroller report a scroll geometry.
- *
- * jsdom gives every element `scrollHeight === clientHeight === 0`, so
- * without this the sheet's own scroller looks like one with nothing to
- * scroll and every gesture reads as condition 1. The numbers are the
- * hook's only inputs from the DOM, which is why they can be supplied —
- * and why nothing here is evidence about a layout.
- */
 function stubScrollGeometry(
   el: HTMLElement,
   { scrollTop, maxScroll }: { scrollTop: number; maxScroll: number },
@@ -82,8 +63,6 @@ function stubScrollGeometry(
 }
 
 /**
- * One finger, in both lists.
- *
  * `changedTouches` is not read by the hook: it is read by the document
  * listener `react-remove-scroll` installs under every Radix dialog, which
  * indexes it without checking and throws on an event that has none.
@@ -105,21 +84,12 @@ describe("MobileInspectorSheet", () => {
   });
 
   it("gives the peek row exactly the height the design names", () => {
-    // The 56px is what the reader gets at rest, so it is the row's own
-    // height and not a minimum the content can push past.
     renderSheet();
     const row = screen.getByTestId("mobile-inspector-peek");
     expect(row.style.height).toBe(`${SHEET_PEEK_PX}px`);
   });
 
   it("mounts no dialog at rest, so the page is not hidden from a reader", () => {
-    // The reason the strip is drawn outside vaul. vaul hands Radix's
-    // `Dialog.Root` only `open` / `defaultOpen` / `onOpenChange` — its
-    // own `modal` never arrives — so Radix defaults to modal and calls
-    // `hideOthers()` on every other body child. A drawer mounted at
-    // rest puts `aria-hidden="true"` on the whole application, on every
-    // file page a phone opens, permanently. Nothing looks wrong; the
-    // page is simply gone for anyone using a screen reader.
     const page = document.createElement("div");
     page.setAttribute("data-testid", "the-page");
     document.body.appendChild(page);
@@ -137,14 +107,6 @@ describe("MobileInspectorSheet", () => {
     expect(screen.queryByTestId("inspector-content")).toBeNull();
   });
 
-  // The converse, and it is what the `column` inspector's justification
-  // turns on. Three files said the strip "is on screen whether the sheet
-  // is up or down" — it is not: the component returns the strip *or* the
-  // drawer, never both, so once the sheet is up the file's name and its
-  // action row live only at the top of the sheet's own column, and are
-  // reached by scrolling back to it. That is the confirmed trade
-  // (`DESIGN.md` §Layering), and this is the fact it rests on, stated
-  // where it can fail.
   for (const state of [SHEET_STATE_HALF, SHEET_STATE_FULL]) {
     it(`draws no resting strip at ${state}, so the actions are not also below`, async () => {
       renderSheet(state);
@@ -156,27 +118,19 @@ describe("MobileInspectorSheet", () => {
   }
 
   it("draws it at rest and nowhere else, which is the whole of that rule", () => {
-    // Both halves in one place: a component that rendered the strip at
-    // every snap would pass each case above's sibling and none of this.
     renderSheet(SHEET_STATE_PEEK);
     expect(screen.getByTestId("mobile-inspector-peek")).toBeInTheDocument();
     expect(screen.queryByTestId("mobile-inspector-sheet")).toBeNull();
   });
 
   it("dims the page at half, the state the toggle opens", async () => {
-    // vaul fades its overlay from the *last* snap point by default,
-    // which would leave half covering the page with no dim to say so —
-    // a tap outside would then collapse the sheet with nothing on
-    // screen having explained why.
+    // vaul fades its overlay from the *last* snap point by default.
     renderSheet(SHEET_STATE_HALF);
     const overlay = await screen.findByTestId("mobile-inspector-overlay");
     expect(overlay.dataset.vaulSnapPointsOverlay).toBe("true");
   });
 
   it("collapses to peek on a dismiss gesture instead of closing", async () => {
-    // There is no closed state to dismiss to. Refusing the gesture
-    // outright would leave a reader who tapped the dim with nothing
-    // happening at all.
     const { onStateChange } = renderSheet(SHEET_STATE_HALF);
     await screen.findByTestId("mobile-inspector-sheet");
 
@@ -188,10 +142,8 @@ describe("MobileInspectorSheet", () => {
   });
 
   it("sits below the modal-dialog tier", async () => {
-    // The sheet hosts the same inspector the desktop pane does, `[...]`
-    // menu included, so Rename / Move / Trash and any addon dialog open
-    // from inside it. Those portal at z-50; if the sheet outranked them
-    // they would be launched and immediately buried. DESIGN.md §Layering.
+    // Dialogs opened from inside the sheet portal at z-50; if the sheet
+    // outranked them they would be launched and immediately buried.
     renderSheet(SHEET_STATE_FULL);
     const sheet = await screen.findByTestId("mobile-inspector-sheet");
     const overlay = screen.getByTestId("mobile-inspector-overlay");
@@ -205,10 +157,6 @@ describe("MobileInspectorSheet", () => {
   });
 
   it("hosts dialogs opened from inside it, where they stay interactive", async () => {
-    // vaul is `modal` while expanded: `pointer-events: none` on <body>
-    // and `aria-hidden` on every other body child. A dialog portalled
-    // beside the sheet is rendered and inert no matter its z-index,
-    // which is why the sheet hands out a host in its own subtree.
     function DialogFromInsideTheSheet() {
       const target = useDialogPortalTarget();
       if (!target) return null;
@@ -254,10 +202,9 @@ describe("MobileInspectorSheet", () => {
   });
 });
 
-/** The drawer at an expanded state, which is where vaul has published. */
 function expanded(state: SheetState, halfSnap?: number) {
-  // Torn down first, so a case may ask this twice: vaul portals to
-  // `document.body`, and two drawers there make every query ambiguous.
+  // vaul portals to `document.body`, and two drawers there make every
+  // query ambiguous.
   cleanup();
   render(
     <MobileInspectorSheet
@@ -280,22 +227,11 @@ describe("isSheetExpanded", () => {
   });
 });
 
-/**
- * `half` is a state; the snap it resolves to is a measurement.
- *
- * The component is the only place the two meet, and these are what that
- * translation has to get right. None of it is geometry — jsdom lays
- * nothing out, so where the drawer *lands* at a given snap is
- * `e2e-layout/mobile-inspector-sheet.spec.ts` — but which number reaches
- * vaul, and which state comes back out, are decisions and are here.
- */
 describe("the half state and the snap it resolves to", () => {
   /** A player-derived value: not 0.5, not 0.9, and not a round number. */
   const DERIVED = 0.627736;
 
   it("hands vaul the derived snap in place of the fixed one", () => {
-    // Read back off the variable vaul publishes rather than off the
-    // prop, so this fails if the number is accepted and not used.
     const { drawer } = expanded(SHEET_STATE_HALF, DERIVED);
     expect(
       Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height")),
@@ -303,10 +239,6 @@ describe("the half state and the snap it resolves to", () => {
   });
 
   it("leaves full alone when half moves", () => {
-    // `full` is the state for reading without following playback, so it
-    // does not depend on the player. A derivation wired into both would
-    // pass every case above and cover the video at the state whose whole
-    // point is that it may.
     const { drawer } = expanded(SHEET_STATE_FULL, DERIVED);
     expect(
       Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height")),
@@ -314,7 +246,6 @@ describe("the half state and the snap it resolves to", () => {
   });
 
   it("falls back to the fixed fraction when nothing was measured", () => {
-    // The Markdown / PDF / image surfaces, which pass no `halfSnap`.
     const { drawer } = expanded(SHEET_STATE_HALF);
     expect(
       Number.parseFloat(drawer.style.getPropertyValue("--snap-point-height")),
@@ -322,10 +253,6 @@ describe("the half state and the snap it resolves to", () => {
   });
 
   it("sizes the drawer in the viewport vaul solves its snaps in", () => {
-    // Both terms of the derivation in one place. vaul's translate is a
-    // fraction of `window.innerHeight`; the drawer's height has to be a
-    // fraction of the same number, or the sheet's top edge lands
-    // somewhere neither of them named.
     const { drawer } = expanded(SHEET_STATE_HALF, DERIVED);
     expect(drawer.style.height).toBe(
       `${sheetDrawerHeightPx(window.innerHeight)}px`,
@@ -333,10 +260,6 @@ describe("the half state and the snap it resolves to", () => {
   });
 
   it("follows the window when the URL bar moves", () => {
-    // A height read once is the same defect as a snap computed once. On
-    // a phone the window grows by the height of the bar and vaul's
-    // translate changes with it; a drawer still sized for the old window
-    // is the mismatch this round removed, arriving a moment later.
     const had = window.innerHeight;
     try {
       const { drawer } = expanded(SHEET_STATE_HALF, DERIVED);
@@ -366,19 +289,11 @@ describe("the half state and the snap it resolves to", () => {
   });
 
   it("still publishes which state it is in, not the number", () => {
-    // `[data-sheet-snap]` and `data-snap` are read by a stylesheet and by
-    // `MediaShell.test.tsx`; a derived float landing in either would make
-    // both meaningless.
     expect(expanded(SHEET_STATE_HALF, DERIVED).drawer.dataset.snap).toBe("half");
     expect(expanded(SHEET_STATE_FULL, DERIVED).drawer.dataset.snap).toBe("full");
   });
 
   it("reports a drag to full as full, and every other snap as half", () => {
-    // vaul answers with a snap point and the shell stores a state, so
-    // this is the direction that has to survive a derived number. Each
-    // input is declared with the state it belongs to; a mapping written
-    // the other way round — "is this the half number" — passes the first
-    // two and turns the third into `full`.
     const BACK = [
       { snap: SHEET_SNAP_FULL, state: SHEET_STATE_FULL },
       { snap: SHEET_SNAP_HALF_FALLBACK, state: SHEET_STATE_HALF },
@@ -407,25 +322,11 @@ describe("the half state and the snap it resolves to", () => {
 });
 
 /**
- * The pull-to-collapse gesture, as far as jsdom reaches.
- *
- * What is held here is the **wiring**: that the listeners are on the
- * sheet's own scroller, that the box they translate is the surface, and
- * that a gesture which earns a collapse ends in `onStateChange("peek")`.
- * Which gestures earn it is `lib/__tests__/sheetPullGesture.test.ts`, and
- * whether the browser then declines to scroll is
- * `e2e-components/sheet-gesture.spec.ts` — jsdom cannot scroll, so it
- * cannot be asked.
- *
- * **Every event carries a chosen `timeStamp`.** Release velocity is a
- * function of them, and jsdom's own clock is integer-millisecond epoch
- * time: two adjacent `fireEvent` statements are 0ms apart most of the
- * time and 1ms apart whenever they straddle a boundary, which is a
- * velocity of 0 or of 20px/ms for the same gesture. The distance case
- * below passed on that coincidence and went red about once in ten runs.
+ * Every event carries a chosen `timeStamp`: release velocity is a function
+ * of them, and two adjacent `fireEvent` statements are 0ms or 1ms apart
+ * depending on where they straddle a millisecond boundary.
  */
 describe("pulling the sheet down by its content", () => {
-  /** Dispatch one touch event at a chosen moment on the fake clock. */
   const at = (
     el: HTMLElement,
     type: "touchStart" | "touchMove" | "touchEnd",
@@ -440,12 +341,9 @@ describe("pulling the sheet down by its content", () => {
   const START_AT = 1000;
 
   /**
-   * One gesture, at a declared speed.
-   *
-   * `msPerStep` is what separates a flick from a push: the hook reads the
-   * finger's speed over the last `VELOCITY_WINDOW_MS`, so steps further
-   * apart than the window read as motionless however far they went.
-   * `holdMs` is the pause between the last move and the lift.
+   * The hook reads the finger's speed over the last `VELOCITY_WINDOW_MS`,
+   * so steps further apart than the window read as motionless however far
+   * they went.
    */
   const pull = ({
     scrollTop,
@@ -499,8 +397,6 @@ describe("pulling the sheet down by its content", () => {
   });
 
   it("collapses at that same distance when the finger left quickly", () => {
-    // The pair that gives the velocity term something to mean in jsdom:
-    // 20px settles at 200ms a step and dismisses at 8ms a step.
     const { onStateChange } = pull({
       scrollTop: 0,
       maxScroll: 900,
@@ -511,11 +407,8 @@ describe("pulling the sheet down by its content", () => {
   });
 
   it("springs back when the finger stopped before lifting, however fast it had been", () => {
-    // The gesture the velocity window exists for: pull the sheet a little
-    // to see the page behind it, rest, lift. Reading the speed at the last
-    // *move* instead of at the release collapsed this on a velocity from
-    // a second earlier — and 40px is short of the dismiss distance, so
-    // nothing else could have.
+    // 40px is short of the dismiss distance, so only velocity could
+    // collapse this.
     const { onStateChange, surface } = pull({
       scrollTop: 0,
       maxScroll: 900,
@@ -528,9 +421,6 @@ describe("pulling the sheet down by its content", () => {
   });
 
   it("leaves the sheet alone when the gesture began away from the top", () => {
-    // The negative form, and the one that says the listener is reading
-    // the scroller rather than just the finger: same finger, same
-    // distance, different starting offset.
     const { onStateChange, transform } = pull({
       scrollTop: 300,
       maxScroll: 900,
@@ -542,27 +432,15 @@ describe("pulling the sheet down by its content", () => {
 
   it("reaches the handoff through a scroller that bounced past its own top", () => {
     // iOS Safari stretches an inner scroller past its top, and reports
-    // the stretch as a negative `scrollTop`. Unclamped, that feeds
-    // `advanceSheetPull` a `consumed` term as large as the finger's own
-    // movement, so nothing accumulates toward the handoff and condition 3
-    // — scroll to the top without lifting, then keep pushing — can never
-    // fire there.
-    //
-    // **The premise is the part jsdom cannot hold**: whether iOS really
-    // reports a negative offset. The arithmetic is what is measured here,
-    // and it needs nothing but the offsets a caller hands in, which is
-    // why "not measurable here" was the wrong scope for the claim.
+    // the stretch as a negative `scrollTop`.
     const { onStateChange } = renderSheet(SHEET_STATE_HALF);
     const scroller = screen.getByTestId("mobile-inspector-content");
     const surface = screen.getByTestId("mobile-inspector-surface");
-    // Below the top, so the gesture latches to the scroller.
     stubScrollGeometry(scroller, { scrollTop: 200, maxScroll: 900 });
 
     at(scroller, "touchStart", touch(300), START_AT);
-    // Down to the top: every pixel answered by scrolling.
     scroller.scrollTop = 0;
     at(scroller, "touchMove", touch(500), START_AT + 200);
-    // Past it, with the band stretching — the offset goes negative.
     scroller.scrollTop = -60;
     at(scroller, "touchMove", touch(560), START_AT + 400);
     scroller.scrollTop = -60;

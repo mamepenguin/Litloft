@@ -1,9 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-// Capture props passed to FolderBrowser by the search page so we can
-// assert that URL params are forwarded correctly. We don't render the
-// real FolderBrowser here — its behavior is covered separately.
 const folderBrowserProps = vi.fn<(props: Record<string, unknown>) => void>();
 
 vi.mock("@/components/FolderBrowser", () => ({
@@ -63,8 +60,6 @@ describe("SearchPage", () => {
     mockSearchParams = new URLSearchParams();
     render(<SearchPage />);
     const node = screen.getByTestId("folder-browser");
-    // Empty query is forwarded as an empty string; FolderBrowser handles
-    // the empty-query rendering itself.
     expect(node.getAttribute("data-search-query")).toBe("");
   });
 });

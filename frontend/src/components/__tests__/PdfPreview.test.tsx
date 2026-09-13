@@ -12,13 +12,6 @@ import { PdfPreview } from "../PdfPreview";
 import { MAX_RASTER_PIXELS, rasterPixelRatio } from "@/lib/pdfZoomMode";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 
-/**
- * What the mocked document says it holds. Set per test before rendering.
- *
- * `getOutline` is part of the contract this component reads, so the fake has
- * to answer it: a fake that omits it exercises only the branch where the call
- * throws, and the outline path would then be untested while looking covered.
- */
 const pdfDoc = {
   numPages: 8,
   outline: null as unknown,
@@ -28,13 +21,10 @@ const pdfDoc = {
   destinations: {} as Record<string, unknown>,
 };
 
-/** How many times a `<Page>` was drawn, across every render of the document. */
 let pageRenders: number[] = [];
 
-/** The `width` each of those renders was handed, newest last. */
 let pageWidths: number[] = [];
 
-/** The `devicePixelRatio` each render was handed. */
 let pageRatios: number[] = [];
 
 /** The page size the mocked document reports, in PDF points. */
@@ -83,13 +73,6 @@ vi.mock("react-pdf", () => ({
   },
 }));
 
-/**
- * jsdom ships no `ResizeObserver`, so both of the viewer's measurement
- * effects returned early and `availableWidth` / `availableHeight` were
- * frozen at their defaults. That is why deleting the whole height
- * observer left the suite green, and why the fit-page arithmetic — a
- * double padding subtraction — was invisible here.
- */
 let resizeCallbacks: ResizeObserverCallback[] = [];
 let resizeTargets: Element[] = [];
 class DrivableResizeObserver {
@@ -99,26 +82,18 @@ class DrivableResizeObserver {
     resizeCallbacks.push(cb);
   }
   observe(target: Element) {
-    // Recorded, not ignored. Which element is observed is the whole
-    // subject of this fix, and an `observe()` that drops its argument
-    // lets the viewer watch the root again with the suite green.
     resizeTargets.push(target);
   }
   unobserve() {}
   disconnect() {
-    // A torn-down observer leaves the list, so the "exactly one" check
-    // below stays a claim about what is *watching* rather than about
-    // everything that ever did. The viewer draws a `ToolbarMenu`, whose
-    // surface measures its own direction while it is open and stops when
-    // it closes; an append-only list would count that forever and turn
-    // every case here red for a menu that is no longer on screen.
+    // A torn-down observer leaves the list: the viewer's `ToolbarMenu`
+    // observes while it is open, and an append-only list would count that
+    // forever.
     const at = resizeCallbacks.indexOf(this.cb);
     if (at !== -1) resizeCallbacks.splice(at, 1);
   }
 }
 /**
- * Feed the viewer's one observer a size.
- *
  * `height` is the usable height — the border box less `p-4` — because
  * that is what the viewer derives and what the fit arithmetic is written
  * against. `contentHeight` is the content box, which a horizontal
@@ -314,9 +289,6 @@ describe("PdfPreview page navigation", () => {
     await screen.findByText("Selectable page 1");
     const before = pageRenders.length;
 
-    // Three keystrokes towards "225" in a document that has 8 pages: each one
-    // re-renders the toolbar, and none of them may re-render the page. This
-    // is what makes the draft state load-bearing rather than decorative.
     fireEvent.change(pageBox(), { target: { value: "2" } });
     fireEvent.change(pageBox(), { target: { value: "22" } });
     fireEvent.change(pageBox(), { target: { value: "225" } });
@@ -336,9 +308,7 @@ describe("PdfPreview page navigation", () => {
   });
 
   it("leaves the arrows to the folder's previous and next file", async () => {
-    // `useFileNav` binds them whenever `playerKind` is null, which a PDF is,
-    // and `keyboard-shortcuts.md` has published that meaning. Taking them for
-    // one file kind makes the arrows mean two things.
+    // `useFileNav` binds them whenever `playerKind` is null, which a PDF is.
     renderViewer();
     await screen.findByText("Selectable page 1");
 
@@ -398,9 +368,6 @@ describe("PdfPreview page navigation", () => {
   });
 
   it("answers even when the document cannot be asked", async () => {
-    // `null` is "not asked yet" and it is what the shell reads to decide
-    // whether the page-list tab can exist. A document whose outline call
-    // fails has to leave that state, or a consumer waits forever.
     pdfDoc.getOutline = async () => {
       throw new Error("broken");
     };
@@ -421,7 +388,6 @@ describe("PdfPreview page navigation", () => {
     act(() => controller.goToPage(6));
     expect(await screen.findByText("Selectable page 6")).toBeInTheDocument();
 
-    // And refuses one the document does not have.
     act(() => controller.goToPage(99));
     expect(screen.getByText("Selectable page 6")).toBeInTheDocument();
   });
@@ -450,8 +416,7 @@ describe("PdfPreview, the page box under pressure", () => {
     fireEvent.keyDown(pageBox(), { key: "Escape" });
 
     // `blur()` re-enters React's `onBlur` synchronously, and the handler
-    // there closes over the draft from before the state update — so Escape
-    // used to commit the number it was meant to throw away.
+    // there closes over the draft from before the state update.
     expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
     expect(pageBox().value).toBe("1");
   });
@@ -462,13 +427,11 @@ describe("PdfPreview, the page box under pressure", () => {
 
     pageBox().focus();
     fireEvent.change(pageBox(), { target: { value: "5" } });
-    // Mid-conversion.
     fireEvent.keyDown(pageBox(), { key: "Enter", isComposing: true });
     expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
 
-    // And the keystroke that *ends* the conversion, which arrives afterwards
-    // looking exactly like a bare press — `lib/ime.ts` records the
-    // measurement, and `InlineNameEditor` guards the same way.
+    // The keystroke that *ends* the conversion arrives afterwards looking
+    // exactly like a bare press.
     fireEvent.compositionEnd(pageBox());
     fireEvent.keyDown(pageBox(), { key: "Enter" });
     expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
@@ -500,8 +463,6 @@ describe("PdfPreview, the page box under pressure", () => {
     const controller = onPdfController.mock.calls.at(-1)?.[0];
     act(() => controller.goToPage(3));
 
-    // A box reading "9" while the canvas is on 3 is a counter that lies about
-    // where the reader is, with nothing to make it stop.
     expect(await screen.findByText("Selectable page 3")).toBeInTheDocument();
     expect(pageBox().value).toBe("3");
   });
@@ -525,9 +486,7 @@ describe("PdfPreview, the page box under pressure", () => {
     await waitFor(() => expect(controller.getState().numPages).toBe(225));
 
     // The mount is reused across files — the `[fileId]` resets exist for
-    // that reason. Left alone, the page list draws A's table of contents over
-    // B, and a jump validated against A's length sets page 121 on a 3-page
-    // document.
+    // that reason.
     rerender(
       <ShortcutsProvider>
         <PdfPreview
@@ -565,9 +524,7 @@ describe("PdfPreview, the page keys' scope", () => {
 
   it("leaves the key alone once focus is somewhere else", async () => {
     // `ShortcutsProvider` calls `preventDefault` on every match, so an
-    // unscoped binding stops `PageDown` scrolling the inspector — whose panel
-    // is `tabIndex={0}` so a keyboard reader can scroll it — and stops it
-    // scrolling a page zoomed past the canvas box.
+    // unscoped binding stops `PageDown` scrolling anything else.
     renderViewer();
     await screen.findByText("Selectable page 1");
 
@@ -598,8 +555,7 @@ describe("PdfPreview, the page keys' scope", () => {
 
   it("resolves a destination that names its page outright", async () => {
     // pdf.js hands back a page *reference* for most documents and a 0-based
-    // page *index* for some; `getPageIndex` throws on the second, which made
-    // every row of such a document's contents dead.
+    // page *index* for some; `getPageIndex` throws on the second.
     pdfDoc.numPages = 30;
     pdfDoc.destinations = { intro: [4] };
     pdfDoc.outline = [{ title: "Introduction", dest: "intro", items: [] }];
@@ -710,12 +666,8 @@ describe("PdfPreview zoom modes", () => {
   it("centres the page only while it fits", async () => {
     // A flex container centres an overflowing child by pushing half the
     // overflow past its *start* edge, where there is nothing to scroll
-    // to. Measured on an A0 page at actual size: 1176px of a 3178px page
-    // was unreachable. `safe center` falls back to `start` exactly when
-    // the child does not fit — which is the case where centring has
-    // nothing to centre anyway. jsdom lays nothing out, so the rule is
-    // pinned as the declaration; the reachability is a browser
-    // measurement.
+    // to. `safe center` falls back to `start` exactly when the child does
+    // not fit.
     renderViewer();
     await screen.findByText("Selectable page 1");
     const box = document.querySelector(".overflow-auto")!;
@@ -726,11 +678,6 @@ describe("PdfPreview zoom modes", () => {
   });
 
   it("hands <Page> the width the fit function computed", async () => {
-    // `<= 900` was true of the 800px default whether or not the cap
-    // existed, so it passed with `MAX_FITTED_WIDTH` deleted. The exact
-    // number is what pins the path from the measured width to `<Page>`;
-    // the cap itself is exercised against a 2000px canvas in
-    // `lib/__tests__/pdfZoomMode.test.ts`, which is where it belongs.
     renderViewer();
     await screen.findByText("Selectable page 1");
     expect(pageWidths.length).toBeGreaterThan(0);
@@ -745,11 +692,8 @@ describe("PdfPreview zoom modes", () => {
   });
 
   it("budgets the raster rather than the layout on a very large page", async () => {
-    // A0. At actual size the page is 3178px wide, and at 200% the canvas
-    // behind it would be 12715 x 17973 device pixels on a DPR-2 screen —
-    // an allocation Safari refuses, after which the page paints blank
-    // with nothing thrown. The size the mode promises is unchanged; only
-    // the ratio drops.
+    // A0 at 200% on a DPR-2 screen is a canvas allocation Safari refuses,
+    // after which the page paints blank with nothing thrown.
     Object.defineProperty(window, "devicePixelRatio", {
       value: 2,
       configurable: true,
@@ -773,7 +717,6 @@ describe("PdfPreview zoom modes", () => {
   });
 
   it("renders an ordinary page at the display's own ratio", () => {
-    // The budget must not quietly coarsen every page.
     expect(
       rasterPixelRatio({ cssWidth: 794, cssHeight: 1123, devicePixelRatio: 2 }),
     ).toBe(2);
@@ -781,9 +724,7 @@ describe("PdfPreview zoom modes", () => {
 
   it("sizes a whole page from the box it is in, padding already excluded", async () => {
     // `contentRect` is the content box and this observer watches the
-    // padded box itself, so subtracting `p-4` again drew every whole-page
-    // render ~5.6% short with a band of dead grey under it. This is the
-    // assertion that sees it.
+    // padded box itself, so `p-4` is not subtracted again.
     renderViewer();
     await screen.findByText("Selectable page 1");
 
@@ -796,11 +737,8 @@ describe("PdfPreview zoom modes", () => {
   });
 
   it("measures the scroll box itself, not the root that contains it", async () => {
-    // The name of this fix. The root has no padding of its own and does
-    // not narrow when the box's scrollbar appears, so measuring it is
-    // exactly the defect that produced the doubled subtraction — and
-    // every other assertion here still passes with the observer moved
-    // back to it, because the fake feeds numbers regardless of target.
+    // The root has no padding of its own and does not narrow when the
+    // box's scrollbar appears.
     renderViewer();
     await screen.findByText("Selectable page 1");
 
@@ -809,16 +747,10 @@ describe("PdfPreview zoom modes", () => {
   });
 
   it("reserves the scrollbar's gutter on both edges of the scroll box", async () => {
-    // Not cosmetic. Without a reservation a classic vertical scrollbar
-    // takes its width out of `contentRect.width` as it appears, and
-    // `fit-width` oscillates: wider box, taller page, scrollbar, narrower
-    // box, shorter page, no scrollbar.
-    //
+    // Without a reservation a classic vertical scrollbar takes its width
+    // out of `contentRect.width` as it appears, and `fit-width` oscillates.
     // `both-edges` rather than plain `stable`: "whole page" draws no
-    // vertical scrollbar at all, so a one-sided reservation would leave
-    // the page centred ~15px off true. jsdom lays nothing out, so the
-    // declaration is what can be pinned here; the two numbers behind the
-    // keyword are measured in the PR.
+    // vertical scrollbar, so a one-sided reservation would centre it off true.
     renderViewer();
     await screen.findByText("Selectable page 1");
 
@@ -827,12 +759,8 @@ describe("PdfPreview zoom modes", () => {
   });
 
   it("keeps the box's padding class in step with the fallback that names it", async () => {
-    // The height is the border box less the padding, and the padding is
-    // read off the element — except where nothing computes styles, which
-    // is this environment, where a `32` stands in. Change `p-4` and that
-    // constant is silently 16px wrong for jsdom while every arithmetic
-    // assertion here still passes, because the fake supplies its own
-    // border box. This is the assertion that notices.
+    // The padding is read off the element, except where nothing computes
+    // styles, where a `32` stands in for `p-4`.
     renderViewer();
     await screen.findByText("Selectable page 1");
 
@@ -842,10 +770,7 @@ describe("PdfPreview zoom modes", () => {
 
   it("takes the padding from the element, not from a constant", async () => {
     // `p-4` is `1rem`, so a reader whose browser default font size is
-    // 20px has 40px of padding, not 32. Assuming 32 fits every whole
-    // page 8px too tall and hands the mode the permanent vertical
-    // scrollbar it exists to avoid. jsdom computes no stylesheet, but it
-    // does compute inline styles, which is enough to drive the read.
+    // 20px has 40px of padding, not 32.
     renderViewer();
     await screen.findByText("Selectable page 1");
 
@@ -864,11 +789,7 @@ describe("PdfPreview zoom modes", () => {
 
   it("falls back to the content box where entries carry no border box", async () => {
     // `borderBoxSize` postdates `ResizeObserver`, so the `typeof
-    // ResizeObserver` guard does not cover it. Indexing it blind throws
-    // inside the callback: the width is set first and survives, the
-    // height stays frozen at its default, and every "whole page" is
-    // fitted to an imaginary 600px box with nothing visible but a
-    // console entry.
+    // ResizeObserver` guard does not cover it.
     renderViewer();
     await screen.findByText("Selectable page 1");
 
@@ -876,8 +797,6 @@ describe("PdfPreview zoom modes", () => {
     fireEvent.click(modeRow("Whole page"));
     reportSize({ width: 900, contentHeight: 574, omitBorderBox: true });
 
-    // The old, merely-imperfect reading: the content box, padding
-    // already out of it.
     expect(lastWidth()).toBeCloseTo(574 * (595 / 842), 3);
   });
 

@@ -52,10 +52,6 @@ const file = (): FileItem => ({
 
 describe("FolderListRow", () => {
   it("draws a glyph, and never a photograph", () => {
-    // The row carried the same borrowed thumbnail the card did, so the
-    // same column mixed pictures and line art (D-4). Asserted on a
-    // folder with files in it, which is the case that used to produce
-    // the picture.
     const { container } = render(
       <FolderListRow folder={folder({ file_count: 12, kind_counts: { video: 12 } })} driveName="main" />,
     );
@@ -217,10 +213,6 @@ describe("FolderListRow", () => {
     expect(onContextMenu).toHaveBeenCalled();
   });
 
-  /**
-   * F-8. jsdom lays nothing out, so this asserts the class both rows
-   * carry rather than a measured width — the measured one is in the PR.
-   */
   it("caps its contents at the same measure a file row does", () => {
     const { container: folderRow } = render(
       <FolderListRow folder={folder()} driveName="main" />,

@@ -73,10 +73,6 @@ describe("RenameDialog", () => {
     });
   });
 
-  // The confirm button is a `<Button type="submit">` inside a `<form>` after
-  // the Phase 3 sweep. Nothing was checking that: turning it back into a
-  // plain `type="button"` left every test green, and the user-visible failure
-  // is "type a new name, press Change, nothing happens".
   describe("submitting the form", () => {
     it("renames when the confirm button is pressed", async () => {
       const { onRename } = renderDialog("old.md");

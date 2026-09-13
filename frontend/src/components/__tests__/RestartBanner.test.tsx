@@ -1,13 +1,3 @@
-// RestartBanner test (RED phase)
-//
-// Choices made for ambiguous parts:
-// - The component is assumed to fetch /api/admin/config/restart-status itself on mount.
-//   If implementation chooses to receive `pending`/`files` as props, tests still pass
-//   when the component reads from props or from fetch (we mock both via the global
-//   fetch + supply props where reasonable).
-// - i18n namespace is assumed to be "admin.restart" (e.g. admin.restart.title,
-//   admin.restart.copy_command). Implementation should add these keys.
-
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
@@ -41,7 +31,6 @@ describe("RestartBanner", () => {
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalled();
     });
-    // Banner should not render any visible content
     expect(container.textContent ?? "").not.toMatch(/再起動|restart/i);
   });
 
