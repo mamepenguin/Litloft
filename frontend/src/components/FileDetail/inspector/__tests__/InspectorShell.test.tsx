@@ -150,6 +150,30 @@ describe("InspectorShell in column mode", () => {
       expect(stickyTop()).toBe(`${STRIP_PX}px`);
     });
 
+    it("again when the strip goes away and comes back", () => {
+      const tabsWith = (addon: boolean) =>
+        buildInspectorTabs({
+          info,
+          coreTabs: [],
+          addonTabs: addon
+            ? [{ entry: entry("a"), label: "A", content: <p>a body</p> }]
+            : [],
+        });
+      const shell = (addon: boolean) => (
+        <InspectorShell
+          header={<div data-testid="header">header</div>}
+          tabs={tabsWith(addon)}
+          resetKey="f1"
+          scroll="column"
+        />
+      );
+      const { rerender } = render(shell(true));
+      rerender(shell(false));
+      expect(stickyTop()).toBe("0px");
+      rerender(shell(true));
+      expect(stickyTop()).toBe(`${STRIP_PX}px`);
+    });
+
     it("as nothing, when there is no strip to stick under", () => {
       renderShell([], [], "column");
       expect(strip()).toBeNull();

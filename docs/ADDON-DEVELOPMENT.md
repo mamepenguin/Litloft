@@ -839,21 +839,24 @@ props that say which, in addition to the usual slot props:
 | `labelledByHost: boolean` | The host has already written your name above you — the tab button carries it. Drop your own title when this is `true`, or the reader reads the name of the thing they just pressed twice. `false` in the box below the player, which has no heading of its own. |
 | `onAvailability: (available: boolean) => void` | Whether you have anything for this file. |
 
-**Scrolling and pinning inside a panel.** Do not assume your own list is
-the box that scrolls. In the one-column inspector it is not, and a
-`scrollTo` on it does nothing. Find the nearest ancestor that actually
-scrolls, starting with your own element, and scroll that. Inside the
-column the host's tab strip is pinned over the top of that scroller.
-The host publishes the strip's height as the CSS variable
-`--inspector-sticky-top`, on the inspector's root, so:
+**Scrolling and pinning inside a panel.** The one-column inspector (the
+phone's sheet) gives your panel no height, so your list grows to its full
+length and a `scrollTo` on it does nothing: the host scrolls it. The host
+says so by setting the CSS variable `--inspector-sticky-top` on the
+inspector's root, holding the height of its tab strip, which is pinned
+over the top of that scroller.
 
-- pin anything of your own with `position: sticky; top: var(--inspector-sticky-top, 0px)`
-  and a `z-index` below `10`, so it sits under the strip rather than over it;
-- when you scroll something into view, count the top `--inspector-sticky-top`
-  pixels of the scroller as covered.
+- **Where the variable is set** (read it with `getComputedStyle` on your
+  element), scroll the nearest ancestor that actually overflows, and count
+  its top `--inspector-sticky-top` pixels as covered.
+- **Where it is not set, scroll only your own list.** Do not climb past it
+  when it happens not to overflow: on the file page the box around it is
+  the canvas holding the video, and scrolling that moves the player off
+  the screen.
+- Pin anything of your own with `position: sticky; top: var(--inspector-sticky-top, 0px)`
+  and a `z-index` below `10`, so it sits under the strip rather than over it.
 
-The variable is `0px` in the column when there is no strip. It is not set
-where the panel scrolls below the strip, which is why the fallback is `0px`.
+In the column the variable is `0px` when there is no strip.
 
 **`onAvailability` is how a tab stops appearing on files it has nothing
 for.** Core cannot look inside your panel — asking "does the transcript
