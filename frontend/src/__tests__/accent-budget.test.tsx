@@ -569,9 +569,9 @@ describe("accent budget — drive root", () => {
     // and Liked. `not.toHaveLength(0)` here would stay green if two of
     // them stopped drawing at all (detector rule 1).
     expect(await screen.findAllByText(/See all \(1\)/)).toHaveLength(3);
-    expect(
-      [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
-    ).toEqual(["Add"]);
+    // Not de-duplicated: collapsing equal labels throws away the
+    // multiplicity, which is the property.
+    expect(accentFills(container).map((el) => el.textContent?.trim() ?? "")).toEqual(["Add"]);
   });
 
   it("puts Add in the header", async () => {

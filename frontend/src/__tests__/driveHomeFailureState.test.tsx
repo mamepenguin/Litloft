@@ -131,6 +131,28 @@ function emit(event: string, drive: string) {
   });
 }
 
+/**
+ * Run a refresh to the end of whatever it does, rather than to the end of
+ * a fixed number of ticks.
+ *
+ * Both cases below assert that the screen did *not* change, so there is no
+ * edge to wait on: a `waitFor` cannot tell "still correct" from "not
+ * applied yet", and it passes on its first look either way. Draining the
+ * timer queue as well as the microtask queue makes the answer independent
+ * of how many awaits sit between the socket event and the rows.
+ */
+async function settleRefresh(release: () => void) {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  try {
+    release();
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
 describe("what the drive home says when its rows have nothing to show", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -232,11 +254,15 @@ describe("what the drive home says when its rows have nothing to show", () => {
     // `render` flushes effects inside `act`, so the first paint is out
     // of reach of every case in this file. A server render is the frame
     // where the rows are empty and nothing has been asked yet.
-    const html = renderToStaticMarkup(<DriveHome driveName="media" />);
-    expect(html).not.toContain(EMPTY_TITLE);
-    expect(html).not.toContain(FAILED_TITLE);
+    // Read as text rather than matched against the markup: React
+    // escapes an apostrophe, so one of these two titles is never a
+    // substring of the serialised HTML whether it rendered or not.
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(<DriveHome driveName="media" />);
+    expect(host.textContent).not.toContain(EMPTY_TITLE);
+    expect(host.textContent).not.toContain(FAILED_TITLE);
     // The population: this is the page and not an early return.
-    expect(html).toContain("Recently Added");
+    expect(host.textContent).toContain("Recently Added");
   });
 
   it("says neither while every request is still out", async () => {
@@ -287,19 +313,27 @@ describe("what the drive home says when its rows have nothing to show", () => {
     expect(pageWideState()).toEqual([EMPTY_TITLE]);
   });
 
-  it("does not call the drive unreachable when one file row refused and the others answered empty", async () => {
-    // The three rows above give the surviving row files, which keeps
-    // the page out of both states however the batch is read.
-    let call = 0;
-    mockGetDriveFiles.mockImplementation(() =>
-      call++ === 0 ? Promise.reject(new Error("network")) : Promise.resolve(page([])),
-    );
+  // Each row in turn, because they are three separate requests and any
+  // one of them can be the one that fails. The three cases above give
+  // the surviving row files, which keeps the page out of both states
+  // however the batch is read; here the survivors answer with nothing,
+  // which is the population the two states are decided on.
+  it.each([[0], [1], [2]])(
+    "does not call the drive unreachable when the row at %i refused and the others answered empty",
+    async (refused) => {
+      let call = 0;
+      mockGetDriveFiles.mockImplementation(() =>
+        call++ === refused
+          ? Promise.reject(new Error("network"))
+          : Promise.resolve(page([])),
+      );
 
-    render(<DriveHome driveName="media" />);
+      render(<DriveHome driveName="media" />);
 
-    expect(await screen.findByText(EMPTY_TITLE)).not.toBeNull();
-    expect(pageWideState()).toEqual([EMPTY_TITLE]);
-  });
+      expect(await screen.findByText(EMPTY_TITLE)).not.toBeNull();
+      expect(pageWideState()).toEqual([EMPTY_TITLE]);
+    },
+  );
 
   it("keeps the empty state when a background refresh fails over a drive that did answer", async () => {
     mockGetDriveFiles.mockResolvedValue(page([]));
@@ -307,14 +341,39 @@ describe("what the drive home says when its rows have nothing to show", () => {
     render(<Live />);
     expect(await screen.findByText(EMPTY_TITLE)).not.toBeNull();
 
-    mockGetDriveFiles.mockRejectedValue(new Error("network"));
-    const before = mockGetDriveFiles.mock.calls.length;
-    emit("drive.structure_changed", "media");
-    await waitFor(() =>
-      expect(mockGetDriveFiles.mock.calls.length).toBeGreaterThan(before),
+    // The refresh is refused by hand and drained inside `act`, so the
+    // assertion below runs after it has been applied. A `waitFor` on a
+    // value that is already on screen cannot tell "still correct" from
+    // "not yet".
+    const rejects: ((reason: unknown) => void)[] = [];
+    mockGetDriveFiles.mockImplementation(
+      () => new Promise((_resolve, reject) => rejects.push(reject)),
     );
+    emit("drive.structure_changed", "media");
+    await waitFor(() => expect(rejects).toHaveLength(3));
+    await settleRefresh(() => rejects.forEach((reject) => reject(new Error("network"))));
 
-    await waitFor(() => expect(pageWideState()).toEqual([EMPTY_TITLE]));
+    expect(pageWideState()).toEqual([EMPTY_TITLE]);
+  });
+
+  it("leaves the failure state where it was when a refresh fails too", async () => {
+    // The branch that writes nothing: a batch that neither delivered nor
+    // came from a load. Clearing the flag here would replace Try again
+    // with "Nothing here yet" over a drive that has never answered.
+    mockGetDriveFiles.mockRejectedValue(new Error("network"));
+
+    render(<Live />);
+    expect(await screen.findByText(FAILED_TITLE)).not.toBeNull();
+
+    const rejects: ((reason: unknown) => void)[] = [];
+    mockGetDriveFiles.mockImplementation(
+      () => new Promise((_resolve, reject) => rejects.push(reject)),
+    );
+    emit("drive.structure_changed", "media");
+    await waitFor(() => expect(rejects).toHaveLength(3));
+    await settleRefresh(() => rejects.forEach((reject) => reject(new Error("network"))));
+
+    expect(pageWideState()).toEqual([FAILED_TITLE]);
   });
 
   it("leaves the failure state when a background refresh answers with nothing", async () => {
