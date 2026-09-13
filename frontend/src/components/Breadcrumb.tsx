@@ -31,8 +31,8 @@ interface BreadcrumbProps {
    * name it — a folder, the inside of an archive, which pass neither this nor
    * `trailingSegment` — or names itself in an `<h1>` and sets this, so the
    * trail carries only ancestors. A page of the second kind that omits it
-   * renders the drive as a non-clickable leaf, which is a trail with nothing
-   * on it to follow.
+   * renders the drive as dead text, so the trail names the place the reader
+   * came from and offers no way back to it.
    *
    * The cross-drive views are a third kind and pass neither: they name
    * themselves nowhere and their trail has no segments, so the drive is

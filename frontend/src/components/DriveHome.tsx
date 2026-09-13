@@ -299,11 +299,13 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           2026-09-12-purpose-oriented-navigation §6.1).
 
           What the trail did carry was this page's one link to the drive
-          picker. That link now exists only in the sidebar's title, which
-          sits behind `aria-hidden` whenever the sidebar is closed — and
-          it is forced closed in overlay mode. Reaching the picker from
-          here is therefore two steps rather than one on a narrow
-          viewport. The trade is deliberate; it is not free.
+          picker — the home icon at its head, not the drive chip. That
+          link now exists only in the sidebar, whose panel is
+          `aria-hidden` while closed and is forced closed in overlay
+          mode. So on a narrow viewport the picker is a hamburger away
+          rather than a press away. The trade is deliberate; it is not
+          free, and what it costs a keyboard user specifically was not
+          measured here.
 
           The tree toggle stays, against the same section of the spec.
           It does not name the subject — it puts the folder tree away,

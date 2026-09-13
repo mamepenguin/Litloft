@@ -385,6 +385,29 @@ describe("the drive home's content rows", () => {
  * held in `accent-budget.test.tsx`, which reaches this screen; the rest
  * is here.
  */
+/**
+ * What the drive home settles into for this describe's fixture, whose
+ * drive answers every query with no files.
+ *
+ * While a row is loading it draws its heading and a *See all* link;
+ * once the fetch lands empty the row removes itself entirely
+ * (`CarouselSection` returns null when `!loading && files.length === 0`).
+ * So "settled" here is **no section headings at all**, and the four
+ * controls below are the whole of what one `DriveHome` leaves on an
+ * otherwise empty page. Both measured, not reasoned to.
+ */
+const SETTLED_SECTION_HEADINGS: string[] = [];
+const SETTLED_CONTROLS = [
+  "Show tree",
+  // `AddButton`'s hidden pickers — one for files, one for a directory.
+  // Neither carries a label or text, so they are named by tag: a
+  // nameless control appearing is then visible in the list rather than
+  // hidden in a run of blanks.
+  "<input unnamed>",
+  "<input unnamed>",
+  "Add",
+];
+
 /** Every section name on screen, read off the headings the rows draw. */
 function sectionNames(): string[] {
   return screen.queryAllByRole("heading", { level: 2 }).map((h) => h.textContent ?? "");
@@ -437,40 +460,42 @@ describe("the drive home's acceptance criteria", () => {
    */
   it("omits both watch rows for a reader with no profile, and does not ask for one", async () => {
     mockProfile.nickname = null;
-    const { container } = render(<DriveHome driveName="media" />);
-    await screen.findByRole("button", { name: "Add" });
+    render(<DriveHome driveName="media" />);
+
+    // **Wait for the rows, not for the header.** `Add` is on the first
+    // paint; the three file rows are not. Each draws a skeleton with a
+    // *See all* link while `loading` is true, so asserting before they
+    // settle counts three links on their way out. That is what made this
+    // case fail about one shuffled run in eight — a race the shuffle
+    // perturbs, not an order dependency.
+    await waitFor(() => expect(sectionNames()).toEqual(SETTLED_SECTION_HEADINGS));
 
     expect(sectionNames()).not.toContain("Continue Watching");
     expect(sectionNames()).not.toContain("Recently Viewed");
 
     expect(mockGetWatchHistory).not.toHaveBeenCalled();
-    // Spec §6.2: "No profile prompt is added to Home." A prompt can be
-    // written in words this file cannot guess, so it is ruled out by
-    // holding the screen's whole interactive surface instead: with no
-    // profile and no files, the only things to press are the header's
-    // controls. Anything inviting the reader to identify themselves —
-    // a link to Settings, a "Set up your profile" button — adds to this
-    // list, whatever it says.
-    // Scoped to what this render put on the page. Reading `document`
-    // picks up whatever else is mounted, which made this order-dependent.
+
+    // Spec §6.2: "No profile prompt is added to Home." Two assertions,
+    // because neither is the other's superset. The word is what a prompt
+    // most likely uses, and it catches one made only of text; the list of
+    // things to press catches one written in words this file cannot
+    // guess. A `<p>` nag passes the second; a "Set up your profile"
+    // button that never says "nickname" passes the first.
+    expect(screen.queryByText(/nickname/i)).toBeNull();
+
+    // `document`, not the render's container: every overlay in this tree
+    // portals to `document.body`, so a prompt drawn as a modal or a
+    // banner lands outside a container by construction. What this holds
+    // is what one `DriveHome` puts on an otherwise empty page.
     const pressable = Array.from(
-      container.querySelectorAll("button, a, input, textarea, select"),
+      document.querySelectorAll("button, a, input, textarea, select"),
     ).map(
       (el) =>
         el.getAttribute("aria-label") ||
         el.textContent?.trim() ||
-        // The unnamed pair are `AddButton`'s hidden pickers — one for
-        // files, one for a directory — which carry neither a label nor
-        // text. Named by tag so a nameless control appearing is visible
-        // in the list rather than hidden in a run of blanks.
         `<${el.tagName.toLowerCase()} unnamed>`,
     );
-    expect(pressable).toEqual([
-      "Show tree",
-      "<input unnamed>",
-      "<input unnamed>",
-      "Add",
-    ]);
+    expect(pressable).toEqual(SETTLED_CONTROLS);
   });
 
   it("takes both watch rows away again when the profile is cleared", async () => {

@@ -648,16 +648,8 @@ export function FolderBrowser({
               driveName={driveName}
               folderPath={folderPath}
               driveIsAncestor={isLibraryRoot}
-              // Withheld where the trail names only the place you are
-              // standing. Every target the trail offers is an ancestor of
-              // the current folder, so at the root the one chip on it is
-              // the folder itself — and a file dropped there moves to
-              // where it already is, which the backend answers with a 409
-              // that `useDragAndDrop` swallows. The folder side has a
-              // same-location guard; the file side does not, so the
-              // affordance is what has to go.
-              getDropTargetProps={dragInFlight && folderPath ? getDropTargetProps : undefined}
-              isDropTarget={dragInFlight && folderPath ? isDropTarget : undefined}
+              getDropTargetProps={dragInFlight ? getDropTargetProps : undefined}
+              isDropTarget={dragInFlight ? isDropTarget : undefined}
             />
           )
         }

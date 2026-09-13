@@ -68,6 +68,15 @@ const HEADING = /<h[1-6][\s/>]/g;
  * prose. Measured: before this, an assertion that a file still drew a
  * heading was green over a file whose heading had been deleted and
  * mentioned in a comment.
+ *
+ * **Its limit, measured rather than assumed.** The walker skips string
+ * literals so a `//` inside a URL is not read as a comment, and it does
+ * not know it is looking at JSX — so an apostrophe in a JSX *text* node
+ * opens a string that runs to the next quote anywhere in the file, and
+ * comments inside that span stay unblanked. One `<span>Here's …</span>`
+ * above a heading is enough to put this scan back where it was. No file
+ * under `frontend/src` or `addons/` is in that state today; nothing
+ * stops the next one.
  */
 function headingsIn(jsx: string): number {
   return [...stripComments(jsx).matchAll(HEADING)].length;
