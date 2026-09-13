@@ -1,36 +1,19 @@
 # Comments
 
-What goes in a comment and what does not. This governs source comments, workflow
-files, scripts and test docstrings alike.
+What goes in a comment, a docstring, a commit message and a PR body. This
+governs source files, tests, workflow files and scripts alike.
 
-## The code is the most accurate statement of what is true now
+## The code is the specification
 
-**Do not describe state.** Anything that must be updated when the code is updated
-eventually will not be, and nothing will notice.
+Anyone who needs to know what the code does reads the code. Prose that restates
+it is a second copy that has to be kept in step, and nothing keeps it in step.
+When the two disagree, the prose is wrong by definition — delete it.
 
-The failure is not that a comment goes wrong. It is that **a reader who reads the
-prose and stops has understood something false, and believes they have
-understood.** That is worse than no comment at all: without it they would have
-read the code. Prose that saves someone from reading the code is doing harm, not
-work.
-
-So the test is not "is this true today". It is **"will this still be true after
-the next change, without anyone thinking about it?"** If the answer is no, do not
-write it.
-
-**The further away the subject, the faster it rots.** Nearly every rotted comment
-found here described something in another file, another package, or another
-repository: the shape of a link tree built by a script elsewhere, a sibling
-addon's configuration, another repository's coverage floor. A claim about the
-lines directly beneath it is checked by everyone who edits them. A claim about a
-file nothing here builds or tests is checked by nobody, and no CI can fail on it
-— the claim is unfalsifiable from where it lives. Prefer to state the local rule
-and let the other place state its own.
+The default is **no comment**. Most functions need none.
 
 ## What may be written
 
-**Only what a reader could get wrong after reading the code.** A comment earns its
-place by closing a gap the code cannot close:
+Only what a reader could get wrong **after reading the code**:
 
 - where a magic number came from, when it is not derivable;
 - why an obvious-looking alternative was not taken, where someone would otherwise
@@ -38,50 +21,37 @@ place by closing a gap the code cannot close:
 - a trap: something that breaks if touched, where the breakage is not local;
 - an invariant the code relies on but cannot express.
 
-All of these are **why**, and why does not rot when the code changes — or if it
-does, the change was a decision someone made on purpose.
+One or two sentences. If it needs a paragraph, it is probably a document or it
+is restating the code.
 
-## Three kinds of claim, three different failures
+## What is not written
 
-Measured over this repository's review rounds. The kinds fail differently, so
-they need different defences, and treating them as one problem misses two of
-them:
+- **What the code does.** Names, types and the code itself say it.
+- **History.** "Previously…", "moved from…", "the old X", "round 2", why this PR
+  changed it. That is the commit message.
+- **References to the process.** Spec section numbers, arbitration numbers,
+  acceptance-criteria ids, review findings.
+- **Descriptions of other files.** Which test covers this, what the component
+  next door does, how another repository is built. Nobody checks those, and
+  they rot first.
+- **Measurements.** Timings, counts, pixel widths observed at one size. Those go
+  in the PR body.
 
-| kind | how it fails | defence |
-|---|---|---|
-| **state** — "X is a symlink", "coverage is gated per package" | **rots**: true when written, falsified later by a change somewhere else, silently | do not write it |
-| **measurement** — a timing, a percentage, a count | a snapshot read forever as a general claim; also frequently wrong *when written*, because the method was wrong | put it where snapshots belong (below) |
-| **mechanism** — "node-glob does not descend a symlinked directory" | does **not** rot — but it is not self-verifying, and one shipped here that was false from the first day | measure it, in the source of the thing it describes, before writing it |
+## Tests
 
-The third row is the one that surprised us. "Prefer mechanism to state" is right
-and is the rule above, but mechanism is not safe merely for being mechanism: a
-claim about how a library behaves has to be read out of that library, not
-reasoned to. Replacement prose written to correct a false comment has itself been
-false in four consecutive rounds of one change.
+The test name says what behaviour is held. A docstring or comment in a test is
+allowed for the same reasons as above — mainly a setup choice that looks wrong
+but is deliberate. It does not explain which mutation the test kills, what an
+earlier version of the test got wrong, or the limits of jsdom.
 
-## What goes elsewhere
+## Commit messages and PR bodies
 
-| Kind | Where | Why there |
-|---|---|---|
-| Fixed knowledge someone needs and cannot derive | `docs/` | Read on purpose, maintained on purpose |
-| Numbers, measurements, timings | the PR body | Dated, never re-verified, and nobody mistakes it for current |
-| Why a past decision was made | commit message, hako | Attached to the change, not to the file |
-| The design of work in progress | `docs/superpowers/specs/` | Dies at the merge, by design |
+Say what changed and why, in a few lines. A PR body adds how it was verified.
+Do not narrate the investigation, restate the diff, or enumerate acceptance
+criteria at length. Neither is reviewed for precision (see
+`review-workflow.md` R-3).
 
-## Length is a symptom
+## When a comment is found to be wrong
 
-Long prose in a source file is usually a specification that has escaped its
-document: maintained by nobody, read instead of the code, duplicated from
-something already written down. This repository's worst concentration of rotted
-comments was its most heavily commented file, and that is not a coincidence — the
-comments were long enough to be believed and too many to re-read.
-
-If a passage is long enough to be a document, make it one and link to it.
-
-## When you correct one
-
-Read the whole file. A false statement has had a twin elsewhere in the same file
-every time it was looked for — once 171 lines apart, in a file being edited for
-exactly that reason. Grep finds the spelling; it does not find the claim.
-
-And **measure the replacement before writing it**, per the table above.
+Delete it. Replace it only if it is one of the kinds allowed above, and then
+with a sentence you have checked against the code.
