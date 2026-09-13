@@ -125,7 +125,6 @@ export async function createTextFile(
   );
 }
 
-/** Wait for the app to be loaded (header visible) */
 export async function waitForApp(page: Page): Promise<void> {
   await page.waitForSelector("header", { timeout: 10_000 });
 }

@@ -1,21 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { deleteFile, getDriveFiles, getFirstDrive, waitForApp } from "./helpers";
 
-/**
- * E2E coverage for Global Quick Note
- * (docs/superpowers/specs/2026-08-13-global-quick-note.md §12.3).
- *
- * The journey checks the parts that only exist once the real app, the real
- * API, and the real header are wired together:
- *
- *   1. the action is reachable from a page with no active drive (root);
- *   2. saving creates an ordinary Markdown file in the selected drive;
- *   3. the route does not change after Save;
- *   4. opening from a drive page targets that drive.
- *
- * Anything created here is deleted again in afterAll.
- */
-
 const QUICK_NOTE_RE = /クイックノート|Quick note/i;
 const BODY_RE = /ノート本文|Note text/i;
 const SAVE_RE = /^(保存|Save)$/;
@@ -34,8 +19,8 @@ async function openQuickNote(page: Page) {
   await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });
 }
 
-/** Reveal the destination controls. The panel opens them by itself when it
- *  could not resolve a drive, so the toggle is only clicked when needed. */
+/** The panel opens the destination controls by itself when it could not
+ *  resolve a drive, so the toggle is only clicked when needed. */
 async function showDestination(page: Page) {
   const select = page.getByLabel(DRIVE_RE);
   if (await select.isVisible()) return select;
@@ -49,8 +34,8 @@ async function selectDrive(page: Page, drive: string) {
   await select.selectOption(drive);
 }
 
-/** Poll the API until the note shows up (the create is synchronous, but the
- *  scanner and the listing can lag by a beat). */
+/** Polled: the create is synchronous, but the scanner and the listing can
+ *  lag by a beat. */
 async function findNote(drive: string, filename: string) {
   for (let attempt = 0; attempt < 10; attempt++) {
     const res = await getDriveFiles(drive, { path: "Inbox", limit: 200 });
@@ -88,7 +73,6 @@ test.describe("Quick note", () => {
     await page.getByLabel(BODY_RE).fill(`${title}\n\nbody line`);
     await page.getByRole("button", { name: SAVE_RE }).click();
 
-    // Panel closes and the route is untouched.
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: 10_000 });
     expect(new URL(page.url()).pathname).toBe("/");
 

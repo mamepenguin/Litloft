@@ -9,7 +9,6 @@ test.beforeAll(async () => {
   if (!drive) return;
   driveName = drive.name;
 
-  // Find a file to use as search term (first 3 chars of title)
   const res = await getDriveFiles(driveName, { limit: 1 });
   if (res.data.length > 0) {
     const title = res.data[0].title;
@@ -24,20 +23,15 @@ test.describe("Search", () => {
     await page.goto(`/drive/${encodeURIComponent(driveName)}`);
     await waitForApp(page);
 
-    // Open search via keyboard shortcut
     await page.keyboard.press("Meta+Shift+f");
     await page.waitForTimeout(300);
 
-    // Desktop search input
     const input = page.locator('input[placeholder*="内を検索"]').last();
     await expect(input).toBeVisible({ timeout: 5_000 });
     await input.fill(searchTerm);
 
-    // Wait for results to load
     await page.waitForTimeout(1000);
 
-    // Results are buttons inside the search modal (fixed overlay)
-    // Each result has a file type icon and title text
     const modal = page.locator(".fixed").filter({ has: page.locator('input[placeholder*="内を検索"]') });
     const resultButtons = modal.locator("button").filter({ has: page.locator("svg") });
     const count = await resultButtons.count();
@@ -56,7 +50,6 @@ test.describe("Search", () => {
     await input.fill(searchTerm);
     await page.waitForTimeout(1000);
 
-    // Click first result button in the desktop modal
     const modal = page.locator(".fixed.inset-0").last();
     const resultBtn = modal.locator("button").filter({ has: page.locator("svg") }).first();
     const hasResult = await resultBtn.isVisible().catch(() => false);

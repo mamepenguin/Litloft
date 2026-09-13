@@ -9,21 +9,8 @@ import {
 } from "./helpers";
 
 /**
- * E2E coverage for the Phase 2 inline Knowledge editor work
- * (docs/superpowers/specs/2026-05-09-right-pane-full-detail.md
- * §5 Phase 2). PR-7 ships the inline editor (flag default true) and
- * adds these journeys to verify the integration end-to-end:
- *
- *   1. Inline editor mounts when ``?file={mdId}`` opens a Markdown
- *      file in 2-pane.
- *   2. Editing then arrow-keying to a sibling triggers the global
- *      discard-changes dialog (PR-5 navigationGuard via DirtyBlocker).
- *   3. Cancelling the dialog keeps the user on the same file.
- *   4. The legacy Knowledge route ``/addons/knowledge?edit={mdId}``
- *      redirects to the canonical 2-pane URL with ``edit=1``.
- *
- * Each test skips loudly when its fixture (a writable Markdown file
- * with a sibling in the same folder) is missing rather than failing.
+ * Each test skips when its fixture (a writable Markdown file with a sibling
+ * in the same folder) is missing rather than failing.
  */
 
 interface PickedFile {
@@ -63,9 +50,8 @@ function fileSelectionUrl(file: PickedFile, extra?: Record<string, string>) {
 }
 
 async function enableTreeFor(page: Page, drive: string) {
-  // Same trick as right-pane.spec.ts: TwoPaneLayout only mounts when
-  // the per-drive ``tree:enabled`` localStorage flag is true. Seed it
-  // before the page loads so the right pane shows up.
+  // The 2-pane host only mounts when the per-drive ``tree:enabled`` flag
+  // is true at load.
   await page.addInitScript((d: string) => {
     try {
       localStorage.setItem(`tree:enabled:${d}`, "true");
@@ -84,8 +70,6 @@ test.beforeAll(async () => {
   const md = all.data.find((f) => f.filename.toLowerCase().endsWith(".md"));
   if (!md) return;
   mdFile = md;
-  // Need any sibling in the same folder so arrow-right has somewhere
-  // to navigate to.
   mdSibling =
     all.data
       .filter((f) => f.id !== md.id)
@@ -137,7 +121,6 @@ test.describe("Inline Knowledge editor (PR-7)", () => {
     await page.goto(fileSelectionUrl(mdFile!));
     await waitForApp(page);
 
-    // Editor.tsx keeps the same accessible name after the CM6 migration.
     await expect(page.getByLabel(EDITOR_RE)).toBeVisible({ timeout: 10_000 });
   });
 
@@ -152,27 +135,19 @@ test.describe("Inline Knowledge editor (PR-7)", () => {
     const editor = page.getByLabel(EDITOR_RE);
     await expect(editor).toBeVisible({ timeout: 10_000 });
 
-    // Type into the editor to publish dirty=true to dirtyRegistry.
-    // We use ``pressSequentially`` rather than ``fill`` so the React
-    // onChange handler fires per-character (autosave debounce won't
-    // commit before we press arrow because the timer is 2s).
+    // ``pressSequentially`` rather than ``fill``, so onChange fires per
+    // character; the 2s autosave debounce does not commit before the arrow.
     await editor.click();
     await editor.pressSequentially(" edit");
 
-    // Blur the editor so ArrowRight is delivered to ``useFileNav``
-    // (its useShortcuts is editingOnly=false; editing surfaces otherwise
-    // capture arrow keys for caret movement).
+    // Blurred, or the editor captures the arrow key for caret movement.
     await editor.evaluate((el) => (el as HTMLElement).blur());
     await page.keyboard.press("ArrowRight");
 
-    // Global DirtyBlocker (mounted in app/layout.tsx) renders
-    // ConfirmDialog with the common.discardUnsaved.* copy.
     await expect(page.getByText(DISCARD_TITLE_RE)).toBeVisible({
       timeout: 5_000,
     });
 
-    // Cancel keeps us on the same file. URL should still carry the
-    // original ?file=.
     await page.getByRole("button", { name: CANCEL_RE }).click();
     await expect(page.getByText(DISCARD_TITLE_RE)).toBeHidden();
     expect(page.url()).toContain(`file=${mdFile!.id}`);
@@ -198,8 +173,6 @@ test.describe("Inline Knowledge editor (PR-7)", () => {
       .getByRole("button", { name: DISCARD_CONFIRM_RE })
       .click();
 
-    // ``selectFile`` swapped ?file= via router.replace → URL now
-    // points at the sibling. The discard-changes dialog has closed.
     await page.waitForURL((url) =>
       url.searchParams.get("file") === mdSibling!.id, {
       timeout: 5_000,
@@ -216,8 +189,6 @@ test.describe("Inline Knowledge editor (PR-7)", () => {
     if (!res || res.status() === 404) {
       test.skip(true, "Knowledge addon route not installed");
     }
-    // Page.tsx Phase 2 PR-3 case P: ``router.replace`` to canonical
-    // URL when the inline-editor flag is on (PR-7 default true).
     await page.waitForURL(
       (url) =>
         url.searchParams.get("file") === mdFile!.id &&

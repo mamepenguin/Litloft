@@ -1,17 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { getDriveFiles, getFirstDrive, waitForApp } from "./helpers";
 
-/**
- * E2E coverage for the tree-pane filter.
- *
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §3
- *   - Tree pane is opt-in via the TreeToggle button.
- *   - Filter shape is the same `<FilterField>` (text + type dropdown).
- *   - Type filter persists per drive in localStorage `tree:typeFilter:{drive}`.
- *   - Text filter does NOT persist (cleared on reload / tree re-mount).
- *   - Filtered ancestors render with `data-state="ancestor"` (opacity-60).
- */
-
 let driveName: string;
 let referenceFileTitle: string | null = null;
 let firstFolderPath: string | null = null;
@@ -45,7 +34,6 @@ test.beforeAll(async () => {
   }
 });
 
-/** Build a folder URL from a posix-style path. */
 function folderUrl(drive: string, path: string | null): string {
   if (!path) return `/drive/${encodeURIComponent(drive)}`;
   const segs = path.split("/").filter(Boolean).map(encodeURIComponent).join("/");
@@ -53,38 +41,31 @@ function folderUrl(drive: string, path: string | null): string {
 }
 
 /**
- * Find the TreeToggle button in the toolbar. The X-close button inside
- * the tree aside (mobile-only) shares the `view.treeOff` aria-label,
- * but only the FolderToolbar TreeToggle sets `aria-pressed`. We anchor
- * on that to keep the selector unambiguous on any viewport.
+ * The mobile close button inside the tree aside shares the toggle's
+ * aria-label; only the toolbar toggle sets `aria-pressed`.
  */
 function treeToggle(page: Page) {
   return page.locator("button[aria-pressed][aria-label]").first();
 }
 
-/** Locate the tree-pane filter input via its placeholder. */
 function treeFilterInput(page: Page) {
   return page
     .locator(`input[placeholder*="名前で絞り込み"], input[placeholder*="Filter by name"]`)
     .first();
 }
 
-/** The tree pane aside set by TwoPaneLayout. */
 function treeAside(page: Page) {
   return page.locator('aside[aria-label="Folder tree"]');
 }
 
-/** Count visible tree rows (folder + file buttons inside the tree pane). */
 async function countTreeRows(page: Page): Promise<number> {
-  // FolderTreeRow renders as a button with aria-label set to the node
-  // name. Scope to the aside so we don't catch sidebar/header buttons.
+  // Scoped to the aside so sidebar and header buttons are not counted.
   return await treeAside(page).locator("button[aria-label]").count();
 }
 
 async function ensureTreeOn(page: Page) {
   const toggle = treeToggle(page);
   await toggle.waitFor({ timeout: 10_000 });
-  // aria-pressed=true means tree is already on.
   const pressed = await toggle.getAttribute("aria-pressed");
   if (pressed !== "true") {
     await toggle.click();
@@ -98,16 +79,12 @@ async function ensureTreeOff(page: Page) {
   if (pressed === "true") {
     await toggle.click();
   }
-  // Filter input should disappear once the pane is unmounted.
   await expect(treeFilterInput(page)).toHaveCount(0, { timeout: 5_000 });
 }
 
 test.describe("Tree filter", () => {
   test.skip(() => !driveName, "No drives available");
 
-  // Reset localStorage so the type-filter persistence test starts
-  // from a known baseline (and so a previous failed run doesn't bleed
-  // into the next).
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       try {
@@ -134,7 +111,6 @@ test.describe("Tree filter", () => {
     await waitForApp(page);
     await ensureTreeOn(page);
 
-    // Wait for tree to populate.
     const anyRow = treeAside(page).locator('button[aria-label]').first();
     await anyRow.waitFor({ timeout: 10_000 });
     const before = await countTreeRows(page);
@@ -146,16 +122,12 @@ test.describe("Tree filter", () => {
     );
     const input = treeFilterInput(page);
     await input.fill(probe);
-    // 300ms debounce inside FilterField, plus network round-trip for
-    // the flat-tree request.
+    // 300ms debounce inside FilterField, plus the flat-tree request.
     await page.waitForTimeout(800);
 
     const after = await countTreeRows(page);
     expect(after).toBeLessThanOrEqual(before);
 
-    // Optional: ancestor rows (opacity-60) should appear when there's
-    // more than one match level deep. We do not require this since
-    // small drives might match at root level only.
     const ancestors = page.locator('[data-state="ancestor"]');
     const ancestorCount = await ancestors.count();
     expect(ancestorCount).toBeGreaterThanOrEqual(0);
@@ -174,7 +146,6 @@ test.describe("Tree filter", () => {
     await input.fill("zzz_no_match_xyz");
     await page.waitForTimeout(800);
 
-    // Clear via the X button if present, otherwise empty the field.
     const clearBtn = page.getByRole("button", { name: /clear|クリア/i }).first();
     if (await clearBtn.isVisible().catch(() => false)) {
       await clearBtn.click();
@@ -194,7 +165,6 @@ test.describe("Tree filter", () => {
     await waitForApp(page);
     await ensureTreeOn(page);
 
-    // Open the type dropdown inside the tree filter row.
     const trigger = treeAside(page)
       .locator('button[aria-haspopup="menu"]')
       .filter({ hasText: TYPE_DROPDOWN_LABEL_RE })
@@ -207,13 +177,10 @@ test.describe("Tree filter", () => {
       .click();
     await page.waitForTimeout(400);
 
-    // Drop a transient text filter that should NOT survive reload.
     const treeInput = treeFilterInput(page);
     await treeInput.fill("xyz_text_should_not_persist");
     await page.waitForTimeout(400);
 
-    // Reload and re-open the tree pane (tree-on state itself is
-    // persisted by useTreeEnabled, but in case it isn't we re-toggle).
     await page.reload();
     await waitForApp(page);
     const inputAfter = treeFilterInput(page);
@@ -222,14 +189,12 @@ test.describe("Tree filter", () => {
     }
     await expect(treeFilterInput(page)).toHaveValue("");
 
-    // Type filter must still be Markdown.
     const triggerAfter = treeAside(page)
       .locator('button[aria-haspopup="menu"]')
       .filter({ hasText: TYPE_DROPDOWN_LABEL_RE })
       .first();
     await expect(triggerAfter).toContainText(/Markdown/);
 
-    // Sanity: localStorage holds the persisted key.
     const stored = await page.evaluate(
       (drive) => window.localStorage.getItem(`tree:typeFilter:${drive}`),
       driveName,
