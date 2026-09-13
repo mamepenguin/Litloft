@@ -17,15 +17,12 @@ import { Button } from "@/components/Button";
 export interface QuickNotePresenterProps {
   open: boolean;
   onOpen: () => void;
-  /** Header action, so focus can be returned to it when the panel closes. */
   triggerRef: RefObject<HTMLButtonElement | null>;
-  /** Panel element the container's focus trap walks. */
   dialogRef: RefObject<HTMLDivElement | null>;
   onDialogKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
 
   body: string;
   onBodyChange: (value: string) => void;
-  /** Filename the current body would produce, shown read-only. */
   filename: string;
   bodyRef: RefObject<HTMLTextAreaElement | null>;
 
@@ -53,9 +50,6 @@ export interface QuickNotePresenterProps {
 }
 
 /**
- * Header trigger plus the Quick Note panel. Pure rendering: every piece of
- * state, every request, and every focus move belongs to the container.
- *
  * The panel is portalled to `document.body` because the trigger lives inside
  * the sticky header (`z-20`); rendered in place, the panel would be trapped
  * under the header's stacking context and covered by the toolbar.
@@ -115,7 +109,6 @@ export function QuickNotePresenter({
       >
         {/* While the discard confirmation is up, the panel behind it is inert:
             it must be answered, not tabbed around. */}
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4" inert={discardOpen}>
           <h2 className="text-sm font-semibold text-text-primary">{t("title")}</h2>
           <button
@@ -237,7 +230,6 @@ export function QuickNotePresenter({
           )}
         </div>
 
-        {/* Actions */}
         <div
           className="flex items-center justify-end gap-2 border-t border-bg-border px-5 py-3"
           inert={discardOpen}

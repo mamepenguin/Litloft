@@ -5,17 +5,8 @@ import { useTranslations } from "next-intl";
 import { AlertCircle } from "lucide-react";
 
 /**
- * Click-to-edit chrome title. Mirrors the legacy standalone-mode
- * `TitleField` (knowledge addon Editor.tsx) but stays in core so the
- * chrome bar — which is the only Markdown editor surface going forward
- * — owns the rename affordance directly.
- *
- * Behaviour: click switches to a text input with the current value
- * selected; Enter / blur commits via `onRename`; Esc cancels. Input
- * passes the user's value verbatim to the host (matching the file
- * browser rename dialog) — no automatic `.md` suffix, no extension
- * normalisation. Errors surface as a small inline icon and keep the
- * input open so the user can correct.
+ * Passes the user's value verbatim to the host (matching the file browser
+ * rename dialog) — no automatic `.md` suffix, no extension normalisation.
  */
 export function EditableTitle({
   title,

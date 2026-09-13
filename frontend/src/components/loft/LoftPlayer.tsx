@@ -15,16 +15,9 @@ interface LoftContent {
 export interface LoftPlayerProps {
   fileId: string;
   onMediaController?: (mc: MediaController | null) => void;
-  /** Forwarded to the resolved embed component (citation jump). */
   initialTime?: number;
-  /** Forwarded to the resolved embed component (see LoftEmbedProps). */
   durationHint?: number | null;
-  /**
-   * Forwarded to the resolved embed component. Providers that cannot
-   * observe completion never call it (see LoftEmbedProps.onEnded).
-   */
   onEnded?: () => void;
-  /** Forwarded to the resolved embed component (see LoftEmbedProps). */
   mediaSessionMetadata?: MediaSessionMetadataInput;
 }
 

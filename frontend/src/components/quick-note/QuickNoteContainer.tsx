@@ -34,7 +34,6 @@ interface Destination {
   folder: string;
 }
 
-/** Pair a drive with the folder it remembers, so the two never disagree. */
 function destinationFor(drive: string | null): Destination {
   return {
     drive,
@@ -42,7 +41,6 @@ function destinationFor(drive: string | null): Destination {
   };
 }
 
-/** Everything the focus trap considers reachable inside the dialog. */
 const FOCUSABLE_SELECTOR = [
   "a[href]",
   "button:not([disabled])",
@@ -56,7 +54,6 @@ function byteLength(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
-/** Pull the HTTP status out of the `API error: <status> …` message shape. */
 function statusOf(error: unknown): number | null {
   const message = error instanceof Error ? error.message : String(error);
   const match = message.match(/API error: (\d{3})/);
@@ -64,14 +61,10 @@ function statusOf(error: unknown): number | null {
 }
 
 /**
- * Quick Note: capture a thought from any screen without leaving it.
- *
  * The body lives only here, in React memory. It is deliberately never mirrored
  * to localStorage, sessionStorage, a temp file, or the server — a reload loses
- * it by design, and Drafts remains the tool for uncommitted capture. Only the
- * destination (drive + folder) is remembered, and only after a save succeeds.
- *
- * Spec `docs/superpowers/specs/2026-08-13-global-quick-note.md`.
+ * it by design. Only the destination (drive + folder) is remembered, and only
+ * after a save succeeds.
  */
 export function QuickNoteContainer() {
   const t = useTranslations("quickNote");
@@ -116,8 +109,6 @@ export function QuickNoteContainer() {
   }, [currentDrive]);
 
   /**
-   * Load the drives this viewer can currently write to.
-   *
    * The response is authoritative. `reresolve` distinguishes the two callers:
    *
    * - opening the panel re-runs the whole resolution order, so moving from
@@ -176,8 +167,6 @@ export function QuickNoteContainer() {
     void loadDrives({ reresolve: true });
   }, [open, loadDrives]);
 
-  // Opening always focuses the textarea — the feature is worth nothing if the
-  // user has to click before typing.
   useEffect(() => {
     if (!open) return;
     bodyRef.current?.focus();
@@ -194,8 +183,6 @@ export function QuickNoteContainer() {
     }
   }, [open, drivesLoading, drivesFailed, drive, drives.length]);
 
-  // Switching drives moves to that drive's own remembered folder in the same
-  // update, never leaving the other drive's path selected in between.
   const handleDriveChange = useCallback((next: string) => {
     setDestination(destinationFor(next));
   }, []);
@@ -208,8 +195,6 @@ export function QuickNoteContainer() {
     if (discardOpen) discardRef.current?.focus();
   }, [discardOpen]);
 
-  // Return focus to the header action when the panel goes away, so keyboard
-  // users land back where they started instead of at the top of the document.
   const wasOpenRef = useRef(false);
   useEffect(() => {
     if (open) {
@@ -225,11 +210,6 @@ export function QuickNoteContainer() {
   const filename = useMemo(() => deriveQuickNoteFilename(body), [body]);
   const overLimit = useMemo(() => byteLength(body) > MAX_BODY_BYTES, [body]);
 
-  /**
-   * The destination is only usable when the currently selected drive appears
-   * in an accessible-drive response this session actually received. While the
-   * list is loading or failed, nothing is confirmed and Save stays closed.
-   */
   const destinationReady =
     drive !== null && !drivesLoading && !drivesFailed && drives.includes(drive);
 
