@@ -35,7 +35,7 @@
  * The width door is reached by driving `matchMedia`, not by measuring one.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
 import {
