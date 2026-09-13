@@ -325,6 +325,93 @@ class TestBatchCopy:
         assert [e["id"] for e in data["errors"]] == [f2.id]
         assert (drive_dir / "dest" / "a.mp4").exists()
 
+    def test_a_failed_thumbnail_copy_leaves_no_file_behind(self, client, monkeypatch):
+        """The body lands before the thumbnail is copied, so a thumbnail that
+        fails strands a *complete* file with no row pointing at it.
+
+        Worse than the empty shell: it is byte-identical to a legitimate copy,
+        so the next scan indexes it as a genuine second file and the one that
+        did copy has already been suffixed around it.
+        """
+        c, db, drive_dir, data_dir = client
+        first = _seed_with_thumbnail(db, drive_dir, data_dir, "a.mp4", folder="one")
+        second = _seed(db, drive_dir, "a.mp4", folder="two")
+
+        real_copy2 = shutil.copy2
+        calls = {"n": 0}
+
+        def fail_second(src, dst, *args, **kwargs):
+            calls["n"] += 1
+            # The first call is the file body; the second is its thumbnail.
+            if calls["n"] == 2:
+                raise OSError(28, "No space left on device")
+            return real_copy2(src, dst, *args, **kwargs)
+
+        monkeypatch.setattr("app.services.fileops.shutil.copy2", fail_second)
+
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [first.id, second.id], "target_folder_path": "dest"},
+        )
+
+        assert res.status_code == 200
+        assert res.json()["copied"] == 1
+        assert sorted(p.name for p in (drive_dir / "dest").iterdir()) == ["a.mp4"]
+
+    def test_a_copy_onto_a_missing_record_keeps_that_record(self, client):
+        """The other side of the ghost case, and the one that needs no error.
+
+        ``resolve_db_path_conflict`` retires a Missing record's path so the
+        copy can take the name. Retiring is not deleting: the row holds watch
+        history, tags and comments that cannot be rebuilt from the filesystem,
+        and it is kept until the user says otherwise.
+        """
+        from app.models import File, WatchHistory
+
+        c, db, drive_dir, data_dir = client
+        source = _seed(db, drive_dir, "a.mp4", folder="one")
+        (drive_dir / "dest").mkdir(exist_ok=True)
+
+        ghost = File(
+            filename="a.mp4",
+            title="Gone",
+            drive=TEST_DRIVE,
+            folder_path="dest",
+            file_path="dest/a.mp4",
+            file_size=1,
+            file_type="video",
+            mime_type="video/mp4",
+            missing_since=datetime.now(UTC),
+        )
+        db.add(ghost)
+        db.commit()
+        ghost_id = ghost.id
+        db.add(
+            WatchHistory(
+                file_id=ghost_id,
+                viewer_id="v" * 16,
+                playback_position=5,
+                duration=60,
+                last_played_at=datetime.now(UTC),
+            )
+        )
+        db.commit()
+
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [source.id], "target_folder_path": "dest"},
+        )
+        assert res.json()["copied"] == 1
+
+        db.expire_all()
+        kept = db.get(File, ghost_id)
+        assert kept is not None, "the Missing record was destroyed by the copy"
+        assert kept.file_path == f"__missing_{ghost_id}_dest/a.mp4"
+        assert kept.missing_since is not None
+        assert (
+            db.query(WatchHistory).filter(WatchHistory.file_id == ghost_id).count() == 1
+        )
+
     @pytest.mark.parametrize("failure", ["write", "exclusive-create"])
     def test_a_failure_does_not_carry_a_ghost_into_the_next_commit(
         self, client, monkeypatch, failure
@@ -447,12 +534,17 @@ class TestBatchCopy:
 
         created = [e for e in emitted if e[0] == "files.created"]
         assert len(created) == 1
-        announced = created[0][1]["file_ids"]
-        # The copies, not the originals: these ids are freshly generated, and
-        # announcing the sources tells every consumer about files that were
-        # already there while the new ones reach nobody.
-        assert len(announced) == 1
-        assert announced[0] not in {first.id, second.id}
+        # Read from the database rather than described by what it is not: an
+        # id that is merely "neither source" still resolves to nothing, and
+        # every consumer of this event resolves the id it is given.
+        from app.models import File
+
+        landed = (
+            db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.file_path == "dest/b.mp4")
+            .one()
+        )
+        assert created[0][1]["file_ids"] == [landed.id]
 
     def test_batch_copy_empty_ids(self, client):
         c, db, drive_dir, data_dir = client

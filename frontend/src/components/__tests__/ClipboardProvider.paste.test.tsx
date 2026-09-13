@@ -164,7 +164,10 @@ describe("what a paste leaves on the clipboard", () => {
     );
     act(() => api().copy(IDS, "main", "source"));
     await act(async () => {
-      await api().paste("main", "target").catch(() => {});
+      // Not swallowed. `paste` reports the refusal itself and returns, and
+      // its one caller has no `catch` any more — a rejection escaping here
+      // is an unhandled rejection on every click and every Cmd+V.
+      await api().paste("main", "target");
     });
 
     expect(held()).toBe("f1,f2,f3");

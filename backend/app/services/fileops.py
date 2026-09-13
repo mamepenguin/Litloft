@@ -261,74 +261,70 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         os.close(fd)
     except FileExistsError:
         raise HTTPException(status_code=409, detail="Target file already exists")
+    # Everything from the exclusive create to the commit owns the file that
+    # create just made: whatever fails in between, the destination goes back
+    # to not existing. This used to be three handlers covering parts of the
+    # span, and the gap between them left a *complete* copy behind with no
+    # row pointing at it — which the next file in the batch was then
+    # suffixed around, and the next scan indexed as a second real file.
     try:
         shutil.copy2(str(old_full), str(new_full))
+
+        new_file = File(
+            id=new_id,
+            filename=new_filename,
+            title=_filename_to_title(new_filename),
+            description=source.description,
+            drive=dst_drive,
+            folder_path=target_folder,
+            file_path=new_rel,
+            file_size=source.file_size,
+            file_type=source.file_type,
+            mime_type=source.mime_type,
+            duration=source.duration,
+            image_width=source.image_width,
+            image_height=source.image_height,
+            is_favorite=False,
+            liked_at=None,
+        )
+
+        # Markdown thumbnails are projections owned by the note ID, so they must
+        # be regenerated below instead of copied to the generic path-based cache.
+        if source.thumbnail_path and not _is_markdown_file(source):
+            old_thumb = config.THUMBNAILS_DIR / source.thumbnail_path
+            if old_thumb.exists():
+                new_stem = Path(new_filename).stem
+                new_thumb_rel = (
+                    f"{dst_drive}/{target_folder}/{new_stem}.jpg"
+                    if target_folder
+                    else f"{dst_drive}/{new_stem}.jpg"
+                )
+                new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
+                new_thumb.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(str(old_thumb), str(new_thumb))
+                new_file.thumbnail_path = new_thumb_rel
+
+        try:
+            db.add(new_file)
+            if _is_markdown_file(new_file):
+                content = _read_markdown_for_projection(new_full)
+                if content is not None:
+                    project_markdown_thumbnail(db, new_file, content)
+            remove_empty_folder_if_has_files(db, dst_drive, target_folder)
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Copy failed (DB error, filesystem reversed): {exc}",
+            ) from exc
     except Exception:
-        # The exclusive create above already put an empty file at the
-        # destination. Left there it holds the name against everything that
-        # follows — the next file in the same batch is suffixed around it,
-        # and a later scan indexes it as a real, empty file.
         try:
             new_full.unlink()
         except OSError:
             pass
         raise
 
-    new_file = File(
-        id=new_id,
-        filename=new_filename,
-        title=_filename_to_title(new_filename),
-        description=source.description,
-        drive=dst_drive,
-        folder_path=target_folder,
-        file_path=new_rel,
-        file_size=source.file_size,
-        file_type=source.file_type,
-        mime_type=source.mime_type,
-        duration=source.duration,
-        image_width=source.image_width,
-        image_height=source.image_height,
-        is_favorite=False,
-        liked_at=None,
-    )
-
-    # Markdown thumbnails are projections owned by the note ID, so they must
-    # be regenerated below instead of copied to the generic path-based cache.
-    if source.thumbnail_path and not _is_markdown_file(source):
-        old_thumb = config.THUMBNAILS_DIR / source.thumbnail_path
-        if old_thumb.exists():
-            new_stem = Path(new_filename).stem
-            new_thumb_rel = (
-                f"{dst_drive}/{target_folder}/{new_stem}.jpg"
-                if target_folder
-                else f"{dst_drive}/{new_stem}.jpg"
-            )
-            new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
-            new_thumb.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(str(old_thumb), str(new_thumb))
-            new_file.thumbnail_path = new_thumb_rel
-
-
-    # If the DB write fails, delete the freshly copied FS file so we don't
-    # leave an orphan with no DB record.
-    try:
-        db.add(new_file)
-        if _is_markdown_file(new_file):
-            content = _read_markdown_for_projection(new_full)
-            if content is not None:
-                project_markdown_thumbnail(db, new_file, content)
-        remove_empty_folder_if_has_files(db, dst_drive, target_folder)
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        try:
-            new_full.unlink()
-        except Exception:
-            pass
-        raise HTTPException(
-            status_code=500,
-            detail=f"Copy failed (DB error, filesystem reversed): {exc}",
-        ) from exc
     db.refresh(new_file)
     return new_file
 

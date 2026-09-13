@@ -142,6 +142,8 @@ const SCREENS: ReadonlyArray<{
   offersPaste: boolean;
   /** Declared, not read back off `props`: a derived expectation agrees with whatever the caller sent. */
   pastesInto?: string;
+  /** Same, for the drive. A literal here cannot tell the prop from the constant. */
+  pastesIntoDrive?: string;
 }> = [
   {
     name: "a folder",
@@ -151,9 +153,12 @@ const SCREENS: ReadonlyArray<{
   },
   {
     name: "a folder under a tag",
-    props: { driveName: "main", folderPath: "recipes", tagFilter: "soup" },
+    // On a second drive, so the assertion reads the prop rather than
+    // agreeing with a constant every other row also happens to use.
+    props: { driveName: "archive", folderPath: "recipes", tagFilter: "soup" },
     offersPaste: true,
     pastesInto: "recipes",
+    pastesIntoDrive: "archive",
   },
   {
     name: "the Library root",
@@ -199,7 +204,7 @@ describe("where a clipboard can be pasted", () => {
     expect(SCREENS.filter((s) => !s.offersPaste)).toHaveLength(8);
   });
 
-  it.each(SCREENS)("$name", ({ props, offersPaste, pastesInto }) => {
+  it.each(SCREENS)("$name", ({ props, offersPaste, pastesInto, pastesIntoDrive }) => {
     render(<FolderBrowser {...props} />);
 
     expect(pasteButtons().length > 0).toBe(offersPaste);
@@ -214,8 +219,7 @@ describe("where a clipboard can be pasted", () => {
       // name: with both sides reading "main" no row could tell the two
       // apart, and routing a paste through the clipboard's own drive
       // moves files into a drive nobody is looking at.
-      expect(mockPaste).toHaveBeenCalledWith("main", pastesInto);
-      expect(CLIPBOARD.sourceDrive).not.toBe("main");
+      expect(mockPaste).toHaveBeenCalledWith(pastesIntoDrive ?? "main", pastesInto);
     }
   });
 
@@ -225,6 +229,11 @@ describe("where a clipboard can be pasted", () => {
     expect(
       SCREENS.filter((s) => s.offersPaste && typeof s.pastesInto === "string"),
     ).toHaveLength(3);
+    // And one of them is not on the drive the others are, or the drive half
+    // of the assertion agrees with a constant.
+    expect(
+      SCREENS.filter((s) => s.offersPaste && s.props.driveName !== "main"),
+    ).toHaveLength(1);
   });
 
   it("draws nothing to paste into when the clipboard is empty", () => {
