@@ -28,6 +28,33 @@ drive boundary in `design-decisions.md`).
 Multiple PRs are reviewed one at a time — implement, review, then the next.
 Two reviewers on one PR is worth it only for a large or load-bearing change.
 
+### A later round is a fresh process, not an ignorant one
+
+Round one asks *is this change correct?* Round two onward asks *did this fix do
+what it claimed, and what did it break?* — a question **about the round before
+it**. A reviewer who is not given that round re-derives it instead.
+
+What independence buys is a reader who does not carry **the author's
+assumptions**, not a reader who has been told nothing. So a later round gets the
+**record** and not the reasoning:
+
+- the invariants declared under R-0;
+- every previous round's findings file;
+- one line per round saying what was fixed.
+
+Not the author's account of why. The commit message and PR body are a few lines
+(`comments.md`); that is all the narrative a reviewer gets.
+
+**Ask a later round the one question a snapshot cannot answer:**
+
+> *Is the trajectory converging — is each round's fix smaller than the last? If
+> it is not, say so.*
+
+A fix that keeps growing is a design being patched, and only a reader who sees
+across rounds can say so. Measured on #258: eight rounds each added handling or
+a prediction, and no reviewer called the design wrong, because each saw one
+snapshot; the ninth removed a prediction and the chain ended.
+
 ## What the reviewer is given
 
 In priority order:
@@ -41,6 +68,24 @@ In priority order:
 4. **`DESIGN.md`** and the `@theme inline` block in `globals.css` for anything
    visual.
 5. **hako**, only when asking whether something is a deliberate past decision.
+
+## R-0: Declare what must not break, before the first review
+
+The author writes, and the supervisor approves, the invariants this change must
+not break — before the first reviewer is launched.
+
+Sources, in order: the `design-decisions.md` rules the change touches; what the
+work is for; and the data that cannot be regenerated from the filesystem (watch
+history, tags, comments, transcripts).
+
+Each item is written so that a mutation can violate it — an observable sentence,
+not an intention. *"A thumbnail failure leaves the file's row and bytes
+untouched"*, not *"handle thumbnail errors properly"*. Five to ten lines; longer
+means the change is doing more than one thing.
+
+The list is the reviewer's first perspective: *does any path break these?* Ask
+*"is anything missing from this list?"* in the first round only — asked every
+round, it grows without end.
 
 ## R-1: Review a fixed SHA, and do not move the tree under the reviewer
 
@@ -73,20 +118,47 @@ deleting it rather than rewording it.
 
 The reviewer restores the tree and fixes nothing.
 
-## R-4: Triage the findings, and stop
+## R-4: Triage against the declared invariants, and stop
 
-Fix only:
+Every finding lands in exactly one bucket:
 
-| finding | action |
-|---|---|
-| a defect a user, operator or addon can hit | fix |
-| a test that lets that defect through | fix |
-| prose that would mislead a code change | delete it (or fix in one line) |
-| anything else — wording, counting, where a note should live, a comment that is merely imprecise | do not fix |
+| bucket | test | action |
+|---|---|---|
+| **A** | breaks an invariant declared under R-0 | fix |
+| **B** | breaks none, but reads wrong | record in the ledger, close |
+| **C** | the design itself is wrong | count it |
 
-A fix commit that changed behaviour gets its own review. A round that changed
-only tests or prose does not. **Stop when a round reports no behaviour defect**;
-prose findings never keep the loop going.
+A test that lets an A through is an A. Prose is a B unless it would lead a
+reader to a wrong code change, and then the remedy is deletion.
+
+**A fix that is not smaller than the one before it is a C.** In a converging
+loop each round's fix shrinks. A round that adds handling, state or a prediction
+where the last one did is patching a symptom, and the round after it finds what
+the addition broke. Compare the two diffs before triaging: the trajectory is
+evidence no single finding carries.
+
+**Two or more C findings on one change is evidence to discard the branch**, not
+to keep fixing. Raise it; do not decide it alone.
+
+**Fix only what this change introduced.** A pre-existing defect goes to the
+ledger even when the reviewer is right about it. Where the change makes a
+pre-existing defect reachable, first look for a shape that does not make it
+reachable; if there is none, raise it rather than starting to excavate.
+
+**Make the reviewer label it.** Every finding carries `[introduced]` or
+`[pre-existing]`, and `[introduced]` is earned by running the same reproduction
+against the parent commit and against `develop` and showing the difference.
+Without the label the triage is the author's guess about their own change, which
+is the guess least worth trusting. Name the already-filed items in the brief and
+ask for one `[pre-existing]` line each rather than a re-derivation.
+
+**Findings existing is not a reason to run another round.** The reviewer
+supplies the material for the triage and has no say in what happens next. The
+author proposes a triage and stops. **Only the supervisor or the user decides to
+continue, to ship, or to discard.**
+
+Stop when bucket A is empty. A fix commit that changed behaviour gets its own
+review; one that changed only tests or prose does not.
 
 A finding is a claim: reproduce it before acting, and push back with the
 observation it predicts rather than by argument.
@@ -136,4 +208,6 @@ until ! gh pr checks <PR> 2>&1 | grep -q pending; do sleep 30; done
 
 ## After the review
 
-Findings that carry a design decision go to hako.
+Findings that carry a design decision go to hako. Bucket B and C findings that
+were not acted on go to `docs/developer-guide/known-issues.md` before the PR
+merges: a finding that is neither fixed nor recorded has been discarded.
