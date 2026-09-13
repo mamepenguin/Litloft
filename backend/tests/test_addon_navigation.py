@@ -17,6 +17,10 @@ VALID_NAV = {
 INVALID_NAVS = [
     pytest.param({**VALID_NAV, "placement": "views"}, id="placement-out-of-range"),
     pytest.param({k: v for k, v in VALID_NAV.items() if k != "placement"}, id="placement-missing"),
+    pytest.param({**VALID_NAV, "placement": ["primary"]}, id="placement-list"),
+    pytest.param({**VALID_NAV, "placement": {"primary": True}}, id="placement-object"),
+    pytest.param({**VALID_NAV, "placement": 1}, id="placement-number"),
+    pytest.param({**VALID_NAV, "placement": None}, id="placement-null"),
     pytest.param({k: v for k, v in VALID_NAV.items() if k != "label"}, id="label-missing"),
     pytest.param({**VALID_NAV, "label": ""}, id="label-empty"),
     pytest.param({**VALID_NAV, "label": "   "}, id="label-blank"),
@@ -26,7 +30,9 @@ INVALID_NAVS = [
     pytest.param({**VALID_NAV, "priority": 1.5}, id="priority-float"),
     pytest.param({**VALID_NAV, "priority": "10"}, id="priority-string"),
     pytest.param({**VALID_NAV, "i18n_key": 3}, id="i18n-key-not-string"),
+    pytest.param({**VALID_NAV, "i18n_key": None}, id="i18n-key-null"),
     pytest.param({**VALID_NAV, "icon": ["rss"]}, id="icon-not-string"),
+    pytest.param({**VALID_NAV, "icon": None}, id="icon-null"),
     pytest.param(["primary"], id="not-an-object-list"),
     pytest.param("primary", id="not-an-object-string"),
     pytest.param(None, id="not-an-object-null"),
@@ -85,13 +91,26 @@ PATHS = ["manifest", "in_process"]
 
 
 @pytest.mark.parametrize("path", PATHS)
-def test_valid_navigation_reaches_the_catalogue_unchanged(client, registry, manifests, path):
+@pytest.mark.parametrize("placement", ["primary", "sources", "utility"])
+def test_valid_navigation_reaches_the_catalogue_unchanged(client, registry, manifests, path, placement):
     c, _, _, _ = client
-    _register(path, manifests, navaddon=_meta("navaddon", navigation=VALID_NAV))
+    nav = {**VALID_NAV, "placement": placement}
+    _register(path, manifests, navaddon=_meta("navaddon", navigation=nav))
 
     body = c.get("/api/addons/status").json()
 
-    assert body["addons"]["navaddon"]["navigation"] == VALID_NAV
+    assert body["addons"]["navaddon"]["navigation"] == nav
+
+
+@pytest.mark.parametrize("path", PATHS)
+def test_navigation_without_optional_keys_is_valid(client, registry, manifests, path):
+    c, _, _, _ = client
+    nav = {"label": "Notes", "placement": "primary", "priority": 20}
+    _register(path, manifests, navaddon=_meta("navaddon", navigation=nav))
+
+    body = c.get("/api/addons/status").json()
+
+    assert body["addons"]["navaddon"]["navigation"] == nav
 
 
 @pytest.mark.parametrize("path", PATHS)

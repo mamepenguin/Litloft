@@ -39,7 +39,9 @@ _VALID_PLACEMENTS = {"primary", "sources", "utility"}
 def _navigation_error(nav: Any) -> str | None:
     if not isinstance(nav, dict):
         return "not an object"
-    if nav.get("placement") not in _VALID_PLACEMENTS:
+    placement = nav.get("placement")
+    # Checked as a string first: a list or object is unhashable, and `in` on a set raises.
+    if not isinstance(placement, str) or placement not in _VALID_PLACEMENTS:
         return f"placement must be one of {sorted(_VALID_PLACEMENTS)}"
     label = nav.get("label")
     if not isinstance(label, str) or not label.strip():
