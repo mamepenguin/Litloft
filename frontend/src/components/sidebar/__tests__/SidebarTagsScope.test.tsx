@@ -1,16 +1,6 @@
 /**
- * spec 2026-08-21-folder-scoped-tag-filter §5 / §5.0
- *
- * The invariant under test: *a tag row's link and the query that produced
- * that row describe the same scope.* Not "the same expression" — the same
- * resolved scope.
- *
- * Sharing `useCurrentFolderPath()` between the list fetch and the href
- * makes them agree about what scope to *ask for*, but does nothing about
- * the window between asking and receiving: `useSidebarData` only calls
- * `setTags` when the fetch resolves, so the previous scope's rows stay on
- * screen while a new fetch is in flight. Carrying the scope with the data
- * and gating navigation on it closes that window.
+ * `useSidebarData` only calls `setTags` when the fetch resolves, so the
+ * previous scope's rows stay on screen while a new fetch is in flight.
  */
 
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
@@ -65,8 +55,6 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-// ---- helpers -----------------------------------------------------------------
-
 function scoped(drive: string, folderPath: string | null, names: string[]): ScopedTags {
   return {
     resolvedScope: { drive, folderPath },
@@ -88,7 +76,6 @@ function renderSection(props: {
   tags: ScopedTags | null;
   drive: string | null;
   currentFolderPath: string | null;
-  /** Defaults to the page the current drive/folder describes. */
   pathname?: string;
   activeTag?: string | null;
   activeView?: string | null;
@@ -113,8 +100,6 @@ function renderSection(props: {
     />,
   );
 }
-
-// ---- tests -------------------------------------------------------------------
 
 describe("SidebarTagsSection — scope agreement", () => {
   beforeEach(() => {
@@ -158,8 +143,6 @@ describe("SidebarTagsSection — scope agreement", () => {
   });
 
   it("keeps rows visible but inert while the folder scope is stale", () => {
-    // Mid-navigation recipes → dev: the items on screen were fetched for
-    // recipes, so they must not become clickable with dev's href.
     renderSection({
       tags: scoped("main", "recipes", ["soup", "stew"]),
       drive: "main",
@@ -181,8 +164,6 @@ describe("SidebarTagsSection — scope agreement", () => {
   });
 
   it("keeps rows inert when the drive is stale, even at a matching folder", () => {
-    // Drive is a security boundary (hako cRNeIvcbhz449BwTmof5m). Drive A's
-    // tag names must never render as links under drive B.
     renderSection({
       tags: scoped("work", null, ["confidential"]),
       drive: "personal",
@@ -193,9 +174,8 @@ describe("SidebarTagsSection — scope agreement", () => {
   });
 
   it("stays live on routes where currentFolderPath is stably null", () => {
-    // §9.2: /drive/[name]/search, /collections/[id], /addons/... and
-    // /files/[id] never publish a folder path. null is their correct,
-    // stable state — tag links must work there, not be disabled.
+    // /drive/[name]/search, /collections/[id], /addons/... and /files/[id]
+    // never publish a folder path.
     renderSection({
       tags: scoped("main", null, ["soup"]),
       drive: "main",
@@ -224,18 +204,8 @@ describe("SidebarTagsSection — scope agreement", () => {
 });
 
 /**
- * Re-clicking the selected tag clears the filter.
- *
- * This became worth having *because* of the folder scoping above: a tag
- * click used to throw the user to the drive root, so "clear" was really
- * "go back to the folder I was in". Now that the filter keeps you in
- * place, narrowing and un-narrowing the same folder is a round trip.
- *
- * The trap: `linkClass(href)` derives the highlight from the href, and a
- * cleared row's href no longer carries `?tag=`. Deriving both from the
- * tag name instead is the same single-source discipline §5 applies to
- * scope — the row's identity and its destination must not be computed
- * independently.
+ * `linkClass(href)` derives the highlight from the href, and a cleared
+ * row's href no longer carries `?tag=`.
  */
 describe("SidebarTagsSection — clearing the selected tag", () => {
   beforeEach(() => {
@@ -263,8 +233,6 @@ describe("SidebarTagsSection — clearing the selected tag", () => {
   });
 
   it("keeps the selected row highlighted even though its href lost the tag", () => {
-    // The silent failure this guards: href-derived highlighting would
-    // drop the selection the moment the row became a clear-link.
     renderSection({
       tags: scoped("main", "recipes", ["soup", "stew"]),
       drive: "main",
@@ -310,8 +278,6 @@ describe("SidebarTagsSection — clearing the selected tag", () => {
   });
 
   it("never marks a stale-scope row as selected", () => {
-    // Mid-navigation the rows are inert; claiming a selection there would
-    // describe a scope the user has already left.
     renderSection({
       tags: scoped("main", "recipes", ["soup"]),
       drive: "main",
@@ -336,14 +302,10 @@ describe("SidebarTagsSection — clearing the selected tag", () => {
 });
 
 /**
- * Selection is a claim about the current *page*, not only about scope.
- *
  * `currentFolderPath` is stably null on /drive/[name]/search,
- * /drive/[name]/collections/[id], the addon routes and /files/[id]
- * (§9.2), so scope agreement alone cannot tell "at the drive root" from
- * "on a sibling route". Without a pathname check, a stray `?tag=` on one
- * of those routes would mark a row selected and turn its link into "leave
- * this route" — the opposite of clearing a filter.
+ * /drive/[name]/collections/[id], the addon routes and /files/[id], so
+ * scope agreement alone cannot tell "at the drive root" from "on a sibling
+ * route".
  */
 describe("SidebarTagsSection — selection is page-scoped", () => {
   beforeEach(() => {
@@ -358,7 +320,6 @@ describe("SidebarTagsSection — selection is page-scoped", () => {
       pathname: "/drive/main/search",
       activeTag: "soup",
     });
-    // Still a live, applying link — §9.2 requires tag links to work here.
     expect(hrefs()).toEqual(["/drive/main?tag=soup"]);
     expect(activeRowNames()).toEqual([]);
   });
@@ -401,11 +362,8 @@ describe("SidebarTagsSection — selection is page-scoped", () => {
 });
 
 /**
- * The server matches tags case-insensitively
- * (`func.lower(Tag.name) == tag.lower()`, drives.py). An exact
- * comparison in the UI would filter the listing while showing nothing
- * selected, and the re-click-to-clear toggle would never engage — a URL
- * kept from before a tag was re-cased is enough to reach it.
+ * The server matches tags case-insensitively. An exact comparison in the
+ * UI would filter the listing while showing nothing selected.
  */
 describe("SidebarTagsSection — tag matching follows the server", () => {
   beforeEach(() => {

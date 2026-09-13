@@ -34,7 +34,6 @@ describe("SidebarDriveSwitcher", () => {
       "/drive/notes",
     );
     expect(screen.getByRole("link", { name: /vault/ })).toBeInTheDocument();
-    // The name you are already on is not offered as a destination.
     expect(screen.queryByRole("link", { name: /media/ })).not.toBeInTheDocument();
   });
 
@@ -50,10 +49,6 @@ describe("SidebarDriveSwitcher", () => {
     expect(screen.queryByRole("link", { name: /vault/ })).not.toBeInTheDocument();
   });
 
-  /**
-   * H-2's sidebar half. On the root the body already lists every drive as
-   * a card; a sidebar repeating it is the same answer twice on one screen.
-   */
   describe("off a drive", () => {
     const renderRoot = () =>
       render(<SidebarDriveSwitcher drives={DRIVES} currentDrive={null} close={vi.fn()} />);
@@ -84,27 +79,18 @@ describe("SidebarDriveSwitcher", () => {
     it("names itself with the words on screen (WCAG 2.5.3)", () => {
       renderRoot();
       const row = screen.getByRole("button", { name: /Drives \(3\)/ });
-      // Its content *is* its accessible name, so the query above is the
-      // assertion. No `aria-label`: an override identical to the visible
-      // text is one more string to keep in step, and this row has nothing
-      // to add to what it already reads.
       expect(row.getAttribute("aria-label")).toBeNull();
       expect(row.textContent).toContain("Drives");
     });
 
     it("is a fold row, not a section heading", () => {
-      // Phase 1 cut the sidebar to five headings and
-      // `sidebar-headings.test.ts` pins that count from the source; this is
-      // the same claim about what reaches the screen. A sidebar heading is
-      // a `div` around a `button`, never an `h1`-`h6`, so the classes it
-      // wears are what identify one.
+      // A sidebar heading is a `div` around a `button`, never an `h1`-`h6`,
+      // so the classes it wears are what identify one.
       const { container } = renderRoot();
       const row = screen.getByRole("button", { name: /Drives \(3\)/ });
       expect(row.tagName).toBe("BUTTON");
 
       const classed = [...container.querySelectorAll("[class]")];
-      // "None of them wears a heading" is also true of nothing at all, and
-      // the row this test is about has to be one of the ones being asked.
       expect(classed).toContain(row);
       expect(
         classed.filter(wearsSidebarHeadingClasses).map((el) => el.className),
@@ -112,8 +98,6 @@ describe("SidebarDriveSwitcher", () => {
     });
 
     it("shows the one drive rather than a row to unfold it", () => {
-      // Folded or open it is one line either way, so the fold row would
-      // turn one line into two. A choice between one thing is not a choice.
       render(
         <SidebarDriveSwitcher drives={[drive("media")]} currentDrive={null} close={vi.fn()} />,
       );
@@ -138,9 +122,6 @@ describe("SidebarDriveSwitcher", () => {
       const before = new Set(Object.keys(localStorage));
       renderRoot();
       fireEvent.click(screen.getByRole("button", { name: /Drives \(3\)/ }));
-      // The first two axes of the sidebar restore what the system took
-      // away. This one was never taken, so there is nothing to restore
-      // and no key to add. DESIGN.md §Sidebar.
       expect(new Set(Object.keys(localStorage))).toEqual(before);
     });
   });
@@ -162,9 +143,9 @@ describe("SidebarDriveSwitcher", () => {
   });
 
   it("shows only the drives it is handed, so a locked one cannot appear", () => {
-    // getDrives() drops locked protected drives before they reach here
-    // (a drive is a security boundary). This fixes that the switcher
-    // adds nothing of its own — no cached list, no name from the URL.
+    // getDrives() drops locked protected drives before they reach here, so
+    // the switcher must add nothing of its own — no cached list, no name from
+    // the URL.
     render(
       <SidebarDriveSwitcher drives={[drive("media")]} currentDrive={null} close={vi.fn()} />,
     );
@@ -182,14 +163,6 @@ describe("sidebar top — item 10", () => {
     close: vi.fn(),
   };
 
-  /**
-   * The position of one string in the rendered text.
-   *
-   * `indexOf` answers `-1` for a string that is not there, and `-1` is
-   * less than every real index — so an ordering assertion written on it
-   * alone is satisfied by either subject being deleted. Presence is
-   * asserted first, and the order is read off positions that exist.
-   */
   const at = (text: string, needle: string) => {
     const i = text.indexOf(needle);
     expect(i, `${needle} is not on the column`).not.toBe(-1);
@@ -203,10 +176,6 @@ describe("sidebar top — item 10", () => {
   });
 
   it("heads the views with VIEWS, below the purpose rows and not over them", () => {
-    // "Library" names a destination here, never this group. The two are
-    // one word apart on the same column, so the position is what
-    // separates them: the heading comes after the Library row and before
-    // the first view (spec §5.1).
     const { container } = render(<SidebarLibrarySection libraryActive={false} {...props} />);
     const text = container.textContent ?? "";
     expect(at(text, "Library")).toBeLessThan(at(text, "Views"));
@@ -215,11 +184,6 @@ describe("sidebar top — item 10", () => {
   });
 
   it("keeps the views, in order, and adds none", () => {
-    // Asserted as the whole ordered list rather than a filtered subset:
-    // filtering to the expected names makes the test blind to a further
-    // view inserted between them, to a row moving above Favorites, and
-    // to a rename (which drops out of the filter and the expectation at
-    // the same time).
     const { container } = render(<SidebarLibrarySection libraryActive={false} {...props} />);
     const labels = Array.from(container.querySelectorAll("a")).map((a) =>
       (a.textContent ?? "").trim(),
@@ -243,18 +207,14 @@ describe("sidebar top — item 10", () => {
         addons={{ knowledge: { label: "Knowledge", icon: "notebook-pen", href: "/", scope: "drive" } }}
       />,
     );
-    // `getByText` returns the innermost element holding the text —
-    // the `<span class="truncate">` — and the classes under test are
-    // on its parent. Asserting on the span's own className checks
-    // "truncate" against a regex it can never match, which is green
-    // whatever the heading does.
+    // `getByText` returns the inner `<span class="truncate">`; the classes
+    // under test are on its parent.
     const label = screen.getByText("Addons");
     const heading = label.parentElement!;
     expect(heading.className).toMatch(/text-\[11px\]/);
     expect(heading.className).not.toMatch(/uppercase|tracking-wider/);
-    // `closest`, not `within(parentElement)`: `within` searches
-    // descendants only, so if the heading became a button the query
-    // would look *inside* that button, find nothing, and pass.
+    // `closest`, not `within(parentElement)`: `within` searches descendants
+    // only, so it would pass if the heading itself became a button.
     expect(label.closest("button")).toBeNull();
   });
 });

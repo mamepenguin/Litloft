@@ -99,9 +99,8 @@ describe("useSidebarData", () => {
     await waitFor(() => {
       expect(getDriveTags).toHaveBeenCalled();
     });
-    // spec 2026-08-21-folder-scoped-tag-filter §5.0: the catch must record
-    // the scope it was fetching for. Leaving the previous value in place
-    // would strand the old rows inert forever, since nothing would match.
+    // The catch must record the scope it was fetching for. Leaving the
+    // previous value in place would strand the old rows inert forever.
     await waitFor(() => {
       expect(result.current.tags).toEqual({
         resolvedScope: { drive: "main", folderPath: null },
@@ -155,11 +154,8 @@ describe("useSidebarData", () => {
       expect(result.current.tags?.items).toEqual([{ name: "scoped", count: 1 }]);
     });
 
-    // The null-folderPath request finally resolves late; it must be ignored.
-    // Await the promise itself (not an arbitrary timeout) and wrap in act()
-    // so React has actually flushed the resulting state update, if any,
-    // before we assert — otherwise the assertion could pass by mere luck
-    // of running before the clobbering re-render commits.
+    // Await the promise itself and wrap in act() so React has flushed the
+    // resulting state update, if any, before we assert.
     await act(async () => {
       resolveStaleRequest([{ name: "stale-drive-wide", count: 99 }]);
       await staleRequest;
@@ -169,7 +165,6 @@ describe("useSidebarData", () => {
     expect(result.current.tags?.resolvedScope).toEqual({ drive: "main", folderPath: "recipes" });
   });
 
-  // spec 2026-08-21-folder-scoped-tag-filter §5.0
   it("carries the resolved scope with the items, including the drive", async () => {
     vi.mocked(getDriveTags).mockResolvedValue([{ name: "soup", count: 2 }]);
     const { result, rerender } = renderHook(

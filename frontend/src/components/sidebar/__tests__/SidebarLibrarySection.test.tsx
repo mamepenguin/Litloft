@@ -71,10 +71,8 @@ describe("SidebarLibrarySection", () => {
   });
 
   it("keeps the rows this section no longer owns out of it", () => {
-    // Trash, Missing Files and Dashboard moved below the reader's own
-    // sections (spec §5.1) and are `SidebarSystemSection`'s. Asserted here
-    // rather than only there, because a row rendered in *both* places
-    // passes that file's tests and appears twice on the column.
+    // These are `SidebarSystemSection`'s. Asserted here too, because a row
+    // rendered in *both* places passes that section's tests and appears twice.
     render(<SidebarLibrarySection libraryActive={false} driveBase="/drive/main" currentDrive="main" linkClass={linkClass} close={vi.fn()} />);
     expect(screen.queryByText("Trash")).not.toBeInTheDocument();
     expect(screen.queryByText("Missing Files")).not.toBeInTheDocument();

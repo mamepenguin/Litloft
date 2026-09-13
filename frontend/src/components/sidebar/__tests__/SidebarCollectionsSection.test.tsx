@@ -149,8 +149,6 @@ describe("SidebarCollectionsSection", () => {
         />
       </ShortcutsProvider>,
     );
-    // Rows, not bare buttons: this section drew its own panel with no
-    // `role` at all, which is why the popup sweep could not see it.
     expect(screen.getByRole("menuitem", { name: /Rename/ })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: /Delete/ })).toBeInTheDocument();
   });
@@ -167,23 +165,13 @@ describe("SidebarCollectionsSection", () => {
       </ShortcutsProvider>,
     );
     fireEvent.click(screen.getByRole("menuitem", { name: /Delete/ }));
-    // `ContextMenu` closes first and runs the entry on the next frame, so
-    // the dialog an entry opens is not mounted inside a menu that is
-    // going away.
+    // `ContextMenu` closes first and runs the entry on the next frame.
     await waitFor(() =>
       expect(handleDeleteCollection).toHaveBeenCalledWith("c1"),
     );
   });
 
   it("dismisses through the scrim, without pressing the row underneath", () => {
-    // The defect this section had: a `window` click listener closed the
-    // menu and the same click reached the collection row, navigating to
-    // it. Its sibling `SidebarSmartFoldersSection` already used the
-    // shared `ContextMenu`, so one sidebar had two behaviours.
-    //
-    // jsdom hit-tests nothing, so what is asserted is that the scrim
-    // exists and that it — not a `window` listener — is what closes the
-    // menu. `e2e-layout/popup-dismiss.spec.ts` measures the hit test.
     const setContextMenu = vi.fn();
     const handleCollectionClick = vi.fn();
     render(

@@ -5,10 +5,8 @@ import { SidebarTagsSection } from "../SidebarTagsSection";
 import type { ScopedTags } from "../useSidebarData";
 
 /**
- * Item 11 (f): a drive can carry dozens of tags, and the section sits
- * above nothing — everything below it goes off-screen. Eight rows plus
- * a way to see the rest, expanded in place because there is no tag
- * index page to send anyone to.
+ * The rest is expanded in place because there is no tag index page to send
+ * anyone to.
  */
 
 function tagsFor(count: number, folderPath: string | null = null): ScopedTags {
@@ -55,9 +53,6 @@ describe("SidebarTagsSection — folding the long tail", () => {
 
     expect(tagRows()).toHaveLength(8);
     expect(tagRows()[0]).toBe("tag00");
-    // The count names every tag in scope, not the 22 still hidden — it
-    // answers "how many are there", which is what makes it worth
-    // pressing.
     expect(screen.getByText("All tags (30)")).toBeInTheDocument();
   });
 
@@ -80,11 +75,8 @@ describe("SidebarTagsSection — folding the long tail", () => {
   });
 
   it("keeps the applied tag on screen even when it is not in the top eight", () => {
-    // The fold ranks by count, so a rare tag is never in the first
-    // eight. Arriving on `?tag=` from a file's chips or from "Search
-    // the whole drive" would then filter the listing while the row
-    // that says which tag, and the second click that clears it, were
-    // both folded away — this section is the only place either lives.
+    // The fold ranks by count, so a rare tag is never in the first eight,
+    // and this section is the only place its clearing click lives.
     const tags = tagsFor(30);
     const rare = tags.items[25].name;
     render(
