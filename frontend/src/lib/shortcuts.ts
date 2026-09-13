@@ -7,9 +7,7 @@ export interface ShortcutDef {
   //   true      → fires ONLY when an input/textarea/select/contenteditable has focus
   //   false     → fires REGARDLESS of focus state (use for shortcuts that
   //               should work everywhere, like cycling a view mode)
-  //   undefined → fires ONLY when no editing element has focus (legacy default)
-  // This lets the same key be bound to different handlers in editor vs non-editor
-  // contexts (e.g. Cmd+K = link insert in textarea, switcher elsewhere).
+  //   undefined → fires ONLY when no editing element has focus
   editingOnly?: boolean
 }
 
@@ -17,15 +15,8 @@ export interface ShortcutContextDef {
   id: string
   label: string
   shortcuts: ShortcutDef[]
-  // Resolution tier. Contexts are consulted highest tier first, and within a
-  // tier most-recently-pushed first. Defaults to 0, which preserves plain
-  // push-order semantics for every context that does not opt in.
-  //
   // Push order alone is not enough for overlays: a context that enables later
-  // lands on top of an already-open modal. Knowledge, for instance, gates its
-  // editor shortcuts on the note body having loaded, so opening a modal while
-  // a note is still loading would otherwise hand the modal's own chords to the
-  // editor underneath it.
+  // lands on top of an already-open modal.
   priority?: number
 }
 
@@ -44,10 +35,6 @@ export const OVERLAY_PRIORITY = 100
  */
 export const NESTED_OVERLAY_PRIORITY = 200
 
-/**
- * Order a shortcut stack for resolution: highest priority tier first, and
- * within a tier the most recently pushed context first.
- */
 export function orderContexts(
   stack: ShortcutContextDef[],
 ): ShortcutContextDef[] {
@@ -68,8 +55,6 @@ function isMacPlatform(): boolean {
 }
 
 /**
- * Normalize a KeyboardEvent into a canonical key string.
- *
  * Shortcuts are declared with the canonical "ctrl+X" form regardless of
  * platform. The actual hardware modifier required depends on the OS:
  *
@@ -81,16 +66,6 @@ function isMacPlatform(): boolean {
  *                   shadow).
  *   - Windows/Linux: Ctrl (ctrlKey) is the primary modifier. Meta (Win/Super
  *                   key) is OS-reserved and won't fire our shortcuts.
- *
- * Examples (rendering as "ctrl+X" regardless of which physical key was held):
- *   Win   Ctrl+C       → 'ctrl+c'
- *   Win   Win+C        → 'c'              (Meta on non-Mac doesn't qualify)
- *   Mac   Cmd+C        → 'ctrl+c'
- *   Mac   Ctrl+C       → 'c'              (Ctrl alone on Mac doesn't qualify)
- *   Both  Space        → 'space'
- *   Both  ArrowLeft    → 'arrowleft'
- *   Both  Shift+/      → '?'              (e.key already encodes the shift)
- *   Both  Ctrl+Shift+F → 'ctrl+shift+f'   (Mac substitutes Cmd here)
  *
  * Rule for Shift: include "shift+" only when another modifier (the platform
  * primary or Alt) is also held, OR when the key is a named key (length > 1,

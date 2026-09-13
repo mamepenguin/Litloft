@@ -1,20 +1,9 @@
 "use client";
 
 /**
- * Media Session wiring — the OS-level playback surface (lock screen,
- * notification shade, media keys, car display).
- *
- * This used to take an `HTMLMediaElement`, which meant `.loft` files
- * could not have it at all: a YouTube IFrame player is not a DOM media
- * element. Native media had Media Session and no custom control bar
- * while `.loft` had the bar and no Media Session — the asymmetry ran in
- * both directions. Talking to a `MediaController` removes it.
- *
  * Position reporting rides the shared playback clock rather than DOM
- * events, for the same reason: `timeupdate` does not exist for every
- * backend, and polling per feature is what the clock exists to stop.
- *
- * Spec: docs/superpowers/specs/2026-08-11-playback-clock-foundation.md §4.3
+ * events: `timeupdate` does not exist for every backend, and polling per
+ * feature is what the clock exists to stop.
  */
 
 import type { MediaController } from "./mediaController";
@@ -68,8 +57,7 @@ export function setupMediaSession(
     mc.pause();
   });
   // Clamping is the controller's job — it is the only thing that knows
-  // what the backend will accept — so these pass the requested position
-  // through rather than bounding it a second time.
+  // what the backend will accept.
   register("seekbackward", (details) => {
     mc.seek(mc.getCurrentTime() - (details.seekOffset ?? SEEK_OFFSET));
   });
@@ -90,21 +78,13 @@ export function setupMediaSession(
   }
 
   /**
-   * Feed the OS the scrubber position. Without this the lock screen
-   * shows transport buttons but a dead progress bar.
-   *
    * `setPositionState` throws on anything it considers incoherent — a
    * non-finite duration, a position past the end, a non-positive rate —
-   * so every field is checked first and the call is still wrapped. The
-   * duration guard is the same one the rest of the playback contract
-   * uses: when the length is unknowable, say nothing rather than
-   * invent a timeline.
+   * so every field is checked first and the call is still wrapped.
    */
   const updatePosition = () => {
     const { currentTime, duration, interrupted } = getMediaClockSnapshot(mc);
-    // During an ad the clock belongs to the ad, not the file. Leaving
-    // the last good reading up beats publishing the interruption's
-    // timeline as though it were the video's.
+    // During an ad the clock belongs to the ad, not the file.
     if (interrupted) return;
     if (typeof ms.setPositionState !== "function") return;
     if (!Number.isFinite(duration) || duration <= 0) return;

@@ -1,22 +1,10 @@
 "use client";
 
 /**
- * Watch-progress persistence, once, for every playback backend.
- *
- * This used to live in three players — VideoPlayer, AudioPlayer and the
- * Media Import YouTube embed — and the three copies had already drifted:
- * audio never saved on teardown, audio's resume window was 3 seconds
- * against everyone else's 5, and the native path could hand the server a
- * NaN duration. Phase A had to write the same completion rule into all
- * three, which is the point at which one implementation stops being
- * optional.
- *
  * The hook holds every piece of state in a ref and never calls setState.
  * Its host is a video player: routing bookkeeping through React state
  * would re-render the whole player four times a second to maintain a
  * number nobody displays.
- *
- * Spec: docs/superpowers/specs/2026-08-11-playback-clock-foundation.md §4.2
  */
 
 import { useCallback, useEffect, useRef } from "react";
@@ -26,7 +14,6 @@ import { getWatchProgress, saveWatchProgress } from "./api";
 import { getSavedProgress, saveProgress } from "./recentlyPlayed";
 import { useProfile } from "@/components/ProfileProvider";
 
-/** Seconds of playback between periodic writes. */
 const SAVE_INTERVAL = 5;
 /**
  * Dead zone at both ends of the timeline. Below it there is nothing
@@ -54,9 +41,6 @@ export interface UsePlaybackProgressOptions {
 
 export interface UsePlaybackProgressResult {
   /**
-   * Call from the player's own end-of-media event — `ended` on a native
-   * element, state 0 from the YouTube IFrame player.
-   *
    * Completion is an event, not a clock reading. Inferring it from
    * "position reached duration and playback stopped" is exactly the
    * fabricated completed state the playback contract refuses, so the
@@ -64,20 +48,10 @@ export interface UsePlaybackProgressResult {
    */
   notifyEnded: () => void;
   /**
-   * Call from the player's own metadata-ready event — `loadedmetadata`
-   * on a native element, `onReady` from the YouTube IFrame player.
-   * Resolves once the resume decision has been made and any seek has
-   * been issued.
-   *
    * A player that wants to start playing itself should await this
    * first. Otherwise autoplay begins at zero and the restored position
    * lands a moment later, which the viewer sees and hears as the video
    * starting over before jumping.
-   *
-   * Optional in the sense that the clock keeps its own eye out: a
-   * backend with no such event, or one that forgets to call this, still
-   * resumes on the first tick reporting a usable duration. It just
-   * cannot order anything against it.
    */
   notifyReady: () => Promise<void>;
 }
@@ -94,9 +68,7 @@ export function usePlaybackProgress({
   const { nickname } = useProfile();
   const hasProfile = nickname !== null;
 
-  /** Last position written, so the interval gate has something to measure. */
   const lastSavedRef = useRef(0);
-  /** Latched once resume has been decided, so it happens exactly once. */
   const resumedRef = useRef(false);
   /**
    * True while the stored position is being read.
@@ -104,12 +76,9 @@ export function usePlaybackProgress({
    * Periodic saving has to stand still until that settles. The read is a
    * network round-trip, and if playback crosses SAVE_INTERVAL before it
    * lands, the periodic save writes the position the viewer resumed
-   * *from* — clobbering the very marker being restored. The old players
-   * had no such window because they resumed inside a lifecycle event,
-   * before any polling began.
+   * *from* — clobbering the very marker being restored.
    */
   const resumePendingRef = useRef(false);
-  /** Set by the effect so notifyReady can reach into the live subscription. */
   const resumeNowRef = useRef<(() => Promise<void>) | null>(null);
 
   // Read through refs inside the subscription so a change of profile or

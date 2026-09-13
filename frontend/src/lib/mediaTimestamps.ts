@@ -1,24 +1,18 @@
 /**
- * Finds playback timestamps written in free text, so a description can
- * offer the jumps its author meant by writing them.
- *
  * The accepted grammar is exactly what ``formatDuration`` emits —
  * ``M:SS`` and ``H:MM:SS``. Reading and writing from one vocabulary is
  * the point: a form the app can produce but not read back, or the
  * reverse, is a drift that no single change would reveal.
  *
  * Nothing here is persisted. This is a rendering concern, and callers
- * must keep it one; see the spec for why parsing a field the user edits
- * at will must not replace anything durable.
+ * must keep it one.
  */
 
-/** A stretch of the source that carries no timestamp. */
 export interface TextSegment {
   kind: "text";
   text: string;
 }
 
-/** A timestamp, with the position it names. */
 export interface TimestampSegment {
   kind: "timestamp";
   /** The source text, exactly as written — `01:07` stays `01:07`. */

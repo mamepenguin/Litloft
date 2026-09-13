@@ -6,13 +6,9 @@ export interface RecentEntry {
   timestamp: number;
   progress?: number;
   /**
-   * Total media length in seconds, recorded alongside `progress`.
-   *
    * Without it a stored position cannot be told apart from a finished
-   * one, so the browser-local fallback could not express "completed"
-   * the way server-backed WatchHistory does. Optional because entries
-   * written before this field existed have no duration — those degrade
-   * to "in progress", which is what they were treated as before.
+   * one. Optional because entries written before this field existed have
+   * no duration — those degrade to "in progress".
    */
   duration?: number;
 }
@@ -101,12 +97,10 @@ export function saveProgress(
 }
 
 /**
- * Drop the stored playback markers for a file.
- *
  * Reaching the end of a video is NOT this: completion is a state we
- * keep (spec `2026-08-10-media-import-watch-surface.md` §4.2), and the
- * players record the final position instead. Only an explicit user
- * action — removing an item from recent history — belongs here.
+ * keep, and the players record the final position instead. Only an
+ * explicit user action — removing an item from recent history — belongs
+ * here.
  */
 export function clearProgress(fileId: string): void {
   const entries = getRecentlyPlayed().map((e) =>

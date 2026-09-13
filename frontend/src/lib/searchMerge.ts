@@ -6,14 +6,6 @@ import type {
   SortOrder,
 } from "@/types";
 
-/**
- * Generic semantic-engine hit.
- *
- * Mirrors the wire shape of intelligence's `/search` response so the
- * core can merge results without importing the addon's types directly.
- * Any future semantic provider that produces this shape can plug into
- * the same merge pipeline.
- */
 export interface SemanticHit {
   file_id: string;
   drive: string;
@@ -30,7 +22,6 @@ export interface SemanticHit {
       text?: string;
     }>;
   }>;
-  /** Hydrated FileItem from `/api/internal/files/bulk`; null when unreachable. */
   file: FileItem | null;
 }
 
@@ -38,37 +29,14 @@ const FILENAME_BOOST = 2.0;
 const CLIP_WEIGHT = 0.8;
 // Folder-path substring matches are noisier than filename hits ("/Music/"
 // matching every file under it on the query "music"), so they ride at a
-// deliberately low weight — surfaces the file in the list but keeps it
-// out of the top ranks unless another channel also fires. Spec
-// `2026-05-02-search-path-match.md` §D2.
+// deliberately low weight.
 const PATH_WEIGHT = 0.3;
-// SIRA-style LLM-expanded retrieval keywords: contributes to the
-// hybrid score but at a discount because the hit is tier-3 (LLM
-// guess at what a user would search for). A genuine text/transcript
-// hit on the same file outranks an expansion-only hit; a same-file
-// stack of text + expansion outranks either alone. Spec
-// docs/superpowers/specs/2026-05-14-sira-retrieval-keywords.md.
+// LLM-expanded retrieval keywords are discounted because the hit is an LLM
+// guess at what a user would search for.
 const RETRIEVAL_KEYWORDS_WEIGHT = 0.8;
 
-/**
- * Compose a `MatchMeta` from a single semantic engine hit.
- *
- * Backend `seg.matches[].type` is the raw embedding/match label from
- * intelligence (`whisper`, `text_content`, `metadata`, `clip`,
- * `clip_thumbnail`, plus `transcript` from the keyword path that
- * already aliases whisper). UI collapses to four buckets so a single
- * card never shows "audio" + "audio keyword" as two badges:
- *   audio-class      → meta.transcript    (whisper / transcript / transcript_keyword)
- *   text-class       → meta.content       (text_content / content / text_content_keyword)
- *   metadata-class   → meta.metadata
- *   visual-class     → meta.clip / meta.clip_thumbnail (kept distinct;
- *                      the scene-search toggle drives them differently)
- *
- * `hit.match_types` is the authoritative top-level summary the addon
- * publishes — we fall back to it so a hit that only has a `keyword`
- * (filename-keyword) channel without per-segment MatchInfo still
- * surfaces the right badge instead of an empty overlay.
- */
+// Collapsed into buckets so a single card never shows "audio" + "audio
+// keyword" as two badges.
 const AUDIO_TYPES = new Set(["transcript", "transcript_keyword", "whisper"]);
 const CONTENT_TYPES = new Set(["content", "text_content", "text_content_keyword"]);
 
@@ -121,26 +89,20 @@ export function buildMatchMeta(hit: SemanticHit): MatchMeta {
           ...(typeof m.page === "number" ? { page: m.page } : {}),
         });
       } else if (m.type === "retrieval_keywords") {
-        // LLM-expansion hit: chip-only, no jump target. ``m.text`` is
-        // the matched keyword string from the backend; collect them
-        // so the UI can later show "matched via: kw1, kw2".
         upsertRetrievalKeywords(score, m.text);
       }
       if (typeof m.page === "number") pageSet.add(m.page);
     }
   }
 
-  // Top-level fallback: if the addon declared a match channel but the
-  // per-segment MatchInfo list didn't expose a usable timestamp/score
-  // entry (happens for `keyword` filename-side hits, and for
-  // segment-less channels in some addon versions), we still want a
-  // badge to render. Use the hit-level score as a coarse proxy.
+  // The per-segment MatchInfo list does not always expose a usable entry
+  // (`keyword` filename-side hits, segment-less channels), so the hit-level
+  // score is used as a coarse proxy.
   const fallbackScore = hit.score ?? 0;
   for (const t of hit.match_types ?? []) {
     if (AUDIO_TYPES.has(t) && !meta.transcript) {
-      // No timestamp available — synthesise an audio badge with a
-      // placeholder time_range that the timestamp-pill renderer will
-      // skip (it filters seconds < 0).
+      // Placeholder time_range that the timestamp-pill renderer will skip
+      // (it filters seconds < 0).
       meta.transcript = [{ time_range: [-1, -1], score: fallbackScore }];
     } else if (CONTENT_TYPES.has(t) && !meta.content) {
       upsertScore("content", fallbackScore);
@@ -151,15 +113,8 @@ export function buildMatchMeta(hit: SemanticHit): MatchMeta {
     } else if (t === "clip" && !meta.clip) {
       meta.clip = [{ time_range: [-1, -1], score: fallbackScore }];
     } else if (t === "keyword" && !meta.filename) {
-      // Filename-keyword hit from the semantic engine. The filename
-      // engine usually sets `meta.filename` during merge, but if a hit
-      // came back semantic-only we still want a filename badge.
       meta.filename = { score: fallbackScore };
     } else if (t === "retrieval_keywords" && !meta.retrieval_keywords) {
-      // Backend declared a retrieval_keywords hit but the per-segment
-      // MatchInfo path missed it (defensive — current backend always
-      // emits a MatchInfo, but old/forked builds may not). Surface a
-      // chip-only badge without a matched-keyword list.
       meta.retrieval_keywords = { score: fallbackScore };
     }
   }
@@ -170,11 +125,6 @@ export function buildMatchMeta(hit: SemanticHit): MatchMeta {
   return meta;
 }
 
-/**
- * Hybrid relevance score. Higher = better. Initial weights — see spec
- * `2026-05-02-search-results-unification-phase3.md` §B; tuning is a
- * separate eval-driven workstream.
- */
 export function computeHybridScore(meta: MatchMeta): number {
   let score = 0;
   if (meta.filename) score += meta.filename.score * FILENAME_BOOST;
@@ -186,12 +136,8 @@ export function computeHybridScore(meta: MatchMeta): number {
     score += Math.max(...meta.clip.map((s) => s.score)) * CLIP_WEIGHT;
   }
   if (meta.clip_thumbnail) {
-    // Thumbnail CLIP carries the same per-file weight as scene CLIP;
-    // the addon already differentiates the two via separate
-    // ``rrf_weight_clip*`` knobs (spec
-    // 2026-05-02-thumbnail-clip-default-shallow-search.md), so the
-    // hybrid layer just rebroadcasts the score with the shared
-    // visual-channel weight.
+    // The addon already differentiates thumbnail and scene CLIP via separate
+    // ``rrf_weight_clip*`` knobs, so both share the visual-channel weight here.
     score += meta.clip_thumbnail.score * CLIP_WEIGHT;
   }
   if (meta.content) score += meta.content.score;
@@ -201,12 +147,6 @@ export function computeHybridScore(meta: MatchMeta): number {
   return score;
 }
 
-/**
- * Build a minimal FileItem from a SemanticHit when core's bulk hydrate
- * failed (`hit.file === null`). The card stays functional with reduced
- * fidelity — favorite toggle and tag display are unavailable, but
- * title, thumbnail, and click-through still work.
- */
 function fileItemFromHit(hit: SemanticHit): FileItem {
   if (hit.file) return hit.file;
   return {
@@ -225,10 +165,9 @@ function fileItemFromHit(hit: SemanticHit): FileItem {
     image_width: null,
     image_height: null,
     liked_at: null,
-    // Hydration failed, so the real tier is unknown. The values below are
-    // only placeholders to satisfy the shape; `trust_unknown` is what a
-    // trust filter actually reads, and it drops the row rather than let
-    // an unknown pass as verified.
+    // Placeholders to satisfy the shape; `trust_unknown` is what a trust
+    // filter actually reads, and it drops the row rather than let an unknown
+    // pass as verified.
     trust_tier: "verified" as const,
     trust_reviewed_at: null,
     trust_unknown: true as const,
@@ -245,25 +184,14 @@ function fileItemFromHit(hit: SemanticHit): FileItem {
 export interface MergeResultsParams {
   filenameMatches: FileItem[];
   semanticHits: SemanticHit[];
-  /** Server-reported total of the filename-match query. */
   filenameTotal: number;
 }
 
 export interface MergeResultsValue {
   files: FileItemWithMatch[];
-  /** Total estimate (filename total + semantic-only count). */
   total: number;
 }
 
-/**
- * Merge filename-match and semantic-engine results into a single list.
- *
- * Dedup is by `file_id` — when both engines hit the same file the
- * card keeps the canonical filename FileItem and overlays the semantic
- * `match_meta`, so the badge row shows both sources. Filename-only
- * files keep `match_meta.filename`; semantic-only files inherit a
- * minimal FileItem from the engine hit when bulk hydrate failed.
- */
 export function mergeResults({
   filenameMatches,
   semanticHits,
@@ -274,11 +202,8 @@ export function mergeResults({
 
   for (const f of filenameMatches) {
     filenameIds.add(f.id);
-    // spec 2026-05-02-search-path-match: backend returns which of title /
-    // folder_path / both was hit via `match_source`. When "path" only, skip
-    // the filename badge and show only the path badge. When `match_source` is
-    // absent (older backend / non-search path), fall back to filename badge
-    // for backward compatibility.
+    // `match_source` is absent on non-search paths, which fall back to the
+    // filename badge.
     const initialMeta: MatchMeta = {};
     const src = f.match_source ?? "filename";
     if (src === "filename" || src === "both") {
@@ -317,12 +242,6 @@ export function mergeResults({
   return { files, total: filenameTotal + semanticOnlyCount };
 }
 
-/**
- * Sort a merged list in place-safe order. The merge keeps filename
- * matches in their server-returned order; semantic-only files are
- * appended. Client-side sort is needed because the two sources can't
- * be combined server-side.
- */
 export function sortMerged(
   files: FileItemWithMatch[],
   sort: SortField,

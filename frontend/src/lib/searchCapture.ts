@@ -13,9 +13,7 @@ import {
 const EXCERPT_LIMIT = 160;
 
 export interface SearchSnippet {
-  /** The capture a Knowledge action would add to the basket, verbatim. */
   capture: NewSourceCapture;
-  /** Single-paragraph display text for the search result row. */
   excerpt: string;
 }
 
@@ -64,12 +62,8 @@ function isPlainText(file: FileItemWithMatch): boolean {
 }
 
 /**
- * Pick the single strongest quotable piece of evidence behind a search hit.
- *
  * Only text-bearing evidence qualifies. A CLIP scene match carries no words,
- * so quoting it would produce a locator with an empty body — the timestamp
- * pills already give the user a way into that moment, and the file detail
- * page owns the richer per-row capture actions.
+ * so quoting it would produce a locator with an empty body.
  */
 export function buildSearchSnippet(
   file: FileItemWithMatch,

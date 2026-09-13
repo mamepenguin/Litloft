@@ -8,13 +8,6 @@ export interface FilteredTreeRow {
   isAncestor: boolean;
 }
 
-/**
- * Group flat tree nodes by their parent path so the rendering pass can
- * walk the hierarchy without further API calls.
- *
- * The drive root is keyed under the empty string. The split takes the
- * path's last `/` segment as the node name and the prefix as its parent.
- */
 export function groupByParent(nodes: FolderTreeNode[]): Map<string, FolderTreeNode[]> {
   const byParent = new Map<string, FolderTreeNode[]>();
   for (const node of nodes) {
@@ -28,11 +21,8 @@ export function groupByParent(nodes: FolderTreeNode[]): Map<string, FolderTreeNo
 }
 
 interface MatchTables {
-  /** Paths whose node matched the filter directly. */
   matched: Set<string>;
-  /** Paths that should be visible as ancestors (dimmed). */
   ancestors: Set<string>;
-  /** Folder paths whose subtree cascades because the folder name matched. */
   cascadingFolders: Set<string>;
 }
 
@@ -49,10 +39,7 @@ function nodeMatches(node: FolderTreeNode, loweredText: string): boolean {
   }
   // A file node that arrived under an active type filter already
   // satisfies it: the query carried the filter and the backend applied
-  // it. Re-deciding here meant a second classifier, and the two
-  // disagreed — a `.md` row with no recorded mime was dropped by the
-  // server and kept by this one, so the tree and the listing showed
-  // different files for the same request.
+  // it. Re-deciding here would be a second classifier that can disagree.
   return true;
 }
 
@@ -81,7 +68,6 @@ export function computeMatchTables(
     }
   }
 
-  // Add ancestors for every match.
   for (const path of matched) {
     for (const a of ancestorsOf(path)) {
       if (!matched.has(a)) ancestors.add(a);
@@ -91,15 +77,6 @@ export function computeMatchTables(
   return { matched, ancestors, cascadingFolders };
 }
 
-/**
- * Walk the (already grouped) tree and produce flat rows for rendering,
- * applying the filter visibility rules:
- *
- *  - matched nodes render normally
- *  - matched-folder descendants render normally (cascade)
- *  - ancestors of matches render dimmed
- *  - everything else is hidden
- */
 export function buildFilteredRows(
   rootNodes: FolderTreeNode[],
   byParent: Map<string, FolderTreeNode[]>,

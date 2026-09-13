@@ -1,11 +1,7 @@
 import type { SortField } from "@/types";
 
 /**
- * Sort fields a folder can own.
- *
- * These are the ones ``SortButton`` can display and ``sortMerged`` knows
- * how to apply, so they are the only values a stored per-folder preference
- * may hold. ``liked_at`` is deliberately absent: the Liked view sets it on
+ * ``liked_at`` is deliberately absent: the Liked view sets it on
  * its own fetch, and an ordinary folder adopting it — from a hand-edited
  * preference, say — would sort by a column most of its rows leave NULL,
  * with no way for the toolbar to show what is going on.
@@ -32,8 +28,6 @@ export function isSortField(value: unknown): value is SortField {
 }
 
 /**
- * Drop a sort value the API no longer accepts.
- *
  * A sort selection outlives a deploy: it sits in ``folderPrefs`` per folder,
  * in the list snapshot, and in any URL that was shared or left open. When a
  * field is retired, an un-normalised value is replayed on every load and the

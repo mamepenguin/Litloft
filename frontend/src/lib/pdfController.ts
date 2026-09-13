@@ -1,19 +1,9 @@
 /**
- * What the PDF's canvas viewer publishes upward, and what the inspector's
- * page list writes back.
- *
- * The two live in different subtrees — the viewer is in the canvas, the page
- * list is a tab in the inspector — and only the viewer knows what pdf.js
- * loaded. The shape is the one `MediaController` already established for the
- * same problem: the canvas hands a controller up, the shell passes it across,
- * and the panel talks to that rather than to the viewer.
- *
  * It is a store rather than a plain object because the page changes while
  * both sides are mounted, and a React state read through a prop would be one
  * render behind the panel that just wrote it.
  */
 export interface PdfOutlineItem {
-  /** Nesting depth, 0 for a top-level entry. */
   depth: number;
   title: string;
   /** 1-origin, or `null` for a destination pdf.js could not resolve. */
@@ -21,13 +11,6 @@ export interface PdfOutlineItem {
 }
 
 export interface PdfDocumentState {
-  /**
-   * The URL the viewer loaded.
-   *
-   * Carried here rather than rebuilt by the shell: the page list needs the
-   * same source, and how a PDF is fetched is the viewer's business. Without
-   * it the shell would import `getStreamUrl` to compose a tab.
-   */
   src: string;
   numPages: number;
   page: number;
@@ -37,7 +20,6 @@ export interface PdfDocumentState {
 
 export interface PdfController {
   getState(): PdfDocumentState;
-  /** Clamped to the document. Out-of-range values are ignored, not folded. */
   goToPage(page: number): void;
   subscribe(listener: () => void): () => void;
 }
@@ -69,7 +51,7 @@ export class PdfDocumentStore implements PdfController {
   }
 
   /**
-   * Set by the panel and by the toolbar's input. Out of range does nothing
+   * Out of range does nothing
    * at all — a reader who typed `999` into a 225-page document is better
    * served by the page not moving than by arriving at the end, because the
    * second reads as if the number were accepted.
@@ -80,7 +62,6 @@ export class PdfDocumentStore implements PdfController {
     this.onGoToPage?.(page);
   }
 
-  /** Wired by the viewer, which owns the React state the page lives in. */
   onGoToPage: ((page: number) => void) | null = null;
 
   subscribe(listener: () => void): () => void {
@@ -92,14 +73,9 @@ export class PdfDocumentStore implements PdfController {
 }
 
 /**
- * pdf.js's outline is a tree of `{ title, items, dest }`. Flattened to a list
- * with a depth, because the panel draws it as indented rows and a nested
- * render would need a recursive component to say the same thing.
- *
  * `resolvePage` is passed in rather than imported: turning a destination into
  * a page index is `PDFDocumentProxy` work, and this module must not depend on
- * pdf.js — `lib/pdfDependencies.test.ts` exists to keep the worker out of
- * anything the server bundles.
+ * pdf.js.
  */
 export async function flattenOutline(
   raw: ReadonlyArray<{ title: string; items?: unknown[]; dest?: unknown }> | null,
@@ -126,8 +102,6 @@ export async function flattenOutline(
 }
 
 /**
- * What the reader typed in the page box, as a page number or nothing.
- *
  * Nothing means "leave the page where it is". Out of range is nothing rather
  * than a clamp for the reason `goToPage` gives; so is `abc`, `0`, `-3`, an
  * empty box, and `1.5`.

@@ -1,23 +1,10 @@
 "use client";
 
 /**
- * A single shared playback clock over `MediaController`.
- *
- * Why this exists: several unrelated surfaces need to know where
- * playback currently is — the control bar, the floating mini player,
- * the transcript's active-cue highlight, chapter position, and Media
- * Session's `setPositionState`. `MediaController` is a pull-shaped
- * contract (getters, no events), and turning it into a push contract
- * would put an implementation burden on every backend including
- * third-party Loft providers. So we poll — but exactly once per
- * controller, here, instead of once per consumer wherever they happen
- * to live.
- *
- * Before this module the same polling was written out four times, and
- * one of those copies was private to the control bar, which is why the
- * transcript highlight could not be made to work for YouTube at all.
- *
- * Spec: docs/superpowers/specs/2026-08-11-playback-clock-foundation.md
+ * `MediaController` is a pull-shaped contract (getters, no events), and
+ * turning it into a push contract would put an implementation burden on
+ * every backend including third-party Loft providers. So we poll — but
+ * exactly once per controller, here, instead of once per consumer.
  */
 
 import { useCallback, useSyncExternalStore } from "react";
@@ -51,7 +38,6 @@ interface ClockEntry {
   listeners: Set<() => void>;
   snapshot: MediaClockSnapshot;
   timer: ReturnType<typeof setInterval> | null;
-  /** Interval currently in force, so we only restart when it changes. */
   rateMs: number;
 }
 
@@ -68,7 +54,6 @@ function finite(value: number): number {
   return Number.isFinite(value) ? value : 0;
 }
 
-/** 0 means "no usable length", matching the control bar's convention. */
 function usableDuration(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
@@ -196,14 +181,9 @@ export function subscribeMediaClock(
 
 /**
  * The snapshot as of the last tick — deliberately *not* a fresh read.
- *
  * `useSyncExternalStore` calls this several times per render and throws
- * if two calls disagree, so it cannot read a moving player on demand.
- * The consequence is that the value only advances while something is
- * subscribed: a standalone call on an idle controller returns whatever
- * was last observed, which for a controller nobody ever subscribed to
- * is the reading taken when its entry was created. Pair reads with
- * `subscribeMediaClock` (or `useMediaClock`, which does it for you).
+ * if two calls disagree, so it cannot read a moving player on demand; the
+ * value only advances while something is subscribed.
  */
 export function getMediaClockSnapshot(
   mc: MediaController,
