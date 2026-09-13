@@ -1099,9 +1099,7 @@ both states; the snap sets how far vaul translates it down, and what is left on
 screen is that height less the translate. So the fixed `half` is 40% of the
 window and not 50%, and the two rows above are the same subtraction with a
 different snap — which is why the Height column is written as the arithmetic
-rather than as a figure, and why `inspectorThresholdParity.test.ts` evaluates it
-against `SHEET_SNAP_HALF_FALLBACK`, `SHEET_SNAP_FULL` and `SHEET_DRAWER_VH`. The
-third column is prose and nothing enforces it.
+rather than as a figure. The values themselves live in `lib/sheetSnap.ts`.
 
 **`vh` above means `window.innerHeight`, and the drawer is sized in it too.** Not
 the CSS unit: on a phone `100vh` is the *large* viewport, the height with the

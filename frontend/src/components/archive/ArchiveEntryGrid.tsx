@@ -35,13 +35,8 @@ export function ArchiveEntryGrid({
     );
   }
 
-  // Justified rather than a column count, and the column count is gone
-  // rather than moved: `grid-cols-2 sm: md: lg: xl:` measured the
-  // *window*, and this grid renders beside a 384px inspector, so it was
-  // counting columns for a width it does not have (`DESIGN.md` §8.5,
-  // "Measure against the container, not the viewport"). A justified row
-  // has no column count to get wrong, and a scanned page stops being
-  // cropped square into the bargain.
+  // Not breakpoint columns: those follow the window, and this grid renders
+  // beside the inspector.
   return (
     <div className="justified-grid-host">
       <div className="justified-grid">
