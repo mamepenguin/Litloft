@@ -1,22 +1,3 @@
-/**
- * The Bottom Sheet's gesture-ownership table, state by state.
- *
- * **This is the only place the whole table can be measured, and it cannot
- * measure a browser.** The module is arithmetic over numbers a caller
- * supplies, so every state is reachable here by supplying them — which is
- * also why a scroller that bounces past its own top is testable in jsdom
- * and the round that added the clamp for it wrongly said otherwise. What
- * jsdom cannot produce is the *reading*: it lays nothing out, so nothing
- * here is evidence that a browser ever reports these offsets, and
- * `preventDefault()` on a synthetic touch cancels no scroll that never
- * started.
- *
- * That the browser then honours the decision (the scroller does not move
- * a pixel while the sheet does, and the reverse) is measured in
- * `e2e-components/sheet-gesture.spec.ts` against the real component with
- * CDP touch events.
- */
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -46,16 +27,6 @@ function run(
   );
 }
 
-/**
- * Every gesture the design names, as declared inputs and declared
- * outcomes — not as outcomes read back from a run.
- *
- * Each row is a whole gesture: where the scroller stood when the finger
- * landed, where the finger went, how fast it was moving when it left, and
- * what the sheet is supposed to do about it. The population is pinned
- * below, because a table that can be walked back to any length is not a
- * table (`.claude/rules/review-workflow.md`, detector rule 5).
- */
 const GESTURES: {
   name: string;
   begin: { scrollTop: number; maxScroll: number };
@@ -66,8 +37,6 @@ const GESTURES: {
   release: "dismiss" | "settle";
 }[] = [
   {
-    // Condition 1: nothing to scroll, so the gesture was never the
-    // scroller's to take.
     name: "a sheet that does not scroll, pushed down",
     begin: { scrollTop: 0, maxScroll: 0 },
     moves: [
@@ -80,7 +49,6 @@ const GESTURES: {
     release: "dismiss",
   },
   {
-    // Condition 2: at the top, pushed down far enough.
     name: "at the top, pushed down past the dismiss distance",
     begin: { scrollTop: 0, maxScroll: TALL },
     moves: [
@@ -93,8 +61,6 @@ const GESTURES: {
     release: "dismiss",
   },
   {
-    // Condition 2, not far enough: the sheet still followed the finger,
-    // and springs back.
     name: "at the top, pushed down and released short",
     begin: { scrollTop: 0, maxScroll: TALL },
     moves: [
@@ -107,8 +73,6 @@ const GESTURES: {
     release: "settle",
   },
   {
-    // Condition 4: a flick from the top closes on velocity, at a distance
-    // the previous row springs back from.
     name: "at the top, flicked down",
     begin: { scrollTop: 0, maxScroll: TALL },
     moves: [
@@ -121,8 +85,6 @@ const GESTURES: {
     release: "dismiss",
   },
   {
-    // Condition 3: started below the top, scrolled to the top without
-    // lifting, then kept pushing.
     name: "scrolled to the top and kept pushing",
     begin: { scrollTop: 300, maxScroll: TALL },
     moves: [
@@ -137,9 +99,8 @@ const GESTURES: {
     release: "dismiss",
   },
   {
-    // The negative form of condition 3: a hard flick that only reached
-    // the top as the finger left. Nothing was pushed past the top, so the
-    // scroller keeps the gesture and the sheet never moves.
+    // Nothing was pushed past the top, so the scroller keeps the gesture
+    // and the sheet never moves.
     name: "flicked hard and only reached the top on the way out",
     begin: { scrollTop: 400, maxScroll: TALL },
     moves: [
@@ -153,9 +114,8 @@ const GESTURES: {
     release: "settle",
   },
   {
-    // Reading on: at the top, moving up. The scroller takes it and keeps
-    // it, so the sheet cannot be dragged upward from its content — that
-    // is the knob's job.
+    // The sheet cannot be dragged upward from its content — that is the
+    // knob's job.
     name: "at the top, dragged up to read on",
     begin: { scrollTop: 0, maxScroll: TALL },
     moves: [
@@ -168,11 +128,8 @@ const GESTURES: {
     release: "settle",
   },
   {
-    // The same, in a sheet with nothing to scroll. The direction is still
-    // read: a sheet that cannot scroll vertically may still hold
-    // something that scrolls sideways (the tab strip is
-    // `overflow-x-auto`), and claiming every touch there refuses the
-    // browser a gesture it could have answered.
+    // The direction is still read: a sheet that cannot scroll vertically
+    // may still hold something that scrolls sideways.
     name: "nothing to scroll, dragged up",
     begin: { scrollTop: 0, maxScroll: 0 },
     moves: [
@@ -185,17 +142,9 @@ const GESTURES: {
     release: "settle",
   },
   {
-    // And what that costs, stated rather than left to be discovered: a
-    // gesture that went up first is the scroller's, and the handoff is
-    // the only way back, so the finger has to push
-    // `SHEET_PULL_HANDOFF_PX` **past the top** before the sheet follows.
-    //
     // In a sheet that cannot scroll, "past the top" is measured from
     // where the finger turned, because no part of the reversal was
-    // answered by scrolling. In one that can, the scroll answers it first
-    // and the push starts only once the scroller is back at its top — so
-    // the same rule costs the reader more there. The rule is one; the
-    // distance is not, and this row is the non-scrolling half of it.
+    // answered by scrolling.
     name: "nothing to scroll, dragged up and then back down",
     begin: { scrollTop: 0, maxScroll: 0 },
     moves: [
@@ -235,16 +184,6 @@ describe("sheet pull gesture", () => {
     expect(new Set(GESTURES.map((g) => g.name)).size).toBe(10);
   });
 
-  /**
-   * The thresholds' own values, in literals.
-   *
-   * Every row above writes its moves as arithmetic on the constants, so
-   * both sides of each comparison move together and the *values* are
-   * unpinned: `SHEET_PULL_HANDOFF_PX = 1` left the whole table green,
-   * which is the tuning that brings back the defect this module exists to
-   * prevent. These three are the values, written out — so changing one is
-   * a decision taken here rather than a number that agrees with itself.
-   */
   describe("the values, not only the arithmetic", () => {
     it("hands over after 48px past the top and not after 47", () => {
       const push = (past: number) =>
@@ -257,21 +196,13 @@ describe("sheet pull gesture", () => {
     });
 
     it("still calls a fractional offset the top, and 400px not the top", () => {
-      // The one constant here whose docstring names a device rather than
-      // a comfort: a scroller on a device pixel ratio other than 1
-      // reports a fractional `scrollTop`, so `=== 0` would refuse the
-      // gesture the reader thinks they are making. Both bounds, because
-      // the pair above it was pinned into (0, 400) and **zero is the
-      // value the docstring exists to refuse** — at zero a device
-      // reporting `0.36` after a scroll clears the banked push on every
-      // frame and the handoff can never accumulate.
+      // At zero, a device reporting `0.36` after a scroll clears the banked
+      // push on every frame and the handoff can never accumulate.
       const startedAt = (scrollTop: number) =>
         beginSheetPull({ scrollTop, maxScroll: TALL }).owner;
       expect(startedAt(0.36)).toBe("undecided");
       expect(startedAt(3)).toBe("scroller");
 
-      // And the same value, in its other use: the frame-by-frame test
-      // that decides whether a push past the top is still owed.
       const banked = (scrollTop: number) =>
         run({ scrollTop: 200, maxScroll: TALL }, [
           { dy: 200, scrollTop: 0 },
@@ -301,7 +232,6 @@ describe("sheet pull gesture", () => {
       expect(at(72, 0)).toBe("dismiss");
       expect(at(20, 0.49)).toBe("settle");
       expect(at(20, 0.5)).toBe("dismiss");
-      // And zero travel is never a dismissal, whatever the speed.
       expect(at(0, 9)).toBe("settle");
     });
   });
@@ -326,10 +256,6 @@ describe("sheet pull gesture", () => {
   );
 
   it("never translates the sheet while the scroller owns the gesture", () => {
-    // The one claim that has to hold for every row rather than per row:
-    // a gesture the scroller owns leaves the sheet at rest, whatever the
-    // finger did. This is the jsdom half of "the two never move together";
-    // the browser half is in `e2e-components/sheet-gesture.spec.ts`.
     const scrollerOwned = GESTURES.filter((g) => g.owner === "scroller");
     expect(scrollerOwned).toHaveLength(3);
     for (const g of scrollerOwned) {

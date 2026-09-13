@@ -46,8 +46,8 @@ describe("splitting a wide page — unchanged behaviour", () => {
   });
 
   it("reads the first half in reading order, not screen order", () => {
-    // The distinction the whole feature turns on: right-to-left starts
-    // on the right half, so `showRightHalf` means opposite things.
+    // Right-to-left starts on the right half, so `showRightHalf` means
+    // opposite things.
     const ltr = (showRightHalf: boolean) =>
       isOnFirstHalf(splitting({ readingDirection: "ltr", showRightHalf }));
     const rtl = (showRightHalf: boolean) =>
@@ -84,8 +84,6 @@ describe("splitting a wide page — unchanged behaviour", () => {
   });
 
   it("asks spreadMode, not the active split, about the page it arrives at", () => {
-    // Whether the page being arrived at has two halves is not something
-    // the page being left can answer.
     expect(
       pageBack(state({ index: 1, spreadMode: false, canPair: false })),
     ).toEqual({ index: 0, showRightHalf: false });
@@ -120,7 +118,6 @@ describe("pairing two tall pages", () => {
   });
 
   it("lands on the start of the face it turns back into", () => {
-    // Not inside it: turning back from the 3-4 face reaches 1-2 at 1.
     expect(pageBack(state({ index: 3 }))?.index).toBe(1);
     expect(pageBack(state({ index: 1 }))?.index).toBe(0);
   });
@@ -135,8 +132,6 @@ describe("pairing two tall pages", () => {
   });
 
   it("does not pair a page whose shape has not been reported", () => {
-    // `unknown` is an answer. Pairing on a guess is how a spread ends up
-    // one page out of step for the rest of the book.
     const unknownNext = state({
       index: 1,
       orientationAt: shapes({ 2: "unknown" }),
@@ -151,9 +146,6 @@ describe("pairing two tall pages", () => {
   });
 
   it("comes apart when the frame narrows and pairs again when it widens", () => {
-    // The switch stays on throughout; it is the window that changed.
-    // `canPair` is the only input that moves here, so this is the whole
-    // of what a resize does to the face.
     const wide = state({ index: 1, canPair: true });
     const narrow = state({ index: 1, canPair: false });
 
@@ -164,8 +156,6 @@ describe("pairing two tall pages", () => {
     expect(faceAt(narrow).kind).toBe("single");
     expect(faceAt(wide).kind).toBe("pair");
 
-    // And the turn follows the face rather than the index: two pages
-    // showing means two pages turned.
     expect(pageForward(wide)?.index).toBe(3);
     expect(pageForward(narrow)?.index).toBe(2);
   });
@@ -179,14 +169,7 @@ describe("pairing two tall pages", () => {
 });
 
 describe("turning back through a paired book", () => {
-  /**
-   * A viewer that only knows the page it is on and the one after it.
-   *
-   * The archive's shape before it remembered what it had loaded. The
-   * pure functions were right and their fixture was omniscient, so the
-   * one caller that could not answer about a page behind the reader
-   * violated the precondition quietly.
-   */
+  /** A viewer that only knows the page it is on and the one after it. */
   function shortSighted(index: number, over: Partial<SpreadState> = {}) {
     return state({
       index,
@@ -197,10 +180,6 @@ describe("turning back through a paired book", () => {
   }
 
   it("needs one press per face, not two", () => {
-    // From the 4-5 face (index 3), back should reach the 2-3 face at
-    // index 1. Answered `unknown` about index 2, it landed on a single
-    // face at 2 — a page the reader had just seen as the right half of
-    // the face they were leaving.
     const remembering = state({ index: 3 });
     expect(pageBack(remembering)?.index).toBe(1);
 
@@ -209,8 +188,6 @@ describe("turning back through a paired book", () => {
   });
 
   it("is symmetric: back then forward returns to where it started", () => {
-    // The property the two-press bug broke. A face is one press either
-    // way, so a turn back and a turn forward is a round trip.
     for (const index of [1, 3, 5, 7]) {
       const here = state({ index });
       const back = pageBack(here);
@@ -238,9 +215,6 @@ describe("both ends", () => {
   });
 
   it("agrees with itself: a turn is possible exactly when it lands somewhere", () => {
-    // The two are separate expressions in the source, and a page-turner
-    // whose button is enabled and whose press does nothing is worse than
-    // one that admits it.
     let checked = 0;
     for (const index of [0, 1, 2, 8, 9]) {
       for (const spreadMode of [true, false]) {
