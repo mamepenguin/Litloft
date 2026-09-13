@@ -8,7 +8,7 @@ import {
   createEvent,
   waitFor,
 } from "@testing-library/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useDialogPortalTarget } from "@/components/DialogPortal";
@@ -159,12 +159,14 @@ describe("MobileInspectorSheet", () => {
   });
 
   describe("opened again", () => {
-    let setHostState: (next: SheetState) => void = () => undefined;
+    const host: { set: (next: SheetState) => void } = { set: () => undefined };
     const calls: SheetState[] = [];
 
     function Host() {
       const [state, setState] = useState<SheetState>(SHEET_STATE_HALF);
-      setHostState = setState;
+      useEffect(() => {
+        host.set = setState;
+      }, []);
       return (
         <MobileInspectorSheet
           state={state}
@@ -189,7 +191,7 @@ describe("MobileInspectorSheet", () => {
       fireEvent.keyDown(document, { key: "Escape" });
       await screen.findByTestId("peek-content");
 
-      act(() => setHostState(SHEET_STATE_HALF));
+      act(() => host.set(SHEET_STATE_HALF));
       await screen.findByTestId("mobile-inspector-sheet");
       fireEvent.keyDown(document, { key: "Escape" });
       await screen.findByTestId("peek-content");
@@ -201,7 +203,7 @@ describe("MobileInspectorSheet", () => {
       calls.length = 0;
       render(<Host />);
       await screen.findByTestId("mobile-inspector-sheet");
-      act(() => setHostState(SHEET_STATE_FULL));
+      act(() => host.set(SHEET_STATE_FULL));
       fireEvent.keyDown(document, { key: "Escape" });
       await screen.findByTestId("peek-content");
       await wait(900);
@@ -216,9 +218,9 @@ describe("MobileInspectorSheet", () => {
       await screen.findByTestId("mobile-inspector-sheet");
       fireEvent.keyDown(document, { key: "Escape" });
       await wait(50);
-      act(() => setHostState(SHEET_STATE_PEEK));
+      act(() => host.set(SHEET_STATE_PEEK));
       await wait(20);
-      act(() => setHostState(SHEET_STATE_HALF));
+      act(() => host.set(SHEET_STATE_HALF));
       await wait(600);
 
       expect(screen.getByTestId("mobile-inspector-sheet")).toBeInTheDocument();
