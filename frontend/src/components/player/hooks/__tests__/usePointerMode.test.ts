@@ -4,15 +4,9 @@ import { usePointerMode } from "../usePointerMode";
 
 type Listener = () => void;
 
-/**
- * Installs a matchMedia backed by explicit answers for both pointer
- * queries, so tests can express "neither matches" — the shape jsdom
- * and very old browsers actually produce.
- */
 function installMatchMedia(initial: { coarse: boolean; fine: boolean }) {
-  // One set per query, not one shared set: the hook subscribes the same
-  // callback to both, and a shared Set would silently dedupe it and
-  // under-report what was actually registered.
+  // One set per query: the hook subscribes the same callback to both, and a
+  // shared Set would dedupe it.
   const listeners = new Map<string, Set<Listener>>();
   let current = initial;
   window.matchMedia = vi.fn().mockImplementation((query: string) => {
@@ -45,9 +39,7 @@ function installMatchMedia(initial: { coarse: boolean; fine: boolean }) {
   };
 }
 
-// One test deletes matchMedia outright, which restoreAllMocks cannot
-// undo — it is a property redefinition, not a spy. Left in place it
-// leaks into whatever file the worker runs next.
+// One test redefines matchMedia outright, which restoreAllMocks cannot undo.
 const realMatchMedia = window.matchMedia;
 
 afterEach(() => {
@@ -61,8 +53,6 @@ afterEach(() => {
 
 describe("usePointerMode", () => {
   it("starts unknown so the server and client agree on first paint", () => {
-    // Reading matchMedia during render would make the markup differ
-    // between the server (no matchMedia at all) and the client.
     installMatchMedia({ coarse: true, fine: false });
     let firstRenderValue: string | null = null;
     renderHook(() => {
@@ -86,8 +76,6 @@ describe("usePointerMode", () => {
   });
 
   it("stays unknown when neither query matches", () => {
-    // Not a hypothetical: this is what jsdom answers by default, and
-    // the gestures must stay inert rather than guess an input mode.
     installMatchMedia({ coarse: false, fine: false });
     const { result } = renderHook(() => usePointerMode());
     expect(result.current).toBe("unknown");

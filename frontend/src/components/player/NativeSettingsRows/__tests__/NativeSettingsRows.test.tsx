@@ -69,9 +69,8 @@ describe("native settings rows", () => {
   });
 
   it("leaves Picture-in-Picture again when it is already on", async () => {
-    // It renders as a switch, so pressing it while on has to turn it
-    // off. The standard route out goes through `document`, not the
-    // element, which is why entering and leaving are not symmetric.
+    // The standard route out goes through `document`, not the element,
+    // which is why entering and leaving are not symmetric.
     const video = document.createElement("video");
     const exitPictureInPicture = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(video, "requestPictureInPicture", {
@@ -167,9 +166,6 @@ describe("native settings rows", () => {
   });
 
   it("renders autoplay as an icon switch and stores its choice", () => {
-    // Icon-only, so the name lives on `aria-label` and the state on
-    // `aria-checked` — there is no visible text to assert. `title`
-    // repeats the name for a pointer hover.
     render(<NativeAutoplayToggle />);
     const row = screen.getByRole("switch", { name: "Autoplay" });
     expect(row).toHaveClass("h-11", "w-11");

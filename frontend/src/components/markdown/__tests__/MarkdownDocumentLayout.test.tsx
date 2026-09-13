@@ -1,40 +1,20 @@
 /**
- * Tests for `MarkdownDocumentLayout` — what a Markdown note adds to the
- * shared `FileDetailShell`, and what that shell does underneath it.
- *
- * Contract:
- *   - Renders a single 48px top chrome containing TreeToggle, the
- *     breadcrumb ending in the filename, the save dot, the view-mode
- *     segmented toggle, and an Inspector toggle.
- *   - Desktop (>=768px): Inspector pane sits beside the canvas when
- *     open. When closed, nothing replaces it (the previous
- *     `InspectorStrip` rail was retired).
- *   - Mobile (<768px): the Inspector toggle opens a single Bottom
- *     Sheet that hosts the same inspector content the desktop pane
- *     would. The legacy floating Action Bar (tags/related/AI tabs) is
- *     gone.
- *   - `Ctrl+\` toggles the inspector on desktop. The binding lives at
- *     the layout root so it survives the pane's unmount when closed
- *     (B6 regression).
+ * The `Ctrl+\` binding lives at the layout root so it survives the pane's
+ * unmount when closed.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 
-// `useSearchParams()` is the new gate for "did the user create this
-// file?" — `?edit=1` is carried through `useCreateFile`'s canonical
-// redirect, and the layout uses it to decide whether to land the user
-// in edit or preview mode. The hoisted mock lets each test set its own
-// params before importing.
+// `?edit=1` is carried through `useCreateFile`'s canonical redirect and
+// lands a newly created file in edit mode.
 const searchParamsRef = vi.hoisted(() => ({
   current: new URLSearchParams() as URLSearchParams | null,
 }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParamsRef.current,
-  // TreeToggle (rendered inside MarkdownDocumentLayout) now consults the
-  // route to auto-hide on cross-folder views — provide a stub pathname
-  // so the hook doesn't crash inside this layout-focused suite.
+  // TreeToggle consults the route to auto-hide on cross-folder views.
   usePathname: () => "/drive/work/foo.md",
 }));
 
@@ -153,7 +133,6 @@ describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
     setViewportWidth(1100); // < 1120 → default closed
     renderLayout();
     expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
-    // The InspectorStrip rail was retired in the consolidation.
     expect(screen.queryByTestId("inspector-strip")).not.toBeInTheDocument();
   });
 
@@ -248,8 +227,6 @@ describe("MarkdownDocumentLayout — mobile (< 768px)", () => {
     );
     fireEvent.click(screen.getByTestId("inspector-toggle"));
     expect(await screen.findByTestId("sheet-extra")).toBeInTheDocument();
-    // The desktop-only inspector content must NOT appear in the
-    // sheet when the override is provided.
     expect(screen.queryByTestId("inspector-only")).toBeNull();
   });
 });

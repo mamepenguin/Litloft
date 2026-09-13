@@ -70,7 +70,6 @@ describe("FolderTreeRow — onContextMenu", () => {
   });
 
   it("does nothing when onContextMenu is omitted (browser default fires)", () => {
-    // No throws; this is a smoke test ensuring the prop is optional.
     const { getByText } = render(
       <FolderTreeRow
         row={folderRow}
@@ -80,7 +79,6 @@ describe("FolderTreeRow — onContextMenu", () => {
       />,
     );
     fireEvent.contextMenu(getByText("Notes"));
-    // No assertion needed: render and fire without error is sufficient.
   });
 });
 

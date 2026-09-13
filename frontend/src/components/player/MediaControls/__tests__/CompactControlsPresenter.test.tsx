@@ -83,8 +83,6 @@ describe("CompactControlsPresenter", () => {
       expect(bar).not.toBeDisabled();
     });
 
-    // The bar belongs below the row, on the frame's bottom edge, rather
-    // than above it the way the pointer layout stacks them.
     it("comes after the button row", () => {
       const { container } = renderControls();
       const root = container.querySelector(
@@ -104,9 +102,6 @@ describe("CompactControlsPresenter", () => {
     });
   });
 
-  // The whole point of this layout: at 320px the pointer row's trailing
-  // controls are clipped off the frame and become unclickable. Absent is
-  // the correct state, not clipped.
   describe("controls this layout does without", () => {
     it("has no settings, fullscreen, skip or volume controls", () => {
       renderControls();

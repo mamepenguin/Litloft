@@ -1,11 +1,3 @@
-/**
- * spec 2026-08-21-folder-scoped-tag-filter §8
- *
- * With folder scope as the default, the drive-wide view needs a door.
- * One component serves both places it is offered — the toolbar header and
- * the empty state — so the two cannot drift apart in wording or target.
- */
-
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 

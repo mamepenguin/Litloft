@@ -3,8 +3,6 @@ import { renderHook, act } from "@testing-library/react";
 import { useFullscreen } from "../useFullscreen";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 
-// ---------- matchMedia harness ----------
-
 interface FakeMediaQuery {
   matches: boolean;
   listeners: Set<(e: MediaQueryListEvent) => void>;
@@ -50,8 +48,6 @@ function setMedia(query: string, matches: boolean) {
 const COARSE = "(pointer: coarse)";
 const LANDSCAPE = "(orientation: landscape)";
 
-// ---------- fullscreen harness ----------
-
 let fullscreenElement: Element | null = null;
 let frame: HTMLDivElement;
 let requestFullscreen: ReturnType<typeof vi.fn> | null;
@@ -67,7 +63,6 @@ const scrollTo = vi.fn();
 function setNativeSupport(mode: "ok" | "reject" | "absent") {
   if (mode === "absent") {
     requestFullscreen = null;
-    // jsdom leaves this undefined already; be explicit for clarity.
     Object.defineProperty(frame, "requestFullscreen", {
       configurable: true,
       value: undefined,
@@ -86,10 +81,8 @@ function setNativeSupport(mode: "ok" | "reject" | "absent") {
 }
 
 function renderFullscreen(autoRotateEnabled = true) {
-  // Escape now leaves pseudo-fullscreen through the shortcut stack, so
-  // the hook is rendered under the provider the app mounts around
-  // everything. Without it the stack is a no-op and Escape does
-  // nothing — which is the failure this wrapper exists to rule out.
+  // Escape leaves pseudo-fullscreen through the shortcut stack, so the
+  // hook is rendered under the provider the app mounts around everything.
   return renderHook(
     () => useFullscreen({ frameRef: { current: frame }, autoRotateEnabled }),
     { wrapper: ShortcutsProvider },
@@ -125,8 +118,6 @@ afterEach(() => {
   frame.remove();
   vi.restoreAllMocks();
 });
-
-// ---------- tests ----------
 
 describe("useFullscreen — native vs pseudo", () => {
   it("uses the native API when the platform has one", async () => {
@@ -201,9 +192,7 @@ describe("useFullscreen — exiting", () => {
     await act(async () => result.current.toggle());
     act(() => {
       // Dispatched on `document`, which is where ShortcutsProvider
-      // listens. The old code bound `window` directly; an event
-      // dispatched on `window` never reaches a document listener, so
-      // the target is part of what changed here.
+      // listens; an event dispatched on `window` never reaches it.
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     });
     expect(result.current.isPseudo).toBe(false);

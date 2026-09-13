@@ -306,9 +306,8 @@ describe("MediaControlsContainer", () => {
     });
 
     /**
-     * Three layouts now, and the touch one is no longer the only one
-     * without a volume slider, so `isTouchLayout` cannot tell compact
-     * from touch. Each layout's root carries its own test id.
+     * The compact layout has no volume slider either, so `isTouchLayout`
+     * cannot tell compact from touch.
      */
     function layoutOf(container: HTMLElement): string {
       for (const [id, name] of [
@@ -434,8 +433,7 @@ describe("MediaControlsContainer", () => {
      * Nothing may sit over the whole frame and take pointer input
      * except the gesture overlay itself. A layout that does swallows
      * every tap, long press and double tap on the video, and the
-     * controls cannot even be summoned back — which is exactly what
-     * the touch layout did when it first landed.
+     * controls cannot even be summoned back.
      */
     function fullFrameElementsTakingInput(container: HTMLElement): HTMLElement[] {
       // Only the layers the container puts directly on the frame count.

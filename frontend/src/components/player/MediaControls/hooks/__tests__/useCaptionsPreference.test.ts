@@ -59,8 +59,6 @@ describe("useCaptionsPreference", () => {
   });
 
   it("renders unset on the first pass so the server and client agree", () => {
-    // Reading localStorage during render would make the markup differ
-    // between the server and the client's first paint.
     window.localStorage.setItem(STORAGE_KEY, "true");
     let firstRenderValue: boolean | null | undefined;
     renderHook(() => {

@@ -185,7 +185,6 @@ describe("useFolderFiles", () => {
     }));
   });
 
-  // spec 2026-08-21-folder-scoped-tag-filter §4
   it("scopes a tag filter to the current folder's subtree", async () => {
     const { result } = renderHook(() =>
       useFolderFiles({
@@ -212,10 +211,8 @@ describe("useFolderFiles", () => {
   });
 
   it("sends no path for a tag filter at the drive root", async () => {
-    // §3.1: the whole drive, not the root's own children. `undefined` is
-    // what the route delivers here — `page.tsx` supplies a folder path
-    // only for `?view=library` — and omitting `path` applies no folder
-    // predicate at all.
+    // The whole drive, not the root's own children: omitting `path` applies
+    // no folder predicate at all.
     const { result } = renderHook(() =>
       useFolderFiles({
         driveName: "main",
@@ -264,11 +261,8 @@ describe("useFolderFiles", () => {
   });
 
   it("sends no path when there is no folder to anchor to", async () => {
-    // A nullish folderPath means "no folder to stand in": the drive root
-    // reached with a tag filter, where §3.1 wants the whole drive rather
-    // than the root's own children. The root reached *as a location* is a
-    // different state and arrives as `folderPath: ""` — see the Library
-    // root block at the bottom of this file.
+    // A nullish folderPath means no folder to anchor to. The root reached
+    // *as a location* is a different state and arrives as `folderPath: ""`.
     const { result } = renderHook(() =>
       useFolderFiles({
         driveName: "main",
@@ -577,8 +571,6 @@ describe("useFolderFiles", () => {
         }),
       );
 
-      // Initial render should already include the cached items without
-      // a network round-trip.
       expect(result.current.files.map((f) => f.id)).toContain("cached-1");
       expect(result.current.total).toBeGreaterThanOrEqual(42);
 
@@ -626,11 +618,8 @@ describe("useFolderFiles", () => {
         }),
       );
 
-      // Cached semantic hit must appear in the merged list immediately.
       expect(result.current.files.map((f) => f.id)).toContain("sem-1");
 
-      // Stale-while-revalidate: the hook should still call
-      // fetchSemanticHits to refresh in the background.
       await waitFor(() => {
         expect(mockFetchSemanticHits).toHaveBeenCalled();
       });
@@ -687,27 +676,9 @@ describe("useFolderFiles", () => {
 });
 
 /**
- * The Library root — `/drive/{name}?view=library`.
- *
- * `page.tsx` turns that view into a location before the hook sees it, so
- * what arrives here is `folderPath: ""` — the drive root's own
- * `folder_path` — and `view` is carried only for the route layer's own
- * use. These cases therefore use the values the route actually delivers,
- * which is the dimension that decides whether the listing is the root's
- * children or the whole drive flat (spec
- * 2026-09-12-purpose-oriented-navigation §7.1, AC 8 and AC 9).
- *
- * Each case pins **the whole call record**, not one matching call. An
- * exact `toEqual` on the arguments closes the "a key that should not be
- * there" hole, and only a bound record closes the "a second, wrong
- * request fired alongside the right one" hole — which is the pre-change
- * defect, and which a matcher on one call cannot see.
- *
- * What these cannot reach: a second page. `useInfiniteScroll` asks for
- * one when its sentinel intersects, and jsdom has no
- * IntersectionObserver behaviour to intersect with, so every case here
- * is page 1 (`.claude/rules/review-workflow.md`, "jsdom lays nothing
- * out").
+ * `/drive/{name}?view=library` arrives at the hook as `folderPath: ""`, so
+ * these cases use that value. Each pins the whole call record, so a second,
+ * wrong request cannot hide beside the right one.
  */
 describe("useFolderFiles at the Library root", () => {
   const baseParams = {
@@ -757,15 +728,9 @@ describe("useFolderFiles at the Library root", () => {
   const requests = () => mockGetDriveFiles.mock.calls;
 
   /**
-   * The same, with identical repeats collapsed.
-   *
-   * A change of location fires the listing request twice — the reset
-   * effect bumps the infinite scroll's epoch and `fetchPage`'s identity
-   * changes — which predates this change and is the same on every filter
-   * change. Measured across a transition: two calls, byte-identical.
-   * Collapsing repeats keeps the assertion about *which* requests were
-   * made, which is what a stale closure would get wrong, while still
-   * failing on a second, different request and on no request at all.
+   * A change of location fires the identical listing request twice (the
+   * reset effect bumps the infinite scroll's epoch and `fetchPage`'s
+   * identity changes), so repeats are collapsed.
    */
   const distinctRequests = () => {
     const seen = new Set(requests().map((c) => JSON.stringify(c)));
@@ -790,11 +755,8 @@ describe("useFolderFiles at the Library root", () => {
     expect(result.current.folders).toHaveLength(1);
   });
 
-  // The chips are on screen at a Library root that holds anything
-  // (`FolderToolbar`'s arranging controls are only put away when the
-  // listing and the folder list are both empty), and `FolderBrowser`
-  // passes both straight into this hook. Each narrows the root's own
-  // listing; neither may widen it back to the drive.
+  // Each chip narrows the root's own listing; neither may widen it back to
+  // the drive.
   it("keeps the root's path while the type chip narrows it", async () => {
     await settle({ folderPath: "", view: "library", typeFilter: "video" });
     expect(requests()).toEqual([rootRequest({ type: "video" })]);
@@ -805,12 +767,8 @@ describe("useFolderFiles at the Library root", () => {
     expect(requests()).toEqual([rootRequest({ trust: "verified" })]);
   });
 
-  // Two URLs reach the drive-wide answer by different routes, and both
-  // must: a tag filter at the root carries no folder path, and
-  // `?view=library&tag=x` carries one but asks recursively — and
-  // `drives.py list_drive_files` applies no folder predicate for a
-  // recursive empty prefix. `path=""` alone is not what narrows; `path=""`
-  // *without* `recursive` is.
+  // `path=""` alone is not what narrows; `path=""` *without* `recursive` is.
+  // The backend applies no folder predicate for a recursive empty prefix.
   it("widens to the drive for a tag filter with no folder path", async () => {
     await settle({ folderPath: undefined, tagFilter: "soup" });
     expect(requests()).toEqual([
@@ -871,12 +829,6 @@ describe("useFolderFiles at the Library root", () => {
     ]);
   });
 
-  // The request is rebuilt from whatever the props now say, and a
-  // listing that keeps its old identity across a change of location is
-  // the failure this guards: a hook that answered `?view=library` and
-  // then a value outside the canonical set (which keeps falling through
-  // to the drive-wide listing by design) must not answer the second with
-  // the first's request.
   it("follows the location across a re-render, in both directions", async () => {
     const { rerender } = await settle({ folderPath: "", view: "library" });
     expect(requests()).toEqual([rootRequest()]);
@@ -896,9 +848,7 @@ describe("useFolderFiles at the Library root", () => {
     });
   });
 
-  // Back-navigation to the Library root restores what was loaded and
-  // where the page was, which the listing it replaces never had. The
-  // hydration branch is keyed on the folder path, so the root has to
+  // The hydration branch is keyed on the folder path, so the root has to
   // satisfy it like any other location.
   it("hydrates from a snapshot taken at the Library root", async () => {
     const { result } = renderHook(() =>
@@ -933,10 +883,8 @@ describe("useFolderFiles at the Library root", () => {
     });
   });
 
-  // The refresh path — what a `drive.structure_changed` broadcast drives —
-  // fetches the folder list again through a second copy of the mount
-  // effect's predicate. The Library root has to satisfy both copies, and
-  // only the mount one was reachable before.
+  // The refresh path fetches the folder list through a second copy of the
+  // mount effect's predicate, and the Library root has to satisfy both.
   it("refreshes the root's folders when the listing is told to", async () => {
     const { result, rerender } = renderHook(
       ({ refreshKey }: { refreshKey: number }) =>
