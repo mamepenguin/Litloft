@@ -1,8 +1,3 @@
-// Helpers for /api/admin/config/* endpoints used by the admin settings UI
-// and the first-run wizard. Validation errors come back as 422 with a
-// `{detail: {code, field?, message?}}` body — the helpers normalize that
-// shape so callers can pattern-match on `code`.
-
 export interface DriveEntry {
   name: string;
   path: string;

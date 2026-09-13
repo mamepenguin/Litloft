@@ -58,12 +58,6 @@ export async function getDriveFiles(
   drive: string,
   params: {
     path?: string;
-    /**
-     * Widen `path` from an exact folder match to its whole subtree.
-     * Used by the folder-scoped tag filter (spec
-     * 2026-08-21-folder-scoped-tag-filter); omitted/false keeps the
-     * direct-children semantics every other caller relies on.
-     */
     recursive?: boolean;
     search?: string;
     favorite?: boolean;
@@ -107,12 +101,6 @@ export async function getDriveTags(drive: string, folderPath?: string | null): P
   return fetchJSON<Tag[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/tags${query}`);
 }
 
-/**
- * What a scan reports. Mirrors `ScanResponse` in
- * `backend/app/schemas.py` — the old declaration promised a `removed`
- * the API has never sent, and omitted the three fields it does, which
- * is why nothing could report what a scan had done.
- */
 export interface ScanResult {
   added: number;
   missing: number;
@@ -121,7 +109,6 @@ export interface ScanResult {
   total: number;
 }
 
-/** Thrown when the API answers with a status the caller may want to branch on. */
 export class ApiStatusError extends Error {
   constructor(readonly status: number, message: string) {
     super(message);
@@ -201,11 +188,9 @@ export interface ActiveSummaryResponse {
   summary_note?: ActiveSummaryNote | null;
 }
 
-// Spec 2026-04-30-file-active-summary-to-knowledge: the pointer was
-// moved from core into the knowledge addon. The route is drive-scoped
-// (X-Lit-Drive required) and a 404 from the addon proxy means knowledge
-// isn't installed — surface as has_active_summary: false so the file
-// detail page falls back to the AI summary instead of erroring out.
+// A 404 from the addon proxy means knowledge isn't installed — surface as
+// has_active_summary: false so the file detail page falls back to the AI
+// summary instead of erroring out.
 export async function getActiveSummary(
   id: string,
   drive: string,
@@ -275,8 +260,7 @@ export interface FileChaptersResponse {
   chapters: FileChapter[];
   /**
    * Provenance class of the whole set: re-derivable from the file or its
-   * provider, or approved by a person. Unused by the panel today; C-2b's
-   * approval UI is what needs to tell the two apart.
+   * provider, or approved by a person.
    */
   source: "extracted" | "curated" | null;
 }
@@ -303,13 +287,6 @@ export function getStreamUrl(id: string): string {
   return `${API_BASE}/files/${id}/stream`;
 }
 
-/**
- * The server-side text extraction, for the formats that have one.
- *
- * Two components ask for it — the listing's thumbnail card and the detail
- * page's excerpt — and a hand-spelled path in each is a second place for the
- * route to drift from.
- */
 export function getPreviewTextUrl(id: string): string {
   return `${API_BASE}/files/${id}/preview-text`;
 }
@@ -330,7 +307,6 @@ export function getSubtitleUrl(fileId: string, index: number): string {
   return `${API_BASE}/files/${fileId}/subtitles/${index}`;
 }
 
-// File operations
 export async function renameFile(id: string, newFilename: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}/rename`, {
     method: "PUT",
@@ -352,7 +328,6 @@ export async function deleteFile(id: string): Promise<void> {
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
-// File creation (lightweight JSON alternative to multipart upload).
 // Backend auto-suffixes the filename on collision; on missing-state
 // recovery the same FileItem.id is returned with a 200 status (the
 // caller doesn't see status here — only the parsed body).
@@ -367,7 +342,6 @@ export async function createTextFile(
   });
 }
 
-// Folder operations
 export async function createFolder(drive: string, path: string, name: string): Promise<Folder> {
   return fetchJSON<Folder>(`${API_BASE}/drives/${encodeURIComponent(drive)}/folders`, {
     method: "POST",
@@ -400,7 +374,6 @@ export async function deleteFolder(drive: string, path: string): Promise<void> {
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
-// Upload
 export async function initUpload(
   drive: string,
   params: { filename: string; file_size: number; folder_path: string; chunk_size: number; relative_path?: string }
@@ -445,7 +418,6 @@ export async function cancelUpload(drive: string, uploadId: string): Promise<voi
   if (!res.ok) throw new Error(`Cancel upload failed: ${res.status}`);
 }
 
-// Batch operations
 export async function batchGetFiles(ids: string[]): Promise<FileItem[]> {
   return fetchJSON<FileItem[]>(`${API_BASE}/files/batch/get`, {
     method: "POST",
@@ -517,7 +489,6 @@ export async function batchTag(
   });
 }
 
-// Pins
 export async function getPins(drive: string): Promise<PinnedFolder[]> {
   return fetchJSON<PinnedFolder[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/pins`);
 }
@@ -538,7 +509,6 @@ export async function removePin(drive: string, path: string): Promise<void> {
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
-// Smart Folders
 export async function getSmartFolders(drive: string): Promise<SmartFolder[]> {
   return fetchJSON<SmartFolder[]>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/smart-folders`,
@@ -582,7 +552,6 @@ export async function deleteSmartFolder(drive: string, id: string): Promise<void
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
-// Collections
 export async function getCollections(drive: string): Promise<CollectionSummary[]> {
   return fetchJSON<CollectionSummary[]>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/collections`
@@ -680,7 +649,6 @@ export async function reorderCollectionItems(
   );
 }
 
-// Archive
 export async function getArchiveContents(id: string): Promise<ArchiveContents> {
   return fetchJSON<ArchiveContents>(`${API_BASE}/files/${id}/archive`);
 }
@@ -689,7 +657,6 @@ export function getArchiveEntryUrl(id: string, entryPath: string): string {
   return `${API_BASE}/files/${id}/archive/entry?path=${encodeURIComponent(entryPath)}`;
 }
 
-// Watch Progress
 export async function saveWatchProgress(fileId: string, position: number, duration: number): Promise<void> {
   await fetch(`${API_BASE}/files/${fileId}/progress`, {
     method: "POST",
@@ -702,7 +669,6 @@ export async function saveWatchProgress(fileId: string, position: number, durati
 // "Page-opened" record for non-media files. Hits the same endpoint as
 // saveWatchProgress with both fields omitted; backend bumps last_played_at
 // only and leaves playback_position/duration untouched on existing rows.
-// Spec: 2026-04-26-intelligence-ask-personal-history-query.md §4.2.
 export async function recordFileView(fileId: string): Promise<void> {
   try {
     await fetch(`${API_BASE}/files/${fileId}/progress`, {
@@ -734,12 +700,6 @@ export async function getWatchHistory(
   driveName: string,
   limit?: number,
   filter?: "unfinished" | "all",
-  /**
-   * Narrow to one kind, through the same classifier the listing and the
-   * tree use. The Recent view used to sift the response in the browser
-   * on `file_type`, which is a column that never holds `markdown` or
-   * `pdf` — so those two choices emptied the view.
-   */
   type?: FileKind | null,
 ): Promise<WatchHistoryItem[]> {
   const params = new URLSearchParams();
@@ -753,7 +713,6 @@ export async function getWatchHistory(
   return result.data;
 }
 
-// Trash
 export async function getTrash(
   drive: string,
   params?: { sort?: SortField; order?: SortOrder; page?: number; limit?: number }
@@ -785,7 +744,6 @@ export async function emptyTrash(drive: string): Promise<{ purged: number }> {
   );
 }
 
-// Missing files
 export async function getMissing(
   drive: string,
   params?: { sort?: "missing_since" | SortField; order?: SortOrder; page?: number; limit?: number }
@@ -830,19 +788,16 @@ export async function batchPurge(ids: string[]): Promise<{ purged: number; error
   });
 }
 
-// Duplicates
 export async function getDuplicates(drive: string): Promise<DuplicatesResponse> {
   return fetchJSON<DuplicatesResponse>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/duplicates`
   );
 }
 
-// Admin
 export async function getDashboard(): Promise<DashboardResponse> {
   return fetchJSON<DashboardResponse>(`${API_BASE}/admin/dashboard`);
 }
 
-// Comments
 export async function getComments(fileId: string): Promise<CommentsResponse> {
   return fetchJSON<CommentsResponse>(`${API_BASE}/files/${fileId}/comments`);
 }
@@ -871,7 +826,6 @@ export async function deleteComment(fileId: string, commentId: string): Promise<
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
-// Auth
 export async function unlock(
   password: string,
   remember: boolean
@@ -891,24 +845,10 @@ export async function getAuthStatus(): Promise<AuthStatus> {
   return fetchJSON<AuthStatus>(`${API_BASE}/auth/status`);
 }
 
-// ---- Wiki-link resolutions (spec 2026-05-12 §3.8) ----
-
-/**
- * Phase C of the markdown link 3-form feature. The backend extracts
- * ``[[X]]`` targets from a ``.md`` file body and returns, for each one,
- * whether it resolves to exactly one file (``resolved``), to none
- * (``unresolved``), or to several candidates (``ambiguous``). The
- * renderer uses this map to decide what DOM shape to emit per target.
- *
- * The wire format is ``{resolutions: {target_str: WikiResolveResult}}``;
- * this helper unwraps the outer ``resolutions`` envelope so callers can
- * pass it through as the ``wikiResolution`` prop verbatim.
- */
 export type WikiResolveResult =
   | {
       kind: "resolved";
       file_id: string;
-      /** Resolved file's on-disk filename (e.g. "note.md"). */
       filename?: string;
       /** Filename without the ``.md`` suffix — preferred display text
        * for id-form targets (``[[20260512143028]]``). */

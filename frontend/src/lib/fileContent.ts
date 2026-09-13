@@ -1,14 +1,7 @@
 /**
- * Core-level helpers for reading and writing ``.md`` / ``.txt`` file
- * content via the Litloft Core API.
- *
  * The knowledge addon ships its own near-duplicate in
- * ``addons/knowledge/frontend/api.ts`` — this version lives in core so
- * it can back Properties Panel edits from the plain FilePreview
- * (non-knowledge surface) as part of the tag unification work
- * (spec ``docs/superpowers/specs/2026-04-24-knowledge-tag-unification.md``
- * §D3). Keep the two implementations in sync if either side changes
- * its ETag contract or auth expectations.
+ * ``addons/knowledge/frontend/api.ts``. Keep the two implementations in
+ * sync if either side changes its ETag contract or auth expectations.
  */
 
 const API_BASE = "/api";
@@ -44,11 +37,9 @@ function parseEtagHeader(res: Response): string {
 const MAX_TEXT_BYTES = 16 * 1024 * 1024;
 
 /**
- * Fetch a text file's content + current ETag. Suitable for ``.md`` and
- * ``.txt``. Throws if the server advertises an oversized body via
- * ``Content-Length``. Binary streams (wrong MIME on disk) still decode
- * via ``res.text()`` — the caller is expected to validate on their end
- * if round-tripping matters.
+ * Binary streams (wrong MIME on disk) still decode via ``res.text()`` —
+ * the caller is expected to validate on their end if round-tripping
+ * matters.
  */
 export async function getFileTextContent(
   fileId: string
@@ -71,14 +62,6 @@ export async function getFileTextContent(
   return { content, etag };
 }
 
-/**
- * Write a text file's content with optimistic concurrency control.
- *
- * Returns the new ETag on success. Throws ``ConflictError`` on 412 so
- * callers can surface a "file changed elsewhere" warning without
- * overwriting. The ``ifMatch`` argument is wrapped in quotes before
- * being sent as ``If-Match``.
- */
 export async function putFileTextContent(
   fileId: string,
   content: string,

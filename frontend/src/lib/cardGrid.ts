@@ -3,30 +3,17 @@
 import { useCallback, useRef, useState } from "react";
 
 /**
- * Column rule for the equal-card grids (files and folders).
- *
  * The column count is derived from the container's own width, never from
  * viewport breakpoints: these grids render beside a 280px tree pane, so
- * the viewport is not the width they actually have. See `DESIGN.md` §8.5
- * "Measure against the container, not the viewport", and hako
- * `QUBXdtQ2UL1X-O2FgwrM_`.
+ * the viewport is not the width they actually have.
  *
  * A container query would be the other option, but the file cards can
  * mount a `<video>` for hover preview and `container-type` around a
  * media element breaks rendering on iOS Safari.
  *
- * `auto-fill` also measures the container and needs no observer, and it
- * can hold the floor: `min(16rem, calc(50% - <gap>/2))` never resolves
- * to more than half the container, so the track count never reaches one.
- * {@link cardGridColumns} is exactly that, and it is what an unmeasured
- * grid renders.
- *
  * The count is measured anyway because it is also a *number*: the drive
  * home's rows render exactly as many cards as fit, and that needs the
- * integer, not a track listing. CSS deriving it for the grid while JS
- * derives it for the row is one rule written twice, and the second copy
- * is where this codebase keeps finding drift. So it is measured once,
- * here, and both consumers read it.
+ * integer, not a track listing.
  */
 export const CARD_MIN_WIDTH = "16rem";
 
@@ -34,13 +21,9 @@ export const CARD_MIN_WIDTH = "16rem";
 export const CARD_MIN_PX = 256;
 
 /**
- * `gap-3`, the column gap every card grid uses.
- *
  * Shared rather than per-grid: `columnsFor` divides by
  * `CARD_MIN_PX + CARD_GAP_PX`, so a grid with a wider gap would be told
- * it fits a column it does not — cards under the declared 16rem — and
- * two grids with different gaps put their tracks at different x even
- * when they agree on the count. `card-grid.test.ts` holds them to it.
+ * it fits a column it does not.
  */
 export const CARD_GAP_PX = 12;
 
@@ -66,7 +49,6 @@ export const cardGridColumns =
   `repeat(auto-fill, minmax(min(${CARD_MIN_WIDTH}, ` +
   `calc(50% - ${CARD_GAP_PX / 2}px)), 1fr))`;
 
-/** How many cards of `CARD_MIN_PX` fit in `width`, floored at two. */
 export function columnsFor(width: number): number {
   const fits = Math.floor(
     (width + CARD_GAP_PX) / (CARD_MIN_PX + CARD_GAP_PX),
@@ -83,7 +65,6 @@ export function rowsFor(columns: number): number {
   return columns <= MIN_CARD_COLUMNS ? 2 : 1;
 }
 
-/** The `grid-template-columns` value for a measured column count. */
 export function cardGridTemplate(columns: number): string {
   return columns > 0
     ? `repeat(${columns}, minmax(0, 1fr))`
@@ -91,12 +72,6 @@ export function cardGridTemplate(columns: number): string {
 }
 
 /**
- * Measure a card grid's own width and report how many columns fit.
- *
- * Returns `0` until the element has been measured, which
- * {@link cardGridTemplate} renders as the `auto-fill` fallback — so a
- * grid is never laid out against a guessed width.
- *
  * The measurement runs inside the callback ref, during commit, so React
  * flushes the resulting render before the browser paints and the floor
  * is in place on the first frame.

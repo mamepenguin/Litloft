@@ -77,7 +77,6 @@ export function loadListSnapshot(key: string): ListSnapshot | null {
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (!isValidSnapshot(parsed)) {
-      // Unknown or stale shape (e.g. schema change, manual edit) — evict.
       window.sessionStorage.removeItem(STORAGE_KEY);
       return null;
     }
