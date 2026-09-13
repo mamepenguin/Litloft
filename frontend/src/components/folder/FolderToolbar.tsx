@@ -31,12 +31,6 @@ interface FolderToolbarProps {
    * path": the drive root is a place — its own `folder_path` is empty —
    * while a tag applied there widens the listing to the whole drive and
    * so is not.
-   *
-   * Decided once by FolderBrowser and passed down rather than re-derived
-   * here: this component's own predicate used to disagree with
-   * FolderBrowser's, so handing it `onCreateFile` during a tag filter
-   * changed nothing visible (spec 2026-08-21-folder-scoped-tag-filter
-   * §6.2).
    */
   isWriteDestination: boolean;
   isSearch?: boolean;
@@ -47,12 +41,7 @@ interface FolderToolbarProps {
   typeFilter: FileKind | null;
   trustFilter?: TrustFilter | null;
   total: number;
-  /**
-   * How many subfolders the listing holds, when the caller knows.
-   * `total` counts files only, and a folder of eight folders and no
-   * files is not empty — the view toggle lays those folders out too.
-   * Omitted means "not known", which is treated as "not empty".
-   */
+  /** Omitted means "not known", which is treated as "not empty". */
   folderCount?: number;
   selectable: boolean;
   scanning: boolean;
@@ -63,21 +52,10 @@ interface FolderToolbarProps {
   drive: string;
   folderPath?: string;
   /**
-   * Current viewMode. When provided, the view switcher is controlled and
-   * `FolderBrowser` owns persistence via `useFolderViewMode`; when omitted,
-   * `useViewModeState` holds it here and persists to the global default
-   * key. The second path is taken by anything with no folder *path* to
-   * key a per-folder preference on — which includes the drive root: it
-   * is a folder, but its own `folder_path` is empty.
+   * When omitted, `useViewModeState` holds it here and persists to the
+   * global default key.
    */
   viewMode?: ViewMode;
-  /**
-   * The drive-wide destination for a tag currently scoped to a folder, or
-   * null when there is nothing to widen. Decided by FolderBrowser so this
-   * component and the empty state cannot disagree about when the door out
-   * of folder scope is offered (spec
-   * 2026-08-21-folder-scoped-tag-filter §8).
-   */
   widenTagScope?: WidenTagScope | null;
   onSortChange: (s: SortField, o: SortOrder) => void;
   onTypeFilterChange: (t: FileKind | null) => void;
@@ -90,25 +68,12 @@ interface FolderToolbarProps {
   onSetNewFolderName: (v: string) => void;
   onSetFolderError: (v: string | null) => void;
   onCreateFolder: () => void;
-  /**
-   * When provided, render a "New Note" button that creates a blank
-   * Markdown file in the current folder. Omitting the prop hides the
-   * button — used by FolderBrowser to disable file creation where the
-   * listing names no place to write into. A folder-scoped tag filter
-   * names one, so it keeps the button (spec
-   * 2026-08-21-folder-scoped-tag-filter §6.1), and so does the drive
-   * root reached as a location.
-   */
+  /** Omitting the prop hides the "New Note" button. */
   onCreateFile?: () => void;
   onReshuffle?: () => void;
   /**
-   * Whether this folder is already pinned to the sidebar, and how to flip
-   * it. Both or neither: without the flag the overflow row would have to
-   * guess which of "Pin" and "Unpin" it is offering, and it is drawn on the
-   * one folder a reader is already looking at.
-   *
-   * Omitted wherever there is no single folder to pin — search, the flat
-   * virtual views, and the drive root, whose path is empty.
+   * Both or neither: without the flag the overflow row would have to
+   * guess which of "Pin" and "Unpin" it is offering.
    */
   isPinned?: boolean;
   onTogglePin?: (folderPath: string) => void;
@@ -124,21 +89,10 @@ export function FolderToolbar({
   onSetFolderError, onCreateFolder, onCreateFile, onReshuffle,
   isPinned, onTogglePin,
 }: FolderToolbarProps) {
-  // Upload / New folder / New note all need the same thing: a place to
-  // write into. A folder-scoped tag filter has one — the folder the
-  // breadcrumb shows and the listing is scoped to — and so does the
-  // drive root, whose folder is the root. Search, the flat virtual views
-  // and a tag applied at the root genuinely have none.
   const hideMutatingActions = !isWriteDestination;
-  // Play All is not a mutating action; it has simply always been hidden
-  // wherever the left group was. Keep its existing scope rather than
-  // widening it as a side effect of the folder-anchor split.
   const hidePlayAll = isSpecialView || !!tagFilter || !!isSearch;
-  // Sort order, view mode and the type chip are ways of arranging
-  // things; with nothing to arrange they are a row of controls above an
-  // empty page. Not so when a filter is what emptied it — the chip that
-  // produced the empty result is also the way back out of it, and a
-  // search still needs its sort to be widened.
+  // When a filter is what emptied the listing, the chip that produced the
+  // empty result is also the way back out of it.
   const isFiltered =
     typeFilter !== null || !!trustFilter || !!tagFilter || !!isSearch;
 
@@ -152,15 +106,13 @@ export function FolderToolbar({
   const moreSurface = useMenuSurface(moreOpen);
   // Held here, not inside each menu. The same choice is offered twice — on
   // the bar from 768 up and inside `…` below it — and two switchers each
-  // holding their own uncontrolled state would answer differently on the two
-  // sides of that width.
+  // holding their own state would answer differently on the two sides of
+  // that width.
   const view = useViewModeState(viewMode, onViewChange);
   // A drive root has no path to pin, and `""` would pin the drive itself.
   const pinnablePath = folderPath && onTogglePin ? folderPath : null;
 
 
-  // Left mutating actions — rendered in two places:
-  // below 768px in normal flow above the bar, and on the bar from 768 up.
   const leftActions = !hideMutatingActions ? (
     <AddButton
       onCreateFolder={() => onSetCreatingFolder(true)}
@@ -170,13 +122,10 @@ export function FolderToolbar({
   ) : null;
 
   /**
-   * The new-folder name field, on a row of its own.
-   *
    * `w-full` and a **direct child of the wrapping row**, not a sibling of
    * `Add` inside the left group. Nested there, `w-full` is 100% of the
    * group rather than of the row, so the group grows and the row it sits
-   * on wraps instead — a ragged second line whose contents depend on the
-   * width. A field with a line of its own cannot displace a control.
+   * on wraps instead.
    */
   const createFolderRow = creatingFolder ? (
     <div className="flex w-full items-center gap-2">
@@ -192,9 +141,8 @@ export function FolderToolbar({
         placeholder={tf("namePlaceholder")}
         className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring pointer-coarse:min-h-11 md:w-40 md:flex-initial"
       />
-      {/* Not a second accent fill. This row opens from the Add menu and
-          Add stays on screen behind it, so filling Create would put two
-          on the bar at once — the state §2.2 exists to prevent. */}
+      {/* Not a second accent fill: Add stays on screen behind this row, so
+          filling Create would put two on the bar at once. */}
       <Button
         variant="secondary"
         size="sm"
@@ -216,42 +164,27 @@ export function FolderToolbar({
 
   return (
     <>
-      {/* Below 768px: the left actions in normal flow (not sticky), so the
-          sticky bar stays one row.
-
-          `md`, not `sm`, and the same 768 the arranging menus use.
-          `00-basis.md` calls 640-767 the mobile form with padding around it,
-          and the bar has to hold to the same rule across the whole of it —
-          measured, the left group on the bar at 640 wrapped it as soon as
-          the New Folder field opened. One breakpoint for what leaves the
-          bar is also simply easier to reason about than two. */}
+      {/* `md`, not `sm`, and the same 768 the arranging menus use: the left
+          group on the bar at 640 wraps it as soon as the New Folder field
+          opens. */}
       <div className="flex flex-wrap items-center gap-2 px-4 py-1 md:hidden">
         {leftActions}
         {createFolderRow}
       </div>
 
-      {/* Sticky control bar.
-          - Below 768: right-side controls only (view/sort/filter/more).
-            The left actions scroll away in the normal-flow row above.
-          - From 768: left actions + right controls in one row.
-          Must be a direct child of the flex column containing block so that
+      {/* Must be a direct child of the flex column containing block so that
           sticky has sufficient height to actually stick.
           z-20 matches the Header so that FilterField's absolute search icon
           (z-10) is covered when the bar sticks. */}
       <div className="sticky top-0 z-20 mb-2 flex flex-wrap items-center gap-2 bg-bg-primary px-4 py-2">
-        {/* Desktop: left actions inside sticky bar */}
         {leftActions && (
           <div className="hidden items-center gap-2 md:flex">
             {leftActions}
           </div>
         )}
 
-        {/* The wrapper takes the slack the spacer would have taken, and the
-            link is an item inside it — `flex` on this div, which is what
-            keeps the link at its content width. Without it the div is a
-            block, the link fills it, and a bordered pill runs 998px across
-            the bar at 1512 around a 151px label — 916px with an addon in
-            the slot beside it (both measured).
+        {/* `flex` on this div is what keeps the link at its content width.
+            Without it the div is a block and the link fills it.
 
             `flex-1` gives the wrapper a base of zero. Wrapping is decided on
             base sizes, so that is what stops a long label pushing `…` onto a
@@ -265,18 +198,13 @@ export function FolderToolbar({
           <div className="flex-1" />
         )}
 
-        {/* RIGHT: view controls */}
-        {/* Not the overflow menu, and not accent-filled. hako
-            `55N_yML35Q2jdVBsCxc06` settles both halves: playing a music album
-            or a video folder is a first-class action, so it stays exposed
-            wherever the folder has something to play — but §2.2 gives the
-            screen one fill and `Add` holds it. */}
+        {/* Not the overflow menu, and not accent-filled: playing a music
+            album or a video folder is a first-class action, but the screen
+            gets one fill and `Add` holds it. */}
         {hasPlayableFiles && !hidePlayAll && (
           <Button
             // Its word survives 375px. The mobile rule reduces the *number*
-            // of controls on the bar, and dropping the label instead would
-            // put back the unnamed icon 案 2 is spending this whole PR
-            // removing.
+            // of controls on the bar, not their labels.
             variant="secondary"
             size="sm"
             onClick={onPlayAll}
@@ -286,9 +214,6 @@ export function FolderToolbar({
           </Button>
         )}
 
-        {/* Arranging: which layout, which order, which subset. All three
-            carry a word; below 768px the first two move into `…` so the row
-            stays one row. */}
         {!hideArrangingControls && (
           <>
             <ViewMenu mode={view.mode} onSelect={view.select} {...BAR_WIDE} />
@@ -300,8 +225,6 @@ export function FolderToolbar({
               onReshuffle={sort === "random" ? onReshuffle : undefined}
               {...BAR_WIDE}
             />
-            {/* One way in to narrowing the listing, where there were two
-                unlabelled chips. `FilterMenu` holds both axes as sections. */}
             <FilterMenu
               typeFilter={typeFilter}
               onTypeFilterChange={onTypeFilterChange}
@@ -311,8 +234,6 @@ export function FolderToolbar({
           </>
         )}
 
-        {/* Overflow: the low-frequency actions at every width, and the two
-            arranging menus at the widths where they are off the bar. */}
         <div ref={moreSurface.wrapperRef} className="relative">
             <button
               onClick={() => setMoreOpen((s) => !s)}
@@ -335,11 +256,9 @@ export function FolderToolbar({
                   role="menu"
                   className={moreSurface.className}
                 >
-                {/* The two menus that are not on the bar below 768px, drawn
-                    from the same rows they draw there. `md:hidden` and
-                    `BAR_WIDE` are the two halves of one decision: a control
-                    that leaves the bar has to arrive here, and a reader who
-                    finds neither has lost the function. */}
+                {/* `md:hidden` and `BAR_WIDE` are the two halves of one
+                    decision: a control that leaves the bar has to arrive
+                    here. */}
                 {!hideArrangingControls && (
                   <div className="md:hidden" role="presentation">
                     <ViewGroup
@@ -370,12 +289,6 @@ export function FolderToolbar({
                     <MenuSeparator />
                   </div>
                 )}
-                {/* Drawn with `ActionMenuItem` so a row inside this menu
-                    and a row inside any other describe a toggled state
-                    the same way. The menu around it stays hand-written:
-                    its trigger is a bordered bar control and it carries
-                    the view and sort groups below 768px, neither of which
-                    `OverflowMenu` covers. */}
                 <ActionMenuItem
                   icon={CheckSquare}
                   label={ts("selectMode")}
@@ -426,16 +339,10 @@ export function FolderToolbar({
             )}
         </div>
 
-        {/* From 768 up the field lives here, on the bar, and `w-full` gives
-            it a line under the controls rather than a place among them.
-            Below 768 the copy in the normal-flow row above carries it, so
-            it is drawn once at every width.
-
-            The wrapper is inside the condition, not around the contents: an
+        {/* The wrapper is inside the condition, not around the contents: an
             always-rendered `w-full` box is a flex item whether or not it
             holds anything, so an empty one takes a line and the row-gap
-            with it — 68px of resting bar instead of 60, at every width from
-            768 up. */}
+            with it. */}
         {createFolderRow && (
           <div className="hidden w-full md:block">{createFolderRow}</div>
         )}

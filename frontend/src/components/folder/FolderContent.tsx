@@ -23,13 +23,10 @@ import { useFolderCardRename } from "./useFolderCardRename";
 import { type WidenTagScope } from "./WidenTagScopeLink";
 
 /**
- * The band of folders above the files: a card grid, or a column of rows.
- *
  * Both branches are written out with literal class strings because
  * `card-grid.test.ts` builds its population by reading them out of the
  * source. A single element with a conditional `className` still renders a
- * grid but is invisible to that scan, so the grid would quietly leave the
- * set of grids the floor rule is checked against.
+ * grid but is invisible to that scan.
  */
 function FolderShelf({
   list,
@@ -88,19 +85,7 @@ interface FolderContentProps {
   selectedCount: number;
   isDropDisabled: (path: string) => boolean;
   onFolderDragStart: (e: React.DragEvent, folderPath: string) => void;
-  /**
-   * Set when a folder-scoped tag filter is active. "No matches in this
-   * folder" without a way to widen is a dead end, so the empty state
-   * carries the drive-wide door (spec
-   * 2026-08-21-folder-scoped-tag-filter §8 / §8.1).
-   */
   widenTagScope?: WidenTagScope | null;
-  /**
-   * The same two doors the toolbar's add menu holds, for the folder that
-   * has nothing in it yet. Both are optional for the same reason the menu
-   * rows are: a view with no concrete folder to write into has nowhere to
-   * put a file, and offers neither.
-   */
   onAddFiles?: () => void;
   onCreateFile?: () => void;
 }
@@ -113,8 +98,6 @@ export function FolderContent({
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
   widenTagScope, onAddFiles, onCreateFile,
 }: FolderContentProps) {
-  // Show folder-card drop targets for both local drags and cross-pane
-  // drags originating from the tree pane.
   const isInternalDragging = useIsInternalDragging();
   const tFilter = useTranslations("filter");
   const tToolbar = useTranslations("toolbar");
@@ -131,16 +114,13 @@ export function FolderContent({
   // The name box narrows the rows without touching the URL, and it is
   // not visible to `FolderBrowser` above — so the "this is the whole
   // folder" marker it set is withdrawn here while the box has something
-  // in it. See `lib/fileNavOrdering.ts`.
+  // in it.
   const rowSortQuery = filter.isActive
     ? sortQuery.replace(/([?&])nav=folder&?/, (_m, lead: string) =>
         lead === "?" ? "?" : "&",
       ).replace(/[?&]$/, "")
     : sortQuery;
 
-  // Inline rename. Folder cards show the real folder name, so editing
-  // here edits exactly the string on screen (spec §2). File cards show
-  // `file.title`, a cosmetic derivation, and keep the dialog.
   const rename = useFolderCardRename(driveName, onRefresh);
 
   return (
@@ -162,16 +142,6 @@ export function FolderContent({
       </div>
 
       {filteredFolders.length > 0 && (
-        // One set of props, two shapes. The list draws folders as rows
-        // so a list stays a list: a grid of cards above a column of rows
-        // is two answers to "what am I looking at" on one screen.
-        // Everything a folder can do — drop target, inline rename, the
-        // one `FolderContextMenu` — is handed to whichever shape is
-        // drawn, from here, so neither grows a second definition.
-        // Two elements rather than one with a conditional `className`:
-        // `card-grid.test.ts` finds every card grid by reading the literal
-        // class strings in the source, and a grid hidden inside a ternary
-        // drops out of that population without failing anything.
         <FolderShelf
           list={viewMode === "list"}
           gridRef={folderGridRef}
@@ -236,13 +206,9 @@ export function FolderContent({
           secondaryActions={[{ label: tFilter("clear"), onClick: filter.clear }]}
         />
       ) : files.length === 0 && folders.length === 0 ? (
-        // In search mode the FolderContent represents only the
-        // filename/metadata-text match axis. The intelligence
-        // semantic-search section above is a separate result axis,
-        // so showing an empty state here would contradict it when
-        // semantic matches exist. Render nothing instead — the page
-        // header already conveys the search context, and the
-        // semantic section communicates its own emptiness.
+        // In search mode the semantic-search section is a separate result
+        // axis, so showing an empty state here would contradict it when
+        // semantic matches exist.
         isSearch ? null : isFavorites ? (
           <EmptyState variant="no-favorites" />
         ) : isLiked ? (
@@ -254,11 +220,8 @@ export function FolderContent({
         ) : widenTagScope ? (
           <EmptyState
             variant="no-tag-matches"
-            // Secondary, though the spec said primary: the folder toolbar's
-            // `Add` is the screen's one accent fill and it is on screen
-            // here too, so a filled call to action in the empty state
-            // makes two (DESIGN.md §2.2, 原則 2). The toolbar owns the
-            // fill; the empty state owns the words.
+            // Secondary: the folder toolbar's `Add` is the screen's one
+            // accent fill and it is on screen here too.
             secondaryActions={[
               {
                 label: tToolbar("searchWholeDrive"),
@@ -269,9 +232,6 @@ export function FolderContent({
         ) : (
           <EmptyState
             variant="no-files"
-            // Both secondary, for the same reason as the tag case above:
-            // the toolbar's `Add` is already the folder screen's accent
-            // fill, and it does not go away when the folder is empty.
             secondaryActions={[
               ...(onAddFiles
                 ? [{ label: tEmpty("addFilesAction"), onClick: onAddFiles }]

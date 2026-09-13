@@ -5,25 +5,12 @@ import { useState } from "react";
 import type { ViewMode } from "@/types";
 
 /**
- * The archives whose layout the reader has chosen for themselves.
- *
- * Keyed by archive, not global. A single stored mode — what this held before
- * — makes one choice inside one ZIP the answer for every ZIP afterwards,
- * which is the thing ARC-3's derivation exists to stop: the reader who put a
- * code archive in list view would never see a grid of comic pages again.
- * The old `archive-view-mode` key is deliberately not read; it holds exactly
- * that global answer.
+ * Keyed by archive, not global. The old `archive-view-mode` key is
+ * deliberately not read; it holds a single global answer.
  */
 const STORAGE_KEY = "archive-view-choices";
 
-/**
- * How many archives are remembered.
- *
- * The list is unbounded otherwise, and localStorage is a shared 5MB budget —
- * a reader who opens a thousand archives would spend it on the answer to a
- * question they stopped asking. Most-recent-first, so the cap drops the
- * archive touched longest ago.
- */
+/** The list is unbounded otherwise, and localStorage is a shared 5MB budget. */
 const MAX_REMEMBERED = 50;
 
 interface Choice {
@@ -77,15 +64,6 @@ interface UseArchiveViewModeResult {
   setViewMode: (mode: ViewMode) => void;
 }
 
-/**
- * The layout this level is drawn in.
- *
- * `derivedMode` is recomputed by the caller for every level, so an untouched
- * archive changes shape as the reader walks into it. One press ends that for
- * this archive: an explicit choice is never overridden by a derivation,
- * because the reader has already seen what the derivation picked and said
- * otherwise.
- */
 export function useArchiveViewMode(
   archiveId: string,
   derivedMode: ViewMode
@@ -93,10 +71,8 @@ export function useArchiveViewMode(
   const [chosen, setChosen] = useState<ViewMode | null>(() =>
     readChoice(archiveId)
   );
-  // Opening a different archive inside the same mounted viewer starts its
-  // derivation over. Stored as state rather than read every render so the
-  // reader's press during this visit outlives a write that localStorage
-  // refused.
+  // Stored as state rather than read every render so the reader's press
+  // during this visit outlives a write that localStorage refused.
   const [seenId, setSeenId] = useState(archiveId);
   if (seenId !== archiveId) {
     setSeenId(archiveId);

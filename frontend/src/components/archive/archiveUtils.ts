@@ -1,7 +1,7 @@
 import { isTextPreviewable } from "@/components/TextPreview";
 import type { ArchiveEntry, ViewMode } from "@/types";
 
-export const MAX_TEXT_AUTO_LOAD = 1024 * 1024; // 1MB
+export const MAX_TEXT_AUTO_LOAD = 1024 * 1024;
 
 export type ArchiveViewMode = "listing" | "image" | "text";
 
@@ -16,9 +16,7 @@ export function getEntriesInDir(
 ): ArchiveEntry[] {
   return entries.filter((entry) => {
     if (dirPath === "") {
-      // Root: entries with no slash in path, or direct children
       if (entry.is_dir) {
-        // Directory at root: path like "dirname/" — no slash before the trailing one
         const withoutTrailing = entry.path.endsWith("/")
           ? entry.path.slice(0, -1)
           : entry.path;
@@ -31,7 +29,6 @@ export function getEntriesInDir(
     const rest = entry.path.slice(prefix.length);
     if (entry.is_dir) {
       const cleaned = rest.endsWith("/") ? rest.slice(0, -1) : rest;
-      // Skip the directory entry that represents the current directory itself
       if (cleaned === "") return false;
       return !cleaned.includes("/");
     }
@@ -44,7 +41,6 @@ export function inferDirectories(
   currentPath: string,
 ): ArchiveEntry[] {
   // Some ZIPs don't have explicit directory entries.
-  // Infer directories from file paths.
   const prefix = currentPath ? `${currentPath}/` : "";
   const dirNames = new Set<string>();
 
@@ -60,7 +56,6 @@ export function inferDirectories(
     }
   }
 
-  // Filter out dirs that already exist as explicit entries (compare full paths)
   const existingDirPaths = new Set(
     entries
       .filter((e) => e.is_dir)
@@ -87,39 +82,15 @@ export function inferDirectories(
 }
 
 /**
- * Which layout a level of an archive opens in, when nobody has said.
- *
- * The rule is about the level's contents, not about the archive: a code ZIP
- * is a list at `src/` and a grid inside `docs/screenshots/`, and the reason
- * is the same both times — a 193px square is worth spending on a picture and
- * not on a name. Directories are judged separately because they never carry
- * a thumbnail either way; a level holding only folders would otherwise be a
- * grid of folder icons, which is the face the survey measured and objected to.
- *
- * Same shape as `deriveListMeta`: a rule the renderer applies to whatever it
- * was handed, rather than a case per archive.
+ * Directories are left out of the count because they never carry a thumbnail;
+ * a level holding only folders would otherwise be a grid of folder icons.
  */
 export function defaultArchiveViewMode(entries: ArchiveEntry[]): ViewMode {
   const files = entries.filter((entry) => !entry.is_dir);
   const images = files.filter((entry) => entry.file_type === "image");
-  // A level of folders, and an empty one, fall out of the same comparison:
-  // no files means no image majority. Spelling them as their own branch would
-  // read as a rule the arithmetic does not have, and a test naming it could
-  // not tell the branch from its absence.
   return images.length * 2 > files.length ? "grid" : "list";
 }
 
-/**
- * Whether pressing this entry does anything.
- *
- * One predicate, three callers: the grid cell, the list row and the
- * inspector's index. The index used to present every row as a button,
- * so an unopenable leaf on the current level was a press that moved
- * nothing and said nothing — `handleFileClick` matches neither arm and
- * returns. `docs/user-guide/viewers-and-players.md` states the rule the
- * other two already kept: an entry that cannot be opened is not
- * clickable, and the way out is the download.
- */
 export function canOpenArchiveEntry(entry: ArchiveEntry): boolean {
   if (entry.is_dir) return true;
   if (entry.file_type === "image") return true;

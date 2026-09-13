@@ -12,19 +12,9 @@ interface UseDriveScanReturn {
 }
 
 /**
- * Rescan a drive, and say what happened.
- *
- * The button lives in an overflow menu that closes on click, so the
- * spinner this hook's `scanning` flag drives was rendered inside a menu
- * nobody could still see: pressing Rescan looked like pressing nothing
- * for however long the walk took. A 409 (a scan already running) and a
- * real failure were both swallowed by a bare `catch`, so the two
- * indistinguishable silences were "working", "already working" and
- * "broken".
- *
  * Toasts rather than the WebSocket's `scan:complete`: the result
  * belongs to whoever pressed the button, and the socket tells every
- * client. Progress — as opposed to the outcome — is Phase 4's.
+ * client.
  */
 export function useDriveScan(driveName: string, onComplete: () => void): UseDriveScanReturn {
   const [scanning, setScanning] = useState(false);
@@ -50,8 +40,7 @@ export function useDriveScan(driveName: string, onComplete: () => void): UseDriv
       );
     } catch (err) {
       if (err instanceof ApiStatusError && err.status === 409) {
-        // Not a failure: the scanner takes one run per drive at a time
-        // (backend-conventions.md, "Concurrency control patterns").
+        // Not a failure: the scanner takes one run per drive at a time.
         toast.info(t("scanAlreadyRunning"));
       } else {
         console.error("drive rescan failed:", err);

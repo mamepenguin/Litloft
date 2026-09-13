@@ -11,12 +11,7 @@ interface SortProps {
   sort: SortField;
   order: SortOrder;
   onChange: (sort: SortField, order: SortOrder) => void;
-  /** Search only: relevance is meaningless without a query. */
   allowRelevance?: boolean;
-  /**
-   * Draw a reshuffle row under the orders. Omitted where there is nothing to
-   * reshuffle — the caller passes it only while the listing is random.
-   */
   onReshuffle?: () => void;
 }
 
@@ -34,26 +29,16 @@ function useSortRows(sort: SortField, order: SortOrder, allowRelevance?: boolean
     })),
     // An order this screen does not offer names the control instead of
     // naming itself; the alternative is a face reading as one of the offered
-    // orders while the listing is in another.
-    //
-    // Reachable, and by one route: `lib/sortField.ts`'s `isSortField` — the
-    // validator `resolveFolderSort` applies when reading a stored per-folder
-    // preference — admits `relevance`, while `allowRelevance` is false
-    // everywhere but search. So a folder whose stored order is `relevance`
-    // renders a menu with no matching row. `liked_at` is *not* a second
-    // route: the same validator excludes it, and the Liked view sorts
-    // through `effectiveSort` on the fetch rather than through this prop.
+    // orders while the listing is in another. Reachable: a stored per-folder
+    // preference admits `relevance`, while `allowRelevance` is false
+    // everywhere but search.
     activeLabel: active ? t(active.labelKey) : t("label"),
   };
 }
 
 /**
- * The "which order" rows, plus reshuffle when there is one.
- *
- * Reshuffle is here rather than beside the sort button because it only means
- * anything while the order is random, and the row that turns random on is
- * two lines above it. It is a `menuitem`, not one of the radios: it does not
- * change which order is selected, it re-runs the one that is.
+ * Reshuffle is a `menuitem`, not one of the radios: it does not change which
+ * order is selected, it re-runs the one that is.
  */
 export function SortGroup({
   sort,
@@ -89,14 +74,6 @@ export function SortGroup({
   );
 }
 
-/**
- * The listing's order, as one labelled control.
- *
- * `SortButton` is this same menu behind a bare `⇅`, for a bar with no room
- * to say what the order is. The face here reads the order that is on, which
- * is what takes it off the folder toolbar's list of controls that say
- * nothing.
- */
 export function SortMenu({
   sort,
   order,

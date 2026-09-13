@@ -23,10 +23,6 @@ import { useTreeTextFilter } from "@/hooks/useTreeTextFilter";
 import { useTreeKindFilter } from "@/hooks/useTreeKindFilter";
 import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 
-/**
- * WS events that imply the folder tree's shape may have changed. The
- * right pane subscribes to the same set inside `useFolderFiles`.
- */
 // Structure only. The tree deliberately ignores content writes: the
 // Markdown editor autosaves on a 2s debounce, and refetching the tree on
 // every keystroke pause would make it flicker while the user types.
@@ -47,31 +43,12 @@ import { usePinnedFolders } from "./usePinnedFolders";
 
 interface FolderTreePaneProps {
   drive: string;
-  /**
-   * Currently selected folder path. Used to highlight the matching
-   * folder row. Selection itself is owned by the URL state hook
-   * upstream.
-   */
   selectedPath?: string | null;
-  /**
-   * Currently selected file id. When set, the matching file row is
-   * highlighted instead of any folder.
-   */
   selectedFileId?: string | null;
-  /**
-   * Current folder path the user is browsing (URL path). Used so the
-   * matching row is auto-scrolled into view when its ancestors are
-   * already expanded; the tree itself is never re-shaped by this
-   * value (Craft-style strict separation — see `useInitialReveal`).
-   */
+  /** The tree itself is never re-shaped by this value. */
   currentFolderPath?: string;
   onSelectFolder: (path: string) => void;
   onSelectFile: (fileId: string, path: string) => void;
-  /**
-   * When incremented by the parent (TwoPaneLayout via TreeRefreshContext),
-   * the tree re-fetches its data. Acts as an out-of-band fallback to the
-   * WebSocket-based refresh for operations that happen in the right pane.
-   */
   externalRefreshKey?: number;
 }
 
@@ -85,9 +62,8 @@ function buildFlatList(
 ): FlatTreeRow[] {
   const result: FlatTreeRow[] = [];
   // The drive root may be served as a flat list (when the tree filter
-  // is on); ensure we only walk genuine root-level entries here so a
-  // toggled-off filter doesn't leak deep nodes into the unfiltered
-  // view.
+  // is on), so a toggled-off filter could leak deep nodes into the
+  // unfiltered view.
   const trueRoots = rootNodes.filter((n) => !n.path.includes("/"));
   const walk = (nodes: FolderTreeNode[], depth: number) => {
     for (const node of nodes) {
@@ -106,20 +82,11 @@ function buildFlatList(
 }
 
 function gatherPathsToLoad(expanded: Set<string>): Set<string> {
-  // Lazy-load mode: the root ("") plus every expanded folder path. The
-  // filter-active path runs through `flatLoad` instead and bypasses
-  // this helper entirely.
   const paths = new Set<string>([""]);
   for (const path of expanded) paths.add(path);
   return paths;
 }
 
-/**
- * Build a minimal {@link Folder} from a tree node so the existing
- * {@link FolderContextMenu} can mutate it without us touching its
- * surface. Fields the menu does not consume (`kind_counts`,
- * `dominant_kind`, full `file_count` accuracy) are stubbed.
- */
 function nodeToFolder(node: Extract<FolderTreeNode, { kind: "folder" }>): Folder {
   return {
     name: node.name,
@@ -131,10 +98,8 @@ function nodeToFolder(node: Extract<FolderTreeNode, { kind: "folder" }>): Folder
 }
 
 /**
- * Build a minimal {@link FileItem} from a tree node so the existing
- * {@link FileContextMenu} can mutate it without a metadata fetch. The
- * menu only reads `id`, `filename`, `drive`, `folder_path` for its
- * mutating actions; we leave the rest as safe defaults.
+ * The menu only reads `id`, `filename`, `drive`, `folder_path` for its
+ * mutating actions; the rest are safe defaults.
  */
 function nodeToFile(
   node: Extract<FolderTreeNode, { kind: "file" }>,
@@ -193,26 +158,15 @@ export function FolderTreePane({
 
   const filterActive = text.debouncedText.length > 0 || filter !== null;
 
-  // Craft-style strict separation: the URL location never re-shapes
-  // the tree. The hook is a no-op kept in place so reviving auto-
-  // expansion is a single-file change there. The current location
-  // still gets surfaced — `useTreeAutoReveal` below scrolls to the
-  // matching row when its ancestors happen to be expanded, and the
-  // breadcrumb above the right pane confirms the path either way.
+  // The URL location never re-shapes the tree. The hook is a no-op kept in
+  // place so reviving auto-expansion is a single-file change there.
   useInitialReveal(currentFolderPath, expansion.expand);
 
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
-  // Auto-refresh on any structural WS event so the tree stays in sync
-  // with mutations from the right pane, other clients, and the
-  // scanner. Spec 2026-05-09-tree-and-pane-refresh-sync.
   useWebSocketRefresh(TREE_STRUCTURE_EVENTS, refresh, drive);
 
-  // Out-of-band fallback: when the right pane performs a mutation and
-  // calls refreshTree() via TreeRefreshContext, externalRefreshKey
-  // increments. We trigger a local refresh so the tree stays in sync
-  // even when the WS event hasn't arrived yet.
   const prevExternalKeyRef = useRef(externalRefreshKey ?? 0);
   useEffect(() => {
     const key = externalRefreshKey ?? 0;
@@ -236,17 +190,8 @@ export function FolderTreePane({
     refreshKey,
   });
 
-  // Tree-pane "new file here" creates a Markdown file at the row's path
-  // (not the URL location), then navigates to the editor. The hook owns
-  // its own in-flight latch so a second right-click while the first
-  // request is pending is a no-op.
   const { createFile } = useCreateFile(drive, "");
 
-  // Drag-and-drop. Tree has no multi-select UI, so we hand the hook an
-  // empty selectedIds set; it degrades cleanly to single-item drags.
-  // Cross-pane drops (drag a card from the right pane → drop on a tree
-  // row) work via the DataTransfer fallback inside the hook, so we
-  // don't need to share state with the right pane's instance.
   // `useDragAndDrop` reports the drop target, and the spring-load hook
   // consumes it — but the spring-load hook also needs the drag state that
   // `useDragAndDrop` produces. The indirection breaks that cycle; the
@@ -267,16 +212,12 @@ export function FolderTreePane({
   const draggedFolderPath = dnd.dragState.draggedFolderPath;
   const draggedFileIds = dnd.dragState.draggedFileIds;
 
-  // True when any pane (including the right pane) has an internal drag
-  // in progress so we show drop targets even for cross-pane drags.
   const isInternalDragging = useIsInternalDragging();
 
-  // Both context menus are always mounted; only `open` and `target` flip
-  // when the user right-clicks a row. Conditionally rendering them would
+  // Both context menus are always mounted. Conditionally rendering them would
   // unmount the dialog state (renameOpen / moveOpen / ...) the moment the
   // outer ContextMenu calls onClose right before invoking the menu item's
-  // handler, swallowing the click. The right pane (FolderContent) uses the
-  // same always-mounted pattern.
+  // handler, swallowing the click.
   const [menuRow, setMenuRow] = useState<FlatTreeRow | null>(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [menuOpen, setMenuOpen] = useState(false);
@@ -302,14 +243,7 @@ export function FolderTreePane({
   const filteredRows: FilteredTreeRow[] | null = useMemo(() => {
     if (!filterActive) return null;
     if (rootNodes.length === 0) return [];
-    // When the filter is active the backend is asked for the full tree;
-    // group it by parent path so we can walk the hierarchy without
-    // further round-trips.
     const byParent = groupByParent(rootNodes);
-    // Distinguish nodes that arrived nested vs. flat. A flat response
-    // has `path` strings with deeper segments, so grouping pulls the
-    // root entries into the empty-string bucket and everything else
-    // under their parents.
     const rootEntries = byParent.get("") ?? rootNodes;
     const tables = computeMatchTables(rootNodes, text.debouncedText);
     return buildFilteredRows(rootEntries, byParent, tables);
@@ -328,11 +262,10 @@ export function FolderTreePane({
     return buildFlatList(rootNodes, childrenByPath, expansion.expanded, loading);
   }, [filteredRows, rootNodes, childrenByPath, expansion.expanded, loading]);
 
-  // Spring-loaded drag. A folder is worth opening only if it is a real
-  // folder with children that is not already open. While the filter is
-  // active the visible list is built from `filteredRows` and ignores the
-  // expansion set entirely, so auto-expanding there would change nothing
-  // on screen while quietly mutating persisted state.
+  // While the filter is active the visible list is built from
+  // `filteredRows` and ignores the expansion set entirely, so auto-expanding
+  // there would change nothing on screen while quietly mutating persisted
+  // state.
   const isSpringLoadable = useCallback(
     (path: string) => {
       if (filterActive) return false;
@@ -357,8 +290,6 @@ export function FolderTreePane({
     notifyDropRef.current = spring.notifyDrop;
   }, [spring.notifyDrop]);
 
-  // Inline rename. The tree shows `node.name`, the real filename, so
-  // editing here edits exactly the string on screen (spec §2).
   const rename = useInlineRename(refresh);
   const [focusedPath, setFocusedPath] = useState<string | null>(null);
 
@@ -404,9 +335,6 @@ export function FolderTreePane({
     getItemKey: (index) => flatList[index]?.node.path ?? index,
   });
 
-  // Auto-reveal: when the URL location changes from outside the tree
-  // (file click in the right pane, deep link, …) scroll the matching
-  // row into view if it is currently off-screen.
   useTreeAutoReveal({
     flatList,
     virtualizer,
@@ -430,11 +358,9 @@ export function FolderTreePane({
     }
   };
 
-  // Drag wiring per row. While a filter is active the visible list mixes
-  // ancestor-context rows with matched rows; dragging in that mode would
-  // be ambiguous, so we disable the drag source until the filter is
-  // cleared. Drop targets stay live (the user might drop a card from
-  // outside the tree).
+  // While a filter is active the visible list mixes ancestor-context rows
+  // with matched rows; dragging in that mode would be ambiguous. Drop
+  // targets stay live.
   const handleRowDragStart = useCallback(
     (row: FlatTreeRow, event: React.DragEvent) => {
       if (filterActive) return;
@@ -453,11 +379,9 @@ export function FolderTreePane({
       // Permanently attaching dragenter/dragover/dragleave/drop to the
       // same element that is also a draggable source confuses the
       // browser's drag-intent detection — the source element never
-      // initiates dragstart. FolderContent uses the same gate (line 83)
-      // and dragging works there.
+      // initiates dragstart.
       if (!dnd.dragState.isDragging && !isInternalDragging) return null;
       if (row.node.kind !== "folder") return null;
-      // Refuse drops onto self or onto a descendant of the dragged folder.
       if (dnd.isDropDisabled(row.node.path)) return null;
       return dnd.getDropTargetProps(row.node.path);
     },
@@ -474,10 +398,6 @@ export function FolderTreePane({
     [draggedFolderPath, draggedFileIds],
   );
 
-  // Root drop band — separate path "" so users can drop into the drive
-  // root without an explicit row. It is rendered as an overlay instead
-  // of normal-flow content so dragstart does not shift the source row
-  // out from under the pointer.
   const rootDropProps =
     (dnd.dragState.isDragging || isInternalDragging) && !dnd.isDropDisabled("")
       ? dnd.getDropTargetProps("")
@@ -488,8 +408,6 @@ export function FolderTreePane({
   const isEmpty = !isRootLoading && flatList.length === 0;
   const isFilterEmpty = filterActive && isEmpty;
 
-  // When typeFilter changes, the cache is dropped upstream. Surface the
-  // root-level fetch state explicitly so the user sees feedback.
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [filter, drive]);
@@ -501,15 +419,6 @@ export function FolderTreePane({
 
   return (
     <div className="relative flex h-full flex-col border-r border-bg-border bg-bg-card">
-      {/* Pane heading, with the filter inside it.
-          The tree's filter and the listing's were the same component
-          drawn identically, forty pixels apart, and the only thing
-          telling them apart was a placeholder nobody reads twice. This
-          one is an underlined field in a heading — a different shape in
-          a different place, saying a different verb ("find a folder"
-          rather than "filter in this folder"), because they do
-          different things: this one searches the whole drive's tree,
-          that one narrows the folder you are looking at. */}
       <div className="flex items-center gap-2 px-3 py-2">
         <span className="flex-shrink-0 text-[11px] font-semibold text-text-muted">
           {t("paneHeading")}
@@ -525,8 +434,8 @@ export function FolderTreePane({
           />
         </div>
       </div>
-      {/* Root drop band — overlayed so showing it during dragstart does
-          not reflow the tree rows and cancel the native drag gesture. */}
+      {/* Overlayed so showing it during dragstart does not reflow the tree
+          rows and cancel the native drag gesture. */}
       {(dnd.dragState.isDragging || isInternalDragging) && rootDropProps && (
         <div
           {...rootDropProps}
@@ -596,11 +505,6 @@ export function FolderTreePane({
           <div className="px-3 py-4 text-xs text-text-muted">{t("loading")}</div>
         ) : isFilterEmpty ? (
           <div className="flex flex-col items-start gap-2 px-3 py-4 text-xs text-text-muted">
-            {/* The filter searches what the tree lists, so the sentence
-                that reports nothing found names the same population. With
-                files hidden the field above says "find a folder", and
-                being told there is no matching *file* would describe a
-                search the pane did not run. */}
             <p>{tFilter(includeFiles ? "empty.treeWithFiles" : "empty.tree")}</p>
             <button
               type="button"
@@ -664,11 +568,6 @@ export function FolderTreePane({
           </div>
         )}
       </div>
-      {/* Foot of the pane, because the pane heading is already the filter
-          field and because this answers a question about the whole tree
-          rather than about any row in it. `aria-pressed` rather than a
-          checkbox: it is a control that changes what the pane draws, the
-          same shape as the tree toggle in the toolbar. */}
       <div className="flex-shrink-0 border-t border-bg-border px-2 py-1.5">
         <Button
           variant="ghost"

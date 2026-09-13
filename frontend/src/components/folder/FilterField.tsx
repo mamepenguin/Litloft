@@ -24,13 +24,6 @@ import {
 } from "@/hooks/useAnchoredDirection";
 import type { FileKind } from "@/types";
 
-/**
- * The whole vocabulary, in the same order the toolbar lists it — the
- * two document refinements directly under the kind they refine, so the
- * nesting is visible in the order. The tree used to offer four of
- * these, so a drive of audio or archives had a filter that could not
- * name what was in it.
- */
 const DEFAULT_TYPE_OPTIONS: FileKind[] = [
   "video", "image", "audio", "document", "markdown", "pdf", "archive", "other",
 ];
@@ -67,32 +60,12 @@ interface FilterFieldProps {
   text: string;
   onTextChange: (next: string) => void;
   placeholder?: string;
-  /**
-   * The kind filter. Optional: the listing surfaces dropped theirs when
-   * the toolbar's server-side filter became the only one — this input is
-   * text-only there, and the chip, its popover and its trigger are all
-   * absent rather than disabled.
-   */
   typeFilter?: FileKind | null;
   onTypeFilterChange?: (next: FileKind | null) => void;
   typeOptions?: FileKind[];
-  /**
-   * How the field is drawn.
-   *
-   * `pill` is a bordered input with a magnifier — the listing's shape,
-   * and the default. `underline` is a rule with no icon and no border,
-   * for the tree pane's heading row: the two used to be the same
-   * component drawn identically forty pixels apart, which is why nobody
-   * could tell which one they were typing into.
-   */
   variant?: "pill" | "underline";
 }
 
-/**
- * Shared text + type filter input for the tree pane and the right pane.
- * Spec: docs/superpowers/specs/2026-05-09-folder-filter-and-tree-filter.md §4
- * (chip inline 化、2026-05-09 改訂版).
- */
 export function FilterField({
   text,
   onTextChange,
@@ -102,8 +75,6 @@ export function FilterField({
   typeOptions,
   variant = "pill",
 }: FilterFieldProps) {
-  // Without a handler there is nothing a chip could change, so the whole
-  // kind axis is off — one condition rather than a guard at each use.
   const kindEnabled = onTypeFilterChange !== undefined;
   const typeFilter = kindEnabled ? (typeFilterProp ?? null) : null;
   const changeType = onTypeFilterChange ?? (() => {});
@@ -119,13 +90,8 @@ export function FilterField({
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // **Two forms, one menu, and the preferred side is not the same in
-  // both.** With a kind chosen the menu hangs off the chip inside the
-  // field, from the chip's own left offset; with none it hangs off the
-  // icon button at the field's right end, where a left-anchored panel runs
-  // off the screen. So the preference is a render-time value rather than a
-  // constant, and the wrapper it is measured against is whichever of the
-  // two positioned boxes actually holds the menu — they are exclusive, and
+  // The wrapper the menu is measured against is whichever of the two
+  // positioned boxes actually holds the menu — they are exclusive, and
   // handing the hook the wrong one would measure the panel against a box
   // it is not inside.
   const preferSide = typeFilter === null ? "right" : "left";
@@ -152,10 +118,9 @@ export function FilterField({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localText]);
 
-  // Measure chip width so the input's paddingLeft can avoid overlap. Use a
-  // layout effect (run before paint) plus ResizeObserver so font load /
-  // locale change / container resize all stay in sync — a stale offsetWidth
-  // would otherwise make the input text bleed under the chip.
+  // ResizeObserver so font load / locale change / container resize all stay
+  // in sync — a stale offsetWidth would make the input text bleed under the
+  // chip.
   useLayoutEffect(() => {
     const el = chipWrapperRef.current;
     if (!el || typeFilter === null) {
@@ -174,9 +139,6 @@ export function FilterField({
   const options = typeOptions ?? DEFAULT_TYPE_OPTIONS;
   const menuValues: Array<FileKind | null> = [null, ...options];
 
-  // Reset focus to the currently selected entry whenever the menu opens or
-  // the active type changes while open — keeps keyboard focus tracking the
-  // displayed selection.
   useEffect(() => {
     if (!open) {
       setFocusedIndex(-1);
@@ -208,8 +170,6 @@ export function FilterField({
     if (e.key === "Tab") {
       e.preventDefault();
       setOpen(false);
-      // Hand focus back to whichever element opened the menu so Tab order
-      // stays predictable.
       (chipRef.current ?? triggerRef.current)?.focus();
       return;
     }
@@ -256,10 +216,6 @@ export function FilterField({
     if (e.key !== "Backspace") return;
     if (typeFilter === null) return;
     const target = e.currentTarget;
-    // Linear / Slack convention: only delete the chip when the input is
-    // empty AND the caret is at the start. Avoids accidentally clearing the
-    // type filter when the user moves the caret to the start of existing
-    // text and hits Backspace.
     if (
       target.value.length === 0 &&
       target.selectionStart === 0 &&
@@ -273,12 +229,9 @@ export function FilterField({
   const TypeIcon = typeFilter ? TYPE_ICONS[typeFilter] : null;
   const typeLabel = typeFilter ? t(TYPE_LABEL_KEYS[typeFilter]) : "";
 
-  // Both call sites below draw the menu through this, so the scrim is
-  // written once and neither form can be left without one.
   const renderMenu = () => (
     <DismissScrim
       onDismiss={() => setOpen(false)}
-      // No tint: this menu is anchored to its chip at every width.
       className="fixed inset-0 z-30"
     >
       <div
@@ -286,10 +239,6 @@ export function FilterField({
         id={menuId}
         role="menu"
         onKeyDown={handleMenuKeyDown}
-        // The two forms differ in where their preferred edge *is*: the
-        // chip form starts at the chip's own 28px offset rather than at
-        // the field's left edge, so `left-7` is what `left` means here.
-        // The flipped edge is the field's right edge in both.
         className={`absolute z-30 min-w-[140px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg ${
           ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
         } ${
@@ -361,9 +310,6 @@ export function FilterField({
               type="button"
               onClick={handleRemoveType}
               aria-label={t("chipRemove", { type: typeLabel })}
-              // Visible icon stays at 10px to keep the chip compact, but the
-              // button itself is padded to ~20×20 so the click/touch target
-              // is large enough without enlarging the chip footprint.
               className="flex items-center justify-center px-1.5 py-1 text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-focus-ring"
             >
               <X size={10} aria-hidden />

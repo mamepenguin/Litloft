@@ -10,11 +10,8 @@ import { siblingPath } from "@/lib/filename";
 import type { Folder } from "@/types";
 
 export interface FolderCardRenameApi {
-  /** Reason an edit was abandoned, for the host's transient banner. */
   error: string | null;
-  /** Wire to `FolderContextMenu`'s `onStartInlineRename`. */
   start: (path: string) => void;
-  /** Spread onto every `FolderCard` the host renders. */
   cardProps: (folder: Folder) => {
     isEditing: boolean;
     onRenameCommit: (next: string) => Promise<void>;
@@ -24,16 +21,6 @@ export interface FolderCardRenameApi {
   };
 }
 
-/**
- * Inline rename for a grid of folder cards.
- *
- * Whether a card can be renamed in place is decided by its host passing
- * `onStartInlineRename`, so every host of `FolderCard` needs the same
- * block of wiring. It lives here rather than in each of them: the drive
- * home was left behind on the first pass precisely because the wiring was
- * copied rather than shared, and the same right-click meant two different
- * things depending on which screen you were on.
- */
 export function useFolderCardRename(
   driveName: string,
   onRenamed: () => void,

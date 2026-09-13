@@ -94,7 +94,6 @@ export function ArchiveImageViewer({
     toggleControls: handleImageAreaClick,
   });
 
-  // Mounted only while the viewer is open, so it is active for its whole life.
   const backdropRef = useInertBackdrop<HTMLDivElement>(true);
 
   return (
@@ -105,7 +104,6 @@ export function ArchiveImageViewer({
       aria-label={`${t("imageViewer")}: ${currentImage.filename}`}
       className="fixed inset-0 z-[60] flex flex-col bg-black"
     >
-      {/* Header */}
       <div
         className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300"
         {...chromeProps}
@@ -178,7 +176,6 @@ export function ArchiveImageViewer({
         </div>
       </div>
 
-      {/* Main image area */}
       <div
         className="flex flex-1 cursor-pointer items-center overflow-hidden touch-none"
         {...gestureHandlers}
@@ -190,17 +187,12 @@ export function ArchiveImageViewer({
           data-face={face.kind}
           className="flex h-full items-center justify-center"
           style={{
-            // Splitting draws one page at twice the frame's width and
-            // slides it; pairing draws two pages inside one frame's
-            // width. Same word, opposite arithmetic.
             width: activeSplit ? "200%" : "100%",
             flexShrink: activeSplit ? 0 : undefined,
             transform:
               activeSplit && showRightHalf ? "translateX(-50%)" : undefined,
-            // Right-to-left reading puts the first page of a pair on the
-            // right. The `flex-direction` does it, so the two `<img>`
-            // elements stay in reading order in the DOM and a screen
-            // reader hears them in the order they are read.
+            // The `flex-direction` does it, so the two `<img>` elements stay
+            // in reading order in the DOM for a screen reader.
             flexDirection:
               face.kind === "pair" && readingDirection === "rtl"
                 ? "row-reverse"
@@ -225,14 +217,10 @@ export function ArchiveImageViewer({
                   const landscape = img.naturalWidth > img.naturalHeight;
                   // Every drawn page, not only the one the face is named
                   // by: the second page of a pair is exactly the index
-                  // the *next* face will ask about, and a page the
-                  // reader has seen is one they can turn back to. This
-                  // is the only thing that ever fills the map.
+                  // the *next* face will ask about.
                   rememberOrientation(i, landscape ? "landscape" : "portrait");
-                  // Only the page the position is named by decides
-                  // whether this face is a split one. The second page of
-                  // a pair reporting its own shape here would flip the
-                  // face out from under itself.
+                  // The second page of a pair reporting its own shape here
+                  // would flip the face out from under itself.
                   if (slot === 0 && i === imageIndex) {
                     setIsCurrentLandscape(landscape);
                   }
@@ -244,7 +232,6 @@ export function ArchiveImageViewer({
         </div>
       </div>
 
-      {/* Navigation buttons */}
       {showControls && (readingDirection === "ltr" ? canGoPrev : canGoNext) && (
         <button
           onClick={(e) => {
