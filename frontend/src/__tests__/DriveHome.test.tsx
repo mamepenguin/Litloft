@@ -466,8 +466,10 @@ describe("the drive home's acceptance criteria", () => {
     // sees a page mid-fetch. That is what made this case fail about one
     // shuffled run in eight — a race the shuffle perturbs, not an order
     // dependency. This fixture's drive has no files, so every row removes
-    // itself once its fetch lands.
-    await waitFor(() => expect(sectionNames()).toEqual([]));
+    // itself once its fetch lands and the page says so in their place.
+    await waitFor(() =>
+      expect(sectionNames()).toEqual([messages.empty.noHomeActivityTitle]),
+    );
 
     expect(sectionNames()).not.toContain("Continue Watching");
     expect(sectionNames()).not.toContain("Recently Viewed");

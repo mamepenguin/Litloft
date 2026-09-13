@@ -384,6 +384,19 @@ The drive home page surfaces several content rows, in this order:
 
 Continue watching and Recently Viewed need a profile; without one, no history is recorded and the two rows do not appear. See [profile and preferences](profile-preferences.md).
 
+A row that comes back empty takes its heading and its **See all** away
+with it, so a drive with nothing in it yet shows **Nothing here yet** and
+a link to Library in place of the rows. A row whose request failed keeps
+whatever it was already showing; a refresh that fails changes nothing on
+screen.
+
+If none of the drive's requests could be answered at all, the page says
+so and offers **Try again** rather than telling you the drive is empty.
+Pressing it asks for everything again, history included. A row an addon
+contributes is not part of that judgement — the page reports on its own
+rows only, so an addon that cannot load does not make the drive look
+unreachable.
+
 A row shows as many cards as fit its width and no more — it does not
 scroll sideways, so nothing is hidden off the right-hand edge. The width
 that counts is the row's own, not the window's: a row about 790px wide

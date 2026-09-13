@@ -461,8 +461,13 @@
     "noTrashDescription": "削除されたファイルはここに表示されます。",
     "noTagMatchesTitle": "このフォルダには一致するファイルがありません",
     "noTagMatchesDescription": "このタグが付いたファイルはここにありません。",
+    "noHomeActivityTitle": "まだ何もありません",
+    "noHomeActivityDescription": "このドライブに追加したファイルや、開いたファイルがここに並びます。",
+    "homeUnavailableTitle": "このドライブを読み込めませんでした",
+    "homeUnavailableDescription": "いま何も取得できませんでした。ドライブが空という意味ではありません。",
     "addFilesAction": "ファイルを追加",
-    "createNoteAction": "ノートを作成"
+    "createNoteAction": "ノートを作成",
+    "openLibraryAction": "ライブラリを開く"
   },
   "theme": {
     "system": "システム",

@@ -461,8 +461,13 @@
     "noTrashDescription": "Deleted files will appear here.",
     "noTagMatchesTitle": "No matches in this folder",
     "noTagMatchesDescription": "Nothing here carries this tag.",
+    "noHomeActivityTitle": "Nothing here yet",
+    "noHomeActivityDescription": "Files you add to this drive, and the ones you open, show up here.",
+    "homeUnavailableTitle": "Couldn't load this drive",
+    "homeUnavailableDescription": "Nothing could be fetched just now. This does not mean the drive is empty.",
     "addFilesAction": "Add files",
-    "createNoteAction": "New note"
+    "createNoteAction": "New note",
+    "openLibraryAction": "Open Library"
   },
   "theme": {
     "system": "System",

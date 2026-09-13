@@ -580,6 +580,31 @@ describe("accent budget — drive root", () => {
     expect(add.closest("header")).not.toBeNull();
   });
 
+  it("still spends one on Add when there is nothing to show", async () => {
+    // The two states that draw a call to action of their own into the
+    // page body, where the header's Add is already the screen's one
+    // fill. Neither of them is on screen in the cases above.
+    mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0 } });
+
+    const { container } = render(<DriveHome driveName="main" />);
+    await screen.findByRole("link", { name: "Open Library" });
+
+    expect(
+      [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
+    ).toEqual(["Add"]);
+  });
+
+  it("still spends one on Add when nothing could be fetched", async () => {
+    mockGetDriveFiles.mockRejectedValue(new Error("network"));
+
+    const { container } = render(<DriveHome driveName="main" />);
+    await screen.findByRole("button", { name: "Try again" });
+
+    expect(
+      [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
+    ).toEqual(["Add"]);
+  });
+
   it("still spends one on Add with a half-watched row on screen", async () => {
     // The state a viewer with a nickname sees most of the time, and the
     // one the old mock made unreachable. A watch-progress bar is a

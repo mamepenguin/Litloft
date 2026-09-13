@@ -12,6 +12,7 @@ import { AddButton } from "./AddButton";
 import { AddonSlot } from "./AddonSlot";
 import { CarouselSection } from "./CarouselSection";
 import { ContinueWatchingSection } from "./ContinueWatchingSection";
+import { EmptyState } from "./EmptyState";
 import { PageHeader } from "./PageHeader";
 import { TreeToggle } from "./TreeToggle";
 import { useProfile } from "./ProfileProvider";
@@ -86,6 +87,8 @@ const SECTION_LIMIT = 12;
 
 export function DriveHome({ driveName }: DriveHomeProps) {
   const t = useTranslations("drive");
+  const tEmpty = useTranslations("empty");
+  const tErrors = useTranslations("errors");
   // The sidebar's name for this destination, not a second one. The row
   // in the sidebar and the heading on the page name the same place, and
   // two keys for that is two things to keep in step. Same choice as the
@@ -101,6 +104,16 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const [recent, setRecent] = useState<SectionState>({ files: [], loading: true });
   const [favorites, setFavorites] = useState<SectionState>({ files: [], loading: true });
   const [liked, setLiked] = useState<SectionState>({ files: [], loading: true });
+  // A row that is empty because its request failed and a row that is
+  // empty because the drive holds nothing are the same row on screen.
+  // These two are what separates them. Two and not one, because the
+  // file rows are also re-fetched without the watch rows.
+  const [fileSectionsFailed, setFileSectionsFailed] = useState(false);
+  const [watchHistoryFailed, setWatchHistoryFailed] = useState(false);
+  // Whether a page load has come back. One flag and not one per row:
+  // every row on this page is written at the same await, so a row's own
+  // `loading` cannot say anything the others do not.
+  const [pageLoaded, setPageLoaded] = useState(false);
 
   // The drive the page is showing, as opposed to the drive any given
   // request was made for. Read only after an `await`, so the effect that
@@ -146,9 +159,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     // nothing still clears the skeleton — a first load that fails must
     // not leave it spinning — but it must not claim the stream, or it
     // would discard the response still in flight that can.
-    if (results.some((result) => result.status === "fulfilled")) {
+    const delivered = results.some((result) => result.status === "fulfilled");
+    if (delivered) {
       fileSectionsAppliedRef.current = batch.requestId;
     }
+    setFileSectionsFailed(!delivered);
     // A failed request leaves the row holding what it had. Writing an
     // empty row instead would let a refresh that delivered nothing erase
     // one that did — on the first load there is nothing to keep, so the
@@ -184,68 +199,69 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   /**
    * One fetch of everything this page shows.
    *
-   * **Nothing here assumes one run per mount.** A second run for the
-   * same drive, with the first still in flight, cannot be sorted out by
+   * **Nothing here assumes one run per mount**, and a second run for the
+   * same drive with the first still in flight cannot be sorted out by
    * comparing drive names — so the rows carry their identity on the
    * response (`ResponseIdentity`) and the watch rows carry theirs on the
-   * page load (`pageLoadRef`), rather than on this effect.
-   *
-   * Whether anything produces that second run is not this file's to
-   * decide. The only caller is `app/drive/[name]/page.tsx`, which takes
-   * `driveName` from the route segment, and whether a segment change
-   * re-renders this instance or replaces it is the router's choice.
-   * These guards are the contract this component keeps either way, not
-   * a fix for a failure someone reported.
-   *
-   * **A known wart, measured and not introduced here**: because the rows
-   * are blanked on every run, a re-fetch that fails leaves them empty for
-   * the rest of the visit. Reproduces on `origin/develop`.
+   * page load (`pageLoadRef`).
    */
+  const loadPage = useCallback(async () => {
+    const pageLoadId = ++pageLoadRef.current;
+    setPageLoaded(false);
+    setRecent({ files: [], loading: true });
+    setFavorites({ files: [], loading: true });
+    setLiked({ files: [], loading: true });
+    if (hasProfile) {
+      setContinueWatchingLoading(true);
+      setRecentlyPlayedLoading(true);
+    }
+
+    const [fileResults, watchResults] = await Promise.all([
+      fetchFileSections(),
+      // `allSettled` rather than a `catch` per request: both end with an
+      // empty row, but a rejection that becomes `[]` is indistinguishable
+      // from a drive nobody has opened anything in, and telling those
+      // apart is what the states at the foot of this page are for.
+      hasProfile
+        ? Promise.allSettled([
+            getWatchHistory(driveName, SECTION_LIMIT),
+            getWatchHistory(driveName, SECTION_LIMIT, "all"),
+          ])
+        : null,
+    ]);
+
+    // The rows answer to their own request, so they are applied
+    // whether or not this page load is still the current one.
+    applyFileSections(fileResults);
+
+    // The rest is fetched only here, so this page load is what it
+    // answers to.
+    if (pageLoadRef.current !== pageLoadId) return;
+    setPageLoaded(true);
+
+    if (watchResults) {
+      const [continueResult, recentlyPlayedResult] = watchResults;
+      // Emptied on a rejection rather than left holding what it had.
+      // These rows are fetched only on a page load, and a page load is
+      // also how the drive changes, so keeping the previous items would
+      // show one drive's history under another drive's name.
+      setContinueWatching(continueResult.status === "fulfilled" ? continueResult.value : []);
+      setContinueWatchingLoading(false);
+      setRecentlyPlayed(recentlyPlayedResult.status === "fulfilled" ? recentlyPlayedResult.value : []);
+      setRecentlyPlayedLoading(false);
+      setWatchHistoryFailed(
+        !watchResults.some((result) => result.status === "fulfilled"),
+      );
+    }
+  }, [driveName, fetchFileSections, applyFileSections, hasProfile]);
+
+  // `nickname` is here and not in `loadPage`: the request carries the
+  // viewer in a cookie rather than in an argument, so one reader's
+  // history has to be re-fetched for the next even though nothing the
+  // callback closes over has changed.
   useEffect(() => {
-    const fetchAll = async () => {
-      const pageLoadId = ++pageLoadRef.current;
-      setRecent({ files: [], loading: true });
-      setFavorites({ files: [], loading: true });
-      setLiked({ files: [], loading: true });
-      if (hasProfile) {
-        setContinueWatchingLoading(true);
-        setRecentlyPlayedLoading(true);
-      }
-
-      const promises: [
-        Promise<FileSectionsBatch>,
-        Promise<WatchHistoryItem[]> | null,
-        Promise<WatchHistoryItem[]> | null,
-      ] = [
-        fetchFileSections(),
-        hasProfile ? getWatchHistory(driveName, SECTION_LIMIT).catch(() => [] as WatchHistoryItem[]) : null,
-        hasProfile ? getWatchHistory(driveName, SECTION_LIMIT, "all").catch(() => [] as WatchHistoryItem[]) : null,
-      ];
-
-      const [fileResults, watchResult, recentlyPlayedResult] = await Promise.all([
-        promises[0],
-        promises[1] ?? Promise.resolve([] as WatchHistoryItem[]),
-        promises[2] ?? Promise.resolve([] as WatchHistoryItem[]),
-      ]);
-
-      // The rows answer to their own request, so they are applied
-      // whether or not this page load is still the current one.
-      applyFileSections(fileResults);
-
-      // The rest is fetched only here, so this page load is what it
-      // answers to.
-      if (pageLoadRef.current !== pageLoadId) return;
-
-      if (hasProfile) {
-        setContinueWatching(watchResult);
-        setContinueWatchingLoading(false);
-        setRecentlyPlayed(recentlyPlayedResult);
-        setRecentlyPlayedLoading(false);
-      }
-    };
-
-    fetchAll();
-  }, [driveName, fetchFileSections, applyFileSections, hasProfile, nickname]);
+    void loadPage();
+  }, [loadPage, nickname]);
 
   const refetchAllSections = useCallback(async () => {
     applyFileSections(await fetchFileSections());
@@ -278,6 +294,21 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   }, []);
 
   const driveBase = `/drive/${encodeURIComponent(driveName)}`;
+
+  // Every row hides itself when it settles empty, so a drive with
+  // nothing in it and a drive nothing could be fetched from both end as
+  // a page with only a header on it.
+  const rowsEmpty =
+    recent.files.length === 0 &&
+    favorites.files.length === 0 &&
+    liked.files.length === 0 &&
+    continueWatching.length === 0 &&
+    recentlyPlayed.length === 0;
+  // Only the requests this page load actually issued count: without a
+  // profile the watch rows are never asked for, so their outcome says
+  // nothing about whether the drive answered.
+  const everyCoreRequestFailed =
+    fileSectionsFailed && (!hasProfile || watchHistoryFailed);
 
   return (
     // Upload is dispatched to `[data-upload-zone]` found in the document
@@ -401,6 +432,29 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         seeAllHref={`${driveBase}?view=liked`}
         onFileAction={refetchAllSections}
       />
+
+      {/* The addon slot is not consulted. Core cannot see whether an
+          addon row drew anything, so a state that an addon's failure
+          could trigger would be answering for a section this screen
+          does not own.
+
+          Neither state takes the accent fill: Add is on the header in
+          both of them and stays this screen's only one. */}
+      {pageLoaded && rowsEmpty && (
+        everyCoreRequestFailed ? (
+          <EmptyState
+            variant="home-unavailable"
+            secondaryActions={[{ label: tErrors("tryAgain"), onClick: () => void loadPage() }]}
+          />
+        ) : (
+          <EmptyState
+            variant="no-home-activity"
+            secondaryActions={[
+              { label: tEmpty("openLibraryAction"), href: `${driveBase}?view=library` },
+            ]}
+          />
+        )
+      )}
 
       </div>
     </UploadZone>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, File, FilePlus, Search, RefreshCw, Star, Tag, ThumbsUp, Trash2 } from "lucide-react";
+import { AlertTriangle, Clock, File, FilePlus, Home, Search, RefreshCw, Star, Tag, ThumbsUp, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
@@ -28,6 +28,8 @@ export const EMPTY_VARIANTS = [
   "no-recent-added",
   "no-tag-matches",
   "no-trash",
+  "no-home-activity",
+  "home-unavailable",
 ] as const;
 
 export type EmptyVariant = (typeof EMPTY_VARIANTS)[number];
@@ -85,6 +87,19 @@ const variantConfig: Record<
     icon: Trash2,
     titleKey: "noTrashTitle",
     descriptionKey: "noTrashDescription",
+  },
+  "no-home-activity": {
+    icon: Home,
+    titleKey: "noHomeActivityTitle",
+    descriptionKey: "noHomeActivityDescription",
+  },
+  // Not an empty state, and it shares this component on purpose: the two
+  // are alternatives in the same place, and a screen that draws one of
+  // them from a different recipe drifts from the other.
+  "home-unavailable": {
+    icon: AlertTriangle,
+    titleKey: "homeUnavailableTitle",
+    descriptionKey: "homeUnavailableDescription",
   },
 };
 

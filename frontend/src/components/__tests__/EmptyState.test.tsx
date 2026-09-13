@@ -20,15 +20,17 @@ describe("EmptyState", () => {
   // every row is drawn.
   describe("every variant resolves against the catalogue", () => {
     it("covers the whole table", () => {
-      expect(EMPTY_VARIANTS).toHaveLength(10);
+      expect(EMPTY_VARIANTS).toHaveLength(12);
     });
 
     it.each(EMPTY_VARIANTS)("renders real copy for %s", (variant) => {
       const { container } = render(<EmptyState variant={variant} />);
       const text = container.textContent ?? "";
       // next-intl echoes the key path when a message is missing, so a raw
-      // "empty." in the output *is* the failure this test exists for.
-      expect(text).not.toContain("empty.");
+      // "empty." in the output *is* the failure this test exists for. The
+      // key that follows is what separates it from copy that ends a
+      // sentence on the word.
+      expect(text).not.toMatch(/empty\.[A-Za-z]/);
       expect(text.trim().length).toBeGreaterThan(0);
       expect(
         screen.getByRole("heading", { level: 2 }).textContent?.trim(),
@@ -68,6 +70,8 @@ describe("EmptyState", () => {
         // Shares Clock with no-recent: same absence, different reason for it.
         "no-recent-profile": "lucide-clock",
         "no-recent-added": "lucide-file-plus",
+        "no-home-activity": "lucide-house",
+        "home-unavailable": "lucide-triangle-alert",
         "no-tag-matches": "lucide-tag",
         // lucide emits both `lucide-trash2` and `lucide-trash-2`; the first wins.
         "no-trash": "lucide-trash2",
