@@ -1163,6 +1163,44 @@ class TestBatchCopy:
         assert c.delete(f"/api/files/{ghost_id}/purge").status_code == 200
         assert not ghost_thumb.exists(), "the purge could no longer reach the JPEG"
 
+    def test_a_second_commit_that_fails_does_not_take_back_the_copy(self, client):
+        """Recording who owns the JPEG is its own commit, after the copy's. The
+        scanner writes to the same database, so that commit can lose — and a
+        file that is on disk with a row of its own has arrived."""
+        from sqlalchemy import event
+        from sqlalchemy.exc import SQLAlchemyError
+        from sqlalchemy.orm import Session as OrmSession
+
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        source = _seed_with_thumbnail(db, drive_dir, data_dir, "a.mp4", folder="one")
+        commits = {"n": 0}
+
+        def lose_the_second(session):
+            commits["n"] += 1
+            if commits["n"] == 2:
+                raise SQLAlchemyError("database is locked")
+
+        event.listen(OrmSession, "before_commit", lose_the_second)
+        try:
+            res = c.post(
+                "/api/files/batch/copy",
+                json={"ids": [source.id], "target_folder_path": "dest"},
+            )
+        finally:
+            event.remove(OrmSession, "before_commit", lose_the_second)
+
+        assert commits["n"] >= 2, "the ownership commit was never reached"
+        assert res.json() == {"copied": 1, "errors": []}
+        assert (drive_dir / "dest" / "a.mp4").exists()
+        assert (
+            db.query(File)
+            .filter(File.drive == TEST_DRIVE, File.file_path == "dest/a.mp4")
+            .count()
+            == 1
+        )
+
     def test_a_copy_leaves_a_retired_record_pointing_elsewhere_alone(self, client):
         """Being retired out of the path is not the same as owning the slot the
         arriving file writes. A record whose picture lives somewhere else keeps

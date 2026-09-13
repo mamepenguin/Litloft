@@ -127,6 +127,54 @@ class TestMoveFile:
 
 
 
+    def test_a_move_that_writes_no_thumbnail_leaves_the_ghost_its_own(self, client):
+        """Only video thumbnails follow a move, so moving anything else takes no
+        cache slot and the retired record keeps the picture the purge reaches
+        through."""
+        from datetime import UTC, datetime
+
+        import app.config as config
+        from app.models import File
+
+        c, db, drive_dir, data_dir = client
+        source = _seed(db, drive_dir, "a.png", folder="one")
+        source.file_type = "image"
+        source.mime_type = "image/png"
+        db.commit()
+        (drive_dir / "dest").mkdir(exist_ok=True)
+
+        ghost_thumb_rel = f"{TEST_DRIVE}/dest/a.jpg"
+        ghost_thumb = config.THUMBNAILS_DIR / ghost_thumb_rel
+        ghost_thumb.parent.mkdir(parents=True, exist_ok=True)
+        ghost_thumb.write_bytes(b"\xff\xd8\xff\xe0GHOST-PICTURE")
+        ghost = File(
+            filename="a.png",
+            title="Gone",
+            drive=TEST_DRIVE,
+            folder_path="dest",
+            file_path="dest/a.png",
+            file_size=1,
+            file_type="image",
+            mime_type="image/png",
+            thumbnail_path=ghost_thumb_rel,
+            missing_since=datetime.now(UTC),
+        )
+        db.add(ghost)
+        db.commit()
+        ghost_id = ghost.id
+
+        assert (
+            c.put(
+                f"/api/files/{source.id}/move", json={"target_folder_path": "dest"}
+            ).status_code
+            == 200
+        )
+
+        db.expire_all()
+        assert db.get(File, ghost_id).thumbnail_path == ghost_thumb_rel
+        assert ghost_thumb.exists()
+
+
 class TestDeleteFile:
     def test_delete(self, client):
         c, db, drive_dir, data_dir = client
