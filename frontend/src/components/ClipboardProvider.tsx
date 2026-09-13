@@ -10,8 +10,10 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { batchCopy, batchMove } from "@/lib/api";
+import { useToast } from "@/components/ToastProvider";
 
 const STORAGE_KEY = "hv_clipboard";
 
@@ -105,6 +107,9 @@ export function ClipboardProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const toast = useToast();
+  const t = useTranslations("clipboard");
+
   const clear = useCallback(() => {
     setClipboard(null);
     removeFromStorage();
@@ -114,20 +119,49 @@ export function ClipboardProvider({ children }: { children: ReactNode }) {
     async (targetDrive: string, targetPath: string) => {
       if (!clipboard) return;
 
+      // Both endpoints answer 200 with a count and a per-file error list
+      // rather than throwing, so what happened has to be read off the
+      // body. A rejection here is the request itself being refused —
+      // a locked target drive, a restart mid-paste — and nothing was
+      // written, so the clipboard is what lets it be tried again.
+      let result: { pasted: number; failed: number };
       try {
-        if (clipboard.mode === "copy") {
-          await batchCopy(clipboard.fileIds, targetPath, targetDrive);
-        } else {
-          await batchMove(clipboard.fileIds, targetPath, targetDrive);
-          setClipboard(null);
-          removeFromStorage();
-        }
-        router.refresh();
-      } catch (error) {
-        throw error;
+        result =
+          clipboard.mode === "copy"
+            ? await batchCopy(clipboard.fileIds, targetPath, targetDrive).then((r) => ({
+                pasted: r.copied,
+                failed: r.errors.length,
+              }))
+            : await batchMove(clipboard.fileIds, targetPath, targetDrive).then((r) => ({
+                pasted: r.moved,
+                failed: r.errors.length,
+              }));
+      } catch {
+        // A count would be a guess here; the honest statement is that it
+        // did not happen. Not rethrown: this is the only place that knows
+        // what to say, and the one caller had an empty `catch` whose whole
+        // job was to absorb the rejection.
+        toast.error(t("pasteRefused"));
+        return;
       }
+
+      // Cleared once something landed, so a second paste cannot duplicate
+      // what the first one already put there. A paste that moved nothing
+      // is not a paste, and keeping the clipboard is what lets it be
+      // tried again.
+      if (result.pasted > 0) {
+        setClipboard(null);
+        removeFromStorage();
+      }
+      // The clipboard used to be the only trace that some of them did not
+      // arrive. Clearing it takes that away, so what it was standing in
+      // for has to be said.
+      if (result.failed > 0) {
+        toast.error(t("pasteFailed", { count: result.failed }));
+      }
+      router.refresh();
     },
-    [clipboard, router],
+    [clipboard, router, t, toast],
   );
 
   const isCut = useCallback(

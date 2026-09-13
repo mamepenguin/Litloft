@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.models import EmptyFolder, File, active_file_filter
 from app.nanoid import generate_nanoid
+from app.services.atomic_write import generating_file
 from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
 
@@ -118,6 +119,11 @@ def _cleanup_empty_parents(directory: Path, stop_at: Path) -> None:
             break
 
 
+def path_thumbnail_rel(drive: str, folder_path: str, stem: str) -> str:
+    """The thumbnail cache slot a file at this path owns."""
+    return f"{drive}/{folder_path}/{stem}.jpg" if folder_path else f"{drive}/{stem}.jpg"
+
+
 def remove_empty_folder_if_has_files(db: Session, drive: str, folder_path: str) -> None:
     existing = (
         db.query(EmptyFolder)
@@ -152,7 +158,7 @@ def _ensure_empty_folder_tracked(db: Session, drive: str, folder_path: str) -> N
         db.add(EmptyFolder(drive=drive, path=folder_path))
 
 
-def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
+def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> str | None:
     """Free the UNIQUE ``file_path`` slot at ``new_rel`` *within* ``drive``
     before a create / move / rename / upload writes that path.
 
@@ -179,7 +185,11 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
       • Missing (missing_since set)
             → retire the ghost's file_path to a placeholder. The record is
               preserved (watch-history / tags / comments survive) and stays
-              visible in the Missing view for the user to purge later.
+              visible in the Missing view for the user to purge later. Its id
+              is returned: it still names the thumbnail cache slot derived from
+              the freed path, and the caller that goes on to *write* that slot
+              has to take the name away — but only once it has written it. The
+              purge reaches a JPEG through that pointer and nothing else does.
     """
     conflict = (
         db.query(File)
@@ -187,7 +197,7 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
         .first()
     )
     if conflict is None:
-        return
+        return None
     if conflict.missing_since is None and conflict.deleted_at is None:
         raise HTTPException(
             status_code=409,
@@ -195,9 +205,28 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> None:
         )
     if conflict.deleted_at is not None:
         db.delete(conflict)
-    else:
-        conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
+        db.flush()
+        return None
+    conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
     db.flush()
+    return conflict.id
+
+
+def _rename_thumbnail_owner(
+    db: Session, owner: File, thumb_rel: str, retired_id: str | None
+) -> None:
+    """Point ``owner`` at the JPEG just written, and stop a record retired out
+    of that path from naming it. Its own commit, because the JPEG is a cache: a
+    database error here must not take back a file that has already arrived."""
+    try:
+        owner.thumbnail_path = thumb_rel
+        retired = db.get(File, retired_id) if retired_id is not None else None
+        if retired is not None and retired.thumbnail_path == thumb_rel:
+            retired.thumbnail_path = None
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.warning("Wrote %s but could not record who owns it", thumb_rel)
 
 
 def _resolve_copy_filename(target_dir: Path, original_filename: str) -> str:
@@ -248,76 +277,116 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     new_id = generate_nanoid()
     new_rel = f"{target_folder}/{new_filename}" if target_folder else new_filename
 
+    new_thumb_rel = path_thumbnail_rel(dst_drive, target_folder, Path(new_filename).stem)
+    new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
+    # Markdown thumbnails are projections owned by the note ID, so they are
+    # regenerated from the copy's own content instead of taking this slot.
+    old_thumb = (
+        config.THUMBNAILS_DIR / source.thumbnail_path
+        if source.thumbnail_path and not _is_markdown_file(source)
+        else None
+    )
+    # Only video thumbnails follow a move, so an image moved out of a folder
+    # still points at the thumbnail it left there, and copying it back names one
+    # file on both sides — which `copy2` refuses. `samefile` rather than a path
+    # comparison, because the drive is read through a mount that folds case and
+    # Unicode normalisation. The copy takes no pointer in that case: the slot
+    # belongs to the row already naming it, and two rows sharing one JPEG means
+    # purging either blanks the other.
+    fills_thumbnail_slot = (
+        old_thumb is not None
+        and old_thumb.exists()
+        and not (new_thumb.exists() and old_thumb.samefile(new_thumb))
+    )
+
     # Free the UNIQUE file_path slot if a stale ghost holds it. Done BEFORE
     # creating the FS file so an active 409 conflict doesn't leave an orphan
     # file on disk. (_resolve_copy_filename only avoids FS collisions; a DB
     # ghost with no FS copy would otherwise pass that check and then blow up
     # at db.commit with an IntegrityError.)
-    resolve_db_path_conflict(db, new_rel, dst_drive)
+    retired_id = resolve_db_path_conflict(db, new_rel, dst_drive)
 
     # Atomic copy: create exclusive target then copy content to prevent TOCTOU race
+    projected_thumb: Path | None = None
     try:
         fd = os.open(str(new_full), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
         os.close(fd)
     except FileExistsError:
         raise HTTPException(status_code=409, detail="Target file already exists")
-    shutil.copy2(str(old_full), str(new_full))
-
-    new_file = File(
-        id=new_id,
-        filename=new_filename,
-        title=_filename_to_title(new_filename),
-        description=source.description,
-        drive=dst_drive,
-        folder_path=target_folder,
-        file_path=new_rel,
-        file_size=source.file_size,
-        file_type=source.file_type,
-        mime_type=source.mime_type,
-        duration=source.duration,
-        image_width=source.image_width,
-        image_height=source.image_height,
-        is_favorite=False,
-        liked_at=None,
-    )
-
-    # Markdown thumbnails are projections owned by the note ID, so they must
-    # be regenerated below instead of copied to the generic path-based cache.
-    if source.thumbnail_path and not _is_markdown_file(source):
-        old_thumb = config.THUMBNAILS_DIR / source.thumbnail_path
-        if old_thumb.exists():
-            new_stem = Path(new_filename).stem
-            new_thumb_rel = (
-                f"{dst_drive}/{target_folder}/{new_stem}.jpg"
-                if target_folder
-                else f"{dst_drive}/{new_stem}.jpg"
-            )
-            new_thumb = config.THUMBNAILS_DIR / new_thumb_rel
-            new_thumb.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(str(old_thumb), str(new_thumb))
-            new_file.thumbnail_path = new_thumb_rel
-
-
-    # If the DB write fails, delete the freshly copied FS file so we don't
-    # leave an orphan with no DB record.
+    # Everything from the exclusive create to the commit owns the file that
+    # create just made: whatever fails in between, the destination goes back
+    # to not existing. This used to be three handlers covering parts of the
+    # span, and the gap between them left a *complete* copy behind with no
+    # row pointing at it — which the next file in the batch was then
+    # suffixed around, and the next scan indexed as a second real file.
     try:
-        db.add(new_file)
-        if _is_markdown_file(new_file):
-            content = _read_markdown_for_projection(new_full)
-            if content is not None:
-                project_markdown_thumbnail(db, new_file, content)
-        remove_empty_folder_if_has_files(db, dst_drive, target_folder)
-        db.commit()
-    except Exception as exc:
-        db.rollback()
+        shutil.copy2(str(old_full), str(new_full))
+
+        new_file = File(
+            id=new_id,
+            filename=new_filename,
+            title=_filename_to_title(new_filename),
+            description=source.description,
+            drive=dst_drive,
+            folder_path=target_folder,
+            file_path=new_rel,
+            file_size=source.file_size,
+            file_type=source.file_type,
+            mime_type=source.mime_type,
+            duration=source.duration,
+            image_width=source.image_width,
+            image_height=source.image_height,
+            is_favorite=False,
+            liked_at=None,
+        )
+
+        try:
+            db.add(new_file)
+            if _is_markdown_file(new_file):
+                content = _read_markdown_for_projection(new_full)
+                if content is not None:
+                    project_markdown_thumbnail(db, new_file, content)
+                    if new_file.thumbnail_path:
+                        projected_thumb = (
+                            config.THUMBNAILS_DIR / new_file.thumbnail_path
+                        )
+            remove_empty_folder_if_has_files(db, dst_drive, target_folder)
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Copy failed (DB error, filesystem reversed): {exc}",
+            ) from exc
+    except Exception:
         try:
             new_full.unlink()
-        except Exception:
+        except OSError:
             pass
-        raise HTTPException(
-            status_code=500,
-            detail=f"Copy failed (DB error, filesystem reversed): {exc}",
-        ) from exc
+        # A note's projection is keyed by the row id the rollback takes away, so
+        # nothing could reclaim it afterwards.
+        if projected_thumb is not None:
+            try:
+                projected_thumb.unlink()
+                _cleanup_empty_parents(projected_thumb.parent, config.THUMBNAILS_DIR)
+            except OSError:
+                pass
+        raise
+
+    # A thumbnail is a cache the scanner can rebuild, so it is filled after the
+    # row is durable and never inside the handler that reverses the filesystem:
+    # a copy that arrived must not be undone because its picture did not. Which
+    # row names the JPEG is decided here too, from the write that happened —
+    # naming it beforehand hands the picture to whoever the write then missed.
+    if fills_thumbnail_slot:
+        try:
+            with generating_file(new_thumb) as staged_thumb:
+                shutil.copy2(str(old_thumb), str(staged_thumb))
+        except OSError:
+            logger.warning("Copied %s but could not fill %s", new_rel, new_thumb_rel)
+        else:
+            _rename_thumbnail_owner(db, new_file, new_thumb_rel, retired_id)
+
     db.refresh(new_file)
     return new_file
 

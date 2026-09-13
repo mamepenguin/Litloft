@@ -30,9 +30,22 @@ vi.mock("next/navigation", () => ({
 }));
 
 const mockPaste = vi.fn().mockResolvedValue(undefined);
-const held: { clipboard: { fileIds: string[]; drive: string; path: string; mode: string } | null } = {
-  clipboard: { fileIds: ["f1", "f2"], drive: "main", path: "other", mode: "copy" },
+// `ClipboardState`'s own field names. Spelled `drive`/`path`, every
+// assertion about a real field read `undefined` and passed for the wrong
+// reason.
+type HeldClipboard = {
+  fileIds: string[];
+  mode: "copy" | "cut";
+  sourceDrive: string;
+  sourcePath: string;
 };
+const CLIPBOARD: HeldClipboard = {
+  fileIds: ["f1", "f2"],
+  mode: "copy",
+  sourceDrive: "elsewhere",
+  sourcePath: "other",
+};
+const held: { clipboard: HeldClipboard | null } = { clipboard: { ...CLIPBOARD } };
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({
     get clipboard() {
@@ -127,17 +140,31 @@ const SCREENS: ReadonlyArray<{
   name: string;
   props: Parameters<typeof FolderBrowser>[0];
   offersPaste: boolean;
+  /** Declared, not read back off `props`: a derived expectation agrees with whatever the caller sent. */
+  pastesInto?: string;
+  /** Same, for the drive. A literal here cannot tell the prop from the constant. */
+  pastesIntoDrive?: string;
 }> = [
-  { name: "a folder", props: { driveName: "main", folderPath: "recipes" }, offersPaste: true },
+  {
+    name: "a folder",
+    props: { driveName: "main", folderPath: "recipes" },
+    offersPaste: true,
+    pastesInto: "recipes",
+  },
   {
     name: "a folder under a tag",
-    props: { driveName: "main", folderPath: "recipes", tagFilter: "soup" },
+    // On a second drive, so the assertion reads the prop rather than
+    // agreeing with a constant every other row also happens to use.
+    props: { driveName: "archive", folderPath: "recipes", tagFilter: "soup" },
     offersPaste: true,
+    pastesInto: "recipes",
+    pastesIntoDrive: "archive",
   },
   {
     name: "the Library root",
     props: { driveName: "main", folderPath: "", view: "library" },
     offersPaste: true,
+    pastesInto: "",
   },
   {
     name: "the Library root under a tag",
@@ -168,7 +195,7 @@ const SCREENS: ReadonlyArray<{
 describe("where a clipboard can be pasted", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    held.clipboard = { fileIds: ["f1", "f2"], drive: "main", path: "other", mode: "copy" };
+    held.clipboard = { ...CLIPBOARD };
   });
   afterEach(cleanup);
 
@@ -177,13 +204,36 @@ describe("where a clipboard can be pasted", () => {
     expect(SCREENS.filter((s) => !s.offersPaste)).toHaveLength(8);
   });
 
-  it.each(SCREENS)("$name", ({ props, offersPaste }) => {
+  it.each(SCREENS)("$name", ({ props, offersPaste, pastesInto, pastesIntoDrive }) => {
     render(<FolderBrowser {...props} />);
 
     expect(pasteButtons().length > 0).toBe(offersPaste);
 
     pressPaste();
     expect(mockPaste).toHaveBeenCalledTimes(offersPaste ? 1 : 0);
+    // Where, as well as whether. A paste that lands in the drive root
+    // from inside a folder, or in the drive the files came from rather
+    // than the one on screen, satisfies the count above.
+    if (offersPaste) {
+      // The drive on screen, which the clipboard deliberately does not
+      // name: with both sides reading "main" no row could tell the two
+      // apart, and routing a paste through the clipboard's own drive
+      // moves files into a drive nobody is looking at.
+      expect(mockPaste).toHaveBeenCalledWith(pastesIntoDrive ?? "main", pastesInto);
+    }
+  });
+
+  it("declares a destination for every screen that offers to paste", () => {
+    // Without this, dropping `pastesInto` from a row turns its assertion
+    // above into `toHaveBeenCalledWith("main", undefined)`.
+    expect(
+      SCREENS.filter((s) => s.offersPaste && typeof s.pastesInto === "string"),
+    ).toHaveLength(3);
+    // And one of them is not on the drive the others are, or the drive half
+    // of the assertion agrees with a constant.
+    expect(
+      SCREENS.filter((s) => s.offersPaste && s.props.driveName !== "main"),
+    ).toHaveLength(1);
   });
 
   it("draws nothing to paste into when the clipboard is empty", () => {

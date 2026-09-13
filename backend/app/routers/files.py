@@ -602,7 +602,18 @@ def batch_copy(
             copied_ids.append(new_file.id)
             copied += 1
         except HTTPException as e:
+            db.rollback()
             errors.append({"id": file_id, "error": e.detail})
+        except Exception as e:
+            # ``copy_file`` touches the filesystem outside its own ``try``,
+            # so an ENOSPC or EACCES arrives here as a bare OSError. Without
+            # this the whole batch 500s after earlier files have already been
+            # committed one at a time, and the caller is told nothing about
+            # the ones that did land. Rolled back first: the path-conflict
+            # step flushes a delete that must not ride out on the next
+            # file's commit.
+            db.rollback()
+            errors.append({"id": file_id, "error": str(e)})
     if copied_ids:
         event_hooks.emit_from_thread("files.created", {"file_ids": copied_ids})
     return {"copied": copied, "errors": errors}

@@ -305,7 +305,6 @@ export function FolderBrowser({
     try {
       await clipboard.paste(driveName, folderPath ?? "");
       refresh();
-    } catch {
     } finally {
       setPasting(false);
     }
