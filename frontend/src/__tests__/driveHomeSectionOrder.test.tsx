@@ -1,31 +1,13 @@
 /**
- * The order the drive home puts its sections in.
+ * The order of the drive home's sections.
  *
- * Spec §6.2 fixes the sequence and arbitration 7 moves the addon slot
- * into the middle of it: what fills that slot is a *suggestion*, so it
- * sits beside "what you were in the middle of" and ahead of the plain
- * record of what you opened.
- *
- * **Order is the property, so order is what is read.** Every other test
- * of this page asks whether a section is present; a page that draws all
- * of them in the wrong sequence passes all of those. The list below is
- * declared per state, not collected from the render, so a section that
- * stops being drawn shortens one side of the equality by itself
- * (detector rule 5).
- *
- * The addon slot is stood in for by something that draws a heading in
- * the same shape a real widget does — the intelligence addon's `pickup`
- * is the one filler today, and it renders core's own `CarouselSection`.
- * What is held here is the slot's *position*, not what any addon puts
- * in it.
- *
- * Not held: spacing, whether a section is above the fold, or what the
- * page looks like when several are empty at once. jsdom lays nothing out
- * (`.claude/rules/review-workflow.md`).
+ * Read after the page has loaded, not on the first render: every section
+ * draws its heading while its fetch is still in flight, so the skeleton
+ * spells the full sequence whatever the data turns out to be.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 const mockProfile = { nickname: null as string | null };
 vi.mock("@/components/ProfileProvider", () => ({ useProfile: () => mockProfile }));
@@ -65,36 +47,43 @@ vi.mock("@/lib/api", () => ({
 import { DriveHome } from "@/components/DriveHome";
 import type { FileItem, WatchHistoryItem } from "@/types";
 
-/**
- * A file complete enough for `FileCard` to render.
- *
- * `tags` in particular: the card reads `file.tags.length` unguarded, and
- * a fixture without it throws inside React's render — which vitest
- * reports as an unhandled error rather than a failing case, so the suite
- * goes green and the run still fails.
- */
+// `satisfies`, not a cast: a card that dereferences a field this omits
+// throws inside React's render, which vitest reports as an unhandled
+// error rather than a failing case — green on counts, non-zero exit.
 const file = (id: string) =>
   ({
     id,
-    title: id,
     filename: `${id}.mp4`,
+    title: id,
+    description: "",
+    drive: "media",
+    folder_path: "",
     file_type: "video",
     mime_type: "video/mp4",
+    thumbnail_url: "",
+    has_thumbnail: false,
+    file_size: 1024,
+    duration: 120,
+    image_width: null,
+    image_height: null,
+    liked_at: null,
+    is_favorite: false,
     tags: [],
     subtitles: [],
-  }) as unknown as FileItem;
+    deleted_at: null,
+    missing_since: null,
+    trust_tier: "verified" as const,
+    trust_reviewed_at: null,
+    created_at: "2026-01-01T00:00:00",
+    updated_at: "2026-01-01T00:00:00",
+  }) satisfies FileItem;
 
 const watched = (id: string) =>
   ({
     ...file(id),
     watch_progress: { position: 1, duration: 10 },
-  }) as unknown as WatchHistoryItem;
+  }) satisfies WatchHistoryItem;
 
-/**
- * The sequence, top to bottom, with a profile and every section holding
- * something. Written out rather than derived; the addon slot's place in
- * it is the subject of arbitration 7.
- */
 const SECTIONS_IN_ORDER = [
   "Continue Watching",
   "Pickup",
@@ -104,11 +93,19 @@ const SECTIONS_IN_ORDER = [
   "Liked",
 ];
 
-/** The same page for a reader with no profile: the watch rows drop out. */
 const SECTIONS_WITHOUT_A_PROFILE = ["Pickup", "Recently Added", "Favorites", "Liked"];
 
+// Every heading below the page's own. Filtering to one level lets a row
+// that spells its heading differently slip into the sequence unseen; the
+// `<h1>` is the page naming itself, not a section.
 const order = () =>
-  screen.queryAllByRole("heading", { level: 2 }).map((h) => h.textContent ?? "");
+  screen
+    .queryAllByRole("heading")
+    .filter((h) => h.tagName !== "H1")
+    .map((h) => h.textContent ?? "");
+
+/** Resolves once the fetches have landed and the rows hold their files. */
+const loaded = () => screen.findAllByText("a");
 
 describe("the drive home's section order", () => {
   beforeEach(() => {
@@ -125,14 +122,15 @@ describe("the drive home's section order", () => {
   it("puts the addon slot between the two watch rows", async () => {
     mockProfile.nickname = "Alice";
     render(<DriveHome driveName="media" />);
-    await waitFor(() => expect(order()).toEqual(SECTIONS_IN_ORDER));
+    await loaded();
+    expect(order()).toEqual(SECTIONS_IN_ORDER);
   });
 
-  it("keeps the slot where it is when there is no profile to gate around", async () => {
-    // The watch rows are the slot's neighbours, and they are the two
-    // that disappear. What must not happen is the slot moving to the end
-    // because the things above it went away.
+  it("draws the slot for a reader with no profile, with the watch rows gone", async () => {
+    // The slot is the only section on this page that does not need a
+    // profile. Its neighbours both do, so this is what is left.
     render(<DriveHome driveName="media" />);
-    await waitFor(() => expect(order()).toEqual(SECTIONS_WITHOUT_A_PROFILE));
+    await loaded();
+    expect(order()).toEqual(SECTIONS_WITHOUT_A_PROFILE);
   });
 });
