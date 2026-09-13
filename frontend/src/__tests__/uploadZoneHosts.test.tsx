@@ -56,6 +56,17 @@ const SCREENS: [string, () => React.ReactElement, string][] = [
   ["the drive home", () => <DriveHome driveName="main" />, ""],
   ["the Library root", () => <FolderBrowser driveName="main" folderPath="" view="library" />, ""],
   ["a folder", () => <FolderBrowser driveName="main" folderPath="recipes" />, "recipes"],
+  // The screens with no folder of their own. They keep a zone on purpose:
+  // the drop overlay names no destination, unlike the paste banner, and
+  // once the toolbar's Add is hidden a drag is the only way left to put
+  // anything on a drive from them. Removing it is the tidy-up that looks
+  // obvious beside the paste gate and takes a working route away.
+  ["Favourites", () => <FolderBrowser driveName="main" view="favorites" />, ""],
+  ["Liked", () => <FolderBrowser driveName="main" view="liked" />, ""],
+  ["Recently Viewed", () => <FolderBrowser driveName="main" view="recent" />, ""],
+  ["Recently Added", () => <FolderBrowser driveName="main" view="recent-added" />, ""],
+  ["All Files", () => <FolderBrowser driveName="main" view="all" />, ""],
+  ["a tag at the drive root", () => <FolderBrowser driveName="main" tagFilter="soup" />, ""],
 ];
 
 describe("screens that can upload mount exactly one zone", () => {
@@ -84,7 +95,7 @@ describe("screens that can upload mount exactly one zone", () => {
     expect(body.folder_path).toBe(destination);
   });
 
-  it("covers three screens, so a deleted row is not a silent narrowing", () => {
-    expect(SCREENS).toHaveLength(3);
+  it("covers nine screens, so a deleted row is not a silent narrowing", () => {
+    expect(SCREENS).toHaveLength(9);
   });
 });

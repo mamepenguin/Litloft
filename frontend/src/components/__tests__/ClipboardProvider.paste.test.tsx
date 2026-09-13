@@ -68,6 +68,16 @@ const moveResult = (moved: number, failed: number) => ({
  */
 const IDS = ["f1", "f2", "f3"];
 
+/** mode, arrived, refused, clipboard survives, how many are reported. */
+const OUTCOMES = [
+  ["copy", 3, 0, true, 0],
+  ["copy", 0, 3, false, 3],
+  ["copy", 2, 1, true, 1],
+  ["cut", 3, 0, true, 0],
+  ["cut", 0, 3, false, 3],
+  ["cut", 2, 1, true, 1],
+] as const;
+
 async function pasteAfter(mode: "copy" | "cut") {
   render(
     <ClipboardProvider>
@@ -86,25 +96,43 @@ async function pasteAfter(mode: "copy" | "cut") {
 
 describe("what a paste leaves on the clipboard", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // `resetAllMocks`, not `clearAllMocks`: the latter clears calls and
+    // leaves implementations, so a row that arms only one of the two
+    // endpoints inherits the other's resolved value from the row before.
+    vi.resetAllMocks();
     sessionStorage.clear();
   });
   afterEach(cleanup);
 
-  it.each([
-    ["copy", 3, 0, true, 0],
-    ["copy", 0, 3, false, 3],
-    ["copy", 2, 1, true, 1],
-    ["cut", 3, 0, true, 0],
-    ["cut", 0, 3, false, 3],
-    ["cut", 2, 1, true, 1],
-  ] as const)(
+  it("covers every class of outcome for both modes", () => {
+    // Declared per class, so shrinking one of them is a failure rather
+    // than a narrowing. "None arrived" is the class the change exists to
+    // add, and it is the one a smaller table would lose first.
+    const classOf = (pasted: number) => (pasted === 3 ? "all" : pasted === 0 ? "none" : "some");
+    for (const mode of ["copy", "cut"] as const) {
+      for (const klass of ["all", "none", "some"] as const) {
+        expect(
+          OUTCOMES.filter((o) => o[0] === mode && classOf(o[1]) === klass),
+          `${mode}/${klass}`,
+        ).toHaveLength(1);
+      }
+    }
+    expect(OUTCOMES).toHaveLength(6);
+  });
+
+  it.each(OUTCOMES)(
     "%s: %i arrived and %i did not — cleared=%s, %i reported",
     async (mode, pasted, failed, cleared, reported) => {
       mockBatchCopy.mockResolvedValue(copyResult(pasted, failed));
       mockBatchMove.mockResolvedValue(moveResult(pasted, failed));
 
       await pasteAfter(mode);
+
+      // Which endpoint, not just that one answered. Copy and cut differ
+      // only here, and sending one to the other's endpoint relocates
+      // originals that should have been duplicated.
+      expect(mockBatchCopy).toHaveBeenCalledTimes(mode === "copy" ? 1 : 0);
+      expect(mockBatchMove).toHaveBeenCalledTimes(mode === "copy" ? 0 : 1);
 
       expect(held()).toBe(cleared ? "-" : "f1,f2,f3");
       // sessionStorage travels with it: a clipboard cleared on screen and
@@ -140,5 +168,9 @@ describe("what a paste leaves on the clipboard", () => {
     });
 
     expect(held()).toBe("f1,f2,f3");
+    // And says so. The clipboard surviving is not a message: a paste that
+    // visibly does nothing is the state this change set out to remove.
+    expect(mockError).toHaveBeenCalledTimes(1);
+    expect(mockError.mock.calls[0][0]).toBe("clipboard.pasteRefused:");
   });
 });

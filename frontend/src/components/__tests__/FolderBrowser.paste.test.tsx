@@ -127,17 +127,26 @@ const SCREENS: ReadonlyArray<{
   name: string;
   props: Parameters<typeof FolderBrowser>[0];
   offersPaste: boolean;
+  /** Declared, not read back off `props`: a derived expectation agrees with whatever the caller sent. */
+  pastesInto?: string;
 }> = [
-  { name: "a folder", props: { driveName: "main", folderPath: "recipes" }, offersPaste: true },
+  {
+    name: "a folder",
+    props: { driveName: "main", folderPath: "recipes" },
+    offersPaste: true,
+    pastesInto: "recipes",
+  },
   {
     name: "a folder under a tag",
     props: { driveName: "main", folderPath: "recipes", tagFilter: "soup" },
     offersPaste: true,
+    pastesInto: "recipes",
   },
   {
     name: "the Library root",
     props: { driveName: "main", folderPath: "", view: "library" },
     offersPaste: true,
+    pastesInto: "",
   },
   {
     name: "the Library root under a tag",
@@ -177,13 +186,27 @@ describe("where a clipboard can be pasted", () => {
     expect(SCREENS.filter((s) => !s.offersPaste)).toHaveLength(8);
   });
 
-  it.each(SCREENS)("$name", ({ props, offersPaste }) => {
+  it.each(SCREENS)("$name", ({ props, offersPaste, pastesInto }) => {
     render(<FolderBrowser {...props} />);
 
     expect(pasteButtons().length > 0).toBe(offersPaste);
 
     pressPaste();
     expect(mockPaste).toHaveBeenCalledTimes(offersPaste ? 1 : 0);
+    // Where, as well as whether. A paste that lands in the drive root
+    // from inside a folder, or in the drive the files came from rather
+    // than the one on screen, satisfies the count above.
+    if (offersPaste) {
+      expect(mockPaste).toHaveBeenCalledWith("main", pastesInto);
+    }
+  });
+
+  it("declares a destination for every screen that offers to paste", () => {
+    // Without this, dropping `pastesInto` from a row turns its assertion
+    // above into `toHaveBeenCalledWith("main", undefined)`.
+    expect(
+      SCREENS.filter((s) => s.offersPaste && typeof s.pastesInto === "string"),
+    ).toHaveLength(3);
   });
 
   it("draws nothing to paste into when the clipboard is empty", () => {

@@ -254,6 +254,40 @@ class TestBatchCopy:
         assert len(data["errors"]) == 1
         assert data["errors"][0]["id"] == "zzNOTFOUNDzz"
 
+    def test_batch_copy_survives_a_filesystem_error_on_one_file(self, client, monkeypatch):
+        """A copy that fails outside an HTTPException must not abort the batch.
+
+        ``copy_file`` reaches ``shutil.copy2`` with no handler of its own, so a
+        full or read-only destination arrives here as a bare OSError. Before
+        this was caught, the whole request 500'd after earlier files had
+        already been committed one at a time — the caller was told nothing
+        about the ones that had landed, and repeating the paste duplicated
+        them.
+        """
+        c, db, drive_dir, data_dir = client
+        f1 = _seed(db, drive_dir, "a.mp4")
+        f2 = _seed(db, drive_dir, "b.mp4")
+
+        real_copy2 = shutil.copy2
+
+        def fail_on_b(src, dst, *args, **kwargs):
+            if Path(src).name == "b.mp4":
+                raise OSError(28, "No space left on device")
+            return real_copy2(src, dst, *args, **kwargs)
+
+        monkeypatch.setattr("app.services.fileops.shutil.copy2", fail_on_b)
+
+        res = c.post(
+            "/api/files/batch/copy",
+            json={"ids": [f1.id, f2.id], "target_folder_path": "dest"},
+        )
+
+        assert res.status_code == 200
+        data = res.json()
+        assert data["copied"] == 1
+        assert [e["id"] for e in data["errors"]] == [f2.id]
+        assert (drive_dir / "dest" / "a.mp4").exists()
+
     def test_batch_copy_empty_ids(self, client):
         c, db, drive_dir, data_dir = client
         res = c.post(

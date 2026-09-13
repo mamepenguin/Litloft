@@ -121,17 +121,27 @@ export function ClipboardProvider({ children }: { children: ReactNode }) {
 
       // Both endpoints answer 200 with a count and a per-file error list
       // rather than throwing, so what happened has to be read off the
-      // body. A `catch` here only ever sees the request itself failing.
-      const result =
-        clipboard.mode === "copy"
-          ? await batchCopy(clipboard.fileIds, targetPath, targetDrive).then((r) => ({
-              pasted: r.copied,
-              failed: r.errors.length,
-            }))
-          : await batchMove(clipboard.fileIds, targetPath, targetDrive).then((r) => ({
-              pasted: r.moved,
-              failed: r.errors.length,
-            }));
+      // body. A rejection here is the request itself being refused —
+      // a locked target drive, a restart mid-paste — and nothing was
+      // written, so the clipboard is what lets it be tried again.
+      let result: { pasted: number; failed: number };
+      try {
+        result =
+          clipboard.mode === "copy"
+            ? await batchCopy(clipboard.fileIds, targetPath, targetDrive).then((r) => ({
+                pasted: r.copied,
+                failed: r.errors.length,
+              }))
+            : await batchMove(clipboard.fileIds, targetPath, targetDrive).then((r) => ({
+                pasted: r.moved,
+                failed: r.errors.length,
+              }));
+      } catch (error) {
+        // A count would be a guess here; the honest statement is that it
+        // did not happen. Rethrown so the caller still knows.
+        toast.error(t("pasteRefused"));
+        throw error;
+      }
 
       // Cleared once something landed, so a second paste cannot duplicate
       // what the first one already put there. A paste that moved nothing

@@ -945,7 +945,8 @@
     "copied": "Copied",
     "moved": "Moved",
     "clear": "Clear",
-    "pasteFailed": "{count, plural, one {# file could not be pasted} other {# files could not be pasted}}"
+    "pasteFailed": "{count, plural, one {# file could not be pasted} other {# files could not be pasted}}",
+    "pasteRefused": "The paste did not go through"
   },
   "shortcuts": {
     "title": "Keyboard Shortcuts",
