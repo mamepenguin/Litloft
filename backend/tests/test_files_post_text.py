@@ -1,23 +1,4 @@
-"""Tests for POST /api/drives/{drive}/files — new text file creation.
-
-Lightweight alternative to multipart upload for creating files with
-initial UTF-8 text content. Originally `.md` / `.txt` only (knowledge
-addon); Phase 4 of the Vault-Core merger drops the allowlist so any
-extension is creatable, with automatic suffix numbering on name
-conflicts.
-
-Covers:
-- 201 on new file creation (any extension, including no extension)
-- 201 on existing active file collision (suffix-numbered fallback)
-- 201 on existing trashed file collision (suffix-numbered fallback)
-- Missing file recovery (UPSERT): if a row exists with missing_since set,
-  the new content replaces it and the row becomes active again
-  (precedence over suffix numbering)
-- 400 on path traversal, absolute paths, NUL/control chars
-- 413 on oversize body (regardless of extension)
-- 404 on unknown drive
-- 403 on protected drive (no unlock)
-"""
+"""Tests for POST /api/drives/{drive}/files — new text file creation."""
 import pytest
 
 from app.models import File
@@ -36,9 +17,7 @@ class TestPostFiles:
         assert data["filename"] == "first.md"
         assert data["folder_path"] == "notes"
         assert data["mime_type"] == "text/markdown"
-        # Physical file exists
         assert (drive_dir / "notes/first.md").read_text() == "# Hello\n\nWorld\n"
-        # DB row exists
         row = session.query(File).filter(File.file_path == "notes/first.md").first()
         assert row is not None
         assert row.file_type == "document"
@@ -62,7 +41,7 @@ class TestPostFiles:
         assert (drive_dir / "empty.md").read_text() == ""
 
     def test_create_text_file_suffix_numbering_on_active_collision(self, client):
-        """Phase 4: active-file collision → suffix-numbered 201, both
+        """Active-file collision → suffix-numbered 201, both
         files survive on disk and in DB."""
         api, session, drive_dir, _ = client
         (drive_dir / "untitled-20260509.md").write_text("first")
@@ -84,13 +63,10 @@ class TestPostFiles:
         )
         assert r.status_code == 201, r.text
         data = r.json()
-        # Response reflects the suffix-numbered path
         assert data["filename"] == "untitled-20260509 (1).md"
         assert data["folder_path"] == ""
-        # Both files exist on disk
         assert (drive_dir / "untitled-20260509.md").read_text() == "first"
         assert (drive_dir / "untitled-20260509 (1).md").read_text() == "second"
-        # Both DB rows exist (active)
         rows = (
             session.query(File)
             .filter(File.drive == TEST_DRIVE)
@@ -158,7 +134,7 @@ class TestPostFiles:
         assert not (drive_dir / "Inbox (1).md").exists()
 
     def test_create_text_file_suffix_numbering_on_trash_collision(self, client):
-        """Phase 4: trashed-file collision → suffix-numbered 201; the
+        """Trashed-file collision → suffix-numbered 201; the
         trashed file is preserved at its original path."""
         from datetime import UTC, datetime
 
@@ -184,11 +160,9 @@ class TestPostFiles:
         )
         assert r.status_code == 201, r.text
         data = r.json()
-        # New file lands at the suffixed path
         assert data["filename"] == "note (1).md"
         assert data["folder_path"] == ""
         assert (drive_dir / "note (1).md").read_text() == "fresh"
-        # Trashed row is untouched
         trashed = (
             session.query(File)
             .filter(File.file_path == "note.md")
@@ -198,7 +172,7 @@ class TestPostFiles:
         assert trashed is not None
 
     def test_create_text_file_suffix_numbering_increments_to_2(self, client):
-        """Phase 4: triggering the same collision twice lands at (2)."""
+        """Triggering the same collision twice lands at (2)."""
         api, session, drive_dir, _ = client
         (drive_dir / "note.md").write_text("orig")
         session.add(File(
@@ -213,7 +187,6 @@ class TestPostFiles:
         ))
         session.commit()
 
-        # First collision → (1)
         r1 = api.post(
             f"/api/drives/{TEST_DRIVE}/files",
             json={"path": "note.md", "content": "one"},
@@ -221,7 +194,6 @@ class TestPostFiles:
         assert r1.status_code == 201, r1.text
         assert r1.json()["filename"] == "note (1).md"
 
-        # Second collision → (2)
         r2 = api.post(
             f"/api/drives/{TEST_DRIVE}/files",
             json={"path": "note.md", "content": "two"},
@@ -285,7 +257,7 @@ class TestPostFiles:
         assert r.status_code == 400
 
     def test_create_text_file_accepts_json_extension(self, client):
-        """Phase 4: allowlist removed — `.json` is creatable."""
+        """`.json` is creatable."""
         api, _, drive_dir, _ = client
         r = api.post(
             f"/api/drives/{TEST_DRIVE}/files",
@@ -297,7 +269,7 @@ class TestPostFiles:
         assert (drive_dir / "foo.json").read_text() == "{}"
 
     def test_create_text_file_accepts_python_extension(self, client):
-        """Phase 4: `.py` is creatable."""
+        """`.py` is creatable."""
         api, _, drive_dir, _ = client
         r = api.post(
             f"/api/drives/{TEST_DRIVE}/files",
@@ -307,7 +279,7 @@ class TestPostFiles:
         assert (drive_dir / "script.py").read_text() == "x = 1\n"
 
     def test_create_text_file_accepts_html_extension(self, client):
-        """Phase 4: `.html` is creatable (XSS risk equivalent to upload)."""
+        """`.html` is creatable (XSS risk equivalent to upload)."""
         api, _, drive_dir, _ = client
         r = api.post(
             f"/api/drives/{TEST_DRIVE}/files",
@@ -317,7 +289,7 @@ class TestPostFiles:
         assert (drive_dir / "page.html").read_text() == "<p>hi</p>"
 
     def test_create_text_file_accepts_arbitrary_extension(self, client):
-        """Phase 4: unknown extensions fall through to octet-stream and
+        """Unknown extensions fall through to octet-stream and
         are still creatable (treated as plain text by the JSON body)."""
         api, _, drive_dir, _ = client
         r = api.post(
@@ -328,7 +300,7 @@ class TestPostFiles:
         assert (drive_dir / "weird.xyz").read_text() == "hi"
 
     def test_create_text_file_accepts_no_extension(self, client):
-        """Phase 4: extensionless filenames (e.g. README) are creatable."""
+        """Extensionless filenames (e.g. README) are creatable."""
         api, _, drive_dir, _ = client
         r = api.post(
             f"/api/drives/{TEST_DRIVE}/files",
@@ -338,8 +310,7 @@ class TestPostFiles:
         assert (drive_dir / "README").read_text() == "hi"
 
     def test_create_text_file_size_limit_still_enforced(self, client):
-        """Phase 4: 1 MB cap survives allowlist removal (use .json to
-        prove the gate is size-based, not extension-based)."""
+        """The 1 MB cap is size-based, not extension-based."""
         api, _, _, _ = client
         big = "x" * (2 * 1024 * 1024)
         r = api.post(
@@ -349,7 +320,7 @@ class TestPostFiles:
         assert r.status_code == 413
 
     def test_create_text_file_path_traversal_still_rejected(self, client):
-        """Phase 4: traversal protection survives allowlist removal."""
+        """Traversal protection holds for any extension."""
         api, _, _, _ = client
         r = api.post(
             f"/api/drives/{TEST_DRIVE}/files",
@@ -358,7 +329,7 @@ class TestPostFiles:
         assert r.status_code == 400
 
     def test_create_text_file_missing_state_still_upserts(self, client):
-        """Phase 4: missing-state precedence over suffix numbering.
+        """Missing-state precedence over suffix numbering.
 
         When a row exists with `missing_since` set at the requested path,
         re-create must reuse the row (UPSERT, status 200) rather than
@@ -386,14 +357,12 @@ class TestPostFiles:
             f"/api/drives/{TEST_DRIVE}/files",
             json={"path": "upsert.md", "content": "back"},
         )
-        # Recovery returns 200 (not 201, and not a suffix-numbered path)
         assert r.status_code == 200, r.text
         data = r.json()
         assert data["id"] == original_id
         assert data["filename"] == "upsert.md"
         assert data["folder_path"] == ""
         assert (drive_dir / "upsert.md").read_text() == "back"
-        # No suffix-numbered file should have been created
         assert not (drive_dir / "upsert (1).md").exists()
 
     def test_rejects_oversize_content(self, client):
@@ -426,7 +395,7 @@ class TestPostFiles:
     def test_create_text_file_atomic_creation_does_not_clobber_existing_fs_file(
         self, client
     ):
-        """Phase 4 + race-safety: a stray FS file at the candidate path
+        """A stray FS file at the candidate path
         (no DB row) must not be overwritten. The atomic create path
         (O_CREAT|O_EXCL) detects FS-level existence and falls through to
         the next suffix.
@@ -442,11 +411,8 @@ class TestPostFiles:
         assert r.status_code == 201, r.text
         data = r.json()
         assert data["filename"] == "untitled-XXX (1).md"
-        # Stray FS file content is untouched.
         assert (drive_dir / "untitled-XXX.md").read_text() == "preexisting"
-        # New file written at the suffixed path.
         assert (drive_dir / "untitled-XXX (1).md").read_text() == "fresh"
-        # Only the suffixed path has a DB row.
         rows = (
             session.query(File)
             .filter(File.drive == TEST_DRIVE)

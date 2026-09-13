@@ -1,18 +1,4 @@
-"""`configure.py` and the compose template, exercised rather than read.
-
-Neither had any coverage: they live above `backend/`, and the test image's
-build context stopped there. Three review rounds on the webhook-secret work
-found three bugs in them, and every one was the same shape — one path fixed,
-its parallel left behind:
-
-    round 1  addon gate scoped     generator still unwired
-    round 2  generator wired       backend half of the pair missing
-    round 3  generator complete    hand-written template still one-sided
-
-The feature has two axes, sender/receiver and generated/hand-written, and
-each fix covered one axis while leaving the other. So these tests assert the
-pairing across both, in all four places it has to hold.
-"""
+"""`configure.py` and the compose template, exercised rather than read."""
 
 import importlib.util
 import json
@@ -110,12 +96,8 @@ def _env_values(repo: Path) -> dict[str, str]:
 def _services_with(text: str, variable: str) -> set[str]:
     """Which service blocks actually set `variable` in their environment.
 
-    Matches the assignment (`- NAME=`), never a bare mention. Prose next to
-    the setting explains why both halves are needed and therefore contains
-    the name — searching for the name alone reports a variable as present
-    in a block whose only reference is the comment saying it must be. The
-    first draft of this helper did exactly that and waved through the very
-    bug it was written for.
+    Matches the assignment (`- NAME=`), never a bare mention: prose next to
+    the setting contains the name too.
 
     Works on the template as well as generated output: the template's lines
     are commented out, and a reader uncommenting them is the case that
@@ -153,13 +135,7 @@ class TestGeneratedCompose:
         assert _services_with(override, SECRET) == {"backend", "intelligence"}
 
     def test_neither_side_receives_it_without_the_declaration(self, tmp_path):
-        """A stale `.env` must not arm the receiver on its own.
-
-        The guard used to decide only whether a *new* value was generated,
-        while the compose line was written unconditionally — so a value left
-        over from an earlier run, or a submodule rolled back to a manifest
-        without `secret_env`, rearmed the addon while core sent nothing.
-        """
+        """A stale `.env` must not arm the receiver on its own."""
         repo = _make_repo(tmp_path, declares=False)
         (repo / ".env").write_text(f"{SECRET}=left-over-from-before\n")
         _run_configure(repo)
@@ -286,7 +262,7 @@ class TestHandWrittenTemplate:
     """The template is a second implementation of the same contract.
 
     `configure.py` generating it correctly says nothing about the file a
-    reader copies by hand, and that gap is what round three found.
+    reader copies by hand.
     """
 
     def test_both_sides_are_present(self):
@@ -304,14 +280,6 @@ class TestHandWrittenTemplate:
 
 class TestSetupAddonsPrunesWhatIsGone:
     """`setup-addons.sh` removes links whose addon is no longer there.
-
-    The script only ever created. An addon that is deleted, renamed, or never
-    checked out left its symlink behind pointing at nothing, and the link
-    survived every later run — `frontend/src/addons/` is gitignored, so
-    nothing in a working copy prunes it. `frontend/Dockerfile` already deletes
-    every link before rebuilding, which is why an image never carried one and
-    a long-lived checkout accumulated them: two were sitting in this
-    repository, naming addons removed in April.
 
     Run against a scratch tree rather than the real repository, so the test
     cannot depend on which addons happen to be checked out.
@@ -350,13 +318,9 @@ class TestSetupAddonsPrunesWhatIsGone:
             assert not (tmp_path / d / "gone").is_symlink()
 
     # What happens to an existing `frontend/src/addons/<name>` depends on two
-    # things, and the table below is closed over both of them rather than over
-    # the rows someone thought of: every combination of {a name this script
-    # manages, a name it does not} x {points elsewhere, points at the addon's
-    # own frontend, the same written relative, points nowhere}. The first
-    # version declared one name's outcome and picked `custom`, the one value
-    # where the link phase never runs, so it passed for a reason unrelated to
-    # the branch it guarded.
+    # things, and the table below is closed over both of them: {a name this
+    # script manages, a name it does not} x {points elsewhere, points at the
+    # addon's own frontend, the same written relative, points nowhere}.
     @pytest.mark.parametrize(
         "name,points_at,expected",
         [
@@ -439,10 +403,7 @@ class TestSetupAddonsPrunesWhatIsGone:
         The backend half links with `ln -sfn`. Without `-n`, `ln` follows an
         existing symlink-to-directory and writes THROUGH it: the second run
         would put `addons/present/<half>/<half>` -> itself inside the addon's
-        submodule working tree and exit 0. The frontend half rebuilds its tree
-        outright, so it cannot fail this way — it is parametrised in anyway,
-        because a case that only ever runs against the half that already works
-        is how the twin went unguarded in the first place.
+        submodule working tree and exit 0.
         """
         self._tree(tmp_path)
         (tmp_path / "addons" / "present" / "frontend" / "a.ts").write_text("a\n")
@@ -474,13 +435,7 @@ class TestSetupAddonsPrunesWhatIsGone:
         [("backend", "backend/addons"), ("frontend", "frontend/src/addons")],
     )
     def test_neither_half_overrules_a_deliberate_link(self, tmp_path, half, link_dir):
-        """The two halves obey one rule, and it is the one stated in the file.
-
-        They used to diverge: the frontend kept a link pointing somewhere else
-        and said so, while the backend replaced it silently and reported an
-        ordinary `Linked:`. Parametrised over the halves rather than written
-        twice, so fixing one and forgetting its twin is not possible here.
-        """
+        """The two halves obey one rule."""
         self._tree(tmp_path)
         mine = tmp_path / "mine"
         mine.mkdir()
@@ -509,13 +464,7 @@ class TestSetupAddonsPrunesWhatIsGone:
         assert "link to somewhere else" in result.stdout
 
     def test_the_addons_that_are_here_are_still_linked(self, tmp_path):
-        """Pruning runs before linking and must not eat what follows it.
-
-        The two halves are linked differently on purpose. The backend gets one
-        directory symlink; the frontend gets a real directory, because a tool
-        that walks the tree does not descend a symlinked directory and an addon
-        frontend file no test imports would be invisible to every such walk.
-        """
+        """Pruning runs before linking and must not eat what follows it."""
         self._tree(tmp_path)
         self._run(tmp_path)
 
@@ -575,12 +524,8 @@ class TestSetupAddonsPrunesWhatIsGone:
     def test_a_dotfile_does_not_freeze_the_link_tree(self, tmp_path):
         """`.DS_Store` is not somebody's work.
 
-        Finder writes one into any directory it is asked to display, and this
-        is a directory a developer opens. While it counted as a foreign file,
-        one of them froze that addon's tree permanently: every later run
-        printed a WARNING among the `Linked:` lines and exited 0, so a file
-        added upstream never arrived — the state this whole layout exists to
-        end. Asserted through the consequence rather than the warning: a file
+        Finder writes one into any directory it is asked to display.
+        Asserted through the consequence rather than the warning: a file
         that appears upstream afterwards has to reach the tree.
         """
         self._tree(tmp_path)

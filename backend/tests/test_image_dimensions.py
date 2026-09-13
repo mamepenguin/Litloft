@@ -1,4 +1,4 @@
-"""Pixel dimensions on ``File`` — spec 2026-09-06-ui-redesign-p4-viewers §1.
+"""Pixel dimensions on ``File``.
 
 The justified image grid lays a row out by aspect ratio, and it has to do so
 before any picture has loaded — flexbox breaks the line from the stored ratio,
@@ -70,11 +70,8 @@ class TestReadImageDimensions:
     def test_reports_the_size_the_viewer_sees_not_the_stored_one(self, tmp_path):
         """A portrait phone photo stores landscape pixels plus Orientation.
 
-        Measured, not assumed: for a 400x200 JPEG tagged Orientation=6,
-        this repo's own ``generate_image_thumbnail`` produces a 160x320
-        thumbnail — upright, and taller than it is wide. A dimension read
-        that ignored the tag would hand the justified grid 2:1 for a
-        picture the app itself renders 1:2.
+        A dimension read that ignored the tag would hand the justified grid
+        2:1 for a picture the app itself renders 1:2.
         """
         path = tmp_path / "portrait.jpg"
         img = Image.new("RGB", (400, 200), (220, 30, 30))

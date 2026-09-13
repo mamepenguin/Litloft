@@ -3,11 +3,10 @@ import { runTool } from "./runTool.js";
 import { textResult, type LitloftTool } from "./types.js";
 
 // All writes mirror the public /api/* surface the Litloft frontend itself
-// uses (hako yOp7JPjCTJVe_Ui5rWrEV) — no bypass of existing validation or
-// drive access control. Deliberately NOT included in this tool set:
+// uses — no bypass of existing validation or drive access control.
+// Deliberately NOT included in this tool set:
 //
-// - purge (physical delete): irreversible, excluded per explicit design
-//   decision ("一旦除外").
+// - purge (physical delete): irreversible.
 
 // MCP tool args are JSON, so file content travels as base64 rather than a
 // multipart stream. Capped well below the backend's own MAX_UPLOAD_SIZE

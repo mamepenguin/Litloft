@@ -1,16 +1,4 @@
-"""What ``app/main.py`` does on the way up, and what it refuses to die on.
-
-Three subjects, all reached only at startup:
-
-- ``_load_addons``, the in-process addon loader. It derives its directory
-  from ``app/main.py``'s own ``__file__`` and imports ``addons.<name>.router``
-  by absolute name, so the only way to run it is to put a package where it
-  looks. The test image ships no ``backend/addons``, which is why every line
-  below its directory check was unexecuted.
-- the lifespan's ``restart_pending`` clear, which must not take the process
-  down when the flag cannot be removed.
-- ``SlowRequestMiddleware``, the one piece of request-path code in this file.
-"""
+"""What ``app/main.py`` does on the way up, and what it refuses to die on."""
 
 import importlib
 import logging
@@ -26,8 +14,7 @@ import app.main as main
 from app.main import app
 from app.services import addon_registry
 
-#: Prefix for the packages this module writes. They live in the test's own
-#: ``tmp_path``, never in ``backend/addons`` — see ``addons_dir``.
+#: Prefix for the packages this module writes, under the test's own ``tmp_path``.
 _PACKAGE_PREFIX = "zz_test_addon_"
 
 
@@ -153,7 +140,7 @@ class TestLoadingAnAddon:
     def test_an_addon_with_no_scope_keeps_its_routes_and_leaves_the_registry(
         self, addons_dir
     ):
-        """The documented split, from ``design-decisions.md`` §Addons.
+        """An addon rejected by ``_validate_scope`` is hidden, not unmounted.
 
         ``include_router`` happens before the metadata is judged, so an
         addon rejected by ``_validate_scope`` is hidden from every listing
@@ -247,12 +234,8 @@ class TestLoadingAnAddon:
     ):
         """``iter_modules`` reports plain ``.py`` files alongside packages.
 
-        Without the ``ispkg`` guard the loader reaches
-        ``import addons.<name>.router`` for a file that has no ``router``
-        submodule, and the outcome is the same — no route, nothing registered
-        — but every startup logs a traceback for it. The silence is therefore
-        what this asserts: measured, dropping the guard leaves the two
-        assertions below green and only the log tells the difference.
+        Without the ``ispkg`` guard every startup logs a traceback for it,
+        which is what this asserts against.
         """
         stray = addons_dir / f"{_PACKAGE_PREFIX}stray.py"
         stray.write_text("raise RuntimeError('should never be imported')\n")
@@ -267,12 +250,8 @@ class TestLoadingAnAddon:
     def test_a_directory_without_an_init_is_not_walked(self, addons_dir):
         """``backend/addons/__init__.py`` is a required marker, not a formality.
 
-        Measured: the import would work without it — ``addons`` resolves as a
-        namespace package on 3.12, and ``addons.<name>.router`` loads fine —
-        so the early return is a deliberate gate rather than a guard against a
-        failure. What it costs when the marker goes missing is every
-        in-process addon, silently and with the UI intact, which is why
-        ``setup-addons.sh`` and ``backend/Dockerfile`` each ``touch`` it.
+        The import would work without it (``addons`` resolves as a namespace
+        package), so the early return is a deliberate gate.
         """
         name = f"{_PACKAGE_PREFIX}orphan"
         _write_addon(

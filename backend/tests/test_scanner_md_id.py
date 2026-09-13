@@ -1,8 +1,4 @@
-"""Scanner-side md_id injection for `.md` files.
-
-Spec: docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md §3.1
-Phase A — first-detect injection complements PUT /content + note_scanner.
-"""
+"""Scanner-side md_id injection for `.md` files."""
 from __future__ import annotations
 
 import json

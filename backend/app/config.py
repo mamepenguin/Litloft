@@ -47,12 +47,8 @@ def _setup_completed_sentinel() -> Path:
 def _auto_seeded_marker() -> Path:
     """Path to the auto-seed marker (re-evaluated each call).
 
-    Touched by ``drive_seed.seed_drives_from_mounts`` once it populates
-    drives.json. Its presence means "this install's non-empty drives.json
-    was produced by our own startup seed, not by a pre-GUI configure.py", so
-    the setup-sentinel migration must not mistake the seeded file for a
-    legacy user's hand-config. Never removed (a permanent fact about the
-    install). Same thin-flag convention as setup_completed / restart_pending.
+    Its presence means "this install's non-empty drives.json was produced by
+    our own startup seed, not by a pre-GUI configure.py". Never removed.
     """
     return DATA_DIR / "auto_seeded"
 
@@ -65,7 +61,7 @@ def _titles_recased_marker() -> Path:
     old formatter would produce, so a title the user typed is never touched —
     but that guard cannot tell a user who later types exactly the old shape
     from a leftover, which is why this runs once rather than every boot. Never
-    removed. Same thin-flag convention as setup_completed / auto_seeded.
+    removed.
     """
     return DATA_DIR / "titles_recased"
 

@@ -159,12 +159,6 @@ def has_video_stream(media_path: str) -> bool | None:
 CANDIDATE_SCALE_FILTER = "scale=320:180:force_original_aspect_ratio=decrease"
 SCALE_FILTER = f"{CANDIDATE_SCALE_FILTER},pad=320:180:(ow-iw)/2:(oh-ih)/2"
 
-# The longest edge a picture thumbnail is allowed, in either direction.
-#
-# A picture keeps its own proportions and is not padded onto a frame, so
-# the box is square and only one of the two edges reaches it. 320 is the
-# same number the video frame uses for its width, so a landscape picture
-# is stored at exactly the size it was before.
 IMAGE_THUMBNAIL_BOX = 320
 
 SEEK_MIN = 2.0
@@ -364,7 +358,6 @@ def generate_thumbnail(video_path: str, output_path: str) -> bool:
         for candidate_path in candidate_paths:
             candidate_path.unlink(missing_ok=True)
 
-    # Fallback: simple seek (original method)
     logger.warning("Thumbnail filter failed for %s, falling back to seek", video_path)
     fallback_seek = "0" if duration is None or duration < 5 else "5"
     return _run_ffmpeg_thumbnail(video_path, output_path, fallback_seek, SCALE_FILTER)
@@ -400,12 +393,6 @@ def image_thumbnail_size(
     width: int, height: int, box: int = IMAGE_THUMBNAIL_BOX
 ) -> tuple[int, int] | None:
     """The size the generators produce for a source of this size.
-
-    A second implementation of what ffmpeg and Pillow are asked to do,
-    so a caller can ask what a thumbnail *should* measure without opening
-    one. `test_thumbnail.py` runs the three against each other, because a
-    drift between them is what makes the migration read a thumbnail as
-    the wrong generation.
 
     The box is taken against the source on each edge before the factor is
     formed, which is what keeps a small picture at its own size. A factor
@@ -523,8 +510,6 @@ def write_thumbnail_atomically(generator, source: str, destination: str) -> bool
     arriving mid-write is served a partial JPEG or an empty one. `rename`
     within a directory is atomic, so a reader sees one file or the other
     and never a file being written.
-
-    Conventions: "Atomic file writes: write to `.tmp` then `os.replace()`".
     """
     try:
         with generating_file(destination) as tmp_name:
@@ -558,27 +543,18 @@ def _generate_heic_thumbnail(image_path: str, output_path: str) -> bool:
     try:
         from PIL import Image, ImageOps
 
-        # pillow_heif opener is registered at module load in heic.py
         from app.services import heic  # noqa: F401 — ensures registration
 
         with Image.open(image_path) as img:
             oriented = ImageOps.exif_transpose(img)
             # Resized to a size that is computed, not to ``thumbnail``'s
-            # own fit. `Image.thumbnail` picks the integer that best
-            # preserves the ratio and breaks ties downwards, which is a
-            # third rounding rule beside ffmpeg's and this module's — so
-            # the same picture came out a pixel narrower as HEIC than as
-            # JPEG, and the migration's prediction was right for only one
-            # of them.
+            # own fit: `Image.thumbnail` breaks ratio ties downwards, a third
+            # rounding rule beside ffmpeg's and this module's.
             target = image_thumbnail_size(*oriented.size)
             if target is not None and target != oriented.size:
-                # `reducing_gap` is what `Image.thumbnail` passes and this
-                # branch used to get for free: a cheap `reduce()` down to
-                # twice the target before the convolution. Without it a
-                # 12 MP phone photo spends 7x longer in the resample, on
-                # the scan path, for a format phones shoot in. The target
-                # is computed rather than derived from the resampling, so
-                # it is the same size either way.
+                # `reducing_gap` is what `Image.thumbnail` passes: a cheap
+                # `reduce()` down to twice the target before the convolution,
+                # without which large phone photos resample far slower.
                 oriented = oriented.resize(
                     target, Image.Resampling.LANCZOS, reducing_gap=2.0
                 )

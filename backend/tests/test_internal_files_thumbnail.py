@@ -1,12 +1,6 @@
 """HTTP contract tests for GET /api/internal/files/{id} thumbnail_path field.
 
-Spec: docs/superpowers/specs/2026-05-02-thumbnail-clip-default-shallow-search.md
-Related hako: VHE7K0KWjIzV3M1CyfDAN (addon → core wire shape contract).
-
-The intelligence addon projects ``thumbnail_path`` onto its
-``IndexedFile`` row so the CLIP worker can embed the representative
-frame without an HTTP roundtrip per file. This contract test pins the
-wire shape so the projection path stays correct if core code shifts.
+Pins the wire shape of ``thumbnail_path`` for the addons that project it.
 """
 
 from __future__ import annotations

@@ -151,10 +151,7 @@ class TestNeighborsEdgeCases:
 
 
 class TestNeighborsPosition:
-    """`position` / `total` back the `n / N` readout in the image viewer.
-
-    Spec `2026-09-06-ui-redesign-p4-viewers.md` §1.
-    """
+    """`position` / `total` back the `n / N` readout in the image viewer."""
 
     def test_position_runs_from_one_to_total(self, client):
         c, db, drive_dir, _ = client
@@ -234,8 +231,6 @@ class TestNeighborsPosition:
 
         Under ``sort=liked_at`` a never-liked row drops out of every
         keyset comparison on its own, so it is unreachable by prev/next.
-        Counting it anyway produced "1 of 3" beside a next button with
-        nowhere to go — the readout claiming files that are not there.
         """
         c, db, drive_dir, _ = client
         files = _seed_files(db, drive_dir, count=3)

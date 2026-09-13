@@ -38,10 +38,9 @@ _upload_sessions: dict[str, "UploadSession"] = {}
 class _SizeMismatch(Exception):
     """Raised inside the assembly block so the rename does not happen.
 
-    The check used to run after the bytes were already at the destination, and
-    its cleanup was an `unlink()` of that path — which deletes whatever is
-    there, not only what this upload wrote. Refusing before the rename means
-    there is nothing to delete.
+    Refusing before the rename means the cleanup never has to ``unlink()``
+    the destination, which would delete whatever is there, not only what
+    this upload wrote.
     """
 
     def __init__(self, actual: int):
@@ -187,9 +186,7 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
     # Assembled beside the destination and renamed, not written into it. The
     # chunks live under `UPLOAD_DIR`, which may be another filesystem — that is
     # what `_check_disk_capacity` measures both sides of — so the sibling is
-    # what keeps the rename within one. Writing into `target_full` directly
-    # left a truncated file in the user's drive whenever assembly died, and the
-    # next scan registered it as a real file of that size.
+    # what keeps the rename within one.
     #
     # Streamed with copyfileobj rather than read into memory: chunk_size can be
     # 50-100MB.
@@ -233,17 +230,15 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         )
         thumbnail_full = config.THUMBNAILS_DIR / thumbnail_rel
         # Atomically: a thumbnail is kept when its file goes missing and is
-        # still served, and an upload to the same path revives that record
-        # (`design-decisions.md`), so this destination can be one the
-        # thumbnail endpoint is reading right now.
+        # still served, and an upload to the same path revives that record,
+        # so this destination can be one the thumbnail endpoint is reading.
         if not write_thumbnail_atomically(
             gen_fn, str(target_full), str(thumbnail_full)
         ):
             thumbnail_rel = None
 
     # Reconcile any DB record already holding this file_path so the UNIQUE
-    # constraint can't blow up at commit (consistent with
-    # fileops.resolve_db_path_conflict used by move / rename / copy).
+    # constraint can't blow up at commit.
     #
     # init_upload's FS check (target_full.exists() → 409) already guaranteed
     # there was no live physical file at this path, so any record here is a

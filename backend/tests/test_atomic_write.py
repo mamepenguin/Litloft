@@ -1,9 +1,4 @@
-"""What `atomic_write` promises, and the one thing it does not.
-
-Each test names the call site that got the property wrong before the helper
-existed, because the helper's whole argument is that eight separate
-implementations of one rule produced seven separate mistakes.
-"""
+"""What `atomic_write` promises, and the one thing it does not."""
 
 import os
 import pathlib
@@ -45,12 +40,7 @@ def test_the_temporary_file_is_a_sibling_of_the_destination(tmp_path):
 
 
 def test_the_destination_keeps_the_mode_it_had(tmp_path):
-    """`mkstemp` opens at 0600 and `os.replace` carries the source's mode over.
-
-    Seven call sites did this by hand without a `chmod`, so a note edited
-    through the app became readable only by the backend's uid — on a bind mount
-    the user also reaches from the host.
-    """
+    """`mkstemp` opens at 0600 and `os.replace` carries the source's mode over."""
     target = tmp_path / "note.md"
     target.write_text("before", encoding="utf-8")
     os.chmod(target, 0o644)
@@ -75,10 +65,8 @@ def test_a_restrictive_mode_the_user_chose_is_kept_in_a_drive(tmp_path):
 def test_a_generated_file_is_not_pinned_to_the_mode_it_happens_to_carry(tmp_path):
     """The other half of the split, and the reason it is a split.
 
-    A thumbnail at 0600 is not a choice anybody made — it is what the bug this
-    helper fixes left behind, and regeneration is the only path by which such a
-    file heals. Preserving here would pin it forever. Nobody chmods a cache, so
-    there is nothing to preserve.
+    A thumbnail at 0600 is not a choice anybody made, and regeneration is the
+    only path by which such a file heals; preserving here would pin it forever.
     """
     target = tmp_path / "thumb.jpg"
     target.write_bytes(b"stale")
@@ -92,10 +80,6 @@ def test_a_generated_file_is_not_pinned_to_the_mode_it_happens_to_carry(tmp_path
 def test_the_temporary_file_is_hidden_from_the_scanner(tmp_path):
     """The leading dot is the only thing keeping a half-written file out of the
     index.
-
-    `scanner.py` and `markdown_relations.py` each wrote `<name>.tmp`, which is
-    not hidden and which `classify` calls `other`, so a scan racing a rewrite
-    indexed the temporary as a file of its own. Both now come through here.
     """
     for opener in (replacing_file, generating_file):
         target = tmp_path / "note.md"
@@ -209,12 +193,10 @@ def test_a_generator_that_reports_failure_publishes_nothing(tmp_path):
 # and nothing to pass but a destination and the contents, "which writes do not
 # come through here" is a question about the tree.
 #
-# **The population is by role, not by spelling.** The first version of this asked
-# about two spellings of four and passed while `scanner.py` and
-# `markdown_relations.py` renamed through `Path.replace` and two routers created
-# through `os.open(O_EXCL)`. Every spelling that publishes a file's contents is
-# below, declared as a set: a file that grows one fails this until it is either
-# routed through the helper or written down with its reason.
+# **The population is by role, not by spelling.** Every spelling that publishes
+# a file's contents is below, declared as a set: a file that grows one fails
+# this until it is either routed through the helper or written down with its
+# reason.
 ROLES = {
     # `os.replace(tmp, dst)` / `_os.replace(...)`
     "rename-by-os": frozenset({
@@ -235,7 +217,6 @@ ROLES = {
         "app/routers/drives.py",
         "app/services/fileops.py",
     }),
-    # A hand-rolled temporary is how all four spellings started.
     "hand-rolled-temporary": frozenset({"app/services/atomic_write.py"}),
     # `_atomic` still takes `preserve_mode`, because the split has to be
     # implemented somewhere. Nothing outside the module may reach it: the
@@ -248,13 +229,7 @@ ROLES = {
 
 
 def _files_by_role():
-    """Find real calls, by parsing. A substring scan reads prose as code.
-
-    Measured, both cheaper versions first: matching `"os.replace("` as text
-    reported `thumbnail.py`, whose only occurrence is a docstring quoting the
-    convention; matching the bare attribute `replace` reported six more files,
-    because `str.replace` is everywhere.
-    """
+    """Find real calls, by parsing. A substring scan reads prose as code."""
     import ast
 
     root = pathlib.Path(__file__).resolve().parent.parent / "app"
@@ -301,8 +276,6 @@ def test_no_write_publishes_a_file_outside_the_helper():
 
 
 def test_the_declared_roles_are_the_spellings_that_were_actually_found():
-    """Four, not two. Recorded because the count moved once already, the same
-    way `addon_proxy`'s "three guard spellings" turned out to be five."""
     assert set(ROLES) == {
         "rename-by-os",
         "rename-by-path",
@@ -315,10 +288,7 @@ def test_the_declared_roles_are_the_spellings_that_were_actually_found():
 def test_every_call_site_passes_a_destination_and_nothing_else():
     """The measure of whether a caller can get it wrong is what it may pass.
 
-    `suffix` and `encoding` were parameters until the callers were counted:
-    three passed `suffix=".jpg"` where the destination was already `.jpg`, so
-    the knob could only ever be set to the value the helper can derive. The mode
-    policy is not a parameter either — it is which function you call. This
+    The mode policy is not a parameter — it is which function you call. This
     asserts all four signatures stay closed.
     """
     import inspect

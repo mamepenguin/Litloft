@@ -91,11 +91,9 @@ def _build_sjis_zip_bytes() -> bytes:
     file_data = b"test content"
     file_compressed = deflate(file_data)
 
-    # Build local headers
     local1 = local_header(dir_name, b"", b"", is_dir=True)
     local2 = local_header(file_name, file_data, file_compressed)
 
-    # Build central directory
     cd1 = central_dir(dir_name, b"", b"", 0, is_dir=True)
     cd2 = central_dir(file_name, file_data, file_compressed, len(local1))
 
@@ -210,12 +208,10 @@ class TestArchiveList:
         assert "total_size" in body
         assert body["total_entries"] >= 3  # hello.txt, images/photo.png, data.bin
 
-        # Verify entry structure
         entry_paths = [e["path"] for e in body["entries"]]
         assert "hello.txt" in entry_paths
         assert "images/photo.png" in entry_paths
 
-        # Check an entry has all expected fields
         txt_entry = next(e for e in body["entries"] if e["path"] == "hello.txt")
         assert txt_entry["filename"] == "hello.txt"
         assert txt_entry["file_size"] > 0
@@ -224,7 +220,6 @@ class TestArchiveList:
         assert txt_entry["file_type"] == "document"
         assert "text/plain" in txt_entry["mime_type"]
 
-        # Check directory entry
         dir_entry = next(
             (e for e in body["entries"] if e["path"] == "images/"), None
         )
@@ -232,7 +227,6 @@ class TestArchiveList:
             assert dir_entry["is_dir"] is True
             assert dir_entry["filename"] == "images"
 
-        # Entries should be sorted by path
         paths = [e["path"] for e in body["entries"]]
         assert paths == sorted(paths)
 
@@ -292,7 +286,6 @@ class TestArchiveList:
         paths = [e["path"] for e in body["entries"]]
         filenames = [e["filename"] for e in body["entries"]]
 
-        # Verify Japanese characters are properly decoded
         assert any("画像" in p for p in paths), f"Expected '画像' in paths: {paths}"
         assert any("写真" in f for f in filenames), f"Expected '写真' in filenames: {filenames}"
 

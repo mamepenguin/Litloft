@@ -1,7 +1,5 @@
 """Tests for the ``trust_tier`` / ``trust_reviewed_at`` column migration.
 
-Spec: docs/superpowers/specs/2026-08-29-web-clip-promotion.md §3, §8.
-
 The migration in ``app/database.py:_migrate`` must:
 
 1. Add both columns to ``files`` when absent.
@@ -21,8 +19,6 @@ from pathlib import Path
 
 from sqlalchemy import create_engine, inspect, text
 
-# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
-# in ``conftest.py`` says why that must not be the shared one.
 pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 

@@ -1,10 +1,6 @@
 """Tests for the Like toggle and the Liked listing filter.
 
-Spec: docs/superpowers/specs/2026-09-01-favorite-like-separation.md
-
-Like used to be a counter: ``POST /files/{id}/like`` incremented it and
-``/dislike`` decremented it, neither idempotent and neither viewer-scoped.
-It is now a toggle over ``files.liked_at``, mirroring the favorite toggle.
+Like is a toggle over ``files.liked_at``, mirroring the favorite toggle.
 """
 import shutil
 from datetime import datetime
@@ -73,11 +69,7 @@ class TestLikeToggle:
         assert res.json()["liked_at"] is None
 
     def test_liking_again_records_a_fresh_timestamp(self, client):
-        """Re-liking must re-sort to the top of the Liked view.
-
-        The counter it replaces had no notion of "when", so this is the
-        behaviour the timestamp exists to provide.
-        """
+        """Re-liking must re-sort to the top of the Liked view."""
         c, db, drive_dir, data_dir = client
         file = _seed_file(db, drive_dir)
 
@@ -93,8 +85,7 @@ class TestLikeToggle:
         assert res.status_code == 404
 
     def test_emits_files_updated(self, client, captured_emits):
-        """The favorite toggle broadcasts; the like counter never did,
-        so a Liked list in another tab went stale."""
+        """Liking broadcasts, so a Liked list in another tab stays fresh."""
         c, db, drive_dir, data_dir = client
         file = _seed_file(db, drive_dir)
         c.post(f"/api/files/{file.id}/like")
@@ -104,8 +95,6 @@ class TestLikeToggle:
 
 class TestDislikeRemoved:
     def test_dislike_endpoint_is_gone(self, client):
-        """It decremented the same column with no lower bound, so it was
-        an undo button that could drive the count negative."""
         c, db, drive_dir, data_dir = client
         file = _seed_file(db, drive_dir)
         res = c.post(f"/api/files/{file.id}/dislike")
@@ -175,8 +164,7 @@ class TestSortField:
         """``liked_at`` is the only sortable column that can be NULL.
 
         The keyset comparisons need a total order, and a file that was
-        never liked has no place in a like-ordered sequence. Comparing
-        against NULL raised before this was made an explicit state.
+        never liked has no place in a like-ordered sequence.
         """
         c, db, drive_dir, data_dir = client
         liked = _seed_file(db, drive_dir, name="a.mp4", title="A")
@@ -203,8 +191,6 @@ class TestSortField:
         res = c.get(f"/api/files/{liked.id}/neighbors?sort=liked_at")
         # And the count says one, not two: the unliked file is not a
         # neighbour, so it is not in the sequence being counted either.
-        # "1 of 2" beside a disabled next button claims a file that the
-        # arrows cannot reach.
         assert res.json() == {
             "prev_id": None,
             "next_id": None,

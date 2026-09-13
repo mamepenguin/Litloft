@@ -20,12 +20,10 @@ router = APIRouter(prefix="/api/files", tags=["comments"])
 FileId = Annotated[str, PathParam(min_length=12, max_length=12, pattern=r"^[A-Za-z0-9_-]+$")]
 CommentId = Annotated[str, PathParam(min_length=12, max_length=12, pattern=r"^[A-Za-z0-9_-]+$")]
 
-# Rate limiting for comment creation: max 10 comments per 60 seconds per IP
 _COMMENT_RATE_WINDOW = 60  # seconds
 _COMMENT_RATE_MAX = 10
 _comment_timestamps: dict[str, list[float]] = {}
 
-# Maximum comments per file
 _MAX_COMMENTS_PER_FILE = 500
 
 

@@ -137,7 +137,6 @@ class TestFolderRename:
         )
         assert res.status_code == 200
         assert (drive_dir / "旅行2024").is_dir()
-        # Verify file paths updated
         file_res = c.get(f"/api/files/{file.id}")
         assert file_res.json()["folder_path"] == "旅行2024"
 
@@ -174,7 +173,6 @@ class TestFolderMove:
         assert res.status_code == 200
         assert res.json()["path"] == "アーカイブ/旅行"
         assert (drive_dir / "アーカイブ" / "旅行" / "test.mp4").exists()
-        # Verify file paths updated
         file_res = c.get(f"/api/files/{file.id}")
         assert file_res.json()["folder_path"] == "アーカイブ/旅行"
 
@@ -202,7 +200,6 @@ class TestFolderMove:
     def test_move_updates_pinned_folders(self, client):
         c, db, drive_dir, data_dir = client
         _seed(db, drive_dir)
-        # Pin the folder
         c.post(f"/api/drives/{TEST_DRIVE}/pins", json={"path": "旅行"})
         (drive_dir / "dest").mkdir()
         res = c.put(
@@ -210,7 +207,6 @@ class TestFolderMove:
             json={"path": "旅行", "target_path": "dest"},
         )
         assert res.status_code == 200
-        # Verify pin updated
         pins_res = c.get(f"/api/drives/{TEST_DRIVE}/pins")
         pin_paths = [p["path"] for p in pins_res.json()]
         assert "dest/旅行" in pin_paths

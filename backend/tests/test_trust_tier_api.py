@@ -1,7 +1,5 @@
 """Trust-tier read and write paths.
 
-Spec: docs/superpowers/specs/2026-08-29-web-clip-promotion.md §5.
-
 Two writers, deliberately asymmetric:
 
 * the public endpoint is a person vouching for a source, so it stamps
@@ -269,7 +267,7 @@ class TestFilterFileIdsTrustFilter:
 
 
 class TestDriveListingTrustFilter:
-    """The core-side filter that makes R1/R4 hold.
+    """The core-side trust filter on the drive listing.
 
     ``unreviewed`` is deliberately not a tier: it selects files nobody has
     ruled on, which spans both tiers because the migrated backlog is

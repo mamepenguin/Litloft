@@ -16,7 +16,6 @@ class TestUploadFlow:
         c, db, drive_dir, data_dir = client
         test_data = b"x" * 1000
 
-        # Init
         res = c.post(f"/api/drives/{TEST_DRIVE}/upload/init", json={
             "filename": "uploaded.bin",
             "file_size": len(test_data),
@@ -28,7 +27,6 @@ class TestUploadFlow:
         upload_id = body["upload_id"]
         assert body["total_chunks"] == 1
 
-        # Chunk
         res = c.post(
             f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/chunk",
             data={"chunk_index": "0"},
@@ -37,7 +35,6 @@ class TestUploadFlow:
         assert res.status_code == 200
         assert res.json()["received_chunks"] == 1
 
-        # Complete
         res = c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
         assert res.status_code == 200
         assert res.json()["filename"] == "uploaded.bin"
@@ -117,7 +114,6 @@ class TestUploadFlow:
         res = c.delete(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}")
         assert res.status_code == 200
 
-        # Session gone
         res = c.post(f"/api/drives/{TEST_DRIVE}/upload/{upload_id}/complete")
         assert res.status_code == 404
 
@@ -210,7 +206,6 @@ class TestUploadFlow:
             "chunk_size": 1024,
         })
         assert res.status_code == 400
-        # Limit should be reflected in the message, not the hardcoded "2GB"
         assert "GB" in res.json()["detail"]
         assert "max" in res.json()["detail"].lower()
 
@@ -251,10 +246,9 @@ class TestUploadThumbnailIsNotWrittenInPlace:
     """The destination can be a thumbnail the endpoint is serving.
 
     A file that goes missing keeps its thumbnail on disk and the endpoint
-    keeps serving it; an upload to the same path revives that record
-    (`design-decisions.md`). So finalising an upload can land on a live
-    thumbnail, and writing the generator's output straight there hands a
-    reader a truncated JPEG.
+    keeps serving it; an upload to the same path revives that record. So
+    finalising an upload can land on a live thumbnail, and writing the
+    generator's output straight there hands a reader a truncated JPEG.
     """
 
     def _upload(self, c, name, payload):
@@ -307,13 +301,9 @@ class TestUploadThumbnailIsNotWrittenInPlace:
 
 
 class TestAssemblyIsAtomic:
-    """`complete_upload` used to write into the destination path directly.
+    """Assembly that dies must not leave a truncated file in the user's drive.
 
-    What broke was specific: assembly that died — a disk filling, a chunk file
-    gone, the container killed — left a truncated file in the user's drive, and
-    the next scan registered it as a real file of that size. The size check ran
-    afterwards and cleaned up with `unlink()` on that path, which deletes
-    whatever is there rather than only what this upload wrote.
+    The next scan would register it as a real file of that size.
     """
 
     def test_a_failed_assembly_leaves_the_drive_untouched(
@@ -354,10 +344,7 @@ class TestAssemblyIsAtomic:
     def test_a_file_already_at_the_target_survives_a_failed_upload(
         self, client, monkeypatch
     ):
-        """The window `init_upload`'s existence check leaves open is not closed
-        here — see the PR body — but a *failed* upload must no longer be the
-        thing that destroys what it finds.
-        """
+        """A *failed* upload must not destroy what it finds at the destination."""
         http, db, drive_dir, _ = client
         session = upload_service.init_upload(
             TEST_DRIVE, "taken.bin", 8, "", 8,

@@ -38,7 +38,7 @@ class _StubResponse:
 
 
 class _CapturingClient:
-    """Same shape as the helper in test_addon_proxy_drive_scope.py."""
+    """Captures outbound requests so tests can assert on forwarded headers."""
 
     last_request: dict[str, Any] = {}
 
@@ -180,8 +180,7 @@ def test_client_supplied_header_dropped_without_cookie(
 
 
 def test_overlong_nickname_drops_header(client, global_scope_addon):
-    """Cookie longer than the auth helper's 50-char cap is treated as
-    no viewer (mirrors ``app.auth.get_viewer_id``)."""
+    """Cookie longer than the 50-char cap is treated as no viewer."""
     c, _s, _d, _dat = client
     c.cookies.set("lit_viewer", "x" * 100)
     r = c.get("/api/addons/_vid/ping")

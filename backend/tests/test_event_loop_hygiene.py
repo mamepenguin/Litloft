@@ -2,10 +2,7 @@
 
 `asyncio.run()` sets a fresh loop as current and resets the slot to None on
 exit. A test that then calls `asyncio.get_event_loop()` raises
-`RuntimeError: There is no current event loop` on 3.12 — which is how one
-new test file silently broke twenty-one tests in `test_ws.py`. Both files
-passed in isolation, so nothing caught it until the suites were run
-together.
+`RuntimeError: There is no current event loop` on 3.12.
 
 `asyncio.new_event_loop()` + `run_until_complete` + `close` does the same
 job against a private loop and touches no shared state. That is the
@@ -22,8 +19,7 @@ import pytest
 TESTS_DIR = Path(__file__).parent
 
 #: Every asyncio entry point that reads or writes the thread's current-loop
-#: slot. `set_event_loop` is the most direct of the three, and was the hole
-#: that let this module's own first draft break the rule it enforces.
+#: slot.
 FORBIDDEN = frozenset({"run", "get_event_loop", "set_event_loop"})
 
 #: `asyncio.Runner()` claims the slot too, measured on 3.12: the current
@@ -45,8 +41,6 @@ def forbidden_calls(source: str) -> set[str]:
 
         import asyncio as aio;  aio.run(...)
         from asyncio import run;  run(...)
-
-    Both were live holes in the first version.
     """
     tree = ast.parse(source)
 
@@ -129,12 +123,7 @@ def test_no_thread_global_loop_calls(path: Path):
 
 
 class TestTheGuardItself:
-    """The checker is only worth as much as its coverage.
-
-    Every case here was a real evasion of the first version: three of the
-    four spellings went undetected, and `conftest.py` was not scanned at
-    all.
-    """
+    """The checker is only worth as much as its coverage."""
 
     @pytest.mark.parametrize(
         "source,expected",
@@ -209,11 +198,8 @@ class TestTheGuardItself:
 def test_a_private_loop_leaves_the_slot_untouched():
     """The prescribed pattern really is side-effect free.
 
-    Run on a dedicated thread, which has its own current-loop slot. An
-    earlier version asserted this on the main thread by calling
-    `set_event_loop(None)` first and never restoring it — leaving exactly
-    the shared state this module exists to prevent. A thread makes the
-    isolation structural rather than something a `finally` has to remember.
+    Run on a dedicated thread, which has its own current-loop slot, so the
+    isolation is structural rather than something a `finally` has to remember.
     """
     result: dict[str, object] = {}
 

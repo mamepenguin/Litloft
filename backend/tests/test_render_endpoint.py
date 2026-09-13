@@ -1,24 +1,4 @@
-"""Tests for the HTML render endpoint.
-
-Spec: ``docs/superpowers/specs/2026-05-11-html-preview.md``
-
-Contract:
-
-1. ``GET /api/files/{id}/render`` returns 200 for text/html files with
-   ``Content-Type: text/html; charset=utf-8``, ``Content-Disposition:
-   inline``, ``X-Content-Type-Options: nosniff``, and a strict
-   Content-Security-Policy header containing the spec-mandated
-   directives (sandbox, default-src 'none', form-action 'none',
-   connect-src 'none', allowlisted CDN script/style sources).
-2. Non-HTML mimes return 404 (the endpoint is HTML-only by design).
-3. Missing files return 410 (consistent with ``/stream``).
-4. Files larger than the 5 MB cap return 413.
-5. Non-UTF-8 bodies return 415 (Phase 1 limitation, documented).
-6. The bootstrap script is injected before ``</body>`` when present
-   (case-insensitive), otherwise appended.
-7. The ``/stream`` endpoint continues to force attachment for
-   text/html — the render path must not change stream behaviour.
-"""
+"""Tests for the HTML render endpoint."""
 
 from pathlib import Path
 

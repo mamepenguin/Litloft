@@ -28,13 +28,7 @@ class TestHeicThumbnail:
         assert (tmp_path / "thumb.jpg").stat().st_size > 0
 
     def test_thumbnail_dimensions(self, tmp_path):
-        """The fixture is 640x480, and 4:3 fitted in a 320 box is 320x240.
-
-        The Pillow path and the ffmpeg path answer to the same box, so
-        the number here is the one ``image_thumbnail_size`` gives — the
-        two implementations are compared directly in
-        ``test_thumbnail.py``.
-        """
+        """The fixture is 640x480, and 4:3 fitted in a 320 box is 320x240."""
         source = self._create_heic_fixture(tmp_path)
         output = str(tmp_path / "thumb.jpg")
         generate_image_thumbnail(str(source), output)

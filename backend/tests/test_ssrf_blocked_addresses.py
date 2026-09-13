@@ -1,24 +1,8 @@
 """Core's half of the SSRF address contract.
 
-The rule "which IP addresses may an image fetch reach" is implemented twice:
-``app.services.safe_image_fetch._is_blocked_ip`` here, and ``_is_blocked_ip``
-in ``addons/knowledge/app/services/fetcher.py``, which runs in its own
-container and cannot import this one. The knowledge half of this file is
-``addons/knowledge/tests/test_blocked_addresses.py``.
-
 **The two tables below are declared answers, not a comparison.** Checking one
-implementation against the other is green whenever both are wrong the same way,
-which is the likely drift: the second copy was written by reading the first.
+implementation against the other is green whenever both are wrong the same way.
 Each side is checked against the literal instead.
-
-What this cannot hold: nothing mechanically compares the two copies of the
-table. Neither test image can see the other repository's source — knowledge's
-``Dockerfile.test`` has the addon repository as its build context, and
-knowledge is not in core's CI matrix. Rows that go missing from *this* copy
-are caught by the count and by the three structural assertions below — the
-prefix forms, the prefix-independent forms, and the IPv4 categories. Rows
-deleted from both copies at once are reachable from no test in either
-repository.
 """
 
 import ipaddress
@@ -114,9 +98,7 @@ def test_declared_allowed_addresses_are_reachable(address):
 def test_the_declared_population_is_the_size_it_says():
     """A table that quietly loses rows still passes every case it still holds.
 
-    Both counts are declared here rather than derived from the lists, so
-    shrinking either list fails this. The knowledge half keeps its own copy of
-    both numbers: changing a list here means changing them there.
+    Both counts are declared here rather than derived from the lists.
     """
     assert len(MUST_BLOCK) == 46
     assert len(MUST_ALLOW) == 9
@@ -171,8 +153,7 @@ def _isatap_flag(address: str) -> int:
 
 
 # Selected by structure, for the same reason the IPv4 categories are: a row
-# picked out of the free text beside it is picked by a comment, and this is the
-# test that exists because a form was believed covered on the strength of one.
+# picked out of the free text beside it is picked by a comment.
 PREFIX_INDEPENDENT_FORMS = {"isatap": (_is_isatap, ISATAP_ROWS)}
 
 
@@ -205,16 +186,9 @@ def test_every_prefix_form_keeps_at_least_one_row():
 
 
 def test_a_prefix_independent_form_is_declared_under_a_routable_prefix():
-    """The row that made `isatap` look covered was `fe80::5efe:10.0.0.1`.
-
-    It is refused for being link-local, which is true of every address in
-    `fe80::/10` and says nothing about ISATAP. The same interface identifier
-    under a routable /64 was reachable in both implementations, cloud metadata
-    included, while a test asserted the form was represented.
-
-    So for a form carried in the interface identifier, at least one row must be
-    one that the carrying address does not condemn on its own — which is also
-    the only thing that makes the extraction observable from the tables.
+    """For a form carried in the interface identifier, at least one row must be
+    one that the carrying address does not condemn on its own: `fe80::5efe:…`
+    is refused for being link-local, which says nothing about ISATAP.
     """
     for name, (matches, expected_rows) in PREFIX_INDEPENDENT_FORMS.items():
         rows = [a for a, _ in MUST_BLOCK if matches(a)]
@@ -254,9 +228,7 @@ def test_the_embedded_destination_is_extracted_from_every_form(address, payload)
     For the prefix forms this is defence in depth: the carrying address is
     already condemned by its own properties, so removing the extraction refuses
     those rows anyway. For ISATAP under a routable prefix it is the whole
-    defence, which is why the block table now carries such a row —
-    `test_a_prefix_independent_form_is_declared_under_a_routable_prefix` is
-    what keeps it there.
+    defence.
     """
     result = _embedded_ipv4(ipaddress.IPv6Address(address))
     assert result == (ipaddress.IPv4Address(payload) if payload else None)
@@ -302,11 +274,7 @@ def test_every_ipv4_category_the_gate_refuses_is_represented():
 
 
 def test_an_unparseable_address_is_refused():
-    """`_is_blocked_ip` takes the string a resolver handed back.
-
-    The knowledge copy takes a parsed object, so it has no counterpart here:
-    its caller parses the resolver's answer and refuses what will not parse.
-    """
+    """`_is_blocked_ip` takes the string a resolver handed back."""
     assert _is_blocked_ip("not-an-address") is True
     assert _is_blocked_ip("") is True
 
@@ -315,11 +283,9 @@ def test_the_routability_helper_answers_both_directions():
     """`_carrying_address_refuses_itself` is a transcription, not an import.
 
     Nothing ties it to either implementation, so a clause added to one of them
-    leaves it behind. The direction that matters is the one that fails quietly:
-    if it wrongly called a link-local carrier routable, the test above would
-    accept round 1's mistake — `fe80::5efe:10.0.0.1` — as proof that ISATAP is
-    exercised. The other direction is safe, because no routable row then leaves
-    that test with nothing to find.
+    leaves it behind. If it wrongly called a link-local carrier routable, the
+    test above would accept `fe80::5efe:10.0.0.1` as proof that ISATAP is
+    exercised.
 
     Both rows are declared, and each is asserted to still be in the table it
     came from, so deleting either fails here rather than quietly weakening the

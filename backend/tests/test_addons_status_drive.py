@@ -38,12 +38,7 @@ def _restore_registry(snapshot):
 
 
 def test_status_surfaces_manifest_description(client):
-    """Regression: the manifest `description` must reach the frontend.
-
-    `_FRONTEND_FIELDS` previously omitted "description", so the addon
-    enable/disable UI always showed a "no description" fallback. The
-    allowlist must pass `description` through.
-    """
+    """The manifest `description` must reach the frontend."""
     c, _, _, _ = client
     snap = dict(addon_registry._registry)
     try:

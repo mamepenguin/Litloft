@@ -78,7 +78,6 @@ def extract_exif(image_path: Path) -> dict | None:
                 return None
             return raw.get(tag_id)
 
-        # Datetime
         dt_raw = get_tag("DateTimeOriginal")
         datetime_original = None
         if dt_raw and isinstance(dt_raw, str) and len(dt_raw) >= 16:
@@ -87,7 +86,6 @@ def extract_exif(image_path: Path) -> dict | None:
             except Exception:
                 pass
 
-        # Camera
         make = get_tag("Make")
         if isinstance(make, bytes):
             make = make.decode("utf-8", errors="replace").rstrip("\x00")
@@ -100,14 +98,12 @@ def extract_exif(image_path: Path) -> dict | None:
         elif model is not None:
             model = str(model).rstrip("\x00")
 
-        # Exposure
         f_number = _to_float(get_tag("FNumber"))
         exposure_time = _exposure_time_str(get_tag("ExposureTime"))
         iso_raw = get_tag("ISOSpeedRatings")
         iso_speed = int(iso_raw) if iso_raw is not None else None
         focal_length = _to_float(get_tag("FocalLength"))
 
-        # GPS
         gps_lat = None
         gps_lon = None
         gps_tag_id = tag_map.get("GPSInfo")
@@ -134,7 +130,6 @@ def extract_exif(image_path: Path) -> dict | None:
             "gps_lon": gps_lon,
         }
 
-        # Return None if all fields are None (no meaningful EXIF)
         if all(v is None for v in result.values()):
             return None
 

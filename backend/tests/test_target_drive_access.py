@@ -1,14 +1,8 @@
 """The destination of a move/copy must be access-checked, not just the source.
 
-``_get_file_or_404`` gates the file being moved, but ``target_drive`` arrives
-straight from the request body and only ever reached ``resolve_drive_path``,
-which checks that the drive *exists* and nothing else. A caller who had
-unlocked one drive could therefore move or copy files into a drive they
-cannot see.
-
-The UI cannot reach this — you can only paste where you can navigate, and a
-locked drive is absent from every listing — so these tests exercise the API
-directly, which is where the gap lives (MCP clients and scripts call it too).
+``target_drive`` arrives straight from the request body. The UI cannot reach
+this — a locked drive is absent from every listing — so these tests exercise
+the API directly.
 """
 
 import json
@@ -240,10 +234,8 @@ class TestSingleFileDestination:
         )
 
         # ``fileops.move_file`` resolves the destination with
-        # ``target_drive or src_drive``, so an empty string has always meant
-        # "the drive it is already in" — same as null. The schema has no
-        # min_length, so callers can and do send it. Rejecting it would be a
-        # silent compatibility break, not a tightening.
+        # ``target_drive or src_drive``, so an empty string means "the drive
+        # it is already in" — same as null.
         assert res.status_code == 200
         assert (open_dir / "sub" / "clip.mp4").exists()
 

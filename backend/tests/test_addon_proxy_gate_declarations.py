@@ -6,9 +6,8 @@ reads as correct: a ``file_access`` pre_check naming a path parameter the
 route does not have, and a ``drive_optional`` route that waives the drive
 requirement without putting anything in its place.
 
-Both used to fall open. That is worse than an ungated route declared honestly,
-because the manifest says the route is protected and a reader checking the
-manifest agrees.
+Both must fail closed: falling open is worse than an ungated route declared
+honestly, because the manifest says the route is protected.
 """
 from __future__ import annotations
 
@@ -120,12 +119,6 @@ class TestMisdeclaredFileAccessParam:
         Nothing else would notice: the route resolves, the caller gets 200,
         and the id of a file in a drive they cannot open is handed to the
         addon. The manifest still reads as gated.
-
-        The log line is asserted because it is the only part of this that the
-        guard uniquely provides. Falling through would refuse too — a lookup
-        of ``File.id == None`` matches nothing — so the status code alone
-        cannot tell a deliberate refusal from an accidental one, and only the
-        message tells an operator which declaration is wrong.
         """
         route = {**FILE_ROUTE, "pre_check": {"type": "file_access", "param": "fileId"}}
         c = declaring(route)
@@ -163,14 +156,8 @@ class TestDriveOptionalWithoutAGate:
     """``drive_optional`` waives the drive requirement; something must replace it."""
 
     def test_a_drive_optional_route_with_no_gate_is_refused(self, declaring, caplog):
-        """`design-decisions.md` §Addons: drive_optional is for inherently
-        global paths whose "authorization is enforced through a separate
-        route". A route that declares neither has no separate route, and
-        serving it would make the header optional *and* unchecked.
-
-        The log is asserted for the same reason as its sibling above: the
-        refusal is a bare 404, so an addon author whose route stopped working
-        has nothing to go on unless the message names the declaration.
+        """A route that declares neither a drive nor a gate is refused: serving it
+        would make the header optional *and* unchecked.
         """
         c = declaring({
             "path": "/open", "methods": ["GET"], "drive_optional": True,
@@ -247,20 +234,16 @@ UNRECOGNISED_PRE_CHECKS = [
 
 #: Falsy shapes never reach the dispatch: the ``drive_optional`` guard refuses
 #: them first, for its own reason. Kept separate from the list above so the two
-#: refusals are not confused for one, which is what an empty object did while
-#: it sat there.
+#: refusals are not confused for one.
 FALSY_PRE_CHECKS = [{}, None, "", 0]
 
 
 class TestUnrecognisedPreCheckType:
     """A declared gate the proxy cannot dispatch to.
 
-    This is the third way a manifest can be wrong and read as correct, and it
-    reads as correct harder than the other two: ``"type": "file_acces"`` looks
-    like a gate to a reader, to a reviewer, and — before this arm existed — to
-    the ``drive_optional`` guard, which only asks whether a ``pre_check`` is
-    present. A route that waives the drive requirement and declares a gate
-    nothing runs is served to an unauthenticated caller with no drive context.
+    ``"type": "file_acces"`` looks like a gate to a reader and to the
+    ``drive_optional`` guard, which only asks whether a ``pre_check`` is
+    present.
     """
 
     @pytest.mark.parametrize("pre_check", UNRECOGNISED_PRE_CHECKS)
@@ -277,8 +260,7 @@ class TestUnrecognisedPreCheckType:
         assert _SpyClient.calls == []
         # "cannot dispatch" is emitted only by the arm under test. The
         # `drive_optional` guard's message also contains "pre_check", so a
-        # looser match here is satisfied by the wrong guard — which is how an
-        # empty object passed this test while never reaching the dispatch.
+        # looser match here is satisfied by the wrong guard.
         assert any(
             "cannot dispatch" in record.getMessage() for record in caplog.records
         ), "the undispatchable pre_check is not named in any ERROR log"

@@ -1,17 +1,4 @@
-"""The startup trash auto-purge: ``main._run_purge_batch`` and its wrapper.
-
-This is the only code that deletes a user's files *from a drive* without the
-user asking at that moment — the qualifier is load-bearing, because
-``upload.cleanup_abandoned_uploads`` runs from the same lifespan and removes
-staged upload directories. So the properties held here are the ones whose
-failure is unrecoverable: what the cutoff admits, that a file that cannot be
-deleted does not take the run down with it, and that the run ends.
-
-``test_trash.py::test_purge_cleans_empty_folders`` writes the batch query,
-the folder collection and the delete out again in its own body instead of
-calling ``_run_purge_batch``. It therefore holds nothing about this function:
-a defect in the loop leaves it green.
-"""
+"""The startup trash auto-purge: ``main._run_purge_batch`` and its wrapper."""
 
 import ast
 import asyncio
@@ -38,17 +25,8 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 # does not exclude comes back unchanged forever — a failure with no error and
 # no end. Any finite bound tells that apart from a slow run.
 #
-# Two bounds because there are two honest runtimes, not because only one
-# population can hang. Both can: a run driving failing rows does almost no
-# work, while the bulk test's runtime scales with rows times commits — and
-# the bulk test catches its own kind of stall, where the per-row commit stops
-# committing and the re-query stops advancing, with no failing delete
-# anywhere. One number for both makes the bulk test fail under load or
-# charges every hang the bulk test's headroom.
-#
-# Neither value is tuned to its worst case; both have room to spare, and the
-# cost of that room is what a genuine stall takes to report. Measurements are
-# in the PR body, where they are dated.
+# Two bounds because the bulk test's runtime scales with rows times commits,
+# while a run driving failing rows does almost no work.
 _TERMINATION_TIMEOUT_SECONDS = 10
 _BULK_TIMEOUT_SECONDS = 60
 
@@ -133,12 +111,7 @@ class TestWhatTheCutoffAdmits:
         assert db.query(File).filter(File.id == file_id).first() is None
 
     def test_a_row_at_the_drive_root_queues_no_folder_cleanup(self, client):
-        """``folder_path`` is empty for a file sitting at the drive root.
-
-        Queuing it would hand ``_rmdir_up_to_root`` the root itself. That
-        call is refused there too, but the refusal belongs to the walk and
-        the row should not reach it.
-        """
+        """``folder_path`` is empty for a file sitting at the drive root."""
         c, db, drive_dir, _ = client
         file_id = _seed_trashed(
             db, drive_dir, "root.mp4", days_ago=31, folder=""
@@ -170,16 +143,7 @@ class TestWhatTheCutoffAdmits:
         assert db.query(File).filter(File.id == file_id).first() is not None
 
     def test_an_active_row_older_than_the_cutoff_is_not_trash(self, client):
-        """The window is on ``deleted_at``, not on age.
-
-        A file that has sat in a drive for years has ``deleted_at IS NULL``
-        and must never enter the batch. Measured: what refuses it is SQL's
-        three-valued logic — ``NULL < cutoff`` evaluates to NULL, so the
-        comparison excludes the row on its own and this test is still green
-        with the ``isnot(None)`` clause deleted. It holds the outcome rather
-        than either clause, which is the property that has to survive
-        whichever of them a later edit rewrites.
-        """
+        """The window is on ``deleted_at``, not on age."""
         c, db, drive_dir, _ = client
         file = _seed_trashed(db, drive_dir, "active.mp4", days_ago=999)
         file.deleted_at = None
@@ -194,14 +158,7 @@ class TestWhatTheCutoffAdmits:
         assert on_disk.exists()
 
     def test_a_missing_row_is_not_trash_either(self, client):
-        """``missing_since`` and ``deleted_at`` are mutually exclusive states.
-
-        ``design-decisions.md`` §File state: missing files are kept
-        indefinitely and are never auto-purged — only an explicit user action
-        removes them. A missing row carries ``deleted_at IS NULL``, so it is
-        excluded by the same comparison as the test above and for the same
-        reason; what is held here is that the two states stay exclusive.
-        """
+        """``missing_since`` and ``deleted_at`` are mutually exclusive states."""
         c, db, drive_dir, _ = client
         file = _seed_trashed(db, drive_dir, "gone.mp4", days_ago=999)
         file.deleted_at = None
@@ -255,9 +212,6 @@ class TestARowThatCannotBeDeleted:
         return it, so why exclude it? Because the loop cannot verify that
         premise, and if it is ever wrong the failure is the one this whole
         function was fixed for: a silent, endless re-read.
-
-        Forced here rather than argued: a row that raises
-        ``ObjectDeletedError`` and stays in the table.
         """
         c, db, drive_dir, _ = client
         _seed_trashed(db, drive_dir, "stubborn.mp4", days_ago=31)
@@ -320,10 +274,9 @@ class TestARowThatCannotBeDeleted:
     ):
         """The warning is the only operator-facing signal the fix produces.
 
-        ``docs/user-guide/trash-and-missing.md`` sends the operator here to
-        find out that something is stuck. What the number counts is the rows
-        *this run* failed to delete and left in place — not everything in the
-        trash, and not everything the run skipped.
+        What the number counts is the rows *this run* failed to delete and left
+        in place — not everything in the trash, and not everything the run
+        skipped.
         """
         c, db, drive_dir, _ = client
         for index in range(3):
@@ -360,9 +313,8 @@ class TestARowThatCannotBeDeleted:
         so no ``files.purged`` names it, and the warning above reporting it
         as retained.
 
-        The failure therefore has to come from inside ``physical_delete``. A
-        stub that replaces it never mutates the session, which is why the
-        tests above this one are green either way.
+        The failure therefore has to come from inside ``physical_delete``: a
+        stub that replaces it never mutates the session.
         """
         c, db, drive_dir, _ = client
         stuck_id = _seed_trashed(db, drive_dir, "a_stuck.mp4", days_ago=31).id
@@ -539,9 +491,8 @@ class TestTheBatchLoop:
         assert set(purged_ids) == {ids[0], ids[1], behind_it}
         db.expire_all()
         assert db.query(File).count() == 0
-        # The user removed that file themselves. Reporting it as left behind,
-        # to be retried, describes a trash entry that no longer exists — the
-        # same false operator signal the per-row rollback was added to stop.
+        # The user removed that file themselves; reporting it as left behind
+        # describes a trash entry that no longer exists.
         assert "left" not in caplog.text
 
     def test_a_failing_commit_announces_nothing(self, client, monkeypatch):
@@ -638,10 +589,8 @@ def caplog_absent():
 def _drive_until(make_coro):
     """Run ``make_coro`` on a private loop.
 
-    ``test_event_loop_hygiene.py`` forbids ``asyncio.run`` in a test module:
-    it claims the thread's current-loop slot and leaves it cleared, which
-    broke twenty-one unrelated tests once. A private loop touches no shared
-    state.
+    ``asyncio.run`` claims the thread's current-loop slot and leaves it
+    cleared; a private loop touches no shared state.
     """
     loop = asyncio.new_event_loop()
     try:
@@ -652,15 +601,6 @@ def _drive_until(make_coro):
 
 def drive_one_pass(recorder):
     """Drive ``purge_expired_trash`` to its parking point and insist it got there.
-
-    The check is here rather than in each test because the tests cannot be
-    relied on to make it: an earlier version left every caller to assert it,
-    four of six did not, and the one whose only assertion is an *absence*
-    then passed while watching a busy loop for the whole bound. An absence is
-    satisfied by nothing having run at all, so that assertion cannot be
-    optional — which is also why the AST check at the end of this file
-    exists, since "everyone goes through the helper" is otherwise a
-    convention and not a mechanism.
 
     One use per recorder: ``pass_done`` is a latch and ``timed_out`` is never
     reset, so a second call finds the flag already set and reports a pass
@@ -696,12 +636,6 @@ class _PassRecorder:
     point on the event loop's own thread and makes "exactly one pass" true:
     with the real sleep the task would be cancelled mid-wait, and with no
     sleep at all nothing here would ever be signalled.
-
-    The earlier version signalled from the folder-cleanup stub instead. That
-    runs on a ``to_thread`` worker, and ``asyncio.Event.set`` is not
-    thread-safe — the wake-up landed late, which let extra passes hide behind
-    the observation, and it detected the end of a pass by a side effect of
-    one of the functions under test.
     """
 
     def __init__(self, batch_result, *, park_after_passes=1):
@@ -749,10 +683,7 @@ class _PassRecorder:
 
         The pass is observed at the interval sleep, which the loop reaches
         after creating the emit task and awaiting the folder cleanup — so
-        anything the pass scheduled has run by the time this returns. An
-        earlier version also waited on a separate emit signal and yielded
-        once where no emit was expected; both were left behind when the
-        observation point moved, and deleting them changed nothing.
+        anything the pass scheduled has run by the time this returns.
         """
         task = asyncio.create_task(main.purge_expired_trash())
         try:
@@ -788,15 +719,7 @@ class TestTheScheduledRun:
         assert before - window <= cutoff <= after - window
 
     def test_one_event_carries_every_id_of_the_run(self, monkeypatch):
-        """``design-decisions.md`` §Trash: one ``files.purged`` per run, not
-        per batch.
-
-        The claim has two halves in two places. That ``_run_purge_batch``
-        accumulates across its chunks is held by
-        ``TestTheBatchLoop.test_more_rows_than_one_chunk_are_all_purged``,
-        against the real function. Held here is the caller's half: whatever it
-        is handed goes out in a single emit, with every id in it.
-        """
+        """One ``files.purged`` per run, not per batch."""
         ids = [f"id{index:09d}" for index in range(main._PURGE_BATCH_SIZE + 50)]
         recorder = _PassRecorder((ids, set(), {"beta", "alpha"}))
         recorder.install(monkeypatch)
@@ -830,8 +753,7 @@ class TestTheScheduledRun:
 
         ``purge_expired_trash`` is started with ``create_task`` and runs for
         the life of the process. Without this await it re-queries the whole
-        trash table on a worker thread with no gap — the failure the inner
-        loop was fixed for, moved one level out and just as silent.
+        trash table on a worker thread with no gap.
         """
         recorder = _PassRecorder(([], set(), set()))
         recorder.install(monkeypatch)
@@ -903,14 +825,6 @@ class TestEmptyFolderCleanup:
         assert drive_dir.is_dir()
 
     def test_a_parent_that_still_holds_something_stops_the_walk(self, client):
-        """Measured: the ``break`` after a failed ``rmdir`` is an early exit.
-
-        Replacing it with ``pass`` keeps this green — every ancestor of a
-        directory that could not be removed still contains it, so each one
-        fails in turn and the walk ends at the root anyway. What the test
-        holds is that the folder and its contents survive, which stays true
-        however the loop is spelled.
-        """
         c, _db, drive_dir, _ = client
         leaf = drive_dir / "keep" / "empty"
         leaf.mkdir(parents=True)
@@ -926,11 +840,7 @@ class TestEmptyFolderCleanup:
         """Two rows in one folder both reach here, and the first removal wins.
 
         The second call finds nothing at the path and must leave the parent
-        alone. Measured: the ``is_dir`` check above the ``rmdir`` is an early
-        exit and not the refusal — deleting it keeps this green, because
-        ``rmdir`` on a path that is not a directory raises ``OSError`` and the
-        handler below ends the walk. Held as the outcome, which is what a
-        rewrite of either has to preserve.
+        alone.
         """
         c, _db, drive_dir, _ = client
         parent = drive_dir / "parent"
@@ -1037,16 +947,8 @@ class TestEmptyFolderCleanup:
 class TestTheHelperIsTheOnlyWayIn:
     """``drive_one_pass`` holds a check no individual test can be trusted to.
 
-    It has now failed twice as a convention. First the timeout assertion was
-    left to each test and four of six omitted it; then the check moved into
-    this helper, and the helper itself stayed optional — ``_drive_until`` and
-    ``_run_one_pass`` are still importable, and a test written the way every
-    test was written one commit earlier passes against a busy loop.
-
-    So the convention is enforced here instead, by reading this file. The
-    same shape as ``test_event_loop_hygiene.py``, and for the same reason:
-    the rule is about how tests are *written*, which no amount of running
-    them can observe.
+    The rule is about how tests are *written*, which no amount of running
+    them can observe, so it is enforced by reading this file.
     """
 
     #: Names a scheduled-run test must not call directly. ``drive_one_pass``
@@ -1058,8 +960,7 @@ class TestTheHelperIsTheOnlyWayIn:
 
         Not just calls: ``_drive_until(recorder._run_one_pass)`` passes the
         coroutine function by reference, and a scan for ``ast.Call`` walks
-        straight past it — which it did, and the positive control below is
-        what said so.
+        straight past it.
         """
         for inner in ast.walk(node):
             if isinstance(inner, ast.Name):

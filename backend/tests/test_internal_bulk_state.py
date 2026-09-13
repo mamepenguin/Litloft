@@ -2,8 +2,6 @@
 
 Reports each file_id's lifecycle state (active / missing / trash) or lists
 it in ``not_found`` when the row no longer exists (physical purge).
-Used by knowledge addon webhooks to reconcile note_origins.health after
-lifecycle events.
 """
 
 from __future__ import annotations

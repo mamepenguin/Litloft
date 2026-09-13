@@ -9,7 +9,6 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 def _seed_files(db, drive_dir):
     """Create test files with various file types."""
-    # Video file
     d = drive_dir / "videos"
     d.mkdir(exist_ok=True)
     shutil.copy(FIXTURES_DIR / "short_video.mp4", d / "clip.mp4")
@@ -26,7 +25,6 @@ def _seed_files(db, drive_dir):
         )
     )
 
-    # Image file
     (drive_dir / "photo.jpg").write_bytes(b"\xff\xd8\xff\xe0" + b"\x00" * 100)
     db.add(
         File(
@@ -41,7 +39,6 @@ def _seed_files(db, drive_dir):
         )
     )
 
-    # Audio file
     (drive_dir / "song.mp3").write_bytes(b"\x00" * 50)
     db.add(
         File(
@@ -56,7 +53,6 @@ def _seed_files(db, drive_dir):
         )
     )
 
-    # Document file
     (drive_dir / "readme.txt").write_text("hello")
     db.add(
         File(
@@ -118,8 +114,7 @@ class TestDashboard:
         assert len(body["drives"]) == 1
         drive = body["drives"][0]
         assert drive["name"] == TEST_DRIVE
-        # Disk figures moved to the system section: they describe the
-        # filesystem, not the drive. See TestFilesystemUsage.
+        # Disk figures describe the filesystem, not the drive.
         assert "total_bytes" not in drive
         assert isinstance(drive["file_count"], int)
         assert isinstance(drive["file_types"], dict)
@@ -145,7 +140,6 @@ class TestDashboard:
         drive = res.json()["drives"][0]
 
         assert isinstance(drive["is_scanning"], bool)
-        # last_scanned_at is either None or an ISO 8601 string
         assert drive["last_scanned_at"] is None or isinstance(
             drive["last_scanned_at"], str
         )
@@ -187,7 +181,6 @@ class TestDashboard:
         """Cache directories with files report non-zero sizes."""
         c, db, drive_dir, data_dir = client
 
-        # Create some cache files
         thumb_dir = data_dir / "thumbnails"
         thumb_dir.mkdir(parents=True, exist_ok=True)
         (thumb_dir / "test.jpg").write_bytes(b"\x00" * 1024)
@@ -201,10 +194,8 @@ class TestDashboard:
 class TestFilesystemUsage:
     """Disk usage is reported per filesystem, not per drive.
 
-    ``shutil.disk_usage`` measures a mount. Asking it once per drive
-    gave every drive on one disk the same numbers, so an empty drive
-    read as 48% full and three drives on one SSD looked like three disks
-    filling in step.
+    ``shutil.disk_usage`` measures a mount, so asking it once per drive would
+    give every drive on one disk the same numbers.
     """
 
     def test_drive_cards_carry_no_disk_figures(self, client):

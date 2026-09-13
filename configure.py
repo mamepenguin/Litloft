@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 """Litloft interactive setup — bootstrap-only.
 
-Generates the *physical wiring* needed to bring the containers up:
-docker-compose.override.yml (host mounts / addon services / env),
-.env (port / generated secrets / optional API key), an empty
-``drives.json`` (footgun guard — see below), event-hooks.json, and (when
-intelligence is enabled) a verbatim copy of search-config.yml.example.
-
 It deliberately does NOT ask for drive display names, access groups,
 passwords, per-drive addon policy, or AI feature modes. Those are logical
 settings owned by the first-run wizard at ``/setup`` and the running-app
@@ -30,8 +24,6 @@ must run on first launch (it now owns logical configuration).
 import json, os, re, shutil, subprocess, sys
 from pathlib import Path
 
-# ── Colors ────────────────────────────────────────────────────────────────────
-
 _tty = sys.stdout.isatty()
 GREEN  = '\033[0;32m' if _tty else ''
 YELLOW = '\033[1;33m' if _tty else ''
@@ -43,8 +35,6 @@ def heading(text): print(f"\n{BOLD}{BLUE}━━  {text}{RESET}\n")
 def ok(msg):       print(f"  {GREEN}✓{RESET}  {msg}")
 def warn(msg):     print(f"  {YELLOW}!{RESET}  {msg}")
 def info(msg):     print(f"  {BLUE}→{RESET}  {msg}")
-
-# ── Prompt helpers ────────────────────────────────────────────────────────────
 
 def ask(prompt, default=''):
     disp = f"  {prompt} [{BOLD}{default}{RESET}]: " if default != '' else f"  {prompt}: "
@@ -141,8 +131,7 @@ def ensure_submodules_initialized(base: Path) -> None:
     empty directories. If configure.py then writes a single-file bind-mount
     (e.g. `./addons/intelligence/search-config.yml:/app/search-config.yml`)
     whose source does not exist on the host, Docker silently creates the
-    bind-mount source as a *directory* — the single-file bind-mount footgun
-    documented in design-decisions.md. Initializing here keeps the happy
+    bind-mount source as a *directory*. Initializing here keeps the happy
     path working when the clone was incomplete.
     """
     addon_dirs = ['addons/intelligence', 'addons/knowledge',
@@ -194,8 +183,6 @@ def write_env_key(key, value, env_path):
             return
     with env_path.open('a') as f:
         f.write(f'{key}={value}\n')
-
-# ── Read existing physical config (mounts / port only) ────────────────────────
 
 class ExistingConfig:
     """Minimal reuse of the previous *physical* wiring.
@@ -273,8 +260,6 @@ class ExistingConfig:
                 elif line.startswith('LLM_API_KEY=') and line.split('=', 1)[1].strip():
                     self.has_llm_api_key = True
 
-# ── Main ──────────────────────────────────────────────────────────────────────
-
 def main():
     base = Path(__file__).parent
     ensure_submodules_initialized(base)
@@ -288,8 +273,6 @@ def main():
     print("Drive names, passwords and AI features are configured later in")
     print("the browser at /setup.")
     print("Press Enter to accept defaults shown in [brackets].")
-
-    # ── Step 1: Drive mounts ──────────────────────────────────────────────────
 
     heading("Step 1: Drive mounts")
     print("  Each drive is a host directory mounted into the container.")
@@ -318,14 +301,10 @@ def main():
 
         drives.append({'host_path': host, 'slug': slug})
 
-    # ── Step 2: Port ──────────────────────────────────────────────────────────
-
     heading("Step 2: Port")
     port = ask("Port", ex.port)
     if not port.isdigit():
         port = '3000'
-
-    # ── Step 3: Intelligence Addon ────────────────────────────────────────────
 
     has_intelligence = False
     llm_api_key      = ''
@@ -355,8 +334,6 @@ def main():
             if addon_declares_secret_env(base, 'intelligence', 'SEARCH_WEBHOOK_SECRET'):
                 search_webhook_secret = ex.search_webhook_secret or gen_secret()
 
-    # ── Step 4: Knowledge Addon ───────────────────────────────────────────────
-
     has_knowledge            = False
     knowledge_webhook_secret = ''
     core_internal_secret     = ''
@@ -373,8 +350,6 @@ def main():
                 knowledge_webhook_secret = gen_secret()
                 core_internal_secret     = gen_secret()
                 ok("Generated secrets")
-
-    # ── Summary ───────────────────────────────────────────────────────────────
 
     heading("Summary")
     print("  Files to generate:")
@@ -398,14 +373,10 @@ def main():
         print("\nAborted.")
         return
 
-    # ── Generate event-hooks.json ─────────────────────────────────────────────
-
     enabled_addons = (['intelligence'] if has_intelligence else []) + \
                      (['knowledge']    if has_knowledge    else [])
     if generate_event_hooks(base, enabled_addons):
         ok("event-hooks.json")
-
-    # ── Generate docker-compose.override.yml ──────────────────────────────────
 
     dc_file = base / 'docker-compose.override.yml'
     if check_overwrite(dc_file):
@@ -519,8 +490,6 @@ def main():
         dc_file.write_text('\n'.join(lines) + '\n')
         ok("docker-compose.override.yml")
 
-    # ── Generate drives.json (always empty []) ────────────────────────────────
-    #
     # Footgun guard: the single-file bind-mount needs a real file on the
     # host, otherwise Docker mounts a directory the backend cannot use.
     # Logical drive entries are seeded by the backend on startup and then
@@ -531,8 +500,6 @@ def main():
         drives_file.write_text('[]\n')
         ok("drives.json  (empty — named at /setup)")
 
-    # ── Generate passwords.json (always empty []) ─────────────────────────────
-    #
     # Same footgun guard as drives.json: the single-file bind-mount needs a
     # real host file, otherwise Docker mounts a directory the backend
     # cannot read or write. An empty [] is semantically identical to "no
@@ -545,8 +512,6 @@ def main():
         passwords_file.write_text('[]\n')
         ok("passwords.json  (empty — set at /setup)")
 
-    # ── Generate search-config.yml (verbatim copy of the example) ─────────────
-    #
     # AI features are configured in the browser. We only guarantee the file
     # exists (an absent bind-mount target would become a directory).
 
@@ -566,8 +531,6 @@ def main():
             sc_file.write_text(ex_file.read_text())
             ok("addons/intelligence/search-config.yml")
 
-    # ── Update .env ───────────────────────────────────────────────────────────
-
     env_file = base / '.env'
     wrote_env = False
     if port != '3000':       write_env_key('LITLOFT_PORT', port, env_file);                          wrote_env = True
@@ -581,8 +544,6 @@ def main():
         wrote_env = True
     if wrote_env:
         ok(".env")
-
-    # ── Done ──────────────────────────────────────────────────────────────────
 
     print(f"\n{BOLD}{GREEN}All files generated.{RESET}")
 

@@ -20,9 +20,7 @@ either copy fails instead of agreeing with the test.
 from ``app.auth``; there is one implementation and nothing to drift. What
 ``TestAdminRule`` holds is therefore two other things, both real: that the proxy
 still calls it, with the caller's groups, at that route (the call site can break
-on its own), and that ``ADMIN_CASES`` pins what ``is_admin`` means. Breaking
-``is_admin`` fails both halves at once, which is the signature of one
-implementation read twice — and is why this half is not described as parity.
+on its own), and that ``ADMIN_CASES`` pins what ``is_admin`` means.
 """
 from __future__ import annotations
 

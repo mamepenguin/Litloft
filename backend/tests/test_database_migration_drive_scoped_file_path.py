@@ -1,23 +1,10 @@
 """Regression + migration test: ``files.file_path`` UNIQUE must be
 drive-scoped, not global.
 
-Root cause: ``File.file_path`` carried a single-column ``unique=True``
-(models.py) plus ``file_path VARCHAR NOT NULL UNIQUE`` in the legacy raw
-CREATE TABLE statements (database.py). The scanner stores a
-*drive-relative* path with no drive prefix (``"README.md"``), so two
-different drives could never both hold a root ``README.md`` — the second
-registration died with an IntegrityError surfaced to the user as 409.
-
-Every other drive-partitioned table (Tag / EmptyFolder / PinnedFolder /
-Collection) already uses a composite ``UniqueConstraint("drive", ...)``.
-``files`` should match: ``UniqueConstraint("drive", "file_path")``.
-
 SQLite note: an inline single-column ``UNIQUE`` creates an implicit
 ``sqlite_autoindex_files_*`` that cannot be ``DROP INDEX``-ed, so the
-existing-DB migration must rebuild the table (the established Phase 3/4
-pattern in database.py). Existing rows are data-safe: the old global
-UNIQUE physically guaranteed no cross-drive duplicates, so every row
-trivially satisfies ``(drive, file_path)`` already.
+existing-DB migration must rebuild the table. Existing rows are data-safe: the
+old global UNIQUE physically guaranteed no cross-drive duplicates.
 """
 import pytest
 from sqlalchemy import create_engine, event, inspect, text
@@ -27,8 +14,6 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base, _migrate
 from app.models import File
 
-# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
-# in ``conftest.py`` says why that must not be the shared one.
 pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 
@@ -55,9 +40,6 @@ def _has_composite_unique(engine):
         sorted(u["column_names"]) == ["drive", "file_path"]
         for u in inspector.get_unique_constraints("files")
     )
-
-
-# --- Fresh-install schema (Base.metadata.create_all path) ------------------
 
 
 def test_fresh_db_allows_same_relative_path_across_drives(tmp_path):
@@ -98,9 +80,6 @@ def test_fresh_db_has_composite_not_global_unique(tmp_path):
     engine = _fresh_engine(tmp_path, "shape.db")
     Base.metadata.create_all(bind=engine)
     assert _has_composite_unique(engine)
-
-
-# --- Existing-DB migration (raw _migrate path) -----------------------------
 
 
 def _legacy_files_ddl_global_unique() -> str:
@@ -147,9 +126,7 @@ def test_legacy_global_unique_migrated_to_composite(tmp_path):
 
     _migrate(engine)
 
-    # Composite unique now present.
     assert _has_composite_unique(engine)
-    # Original row preserved with all data intact.
     with engine.connect() as conn:
         rows = list(conn.execute(text(
             "SELECT id, drive, file_path, file_size FROM files"
@@ -276,7 +253,6 @@ def test_migration_does_not_cascade_delete_child_rows(tmp_path):
     file_tags / comments / file_relations / file_exif — wiping the user's
     tags, comments, relations and EXIF. The rebuild must turn FK
     enforcement OFF for the swap and preserve ids so child rows survive.
-    Without this test a regression silently destroys user data on upgrade.
     """
     from app.models import (
         Comment,
@@ -344,7 +320,6 @@ def test_migration_does_not_cascade_delete_child_rows(tmp_path):
         assert conn.execute(
             text("SELECT COUNT(*) FROM file_exif")
         ).scalar() == 1
-        # Referential integrity must hold after the swap.
         orphans = conn.execute(
             text("PRAGMA foreign_key_check")
         ).fetchall()
@@ -369,9 +344,6 @@ def test_migration_does_not_cascade_delete_child_rows(tmp_path):
         assert conn.execute(
             text("SELECT COUNT(*) FROM file_tags")
         ).scalar() == 0
-
-
-# --- resolve_db_path_conflict must be drive-scoped -------------------------
 
 
 def test_resolve_db_path_conflict_ignores_other_drive(tmp_path):

@@ -1,21 +1,9 @@
-"""Smart Folder CRUD endpoints (Phase 1 of search-ui-rich-redesign).
-
-Spec: docs/superpowers/specs/2026-05-01-search-ui-rich-redesign.md
+"""Smart Folder CRUD endpoints.
 
 A Smart Folder is a saved search query bound to a single drive. The DB
 schema records ``viewer_id`` of the creator (when a viewer cookie is
 present), but list queries deliberately do NOT filter by ``viewer_id``
-— the current UX is "shared within the drive". The column is reserved
-so a future "personal smart folders" mode can be enabled without a
-migration. See spec § Smart Folder.
-
-Drive boundary rules follow the project-wide policy:
-
-- A locked drive returns 404 (not 403) — existence is hidden.
-- A SF created in drive A is invisible / not editable via drive B's URL.
-
-Both rules are enforced by ``_validate_drive`` plus ``_get_or_404``
-filtering on ``SmartFolder.drive``.
+— the current UX is "shared within the drive".
 """
 from __future__ import annotations
 

@@ -48,13 +48,6 @@ def update_progress(
         .first()
     )
 
-    # Two valid call shapes (enforced by ProgressUpdateRequest):
-    #   1. Media playback   — position+duration both set; bumps last_played_at
-    #      and updates the playback markers. Issued by VideoPlayer/AudioPlayer.
-    #   2. View-only record — both omitted; only last_played_at advances.
-    #      Issued by the file detail page on open so text/PDF/image files
-    #      surface in personal_history queries (spec
-    #      ``2026-04-26-intelligence-ask-personal-history-query.md`` §4.2).
     now = datetime.now(UTC)
     if existing:
         if body.position is not None and body.duration is not None:

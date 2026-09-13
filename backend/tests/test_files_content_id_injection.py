@@ -1,26 +1,4 @@
-"""Integration tests for PUT /api/files/{id}/content frontmatter ``id:`` injection.
-
-Spec: docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md §3.1 / §4 Phase A.
-
-For ``.md`` files, the PUT /content handler must:
-
-1. Parse the request body as frontmatter.
-2. Call ``ensure_id`` with ``existing_id=file.md_id`` to decide whether
-   to inject an ``id:``.
-3. If the id was added/changed, re-compose the body with the new
-   metadata and write THAT to disk (not the original request bytes).
-4. After the atomic write, project the id into ``File.md_id`` in a
-   separate transaction (same isolation pattern as the existing tag
-   projection / loft-link sync blocks).
-5. If a generated id collides with another ``File.md_id`` in the same
-   drive, append a 3-digit millisecond suffix (→ 17-char total).
-6. Non-``.md`` writes are untouched.
-7. Malformed frontmatter does not crash — id injection is skipped.
-
-The Etag returned by the endpoint must hash the actually-written bytes
-(with id), not the original request body, so the client's next
-If-Match round-trip aligns with what's on disk.
-"""
+"""Integration tests for PUT /api/files/{id}/content frontmatter ``id:`` injection."""
 import hashlib
 from datetime import UTC, datetime
 
@@ -159,9 +137,6 @@ class TestIdInjectionOnNewMd:
         assert refreshed.md_id.isdigit()
 
     def test_etag_matches_written_bytes_not_request_body(self, client):
-        # The returned ETag must hash what's on disk (with id), so the
-        # next round-trip's If-Match aligns. Request bytes (without id)
-        # would diverge from disk after the server's rewrite.
         api, session, drive_dir, _ = client
         file = _seed_md(session, drive_dir, "notes/new.md", "initial\n")
         new_content = "---\ntags:\n  - a\n---\n\nbody\n"
@@ -177,8 +152,6 @@ class TestIdInjectionOnNewMd:
         assert r.status_code == 200, r.text
         on_disk = (drive_dir / "notes/new.md").read_text()
         assert r.headers["ETag"].strip('"') == _etag_of(on_disk)
-        # Sanity: the body we sent did NOT contain id, so the etag must
-        # diverge from the request bytes.
         assert r.headers["ETag"].strip('"') != _etag_of(new_content)
 
 
@@ -202,16 +175,12 @@ class TestIdInjectionPreservesExisting:
         )
         assert r.status_code == 200, r.text
         on_disk = (drive_dir / "notes/k.md").read_text()
-        # Frontmatter id is preserved exactly.
         assert parse_frontmatter(on_disk).metadata["id"] == "20260512143028"
-        # File.md_id projection is in sync.
         session.expire_all()
         refreshed = session.query(File).filter(File.id == file.id).first()
         assert refreshed.md_id == "20260512143028"
 
     def test_etag_matches_request_body_when_id_already_present(self, client):
-        # When the body already has a valid id we don't rewrite the
-        # bytes — the ETag matches the request as-is.
         api, session, drive_dir, _ = client
         file = _seed_md(session, drive_dir, "notes/k.md", "initial\n")
         new_content = "---\nid: \"20260512143028\"\n---\n\nbody\n"
@@ -251,7 +220,6 @@ class TestIdInjectionReusesDbMdId:
         assert r.status_code == 200, r.text
         on_disk = (drive_dir / "notes/r.md").read_text()
         fm = parse_frontmatter(on_disk).metadata
-        # DB id wins over a fresh-timestamp id.
         assert fm["id"] == "20251231235959"
 
 
@@ -303,7 +271,6 @@ class TestIdInjectionCollision:
         # Exact id: base 14 digits + 3 ms digits (microsecond // 1000).
         assert fm["id"] == "20260512143028123"
 
-        # Projection matches.
         session.expire_all()
         refreshed = session.query(File).filter(File.id == file.id).first()
         assert refreshed.md_id == "20260512143028123"
@@ -324,20 +291,16 @@ class TestIdInjectionSkipsNonMarkdown:
             },
         )
         assert r.status_code == 200, r.text
-        # No id injection: disk content is the raw request body.
         on_disk = (drive_dir / "plain.txt").read_text()
         assert on_disk == new_content
 
         session.expire_all()
         refreshed = session.query(File).filter(File.id == file.id).first()
-        # md_id remains NULL for non-.md.
         assert refreshed.md_id is None
 
 
 class TestIdInjectionMalformedFrontmatter:
     def test_malformed_frontmatter_writes_body_as_is(self, client):
-        # When YAML is broken, the helper skips id injection rather
-        # than crash. The bytes still land on disk.
         api, session, drive_dir, _ = client
         file = _seed_md(session, drive_dir, "notes/x.md", "initial\n")
         new_content = "---\ntags: [unterminated\n---\n\nbody\n"
@@ -351,9 +314,7 @@ class TestIdInjectionMalformedFrontmatter:
         )
         assert r.status_code == 200, r.text
         assert (drive_dir / "notes/x.md").read_text() == new_content
-        # Etag matches the raw request bytes (no rewrite happened).
         assert r.headers["ETag"].strip('"') == _etag_of(new_content)
-        # md_id remains NULL (or untouched).
         session.expire_all()
         refreshed = session.query(File).filter(File.id == file.id).first()
         assert refreshed.md_id is None

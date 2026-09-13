@@ -111,13 +111,11 @@ class TestThumbnailFilterCommand:
     def test_uses_thumbnail_filter(self, mock_duration, mock_run, tmp_path):
         """Primary method should use thumbnail=300 in the -vf filter."""
         output = str(tmp_path / "thumb.jpg")
-        # Simulate success: create output file
         (tmp_path / "thumb.jpg").touch()
         mock_run.return_value = MagicMock(returncode=0)
 
         generate_thumbnail("/fake/video.mp4", output)
 
-        # First call should be the thumbnail filter approach
         first_call_args = mock_run.call_args_list[0][0][0]
         vf_index = first_call_args.index("-vf")
         vf_value = first_call_args[vf_index + 1]
@@ -174,7 +172,6 @@ class TestThumbnailFilterCommand:
 
         assert result is True
         assert mock_run.call_count == 2
-        # Second call should NOT have thumbnail filter
         second_call_args = mock_run.call_args_list[1][0][0]
         vf_index = second_call_args.index("-vf")
         vf_value = second_call_args[vf_index + 1]
@@ -418,19 +415,9 @@ class TestGenerateThumbnail:
 
 
 class TestNonUtf8SubprocessOutput:
-    """Regression: ffmpeg/ffprobe can echo raw bytes straight from a
-    file's legacy-encoded (e.g. Shift_JIS) chapter/title metadata, which
-    aren't valid UTF-8. ``subprocess.run(text=True)`` decodes internally
-    with ``errors="strict"`` by default, so a file like that used to raise
-    an uncaught ``UnicodeDecodeError`` from inside ``subprocess.run``
-    itself — none of these functions' ``except`` clauses catch it before
-    it reaches the caller. Because the startup scan (``scan_all_drives``)
-    runs drives sequentially with no per-drive isolation, this crashed
-    the whole background scan task the moment the scanner reached such a
-    file, silently stranding every drive scheduled after it — and since
-    the file's content never changes, every restart hit the exact same
-    file and crashed the exact same way. ``errors="replace"`` prevents
-    the raise instead of merely surviving it.
+    """ffmpeg/ffprobe can echo raw bytes from a file's legacy-encoded (e.g.
+    Shift_JIS) metadata, which ``subprocess.run(text=True)`` would raise on
+    from inside ``subprocess.run`` itself, past every ``except`` clause.
     """
 
     @patch("app.services.thumbnail.subprocess.run")
@@ -484,16 +471,11 @@ class TestPictureThumbnailBox:
 
     The box is square and the picture is fitted inside it, so a portrait
     reaches 320 on the tall edge instead of being letterboxed into a
-    landscape frame. Video and PDF are deliberately not part of that, and
-    two of the tests below exist to say so rather than to describe the
-    change.
+    landscape frame. Video and PDF are deliberately not part of that.
     """
 
-    # Half of these are shapes whose fitted edge lands on a half, which is
-    # where the three rounding rules used to part company: ffmpeg rounds a
-    # half away from zero, Python's `round` to even, and `Image.thumbnail`
-    # picks the integer that best preserves the ratio. The five shapes
-    # this list started as were the ones all three happened to agree on.
+    # Half of these are shapes whose fitted edge lands on a half, where ffmpeg,
+    # Python's `round` and `Image.thumbnail` each round differently.
     SHAPES = [
         # (source, expected thumbnail)
         ((768, 1024), (240, 320)),
@@ -529,9 +511,7 @@ class TestPictureThumbnailBox:
         """The parity pair: two implementations of one box.
 
         ``image_thumbnail_size`` is arithmetic in Python and the filter is
-        resolved by ffmpeg. The scanner's migration test asks the first
-        what the second would produce, so a drift between them would make
-        it regenerate the wrong files, or none.
+        resolved by ffmpeg.
         """
         path = tmp_path / "photo.jpg"
         Image.new("RGB", source, (200, 80, 40)).save(path)
@@ -548,11 +528,8 @@ class TestPictureThumbnailBox:
     ):
         """The parity pair the box needs and the arithmetic does not give.
 
-        Two libraries, one box. `image_thumbnail_size` agreeing with
-        ffmpeg says nothing about Pillow, and the HEIC branch used to be
-        a pixel narrower on 5 of these — same picture, different
-        thumbnail, and a migration prediction that was right for one
-        format only.
+        Two libraries, one box: `image_thumbnail_size` agreeing with ffmpeg
+        says nothing about Pillow.
         """
         pytest.importorskip("pillow_heif")
         import pillow_heif
@@ -581,9 +558,6 @@ class TestPictureThumbnailBox:
         assert thumbnail_service.image_thumbnail_size(*source) is expected
 
     def test_a_picture_smaller_than_the_box_is_not_grown_into_it(self, tmp_path):
-        # The letterboxed frame had to be filled, so a 64px icon was
-        # scaled up to 180 and stored as interpolation. Fitting inside the
-        # box has no frame to fill.
         path = tmp_path / "icon.png"
         Image.new("RGB", (64, 64), (10, 10, 10)).save(path)
         output = tmp_path / "thumb.jpg"
@@ -631,20 +605,9 @@ class TestPictureThumbnailBox:
 
 
 class TestAtomicThumbnailWrite:
-    """The property, not a consequence of it.
-
-    `test_the_replacement_is_never_visible_half_written` in
-    `test_scanner.py` exercises the failure path — a generator that
-    writes nothing and returns False — so it dies on "write straight to
-    the destination" and lives on anything that still writes through a
-    temporary file and then copies it. Replacing `os.replace` with
-    `shutil.copyfile` reintroduces the whole defect (`copyfile` truncates
-    and refills, so a reader sees a partial file on every *successful*
-    write) and left the suite green.
-
-    A rename gives the destination the temporary file's inode. A rewrite
-    of any kind keeps the one it had. That is the difference, and it is
-    observable without racing anything.
+    """A rename gives the destination the temporary file's inode; a rewrite
+    of any kind keeps the one it had. That difference is observable without
+    racing anything.
     """
 
     def _seed(self, tmp_path):
@@ -719,21 +682,9 @@ class TestAtomicThumbnailWrite:
 
 
 class TestEveryThumbnailWriteGoesThroughTheAtomicOne:
-    """The callers, not just the recipe.
-
-    `TestAtomicThumbnailWrite` pins what `write_thumbnail_atomically`
-    does. It says nothing about who uses it, and reverting either of the
-    two callers this PR converted to a direct write left the whole suite
-    green — the shape `review-workflow.md` names: *when extracting a
-    shared recipe, include the callers you are fixing; grep by role, not
-    by directory.*
-
-    So this greps by role, in the test rather than in a shell: every
-    invocation of a thumbnail generator anywhere under `backend/app`,
+    """Every invocation of a thumbnail generator anywhere under `backend/app`,
     including one reached through a variable that `get_thumbnail_generator`
-    was assigned to under any name. The expected set is empty, exactly —
-    a new call site that writes to its destination directly fails here,
-    and so does an old one changed back.
+    was assigned to under any name, goes through the atomic write.
     """
 
     #: `thumbnail.py` is where the generators live and where the helper

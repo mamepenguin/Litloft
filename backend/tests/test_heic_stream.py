@@ -68,17 +68,14 @@ class TestHeicStream:
         c, db, drive_dir, data_dir = client
         file = _seed_heic(db, drive_dir)
 
-        # First request triggers conversion
         res1 = c.get(f"/api/files/{file.id}/stream")
         assert res1.status_code == 200
 
-        # Verify cache file exists
         converted_dir = data_dir / "converted"
         assert converted_dir.exists()
         cached_files = list(converted_dir.glob("*.jpg"))
         assert len(cached_files) == 1
 
-        # Second request uses cache
         res2 = c.get(f"/api/files/{file.id}/stream")
         assert res2.status_code == 200
         assert res2.content == res1.content
@@ -89,7 +86,6 @@ class TestHeicDeleteCleanup:
         c, db, drive_dir, data_dir = client
         file = _seed_heic(db, drive_dir)
 
-        # Trigger conversion to create cache
         res = c.get(f"/api/files/{file.id}/stream")
         assert res.status_code == 200
 

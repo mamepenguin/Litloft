@@ -3,19 +3,6 @@
 Reads webhook listeners from a JSON config file and dispatches events
 to registered URLs.  If no config file exists, all emit calls are no-ops.
 
-Config format (event-hooks.json):
-
-    {
-      "hooks": {
-        "files.deleted": [
-          {"url": "http://search:8100/webhook/files-deleted",
-           "secret_env": "SEARCH_WEBHOOK_SECRET",
-           "addon": "intelligence",
-           "feature": "index"}
-        ]
-      }
-    }
-
 Per-listener ``addon``/``feature`` keys (optional) enable per-drive policy
 filtering: events whose payload references drives where the addon feature
 is disabled are silently dropped or stripped before dispatch.
@@ -107,14 +94,7 @@ def _file_ids_to_drives(file_ids: list[str]) -> dict[str, str]:
 def _filter_payload_for_listener(
     data: dict[str, Any], hook: dict[str, str]
 ) -> dict[str, Any] | None:
-    """Apply per-listener policy. Returns None to drop the event entirely.
-
-    - When ``data["drive"]`` is set: drop the event if the listener's
-      (addon, feature) is disabled for that drive.
-    - When ``data["file_ids"]`` is set: filter file_ids by per-file drive
-      policy. Drop the event if no ids remain.
-    - Listeners without ``addon`` configured pass through unchanged.
-    """
+    """Apply per-listener policy. Returns None to drop the event entirely."""
     addon = hook.get("addon")
     if not addon:
         return data
@@ -155,9 +135,6 @@ def _build_headers(hook: dict[str, str]) -> dict[str, str]:
     return headers
 
 
-# ---------------------------------------------------------------------------
-# Browser notification (WebSocket)
-#
 # Addon listeners get the fine-grained event with its ids. Browsers get a
 # coarse "something changed in this drive" signal instead, because every
 # structural subscriber goes through ``useWebSocketRefresh``, which ignores
@@ -166,9 +143,6 @@ def _build_headers(hook: dict[str, str]) -> dict[str, str]:
 # Two events rather than one: the folder tree deliberately does not watch
 # content updates, and collapsing them would make the Markdown editor's
 # autosave refetch the tree on every debounce while the user types.
-#
-# Spec: docs/superpowers/specs/2026-08-22-core-lifecycle-events-over-websocket.md
-# ---------------------------------------------------------------------------
 
 # Keeps the IN clause well inside SQLite's bind-variable ceiling.
 _DRIVE_LOOKUP_CHUNK = 500
@@ -216,9 +190,7 @@ def _affected_drives(data: dict[str, Any]) -> list[str]:
 
     # Chunked because a single event can carry every id in the library:
     # the startup auto-purge emits all expired ids at once, and
-    # ``_file_ids_to_drives`` expands them into one IN clause. Previously
-    # an install with no addon listeners returned early and never ran this
-    # query at all, so bounding it here is new work, not a regression.
+    # ``_file_ids_to_drives`` expands them into one IN clause.
     ids = list(file_ids)
     drives: set[str] = set()
     try:
@@ -409,8 +381,7 @@ def emit_from_thread(
 
     Schedules the async ``emit`` coroutine on the stored event loop from a
     worker thread, so the calling thread returns immediately instead of
-    blocking on the webhook HTTP call (unlike ``emit_sync``). Mirrors
-    ``app.services.ws.broadcast_from_thread``.
+    blocking on the webhook HTTP call (unlike ``emit_sync``).
     """
     if _event_loop is None or _event_loop.is_closed():
         logger.warning("No event loop available for emit: %s", event)

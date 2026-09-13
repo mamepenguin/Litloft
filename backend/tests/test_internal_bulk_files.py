@@ -1,10 +1,5 @@
 """HTTP tests for Internal API: POST /api/internal/files/bulk.
 
-Returns full FileResponse-shaped metadata for a list of file IDs. Used
-by addons (e.g. intelligence) to enrich semantic search results into
-the same shape as filename-match results without N+1 single-file
-lookups.
-
 Active filter is applied: missing/trash files go to ``not_found``.
 """
 
@@ -67,9 +62,7 @@ class TestBulkFiles:
         assert len(body["files"]) == 1
 
         item = body["files"][0]
-        # Wire-shape: every key the frontend FileItem type expects must
-        # be present. If FileResponse changes shape, this test fails
-        # and addon contract tests break in lockstep.
+        # Wire-shape: every key the frontend FileItem type expects must be present.
         assert item["id"] == f.id
         assert item["filename"] == "a.mp4"
         assert item["title"] == "a.mp4"
@@ -85,8 +78,7 @@ class TestBulkFiles:
         assert item["liked_at"] is None
         assert item["is_favorite"] is True
         assert item["tags"] == []
-        # Performance: subtitles is unconditionally [] to avoid ffprobe
-        # per file. Frontend FileCard does not display subtitles.
+        # subtitles is unconditionally [] to avoid ffprobe per file.
         assert item["subtitles"] == []
         assert "created_at" in item
         assert "updated_at" in item
@@ -163,12 +155,10 @@ class TestBulkFiles:
 
     def test_no_secret_required(self, client):
         """``/files/bulk`` is a read endpoint and does NOT require the
-        ``X-Internal-Secret`` header. Mirrors ``/files/{id}`` and
-        ``/files/bulk-state`` (per ``internal-api-policy.md``).
+        ``X-Internal-Secret`` header.
         """
         c, db, _, _ = client
         f = _seed_file(db, "n.mp4")
-        # No header set — must still succeed.
         res = c.post(
             "/api/internal/files/bulk", json={"file_ids": [f.id]}
         )

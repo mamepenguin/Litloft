@@ -36,10 +36,8 @@ const listDrives: LitloftTool = {
 
 // Safety valve for depth > 1: each level issues one request per folder
 // discovered at the level above, so a wide/deep drive could otherwise fan
-// out into hundreds of requests from a single tool call. Mirrors the
-// client-side caps used elsewhere in this file (TEXT_CONTENT_MAX_BYTES,
-// TRANSCRIPT_MAX_CHARS) rather than a server-side limit, since the
-// recursion itself lives here, not in the backend endpoint.
+// out into hundreds of requests from a single tool call. The cap is
+// client-side because the recursion itself lives here, not in the backend.
 const LIST_FOLDERS_MAX_CALLS = 200;
 
 interface FolderNode {

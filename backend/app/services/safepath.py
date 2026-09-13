@@ -3,16 +3,6 @@
 Provides validation utilities to ensure user-supplied paths remain inside
 a given drive root and don't contain dangerous characters or structures.
 
-Usage:
-    from app.services.safepath import resolve_safe_path, validate_filename
-
-    # Resolve a drive-relative path, raising HTTPException on unsafe input
-    path = resolve_safe_path("my-drive", "notes/memo.md")
-
-    # Validate a single filename component
-    validate_filename("memo.md")
-
-Design notes:
 - Symbolic links are rejected wholesale (defense in depth against TOCTOU).
 - Windows reserved names are rejected (cross-platform compatibility).
 - NUL and control characters are rejected unconditionally.
@@ -59,14 +49,6 @@ def validate_filename(name: str) -> str:
     """Validate a single filename component (no slashes allowed).
 
     Returns the NFC-normalized name.
-
-    Raises HTTPException(400) on any of:
-    - empty string
-    - "." or ".."
-    - forward/back slash
-    - NUL or control character
-    - length over 255
-    - Windows reserved name (CON, NUL, COM1, etc.)
     """
     if not name:
         raise HTTPException(status_code=400, detail="Filename is empty")
@@ -96,22 +78,12 @@ def _contains_symlink(path: Path, base: Path) -> bool:
         if cursor.is_symlink():
             return True
         if not cursor.exists():
-            # Non-existent tail — nothing further to check
             return False
     return False
 
 
 def resolve_safe_path(drive_name: str, rel_path: str) -> Path:
     """Resolve a drive-relative path to an absolute Path, safely.
-
-    Validates:
-    - drive exists in drives.json (404 if not)
-    - path doesn't contain NUL/control chars (400)
-    - path isn't absolute (400)
-    - no component is a symlink (400)
-    - each component is a valid filename (400 via validate_filename)
-    - realpath doesn't escape drive root (400)
-    - total length under limit (400)
 
     Returns: the resolved absolute Path (may not exist).
     """
@@ -129,7 +101,6 @@ def resolve_safe_path(drive_name: str, rel_path: str) -> Path:
     if _has_forbidden_chars(rel_path):
         raise HTTPException(status_code=400, detail="Path contains forbidden characters")
 
-    # Reject absolute paths
     if rel_path.startswith("/") or rel_path.startswith("\\"):
         raise HTTPException(status_code=400, detail="Absolute paths not allowed")
 
@@ -147,12 +118,10 @@ def resolve_safe_path(drive_name: str, rel_path: str) -> Path:
     for part in parts:
         target = target / part
 
-    # Check symlinks in existing components
     if _contains_symlink(target, drive_root):
         raise HTTPException(status_code=400, detail="Symbolic links in path not allowed")
 
     real_target = Path(os.path.realpath(target))
-    # Ensure realpath is still inside the drive root
     try:
         real_target.relative_to(drive_root)
     except ValueError:

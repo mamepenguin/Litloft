@@ -170,11 +170,8 @@ class TestThumbnailRevalidation:
         assert res.headers["cache-control"] == "no-cache"
 
     def test_the_placeholder_revalidates_the_same_way(self, client):
-        # The other branch of the same handler. Every video or image
-        # whose thumbnail generation failed renders an `<img>` at this
-        # URL, so the branch is on screen, not a corner — and it sent
-        # `no-cache` with an ETag and no conditional handling, which is
-        # the defect the branch above it was fixed for.
+        # The other branch of the same handler: every video or image whose
+        # thumbnail generation failed renders an `<img>` at this URL.
         c, db, drive_dir, data_dir = client
         file = _seed_file(db, drive_dir)
         assert file.thumbnail_path is None

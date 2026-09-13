@@ -6,14 +6,8 @@ file the caller may not read. For a route that carries no route-level
 is the addon's — which is why the tests here are about access rather than about
 drive context.
 
-How many routes that is belongs in the PR body, not here: they are declared in
-another repository, so a count written down here cannot be falsified from this
-one and a submodule pointer bump silently edits it.
-
-Both of its refusals return 404 and both return the same body: ``design
--decisions.md`` §Access control keeps a locked drive's existence hidden, so
-"there is no such file" and "that file is in a drive you cannot open" must not
-be distinguishable from the outside.
+Both of its refusals return 404 with the same body, so "there is no such file"
+and "that file is in a drive you cannot open" are indistinguishable.
 
 Every refusal is also asserted to have happened **before** anything was
 forwarded. A gate that runs after the proxy call has already sent the file id
@@ -76,7 +70,7 @@ MANIFEST = {
     "proxy": {
         "target_default": "http://_gate:9999",
         "routes": [
-            # The 23-route shape: a file gate and nothing else on the core side.
+            # A file gate and nothing else on the core side.
             {
                 "path": "/files/{file_id}/thing",
                 "methods": ["GET"],

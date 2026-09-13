@@ -1,27 +1,4 @@
-"""RED-phase tests for the streaming-endpoint XSS hardening follow-up.
-
-Spec: ``docs/superpowers/specs/2026-05-09-stream-xss-hardening.md``
-
-Contract under test (spec §3):
-
-1. All ``GET /api/files/{id}/stream`` responses include
-   ``X-Content-Type-Options: nosniff``.
-2. Responses for the *dangerous-inline* mime set (``text/html``,
-   ``application/xhtml+xml``, ``image/svg+xml``, ``text/xml``,
-   ``application/xml``) include ``Content-Disposition: attachment;
-   filename*=UTF-8''<filename>`` regardless of ``?download=`` —
-   browsers must download instead of rendering inline.
-3. Safe mimes (image/jpeg, video/mp4, text/markdown, application/pdf,
-   etc.) keep their existing inline behaviour but still gain the
-   ``nosniff`` header.
-4. The original ``Content-Type`` header is preserved (browsers still
-   know the underlying mime; we only block inline rendering).
-5. All three response paths (Range / small-text / full stream) follow
-   the same rule.
-
-These tests are written *before* implementation lands and are expected
-to fail (RED) until ``stream_file`` is updated.
-"""
+"""XSS hardening of the streaming endpoint."""
 
 from pathlib import Path
 
@@ -82,9 +59,6 @@ def _assert_nosniff(headers):
     assert nosniff.lower() == "nosniff", (
         f"expected X-Content-Type-Options: nosniff, got: {nosniff!r}"
     )
-
-
-# --- Dangerous mimes: must always be attachment + nosniff -------------------
 
 
 class TestDangerousMimesGetAttachmentAndNosniff:
@@ -168,7 +142,7 @@ class TestDangerousMimesGetAttachmentAndNosniff:
         assert res.headers["content-type"] == "text/xml"
 
     def test_stream_xslt_has_attachment_and_nosniff(self, client):
-        """XSLT explicitly listed as a threat in spec §2 (XSLT injection)."""
+        """XSLT injection."""
         c, db, drive_dir, _ = client
         file = _create_file(
             db, drive_dir,
@@ -182,9 +156,6 @@ class TestDangerousMimesGetAttachmentAndNosniff:
         _assert_attachment(res.headers, "transform.xsl")
         _assert_nosniff(res.headers)
         assert res.headers["content-type"] == "application/xslt+xml"
-
-
-# --- Safe mimes: nosniff yes, attachment no ---------------------------------
 
 
 class TestSafeMimesGetNosniffOnly:
@@ -235,7 +206,6 @@ class TestSafeMimesGetNosniffOnly:
         _assert_nosniff(res.headers)
         _assert_no_attachment(res.headers)
         assert res.headers["content-type"] == "text/markdown"
-        # Regression guard: small-text path must still emit ETag.
         assert "etag" in res.headers, (
             "small-text path lost ETag header during hardening"
         )
@@ -254,9 +224,6 @@ class TestSafeMimesGetNosniffOnly:
         _assert_nosniff(res.headers)
         _assert_no_attachment(res.headers)
         assert res.headers["content-type"] == "application/pdf"
-
-
-# --- Cross-path coverage: Range, small-text, ?download=true -----------------
 
 
 class TestHardeningAcrossAllResponsePaths:
@@ -299,12 +266,10 @@ class TestHardeningAcrossAllResponsePaths:
         assert res.status_code == 200
         _assert_nosniff(res.headers)
         _assert_no_attachment(res.headers)
-        # Sanity: small-text path is the one that emits ETag.
         assert "etag" in res.headers
 
     def test_stream_download_true_forces_attachment_for_safe_mimes(self, client):
-        """``?download=true`` keeps its existing semantics: attachment
-        on every mime, plus the new nosniff."""
+        """``?download=true`` forces attachment on every mime, plus nosniff."""
         c, db, drive_dir, _ = client
         file = _create_file(
             db, drive_dir,

@@ -1,6 +1,6 @@
 """Upgrading a database that predates the three file-state columns.
 
-``design-decisions.md`` §File state puts Active / Missing / Trash in
+Active / Missing / Trash live in
 ``deleted_at`` and ``missing_since``; ``file_hash`` is what move detection
 matches on. ``active_file_filter()`` names the first two directly, so a
 database that comes out of startup without them answers no file query at all,
@@ -47,8 +47,6 @@ PRE_STATE_FILES_DDL = (
 
 STATE_COLUMNS = ("deleted_at", "missing_since", "file_hash")
 
-# ``_migrate`` writes a sentinel into DATA_DIR; ``private_data_dir``
-# in ``conftest.py`` says why that must not be the shared one.
 pytestmark = pytest.mark.usefixtures("private_data_dir")
 
 
@@ -116,8 +114,7 @@ def test_the_column_is_indexed(pre_state_db, column):
     until the library is large.
 
     The columns are asserted, not only the name: an index called
-    ``idx_files_deleted_at`` that covers ``title`` satisfies every query plan
-    the docstring above is about exactly as badly as no index at all.
+    ``idx_files_deleted_at`` that covers ``title`` is as bad as no index.
     """
     from app.database import _migrate
 

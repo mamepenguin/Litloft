@@ -13,7 +13,7 @@ Three things about how it does that are deliberate.
 walk below, with its predicates written out. Reading the report twice — counting
 its entries, or filtering it for test paths — is not a second implementation: a
 module missing from the report is missing from the filtered copy too, so both
-sides lose it in the same step. That is detector rule 5.
+sides lose it in the same step.
 
 **Sets, not counts.** A count cannot catch a deletion, and a hand-maintained
 count teaches everyone to update it rather than to look at it.
@@ -55,10 +55,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_ROOTS = [("app", "app/")]
 
 # Directory names the walk never descends. `tests` is here because a package
-# that measures its own tests reports a denominator it cannot fail: this
-# project has shipped that once already, in an addon, where it was 62% of the
-# total. Core keeps its tests outside `app/`, and this line is what says so
-# rather than leaving it to be assumed.
+# that measures its own tests reports a denominator it cannot fail.
 SKIP_DIRS = {"__pycache__", "tests"}
 
 # Files on disk that the report is right not to contain, declared by name with a
