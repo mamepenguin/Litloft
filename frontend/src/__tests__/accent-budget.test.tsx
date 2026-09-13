@@ -13,14 +13,25 @@ import type { FileItem } from "@/types";
 import { accentFills } from "./helpers/accentFills";
 
 /**
- * Stubbed because `frontend/src/addons/*` is a gitignored link tree, so a
- * core assertion about an addon's pixels would pass or fail on what a
- * checkout happens to hold.
+ * Stubbed, and it costs this file a blind spot worth naming: an addon
+ * contributing a control to a core screen spends from the same budget.
+ * The folder toolbar no longer offers a place on the bar for one, but
+ * other screens do, and what those addons draw is their choice rather
+ * than this file's guarantee.
+ *
+ * The stub is not a shortcut. `frontend/src/addons/*` is a gitignored
+ * link tree over the `addons/*` submodules, built by `setup-addons.sh`
+ * (`.github/workflows/ci.yml`), so a core assertion
+ * about an addon's pixels would pass or fail on what a checkout happens
+ * to hold — the failure `button-adoption.test.ts` was already fixed for
+ * once. Addon-owned screens are counted in the addon's own repository
+ * instead.
  */
 vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 
-// `Button` and `AddButton` are deliberately real — they are what is being
-// measured.
+// Everything below is scaffolding for the drive root: it needs a router, a
+// data source and a grid before it will draw its toolbar at all. `Button`
+// and `AddButton` are deliberately real — they are what is being measured.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => "/drive/main",
@@ -39,12 +50,25 @@ vi.mock("@/components/TreeToggle", () => ({ TreeToggle: () => <button>tree</butt
 vi.mock("@/components/FileGrid", () => ({ FileGrid: () => <div data-testid="grid" /> }));
 vi.mock("@/components/FileList", () => ({ FileList: () => <div data-testid="list" /> }));
 
+// Module-level and mutable, so it carries between `describe` blocks unless
+// something puts it back. `mockProfile` above is the same shape and this
+// file already learned that lesson from it, so the reset is global rather
+// than per-describe: a block that never mentions the clipboard is exactly
+// the one that will not think to reset it.
 const mockClipboard: { clipboard: unknown } = { clipboard: null };
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({ ...mockClipboard, clear: vi.fn(), copy: vi.fn(), cut: vi.fn(), paste: vi.fn(), isCut: () => false }),
 }));
+// The drive root's own screen is `DriveHome`; the listing of its children
+// is the Library screen, which is a different screen with a budget of its
+// own. Both are asserted in this file, each by rendering itself.
+//
+// **`useProfile` is not ambient, and stubbing it hides a state.**
 // `hasProfile` gates both watch-history rows out of the tree, and their
-// cards draw a `bg-accent` progress bar, so `mockProfile` is mutable.
+// cards draw a `bg-accent` progress bar, so a nickname plus one
+// half-watched file is a screen this file would otherwise never render —
+// the failure the `SCREENS` docblock warns about. `mockProfile` is
+// mutable and the last case below sets it.
 const mockProfile = { nickname: null as string | null };
 vi.mock("@/components/ProfileProvider", () => ({
   useProfile: () => ({
@@ -153,8 +177,34 @@ const folderProps = {
 };
 
 /**
- * Ask, Find and Media Import are absent on purpose: they are addon-owned
- * pages, counted in their own repositories.
+ * Every core screen under the budget, and the file that asserts it.
+ *
+ * Two of them are rendered below, where the setup is cheap. The rest are
+ * asserted in their own test files, because reproducing a screen's mocks
+ * in a second place is how two copies of a screen's setup start
+ * disagreeing — `TrashView` alone needs eight. **A list of screens is
+ * prose unless something checks it**, so this is a table rather than a
+ * comment: each entry names a file, and that file must pass `accentFills`
+ * to an `expect`, and must not have disabled itself with `.skip` or
+ * narrowed itself with `.only`.
+ *
+ * **What this cannot prove.** It reads source; it does not watch the
+ * assertion run. A named file that keeps the call but renders the wrong
+ * thing satisfies it — a file could pass `accentFills` a screen other
+ * than the one its row names, or the same screen in a state it never
+ * reaches, and this table would not know. The one hole that was
+ * demonstrated — an assertion against a freshly created `<div>` — is
+ * closed inside `accentFills`, which now refuses an empty root. The rest
+ * is what review is for, and saying so here is cheaper than a claim that
+ * reads stronger than the check.
+ *
+ * Ask, Find and Media Import are absent and are not omissions: they are
+ * addon-owned pages, `frontend/src/addons/*` is a gitignored link tree that
+ * `setup-addons.sh` materialises, and a core assertion about them passes
+ * or fails on what a checkout happens to hold. They are counted in their
+ * own repositories, in C1 and C2a — where the work is real, since Ask and
+ * Find are accent-filled today (`intelligence/frontend/Page.tsx`,
+ * `pages/find.tsx`).
  */
 const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
   { screen: "root drive picker", assertedIn: "src/app/__tests__/page.test.tsx" },
@@ -163,14 +213,19 @@ const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
     screen: "admin markdown-images",
     assertedIn: "src/app/admin/markdown-images/__tests__/MarkdownImagesPresenter.test.tsx",
   },
-  // Three files, because the page-level test mocks the three section
-  // components out to measure its own chrome.
+  // Three files, because this screen is assembled from three components
+  // and the page-level test mocks them out to measure its own chrome. A
+  // row naming one file would say the whole screen is measured there, and
+  // it is not — the ledger is what another author reads.
   { screen: "admin settings — chrome", assertedIn: "src/app/admin/settings/__tests__/SettingsPage.test.tsx" },
   { screen: "admin settings — drives", assertedIn: "src/app/admin/settings/__tests__/DrivesSection.test.tsx" },
   { screen: "admin settings — passwords", assertedIn: "src/app/admin/settings/__tests__/PasswordsSection.test.tsx" },
   { screen: "personal settings", assertedIn: "src/app/settings/__tests__/page.test.tsx" },
   { screen: "folder toolbar", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "drive root", assertedIn: "src/__tests__/accent-budget.test.tsx" },
+  // A screen of its own, not a section of the one above: the drive home
+  // and the listing of the drive root's children are two pages, and a
+  // budget is per screen.
   { screen: "Library root", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "selection bar over a folder", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "trash", assertedIn: "src/components/__tests__/TrashMissingHeader.test.tsx" },
@@ -181,6 +236,13 @@ const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
   { screen: "search modal", assertedIn: "src/components/__tests__/GlobalSearch.test.tsx" },
 ];
 
+/**
+ * The classifier, pinned directly.
+ *
+ * Reaching it only through a rendered screen means the table below is
+ * whatever the screens happen to use, and every wrong entry two earlier
+ * drafts had was a variant no screen used yet.
+ */
 beforeEach(() => {
   mockClipboard.clipboard = null;
 });
@@ -201,6 +263,11 @@ describe("what counts as a fill at rest", () => {
     "sm:bg-accent",
     "dark:bg-accent",
     "print:bg-accent",
+    // Resting states that earlier drafts skipped. `enabled:` is the
+    // complement of `disabled:` and is this repo's own idiom
+    // (`Button.tsx` writes `enabled:hover:`); `disabled:bg-accent` is the
+    // defect DESIGN.md §6 names; the `aria-`/`data-` families are mostly
+    // selected-state, which §2.2 asks to be a border and not a fill.
     "enabled:bg-accent",
     "disabled:bg-accent",
     "visited:bg-accent",
@@ -215,6 +282,8 @@ describe("what counts as a fill at rest", () => {
     // Relayed *resting* states, which the relay prefixes must not swallow.
     "group-data-[state=active]:bg-accent",
     "data-[state=hover]:bg-accent",
+    // The row that makes the absent bracket-stripping step load-bearing:
+    // with it, this reduces to `hover` and a resting fill goes unseen.
     "group-hover[x]:bg-accent",
     "peer-checked:bg-accent",
     "group-aria-selected:bg-accent",
@@ -234,7 +303,8 @@ describe("what counts as a fill at rest", () => {
     // Relays compose, so the prefix is stripped as many times as it is
     // written.
     "group-has-hover:bg-accent",
-    // A named group or peer.
+    // A named group or peer. Standard syntax, and the name used to make
+    // the variant unrecognisable — a hover fill failing a build.
     "group-hover/sidebar:bg-accent",
     "peer-focus/email:bg-accent",
     // One interaction anywhere in the chain is enough.
@@ -284,7 +354,9 @@ describe("accent budget", () => {
         `${name}: ${assertedIn} never passes accentFills to an expect`,
       ).toBe(true);
       // Not `\.(skip|only)\s*\(`: `it.skipIf(true)(...)` has `If` between
-      // the name and the parenthesis.
+      // the name and the parenthesis, and slipped through while disabling
+      // one of the two screen assertions. Anything whose name *starts*
+      // skip / only / runIf / todo counts.
       expect(
         /\.(skip|only|runIf|todo)[A-Za-z]*\s*[(<]/.test(source),
         `${name}: ${assertedIn} disables or narrows its own tests`,
@@ -293,8 +365,10 @@ describe("accent budget", () => {
   });
 
   describe("folder toolbar", () => {
-    // The toolbar draws its left group once for each breakpoint, so labels
-    // are counted rather than nodes.
+    // The toolbar draws its left group twice, once for each breakpoint, and
+    // only one is visible — jsdom applies no stylesheet, so both are in the
+    // tree. Counting distinct labels rather than nodes is what makes "one
+    // fill" mean one control instead of one element.
     const fillLabels = (root: HTMLElement) =>
       [...new Set(accentFills(root).map((el) => el.textContent?.trim() ?? ""))];
 
@@ -304,6 +378,9 @@ describe("accent budget", () => {
     });
 
     it("still spends only one when the folder can be played", () => {
+      // Play is a first-class action here and stays exposed (hako
+      // `55N_yML35Q2jdVBsCxc06`), so this is the case where a second fill
+      // used to appear.
       const { container } = render(
         <FolderToolbar {...folderProps} hasPlayableFiles />,
       );
@@ -312,12 +389,24 @@ describe("accent budget", () => {
     });
 
     it("still spends only one while a folder is being named", () => {
+      // The inline Create button was a second fill, on the bar at the same
+      // time as Add. Named rather than counted: `<= 1` would pass just as
+      // well if Create were the one that survived and Add had lost its fill.
       const { container } = render(
         <FolderToolbar {...folderProps} creatingFolder />,
       );
       expect(fillLabels(container)).toEqual(["Add"]);
     });
 
+    /**
+     * The empty folder, where the toolbar and the empty state are on
+     * screen together.
+     *
+     * This file used to stub `EmptyState` to an empty `<div>`, so the one
+     * screen where a second fill could appear was the one screen it could
+     * not see — and the first version of D4 put a filled "Add files" there,
+     * beside the toolbar's Add.
+     */
     it("still spends only one when the folder is empty", () => {
       const { container } = render(
         <>
@@ -357,6 +446,8 @@ describe("accent budget", () => {
     });
 
     it("still spends only one with the selection bar up", () => {
+      // The bar floats over the folder, so its own Apply button is on the
+      // same screen as Add. It was a second fill.
       const { container } = render(
         <>
           <FolderToolbar {...folderProps} />
@@ -393,6 +484,12 @@ describe("accent budget", () => {
 });
 
 describe("accent budget — Library root", () => {
+  // The screen, not its toolbar. A bare `FolderToolbar` answers the same
+  // for every `folderPath`, so a case rendering one cannot tell this
+  // screen from a folder and duplicates the folder-toolbar cases above
+  // exactly — every mutation kills the pair together. `FolderBrowser`
+  // brings the things that are only on a screen: the page header's
+  // actions, the clipboard banner, the selection bar.
   beforeEach(() => {
     mockGetDriveFiles.mockReset();
     mockGetDriveFiles.mockResolvedValue({ data: [playableFile()], meta: { total: 1 } });
@@ -407,20 +504,44 @@ describe("accent budget — Library root", () => {
     const { container } = render(<FolderBrowser driveName="main" folderPath="" view="library" />);
     await screen.findAllByRole("button", { name: "Add" });
     // Two, because the toolbar renders its left group once for each
-    // breakpoint.
+    // breakpoint and jsdom applies no stylesheet, so both are in the
+    // tree. Declared rather than deduped away, so a third copy — a real
+    // second fill drawn with the same label — cannot hide behind the set
+    // below.
     expect(accentFills(container)).toHaveLength(2);
     expect(fillLabels(container)).toEqual(["Add"]);
   });
 
   it("spends two while the clipboard is full, which §2.2 does not allow", () => {
-    // This records a defect, not a rule, and goes red when the defect is
-    // fixed on purpose: `Paste here` is drawn `variant="primary"`.
+    // **This records a defect, not a rule.** `Paste here` is drawn
+    // `variant="primary"` (`FolderBrowser.tsx:742-749`), so while the
+    // clipboard is non-empty every folder screen — the Library root and
+    // any path alike — carries a second resting fill beside Add.
+    //
+    // **Where it gets decided**: the stage 4 design pass, in a real
+    // browser, alongside the other things only a viewer can judge. Not
+    // here, and not by whoever next reads this file.
+    //
+    // Not introduced here: the banner has drawn it since clipboard
+    // operations landed, and no case could see it because this file
+    // rendered toolbars rather than screens and its clipboard was always
+    // null. It is pinned rather than fixed because which of the two
+    // should keep the fill is a DESIGN.md §2.2 decision over every folder
+    // screen, not a consequence of moving a listing.
+    //
+    // So this case goes **red when the defect is fixed**, on purpose:
+    // whoever fixes it updates the expectation deliberately instead of
+    // finding a green suite over a screen that lost its second fill.
     mockClipboard.clipboard = { fileIds: ["f1"], drive: "main", path: "recipes", mode: "copy" };
     const { container } = render(<FolderBrowser driveName="main" folderPath="" view="library" />);
     expect(fillLabels(container)).toEqual(["Add", "Paste here"]);
   });
 
   it("spends two at a named folder as well, which is what makes it general", () => {
+    // The claim above is about *every* folder screen, and one screen
+    // cannot hold it: a partial fix gating the banner on
+    // `folderPath === ""` would leave the root case red-on-fix and this
+    // one silently wrong. Both ends of the population, declared.
     mockClipboard.clipboard = { fileIds: ["f1"], drive: "main", path: "other", mode: "copy" };
     const { container } = render(<FolderBrowser driveName="main" folderPath="recipes" />);
     expect(fillLabels(container)).toEqual(["Add", "Paste here"]);
@@ -439,8 +560,14 @@ describe("accent budget — drive root", () => {
 
   it("spends its one fill on Add, with content rows on screen", async () => {
     const { container } = render(<DriveHome driveName="main" />);
+    // A row's heading is drawn while it is still loading, so it says
+    // nothing about whether anything arrived. The count on `See all` is
+    // only known once the batch has settled, which is the state where a
+    // second fill could appear — waiting on the request that starts it
+    // would assert over an empty page (detector rule 3).
     // Three: the rows that carry a count are Recently added, Favourites
-    // and Liked.
+    // and Liked. `not.toHaveLength(0)` here would stay green if two of
+    // them stopped drawing at all (detector rule 1).
     expect(await screen.findAllByText(/See all \(1\)/)).toHaveLength(3);
     expect(
       [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
@@ -454,8 +581,13 @@ describe("accent budget — drive root", () => {
   });
 
   it("still spends one on Add with a half-watched row on screen", async () => {
-    // A watch-progress bar is a resting `bg-accent`, but a mark rather than
-    // a control: it carries no name and is sized by an inline width.
+    // The state a viewer with a nickname sees most of the time, and the
+    // one the old mock made unreachable. A watch-progress bar is a
+    // resting `bg-accent`, so `accentFills` counts it — and it should:
+    // this is not an exception carved out of the rule but a mark rather
+    // than a control. What the budget is about is how many things ask to
+    // be the screen's subject, and the way to tell them apart here is
+    // that a mark carries no name and is sized by an inline width.
     mockProfile.nickname = "Alice";
     mockGetWatchHistory.mockResolvedValue([
       { ...playableFile(), watch_progress: { position: 30, duration: 120 } },
@@ -471,7 +603,7 @@ describe("accent budget — drive root", () => {
 
     const marks = fills.filter((el) => !el.textContent?.trim());
     // Two rows read the same history: Continue watching and Recently
-    // played.
+    // played. Both draw the bar, and neither is a control.
     expect(marks.length).toBe(2);
     for (const mark of marks) {
       expect((mark as HTMLElement).style.width).not.toBe("");
