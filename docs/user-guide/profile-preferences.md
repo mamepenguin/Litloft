@@ -31,7 +31,7 @@ three cards:
 Below 640px each row stacks its control under its label.
 
 There is **no "clear watch history" action** here or anywhere else. History is
-removed one entry at a time, from the *Continue watching* and *Recently played*
+removed one entry at a time, from the *Continue watching* and *Recently Viewed*
 rows — see [comments and watch history](comments-history.md).
 
 ## Per-player preferences

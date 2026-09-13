@@ -77,7 +77,7 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
           </Link>
           <Link href={`${driveBase}?view=recent`} onClick={close} className={linkClass(`${driveBase}?view=recent`)}>
             <Clock size={16} />
-            {t("recentPlay")}
+            {t("recentlyViewed")}
           </Link>
           <Link href={`${driveBase}?view=recent-added`} onClick={close} className={linkClass(`${driveBase}?view=recent-added`)}>
             <FilePlus size={16} />

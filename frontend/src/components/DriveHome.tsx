@@ -390,10 +390,10 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         <ContinueWatchingSection
           items={continueWatching}
           loading={continueWatchingLoading}
-          // The same destination Recently played uses, and for the same
+          // The same destination Recently Viewed uses, and for the same
           // reason it is needed at all: the row draws only what fits, so
           // without a link the rest of the history is unreachable from
-          // here. Recently played is this history without the 90%
+          // here. Recently Viewed is this history without the 90%
           // completion gate — a superset, so nothing a reader came for
           // is missing from it.
           seeAllHref={`${driveBase}?view=recent`}
@@ -413,7 +413,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         <ContinueWatchingSection
           items={recentlyPlayed}
           loading={recentlyPlayedLoading}
-          title={t("recentlyPlayed")}
+          title={t("recentlyViewed")}
           icon={<History size={20} className="text-text-muted" />}
           seeAllHref={`${driveBase}?view=recent`}
           onRemoveItem={handleRemoveWatchItem}

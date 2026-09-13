@@ -68,7 +68,7 @@ playback_position < duration * 0.9
 
 A view-only open leaves both at `0`, and `0 < 0` is false, so opening a PDF never puts it in the row. A file watched past 90% drops out for the same reason.
 
-A second row, *Recently played*, asks the same endpoint with the gate off, so it includes finished files and view-only opens. Both rows are drive-scoped — watch history is never aggregated across drives.
+A second row, *Recently Viewed*, asks the same endpoint with the gate off, so it includes finished files and view-only opens. Both rows are drive-scoped — watch history is never aggregated across drives.
 
 ### Removing an item
 
@@ -95,7 +95,7 @@ There is no account password and no email. The profile is purely local-meets-coo
 ## Resetting a viewer
 
 - **Forget identity**: clear the nickname on the settings page, or clear the `lit_viewer` cookie. A new nickname creates a new viewer.
-- **Forget watch progress**: remove entries one at a time from the *Continue watching* / *Recently played* rows. There is no bulk "clear watch history" action, and clearing the cookie does not delete the rows — it only stops you from being the viewer they belong to.
+- **Forget watch progress**: remove entries one at a time from the *Continue watching* / *Recently Viewed* rows. There is no bulk "clear watch history" action, and clearing the cookie does not delete the rows — it only stops you from being the viewer they belong to.
 - **Forget comments**: edit or delete each one yourself. Nobody else can do it for you through the UI.
 
 There is no flagging or reporting workflow because Litloft is not a multi-tenant public service.

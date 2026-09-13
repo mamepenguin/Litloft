@@ -360,7 +360,7 @@ describe("the drive home's content rows", () => {
   it("gives both watch-history rows somewhere to send the reader", async () => {
     // The rows draw only what fits, so a row without a destination
     // discards the rest of the history with nothing saying so. Continue
-    // watching has no view of its own; Recently played is the same
+    // watching has no view of its own; Recently Viewed is the same
     // history without the 90% gate, so it is a superset and an honest
     // target for both.
     mockProfile.nickname = "Alice";
