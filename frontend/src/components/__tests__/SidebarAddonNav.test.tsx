@@ -14,6 +14,7 @@ let overlay = false;
 const mockClose = vi.fn();
 let catalogue: Record<string, AddonMeta> = {};
 let catalogueDrive: string | null | undefined = DRIVE;
+let currentDrive: string | null = DRIVE;
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname,
@@ -32,7 +33,7 @@ vi.mock("../AddonSlotsProvider", () => ({
 vi.mock("../AddonSlot", () => ({ AddonSlot: () => null }));
 
 vi.mock("../CurrentDriveProvider", () => ({
-  useCurrentDrive: () => DRIVE,
+  useCurrentDrive: () => currentDrive,
   useCurrentFolderPath: () => null,
   useSetOverrideDrive: () => vi.fn(),
 }));
@@ -100,6 +101,7 @@ beforeEach(() => {
   mockClose.mockClear();
   catalogue = {};
   catalogueDrive = DRIVE;
+  currentDrive = DRIVE;
 });
 
 describe("addon destinations in the sidebar", () => {
@@ -124,6 +126,15 @@ describe("addon destinations in the sidebar", () => {
       "Trash",
       "Missing Files",
     ]);
+  });
+
+  it("breaks a priority tie by addon name, not by label", () => {
+    catalogue = {
+      beta: addon({ label: "Alpha label", placement: "primary", priority: 1 }),
+      alpha: addon({ label: "Zulu label", placement: "primary", priority: 1 }),
+    };
+    render(<Sidebar />);
+    expect(rowLabels().filter((l) => l?.endsWith("label"))).toEqual(["Zulu label", "Alpha label"]);
   });
 
   it("puts the Sources heading over the source rows only", () => {
@@ -180,15 +191,29 @@ describe("addon destinations in the sidebar", () => {
     expect(hrefs.some((h) => h?.includes("elsewhere"))).toBe(false);
   });
 
+  const noRowFor = (name: string, label: string) => {
+    const hrefs = Array.from(document.querySelectorAll("nav a")).map((a) => a.getAttribute("href") ?? "");
+    expect(hrefs.filter((h) => h.endsWith(`/addons/${name}`))).toEqual([]);
+    expect(navText()).not.toContain(label);
+    expect(navText()).not.toContain("Addons");
+  };
+
   it.each<[string, AddonMeta]>([
     ["no navigation", { label: "Knowledge", icon: "notebook-pen", href: "/x", scope: "drive" }],
     ["no href", addon({ label: "Notes", placement: "primary", priority: 1 }, { href: undefined })],
   ])("draws nothing for an addon with %s", (_, meta) => {
     catalogue = { knowledge: meta };
     render(<Sidebar />);
-    expect(rowFor("knowledge")).toBeNull();
-    expect(navText()).not.toContain("Knowledge");
-    expect(navText()).not.toContain("Addons");
+    noRowFor("knowledge", meta.navigation ? "Notes" : "Knowledge");
+  });
+
+  it("draws nothing for a drive-scoped addon when no drive is current", () => {
+    currentDrive = null;
+    catalogueDrive = null;
+    catalogue = { knowledge: addon({ label: "Notes", placement: "primary", priority: 1 }) };
+    pathname = "/";
+    render(<Sidebar />);
+    noRowFor("knowledge", "Notes");
   });
 
   it("names a row by its resolved key, and by its label when the key does not resolve", () => {
@@ -206,7 +231,11 @@ describe("addon destinations in the sidebar", () => {
   it.each([
     ["an unknown icon", "no-such-icon", "lucide-package"],
     ["no icon", undefined, "lucide-package"],
-    ["a known icon", "message-circle-question", "lucide-message-circle-question-mark"],
+    ["the download token", "download", "lucide-download"],
+    ["the message-circle-question token", "message-circle-question", "lucide-message-circle-question-mark"],
+    ["the notebook-pen token", "notebook-pen", "lucide-notebook-pen"],
+    ["the package token", "package", "lucide-package"],
+    ["the rss token", "rss", "lucide-rss"],
   ])("draws the row with %s", (_, icon, expected) => {
     catalogue = { intelligence: addon({ label: "Ask", placement: "primary", priority: 1, icon }) };
     render(<Sidebar />);
@@ -234,18 +263,24 @@ describe("addon destinations in the sidebar", () => {
       expect(lit()).toEqual([label]);
     });
 
-    it("lights a row under it on the decoded path too", () => {
+    it.each([
+      ["its own page", "knowledge"],
+      ["a page under it", "knowledge/some-note"],
+    ])("lights one row on %s on the decoded path too", (_, route) => {
       catalogue = BUNDLED;
-      pathname = `/drive/${DRIVE}/addons/knowledge/some-note`;
+      pathname = `/drive/${DRIVE}/addons/${route}`;
       render(<Sidebar />);
       expect(lit()).toEqual(["Notes"]);
     });
 
-    it("does not light an addon whose name is a prefix of the page's addon", () => {
+    it.each([
+      ["encoded", ENCODED],
+      ["decoded", `/drive/${DRIVE}`],
+    ])("lights no row for an addon whose name is a prefix of the page's addon, %s", (_, base) => {
       catalogue = BUNDLED;
-      pathname = `${ENCODED}/addons/knowledgebase`;
+      pathname = `${base}/addons/knowledgebase`;
       render(<Sidebar />);
-      expect(lit()).not.toContain("Notes");
+      expect(lit()).toEqual([]);
     });
 
     it("leaves addon rows unlit on Core pages", () => {
@@ -256,18 +291,22 @@ describe("addon destinations in the sidebar", () => {
     });
   });
 
-  it("dismisses an overlay sidebar from an addon row, and leaves an inline one alone", () => {
+  it.each([
+    ["primary", "intelligence"],
+    ["sources", "media_import"],
+    ["utility", "zeta"],
+  ])("dismisses an overlay sidebar from a %s row, and leaves an inline one alone", (_, name) => {
     catalogue = BUNDLED;
     overlay = true;
     const { unmount } = render(<Sidebar />);
-    rowFor("media_import")!.click();
+    rowFor(name)!.click();
     expect(mockClose).toHaveBeenCalled();
     unmount();
 
     overlay = false;
     mockClose.mockClear();
     render(<Sidebar />);
-    rowFor("media_import")!.click();
+    rowFor(name)!.click();
     expect(mockClose).not.toHaveBeenCalled();
   });
 });
