@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { useState } from "react";
 
 import { WebSocketContext } from "@/components/WebSocketProvider";
@@ -224,6 +225,17 @@ describe("what the drive home says when its rows have nothing to show", () => {
     expect(library.getAttribute("href")).toBe("/drive/media?view=library");
   });
 
+  it("says neither on the frame before any request has been made", async () => {
+    // `render` flushes effects inside `act`, so the first paint is out
+    // of reach of every case in this file. A server render is the frame
+    // where the rows are empty and nothing has been asked yet.
+    const html = renderToStaticMarkup(<DriveHome driveName="media" />);
+    expect(html).not.toContain(EMPTY_TITLE);
+    expect(html).not.toContain(FAILED_TITLE);
+    // The population: this is the page and not an early return.
+    expect(html).toContain("Recently Added");
+  });
+
   it("says neither while every request is still out", async () => {
     mockGetDriveFiles.mockReturnValue(new Promise<never>(() => {}));
 
@@ -252,12 +264,100 @@ describe("what the drive home says when its rows have nothing to show", () => {
     expect(pageWideState()).toEqual([]);
   });
 
+  // One request answering and the other not, in both orientations. The
+  // cases either side of this resolve both or reject both, and a page
+  // that reads the pair with `every` instead of `some` is the same page
+  // in all of those.
+  it.each([
+    ["the resumable history", undefined],
+    ["the whole history", "all"],
+  ])("does not call the drive unreachable when %s answered alone", async (_label, answered) => {
+    mockProfile.nickname = "Alice";
+    mockGetDriveFiles.mockRejectedValue(new Error("network"));
+    mockGetWatchHistory.mockImplementation((...args: unknown[]) =>
+      args[2] === answered ? Promise.resolve([]) : Promise.reject(new Error("network")),
+    );
+
+    render(<DriveHome driveName="media" />);
+
+    expect(await screen.findByText(EMPTY_TITLE)).not.toBeNull();
+    expect(pageWideState()).toEqual([EMPTY_TITLE]);
+  });
+
+  it("does not call the drive unreachable when one file row refused and the others answered empty", async () => {
+    // The three rows above give the surviving row files, which keeps
+    // the page out of both states however the batch is read.
+    let call = 0;
+    mockGetDriveFiles.mockImplementation(() =>
+      call++ === 0 ? Promise.reject(new Error("network")) : Promise.resolve(page([])),
+    );
+
+    render(<DriveHome driveName="media" />);
+
+    expect(await screen.findByText(EMPTY_TITLE)).not.toBeNull();
+    expect(pageWideState()).toEqual([EMPTY_TITLE]);
+  });
+
+  it("keeps the empty state when a background refresh fails over a drive that did answer", async () => {
+    mockGetDriveFiles.mockResolvedValue(page([]));
+
+    render(<Live />);
+    expect(await screen.findByText(EMPTY_TITLE)).not.toBeNull();
+
+    mockGetDriveFiles.mockRejectedValue(new Error("network"));
+    const before = mockGetDriveFiles.mock.calls.length;
+    emit("drive.structure_changed", "media");
+    await waitFor(() =>
+      expect(mockGetDriveFiles.mock.calls.length).toBeGreaterThan(before),
+    );
+
+    await waitFor(() => expect(pageWideState()).toEqual([EMPTY_TITLE]));
+  });
+
+  it("leaves the failure state when a background refresh answers with nothing", async () => {
+    // The mirror. A refresh that delivers is the drive answering, and
+    // the page has no business still saying it could not be reached.
+    mockGetDriveFiles.mockRejectedValue(new Error("network"));
+
+    render(<Live />);
+    expect(await screen.findByText(FAILED_TITLE)).not.toBeNull();
+
+    mockGetDriveFiles.mockResolvedValue(page([]));
+    const before = mockGetDriveFiles.mock.calls.length;
+    emit("drive.structure_changed", "media");
+    await waitFor(() =>
+      expect(mockGetDriveFiles.mock.calls.length).toBeGreaterThan(before),
+    );
+
+    await waitFor(() => expect(pageWideState()).toEqual([EMPTY_TITLE]));
+  });
+
+  it("does not mark a drive loaded from a request made for the one before it", async () => {
+    const deferred: ((value: unknown) => void)[] = [];
+    mockGetDriveFiles.mockImplementation(
+      () => new Promise((resolve) => deferred.push(resolve)),
+    );
+
+    const { rerender } = render(<DriveHome driveName="media" />);
+    await waitFor(() => expect(deferred).toHaveLength(3));
+    rerender(<DriveHome driveName="archive" />);
+    await waitFor(() => expect(deferred).toHaveLength(6));
+
+    // The drive that was left answers; the one on screen still has not.
+    await act(async () => {
+      deferred.slice(0, 3).forEach((resolve) => resolve(page([])));
+      await Promise.resolve();
+    });
+
+    expect(pageWideState()).toEqual([]);
+  });
+
   // The two watch rows are two requests and two pieces of state, so
   // either can carry the only thing on the page.
   it.each([
-    [undefined, "Continue Watching"],
-    ["all", "Recently Viewed"],
-  ])("says nothing page-wide when only the %s history came back with items", async (kind, heading) => {
+    ["Continue Watching", undefined],
+    ["Recently Viewed", "all"],
+  ])("says nothing page-wide when only %s came back with items", async (heading, kind) => {
     mockProfile.nickname = "Alice";
     mockGetWatchHistory.mockImplementation((...args: unknown[]) =>
       Promise.resolve(args[2] === kind ? [aWatchItem("v1")] : []),

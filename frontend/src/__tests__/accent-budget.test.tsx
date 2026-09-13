@@ -589,9 +589,9 @@ describe("accent budget — drive root", () => {
     const { container } = render(<DriveHome driveName="main" />);
     await screen.findByRole("link", { name: "Open Library" });
 
-    expect(
-      [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
-    ).toEqual(["Add"]);
+    // Not de-duplicated: collapsing equal labels throws away the
+    // multiplicity, which is the property.
+    expect(accentFills(container).map((el) => el.textContent?.trim() ?? "")).toEqual(["Add"]);
   });
 
   it("still spends one on Add when nothing could be fetched", async () => {
@@ -600,9 +600,9 @@ describe("accent budget — drive root", () => {
     const { container } = render(<DriveHome driveName="main" />);
     await screen.findByRole("button", { name: "Try again" });
 
-    expect(
-      [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
-    ).toEqual(["Add"]);
+    // Not de-duplicated: collapsing equal labels throws away the
+    // multiplicity, which is the property.
+    expect(accentFills(container).map((el) => el.textContent?.trim() ?? "")).toEqual(["Add"]);
   });
 
   it("still spends one on Add with a half-watched row on screen", async () => {

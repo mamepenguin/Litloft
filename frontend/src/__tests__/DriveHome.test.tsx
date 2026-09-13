@@ -516,6 +516,21 @@ describe("the drive home's acceptance criteria", () => {
     });
   });
 
+  it("asks for the history again when a different reader takes over", async () => {
+    // The viewer travels in a cookie, so nothing the fetch closes over
+    // changes between two readers who both have a profile. Without a
+    // re-fetch Bob is shown Alice's history until the drive changes.
+    mockProfile.nickname = "Alice";
+    mockGetWatchHistory.mockResolvedValue([makeWatchHistoryItem("v1")]);
+    const { rerender } = render(<DriveHome driveName="media" />);
+    await waitFor(() => expect(mockGetWatchHistory).toHaveBeenCalledTimes(2));
+
+    mockProfile.nickname = "Bob";
+    rerender(<DriveHome driveName="media" />);
+
+    await waitFor(() => expect(mockGetWatchHistory).toHaveBeenCalledTimes(4));
+  });
+
   it("draws both watch rows once a profile is set", async () => {
     // The population for the case above: without this, hiding the rows
     // unconditionally would satisfy it.

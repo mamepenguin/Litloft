@@ -81,6 +81,15 @@ interface ResponseIdentity {
  */
 interface FileSectionsBatch extends ResponseIdentity {
   results: PromiseSettledResult<PaginatedResponse>[];
+  /**
+   * Whether this batch is a page load rather than a refresh.
+   *
+   * What the page says about the drive answering is a fact about the
+   * load. A refresh that delivers nothing has not discovered that the
+   * drive is unreachable — it has only failed, over a screen that was
+   * built from a load that worked.
+   */
+  pageLoad: boolean;
 }
 
 const SECTION_LIMIT = 12;
@@ -163,7 +172,15 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     if (delivered) {
       fileSectionsAppliedRef.current = batch.requestId;
     }
-    setFileSectionsFailed(!delivered);
+    // Anything that delivers clears it; only a load can set it. The
+    // drive having answered once is not undone by a later request going
+    // missing, and a refresh that arrives after a failed load is the
+    // drive answering.
+    if (delivered) {
+      setFileSectionsFailed(false);
+    } else if (batch.pageLoad) {
+      setFileSectionsFailed(true);
+    }
     // A failed request leaves the row holding what it had. Writing an
     // empty row instead would let a refresh that delivered nothing erase
     // one that did — on the first load there is nothing to keep, so the
@@ -185,7 +202,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setLiked((previous) => section(results[2], previous));
   }, []);
 
-  const fetchFileSections = useCallback(async (): Promise<FileSectionsBatch> => {
+  const fetchFileSections = useCallback(async (pageLoad: boolean): Promise<FileSectionsBatch> => {
     const requestId = ++fileSectionsRequestRef.current;
     const drive = driveName;
     const results = await Promise.allSettled([
@@ -193,7 +210,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       getDriveFiles(drive, { favorite: true, sort: "created_at", order: "desc", limit: SECTION_LIMIT }),
       getDriveFiles(drive, { liked: true, sort: "liked_at", order: "desc", limit: SECTION_LIMIT }),
     ]);
-    return { drive, requestId, results };
+    return { drive, requestId, pageLoad, results };
   }, [driveName]);
 
   /**
@@ -217,7 +234,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     }
 
     const [fileResults, watchResults] = await Promise.all([
-      fetchFileSections(),
+      fetchFileSections(true),
       // `allSettled` rather than a `catch` per request: both end with an
       // empty row, but a rejection that becomes `[]` is indistinguishable
       // from a drive nobody has opened anything in, and telling those
@@ -264,7 +281,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   }, [loadPage, nickname]);
 
   const refetchAllSections = useCallback(async () => {
-    applyFileSections(await fetchFileSections());
+    applyFileSections(await fetchFileSections(false));
   }, [fetchFileSections, applyFileSections]);
 
   // `drive.file_updated` matters here as much as `structure_changed`,
