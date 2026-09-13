@@ -13,29 +13,6 @@ vi.mock("next/link", () => ({
 }));
 vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 
-/**
- * The two **core** surfaces that draw timestamp pills, named rather than
- * found.
- *
- * Scanning for the callers would make the population whatever the tree
- * happens to hold, so a surface that stopped calling the helper would
- * shrink the population instead of failing — the detector would go green
- * on exactly the regression it exists for.
- *
- * Two limits, stated here because a test that does not name its blind
- * spots reads stronger than it is:
- *
- *  - **Core only.** Addons draw their own pills — `intelligence`'s
- *    `pages/search-compare.tsx` is one, with no cap and no
- *    de-duplication. `frontend/src/addons/*` is a gitignored link tree a
- *    checkout may or may not hold, so a core assertion about them passes
- *    or fails on what happens to be present; an addon's pills are counted
- *    in the addon's own repository.
- *  - **The source check greps.** A surface that imports the helper,
- *    mentions it, and then renders from a private copy stays green here.
- *    The render parity above is what makes that expensive to do by
- *    accident; nothing makes it impossible.
- */
 const PILL_SURFACES = [
   "src/components/search/MergedResultItem.tsx",
   "src/components/MatchOverlay.tsx",
@@ -74,16 +51,6 @@ function makeFile(overrides: Partial<FileItemWithMatch> = {}): FileItemWithMatch
   };
 }
 
-/**
- * Exercises both halves of the rule at once — six segments naming four
- * moments, one of them found twice by two channels, and one pair a
- * fraction of a second apart.
- *
- * One of the three that survive is past the hour, where `formatDuration`
- * switches to `H:MM:SS`. Both surfaces have to switch with it, and a cap or
- * de-duplication bug shows up on a long recording, so the two halves of the
- * rule are measured where the format changes as well as where it does not.
- */
 const SHARED_META: MatchMeta = {
   transcript: [
     { time_range: [799.2, 805], score: 0.8 },
@@ -97,22 +64,10 @@ const SHARED_META: MatchMeta = {
   ],
 };
 
-/**
- * The pills, by identity rather than by the shape of what they say. A
- * population selected on the text — `3600`, or `1:00:00.5`, against some
- * pattern for a time — loses the pills that stop matching it, so a pill
- * that started rendering wrongly would leave the population instead of
- * failing the assertions below.
- */
 const pills = () => screen.getAllByTestId("match-timestamp-pill");
 const pillTexts = () => pills().map((el) => el.textContent);
 
 describe("timestamp pills read the same on both surfaces", () => {
-  /**
-   * Two renders of two separately written components, not one function
-   * called twice: the assertion is that the popup row and the results-page
-   * overlay reach the same answer, which is what "shared rule" means.
-   */
   it("draws the same moments, in the same order, in the popup and on the page", () => {
     render(<MergedResultItem file={makeFile({ match_meta: SHARED_META })} onSelect={vi.fn()} />);
     const popup = pillTexts();
@@ -122,8 +77,6 @@ describe("timestamp pills read the same on both surfaces", () => {
     const page = pillTexts();
     cleanup();
 
-    // `1:01:01`, not just `13:19`: `formatDuration` switches format at
-    // sixty minutes, and the claim is that both surfaces switch with it.
     expect(popup).toEqual(["13:19", "14:49", "1:01:01"]);
     expect(page).toEqual(popup);
   });
@@ -139,12 +92,6 @@ describe("timestamp pills read the same on both surfaces", () => {
     cleanup();
   });
 
-  /**
-   * The render parity above stays green if one surface grows a second,
-   * identical copy of the rule. Naming the helper in the source is what
-   * says there is one rule rather than two that currently agree — as far
-   * as a grep can say it; see the limits on `PILL_SURFACES`.
-   */
   it("both surfaces go through the shared helper", () => {
     expect(PILL_SURFACES.length).toBe(2);
     for (const surface of PILL_SURFACES) {
@@ -156,10 +103,6 @@ describe("timestamp pills read the same on both surfaces", () => {
     }
   });
 
-  /**
-   * The overflow marker says how many moments were dropped; it cannot say
-   * which one, so there is nowhere for it to navigate.
-   */
   it("the overflow marker is not a control", () => {
     render(<MergedResultItem file={makeFile({ match_meta: SHARED_META })} onSelect={vi.fn()} />);
     const marker = screen.getByText("+1");
@@ -175,11 +118,6 @@ describe("timestamp pills read the same on both surfaces", () => {
     cleanup();
   });
 
-  /**
-   * S-2. The pills were `text-accent` on both surfaces, which spent the
-   * page's one loud colour on "there is also a hit at 13:19". They stay
-   * clickable — the accent went, the affordance did not.
-   */
   it("spends no accent on the pills, on either surface", () => {
     render(<MergedResultItem file={makeFile({ match_meta: SHARED_META })} onSelect={vi.fn()} />);
     for (const pill of pills()) {

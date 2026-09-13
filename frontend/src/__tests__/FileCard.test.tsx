@@ -59,10 +59,9 @@ const makeFile = (overrides: Partial<FileItem> = {}): FileItem => ({
 
 describe("FileCard", () => {
   it("keeps the title as the card's accessible name", () => {
-    // The title stopped being an `<h3>` (D-5), and dropping the tag must
-    // not drop the name: what a screen reader navigates a listing by is
-    // the link's name, so that is what is asserted rather than the text
-    // being present somewhere on the card.
+    // What a screen reader navigates a listing by is the link's name, so
+    // that is what is asserted rather than the text being present
+    // somewhere on the card.
     render(<FileCard file={makeFile()} />);
     expect(
       screen.getByRole("link", { name: /Test Video/ }),
@@ -130,8 +129,7 @@ describe("what a card says first", () => {
     container.querySelector(".mt-1")?.textContent ?? "";
 
   it("leaves the size off a video — the badge already says the length", () => {
-    // D-3's example: a 19-minute video labelled "83 B", because a
-    // `.loft` reference file's row carries the pointer's size.
+    // A `.loft` reference file's row carries the pointer's size.
     const { container } = render(
       <FileCard file={makeFile({ file_type: "video", duration: 1140, file_size: 83 })} />,
     );
@@ -190,11 +188,6 @@ describe("what a card says first", () => {
 });
 
 describe("every host draws the same card", () => {
-  // §3.4 asks for one case per host. There is one `FileCard` and no
-  // second implementation to drift from, so the risk is a host that
-  // stops passing the file through — but the drive-home rows are where
-  // the change is most visible (their cards are media by construction,
-  // so every one of them drops to a bare date) and nothing pinned that.
   const video = makeFile({ file_type: "video", duration: 1140, file_size: 83 });
 
   const noSizeButDated = (container: HTMLElement) => {

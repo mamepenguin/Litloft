@@ -28,8 +28,6 @@ function sourceFiles(root: string): string[] {
       if (statSync(full).isDirectory()) walk(full);
       // Tests are excluded, and only tests: a mime spelled inside a test
       // is a fixture, not a second source of truth the app can drift from.
-      // The exclusion is stated here so it is visible rather than implied by
-      // an empty result.
       else if (
         /\.tsx?$/.test(entry.name) &&
         !/\.test\.tsx?$/.test(entry.name) &&
@@ -74,11 +72,7 @@ describe("the OOXML mime list", () => {
   });
 
   it("is written down at all, by a walk that read the whole tree", () => {
-    // "Nowhere but `officeFiles.ts`" is also true of a walk that read nothing
-    // — a renamed directory, a changed extension filter, a `REPO_ROOT` that
-    // no longer resolves. The count of files actually opened is what says
-    // otherwise; `ROOTS.length` only says the roots were computed, and an
-    // addon root that resolves to an empty walk still passes that.
+    // "Nowhere but `officeFiles.ts`" is also true of a walk that read nothing.
     expect(filesNamingOoxmlMimes().length).toBe(1);
     for (const root of ROOTS) {
       expect(sourceFiles(root).length).toBeGreaterThan(0);
@@ -89,8 +83,7 @@ describe("the OOXML mime list", () => {
   it("is read by every consumer, rather than each keeping its own answer", () => {
     // The scan above says nobody spells the mimes out. It does not say anyone
     // *uses* the set — a component that quietly dropped the import would pass
-    // it while its Office branch went dead. These are the four files whose
-    // behaviour depends on the list.
+    // it while its Office branch went dead.
     const importers = ROOTS.flatMap(sourceFiles)
       .filter((file) => /from "@\/lib\/officeFiles"/.test(readFileSync(file, "utf-8")))
       .map((file) => relative(REPO_ROOT, file))

@@ -21,8 +21,7 @@ import { resolve, dirname } from "node:path";
  *
  * This makes the gitlink load-bearing: a core PR that moves core's
  * table without bumping `addons/intelligence` fails here, and so does
- * a bump to an addon commit that moved its own. That is the intent —
- * see `00-basis.md` "bump を core PR に同梱するか、分離するか".
+ * a bump to an addon commit that moved its own.
  */
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -85,14 +84,12 @@ describe("file-kind classifier, core vs the intelligence addon", () => {
   //
   // Git materialises a *directory* for every gitlink on checkout, so a
   // clone without `--recurse-submodules` leaves `addons/intelligence`
-  // present and empty — measured, not assumed. That is an uninitialised
-  // working copy, not a stale pin, and blaming a pin sends the reader
-  // looking for a bump that does not exist. It skips.
+  // present and empty. That is an uninitialised working copy, not a stale
+  // pin, so it skips.
   //
   // A checkout with contents but no `file_kind.py` is the real defect:
   // core offering markdown and pdf in search over an index that cannot
-  // honour them. That fails, which is what makes the gitlink
-  // load-bearing (`00-basis.md`, "bump を core PR に同梱するか").
+  // honour them.
   const initialised =
     existsSync(ADDON_DIR) && readdirSync(ADDON_DIR).length > 0;
   if (initialised) {
@@ -126,9 +123,8 @@ describe("file-kind classifier, core vs the intelligence addon", () => {
     // lower-case the filename and compare with LIKE; neither may also
     // demand `file_type == "document"`, or the fallback drops exactly
     // the rows it exists for.
-    // Sliced to the function, not the file. `drives.py` is 1200 lines;
-    // the first case-insensitive filename sort added anywhere else in
-    // it would satisfy a whole-file `toContain` while
+    // Sliced to the function, not the file: the first case-insensitive
+    // filename sort added anywhere else in `drives.py` would satisfy a whole-file `toContain` while
     // `_apply_kind_filter` had lost its fallback entirely.
     for (const [label, text, column] of [
       ["core", functionBody(core, "_apply_kind_filter"), "File.filename"],

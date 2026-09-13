@@ -5,11 +5,6 @@ import { resolve, dirname } from "node:path";
 import jaMessages from "../messages-core/ja.json";
 import enMessages from "../messages-core/en.json";
 
-// Recursive type: keys may point to strings or nested objects of
-// arbitrary depth. Before this was `Record<string, string | Record<…>>`
-// which only tolerated 2 levels — the addon message catalogues grew
-// 3-level nesting (e.g. `detailedSummary.citations.linkLabel`) when the
-// intelligence detailed-summary feature landed.
 type MessageObject = { [key: string]: string | MessageObject };
 
 function getAllKeys(obj: MessageObject, prefix = ""): string[] {
@@ -114,12 +109,9 @@ describe("i18n key consistency", () => {
   });
 });
 
-// Addon catalogues are merged into the same tree at build time
-// (`scripts/merge-addon-messages.mjs` deep-merges `src/addons/*/messages/`),
-// but only core's pair was ever compared. A key present in one locale and not
-// the other falls back to showing the key path itself on the page, and a key
-// that collides with core silently replaces core's string — the merge has no
-// opinion about which wins.
+// Addon catalogues are merged into the same tree at build time. A key present
+// in one locale and not the other falls back to showing the key path itself on
+// the page, and a key that collides with core silently replaces core's string.
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const ADDONS_DIR = resolve(REPO_ROOT, "addons");
 
@@ -149,8 +141,7 @@ describe("addon i18n catalogues", () => {
   it.skipIf(!existsSync(ADDONS_DIR))(
     "finds the addons checked out beside core",
     () => {
-      // Skipped rather than failed where only `frontend/` was copied, matching
-      // how design-tokens.test.ts treats the same absence.
+      // Skipped rather than failed where only `frontend/` was copied.
       expect(catalogues.length).toBeGreaterThan(0);
     },
   );
@@ -199,10 +190,6 @@ describe("addon i18n catalogues", () => {
  * row of Japanese tabs and reports nothing. That fallback is right — a
  * readable wrong-language label beats a raw key path on screen — which
  * is exactly why the check has to live somewhere else.
- *
- * Both sides are read as files here, so this cannot launder itself: it
- * compares what the manifest asks for against what the catalogue holds,
- * through no shared code at all.
  */
 function manifestSlotKeys(): { addon: string; entry: string; key: string }[] {
   if (!existsSync(ADDONS_DIR)) return [];
@@ -225,7 +212,6 @@ function manifestSlotKeys(): { addon: string; entry: string; key: string }[] {
   return out;
 }
 
-/** Every `player-side` entry, whether or not it names a translation. */
 function tabEntries(): { addon: string; entry: string; key?: string }[] {
   if (!existsSync(ADDONS_DIR)) return [];
   const out: { addon: string; entry: string; key?: string }[] = [];
@@ -250,13 +236,8 @@ describe("addon slot labels", () => {
   it.skipIf(!existsSync(ADDONS_DIR))(
     "every player-side entry names a translation for its tab",
     () => {
-      // The check the two below cannot make. They ask whether a declared
-      // key resolves; the failure this exists for is a manifest that
-      // declares none — and `slotEntryLabel` then falls back to the
-      // English literal, silently, which is the whole reason `i18n_key`
-      // was added. A `player-side` entry becomes a tab in the file
-      // detail inspector, and a tab's label is on screen in whatever
-      // language the manifest happens to be written in.
+      // A manifest that declares no key makes `slotEntryLabel` fall back to
+      // the English literal, silently.
       const entries = tabEntries();
       expect(entries.length).toBeGreaterThan(0);
       expect(
@@ -269,10 +250,8 @@ describe("addon slot labels", () => {
     "declares at least one key to check",
     () => {
       // `it.each([])` registers no cases and vitest fails the file with
-      // "No test found in suite" — which is a red for the wrong reason
-      // where only `frontend/` was copied, and a green-looking absence
-      // where a real one goes missing. Stated as its own assertion so
-      // neither can be mistaken for the other.
+      // "No test found in suite", which is a red for the wrong reason
+      // where only `frontend/` was copied.
       expect(declared.length).toBeGreaterThan(0);
     },
   );

@@ -1,19 +1,5 @@
 /**
- * Blank every comment, keeping offsets and line breaks intact.
- *
- * Source-scanning detectors have to read code without reading the prose
- * around it. Two of them have been fooled by the difference: a scan for
- * colour utilities pairs quote marks inside a sentence ("the `target` chunk")
- * and reports fragments of English as class names, and a scan for `<h1>`
- * counts `PageHeader`'s own sentence "An `<h1>` is emitted only when this is
- * given" as a heading.
- *
  * The walk tracks string state, so a `//` inside a URL is not a comment.
- * A regex written naively over `/* … *\/` blanks from the first `/*` in a
- * string literal to the next `*\/` anywhere after it, which silently erases
- * real code — that is how the `<h1>`s in `app/admin/page.tsx` went missing
- * from a scan that reported the file as clean.
- *
  * Blanking rather than deleting keeps reported line numbers true.
  */
 export function stripComments(text: string): string {
@@ -42,19 +28,8 @@ export function stripComments(text: string): string {
 }
 
 /**
- * A class list is not always written at the point of use.
- *
- * A shared component exists precisely so a recipe lives in one place, which
- * moves it out of a `className=` attribute and into a `const` — and out of
- * this scan, which is how `Button.tsx` came to hold the project's only copy of
- * the accent fill and the disabled treatment while being invisible to the test
- * enforcing both. Centralising a rule must not cost the rule its enforcement.
- *
  * The convention this relies on: **a constant holding Tailwind classes is
- * named `*_CLASS` or `*_CLASSES`.** Matching on a name rather than sniffing
- * every string literal keeps the scan explicit — a constant opts in by being
- * named for what it is, and one that is not named that way is not silently
- * assumed to be prose.
+ * named `*_CLASS` or `*_CLASSES`.**
  */
 export function classConstSpans(text: string): [number, number][] {
   const spans: [number, number][] = [];
@@ -91,12 +66,8 @@ export function classConstSpans(text: string): [number, number][] {
 }
 
 /**
- * Character spans of every `className` / `class` attribute value in a file.
- *
- * Collecting per line cannot see the static half of a multi-line template —
- * `` className={`… border-bg-border … ${ `` contributes nothing if the closing
- * backtick is on a later line, and that is a shape this codebase uses freely.
- * Walking the attribute value as one span, brace to brace, reads it whole.
+ * Collecting per line cannot see the static half of a multi-line template,
+ * so the attribute value is walked as one span, brace to brace.
  */
 
 export function classAttributeSpans(text: string): [number, number][] {
@@ -121,14 +92,9 @@ export function classAttributeSpans(text: string): [number, number][] {
 }
 
 /**
- * Every `className` value in a file, as one string each.
- *
- * Attribute spans and `*_CLASS` constant spans, so a check that needs two
- * utilities in *one* value — "is this button both accent-filled and faded when
- * disabled" — sees them together. Use `stringLiterals` instead when the
- * question is whether a single token appears anywhere at all: this cannot see
- * a class list held under any other name, and the union of the two
- * double-counts, because an attribute span contains the literal inside it.
+ * Use `stringLiterals` instead when the question is whether a single token
+ * appears anywhere at all; the union of the two double-counts, because an
+ * attribute span contains the literal inside it.
  */
 export function classValues(text: string): string[] {
   const stripped = stripComments(text);
@@ -139,11 +105,8 @@ export function classValues(text: string): string[] {
 }
 
 /**
- * Every quoted string and template literal, wherever it sits.
- *
  * Walks rather than matches: a regex for `"..."` cannot tell a quote inside a
- * template from one that opens a string, and `stripComments` already has the
- * scanner that can.
+ * template from one that opens a string.
  */
 export function stringLiterals(text: string): string[] {
   const out: string[] = [];
