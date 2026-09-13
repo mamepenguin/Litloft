@@ -23,20 +23,7 @@ export function FavoriteButton({
   onToggle: (file: FileItem) => void;
   size?: "sm" | "md";
   showLabel?: boolean;
-  /**
-   * The file this star belongs to, for the accessible name. Pass it
-   * wherever the control repeats — a list of them all called "Add to
-   * favorites" tells a screen reader nothing about which row it is on.
-   */
   entityName?: string;
-  /**
-   * This star is one of a list row's repeated trailing controls, so it
-   * takes §Row Actions' 44px touch floor on a coarse pointer alongside the
-   * `⋮` beside it. Off elsewhere: on a card the star is alone on a
-   * thumbnail with nothing next to it to disagree with, and on the detail
-   * page the row it sits in reaches the floor through
-   * `.file-action-row-touch`.
-   */
   rowAction?: boolean;
 }) {
   const t = useTranslations("favorite");
@@ -61,10 +48,7 @@ export function FavoriteButton({
           : "text-text-muted/50 hover:text-accent-teal"
       }`}
       // A library of stars all called "Add to favorites" gives a screen
-      // reader no way to tell which row it is on. Where the caller knows
-      // the file — a list row — the name goes in (hako
-      // `Prwd_iaXmCjWfY24KjFz2`). The detail page renders one, so it
-      // keeps the short form.
+      // reader no way to tell which row it is on.
       aria-label={
         entityName
           ? t(current ? "removeFor" : "addFor", { name: entityName })

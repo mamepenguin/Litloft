@@ -33,7 +33,6 @@ export function ArchivePreview({
   onArchiveController,
 }: {
   fileId: string;
-  /** Publishes the archive's contents for the inspector's index tab. */
   onArchiveController?: (controller: ArchiveController | null) => void;
 }) {
   const router = useRouter();
@@ -45,7 +44,6 @@ export function ArchivePreview({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // "listing" | "image" | "text" — controls which viewer overlay is active
   const [viewerMode, setViewerMode] = useState<ArchiveViewMode>("listing");
   const [viewingEntry, setViewingEntry] = useState<ArchiveEntry | null>(null);
 
@@ -102,8 +100,7 @@ export function ArchivePreview({
   } = useArchiveNavigation(archive, currentPath, searchParamsString, router);
 
   // Derived from the level, not from what the filter left of it: narrowing to
-  // images would otherwise flip the layout under the reader's hand, and the
-  // question the derivation answers is what this level holds.
+  // images would otherwise flip the layout under the reader's hand.
   const { viewMode, setViewMode } = useArchiveViewMode(
     fileId,
     defaultArchiveViewMode(currentEntries),
@@ -162,8 +159,6 @@ export function ArchivePreview({
     [imageEntries, imageViewer, textViewer],
   );
 
-  // The same predicate the inspector's index uses — see
-  // `archiveUtils.canOpenArchiveEntry`.
   const isClickable = canOpenArchiveEntry;
 
   // The inspector's index reaches into levels the canvas is not on, so
@@ -172,15 +167,9 @@ export function ArchivePreview({
   // level — called before the move lands it would open the wrong page,
   // or none.
   /**
-   * A leaf the index asked for, and the level that request was made
-   * from.
-   *
    * `from` is the load-bearing half. `setPendingOpen` is a default-lane
    * update and `router.push` is a transition, so React commits this
-   * state *before* the level changes and flushes effects in between. An
-   * expiry that compared the target parent against `currentPath` was
-   * therefore false on the very commit that set it, and the request
-   * cancelled itself every time.
+   * state *before* the level changes and flushes effects in between.
    */
   const [pendingOpen, setPendingOpen] = useState<{
     path: string;
@@ -237,16 +226,12 @@ export function ArchivePreview({
       handleFileClick(entry);
       return;
     }
-    // Not there yet, or not going to be. The request is alive on the
-    // level it was issued from — the navigation is still in flight —
-    // and on the level it is headed for, where the entries may not have
-    // arrived in this render. A landing anywhere else means the reader
-    // went somewhere else, and waiting on would open a page they never
-    // asked for the moment they walk into that folder.
+    // A landing anywhere other than the level the request was issued from or
+    // the one it is headed for means the reader went somewhere else, and
+    // waiting on would open a page they never asked for.
     //
-    // This cannot see the reader going somewhere else and *back*, since
-    // that leaves `currentPath` equal to `from` again. That case is
-    // dropped at its source instead: every control that starts a
+    // This cannot see the reader going somewhere else and *back*. That case
+    // is dropped at its source instead: every control that starts a
     // different move clears the request.
     const target = getDirname(pendingOpen.path);
     if (currentPath !== pendingOpen.from && currentPath !== target) {
@@ -367,9 +352,7 @@ export function ArchivePreview({
       )}
 
       {/* Outside the branch, because `viewerMode === "text"` means the same
-          thing in both layouts. It used to be the file listing's `children`,
-          so pressing a text entry in the grid set the mode and drew nothing:
-          the press looked like it had missed. */}
+          thing in both layouts. */}
       {viewerMode === "text" && viewingEntry && (
         <ArchiveTextViewer
           viewingEntry={viewingEntry}

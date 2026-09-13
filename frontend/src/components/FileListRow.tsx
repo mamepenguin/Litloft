@@ -29,33 +29,21 @@ import { TextThumbnail } from "./TextThumbnail";
 interface FileListRowProps {
   file: FileItemWithMatch;
   /**
-   * The row's position in the listing, 1-based, drawn ahead of the
-   * thumbnail. Only the collection view passes it: elsewhere the order
-   * is a sort the reader chose and can change, so a number beside each
-   * row would name a position that means nothing.
-   *
-   * A per-row primitive, like `selected` and `isDragging` — see the
-   * prop-shape note below.
+   * Only the collection view passes it: elsewhere the order is a sort the
+   * reader chose and can change, so a number beside each row would name a
+   * position that means nothing.
    */
   ordinal?: number;
   selectable?: boolean;
   /**
-   * Resolved boolean rather than an `(id) => boolean` predicate, and a
-   * boolean rather than membership in a `string[]` for `isDragging` —
-   * both so `memo` below is not defeated by props whose identity
-   * changes on every selection or drag (spec
-   * `2026-08-21-file-list-deep-scroll-cost` §6.3).
+   * Resolved boolean rather than an `(id) => boolean` predicate or membership
+   * in a `string[]`, so `memo` below is not defeated by props whose identity
+   * changes on every selection or drag.
    */
   selected?: boolean;
   isDragging?: boolean;
   draggable?: boolean;
   sortQuery?: string;
-  /**
-   * Whether this listing's type / extension columns say anything. Both
-   * are resolved once by the list and passed down as plain booleans —
-   * see `lib/listMeta.ts` for the rule, and the memo note below for why
-   * they arrive as primitives rather than as the derived object.
-   */
   showTypeLabel?: boolean;
   showExtensionBadge?: boolean;
   onFavoriteToggle?: (file: FileItem) => void;
@@ -99,16 +87,10 @@ function FileListRowImpl({
       OFFICE_MIMES.has(file.mime_type ?? ""));
   const hasDuration = hasKnownLength(file);
   const isCutFile = clipboard.isCut(file.id);
-  // The same rule the cards lead with, and for the same reason: this
-  // row draws the length on its own thumbnail badge above, under the
-  // identical `duration != null`, so for video and audio the size is
-  // both redundant and — on a `.loft` reference row — false.
-  // `lib/primaryMeta.ts`.
   const primaryText = primaryMetaText(file);
 
-  // Both halves of §Row Actions' trailing group, resolved once: the row
-  // gives up its trailing padding to the group's own, so a row that draws
-  // no group has to keep the padding.
+  // The row gives up its trailing padding to the group's own, so a row that
+  // draws no group has to keep the padding.
   const hasRowFurniture =
     Boolean(onFavoriteToggle) || (!selectable && Boolean(onContextMenu));
 
@@ -127,12 +109,6 @@ function FileListRowImpl({
         // `aria-hidden`: the row's accessible name is its title, and a
         // reader announced as "1, Track 1" is being read a column that
         // says what the reading order already says.
-        //
-        // Unpadded, and `tabular-nums` in a fixed width for the
-        // alignment a leading zero would otherwise buy. The collection's
-        // other pane numbers the same items on the same screen
-        // (`CollectionItemsPane`), and two numberings side by side have
-        // to read the same.
         <span
           aria-hidden
           className="w-6 flex-shrink-0 text-right text-xs tabular-nums text-text-muted"
@@ -162,15 +138,11 @@ function FileListRowImpl({
         )}
       </div>
       {/* The cap is on the row's contents, not on the row. Capping the
-          row would shrink the hover band and the click target with it,
-          leaving a lit strip floating in the middle of a wide window.
-          DESIGN.md §3.6. */}
+          row would shrink the hover band and the click target with it. */}
       <div className="min-w-0 max-w-list-row flex-1">
         <div className="flex items-center gap-2">
-          {/* Not a heading, for the reason the cards are not (D-5):
-              thirty sibling names in a listing are not thirty
-              sections, and list mode is one click from grid mode in
-              the same folder. The name is the row's link's. */}
+          {/* Not a heading: thirty sibling names in a listing are not
+              thirty sections. */}
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
             {file.title}
           </span>
@@ -232,8 +204,7 @@ function FileListRowImpl({
       onDragEnd={onDragEnd}
       // onClick intentionally omitted from the drag-surface div;
       // in selectable mode it lives on the inner click-area wrapper
-      // so the browser can distinguish drag from click (same-element
-      // conflict confuses drag-intent detection per FolderTreeRow comment).
+      // so the browser can distinguish drag from click.
       onContextMenu={selectable || !onContextMenu ? undefined : (e) => onContextMenu(e, file)}
     >
       {selectable ? (
@@ -265,10 +236,6 @@ function FileListRowImpl({
           <div className="flex flex-1 items-center gap-3 min-w-0">{content}</div>
         </div>
       ) : fileNavigationOverride ? (
-        // Override host (currently CollectionDetail) absorbs the
-        // click into a local ?file= selection so the user stays
-        // on the current page instead of being redirected to
-        // the file's containing folder.
         <div
           role="button"
           tabIndex={0}
@@ -301,10 +268,6 @@ function FileListRowImpl({
           }}
         >{content}</Link>
       )}
-      {/* The row's trailing furniture, as one group: both controls take
-          the same touch floor and nothing is drawn between them, so the
-          name keeps the separation that used to be drawn twice —
-          `rowFurniture.ts`, DESIGN.md §Row Actions. */}
       {hasRowFurniture && (
         <div className={ROW_FURNITURE_GROUP}>
           {onFavoriteToggle && (
@@ -316,15 +279,9 @@ function FileListRowImpl({
               rowAction
             />
           )}
-          {/* Rename, move, copy and trash were reachable only by
-              right-click, so a keyboard could not get to them at all. The
-              button holds its place with `opacity-0` rather than appearing
-              on hover, so the row does not reflow under the pointer; it
-              shows on focus for the keyboard and stays put on touch, where
-              there is no hover to reveal it.
-              Sized past its 16px glyph to a 24px target (hako
-              `Prwd_iaXmCjWfY24KjFz2`), and 44px where the pointer is a
-              finger (`00-basis.md`, mobile sizing). */}
+          {/* The button holds its place with `opacity-0` rather than
+              appearing on hover, so the row does not reflow under the
+              pointer. */}
           {!selectable && onContextMenu && (
             <button
               type="button"
@@ -334,10 +291,7 @@ function FileListRowImpl({
                 e.stopPropagation();
                 // Enter and Space on a button produce a click with no
                 // pointer, so `clientX/clientY` are 0 and the menu opens
-                // clamped to the top-left of the window — forty rows away
-                // from the row it belongs to. Anchor it to the button
-                // instead, which is where a pointer click would have put it
-                // anyway.
+                // clamped to the top-left of the window.
                 if (e.clientX === 0 && e.clientY === 0) {
                   const box = e.currentTarget.getBoundingClientRect();
                   onContextMenu(
@@ -365,5 +319,4 @@ function FileListRowImpl({
   );
 }
 
-/** See the prop-shape note above — every prop here is per-file or stable. */
 export const FileListRow = memo(FileListRowImpl);

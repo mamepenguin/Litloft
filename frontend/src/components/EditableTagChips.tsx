@@ -19,45 +19,18 @@ import type { FileItem } from "@/types";
 
 type FileRef = Pick<FileItem, "id" | "mime_type" | "filename" | "drive">;
 
-// Mirror of core's TagUpdate.validate_tags (backend/app/schemas.py:59)
-// and the scanner's _normalise_tags. Frontmatter.ts's extractValidTags
-// already applies this on the save path; we also check at input time
-// so the user sees a friendly inline error instead of a silent drop.
+// Mirror of core's TagUpdate.validate_tags.
 const TAG_RE = /^[\p{L}\p{N}_-]+$/u;
 const MAX_TAGS = 10;
 const MAX_TAG_LEN = 30;
 
-/**
- * Editable chip group for a file's tags.
- *
- * Handles the split canonical store internally via ``saveFileTags``:
- * ``.md`` files round-trip frontmatter while everything else PUTs
- * ``File.tags`` directly. Callers pass a file reference and the
- * initial tag list; the component owns the rest (optimistic state,
- * 2s debounced persist, autocomplete fetch, keyboard nav, error
- * surface).
- *
- * Spec: ``docs/superpowers/specs/2026-04-24-knowledge-tag-unification.md``
- * §D4 (Properties Panel chip edit) and §D7 (debounce).
- */
 export interface EditableTagChipsProps {
   file: FileRef;
-  /**
-   * Standalone mode: initial tag list that the component owns and
-   * persists via its own debounced ``saveFileTags`` path. Required
-   * unless ``content`` + ``onContentChange`` are provided (content
-   * mode).
-   */
   initialTags?: string[];
   /**
-   * Content mode: the full ``.md`` source including frontmatter. When
-   * provided along with ``onContentChange``, chip edits rewrite the
-   * source string via ``withTags`` and flow out through
-   * ``onContentChange`` — the component performs no save of its own.
-   *
    * Content mode exists so the Knowledge editor (which has its own
    * textarea auto-save on the same file) doesn't race a second
-   * writer. Spec §D5 / hako note.
+   * writer.
    */
   content?: string;
   onContentChange?: (nextContent: string) => void;
@@ -70,24 +43,12 @@ export interface EditableTagChipsProps {
    * Ignored in content mode.
    */
   onTagsChange?: (tags: string[]) => void;
-  /**
-   * Standalone mode only: fires once per debounced save after the
-   * backend confirms. Use this for effects that should reflect
-   * server state (e.g. refreshing a drive-wide tag list in the
-   * sidebar) so rapid edits don't thrash downstream caches.
-   */
   onSaveSuccess?: (tags: string[]) => void;
 }
 
 export function EditableTagChips(props: EditableTagChipsProps) {
   const { file, initialTags, content, onContentChange, onTagsChange, onSaveSuccess } = props;
   const contentMode = content !== undefined && onContentChange !== undefined;
-  // Derive the current tags from whichever source of truth is active.
-  // Memoised on the source so a parent re-render that doesn't actually
-  // change `content` (or `initialTags`) skips the gray-matter parse.
-  // For typical notes the parse is sub-ms; the memo matters for the
-  // long-note + dense frontmatter tail (Phase 3 review follow-up, hako
-  // ZWLqXgdTwt9le4dAI3U8C).
   const seedTags = useMemo(
     () =>
       contentMode
@@ -121,8 +82,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   // parent's setState, which re-renders with fresh lambda refs,
   // which invalidates the saver useMemo, which triggers the effect
   // cleanup → ``saver.cancel()`` → the debounced save gets dropped
-  // before it can fire. Symptom 2 / symptom 3 in the 2026-04-24
-  // user-reported bug.
+  // before it can fire.
   const onTagsChangeRef = useRef(onTagsChange);
   onTagsChangeRef.current = onTagsChange;
   const onSaveSuccessRef = useRef(onSaveSuccess);
@@ -150,17 +110,12 @@ export function EditableTagChips(props: EditableTagChipsProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(seedTags)]);
 
-  // Always hard-reset when navigating to a different file.
   useEffect(() => {
     lastSeedKey.current = JSON.stringify(seedTags);
     setTags(seedTags);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id]);
 
-  // Drive-scoped autocomplete source. Refetched only on drive change;
-  // within a drive, newly-added tags are appended to ``allTags``
-  // locally inside ``commit()`` so the autocomplete stays fresh
-  // without a per-edit round-trip.
   useEffect(() => {
     let cancelled = false;
     getDriveTags(file.drive)
@@ -168,8 +123,6 @@ export function EditableTagChips(props: EditableTagChipsProps) {
         if (!cancelled) setAllTags(list.map((tag) => tag.name));
       })
       .catch(() => {
-        // Autocomplete is a nice-to-have. Silently fall back to
-        // no suggestions if the endpoint is unavailable.
         if (!cancelled) setAllTags([]);
       });
     return () => {
@@ -180,10 +133,6 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   // Debounced saver is only built in standalone mode — content mode
   // delegates saving to the parent (e.g. Knowledge editor's textarea
   // auto-save), so a second writer here would race.
-  //
-  // Deps: ONLY the file identity + contentMode flag. Callbacks are
-  // read through refs (see above) so parent-side inline lambdas
-  // never invalidate this memo.
   const saver = useMemo(
     () =>
       contentMode
@@ -192,8 +141,6 @@ export function EditableTagChips(props: EditableTagChipsProps) {
             delayMs: TAG_SAVE_DEBOUNCE_MS,
             onError: () => {
               setError(tRef.current("updateFailed"));
-              // Roll back to the last-known-good tag list so the user and
-              // any ``onTagsChange`` consumer can recover.
               setTags(seedTagsRef.current);
               onTagsChangeRef.current?.(seedTagsRef.current);
             },
@@ -203,9 +150,6 @@ export function EditableTagChips(props: EditableTagChipsProps) {
     [contentMode, file.id, file.mime_type, file.filename, file.drive],
   );
 
-  // Flush pending saves on unmount and when the file reference
-  // changes so chip edits on a note don't silently land after the
-  // user has navigated away.
   useEffect(() => {
     return () => {
       saver?.cancel();
@@ -217,19 +161,12 @@ export function EditableTagChips(props: EditableTagChipsProps) {
       setTags(next);
       setError(null);
       onTagsChange?.(next);
-      // Keep autocomplete fresh for this drive without a round-trip:
-      // a tag the user just added should be a suggestion next time.
       setAllTags((prev) => {
         const existing = new Set(prev.map((x) => x.toLowerCase()));
         const toAdd = next.filter((x) => !existing.has(x.toLowerCase()));
         return toAdd.length === 0 ? prev : [...prev, ...toAdd];
       });
       if (contentMode) {
-        // Rewrite the full ``.md`` source via withTags and flow it
-        // back through the parent. The parent (Knowledge editor) owns
-        // the save; we never PUT content from here in this mode.
-        // Read from ref so a keystroke that raced the click doesn't
-        // get lost (see contentRef comment above).
         const latest = contentRef.current ?? "";
         const nextContent = withTags(latest, next);
         onContentChange!(nextContent);
@@ -253,12 +190,6 @@ export function EditableTagChips(props: EditableTagChipsProps) {
       .slice(0, 5);
   }, [input, allTags, tags]);
 
-  // The one dropdown in the tree that opens *while* the on-screen keyboard
-  // is up: it is raised by typing into the field it hangs off. So the room
-  // below the chip row is whatever the keyboard has left, and the event
-  // worth re-deriving on is the keyboard going away again — which changes
-  // the visible band without resizing the panel or the window. The hook
-  // subscribes to `visualViewport` for exactly that.
   const { openUp, side } = useAnchoredDirection({
     triggerRef: fieldRef,
     panelRef: listRef,
@@ -267,20 +198,6 @@ export function EditableTagChips(props: EditableTagChipsProps) {
     preferSide: "left",
   });
 
-  /**
-   * The one way the add-a-tag interaction ends.
-   *
-   * Five callers: Escape, the scrim, the `onBlur` timer, and both of
-   * `submitTag`'s closing paths. It was extracted for the first two only.
-   *
-   * What the duplicate branch missed was `error`: it cleared `input` and
-   * `adding` by hand, so an invalid tag followed by one the file already
-   * carries left the error paragraph on screen — it renders outside the
-   * `adding` branch. The accepted-tag branch never had that bug, because
-   * `commit` calls `setError(null)` itself; what it has to do is close the
-   * field, which is a claim of its own and is pinned as one in
-   * `EditableTagChips.test.tsx`.
-   */
   const closeInput = useCallback(() => {
     setAdding(false);
     setInput("");
@@ -300,7 +217,6 @@ export function EditableTagChips(props: EditableTagChipsProps) {
         return;
       }
       if (tags.some((existing) => existing.toLowerCase() === trimmed.toLowerCase())) {
-        // Already present — silently close the input.
         closeInput();
         return;
       }
@@ -340,8 +256,6 @@ export function EditableTagChips(props: EditableTagChipsProps) {
       } else if (e.key === "Escape") {
         closeInput();
       } else if (e.key === "Backspace" && input === "" && tags.length > 0) {
-        // Familiar chip-group shortcut: empty input + Backspace drops
-        // the last chip. Matches Gmail / GitHub / Obsidian.
         removeTag(tags[tags.length - 1]);
       }
     },
@@ -390,9 +304,6 @@ export function EditableTagChips(props: EditableTagChipsProps) {
             {suggestions.length > 0 && (
               <DismissScrim
                 onDismiss={closeInput}
-                // No tint, and the tier is the dim's only job: this list
-                // is anchored to the field at every width. Which box a
-                // press lands on is not part of the dismissal.
                 className="fixed inset-0 z-30"
               >
                 <div

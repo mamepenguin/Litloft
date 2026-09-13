@@ -11,9 +11,7 @@ import type { AddonsStatus, SlotEntry } from "@/lib/addons";
 import { getAddonsStatus } from "@/lib/addons";
 import { useCurrentDrive } from "@/components/CurrentDriveProvider";
 
-// Per-addon status shape mirrors each addon's /status `features` block,
-// letting slot components gate UI on feature flags (e.g. transcript_refine
-// modes) without a per-component round trip. Values follow the backend
+// Values follow the backend
 // convention: literal `false` or string "false" mean fully off; any other
 // value (true, "manual", "on_index", etc.) counts as enabled.
 export type AddonFeatureValue = boolean | string;
@@ -46,10 +44,6 @@ export function AddonSlotsProvider({ children }: { children: ReactNode }) {
   const [addons, setAddons] = useState<AddonsStatus["addons"]>({});
   const [slots, setSlots] = useState<Record<string, SlotEntry[]>>({});
   const [loading, setLoading] = useState(true);
-  // The catalogue is per-drive: drives.json's addons.<name> can disable
-  // an addon entirely (e.g. work drive opts out of intelligence). When
-  // the user navigates between drives we re-fetch so the slots and
-  // sidebar links match the active drive's policy.
   const drive = useCurrentDrive();
 
   useEffect(() => {
@@ -96,9 +90,6 @@ export function useAddonSlots() {
 
 const DEFAULT_STATUS: AddonStatus = { features: {} };
 
-// Cache keyed by `${addonName}|${drive ?? ""}`. Multiple components can
-// call useAddonStatus("intelligence") in the same drive without each
-// firing its own fetch.
 const _statusCache: Map<string, AddonStatus> = new Map();
 const _statusPromise: Map<string, Promise<AddonStatus>> = new Map();
 
@@ -121,9 +112,6 @@ async function fetchAddonStatus(
   return { features: data?.features ?? {} };
 }
 
-// Generic per-addon status hook. The host doesn't pre-fetch /status for
-// any addon; each consumer (always inside the addon's own components)
-// requests its own. Drive switches and addon name swaps both invalidate.
 export function useAddonStatus(addonName: string): AddonStatus {
   const drive = useCurrentDrive();
   const key = statusKey(addonName, drive);

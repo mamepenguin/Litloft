@@ -30,24 +30,9 @@ interface FolderContextMenuProps {
   onTogglePin?: () => void;
   onUpdate?: () => void;
   onClose: () => void;
-  /**
-   * Tree-pane opt-ins. Each callback adds a corresponding menu item; the
-   * right pane (FolderContent / DriveHome) leaves them unset and the
-   * surface shape stays unchanged.
-   */
   onOpen?: () => void;
   onCreateFileHere?: () => void;
-  /**
-   * When provided, the menu shows "New folder here" and creates the
-   * folder via the core createFolder API. The callback is invoked after
-   * a successful creation so the caller can refresh its tree/list.
-   */
   onCreateFolderHere?: () => void;
-  /**
-   * Opt-in inline rename. When provided, Rename hands control back to the
-   * host so it can edit the row or card in place instead of opening
-   * {@link RenameDialog}.
-   */
   onStartInlineRename?: () => void;
 }
 

@@ -45,8 +45,7 @@ export function BatchRenameDialog({
 
   // `editingOnly: false` is load-bearing: the dialog focuses its own
   // field, and the provider counts a focused input as "editing", where
-  // the flag's default ("only when nothing is being edited") means the
-  // shortcut never fires. Escape looked bound and did nothing.
+  // the flag's default means the shortcut never fires.
   useShortcuts(
     "batch-rename-dialog",
     "Dialog",
@@ -112,7 +111,6 @@ export function BatchRenameDialog({
       />
 
       <div className="relative mx-0 flex w-full max-w-2xl flex-col rounded-t-2xl bg-bg-card shadow-lg ring-1 ring-bg-border animate-fade-in-scale sm:mx-4 sm:rounded-2xl max-h-[90vh]">
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-bg-border px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15">
@@ -136,9 +134,7 @@ export function BatchRenameDialog({
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {/* Mode selector - segmented control */}
           <div className="flex gap-1 rounded-xl bg-bg-elevated p-1 ring-1 ring-bg-border">
             {modes.map((m) => (
               <button
@@ -155,7 +151,6 @@ export function BatchRenameDialog({
             ))}
           </div>
 
-          {/* Fields */}
           <div className="mt-5 rounded-xl bg-bg-elevated p-4 ring-1 ring-bg-border">
             {mode === "template" && (
               <TemplateFields
@@ -189,11 +184,9 @@ export function BatchRenameDialog({
             )}
           </div>
 
-          {/* Preview */}
           <PreviewList preview={preview} t={t} changedCount={changedCount} />
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between border-t border-bg-border px-5 py-4">
           {error ? (
             <p className="text-sm text-danger">{error}</p>

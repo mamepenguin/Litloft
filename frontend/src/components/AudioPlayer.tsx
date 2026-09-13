@@ -49,9 +49,7 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
     void notifyReady();
   }, [notifyReady]);
 
-  // Records the final position rather than deleting the row — see the
-  // matching comment in VideoPlayer and spec
-  // 2026-08-10-media-import-watch-surface.md §4.2.
+  // Records the final position rather than deleting the row.
   const handleEnded = useCallback(() => {
     notifyEnded();
     onEnded?.();
@@ -73,14 +71,9 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
   return (
     <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-12">
       <FileTypeIcon fileType="audio" size={64} className="mb-4 text-text-muted" />
-      {/* The filename and nothing under it. This is a name with its
-          first fact beneath it, so `lib/primaryMeta.ts` governs it, and
-          for audio that table says `none`: the length is on the
+      {/* The filename and nothing under it: the length is on the
           transport bar of the `<audio controls>` right below, and the
-          size on a `.loft` reference is the pointer's. Audio is the
-          only kind that reaches this player (`lib/playerKind.ts`), so
-          the rule has one answer here and it is drawn by drawing
-          nothing rather than by a branch that can never be taken. */}
+          size on a `.loft` reference is the pointer's. */}
       <p className="mb-6 text-sm text-text-primary">{file.filename}</p>
       <audio
         ref={audioRef}

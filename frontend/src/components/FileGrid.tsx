@@ -57,16 +57,11 @@ export function FileGrid({
   // does nothing then.
   useJustifiedFlip(justifiedRef);
 
-  // Decided once for the listing rather than per card: the question is
-  // about the column, not the file. Only the boolean crosses into the
-  // card, so the memo there still holds.
   const { showExtensionBadge, justifyThumbnails } = useMemo(
     () => deriveListMeta(files),
     [files],
   );
 
-  // Stable across renders so memoized cards don't see new props every
-  // time the parent re-renders. The card hands its own `file` back.
   const { onContextMenu: openMenu, onTouchStart: startLongPress } = handlers;
 
   const handleContextMenu = useCallback(
@@ -116,9 +111,6 @@ export function FileGrid({
   // a justified cell has nowhere to put it.
   const hasMatchMeta = files.some((file) => file.match_meta);
 
-  // Same rows, packed at their own proportions rather than into equal
-  // cards. Which one a folder gets is derived from the folder, not
-  // chosen by the reader — `lib/listMeta.ts`.
   if (justifyThumbnails && !hasMatchMeta) {
     return (
       <>

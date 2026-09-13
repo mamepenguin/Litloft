@@ -32,30 +32,18 @@ function driveFromPath(pathname: string): string | null {
 export function CurrentDriveProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [overrideDrive, setOverrideDriveState] = useState<string | null>(null);
-  // Published by the folder page itself (frontend/src/app/drive/[name]/[...path]/page.tsx),
-  // not parsed from the URL here. Any sibling route under /drive/[name]/
-  // (search, collections, addons/...) simply never calls this, so it's
-  // null there for free — no denylist of route segments to keep in sync
-  // with app/drive/[name]/ as routes are added.
+  // Published by the folder page itself, not parsed from the URL here. Any
+  // sibling route under /drive/[name]/ simply never calls this, so it's
+  // null there for free — no denylist of route segments to keep in sync.
   const [overrideFolderPath, setOverrideFolderPathState] = useState<string | null>(null);
 
   const pathDrive = driveFromPath(pathname);
 
   /**
-   * An override belongs to the route that published it, and dies with it.
-   *
-   * `currentDrive` is `pathDrive ?? overrideDrive`, so on a route whose URL
-   * carries no drive — `/`, `/admin`, `/settings` — a stale override is the
-   * whole answer. That is how the root page came to name a drive beside its
-   * own cards: the sidebar's collection click publishes one and never
-   * clears it, and the two components that do clear it do so in their own
-   * effect cleanups, which is three separate places remembering to keep one
-   * invariant.
-   *
-   * Clearing on every navigation makes it structural instead. A surface
-   * that still owns a drive republishes it in its own effect, which runs
-   * after the route change — `FileDetailFullScreen` already does, after its
-   * fetch, and `CollectionDetail` synchronously on mount.
+   * An override belongs to the route that published it, and dies with it:
+   * on a route whose URL carries no drive, a stale override is the whole
+   * answer. A surface that still owns a drive republishes it in its own
+   * effect, which runs after the route change.
    */
   useEffect(() => {
     setOverrideDriveState(null);

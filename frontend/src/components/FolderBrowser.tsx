@@ -52,18 +52,9 @@ interface FolderBrowserProps {
   folderPath?: string;
   view?: string | null;
   tagFilter?: string | null;
-  /** When set (non-empty), the browser renders search-mode UI. */
   searchQuery?: string;
-  /** Optional pre-set type filter (used by SearchPage from URL). */
   typeFilter?: FileKind | null;
-  /** When set, the active search came from a saved Smart Folder. */
   smartFolderId?: string | null;
-  /**
-   * Search-only flag. When `true`, semantic search includes scene-frame
-   * CLIP embeddings alongside the default representative-frame route.
-   * Driven by the scene-search toggle on `SearchPage`. Spec
-   * `2026-05-02-thumbnail-clip-default-shallow-search.md`.
-   */
   includeSceneClip?: boolean;
 }
 
@@ -78,16 +69,11 @@ export function FolderBrowser({
   includeSceneClip,
 }: FolderBrowserProps) {
   const isSearch = !!(searchQuery && searchQuery.trim());
-  // Load the snapshot exactly once via useState's lazy initializer. We pass
-  // the same reference down to useFolderFiles so that both its filter tuple
-  // and the hydrated items originate from a single parse of sessionStorage.
   const [initialSnapshot] = useState(() => {
     const snap = loadListSnapshot(buildListSnapshotKey({ driveName, folderPath, view, tagFilter }));
     return snap?.filters.sort === "random" ? null : snap;
   });
 
-  // Search mode defaults to relevance (hybrid score on the merged
-  // filename + semantic list); folder/view browsing keeps created_at.
   const [localSort, setLocalSort] = useState<SortField>(
     initialSnapshot?.filters.sort ?? (isSearch ? "relevance" : "created_at"),
   );
@@ -100,8 +86,7 @@ export function FolderBrowser({
   const [trustFilter, setTrustFilter] = useState<TrustFilter | null>(null);
   // Search mixes filename matches with semantic hits, and the semantic source
   // ranks and truncates before the client ever sees the rows — post-filtering
-  // that would silently under-report. Until the addon can take the predicate
-  // itself, the chip is withheld here rather than shown while lying.
+  // that would silently under-report.
   const trustFilterAvailable = !isSearch;
   useEffect(() => {
     if (!trustFilterAvailable && trustFilter) setTrustFilter(null);
@@ -110,9 +95,6 @@ export function FolderBrowser({
   const [refreshKey, setRefreshKey] = useState(0);
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
-  // Propagate right-pane mutations to the tree pane as an explicit
-  // out-of-band refresh (complements the WS-based refresh already in
-  // FolderTreePane.useWebSocketRefresh).
   const refreshTree = useTreeRefresh();
   const prevRefreshKeyRef = useRef(refreshKey);
   useEffect(() => {
@@ -131,61 +113,27 @@ export function FolderBrowser({
     return () => window.removeEventListener("loft-move-complete", handler);
   }, [refresh]);
 
-  // True while any pane has an internal (move) drag in progress — used
-  // to gate drop targets for cross-pane drag-and-drop.
   const isInternalDragging = useIsInternalDragging();
 
   const isFavorites = view === "favorites";
   const isRecentAdded = view === "recent-added";
   const isLiked = view === "liked";
   const isAll = view === "all";
-  // The Library root, where the trail names only the drive. Arbitration
-  // 11: a subfolder is named by its own trail segment, so a title there
-  // would state the subject twice.
   const isLibraryRoot = isLibraryRootView(view) && !folderPath;
   const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isLiked || isAll;
-  // Is there a concrete folder we are anchored to? This is the question
-  // the per-folder preferences and the create-file actions actually ask,
-  // and a folder-scoped tag filter answers it yes: the breadcrumb shows a
-  // folder and the listing is scoped to its subtree (spec
-  // 2026-08-21-folder-scoped-tag-filter §6). It is false at the drive
-  // root, in the flat virtual views (favorites/recent/...), and in search,
-  // which render no single folder.
-  //
-  // It replaced `isFolderContext`, a single flag that stood for three
-  // different questions and so was easy to misread as "folder support is
-  // handled" (hako a8r4bT7Wt1LQ6IBPTBm7N).
   const isLocation = !isSpecialView && !isSearch && folderPath !== undefined;
   const isFolderAnchored = isLocation && folderPath !== "";
 
-  // Is there a concrete place to write into? A folder path answers yes,
-  // with or without a tag narrowing it — the listing is still that
-  // folder's subtree. The drive root answers yes as well, reached as a
-  // location: `folderPath === ""` is the root's own `folder_path` (spec
-  // 2026-09-12-purpose-oriented-navigation §7.1, AC 10).
-  //
-  // A tag applied *at* the root is the exception, and the same spec
-  // sentence is why: the listing there is the whole drive, so it is an
-  // unscoped tag result and names no destination. Search and the flat
-  // virtual views name none either.
-  //
-  // A different question from `isFolderAnchored`, which asks for a
-  // folder *path* — a non-empty key. Per-folder sort, view mode and
-  // pinning need that key and the root has none, so they stay on the
-  // predicate above: the root is writable and deliberately not pinnable.
+  // A different question from `isFolderAnchored`, which asks for a folder
+  // *path* — a non-empty key. Per-folder sort, view mode and pinning need that
+  // key and the root has none: the root is writable and deliberately not pinnable.
   const isWriteDestination =
     isLocation && (folderPath !== "" || !tagFilter);
 
-  // With folder scope as the default, the drive-wide view needs an
-  // explicit door. Derived once here and handed to both consumers (the
-  // toolbar header and the empty state) so they cannot disagree about
-  // when it is offered (spec 2026-08-21-folder-scoped-tag-filter §8).
   const widenTagScope = isFolderAnchored
     ? buildWidenTagScope(driveName, tagFilter)
     : null;
 
-  // Per-folder sort preference (localStorage folderPrefs:{drive}).
-  // Active only when folder-anchored; search/special views use localSort/localOrder.
   const folderSort = useFolderSort({ drive: driveName, folderPath: folderPath ?? "" });
   const sort = isFolderAnchored ? folderSort.sort : localSort;
   const order = isFolderAnchored ? folderSort.order : localOrder;
@@ -196,19 +144,15 @@ export function FolderBrowser({
     snapshotKey, hydratedScrollY,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
 
-  // Topic 9 layered fallback (grid|list only — tree visibility is now a
-  // separate axis, hako w4zVT8-dyYwshLNiJ5REY). We approximate the
-  // parent folder's dominant_kind from loaded files because the listing
-  // endpoint only carries it for child folders (Phase 1 surface).
+  // Approximate the parent folder's dominant_kind from loaded files because the
+  // listing endpoint only carries it for child folders.
   const dominantKind = useMemo(() => deriveDominantKind(files), [files]);
   const folderViewMode = useFolderViewMode({
     drive: driveName,
     folderPath: folderPath ?? "",
     dominantKind,
   });
-  // Clamp snapshot-restored viewMode to grid|list. Snapshots may carry
-  // legacy "two-pane" strings from prior sessions; defensively coerce
-  // to grid since the type is no longer valid.
+  // Snapshots may carry legacy "two-pane" strings from prior sessions.
   const snapshotMode = initialSnapshot?.filters.viewMode;
   const [globalViewMode, setGlobalViewMode] = useState<ViewMode>(
     snapshotMode === "grid" || snapshotMode === "list" ? snapshotMode : "grid",
@@ -220,9 +164,6 @@ export function FolderBrowser({
   const { visible: treeVisible } = useTreeVisible(driveName);
   const { fileId: selectedFileId } = useSelectedFile();
   const scrollContainerRef = useScrollContainer();
-  // While the user is reading a file in the tree's right pane, the
-  // FolderToolbar's folder-targeted actions (upload, new folder, sort, ...)
-  // are noise — hide on every viewport.
   const hideToolbar = treeVisible && selectedFileId !== null && selectedFileId.length > 0;
 
   const didRestoreScrollRef = useRef(false);
@@ -244,15 +185,11 @@ export function FolderBrowser({
   }, [hydratedScrollY, scrollContainerRef]);
 
   const isInitialSnapshotSaveRef = useRef(true);
-  // Holds the current effect's `save` so the unmount-only effect below
-  // can flush it. Reassigned on every effect run.
   const flushSnapshotRef = useRef<(() => void) | null>(null);
   // Last scroll offset observed while this component's DOM was still
   // mounted. `save` persists THIS, never a fresh DOM read: the scroll
   // container belongs to TwoPaneLayout and outlives us, so by the time
-  // the unmount flush runs React has already removed our rows, the
-  // container has collapsed, and `scrollTop` reads 0. Reading it there
-  // overwrote a good offset with zero on every in-app navigation.
+  // the unmount flush runs the container has collapsed and `scrollTop` reads 0.
   const lastScrollYRef = useRef(0);
   useEffect(() => {
     const container = scrollContainerRef?.current ?? null;
@@ -293,13 +230,6 @@ export function FolderBrowser({
       });
     };
 
-    // Trailing debounce rather than once-per-animation-frame. Measured
-    // 2026-08-21 (spec 2026-08-21-file-list-deep-scroll-cost §5.4): at
-    // 995 items the write is ~3 ms and fired ~115 times a second while
-    // scrolling — about a third of the frame budget spent re-persisting
-    // a snapshot nobody reads until the next navigation. It did not
-    // drop frames on the machine measured, so this is insurance for
-    // slower devices rather than a fix for an observed stall.
     const scheduleSave = () => {
       rememberScrollY();
       if (timer != null) clearTimeout(timer);
@@ -361,12 +291,7 @@ export function FolderBrowser({
   const tsc = useTranslations("shortcuts");
   const { scanning, handleScan } = useDriveScan(driveName, refresh);
   const createFolder = useCreateFolder(driveName, folderPath, refresh);
-  // Creating a file needs a place to put it, so both doors to it — the
-  // toolbar's row and the keyboard — are closed on a listing that names
-  // no location. `isWriteDestination` is the question both ask.
   const { createFile } = useCreateFile(driveName, folderPath ?? "");
-  // The empty folder's two doors are the add menu's two doors. Same picker,
-  // so the two cannot disagree about what an upload is.
   const filePicker = useFilePicker();
   const [pasting, setPasting] = useState(false);
 
@@ -377,7 +302,6 @@ export function FolderBrowser({
       await clipboard.paste(driveName, folderPath ?? "");
       refresh();
     } catch {
-      // error handled silently
     } finally {
       setPasting(false);
     }
@@ -416,10 +340,6 @@ export function FolderBrowser({
       key: "ctrl+n",
       label: tsc("newFile"),
       handler: () => {
-        // Nothing to create into on a listing that names no location,
-        // so the key is a no-op there. A folder-scoped tag filter names
-        // one and creates into the anchored folder (§6.1); so does the
-        // drive root, whose folder is the root itself.
         if (!isWriteDestination) return;
         createFile();
       },
@@ -441,9 +361,7 @@ export function FolderBrowser({
   const folderRouter = useRouter();
 
   // URL sync for search mode: typeFilter / sort / order changes update the URL
-  // via replace (no history pollution per filter tweak). Default sort
-  // for search is "relevance" (hybrid score) so omit it from the URL
-  // to keep the canonical search URL clean.
+  // via replace (no history pollution per filter tweak).
   useEffect(() => {
     if (!isSearch || !searchQuery) return;
     const params = new URLSearchParams();
@@ -494,25 +412,14 @@ export function FolderBrowser({
   const effectiveSort = isRecentAdded ? "created_at" : isLiked ? "liked_at" : sort;
   const effectiveOrder = isRecentAdded || isLiked ? "desc" : order;
   /**
-   * Whether the rows on screen are "this folder, in this order" and
-   * nothing else.
-   *
-   * Handed to the file links as `nav=folder`, and it is the only thing
-   * that lets the detail pane draw an `n / N`. The pane cannot work
+   * Handed to the file links as `nav=folder`. The detail pane cannot work
    * this out for itself: `/files/{id}` redirects to the file's own
    * folder and drops `view` / `q` / `tag` / `smart_folder_id`, and
-   * `typeFilter` / `trustFilter` were never in the URL at all. So the
-   * listing says it, at the moment it still knows.
-   *
-   * `random` is excluded because there is no place to hold in an order
-   * that is redrawn on every load.
+   * `typeFilter` / `trustFilter` were never in the URL at all.
    */
   const listingIsPlainFolder =
     // Not `isFolderAnchored`: that asks for a folder *path*, and the
-    // drive root has none while still being a folder. `folderPath !==
-    // undefined` is the location test — `""` is the root's own
-    // `folder_path`, and the rows under it are that folder's children in
-    // the order the URL names, which is what the marker claims.
+    // drive root has none while still being a folder.
     folderPath !== undefined &&
     !isSpecialView &&
     !isSearch &&
@@ -532,10 +439,7 @@ export function FolderBrowser({
 
   // Depend on the individual callbacks, not on `selection` itself:
   // `useSelection` returns a fresh object literal every render, so
-  // `[selection]` would make these handlers change identity on every
-  // render and defeat `FileCard`'s memo for all 995 cards — the same
-  // failure as the `isSelected` predicate these replaced (spec
-  // `2026-08-21-file-list-deep-scroll-cost` §6.3).
+  // `[selection]` would defeat `FileCard`'s memo.
   const { toggle: toggleSelection, selectRange } = selection;
 
   const handleMetaSelect = useCallback((id: string) => {
@@ -561,42 +465,10 @@ export function FolderBrowser({
     folderRouter.push(`/files/${firstPlayable.id}?${params.toString()}`);
   }, [files, sort, effectiveSort, effectiveOrder, folderRouter]);
 
-  // Search mode renders a virtual folder view: skip the UploadZone
-  // wrapper (you can't drop files into search results) and the
-  // clipboard paste banner (paste targets a folder path).
-  // The last count that was actually known, for the thing being counted.
-  //
-  // Three pieces, and the third is the one that is easy to leave out.
-  //
-  // 1. Adjusted during render rather than in an effect: this is derived state,
-  //    and an effect would show the stale value for one commit first.
-  // 2. Keyed by subject, because this component is not remounted when the
-  //    subject changes — one route serves every folder, view, tag and query in
-  //    a drive, so React keeps the state and a remembered count would
-  //    otherwise outlive what it counted.
-  // 3. Adopted only from a `total` that belongs to this subject. `!loading` is
-  //    not enough to know that, and this is the part a first fix got wrong.
-  //    `reset()` lives in an effect, so on the render where the subject
-  //    changes the hook still reports `loading: false` and the *previous*
-  //    subject's `total` — a true-looking condition that stamps the old count
-  //    under the new subject's name and keeps it there for the whole fetch.
-  //
-  // **This is an approximation, and the header cannot make it exact.** Only
-  // the data layer knows which query a `total` came from; `useFolderFiles`
-  // reports `{ loading: false, total: <previous subject's> }` for one render,
-  // which is a lie its other consumers absorb in a frame — a stale file list
-  // under the new trail, a flicker of the toolbar's arranging controls. This
-  // component is the one that *latches*, turning that frame into a persistent
-  // claim, so it owes the guard. The real fix is for `useFolderFiles` to
-  // derive `loading` from its own reset key; that repairs every consumer at
-  // once and shrinks this to nothing. It is not done here because two
-  // behaviours downstream of that `loading` need tests of their own first.
-  //
-  // `trusted` is the proxy that stands in for the knowledge this component
-  // lacks: a subject becomes trustworthy at mount (nothing stale to inherit)
-  // or once a fetch for it has been seen to start. That rests on the data
-  // layer resetting for every axis named below, which
-  // `folderCountSubjectParity.test.ts` holds.
+  // `!loading` is not enough to adopt a `total`: `reset()` lives in an effect,
+  // so on the render where the subject changes the hook still reports
+  // `loading: false` and the *previous* subject's `total`. A subject becomes
+  // trustworthy at mount or once a fetch for it has been seen to start.
   const countedSubject = [
     driveName,
     folderPath ?? "",
@@ -604,10 +476,7 @@ export function FolderBrowser({
     tagFilter ?? "",
     typeFilter ?? "",
     searchQuery ?? "",
-    // NUL, because it cannot occur in a path, a tag or a query. The axes are
-    // joined into one string, so a separator any of them could contain would
-    // let two different subjects agree — `folder="a/b", tag=null` and
-    // `folder="a", tag="b"` under a `/`, say.
+    // NUL, because it cannot occur in a path, a tag or a query.
   ].join("\u0000");
 
   // Deliberately absent: `sort` and `order`. They reset the listing, but they
@@ -634,12 +503,6 @@ export function FolderBrowser({
 
   const inner = (
     <div className="flex min-w-0 w-full flex-1 flex-col">
-      {/* One header for both modes. The two used to be separate rows that
-          happened to line up: a `<header>` in search mode and a bare `<div>`
-          in folder mode, each spelling out its own padding and its own idea
-          of where the count goes. `PageHeader` is Y-aligned with the file
-          preview's PaneShell header, so TreeToggle sits at the same height
-          in folder, file and search mode alike. */}
       <PageHeader
         leading={<TreeToggle drive={driveName} />}
         breadcrumb={
@@ -663,18 +526,8 @@ export function FolderBrowser({
               ? tSidebar("library")
               : undefined
         }
-        // The count lives here in both modes now. It used to be in the
-        // header in search mode and in the toolbar in folder mode, which is
-        // why the same fact was worded and placed two different ways.
-        //
         // `settledTotal`, not `total`: a refetch sets `total` to 0 and
-        // `loading` to true together, so neither raw value can be shown. The
-        // old toolbar showed `total` and flashed a false "0 items" on every
-        // sort change; gating on `loading` instead makes the count vanish and
-        // come back, and here that reflows the breadcrumb beside it, which the
-        // old separate row never did. Holding the last settled count avoids
-        // both — nothing is claimed that was not true a moment ago, and the
-        // row does not move.
+        // `loading` to true together, so neither raw value can be shown.
         scope={
           settledTotal === null
             ? undefined
@@ -747,9 +600,6 @@ export function FolderBrowser({
         onCreateFolder={createFolder.handleCreateFolder}
         onCreateFile={isWriteDestination ? createFile : undefined}
         onReshuffle={handleReshuffle}
-        // Only where the breadcrumb is standing in one folder. `isPinned`
-        // and the handler travel together so the row cannot name the flip it
-        // is not making.
         isPinned={isFolderAnchored ? pinnedPaths.has(folderPath!) : undefined}
         onTogglePin={isFolderAnchored ? handleTogglePin : undefined}
       />}
@@ -782,18 +632,11 @@ export function FolderBrowser({
         </div>
       )}
 
-      {/* Phase 3 unified results: filename-match and semantic hits live
-          in the same FolderContent list (sourced via useFolderFiles +
-          searchMerge). The search-modes slot now contributes header
-          chips (e.g. Find handoff) only — no full-width section. */}
       {isSearch && !loading && files.length === 0 && (
         <EmptyState
           variant="no-results"
           // No primary: the way out of a search that found nothing is a
-          // different search, and this page cannot write it for you. A
-          // filter it *can* undo is offered, and only while one is on —
-          // an action that does nothing is worse than none, because the
-          // reader spends a click finding that out.
+          // different search, and this page cannot write it for you.
           secondaryActions={
             typeFilter || trustFilter
               ? [

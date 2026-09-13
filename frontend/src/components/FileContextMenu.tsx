@@ -19,19 +19,7 @@ interface FileContextMenuProps {
   onClose: () => void;
   onUpdate?: () => void;
   onRemoveFromHistory?: () => Promise<void>;
-  /**
-   * Tree-pane opt-in. When provided the menu shows "Open in new tab"
-   * and dispatches the callback (typically `window.open('/files/{id}',
-   * '_blank')`). The right pane omits this since it already lives on
-   * the file's own page.
-   */
   onOpenInNewTab?: () => void;
-  /**
-   * Opt-in inline rename. When provided, Rename hands control back to the
-   * host so it can edit the row in place instead of opening
-   * {@link RenameDialog}. Hosts with no row to edit — the file detail
-   * page, search results — omit it and keep the dialog.
-   */
   onStartInlineRename?: () => void;
 }
 
