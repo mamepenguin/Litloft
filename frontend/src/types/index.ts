@@ -33,7 +33,7 @@ export interface FileItem {
    * Pixel dimensions of the source image, for laying a listing out at the
    * real aspect ratio. Null for everything that is not an image — including
    * video, whose thumbnail is letterboxed to 320x180 so the true ratio has
-   * nowhere to show. Spec `2026-09-06-ui-redesign-p4-viewers.md`.
+   * nowhere to show.
    */
   image_width: number | null;
   image_height: number | null;
@@ -50,7 +50,6 @@ export interface FileItem {
    * Read together with `trust_reviewed_at`: the two encode four states, and
    * `verified` with a null stamp means "bulk-migrated or declared by an
    * addon at ingest", not "a person approved this".
-   * Spec `2026-08-29-web-clip-promotion.md`.
    */
   trust_tier: TrustTier;
   trust_reviewed_at: string | null;
@@ -65,17 +64,12 @@ export interface FileItem {
   updated_at: string;
   /**
    * Set only on the backend search path. Indicates whether the query matched
-   * the title, folder_path, or both. `searchMerge.ts` routes this to the
-   * filename vs path badge. `null` on non-search paths.
-   * Spec `2026-05-02-search-path-match.md`.
+   * the title, folder_path, or both. `null` on non-search paths.
    */
   match_source?: "filename" | "path" | "both" | null;
   /**
-   * Whether the file has chapters, answered inline by the detail endpoint
-   * so the companion layout can be decided from data already in hand. The
-   * list itself comes from `getFileChapters`. Absent on list endpoints,
+   * Answered inline by the detail endpoint; absent on list endpoints,
    * which return the plain file shape.
-   * Spec `2026-08-11-media-chapters.md` §5.
    */
   has_chapters?: boolean;
 }
@@ -109,8 +103,7 @@ export interface AuthStatus {
   unlocked_groups: string[];
   has_protected_drives: boolean;
   // True iff the viewer can see every protected drive (the same
-  // admin definition the /admin gate uses). Gates the sidebar
-  // dashboard link.
+  // admin definition the /admin gate uses).
   is_admin: boolean;
 }
 
@@ -129,8 +122,6 @@ export interface Folder {
   path: string;
   file_count: number;
   /**
-   * How many active files of each kind the folder holds, recursively.
-   *
    * A kind the folder holds none of is absent rather than zero, and the
    * values partition `file_count`. Empty for a folder with no files, and
    * empty in the folder-mutation responses, which do not compute it.
@@ -142,10 +133,6 @@ export interface Folder {
 /**
  * The one vocabulary for "what kind of file is this", mirroring
  * `FileKind` in `backend/app/routers/drives.py`.
- *
- * It is `FileType` with two refinements nested under `document`:
- * markdown and PDF are documents, and asking for documents returns
- * them. `subtitle` is a real `file_type` but no surface offers it.
  *
  * The classifier lives in the backend and only there — a second
  * implementation that agreed the day it was written is what put the
@@ -257,15 +244,6 @@ export type SortField =
   | "relevance";
 export type SortOrder = "asc" | "desc";
 
-/**
- * Per-file match metadata in the unified search results list.
- *
- * Phase 3 (`2026-05-02-search-results-unification-phase3.md`) folds
- * filename match and semantic results into one list; each card carries
- * the engines that hit alongside the FileItem. Engines are independent
- * — multiple may be set for a single file ("filename + transcript +
- * clip" is a stronger result than any one alone).
- */
 export interface MatchTimestamp {
   time_range: [number, number];
   score: number;
@@ -285,9 +263,6 @@ export interface MatchMeta {
    * Folder-path substring match from the filename engine. Carried as a
    * separate channel so the card can label "パス" distinctly from
    * "ファイル名" — both can be set when the query hits both fields.
-   * Hybrid score weight is intentionally low (0.3) to keep noise from
-   * broad-folder matches like "/Music/" out of the top ranks. Spec
-   * `2026-05-02-search-path-match.md`.
    */
   path?: { score: number };
   /**
@@ -301,8 +276,7 @@ export interface MatchMeta {
   /**
    * Representative-frame CLIP match (one per file, no timestamp).
    * Distinct from ``clip`` so the UI can label "video about X"
-   * (thumbnail) vs. "scene with X" (scene CLIP) separately. Spec
-   * `2026-05-02-thumbnail-clip-default-shallow-search.md`.
+   * (thumbnail) vs. "scene with X" (scene CLIP) separately.
    */
   clip_thumbnail?: { score: number };
   /** Metadata embedding hit (filename + title + description + tags). */
@@ -319,9 +293,6 @@ export interface MatchMeta {
    * Chip-only badge: the keyword expansion does NOT point at a body
    * location, so the result item shows the chip but jumps using
    * whichever other channel produced a real timestamp / page.
-   * ``matched`` holds the expanded keyword string(s) for future UI use
-   * (Phase 2.5+ tooltip / inline display). Spec
-   * docs/superpowers/specs/2026-05-14-sira-retrieval-keywords.md.
    */
   retrieval_keywords?: { score: number; matched?: string[] };
   /** Page references for paginated documents (PDF). */
