@@ -16,9 +16,9 @@ const MAX_CONCURRENT = 2;
 // so 10k+ chunks add measurable overhead on multi-GB uploads.
 function pickChunkSize(fileSize: number): number {
   const MB = 1024 * 1024;
-  if (fileSize <= 1024 * MB) return 5 * MB;       // <= 1GB
-  if (fileSize <= 10 * 1024 * MB) return 25 * MB; // <= 10GB
-  return 100 * MB;                                 // > 10GB
+  if (fileSize <= 1024 * MB) return 5 * MB;
+  if (fileSize <= 10 * 1024 * MB) return 25 * MB;
+  return 100 * MB;
 }
 
 export type UploadStatus =
@@ -192,7 +192,6 @@ export function useUpload(drive: string, folderPath: string, onFileComplete?: ()
         }
       }
       updateUpload(id, { status: "cancelled" });
-      // Remove from queue if still pending
       queueRef.current = queueRef.current.filter((qId) => qId !== id);
     },
     [drive, updateUpload]
@@ -207,7 +206,6 @@ export function useUpload(drive: string, folderPath: string, onFileComplete?: ()
           u.status !== "cancelled"
       )
     );
-    // Clean up internals for completed
     for (const [id, internal] of internalsRef.current.entries()) {
       if (internal.aborted) {
         internalsRef.current.delete(id);
