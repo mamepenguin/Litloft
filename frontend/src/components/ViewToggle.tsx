@@ -27,19 +27,18 @@ export function ViewToggle({ mode: controlledMode, onChange }: ViewToggleProps) 
   const t = useTranslations("view");
   const { mode, select } = useViewModeState(controlledMode, onChange);
 
-  // The selected button used to be `bg-accent text-white`, on a control that
-  // only says which of two equal views you are in. DESIGN.md §2.2 allows one
-  // fill per screen and it belongs to what the screen is for, not to a view
-  // switch. This toggle rides on four screens, so it is dropped here rather
-  // than at one call site: the drive home, a collection, Trash and Missing.
-  // **The list is asserted, not maintained here** — `ViewToggle.test.tsx`
-  // walks the tree for the call sites, because the sentence that used to hold
-  // them said four when there were six, and that same sentence was the list
-  // of backgrounds the contrast below was measured against. (Six until Phase
-  // 3 B2b-2b gave the folder toolbar a labelled `ViewMenu`, five until Phase
-  // 4 P4V-5 gave the archive toolbar the same. Of the four, the drive home
-  // sits in a `bg-bg-elevated` pill, Trash in a `bg-bg-card` one, and the
-  // other two on the page.)
+  // A control that only says which of two equal views you are in does not
+  // get the screen's accent fill: DESIGN.md §2.2 allows one per screen and
+  // it belongs to what the screen is *for*. Dropped here rather than at each
+  // call site, because this toggle rides on more than one screen.
+  // **The list of those screens is asserted, not maintained here** —
+  // `ViewToggle.test.tsx` walks the tree for the call sites, because the
+  // sentence that used to hold them said four when there were six, and that
+  // same sentence was the list of backgrounds the contrast below was
+  // measured against. The backgrounds it sits on still vary — a pill of
+  // `bg-bg-elevated`, one of `bg-bg-card`, or the page itself — which is why
+  // the selection device below is measured against every candidate rather
+  // than against one screen's.
   //
   // Selection is carried by a **border**, the same device §Tabs uses, and not
   // by a surface. No surface token can carry it: `--bg-card` is `#ffffff` in

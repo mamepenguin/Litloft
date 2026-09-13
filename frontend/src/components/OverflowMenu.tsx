@@ -15,13 +15,6 @@ interface OverflowMenuProps {
    */
   label: string;
   /**
-   * Whether something inside is currently on — the drive root's `…`
-   * holds Select mode. Visual only: the state belongs to the row, which
-   * carries `aria-pressed`, and a trigger that is already
-   * `aria-haspopup` would be claiming to be two controls.
-   */
-  active?: boolean;
-  /**
    * `ActionMenuItem` rows. They receive `close` so a row can dismiss the
    * menu before doing its work: the row that was focused unmounts with
    * the panel, and without moving focus first a keyboard user lands on
@@ -33,9 +26,9 @@ interface OverflowMenuProps {
 /**
  * The `…` overflow menu: trigger, panel, and how it closes.
  *
- * Written once because there were already two copies of it — the drive
- * root's toolbar and the collection header — differing only in what they
- * hold. The panel is anchored to the right of its trigger, which is
+ * Written once so that a bar needing one does not grow its own copy of
+ * the trigger, the panel and the dismissal. The panel is anchored to the
+ * right of its trigger, which is
  * where a `…` sits on every bar in this app; `AddButton` keeps its own
  * geometry because its trigger is a labelled primary button that can sit
  * at either end of a row (see the `align` note there).
@@ -58,7 +51,7 @@ interface OverflowMenuProps {
  * one menu on a bar that does not use it yet; its side is a parameter of
  * the recipe now, so what is left there is the conversion, not a reason.
  */
-export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
+export function OverflowMenu({ label, children }: OverflowMenuProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const surface = useMenuSurface(open);
@@ -88,11 +81,7 @@ export function OverflowMenu({ label, active, children }: OverflowMenuProps) {
         title={label}
         // 44px on a coarse pointer, as every icon-only control on a bar
         // gets (`Button`'s note on the same floor).
-        className={`flex items-center justify-center rounded-lg p-2 transition-colors pointer-coarse:min-h-11 pointer-coarse:min-w-11 ${
-          active
-            ? "bg-bg-card text-text-primary"
-            : "text-text-muted hover:text-text-primary"
-        }`}
+        className="flex items-center justify-center rounded-lg p-2 text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11 pointer-coarse:min-w-11"
       >
         <MoreHorizontal size={16} />
       </button>

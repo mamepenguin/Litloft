@@ -83,6 +83,23 @@ const CARD_ICON_SIZE = 18;
 /** Components whose `icon` prop is rendered as a section heading icon. */
 const SECTION_COMPONENTS = ["CarouselSection", "ContinueWatchingSection"];
 
+/**
+ * How many section glyphs the drive home's own column carries.
+ *
+ * Declared per state rather than counted from the scan: deriving it from
+ * what was found cannot fail when a heading is deleted, because the
+ * observation and the expectation move together (detector rule 5). The
+ * two states are whether the intelligence submodule is checked out —
+ * "Pickup" renders into this column beside core's own sections. Only the
+ * branch matching the tree it runs in is exercised, so the other number
+ * is declared and not measured.
+ */
+const DRIVE_HOME_GLYPHS = existsSync(
+  resolve(REPO_ROOT, "addons/intelligence/frontend"),
+)
+  ? 7
+  : 6;
+
 const REQUIRED_COLOUR = "text-text-muted";
 const REQUIRED_SIZE = 20;
 
@@ -217,10 +234,11 @@ describe("section heading icons", () => {
     // Per root, not as one total, for the reason `page-headings.test.ts`
     // gives: a single number over core plus whichever submodules happen to
     // be checked out fails a `git clone` without `--recurse-submodules`
-    // with "expected 7 to be 8" and nothing naming the cause. This file
-    // did exactly that until the clone was measured. Core's seven are the
-    // drive home column's sections; the eighth was always the intelligence
-    // addon's "Pickup", asserted here only where that addon is present.
+    // with a bare "expected N to be M" and nothing naming the cause. This
+    // file did exactly that until the clone was measured. Core's own are
+    // the drive home column's sections plus the admin dashboard's cards;
+    // the intelligence addon's "Pickup" is counted under its own root,
+    // asserted only where that addon is present.
     const perRoot = new Map<string, number>();
     for (const icon of icons) {
       const root = icon.where.startsWith("addons/")
@@ -228,8 +246,8 @@ describe("section heading icons", () => {
         : "frontend/src";
       perRoot.set(root, (perRoot.get(root) ?? 0) + 1);
     }
-    // Seven drive-home sections plus the admin dashboard's two cards.
-    expect(perRoot.get("frontend/src")).toBe(9);
+    // Six drive-home sections plus the admin dashboard's two cards.
+    expect(perRoot.get("frontend/src")).toBe(8);
 
     const EXPECTED_ADDON_ICONS: Record<string, number> = {
       // "Pickup" on the drive home, and the index-status card on /admin.
@@ -294,13 +312,15 @@ describe("section heading icons", () => {
     // widgets that render into the drive home beside core's own.
     const DRIVE_HOME = new Set([
       "frontend/src/components/DriveHome.tsx",
-      "frontend/src/components/RootFileListing.tsx",
       "frontend/src/components/ContinueWatchingSection.tsx",
       "addons/intelligence/frontend/PickupWidget.tsx",
     ]);
     const column = icons.filter((i) => DRIVE_HOME.has(i.where.split(":")[0]));
     const glyphs = column.map((i) => i.glyph);
-    expect(glyphs.length).toBeGreaterThan(1);
+    // Declared, not bounded: `toBeGreaterThan` stays green when the scan
+    // stops reaching this column at all, which is the failure the
+    // uniqueness check below exists to make visible.
+    expect(glyphs.length).toBe(DRIVE_HOME_GLYPHS);
     expect(new Set(glyphs).size).toBe(glyphs.length);
   });
 });

@@ -370,11 +370,11 @@ export function FolderToolbar({
                     <MenuSeparator />
                   </div>
                 )}
-                {/* The same row the drive root draws, from the same
-                    component, so the two cannot describe one state two
-                    ways. The menu around it stays hand-written: its
-                    trigger is a bordered bar control and it carries the
-                    view and sort groups below 768px, neither of which
+                {/* Drawn with `ActionMenuItem` so a row inside this menu
+                    and a row inside any other describe a toggled state
+                    the same way. The menu around it stays hand-written:
+                    its trigger is a bordered bar control and it carries
+                    the view and sort groups below 768px, neither of which
                     `OverflowMenu` covers. */}
                 <ActionMenuItem
                   icon={CheckSquare}

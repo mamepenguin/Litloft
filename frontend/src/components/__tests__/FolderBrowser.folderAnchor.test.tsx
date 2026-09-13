@@ -478,9 +478,13 @@ describe("FolderBrowser — the empty folder's own doors", () => {
 /**
  * `nav=folder` is what lets the detail pane draw an `n / N` and walk the
  * folder's own order. The claim it makes is "the rows on screen are this
- * folder, in this order, and nothing else" — which the Library root now
- * satisfies: its rows are the drive root's children, and
- * `RootFileListing` already says the same of the same request.
+ * folder, in this order, and nothing else", which the Library root
+ * satisfies: its rows are the drive root's children, asked for as
+ * `path=""`.
+ *
+ * Measured here by rendering rather than by scanning the source, because
+ * the gate that emits it takes `folderPath !== undefined` and a string
+ * match cannot tell `""` from a path.
  */
 describe("FolderBrowser — which listings may be counted", () => {
   it("marks the Library root, whose rows are the root folder's own", () => {

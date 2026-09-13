@@ -6,8 +6,8 @@ import { stripComments } from "./helpers/sourceScan";
 
 import { DriveHome } from "@/components/DriveHome";
 import { EmptyState } from "@/components/EmptyState";
+import { FolderBrowser } from "@/components/FolderBrowser";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
-import { RootFileListing } from "@/components/RootFileListing";
 import { SelectionBar } from "@/components/SelectionBar";
 import type { FileItem } from "@/types";
 import { accentFills } from "./helpers/accentFills";
@@ -34,6 +34,9 @@ vi.mock("@/components/AddonSlot", () => ({ AddonSlot: () => null }));
 // and `AddButton` are deliberately real — they are what is being measured.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/drive/main",
+  useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({ name: "main" }),
 }));
 vi.mock("next/link", () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,12 +50,18 @@ vi.mock("@/components/TreeToggle", () => ({ TreeToggle: () => <button>tree</butt
 vi.mock("@/components/FileGrid", () => ({ FileGrid: () => <div data-testid="grid" /> }));
 vi.mock("@/components/FileList", () => ({ FileList: () => <div data-testid="list" /> }));
 
+// Module-level and mutable, so it carries between `describe` blocks unless
+// something puts it back. `mockProfile` above is the same shape and this
+// file already learned that lesson from it, so the reset is global rather
+// than per-describe: a block that never mentions the clipboard is exactly
+// the one that will not think to reset it.
+const mockClipboard: { clipboard: unknown } = { clipboard: null };
 vi.mock("@/components/ClipboardProvider", () => ({
-  useClipboard: () => ({ clipboard: null, clear: vi.fn(), copy: vi.fn(), cut: vi.fn(), paste: vi.fn(), isCut: () => false }),
+  useClipboard: () => ({ ...mockClipboard, clear: vi.fn(), copy: vi.fn(), cut: vi.fn(), paste: vi.fn(), isCut: () => false }),
 }));
-// The drive root's own screen is `DriveHome`. `RootFileListing` stays
-// real inside it — the point of the cases below is that the fill is in
-// the header and nowhere in the listing.
+// The drive root's own screen is `DriveHome`; the listing of its children
+// is the Library screen, which is a different screen with a budget of its
+// own. Both are asserted in this file, each by rendering itself.
 //
 // **`useProfile` is not ambient, and stubbing it hides a state.**
 // `hasProfile` gates both watch-history rows out of the tree, and their
@@ -214,6 +223,10 @@ const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
   { screen: "personal settings", assertedIn: "src/app/settings/__tests__/page.test.tsx" },
   { screen: "folder toolbar", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "drive root", assertedIn: "src/__tests__/accent-budget.test.tsx" },
+  // A screen of its own, not a section of the one above: the drive home
+  // and the listing of the drive root's children are two pages, and a
+  // budget is per screen.
+  { screen: "Library root", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "selection bar over a folder", assertedIn: "src/__tests__/accent-budget.test.tsx" },
   { screen: "trash", assertedIn: "src/components/__tests__/TrashMissingHeader.test.tsx" },
   { screen: "missing", assertedIn: "src/components/__tests__/TrashMissingHeader.test.tsx" },
@@ -230,6 +243,10 @@ const SCREENS: ReadonlyArray<{ screen: string; assertedIn: string }> = [
  * whatever the screens happen to use, and every wrong entry two earlier
  * drafts had was a variant no screen used yet.
  */
+beforeEach(() => {
+  mockClipboard.clipboard = null;
+});
+
 describe("what counts as a fill at rest", () => {
   const has = (token: string) => {
     const el = document.createElement("div");
@@ -309,7 +326,7 @@ describe("what counts as a fill at rest", () => {
 describe("accent budget", () => {
   afterEach(cleanup);
 
-  it("covers sixteen core screens, and each one somewhere that runs", () => {
+  it("covers seventeen core screens, and each one somewhere that runs", () => {
     expect(SCREENS.map((s) => s.screen)).toEqual([
       "root drive picker",
       "admin dashboard",
@@ -320,6 +337,7 @@ describe("accent budget", () => {
       "personal settings",
       "folder toolbar",
       "drive root",
+      "Library root",
       "selection bar over a folder",
       "trash",
       "missing",
@@ -465,6 +483,71 @@ describe("accent budget", () => {
   });
 });
 
+describe("accent budget — Library root", () => {
+  // The screen, not its toolbar. A bare `FolderToolbar` answers the same
+  // for every `folderPath`, so a case rendering one cannot tell this
+  // screen from a folder and duplicates the folder-toolbar cases above
+  // exactly — every mutation kills the pair together. `FolderBrowser`
+  // brings the things that are only on a screen: the page header's
+  // actions, the clipboard banner, the selection bar.
+  beforeEach(() => {
+    mockGetDriveFiles.mockReset();
+    mockGetDriveFiles.mockResolvedValue({ data: [playableFile()], meta: { total: 1 } });
+    localStorage.clear();
+  });
+  afterEach(cleanup);
+
+  const fillLabels = (root: HTMLElement) =>
+    [...new Set(accentFills(root).map((el) => el.textContent?.trim() ?? ""))];
+
+  it("spends its one fill on Add", async () => {
+    const { container } = render(<FolderBrowser driveName="main" folderPath="" view="library" />);
+    await screen.findAllByRole("button", { name: "Add" });
+    // Two, because the toolbar renders its left group once for each
+    // breakpoint and jsdom applies no stylesheet, so both are in the
+    // tree. Declared rather than deduped away, so a third copy — a real
+    // second fill drawn with the same label — cannot hide behind the set
+    // below.
+    expect(accentFills(container)).toHaveLength(2);
+    expect(fillLabels(container)).toEqual(["Add"]);
+  });
+
+  it("spends two while the clipboard is full, which §2.2 does not allow", () => {
+    // **This records a defect, not a rule.** `Paste here` is drawn
+    // `variant="primary"` (`FolderBrowser.tsx:742-749`), so while the
+    // clipboard is non-empty every folder screen — the Library root and
+    // any path alike — carries a second resting fill beside Add.
+    //
+    // **Where it gets decided**: the stage 4 design pass, in a real
+    // browser, alongside the other things only a viewer can judge. Not
+    // here, and not by whoever next reads this file.
+    //
+    // Not introduced here: the banner has drawn it since clipboard
+    // operations landed, and no case could see it because this file
+    // rendered toolbars rather than screens and its clipboard was always
+    // null. It is pinned rather than fixed because which of the two
+    // should keep the fill is a DESIGN.md §2.2 decision over every folder
+    // screen, not a consequence of moving a listing.
+    //
+    // So this case goes **red when the defect is fixed**, on purpose:
+    // whoever fixes it updates the expectation deliberately instead of
+    // finding a green suite over a screen that lost its second fill.
+    mockClipboard.clipboard = { fileIds: ["f1"], drive: "main", path: "recipes", mode: "copy" };
+    const { container } = render(<FolderBrowser driveName="main" folderPath="" view="library" />);
+    expect(fillLabels(container)).toEqual(["Add", "Paste here"]);
+  });
+
+  it("spends two at a named folder as well, which is what makes it general", () => {
+    // The claim above is about *every* folder screen, and one screen
+    // cannot hold it: a partial fix gating the banner on
+    // `folderPath === ""` would leave the root case red-on-fix and this
+    // one silently wrong. Both ends of the population, declared.
+    mockClipboard.clipboard = { fileIds: ["f1"], drive: "main", path: "other", mode: "copy" };
+    const { container } = render(<FolderBrowser driveName="main" folderPath="recipes" />);
+    expect(fillLabels(container)).toEqual(["Add", "Paste here"]);
+  });
+});
+
 describe("accent budget — drive root", () => {
   beforeEach(() => {
     mockGetDriveFiles.mockReset();
@@ -475,12 +558,17 @@ describe("accent budget — drive root", () => {
   });
   afterEach(cleanup);
 
-  it("spends its one fill on Add, with something playable in the drive", async () => {
+  it("spends its one fill on Add, with content rows on screen", async () => {
     const { container } = render(<DriveHome driveName="main" />);
-    // Play only appears once the listing knows it holds something playable,
-    // and waiting for it is what proves the file listing has rendered — the
-    // half of the screen the fill used to be in.
-    expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
+    // A row's heading is drawn while it is still loading, so it says
+    // nothing about whether anything arrived. The count on `See all` is
+    // only known once the batch has settled, which is the state where a
+    // second fill could appear — waiting on the request that starts it
+    // would assert over an empty page (detector rule 3).
+    // Three: the rows that carry a count are Recently added, Favourites
+    // and Liked. `not.toHaveLength(0)` here would stay green if two of
+    // them stopped drawing at all (detector rule 1).
+    expect(await screen.findAllByText(/See all \(1\)/)).toHaveLength(3);
     expect(
       [...new Set(accentFills(container).map((el) => el.textContent?.trim() ?? ""))],
     ).toEqual(["Add"]);
@@ -499,7 +587,7 @@ describe("accent budget — drive root", () => {
     ).toEqual(["Add"]);
   });
 
-  it("puts Add in the header, not in the listing below it", async () => {
+  it("puts Add in the header", async () => {
     render(<DriveHome driveName="main" />);
     const add = await screen.findByRole("button", { name: "Add" });
     expect(add.closest("header")).not.toBeNull();
@@ -535,14 +623,4 @@ describe("accent budget — drive root", () => {
     }
   });
 
-  it("leaves the file listing with no fill of its own", async () => {
-    // The fill moved; it was not copied. Asserting only that the header has
-    // one cannot tell the two apart — a detector whose expected values come
-    // from what it observes cannot see "this disappeared" — so the screen it
-    // left is checked directly.
-    const { container } = render(<RootFileListing driveName="main" />);
-    expect(await screen.findByRole("button", { name: "Play" })).toBeInTheDocument();
-    expect(accentFills(container)).toHaveLength(0);
-    expect(screen.queryByRole("button", { name: "Add" })).toBeNull();
-  });
 });

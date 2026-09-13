@@ -33,7 +33,6 @@ vi.mock("@/lib/api", () => ({
   createFolder: vi.fn(() => Promise.resolve()),
 }));
 
-vi.mock("../RootFileListing", () => ({ RootFileListing: () => <div /> }));
 vi.mock("../AddonSlot", () => ({ AddonSlot: () => <div /> }));
 vi.mock("../ContinueWatchingSection", () => ({ ContinueWatchingSection: () => <div /> }));
 vi.mock("../PageHeader", () => ({ PageHeader: () => <div /> }));
@@ -219,17 +218,18 @@ const SECOND_DRIVE_FOLDER_NAME = "lima";
  * **Why document-wide is sound here**, and it is not "everything else is
  * stubbed": `CarouselSection` and `FolderContextMenu` both draw real
  * elements in this file, and `FolderCard`, `InlineNameEditor` and
- * `Button` are not stubbed at all. It is that the attribute has one
- * producer, `FolderCard`, and the only other host that draws folder
- * cards — `RootFileListing` — is stubbed to a `<div />` here. Give that
- * stub a card carrying the attribute and the case below goes red, which
- * is the property this rests on rather than a convention.
+ * `Button` are not stubbed at all. It is that the attribute's three
+ * producers are `FolderCard`, `FolderListRow` and `FolderTreeRow`, and
+ * only the card is reachable from this render — the other two belong to
+ * a folder listing and to the tree pane, neither of which this screen
+ * draws. Put a second producer on this screen and the case below stops
+ * measuring what it names, which is the property this rests on rather
+ * than a convention.
  *
  * `DriveHome.folderGrid.test.tsx` takes the other choice for the same
- * hazard: it scopes to the Folders section because `RootFileListing` is
- * live in production. Its declared survivor records that the scoping is
- * unwitnessed *there* — so it is a precedent for naming the hazard, not
- * authority for reading unscoped.
+ * hazard and scopes to the Folders section. Its declared survivor
+ * records that the scoping is unwitnessed *there* — so it is a precedent
+ * for naming the hazard, not authority for reading unscoped.
  */
 function nonEditingFolderCardCount(): number {
   return document.querySelectorAll("[data-rename-focus]").length;

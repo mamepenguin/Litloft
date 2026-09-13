@@ -62,12 +62,12 @@ describe("ViewToggle (controlled)", () => {
   });
 
   // DESIGN.md §2.2: one accent fill per screen, and it belongs to what the
-  // screen is for. This toggle rode on six screens when the fill came off —
-  // the folder toolbar beside Upload and Play, the drive home, a collection,
-  // Trash, Missing and the inside of an archive — so it was spending the
-  // budget on a view switch in six places. Two of the six have since taken a
-  // labelled `ViewMenu` instead; the four the test below enumerates are what
-  // is left, and they are the backgrounds the contrast was measured against.
+  // screen is for. A view switch is not what any screen is for, so wherever
+  // this control rides it was spending a budget that belonged elsewhere —
+  // which is why the fill came off here rather than at each call site. Which
+  // screens those are, and so which backgrounds the contrast was measured
+  // against, is enumerated by the test at the bottom of this file and not by
+  // this sentence.
   it("does not spend an accent fill on the selected view", () => {
     render(<ViewToggle mode="list" onChange={vi.fn()} />);
     for (const label of ["List view", "Grid view"]) {
@@ -108,11 +108,11 @@ describe("ViewToggle (controlled)", () => {
 
 // Where this control actually appears.
 //
-// Its own comment claimed four screens and there were six, and that same list
-// was the list of backgrounds its contrast was measured against — so the prose
-// was doing the job of an enumeration while being maintained by hand. That is
-// the `>=` hazard in sentence form: the two it omitted could not contradict
-// it. The count is asserted instead, and the comment now cites this test.
+// A comment naming these screens was maintained by hand and was wrong by two,
+// and that same list was the list of backgrounds its contrast was measured
+// against — so the prose was doing the job of an enumeration. That is the `>=`
+// hazard in sentence form: what it omitted could not contradict it. The set is
+// asserted here instead, and the comments there cite this test.
 describe("where ViewToggle is used", () => {
   const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -137,13 +137,14 @@ describe("where ViewToggle is used", () => {
   }
 
   it("appears on exactly the screens its comment names", () => {
-    // Four. Two toolbars have left: the folder's in Phase 3 B2b-2b and the
-    // archive's in Phase 4 P4V-5, both for the same reason — two adjacent
-    // icons that only a border told apart became one control reading
-    // `View: <layout>`. The four that remain keep the toggle.
+    // A screen keeps the toggle where the bar it sits on has room for two
+    // adjacent icons; a bar competing for room carries a labelled
+    // `View: <layout>` menu instead, which is what both folder listings
+    // draw. The set is enumerated rather than counted, because a screen
+    // that lost the control and a screen that never had it are the same
+    // number.
     expect(callSites()).toEqual([
       "components/CollectionDetail.tsx",
-      "components/RootFileListing.tsx",
       "components/missing/MissingView.tsx",
       "components/trash/TrashToolbar.tsx",
     ]);
