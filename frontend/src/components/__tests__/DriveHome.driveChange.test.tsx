@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { FileItem, Folder as FolderType, PaginatedResponse } from "@/types";
+import type { FileItem, PaginatedResponse, WatchHistoryItem } from "@/types";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -19,28 +19,40 @@ vi.mock("next/link", () => ({
 }));
 
 const getDriveFiles = vi.fn<(drive: string, params: Record<string, unknown>) => Promise<PaginatedResponse>>();
-const getFolders = vi.fn<(drive: string) => Promise<FolderType[]>>();
-const addPin = vi.fn<(drive: string, path: string) => Promise<void>>();
-const getPins = vi.fn<(drive: string) => Promise<{ path: string }[]>>();
+const getWatchHistory = vi.fn<(drive: string, limit: number, scope?: string) => Promise<WatchHistoryItem[]>>();
 
+// Everything `DriveHome` reads from `@/lib/api`. A binding the component
+// does not import is a claim that it does, and this file has been read
+// that way before.
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (drive: string, params: Record<string, unknown>) => getDriveFiles(drive, params),
-  getFolders: (drive: string) => getFolders(drive),
-  addPin: (drive: string, path: string) => addPin(drive, path),
-  getPins: (drive: string) => getPins(drive),
-  getWatchHistory: vi.fn(() => Promise.resolve([])),
-  removePin: vi.fn(() => Promise.resolve()),
-  createFolder: vi.fn(() => Promise.resolve()),
+  getWatchHistory: (drive: string, limit: number, scope?: string) => getWatchHistory(drive, limit, scope),
 }));
 
 vi.mock("../AddonSlot", () => ({ AddonSlot: () => <div /> }));
-vi.mock("../ContinueWatchingSection", () => ({ ContinueWatchingSection: () => <div /> }));
+// The two watch rows are the same component twice, told apart by
+// `title`: the first is rendered without one and falls back to the
+// component's own default, so the stand-in restates that default. This
+// file does not hold that the two spellings agree — a default renamed in
+// the component and not here would leave these cases green on a row
+// labelled with the old name.
+vi.mock("../ContinueWatchingSection", () => ({
+  ContinueWatchingSection: ({ title, items }: { title?: string; items: WatchHistoryItem[] }) => (
+    <section aria-label={title ?? WATCH_TITLES.continueWatching}>
+      <ul>
+        {items.map((item) => (
+          <li key={item.id}>{item.title}</li>
+        ))}
+      </ul>
+    </section>
+  ),
+}));
 vi.mock("../PageHeader", () => ({ PageHeader: () => <div /> }));
 vi.mock("../TreeToggle", () => ({ TreeToggle: () => <div /> }));
 
-// The rows and the folder context menu are the two surfaces this file
-// reads state through, so both are stood in for by something that draws
-// what it was handed and nothing else.
+// The rows are the surface this file reads state through, so they are
+// stood in for by something that draws what it was handed and nothing
+// else.
 // The callbacks each row was rendered with, in order. A real carousel
 // calls `onFileAction` *after* the trash or favourite it started has
 // come back, so the callback it invokes is the one it captured when the
@@ -76,51 +88,9 @@ vi.mock("../CarouselSection", () => ({
   },
 }));
 
-// **Both halves of the real gate.** `FolderContextMenu` returns null
-// unless `open` *and* `target` are set, and a stand-in that honours one
-// of them measures half the component: with only `open` modelled, the
-// case below passes on `closeFolderMenu()` alone and `setMenuTarget(null)`
-// — the line that carries the production risk — has no witness at all.
-// Fixing a stub for one prop of a two-prop gate is the same error one
-// prop over.
-vi.mock("../FolderContextMenu", () => ({
-  FolderContextMenu: ({
-    open,
-    target,
-    isPinned,
-    onTogglePin,
-  }: {
-    open: boolean;
-    target: { path: string } | null;
-    isPinned: boolean;
-    onTogglePin?: () => void;
-  }) =>
-    (
-      <div>
-        {/* The parent's own `open` state, reported whether or not the
-            menu draws. Not part of the gate — it is how a case can say
-            "the long-press timer fired" at all, which is otherwise
-            invisible precisely because the target is null. */}
-        <span data-testid="menu-open">{String(open)}</span>
-        {open && target ? (
-          <>
-            <span data-testid="pin-state">{isPinned ? "pinned" : "not pinned"}</span>
-            <span data-testid="menu-target">{target.path}</span>
-            <button type="button" onClick={onTogglePin}>
-              toggle pin
-            </button>
-          </>
-        ) : null}
-      </div>
-    ),
-}));
-
-vi.mock("../SidebarProvider", () => ({
-  useSidebar: () => ({ requestRefresh: vi.fn() }),
-}));
-// Mutable: the fetch effect depends on `hasProfile` / `nickname`, so a
-// nickname settling re-runs it on one drive with no navigation. One case
-// below is about a write that spans exactly that.
+// Mutable, because `hasProfile` gates the watch rows and the fetch
+// effect depends on it: a case that wants those rows on screen gives
+// the page a nickname before rendering.
 const profile: { nickname: string | null } = { nickname: null };
 vi.mock("../ProfileProvider", () => ({
   useProfile: () => ({ nickname: profile.nickname }),
@@ -132,14 +102,17 @@ import { DriveHome } from "../DriveHome";
 /**
  * What a response that outlived the drive it was made for may write.
  *
- * The folder grid's two entrances are covered next door in
- * `DriveHome.folderGrid.test.tsx`; this file covers the rest of the page
- * — the Recently Added / Favorites / Liked rows, and the pin set — where
- * the same request outliving the same drive change writes the drive that
- * was left under this drive's links. Both are also taken across a return
- * to the drive the request was made for, where the name is the same on
- * both ends and only the request tells the two apart, and both have a
- * case where the response does reach the screen, so a guard that
+ * This page fetches on two streams, and they answer to different
+ * things. The Recently Added / Favorites / Liked rows carry their
+ * identity on the response (`ResponseIdentity`), because a row can
+ * refetch itself with no page load involved. The watch rows are fetched
+ * by the page load alone, so a page load is the unit of identity for
+ * them (`pageLoadRef`). Each stream is taken across a drive change here,
+ * where a response outliving the change would write the drive that was
+ * left under this drive's links; the row stream is also taken across a
+ * return to the drive the request was made for, where the name is the
+ * same on both ends and only the request tells the two apart. Cases
+ * where the response does reach the screen are here too, so a guard that
  * discards everything is not read as one that discards the right thing.
  *
  * **What this file can hold.** Which drive's data is in state after a
@@ -162,6 +135,16 @@ const SECTION_TITLES: Record<SectionKey, string> = {
   recentAdded: "Recently Added",
   favorites: "Favorites",
   liked: "Liked",
+};
+
+const WATCH_KEYS = ["continueWatching", "recentlyPlayed"] as const;
+type WatchKey = (typeof WATCH_KEYS)[number];
+type WatchRowItems = Record<WatchKey, string>;
+
+/** The watch row titles, as `messages-core/en.json` spells them. */
+const WATCH_TITLES: Record<WatchKey, string> = {
+  continueWatching: "Continue Watching",
+  recentlyPlayed: "Recently Viewed",
 };
 
 /** One file per row, named for its drive so a stale row is readable. */
@@ -189,10 +172,16 @@ const DRIVE_A_REVISIT_FILES: SectionFiles = {
   liked: "alfa-liked-after",
 };
 
+/** One item per watch row, named for its drive for the same reason. */
+const DRIVE_A_WATCH: WatchRowItems = {
+  continueWatching: "alfa-continuing",
+  recentlyPlayed: "alfa-played",
+};
 
-function folder(name: string): FolderType {
-  return { name, path: name, file_count: 1, kind_counts: { video: 1 }, dominant_kind: "video" };
-}
+const DRIVE_B_WATCH: WatchRowItems = {
+  continueWatching: "bravo-continuing",
+  recentlyPlayed: "bravo-played",
+};
 
 function page(title: string): PaginatedResponse {
   return { data: [{ id: title, title } as FileItem], meta: { total: 1 } as PaginatedResponse["meta"] };
@@ -205,21 +194,29 @@ function sectionOf(params: Record<string, unknown>): SectionKey {
   return "recentAdded";
 }
 
+/** Which watch row a `getWatchHistory` call is for, read off its scope. */
+function watchRowOf(scope: string | undefined): WatchKey {
+  return scope === "all" ? "recentlyPlayed" : "continueWatching";
+}
+
+function watchItem(title: string): WatchHistoryItem {
+  return { id: title, title } as WatchHistoryItem;
+}
+
 const DRIVE_UNDER_TEST = "drive-under-test";
 const SECOND_DRIVE = "second-drive";
 
 /**
  * Every read answers according to the drive it is asked for.
  *
- * Before this, `getDriveFiles`, `getFolders` and `getPins` all ignored
- * their `drive` argument — `(_drive, params) => …`, `mockResolvedValue` —
- * so "drive A's response" and "drive B's response" were the same object
- * universe, distinguished only by when the fixture was armed. A
- * population that cannot tell a request for A from a request for B
- * cannot witness a guard whose whole job is telling them apart, and this
- * file proved it: rewiring the page to fetch a hardcoded foreign drive
- * for its three rows, or for its pin set, left all seventeen cases green.
- * That is `review-workflow.md` detector rule 5 sitting in the guard's own
+ * Before this, the readers here ignored their `drive` argument —
+ * `(_drive, params) => …`, `mockResolvedValue` — so "drive A's response"
+ * and "drive B's response" were the same object universe, distinguished
+ * only by when the fixture was armed. A population that cannot tell a
+ * request for A from a request for B cannot witness a guard whose whole
+ * job is telling them apart, and this file proved it: rewiring the page
+ * to fetch a hardcoded foreign drive left every case in it green. That
+ * is `review-workflow.md` detector rule 5 sitting in the guard's own
  * fixture rather than in what the guard guards, and it is why five
  * consecutive rounds shipped a drive mix-up.
  *
@@ -237,11 +234,17 @@ function foreignFiles(drive: string): SectionFiles {
   };
 }
 
+function foreignWatch(drive: string): WatchRowItems {
+  return {
+    continueWatching: `wrong-drive(${drive}):continuing`,
+    recentlyPlayed: `wrong-drive(${drive}):played`,
+  };
+}
+
 const filesByDrive = new Map<string, SectionFiles>();
-const foldersByDrive = new Map<string, readonly string[]>();
-const pinsByDrive = new Map<string, readonly string[]>();
+const watchByDrive = new Map<string, WatchRowItems>();
 const heldRowBatches = new Map<string, (params: Record<string, unknown>) => Promise<PaginatedResponse>>();
-const heldPinFetches = new Map<string, () => Promise<{ path: string }[]>>();
+const heldWatchFetches = new Map<string, (scope?: string) => Promise<WatchHistoryItem[]>>();
 
 function installResponders(): void {
   getDriveFiles.mockImplementation((drive, params) => {
@@ -249,23 +252,12 @@ function installResponders(): void {
     if (held) return held(params);
     return Promise.resolve(page((filesByDrive.get(drive) ?? foreignFiles(drive))[sectionOf(params)]));
   });
-  getFolders.mockImplementation((drive) =>
-    Promise.resolve((foldersByDrive.get(drive) ?? [`wrong-drive(${drive})`]).map(folder)),
-  );
-  getPins.mockImplementation((drive) => {
-    const held = heldPinFetches.get(drive);
-    if (held) {
-      heldPinFetches.delete(drive);
-      return held();
-    }
-    // An undeclared drive answers with a readable path, for the reason
-    // the other two responders do. Answering `[]` was the outcome the
-    // docstring above rejects for them: a wrong-drive pin fetch would
-    // then be detectable only where the correct drive has a *non-empty*
-    // declared set, which is one of the three pin cases.
-    return Promise.resolve(
-      (pinsByDrive.get(drive) ?? [`wrong-drive(${drive})`]).map((path) => ({ path })),
-    );
+  getWatchHistory.mockImplementation((drive, _limit, scope) => {
+    const held = heldWatchFetches.get(drive);
+    if (held) return held(scope);
+    return Promise.resolve([
+      watchItem((watchByDrive.get(drive) ?? foreignWatch(drive))[watchRowOf(scope)]),
+    ]);
   });
 }
 
@@ -274,12 +266,8 @@ function driveHasFiles(drive: string, files: SectionFiles): void {
   filesByDrive.set(drive, files);
 }
 
-function driveHasFolders(drive: string, names: readonly string[]): void {
-  foldersByDrive.set(drive, names);
-}
-
-function driveHasPins(drive: string, paths: readonly string[]): void {
-  pinsByDrive.set(drive, paths);
+function driveHasWatchHistory(drive: string, items: WatchRowItems): void {
+  watchByDrive.set(drive, items);
 }
 
 /**
@@ -355,6 +343,40 @@ function holdRowBatch(drive: string): {
   };
 }
 
+/**
+ * The watch fetches this test is holding open, one per watch row.
+ *
+ * Same shape and same precondition problem as `holdRowBatch`: a fetch
+ * that settled before the page moved draws what one still in flight
+ * draws, because the rows keep what they had. Released once both rows
+ * have been handed their promise, so a later visit fetches normally.
+ */
+function holdWatchFetches(drive: string): {
+  resolve: (items: WatchRowItems) => void;
+  promises: Record<WatchKey, Promise<WatchHistoryItem[]>>;
+} {
+  const resolvers = {} as Record<WatchKey, (items: WatchHistoryItem[]) => void>;
+  const promises = {} as Record<WatchKey, Promise<WatchHistoryItem[]>>;
+  for (const key of WATCH_KEYS) {
+    promises[key] = new Promise<WatchHistoryItem[]>((resolve) => {
+      resolvers[key] = resolve;
+    });
+  }
+  const pending = new Set<WatchKey>(WATCH_KEYS);
+  heldWatchFetches.set(drive, (scope) => {
+    const key = watchRowOf(scope);
+    pending.delete(key);
+    if (pending.size === 0) heldWatchFetches.delete(drive);
+    return promises[key];
+  });
+  return {
+    resolve: (items) => {
+      for (const key of WATCH_KEYS) resolvers[key]([watchItem(items[key])]);
+    },
+    promises,
+  };
+}
+
 async function expectStillHeld(promises: Promise<unknown>[]): Promise<void> {
   let settled = false;
   const mark = () => {
@@ -397,25 +419,57 @@ async function expectRowBatchStillHeld(
   await expectStillHeld(received);
 }
 
+/**
+ * The watch fetches the component was handed are the ones being held.
+ *
+ * Identity with `toBe`, for the reason `expectRowBatchStillHeld` gives.
+ * The promises read back are the mock's own returns; the component holds
+ * a `.catch()` derivative of each, which is a different object and not
+ * what this is about.
+ */
+async function expectWatchFetchesStillHeld(
+  held: Record<WatchKey, Promise<WatchHistoryItem[]>>,
+): Promise<void> {
+  const calls = getWatchHistory.mock.calls.slice(-WATCH_KEYS.length);
+  const received = getWatchHistory.mock.results
+    .slice(-WATCH_KEYS.length)
+    .map((result) => result.value as Promise<WatchHistoryItem[]>);
+
+  // One request per watch row, declared rather than counted: a row that
+  // stops being fetched drops out of this set instead of shortening a
+  // length.
+  expect(new Set(calls.map(([, , scope]) => watchRowOf(scope)))).toEqual(new Set(WATCH_KEYS));
+  calls.forEach(([, , scope], index) => {
+    expect(received[index]).toBe(held[watchRowOf(scope)]);
+  });
+
+  await expectStillHeld(received);
+}
+
+/** The whole page's rows when the viewer has a profile. */
+function expectedPageWithWatchRows(
+  files: SectionFiles,
+  watch: WatchRowItems,
+): Record<string, string[]> {
+  return {
+    [WATCH_TITLES.continueWatching]: [watch.continueWatching],
+    [WATCH_TITLES.recentlyPlayed]: [watch.recentlyPlayed],
+    ...expectedRows(files),
+  };
+}
+
 describe("DriveHome across a drive change", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     filesByDrive.clear();
-    foldersByDrive.clear();
-    pinsByDrive.clear();
+    watchByDrive.clear();
     heldRowBatches.clear();
-    heldPinFetches.clear();
+    heldWatchFetches.clear();
     fileActionCallbacks.length = 0;
+    // No profile unless a case gives one, so the watch rows are off the
+    // page and `getWatchHistory` is not reached at all.
     profile.nickname = null;
-    // Neither drive has folders unless a case says so, and neither has
-    // pins. Declared per drive rather than globally, so a read for a
-    // third drive is still the foreign answer.
-    driveHasFolders(DRIVE_UNDER_TEST, []);
-    driveHasFolders(SECOND_DRIVE, []);
-    driveHasPins(DRIVE_UNDER_TEST, []);
-    driveHasPins(SECOND_DRIVE, []);
     installResponders();
-    addPin.mockResolvedValue(undefined);
   });
 
   it("keeps the drive that was left out of the rows when its batch lands last", async () => {
@@ -606,6 +660,42 @@ describe("DriveHome across a drive change", () => {
       [SECTION_TITLES.liked]: [],
     });
     for (const name of Object.values(DRIVE_A_FILES)) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
+  });
+
+  it("keeps the watch rows fetched for the drive that was left off this drive's page", async () => {
+    // The other stream. Nothing on a `getWatchHistory` response says
+    // which drive it was made for — the component throws the request
+    // away and keeps only the array — so the rows cannot be guarded the
+    // way the carousels are. What separates them is the page load that
+    // asked: the fetch effect mints an id, and a run whose id is no
+    // longer current writes nothing.
+    profile.nickname = "someone";
+    driveHasFiles(DRIVE_UNDER_TEST, DRIVE_A_FILES);
+    driveHasWatchHistory(DRIVE_UNDER_TEST, DRIVE_A_WATCH);
+
+    const leftBehind = holdWatchFetches(DRIVE_UNDER_TEST);
+    const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
+    await expectWatchFetchesStillHeld(leftBehind.promises);
+
+    driveHasFiles(SECOND_DRIVE, DRIVE_B_FILES);
+    driveHasWatchHistory(SECOND_DRIVE, DRIVE_B_WATCH);
+    rerender(<DriveHome driveName={SECOND_DRIVE} />);
+    await waitFor(() =>
+      expect(rowsOnScreen()).toEqual(expectedPageWithWatchRows(DRIVE_B_FILES, DRIVE_B_WATCH)),
+    );
+
+    await act(async () => {
+      leftBehind.resolve(DRIVE_A_WATCH);
+    });
+
+    // Both watch rows still read this drive. Unguarded, the drive that
+    // was left would put its half-finished videos under this drive's
+    // links, and "remove from history" on one of them would act on a
+    // file this drive may not even hold.
+    expect(rowsOnScreen()).toEqual(expectedPageWithWatchRows(DRIVE_B_FILES, DRIVE_B_WATCH));
+    for (const name of Object.values(DRIVE_A_WATCH)) {
       expect(screen.queryByText(name)).toBeNull();
     }
   });

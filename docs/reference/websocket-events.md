@@ -121,7 +121,7 @@ See [file states](file-states.md) for the lifecycle semantics behind these event
 |---|---|---|
 | File list (`useFolderFiles`) | `drive.structure_changed`, `drive.file_updated` | a content write can change a title or a thumbnail, so it watches both |
 | Folder tree (`FolderTreePane`) | `drive.structure_changed` | ignores content writes on purpose — the Markdown editor autosaves on a 2 s debounce |
-| Drive home (`DriveHome`) | `drive.structure_changed`, `drive.file_updated` | refreshes the folder grid **and** the Recently added / Favourites / Liked rows; favouriting and liking both count as content updates |
+| Drive home (`DriveHome`) | `drive.structure_changed`, `drive.file_updated` | refetches the Recently added / Favourites / Liked rows, and tells the folder tree the drive changed shape; favouriting and liking both count as content updates |
 | Sidebar, admin dashboard | `scan:complete` | scan counts |
 | File-detail summary panel | `knowledge.active_summary.changed` | addon event |
 

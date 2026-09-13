@@ -23,7 +23,10 @@ vi.mock("@/components/SidebarProvider", () => ({
   }),
 }));
 
-// Mock clipboard
+// Not the page's own: the content rows draw `FileCard`s, each of which
+// renders a `FileContextMenu` whose `useFileMenuItems` reaches for the
+// clipboard (`useFileMenuItems.ts:60`). Removing this stand-in throws
+// on render.
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({
     clipboard: null,
@@ -35,21 +38,9 @@ vi.mock("@/components/ClipboardProvider", () => ({
   }),
 }));
 
-// Mock drag and drop
 const mockRefreshTree = vi.fn();
 vi.mock("@/components/TreeRefreshContext", () => ({
   useTreeRefresh: () => mockRefreshTree,
-}));
-
-vi.mock("@/hooks/useDragAndDrop", () => ({
-  useDragAndDrop: () => ({
-    dragState: { isDragging: false, draggedFolderPath: null },
-    handleFolderDragStart: vi.fn(),
-    handleDragEnd: vi.fn(),
-    getDropTargetProps: vi.fn(),
-    isDropTarget: vi.fn(),
-    isDropDisabled: vi.fn(),
-  }),
 }));
 
 // Mock next/link
@@ -66,23 +57,23 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-// Mock API
+// What this page and the real components under it reach for. A binding
+// here that the tree never calls reads as "the page does this and we are
+// suppressing it", which is how a folder grid stayed in this file's
+// fixture after the page stopped drawing one.
 const mockGetDriveFiles = vi.fn();
-const mockGetFolders = vi.fn();
-const mockGetPins = vi.fn();
 const mockGetWatchHistory = vi.fn();
-const mockCreateFolder = vi.fn();
+const mockInitUpload = vi.fn();
 vi.mock("@/lib/api", () => ({
-  createFolder: (...args: unknown[]) => mockCreateFolder(...args),
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
-  getFolders: (...args: unknown[]) => mockGetFolders(...args),
-  getPins: (...args: unknown[]) => mockGetPins(...args),
   getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
-  addPin: vi.fn(),
-  removePin: vi.fn(),
-  deleteFile: vi.fn(),
-  renameFile: vi.fn(),
-  moveFile: vi.fn(),
+  // The real `UploadZone` runs here, so an upload started on this page
+  // goes all the way through `useUpload` and out the far side as
+  // `onUploadComplete`.
+  initUpload: (...args: unknown[]) => mockInitUpload(...args),
+  uploadChunk: vi.fn().mockResolvedValue(undefined),
+  completeUpload: vi.fn().mockResolvedValue(undefined),
+  cancelUpload: vi.fn().mockResolvedValue(undefined),
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
   getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
@@ -125,10 +116,7 @@ describe("DriveHome", () => {
     vi.clearAllMocks();
     mockProfile.nickname = null;
     mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
-    mockGetFolders.mockResolvedValue([]);
-    mockGetPins.mockResolvedValue([]);
     mockGetWatchHistory.mockResolvedValue([]);
-    mockCreateFolder.mockResolvedValue(undefined);
   });
 
   it("asks the backend for liked files, ordered by when they were liked", async () => {
@@ -313,8 +301,6 @@ describe("the drive home's content rows", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockProfile.nickname = null;
-    mockGetFolders.mockResolvedValue([]);
-    mockGetPins.mockResolvedValue([]);
     mockGetWatchHistory.mockResolvedValue([]);
   });
 
@@ -383,10 +369,7 @@ describe("the drive root's header", () => {
     vi.clearAllMocks();
     mockProfile.nickname = null;
     mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
-    mockGetFolders.mockResolvedValue([]);
-    mockGetPins.mockResolvedValue([]);
     mockGetWatchHistory.mockResolvedValue([]);
-    mockCreateFolder.mockResolvedValue(undefined);
   });
 
   it("carries Add beside the breadcrumb", async () => {
@@ -421,6 +404,49 @@ describe("the drive root's header", () => {
     render(<DriveHome driveName="media" />);
     await screen.findByRole("button", { name: "Add" });
     expect(document.querySelectorAll("[data-upload-zone]")).toHaveLength(1);
+  });
+
+  it("tells the folder tree when an upload finishes here", async () => {
+    // The second of the two entrances into `refreshPage`. The socket one
+    // is held next door; this one has no emitter, so it is pressed by
+    // handing the zone the same `upload-files` event `useFilePicker`
+    // dispatches when the file chooser returns. An upload landing at the
+    // drive root changes the drive's shape, and the tree pane on this
+    // page is what would otherwise go on showing the old one.
+    mockInitUpload.mockResolvedValue({ upload_id: "upload-1" });
+    const { container } = render(<DriveHome driveName="media" />);
+    await screen.findByRole("button", { name: "Add" });
+    mockRefreshTree.mockClear();
+
+    const zone = container.querySelector("[data-upload-zone]")!;
+    await act(async () => {
+      zone.dispatchEvent(
+        new CustomEvent("upload-files", { detail: [new File(["x"], "note.txt")] }),
+      );
+    });
+
+    await waitFor(() => expect(mockRefreshTree).toHaveBeenCalled());
+  });
+
+  it("offers uploading and nothing that acts on a folder", async () => {
+    // This screen holds no folders, so its Add menu holds no folder
+    // actions (spec 2026-09-12-purpose-oriented-navigation §6.1/§6.4).
+    // `AddButton` grows **New Folder** and **New Note** each from a prop
+    // the caller passes, so the rule lives in what this caller does not
+    // pass, and nothing else can witness it. The rows it does draw are
+    // declared rather than counted: one appearing moves this side of the
+    // equality by itself.
+    //
+    // **What this does not reach.** `addonProps` is the third such prop,
+    // and its rows are gated on `hasSlot(ADD_MENU_SLOT)` as well
+    // (`AddButton.tsx:106`). No addon registers that slot here, so
+    // passing `addonProps` from this page changes nothing a test can
+    // see — measuring it means standing in for the slot registry, which
+    // is `AddonSlot`'s subject and not this page's.
+    render(<DriveHome driveName="media" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Add" }));
+    const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
+    expect(rows).toEqual(["Files", "Folder"]);
   });
 
   it("opens its menu away from the edge it sits against", async () => {

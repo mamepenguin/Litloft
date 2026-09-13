@@ -1,10 +1,10 @@
 # Browsing files
 
-Files and folders are browsed on the Library screen, which opens at the drive root (`/drive/<name>?view=library`) and walks down from there; subfolders open at `/drive/<name>/<path>`. The drive home page (`/drive/<name>`) is what the drive opens on, and it answers a different question — what is worth continuing or returning to. The breadcrumb row carries the tree toggle on the left and the **Add** button on the right; below it are *content rows* (Continue watching, Recently played, Recently added, Favourites, Liked). It lists neither folders nor files of its own — those are in Library. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
+Files and folders are browsed on the Library screen, which opens at the drive root (`/drive/<name>?view=library`) and walks down from there; subfolders open at `/drive/<name>/<path>`. The drive home page (`/drive/<name>`) is what the drive opens on, and it answers a different question — what is worth continuing or returning to. The breadcrumb row carries the tree toggle on the left and the **Add** button on the right; below it are *content rows* (Continue watching, Recently played, Recently added, Favourites, Liked). It draws no folder cards, and the files it draws are the ones those rows surfaced — the folders and files that *sit at the drive root* are in Library. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
 
 ## Drive home layout
 
-![Annotated drive home page showing the breadcrumb, folder grid, file grid, and content rows](../images/user-guide/drive-home-overview.png)
+![Drive home page as it was before this layout: a breadcrumb above a folder grid and a file grid, with the content rows below them](../images/user-guide/drive-home-overview.png)
 
 The numbered areas in the screenshot map to the main browsing surfaces: breadcrumb navigation, folder cards, file cards, and the activity rows that surface recent or in-progress items. The screenshot predates the current layout in several ways: the home page now shows only the activity rows — the folder cards and file cards it draws are Library's — **Add** sits at the right-hand end of the breadcrumb row, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail.
 
@@ -56,7 +56,7 @@ A toolbar above the grid lets you:
 - **Pin this folder** to the sidebar, also from the overflow menu — the same pin the folder's own right-click menu offers, for the folder you are standing in. It is not offered on the drive root, which has no folder to pin.
 - **Add** anything to the folder, from the one **Add** button: upload files, upload a folder, create a folder, create a note. It is the only filled button on the bar. An addon can contribute further rows, which appear below a separator at the bottom of the menu.
 
-  On the drive home this button is in the breadcrumb row instead, because that page draws no folder toolbar to carry it. That one offers uploading only, and what it uploads goes to the drive root: creating a folder, creating a note and the addon rows are folder actions, and the home page holds no folders.
+  On the drive home this button is in the breadcrumb row instead, because that page draws no folder toolbar to carry it. There it offers the two upload rows and nothing else, and what they upload goes to the drive root — so **Upload a folder** does put a new folder there, by uploading one. What is missing is the **New Folder** and **New Note** commands and the addon rows: those act on a folder you are standing in, and this page is not standing in one.
 - **Play** everything playable in the folder, on folders that hold something playable.
 
 **Folders follow the mode too.** In grid mode they are cards above the file
@@ -202,7 +202,7 @@ Renaming happens inline, in the row or card you are looking at — there is no d
 
 Where this applies:
 
-- **Folders** — in the tree pane and on folder cards, everywhere folder cards are shown.
+- **Folders** — in the tree pane, and on the folder cards in Library and in a folder.
 - **Files** — in the **tree pane only**. The tree shows real filenames, so what you edit is exactly the string on screen.
 - **File cards in the grid and list** still rename through the old dialog, because a card shows the title rather than the filename and editing there would show one string and save another.
 
@@ -440,7 +440,7 @@ The payload of each event is in [WebSocket events](../reference/websocket-events
 
 Two different things travel by drag:
 
-- **Files from your computer.** Drop one or more files (or a whole folder, in browsers that support it) onto the file grid to upload them. The drive home takes a drop too, even though it lists no files of its own: what lands there goes to the drive root, which is what its **Add** button acts on. See [upload and file operations](upload-and-fileops.md) for chunking and limits.
+- **Files from your computer.** Drop one or more files (or a whole folder, in browsers that support it) onto the file grid to upload them. The drive home takes a drop too, even though it is not a listing of the drive root: what lands there goes to the drive root, which is what its **Add** button acts on. See [upload and file operations](upload-and-fileops.md) for chunking and limits.
 - **Files and folders already in the drive.** Dragging a card or a tree row and dropping it on a folder **moves** it. Valid drop targets are folder cards, folder rows in the tree, the breadcrumb, and the drop band at the top of the tree that stands for the drive root. Drops onto a folder itself, or into its own descendants, are refused. Drags work across panes — pick a card up in the file list and drop it on a tree row.
 
 If several files are selected, dragging any one of them moves the whole selection.

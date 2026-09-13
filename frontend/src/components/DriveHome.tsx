@@ -70,10 +70,11 @@ interface ResponseIdentity {
 /**
  * One `getDriveFiles` batch.
  *
- * The entrances are the page's fetch effect; `refetchAllSections` as
- * `onFileAction` on each of the three carousels; and
- * `refetchAllSections` inside `refreshPage`, which the WebSocket
- * subscription below fires with no user action at all.
+ * Built in the page's fetch effect, and in `refetchAllSections`, which
+ * is what every other way in goes through — a file action on a row, an
+ * upload finishing, a socket event arriving with nobody touching the
+ * page. So a batch cannot be placed by when it was asked for, and none
+ * of those ways in is a page load.
  *
  * `Promise.allSettled` means this resolves even when every request in it
  * failed, so "the batch arrived" is not "the batch delivered anything" —
@@ -116,10 +117,9 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   // load's own fetch before anyone knows whether the refresh will deliver
   // — and when it does not, the good response is already gone and nothing
   // re-requests it: the rows are left empty for the rest of the visit.
-  // Comparing
-  // against what has landed instead means a superseded request can be
-  // briefly visible but can never be the last word, and a request that
-  // delivers nothing takes nothing with it.
+  // Comparing against what has landed instead means a superseded
+  // request can be briefly visible but can never be the last word, and
+  // a request that delivers nothing takes nothing with it.
   //
   // Same pattern as `useInfiniteScroll`'s `fetchIdRef`, with that one
   // difference.
@@ -128,11 +128,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   // Bumped by the fetch effect alone. The watch rows are read only
   // there, so a page load is the unit of identity for them.
   const pageLoadRef = useRef(0);
-
-
-
-
-
 
   const applyFileSections = useCallback((batch: FileSectionsBatch) => {
     // The guard sits here rather than in each caller: this is where a
@@ -187,11 +182,13 @@ export function DriveHome({ driveName }: DriveHomeProps) {
    * One fetch of everything this page shows.
    *
    * **It re-runs for reasons that are not a drive change.** `hasProfile`
-   * and `nickname` are in its dependencies and `ProfileProvider` reports
-   * `null` on the first pass and the cookie on the second, so a profiled
-   * viewer's hard load runs it twice on one drive. That is why the rows
-   * are blanked here and the guard against a late response is carried on
-   * the response itself (`ResponseIdentity`) rather than on this effect.
+   * and `nickname` are in its dependencies, so a nickname set in Settings
+   * starts a second run on the drive already in front of you, with the
+   * first still in flight. A guard that compared drive names alone would
+   * see nothing wrong with the older run landing last. That is why the
+   * rows carry their identity on the response (`ResponseIdentity`) and
+   * the watch rows carry theirs on the page load (`pageLoadRef`), rather
+   * than on this effect.
    *
    * **A known wart, measured and not introduced here**: because the rows
    * are blanked on every run, a re-fetch that fails leaves them empty for
@@ -243,15 +240,14 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     fetchAll();
   }, [driveName, fetchFileSections, applyFileSections, hasProfile, nickname]);
 
-
   const refetchAllSections = useCallback(async () => {
     applyFileSections(await fetchFileSections());
   }, [fetchFileSections, applyFileSections]);
 
   // `drive.file_updated` matters here as much as `structure_changed`,
-  // because favouriting is a content
-  // update, not a structural one, so the Favourites row would otherwise
-  // never notice a change made on another device.
+  // because favouriting is a content update, not a structural one, so
+  // the Favourites row would otherwise never notice a change made on
+  // another device.
   const refreshPage = useCallback(() => {
     void refetchAllSections();
     // The tree pane is on this page — the header draws its toggle — and
@@ -273,7 +269,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
     setContinueWatching((prev) => prev.filter((item) => item.id !== fileId));
     setRecentlyPlayed((prev) => prev.filter((item) => item.id !== fileId));
   }, []);
-
 
   const driveBase = `/drive/${encodeURIComponent(driveName)}`;
 
@@ -315,7 +310,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       />
 
       <div className="space-y-8 px-4 pb-6 pt-2 sm:px-6 sm:pb-8 sm:pt-4">
-
       {hasProfile && (
         <ContinueWatchingSection
           items={continueWatching}
