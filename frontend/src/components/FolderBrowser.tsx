@@ -296,6 +296,10 @@ export function FolderBrowser({
   const [pasting, setPasting] = useState(false);
 
   const handlePaste = useCallback(async () => {
+    // The guard is here rather than on each way in, because a screen with
+    // nowhere to write is not a screen where pasting should fail — it is
+    // one where nothing happens at all, and every caller has to agree.
+    if (!isWriteDestination) return;
     if (!clipboard.clipboard || pasting) return;
     setPasting(true);
     try {
@@ -305,7 +309,7 @@ export function FolderBrowser({
     } finally {
       setPasting(false);
     }
-  }, [clipboard, driveName, folderPath, pasting, refresh]);
+  }, [clipboard, driveName, folderPath, isWriteDestination, pasting, refresh]);
 
   useShortcuts("file-browser", tsc("fileBrowser"), [
     {
@@ -605,7 +609,7 @@ export function FolderBrowser({
       />}
 
       <div className="px-4 pb-6 pt-1 sm:pb-8 sm:pt-4">
-      {!isSearch && clipboard.clipboard && (
+      {isWriteDestination && clipboard.clipboard && (
         <div className="mb-3 flex items-center gap-3 rounded-lg bg-accent/10 px-4 py-2.5 ring-1 ring-accent/20">
           <ClipboardPaste size={18} className="flex-shrink-0 text-accent" />
           <span className="flex-1 text-sm text-text-primary">
