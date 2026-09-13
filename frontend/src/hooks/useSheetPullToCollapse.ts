@@ -46,15 +46,20 @@ export function useSheetPullToCollapse({
   scroller,
   surfaceRef,
   onDismiss,
+  isDismissing,
 }: {
   scroller: HTMLElement | null;
   surfaceRef: RefObject<HTMLElement | null>;
-  onDismiss: (release: { pull: number; velocity: number }) => void;
+  onDismiss: (release: { velocity: number }) => void;
+  /** A finger still down when the sheet starts leaving would pull it back. */
+  isDismissing: () => boolean;
 }): void {
   // Read through a ref so a new callback identity does not detach and
   // reattach the listeners — which, mid-gesture, would drop the gesture.
   const onDismissRef = useRef(onDismiss);
   onDismissRef.current = onDismiss;
+  const isDismissingRef = useRef(isDismissing);
+  isDismissingRef.current = isDismissing;
 
   useEffect(() => {
     if (!scroller) return;
@@ -91,7 +96,7 @@ export function useSheetPullToCollapse({
       // A second finger is not a second gesture: it makes this one
       // ambiguous, so the sheet gives it up and springs back.
       if (event.touches.length !== 1) {
-        if (state?.owner === "sheet") settle();
+        if (state?.owner === "sheet" && !isDismissingRef.current()) settle();
         forget();
         return;
       }
@@ -110,6 +115,10 @@ export function useSheetPullToCollapse({
 
     const onTouchMove = (event: TouchEvent) => {
       if (!state || touchId === null) return;
+      if (isDismissingRef.current()) {
+        forget();
+        return;
+      }
       const touch = Array.from(event.touches).find(
         (candidate) => candidate.identifier === touchId,
       );
@@ -141,19 +150,23 @@ export function useSheetPullToCollapse({
 
     const onTouchEnd = (event: TouchEvent) => {
       if (!state) return;
+      if (isDismissingRef.current()) {
+        forget();
+        return;
+      }
       const released = state;
       const velocity = releaseVelocity(samples, event.timeStamp);
       forget();
       if (released.owner !== "sheet") return;
       if (releaseSheetPull(released, velocity, dismissPx) === "dismiss") {
-        onDismissRef.current({ pull: released.pull, velocity });
+        onDismissRef.current({ velocity });
         return;
       }
       settle();
     };
 
     const onTouchCancel = () => {
-      const owned = state?.owner === "sheet";
+      const owned = state?.owner === "sheet" && !isDismissingRef.current();
       forget();
       if (owned) settle();
     };

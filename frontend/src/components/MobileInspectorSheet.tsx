@@ -113,7 +113,12 @@ export function MobileInspectorSheet({
       [onStateChange],
     ),
   });
-  useSheetPullToCollapse({ scroller, surfaceRef, onDismiss: dismiss });
+  useSheetPullToCollapse({
+    scroller,
+    surfaceRef,
+    onDismiss: dismiss,
+    isDismissing,
+  });
 
   const knobSamples = useRef<VelocitySample[] | null>(null);
   // How fast the knob left, kept for the length of the release's own

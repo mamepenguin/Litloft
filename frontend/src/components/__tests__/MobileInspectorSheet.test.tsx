@@ -8,6 +8,7 @@ import {
   createEvent,
   waitFor,
 } from "@testing-library/react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useDialogPortalTarget } from "@/components/DialogPortal";
@@ -155,6 +156,61 @@ describe("MobileInspectorSheet", () => {
     await act(() => new Promise((resolve) => setTimeout(resolve, 700)));
 
     expect(onStateChange.mock.calls).toEqual([[SHEET_STATE_PEEK]]);
+  });
+
+  describe("opened again", () => {
+    let setHostState: (next: SheetState) => void = () => undefined;
+    const calls: SheetState[] = [];
+
+    function Host() {
+      const [state, setState] = useState<SheetState>(SHEET_STATE_HALF);
+      setHostState = setState;
+      return (
+        <MobileInspectorSheet
+          state={state}
+          onStateChange={(next) => {
+            calls.push(next);
+            setState(next);
+          }}
+          peek={<div data-testid="peek-content" />}
+        >
+          <div />
+        </MobileInspectorSheet>
+      );
+    }
+
+    const wait = (ms: number) =>
+      act(() => new Promise((resolve) => setTimeout(resolve, ms)));
+
+    it("closes again after it was closed once", async () => {
+      calls.length = 0;
+      render(<Host />);
+      await screen.findByTestId("mobile-inspector-sheet");
+      fireEvent.keyDown(document, { key: "Escape" });
+      await screen.findByTestId("peek-content");
+
+      act(() => setHostState(SHEET_STATE_HALF));
+      await screen.findByTestId("mobile-inspector-sheet");
+      fireEvent.keyDown(document, { key: "Escape" });
+      await screen.findByTestId("peek-content");
+
+      expect(calls).toEqual([SHEET_STATE_PEEK, SHEET_STATE_PEEK]);
+    });
+
+    it("is not closed by a close that was cut short before it opened", async () => {
+      calls.length = 0;
+      render(<Host />);
+      await screen.findByTestId("mobile-inspector-sheet");
+      fireEvent.keyDown(document, { key: "Escape" });
+      await wait(50);
+      act(() => setHostState(SHEET_STATE_PEEK));
+      await wait(20);
+      act(() => setHostState(SHEET_STATE_HALF));
+      await wait(600);
+
+      expect(screen.getByTestId("mobile-inspector-sheet")).toBeInTheDocument();
+      expect(calls).toEqual([]);
+    });
   });
 
   it("sits below the modal-dialog tier", async () => {
@@ -359,10 +415,16 @@ describe("pulling the sheet down by its content", () => {
   /** A third of it is 100px. */
   const VISIBLE_PX = 300;
 
+  /** Moves with the transform, as a laid-out box does. */
   const restAt = (surface: HTMLElement) => {
-    const top = window.innerHeight - VISIBLE_PX;
-    surface.getBoundingClientRect = () =>
-      ({ top, bottom: window.innerHeight, height: VISIBLE_PX }) as DOMRect;
+    const rest = window.innerHeight - VISIBLE_PX;
+    surface.getBoundingClientRect = () => {
+      const drawn = /translate3d\(0(?:px)?, (-?[\d.]+)px/.exec(
+        surface.style.transform,
+      );
+      const top = rest + (drawn ? Number(drawn[1]) : 0);
+      return { top, bottom: top + VISIBLE_PX, height: VISIBLE_PX } as DOMRect;
+    };
   };
 
   const mount = ({
@@ -459,8 +521,7 @@ describe("pulling the sheet down by its content", () => {
     });
 
     expect(onStateChange).not.toHaveBeenCalled();
-    // From 200px down, the 300px still on screen.
-    expect(surface.style.transform).toBe("translate3d(0, 500px, 0)");
+    expect(surface.style.transform).toBe("translate3d(0, 300px, 0)");
     expect(screen.getByTestId("mobile-inspector-overlay").style.opacity).toBe(
       "0",
     );
@@ -469,6 +530,69 @@ describe("pulling the sheet down by its content", () => {
       expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
     });
     expect(onStateChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves at the speed the finger left at", () => {
+    // 1px/ms over the last 120ms, with 100px left to go.
+    const thrown = pull({
+      scrollTop: 0,
+      maxScroll: 900,
+      to: 200,
+      steps: 10,
+      msPerStep: 20,
+    });
+    expect(thrown.surface.style.transition).toMatch(/^transform 300ms /);
+
+    cleanup();
+    const pushed = pull({ scrollTop: 0, maxScroll: 900, to: 200 });
+    expect(pushed.surface.style.transition).toMatch(/^transform 320ms /);
+  });
+
+  it("is not caught by the finger still pulling when something else closes it", async () => {
+    const { onStateChange, scroller, surface } = mount({
+      scrollTop: 0,
+      maxScroll: 900,
+    });
+    at(scroller, "touchStart", touch(300), START_AT);
+    at(scroller, "touchMove", touch(340), START_AT + 200);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    const leaving = surface.getAttribute("style");
+    expect(surface.style.transform).toBe("translate3d(0, 300px, 0)");
+
+    at(scroller, "touchMove", touch(320), START_AT + 400);
+    at(scroller, "touchEnd", lift(320), START_AT + 400);
+    expect(surface.getAttribute("style")).toBe(leaving);
+    await waitFor(() => {
+      expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    });
+  });
+
+  describe("springs a pull back when the gesture is abandoned", () => {
+    it("by a second finger", () => {
+      const { scroller, surface } = mount({ scrollTop: 0, maxScroll: 900 });
+      at(scroller, "touchStart", touch(300), START_AT);
+      at(scroller, "touchMove", touch(340), START_AT + 200);
+      expect(surface.style.transform).toBe("translate3d(0, 40px, 0)");
+
+      const finger = { identifier: 7, clientY: 340, clientX: 0 };
+      const other = { identifier: 8, clientY: 500, clientX: 0 };
+      at(
+        scroller,
+        "touchStart",
+        { touches: [finger, other], changedTouches: [other] },
+        START_AT + 300,
+      );
+      expect(surface.style.transform).toBe("translate3d(0, 0, 0)");
+    });
+
+    it("by the browser cancelling the touch", () => {
+      const { scroller, surface } = mount({ scrollTop: 0, maxScroll: 900 });
+      at(scroller, "touchStart", touch(300), START_AT);
+      at(scroller, "touchMove", touch(340), START_AT + 200);
+      fireEvent.touchCancel(scroller, lift(340));
+      expect(surface.style.transform).toBe("translate3d(0, 0, 0)");
+    });
   });
 
   it("springs the sheet back instead, when it was not", async () => {
@@ -538,6 +662,14 @@ describe("pulling the sheet down by its content", () => {
       at(scroller, "touchMove", touch(100), START_AT + 5400);
       at(scroller, "touchEnd", lift(100), START_AT + 5400);
       expect(surface.getAttribute("style")).toBe(rested);
+    });
+
+    it("when a touch at the top lifts without moving", () => {
+      const { scroller, surface } = mount({ scrollTop: 0, maxScroll: 900 });
+      at(scroller, "touchStart", touch(300), START_AT);
+      at(scroller, "touchMove", touch(302), START_AT + 50);
+      at(scroller, "touchEnd", lift(302), START_AT + 100);
+      expect(surface.getAttribute("style")).toBeNull();
     });
 
     it("when a touch at the top turns upward", () => {

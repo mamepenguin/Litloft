@@ -11,11 +11,8 @@ import {
 const FINISH_GRACE_MS = 100;
 
 export interface SheetDismiss {
-  /**
-   * @param pull How far down the surface is already drawn, px.
-   * @param velocity px/ms, positive downward.
-   */
-  dismiss: (from?: { pull?: number; velocity?: number }) => void;
+  /** @param velocity px/ms, positive downward. */
+  dismiss: (from?: { velocity?: number }) => void;
   isDismissing: () => boolean;
 }
 
@@ -45,12 +42,15 @@ export function useSheetDismissMotion({
 
   useEffect(() => {
     if (expanded) dismissingRef.current = false;
+    // Collapsed by some other route while leaving: the surface is gone, and
+    // a finish still pending would close the next opening.
+    else cancelRef.current?.();
   }, [expanded]);
 
   useEffect(() => () => cancelRef.current?.(), []);
 
   const dismiss = useCallback<SheetDismiss["dismiss"]>(
-    ({ pull = 0, velocity = 0 } = {}) => {
+    ({ velocity = 0 } = {}) => {
       if (dismissingRef.current) return;
       dismissingRef.current = true;
 
@@ -60,6 +60,10 @@ export function useSheetDismissMotion({
         return;
       }
 
+      const drawn = /translate3d\(0(?:px)?, (-?[\d.]+)px/.exec(
+        surface.style.transform,
+      );
+      const pull = drawn ? Number(drawn[1]) : 0;
       const distance = Math.max(
         0,
         window.innerHeight - surface.getBoundingClientRect().top,

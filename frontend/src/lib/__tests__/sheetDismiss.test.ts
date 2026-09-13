@@ -28,6 +28,10 @@ describe("how long the sheet takes to leave", () => {
     expect(sheetDismissDurationMs(400, 6)).toBe(200);
   });
 
+  it("never takes longer than the ceiling, however slowly it was let go", () => {
+    expect(sheetDismissDurationMs(400, 0.1)).toBe(SHEET_DISMISS_MAX_MS);
+  });
+
   it("never goes quicker than the floor, however hard it was thrown", () => {
     expect(sheetDismissDurationMs(400, 1000)).toBe(SHEET_DISMISS_MIN_MS);
     expect(sheetDismissDurationMs(0, 3)).toBe(SHEET_DISMISS_MIN_MS);

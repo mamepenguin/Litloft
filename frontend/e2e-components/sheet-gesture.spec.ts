@@ -300,6 +300,20 @@ test.describe("what leaves the sheet where it was", () => {
     expect(after.surfaceTop).toBeCloseTo(before.surfaceTop, 0);
   });
 
+  test("a slow push past a quarter of the sheet but short of a third", async ({
+    page,
+  }) => {
+    // Far enough apart that the threshold must be measured at rest: one
+    // re-measured under the finger has shrunk to a quarter by now.
+    await open(page, "sheet-gesture");
+    const { surfaceTop, viewportHeight } = await read(page);
+    const down = Math.floor((viewportHeight - surfaceTop) * 0.3);
+
+    await swipe(page, { down, steps: stepsFor(down), ...PUSH });
+
+    expect((await read(page)).state).toBe("");
+  });
+
   test("a hard flick that only reaches the top on the way out", async ({
     page,
   }) => {
