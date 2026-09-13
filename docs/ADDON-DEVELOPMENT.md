@@ -842,17 +842,20 @@ props that say which, in addition to the usual slot props:
 **Scrolling and pinning inside a panel.** The one-column inspector (the
 phone's sheet) gives your panel no height, so your list grows to its full
 length and a `scrollTo` on it does nothing: the host scrolls it. The host
-says so by setting the CSS variable `--inspector-sticky-top` on the
-inspector's root, holding the height of its tab strip, which is pinned
-over the top of that scroller.
+marks that scroller with the attribute `data-inspector-scroller`, and sets
+the CSS variable `--inspector-sticky-top` on the inspector's root to the
+height of its tab strip, which is pinned over the top of that scroller.
 
-- **Where the variable is set** (read it with `getComputedStyle` on your
-  element), scroll the nearest ancestor that actually overflows, and count
-  its top `--inspector-sticky-top` pixels as covered.
-- **Where it is not set, scroll only your own list.** Do not climb past it
-  when it happens not to overflow: on the file page the box around it is
-  the canvas holding the video, and scrolling that moves the player off
-  the screen.
+- **Find the scroller with `element.closest("[data-inspector-scroller]")`**.
+  When there is one, scroll it, count its top `--inspector-sticky-top`
+  pixels (read with `getComputedStyle` on your element) as covered, and
+  listen for the reader's `wheel` / `touchmove` on it rather than on your
+  list. It is shared with the other tabs, so ignore those while your panel
+  is inside a `[hidden]` ancestor.
+- **When there is none, scroll only your own list.** Do not look for an
+  ancestor that overflows: on the file page the box around a short list
+  is the canvas holding the video, and scrolling that moves the player off
+  the screen; in the sheet the scroller may not overflow yet when you ask.
 - Pin anything of your own with `position: sticky; top: var(--inspector-sticky-top, 0px)`
   and a `z-index` below `10`, so it sits under the strip rather than over it.
 
