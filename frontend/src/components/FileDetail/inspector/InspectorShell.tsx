@@ -96,9 +96,13 @@ export function InspectorShell({
           // Scrolls rather than wraps: a strip that wraps to two lines takes
           // the height back off the region it is labelling. In column mode it
           // needs a ground of its own or the rows travelling under it show
-          // through.
+          // through. The shadow is that ground one pixel higher: an engine
+          // that rounds a stuck strip down from a fractional scroller top
+          // leaves a row of content visible above it.
           className={`flex gap-1 overflow-x-auto border-b border-bg-border px-2 pointer-coarse:min-h-11 ${
-            column ? "sticky top-0 z-10 bg-bg-card" : "shrink-0"
+            column
+              ? "sticky top-0 z-10 bg-bg-card shadow-[0_-1px_0_var(--color-bg-card)]"
+              : "shrink-0"
           }`}
         >
           {listed.map((tab) => {
