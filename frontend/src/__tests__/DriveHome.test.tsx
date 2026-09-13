@@ -15,8 +15,8 @@ vi.mock("@/components/ProfileProvider", () => ({
 // Not the page's own. Each content row renders one `FileContextMenu`
 // beside its cards — not per card — and `useFileMenuItems` reaches for
 // the clipboard from there. A row renders while it is still loading, so
-// this is on the path even where the page draws no cards at all, which
-// is every case in this file. Removing the stand-in throws on render.
+// drawing no cards is not enough to stay off that path: anything that
+// renders `DriveHome` is on it.
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({
     clipboard: null,
@@ -31,6 +31,13 @@ vi.mock("@/components/ClipboardProvider", () => ({
 // Whether an addon has registered the Add menu's slot. `AddButton` gates
 // its addon rows on this *as well as* on the caller passing `addonProps`,
 // so a fixture that leaves it false cannot see the second gate at all.
+//
+// It answers for that one slot by id and denies every other. An
+// argument-blind `hasSlot` says yes to whatever id the gate asks about,
+// so aiming the gate at a slot nobody declares would go unnoticed — and
+// the menu would grow addon rows because some unrelated surface was
+// occupied.
+const ADD_MENU_SLOT_ID = "folder-actions-menu";
 const slotIsRegistered = { current: false };
 vi.mock("@/components/AddonSlotsProvider", () => ({
   useAddonSlots: () => ({
@@ -38,12 +45,12 @@ vi.mock("@/components/AddonSlotsProvider", () => ({
     slots: {},
     loading: false,
     getSlotEntries: () => [],
-    hasSlot: () => slotIsRegistered.current,
+    hasSlot: (id: string) => id === ADD_MENU_SLOT_ID && slotIsRegistered.current,
   }),
 }));
 vi.mock("@/components/AddonSlot", () => ({
   AddonSlot: ({ id }: { id: string }) =>
-    id === "folder-actions-menu" ? (
+    id === ADD_MENU_SLOT_ID ? (
       <button type="button" role="menuitem">
         Addon row
       </button>
@@ -63,16 +70,12 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/",
 }));
 
-vi.mock("next/link", () => ({
-  default: ({ children, href, ...props }: { children: React.ReactNode; href: string; [key: string]: unknown }) => (
-    <a href={href} {...props}>{children}</a>
-  ),
-}));
 
 // What this page and the real components under it reach for. A binding
 // here that the tree never calls reads as "the page does this and we are
 // suppressing it", which is how a folder grid stayed in this file's
-// fixture after the page stopped drawing one.
+// fixture after the page stopped drawing one — so each of these is one
+// the tree is observed to call, counted rather than assumed.
 const mockGetDriveFiles = vi.fn();
 const mockGetWatchHistory = vi.fn();
 const mockInitUpload = vi.fn();
@@ -83,12 +86,8 @@ vi.mock("@/lib/api", () => ({
   // goes all the way through `useUpload` and out the far side as
   // `onUploadComplete`.
   initUpload: (...args: unknown[]) => mockInitUpload(...args),
-  uploadChunk: vi.fn().mockResolvedValue(undefined),
   completeUpload: vi.fn().mockResolvedValue(undefined),
-  cancelUpload: vi.fn().mockResolvedValue(undefined),
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
-  getDownloadUrl: (id: string) => `/api/files/${id}/stream?download=true`,
-  getStreamUrl: (id: string) => `/api/files/${id}/stream`,
 }));
 
 import { DriveHome } from "../components/DriveHome";
@@ -477,9 +476,11 @@ describe("the drive root's header", () => {
   });
 
   it("draws an addon row where one is registered and the caller asks for it", async () => {
-    // The population, asserted separately (detector rule 7). Without it
-    // the case above passes over a stand-in that never draws — which is
-    // the state this file was in when `addonProps` was filed as inert.
+    // The population, asserted separately, because a claim that
+    // something happens now is unverified until its not happening
+    // breaks something. Without this, the case above passes over a
+    // stand-in that never draws — the state this file was in when
+    // `addonProps` was filed as inert.
     slotIsRegistered.current = true;
     render(
       <AddButton align="right" addonProps={{ drive: "media", path: "" }} />,

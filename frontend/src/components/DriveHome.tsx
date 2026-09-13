@@ -44,10 +44,9 @@ interface SectionState {
  * made for, and which request made it.** Both, because they answer
  * different questions and each leaves a case open on its own.
  *
- * The drive alone cannot separate two visits to one drive.
- * `/drive/[name]` renders this component with no `key`, so one instance
- * survives A → B → A and the first visit's request settles on the third
- * render still naming the drive in front of you.
+ * The drive alone cannot separate two visits to one drive. Where one
+ * instance is kept across A → B → A, the first visit's request settles
+ * on the third render still naming the drive in front of you.
  *
  * The request alone cannot catch a callback captured on one drive and
  * invoked after the page has moved. A handler that awaits a write and
@@ -181,19 +180,18 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   /**
    * One fetch of everything this page shows.
    *
-   * **Two runs of it can be for the same drive.** Leaving a drive and
-   * coming back re-runs it on the same instance — `/drive/[name]` renders
-   * this component with no `key`, so nothing unmounts between the two —
-   * and the visit being left may still have fetches in flight. A guard
-   * comparing drive names sees nothing wrong with the earlier visit's
-   * response landing last. That is why the rows carry their identity on
-   * the response (`ResponseIdentity`) and the watch rows carry theirs on
-   * the page load (`pageLoadRef`), rather than on this effect.
+   * **Nothing here assumes one run per mount.** A second run for the
+   * same drive, with the first still in flight, cannot be sorted out by
+   * comparing drive names — so the rows carry their identity on the
+   * response (`ResponseIdentity`) and the watch rows carry theirs on the
+   * page load (`pageLoadRef`), rather than on this effect.
    *
-   * `hasProfile` and `nickname` are in its dependencies too, but no
-   * screen changes a nickname with this one mounted: the only writer is
-   * `settings/ProfileSection`, on a route that is not under
-   * `/drive/[name]`.
+   * Whether anything produces that second run is not this file's to
+   * decide. The only caller is `app/drive/[name]/page.tsx`, which takes
+   * `driveName` from the route segment, and whether a segment change
+   * re-renders this instance or replaces it is the router's choice.
+   * These guards are the contract this component keeps either way, not
+   * a fix for a failure someone reported.
    *
    * **A known wart, measured and not introduced here**: because the rows
    * are blanked on every run, a re-fetch that fails leaves them empty for

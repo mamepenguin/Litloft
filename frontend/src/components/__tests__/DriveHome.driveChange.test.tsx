@@ -83,7 +83,6 @@ const profile: { nickname: string | null } = { nickname: null };
 vi.mock("../ProfileProvider", () => ({
   useProfile: () => ({ nickname: profile.nickname }),
 }));
-vi.mock("@/hooks/useWebSocketRefresh", () => ({ useWebSocketRefresh: () => {} }));
 
 import { DriveHome } from "../DriveHome";
 
@@ -95,13 +94,20 @@ import { DriveHome } from "../DriveHome";
  * identity on the response (`ResponseIdentity`), because a row can
  * refetch itself with no page load involved. The watch rows are fetched
  * by the page load alone, so a page load is the unit of identity for
- * them (`pageLoadRef`). Each stream is taken across a drive change here,
- * where a response outliving the change would write the drive that was
- * left under this drive's links; the row stream is also taken across a
- * return to the drive the request was made for, where the name is the
- * same on both ends and only the request tells the two apart. Cases
- * where the response does reach the screen are here too, so a guard that
- * discards everything is not read as one that discards the right thing.
+ * them (`pageLoadRef`). Both streams are taken along two trips: a drive
+ * change, where a response outliving it would write the drive that was
+ * left under this drive's links, and a return to the drive the request
+ * was made for, where the name is the same on both ends so only the
+ * request tells the two apart. Cases where the response does reach the
+ * screen are here too, so a guard that discards everything is not read
+ * as one that discards the right thing.
+ *
+ * **What this file holds is the component's contract, not a trip anyone
+ * has been observed to take.** Every case drives the component through
+ * `render` / `rerender`; the router is not on the path and cannot be,
+ * here. So a case going red says this component stopped keeping its
+ * side of the bargain — it does not say a reader saw the wrong drive's
+ * files.
  *
  * **What this file can hold.** Which drive's data is in state after a
  * response settles late. jsdom lays nothing out, so nothing here is
@@ -500,9 +506,9 @@ describe("DriveHome across a drive change", () => {
   it("keeps a batch from an earlier visit to this drive out of the rows", async () => {
     // The same drive name at both ends of the trip, so nothing that
     // compares names can separate the two requests made for it. The
-    // component is not remounted in between: `/drive/[name]` renders it
-    // with no `key`, so the first visit's batch is still in flight when
-    // the third render arrives.
+    // instance is kept across all three renders, so the first visit's
+    // batch is still in flight when the third arrives — this file's own
+    // doing, not a claim about the router (see the header).
     const firstVisit = holdRowBatch(DRIVE_UNDER_TEST);
     const { rerender } = render(<DriveHome driveName={DRIVE_UNDER_TEST} />);
     await expectRowBatchStillHeld(firstVisit.promises);
@@ -697,11 +703,13 @@ describe("DriveHome across a drive change", () => {
   it("keeps a watch fetch from an earlier visit to this drive off the revisit", async () => {
     // The axis the case above cannot reach. There the two runs were made
     // for different drives, so a guard comparing drive names satisfies it
-    // by construction; here the same drive is on both ends of the trip and
-    // only the page load tells the two runs apart. The component is not
-    // remounted in between — `/drive/[name]` renders it with no `key` — so
-    // the first visit's fetches are still in flight on this instance when
-    // the third render arrives.
+    // by construction; here the same drive is on both ends and only the
+    // page load tells the two runs apart.
+    //
+    // The instance is kept across all three renders, which is this
+    // file's own doing rather than a claim about the router (see the
+    // header). What is held is that the component sorts the two runs
+    // out when it is used this way.
     profile.nickname = "someone";
     driveHasFiles(DRIVE_UNDER_TEST, DRIVE_A_FILES);
     driveHasWatchHistory(DRIVE_UNDER_TEST, DRIVE_A_WATCH);

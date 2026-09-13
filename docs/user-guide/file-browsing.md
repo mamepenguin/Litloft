@@ -4,9 +4,9 @@ Files and folders are browsed on the Library screen, which opens at the drive ro
 
 ## Drive home layout
 
-![Drive home page as it was before this layout: a breadcrumb row, a Folders heading with folder cards under it, then the Continue Watching, Recently Viewed and Pickup rows](../images/user-guide/drive-home-overview.png)
+![Drive home page as it was before this layout: the sidebar down the left, and beside it a breadcrumb row, a Folders heading with folder cards under it, then the Continue Watching, Recently Viewed and Pickup rows](../images/user-guide/drive-home-overview.png)
 
-The screenshot predates the current layout: the home page draws no folder cards now — those are Library's — **Add** sits at the right-hand end of the breadcrumb row, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail.
+The screenshot predates both the layout below and the sidebar described in the next section. On the home page itself: it draws no folder cards now — those are Library's — **Add** sits at the right-hand end of the breadcrumb row, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail. In its sidebar: there is no **Library** row and no **Views** heading, and Trash and Dashboard sit inside the top group rather than below.
 
 ## The sidebar
 
@@ -376,12 +376,12 @@ Tags themselves — how they are stored, edited, and searched — are covered in
 The drive home page surfaces several content rows:
 
 - **Continue watching** — files whose playback position is below 90% of their duration, newest first. Finished items fall out at that gate, and so do view-only opens of text, Markdown, and images (they carry no duration), so you only see media you actually paused mid-way.
-- **Recently played** — the same history without the 90% gate.
+- **Recently Viewed** — the same history without the 90% gate.
 - **Recently added** — files most recently indexed.
 - **Favourites** — `is_favorite = true`.
 - **Liked** — files you marked as good, most recently liked first.
 
-Continue watching and Recently played need a profile; without one, no history is recorded and the two rows do not appear. See [profile and preferences](profile-preferences.md).
+Continue watching and Recently Viewed need a profile; without one, no history is recorded and the two rows do not appear. See [profile and preferences](profile-preferences.md).
 
 A row shows as many cards as fit its width and no more — it does not
 scroll sideways, so nothing is hidden off the right-hand edge. The width
@@ -392,9 +392,9 @@ of as many columns as fit.
 
 Every row therefore has a **See all**, because that link is the only way
 to the cards the row did not draw. Where the count is known it is on the
-link: *See all (619)*. Continue watching and Recently played carry no
+link: *See all (619)*. Continue watching and Recently Viewed carry no
 count, because the watch-history API returns the page rather than the
-total, and both send you to the same place — Recently played is the
+total, and both send you to the same place — Recently Viewed is the
 whole history, so it holds everything Continue watching was showing you
 and more.
 
