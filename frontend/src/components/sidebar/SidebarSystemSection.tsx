@@ -11,27 +11,18 @@ interface SidebarSystemSectionProps {
   close: () => void;
   driveSummary?: DriveSummary | null;
   /**
-   * Whether the current viewer is an admin (sees every protected drive).
    * The dashboard link points at admin-only surfaces, so it is rendered
    * for admins alone. Defaults to hidden until the auth-status probe
-   * resolves, mirroring the /admin gate's "don't flash admin UI to
-   * non-admins" posture.
+   * resolves.
    */
   isAdmin?: boolean;
 }
 
 /**
- * The fixed rows that sit *below* the reader's own sections.
- *
  * These are reached rarely and are about the drive rather than about what
  * is in it, so they are kept out of the purpose list at the top — a row
  * someone presses once a month costs the same glance as one they press
- * every day when the two sit together (spec
- * 2026-09-12-purpose-oriented-navigation §5.1).
- *
- * Separate from `SidebarLibrarySection` because of where it renders, not
- * because of what it draws: the reorderable sections are between them, and
- * those are `Sidebar`'s to lay out.
+ * every day when the two sit together.
  */
 export function SidebarSystemSection({
   driveBase,

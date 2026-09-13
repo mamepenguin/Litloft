@@ -18,13 +18,10 @@ import { SidebarSectionHeading } from "./SidebarSectionHeading";
 const COLLAPSED_TAG_COUNT = 8;
 
 interface SidebarTagsSectionProps {
-  /** The drive we are currently in. Also keys the per-drive sort mode. */
   drive?: string | null;
   /**
    * The folder we are currently in, straight from `useCurrentFolderPath()`
-   * via Sidebar — never re-derived from `usePathname()`. Two independent
-   * computations of "what folder are we in" is what produced the defect
-   * this section exists to fix.
+   * via Sidebar — never re-derived from `usePathname()`.
    */
   currentFolderPath: string | null;
   /**
@@ -35,7 +32,6 @@ interface SidebarTagsSectionProps {
    * row selected and turn its link into "leave this route".
    */
   pathname: string;
-  /** The tag currently applied via `?tag=`, if any. */
   activeTag: string | null;
   /** `?view=` wins over `?tag=` in the drive route, so a view suppresses selection. */
   activeView: string | null;
@@ -47,7 +43,6 @@ interface SidebarTagsSectionProps {
 
 type Scope = { drive: string; folderPath: string | null };
 
-/** The scope's own URL — where clearing the tag filter lands. */
 function scopeHref(scope: Scope): string {
   const base = `/drive/${encodeURIComponent(scope.drive)}`;
   // The folder route decodes path segments individually
@@ -112,12 +107,7 @@ export function SidebarTagsSection({
 
   const sortedTags = sortTags(tags.items, mode);
   // The applied tag is always on screen, ranked or not.
-  //
-  // The fold is by count, so a rare tag is never in the first eight —
-  // and arriving on `?tag=X` from the file detail's chips or from
-  // "Search the whole drive" would then filter the listing while the
-  // row that says so, and the second click that clears it, were both
-  // folded away. This section is the only surface that shows an
+  // This section is the only surface that shows an
   // applied tag or takes it off, so folding it away is a filter with
   // no exit.
   const foldedTags = sortedTags.slice(0, COLLAPSED_TAG_COUNT);
@@ -133,8 +123,6 @@ export function SidebarTagsSection({
   const hiddenCount = sortedTags.length - visibleTags.length;
   const SortIcon = mode === "count" ? ArrowDown01 : ArrowDownAZ;
   const sortLabel = mode === "count" ? t("sort.byCount") : t("sort.byName");
-  // Only the last segment: the heading is 239px wide, so a deep path
-  // would wrap and push the rows down.
   const scopeFolder = resolvedScope.folderPath?.split("/").filter(Boolean).pop() ?? null;
 
   return (

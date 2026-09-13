@@ -5,18 +5,9 @@ import { useTranslations } from "next-intl";
 import { MATCH_BADGES } from "@/lib/matchBadges";
 
 /**
- * What the badges on a result row mean, one line each.
- *
- * S-4. The badges say *why* a file matched, and eight single words cannot
- * carry it on their own — "Visual" and "Keyword" are the search's
- * vocabulary, not the reader's. The explanation sits here rather than on
- * the badges because `title` is read out a second time after an element's
- * name by NVDA and JAWS (`DESIGN.md` §Row Actions), and never appears at
- * all on a touch screen.
- *
- * Drawn from `MATCH_BADGES`, so it lists exactly the badges that exist: a
- * legend with a list of its own could describe one nobody draws, and leave
- * one that is on screen unexplained.
+ * The explanation sits here rather than on the badges because `title` is
+ * read out a second time after an element's name by NVDA and JAWS, and never
+ * appears at all on a touch screen.
  */
 export function MatchLegend() {
   const t = useTranslations("search");

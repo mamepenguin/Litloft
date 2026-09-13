@@ -51,10 +51,6 @@ export function MissingFileList({
         {files.map((file) => {
           const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
           const hasDuration = hasKnownLength(file);
-          // Same rule, same reason as the folder row: the badge above
-          // already says the length (`lib/primaryMeta.ts`). The size a
-          // missing file reports is its last known one, which does not
-          // make it the right first fact for a video either.
           const primaryText = primaryMetaText(file);
           const fileSelected = isSelected?.(file.id);
 
@@ -148,8 +144,6 @@ export function MissingFileList({
 
               {!selectable && (
                 <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/missing-item:opacity-100 group-focus-within/missing-item:opacity-100 pointer-coarse:opacity-100">
-                  {/* Icon only, name in the accessible name — see
-                      `TrashFileList` for why the label is not beside it. */}
                   <Button
                     variant="danger"
                     iconOnly

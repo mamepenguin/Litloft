@@ -63,8 +63,6 @@ export function SidebarCollectionsSection({
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const dragCounterRef = useRef<Map<string, number>>(new Map());
 
-  // Stable id list (c.id). Memoised so the reorder hooks keep a steady
-  // reference and do not churn `order` identity on every render.
   const currentIds = useMemo(
     () => collectionList.map((c) => c.id),
     [collectionList],
@@ -227,7 +225,6 @@ export function SidebarCollectionsSection({
               }}
             />
           )}
-          {/* grip only on real collection rows, not the rename input */}
           {!isRenaming && (
             <ItemDragHandle {...itemDnd.getHandleProps(c.id)} />
           )}
@@ -276,12 +273,6 @@ export function SidebarCollectionsSection({
         );
       })}
 
-      {/* The shared component, as `SidebarSmartFoldersSection` already uses
-          for the identical gesture two files away. This section drew its
-          own `fixed` panel with no scrim, no `role` and a `window` click
-          listener, so the tap that dismissed it also pressed the sidebar
-          row underneath — and having no ARIA, it was invisible to the
-          sweep that is supposed to find popups. */}
       {contextMenu && (
         <ContextMenu
           open

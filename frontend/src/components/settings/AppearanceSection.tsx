@@ -35,10 +35,8 @@ export function AppearanceSection() {
             onClick={() => setTheme(value)}
             className={`flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm transition-colors ${
               active
-                ? // Selected state is a border, not a fill: DESIGN.md §2.2
-                  // keeps the accent fill for the page's one call to
-                  // action, and `PageTabs` already draws "this is the one"
-                  // with an accent edge.
+                ? // Selected state is a border, not a fill: the accent fill
+                  // is kept for the page's one call to action.
                   "border-accent bg-bg-elevated text-text-primary"
                 : "border-bg-border bg-bg-card text-text-muted hover:bg-bg-elevated hover:text-text-primary"
             }`}

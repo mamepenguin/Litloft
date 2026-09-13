@@ -40,8 +40,6 @@ export function SidebarSmartFoldersSection({
 
   const { smartFolders, update, remove } = useSmartFolders(drive);
 
-  // Stable id list (sf.id). Memoised so the reorder hooks keep a steady
-  // reference and do not churn `order` identity on every render.
   const currentIds = useMemo(() => smartFolders.map((sf) => sf.id), [smartFolders]);
   const { order, setOrder } = useSidebarItemOrder("smart-folders", drive, currentIds);
   const itemDnd = useReorderableDnD({
@@ -99,7 +97,6 @@ export function SidebarSmartFoldersSection({
     }
   }, [deleting, remove, t]);
 
-  // Hide the entire section when there are no entries for the current drive.
   if (smartFolders.length === 0) return null;
 
   const menuTarget = contextMenu

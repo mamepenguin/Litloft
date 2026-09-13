@@ -7,15 +7,10 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import type { AuthStatus, CollectionSummary, Drive, DriveSummary, PinnedFolder, Tag } from "@/types";
 
 /**
- * The tag list together with the scope it was actually fetched for.
- *
- * spec 2026-08-21-folder-scoped-tag-filter §5.0: sharing an expression
- * between the list fetch and the tag href makes them agree about *what
- * scope to ask for*, but the rendered items lag behind by one fetch.
  * Carrying the scope with the data lets the consumer tell "these rows
  * describe the scope you are in" from "these rows are the previous
  * scope's, still on screen". The drive is part of the key as well as the
- * folder — drive is a security boundary (hako cRNeIvcbhz449BwTmof5m).
+ * folder — drive is a security boundary.
  */
 export interface ScopedTags {
   resolvedScope: { drive: string; folderPath: string | null };
@@ -87,8 +82,6 @@ export function useSidebarData(
     };
   }, [currentDrive, currentFolderPath, refreshKey]);
 
-  // Refresh drive summary when a scan completes so sidebar reflects
-  // newly missing / recovered counts.
   const scanEvent = useWebSocket("scan:complete");
   useEffect(() => {
     if (!scanEvent || !currentDrive) return;

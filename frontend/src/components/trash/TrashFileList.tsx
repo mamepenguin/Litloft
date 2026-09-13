@@ -60,10 +60,6 @@ export function TrashFileList({
         {files.map((file) => {
           const hasThumbnail = file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
           const hasDuration = hasKnownLength(file);
-          // The badge above says the length, so the rule in
-          // `lib/primaryMeta.ts` applies here exactly as it does on a
-          // folder row: for video and audio the size is redundant, and
-          // on a `.loft` reference row it is the pointer's.
           const primaryText = primaryMetaText(file);
           const fileSelected = isSelected?.(file.id);
           const daysRemaining = file.deleted_at ? getDaysRemaining(file.deleted_at) : 0;
@@ -75,14 +71,10 @@ export function TrashFileList({
                 selectable ? "cursor-pointer select-none" : ""
               } ${fileSelected ? "ring-2 ring-accent" : ""}`}
               /* Not gated on `selectable`: Cmd/Ctrl-click is how a
-                 selection is *started* here, which is why the host's
-                 handler turns selection mode on before it toggles. With
-                 the handler attached only in selection mode there was no
-                 way in, and the press did nothing at all. */
+                 selection is *started* here. */
               onClick={(e) => {
                 // Shift first once a selection is running: Cmd/Ctrl+Shift
-                // extends the range rather than toggling one file, which is
-                // the order `useFileCardLink` uses in the ordinary listing.
+                // extends the range rather than toggling one file.
                 if (selectable && e.shiftKey && onShiftSelect) {
                   e.preventDefault();
                   onShiftSelect(file.id);
@@ -163,13 +155,9 @@ export function TrashFileList({
 
               {!selectable && (
                 <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/trash-item:opacity-100 group-focus-within/trash-item:opacity-100 pointer-coarse:opacity-100">
-                  {/* Icon only here, with the words in the accessible name:
-                      a row already carries a title, a size and a date, and
-                      two labels per row is what pushes the title into an
-                      ellipsis. `title` is deliberately not set to the same
-                      string — beside an `aria-label` it becomes the
-                      accessible *description* and is announced a second
-                      time (§Row Actions). */}
+                  {/* `title` is deliberately not set to the same string —
+                      beside an `aria-label` it becomes the accessible
+                      *description* and is announced a second time. */}
                   <Button
                     variant="ghost"
                     iconOnly

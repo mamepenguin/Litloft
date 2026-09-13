@@ -12,9 +12,6 @@ import { PreferenceRow } from "./PreferenceRow";
  * tag sort mode) back to defaults. Only the `sidebar:order:*` and
  * `sidebar:sort:*` localStorage keys are removed; `sidebar:section:*:collapsed`
  * (a separate collapse-state feature) is intentionally preserved.
- *
- * Global personal preferences are consolidated under /settings
- * (hako CNX6n2jJDWKUBYM1ldBFV); spec §5.3 calls for a minimal v1 entry.
  */
 
 const RESET_PREFIXES = ["sidebar:order:", "sidebar:sort:"] as const;
@@ -52,12 +49,6 @@ export function SidebarResetSection() {
   };
 
   return (
-    // The sentence that used to sit above the button is gone. Its only
-    // content was "your custom ordering goes back to the default", the
-    // confirmation dialog says exactly that before anything happens, and
-    // the consequence is one undoable-by-hand reorder. A row has no place
-    // for prose, and prose nobody needs to read is worse in a row than in
-    // a card.
     <PreferenceRow id="settings-sidebar-reset" label={t("title")}>
       <button
         type="button"

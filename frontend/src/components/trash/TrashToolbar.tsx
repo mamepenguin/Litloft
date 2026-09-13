@@ -28,7 +28,6 @@ interface TrashToolbarProps {
   onToggleSelectable: () => void;
 }
 
-/** Same vocabulary, same source. See FolderToolbar's note. */
 const TYPE_OPTION_KEYS: ReadonlyArray<{ value: FileType | null; labelKey: string }> = [
   { value: null, labelKey: "type.all" },
   { value: "video", labelKey: "type.video" },
@@ -51,10 +50,6 @@ export function TrashToolbar({
   const typeFilterTriggerRef = useRef<HTMLButtonElement>(null);
   const typeFilterWrapperRef = useRef<HTMLDivElement>(null);
   const typeFilterMenuRef = useRef<HTMLDivElement>(null);
-  // The control exists only below 640px (`sm:hidden` on its wrapper), and
-  // the panel is `absolute` there rather than a sheet — so unlike the
-  // archive bar's `…`, this one is anchored at every width it is drawn at
-  // and the hook has something to decide.
   const { openUp, side } = useAnchoredDirection({
     triggerRef: typeFilterWrapperRef,
     panelRef: typeFilterMenuRef,
@@ -63,30 +58,16 @@ export function TrashToolbar({
     preferSide: "left",
   });
 
-  // An empty bin has nothing to sort, nothing to lay out and nothing to
-  // filter by kind — the seven pills, the sort, the view toggle and the
-  // selection mode are ten controls over an empty page. The exception
-  // is a bin emptied by the filter itself: the pill that produced the
-  // empty result is also the way back out of it.
+  // A bin emptied by the filter itself keeps its controls: the pill that
+  // produced the empty result is also the way back out of it.
   const hideArrangingControls = total === 0 && typeFilter === null;
 
-  // A popup must be dismissable from the keyboard. Without it the only
-  // ways out are a press outside it or picking a row, so a keyboard user
-  // who opens this menu cannot back out of it.
-  //
   // On the shortcut stack, not on `document`: a listener does not know
-  // what is stacked above it, and `escape-listeners.test.ts` records the
-  // presses that were answered twice before this was the rule.
-  // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
-  // while it is open. `FileActions` carries the same block and the
-  // reasoning in full.
+  // what is stacked above it.
   //
   // `editingOnly: false` because nothing traps focus inside this menu, so
-  // Tab walks out of the last row into whatever follows in the document.
-  // The provider counts a focused field as "editing", and the default
-  // fires only when nothing is — which would leave Escape inert exactly
-  // there, with the menu still up. The test case for that state is what
-  // makes the flag checkable.
+  // Tab can walk out into a field, and the default would leave Escape inert
+  // there with the menu still up.
   useShortcuts(
     "trash-type-filter-menu",
     "Dialog",
@@ -114,10 +95,7 @@ export function TrashToolbar({
           <div className="flex items-center gap-1 rounded-lg bg-bg-card p-1">
             <SortButton sort={sort} order={order} onChange={onSortChange} />
             {/* Same pill as ViewToggle, so the same idiom: selection is a
-                border (DESIGN.md §Selected-state controls). It was an accent
-                fill, which put two different ways of saying "this one is on"
-                side by side in one control cluster — and spent the screen's
-                one fill on a mode toggle. */}
+                border, not an accent fill. */}
             <button
               onClick={onToggleSelectable}
               aria-pressed={selectable}
@@ -155,8 +133,6 @@ export function TrashToolbar({
           {typeFilterOpen && (
             <DismissScrim
               onDismiss={() => setTypeFilterOpen(false)}
-              // No tint: anchored to its trigger, and the control itself
-              // only exists below `sm`.
               className="fixed inset-0 z-30"
             >
               <div
@@ -172,8 +148,7 @@ export function TrashToolbar({
                 {TYPE_OPTION_KEYS.map((opt) => (
                   <button
                     key={opt.labelKey}
-                    // As `MenuRadioGroup` does for the same rows elsewhere:
-                    // the tick is the only thing saying which one is on, and
+                    // The tick is the only thing saying which one is on, and
                     // it is an unlabelled glyph.
                     role="menuitemradio"
                     aria-checked={typeFilter === opt.value}

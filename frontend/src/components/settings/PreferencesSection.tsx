@@ -7,10 +7,6 @@ import { LanguageSection } from "./LanguageSection";
 import { SidebarResetSection } from "./SidebarResetSection";
 
 /**
- * Display, language and sidebar order, in one card.
- *
- * They were three cards with three headings and three borders, holding a
- * three-way choice, a two-way choice and a single button between them.
  * Profile and its guide stay as cards of their own: the first is not one
  * control (a field, a save, a switch, a delete and two dialogs) and the
  * second is prose.

@@ -55,9 +55,7 @@ export function useCollectionManagement({
 
   // No listener here. The menu is `ContextMenu`, which goes through
   // `DismissScrim`: an outside press closes it and the click that press
-  // produces is swallowed. The `window` listener this replaced answered
-  // the same click *and* let it reach the sidebar row underneath, so
-  // dismissing the menu navigated somewhere.
+  // produces is swallowed.
 
   const handleCreateCollection = useCallback(async () => {
     if (!currentDrive || !newCollectionName.trim()) {
@@ -105,10 +103,6 @@ export function useCollectionManagement({
     setContextMenu(null);
   }, [currentDrive, setCollectionList, toast, t]);
 
-  // Sidebar click opens the collection's "virtual folder" detail page.
-  // The Play action (jump into the fullscreen playback queue) lives on
-  // that page, gated on whether the collection actually has media.
-  // Spec 2026-05-12-playlist-to-collection §6.3 + PR-A follow-up.
   const handleCollectionClick = useCallback((c: CollectionSummary) => {
     setOverrideDrive(c.drive);
     close();
