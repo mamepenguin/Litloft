@@ -373,9 +373,10 @@ Tags themselves — how they are stored, edited, and searched — are covered in
 
 ## Content rows
 
-The drive home page surfaces several content rows:
+The drive home page surfaces several content rows, in this order:
 
 - **Continue watching** — files whose playback position is below 90% of their duration, newest first. Finished items fall out at that gate, and so do view-only opens of text, Markdown, and images (they carry no duration), so you only see media you actually paused mid-way.
+- Any rows an addon contributes come next, between the two watch rows. They are suggestions — things to pick up — so they sit beside what you were in the middle of rather than after the record of what you have already opened. With no addon installed nothing is drawn there and the two watch rows meet.
 - **Recently Viewed** — the same history without the 90% gate.
 - **Recently added** — files most recently indexed.
 - **Favourites** — `is_favorite = true`.
