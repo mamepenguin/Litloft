@@ -137,6 +137,36 @@ class TestLoadingAnAddon:
             f"addons.{name}.router"
         ]
 
+    def test_an_invalid_navigation_leaves_the_addon_loaded_and_queued(
+        self, addons_dir
+    ):
+        name = f"{_PACKAGE_PREFIX}badnav"
+        _write_addon(
+            addons_dir,
+            name,
+            '''
+            from fastapi import APIRouter
+
+            router = APIRouter()
+            ADDON_META = {
+                "label": "Bad nav",
+                "scope": "drive",
+                "navigation": {"label": "Nav", "placement": ["primary"], "priority": 1},
+            }
+
+            async def on_startup():
+                return None
+            ''',
+        )
+
+        _load(addons_dir)
+
+        assert name in main._loaded_addons
+        assert "navigation" not in addon_registry.get(name)
+        assert [fn.__module__ for fn in main._addon_startup_fns] == [
+            f"addons.{name}.router"
+        ]
+
     def test_an_addon_with_no_scope_keeps_its_routes_and_leaves_the_registry(
         self, addons_dir
     ):
