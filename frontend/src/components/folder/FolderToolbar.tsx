@@ -68,8 +68,6 @@ interface FolderToolbarProps {
   onSetNewFolderName: (v: string) => void;
   onSetFolderError: (v: string | null) => void;
   onCreateFolder: () => void;
-  /** Omitting the prop hides the "New Note" button. */
-  onCreateFile?: () => void;
   onReshuffle?: () => void;
   /**
    * Both or neither: without the flag the overflow row would have to
@@ -86,7 +84,7 @@ export function FolderToolbar({
   viewMode, widenTagScope,
   onSortChange, onTypeFilterChange, onTrustFilterChange, onViewChange, onToggleSelectable,
   onScan, onPlayAll, onSetCreatingFolder, onSetNewFolderName,
-  onSetFolderError, onCreateFolder, onCreateFile, onReshuffle,
+  onSetFolderError, onCreateFolder, onReshuffle,
   isPinned, onTogglePin,
 }: FolderToolbarProps) {
   const hideMutatingActions = !isWriteDestination;
@@ -116,7 +114,6 @@ export function FolderToolbar({
   const leftActions = !hideMutatingActions ? (
     <AddButton
       onCreateFolder={() => onSetCreatingFolder(true)}
-      onCreateFile={onCreateFile}
       addonProps={{ fileIds, drive, path: folderPath ?? "", surface: "library" }}
     />
   ) : null;

@@ -601,7 +601,6 @@ export function FolderBrowser({
         onSetNewFolderName={createFolder.setNewFolderName}
         onSetFolderError={createFolder.setFolderError}
         onCreateFolder={createFolder.handleCreateFolder}
-        onCreateFile={isWriteDestination ? createFile : undefined}
         onReshuffle={handleReshuffle}
         isPinned={isFolderAnchored ? pinnedPaths.has(folderPath!) : undefined}
         onTogglePin={isFolderAnchored ? handleTogglePin : undefined}

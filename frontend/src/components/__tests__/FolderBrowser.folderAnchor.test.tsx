@@ -1,7 +1,7 @@
 /**
  * These assertions go through FolderBrowser rather than the toolbar alone
- * because creation is gated twice: FolderBrowser decides whether to pass
- * `onCreateFile`, FolderToolbar decides whether to render the group at all.
+ * because creation is gated twice: FolderBrowser decides what to pass, and
+ * FolderToolbar decides whether to render the group at all.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -43,22 +43,13 @@ vi.mock("@/components/UploadZone", () => ({
   UploadZone: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock("@/components/AddButton", () => ({
-  AddButton: ({
-    onCreateFolder,
-    onCreateFile,
-  }: {
-    onCreateFolder?: () => void;
-    onCreateFile?: () => void;
-  }) => (
+  AddButton: ({ onCreateFolder }: { onCreateFolder?: () => void }) => (
     <>
       <button>Add</button>
       {onCreateFolder && (
         // Called with no arguments, as `ActionMenuItem` calls it: the handler
         // expects a name, not a click event.
         <button onClick={() => onCreateFolder()}>New Folder</button>
-      )}
-      {onCreateFile && (
-        <button onClick={() => onCreateFile()}>New Note</button>
       )}
     </>
   ),
@@ -174,8 +165,9 @@ vi.mock("@/hooks/useFolderViewMode", () => ({
 
 // ---- helpers -----------------------------------------------------------------
 
+/** Core's own note creation, now reached from the empty folder rather than from Add. */
 function newNoteButtons() {
-  return screen.queryAllByRole("button", { name: "New Note" });
+  return screen.queryAllByRole("button", { name: "Empty-state new note" });
 }
 
 const sortQueryOf = () =>
@@ -235,7 +227,7 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
   it("offers create-file and targets the anchored folder", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" tagFilter="soup" />);
 
-    expect(newNoteButtons()).toHaveLength(OFFERED);
+    expect(newNoteButtons()).toHaveLength(1);
 
     fireEvent.click(newNoteButtons()[0]);
     expect(mockCreateFile).toHaveBeenCalledWith("main", "recipes");
@@ -322,7 +314,7 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
 
   it("still offers create-file for a plain folder listing", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" />);
-    expect(newNoteButtons()).toHaveLength(OFFERED);
+    expect(newNoteButtons()).toHaveLength(1);
   });
 });
 
@@ -418,7 +410,7 @@ describe("FolderBrowser — the drive root as a write destination", () => {
 
   it("offers the whole mutating group", () => {
     render(<FolderBrowser driveName="main" folderPath="" view="library" />);
-    expect(newNoteButtons()).toHaveLength(OFFERED);
+    expect(newNoteButtons()).toHaveLength(1);
     expect(addButtons()).toHaveLength(OFFERED);
     expect(newFolderButtons()).toHaveLength(OFFERED);
   });

@@ -130,54 +130,38 @@ describe("FolderToolbar", () => {
     expect(screen.getByText("New Folder")).toBeInTheDocument();
   });
 
-  it("offers new note in the add menu when onCreateFile is provided", () => {
-    render(<FolderToolbar {...defaultProps} onCreateFile={vi.fn()} />);
-    openAddMenu();
-    expect(screen.getByText("New Note")).toBeInTheDocument();
-  });
-
-  it("does not offer new note when onCreateFile is omitted", () => {
+  it("offers no note row of its own in the add menu", () => {
     render(<FolderToolbar {...defaultProps} />);
     openAddMenu();
-    expect(screen.queryByText("New Note")).not.toBeInTheDocument();
-  });
-
-  it("clicking new note calls onCreateFile", () => {
-    const onCreateFile = vi.fn();
-    render(<FolderToolbar {...defaultProps} onCreateFile={onCreateFile} />);
-    openAddMenu();
-    fireEvent.click(screen.getByText("New Note"));
-    expect(onCreateFile).toHaveBeenCalledTimes(1);
+    const menu = screen.getAllByRole("menu")[0];
+    const rows = Array.from(menu.querySelectorAll('[role="menuitem"]')).map((r) => r.textContent?.trim());
+    expect(rows).toEqual(["Files", "Folder", "New Folder"]);
   });
 
   it("hides the add menu entirely in special view", () => {
-    const onCreateFile = vi.fn();
     render(
       <FolderToolbar
         {...defaultProps}
         isSpecialView={true}
         isWriteDestination={false}
-        onCreateFile={onCreateFile}
       />,
     );
     expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
-  it("shows upload, new folder and new note during a folder-anchored tag filter", () => {
-    const onCreateFile = vi.fn();
+  it("shows upload and new folder during a folder-anchored tag filter", () => {
     render(
       <FolderToolbar
         {...defaultProps}
         tagFilter="nature"
         folderPath="recipes"
         isWriteDestination={true}
-        onCreateFile={onCreateFile}
       />,
     );
     expect(screen.getAllByRole("button", { name: "Add" }).length).toBeGreaterThan(0);
     openAddMenu();
+    expect(screen.getByText("Files")).toBeInTheDocument();
     expect(screen.getByText("New Folder")).toBeInTheDocument();
-    expect(screen.getByText("New Note")).toBeInTheDocument();
   });
 
   it("hides the add menu for a tag filter with no folder anchor", () => {
@@ -377,11 +361,10 @@ describe("FolderToolbar", () => {
     });
 
     it("keeps the ways of putting something in it", () => {
-      render(<FolderToolbar {...empty} onCreateFile={vi.fn()} />);
+      render(<FolderToolbar {...empty} />);
       openAddMenu();
       expect(screen.getByText("Files")).toBeInTheDocument();
       expect(screen.getByText("New Folder")).toBeInTheDocument();
-      expect(screen.getByText("New Note")).toBeInTheDocument();
     });
 
     it("keeps the way back to a rescan", () => {
