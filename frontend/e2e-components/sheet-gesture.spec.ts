@@ -462,6 +462,30 @@ test.describe("dragging the knob down", () => {
       ...PUSH,
       wait: false,
     });
+    // Where the sheet was when the close arrived, and the highest it went
+    // after: frozen, it only ever moves down from there.
+    await page.evaluate((surfaceSel) => {
+      const top = () =>
+        document.querySelector(surfaceSel)?.getBoundingClientRect().top;
+      // On the window, which hears the key before the dialog's own
+      // listener on the document closes the sheet.
+      window.addEventListener(
+        "keydown",
+        () => {
+          const record = { atClose: top() ?? NaN, highest: top() ?? NaN };
+          (window as unknown as { closeRecord: typeof record }).closeRecord =
+            record;
+          const sample = () => {
+            const now = top();
+            if (now === undefined) return;
+            record.highest = Math.min(record.highest, now);
+            requestAnimationFrame(sample);
+          };
+          requestAnimationFrame(sample);
+        },
+        { capture: true, once: true },
+      );
+    }, SURFACE);
     await page.keyboard.press("Escape");
 
     await expect(page.locator("body")).toHaveAttribute(
@@ -472,6 +496,12 @@ test.describe("dragging the knob down", () => {
     expect(after.surfaceTopAtCollapse).toBeGreaterThanOrEqual(
       after.viewportHeight - 1,
     );
+    const record = await page.evaluate(
+      () =>
+        (window as unknown as { closeRecord: { atClose: number; highest: number } })
+          .closeRecord,
+    );
+    expect(record.highest).toBeGreaterThanOrEqual(record.atClose - 1);
   });
 
   test("short of a third, it springs back to half", async ({ page }) => {

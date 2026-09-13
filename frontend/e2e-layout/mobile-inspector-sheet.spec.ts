@@ -767,7 +767,12 @@ test.describe("no row of the tab body shows above the stuck strip", () => {
   async function bandAboveStrip(
     page: import("@playwright/test").Page,
     spec: Spec,
-  ): Promise<{ painted: Buffer; hidden: Buffer }> {
+  ): Promise<{
+    painted: Buffer;
+    hidden: Buffer;
+    hiddenEdge: Buffer;
+    unshadowedEdge: Buffer;
+  }> {
     const m = await layout(page, spec, TO_THE_END);
     expect(m.stripPosition).toBe("sticky");
     const body = page.locator("[data-testid='inspector-panel'] > div").first();
@@ -785,21 +790,40 @@ test.describe("no row of the tab body shows above the stuck strip", () => {
       (el as HTMLElement).style.visibility = "hidden";
     });
     const hidden = await page.screenshot({ clip, animations: "disabled" });
-    return { painted, hidden };
+    // With nothing behind it, the ground a pixel higher is the same ground.
+    // Left of the knob, whose lowest anti-aliased row the shadow covers.
+    const edge = { ...clip, width: 120 };
+    const hiddenEdge = await page.screenshot({
+      clip: edge,
+      animations: "disabled",
+    });
+    await page
+      .locator("[data-testid='inspector-tabs']")
+      .evaluate((el) => {
+        (el as HTMLElement).style.boxShadow = "none";
+      });
+    const unshadowedEdge = await page.screenshot({
+      clip: edge,
+      animations: "disabled",
+    });
+    return { painted, hidden, hiddenEdge, unshadowedEdge };
   }
 
   test("375x812 at full", async ({ page }) => {
-    const { painted, hidden } = await bandAboveStrip(page, {
+    const { painted, hidden, hiddenEdge, unshadowedEdge } =
+      await bandAboveStrip(page, {
       width: 375,
       height: 812,
       snap: 0.9,
       headerPx: 812,
     });
     expect(painted.equals(hidden)).toBe(true);
+    expect(hiddenEdge.equals(unshadowedEdge)).toBe(true);
   });
 
   test("375x667 at half, on a fractional scroller top", async ({ page }) => {
-    const { painted, hidden } = await bandAboveStrip(page, {
+    const { painted, hidden, hiddenEdge, unshadowedEdge } =
+      await bandAboveStrip(page, {
       width: 375,
       height: 667,
       snap: 0.5,
@@ -807,6 +831,7 @@ test.describe("no row of the tab body shows above the stuck strip", () => {
       drawerPx: 667 * 0.9 + 0.37,
     });
     expect(painted.equals(hidden)).toBe(true);
+    expect(hiddenEdge.equals(unshadowedEdge)).toBe(true);
   });
 });
 
