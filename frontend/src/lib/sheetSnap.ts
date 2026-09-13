@@ -39,6 +39,10 @@ function roomAtSnap(viewportHeight: number, snap: number): number {
   return sheetDrawerHeightPx(viewportHeight) - viewportHeight * (1 - snap);
 }
 
+export function sheetTopAtSnap(viewportHeight: number, snap: number): number {
+  return viewportHeight - roomAtSnap(viewportHeight, snap);
+}
+
 export interface HalfSnapInput {
   /** `window.innerHeight`, which is the viewport vaul derives from. */
   viewportHeight: number;

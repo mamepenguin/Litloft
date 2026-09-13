@@ -12,6 +12,7 @@ import {
   SHEET_SNAP_HALF_FALLBACK,
   halfSnapUnderPlayer,
   sheetDrawerHeightPx,
+  sheetTopAtSnap,
 } from "@/lib/sheetSnap";
 
 const CASES = [
@@ -154,6 +155,13 @@ describe("sheetDrawerHeightPx", () => {
         6,
       );
     }
+  });
+});
+
+describe("sheetTopAtSnap", () => {
+  it("is where the sheet's top edge rests at a snap", () => {
+    expect(sheetTopAtSnap(1000, 0.5)).toBeCloseTo(600, 6);
+    expect(sheetTopAtSnap(1000, 0.9)).toBeCloseTo(200, 6);
   });
 });
 

@@ -604,6 +604,14 @@ function SheetGesture({ bodyPx }: { bodyPx: number }): ReactElement {
       <MobileInspectorSheet
         state={state}
         onStateChange={(next) => {
+          // Read before the state change unmounts the surface: this is
+          // where the sheet was when it collapsed.
+          const surface = document.querySelector(
+            "[data-testid='mobile-inspector-surface']",
+          );
+          document.body.dataset.surfaceTopAtCollapse = surface
+            ? String(Math.round(surface.getBoundingClientRect().top))
+            : "";
           setState(next);
           document.body.dataset.sheetState = next;
         }}

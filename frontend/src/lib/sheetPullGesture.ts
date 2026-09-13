@@ -16,7 +16,9 @@ export const SHEET_PULL_DIRECTION_EPS_PX = 4;
 
 export const SHEET_PULL_HANDOFF_PX = 48;
 
-export const SHEET_PULL_DISMISS_PX = 72;
+export function sheetDismissDistancePx(visibleHeight: number): number {
+  return Math.max(0, visibleHeight) / 3;
+}
 
 /**
  * How fast the finger must be leaving, downward, to collapse the sheet at
@@ -124,12 +126,14 @@ export function advanceSheetPull(
 /**
  * @param velocity The finger's vertical speed as it left, px/ms, positive
  *   downward.
+ * @param dismissPx From `sheetDismissDistancePx`.
  */
 export function releaseSheetPull(
   state: SheetPullState,
   velocity: number,
+  dismissPx: number,
 ): "dismiss" | "settle" {
   if (state.owner !== "sheet" || state.pull <= 0) return "settle";
-  if (state.pull >= SHEET_PULL_DISMISS_PX) return "dismiss";
+  if (state.pull >= dismissPx) return "dismiss";
   return velocity >= SHEET_PULL_DISMISS_VELOCITY ? "dismiss" : "settle";
 }

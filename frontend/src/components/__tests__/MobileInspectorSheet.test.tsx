@@ -16,6 +16,7 @@ import {
   SHEET_SNAP_FULL,
   SHEET_SNAP_HALF_FALLBACK,
   sheetDrawerHeightPx,
+  sheetTopAtSnap,
 } from "@/lib/sheetSnap";
 import {
   MobileInspectorSheet,
@@ -139,6 +140,21 @@ describe("MobileInspectorSheet", () => {
     await waitFor(() => {
       expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
     });
+  });
+
+  it("does not reopen when vaul settles its snap after closing from full", async () => {
+    // vaul resets its active snap point 500ms after it closes, which from
+    // `full` is a change it reports.
+    const { onStateChange } = renderSheet(SHEET_STATE_FULL);
+    await screen.findByTestId("mobile-inspector-sheet");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => {
+      expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 700)));
+
+    expect(onStateChange.mock.calls).toEqual([[SHEET_STATE_PEEK]]);
   });
 
   it("sits below the modal-dialog tier", async () => {
@@ -340,73 +356,145 @@ describe("pulling the sheet down by its content", () => {
 
   const START_AT = 1000;
 
-  /**
-   * The hook reads the finger's speed over the last `VELOCITY_WINDOW_MS`,
-   * so steps further apart than the window read as motionless however far
-   * they went.
-   */
-  const pull = ({
+  /** A third of it is 100px. */
+  const VISIBLE_PX = 300;
+
+  const restAt = (surface: HTMLElement) => {
+    const top = window.innerHeight - VISIBLE_PX;
+    surface.getBoundingClientRect = () =>
+      ({ top, bottom: window.innerHeight, height: VISIBLE_PX }) as DOMRect;
+  };
+
+  const mount = ({
     scrollTop,
     maxScroll,
-    to,
-    steps = 2,
-    msPerStep = 200,
-    holdMs = 0,
   }: {
     scrollTop: number;
     maxScroll: number;
-    to: number;
-    steps?: number;
-    msPerStep?: number;
-    holdMs?: number;
   }) => {
     const { onStateChange } = renderSheet(SHEET_STATE_HALF);
     const scroller = screen.getByTestId("mobile-inspector-content");
     const surface = screen.getByTestId("mobile-inspector-surface");
     stubScrollGeometry(scroller, { scrollTop, maxScroll });
+    restAt(surface);
+    return { onStateChange, scroller, surface };
+  };
 
-    at(scroller, "touchStart", touch(300), START_AT);
-    let now = START_AT;
+  /**
+   * The hook reads the finger's speed over the last `VELOCITY_WINDOW_MS`,
+   * so steps further apart than the window read as motionless however far
+   * they went.
+   */
+  const gesture = (
+    scroller: HTMLElement,
+    {
+      to,
+      steps = 2,
+      msPerStep = 200,
+      holdMs = 0,
+      startAt = START_AT,
+    }: {
+      to: number;
+      steps?: number;
+      msPerStep?: number;
+      holdMs?: number;
+      startAt?: number;
+    },
+  ) => {
+    at(scroller, "touchStart", touch(300), startAt);
+    let now = startAt;
     for (let step = 1; step <= steps; step += 1) {
       now += msPerStep;
       at(scroller, "touchMove", touch(300 + (to * step) / steps), now);
     }
+    const surface = screen.getByTestId("mobile-inspector-surface");
     const transform = surface.style.transform;
     at(scroller, "touchEnd", lift(300 + to), now + holdMs);
+    return { transform };
+  };
+
+  const pull = (
+    geometry: { scrollTop: number; maxScroll: number; to: number } & Omit<
+      Parameters<typeof gesture>[1],
+      "to"
+    >,
+  ) => {
+    const { onStateChange, scroller, surface } = mount(geometry);
+    const { transform } = gesture(scroller, geometry);
     return { onStateChange, transform, surface };
   };
+
+  const settledFor = () =>
+    act(() => new Promise((resolve) => setTimeout(resolve, 500)));
 
   it("draws the sheet under the finger, on the surface", () => {
     const { transform } = pull({ scrollTop: 0, maxScroll: 900, to: 40 });
     expect(transform).toBe("translate3d(0, 40px, 0)");
   });
 
-  it("collapses to peek when the pull was far enough", () => {
+  it("collapses to peek when the pull was far enough", async () => {
     const { onStateChange } = pull({ scrollTop: 0, maxScroll: 900, to: 200 });
-    expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    await waitFor(() => {
+      expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    });
   });
 
-  it("springs the sheet back instead, when it was not", () => {
+  it("collapses at a third of the visible sheet, and not a pixel short of it", async () => {
+    const short = pull({ scrollTop: 0, maxScroll: 900, to: 99 });
+    await settledFor();
+    expect(short.onStateChange).not.toHaveBeenCalled();
+
+    cleanup();
+    const enough = pull({ scrollTop: 0, maxScroll: 900, to: 100 });
+    await waitFor(() => {
+      expect(enough.onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    });
+  });
+
+  it("slides the sheet off the bottom of the screen before it collapses", async () => {
+    const { onStateChange, surface } = pull({
+      scrollTop: 0,
+      maxScroll: 900,
+      to: 200,
+    });
+
+    expect(onStateChange).not.toHaveBeenCalled();
+    // From 200px down, the 300px still on screen.
+    expect(surface.style.transform).toBe("translate3d(0, 500px, 0)");
+    expect(screen.getByTestId("mobile-inspector-overlay").style.opacity).toBe(
+      "0",
+    );
+
+    await waitFor(() => {
+      expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    });
+    expect(onStateChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("springs the sheet back instead, when it was not", async () => {
     const { onStateChange, surface } = pull({
       scrollTop: 0,
       maxScroll: 900,
       to: 20,
     });
+    await settledFor();
     expect(onStateChange).not.toHaveBeenCalled();
     expect(surface.style.transform).toBe("translate3d(0, 0, 0)");
   });
 
-  it("collapses at that same distance when the finger left quickly", () => {
+  it("collapses at that same distance when the finger left quickly", async () => {
     const { onStateChange } = pull({
       scrollTop: 0,
       maxScroll: 900,
       to: 20,
       msPerStep: 8,
     });
-    expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    await waitFor(() => {
+      expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    });
   });
 
-  it("springs back when the finger stopped before lifting, however fast it had been", () => {
+  it("springs back when the finger stopped before lifting, however fast it had been", async () => {
     // 40px is short of the dismiss distance, so only velocity could
     // collapse this.
     const { onStateChange, surface } = pull({
@@ -416,27 +504,56 @@ describe("pulling the sheet down by its content", () => {
       msPerStep: 8,
       holdMs: 1000,
     });
+    await settledFor();
     expect(onStateChange).not.toHaveBeenCalled();
     expect(surface.style.transform).toBe("translate3d(0, 0, 0)");
   });
 
-  it("leaves the sheet alone when the gesture began away from the top", () => {
+  it("leaves the sheet alone when the gesture began away from the top", async () => {
     const { onStateChange, transform } = pull({
       scrollTop: 300,
       maxScroll: 900,
       to: 200,
     });
     expect(transform).toBe("");
+    await settledFor();
     expect(onStateChange).not.toHaveBeenCalled();
   });
 
-  it("reaches the handoff through a scroller that bounced past its own top", () => {
+  /**
+   * iOS drops the scroll of a touch during which an ancestor of the
+   * scroller changed its transform, so a write here freezes the content.
+   */
+  describe("writes nothing to the surface through a gesture the scroller owns", () => {
+    it("after the sheet has been pulled and sprung back", () => {
+      const { scroller, surface } = mount({ scrollTop: 0, maxScroll: 900 });
+      gesture(scroller, { to: 20 });
+      const rested = surface.getAttribute("style");
+      expect(rested).toContain("translate3d(0, 0, 0)");
+
+      scroller.scrollTop = 300;
+      at(scroller, "touchStart", touch(300), START_AT + 5000);
+      expect(surface.getAttribute("style")).toBe(rested);
+      at(scroller, "touchMove", touch(200), START_AT + 5200);
+      at(scroller, "touchMove", touch(100), START_AT + 5400);
+      at(scroller, "touchEnd", lift(100), START_AT + 5400);
+      expect(surface.getAttribute("style")).toBe(rested);
+    });
+
+    it("when a touch at the top turns upward", () => {
+      const { scroller, surface } = mount({ scrollTop: 0, maxScroll: 900 });
+      gesture(scroller, { to: -200 });
+      expect(surface.getAttribute("style")).toBeNull();
+    });
+  });
+
+  it("reaches the handoff through a scroller that bounced past its own top", async () => {
     // iOS Safari stretches an inner scroller past its top, and reports
     // the stretch as a negative `scrollTop`.
-    const { onStateChange } = renderSheet(SHEET_STATE_HALF);
-    const scroller = screen.getByTestId("mobile-inspector-content");
-    const surface = screen.getByTestId("mobile-inspector-surface");
-    stubScrollGeometry(scroller, { scrollTop: 200, maxScroll: 900 });
+    const { onStateChange, scroller, surface } = mount({
+      scrollTop: 200,
+      maxScroll: 900,
+    });
 
     at(scroller, "touchStart", touch(300), START_AT);
     scroller.scrollTop = 0;
@@ -448,16 +565,51 @@ describe("pulling the sheet down by its content", () => {
 
     expect(surface.style.transform).toBe("translate3d(0, 100px, 0)");
     at(scroller, "touchEnd", lift(660), START_AT + 800);
-    expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    await waitFor(() => {
+      expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    });
   });
 
-  it("does not expand the sheet when the content is dragged upward", () => {
+  it("does not expand the sheet when the content is dragged upward", async () => {
     const { onStateChange, transform } = pull({
       scrollTop: 0,
       maxScroll: 900,
       to: -200,
     });
     expect(transform).toBe("");
+    await settledFor();
     expect(onStateChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("releasing the knob", () => {
+  const halfTop = () =>
+    sheetTopAtSnap(window.innerHeight, SHEET_SNAP_HALF_FALLBACK);
+  const third = () => (window.innerHeight - halfTop()) / 3;
+
+  const releaseAt = async (sheetTop: number) => {
+    const { onStateChange } = renderSheet(SHEET_STATE_HALF);
+    const sheet = await screen.findByTestId("mobile-inspector-sheet");
+    const handle = sheet.querySelector<HTMLElement>("[data-vaul-handle]")!;
+    handle.setPointerCapture = () => undefined;
+    sheet.getBoundingClientRect = () =>
+      ({ top: sheetTop, bottom: window.innerHeight }) as DOMRect;
+
+    fireEvent.pointerDown(handle, { pointerId: 1, pageY: halfTop() });
+    fireEvent.pointerUp(handle, { pointerId: 1, pageY: sheetTop });
+    return { onStateChange };
+  };
+
+  it("collapses to peek a third of the half sheet below half", async () => {
+    const { onStateChange } = await releaseAt(halfTop() + third() + 1);
+    await waitFor(() => {
+      expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);
+    });
+  });
+
+  it("leaves the sheet to its snap points short of that", async () => {
+    const { onStateChange } = await releaseAt(halfTop() + third() - 10);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 500)));
+    expect(onStateChange).not.toHaveBeenCalledWith(SHEET_STATE_PEEK);
   });
 });
