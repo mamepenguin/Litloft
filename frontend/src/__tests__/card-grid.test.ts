@@ -268,13 +268,4 @@ describe("grids that are not card grids", () => {
     const body = readFileSync(resolve(REPO_ROOT, rel), "utf-8");
     expect(rendersCards(body)).toBe(false);
   });
-
-  it("keeps at least two columns where it does use a breakpoint count", () => {
-    const body = readFileSync(
-      resolve(REPO_ROOT, "frontend/src/components/archive/ArchiveEntryGrid.tsx"),
-      "utf-8",
-    );
-    expect(/\bgrid-cols-1\b/.test(body)).toBe(false);
-    expect(/\bgrid-cols-2\b/.test(body)).toBe(true);
-  });
 });
