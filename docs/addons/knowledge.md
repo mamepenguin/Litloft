@@ -249,6 +249,8 @@ The **Add** menu's **Clip web page** row sends the same `POST /clips` into the f
 
 Two known gaps: a notification can be missed when another live update arrives at the same moment (the clip itself is still created and appears on the Knowledge page), and if you close the dialog while the request is still being sent and that request is then refused (for example a blocked address), nothing reports it and no clip is created.
 
+The Knowledge page's recent clips are also looked up again when the page opens, so a clip that finished while the page was closed shows as ready or failed. A clip whose article could not be written over its placeholder is reported as failed.
+
 The dashboard also offers a **bookmarklet** to drag to your browser's bookmark bar. It does not talk to the API directly: it opens the Knowledge page for that drive with the current page's URL and title prefilled and submits the URL clip for you, so no cross-origin permission is involved.
 
 The placeholder write is guarded: if you (or the scanner) touch the file while the fetch is in flight, the fetched content is discarded rather than overwriting your edit.
