@@ -301,12 +301,24 @@ describe("AddonPolicyStep shows what the backend enforces", () => {
   });
 
   it("stores the opposite of what was shown, for that drive and addon only", () => {
-    const onChange = renderStep({ photos: { knowledge: false } });
+    const onChange = renderStep({ main: { knowledge: false }, photos: { knowledge: false } });
     fireEvent.click(sw("main", "intelligence"));
     expect(onChange).toHaveBeenCalledWith({
-      main: { intelligence: false },
+      main: { knowledge: false, intelligence: false },
       photos: { knowledge: false },
     });
+  });
+
+  const nextButton = () => screen.getByRole("button", { name: /^(skip|next)$/i });
+
+  it("offers Skip while nothing is stored for the drives shown", () => {
+    renderStep({ elsewhere: { knowledge: false } });
+    expect(nextButton()).toHaveTextContent(/skip/i);
+  });
+
+  it("offers Next once something is stored, even with every switch off", () => {
+    renderStep({ main: { intelligence: false, knowledge: false } });
+    expect(nextButton()).toHaveTextContent(/next/i);
   });
 
   it("stores on for an addon shown off", () => {

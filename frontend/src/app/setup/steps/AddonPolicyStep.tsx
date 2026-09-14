@@ -78,9 +78,7 @@ export function AddonPolicyStep({
     [onChange, value],
   );
 
-  const hasAnyToggleOn = drives.some((d) =>
-    addons.some((a) => isAddonOn(value, d.name, a.name)),
-  );
+  const storesAnything = drives.some((d) => value[d.name] !== undefined);
 
   return (
     <div className="space-y-4">
@@ -152,7 +150,7 @@ export function AddonPolicyStep({
           onClick={onNext}
           className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
         >
-          {hasAnyToggleOn ? t("next") : t("skip")}
+          {storesAnything ? t("next") : t("skip")}
         </button>
       </div>
     </div>

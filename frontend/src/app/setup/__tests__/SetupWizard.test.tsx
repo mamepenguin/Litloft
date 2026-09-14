@@ -358,10 +358,34 @@ describe("SetupWizard with addons installed", () => {
   }
 
   it("stores nothing for switches that were not touched, and counts them on", async () => {
-    await reachCompleteStep();
+    await reachCompleteStep(() => {
+      expect(screen.getByRole("button", { name: /skip/i })).toBeInTheDocument();
+    });
     expect(screen.getByText(/^4\s*addon/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /finish|complete/i }));
     await waitFor(() => expect(addonPolicyPut()).toEqual({}));
+  });
+
+  it("counts every switch once the addon list arrives after the drives", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/addons/status") {
+        return new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve(
+                jsonResponse({
+                  addons: { intelligence: { scope: "drive" }, knowledge: { scope: "drive" } },
+                  slots: {},
+                }),
+              ),
+            300,
+          ),
+        );
+      }
+      return defaultMockImpl(url);
+    });
+    await reachCompleteStep();
+    expect(screen.getByText(/^4\s*addon/)).toBeInTheDocument();
   });
 
   it("counts a switch turned off as off", async () => {

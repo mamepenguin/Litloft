@@ -497,13 +497,16 @@ describe("AddonPolicySection shows what the backend enforces", () => {
   it("stores the opposite of what was shown, for that drive and addon only", async () => {
     load();
     await waitFor(() => expect(sw("bare / intelligence")).toBeInTheDocument());
-    fireEvent.click(sw("bare / intelligence"));
+    fireEvent.click(sw("indexOff / intelligence"));
     await waitFor(() => {
       const putCall = mockFetch.mock.calls.find(
         ([url, opts]) => url === "/api/admin/config/addon-policy" && opts?.method === "PUT",
       );
       expect(putCall).toBeTruthy();
-      expect(JSON.parse(putCall![1].body)).toEqual({ ...stored, bare: { intelligence: false } });
+      expect(JSON.parse(putCall![1].body)).toEqual({
+        ...stored,
+        indexOff: { knowledge: { index: false }, intelligence: false },
+      });
     });
   });
 });

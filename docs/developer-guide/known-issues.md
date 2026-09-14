@@ -104,6 +104,11 @@ knowledge message namespace, `useActiveSummary`'s knowledge WebSocket event,
 in `lib/api.ts`, `semanticSearch` reading the intelligence catalogue entry and
 search URL, and `featureFlags`' inline knowledge editor flag.
 
+**`/setup` reports no addons enabled when the addon list fails to load.** If
+`/api/addons/status` fails, the addon step draws no switches and the summary
+counts zero, yet nothing is saved, so every installed addon is enabled on every
+drive.
+
 **Turning an addon off and on in `/admin/settings` forgets its feature switches.**
 An addon whose saved policy holds feature settings (`transcription_cloud: false`,
 say) is saved as a plain `true` or `false` when its own switch is pressed, so the

@@ -37,3 +37,35 @@ def test_matches_the_shared_table(case, drive_with):
     assert config.is_addon_feature_enabled("d", "knowledge", "index") is case["on"]
     for feature, expected in case["features"].items():
         assert config.is_addon_feature_enabled("d", "knowledge", feature) is expected
+
+
+@pytest.fixture
+def knowledge_registered():
+    from app.services import addon_registry
+
+    snap = dict(addon_registry._registry)
+    addon_registry._registry.clear()
+    assert addon_registry.register_in_process(
+        "knowledge",
+        {"label": "Knowledge", "icon": "package", "scope": "drive", "href": "/k"},
+    )
+    yield
+    addon_registry._registry.clear()
+    addon_registry._registry.update(snap)
+
+
+@pytest.mark.parametrize("case", CASES, ids=lambda c: c["name"])
+def test_the_catalogue_lists_the_addon_exactly_when_the_table_says_on(
+    case, client, knowledge_registered
+):
+    c, _, _, _ = client
+    base = json.loads(config.DRIVES_CONFIG.read_text())[0]["path"]
+    drive = {"name": "d", "path": base}
+    if case["addons"] is not None:
+        drive["addons"] = case["addons"]
+    config.DRIVES_CONFIG.write_text(json.dumps([drive]))
+    config._drives_cache = None
+
+    listed = c.get("/api/addons/status", params={"drive": "d"}).json()["addons"]
+
+    assert ("knowledge" in listed) is case["on"]
