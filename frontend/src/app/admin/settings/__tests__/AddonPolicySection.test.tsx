@@ -456,3 +456,54 @@ describe("AddonPolicySection says each explanation once", () => {
     expect(screen.queryAllByText(WARNING)).toHaveLength(0);
   });
 });
+
+describe("AddonPolicySection shows what the backend enforces", () => {
+  const stored = {
+    bare: {},
+    indexOff: { knowledge: { index: false } },
+    featureOff: { intelligence: { index: true, transcription_cloud: false } },
+    off: { intelligence: false },
+  };
+
+  function load() {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/admin/config/addon-policy") {
+        return Promise.resolve(jsonResponse(stored));
+      }
+      if (url === "/api/addons/status") {
+        return Promise.resolve(jsonResponse(addonsStatusResponse));
+      }
+      return Promise.resolve(jsonResponse({ ok: true }));
+    });
+    render(<AddonPolicySection />);
+  }
+
+  const sw = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
+
+  it("reads each stored shape as the backend does", async () => {
+    load();
+    await waitFor(() => expect(sw("bare / intelligence")).toBeInTheDocument());
+    expect(sw("bare / intelligence").checked).toBe(true);
+    expect(sw("bare / knowledge").checked).toBe(true);
+    expect(sw("indexOff / knowledge").checked).toBe(false);
+    expect(sw("indexOff / intelligence").checked).toBe(true);
+    expect(sw("featureOff / intelligence").checked).toBe(true);
+    const feature = (label: string) => screen.getByLabelText(label).getAttribute("aria-checked");
+    expect(feature("featureOff / intelligence / transcription_cloud")).toBe("false");
+    expect(feature("bare / intelligence / transcription_cloud")).toBe("true");
+    expect(sw("off / intelligence").checked).toBe(false);
+  });
+
+  it("stores the opposite of what was shown, for that drive and addon only", async () => {
+    load();
+    await waitFor(() => expect(sw("bare / intelligence")).toBeInTheDocument());
+    fireEvent.click(sw("bare / intelligence"));
+    await waitFor(() => {
+      const putCall = mockFetch.mock.calls.find(
+        ([url, opts]) => url === "/api/admin/config/addon-policy" && opts?.method === "PUT",
+      );
+      expect(putCall).toBeTruthy();
+      expect(JSON.parse(putCall![1].body)).toEqual({ ...stored, bare: { intelligence: false } });
+    });
+  });
+});

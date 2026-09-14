@@ -315,3 +315,61 @@ describe("SetupWizard with WelcomeStep", () => {
     });
   });
 });
+
+
+describe("SetupWizard with addons installed", () => {
+  beforeEach(() => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/addons/status") {
+        return Promise.resolve(
+          jsonResponse({
+            addons: { intelligence: { scope: "drive" }, knowledge: { scope: "drive" } },
+            slots: {},
+          }),
+        );
+      }
+      return defaultMockImpl(url);
+    });
+  });
+
+  async function reachCompleteStep(onAddonStep?: () => void) {
+    render(<SetupWizard />);
+    await reachDriveStep();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/public/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
+    onAddonStep?.();
+    fireEvent.click(
+      screen.queryByRole("button", { name: /skip/i }) ??
+        screen.getByRole("button", { name: /next/i }),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /finish|complete/i })).toBeInTheDocument(),
+    );
+  }
+
+  function addonPolicyPut() {
+    const call = mockFetch.mock.calls.find(
+      ([url, opts]) =>
+        url === "/api/admin/config/addon-policy" && (opts as RequestInit)?.method === "PUT",
+    );
+    return call ? JSON.parse((call[1] as RequestInit).body as string) : undefined;
+  }
+
+  it("stores nothing for switches that were not touched, and counts them on", async () => {
+    await reachCompleteStep();
+    expect(screen.getByText(/^4\s*addon/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /finish|complete/i }));
+    await waitFor(() => expect(addonPolicyPut()).toEqual({}));
+  });
+
+  it("counts a switch turned off as off", async () => {
+    await reachCompleteStep(() => {
+      fireEvent.click(screen.getByRole("checkbox", { name: "media / knowledge" }));
+    });
+    expect(screen.getByText(/^3\s*addon/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /finish|complete/i }));
+    await waitFor(() => expect(addonPolicyPut()).toEqual({ media: { knowledge: false } }));
+  });
+});

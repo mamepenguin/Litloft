@@ -104,6 +104,11 @@ knowledge message namespace, `useActiveSummary`'s knowledge WebSocket event,
 in `lib/api.ts`, `semanticSearch` reading the intelligence catalogue entry and
 search URL, and `featureFlags`' inline knowledge editor flag.
 
+**Turning an addon off and on in `/admin/settings` forgets its feature switches.**
+An addon whose saved policy holds feature settings (`transcription_cloud: false`,
+say) is saved as a plain `true` or `false` when its own switch is pressed, so the
+feature settings are gone when it is turned back on.
+
 **Media Import's `url_import` feature switch only hides a menu row.** With
 `url_import: false` the Add menu has no **Import from URL**, but the Media Import
 page and `POST /api/addons/media_import/link` still import from URLs on that
