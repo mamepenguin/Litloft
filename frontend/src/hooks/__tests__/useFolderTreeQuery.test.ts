@@ -65,20 +65,20 @@ describe("useFolderTreeQuery", () => {
     mockGetFolderTree.mockResolvedValue([]);
 
     const { result, rerender } = renderHook(
-      ({ typeFilter }: { typeFilter: "markdown" | null }) =>
+      ({ typeFilter }: { typeFilter: "text" | null }) =>
         useFolderTreeQuery({ drive: "work", typeFilter, pathsToLoad: new Set([""]) }),
-      { initialProps: { typeFilter: null as "markdown" | null } },
+      { initialProps: { typeFilter: null as "text" | null } },
     );
 
     await waitFor(() => expect(result.current.childrenByPath.has("")).toBe(true));
     expect(mockGetFolderTree).toHaveBeenCalledTimes(1);
 
-    rerender({ typeFilter: "markdown" });
+    rerender({ typeFilter: "text" });
 
     await waitFor(() => expect(mockGetFolderTree).toHaveBeenCalledTimes(2));
     expect(mockGetFolderTree).toHaveBeenLastCalledWith(
       "work",
-      { root: "", type_filter: "markdown", depth: 1, include_files: false },
+      { root: "", type_filter: "text", depth: 1, include_files: false },
       expect.any(Object),
     );
   });

@@ -69,7 +69,7 @@ def _recent_names(c, kind: str | None = None) -> set[str]:
 # The six top-level kinds plus the two that live under `document`.
 ALL_KINDS = [
     "video", "image", "audio", "document", "archive", "other",
-    "markdown", "pdf",
+    "text", "pdf",
 ]
 
 
@@ -102,14 +102,14 @@ class TestOneClassifier:
         c, _, _ = library
         assert _tree_names(c, kind, flat=False) == _tree_names(c, kind)
 
-    def test_they_agree_on_a_markdown_row_with_no_recorded_mime(self, library):
+    def test_they_agree_on_a_text_row_with_no_recorded_mime(self, library):
         # `classify()` always records a mime today, but older rows and rows
         # written by anything that skipped it carry NULL.
         c, db, drive_dir = library
         _add(db, drive_dir, filename="legacy.md", file_type="document", mime_type=None)
 
-        assert "legacy.md" in _listing_names(c, "markdown")
-        assert _listing_names(c, "markdown") == _tree_names(c, "markdown")
+        assert "legacy.md" in _listing_names(c, "text")
+        assert _listing_names(c, "text") == _tree_names(c, "text")
 
     def test_they_agree_on_a_pdf_row_with_no_recorded_mime(self, library):
         c, db, drive_dir = library
@@ -128,8 +128,8 @@ class TestOneClassifier:
         c, db, drive_dir = library
         _add(db, drive_dir, filename="stray.md", file_type="other", mime_type=None)
 
-        assert "stray.md" in _listing_names(c, "markdown")
-        assert _listing_names(c, "markdown") == _tree_names(c, "markdown")
+        assert "stray.md" in _listing_names(c, "text")
+        assert _listing_names(c, "text") == _tree_names(c, "text")
 
 
 class TestTheRecentView:
@@ -156,8 +156,8 @@ class TestTheRecentView:
         c.cookies.set("lit_viewer", "alice")
         return c
 
-    def test_it_finds_markdown(self, watched):
-        assert _recent_names(watched, "markdown") == {"note.md"}
+    def test_it_finds_text(self, watched):
+        assert _recent_names(watched, "text") == {"note.md"}
 
     def test_it_finds_pdf(self, watched):
         assert _recent_names(watched, "pdf") == {"doc.pdf"}
@@ -179,17 +179,17 @@ class TestTheVocabulary:
             "audio": "song.mp3",
             "archive": "bundle.zip",
             "other": "blob.bin",
-            "markdown": "note.md",
+            "text": "note.md",
             "pdf": "doc.pdf",
         }
         for kind, filename in expected.items():
             assert _listing_names(c, kind) == {filename}, kind
 
-    def test_document_holds_markdown_and_pdf_under_it(self, library):
-        # The one nesting in the vocabulary: markdown and PDF are kinds
+    def test_document_holds_text_and_pdf_under_it(self, library):
+        # The one nesting in the vocabulary: text and PDF are kinds
         # of document, so asking for documents must return them. A flat
         # taxonomy would make "document" mean "documents that are
-        # neither markdown nor PDF", which is not what the word says.
+        # neither text nor PDF", which is not what the word says.
         c, _, _ = library
         assert _listing_names(c, "document") == {"note.md", "doc.pdf", "sheet.xlsx"}
 

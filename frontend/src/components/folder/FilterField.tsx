@@ -25,7 +25,7 @@ import {
 import type { FileKind } from "@/types";
 
 const DEFAULT_TYPE_OPTIONS: FileKind[] = [
-  "video", "image", "audio", "document", "markdown", "pdf", "archive", "other",
+  "video", "image", "audio", "document", "text", "pdf", "archive", "other",
 ];
 const DEBOUNCE_MS = 300;
 
@@ -36,7 +36,7 @@ const TYPE_LABEL_KEYS: Record<FileKind, string> = {
   document: "type.document",
   archive: "type.archive",
   other: "type.other",
-  markdown: "type.markdown",
+  text: "type.text",
   pdf: "type.pdf",
 };
 
@@ -47,7 +47,7 @@ const TYPE_ICONS: Record<FileKind, typeof FileText> = {
   document: Files,
   archive: FileArchive,
   other: FileIcon,
-  markdown: FileText,
+  text: FileText,
   pdf: FileType,
 };
 

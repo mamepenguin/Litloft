@@ -18,7 +18,7 @@ const TABLE: { [K in FolderKind]: ViewMode } = {
   image: "grid",
   pdf: "grid",
   document: "grid",
-  markdown: "list",
+  text: "list",
   audio: "list",
   archive: "list",
   other: "list",
@@ -40,13 +40,13 @@ describe("viewModeForKind", () => {
   });
 
   it("puts every kind whose card draws no picture in a list", () => {
-    // `markdown` can draw a `TextThumbnail` and still opens as a list,
+    // `text` can draw a `TextThumbnail` and still opens as a list,
     // because a notebook is read by its titles.
     const noPicture: FolderKind[] = ["audio", "archive", "other"];
     for (const kind of noPicture) {
       expect(viewModeForKind(kind)).toBe("list");
     }
-    expect(viewModeForKind("markdown")).toBe("list");
+    expect(viewModeForKind("text")).toBe("list");
   });
 });
 
@@ -55,7 +55,7 @@ describe("viewModeForKind", () => {
  * arm — rather than on a function name, which the next copy will not share.
  */
 const KIND_NAMES =
-  "markdown|video|image|pdf|audio|document|archive|other";
+  "text|video|image|pdf|audio|document|archive|other";
 const ENTRY = new RegExp(
   `(?:^|[\\s{,])"?(?:${KIND_NAMES})"?\\s*:\\s*"(?:grid|list)"`,
   "m",

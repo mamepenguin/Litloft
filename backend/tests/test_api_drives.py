@@ -224,7 +224,7 @@ class TestListFolders:
 
         folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
         assert len(folders) == 1
-        assert folders[0]["kind_counts"] == {"video": 3, "document": 1, "image": 1}
+        assert folders[0]["kind_counts"] == {"video": 3, "text": 1, "image": 1}
         # The breakdown is a partition of the total, which is what lets a
         # renderer show the largest few and leave the rest to subtraction.
         assert sum(folders[0]["kind_counts"].values()) == folders[0]["file_count"]
@@ -262,7 +262,7 @@ class TestListFolders:
         """Markdown and PDF are their own kinds, not `document`.
 
         `_classify_kind` is the vocabulary here — the same one the type
-        filter offers — so a folder of notes reports `markdown`, not the
+        filter offers — so a folder of notes reports `text`, not the
         `document` its `file_type` column holds.
         """
         from app.models import File
@@ -287,7 +287,7 @@ class TestListFolders:
         db.commit()
 
         folders = c.get(f"/api/drives/{TEST_DRIVE}/folders").json()
-        assert folders[0]["kind_counts"] == {"markdown": 1, "pdf": 1}
+        assert folders[0]["kind_counts"] == {"text": 1, "pdf": 1}
 
     def test_kind_counts_empty_for_a_folder_with_no_files(self, client):
         from app.models import EmptyFolder
@@ -647,15 +647,15 @@ class TestKindVocabularyParity:
         ("clip.mp4", "video", "video/mp4", "video"),
         ("shot.png", "image", "image/png", "image"),
         ("song.mp3", "audio", "audio/mpeg", "audio"),
-        ("memo.txt", "document", "text/plain", "document"),
+        ("memo.txt", "document", "text/plain", "text"),
         ("paper.pdf", "document", "application/pdf", "pdf"),
-        ("note.md", "document", "text/markdown", "markdown"),
+        ("note.md", "document", "text/markdown", "text"),
         ("backup.zip", "archive", "application/zip", "archive"),
         # The rows the extension fallback exists for: written by
         # something that did not record a real mime, so the column holds
         # the octet-stream default. The listing finds these by filename,
         # so the card has to count them the same way.
-        ("legacy.md", "document", "application/octet-stream", "markdown"),
+        ("legacy.md", "document", "application/octet-stream", "text"),
         ("legacy.pdf", "document", "application/octet-stream", "pdf"),
     ]
 
@@ -714,7 +714,7 @@ class TestKindVocabularyParity:
             "audio",
             "document",
             "archive",
-            "markdown",
+            "text",
             "pdf",
             "other",
         }

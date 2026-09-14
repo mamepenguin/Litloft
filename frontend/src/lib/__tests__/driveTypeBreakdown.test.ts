@@ -53,7 +53,7 @@ describe("drive type breakdown", () => {
    */
   it("reads the same vocabulary, in the same sequence, as the filter menu", () => {
     const menu = TYPE_OPTION_KEYS.map((o) => o.value).filter(
-      (v) => v !== null && v !== "markdown" && v !== "pdf",
+      (v) => v !== null && v !== "text" && v !== "pdf",
     );
     expect([...DRIVE_TYPE_ORDER]).toEqual(menu);
   });

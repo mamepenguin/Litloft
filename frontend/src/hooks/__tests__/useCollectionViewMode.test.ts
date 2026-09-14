@@ -92,7 +92,7 @@ describe("dominantCollectionKind", () => {
       makeItem(makeFile("b", "document", "text/markdown", "b.md"), 1, 2),
       makeItem(makeFile("c", "video", "video/mp4"), 2, 3),
     ];
-    expect(dominantCollectionKind(items)).toBe("markdown");
+    expect(dominantCollectionKind(items)).toBe("text");
   });
 
   it("returns null when no kind exceeds half (tie / mixed)", () => {
@@ -109,7 +109,7 @@ describe("dominantCollectionKind", () => {
       makeItem(makeFile("b", "document", "application/octet-stream", "notes2.md"), 1, 2),
       makeItem(makeFile("c", "video", "video/mp4"), 2, 3),
     ];
-    expect(dominantCollectionKind(items)).toBe("markdown");
+    expect(dominantCollectionKind(items)).toBe("text");
   });
 
   it("classifies PDFs separately from generic documents", () => {
@@ -131,17 +131,17 @@ describe("resolveCollectionViewMode", () => {
       resolveCollectionViewMode({
         drive: "main",
         collectionId: "c1",
-        dominantKind: "markdown",
+        dominantKind: "text",
       }),
     ).toBe("list");
   });
 
-  it("auto-detects list for markdown-heavy collections", () => {
+  it("auto-detects list for note-heavy collections", () => {
     expect(
       resolveCollectionViewMode({
         drive: "main",
         collectionId: "c1",
-        dominantKind: "markdown",
+        dominantKind: "text",
       }),
     ).toBe("list");
   });

@@ -91,7 +91,7 @@ vi.mock("@/hooks/useCreateFile", () => ({
 }));
 vi.mock("@/components/folder/useFolderFiles", () => ({
   useFolderFiles: () => ({
-    files: [{ id: "a", file_type: "video" }],
+    files: [{ id: "a", filename: "a.mp4", file_type: "video" }],
     folders: [],
     total: 1,
     loading: false,

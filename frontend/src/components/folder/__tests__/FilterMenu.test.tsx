@@ -32,7 +32,7 @@ describe("FilterMenu", () => {
       [...menu.querySelectorAll("p")].map((p) => p.textContent),
     ).toEqual(["File type", "Verification"]);
     expect(rows()).toEqual([
-      "All", "Video", "Image", "Audio", "Document", "Markdown", "PDF",
+      "All", "Video", "Image", "Audio", "Document", "Text", "PDF",
       "Archive", "Other",
       "All", "Verified only",
       "Unjudged onlyNobody has ruled on these, migrated files included",

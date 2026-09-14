@@ -509,7 +509,7 @@
       "document": "文書",
       "archive": "書庫",
       "other": "その他",
-      "markdown": "Markdown",
+      "text": "テキスト",
       "pdf": "PDF"
     },
     "empty": {

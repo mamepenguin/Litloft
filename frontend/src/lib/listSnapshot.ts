@@ -48,7 +48,7 @@ const VIEW_MODES: readonly ViewMode[] = ["grid", "list"];
 // carry is exactly what the toolbar can hold. `subtitle` is not one of
 // them: it is a `file_type` no listing offers.
 const FILE_KINDS: readonly FileKind[] = [
-  "video", "image", "audio", "document", "archive", "other", "markdown", "pdf",
+  "video", "image", "audio", "document", "archive", "other", "text", "pdf",
 ];
 
 function isValidSnapshot(value: unknown): value is ListSnapshot {

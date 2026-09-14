@@ -122,12 +122,12 @@ describe("FilterField", () => {
     });
     fireEvent.click(trigger);
 
-    const markdownOption = await screen.findByRole("menuitem", {
-      name: /markdown/i,
+    const textOption = await screen.findByRole("menuitem", {
+      name: /^text$/i,
     });
-    fireEvent.click(markdownOption);
+    fireEvent.click(textOption);
 
-    expect(onTypeFilterChange).toHaveBeenCalledWith("markdown");
+    expect(onTypeFilterChange).toHaveBeenCalledWith("text");
   });
 
   it("re-opens the dropdown when the chip body is clicked", async () => {
@@ -385,7 +385,7 @@ describe("FilterField", () => {
     const items = await screen.findAllByRole("menuitem");
     expect(items).toHaveLength(9);
     expect(items.map((el) => el.textContent)).toEqual([
-      "All", "Video", "Image", "Audio", "Document", "Markdown", "PDF",
+      "All", "Video", "Image", "Audio", "Document", "Text", "PDF",
       "Archive", "Other",
     ]);
   });

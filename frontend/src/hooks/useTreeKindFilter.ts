@@ -8,7 +8,7 @@ const PREFIX = "tree:typeFilter:";
 // A value that is no longer valid falls back to "no filter" below, so a
 // persisted choice from an older build degrades quietly.
 const VALID: FileKind[] = [
-  "video", "image", "audio", "document", "archive", "other", "markdown", "pdf",
+  "video", "image", "audio", "document", "archive", "other", "text", "pdf",
 ];
 
 function storageKey(drive: string): string {
@@ -19,7 +19,9 @@ function loadFilter(drive: string): FileKind | null {
   if (typeof localStorage === "undefined") return null;
   const raw = localStorage.getItem(storageKey(drive));
   if (raw === null) return null;
-  return (VALID as string[]).includes(raw) ? (raw as FileKind) : null;
+  // Stored by a build that called `text` by its old name.
+  const kind = raw === "markdown" ? "text" : raw;
+  return (VALID as string[]).includes(kind) ? (kind as FileKind) : null;
 }
 
 function saveFilter(drive: string, filter: FileKind | null): void {

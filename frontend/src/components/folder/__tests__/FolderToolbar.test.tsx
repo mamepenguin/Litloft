@@ -440,7 +440,7 @@ describe("FolderToolbar", () => {
     it("offers the whole vocabulary in a folder", () => {
       render(<FolderToolbar {...defaultProps} />);
       expect(kindMenu()).toEqual([
-        "All", "Video", "Image", "Audio", "Document", "Markdown", "PDF",
+        "All", "Video", "Image", "Audio", "Document", "Text", "PDF",
         "Archive", "Other",
       ]);
     });
@@ -448,7 +448,7 @@ describe("FolderToolbar", () => {
     it("offers the same vocabulary in search", () => {
       render(<FolderToolbar {...defaultProps} isSearch />);
       expect(kindMenu()).toEqual([
-        "All", "Video", "Image", "Audio", "Document", "Markdown", "PDF",
+        "All", "Video", "Image", "Audio", "Document", "Text", "PDF",
         "Archive", "Other",
       ]);
     });
