@@ -155,6 +155,13 @@ describe("api", () => {
       expect(url.searchParams.get("path")).toBe("");
     });
 
+    it("asks the listing for updated_at order", async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
+      await getDriveFiles("main", { type: "document", sort: "updated_at", order: "desc" });
+      const url = new URL(mockFetch.mock.calls[0][0] as string, "http://x");
+      expect(url.searchParams.get("sort")).toBe("updated_at");
+    });
+
     it("omits path entirely when none is given", async () => {
       mockFetch.mockResolvedValueOnce(jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }));
       await getDriveFiles("main", {});

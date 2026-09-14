@@ -182,6 +182,17 @@ describe("useFolderSort", () => {
     expect(result.current.sort).toBe("created_at");
   });
 
+  it("falls back to the default when the stored field is listing-only", () => {
+    localStorage.setItem(
+      driveKey("work"),
+      JSON.stringify({ Q1: { sort: "updated_at", order: "desc" } }),
+    );
+    const { result } = renderHook(() =>
+      useFolderSort({ drive: "work", folderPath: "Q1" }),
+    );
+    expect(result.current.sort).toBe("created_at");
+  });
+
   it("writes sort/order to folderPrefs on setSort", () => {
     const { result } = renderHook(() =>
       useFolderSort({ drive: "work", folderPath: "Q1" }),

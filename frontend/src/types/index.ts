@@ -242,6 +242,12 @@ export type SortField =
   | "liked_at"
   | "random"
   | "relevance";
+/**
+ * What the drive listing accepts from a caller that sets its own order.
+ * `updated_at` is not a `SortField`: no Sort button, stored preference,
+ * URL or neighbours request may carry it.
+ */
+export type ListingSortField = SortField | "updated_at";
 export type SortOrder = "asc" | "desc";
 
 export interface MatchTimestamp {

@@ -53,7 +53,7 @@ describe("resolveFileNavOrdering", () => {
     // `random` and `relevance` order a search result set and are not
     // keysets. Forwarding one 422s, `useFileNav` catches, and the reader
     // gets two permanently disabled arrows.
-    for (const bad of ["random", "relevance"]) {
+    for (const bad of ["random", "relevance", "updated_at"]) {
       const o = at(`sort=${bad}&order=desc&nav=folder`);
       expect(o.sort).toBeUndefined();
       expect(o.countable).toBe(false);

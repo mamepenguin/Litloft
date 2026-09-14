@@ -426,6 +426,29 @@ describe("RightPaneFile — the prev/next walk it publishes", () => {
     );
   });
 
+  it("walks folder order for a hand-written updated_at sort", async () => {
+    mockSearchParams.set("sort", "updated_at");
+    mockSearchParams.set("order", "desc");
+    mockSearchParams.set("nav", "folder");
+    mockGetFile.mockResolvedValue({
+      ...baseFile,
+      filename: "note.md",
+      file_type: "document",
+      mime_type: "text/markdown",
+      folder_path: "notes",
+    });
+    render(<RightPaneFile fileId="f1" drive="media" />);
+    await screen.findByTestId("published-walk");
+
+    const call = useFileNavMock.mock.calls.at(-1)![0];
+    expect(call.sort).toBeUndefined();
+    expect(call.countable).toBe(false);
+
+    mockSearchParams.delete("sort");
+    mockSearchParams.delete("order");
+    mockSearchParams.delete("nav");
+  });
+
   it("asks for the ordering the listing declared, and counts only what it marked", async () => {
     // Not `folderPrefs`: the drive root never writes it, so the arrows and
     // the full-screen gallery would walk two different orderings.
