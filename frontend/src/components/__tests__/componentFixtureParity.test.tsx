@@ -214,6 +214,7 @@ describe("the component fixture's page", () => {
       "measured-inspector-right-edge",
       "measured-tree-pane",
       "measured-picker-in-dialog",
+      "add-menu",
     ]);
   });
 });

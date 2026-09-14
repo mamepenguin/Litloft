@@ -25,7 +25,14 @@ export default async function buildComponentFixture(): Promise<void> {
       // No `preserveSymlinks`: under pnpm keeping the symlink path stops a
       // dependency's own dependency from resolving (`next-intl` →
       // `use-intl`).
-      alias: { "@": resolve(__dirname, "..", "src") },
+      // Addon slot modules are not part of the fixture: bundling them would
+      // assert about whichever addon commits core points at, and they resolve
+      // their packages from outside `frontend/`.
+      alias: [
+        { find: /^@\/addons\/.*$/, replacement: resolve(__dirname, "stubs", "addon-slots.ts") },
+        { find: "@", replacement: resolve(__dirname, "..", "src") },
+        { find: "next/navigation", replacement: resolve(__dirname, "stubs", "next-navigation.ts") },
+      ],
     },
     build: {
       outDir: OUT_DIR,

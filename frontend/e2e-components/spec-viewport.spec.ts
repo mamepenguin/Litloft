@@ -39,13 +39,17 @@ const DEVICE_HEIGHT_PX = 727;
  * and a spec matched by neither project runs at the default width.
  */
 const AT_THE_PHONE_WIDTH = [
+  "add-menu.spec.ts",
   "anchored-direction.spec.ts",
   "popup-dismiss.spec.ts",
   "sheet-gesture.spec.ts",
   "spec-viewport.spec.ts",
 ] as const;
 
-const AT_THE_DESKTOP_WIDTH = ["anchored-direction-desktop.spec.ts"] as const;
+const AT_THE_DESKTOP_WIDTH = [
+  "add-menu-desktop.spec.ts",
+  "anchored-direction-desktop.spec.ts",
+] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {
   test("every spec in this directory is assigned to exactly one project", () => {
@@ -65,11 +69,11 @@ test.describe("the component fixture lays out at the width it was given", () => 
       ),
     ).toEqual([]);
 
-    // The glob is a suffix match on the path, as Playwright applies it.
-    const suffix = DESKTOP_ONLY.replace(/^\*\*\//, "");
-    expect(AT_THE_DESKTOP_WIDTH).toEqual([suffix]);
+    // The globs are suffix matches on the path, as Playwright applies them.
+    const suffixes = DESKTOP_ONLY.map((glob) => glob.replace(/^\*\*\//, ""));
+    expect([...AT_THE_DESKTOP_WIDTH]).toEqual(suffixes);
 
-    for (const name of AT_THE_PHONE_WIDTH) expect(name).not.toBe(suffix);
+    for (const name of AT_THE_PHONE_WIDTH) expect(suffixes).not.toContain(name);
   });
 
   test("the context is one the trap can occur in", async ({ page }) => {
