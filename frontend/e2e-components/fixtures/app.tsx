@@ -1,8 +1,3 @@
-/**
- * `ShortcutsProvider` is deliberately absent: its default context is a
- * no-op, so `ContextMenu` renders without it and Escape does nothing here.
- */
-
 import {
   useEffect,
   useRef,
