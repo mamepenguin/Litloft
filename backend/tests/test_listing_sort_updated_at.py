@@ -118,25 +118,54 @@ def test_filters_before_ordering_and_counts_the_filtered_set(client):
     assert res.json()["meta"]["total"] == 3
 
 
+def _seed_crossed(db):
+    """Each column orders the rows differently from `updated_at` (a, b, c)."""
+    from app.models import File
+
+    rows = {
+        "a": dict(created=3, size=2, liked=2, updated=1),
+        "b": dict(created=1, size=3, liked=3, updated=2),
+        "c": dict(created=2, size=1, liked=1, updated=3),
+    }
+    for name, v in rows.items():
+        db.add(
+            File(
+                filename=f"{name}.md", title=name, drive=TEST_DRIVE, folder_path="",
+                file_path=f"{name}.md", file_size=v["size"], file_type="document",
+                mime_type="text/markdown",
+                created_at=BASE + timedelta(days=v["created"]),
+                liked_at=BASE + timedelta(days=v["liked"] * 10),
+                updated_at=BASE + timedelta(days=v["updated"] * 100),
+            )
+        )
+    db.commit()
+
+
 @pytest.mark.parametrize(
     "sort, expected",
     [
-        ("title", ["clip.mp4", "middle.md", "newest.md", "old.md"]),
-        ("created_at", None),
-        ("file_size", None),
-        ("liked_at", None),
-        ("random", None),
+        ("created_at", ["b", "c", "a"]),
+        ("file_size", ["c", "a", "b"]),
+        ("liked_at", ["c", "a", "b"]),
+        ("title", ["a", "b", "c"]),
     ],
 )
-def test_the_existing_sort_values_still_answer(client, sort, expected):
+def test_the_existing_sort_values_keep_their_order(client, sort, expected):
     c, db, _drive_dir, _data_dir = client
-    _seed(db)
+    _seed_crossed(db)
 
     res = c.get(f"/api/drives/{TEST_DRIVE}/files?sort={sort}&order=asc")
 
-    assert res.status_code == 200
-    if expected is not None:
-        assert _titles(res) == expected
+    assert _titles(res) == expected
+
+
+def test_random_still_answers(client):
+    c, db, _drive_dir, _data_dir = client
+    _seed_crossed(db)
+
+    res = c.get(f"/api/drives/{TEST_DRIVE}/files?sort=random")
+
+    assert sorted(_titles(res)) == ["a", "b", "c"]
 
 
 def test_an_unknown_sort_is_still_rejected(client):

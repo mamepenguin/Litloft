@@ -81,6 +81,7 @@ vi.mock("@/hooks/useFileNav", () => ({
 }));
 
 import { FileDetailFullScreen } from "../FileDetailFullScreen";
+import { useFileNav } from "@/hooks/useFileNav";
 
 const baseFile = {
   id: "abc",
@@ -230,6 +231,27 @@ describe("FileDetailFullScreen", () => {
       expect(screen.getByTestId("image-gallery")).toBeInTheDocument(),
     );
     expect(imageGalleryProps[imageGalleryProps.length - 1].open).toBe(false);
+  });
+
+  it("forwards a hand-written updated_at sort to neither the arrows nor the gallery", async () => {
+    vi.mocked(useFileNav).mockClear();
+    mockSearchParams.set("sort", "updated_at");
+    mockSearchParams.set("order", "desc");
+    mockGetFile.mockResolvedValue({
+      ...baseFile,
+      file_type: "image",
+      mime_type: "image/png",
+    });
+    render(<FileDetailFullScreen fileId="abc" />);
+    await waitFor(() =>
+      expect(screen.getByTestId("image-gallery")).toBeInTheDocument(),
+    );
+
+    const navCalls = vi.mocked(useFileNav).mock.calls;
+    expect(navCalls.length).toBeGreaterThan(0);
+    for (const [opts] of navCalls) expect(opts.sort).toBeUndefined();
+    expect(imageGalleryProps.length).toBeGreaterThan(0);
+    for (const props of imageGalleryProps) expect(props.sort).toBeUndefined();
   });
 
   it("calls setOverrideDrive with the file's drive on mount", async () => {
