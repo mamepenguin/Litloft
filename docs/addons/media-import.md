@@ -137,8 +137,36 @@ periodically for new videos.
   `POST /api/addons/media_import/subscriptions/{id}/sync`.
 - Periodic polling discovers new uploads and creates `.loft` files in the
   configured folder.
-- The Subscriptions dashboard surfaces follows, status, recent imports,
-  failures, and retry / conflict-resolution actions.
+- The subscription list in **Manage** shows each follow with its status, recent
+  imports, failures, and retry / conflict-resolution actions.
+
+## YouTube & Feeds: Watch and Manage
+
+The addon's page is **YouTube & Feeds** in the sidebar, under **Sources**
+(`/drive/{drive}/addons/media_import`). It has two views.
+
+**Watch** shows videos from subscriptions you chose to surface, in two lanes:
+
+- **Regular sources** — subscriptions set to *Regular source*, at most two of the
+  newest videos from each, and no more than 12 in all. The lane does not page.
+- **Recent videos** — subscriptions set to *Show in recent videos*, newest first,
+  12 at a time with **Show more**.
+
+Each subscription picks where its videos go with **Show in Watch**, set when the
+source is added and changeable from its details in Manage: *Library only*
+(imported and searchable, including Ask, but not in Watch), *Show in recent
+videos*, or *Regular source*. A video reached through two subscriptions appears
+once. A card shows how far you watched and **Watched** once finished, and offers
+**Add to collection** and **Open the source page**. Watch shows no count of
+unwatched videos.
+
+**Manage** holds the **Add a source** form (paste a URL: a single video becomes a
+`.loft`, a channel, playlist or feed becomes a subscription), the subscription
+list, and recent activity.
+
+The page opens on Watch when any subscription on the drive is set to something
+other than *Library only*, and on Manage otherwise. Part-watched videos are not a
+lane here; they appear on Home under **Continue Watching**.
 
 ## Limits and caveats
 
