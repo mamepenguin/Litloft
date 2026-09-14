@@ -235,12 +235,6 @@ def _migrate(engine_) -> None:
     if "smart_folders" not in tables:
         logger.info("Migrating: creating 'smart_folders' table")
         Base.metadata.tables["smart_folders"].create(bind=engine_, checkfirst=True)
-    else:
-        with engine_.begin() as conn:
-            conn.execute(text(
-                "UPDATE smart_folders SET file_type = 'text' "
-                "WHERE file_type = 'markdown'"
-            ))
     # Existing data is allowed to be lost: the pointer is owned by the
     # knowledge addon now.
     if "file_active_summaries" in tables:

@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, text
 
 from tests.conftest import TEST_DRIVE
 
@@ -153,30 +152,3 @@ def test_an_unknown_kind_is_still_rejected(client):
     assert c.get(f"/api/drives/{TEST_DRIVE}/files?type=notes").status_code == 422
     assert c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=notes").status_code == 422
     assert c.get(f"/api/drives/{TEST_DRIVE}/watch-history?type=notes").status_code == 422
-
-
-@pytest.mark.usefixtures("private_data_dir")
-def test_saved_smart_folders_move_from_markdown_to_text(tmp_path):
-    from app.database import Base, _migrate
-
-    engine = create_engine(
-        f"sqlite:///{tmp_path / 'migration.db'}",
-        connect_args={"check_same_thread": False},
-    )
-    Base.metadata.create_all(bind=engine)
-    with engine.begin() as conn:
-        for sf_id, file_type in (("sf1", "markdown"), ("sf2", "pdf"), ("sf3", None)):
-            conn.execute(
-                text(
-                    "INSERT INTO smart_folders (id, drive, name, query, file_type, created_at) "
-                    "VALUES (:id, 'd', :id, '', :ft, '2026-01-01T00:00:00')"
-                ),
-                {"id": sf_id, "ft": file_type},
-            )
-
-    _migrate(engine)
-    _migrate(engine)
-
-    with engine.connect() as conn:
-        rows = dict(conn.execute(text("SELECT id, file_type FROM smart_folders")).fetchall())
-    assert rows == {"sf1": "text", "sf2": "pdf", "sf3": None}
