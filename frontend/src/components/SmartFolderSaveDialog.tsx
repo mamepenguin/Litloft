@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Star, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { useImeKeyGuard } from "@/lib/ime";
 import { Button } from "@/components/Button";
 
 interface SmartFolderSaveDialogProps {
@@ -26,7 +27,7 @@ export function SmartFolderSaveDialog({
   const t = useTranslations("smartFolder");
   const tc = useTranslations("common");
   const [name, setName] = useState(initialName);
-  const [composing, setComposing] = useState(false);
+  const ime = useImeKeyGuard();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -58,9 +59,6 @@ export function SmartFolderSaveDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Skip Enter while IME composition is active, otherwise the
-    // conversion-confirming Enter would submit the form.
-    if (composing) return;
     if (!canSubmit) return;
     onSubmit(trimmed);
   }
@@ -101,8 +99,11 @@ export function SmartFolderSaveDialog({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onCompositionStart={() => setComposing(true)}
-            onCompositionEnd={() => setComposing(false)}
+            onCompositionEnd={ime.onCompositionEnd}
+            onKeyDown={(e) => {
+              // Cancelling the keydown is what stops the form's implicit submission.
+              if (e.key === "Enter" && ime.isImeKeystroke(e)) e.preventDefault();
+            }}
             placeholder={t("namePlaceholder")}
             className="mb-6 w-full rounded-2xl border border-bg-border bg-bg-elevated px-3 py-2 text-sm text-text-primary outline-none focus:border-focus-ring"
           />

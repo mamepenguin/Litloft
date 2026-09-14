@@ -28,7 +28,7 @@ import {
   type PdfZoomMode,
 } from "@/lib/pdfZoomMode";
 import { MenuRadioGroup, ToolbarMenu } from "@/components/ToolbarMenu";
-import { COMPOSITION_GRACE_MS, IME_KEY_CODE } from "@/lib/ime";
+import { useImeKeyGuard } from "@/lib/ime";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import {
   flattenOutline,
@@ -210,7 +210,7 @@ export function PdfPreview({
 
   const [pageDraft, setPageDraft] = useState<string | null>(null);
   const pageInputRef = useRef<HTMLInputElement>(null);
-  const compositionEndedAtRef = useRef(0);
+  const ime = useImeKeyGuard();
 
   useEffect(() => {
     pdfStore.onGoToPage = (next) => setPage(next);
@@ -449,24 +449,9 @@ export function PdfPreview({
             aria-label={t("pdfPageNumber")}
             onChange={(e) => setPageDraft(e.target.value)}
             onBlur={commitPageInput}
-            onCompositionEnd={() => {
-              compositionEndedAtRef.current = Date.now();
-            }}
+            onCompositionEnd={ime.onCompositionEnd}
             onKeyDown={(e) => {
-              // An IME is mid-conversion: every key belongs to it. And the
-              // key that *confirms* a conversion arrives afterwards looking
-              // exactly like a bare press, which is why the grace window is
-              // needed as well as `isComposing`.
-              if (e.nativeEvent.isComposing || e.keyCode === IME_KEY_CODE)
-                return;
-              if (
-                (e.key === "Enter" || e.key === "Escape") &&
-                Date.now() - compositionEndedAtRef.current <
-                  COMPOSITION_GRACE_MS
-              ) {
-                compositionEndedAtRef.current = 0;
-                return;
-              }
+              if (ime.isImeKeystroke(e)) return;
 
               if (e.key === "Enter") {
                 e.preventDefault();

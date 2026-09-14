@@ -11,6 +11,7 @@ import { NESTED_OVERLAY_PRIORITY, OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 import { useTranslations } from "next-intl";
 import { getDriveFiles, getWatchHistory } from "@/lib/api";
+import { useImeKeyGuard } from "@/lib/ime";
 import { fetchSemanticHits, isSemanticSearchAvailable } from "@/lib/semanticSearch";
 import {
   mergeResults,
@@ -94,7 +95,7 @@ export function GlobalSearch() {
     drive: string;
     items: WatchHistoryItem[];
   } | null>(null);
-  const [composing, setComposing] = useState(false);
+  const ime = useImeKeyGuard();
   const [selectedIndex, setSelectedIndex] = useState(-1);
   /**
    * The highlight is a promise about where the next Enter lands, and the
@@ -490,9 +491,9 @@ export function GlobalSearch() {
       type="text"
       value={query}
       onChange={(e) => setQuery(e.target.value)}
-      onCompositionStart={() => setComposing(true)}
-      onCompositionEnd={() => setComposing(false)}
+      onCompositionEnd={ime.onCompositionEnd}
       onKeyDown={(e) => {
+        if (ime.isImeKeystroke(e)) return;
         if (e.key === "ArrowDown") {
           e.preventDefault();
           const maxIdx = showEmptyState
@@ -504,7 +505,7 @@ export function GlobalSearch() {
         } else if (e.key === "ArrowUp") {
           e.preventDefault();
           moveHighlight((prev) => Math.max(-1, prev - 1));
-        } else if (e.key === "Enter" && !composing) {
+        } else if (e.key === "Enter") {
           if (selectedIndex >= 0 && showEmptyState) {
             activateEmptyItem(emptyItems[selectedIndex]);
           } else if (selectedIndex >= 0 && hasResults) {

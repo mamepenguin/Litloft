@@ -5,6 +5,7 @@ import { Library, Plus, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { addCollectionItems, createCollection, getCollections } from "@/lib/api";
+import { useImeKeyGuard } from "@/lib/ime";
 import type { CollectionSummary } from "@/types";
 import { Button } from "@/components/Button";
 
@@ -18,6 +19,7 @@ interface CollectionPickerProps {
 export function CollectionPicker({ open, drive, fileIds, onClose }: CollectionPickerProps) {
   const t = useTranslations("collection");
   const tc = useTranslations("common");
+  const ime = useImeKeyGuard();
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -98,7 +100,9 @@ export function CollectionPicker({ open, drive, fileIds, onClose }: CollectionPi
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
+              onCompositionEnd={ime.onCompositionEnd}
               onKeyDown={(e) => {
+                if (ime.isImeKeystroke(e)) return;
                 if (e.key === "Enter") handleCreateAndAdd();
                 if (e.key === "Escape") { setCreating(false); setNewName(""); }
               }}

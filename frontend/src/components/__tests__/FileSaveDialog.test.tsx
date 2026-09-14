@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, waitFor } from "@testing-library/react";
+
+import { COMPOSITION_GRACE_MS } from "@/lib/ime";
 
 import { FileSaveDialog } from "../FileSaveDialog";
 
@@ -11,22 +13,64 @@ vi.mock("@/lib/api", () => ({
 }));
 
 function renderDialog(defaultFilename: string) {
+  const onConfirm = vi.fn();
+  const onCancel = vi.fn();
   const utils = render(
     <FileSaveDialog
       open
       title="Save"
       drive="media"
       defaultFilename={defaultFilename}
-      onConfirm={vi.fn()}
-      onCancel={vi.fn()}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
     />,
   );
   const input = utils.container.querySelector<HTMLInputElement>(
     "#file-save-dialog-filename",
   );
   if (!input) throw new Error("filename input not rendered");
-  return { ...utils, input };
+  return { ...utils, input, onConfirm, onCancel };
 }
+
+describe("FileSaveDialog IME composition", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function confirmConversion(input: HTMLInputElement, text: string) {
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: text } });
+    fireEvent.compositionEnd(input, { data: text });
+  }
+
+  it("does not save on the Enter that confirms a conversion", () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    const { input, onConfirm } = renderDialog("untitled.md");
+    confirmConversion(input, "日本語.md");
+    now.mockReturnValue(1_000_000 + COMPOSITION_GRACE_MS - 1);
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(input.value).toBe("日本語.md");
+  });
+
+  it("does not save on an Enter the IME still owns", () => {
+    const { input, onConfirm } = renderDialog("untitled.md");
+    fireEvent.compositionStart(input);
+    fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 229 });
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("saves once on an Enter pressed after the grace window", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    const { input, onConfirm } = renderDialog("untitled.md");
+    confirmConversion(input, "日本語.md");
+    now.mockReturnValue(1_000_000 + COMPOSITION_GRACE_MS);
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
+    expect(onConfirm).toHaveBeenCalledWith({ folder: "", filename: "日本語.md" });
+  });
+});
 
 describe("FileSaveDialog filename selection", () => {
   it("pre-selects the stem so the extension survives the first keystroke", async () => {

@@ -7,6 +7,7 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 import type { FileItem } from "@/types";
 import type { SemanticHit } from "@/lib/searchMerge";
 import { accentFills } from "@/__tests__/helpers/accentFills";
+import { confirmConversionThenEnter } from "@/__tests__/helpers/imeEnter";
 import { MATCH_BADGES } from "@/lib/matchBadges";
 import enMessages from "@/messages-core/en.json";
 
@@ -1496,6 +1497,23 @@ describe("GlobalSearch", () => {
 
       expect(mockRouterPush).toHaveBeenCalledWith(
         "/drive/main/search?q=vacation",
+      );
+    });
+
+    it("does not navigate on the Enter that confirms a conversion", () => {
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      confirmConversionThenEnter(screen.getAllByRole("textbox")[0], "旅行");
+      expect(mockRouterPush).not.toHaveBeenCalled();
+    });
+
+    it("navigates on an Enter pressed after the grace window", () => {
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      confirmConversionThenEnter(screen.getAllByRole("textbox")[0], "旅行", { afterGrace: true });
+      expect(mockRouterPush).toHaveBeenCalledTimes(1);
+      expect(mockRouterPush).toHaveBeenCalledWith(
+        `/drive/main/search?q=${encodeURIComponent("旅行")}`,
       );
     });
   });

@@ -14,6 +14,7 @@ import {
 import { useTranslations } from "next-intl";
 import type { FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { AddButton } from "@/components/AddButton";
+import { useImeKeyGuard } from "@/lib/ime";
 import { FilterMenu } from "./FilterMenu";
 import { Button } from "@/components/Button";
 import { useViewModeState } from "@/components/viewMode";
@@ -99,6 +100,7 @@ export function FolderToolbar({
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
   const tf = useTranslations("folder");
+  const ime = useImeKeyGuard();
 
   const [moreOpen, setMoreOpen] = useState(false);
   const moreSurface = useMenuSurface(moreOpen);
@@ -131,7 +133,9 @@ export function FolderToolbar({
         autoFocus
         value={newFolderName}
         onChange={(e) => onSetNewFolderName(e.target.value)}
+        onCompositionEnd={ime.onCompositionEnd}
         onKeyDown={(e) => {
+          if (ime.isImeKeystroke(e)) return;
           if (e.key === "Enter") onCreateFolder();
           if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
         }}

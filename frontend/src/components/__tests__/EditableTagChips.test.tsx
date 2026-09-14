@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { EditableTagChips } from "@/components/EditableTagChips";
+import { COMPOSITION_GRACE_MS } from "@/lib/ime";
 
 const file = {
   id: "fVid0000001A",
@@ -42,6 +43,41 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("EditableTagChips IME composition", () => {
+  function confirmConversion(input: HTMLInputElement, text: string) {
+    fireEvent.compositionStart(input);
+    fireEvent.change(input, { target: { value: text } });
+    fireEvent.compositionEnd(input, { data: text });
+  }
+
+  it("does not add a tag on the Enter that confirms a conversion", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    const onChange = vi.fn();
+    render(<EditableTagChips file={file} initialTags={[]} onTagsChange={onChange} />);
+    clickAdd();
+    const input = screen.getByPlaceholderText("Tag name...") as HTMLInputElement;
+    confirmConversion(input, "料理");
+    now.mockReturnValue(1_000_000 + COMPOSITION_GRACE_MS - 1);
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Remove 料理")).not.toBeInTheDocument();
+    expect(input.value).toBe("料理");
+  });
+
+  it("adds the tag once on an Enter pressed after the grace window", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    const onChange = vi.fn();
+    render(<EditableTagChips file={file} initialTags={[]} onTagsChange={onChange} />);
+    clickAdd();
+    const input = screen.getByPlaceholderText("Tag name...") as HTMLInputElement;
+    confirmConversion(input, "料理");
+    now.mockReturnValue(1_000_000 + COMPOSITION_GRACE_MS);
+    fireEvent.keyDown(input, { key: "Enter", keyCode: 13 });
+    await waitFor(() => expect(screen.getByLabelText("Remove 料理")).toBeInTheDocument());
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("EditableTagChips", () => {

@@ -5,9 +5,11 @@ import { useTranslations } from "next-intl";
 import { useProfile } from "@/components/ProfileProvider";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/Button";
+import { useImeKeyGuard } from "@/lib/ime";
 
 export function ProfileSection() {
   const t = useTranslations("settings.profile");
+  const ime = useImeKeyGuard();
   const { nickname, setNickname, clearNickname } = useProfile();
   const [editing, setEditing] = useState(false);
   const [input, setInput] = useState("");
@@ -109,7 +111,9 @@ export function ProfileSection() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onCompositionEnd={ime.onCompositionEnd}
               onKeyDown={(e) => {
+                if (ime.isImeKeystroke(e)) return;
                 if (e.key === "Enter") handleSave();
                 else if (e.key === "Escape" && nickname) handleCancel();
               }}

@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { SelectionBar, groupSurvivesNarrow } from "../SelectionBar";
+import { batchTag } from "@/lib/api";
+import { confirmConversionThenEnter } from "@/__tests__/helpers/imeEnter";
 
 vi.mock("@/lib/api", () => ({
   batchDelete: vi.fn().mockResolvedValue({ deleted: 2, errors: [] }),
@@ -115,6 +117,22 @@ describe("SelectionBar", () => {
     render(<SelectionBar {...defaultProps} />);
     fireEvent.click(screen.getByLabelText("Tagging"));
     expect(screen.getByPlaceholderText("tag1, tag2...")).toBeInTheDocument();
+  });
+
+  it("does not tag on the Enter that confirms a conversion", () => {
+    render(<SelectionBar {...defaultProps} />);
+    fireEvent.click(screen.getByLabelText("Tagging"));
+    confirmConversionThenEnter(screen.getByPlaceholderText("tag1, tag2..."), "料理");
+    expect(batchTag).not.toHaveBeenCalled();
+  });
+
+  it("tags on an Enter pressed after the grace window", () => {
+    render(<SelectionBar {...defaultProps} />);
+    fireEvent.click(screen.getByLabelText("Tagging"));
+    confirmConversionThenEnter(screen.getByPlaceholderText("tag1, tag2..."), "料理", {
+      afterGrace: true,
+    });
+    expect(batchTag).toHaveBeenCalledTimes(1);
   });
 });
 
