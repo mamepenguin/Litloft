@@ -113,7 +113,7 @@ vi.mock("@/hooks/useCreateFile", () => ({
 const listing = vi.hoisted(() => ({
   total: 0,
   folders: [] as { path: string }[],
-  files: [] as { id: string; file_type: string }[],
+  files: [] as { id: string; filename: string; file_type: string }[],
 }));
 
 vi.mock("@/components/folder/useFolderFiles", () => ({
