@@ -207,7 +207,6 @@ def test_intelligence_copies_search_config_verbatim(base, tmp_path):
 
     host = tmp_path / "media"
     host.mkdir()
-    # drive count, host, slug, port, configure intelligence? y, generate? y
     answers = ["1", str(host), "media", "3000", "y", "y"]
     proc = _run_configure(base, answers)
     assert proc.returncode == 0, proc.stderr + proc.stdout

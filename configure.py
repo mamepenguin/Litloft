@@ -368,7 +368,8 @@ def main():
     bundled = bundled_addons(base)
     if bundled:
         heading("Bundled addons")
-        print("  Always installed. Turn each one on or off per drive at /setup.")
+        print("  Installed whenever checked out. Choose which drives show each one at /setup,")
+        print("  or later at /admin/settings.")
         for name in bundled:
             print(f"    - {name}")
 
@@ -385,7 +386,8 @@ def main():
     elif has_intelligence and not ex.has_llm_api_key:
         print("    .env  (LLM_API_KEY: not set — AI features will be unavailable)")
     if bundled and not has_intelligence and not has_knowledge:
-        print("  No addon services. Bundled addons can be turned off per drive at /setup.")
+        print("  No addon services. Choose which drives show the bundled addons at /setup,")
+        print("  or later at /admin/settings.")
     print()
     print("  Drive mounts:")
     for d in drives:

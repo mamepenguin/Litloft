@@ -132,19 +132,23 @@ def test_bundled_addons_are_listed_by_directory_and_change_nothing(tmp_path, mon
     assert not any(line.strip().startswith("- ") for line in runs[without][1].splitlines())
 
 
-BUNDLED_NOTE = "turned off per drive at /setup"
+BUNDLED_NOTE = "No addon services."
 
 
 @pytest.mark.parametrize(
-    ("scenario", "noted"),
-    [("all_declined", True), ("all_enabled", False)],
+    ("intelligence", "knowledge", "noted"),
+    [("n", "n", True), ("y", "n", False), ("n", "y", False), ("y", "y", False)],
 )
 def test_the_summary_notes_bundled_addons_only_when_both_services_are_declined(
-    tmp_path, monkeypatch, scenario, noted
+    tmp_path, monkeypatch, intelligence, knowledge, noted
 ):
-    host = cs.build_tree(tmp_path, scenario)
-    answers = [a.replace(cs.HOST_PLACEHOLDER, str(host)) for a in cs.ANSWERS[scenario]]
-    _, printed = cs.run(tmp_path, answers, monkeypatch)
+    host = _fresh(tmp_path)
+    answers = ["1", str(host), "media", "3000", intelligence]
+    if intelligence == "y":
+        answers.append("")
+    answers += [knowledge, "y"]
+    prompts, printed = cs.run(tmp_path, answers, monkeypatch)
+    assert _prompt_for(prompts, "Generate files?")
     assert (BUNDLED_NOTE in printed) is noted
 
 
