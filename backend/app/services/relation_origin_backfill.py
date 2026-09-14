@@ -70,8 +70,7 @@ def backfill_markdown_relation_origin(db: Session) -> bool:
             continue
         try:
             sync_markdown_file_relations(
-                db, note.id, note.drive, content, note.folder_path,
-                claim_unmarked=True,
+                db, note.id, note.drive, content, note.folder_path
             )
             db.commit()
             synced_ids.add(note.id)

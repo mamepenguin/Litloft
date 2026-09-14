@@ -266,12 +266,6 @@ def _run_relation_origin_backfill() -> None:
         db.close()
 
 
-async def _scan_then_backfill_relation_origin() -> None:
-    # Wiki targets resolve through the id and alias projections the scan writes.
-    await scan_all_drives()
-    await asyncio.to_thread(_run_relation_origin_backfill)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Drive bootstrap: pre-seed count -> setup-sentinel migration -> seed.
@@ -307,6 +301,9 @@ async def lifespan(app: FastAPI):
 
     init_db()
     logger.info("Database initialized")
+    # Before any request is served, so no note save can interleave with the
+    # resync of that note.
+    _run_relation_origin_backfill()
     load_passwords()
     init_jwt_secret()
     logger.info("Auth initialized")
@@ -329,7 +326,7 @@ async def lifespan(app: FastAPI):
     cleanup_abandoned_uploads()
     from app.services.markdown_image_import import initialize_interrupted_jobs
     initialize_interrupted_jobs()
-    asyncio.create_task(_scan_then_backfill_relation_origin())
+    asyncio.create_task(scan_all_drives())
     logger.info("Background scan started for all drives")
     asyncio.create_task(purge_expired_trash())
     logger.info("Trash auto-purge task started")

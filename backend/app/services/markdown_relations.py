@@ -86,15 +86,7 @@ def sync_markdown_file_relations(
     drive: str,
     content: str,
     self_dir: str,
-    *,
-    claim_unmarked: bool = False,
 ) -> list[ResolveDiagnostic]:
-    """Reconcile the ``related`` rows this note's links wrote.
-
-    ``claim_unmarked`` also removes unlinked outgoing rows with no origin; only
-    the one-time origin backfill passes it, for rows written before ``origin``
-    existed.
-    """
     extracted = extract_links(content)
     loft_ids = {item for item in extracted.loft_ids if item != file_id}
     wiki_ids, diagnostics = resolve_wiki_targets(
@@ -153,7 +145,7 @@ def sync_markdown_file_relations(
     for target_id, relation in outgoing.items():
         if target_id in target_ids:
             continue
-        if relation.origin == MARKDOWN_ORIGIN or claim_unmarked:
+        if relation.origin == MARKDOWN_ORIGIN:
             db.delete(relation)
     return diagnostics
 

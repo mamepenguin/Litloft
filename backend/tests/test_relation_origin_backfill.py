@@ -39,15 +39,61 @@ class TestBackfill:
         assert _rows(session) == {(note.id, target.id, "related", "markdown")}
         assert (data_dir / SENTINEL_NAME).exists()
 
-    def test_legacy_outgoing_row_no_longer_linked_is_removed(self, client):
+    def test_unmarked_outgoing_row_no_longer_linked_is_kept(self, client):
         _, session, drive_dir, data_dir = client
-        stale = _seed_video(session, drive_dir, "stale.mp4")
+        other = _seed_video(session, drive_dir, "other.mp4")
         note = _seed_md(session, drive_dir, "note.md", "No links.\n")
-        _legacy(session, note, stale)
+        _legacy(session, note, other)
 
         _run(session, data_dir)
 
-        assert _rows(session) == set()
+        assert _rows(session) == {(note.id, other.id, "related", None)}
+
+    def test_seed_into_an_unreadable_note_is_kept(self, client):
+        _, session, drive_dir, data_dir = client
+        source = _seed_md(session, drive_dir, "source.md", "No links.\n")
+        note = _seed_md(
+            session, drive_dir, "note.md",
+            f'---\nsource_file_ids:\n  - "{source.id}"\n---\n',
+        )
+        _legacy(session, source, note)
+        (drive_dir / "note.md").unlink()
+
+        assert _run(session, data_dir) is False
+
+        assert _rows(session) == {(source.id, note.id, "related", None)}
+
+    def test_duplicate_of_an_unreadable_notes_marked_row_is_kept(self, client):
+        _, session, drive_dir, data_dir = client
+        source = _seed_video(session, drive_dir, "source.mp4")
+        note = _seed_md(session, drive_dir, "note.md", "x\n")
+        session.add(FileRelation(
+            file_id_a=note.id, file_id_b=source.id, kind="related", origin="markdown",
+        ))
+        session.commit()
+        _legacy(session, source, note)
+        (drive_dir / "note.md").unlink()
+
+        _run(session, data_dir)
+
+        assert _rows(session) == {
+            (note.id, source.id, "related", "markdown"),
+            (source.id, note.id, "related", None),
+        }
+
+    def test_note_whose_sync_raises_blocks_the_sentinel(self, client, monkeypatch):
+        import app.services.relation_origin_backfill as backfill
+
+        _, session, drive_dir, data_dir = client
+        _seed_md(session, drive_dir, "note.md", "x\n")
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("forced")
+
+        monkeypatch.setattr(backfill, "sync_markdown_file_relations", boom)
+
+        assert _run(session, data_dir) is False
+        assert not (data_dir / SENTINEL_NAME).exists()
 
     def test_link_without_a_row_gains_one(self, client):
         _, session, drive_dir, data_dir = client
@@ -143,21 +189,21 @@ class TestBackfill:
 
     def test_sentinel_skips_the_run(self, client):
         _, session, drive_dir, data_dir = client
-        stale = _seed_video(session, drive_dir, "stale.mp4")
-        note = _seed_md(session, drive_dir, "note.md", "No links.\n")
-        _legacy(session, note, stale)
+        target = _seed_md(session, drive_dir, "target.md")
+        note = _seed_md(session, drive_dir, "note.md", "See [[target]].\n")
+        _legacy(session, note, target)
         (data_dir / SENTINEL_NAME).touch()
 
         assert backfill_markdown_relation_origin(session) is True
 
-        assert _rows(session) == {(note.id, stale.id, "related", None)}
+        assert _rows(session) == {(note.id, target.id, "related", None)}
 
     def test_trashed_note_is_not_resynced(self, client):
         _, session, drive_dir, data_dir = client
         from datetime import UTC, datetime
 
-        stale = _seed_video(session, drive_dir, "stale.mp4")
-        note = _seed_md(session, drive_dir, "note.md", "No links.\n")
+        stale = _seed_md(session, drive_dir, "stale.md")
+        note = _seed_md(session, drive_dir, "note.md", "See [[stale]].\n")
         _legacy(session, note, stale)
         note.deleted_at = datetime.now(UTC).replace(tzinfo=None)
         session.commit()
@@ -165,3 +211,24 @@ class TestBackfill:
         _run(session, data_dir)
 
         assert _rows(session) == {(note.id, stale.id, "related", None)}
+
+
+class TestStartupRunsTheBackfillBeforeServing:
+    def test_backfill_runs_before_the_scan_and_before_requests(self, client, monkeypatch):
+        from fastapi.testclient import TestClient
+
+        import app.main as main
+        from app.main import app
+
+        calls: list[str] = []
+
+        async def scan():
+            calls.append("scan")
+            return {}
+
+        monkeypatch.setattr(main, "_run_relation_origin_backfill", lambda: calls.append("backfill"))
+        monkeypatch.setattr(main, "scan_all_drives", scan)
+
+        with TestClient(app):
+            assert calls[0] == "backfill"
+        assert calls.count("backfill") == 1

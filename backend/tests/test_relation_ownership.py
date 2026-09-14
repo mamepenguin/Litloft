@@ -198,6 +198,26 @@ class TestCreateSyncsMarkdown:
         assert _rows(session) == {(missing.id, target.id, "related", "markdown")}
 
 
+    def test_sync_failure_keeps_the_created_file(self, client, monkeypatch):
+        import app.routers.drives as drives
+
+        api, session, drive_dir, _ = client
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("forced")
+
+        monkeypatch.setattr(drives, "sync_markdown_file_relations", boom)
+
+        r = api.post(
+            f"/api/drives/{TEST_DRIVE}/files",
+            json={"path": "kept.md", "content": "See [[nothing]].\n"},
+        )
+        assert r.status_code == 201, r.text
+        assert (drive_dir / "kept.md").read_text() == "See [[nothing]].\n"
+        session.expire_all()
+        assert session.query(File).filter(File.id == r.json()["id"]).count() == 1
+
+
 class TestPublicListingShowsEachCounterpartOnce:
     def test_both_directions_list_the_other_file_once(self, client):
         api, session, drive_dir, _ = client
