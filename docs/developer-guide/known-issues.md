@@ -109,12 +109,6 @@ search URL, and `featureFlags`' inline knowledge editor flag.
 page and `POST /api/addons/media_import/link` still import from URLs on that
 drive.
 
-**A Web Clip left before it finishes stays "fetching" in Recent clips.** The job's
-state is updated only by the `knowledge.clip.ready` / `knowledge.clip.failed`
-events that arrive while the Knowledge page is open, and the page does not
-re-read the state when it mounts. Reached by sending a clip and leaving the page;
-the row clears when its 24-hour entry expires.
-
 **Clip web page from Add can miss its result toast.** Core's `WebSocketProvider`
 keeps only the last event, so when another live update arrives at almost the same
 moment the ready or failed toast is sometimes not shown. The clip is still created
@@ -125,11 +119,23 @@ Closing the dialog while the submit is still waiting for its response, when that
 request then fails (for example a refused URL's 400), reports nothing. No clip is
 created.
 
-**A Web Clip whose placeholder file was edited during the fetch never reports.**
-When writing the fetched content answers 412 because the placeholder changed,
-the job publishes neither ready nor failed, so no screen hears its result.
-Reached by touching the placeholder file (or letting a scan do so) while the
-clip is fetching.
+**A Web Clip whose article could not be written sends no live update.** When
+writing the fetched content over the placeholder fails (412 because the file
+changed mid-fetch, 401, and so on), the job is marked failed but no
+`knowledge.clip.failed` event is published. Neither the Add menu's toast nor an
+open Knowledge page hears it; reopening the Knowledge page shows the clip as
+failed.
+
+**A clip whose article was written can still show as failed.** If writing to the
+knowledge database fails right after the article body is written (a SQLite lock,
+say), or the process stops there and the retry after restart cannot read the
+body, the note holding the full article is shown as failed on the Knowledge page.
+
+**Create note from a file's [...] menu can leave an empty menu that will not
+close.** Opened while the drive's `editor` setting is still loading, on a drive
+where `editor` turns out to be off, the dialog disappears and an empty menu
+remains that neither an outside tap nor Escape closes. Pressing [...] again
+closes it.
 
 **An in-process addon whose `scope` is a list or object stops loading its startup
 hook.** `_validate_scope` tests membership in a set, which raises for an
