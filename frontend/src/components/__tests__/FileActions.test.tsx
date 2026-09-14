@@ -5,7 +5,6 @@ import {
   Ancestors,
   type AncestorSpec,
 } from "@/__tests__/helpers/ancestorChain";
-import { DISMISS_SCRIM_ATTR } from "@/components/DismissScrim";
 import { deleteFile } from "@/lib/api";
 import { FileActions } from "../FileActions";
 import { ShortcutsProvider } from "../ShortcutsProvider";
@@ -737,19 +736,13 @@ describe("FileActions file-actions-menu slot", () => {
     expect(typeof passed.onDialogOpenChange).toBe("function");
   });
 
-  it("keeps the menu open while an addon dialog is open", () => {
-    // An addon's dialog paints above the menu's scrim, so a scrim left
-    // under it would take the clicks aimed at the page around the dialog
-    // and close the menu — unmounting the slot subtree, and the dialog
-    // with it, mid-interaction. The scrim stands down instead.
+  it("keeps the menu open on an outside press while an addon dialog is open", () => {
     renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
     fireEvent.click(screen.getByTestId("addon-open"));
+    dismissByPressingOutside();
 
-    expect(
-      document.querySelectorAll(`[${DISMISS_SCRIM_ATTR}]`),
-    ).toHaveLength(0);
     expect(screen.getByText("Download")).toBeInTheDocument();
     expect(screen.getByTestId("addon-slot-file-actions-menu")).toBeInTheDocument();
   });
@@ -814,9 +807,7 @@ describe("FileActions file-actions-menu slot", () => {
     openMenu();
 
     fireEvent.click(screen.getByTestId("addon-open"));
-    expect(
-      document.querySelectorAll(`[${DISMISS_SCRIM_ATTR}]`),
-    ).toHaveLength(0);
+    dismissByPressingOutside();
     expect(screen.getByText("Download")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("addon-dialog-close"));
