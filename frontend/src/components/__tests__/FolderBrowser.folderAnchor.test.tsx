@@ -15,12 +15,10 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 vi.mock("@/components/folder/FolderContent", () => ({
   FolderContent: ({
     onAddFiles,
-    onCreateFile,
     sortQuery,
     viewMode,
   }: {
     onAddFiles?: () => void;
-    onCreateFile?: () => void;
     sortQuery?: string;
     viewMode?: string;
   }) => (
@@ -30,7 +28,6 @@ vi.mock("@/components/folder/FolderContent", () => ({
       data-view-mode={viewMode}
     >
       {onAddFiles && <button onClick={() => onAddFiles()}>Add files</button>}
-      {onCreateFile && <button onClick={() => onCreateFile()}>Empty-state new note</button>}
     </div>
   ),
 }));
@@ -165,11 +162,6 @@ vi.mock("@/hooks/useFolderViewMode", () => ({
 
 // ---- helpers -----------------------------------------------------------------
 
-/** Core's own note creation, now reached from the empty folder rather than from Add. */
-function newNoteButtons() {
-  return screen.queryAllByRole("button", { name: "Empty-state new note" });
-}
-
 const sortQueryOf = () =>
   screen.getByTestId("folder-content").getAttribute("data-sort-query");
 const viewModeOf = () =>
@@ -224,12 +216,9 @@ const chooseView = (row: string) => {
 };
 
 describe("FolderBrowser — folder anchoring during a tag filter", () => {
-  it("offers create-file and targets the anchored folder", () => {
+  it("creates a file into the anchored folder from the keyboard", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" tagFilter="soup" />);
-
-    expect(newNoteButtons()).toHaveLength(1);
-
-    fireEvent.click(newNoteButtons()[0]);
+    pressShortcut("ctrl+n");
     expect(mockCreateFile).toHaveBeenCalledWith("main", "recipes");
   });
 
@@ -294,27 +283,31 @@ describe("FolderBrowser — folder anchoring during a tag filter", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides create-file in a special view", () => {
+  it("leaves create-file inert in a special view", () => {
     render(<FolderBrowser driveName="main" view="favorites" />);
-    expect(newNoteButtons()).toHaveLength(0);
+    pressShortcut("ctrl+n");
+    expect(mockCreateFile).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
-  it("hides create-file in search mode", () => {
+  it("leaves create-file inert in search mode", () => {
     render(<FolderBrowser driveName="main" searchQuery="kyoto" />);
-    expect(newNoteButtons()).toHaveLength(0);
+    pressShortcut("ctrl+n");
+    expect(mockCreateFile).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
-  it("hides create-file for a drive-root tag filter", () => {
+  it("leaves create-file inert for a drive-root tag filter", () => {
     render(<FolderBrowser driveName="main" tagFilter="soup" />);
-    expect(newNoteButtons()).toHaveLength(0);
+    pressShortcut("ctrl+n");
+    expect(mockCreateFile).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Add" })).not.toBeInTheDocument();
   });
 
-  it("still offers create-file for a plain folder listing", () => {
+  it("still creates a file for a plain folder listing", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" />);
-    expect(newNoteButtons()).toHaveLength(1);
+    pressShortcut("ctrl+n");
+    expect(mockCreateFile).toHaveBeenCalledWith("main", "recipes");
   });
 });
 
@@ -353,12 +346,9 @@ describe("FolderBrowser — the empty folder's own doors", () => {
     expect(clicked).toHaveBeenCalledTimes(1);
   });
 
-  it("offers both doors on an anchored folder", () => {
+  it("offers Add files on an anchored folder", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" />);
     expect(addFilesButton()).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Empty-state new note" }),
-    ).toBeInTheDocument();
   });
 
   it.each([
@@ -368,9 +358,6 @@ describe("FolderBrowser — the empty folder's own doors", () => {
   ])("offers neither in %s", (_case, props) => {
     render(<FolderBrowser {...props} />);
     expect(screen.queryByRole("button", { name: "Add files" })).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "Empty-state new note" }),
-    ).toBeNull();
   });
 });
 
@@ -410,15 +397,8 @@ describe("FolderBrowser — the drive root as a write destination", () => {
 
   it("offers the whole mutating group", () => {
     render(<FolderBrowser driveName="main" folderPath="" view="library" />);
-    expect(newNoteButtons()).toHaveLength(1);
     expect(addButtons()).toHaveLength(OFFERED);
     expect(newFolderButtons()).toHaveLength(OFFERED);
-  });
-
-  it("creates a file into the drive root", () => {
-    render(<FolderBrowser driveName="main" folderPath="" view="library" />);
-    fireEvent.click(newNoteButtons()[0]);
-    expect(mockCreateFile).toHaveBeenCalledWith("main", "");
   });
 
   it("creates a file into the drive root from the keyboard too", () => {
@@ -432,12 +412,9 @@ describe("FolderBrowser — the drive root as a write destination", () => {
     expect(mockUseCreateFolder).toHaveBeenCalledWith("main", "", expect.any(Function));
   });
 
-  it("offers both of the empty state's doors", () => {
+  it("offers the empty state's Add files", () => {
     render(<FolderBrowser driveName="main" folderPath="" view="library" />);
     expect(screen.getByRole("button", { name: "Add files" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Empty-state new note" }),
-    ).toBeInTheDocument();
   });
 
   it("is not pinnable", () => {
@@ -481,7 +458,6 @@ describe("FolderBrowser — the drive root as a write destination", () => {
 
   it("withholds everything when a tag is applied at the root", () => {
     render(<FolderBrowser driveName="main" folderPath="" view="library" tagFilter="soup" />);
-    expect(newNoteButtons()).toHaveLength(0);
     expect(addButtons()).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Add files" })).toBeNull();
     expect(() => pressShortcut("ctrl+n")).not.toThrow();
@@ -490,9 +466,10 @@ describe("FolderBrowser — the drive root as a write destination", () => {
 
   it("withholds everything where there is no folder path at all", () => {
     render(<FolderBrowser driveName="main" />);
-    expect(newNoteButtons()).toHaveLength(0);
     expect(addButtons()).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Add files" })).toBeNull();
+    pressShortcut("ctrl+n");
+    expect(mockCreateFile).not.toHaveBeenCalled();
   });
 
   it("leaves that key inert where there is nowhere to write", () => {

@@ -465,7 +465,6 @@
     "homeUnavailableTitle": "Couldn't load this drive",
     "homeUnavailableDescription": "Nothing could be fetched just now. This does not mean the drive is empty.",
     "addFilesAction": "Add files",
-    "createNoteAction": "New note",
     "openLibraryAction": "Open Library"
   },
   "theme": {

@@ -6,6 +6,7 @@ import { treeIncludeFilesStore } from "@/lib/treeIncludeFilesStore";
 const mockGetFolderTree = vi.fn();
 const mockRenameFolder = vi.fn();
 const mockRenameFile = vi.fn();
+const mockCreateTextFile = vi.fn();
 /** The endpoint's own rule, in the mock: folders only unless asked. */
 function applyIncludeFiles(
   nodes: unknown,
@@ -27,7 +28,7 @@ vi.mock("@/lib/api", () => ({
   getPins: () => Promise.resolve([]),
   addPin: () => Promise.resolve(undefined),
   removePin: () => Promise.resolve(undefined),
-  createTextFile: () => Promise.resolve({}),
+  createTextFile: (...args: unknown[]) => mockCreateTextFile(...args),
   createFolder: () => Promise.resolve({}),
   renameFolder: (...args: unknown[]) => mockRenameFolder(...args),
   moveFolder: () => Promise.resolve({}),
@@ -100,6 +101,7 @@ beforeEach(() => {
   mockGetFolderTree.mockReset();
   mockRenameFolder.mockReset().mockResolvedValue({});
   mockRenameFile.mockReset().mockResolvedValue({});
+  mockCreateTextFile.mockReset().mockResolvedValue({ id: "new-1" });
   localStorage.removeItem(driveExpKey("work"));
   localStorage.removeItem(driveFilterKey("work"));
   localStorage.removeItem("tree:includeFiles:work");
@@ -943,5 +945,36 @@ describe("FolderTreePane — show files too", () => {
       expect.objectContaining({ include_files: true }),
       expect.any(Object),
     );
+  });
+});
+
+describe("FolderTreePane New file here", () => {
+  it("creates the file in the folder that was right-clicked", async () => {
+    mockGetFolderTree.mockImplementation((_drive: string, params: { root?: string }) =>
+      Promise.resolve(
+        params.root === "" || params.root === undefined
+          ? [{ kind: "folder", name: "Notes", path: "Notes", file_count: 0, has_children: false }]
+          : [],
+      ),
+    );
+    render(
+      <ShortcutsProvider>
+        <FolderTreePane
+          drive="work"
+          selectedPath={null}
+          onSelectFolder={vi.fn()}
+          onSelectFile={vi.fn()}
+        />
+      </ShortcutsProvider>,
+    );
+    const row = (await screen.findByText("Notes")).closest("div[draggable]") as HTMLElement;
+
+    fireEvent.contextMenu(row);
+    fireEvent.click(await screen.findByText("New file here"));
+
+    await waitFor(() => expect(mockCreateTextFile).toHaveBeenCalledTimes(1));
+    const [drive, body] = mockCreateTextFile.mock.calls[0] as [string, { path: string }];
+    expect(drive).toBe("work");
+    expect(body.path).toMatch(/^Notes\/untitled-\d{8}-\d{6}\.md$/);
   });
 });
