@@ -60,6 +60,11 @@ vi.mock("../MoveDialog", () => ({
     ) : null,
 }));
 
+vi.mock("../CollectionPicker", () => ({
+  CollectionPicker: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="collection-picker" /> : null,
+}));
+
 const slotCalls = vi.hoisted(() => ({
   props: [] as Record<string, unknown>[],
   empty: false,
@@ -199,6 +204,19 @@ describe("FileActions", () => {
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Move to Trash"));
     expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["Rename", "rename-dialog"],
+    ["Move", "move-dialog"],
+    ["Move to Trash", "confirm-dialog"],
+    ["Add to collection", "collection-picker"],
+  ])("closes the menu when %s opens its dialog", (item, dialog) => {
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByText(item));
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.getByTestId(dialog)).toBeInTheDocument();
   });
 
   it("calls onDelete after successful deletion", async () => {

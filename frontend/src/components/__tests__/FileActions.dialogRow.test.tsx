@@ -116,6 +116,49 @@ describe("FileActions with a row that owns its dialog", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+  it.runIf(addonLinked)("closes on an outside press again after the menu was closed by its trigger with a dialog up", async () => {
+    render(
+      <ShortcutsProvider>
+        <FileActions file={file} addonProps={{ fileId: file.id, drive: file.drive }} />
+      </ShortcutsProvider>,
+    );
+    const trigger = screen.getByRole("button", { name: "File actions" });
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Create note" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("menu")).toBeNull();
+
+    fireEvent.click(trigger);
+    await screen.findByRole("menuitem", { name: "Create note" });
+    fireEvent.pointerDown(document.body, { button: 0 });
+    fireEvent.click(document.body);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it.runIf(addonLinked)("closes on an outside press again after a core item replaced the menu while a dialog was up", async () => {
+    render(
+      <ShortcutsProvider>
+        <FileActions file={file} addonProps={{ fileId: file.id, drive: file.drive }} />
+      </ShortcutsProvider>,
+    );
+    const trigger = screen.getByRole("button", { name: "File actions" });
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Create note" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Move to Trash"));
+    expect(screen.queryByRole("menu")).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+    fireEvent.click(trigger);
+    await screen.findByRole("menuitem", { name: "Create note" });
+    fireEvent.pointerDown(document.body, { button: 0 });
+    fireEvent.click(document.body);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
   it("runs, rather than skipping, where the addon checkout is present", () => {
     expect(addonLinked).toBe(true);
   });
