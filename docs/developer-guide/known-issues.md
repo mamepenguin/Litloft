@@ -148,9 +148,10 @@ bookmarklet instructions, the HTML paste form and the duplicate notice. The firs
 Escape there does nothing visible, and going back to the landing shows the dialog
 still open.
 
-**Typing `-`, `+` or `=` in the connections graph's toolbar search zooms the graph
-as well.** The zoom keys are read on `window` and do not skip input fields. Judged
-from the code; not measured.
+**Composer: pasting a channel or playlist URL and pressing Enter before its
+classification finishes (about 400 ms) imports it as a single loft instead of
+subscribing.** The Import from URL dialog classifies on submit and is not
+affected.
 
 **An in-process addon whose `scope` is a list or object stops loading its startup
 hook.** `_validate_scope` tests membership in a set, which raises for an
