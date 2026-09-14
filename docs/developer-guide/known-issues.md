@@ -112,7 +112,7 @@ drive.
 **Clip web page from Add can miss its result toast.** Core's `WebSocketProvider`
 keeps only the last event, so when another live update arrives at almost the same
 moment the ready or failed toast is sometimes not shown. The clip is still created
-and appears on the Knowledge page.
+and appears on the Notes page.
 
 **Clip web page from Add is silent when closed before the request is accepted.**
 Closing the dialog while the submit is still waiting for its response, when that
@@ -123,19 +123,34 @@ created.
 writing the fetched content over the placeholder fails (412 because the file
 changed mid-fetch, 401, and so on), the job is marked failed but no
 `knowledge.clip.failed` event is published. Neither the Add menu's toast nor an
-open Knowledge page hears it; reopening the Knowledge page shows the clip as
+open Notes page hears it; reopening the Notes page shows the clip as
 failed.
 
 **A clip whose article was written can still show as failed.** If writing to the
 knowledge database fails right after the article body is written (a SQLite lock,
 say), or the process stops there and the retry after restart cannot read the
-body, the note holding the full article is shown as failed on the Knowledge page.
+body, the note holding the full article is shown as failed on the Notes page.
 
 **Create note from a file's [...] menu can leave an empty menu that will not
 close.** Opened while the drive's `editor` setting is still loading, on a drive
 where `editor` turns out to be off, the dialog disappears and an empty menu
 remains that neither an outside tap nor Escape closes. Pressing [...] again
 closes it.
+
+**Notes' All notes and search results can list the same note twice.** If a note
+is added or updated in another tab before **Show more** is pressed, the next page
+is taken from a list that has shifted, and a note already shown appears again.
+Reloading the page clears it.
+
+**A clip dialog opened on the Notes landing stays open, hidden, after the browser's
+back or forward moves to search results or All notes.** This applies to the
+bookmarklet instructions, the HTML paste form and the duplicate notice. The first
+Escape there does nothing visible, and going back to the landing shows the dialog
+still open.
+
+**Typing `-`, `+` or `=` in the connections graph's toolbar search zooms the graph
+as well.** The zoom keys are read on `window` and do not skip input fields. Judged
+from the code; not measured.
 
 **An in-process addon whose `scope` is a list or object stops loading its startup
 hook.** `_validate_scope` tests membership in a set, which raises for an
@@ -153,4 +168,4 @@ has not been measured. The sidebar's addon rows do not do this.
 **Re-sending a Web Clip whose earlier attempt failed offers to open the failed
 placeholder.** `GET /clips?url=` returns failed jobs too, so the duplicate notice
 appears and its "open existing" goes to the placeholder file the failed job left.
-Reached from the bookmarklet and from the Knowledge page's form alike.
+Reached from the bookmarklet and from the Notes page's form alike.

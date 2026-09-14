@@ -24,6 +24,7 @@ For everyday users: viewers, players, search, organisation.
 - [Drives and access control](user-guide/drives-and-access.md)
 - [Browsing files](user-guide/file-browsing.md)
 - [Quick Note](user-guide/quick-note.md) — capture a Markdown note from any screen.
+- [Notes](user-guide/notes.md) — find a drive's Markdown and text files (Knowledge addon).
 - [Viewers and players](user-guide/viewers-and-players.md) — video, audio, image, Markdown, PDF, Office, ZIP.
 - [Search](user-guide/search.md) — keyword, tag filter, semantic, scene search.
 - [Upload and file operations](user-guide/upload-and-fileops.md)

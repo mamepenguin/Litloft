@@ -70,6 +70,7 @@ one action.
 - Rename in place — `F2` on a focused row in the folder tree or a folder card edits the name inline, no dialog (see [browsing files](file-browsing.md)).
 - Move, copy, batch operations.
 - Quick Note — press `N`, or use the header action, to write a Markdown note from any screen and file it without leaving the page (see [Quick Note](quick-note.md)).
+- Notes — with the Knowledge addon, find a drive's Markdown and text files by title or folder, and pick up recent ones (see [Notes](notes.md)).
 - Version history for text and Markdown files: the core snapshots every content write and serves the version list, past bodies, and diffs. The browse-and-restore panel is part of the [knowledge addon](../addons/knowledge.md).
 - Archive entry streaming (50 MB per entry cap).
 - Soft delete to trash (30-day auto-purge).
