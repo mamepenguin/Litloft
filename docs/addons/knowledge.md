@@ -4,6 +4,7 @@ The `knowledge` addon turns Litloft into a personal notes vault and web-clip arc
 
 ## What it provides
 
+- **Notes page** — **Notes** in the sidebar finds the drive's Markdown and text files by title or folder, with recent and continue-writing lists.
 - **Markdown editor** — a CodeMirror 6 editor with live preview, autosave, wiki links, and drag-and-drop image upload.
 - **New note from Add** — the **Add** menu on Home and in Library folders offers **New note**, which creates a Markdown file in that folder after you confirm its folder and name, then opens it in the editor.
 - **Version history** — every text write is snapshotted; the editor lists past versions with a diff and a restore action.
@@ -221,20 +222,43 @@ There are three destinations:
 
 Appends are ETag-guarded and serialised per target path, so two commits racing into the same daily note do not lose each other's captures.
 
-## The dashboard
+## The Notes page
 
-`/drive/{drive}/addons/knowledge` opens with the app's standard page header —
-title, a line saying what the page is for, and the same chrome every other
-screen uses — then the clip form, recent clips, and the connections graph.
-This is the whole of the addon's own page. A two-pane folder view once lived
-beside it; it lost its route, and its components were deleted rather than
-left to look alive.
+`/drive/{drive}/addons/knowledge` is **Notes**, a page for finding this drive's
+Markdown and text files (`.md`, `.markdown`, `.txt`, or `text/markdown`). It has
+the app's standard page header, with **New note** as its only primary action.
+New note asks for a folder and a name, creates the file, and opens it in the
+editor. It is hidden on drives where the `editor` feature is off.
 
-The **capture basket** panel offers one filled action, *Append to …*, which
-sends the collected quotes to the destination named on the button. *Other
-save methods* opens the two alternatives — a new note, or an existing one you
-search for — as plain buttons, because a panel with three filled buttons has
-not said which one it is for.
+Below the header:
+
+- **Find a note** searches titles and folder paths (up to 200 characters). The
+  results page is `?q={query}`, 30 at a time with **Show more**, and its count
+  is the number of matching notes. If a page fails to load, the same button
+  tries again. The results pages show only the results and a way back.
+- **Continue writing** lists the text files you opened most recently. It
+  appears only when a profile is set and there is history to show.
+- **Recent notes** lists the eight most recently updated notes. **All notes**
+  (`?view=all`) lists every note in the same order, 30 at a time.
+- The web clip form and recent clips come after the notes, followed by a link
+  to **Note & file connections**, the graph's own page
+  (`/drive/{drive}/addons/knowledge/connections`).
+
+A note opens in the ordinary file screen, and its previous and next arrows
+follow that file's folder, not the Notes order. The editor is for Markdown
+only: a `.txt` note opens for reading. "Recently updated" follows the file's
+`updated_at`, which also moves when tags or favourites change.
+
+Each part loads on its own, so a failure in one leaves the others working. A
+bookmarklet landing (`?prefill=…`) puts the clip form first. The older
+`?edit={fileId}` link still redirects to the file's screen, with the editor
+open when the file is Markdown.
+
+The **capture basket** is not on this page; it stays in the header on every
+screen. Its panel offers one filled action, *Append to …*, which sends the
+collected quotes to the destination named on the button. *Other save methods*
+opens the two alternatives — a new note, or an existing one you search for —
+as plain buttons.
 
 ## Web clipping
 
@@ -245,13 +269,13 @@ Two endpoints, both drive-scoped:
 
 `GET /api/addons/knowledge/clips?url=...` looks up existing jobs for a URL so the UI can warn about a duplicate before clipping again. The lookup is scoped to `(viewer, drive)`, so it cannot be used to probe what was clipped on another drive.
 
-The **Add** menu's **Clip web page** row sends the same `POST /clips` into the folder the menu was opened from; it does not use the folder the Knowledge page last remembered. If the URL was clipped before, the duplicate prompt opens (**Open existing**, **Create new**, **Cancel**). Once the clip is accepted the dialog and menu close, and a toast reports the result: "Clipped: {title}" when it is ready, an error when it fails. Only clips sent from the Add menu in the current tab are announced; clips sent from the Knowledge page stay in its clip history as before and are not added there from the Add menu.
+The **Add** menu's **Clip web page** row sends the same `POST /clips` into the folder the menu was opened from; it does not use the folder the Notes page last remembered. If the URL was clipped before, the duplicate prompt opens (**Open existing**, **Create new**, **Cancel**). Once the clip is accepted the dialog and menu close, and a toast reports the result: "Clipped: {title}" when it is ready, an error when it fails. Only clips sent from the Add menu in the current tab are announced; clips sent from the Notes page stay in its clip history as before and are not added there from the Add menu.
 
-Two known gaps: a notification can be missed when another live update arrives at the same moment (the clip itself is still created and appears on the Knowledge page), and if you close the dialog while the request is still being sent and that request is then refused (for example a blocked address), nothing reports it and no clip is created.
+Two known gaps: a notification can be missed when another live update arrives at the same moment (the clip itself is still created and appears on the Notes page), and if you close the dialog while the request is still being sent and that request is then refused (for example a blocked address), nothing reports it and no clip is created.
 
-The Knowledge page's recent clips are also looked up again when the page opens, so a clip that finished while the page was closed shows as ready or failed. A clip whose article could not be written over its placeholder is reported as failed.
+The Notes page's recent clips are also looked up again when the page opens, so a clip that finished while the page was closed shows as ready or failed. A clip whose article could not be written over its placeholder is reported as failed.
 
-The dashboard also offers a **bookmarklet** to drag to your browser's bookmark bar. It does not talk to the API directly: it opens the Knowledge page for that drive with the current page's URL and title prefilled and submits the URL clip for you, so no cross-origin permission is involved.
+The Notes page also offers a **bookmarklet** to drag to your browser's bookmark bar. It does not talk to the API directly: it opens the Notes page for that drive with the current page's URL and title prefilled and submits the URL clip for you, so no cross-origin permission is involved.
 
 The placeholder write is guarded: if you (or the scanner) touch the file while the fetch is in flight, the fetched content is discarded rather than overwriting your edit.
 
@@ -303,7 +327,7 @@ Alongside it, a **Create note** action in any file's `[...]` menu creates a stub
 
 ## Connections graph
 
-`GET /api/addons/knowledge/connections-graph` returns a force-directed view of the current drive, drawn on the Knowledge dashboard. It unions two edge sources:
+`GET /api/addons/knowledge/connections-graph` returns a force-directed view of the current drive, drawn on its own page, `/drive/{drive}/addons/knowledge/connections`, which the Notes page links to at the bottom. It unions two edge sources:
 
 - core `file_relations` — explicit file-to-file relations;
 - `note_origin_sources` — notes citing files through `source_file_ids`.
@@ -392,7 +416,7 @@ The `distill` endpoint is an early step toward LLM-driven note curation; expect 
 ## See also
 
 - [Addon overview](overview.md)
-- [Quick Note](../user-guide/quick-note.md) — the core's global note capture. The Knowledge dashboard's old "Quick memo" button was removed in favour of it, since the core action is available from the header on every screen.
+- [Quick Note](../user-guide/quick-note.md) — the core's global note capture, available from the header on every screen.
 - [Keyboard shortcuts](../user-guide/keyboard-shortcuts.md#markdown-editor-knowledge-addon) for the editor chords.
 - [Tags and relations](../user-guide/tags-and-relations.md) for the core/knowledge tag-store split.
 - [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
