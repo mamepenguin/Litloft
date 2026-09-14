@@ -22,6 +22,18 @@ Remove the row when it is fixed.
 
 ---
 
+## Setup
+
+**Re-running `configure.py` over a hand-edited override rewrites it.** Answering
+yes to "docker-compose.override.yml already exists. Overwrite?" regenerates the
+file from the recovered host paths and slugs: a drive mount's `:ro` is dropped,
+and intelligence's `DRIVE_MOUNTS` is rewritten as `slug=/drives/slug`, so where a
+drive's name differs from its slug intelligence can no longer find that drive's
+files. Answering yes to the `drives.json` and `passwords.json` prompts resets
+them to `[]`, losing the names, passwords and addon policy set in the browser,
+and yes to the `search-config.yml` prompt restores the `.example` contents. Every
+prompt defaults to no.
+
 ## Files
 
 **Copying a file onto a name whose thumbnail slot is owned by a different file
