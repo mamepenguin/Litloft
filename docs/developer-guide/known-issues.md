@@ -104,12 +104,6 @@ knowledge message namespace, `useActiveSummary`'s knowledge WebSocket event,
 in `lib/api.ts`, `semanticSearch` reading the intelligence catalogue entry and
 search URL, and `featureFlags`' inline knowledge editor flag.
 
-**A file menu row's dialog closes the moment it opens.** `FileActions` renders
-its menu without the dismiss scrim once a row reports a dialog, which re-parents
-the menu and remounts every row, so a row that keeps its dialog in its own state
-loses it. Reached from a file's `[...]` menu: knowledge's *Create note* and
-intelligence's *Index details* open nothing that stays.
-
 **Media Import's `url_import` feature switch only hides a menu row.** With
 `url_import: false` the Add menu has no **Import from URL**, but the Media Import
 page and `POST /api/addons/media_import/link` still import from URLs on that

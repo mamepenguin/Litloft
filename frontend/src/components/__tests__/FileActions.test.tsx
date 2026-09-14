@@ -5,7 +5,6 @@ import {
   Ancestors,
   type AncestorSpec,
 } from "@/__tests__/helpers/ancestorChain";
-import { DISMISS_SCRIM_ATTR } from "@/components/DismissScrim";
 import { deleteFile } from "@/lib/api";
 import { FileActions } from "../FileActions";
 import { ShortcutsProvider } from "../ShortcutsProvider";
@@ -59,6 +58,11 @@ vi.mock("../MoveDialog", () => ({
         <button onClick={onCancel}>Cancel</button>
       </div>
     ) : null,
+}));
+
+vi.mock("../CollectionPicker", () => ({
+  CollectionPicker: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="collection-picker" /> : null,
 }));
 
 const slotCalls = vi.hoisted(() => ({
@@ -200,6 +204,19 @@ describe("FileActions", () => {
     fireEvent.click(screen.getByLabelText("File actions"));
     fireEvent.click(screen.getByText("Move to Trash"));
     expect(screen.getByTestId("confirm-dialog")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["Rename", "rename-dialog"],
+    ["Move", "move-dialog"],
+    ["Move to Trash", "confirm-dialog"],
+    ["Add to collection", "collection-picker"],
+  ])("closes the menu when %s opens its dialog", (item, dialog) => {
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByText(item));
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.getByTestId(dialog)).toBeInTheDocument();
   });
 
   it("calls onDelete after successful deletion", async () => {
@@ -737,19 +754,13 @@ describe("FileActions file-actions-menu slot", () => {
     expect(typeof passed.onDialogOpenChange).toBe("function");
   });
 
-  it("keeps the menu open while an addon dialog is open", () => {
-    // An addon's dialog paints above the menu's scrim, so a scrim left
-    // under it would take the clicks aimed at the page around the dialog
-    // and close the menu — unmounting the slot subtree, and the dialog
-    // with it, mid-interaction. The scrim stands down instead.
+  it("keeps the menu open on an outside press while an addon dialog is open", () => {
     renderWithStack(<FileActions file={mockFile} addonProps={{ fileId: mockFile.id }} />);
     openMenu();
 
     fireEvent.click(screen.getByTestId("addon-open"));
+    dismissByPressingOutside();
 
-    expect(
-      document.querySelectorAll(`[${DISMISS_SCRIM_ATTR}]`),
-    ).toHaveLength(0);
     expect(screen.getByText("Download")).toBeInTheDocument();
     expect(screen.getByTestId("addon-slot-file-actions-menu")).toBeInTheDocument();
   });
@@ -814,9 +825,7 @@ describe("FileActions file-actions-menu slot", () => {
     openMenu();
 
     fireEvent.click(screen.getByTestId("addon-open"));
-    expect(
-      document.querySelectorAll(`[${DISMISS_SCRIM_ATTR}]`),
-    ).toHaveLength(0);
+    dismissByPressingOutside();
     expect(screen.getByText("Download")).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("addon-dialog-close"));

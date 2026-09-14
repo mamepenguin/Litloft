@@ -255,20 +255,18 @@ export function FileActions({
           </svg>
         </button>
 
-        {menuOpen &&
-          (anyDialogOpen ? (
-            menu
-          ) : (
-            <DismissScrim
-              onDismiss={() => setMenuOpen(false)}
-              // Not while a dialog raised from this menu is up: the dialog
-              // portals out of this subtree and a layer behind it would
-              // answer the presses meant for it.
-              className="fixed inset-0 z-30"
-            >
-              {menu}
-            </DismissScrim>
-          ))}
+        {menuOpen && (
+          <DismissScrim
+            onDismiss={() => setMenuOpen(false)}
+            // Disabled while a dialog raised from this menu is up: the dialog
+            // portals out of this subtree, and the scrim counts any press
+            // outside the menu as a dismissal.
+            disabled={anyDialogOpen}
+            className="fixed inset-0 z-30"
+          >
+            {menu}
+          </DismissScrim>
+        )}
 
         {error && (
           <div
