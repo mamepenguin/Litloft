@@ -81,6 +81,6 @@ You are then redirected to the home page (`/`) listing your drives.
 
 - **No drives detected on the Drives step.** No directories are mounted under `/app/drives/`. Re-check the `services.backend.volumes` block in `docker-compose.override.yml` (or re-run `configure.py`), then `docker compose up -d --build` and reload.
 - **Locked out after setting protected mode.** `data/setup_completed` blocks the wizard from re-running. To recover: stop the stack, edit `passwords.json` directly, and start again. As a last resort, `rm data/setup_completed` and reset `drives.json` / `passwords.json` to `[]` (`echo '[]' > drives.json && echo '[]' > passwords.json`) to start clean — reset them to `[]`, do **not** delete the files (an absent single-file bind-mount makes Docker create an unusable directory). This does **not** delete files in your drives, only the configuration.
-- **Addons not showing in step 6.** Confirm the addon's symlink under `addons/` is intact and that the addon container (if independent) is up.
+- **Addons not showing in step 6.** Confirm the addon's submodule under `addons/` is checked out and the images were rebuilt, and that the addon container (if independent) is enabled in `configure.py` and up.
 
 Continue with the [user-guide overview](../user-guide/overview.md) or jump straight to [browsing files](../user-guide/file-browsing.md).

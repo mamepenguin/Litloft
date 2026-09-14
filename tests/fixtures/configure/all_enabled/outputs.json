@@ -1,0 +1,8 @@
+{
+  "docker-compose.override.yml": "docker-compose.override.yml.expected",
+  ".env": ".env.expected",
+  "event-hooks.json": "event-hooks.json.expected",
+  "drives.json": "drives.json.expected",
+  "passwords.json": "passwords.json.expected",
+  "addons/intelligence/search-config.yml": "addons__intelligence__search-config.yml.expected"
+}

@@ -132,7 +132,8 @@ The four shipped addons are tracked as Git submodules under `addons/`. A `git cl
 
 - **Independent-service addons** (`intelligence`, `knowledge`) — `configure.py` writes the matching service block into `docker-compose.override.yml`. Re-run `python3 configure.py` to toggle the answer, then `docker compose up -d --build`.
 - **In-process addons** (`cloud-sync`, `media_import`) — the backend Dockerfile copies every addon's `backend/` directory into the image at build time, so they ship and auto-load as soon as the image is rebuilt; no host-side symlink is required for a Docker install. When you run the backend outside Docker (local development), use `./setup-addons.sh` once from the repo root to link each addon into the core tree. It links `backend/<name>` as a symlink to the addon's `backend/`, and builds `frontend/src/addons/<name>/` as a real directory holding one symlink per file — a directory, because tools that walk the tree do not descend a symlinked one.
-- **Disable an addon entirely** — set the policy to `false` for every drive. For independent services, also remove the service block from `docker-compose.override.yml`; for in-process addons there is no per-image switch — leaving the per-drive policy off keeps the addon dormant.
+- **Remove an independent-service addon** — answer no in `configure.py` (or remove its service block from `docker-compose.override.yml`) and rebuild.
+- **Remove an in-process addon** — it loads whenever its directory is checked out, so only leaving the submodule uninitialised removes it. A per-drive policy of `false` hides its entrances but does not unload it: its own routes keep answering.
 - **Disable per drive** — toggle in the [settings GUI](../admin-guide/settings-gui.md) → AddonPolicy.
 
 When a drive policy flips an addon off, the addon is responsible for purging the data it had stored for that drive (best practice, with safety: skip the purge if the policy lookup fails to avoid accidental wipe).
