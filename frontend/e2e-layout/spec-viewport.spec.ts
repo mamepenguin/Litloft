@@ -28,10 +28,11 @@ const FIXTURES = [
   "mobile-inspector-sheet.html",
   "popup-dismiss.html",
   "related-files.html",
+  "sidebar-shell.html",
   "toolbar-menu.html",
 ] as const;
 
-const FIXTURE_COUNT = 9;
+const FIXTURE_COUNT = 10;
 
 /**
  * On the far side of `sm` from Chromium's mobile default, so a page that
