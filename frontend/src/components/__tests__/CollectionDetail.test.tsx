@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 
 import { CollectionDetail } from "../CollectionDetail";
 import { accentFills } from "@/__tests__/helpers/accentFills";
+import { confirmConversionThenEnter } from "@/__tests__/helpers/imeEnter";
 import type { FileItem } from "@/types";
 
 const mockPush = vi.fn();
@@ -249,6 +250,25 @@ describe("CollectionDetail", () => {
         expect(apiMocks.updateCollection).toHaveBeenCalledWith("main", "c1", {
           name: "Renamed",
         }),
+      );
+    });
+
+    it("does not save on the Enter that confirms a conversion", async () => {
+      render(<CollectionDetail drive="main" collectionId="c1" />);
+      fireEvent.click(await screen.findByRole("button", { name: "My Collection" }));
+      confirmConversionThenEnter(screen.getByDisplayValue("My Collection"), "日本語");
+      expect(apiMocks.updateCollection).not.toHaveBeenCalled();
+      expect(screen.getByDisplayValue("日本語")).toBeInTheDocument();
+    });
+
+    it("saves on an Enter pressed after the grace window", async () => {
+      render(<CollectionDetail drive="main" collectionId="c1" />);
+      fireEvent.click(await screen.findByRole("button", { name: "My Collection" }));
+      confirmConversionThenEnter(screen.getByDisplayValue("My Collection"), "日本語", {
+        afterGrace: true,
+      });
+      await waitFor(() =>
+        expect(apiMocks.updateCollection).toHaveBeenCalledWith("main", "c1", { name: "日本語" }),
       );
     });
 

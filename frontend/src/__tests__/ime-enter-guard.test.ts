@@ -18,22 +18,21 @@ import { stripComments } from "@/__tests__/helpers/sourceScan";
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ADDON_LINK_DIR = resolve(SRC, "addons");
 
-/** Text fields whose Enter acts: each keydown handler asks `isImeKeystroke` first. */
-const GUARDED: Record<string, number> = {
-  "components/CollectionDetail.tsx": 1,
-  "components/CollectionPicker.tsx": 1,
-  "components/EditableTagChips.tsx": 1,
-  "components/FileSaveDialog.tsx": 1,
-  "components/GlobalSearch.tsx": 1,
-  "components/InlineNameEditor.tsx": 1,
-  "components/PdfPreview.tsx": 1,
-  "components/SelectionBar.tsx": 1,
-  "components/ShortcutsProvider.tsx": 1,
-  "components/SmartFolderSaveDialog.tsx": 1,
-  "components/folder/FolderToolbar.tsx": 1,
-  "components/settings/ProfileSection.tsx": 1,
-  "components/sidebar/SidebarCollectionsSection.tsx": 2,
-};
+/** Text fields whose Enter acts: each is rendered by a test that confirms a conversion with Enter. */
+const TEXT_FIELD_ENTER = [
+  "components/CollectionDetail.tsx",
+  "components/CollectionPicker.tsx",
+  "components/EditableTagChips.tsx",
+  "components/FileSaveDialog.tsx",
+  "components/GlobalSearch.tsx",
+  "components/InlineNameEditor.tsx",
+  "components/PdfPreview.tsx",
+  "components/SelectionBar.tsx",
+  "components/SmartFolderSaveDialog.tsx",
+  "components/folder/FolderToolbar.tsx",
+  "components/settings/ProfileSection.tsx",
+  "components/sidebar/SidebarCollectionsSection.tsx",
+];
 
 /**
  * Enter on something that is not a text field (a row, a card, a menu), or
@@ -46,9 +45,6 @@ const NOT_A_TEXT_FIELD_ENTER = [
   "components/search/MergedResultItem.tsx",
   "hooks/useFileCardLink.ts",
 ];
-
-/** Guarded, but reads the key through `normalizeKey` rather than naming Enter. */
-const GUARDED_BY_NORMALIZED_KEY = ["components/ShortcutsProvider.tsx"];
 
 const MECHANISM = "lib/ime.ts";
 
@@ -69,57 +65,34 @@ function sourceFiles(root: string): string[] {
   return out;
 }
 
-function scan(root: string) {
-  const enterFiles: string[] = [];
-  const guardCalls: Record<string, number> = {};
-  for (const file of sourceFiles(root)) {
-    const rel = relative(root, file);
-    if (rel === MECHANISM) continue;
-    const text = stripComments(readFileSync(file, "utf-8"));
-    if (/["'`]Enter["'`]|keyCode\s*===?\s*13/.test(text)) enterFiles.push(rel);
-    const calls = text.match(/\bisImeKeystroke\(/g)?.length ?? 0;
-    if (calls > 0) guardCalls[rel] = calls;
-  }
-  return { enterFiles: enterFiles.sort(), guardCalls };
+function enterFiles(root: string): string[] {
+  return sourceFiles(root)
+    .map((file) => ({ rel: relative(root, file), text: stripComments(readFileSync(file, "utf-8")) }))
+    .filter(({ rel, text }) => rel !== MECHANISM && /["'`]Enter["'`]|keyCode\s*===?\s*13/.test(text))
+    .map(({ rel }) => rel)
+    .sort();
 }
 
-describe("IME guard on Enter in text fields", () => {
-  const { enterFiles, guardCalls } = scan(SRC);
-
-  it("every core file handling Enter is declared", () => {
-    expect(enterFiles).toEqual(
-      [
-        ...Object.keys(GUARDED).filter((f) => !GUARDED_BY_NORMALIZED_KEY.includes(f)),
-        ...NOT_A_TEXT_FIELD_ENTER,
-      ].sort(),
-    );
+describe("core files handling Enter", () => {
+  it("are all declared as a text field or not", () => {
+    const declared = [...TEXT_FIELD_ENTER, ...NOT_A_TEXT_FIELD_ENTER].sort();
+    expect(declared).toHaveLength(17);
+    expect(enterFiles(SRC)).toEqual(declared);
   });
 
-  it("each guarded file asks the guard once per text field", () => {
-    expect(guardCalls).toEqual(GUARDED);
-    expect(Object.values(guardCalls).reduce((a, b) => a + b, 0)).toBe(14);
-  });
-
-  it("does not count Enter or the guard mentioned only in comments", () => {
+  it("does not count Enter mentioned only in comments", () => {
     const root = mkdtempSync(join(tmpdir(), "ime-guard-"));
     try {
       mkdirSync(join(root, "components"));
       writeFileSync(
         join(root, "components", "Commented.tsx"),
-        [
-          '// if (e.key === "Enter") ime.isImeKeystroke(e);',
-          '/* isImeKeystroke(e) && "Enter" */',
-          "export const x = 1;",
-        ].join("\n"),
+        ['// if (e.key === "Enter") submit();', '/* "Enter" */', "export const x = 1;"].join("\n"),
       );
       writeFileSync(
         join(root, "components", "Real.tsx"),
-        'export const f = (e: KeyboardEvent) => ime.isImeKeystroke(e) || e.key === "Enter";\n',
+        'export const f = (e: KeyboardEvent) => e.key === "Enter";\n',
       );
-      expect(scan(root)).toEqual({
-        enterFiles: ["components/Real.tsx"],
-        guardCalls: { "components/Real.tsx": 1 },
-      });
+      expect(enterFiles(root)).toEqual(["components/Real.tsx"]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
