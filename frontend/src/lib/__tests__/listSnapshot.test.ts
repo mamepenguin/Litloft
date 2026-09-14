@@ -127,6 +127,16 @@ describe("listSnapshot", () => {
       expect(loadListSnapshot("main|photos||")).toBeNull();
     });
 
+    it("discards a snapshot filtered by the old markdown kind", () => {
+      const stale = {
+        ...BASE_SNAPSHOT,
+        filters: { ...BASE_SNAPSHOT.filters, typeFilter: "markdown" },
+        ts: Date.now(),
+      };
+      window.sessionStorage.setItem("hv_list_snapshot", JSON.stringify(stale));
+      expect(loadListSnapshot("main|photos||")).toBeNull();
+    });
+
     it("evicts a snapshot holding a retired sort field", () => {
       // "likes" outlives the deploy that removed it, and replaying it
       // would 422.

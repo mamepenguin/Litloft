@@ -6,7 +6,7 @@ import type { FolderKind, ViewMode } from "@/types";
  * is a wall of the same icon repeated, which says less per screen than a
  * list does.
  *
- * `markdown` is the one row not derived from the picture at all: it can
+ * `text` is the one row not derived from the picture at all: it can
  * draw one and still opens as a list, because a wall of note previews is
  * not how a notebook is navigated.
  *
@@ -19,7 +19,7 @@ const VIEW_MODE_FOR_KIND: Record<FolderKind, ViewMode> = {
   image: "grid",
   pdf: "grid",
   document: "grid",
-  markdown: "list",
+  text: "list",
   audio: "list",
   archive: "list",
   other: "list",

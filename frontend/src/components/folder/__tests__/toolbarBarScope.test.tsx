@@ -76,8 +76,8 @@ const STATES = [
   ["resting", {}, BASE],
   [
     "filtering on both axes",
-    { typeFilter: "markdown" as const, trustFilter: "verified" as const },
-    BASE.map((c) => (c === "Filter" ? "Filter: Markdown · Verified only" : c)),
+    { typeFilter: "text" as const, trustFilter: "verified" as const },
+    BASE.map((c) => (c === "Filter" ? "Filter: Text · Verified only" : c)),
   ],
   [
     "scoped to a tag",
@@ -109,7 +109,7 @@ const FLOOR: Record<string, string[]> = {
   Add: MIN,
   Play: MIN,
   Filter: MIN,
-  "Filter: Markdown · Verified only": MIN,
+  "Filter: Text · Verified only": MIN,
   "View: Grid view": MIN,
   "Sort: Newest first": MIN,
   "Sort: Relevance": MIN,
@@ -125,7 +125,7 @@ const FLOOR: Record<string, string[]> = {
 const SCOPE: Record<string, string[]> = {
   Play: [],
   Filter: [],
-  "Filter: Markdown · Verified only": [],
+  "Filter: Text · Verified only": [],
   "More actions": [],
   "Search the whole drive": [],
   // Everything that leaves the bar leaves at 768, where `00-basis.md` ends
@@ -216,7 +216,7 @@ describe("what the folder toolbar keeps on the bar", () => {
     render(
       <FolderToolbar
         {...props}
-        typeFilter="markdown"
+        typeFilter="text"
         trustFilter="verified"
         tagFilter="recipes"
         widenTagScope={{ tagName: "recipes", href: "/drive/d?tag=recipes" }}
@@ -257,11 +257,11 @@ describe("what the folder toolbar keeps on the bar", () => {
     const { rerender } = render(<FolderToolbar {...props} />);
     expect(classes()).toEqual(["truncate"]);
 
-    rerender(<FolderToolbar {...props} typeFilter="markdown" />);
+    rerender(<FolderToolbar {...props} typeFilter="text" />);
     expect(classes()).toEqual(["truncate"]);
 
     rerender(
-      <FolderToolbar {...props} typeFilter="markdown" trustFilter="verified" />,
+      <FolderToolbar {...props} typeFilter="text" trustFilter="verified" />,
     );
     expect(classes()).toEqual(["max-lg:max-w-24", "truncate"]);
   });

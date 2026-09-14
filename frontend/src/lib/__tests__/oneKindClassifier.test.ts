@@ -89,7 +89,7 @@ describe("the listing's kind filter", () => {
     ) as { filter: { type: Record<string, string> }; toolbar: Record<string, string> };
 
     expect(Object.keys(core.filter.type).sort()).toEqual([
-      "all", "archive", "audio", "document", "image", "markdown", "other", "pdf", "video",
+      "all", "archive", "audio", "document", "image", "other", "pdf", "text", "video",
     ]);
     for (const dropped of ["all", "video", "image", "audio", "document", "archiveType", "other"]) {
       expect(core.toolbar).not.toHaveProperty(dropped);

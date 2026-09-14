@@ -274,13 +274,13 @@ describe("FolderTreePane", () => {
       name: /filter by type|filter\.openTypeFilter|型でフィルタ/i,
     });
     fireEvent.click(trigger);
-    const markdownItem = await screen.findByRole("menuitem", { name: /markdown/i });
-    fireEvent.click(markdownItem);
+    const textItem = await screen.findByRole("menuitem", { name: /^text$/i });
+    fireEvent.click(textItem);
 
     await waitFor(() => expect(mockGetFolderTree).toHaveBeenCalledTimes(2));
     expect(mockGetFolderTree).toHaveBeenLastCalledWith(
       "work",
-      expect.objectContaining({ type_filter: "markdown" }),
+      expect.objectContaining({ type_filter: "text" }),
       expect.any(Object),
     );
   });

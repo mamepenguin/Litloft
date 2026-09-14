@@ -35,7 +35,7 @@ describe("resolveFolderViewMode (layered fallback, grid|list)", () => {
     const result = resolveFolderViewMode({
       drive: "work",
       folderPath: "notes",
-      dominantKind: "markdown",
+      dominantKind: "text",
     });
     expect(result).toBe("list");
   });

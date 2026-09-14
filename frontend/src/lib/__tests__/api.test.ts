@@ -94,10 +94,10 @@ describe("api", () => {
 
     it("includes root, type_filter, depth", async () => {
       mockFetch.mockResolvedValueOnce(jsonResponse([]));
-      await getFolderTree("main", { root: "photos", type_filter: "markdown", depth: 1 });
+      await getFolderTree("main", { root: "photos", type_filter: "text", depth: 1 });
       const url = mockFetch.mock.calls[0][0] as string;
       expect(url).toContain("root=photos");
-      expect(url).toContain("type_filter=markdown");
+      expect(url).toContain("type_filter=text");
       expect(url).toContain("depth=1");
     });
 

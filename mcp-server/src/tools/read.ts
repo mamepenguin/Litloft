@@ -125,12 +125,12 @@ const searchFiles: LitloftTool = {
         "document",
         "archive",
         "other",
-        "markdown",
+        "text",
         "pdf",
       ])
       .optional()
       .describe(
-        "Narrow to one kind. `markdown` and `pdf` are refinements of "
+        "Narrow to one kind. `text` (Markdown and .txt) and `pdf` are refinements of "
         + "`document`, so `document` returns those too. An unlisted value "
         + "is rejected by the server rather than returning nothing.",
       ),

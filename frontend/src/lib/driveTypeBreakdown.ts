@@ -1,10 +1,10 @@
 import { TYPE_OPTION_KEYS } from "@/components/folder/filterOptions";
 
 /**
- * `markdown` and `pdf` are dropped: they are narrowings of `document` in the
+ * `text` and `pdf` are dropped: they are narrowings of `document` in the
  * filter, and the backend's `file_type` column never holds them.
  */
-const NARROWINGS_OF_DOCUMENT = new Set(["markdown", "pdf"]);
+const NARROWINGS_OF_DOCUMENT = new Set(["text", "pdf"]);
 
 export const DRIVE_TYPE_ORDER = TYPE_OPTION_KEYS.map((o) => o.value).filter(
   (v): v is Exclude<typeof v, null> =>

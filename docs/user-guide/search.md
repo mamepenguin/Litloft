@@ -42,7 +42,7 @@ The description field is not searched.
 
 Above the result grid you find:
 
-- **Type filter** — all / video / image / audio / document (markdown, pdf) / archive / other. The same eight kinds the folder toolbar offers; Markdown and PDF sit *under* Document, so choosing Document returns them too. One at a time, not a multi-select.
+- **Type filter** — all / video / image / audio / document (text, pdf) / archive / other. The same eight kinds the folder toolbar offers; Text and PDF sit *under* Document, so choosing Document returns them too. One at a time, not a multi-select.
 - **Sort** — relevance (the default while searching), newest, oldest, title A-Z, title Z-A, largest, smallest, most liked, least liked, random. Relevance is offered only while a query is active.
 
 Filters are reflected in the URL so a link is shareable.

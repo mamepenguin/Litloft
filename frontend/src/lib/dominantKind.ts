@@ -1,3 +1,4 @@
+import { isTextKind } from "@/lib/textKind";
 import type { FileItem, FolderKind } from "@/types";
 
 /**
@@ -26,7 +27,7 @@ export function deriveDominantKind(files: FileItem[]): FolderKind | null {
 }
 
 function classify(file: FileItem): FolderKind {
-  if (file.mime_type === "text/markdown") return "markdown";
+  if (isTextKind(file.mime_type, file.filename)) return "text";
   if (file.mime_type === "application/pdf") return "pdf";
   switch (file.file_type) {
     case "video":

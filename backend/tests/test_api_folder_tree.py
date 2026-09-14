@@ -101,18 +101,18 @@ class TestFolderTree:
         assert by_name["child"]["kind"] == "folder"
         assert by_name["note.md"]["kind"] == "file"
 
-    def test_type_filter_markdown_excludes_other_files(self, client):
+    def test_type_filter_text_excludes_other_files(self, client):
         c, db, drive_dir, data_dir = client
         _add_file(db, drive_dir, folder_path="", filename="note.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="", filename="movie.mp4", file_type="video", mime_type="video/mp4")
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=markdown&include_files=true")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=text&include_files=true")
         nodes = res.json()
         names = {n["name"] for n in nodes}
         assert "note.md" in names
         assert "movie.mp4" not in names
 
-    def test_type_filter_video_excludes_markdown(self, client):
+    def test_type_filter_video_excludes_text(self, client):
         c, db, drive_dir, data_dir = client
         _add_file(db, drive_dir, folder_path="", filename="note.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="", filename="movie.mp4", file_type="video", mime_type="video/mp4")
@@ -148,7 +148,7 @@ class TestFolderTree:
         c, db, drive_dir, data_dir = client
         _add_file(db, drive_dir, folder_path="onlyvideos", filename="v.mp4", file_type="video", mime_type="video/mp4")
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=markdown&include_files=true")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=text&include_files=true")
         nodes = res.json()
         names = {n["name"] for n in nodes if n["kind"] == "folder"}
         assert "onlyvideos" in names
@@ -268,7 +268,7 @@ class TestFolderTreeFlat:
         _add_file(db, drive_dir, folder_path="docs", filename="a.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="docs", filename="movie.mp4", file_type="video", mime_type="video/mp4")
 
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true&include_files=true&type_filter=markdown")
+        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?flat=true&include_files=true&type_filter=text")
         names = {(n["kind"], n["name"]) for n in res.json()}
         assert ("file", "a.md") in names
         assert ("file", "movie.mp4") not in names
@@ -389,7 +389,7 @@ class TestFolderTreeIncludeFiles:
 class TestFolderResponseDominantKind:
     """dominant_kind on FolderResponse."""
 
-    def test_dominant_kind_markdown(self, client):
+    def test_dominant_kind_text(self, client):
         c, db, drive_dir, data_dir = client
         _add_file(db, drive_dir, folder_path="notes", filename="a.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="notes", filename="b.md", file_type="document", mime_type="text/markdown")
@@ -398,7 +398,7 @@ class TestFolderResponseDominantKind:
         res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
         folders = res.json()
         assert len(folders) == 1
-        assert folders[0]["dominant_kind"] == "markdown"
+        assert folders[0]["dominant_kind"] == "text"
 
     def test_dominant_kind_video(self, client):
         c, db, drive_dir, data_dir = client
@@ -440,7 +440,7 @@ class TestFolderResponseDominantKind:
         assert folders[0]["dominant_kind"] is None
 
     def test_dominant_kind_recursive(self, client):
-        """Recursive: folder with markdown-heavy descendants reports markdown."""
+        """Recursive: folder with note-heavy descendants reports text."""
         c, db, drive_dir, data_dir = client
         _add_file(db, drive_dir, folder_path="parent/sub1", filename="a.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="parent/sub2", filename="b.md", file_type="document", mime_type="text/markdown")
@@ -449,5 +449,5 @@ class TestFolderResponseDominantKind:
         res = c.get(f"/api/drives/{TEST_DRIVE}/folders")
         folders = res.json()
         parent = next(f for f in folders if f["name"] == "parent")
-        # 2 markdown vs 1 video → markdown wins recursively
-        assert parent["dominant_kind"] == "markdown"
+        # 2 notes vs 1 video → text wins recursively
+        assert parent["dominant_kind"] == "text"

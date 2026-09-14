@@ -462,7 +462,7 @@ describe("FolderBrowser — the drive root as a write destination", () => {
 
   it("keeps Play All, which a flat virtual view does not", () => {
     listing.total = 1;
-    listing.files = [{ id: "v1", file_type: "video" }];
+    listing.files = [{ id: "v1", filename: "v1.mp4", file_type: "video" }];
     const { unmount } = render(
       <FolderBrowser driveName="main" folderPath="" view="library" />,
     );

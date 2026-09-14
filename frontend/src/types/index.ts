@@ -108,7 +108,7 @@ export interface AuthStatus {
 }
 
 export type FolderKind =
-  | "markdown"
+  | "text"
   | "video"
   | "image"
   | "pdf"
@@ -145,7 +145,7 @@ export type FileKind =
   | "document"
   | "archive"
   | "other"
-  | "markdown"
+  | "text"
   | "pdf";
 
 export type FolderTreeNode =

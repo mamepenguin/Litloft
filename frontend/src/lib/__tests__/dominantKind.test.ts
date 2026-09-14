@@ -73,13 +73,28 @@ describe("deriveDominantKind", () => {
     expect(deriveDominantKind(half)).toBeNull();
   });
 
-  it("classifies markdown via mime_type even when file_type=document", () => {
+  it("classifies text via mime_type even when file_type=document", () => {
     expect(
       deriveDominantKind([
         file({ id: "a", file_type: "document", mime_type: "text/markdown" }),
         file({ id: "b", file_type: "document", mime_type: "text/markdown" }),
       ]),
-    ).toBe("markdown");
+    ).toBe("text");
+  });
+
+  it("counts .txt as text but not other text/plain files", () => {
+    expect(
+      deriveDominantKind([
+        file({ id: "a", filename: "a.txt", file_type: "document", mime_type: "text/plain" }),
+        file({ id: "b", filename: "b.TXT", file_type: "document", mime_type: "text/plain" }),
+      ]),
+    ).toBe("text");
+    expect(
+      deriveDominantKind([
+        file({ id: "a", filename: "main.c", file_type: "document", mime_type: "text/plain" }),
+        file({ id: "b", filename: "head.h", file_type: "document", mime_type: "text/plain" }),
+      ]),
+    ).toBe("document");
   });
 
   it("classifies pdf via mime_type", () => {

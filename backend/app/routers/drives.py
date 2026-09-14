@@ -89,7 +89,7 @@ def _validate_folder_path(path: str) -> str:
 # listing's ``?type=`` and the tree's ``?type_filter=``.
 #
 # It is ``File.file_type`` with two refinements nested under
-# ``document``: markdown and PDF are documents, and asking for documents
+# ``document``: text and PDF are documents, and asking for documents
 # returns them. The tree used to know only four of these buckets and the
 # listing only the six flat ones, so the same file could satisfy one
 # filter and not the other — see ``_apply_kind_filter``.
@@ -104,13 +104,22 @@ FileKind = Literal[
     "document",
     "archive",
     "other",
-    "markdown",
+    "text",
     "pdf",
     "subtitle",
 ]
 
+# `markdown` was this vocabulary's name for `text`. Saved URLs, stored
+# filters and older API clients still send it, so the query parameters take
+# it and `_normalize_kind` answers it as `text`; no response carries it.
+FileKindParam = FileKind | Literal["markdown"]
+
 # Retained name for the tree query parameter, which predates the merge.
-TreeKind = FileKind
+TreeKind = FileKindParam
+
+
+def _normalize_kind(kind: FileKindParam | None) -> FileKind | None:
+    return "text" if kind == "markdown" else kind
 
 
 # The extensions that name a kind when the mime does not. `classify()`
@@ -118,18 +127,21 @@ TreeKind = FileKind
 # anything that skipped it — carry NULL, and those are precisely the
 # rows the two old filters disagreed about: the client sifted on the
 # filename and kept them, the server sifted on the mime and dropped them.
+#
+# `text` is not `text/plain`: in the runtime image `mimetypes` gives `.c`,
+# `.h` and `.pl` that mime too, so plain text is recognised by `.txt` alone.
 _KIND_MIMES: dict[str, tuple[str, ...]] = {
-    "markdown": ("text/markdown",),
+    "text": ("text/markdown",),
     "pdf": ("application/pdf",),
 }
 _KIND_SUFFIXES: dict[str, tuple[str, ...]] = {
-    "markdown": (".md", ".markdown"),
+    "text": (".md", ".markdown", ".txt"),
     "pdf": (".pdf",),
 }
 
 
 # The `file_type` values that are a kind under their own name. The rest
-# of `FileKind` is either nested under `document` (markdown, pdf, handled
+# of `FileKind` is either nested under `document` (text, pdf, handled
 # by mime below) or has no label anywhere in the UI (`subtitle`, which
 # `filter.type.*` does not offer and so is folded into `other`).
 _FLAT_FOLDER_KINDS = frozenset({"video", "image", "audio", "document", "archive"})
@@ -198,7 +210,7 @@ def _classify_kind(
       to fall into `other`, which was invisible while this only fed
       `dominant_kind` (a view-mode guess) and wrong the moment it became
       a label;
-    - markdown and PDF are recognised by mime, or by extension for rows
+    - text and PDF are recognised by mime, or by extension for rows
       whose mime was never recorded, exactly as `_KIND_SUFFIXES` exists
       for. A caller with no `filename` to hand gets the mime-only half.
 
@@ -230,7 +242,7 @@ def _apply_kind_filter(query, kind: FileKind | None):
     #
     # Note what is *not* required — that the row also be
     # ``file_type == "document"``. The nesting ("document returns
-    # markdown and PDF too") holds because ``classify()`` files both
+    # text and PDF too") holds because ``classify()`` files both
     # under document, not because this query enforces it. Adding the
     # predicate would undo the extension fallback for exactly the rows
     # it exists for: one whose mime was never recorded may well have
@@ -250,7 +262,7 @@ _to_response = file_to_response
 def _list_folder_tree_flat(
     db: Session,
     drive_name: str,
-    type_filter: "TreeKind | None",
+    type_filter: FileKind | None,
     include_files: bool,
 ) -> list[FolderTreeNode]:
     """Return the entire drive tree as a flat list.
@@ -494,7 +506,7 @@ def list_folders(
         #
         # Grouped, so a drive of 100k files is a few hundred rows rather
         # than 100k. `_classify_kind` needs the filename for the rows
-        # whose mime was never recorded — the ones `?type=markdown` finds
+        # whose mime was never recorded — the ones `?type=text` finds
         # by extension — and a filename would make every row its own
         # group, so the group key carries what the filename decides
         # (`_suffix_kind_case`) instead of the filename itself.
@@ -562,6 +574,7 @@ def list_folder_tree(
     _validate_drive(drive_name, unlocked_groups)
     if root:
         root = _validate_folder_path(root)
+    type_filter = _normalize_kind(type_filter)
 
     if flat:
         return _list_folder_tree_flat(db, drive_name, type_filter, include_files)
@@ -683,7 +696,7 @@ def list_drive_files(
     favorite: bool | None = None,
     liked: bool | None = None,
     tag: str | None = None,
-    type: FileKind | None = None,
+    type: FileKindParam | None = None,
     trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
     sort: str = Query(
         "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
@@ -740,7 +753,7 @@ def list_drive_files(
         )
     if tag:
         query = query.filter(File.tags.any(func.lower(Tag.name) == tag.lower()))
-    query = _apply_kind_filter(query, type)
+    query = _apply_kind_filter(query, _normalize_kind(type))
     if trust == "unreviewed":
         # Not a tier: the review queue is "nobody has ruled on this", which
         # spans both tiers. Bulk-migrated rows are verified but unjudged, and
@@ -1229,7 +1242,7 @@ def get_watch_history(
     viewer_id: Annotated[str | None, Depends(get_viewer_id)],
     limit: int = Query(20, ge=1, le=50),
     filter: str = Query("unfinished", pattern=r"^(unfinished|all)$"),
-    type: FileKind | None = None,
+    type: FileKindParam | None = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
 
@@ -1253,10 +1266,10 @@ def get_watch_history(
 
     # Same classifier as the listing and the tree. The Recent view used
     # to sift these rows in the browser on ``file_type`` alone, which
-    # answered "no such files" for markdown and PDF — values the column
+    # answered "no such files" for text and PDF — values the column
     # never holds. Narrowing here also means ``limit`` counts matching
     # rows rather than being spent on rows about to be discarded.
-    query = _apply_kind_filter(query, type)
+    query = _apply_kind_filter(query, _normalize_kind(type))
 
     records = (
         query

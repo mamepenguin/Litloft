@@ -16,7 +16,7 @@ export const VALID_TYPES: ReadonlyArray<FileKind> = [
   "image",
   "audio",
   "document",
-  "markdown",
+  "text",
   "pdf",
   "archive",
   "other",
@@ -24,7 +24,9 @@ export const VALID_TYPES: ReadonlyArray<FileKind> = [
 
 function parseTypeFilter(raw: string | null): FileKind | null {
   if (!raw) return null;
-  return (VALID_TYPES as readonly string[]).includes(raw) ? (raw as FileKind) : null;
+  // Saved URLs and smart folders predate the rename.
+  const kind = raw === "markdown" ? "text" : raw;
+  return (VALID_TYPES as readonly string[]).includes(kind) ? (kind as FileKind) : null;
 }
 
 /**

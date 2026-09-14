@@ -22,9 +22,15 @@ describe("useTreeKindFilter", () => {
   });
 
   it("hydrates from localStorage", () => {
+    localStorage.setItem(driveKey("work"), "text");
+    const { result } = renderHook(() => useTreeKindFilter("work"));
+    expect(result.current.filter).toBe("text");
+  });
+
+  it("reads a filter stored under the old markdown name as text", () => {
     localStorage.setItem(driveKey("work"), "markdown");
     const { result } = renderHook(() => useTreeKindFilter("work"));
-    expect(result.current.filter).toBe("markdown");
+    expect(result.current.filter).toBe("text");
   });
 
   it("setFilter writes valid value", () => {

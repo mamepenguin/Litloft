@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { fakeClient } from "./testClient.js";
 import { readTools } from "../tools/read.js";
 
@@ -19,6 +20,12 @@ describe("list_drives", () => {
 });
 
 describe("search_files", () => {
+  it("takes text as a kind and no longer lists markdown", () => {
+    const schema = z.object(findTool("search_files").inputSchema);
+    expect(schema.safeParse({ drive: "media", type: "text" }).success).toBe(true);
+    expect(schema.safeParse({ drive: "media", type: "markdown" }).success).toBe(false);
+  });
+
   it("calls GET /api/drives/{drive}/files with the remaining args as query", async () => {
     const client = fakeClient(async () => ({ data: [], meta: {} }));
     await findTool("search_files").handler(

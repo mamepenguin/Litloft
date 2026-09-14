@@ -210,7 +210,7 @@ class DriveAddonPoliciesResponse(BaseModel):
 
 
 FolderKind = Literal[
-    "markdown", "video", "image", "pdf", "audio", "document", "archive", "other"
+    "text", "video", "image", "pdf", "audio", "document", "archive", "other"
 ]
 """The vocabulary a folder's contents are described in.
 

@@ -509,7 +509,7 @@
       "document": "Document",
       "archive": "Archive",
       "other": "Other",
-      "markdown": "Markdown",
+      "text": "Text",
       "pdf": "PDF"
     },
     "empty": {

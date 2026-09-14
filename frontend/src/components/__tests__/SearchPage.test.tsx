@@ -49,6 +49,13 @@ describe("SearchPage", () => {
     expect(node.getAttribute("data-type-filter")).toBe("video");
   });
 
+  it.each(["text", "markdown"])("selects the text filter for type=%s", (type) => {
+    mockSearchParams = new URLSearchParams(`q=foo&type=${type}`);
+    render(<SearchPage />);
+    const node = screen.getByTestId("folder-browser");
+    expect(node.getAttribute("data-type-filter")).toBe("text");
+  });
+
   it("propagates smart_folder_id from URL", () => {
     mockSearchParams = new URLSearchParams("q=foo&smart_folder_id=sf123");
     render(<SearchPage />);

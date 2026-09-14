@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 
 import type { CollectionItemEntry, FileItem, FolderKind, ViewMode } from "@/types";
+import { isTextKind } from "@/lib/textKind";
 import { viewModeForKind } from "@/lib/viewModeForKind";
 import { useLatchedKind } from "@/hooks/useLatchedKind";
 
@@ -54,12 +55,8 @@ function fileToKind(file: FileItem): FolderKind {
   if (file.file_type === "audio") return "audio";
   if (file.file_type === "image") return "image";
   if (file.mime_type === "application/pdf") return "pdf";
-  if (
-    file.file_type === "document" &&
-    (file.mime_type === "text/markdown" ||
-      file.filename.toLowerCase().endsWith(".md"))
-  ) {
-    return "markdown";
+  if (file.file_type === "document" && isTextKind(file.mime_type, file.filename)) {
+    return "text";
   }
   if (file.file_type === "document") return "document";
   if (file.file_type === "archive") return "archive";
