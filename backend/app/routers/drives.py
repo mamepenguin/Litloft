@@ -685,7 +685,9 @@ def list_drive_files(
     tag: str | None = None,
     type: FileKind | None = None,
     trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
-    sort: str = Query("created_at", pattern="^(created_at|title|file_size|liked_at|random)$"),
+    sort: str = Query(
+        "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
+    ),
     order: str = Query("desc", pattern="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1, le=500),

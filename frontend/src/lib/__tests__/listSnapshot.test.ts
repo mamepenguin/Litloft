@@ -140,6 +140,16 @@ describe("listSnapshot", () => {
       expect(window.sessionStorage.getItem("hv_list_snapshot")).toBeNull();
     });
 
+    it("evicts a snapshot holding a listing-only sort field", () => {
+      const stale = {
+        ...BASE_SNAPSHOT,
+        filters: { ...BASE_SNAPSHOT.filters, sort: "updated_at" },
+        ts: Date.now(),
+      };
+      window.sessionStorage.setItem("hv_list_snapshot", JSON.stringify(stale));
+      expect(loadListSnapshot("main|photos||")).toBeNull();
+    });
+
     it("returns a random-sort snapshot (caller is responsible for discarding it)", () => {
       // "random" is a valid SortField, so loadListSnapshot returns it.
       // FolderBrowser's lazy useState initializer discards it to prevent
