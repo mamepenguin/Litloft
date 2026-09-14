@@ -83,6 +83,12 @@ navigation, so it can be read against the new drive's contents.
 
 ## Addons
 
+**`configure.py` checks out every empty addon submodule without asking.**
+`ensure_submodules_initialized` runs `git submodule update --init --recursive`
+whenever an addon directory under `addons/` is empty, so leaving an in-process
+addon's submodule uninitialised — the only way to remove it — is undone by the
+next run.
+
 **`GET /api/addons/status?drive=` tells anyone whether a locked drive exists.**
 It takes no credentials. A drive name that is not configured gets an empty
 catalogue; a configured drive gets its catalogue whether or not it is unlocked.

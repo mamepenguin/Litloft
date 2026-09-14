@@ -195,6 +195,7 @@ class ExistingConfig:
     def __init__(self, base: Path):
         self.drives: list[dict] = []   # slug, host_path
         self.port = '3000'
+        self.has_override = False
         self.has_intelligence = False
         self.has_knowledge = False
         self.knowledge_webhook_secret = ''
@@ -237,6 +238,7 @@ class ExistingConfig:
                 'host_path': host_by_slug.get(slug, ''),
             })
 
+        self.has_override = dc_f.exists()
         if dc_f.exists():
             try:
                 dc_text = dc_f.read_text()
@@ -259,6 +261,17 @@ class ExistingConfig:
                     self.core_internal_secret = line.split('=', 1)[1].strip()
                 elif line.startswith('LLM_API_KEY=') and line.split('=', 1)[1].strip():
                     self.has_llm_api_key = True
+
+def bundled_addons(base: Path) -> list[str]:
+    """Checked-out addons that load inside the backend: installed whenever present."""
+    root = base / 'addons'
+    if not root.is_dir():
+        return []
+    return sorted(
+        d.name for d in root.iterdir()
+        if d.is_dir() and (d / 'backend').is_dir() and any(d.iterdir())
+    )
+
 
 def main():
     base = Path(__file__).parent
@@ -310,10 +323,11 @@ def main():
     llm_api_key      = ''
     search_webhook_secret = ''
     if (base / 'addons/intelligence').exists():
-        heading("Step 3: Intelligence Addon (Semantic Search + AI)")
+        heading("Step 3: Recommended foundation — Intelligence (semantic search + AI)")
         print("  Enables the intelligence service. AI features themselves are")
         print("  configured later in the browser (all off by default).")
-        has_intelligence = ask_yn("Enable intelligence addon?", 'y' if ex.has_intelligence else 'n')
+        intelligence_default = 'y' if ex.has_intelligence or not ex.has_override else 'n'
+        has_intelligence = ask_yn("Enable intelligence addon?", intelligence_default)
         if has_intelligence:
             print()
             if ex.has_llm_api_key:
@@ -339,7 +353,7 @@ def main():
     core_internal_secret     = ''
 
     if (base / 'addons/knowledge').exists():
-        heading("Step 4: Knowledge Addon (Markdown Vault)")
+        heading("Step 4: Optional service — Knowledge (Markdown vault)")
         if ask_yn("Enable knowledge addon?", 'y' if ex.has_knowledge else 'n'):
             has_knowledge = True
             if ex.knowledge_webhook_secret and ex.core_internal_secret:
@@ -350,6 +364,14 @@ def main():
                 knowledge_webhook_secret = gen_secret()
                 core_internal_secret     = gen_secret()
                 ok("Generated secrets")
+
+    bundled = bundled_addons(base)
+    if bundled:
+        heading("Bundled addons")
+        print("  Installed whenever checked out. Choose which drives show each one at /setup,")
+        print("  or later at /admin/settings.")
+        for name in bundled:
+            print(f"    - {name}")
 
     heading("Summary")
     print("  Files to generate:")
@@ -363,6 +385,9 @@ def main():
     if llm_api_key:           print("    .env  (LLM_API_KEY)")
     elif has_intelligence and not ex.has_llm_api_key:
         print("    .env  (LLM_API_KEY: not set — AI features will be unavailable)")
+    if bundled and not has_intelligence and not has_knowledge:
+        print("  No addon services. Choose which drives show the bundled addons at /setup,")
+        print("  or later at /admin/settings.")
     print()
     print("  Drive mounts:")
     for d in drives:

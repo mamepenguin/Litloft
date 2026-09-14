@@ -312,7 +312,7 @@ jobs:
         run: pip install pytest
 
       - name: Test
-        run: python -m pytest tests/test_configure.py -v
+        run: python -m pytest tests -v
 
   addon-backends:
     # Only the addons that compile against core. cloud-sync and media_import run

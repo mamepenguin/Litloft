@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "files.purged": [
+      {
+        "url": "http://intelligence:8100/webhook/files-purged"
+      },
+      {
+        "url": "http://knowledge:8200/webhook/files-purged"
+      }
+    ]
+  }
+}
