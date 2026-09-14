@@ -1,8 +1,3 @@
-/**
- * `ShortcutsProvider` is deliberately absent: its default context is a
- * no-op, so `ContextMenu` renders without it and Escape does nothing here.
- */
-
 import {
   useEffect,
   useRef,
@@ -15,7 +10,10 @@ import { Trash2 } from "lucide-react";
 
 import { NextIntlClientProvider } from "next-intl";
 
+import { AddButton } from "@/components/AddButton";
 import { ContextMenu } from "@/components/ContextMenu";
+import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+import enMessages from "@/messages-core/en.json";
 import {
   MobileInspectorSheet,
   SHEET_STATE_HALF,
@@ -634,6 +632,26 @@ function SheetGestureShort(): ReactElement {
   return <SheetGesture bodyPx={40} />;
 }
 
+/**
+ * The Add menu with the shortcut stack it answers Escape through. The page
+ * control fills the lower half, so a press outside the menu lands on it.
+ */
+function AddMenu(): ReactElement {
+  const [created, setCreated] = useState(0);
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <ShortcutsProvider>
+        <PageControl id="underneath" className="fixed inset-x-0 bottom-0 z-0 h-1/2 bg-bg-elevated">
+          page
+        </PageControl>
+        <div className="p-4" data-created={created} id="add-host">
+          <AddButton onCreateFolder={() => setCreated((n) => n + 1)} />
+        </div>
+      </ShortcutsProvider>
+    </NextIntlClientProvider>
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   plain: Plain,
   "bottom-bar": BottomBar,
@@ -658,6 +676,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "measured-inspector-right-edge": InspectorColumnRightEdge,
   "measured-tree-pane": TreePaneColumn,
   "measured-picker-in-dialog": PickerInDialog,
+  "add-menu": AddMenu,
 };
 
 function App(): ReactElement {
