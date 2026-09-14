@@ -22,6 +22,7 @@ const addonsLinked = ["knowledge", "media_import"].every((name) => {
 const ENTRIES = [
   { id: "media-import-url", label: "Import from URL", priority: 20, addonName: "media_import" },
   { id: "knowledge-new-note", label: "New note", priority: 30, addonName: "knowledge" },
+  { id: "knowledge-clip-web-page", label: "Clip web page", priority: 40, addonName: "knowledge" },
 ];
 
 vi.mock("@/components/AddonSlotsProvider", () => ({
@@ -81,7 +82,14 @@ describe.runIf(addonsLinked)("the Add menu with the bundled addon rows", () => {
   it("offers exactly one note row, the addon's, after the core rows", async () => {
     renderAdd({ path: "recipes", surface: "library" });
     await waitFor(() =>
-      expect(rows()).toEqual(["Files", "Folder", "New Folder", "Import from URL", "New note"]),
+      expect(rows()).toEqual([
+        "Files",
+        "Folder",
+        "New Folder",
+        "Import from URL",
+        "New note",
+        "Clip web page",
+      ]),
     );
     expect(rows().filter((r) => NOTE_ROW.test(r))).toHaveLength(1);
   });
@@ -102,6 +110,7 @@ describe.runIf(addonsLinked)("the Add menu with the bundled addon rows", () => {
   describe.each([
     ["New note", "New note"],
     ["Import from URL", "Import from URL"],
+    ["Clip web page", "Clip web page"],
   ])("the %s row", (label, dialogName) => {
     it("keeps its dialog open, and closes in two Escapes: the dialog, then the menu", async () => {
       renderAdd({ path: "recipes", surface: "library" });

@@ -9,6 +9,7 @@ The `knowledge` addon turns Litloft into a personal notes vault and web-clip arc
 - **Version history** — every text write is snapshotted; the editor lists past versions with a diff and a restore action.
 - **Source capture** — collect quotes and timestamps from anywhere in Litloft into a basket, then commit them into a note.
 - **Web clipping** — paste a URL or a piece of HTML; the addon fetches, sanitises, converts to Markdown, and saves.
+- **Clip web page from Add** — the **Add** menu on Home and in Library folders offers **Clip web page**, which clips a URL into that folder. The dialog closes as soon as the clip is accepted and a notification says when it is ready or has failed.
 - **Frontmatter sync** — when an external editor (Obsidian, vim, etc.) edits a note, the scanner reconciles `tags`, `source_file_ids`, and other recognised keys with the addon's database.
 - **Summary note** — a file-detail section showing the approved summary note for the currently open core file.
 - **Connections graph** — a force-directed view of how notes and files reference each other.
@@ -244,6 +245,10 @@ Two endpoints, both drive-scoped:
 
 `GET /api/addons/knowledge/clips?url=...` looks up existing jobs for a URL so the UI can warn about a duplicate before clipping again. The lookup is scoped to `(viewer, drive)`, so it cannot be used to probe what was clipped on another drive.
 
+The **Add** menu's **Clip web page** row sends the same `POST /clips` into the folder the menu was opened from; it does not use the folder the Knowledge page last remembered. If the URL was clipped before, the duplicate prompt opens (**Open existing**, **Create new**, **Cancel**). Once the clip is accepted the dialog and menu close, and a toast reports the result: "Clipped: {title}" when it is ready, an error when it fails. Only clips sent from the Add menu in the current tab are announced; clips sent from the Knowledge page stay in its clip history as before and are not added there from the Add menu.
+
+Two known gaps: a notification can be missed when another live update arrives at the same moment (the clip itself is still created and appears on the Knowledge page), and if you close the dialog while the request is still being sent and that request is then refused (for example a blocked address), nothing reports it and no clip is created.
+
 The dashboard also offers a **bookmarklet** to drag to your browser's bookmark bar. It does not talk to the API directly: it opens the Knowledge page for that drive with the current page's URL and title prefilled and submits the URL clip for you, so no cross-origin permission is involved.
 
 The placeholder write is guarded: if you (or the scanner) touch the file while the fetch is in flight, the fetched content is discarded rather than overwriting your edit.
@@ -368,6 +373,8 @@ Configure per drive in `drives.json`:
 ```
 
 A drive opts out simply by setting `"knowledge": false`. Two feature keys are recognised for finer control: `editor` (the inline editor on a note's detail page, the **Create note** entry in any file's `[...]` menu, and **New note** in the Add menu) and `index` (whether lifecycle webhooks are forwarded for that drive). Unspecified keys are enabled by graceful degradation, and changes take effect on container restart.
+
+**Clip web page** in the Add menu has no feature key of its own: it appears wherever knowledge is enabled for the drive, including when `editor` is off.
 
 Turning knowledge off for a drive stops new writes and hides the UI; it does not delete anything the addon already recorded. The notes themselves are ordinary `.md` files on the drive and are untouched either way.
 
