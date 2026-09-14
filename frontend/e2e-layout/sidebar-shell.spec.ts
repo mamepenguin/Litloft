@@ -21,6 +21,11 @@ const SPEC: { inlineMinWidth: number } = JSON.parse(
 
 const SIDEBAR_WIDTH = 240;
 
+type Box = { left: number; right: number; top: number; bottom: number };
+
+const overlaps = (a: Box, b: Box) =>
+  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
 async function open(page: Page, state: string, width: number) {
   await page.setViewportSize({ width, height: 800 });
   // A hash change keeps the document, and a resize under it would be read
@@ -30,12 +35,17 @@ async function open(page: Page, state: string, width: number) {
   await expect(page.locator("body[data-ready='1']")).toHaveCount(1);
   return page.evaluate(() => {
     const box = (id: string) => document.getElementById(id)?.getBoundingClientRect() ?? null;
+    const aside = box("aside")!;
+    const hit = (x: number, y: number) => document.elementFromPoint(x, y)?.id ?? null;
     return {
-      aside: box("aside")!,
+      aside,
       first: box("first")!,
       scrim: box("scrim"),
+      asidePosition: getComputedStyle(document.getElementById("aside")!).position,
       paddingLeft: parseFloat(getComputedStyle(document.getElementById("content")!).paddingLeft),
       viewport: { width: window.innerWidth, height: window.innerHeight },
+      hitInsideAside: hit(aside.left + aside.width / 2, 100),
+      hitOutsideAside: hit(aside.right + (window.innerWidth - aside.right) / 2, 100),
     };
   });
 }
@@ -44,16 +54,21 @@ test("open at a desktop width, the sidebar sits beside the page", async ({ page 
   const m = await open(page, "inline-open", 1280);
   expect(m.aside.width).toBe(SIDEBAR_WIDTH);
   expect(m.aside.left).toBe(0);
+  expect(m.asidePosition).toBe("fixed");
   expect(m.paddingLeft).toBe(SIDEBAR_WIDTH);
   expect(m.first.left).toBeGreaterThanOrEqual(m.aside.right);
+  expect(m.first.top).toBeLessThan(m.aside.bottom);
   expect(m.scrim).toBeNull();
 });
 
 test("open at a phone width, the sidebar covers the page behind a scrim", async ({ page }) => {
   const m = await open(page, "overlay-open", 375);
   expect(m.aside.left).toBe(0);
+  expect(m.asidePosition).toBe("fixed");
   expect(m.paddingLeft).toBe(0);
-  expect(m.first.left).toBeLessThan(m.aside.right);
+  expect(overlaps(m.first, m.aside)).toBe(true);
+  expect(m.hitInsideAside).toBe("aside");
+  expect(m.hitOutsideAside).toBe("scrim");
   expect(m.scrim).toEqual(
     expect.objectContaining({ left: 0, top: 0, width: m.viewport.width, height: m.viewport.height }),
   );

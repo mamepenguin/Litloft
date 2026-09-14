@@ -85,10 +85,8 @@ function shell(isOpen: boolean, isOverlay: boolean) {
   );
   const aside = container.querySelector("aside")!;
   const main = container.querySelector("main")!;
-  const scrim = aside.previousElementSibling?.matches("div[aria-hidden]")
-    ? (aside.previousElementSibling as HTMLElement)
-    : null;
-  return { aside, main, content: main.parentElement!, scrim };
+  const scrims = [...container.querySelectorAll<HTMLElement>("div[aria-hidden].fixed.inset-0")];
+  return { aside, main, content: main.parentElement!, scrims };
 }
 
 describe("the sidebar-shell fixture draws the app's markup", () => {
@@ -97,14 +95,15 @@ describe("the sidebar-shell fixture draws the app's markup", () => {
     expect(tokens(s.aside.className)).toEqual(tokens(SPEC.asideOpen as string));
     expect(tokens(s.content.className)).toEqual(tokens(SPEC.contentInlineOpen as string));
     expect(tokens(s.main.className)).toEqual(tokens(SPEC.main as string));
-    expect(s.scrim).toBeNull();
+    expect(s.scrims).toHaveLength(0);
   });
 
   it("open over the page", () => {
     const s = shell(true, true);
     expect(tokens(s.aside.className)).toEqual(tokens(SPEC.asideOpen as string));
     expect(tokens(s.content.className)).toEqual(tokens(SPEC.content as string));
-    expect(tokens(s.scrim!.className)).toEqual(tokens(SPEC.scrim as string));
+    expect(s.scrims).toHaveLength(1);
+    expect(tokens(s.scrims[0].className)).toEqual(tokens(SPEC.scrim as string));
   });
 
   it("closed, at either width", () => {
@@ -112,7 +111,7 @@ describe("the sidebar-shell fixture draws the app's markup", () => {
       const s = shell(false, overlay);
       expect(tokens(s.aside.className)).toEqual(tokens(SPEC.asideClosed as string));
       expect(tokens(s.content.className)).toEqual(tokens(SPEC.content as string));
-      expect(s.scrim).toBeNull();
+      expect(s.scrims).toHaveLength(0);
       cleanup();
     }
   });
