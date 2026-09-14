@@ -950,11 +950,14 @@ describe("FolderTreePane — show files too", () => {
 
 describe("FolderTreePane New file here", () => {
   it("creates the file in the folder that was right-clicked", async () => {
+    localStorage.setItem(driveExpKey("work"), JSON.stringify(["Notes"]));
     mockGetFolderTree.mockImplementation((_drive: string, params: { root?: string }) =>
       Promise.resolve(
         params.root === "" || params.root === undefined
-          ? [{ kind: "folder", name: "Notes", path: "Notes", file_count: 0, has_children: false }]
-          : [],
+          ? [{ kind: "folder", name: "Notes", path: "Notes", file_count: 0, has_children: true }]
+          : params.root === "Notes"
+            ? [{ kind: "folder", name: "Daily", path: "Notes/Daily", file_count: 0, has_children: false }]
+            : [],
       ),
     );
     render(
@@ -967,7 +970,7 @@ describe("FolderTreePane New file here", () => {
         />
       </ShortcutsProvider>,
     );
-    const row = (await screen.findByText("Notes")).closest("div[draggable]") as HTMLElement;
+    const row = (await screen.findByText("Daily")).closest("div[draggable]") as HTMLElement;
 
     fireEvent.contextMenu(row);
     fireEvent.click(await screen.findByText("New file here"));
@@ -975,6 +978,6 @@ describe("FolderTreePane New file here", () => {
     await waitFor(() => expect(mockCreateTextFile).toHaveBeenCalledTimes(1));
     const [drive, body] = mockCreateTextFile.mock.calls[0] as [string, { path: string }];
     expect(drive).toBe("work");
-    expect(body.path).toMatch(/^Notes\/untitled-\d{8}-\d{6}\.md$/);
+    expect(body.path).toMatch(/^Notes\/Daily\/untitled-\d{8}-\d{6}\.md$/);
   });
 });

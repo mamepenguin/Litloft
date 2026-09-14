@@ -12,24 +12,22 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 
 // ---- heavy children / infrastructure ----------------------------------------
 
+const folderContentHandlers = vi.hoisted(() => ({ names: [] as string[] }));
+
 vi.mock("@/components/folder/FolderContent", () => ({
-  FolderContent: ({
-    onAddFiles,
-    sortQuery,
-    viewMode,
-  }: {
-    onAddFiles?: () => void;
-    sortQuery?: string;
-    viewMode?: string;
-  }) => (
-    <div
-      data-testid="folder-content"
-      data-sort-query={sortQuery}
-      data-view-mode={viewMode}
-    >
-      {onAddFiles && <button onClick={() => onAddFiles()}>Add files</button>}
-    </div>
-  ),
+  FolderContent: (props: { onAddFiles?: () => void; sortQuery?: string; viewMode?: string }) => {
+    folderContentHandlers.names = Object.keys(props).filter((k) => /^on[A-Z]/.test(k));
+    const { onAddFiles, sortQuery, viewMode } = props;
+    return (
+      <div
+        data-testid="folder-content"
+        data-sort-query={sortQuery}
+        data-view-mode={viewMode}
+      >
+        {onAddFiles && <button onClick={() => onAddFiles()}>Add files</button>}
+      </div>
+    );
+  },
 }));
 vi.mock("@/components/Breadcrumb", () => ({ Breadcrumb: () => <nav /> }));
 vi.mock("@/components/TreeToggle", () => ({ TreeToggle: () => null }));
@@ -349,6 +347,24 @@ describe("FolderBrowser — the empty folder's own doors", () => {
   it("offers Add files on an anchored folder", () => {
     render(<FolderBrowser driveName="main" folderPath="recipes" />);
     expect(addFilesButton()).toBeInTheDocument();
+  });
+
+  it("hands the listing no way to create a note", () => {
+    render(<FolderBrowser driveName="main" folderPath="recipes" />);
+    expect([...folderContentHandlers.names].sort()).toEqual(
+      [
+        "onAddFiles",
+        "onSelect",
+        "onMetaSelect",
+        "onShiftSelect",
+        "onTogglePin",
+        "onFavoriteToggle",
+        "onRefresh",
+        "onDragStart",
+        "onDragEnd",
+        "onFolderDragStart",
+      ].sort(),
+    );
   });
 
   it.each([
