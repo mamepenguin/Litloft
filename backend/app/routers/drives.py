@@ -38,6 +38,7 @@ from app.schemas import (
 from app.services import fileops
 from app.services.file_versions import record_version
 from app.services.filetype import classify
+from app.services.markdown_relations import sync_markdown_file_relations
 from app.services.atomic_write import replace_file_contents
 from app.services.safepath import resolve_safe_path
 from app.services.scanner import scan_drive
@@ -886,6 +887,17 @@ _TEXT_CREATE_MAX_BYTES = 1 * 1024 * 1024  # 1 MB
 _SUFFIX_MAX_ATTEMPTS = 99
 
 
+def _sync_created_markdown_relations(db: Session, file: File, content: str) -> None:
+    if not fileops._is_markdown_file(file):
+        return
+    try:
+        sync_markdown_file_relations(db, file.id, file.drive, content, file.folder_path)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("create_text_file: link sync failed for %s", file.id)
+
+
 @router.post("/{drive_name}/files", response_model=FileResponse)
 async def create_text_file(
     drive_name: str,
@@ -996,6 +1008,7 @@ async def create_text_file(
         _record_created_file_version(db, existing_missing, content_bytes)
         db.commit()
         db.refresh(existing_missing)
+        _sync_created_markdown_relations(db, existing_missing, body.content)
         # Recovered-from-missing reuses the existing row; emit
         # files.recovered (mirroring scanner / upload paths) rather than
         # files.created so subscribers can distinguish if needed. Both
@@ -1094,6 +1107,8 @@ async def create_text_file(
 
     if new_file is None:
         raise HTTPException(status_code=409, detail="Too many naming conflicts")
+
+    _sync_created_markdown_relations(db, new_file, body.content)
 
     await event_hooks.emit("files.created", {"file_ids": [new_file.id]})
 

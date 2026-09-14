@@ -14,7 +14,6 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Literal
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -78,13 +77,24 @@ def extract_links(content: str) -> ExtractedLinks:
     return ExtractedLinks(loft_ids=loft_ids, wiki_targets=wiki_targets)
 
 
+MARKDOWN_ORIGIN = "markdown"
+
+
 def sync_markdown_file_relations(
     db: Session,
     file_id: str,
     drive: str,
     content: str,
     self_dir: str,
+    *,
+    claim_unmarked: bool = False,
 ) -> list[ResolveDiagnostic]:
+    """Reconcile the ``related`` rows this note's links wrote.
+
+    ``claim_unmarked`` also removes unlinked outgoing rows with no origin; only
+    the one-time origin backfill passes it, for rows written before ``origin``
+    existed.
+    """
     extracted = extract_links(content)
     loft_ids = {item for item in extracted.loft_ids if item != file_id}
     wiki_ids, diagnostics = resolve_wiki_targets(
@@ -119,32 +129,32 @@ def sync_markdown_file_relations(
         valid_direct_ids = {row.id for row in rows}
 
     target_ids = (valid_direct_ids | wiki_ids) - {file_id}
-    existing = (
-        db.query(FileRelation)
-        .filter(
-            or_(
-                FileRelation.file_id_a == file_id,
-                FileRelation.file_id_b == file_id,
-            ),
+    outgoing = {
+        relation.file_id_b: relation
+        for relation in db.query(FileRelation).filter(
+            FileRelation.file_id_a == file_id,
             FileRelation.kind == "related",
         )
-        .all()
-    )
-    existing_map = {
-        (relation.file_id_b if relation.file_id_a == file_id else relation.file_id_a): relation
-        for relation in existing
     }
-    for target_id in target_ids - set(existing_map):
-        db.add(
-            FileRelation(
-                file_id_a=file_id,
-                file_id_b=target_id,
-                kind="related",
-                created_at=datetime.now(UTC),
+    for target_id in target_ids:
+        relation = outgoing.get(target_id)
+        if relation is None:
+            db.add(
+                FileRelation(
+                    file_id_a=file_id,
+                    file_id_b=target_id,
+                    kind="related",
+                    origin=MARKDOWN_ORIGIN,
+                    created_at=datetime.now(UTC),
+                )
             )
-        )
-    for target_id in set(existing_map) - target_ids:
-        db.delete(existing_map[target_id])
+        elif relation.origin != MARKDOWN_ORIGIN:
+            relation.origin = MARKDOWN_ORIGIN
+    for target_id, relation in outgoing.items():
+        if target_id in target_ids:
+            continue
+        if relation.origin == MARKDOWN_ORIGIN or claim_unmarked:
+            db.delete(relation)
     return diagnostics
 
 

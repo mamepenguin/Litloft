@@ -21,6 +21,7 @@ from app.models import File
 from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, progress, uploads, ws
 from app.routers import addon_proxy, admin_config, drive_policies, internal, smart_folders
 from app.services.fileops import physical_delete
+from app.services.relation_origin_backfill import backfill_markdown_relation_origin
 from app.services.scanner import scan_all_drives
 from app.services import addon_registry, drive_seed, event_hooks
 from app.services.upload import cleanup_abandoned_uploads
@@ -255,6 +256,22 @@ def _load_addons(app: FastAPI) -> None:
             logger.exception("Failed to load addon: %s", name)
 
 
+def _run_relation_origin_backfill() -> None:
+    db = SessionLocal()
+    try:
+        backfill_markdown_relation_origin(db)
+    except Exception:
+        logger.exception("relation origin backfill failed")
+    finally:
+        db.close()
+
+
+async def _scan_then_backfill_relation_origin() -> None:
+    # Wiki targets resolve through the id and alias projections the scan writes.
+    await scan_all_drives()
+    await asyncio.to_thread(_run_relation_origin_backfill)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Drive bootstrap: pre-seed count -> setup-sentinel migration -> seed.
@@ -312,7 +329,7 @@ async def lifespan(app: FastAPI):
     cleanup_abandoned_uploads()
     from app.services.markdown_image_import import initialize_interrupted_jobs
     initialize_interrupted_jobs()
-    asyncio.create_task(scan_all_drives())
+    asyncio.create_task(_scan_then_backfill_relation_origin())
     logger.info("Background scan started for all drives")
     asyncio.create_task(purge_expired_trash())
     logger.info("Trash auto-purge task started")

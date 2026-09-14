@@ -1990,12 +1990,16 @@ def list_file_relations(
     )
     by_id = {f.id: f for f in other_files}
 
+    # Notes linking each other hold one row per direction; this listing is
+    # undirected, so each (counterpart, kind) is shown once.
     items: list[FileRelationItem] = []
+    listed: set[tuple[str, str]] = set()
     for rel in relations:
         other_id = relation_other[rel.id]
         other = by_id.get(other_id)
-        if other is None:
+        if other is None or (other_id, rel.kind) in listed:
             continue
+        listed.add((other_id, rel.kind))
         items.append(
             FileRelationItem(
                 relation_id=rel.id,

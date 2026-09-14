@@ -230,6 +230,12 @@ def _migrate(engine_) -> None:
     if "file_relations" not in tables:
         logger.info("Migrating: creating 'file_relations' table")
         Base.metadata.tables["file_relations"].create(bind=engine_, checkfirst=True)
+    else:
+        relation_columns = {col["name"] for col in inspector.get_columns("file_relations")}
+        if "origin" not in relation_columns:
+            logger.info("Migrating: adding 'origin' column to file_relations")
+            with engine_.begin() as conn:
+                conn.execute(text("ALTER TABLE file_relations ADD COLUMN origin VARCHAR(16)"))
 
     tables = inspector.get_table_names()
     if "smart_folders" not in tables:
