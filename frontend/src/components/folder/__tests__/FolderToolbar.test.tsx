@@ -367,6 +367,22 @@ describe("FolderToolbar", () => {
       expect(screen.getByText("New Folder")).toBeInTheDocument();
     });
 
+    it("still hands the add menu's addon rows the folder", () => {
+      render(<FolderToolbar {...empty} folderPath="recipes/soup" />);
+      screen
+        .getAllByRole("button", { name: "Add" })
+        .forEach((b) => fireEvent.click(b));
+      const slots = addonSlotProps.filter((s) => s.id === "folder-actions-menu");
+      expect(slots).toHaveLength(2);
+      for (const slot of slots) {
+        expect(slot.props).toMatchObject({
+          drive: "test-drive",
+          path: "recipes/soup",
+          surface: "library",
+        });
+      }
+    });
+
     it("keeps the way back to a rescan", () => {
       render(<FolderToolbar {...empty} />);
       expect(screen.getByLabelText("More actions")).toBeInTheDocument();

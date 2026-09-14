@@ -180,7 +180,6 @@ For the keys these actions are bound to, see [keyboard shortcuts](keyboard-short
 From any folder view you can create a blank Markdown file in one step:
 
 - Press **`Cmd+N`** (macOS) / **`Ctrl+N`** (Windows / Linux) anywhere on the page, or
-- In an empty folder, choose **New note**, or
 - Right-click a folder in the tree and choose **New file here**.
 
 With *knowledge* installed, **Add → New note** also creates a note, after asking for its folder and name.

@@ -662,7 +662,6 @@ export function FolderBrowser({
         driveName={driveName}
         widenTagScope={widenTagScope}
         onAddFiles={isWriteDestination ? filePicker.open : undefined}
-        onCreateFile={isWriteDestination ? createFile : undefined}
         viewMode={viewMode}
         loading={loading}
         loadingMore={loadingMore}

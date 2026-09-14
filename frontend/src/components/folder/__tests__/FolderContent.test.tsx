@@ -230,32 +230,23 @@ describe("FolderContent", () => {
     expect(screen.getByTestId("empty-no-recent-added")).toBeInTheDocument();
   });
 
-  it("offers files and a note when the folder is empty", () => {
+  it("offers Add files and nothing else when the folder is empty", () => {
     render(
-      <FolderContent
-        {...defaultProps}
-        files={[]}
-        folders={[]}
-        onAddFiles={() => undefined}
-        onCreateFile={() => undefined}
-      />,
+      <FolderContent {...defaultProps} files={[]} folders={[]} onAddFiles={() => undefined} />,
     );
     const empty = screen.getByTestId("empty-no-files");
-    expect(within(empty).getByRole("button", { name: "Add files" })).toBeInTheDocument();
-    expect(within(empty).getByRole("button", { name: "New note" })).toBeInTheDocument();
+    expect(within(empty).getAllByRole("button").map((b) => b.textContent)).toEqual(["Add files"]);
   });
 
-  it("creates a note once when the empty folder's New note is pressed", () => {
-    const onCreateFile = vi.fn();
+  it("offers no New note button in an empty folder", () => {
     render(
-      <FolderContent {...defaultProps} files={[]} folders={[]} onCreateFile={onCreateFile} />,
+      <FolderContent {...defaultProps} files={[]} folders={[]} onAddFiles={() => undefined} />,
     );
     const empty = screen.getByTestId("empty-no-files");
-    fireEvent.click(within(empty).getByRole("button", { name: "New note" }));
-    expect(onCreateFile).toHaveBeenCalledTimes(1);
+    expect(within(empty).queryByRole("button", { name: /new note/i })).toBeNull();
   });
 
-  it("offers neither where there is no folder to put them in", () => {
+  it("offers nothing where there is no folder to put files in", () => {
     render(<FolderContent {...defaultProps} files={[]} folders={[]} />);
     const empty = screen.getByTestId("empty-no-files");
     expect(within(empty).queryByRole("button")).toBeNull();

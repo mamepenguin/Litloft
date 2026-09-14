@@ -87,7 +87,6 @@ interface FolderContentProps {
   onFolderDragStart: (e: React.DragEvent, folderPath: string) => void;
   widenTagScope?: WidenTagScope | null;
   onAddFiles?: () => void;
-  onCreateFile?: () => void;
 }
 
 export function FolderContent({
@@ -96,7 +95,7 @@ export function FolderContent({
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
   selectedIds, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
-  widenTagScope, onAddFiles, onCreateFile,
+  widenTagScope, onAddFiles,
 }: FolderContentProps) {
   const isInternalDragging = useIsInternalDragging();
   const tFilter = useTranslations("filter");
@@ -232,14 +231,9 @@ export function FolderContent({
         ) : (
           <EmptyState
             variant="no-files"
-            secondaryActions={[
-              ...(onAddFiles
-                ? [{ label: tEmpty("addFilesAction"), onClick: onAddFiles }]
-                : []),
-              ...(onCreateFile
-                ? [{ label: tEmpty("createNoteAction"), onClick: onCreateFile }]
-                : []),
-            ]}
+            secondaryActions={
+              onAddFiles ? [{ label: tEmpty("addFilesAction"), onClick: onAddFiles }] : []
+            }
           />
         )
       ) : viewMode === "grid" ? (

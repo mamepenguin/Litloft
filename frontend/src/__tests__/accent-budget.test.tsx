@@ -172,7 +172,6 @@ const folderProps = {
   onSetNewFolderName: vi.fn(),
   onSetFolderError: vi.fn(),
   onCreateFolder: vi.fn(),
-  onCreateFile: vi.fn(),
   onReshuffle: vi.fn(),
 };
 
