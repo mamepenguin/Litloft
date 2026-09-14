@@ -97,6 +97,14 @@ describe("deriveDominantKind", () => {
     ).toBe("document");
   });
 
+  it("counts a .markdown file with no recorded mime as text", () => {
+    expect(
+      deriveDominantKind([
+        file({ id: "a", filename: "a.markdown", file_type: "document", mime_type: "application/octet-stream" }),
+      ]),
+    ).toBe("text");
+  });
+
   it("classifies pdf via mime_type", () => {
     expect(
       deriveDominantKind([file({ mime_type: "application/pdf" })]),

@@ -13,6 +13,7 @@ SELECTED = [
     ("plain.txt", "document", "text/plain"),
     ("SHOUT.TXT", "document", "text/plain"),
     ("legacy.md", "document", None),
+    ("old.markdown", "document", None),
 ]
 NOT_SELECTED = [
     ("main.c", "document", "text/plain"),
@@ -99,7 +100,9 @@ def test_the_old_name_answers_as_text_on_every_surface(library, kind):
 
 def test_document_still_holds_every_text_row(library):
     c, _, _ = library
-    assert EXPECTED - {"legacy.md"} <= _listing(c, "document")
+    assert _listing(c, "document") == EXPECTED | {
+        "main.c", "head.h", "script.pl", "guide.rst", "table.csv",
+    }
 
 
 def test_the_folder_card_counts_text_as_the_filter_selects_it(library):

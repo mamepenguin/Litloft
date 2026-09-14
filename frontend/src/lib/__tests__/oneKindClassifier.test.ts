@@ -88,6 +88,12 @@ describe("the listing's kind filter", () => {
       readFileSync(resolve(REPO_ROOT, "frontend/src/messages-core/en.json"), "utf-8"),
     ) as { filter: { type: Record<string, string> }; toolbar: Record<string, string> };
 
+    const ja = JSON.parse(
+      readFileSync(resolve(REPO_ROOT, "frontend/src/messages-core/ja.json"), "utf-8"),
+    ) as { filter: { type: Record<string, string> } };
+    expect(core.filter.type.text).toBe("Text");
+    expect(ja.filter.type.text).toBe("テキスト");
+
     expect(Object.keys(core.filter.type).sort()).toEqual([
       "all", "archive", "audio", "document", "image", "other", "pdf", "text", "video",
     ]);

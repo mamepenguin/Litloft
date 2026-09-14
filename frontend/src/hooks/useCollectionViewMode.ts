@@ -49,7 +49,6 @@ function loadGlobalDefault(): ViewMode | null {
   return isViewMode(raw) ? raw : null;
 }
 
-/** Mirrors the backend ``dominant_kind`` classification used for folders. */
 function fileToKind(file: FileItem): FolderKind {
   if (file.file_type === "video") return "video";
   if (file.file_type === "audio") return "audio";
