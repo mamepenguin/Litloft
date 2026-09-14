@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { selectStem, validateFilename } from "@/lib/filename";
-import { COMPOSITION_GRACE_MS, IME_KEY_CODE } from "@/lib/ime";
+import { useImeKeyGuard } from "@/lib/ime";
 
 
 export interface InlineNameEditorProps {
@@ -43,7 +43,7 @@ export function InlineNameEditor({
   const inputRef = useRef<HTMLInputElement>(null);
   const inFlightRef = useRef(false);
   const settledRef = useRef(false);
-  const compositionEndedAtRef = useRef(0);
+  const ime = useImeKeyGuard();
 
   // Read through a ref so the unmount cleanup below can stay on `[]` and
   // still call the current callback.
@@ -139,27 +139,7 @@ export function InlineNameEditor({
   }, [commit]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // An IME is mid-conversion: every key belongs to it, not to us.
-    if (e.nativeEvent.isComposing || e.keyCode === IME_KEY_CODE) return;
-
-    // The keystroke that *confirmed* a conversion still reaches the page,
-    // and measurement says it is indistinguishable from a bare press —
-    // `compositionend` fires first, then `keydown` with `key: "Enter"`,
-    // `isComposing: false`, `keyCode: 13`. Checking `isComposing` alone
-    // therefore does not help. Swallow one Enter or Escape immediately
-    // after a composition ends: confirming a conversion must not also
-    // commit the rename, and cancelling one must not abandon the edit.
-    //
-    // The window keeps this from eating a deliberate keystroke. Choosing
-    // a candidate with the mouse also ends the composition, and reaching
-    // for the keyboard afterwards takes far longer than this.
-    if (
-      (e.key === "Enter" || e.key === "Escape") &&
-      Date.now() - compositionEndedAtRef.current < COMPOSITION_GRACE_MS
-    ) {
-      compositionEndedAtRef.current = 0;
-      return;
-    }
+    if (ime.isImeKeystroke(e)) return;
 
     // The row underneath is a drag source and a navigation target; none of
     // these keys should reach it.
@@ -189,9 +169,7 @@ export function InlineNameEditor({
           if (error) setError(null);
         }}
         onKeyDown={handleKeyDown}
-        onCompositionEnd={() => {
-          compositionEndedAtRef.current = Date.now();
-        }}
+        onCompositionEnd={ime.onCompositionEnd}
         // Keep the surrounding row from claiming the gesture: a text
         // selection inside a `draggable` ancestor is otherwise swallowed
         // by the drag system.

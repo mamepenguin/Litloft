@@ -29,6 +29,7 @@ import { useToast } from "@/components/ToastProvider";
 import { useCollectionViewMode } from "@/hooks/useCollectionViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { FileNavigationOverrideProvider } from "@/lib/fileNavigationOverride";
+import { useImeKeyGuard } from "@/lib/ime";
 import type { CollectionDetail as CollectionDetailType } from "@/types";
 
 interface CollectionDetailProps {
@@ -40,6 +41,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
   const router = useRouter();
   const t = useTranslations("collection");
   const tCommon = useTranslations("common");
+  const ime = useImeKeyGuard();
   const toast = useToast();
   const setOverrideDrive = useSetOverrideDrive();
   const { selectFile } = useSelectedFile();
@@ -250,7 +252,9 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
                 value={nameDraft}
                 onChange={(e) => setNameDraft(e.target.value)}
                 onBlur={handleSaveName}
+                onCompositionEnd={ime.onCompositionEnd}
                 onKeyDown={(e) => {
+                  if (ime.isImeKeystroke(e)) return;
                   if (e.key === "Enter") handleSaveName();
                   if (e.key === "Escape") {
                     setNameDraft(detail.name);

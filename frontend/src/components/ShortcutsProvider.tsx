@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { COMPOSITION_GRACE_MS, IME_KEY_CODE } from "@/lib/ime";
+import { useImeKeyGuard } from "@/lib/ime";
 import {
   normalizeKey,
   orderContexts,
@@ -59,31 +59,16 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
     setStack((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
-  // An IME's confirming keystroke reaches the page looking exactly like a
-  // bare press — see `@/lib/ime`.
-  const compositionEndedAtRef = useRef(0);
+  const { onCompositionEnd, isImeKeystroke } = useImeKeyGuard();
   useEffect(() => {
-    const onCompositionEnd = () => {
-      compositionEndedAtRef.current = Date.now();
-    };
     document.addEventListener("compositionend", onCompositionEnd, true);
     return () =>
       document.removeEventListener("compositionend", onCompositionEnd, true);
-  }, []);
+  }, [onCompositionEnd]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.isComposing || e.keyCode === IME_KEY_CODE) return;
-      // And so does the one that just ended it. Escape cancels a
-      // candidate list; without this it would also close the dialog the
-      // user was typing into.
-      if (
-        (e.key === "Escape" || e.key === "Enter") &&
-        Date.now() - compositionEndedAtRef.current < COMPOSITION_GRACE_MS
-      ) {
-        compositionEndedAtRef.current = 0;
-        return;
-      }
+      if (isImeKeystroke(e)) return;
       const target = e.target instanceof HTMLElement ? e.target : null;
       const tag = target?.tagName;
       const isEditing =
@@ -132,7 +117,7 @@ export function ShortcutsProvider({ children }: { children: ReactNode }): ReactE
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [cheatSheetOpen]);
+  }, [cheatSheetOpen, isImeKeystroke]);
 
   return (
     <ShortcutsContext.Provider value={{ push, pop, stack, openCheatSheet }}>

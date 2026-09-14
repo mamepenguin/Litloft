@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { selectStem } from "@/lib/filename";
+import { useImeKeyGuard } from "@/lib/ime";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { FolderPicker } from "./FolderPicker";
@@ -34,6 +35,7 @@ export function FileSaveDialog({
 }: FileSaveDialogProps) {
   const tc = useTranslations("common");
   const t = useTranslations("fileSaveDialog");
+  const ime = useImeKeyGuard();
 
   const [folder, setFolder] = useState(defaultFolder);
   const [filename, setFilename] = useState(defaultFilename);
@@ -146,7 +148,9 @@ export function FileSaveDialog({
               type="text"
               value={filename}
               onChange={(e) => setFilename(e.target.value)}
+              onCompositionEnd={ime.onCompositionEnd}
               onKeyDown={(e) => {
+                if (ime.isImeKeystroke(e)) return;
                 if (e.key === "Enter" && !disabled) void handleSubmit();
               }}
               className="w-full rounded-2xl border border-bg-border bg-bg-primary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-focus-ring focus:outline-none"

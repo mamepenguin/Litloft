@@ -10,6 +10,7 @@ import {
   useAnchoredDirection,
 } from "@/hooks/useAnchoredDirection";
 import { getDriveTags } from "@/lib/api";
+import { useImeKeyGuard } from "@/lib/ime";
 import { extractValidTags, parseNote, withTags } from "@/lib/frontmatter";
 import {
   createDebouncedTagSaver,
@@ -63,7 +64,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [error, setError] = useState<string | null>(null);
-  const [composing, setComposing] = useState(false);
+  const ime = useImeKeyGuard();
   const inputRef = useRef<HTMLInputElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -239,7 +240,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (composing) return;
+      if (ime.isImeKeystroke(e)) return;
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex((i) => Math.min(i + 1, suggestions.length - 1));
@@ -259,7 +260,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
         removeTag(tags[tags.length - 1]);
       }
     },
-    [closeInput, composing, input, removeTag, selectedIndex, submitTag, suggestions, tags],
+    [closeInput, ime, input, removeTag, selectedIndex, submitTag, suggestions, tags],
   );
 
   return (
@@ -290,8 +291,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              onCompositionStart={() => setComposing(true)}
-              onCompositionEnd={() => setComposing(false)}
+              onCompositionEnd={ime.onCompositionEnd}
               onBlur={() => {
                 // The delay is for the suggestion rows: `onPointerUp`
                 // fires after `blur`, and closing immediately would

@@ -17,6 +17,7 @@ import {
 import { useTranslations } from "next-intl";
 
 import { batchDelete, batchGetFiles, batchMove, batchPurge, batchRestore, batchTag } from "@/lib/api";
+import { useImeKeyGuard } from "@/lib/ime";
 import { ActionMenuItem } from "./ActionMenuItem";
 import { BatchRenameDialog } from "./BatchRenameDialog";
 import { Button } from "./Button";
@@ -81,6 +82,7 @@ export function SelectionBar({
   const tc = useTranslations("common");
   const tcb = useTranslations("clipboard");
   const tt = useTranslations("trash");
+  const ime = useImeKeyGuard();
   const clipboard = useClipboard();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
@@ -345,7 +347,9 @@ export function SelectionBar({
                         autoFocus
                         value={tagInput}
                         onChange={(e) => setTagInput(e.target.value)}
+                        onCompositionEnd={ime.onCompositionEnd}
                         onKeyDown={(e) => {
+                          if (ime.isImeKeystroke(e)) return;
                           if (e.key === "Enter") handleBatchTag();
                           if (e.key === "Escape") setTagging(false);
                         }}

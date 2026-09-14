@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { CollectionSummary } from "@/types";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
 import { addCollectionItems, getCollections } from "@/lib/api";
+import { useImeKeyGuard } from "@/lib/ime";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import { useSidebarItemOrder } from "./useSidebarItemOrder";
 import { useReorderableDnD } from "./useReorderableDnD";
@@ -59,6 +60,7 @@ export function SidebarCollectionsSection({
   dragHandle,
 }: SidebarCollectionsSectionProps) {
   const t = useTranslations("sidebar");
+  const ime = useImeKeyGuard();
   const { collapsed, toggle, expand } = useSidebarSectionCollapsed("collections");
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const dragCounterRef = useRef<Map<string, number>>(new Map());
@@ -193,7 +195,9 @@ export function SidebarCollectionsSection({
             type="text"
             value={newCollectionName}
             onChange={(e) => setNewCollectionName(e.target.value)}
+            onCompositionEnd={ime.onCompositionEnd}
             onKeyDown={(e) => {
+              if (ime.isImeKeystroke(e)) return;
               if (e.key === "Enter") handleCreateCollection();
               if (e.key === "Escape") {
                 setCreatingCollection(false);
@@ -235,7 +239,9 @@ export function SidebarCollectionsSection({
                 type="text"
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
+                onCompositionEnd={ime.onCompositionEnd}
                 onKeyDown={(e) => {
+                  if (ime.isImeKeystroke(e)) return;
                   if (e.key === "Enter") handleRenameCollection();
                   if (e.key === "Escape") {
                     setRenamingId(null);
