@@ -15,6 +15,8 @@ import {
   AdminConfigError,
   getAddonPolicy,
   getAddonsStatus,
+  isAddonFeatureOn,
+  isAddonOn,
   putAddonPolicy,
   type AddonPolicy,
   type AddonPolicyFeature,
@@ -34,36 +36,6 @@ function describeError(err: unknown, t: (key: string) => string): string {
     }
   }
   return err instanceof Error ? err.message : t("errors.saveFailed");
-}
-
-function readToggle(
-  policy: AddonPolicy,
-  drive: string,
-  addon: string,
-): boolean {
-  const driveEntry = policy[drive];
-  if (!driveEntry) return false;
-  const value = driveEntry[addon];
-  if (typeof value === "boolean") return value;
-  if (typeof value === "object" && value !== null) {
-    return true;
-  }
-  return false;
-}
-
-function readFeature(
-  policy: AddonPolicy,
-  drive: string,
-  addon: string,
-  feature: AddonPolicyFeature,
-): boolean {
-  const driveEntry = policy[drive];
-  if (!driveEntry) return feature.default;
-  const value = driveEntry[addon];
-  if (typeof value === "object" && value !== null) {
-    if (feature.name in value) return Boolean(value[feature.name]);
-  }
-  return feature.default;
 }
 
 /**
@@ -86,7 +58,7 @@ function legendEntries(
   for (const addon of addons) {
     for (const feature of addon.policy_features ?? []) {
       const shown = drives.filter((drive) =>
-        readToggle(policy, drive, addon.name),
+        isAddonOn(policy, drive, addon.name),
       );
       if (shown.length === 0) continue;
       entries.push({
@@ -94,7 +66,7 @@ function legendEntries(
         addonLabel: addon.label ?? addon.name,
         i18nKey: feature.i18n_key,
         offAnywhere: shown.some(
-          (drive) => !readFeature(policy, drive, addon.name, feature),
+          (drive) => !isAddonFeatureOn(policy, drive, addon.name, feature.name),
         ),
       });
     }
@@ -144,7 +116,7 @@ export function AddonPolicySection(): React.ReactElement {
 
   const toggle = useCallback(
     async (drive: string, addon: string) => {
-      const current = readToggle(policy, drive, addon);
+      const current = isAddonOn(policy, drive, addon);
       const driveEntry = { ...(policy[drive] ?? {}) };
       driveEntry[addon] = !current;
       const next: AddonPolicy = { ...policy, [drive]: driveEntry };
@@ -162,7 +134,7 @@ export function AddonPolicySection(): React.ReactElement {
 
   const toggleFeature = useCallback(
     async (drive: string, addon: string, feature: AddonPolicyFeature) => {
-      const current = readFeature(policy, drive, addon, feature);
+      const current = isAddonFeatureOn(policy, drive, addon, feature.name);
       const driveEntry = { ...(policy[drive] ?? {}) };
       const existing = driveEntry[addon];
       const featureMap: Record<string, boolean> =
@@ -256,7 +228,7 @@ export function AddonPolicySection(): React.ReactElement {
                         {drive}
                       </td>
                       {addons.map((addon) => {
-                        const checked = readToggle(policy, drive, addon.name);
+                        const checked = isAddonOn(policy, drive, addon.name);
                         return (
                           <td
                             key={addon.name}
@@ -274,16 +246,11 @@ export function AddonPolicySection(): React.ReactElement {
                       })}
                     </tr>
                     {addons.flatMap((addon) => {
-                      const checked = readToggle(policy, drive, addon.name);
+                      const checked = isAddonOn(policy, drive, addon.name);
                       if (!checked || !addon.policy_features?.length) return [];
                       const addonIdx = addons.indexOf(addon);
                       return addon.policy_features.map((feature) => {
-                        const featureChecked = readFeature(
-                          policy,
-                          drive,
-                          addon.name,
-                          feature,
-                        );
+                        const featureChecked = isAddonFeatureOn(policy, drive, addon.name, feature.name);
                         const labelKey = `${feature.i18n_key}.label`;
                         return (
                           <tr

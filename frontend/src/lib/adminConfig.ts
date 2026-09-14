@@ -15,6 +15,28 @@ export type AddonPolicy = Record<
   Record<string, boolean | Record<string, boolean>>
 >;
 
+/**
+ * The backend's reading of a stored policy (`config.is_addon_feature_enabled`):
+ * anything not stored is on. An addon counts as on when its `index` feature is.
+ */
+export function isAddonFeatureOn(
+  policy: AddonPolicy,
+  drive: string,
+  addon: string,
+  feature: string,
+): boolean {
+  const value = policy[drive]?.[addon];
+  if (typeof value === "boolean") return value;
+  if (typeof value === "object" && value !== null && feature in value) {
+    return Boolean(value[feature]);
+  }
+  return true;
+}
+
+export function isAddonOn(policy: AddonPolicy, drive: string, addon: string): boolean {
+  return isAddonFeatureOn(policy, drive, addon, "index");
+}
+
 export interface RestartStatus {
   pending: boolean;
   files: { name: string; count?: number; exists?: boolean }[];

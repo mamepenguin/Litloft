@@ -1,32 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 
 import type { DriveDraft } from "./DriveStep";
-import type { AddonStatusEntry, AddonPolicy } from "@/lib/adminConfig";
+import { isAddonOn, type AddonStatusEntry, type AddonPolicy } from "@/lib/adminConfig";
 
 interface Props {
   drives: DriveDraft[];
+  addons: AddonStatusEntry[];
   value: AddonPolicy;
   onChange: (policy: AddonPolicy) => void;
   onNext: () => void;
   onBack: () => void;
-}
-
-function readToggle(
-  policy: AddonPolicy,
-  drive: string,
-  addon: string,
-): boolean {
-  const driveEntry = policy[drive];
-  if (!driveEntry) return false;
-  const value = driveEntry[addon];
-  if (typeof value === "boolean") return value;
-  if (typeof value === "object" && value !== null) {
-    return Object.values(value).some(Boolean);
-  }
-  return false;
 }
 
 interface AddonRowProps {
@@ -74,6 +60,7 @@ function AddonRow({
 
 export function AddonPolicyStep({
   drives,
+  addons,
   value,
   onChange,
   onNext,
@@ -81,39 +68,9 @@ export function AddonPolicyStep({
 }: Props): React.ReactElement {
   const t = useTranslations("setup");
   const tAddon = useTranslations("setup.addonPolicy");
-  const [addons, setAddons] = useState<AddonStatusEntry[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/addons/status", { credentials: "include" })
-      .then(async (res): Promise<AddonStatusEntry[]> => {
-        if (!res.ok) return [];
-        // Backend returns {addons: {[name]: meta}, slots: {...}}; tolerate
-        // the legacy array shape too so tests / older deployments work.
-        const data = (await res.json()) as
-          | { addons?: Record<string, Omit<AddonStatusEntry, "name">> }
-          | AddonStatusEntry[];
-        if (Array.isArray(data)) return data;
-        const addons = data?.addons ?? {};
-        return Object.entries(addons).map(([name, meta]) => ({
-          name,
-          ...meta,
-        }));
-      })
-      .then((list) => {
-        if (!cancelled) setAddons(list);
-      })
-      .catch(() => {
-        // Manifest list is optional; render an empty matrix when it fails.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const toggle = useCallback(
     (drive: string, addon: string) => {
-      const current = readToggle(value, drive, addon);
+      const current = isAddonOn(value, drive, addon);
       const driveEntry = { ...(value[drive] ?? {}) };
       driveEntry[addon] = !current;
       onChange({ ...value, [drive]: driveEntry });
@@ -121,9 +78,7 @@ export function AddonPolicyStep({
     [onChange, value],
   );
 
-  const hasAnyToggleOn = drives.some((d) =>
-    addons.some((a) => readToggle(value, d.name, a.name)),
-  );
+  const storesAnything = drives.some((d) => value[d.name] !== undefined);
 
   return (
     <div className="space-y-4">
@@ -170,7 +125,7 @@ export function AddonPolicyStep({
                     key={addon.name}
                     drive={drive.name}
                     addon={addon}
-                    enabled={readToggle(value, drive.name, addon.name)}
+                    enabled={isAddonOn(value, drive.name, addon.name)}
                     onToggle={() => toggle(drive.name, addon.name)}
                   />
                 ))}
@@ -195,7 +150,7 @@ export function AddonPolicyStep({
           onClick={onNext}
           className="rounded-2xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
         >
-          {hasAnyToggleOn ? t("next") : t("skip")}
+          {storesAnything ? t("next") : t("skip")}
         </button>
       </div>
     </div>

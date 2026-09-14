@@ -1,0 +1,14 @@
+{
+  "_comment": "Shared by backend/tests/test_addon_policy_parity.py and frontend/src/lib/__tests__/addonPolicy.parity.test.ts. `addons` is the drive's stored `addons` field (null: the drive has none). The addon under test is `knowledge`; `on` is the addon itself, `features` the per-feature answers.",
+  "cases": [
+    { "name": "no addons field", "addons": null, "on": true, "features": { "editor": true, "transcription_cloud": true } },
+    { "name": "no key for the addon", "addons": { "intelligence": false }, "on": true, "features": { "editor": true, "transcription_cloud": true } },
+    { "name": "true", "addons": { "knowledge": true }, "on": true, "features": { "editor": true, "transcription_cloud": true } },
+    { "name": "false", "addons": { "knowledge": false }, "on": false, "features": { "editor": false, "transcription_cloud": false } },
+    { "name": "empty object", "addons": { "knowledge": {} }, "on": true, "features": { "editor": true, "transcription_cloud": true } },
+    { "name": "index false", "addons": { "knowledge": { "index": false } }, "on": false, "features": { "editor": true, "transcription_cloud": true } },
+    { "name": "index true", "addons": { "knowledge": { "index": true } }, "on": true, "features": { "editor": true, "transcription_cloud": true } },
+    { "name": "a feature false", "addons": { "knowledge": { "editor": false } }, "on": true, "features": { "editor": false, "transcription_cloud": true } },
+    { "name": "index true and a feature false", "addons": { "knowledge": { "index": true, "editor": false } }, "on": true, "features": { "editor": false, "transcription_cloud": true } }
+  ]
+}

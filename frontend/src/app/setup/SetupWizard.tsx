@@ -23,7 +23,12 @@ import { CompleteStep } from "./steps/CompleteStep";
 import { SetupShell } from "./components/SetupShell";
 import { Stepper } from "./components/Stepper";
 import type { Locale } from "@/i18n/config";
-import type { AddonPolicy } from "@/lib/adminConfig";
+import {
+  getAddonsStatus,
+  isAddonOn,
+  type AddonPolicy,
+  type AddonStatusEntry,
+} from "@/lib/adminConfig";
 
 type StepId =
   | "language"
@@ -67,21 +72,6 @@ const STEPPER_PUBLIC: Exclude<StepId, "language" | "welcome">[] = [
   "addonPolicy",
   "complete",
 ];
-
-function readToggle(
-  policy: AddonPolicy,
-  drive: string,
-  addon: string,
-): boolean {
-  const driveEntry = policy[drive];
-  if (!driveEntry) return false;
-  const value = driveEntry[addon];
-  if (typeof value === "boolean") return value;
-  if (typeof value === "object" && value !== null) {
-    return Object.values(value).some(Boolean);
-  }
-  return false;
-}
 
 function SetupWizardInner({
   locale,
@@ -134,6 +124,21 @@ function SetupWizardInner({
     groups: [],
   });
   const [addonPolicy, setAddonPolicy] = useState<AddonPolicy>({});
+  const [addons, setAddons] = useState<AddonStatusEntry[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAddonsStatus()
+      .then((list) => {
+        if (!cancelled) setAddons(list);
+      })
+      .catch(() => {
+        // Without the list the step draws no switches and the summary counts none.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const order = useMemo(
     () => (accessMode === "protected" ? ORDER_PROTECTED : ORDER_PUBLIC),
@@ -183,14 +188,12 @@ function SetupWizardInner({
   const addonOnCount = useMemo(() => {
     let count = 0;
     for (const drv of drivesForSubmit) {
-      const entry = addonPolicy[drv.name];
-      if (!entry) continue;
-      for (const addonName of Object.keys(entry)) {
-        if (readToggle(addonPolicy, drv.name, addonName)) count += 1;
+      for (const addon of addons) {
+        if (isAddonOn(addonPolicy, drv.name, addon.name)) count += 1;
       }
     }
     return count;
-  }, [addonPolicy, drivesForSubmit]);
+  }, [addonPolicy, addons, drivesForSubmit]);
 
   const summary = useMemo(
     () => ({
@@ -318,6 +321,7 @@ function SetupWizardInner({
         <div className="mt-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
           <AddonPolicyStep
             drives={drivesForSubmit}
+            addons={addons}
             value={addonPolicy}
             onChange={setAddonPolicy}
             onNext={goNext}
