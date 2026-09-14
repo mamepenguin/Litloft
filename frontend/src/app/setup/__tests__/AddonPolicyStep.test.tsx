@@ -316,6 +316,11 @@ describe("AddonPolicyStep shows what the backend enforces", () => {
     expect(nextButton()).toHaveTextContent(/skip/i);
   });
 
+  it("offers Next once something is stored, even with every switch on", () => {
+    renderStep({ main: { intelligence: true } });
+    expect(nextButton()).toHaveTextContent(/next/i);
+  });
+
   it("offers Next once something is stored, even with every switch off", () => {
     renderStep({ main: { intelligence: false, knowledge: false } });
     expect(nextButton()).toHaveTextContent(/next/i);

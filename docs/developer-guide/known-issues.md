@@ -104,6 +104,11 @@ knowledge message namespace, `useActiveSummary`'s knowledge WebSocket event,
 in `lib/api.ts`, `semanticSearch` reading the intelligence catalogue entry and
 search URL, and `featureFlags`' inline knowledge editor flag.
 
+**`/setup` drops the addon choices after a drive is renamed.** Pressing an addon
+switch and then going back to rename a drive leaves the old name in the policy
+the wizard saves, which the backend rejects as an unknown drive without the
+wizard saying so, so no addon choice from the step is saved.
+
 **`/setup` reports no addons enabled when the addon list fails to load.** If
 `/api/addons/status` fails, the addon step draws no switches and the summary
 counts zero, yet nothing is saved, so every installed addon is enabled on every
