@@ -121,6 +121,16 @@ events that arrive while the Knowledge page is open, and the page does not
 re-read the state when it mounts. Reached by sending a clip and leaving the page;
 the row clears when its 24-hour entry expires.
 
+**Clip web page from Add can miss its result toast.** Core's `WebSocketProvider`
+keeps only the last event, so when another live update arrives at almost the same
+moment the ready or failed toast is sometimes not shown. The clip is still created
+and appears on the Knowledge page.
+
+**Clip web page from Add is silent when closed before the request is accepted.**
+Closing the dialog while the submit is still waiting for its response, when that
+request then fails (for example a refused URL's 400), reports nothing. No clip is
+created.
+
 **A Web Clip whose placeholder file was edited during the fetch never reports.**
 When writing the fetched content answers 412 because the placeholder changed,
 the job publishes neither ready nor failed, so no screen hears its result.
