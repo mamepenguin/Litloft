@@ -17,6 +17,7 @@ import { stripComments } from "@/__tests__/helpers/sourceScan";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ADDON_LINK_DIR = resolve(SRC, "addons");
+const ADDONS_DIR = resolve(SRC, "../../addons");
 
 /** Text fields whose Enter acts: each is rendered by a test that confirms a conversion with Enter. */
 const TEXT_FIELD_ENTER = [
@@ -44,6 +45,24 @@ const NOT_A_TEXT_FIELD_ENTER = [
   "components/folder/FilterField.tsx",
   "components/search/MergedResultItem.tsx",
   "hooks/useFileCardLink.ts",
+];
+
+/** Addon text fields whose Enter acts, each guarded and render-tested in its own repository. */
+const ADDON_TEXT_FIELD_ENTER = [
+  "intelligence/frontend/Page.tsx",
+  "intelligence/frontend/pages/search-compare.tsx",
+  "media_import/frontend/Composer.tsx",
+  "media_import/frontend/ImportFromUrlDialog.tsx",
+];
+
+/**
+ * DetailedSummarySection moves between headings, not in a text field.
+ * WikiLinkAutocomplete answers keys the Markdown editor forwards to it, not a
+ * field of its own.
+ */
+const ADDON_NOT_A_GUARDED_ENTER = [
+  "intelligence/frontend/DetailedSummarySection.tsx",
+  "knowledge/frontend/WikiLinkAutocomplete.tsx",
 ];
 
 const MECHANISM = "lib/ime.ts";
@@ -78,6 +97,18 @@ describe("core files handling Enter", () => {
     const declared = [...TEXT_FIELD_ENTER, ...NOT_A_TEXT_FIELD_ENTER].sort();
     expect(declared).toHaveLength(17);
     expect(enterFiles(SRC)).toEqual(declared);
+  });
+
+  it("are all declared in the addons as well", () => {
+    const declared = [...ADDON_TEXT_FIELD_ENTER, ...ADDON_NOT_A_GUARDED_ENTER].sort();
+    expect(declared).toHaveLength(6);
+    const found = readdirSync(ADDONS_DIR, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => resolve(ADDONS_DIR, e.name, "frontend"))
+      .filter(existsSync)
+      .flatMap((root) => enterFiles(root).map((rel) => relative(ADDONS_DIR, resolve(root, rel))))
+      .sort();
+    expect(found).toEqual(declared);
   });
 
   it("does not count Enter mentioned only in comments", () => {

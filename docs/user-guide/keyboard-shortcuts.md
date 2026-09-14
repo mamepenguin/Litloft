@@ -200,6 +200,12 @@ survives the pruning that applies to automatic snapshots.
 `Cmd/Ctrl+K` is bound twice on purpose: with the editor focused it inserts a
 link, and everywhere else it opens the file switcher.
 
+### Connections graph (Knowledge addon)
+
+| Key | Action |
+|---|---|
+| `+` / `=` / `-` | Zoom the graph in / in / out (ignored while typing in a field) |
+
 ## Modals
 
 Modal-specific shortcuts can be discovered with `?` while the modal is open.
