@@ -18,9 +18,8 @@
   │
   └─ TwoPaneLayout
        ├─ FolderTreePane (left, optional)              ── drive-wide tree
-       │    ├─ FilterField (text + type dropdown)      ── replaces the old TypeFilterChips
+       │    ├─ FilterField (text + type dropdown)
        │    │    ├─ text:        useTreeTextFilter     (in-memory, cleared on tree-pane unmount)
-       │    │    └─ typeFilter:  useTreeTypeFilter     (localStorage `tree:typeFilter:{drive}`)
        │    ├─ useFolderTreeQuery                      (lazy expand by default)
        │    │    └─ on filter ON, switches to one-shot full-tree fetch
        │    ├─ treeFilterTransform                     (pure)
@@ -36,7 +35,6 @@
             │    └─ onCreateFile    → useCreateFile  (new in Phase 4; omitted in special views)
             ├─ FilterField (text + type dropdown)      ── always-on, never persisted
             │    └─ useFolderFilter                    (in-memory, cleared on folder navigation)
-            ├─ fileTypeFilter                          (shared type-match utility)
             ├─ useShortcuts                            (Cmd/Ctrl+N → onCreateFile, file-browser scope)
             └─ FileGrid / FileList                     (virtual scroll preserved)
 ```
@@ -61,11 +59,10 @@ For very large drives (10k+ files) this strategy is acceptable as a Phase 4 ceil
 |---|---|
 | `frontend/src/components/folder/FilterField.tsx` | Shared filter component used by both the right pane and the tree pane. Composition: lucide `Search` icon + text input with debounce + `×` clear button when text is non-empty + Radix DropdownMenu for the type filter (`All` / `Markdown` / `Video` / `Image` / `PDF`). Active type styles the dropdown label with `text-accent`. Single component, two call sites; no per-pane variants. |
 | `frontend/src/components/folder/__tests__/FilterField.test.tsx` | Debounce, type-dropdown selection, clear button, accent label. |
-| `frontend/src/hooks/useFolderFilter.ts` | Right-pane filter hook. Holds `text` (debounced ~300 ms) and `typeFilter` in `useState`; both clear on folder navigation (no persistence). Returns the filtered file list using `fileTypeFilter` + name substring match. Folders are not filtered. |
+| `frontend/src/hooks/useFolderFilter.ts` | Right-pane filter hook. Holds `text` (debounced ~300 ms) and `typeFilter` in `useState`; both clear on folder navigation (no persistence). Folders are not filtered. |
 | `frontend/src/hooks/__tests__/useFolderFilter.test.ts` | AND combination, case-insensitive match, folders pass through, navigation reset. |
-| `frontend/src/hooks/useTreeTextFilter.ts` | Tree-pane text filter (plain `useState`, cleared on tree-pane unmount). The tree-pane *type* filter still goes through the existing `useTreeTypeFilter` (localStorage). |
+| `frontend/src/hooks/useTreeTextFilter.ts` | Tree-pane text filter (plain `useState`, cleared on tree-pane unmount). |
 | `frontend/src/hooks/__tests__/useTreeTextFilter.test.ts` | State lifecycle. |
-| `frontend/src/lib/fileTypeFilter.ts` | Shared utility. Maps a file → one of `markdown` / `video` / `image` / `pdf` / `other` based on mime + extension, then matches against the active `TreeTypeFilter`. Used by both filter hooks. |
 | `frontend/src/lib/treeFilterTransform.ts` | Pure transformation pipeline for the tree filter: `groupByParent` rebuilds parent → children edges from the flat tree, `computeMatchTables` produces match / ancestor / descendant flag tables (a folder match cascades to descendants, a file/folder match marks its ancestors), `buildFilteredRows` flattens the resulting tree into virtual-scroll rows preserving order. Pure & deterministic — keeps `FolderTreePane` thin. |
 
 ### New file creation (Phase 4, 2026-05-09)
@@ -143,18 +140,9 @@ Out of scope: auto-expand on drag-over hover, external OS file drop on tree rows
 
 | Path | Change |
 |---|---|
-| `frontend/src/components/folder/FolderTreePane.tsx` | The header now renders `<FilterField>` in place of the old `<TypeFilterChips>`. When `(text \|\| typeFilter)` is non-empty, the pane: (1) switches `useFolderTreeQuery` to full-load mode, (2) runs `treeFilterTransform` on the cached tree, (3) auto-expands ancestors of matches so they are reachable, (4) renders `<FolderTreeRow isAncestor>` rows with `data-state="ancestor"` and `opacity-60` for path-context rows. Empty-state shows the "no match" copy with a *Clear filters* button. |
+| `frontend/src/components/folder/FolderTreePane.tsx` | The header now renders `<FilterField>`. When `(text \|\| typeFilter)` is non-empty, the pane: (1) switches `useFolderTreeQuery` to full-load mode, (2) runs `treeFilterTransform` on the cached tree, (3) auto-expands ancestors of matches so they are reachable, (4) renders `<FolderTreeRow isAncestor>` rows with `data-state="ancestor"` and `opacity-60` for path-context rows. Empty-state shows the "no match" copy with a *Clear filters* button. |
 | `frontend/src/components/folder/FolderContent.tsx` | Renders `<FilterField>` between the toolbar and the grid. Pipes the file list through `useFolderFilter` before handing it to the virtual list. Empty-state on zero match. |
 | `frontend/src/components/folder/FolderTreeRow.tsx` | Accepts `isAncestor: boolean`; when true emits `data-state="ancestor"` and applies `opacity-60`. The expand/collapse caret and selection behaviour are unchanged. |
-| `frontend/src/messages-core/{ja,en}.json` | New `filter` namespace: `placeholder.tree`, `placeholder.folder`, `type.{all,markdown,video,image,pdf}`, `empty.tree`, `empty.folder`, `clear`. After editing, run `node frontend/scripts/merge-addon-messages.mjs` to regenerate `frontend/src/messages/{ja,en}.json`. |
-
-### Removed
-
-| Path | Notes |
-|---|---|
-| `frontend/src/components/folder/TypeFilterChips.tsx` | Absorbed into `<FilterField>`. |
-| `frontend/src/components/folder/__tests__/TypeFilterChips.test.tsx` | Deleted with the component. |
-| `frontend/src/hooks/useTreeTypeFilter.ts` | **Kept.** The tree pane's type-filter persistence lives here; `<FilterField>` reads/writes through it. |
 
 ### Pre-existing tree / folder pieces (relevant context)
 
@@ -164,7 +152,6 @@ Out of scope: auto-expand on drag-over hover, external OS file drop on tree rows
 | `frontend/src/hooks/useFolderTreeQuery.ts` | Per-path lazy fetch with cache keyed by `{drive, typeFilter, path}`. Drops the cache when `typeFilter` changes (counts and visibility differ). |
 | `frontend/src/hooks/useTreeEnabled.ts` | Tree-pane open/closed toggle persistence. |
 | `frontend/src/hooks/useTreeExpansion.ts` | Per-drive expanded-folder set in localStorage (`tree:expanded:{drive}`). |
-| `frontend/src/hooks/useTreeTypeFilter.ts` | Per-drive type filter in localStorage (`tree:typeFilter:{drive}`). |
 | `frontend/src/components/folder/useFolderFiles.ts` | Right-pane file list. The right-pane filter sits on top of this hook's output; this hook itself is unchanged by Phase 4. |
 
 ## Backend
@@ -198,11 +185,6 @@ Out of scope: auto-expand on drag-over hover, external OS file drop on tree rows
 The asymmetry — text never persisted, type persisted only for the tree — is intentional. The tree's type filter functions as a per-drive preference (origin: hako `rOloIC47lE4P3MyCtf1Vv`), while text persistence would create "I am secretly being filtered" surprises (origin: spec §2.6, §3.7).
 
 ## Match rules
-
-| Surface | Name match | Type match |
-|---|---|---|
-| Right pane | Substring on filename incl. extension, case-insensitive. Folders bypass. | `fileTypeFilter`. Folders bypass. |
-| Tree pane | Substring on file **and** folder names. | `fileTypeFilter` for files only; folders bypass type. |
 
 A folder match cascades — its children are shown even if they do not match individually (the user is asking for that subtree). A file match propagates upward — its ancestors render in the dimmed `isAncestor` style as path context.
 
