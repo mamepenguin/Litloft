@@ -48,15 +48,12 @@ appear here.
 
 ## Going to another note
 
-When a note is open, **Go to note** in its action row opens the search modal
-narrowed to this drive's notes, with **Notes** shown before the query. Type part
-of a title or folder and press Enter on a row to open that note. The link at the
-bottom right, or Enter with no row chosen, opens **All notes** with what you
-typed in its search field.
-
-While a note is open, `Cmd/Ctrl+K` and the header's search button open the same
-narrowed search. To search the whole drive instead, press the × on **Notes** or
-`Backspace` in the empty field. See
+While a note is open, `Cmd/Ctrl+K` and the header's search button open the
+search modal narrowed to this drive's notes, with **Notes** shown before the
+query. Type part of a title or folder and press Enter on a row to open that
+note. The link at the bottom right, or Enter with no row chosen, opens **All
+notes** with what you typed in its search field. To search the whole drive
+instead, press the × on **Notes** or `Backspace` in the empty field. See
 [narrowed to one kind](search.md#narrowed-to-one-kind).
 
 ## Writing a new note
