@@ -101,6 +101,17 @@ class TestTagCountsByKind:
         ]
         assert api.get(f"/api/drives/{TEST_DRIVE}/tags?path=../etc").status_code == 400
 
+    def test_path_still_counts_only_active_files_of_the_kind(self, client):
+        api, db, _, _ = client
+        _file(db, "Inbox/a.md", mime="text/markdown", tags=["AI"])
+        _file(db, "Inbox/gone.md", mime="text/markdown", deleted=True, tags=["AI", "消えた"])
+        _file(db, "Inbox/lost.md", mime="text/markdown", missing=True, tags=["AI", "見失い"])
+        _file(db, "Inbox/clip.mp4", mime="video/mp4", file_type="video", tags=["AI", "動画"])
+
+        assert api.get(f"/api/drives/{TEST_DRIVE}/tags?type=text&path=Inbox").json() == [
+            {"name": "AI", "count": 1},
+        ]
+
     def test_without_a_kind_the_listing_is_unchanged(self, client):
         api, db, _, _ = client
         _file(db, "a.md", mime="text/markdown", tags=["AI"])

@@ -29,6 +29,7 @@ describe("tag and folder-count requests", () => {
     await getDriveTags("d", "Inbox", "text");
     await getDriveTags("d", null, "text", "Inbox/Deep");
     await getDriveTags("d", null, "text", "");
+    await getDriveTags("d", null, "text", null);
     await getFolderCounts("d");
     await getFolderCounts("d", "text");
 
@@ -39,6 +40,7 @@ describe("tag and folder-count requests", () => {
       "/api/drives/d/tags?folder_path=Inbox&type=text",
       "/api/drives/d/tags?path=Inbox%2FDeep&type=text",
       "/api/drives/d/tags?path=&type=text",
+      "/api/drives/d/tags?type=text",
       "/api/drives/d/folder-counts",
       "/api/drives/d/folder-counts?type=text",
     ]);

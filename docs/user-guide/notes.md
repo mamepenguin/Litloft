@@ -28,8 +28,8 @@ them without walking the folder tree.
   with its parent path in grey. **All** is every note.
 - **Tags** lists the tags on notes, with counts. With a folder chosen, it lists
   only the tags on notes directly in that folder, so a count is what choosing
-  the tag shows. The chosen tag always stays in the list, and choosing it again
-  takes it off. A folder and a tag can be chosen together.
+  the tag shows. Choosing the selected tag again takes it off, and so does the
+  × on the tag shown above the list. A folder and a tag can be chosen together.
 - The search field searches titles and folder names within what you have
   chosen, and the sort menu orders the list by update, title or creation.
   Sorted by update, the list is grouped by day as on the Notes page.
