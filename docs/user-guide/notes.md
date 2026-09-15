@@ -19,6 +19,24 @@ them without walking the folder tree.
   first line of the note, its folder and when it changed. Adding a tag or a
   favourite also counts as a change. **All notes** lists every note.
 
+## All notes
+
+**All notes** narrows the drive's notes without walking the folder tree:
+
+- **Folders** lists every folder that holds notes, flat, each with the number
+  of notes directly in it (not in its subfolders). A nested folder is shown
+  with its parent path in grey. **All** is every note.
+- **Tags** lists the tags on notes, with counts. Choosing the selected tag
+  again takes it off. A folder and a tag can be chosen together.
+- The search field searches titles and folder names within what you have
+  chosen, and the sort menu orders the list by update, title or creation.
+  Sorted by update, the list is grouped by day as on the Notes page.
+- Inside a folder, each row shows the note's tags instead of its folder.
+- On a phone, folders, tags and sort are menus above the list.
+
+What you choose is kept in the page address, so going back from a note returns
+to the same list. Moving or renaming folders is done in the Library.
+
 Selecting a note opens it in the usual file screen. The previous and next
 arrows there move through the note's folder. Markdown notes can be edited
 there; `.txt` files open for reading only.

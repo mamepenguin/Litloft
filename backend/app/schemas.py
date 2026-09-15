@@ -256,6 +256,11 @@ class TagResponse(BaseModel):
     count: int
 
 
+class FolderCountResponse(BaseModel):
+    path: str
+    count: int
+
+
 class PinnedFolderResponse(BaseModel):
     path: str
 

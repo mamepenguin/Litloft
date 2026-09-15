@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 
 const API_BASE = "/api";
@@ -96,9 +96,21 @@ export async function getDriveFiles(
   );
 }
 
-export async function getDriveTags(drive: string, folderPath?: string | null): Promise<Tag[]> {
-  const query = folderPath ? `?folder_path=${encodeURIComponent(folderPath)}` : "";
+export async function getDriveTags(
+  drive: string,
+  folderPath?: string | null,
+  type?: FileKind,
+): Promise<Tag[]> {
+  const params = new URLSearchParams();
+  if (folderPath) params.set("folder_path", folderPath);
+  if (type) params.set("type", type);
+  const query = params.size > 0 ? `?${params}` : "";
   return fetchJSON<Tag[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/tags${query}`);
+}
+
+export async function getFolderCounts(drive: string, type?: FileKind): Promise<FolderCount[]> {
+  const query = type ? `?${new URLSearchParams({ type })}` : "";
+  return fetchJSON<FolderCount[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/folder-counts${query}`);
 }
 
 export interface ScanResult {

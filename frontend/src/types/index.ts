@@ -170,6 +170,12 @@ export interface Tag {
   count: number;
 }
 
+export interface FolderCount {
+  /** Drive-relative; `""` is the drive root. */
+  path: string;
+  count: number;
+}
+
 export interface PinnedFolder {
   path: string;
 }

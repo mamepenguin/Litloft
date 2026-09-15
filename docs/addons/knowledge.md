@@ -243,7 +243,14 @@ Below the header:
 - **Recent notes** lists the eight most recently updated notes in rows grouped
   by calendar age (today, past 7 days, past 30 days, earlier), each with the
   note's first line, folder and time. **All notes** (`?view=all`) lists every
-  note in the same order, 30 at a time.
+  note, 30 at a time, as a browser: a flat list of folders that hold notes
+  (each counting its direct notes, from `GET /api/drives/{drive}/folder-counts?type=text`)
+  and of tags on notes (`GET /api/drives/{drive}/tags?type=text`), a search
+  within the chosen scope, and a sort by update, title or creation. The scope
+  is the URL: `folder=` (present and empty for the drive root), `tag=`,
+  `sort=title|created` and `q=`. Sorted by update the rows are grouped by age;
+  inside a folder a row shows the note's tags instead of its folder. On a phone
+  the folder, tag and sort choices are toolbar menus.
 - Two entries close the page: **Web clip**, which opens the clip form and recent
   clips below them, and **Note & file connections**, the graph's own page
   (`/drive/{drive}/addons/knowledge/connections`). Both are hidden on the
