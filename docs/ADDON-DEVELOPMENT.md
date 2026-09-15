@@ -1125,6 +1125,34 @@ export const slotComponents = {
 };
 ```
 
+### Opening Quick Note
+
+An addon that offers "write a note" does not need its own create dialog: it
+can open the core Quick Note panel, the same one the header button and `N`
+open.
+
+```typescript
+import { useQuickNote } from "@/components/quick-note";
+
+const quickNote = useQuickNote();
+quickNote.open({ drive, folder });
+```
+
+| Option | Type | Meaning |
+|---|---|---|
+| `drive` | `string` (optional) | Drive to preselect. Used only if the viewer can reach it in the drive list the panel fetches when it opens; otherwise the panel falls back to its usual order (current screen, last save, the only drive, or asking). |
+| `folder` | `string` (optional) | Drive-relative folder to preselect with that drive; `""` is the drive root. Ignored without a usable `drive`, and replaced by the drive's remembered Quick Note folder when missing or not a valid path. |
+
+- Opening creates nothing. A file exists only after the viewer presses **Save**
+  or **Save and open**.
+- The preselection applies to that opening only. The remembered drive and
+  folder change only after a successful save, exactly as for the header button.
+- `open` does nothing while the panel is already open, and does nothing when
+  called outside the app shell (for example in an isolated test render).
+- Whether an editor exists is not the caller's concern: **Save and open**
+  navigates to the new file with `edit=1`, which opens the editor where one is
+  installed.
+
 ---
 
 ## Core API Surface for In-Process Addons

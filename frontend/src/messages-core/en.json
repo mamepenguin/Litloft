@@ -1144,6 +1144,7 @@
     "noDrives": "There is no drive you can save to.",
     "drivesFailed": "Could not load drives.",
     "retry": "Retry",
+    "saveAndOpen": "Save and open",
     "saving": "Saving...",
     "saved": "Saved to {path}",
     "saveFailed": "Could not save the note.",

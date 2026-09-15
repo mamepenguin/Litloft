@@ -90,7 +90,7 @@ function typeBody(text: string) {
 }
 
 /** Matches both the idle ("Save") and in-flight ("Saving...") labels. */
-const saveButton = () => screen.getByRole("button", { name: /^Sav/ });
+const saveButton = () => screen.getByRole("button", { name: /^(Save|Saving\.\.\.)$/ });
 
 /** The panel expands the destination itself when the user has to act on it,
  *  so the toggle is only clicked when it is still collapsed. */
