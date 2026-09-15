@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Clock, File, FilePlus, Home, Search, RefreshCw, Star, Tag, ThumbsUp, Trash2 } from "lucide-react";
+import { AlertTriangle, File, FilePlus, History, Home, Search, RefreshCw, Star, Tag, ThumbsUp, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
@@ -64,12 +64,12 @@ const variantConfig: Record<
     descriptionKey: "noLikedDescription",
   },
   "no-recent": {
-    icon: Clock,
+    icon: History,
     titleKey: "noRecentTitle",
     descriptionKey: "noRecentDescription",
   },
   "no-recent-profile": {
-    icon: Clock,
+    icon: History,
     titleKey: "noRecentNoProfileTitle",
     descriptionKey: "noRecentNoProfileDescription",
   },

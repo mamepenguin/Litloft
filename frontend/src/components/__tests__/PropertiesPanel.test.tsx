@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { PropertiesPanel } from "@/components/PropertiesPanel";
+import jaMessages from "@/messages-core/ja.json";
 
 function fakeFile(id: string, filename = "sample.mp4") {
   return {
@@ -152,9 +153,24 @@ describe("PropertiesPanel", () => {
     expect(screen.getByText("Web clip")).toBeInTheDocument();
   });
 
-  it("labels a note captured from a source", () => {
-    render(<PropertiesPanel frontmatter={{ origin: "source_capture" }} />);
-    expect(screen.getByText("Captured from a source")).toBeInTheDocument();
+  describe("labels every origin a note can be written with", () => {
+    const ORIGIN_LABELS_EN: Record<string, string> = {
+      webclip: "Web clip",
+      detailed_summary: "AI summary",
+      source_capture: "Captured from a source",
+      ask_answer: "Saved from Ask",
+    };
+
+    it.each(Object.entries(ORIGIN_LABELS_EN))("%s in English", (origin, label) => {
+      render(<PropertiesPanel frontmatter={{ origin }} />);
+      expect(screen.getByText(label)).toBeInTheDocument();
+    });
+
+    it.each(Object.keys(ORIGIN_LABELS_EN))("%s in Japanese", (origin) => {
+      const labels = jaMessages.propertiesPanel.origin as Record<string, unknown>;
+      expect(typeof labels[origin]).toBe("string");
+      expect((labels[origin] as string).trim()).not.toBe("");
+    });
   });
 
   it("renders unknown origin values verbatim", () => {

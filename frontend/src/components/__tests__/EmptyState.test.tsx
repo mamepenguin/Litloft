@@ -66,9 +66,8 @@ describe("EmptyState", () => {
         "needs-scan": "lucide-refresh-cw",
         "no-favorites": "lucide-star",
         "no-liked": "lucide-thumbs-up",
-        "no-recent": "lucide-clock",
-        // Shares Clock with no-recent: same absence, different reason for it.
-        "no-recent-profile": "lucide-clock",
+        "no-recent": "lucide-history",
+        "no-recent-profile": "lucide-history",
         "no-recent-added": "lucide-file-plus",
         "no-home-activity": "lucide-house",
         "home-unavailable": "lucide-triangle-alert",

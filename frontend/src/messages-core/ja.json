@@ -1003,7 +1003,8 @@
       "webclip": "Webクリップ",
       "detailed_summary": "AI要約",
       "manual": "手動作成",
-      "source_capture": "ソースから取り込み"
+      "source_capture": "ソースから取り込み",
+      "ask_answer": "Askから保存"
     },
     "sourcesMore": "他{n}件",
     "sourceMissing": "削除済みまたはアクセス不可"

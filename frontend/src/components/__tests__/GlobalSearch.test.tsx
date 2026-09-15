@@ -582,6 +582,59 @@ describe("GlobalSearch", () => {
       expect(offeredTerms.renders.flat()).not.toContain("whisper");
     });
 
+    const storedTerms = (drive: string) =>
+      JSON.parse(localStorage.getItem(`search-history:${drive}`) ?? "null");
+
+    it("records a submitted term under the drive it was made on, and nowhere else", () => {
+      localStorage.setItem("search-history:other", JSON.stringify(["chapters"]));
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+
+      const input = screen.getAllByRole("textbox")[0];
+      fireEvent.change(input, { target: { value: "whisper" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      expect(storedTerms("main")).toEqual(["whisper"]);
+      expect(storedTerms("other")).toEqual(["chapters"]);
+    });
+
+    it("records the query behind a chosen result under the drive it was made on, and nowhere else", async () => {
+      localStorage.setItem("search-history:other", JSON.stringify(["chapters"]));
+      mockGetDriveFiles.mockResolvedValue({
+        data: [makeFile({ id: "f1", title: "hit" })],
+        meta: { total: 1, page: 1, limit: 8 },
+      });
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+
+      fireEvent.change(screen.getAllByRole("textbox")[0], { target: { value: "hit" } });
+      await act(async () => {
+        vi.advanceTimersByTime(350);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      await waitFor(() =>
+        expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1),
+      );
+      fireEvent.click(screen.getAllByTestId("merged-result-item")[0]);
+
+      expect(mockRouterPush).toHaveBeenCalledWith("/files/f1");
+      expect(storedTerms("main")).toEqual(["hit"]);
+      expect(storedTerms("other")).toEqual(["chapters"]);
+    });
+
+    it("removes a recent term from the current drive only", () => {
+      seedHistory(["whisper", "chapters"]);
+      localStorage.setItem("search-history:other", JSON.stringify(["whisper"]));
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+
+      fireEvent.click(screen.getAllByLabelText('Remove "whisper" from history')[0]);
+
+      expect(storedTerms("main")).toEqual(["chapters"]);
+      expect(storedTerms("other")).toEqual(["whisper"]);
+    });
+
     it("renders nothing in the body when there is no history", () => {
       render(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
