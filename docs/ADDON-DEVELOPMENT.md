@@ -1556,7 +1556,7 @@ For the full design and the broader rationale, see `docs/superpowers/specs/2026-
 | `drive-home-sections` | `pickup` | Recommended files widget on the drive home page |
 | `dashboard-widgets` | `index-status` | Index queue depth and model memory |
 | `dashboard-alerts` | `failed-jobs` | The failed-jobs warning band, above the drive cards. Absent when nothing has failed. |
-| `folder-actions-menu` | `folder-ai-actions` | Batch AI actions, as rows of the folder toolbar's **Add** menu (auto-tags, summaries, image descriptions) |
+| `folder-bulk-actions-menu` | `folder-ai-actions` | Batch AI actions, as rows of the folder toolbar's `…` menu (auto-tags, summaries, image descriptions) |
 | `file-detail-actions` | `file-ai-actions` | The **AI** menu beside the like and favourite buttons. Lists only what this file does not have yet (tag candidates, summary, detailed summary, chapter candidates, image description); each entry disappears once its section has content, and the button hides itself when nothing is left to offer |
 | `admin-intelligence-sections` | `admin-features` | Feature toggle panel on the intelligence admin page |
 | `admin-intelligence-sections` | `admin-llm` | LLM provider configuration panel |

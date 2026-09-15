@@ -759,7 +759,7 @@ When enabled, the intelligence addon contributes:
   with nothing left to generate — or nothing applicable — the button is not shown.
 - **Drive home** — *Pickup*, a row of files you have never opened, with a link through to the full feed at `/drive/{drive}/addons/intelligence/pickup`, carrying the feed's size
 - **File `[...]` menu** — *Index details*, a dialog showing per-task state with a *Regenerate* button for each task (`metadata`, `clip`, `whisper`, `text`) plus recent provider stats for failure context. It sits in the overflow menu rather than in the inspector because it answers an operator's question, not a reader's.
-- **Folder actions** — inside the folder toolbar's **Add** menu: *Create AI tag candidates…*,
+- **Folder actions** — inside the folder toolbar's `…` menu: *Create AI tag candidates…*,
   *Create AI summaries…*, and *Create image descriptions…*.
   Each one asks before it starts, and the question says how many files it is about.
   That number is the rows the folder has loaded, which part-way down a long folder is not the
