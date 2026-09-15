@@ -402,9 +402,9 @@
                     },
                     {
                       "tag": "span",
-                      "class": "hidden min-w-0 max-w-max flex-grow basis-0 truncate text-xs tabular-nums text-text-muted sm:block",
+                      "class": "-ml-2 hidden min-w-0 max-w-max flex-grow basis-0 truncate text-xs tabular-nums text-text-muted sm:block",
                       "children": [],
-                      "text": "· Video 2 · Image 1"
+                      "text": "\u00a0· Video 2 · Image 1"
                     }
                   ]
                 }
@@ -637,6 +637,22 @@
               thumb: box(row.querySelector(".w-24")),
               name: box(row.querySelector("span.truncate")),
               kinds: box(row.querySelector("span.sm\\:block")),
+              kindsTextWidth: (() => {
+                const el = row.querySelector("span.sm\\:block");
+                if (!el) return null;
+                const range = document.createRange();
+                range.selectNodeContents(el);
+                return range.getBoundingClientRect().width;
+              })(),
+              kindsTruncated: (() => {
+                const el = row.querySelector("span.sm\\:block");
+                return el ? el.scrollWidth > el.clientWidth : false;
+              })(),
+              count: box(row.querySelector("span.ml-auto")),
+              countTruncated: (() => {
+                const el = row.querySelector("span.ml-auto");
+                return el ? el.scrollWidth > el.clientWidth : false;
+              })(),
               nameTruncated: (() => {
                 const el = row.querySelector("span.truncate");
                 return el.scrollWidth > el.clientWidth;

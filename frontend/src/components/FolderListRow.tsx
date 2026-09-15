@@ -121,10 +121,12 @@ export function FolderListRow({
             </span>
             {countLabel}
             {/* Grows from zero into whatever the name leaves, so a long name
-                truncates the breakdown away before it truncates itself. */}
+                truncates the breakdown away before it truncates itself. The
+                negative margin hands back the row's gap, so a breakdown
+                squeezed to nothing takes nothing from the name. */}
             {kinds && (
-              <span className="hidden min-w-0 max-w-max flex-grow basis-0 truncate text-xs tabular-nums text-text-muted sm:block">
-                · {kinds}
+              <span className="-ml-2 hidden min-w-0 max-w-max flex-grow basis-0 truncate text-xs tabular-nums text-text-muted sm:block">
+                {`\u00a0· ${kinds}`}
               </span>
             )}
           </div>
