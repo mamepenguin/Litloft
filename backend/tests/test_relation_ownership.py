@@ -304,17 +304,20 @@ class TestInternalApiRowsAreMarked:
         assert _rows(session) == {(a.id, b.id, "related", "internal")}
 
 
-class TestPublicListingShowsEachCounterpartOnce:
-    def test_both_directions_list_the_other_file_once(self, client):
+class TestPublicListingIsPerDirection:
+    def test_mutual_rows_list_the_other_file_once_per_direction(self, client):
         api, session, drive_dir, _ = client
         a = _seed_video(session, drive_dir, "a.mp4")
         b = _seed_video(session, drive_dir, "b.mp4")
-        _unmarked(session, a, b)
-        _unmarked(session, b, a)
+        _unmarked(session, a, b, origin="markdown")
+        _unmarked(session, b, a, origin="markdown")
 
         for source, other in ((a, b), (b, a)):
             items = api.get(f"/api/files/{source.id}/relations").json()["relations"]
-            assert [i["file"]["id"] for i in items] == [other.id]
+            assert sorted((i["file"]["id"], i["direction"]) for i in items) == [
+                (other.id, "incoming"),
+                (other.id, "outgoing"),
+            ]
 
     def test_same_counterpart_under_two_kinds_is_listed_per_kind(self, client):
         api, session, drive_dir, _ = client
