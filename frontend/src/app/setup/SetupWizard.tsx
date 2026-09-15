@@ -27,6 +27,8 @@ import {
   getAddonsStatus,
   isAddonOn,
   putAddonPolicy,
+  putDrives,
+  putPasswords,
   type AddonPolicy,
   type AddonStatusEntry,
 } from "@/lib/adminConfig";
@@ -245,12 +247,7 @@ function SetupWizardInner({
     // Re-PUT drives to make sure the on-disk state matches the wizard
     // state even if the user changed something between DriveStep
     // validation and here.
-    await fetch("/api/admin/config/drives", {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(drivesForSubmit),
-    });
+    await putDrives(drivesForSubmit);
 
     if (accessMode === "protected" && password.password) {
       // Append the __admin__ sentinel so this password grants admin access
@@ -258,14 +255,9 @@ function SetupWizardInner({
       const groupsWithAdmin = passwordValue.groups.includes("__admin__")
         ? passwordValue.groups
         : [...passwordValue.groups, "__admin__"];
-      await fetch("/api/admin/config/passwords", {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify([
-          { password: password.password, groups: groupsWithAdmin },
-        ]),
-      });
+      await putPasswords([
+        { password: password.password, groups: groupsWithAdmin },
+      ]);
     }
 
     await putAddonPolicy(addonPolicy);

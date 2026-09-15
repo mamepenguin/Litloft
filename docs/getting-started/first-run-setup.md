@@ -61,8 +61,6 @@ A switch belongs to its drive, so renaming the drive afterwards on the Drives st
 
 If the list of installed addons cannot be loaded, the step says so and offers **Retry**. Continuing without it saves nothing, so every installed addon stays enabled on every drive, and the summary says the addons were left at their defaults.
 
-If no addons are installed, this step is skipped automatically.
-
 ## Step 7 — Complete
 
 A summary of what you configured: drive count, access mode, addon enablement. Click **Finish**; the wizard:

@@ -451,15 +451,24 @@ describe("SetupWizard addon choices across drive edits", () => {
     await waitFor(() => expect(addonPolicyPut()).toEqual({ Movies: { knowledge: false } }));
   });
 
+  function urlsCalled() {
+    return mockFetch.mock.calls.map((c) => c[0] as string);
+  }
+
   it("shows the rejection and does not finish when the addon policy is not saved", async () => {
+    let policyPuts = 0;
     withAddons({
-      "PUT /api/admin/config/addon-policy": () =>
-        Promise.resolve(
-          jsonResponse(
-            { detail: { code: "unknown_drive", message: "drive 'media' is not configured" } },
-            422,
-          ),
-        ),
+      "PUT /api/admin/config/addon-policy": () => {
+        policyPuts += 1;
+        return Promise.resolve(
+          policyPuts === 1
+            ? jsonResponse(
+                { detail: { code: "unknown_drive", message: "drive 'media' is not configured" } },
+                422,
+              )
+            : jsonResponse({ ok: true }),
+        );
+      },
     });
     render(<SetupWizard />);
     await reachDriveStep();
@@ -470,13 +479,90 @@ describe("SetupWizard addon choices across drive edits", () => {
     fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
 
     expect(await screen.findByText("drive 'media' is not configured")).toBeInTheDocument();
-    const urls = mockFetch.mock.calls.map((c) => c[0] as string);
-    expect(urls).not.toContain("/api/admin/config/complete-setup");
+    expect(urlsCalled()).not.toContain("/api/admin/config/complete-setup");
+    expect(pushMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /finish|complete/i }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    expect(screen.queryByText("drive 'media' is not configured")).toBeNull();
+  });
+
+  it("shows a rejected drives save as its own error and saves nothing after it", async () => {
+    withAddons({
+      "PUT /api/admin/config/drives": () =>
+        Promise.resolve(
+          jsonResponse({ detail: { code: "duplicate_name", message: "drive name 'docs' is used twice" } }, 422),
+        ),
+    });
+    render(<SetupWizard />);
+    await reachDriveStep();
+    await goToAddonStep();
+    await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
+    fireEvent.click(screen.getByRole("checkbox", { name: "media / knowledge" }));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
+
+    expect(await screen.findByText("drive name 'docs' is used twice")).toBeInTheDocument();
+    expect(urlsCalled()).not.toContain("/api/admin/config/addon-policy");
+    expect(urlsCalled()).not.toContain("/api/admin/config/complete-setup");
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("shows a rejected passwords save as its own error and saves nothing after it", async () => {
+    withAddons({
+      "PUT /api/admin/config/passwords": () =>
+        Promise.resolve(
+          jsonResponse({ detail: { code: "json_syntax", message: "passwords entry is invalid" } }, 422),
+        ),
+    });
+    render(<SetupWizard />);
+    await reachDriveStep();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/password protected/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.change(await screen.findByLabelText(/^password/i), {
+      target: { value: "correct horse battery" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
+    fireEvent.click(screen.getByRole("button", { name: /skip/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
+
+    expect(await screen.findByText("passwords entry is invalid")).toBeInTheDocument();
+    expect(urlsCalled()).not.toContain("/api/admin/config/addon-policy");
+    expect(urlsCalled()).not.toContain("/api/admin/config/complete-setup");
     expect(pushMock).not.toHaveBeenCalled();
   });
 });
 
 describe("SetupWizard when the addon list does not load", () => {
+  it("finishes without saving a policy that disables anything", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/addons/status") {
+        return Promise.resolve(jsonResponse({ detail: "boom" }, 500));
+      }
+      return defaultMockImpl(url);
+    });
+    render(<SetupWizard />);
+    await reachDriveStep();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/public/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await screen.findByText(/could not load the addon list/i);
+    fireEvent.click(screen.getByRole("button", { name: /skip/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    const policyPut = mockFetch.mock.calls.find(
+      ([url, opts]) =>
+        url === "/api/admin/config/addon-policy" && (opts as RequestInit)?.method === "PUT",
+    );
+    expect(JSON.parse((policyPut![1] as RequestInit).body as string)).toEqual({});
+    expect(
+      mockFetch.mock.calls.map((c) => c[0] as string),
+    ).toContain("/api/admin/config/complete-setup");
+  });
+
   it("says the list could not be loaded, retries it, and does not count zero addons", async () => {
     let statusCalls = 0;
     mockFetch.mockImplementation((url: string) => {
