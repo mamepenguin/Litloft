@@ -258,3 +258,30 @@ class TestRelationDirectionAndOrigin:
         _seed_relation(db, b, a, origin="markdown")
 
         assert c.get(f"/api/files/{a.id}/relations").json()["relations"] == []
+
+
+from tests.test_target_drive_access import LOCKED_DRIVE, OPEN_DRIVE, two_drives  # noqa: E402,F401
+
+
+class TestRelationsRespectDriveAccess:
+    def test_a_source_in_a_locked_drive_answers_404(self, two_drives):
+        api, db, _, _ = two_drives
+        locked = _seed_file(db, "locked.mp4", drive=LOCKED_DRIVE)
+        other = _seed_file(db, "other.mp4", drive=LOCKED_DRIVE)
+        _seed_relation(db, locked, other, origin="markdown")
+
+        assert api.get(f"/api/files/{locked.id}/relations").status_code == 404
+
+    def test_a_counterpart_in_another_drive_is_never_listed(self, two_drives):
+        api, db, _, _ = two_drives
+        source = _seed_file(db, "source.mp4", drive=OPEN_DRIVE)
+        same = _seed_file(db, "same.mp4", drive=OPEN_DRIVE)
+        foreign_out = _seed_file(db, "out.mp4", drive=LOCKED_DRIVE)
+        foreign_in = _seed_file(db, "in.mp4", drive=LOCKED_DRIVE)
+        _seed_relation(db, source, foreign_out, origin="markdown")
+        _seed_relation(db, foreign_in, source, origin="markdown")
+        _seed_relation(db, source, same, origin="internal")
+
+        res = api.get(f"/api/files/{source.id}/relations")
+        assert res.status_code == 200
+        assert [i["file"]["id"] for i in res.json()["relations"]] == [same.id]
