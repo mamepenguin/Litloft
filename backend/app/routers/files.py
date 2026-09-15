@@ -163,7 +163,7 @@ def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
         tag = (
             db.query(Tag)
             .filter(
-                func.lower(Tag.name) == func.lower(tag_name),
+                func.lower(Tag.name) == tag_name.lower(),
                 Tag.drive == file.drive,
             )
             .first()
@@ -199,7 +199,7 @@ def merge_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
         tag = (
             db.query(Tag)
             .filter(
-                func.lower(Tag.name) == func.lower(tag_name),
+                func.lower(Tag.name) == tag_name.lower(),
                 Tag.drive == file.drive,
             )
             .first()

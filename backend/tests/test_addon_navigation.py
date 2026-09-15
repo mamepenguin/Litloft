@@ -205,3 +205,10 @@ def test_internal_fields_stay_out_alongside_navigation(client, registry, manifes
     entry = c.get("/api/addons/status").json()["addons"]["navsvc"]
 
     assert sorted(entry) == ["href", "icon", "label", "navigation", "scope", "slots", "type"]
+
+
+@pytest.mark.parametrize("scope", [["drive"], {"drive": True}, 1, None], ids=["list", "object", "number", "null"])
+def test_a_manifest_with_a_non_string_scope_is_refused_and_the_others_load(registry, manifests, scope):
+    manifests(badscope=_meta("badscope", scope=scope), goodscope=_meta("goodscope"))
+
+    assert sorted(addon_registry.get_all()) == ["goodscope"]

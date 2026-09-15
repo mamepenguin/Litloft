@@ -116,6 +116,9 @@ def register_in_process(name: str, meta: dict[str, Any]) -> bool:
 
     Returns True if registered, False if skipped due to invalid metadata.
     """
+    if not isinstance(meta, dict):
+        logger.error("Addon %r skipped: ADDON_META must be a dict (got %r)", name, meta)
+        return False
     meta_copy = {**meta, "type": meta.get("type", "in_process")}
     if not _validate_scope(name, meta_copy):
         return False

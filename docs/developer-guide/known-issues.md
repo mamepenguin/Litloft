@@ -118,6 +118,8 @@ Reached only by keyboard.
 
 **All notes cuts a deep folder's own name off.** Rail labels truncate from the end, so `Knowledge/docs/superpowers/specs` can show only its parent path.
 
+**A tag with a non-ASCII capital lists nothing when chosen.** The rail counts `Übung` but the list filter lowercases with SQLite's ASCII-only `lower()`, so choosing it shows no notes.
+
 **While searching within All notes, the rail's counts ignore the search.** They count the folder's notes, not the matches.
 
 **The All notes tag removal link is announced without the tag text shown.** Its accessible name replaces the visible `#tag`, and after it is pressed focus falls back to the page.

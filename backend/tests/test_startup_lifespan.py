@@ -231,6 +231,70 @@ class TestLoadingAnAddon:
         assert "invalid 'scope'" in caplog.text
         assert "Failed to load addon" not in caplog.text
 
+    @pytest.mark.parametrize(
+        "meta", ['["drive"]', '"drive"', "None"], ids=["list", "string", "none"]
+    )
+    def test_a_non_dict_meta_is_refused_without_costing_any_startup_hook(
+        self, addons_dir, caplog, meta
+    ):
+        bad = f"{_PACKAGE_PREFIX}aaa_badmeta"
+        good = f"{_PACKAGE_PREFIX}zzz_good"
+        _write_addon(
+            addons_dir,
+            bad,
+            f'''
+            from fastapi import APIRouter
+
+            router = APIRouter()
+            ADDON_META = {meta}
+
+            async def on_startup():
+                return None
+            ''',
+        )
+        _write_addon(
+            addons_dir,
+            good,
+            '''
+            from fastapi import APIRouter
+
+            router = APIRouter()
+            ADDON_META = {"label": "Good", "icon": "x", "scope": "drive"}
+
+            async def on_startup():
+                return None
+            ''',
+        )
+
+        with caplog.at_level(logging.ERROR):
+            _load(addons_dir)
+
+        assert sorted(addon_registry.get_all()) == [good]
+        assert sorted(main._loaded_addons) == [good]
+        assert [fn.__module__ for fn in main._addon_startup_fns] == [
+            f"addons.{bad}.router",
+            f"addons.{good}.router",
+        ]
+        assert "Failed to load addon" not in caplog.text
+
+    def test_a_both_scope_addon_is_registered(self, addons_dir):
+        name = f"{_PACKAGE_PREFIX}both"
+        _write_addon(
+            addons_dir,
+            name,
+            '''
+            from fastapi import APIRouter
+
+            router = APIRouter()
+            ADDON_META = {"label": "Both", "icon": "x", "scope": "both"}
+            ''',
+        )
+
+        _load(addons_dir)
+
+        assert addon_registry.get(name)["scope"] == "both"
+        assert name in main._loaded_addons
+
     def test_an_addon_that_raises_on_import_does_not_stop_the_others(
         self, addons_dir
     ):
