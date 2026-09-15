@@ -109,6 +109,10 @@ navigation, so it can be read against the new drive's contents.
 
 ## Addons
 
+**A search scope passed as a new object on every render re-renders without end.** `useSearchScope` updates provider state, so a component that also reads the active scope and builds its scope inline loops. Keep the scope object stable (`useMemo`).
+
+**The search modal left open across a drive change offers the previous drive's recent search terms** in its empty state until it is closed.
+
 **All notes cuts a deep folder's own name off.** Rail labels truncate from the end, so `Knowledge/docs/superpowers/specs` can show only its parent path.
 
 **A tag with a non-ASCII capital lists nothing when chosen.** The rail counts `Übung` but the list filter lowercases with SQLite's ASCII-only `lower()`, so choosing it shows no notes.
