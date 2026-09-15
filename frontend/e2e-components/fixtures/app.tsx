@@ -14,6 +14,8 @@ import { AddButton } from "@/components/AddButton";
 import { ContextMenu } from "@/components/ContextMenu";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import enMessages from "@/messages-core/en.json";
+import jaMessages from "@/messages-core/ja.json";
+import { QuickNotePresenter } from "@/components/quick-note/QuickNotePresenter";
 import {
   MobileInspectorSheet,
   SHEET_STATE_HALF,
@@ -652,6 +654,54 @@ function AddMenu(): ReactElement {
   );
 }
 
+/** The panel as it rests with text typed and the destination collapsed. */
+function QuickNoteFooter({ locale }: { locale: "en" | "ja" }): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale={locale} messages={locale === "ja" ? jaMessages : enMessages}>
+      <QuickNotePresenter
+        open
+        onOpen={noop}
+        triggerRef={{ current: null }}
+        dialogRef={{ current: null }}
+        onDialogKeyDown={noop}
+        body="note"
+        onBodyChange={noop}
+        filename="note.md"
+        bodyRef={{ current: null }}
+        drives={["fixture"]}
+        drive="fixture"
+        onDriveChange={noop}
+        folder="Inbox"
+        onFolderChange={noop}
+        destinationOpen={false}
+        onToggleDestination={noop}
+        drivesLoading={false}
+        drivesFailed={false}
+        onReloadDrives={noop}
+        canSave
+        submitting={null}
+        error={null}
+        onSave={noop}
+        onSaveAndOpen={noop}
+        onRequestClose={noop}
+        discardOpen={false}
+        discardRef={{ current: null }}
+        onConfirmDiscard={noop}
+        onCancelDiscard={noop}
+      />
+    </NextIntlClientProvider>
+  );
+}
+
+function QuickNoteFooterJa(): ReactElement {
+  return <QuickNoteFooter locale="ja" />;
+}
+
+function QuickNoteFooterEn(): ReactElement {
+  return <QuickNoteFooter locale="en" />;
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   plain: Plain,
   "bottom-bar": BottomBar,
@@ -677,6 +727,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "measured-tree-pane": TreePaneColumn,
   "measured-picker-in-dialog": PickerInDialog,
   "add-menu": AddMenu,
+  "quick-note-footer-ja": QuickNoteFooterJa,
+  "quick-note-footer-en": QuickNoteFooterEn,
 };
 
 function App(): ReactElement {

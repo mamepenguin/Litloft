@@ -234,14 +234,14 @@ export function QuickNotePresenter({
         </div>
 
         <div
-          className="flex items-center justify-between gap-2 border-t border-bg-border px-5 py-3"
+          className="flex flex-wrap items-center justify-between gap-2 border-t border-bg-border px-5 py-3"
           inert={discardOpen}
         >
-          <Button variant="ghost" onClick={onSaveAndOpen} disabled={!canSave}>
+          <Button variant="ghost" className="shrink-0" onClick={onSaveAndOpen} disabled={!canSave}>
             <PenLine size={14} strokeWidth={1.8} aria-hidden="true" />
             {submitting === "open" ? t("saving") : t("saveAndOpen")}
           </Button>
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={onRequestClose}
