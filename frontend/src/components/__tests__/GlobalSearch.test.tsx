@@ -286,6 +286,18 @@ describe("GlobalSearch", () => {
     expect(inputs.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("does not focus the input after unmounting before focus is due", () => {
+    const { unmount } = render(<GlobalSearch />);
+    fireEvent.click(screen.getByLabelText("Search"));
+    unmount();
+    const matchMedia = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
+    matchMedia.mockClear();
+
+    vi.advanceTimersByTime(1000);
+
+    expect(matchMedia).not.toHaveBeenCalled();
+  });
+
   it("shows placeholder with drive name", () => {
     render(<GlobalSearch />);
     fireEvent.click(screen.getByLabelText("Search"));
