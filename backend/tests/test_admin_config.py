@@ -1161,3 +1161,76 @@ def test_put_passwords_no_auth_required_during_first_run(tmp_path, monkeypatch):
         bad_pwds = [{"password": "p1", "groups": ["g1"]}]
         resp = c.put("/api/admin/config/passwords", json=bad_pwds)
         assert resp.status_code == 200, resp.text
+
+
+@pytest.mark.parametrize(
+    ("method", "url", "body"),
+    [
+        ("put", "/api/admin/config/passwords", lambda groups: [{"password": "new-pw", "groups": groups}]),
+        ("post", "/api/admin/config/passwords/append", lambda groups: {"password": "new-pw", "groups": groups}),
+    ],
+    ids=["put", "append"],
+)
+def test_passwords_accept_the_admin_sentinel_group(admin_client, method, url, body):
+    import app.auth as auth
+
+    c, ctx = admin_client
+    groups = ["g1", auth.ADMIN_SENTINEL_GROUP]
+    resp = getattr(c, method)(url, json=body(groups))
+    assert resp.status_code == 200, resp.text
+    on_disk = json.loads(ctx["passwords_json"].read_text())
+    assert {"password": "new-pw", "groups": groups} in on_disk
+
+
+@pytest.mark.parametrize(
+    ("method", "url", "body"),
+    [
+        ("put", "/api/admin/config/passwords", lambda groups: [{"password": "new-pw", "groups": groups}]),
+        ("post", "/api/admin/config/passwords/append", lambda groups: {"password": "new-pw", "groups": groups}),
+    ],
+    ids=["put", "append"],
+)
+def test_passwords_still_reject_an_undeclared_group_beside_the_sentinel(
+    admin_client, method, url, body
+):
+    import app.auth as auth
+
+    c, ctx = admin_client
+    before = ctx["passwords_json"].read_text()
+    resp = getattr(c, method)(url, json=body([auth.ADMIN_SENTINEL_GROUP, "nope"]))
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["detail"]["code"] == "unknown_group"
+    assert ctx["passwords_json"].read_text() == before
+
+
+def test_protected_first_run_as_the_wizard_sends_it(tmp_path, monkeypatch):
+    mount_root = _first_run_seed_env(tmp_path, monkeypatch, [("media", None)])
+
+    from app.main import app
+
+    with TestClient(app) as c:
+        drives = c.get("/api/admin/config/setup-status").json()["drives"]
+        assert [d["name"] for d in drives] == ["media"]
+
+        resp = c.put(
+            "/api/admin/config/drives",
+            json=[{"name": "media", "path": f"{mount_root}/media", "access_group": "family"}],
+        )
+        assert resp.status_code == 200, resp.text
+        resp = c.put(
+            "/api/admin/config/passwords",
+            json=[{"password": "family-pw", "groups": ["family", "__admin__"]}],
+        )
+        assert resp.status_code == 200, resp.text
+        resp = c.put("/api/admin/config/addon-policy", json={})
+        assert resp.status_code == 200, resp.text
+        resp = c.post("/api/admin/config/complete-setup")
+        assert resp.status_code == 200, resp.text
+
+        assert c.get("/api/drives/media/summary").status_code == 404
+        assert c.get("/api/admin/config/drives").status_code == 403
+
+        resp = c.post("/api/auth/unlock", json={"password": "family-pw", "remember": False})
+        assert resp.status_code == 200, resp.text
+        assert c.get("/api/drives/media/summary").status_code == 200
+        assert c.get("/api/admin/config/drives").status_code == 200

@@ -512,11 +512,21 @@ describe("SetupWizard addon choices across drive edits", () => {
     withAddons({
       "PUT /api/admin/config/passwords": () =>
         Promise.resolve(
-          jsonResponse({ detail: { code: "json_syntax", message: "passwords entry is invalid" } }, 422),
+          jsonResponse(
+            {
+              detail: {
+                code: "unknown_group",
+                message: "group 'family' is not declared by any drive's access_group",
+                field: "groups",
+              },
+            },
+            422,
+          ),
         ),
     });
     render(<SetupWizard />);
     await reachDriveStep();
+    fireEvent.change(screen.getAllByLabelText(/^group/i)[0], { target: { value: "family" } });
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
     fireEvent.click(screen.getByLabelText(/password protected/i));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
@@ -528,10 +538,41 @@ describe("SetupWizard addon choices across drive edits", () => {
     fireEvent.click(screen.getByRole("button", { name: /skip/i }));
     fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
 
-    expect(await screen.findByText("passwords entry is invalid")).toBeInTheDocument();
+    expect(
+      await screen.findByText("group 'family' is not declared by any drive's access_group"),
+    ).toBeInTheDocument();
     expect(urlsCalled()).not.toContain("/api/admin/config/addon-policy");
     expect(urlsCalled()).not.toContain("/api/admin/config/complete-setup");
     expect(pushMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("SetupWizard protected first run", () => {
+  it("saves drives first, then the entered password with its groups and the admin group once", async () => {
+    render(<SetupWizard />);
+    await reachDriveStep();
+    fireEvent.change(screen.getAllByLabelText(/^group/i)[0], { target: { value: "family" } });
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/password protected/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.change(await screen.findByLabelText(/^password/i), {
+      target: { value: "correct horse battery" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /skip/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    const puts = mockFetch.mock.calls.filter(
+      ([, opts]) => (opts as RequestInit)?.method === "PUT",
+    );
+    const drivesAt = puts.findIndex(([url]) => url === "/api/admin/config/drives");
+    const passwordsAt = puts.findIndex(([url]) => url === "/api/admin/config/passwords");
+    expect(drivesAt).toBeGreaterThanOrEqual(0);
+    expect(passwordsAt).toBeGreaterThan(drivesAt);
+    expect(JSON.parse((puts[passwordsAt][1] as RequestInit).body as string)).toEqual([
+      { password: "correct horse battery", groups: ["family", "__admin__"] },
+    ]);
   });
 });
 
