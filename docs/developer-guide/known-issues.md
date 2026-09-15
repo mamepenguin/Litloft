@@ -40,8 +40,6 @@ prompt defaults to no.
 
 **The Related tab does not follow a save made in place.** After editing a note's links on its own page, the tab keeps the previous lists until the page is opened again.
 
-**The Related tab's "See connections as a graph" link is small on a phone.** It is 13px text with a 21px-high hit area at 390px.
-
 **A relation recorded before relation origins existed disappears when its target note is saved first.** A backlink from note Y to note X that predates the upgrade is removed by X's first save and reappears on Y's next save. Rows written after the upgrade are not affected.
 
 **Such a relation, when its note still links it, can move to the top of Related files on the first save.** A pre-origin `(source, note)` row the note cites is replaced by the note's own row, with a new creation time.
@@ -116,19 +114,9 @@ Reached only by keyboard.
 
 **A search scope passed as a new object on every render re-renders without end.** `useSearchScope` updates provider state, so a component that also reads the active scope and builds its scope inline loops. Keep the scope object stable (`useMemo`).
 
-**All notes cuts a deep folder's own name off.** Rail labels truncate from the end, so `Knowledge/docs/superpowers/specs` can show only its parent path.
-
 **A tag with a non-ASCII capital lists nothing when chosen.** The rail counts `Übung` but the list filter lowercases with SQLite's ASCII-only `lower()`, so choosing it shows no notes.
 
 **While searching within All notes, the rail's counts ignore the search.** They count the folder's notes, not the matches.
-
-**The All notes tag removal link is announced without the tag text shown.** Its accessible name replaces the visible `#tag`, and after it is pressed focus falls back to the page.
-
-**Notes search highlights the wrong letters when a title contains a character whose lowercase form is longer.** A title such as `İstanbul ai` searched for `ai` marks `a` and `i` one position early. Match positions are taken from the lowercased string.
-
-**Continue writing cards show the change date, in a different format from the rows below.** A card reads `09/02` where the row reads `9月2日`, and it is when the note last changed, not when it was last opened.
-
-**The Notes page keeps the day it was opened.** Left open past midnight, today's notes stay under Today and the times keep the old day's format until the page is reloaded.
 
 **`configure.py` checks out every empty addon submodule without asking.**
 `ensure_submodules_initialized` runs `git submodule update --init --recursive`
@@ -204,11 +192,6 @@ close.** Opened while the drive's `editor` setting is still loading, on a drive
 where `editor` turns out to be off, the dialog disappears and an empty menu
 remains that neither an outside tap nor Escape closes. Pressing [...] again
 closes it.
-
-**Notes' All notes and search results can list the same note twice.** If a note
-is added or updated in another tab before **Show more** is pressed, the next page
-is taken from a list that has shifted, and a note already shown appears again.
-Reloading the page clears it.
 
 **A clip dialog opened on the Notes landing stays open, hidden, after the browser's
 back or forward moves to search results or All notes.** This applies to the
