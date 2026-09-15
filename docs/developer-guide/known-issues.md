@@ -36,6 +36,12 @@ prompt defaults to no.
 
 ## Files
 
+**A relation recorded before relation origins existed disappears when its target note is saved first.** A backlink from note Y to note X that predates the upgrade is removed by X's first save and reappears on Y's next save. Rows written after the upgrade are not affected.
+
+**Such a relation, when its note still links it, can move to the top of Related files on the first save.** A pre-origin `(source, note)` row the note cites is replaced by the note's own row, with a new creation time.
+
+**An addon deleting its own relation hides a link the note still has.** If `DELETE /api/internal/file_relations/{id}` removes an `internal` (N, T) row while N links T, the link is not listed until N is saved again; posting (N, T) after the link exists returns 409.
+
 **Copying a file onto a name whose thumbnail slot is owned by a different file
 swaps that file's picture.** Slots are keyed by stem, so pasting `a.mp4` next to
 an existing `a.png` makes `a.png` show the video's frame, and purging the copy

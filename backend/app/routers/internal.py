@@ -13,6 +13,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 import app.config as config
+from app.services.markdown_relations import INTERNAL_ORIGIN
 from app.auth import filter_drives, get_unlocked_groups
 from app.database import get_db
 from app.models import (
@@ -613,6 +614,7 @@ def create_file_relation(
         file_id_b=body.file_id_b,
         kind=body.kind,
         created_by=body.viewer_id,
+        origin=INTERNAL_ORIGIN,
     )
     db.add(rel)
     try:

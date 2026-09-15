@@ -87,7 +87,7 @@ See [intelligence addon → auto-tags](../addons/intelligence.md#auto-tags).
 
 A *file relation* is a typed link between two files in the same drive: `(file_a, file_b, kind)`.
 
-- `kind` is an opaque lowercase slug (up to 32 characters), validated by shape rather than against a fixed list, so addons can introduce their own kinds without a core change. In practice everything shipped today writes `related` — the core's Markdown link sync and the knowledge addon's note promotion both use it.
+- `kind` is an opaque lowercase slug (up to 32 characters), validated by shape rather than against a fixed list, so addons can introduce their own kinds without a core change. In practice everything shipped today writes `related`, through the core's Markdown link sync.
 - Relations are **bidirectional in queries**. Looking up relations of file X returns rows where X is in either column.
 - The same pair cannot carry the same `kind` twice, and a file cannot relate to itself.
 - Both ends of a relation must be in the same drive; cross-drive links return `400 Bad Request`.
@@ -95,18 +95,21 @@ A *file relation* is a typed link between two files in the same drive: `(file_a,
 
 ### Markdown-derived relations
 
-For `.md` files, the backend extracts the links in the body and synchronises them into the relations table on every save, as `kind = related`. Two link forms count:
+For `.md` files, the backend extracts the links in the note and synchronises them into the relations table when the file is created and on every save, as `kind = related`, with the note as `file_a`. Three references count:
 
 - `loft://<file_id>` — a direct reference to a Litloft file.
 - `[[wiki links]]` — resolved against Markdown files in the same drive.
+- `source_file_ids` in the frontmatter — the files a note cites.
 
 The sync is a full reconciliation, not an append: links you remove from the note lose their relation too. So a Markdown note that links to other Litloft files automatically populates that file's *Related files* section, and vice versa.
+
+A note reconciles only the relations its own links wrote. Saving the file on the receiving end of a link never removes it, and neither does the sync remove a relation an addon created through the Internal API. Two notes that link to each other keep one relation per direction.
 
 Like the tag projection, this runs in its own commit — a failure to resolve links never rolls back the content write.
 
 ### Where relations show up
 
-The file detail page has a **Related files** section listing every relation, in both directions, newest first, with a count in the heading. Trashed files drop out of the list; missing files stay, greyed out and labelled, so the link is not silently forgotten while a drive is unmounted.
+The file detail page has a **Related files** section listing every relation, in both directions, newest first, with a count in the heading. A file related in both directions appears once. Trashed files drop out of the list; missing files stay, greyed out and labelled, so the link is not silently forgotten while a drive is unmounted.
 
 The section hides itself entirely when a file has no relations.
 
