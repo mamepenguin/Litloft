@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, within } from "@testing-library/react";
 import { useState } from "react";
 
 import { FileDetailContent } from "../../FileDetailContent";
@@ -10,6 +10,7 @@ import {
   makeFile,
   overlaySidebarSpy,
   relationMocks,
+  withRelations,
   setApiResponses,
   setViewport,
   usePolicyMock,
@@ -294,6 +295,34 @@ describe("FileDetailContent", () => {
       };
       expect(lastProps.miniPlayerRoot).toBe(main);
     });
+  });
+
+  it("lists the Related tab in a Markdown note's inspector when the note has a relation", async () => {
+    withRelations(2);
+    setApiResponses(
+      makeFile({ file_type: "document", mime_type: "text/markdown", filename: "note.md" }),
+    );
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await loaded();
+
+    const inspector = screen.getByTestId("md-inspector");
+    expect(
+      within(inspector).getAllByRole("tab").map((tab) => tab.textContent),
+    ).toEqual(["Info", "Related"]);
+    const panel = within(inspector).getByTestId("related-panel");
+    expect(panel).toHaveAttribute("data-count", "2");
+    expect(document.getElementById("inspector-panel-info")).not.toContainElement(panel);
+  });
+
+  it("lists no Related tab in a Markdown note's inspector with no relation and no derived source", async () => {
+    setApiResponses(
+      makeFile({ file_type: "document", mime_type: "text/markdown", filename: "note.md" }),
+    );
+    render(<FileDetailContent fileId="f1" drive="work" />);
+    await loaded();
+
+    expect(screen.queryAllByRole("tab")).toEqual([]);
+    expect(screen.queryByTestId("related-panel")).toBeNull();
   });
 
   it("renders MarkdownDocumentLayout when mime=text/markdown and policy is enabled", async () => {

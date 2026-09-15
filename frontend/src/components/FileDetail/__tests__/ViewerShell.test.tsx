@@ -290,6 +290,28 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
 });
 
 
+describe.each([
+  ["a PDF", PDF],
+  ["an image", IMAGE],
+  ["a plain text file", TEXT],
+])("the Related tab on %s", (_name, kind) => {
+  it("is listed after Info when the file has a relation", async () => {
+    withRelations(1);
+    await renderKind(kind);
+
+    expect(tabs()).toEqual(["Info", "Related"]);
+    const info = document.getElementById("inspector-panel-info")!;
+    expect(info).not.toContainElement(screen.getByTestId("related-panel"));
+  });
+
+  it("is not listed with no relation and no derived source", async () => {
+    await renderKind(kind);
+
+    expect(tabs()).not.toContain("Related");
+    expect(screen.queryByTestId("related-panel")).toBeNull();
+  });
+});
+
 describe("the PDF's page-list tab", () => {
   const renderPdf = async (state: NonNullable<typeof publishedPdfState.value>) => {
     publishedPdfState.value = state;
