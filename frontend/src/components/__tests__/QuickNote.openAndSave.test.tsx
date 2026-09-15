@@ -401,6 +401,86 @@ describe("useQuickNote().open", () => {
     await waitFor(() => expect(screen.getByText("notes / Projects")).toBeInTheDocument());
   });
 
+  describe("a drive list that arrives after its opening closed", () => {
+    function deferredDriveLists() {
+      const pending: Array<(names: string[]) => void> = [];
+      mockGetDrives.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            pending.push((names) => resolve(drivesOf(...names)));
+          }),
+      );
+      return pending;
+    }
+
+    async function closeEmpty() {
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    }
+
+    it("does not decide the next header opening's drive", async () => {
+      const pending = deferredDriveLists();
+      renderWithOpener();
+      await openFromHeader();
+      await closeEmpty();
+      driveState.current = "notes";
+      await openFromHeader();
+
+      await act(async () => pending[0]!(["photos"]));
+      await act(async () => pending[1]!(["photos", "notes"]));
+      expect(screen.getByRole("button", { name: /Destination/ })).toHaveTextContent(
+        "notes / Inbox",
+      );
+    });
+
+    it("does not stop the next opening preselecting its requested drive", async () => {
+      const pending = deferredDriveLists();
+      renderWithOpener({ drive: "notes", folder: "Projects" });
+      await openFromHeader();
+      await closeEmpty();
+      await openFromPage();
+
+      await act(async () => pending[0]!(["photos"]));
+      await act(async () => pending[1]!(["photos", "notes"]));
+      expect(screen.getByRole("button", { name: /Destination/ })).toHaveTextContent(
+        "notes / Projects",
+      );
+    });
+
+    it("does not replace the next opening's destination when it lands last", async () => {
+      const pending = deferredDriveLists();
+      renderWithOpener({ drive: "notes", folder: "Projects" });
+      await openFromHeader();
+      await closeEmpty();
+      await openFromPage();
+
+      await act(async () => pending[1]!(["photos", "notes"]));
+      await act(async () => pending[0]!(["photos"]));
+      expect(screen.getByRole("button", { name: /Destination/ })).toHaveTextContent(
+        "notes / Projects",
+      );
+    });
+
+    it("does not mark the next opening's list as failed or loaded", async () => {
+      const pending: Array<{ resolve: (v: unknown) => void; reject: (e: unknown) => void }> = [];
+      mockGetDrives.mockImplementation(
+        () => new Promise((resolve, reject) => pending.push({ resolve, reject })),
+      );
+      renderWithOpener();
+      await openFromHeader();
+      await closeEmpty();
+      await openFromHeader();
+      typeBody("waiting for the list");
+
+      await act(async () => pending[0]!.reject(new Error("API error: 500 boom")));
+      expect(screen.queryByText("Could not load drives.")).not.toBeInTheDocument();
+      expect(saveButton()).toBeDisabled();
+
+      await act(async () => pending[1]!.resolve(drivesOf("photos")));
+      expect(saveButton()).toBeEnabled();
+    });
+  });
+
   it("returns focus to the control that opened it", async () => {
     renderWithOpener({ drive: "photos" });
     const opener = screen.getByRole("button", { name: "open-from-page" });

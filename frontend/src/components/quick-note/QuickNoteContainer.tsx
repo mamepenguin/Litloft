@@ -115,10 +115,13 @@ export function QuickNoteContainer() {
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
-  // The destination a caller asked for, and whether this opening has yet
-  // been resolved against a confirmed drive list. Both last for one opening.
-  const requestRef = useRef<QuickNoteOpenOptions | null>(null);
-  const unresolvedRef = useRef(false);
+  // A drive-list response applies only to the opening that requested it, so
+  // a slow response from a closed opening cannot decide the next one.
+  const openingRef = useRef<{ id: number; request: QuickNoteOpenOptions | null }>({
+    id: 0,
+    request: null,
+  });
+  const resolvedOpeningRef = useRef<number | null>(null);
   // Latched separately from `submitting` so two synchronous invocations
   // (double click, or click plus Cmd+Enter) cannot both open a request.
   const inFlightRef = useRef(false);
@@ -140,12 +143,15 @@ export function QuickNoteContainer() {
    * still in the response.
    */
   const loadDrives = useCallback(async () => {
+    const opening = openingRef.current;
+    const isCurrent = () => openingRef.current === opening;
     setDrivesLoading(true);
     setDrivesFailed(false);
     try {
       const names = (await getDrives()).map((d) => d.name);
-      const reresolve = unresolvedRef.current;
-      unresolvedRef.current = false;
+      if (!isCurrent()) return;
+      const reresolve = resolvedOpeningRef.current !== opening.id;
+      resolvedOpeningRef.current = opening.id;
       setDrives(names);
       setDestination((previous) => {
         if (!reresolve && previous.drive && names.includes(previous.drive)) {
@@ -154,7 +160,7 @@ export function QuickNoteContainer() {
         // A fresh open also re-reads the folder preference, so a folder that
         // was picked but never saved successfully does not carry over.
         return (
-          requestedDestination(requestRef.current, names) ??
+          requestedDestination(opening.request, names) ??
           destinationFor(
             resolveQuickNoteDrive({
               currentDrive: currentDriveRef.current,
@@ -165,21 +171,21 @@ export function QuickNoteContainer() {
         );
       });
     } catch {
+      if (!isCurrent()) return;
       // The list could not be confirmed. Keep whatever is selected on screen
       // but treat the destination as unverified — `canSave` refuses to write
       // to a drive this session has not seen in an accessible-drive response.
       setDrives([]);
       setDrivesFailed(true);
     } finally {
-      setDrivesLoading(false);
+      if (isCurrent()) setDrivesLoading(false);
     }
   }, []);
 
   const openPanel = useCallback((options?: QuickNoteOpenOptions) => {
     if (openRef.current) return;
     openRef.current = true;
-    requestRef.current = options ?? null;
-    unresolvedRef.current = true;
+    openingRef.current = { id: openingRef.current.id + 1, request: options ?? null };
     const active = document.activeElement;
     openerRef.current =
       active instanceof HTMLElement && active !== document.body ? active : null;
