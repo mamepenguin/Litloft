@@ -164,17 +164,16 @@ keeps only the last event, so when another live update arrives at almost the sam
 moment the ready or failed toast is sometimes not shown. The clip is still created
 and appears on the Notes page.
 
-**Clip web page from Add is silent when closed before the request is accepted.**
-Closing the dialog while the submit is still waiting for its response, when that
-request then fails (for example a refused URL's 400), reports nothing. No clip is
-created.
+**Clip web page from Add is silent when closed before the duplicate lookup answers.**
+Pressing Clip and closing the dialog before `GET /clips?url=` returns clips nothing
+and reports nothing.
 
-**A Web Clip whose article could not be written sends no live update.** When
-writing the fetched content over the placeholder fails (412 because the file
-changed mid-fetch, 401, and so on), the job is marked failed but no
-`knowledge.clip.failed` event is published. Neither the Add menu's toast nor an
-open Notes page hears it; reopening the Notes page shows the clip as
-failed.
+**A Web Clip picked up again after a restart sends no live update when it fails.**
+A reclaimed job carries no drive, so no `knowledge.clip.failed` event is published;
+reopening the Notes page shows it as failed.
+
+**Open existing in the Notes page's duplicate notice goes nowhere.** It closes the
+notice without opening the earlier clip. The Add menu's notice opens it.
 
 **A clip whose article was written can still show as failed.** If writing to the
 knowledge database fails right after the article body is written (a SQLite lock,
@@ -187,12 +186,6 @@ where `editor` turns out to be off, the dialog disappears and an empty menu
 remains that neither an outside tap nor Escape closes. Pressing [...] again
 closes it.
 
-**A clip dialog opened on the Notes landing stays open, hidden, after the browser's
-back or forward moves to search results or All notes.** This applies to the
-bookmarklet instructions, the HTML paste form and the duplicate notice. The first
-Escape there does nothing visible, and going back to the landing shows the dialog
-still open.
-
 **Composer: pasting a channel or playlist URL and pressing Enter before its
 classification finishes (about 400 ms) imports it as a single loft instead of
 subscribing.** The Import from URL dialog classifies on submit and is not
@@ -204,8 +197,3 @@ new drive's catalogue arrives, so an addon turned off on the new drive (Home's
 Pickup, for example) can draw for a frame or more there, and may call its API
 for that drive. The proxy's `pre_check` should answer those calls with 404; that
 has not been measured. The sidebar's addon rows do not do this.
-
-**Re-sending a Web Clip whose earlier attempt failed offers to open the failed
-placeholder.** `GET /clips?url=` returns failed jobs too, so the duplicate notice
-appears and its "open existing" goes to the placeholder file the failed job left.
-Reached from the bookmarklet and from the Notes page's form alike.
