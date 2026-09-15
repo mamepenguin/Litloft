@@ -101,6 +101,12 @@ navigation, so it can be read against the new drive's contents.
 
 ## Addons
 
+**Notes search highlights the wrong letters when a title contains a character whose lowercase form is longer.** A title such as `İstanbul ai` searched for `ai` marks `a` and `i` one position early. Match positions are taken from the lowercased string.
+
+**Continue writing cards show the change date, in a different format from the rows below.** A card reads `09/02` where the row reads `9月2日`, and it is when the note last changed, not when it was last opened.
+
+**The Notes page keeps the day it was opened.** Left open past midnight, today's notes stay under Today and the times keep the old day's format until the page is reloaded.
+
 **`configure.py` checks out every empty addon submodule without asking.**
 `ensure_submodules_initialized` runs `git submodule update --init --recursive`
 whenever an addon directory under `addons/` is empty, so leaving an in-process
