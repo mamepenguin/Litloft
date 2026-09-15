@@ -121,7 +121,7 @@ Two notes that link to each other each show the other under both *Links from* an
 
 Each row opens the related file. It shows the file's title and its folder (or *Drive root*); videos, audio and images that have a thumbnail show it, with the length for video and audio. Trashed files drop out of the lists; missing files stay, greyed out and labelled, so the link is not silently forgotten while a drive is unmounted.
 
-Addon entries follow the lists: Intelligence's **Similar files**, collapsed until you open it, and on Markdown and text files Knowledge's **See connections as a graph** link.
+Addon entries follow the lists: Intelligence's **Similar files**, collapsed until you open it, and on Markdown and text files Knowledge's **See connections as a graph** link, which opens the graph centred on this file.
 
 While a collection is playing there is no inspector, so the same lists appear under a **Related** heading below the player.
 
