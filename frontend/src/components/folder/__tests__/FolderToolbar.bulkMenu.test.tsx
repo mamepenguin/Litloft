@@ -4,6 +4,19 @@ import { render, screen, fireEvent, cleanup, act } from "@testing-library/react"
 import { FolderToolbar, BULK_ACTIONS_MENU_SLOT } from "../FolderToolbar";
 import { ADD_MENU_SLOT } from "@/components/AddButton";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+import { useShortcuts } from "@/hooks/useShortcuts";
+
+/** A layer beneath the toolbar that wants Escape, like the phone sidebar drawer. */
+function EscapeLayer({ onEscape }: { onEscape: () => void }) {
+  useShortcuts(
+    "test-layer",
+    "Dialog",
+    [{ key: "escape", label: "Close", editingOnly: false, hidden: true, handler: onEscape }],
+    true,
+    0,
+  );
+  return null;
+}
 
 const declared = new Set<string>();
 /** What the `…` slot draws: rows, nothing, or a row that raises a portalled dialog. */
@@ -203,6 +216,48 @@ describe("FolderToolbar's … menu as a host for bulk actions", () => {
     expect(menu()).not.toBeInTheDocument();
   });
 
+  it("leaves Escape to the layer beneath while the menu is closed", () => {
+    const onEscape = vi.fn();
+    render(
+      <ShortcutsProvider>
+        <EscapeLayer onEscape={onEscape} />
+        <FolderToolbar {...baseProps} />
+      </ShortcutsProvider>,
+    );
+    escapeOn(document.body);
+    expect(onEscape).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Escape from a layer that registers after the menu opened", () => {
+    const onEscape = vi.fn();
+    function Harness({ late }: { late: boolean }) {
+      return (
+        <ShortcutsProvider>
+          <FolderToolbar {...baseProps} />
+          {late && <EscapeLayer onEscape={onEscape} />}
+        </ShortcutsProvider>
+      );
+    }
+    const { rerender } = render(<Harness late={false} />);
+    openMore(screen.getByRole("button", { name: "More actions" }));
+    rerender(<Harness late />);
+    escapeOn(document.body);
+    expect(menu()).not.toBeInTheDocument();
+    expect(onEscape).not.toHaveBeenCalled();
+  });
+
+  it("answers an Escape in the New Folder field once, from the field", () => {
+    const onSetCreatingFolder = vi.fn();
+    const trigger = renderToolbar({ creatingFolder: true, onSetCreatingFolder });
+    openMore(trigger);
+    const field = screen.getAllByRole("textbox")[0];
+    field.focus();
+    escapeOn(field);
+    expect(onSetCreatingFolder).toHaveBeenCalledWith(false);
+    expect(menu()).toBeInTheDocument();
+    expect(document.activeElement).toBe(field);
+  });
+
   describe("an entry's dialog", () => {
     const openDialog = () => {
       draws.current = "dialog";
@@ -239,6 +294,31 @@ describe("FolderToolbar's … menu as a host for bulk actions", () => {
       escapeOn(screen.getByText("open dialog"));
       expect(menu()).not.toBeInTheDocument();
       expect(trigger).toHaveFocus();
+    });
+
+    it("lets Escape through to the layer beneath while reported", () => {
+      const onEscape = vi.fn();
+      draws.current = "dialog";
+      render(
+        <ShortcutsProvider>
+          <EscapeLayer onEscape={onEscape} />
+          <FolderToolbar {...baseProps} />
+        </ShortcutsProvider>,
+      );
+      openMore(screen.getByRole("button", { name: "More actions" }));
+      fireEvent.click(screen.getByText("open dialog"));
+      escapeOn(screen.getByLabelText("dialog field"));
+      expect(onEscape).toHaveBeenCalledTimes(1);
+      expect(menu()).toBeInTheDocument();
+    });
+
+    it("does not survive the trigger closing the menu", () => {
+      const trigger = openDialog();
+      fireEvent.click(trigger);
+      expect(menu()).not.toBeInTheDocument();
+      openMore(trigger);
+      escapeOn(trigger);
+      expect(menu()).not.toBeInTheDocument();
     });
 
     it("does not survive the menu closing", () => {

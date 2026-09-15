@@ -185,7 +185,12 @@ export function FolderToolbar({
         onKeyDown={(e) => {
           if (ime.isImeKeystroke(e)) return;
           if (e.key === "Enter") onCreateFolder();
-          if (e.key === "Escape") { onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null); }
+          if (e.key === "Escape") {
+            // A React `onKeyDown` is invisible to the shortcut registry; without
+            // this an open `…` menu answers the same press.
+            e.stopPropagation();
+            onSetCreatingFolder(false); onSetNewFolderName(""); onSetFolderError(null);
+          }
         }}
         placeholder={tf("namePlaceholder")}
         className="min-w-0 flex-1 rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring pointer-coarse:min-h-11 md:w-40 md:flex-initial"
