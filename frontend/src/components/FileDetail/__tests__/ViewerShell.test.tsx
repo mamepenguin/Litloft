@@ -8,12 +8,14 @@ import {
   claimSlot,
   loaded,
   makeFile,
+  publishedArchiveState,
+  publishedPdfState,
+  relationMocks,
   setApiResponses,
+  setViewport,
   slotMocks,
   usePolicyMock,
-  setViewport,
-  publishedPdfState,
-  publishedArchiveState,
+  withRelations,
 } from "./harness";
 
 vi.mock("next/navigation", () => ({
@@ -26,9 +28,16 @@ vi.mock("../../FilePreview", async () => ({
 vi.mock("../../ActiveSummaryHost", async () => ({
   ActiveSummaryHost: (await import("./harness")).ActiveSummaryHostStub,
 }));
-vi.mock("../../RelatedFilesSection", async () => ({
-  RelatedFilesSection: (await import("./harness")).RelatedFilesSectionStub,
+vi.mock("../related/RelatedPanel", async () => ({
+  RelatedPanel: (await import("./harness")).RelatedPanelStub,
 }));
+vi.mock("../related/useFileRelations", async () => ({
+  useFileRelations: (await import("./harness")).useFileRelationsStub,
+}));
+
+beforeEach(() => {
+  relationMocks.value = [];
+});
 vi.mock("../../ExifSection", async () => ({
   ExifSection: (await import("./harness")).ExifSectionStub,
 }));
@@ -219,7 +228,6 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
     expect(row.classList.contains("file-action-row-touch")).toBe(true);
     expect(row.classList.contains("file-action-row-compact")).toBe(false);
     expect(screen.getByTestId("comments")).toBeInTheDocument();
-    expect(screen.getByTestId("related-files")).toBeInTheDocument();
   });
 
   it("draws exactly one page row, with exactly one way back in it", async () => {

@@ -7,6 +7,7 @@ import { vi } from "vitest";
 import { screen } from "@testing-library/react";
 
 import * as api from "@/lib/api";
+import type { FileRelationItem } from "@/lib/api";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import type { SlotEntry } from "@/lib/addons";
 import type { FileItem } from "@/types";
@@ -70,7 +71,42 @@ export const ActiveSummaryHostStub = () => (
   <div data-testid="active-summary-host" />
 );
 
-export const RelatedFilesSectionStub = () => <div data-testid="related-files" />;
+export const relationMocks: { value: FileRelationItem[] | null } = { value: [] };
+
+export const useFileRelationsStub = () => relationMocks.value;
+
+export const RelatedPanelStub = ({
+  relations,
+}: {
+  relations: FileRelationItem[];
+}) => <div data-testid="related-panel" data-count={relations.length} />;
+
+export function withRelations(count = 1) {
+  relationMocks.value = Array.from({ length: count }, (_, i) => ({
+    relation_id: i + 1,
+    kind: "related",
+    direction: "outgoing" as const,
+    origin: "markdown" as const,
+    created_at: "2026-09-15T00:00:00Z",
+    created_by: null,
+    file: {
+      id: `related${i}`.padEnd(12, "x"),
+      drive: "main",
+      filename: `related-${i}.md`,
+      title: `Related ${i}`,
+      folder_path: "",
+      file_type: "document",
+      mime_type: "text/markdown",
+      thumbnail_url: "",
+      has_thumbnail: false,
+      file_size: 1,
+      duration: null,
+      missing_since: null,
+      created_at: "2026-09-15T00:00:00Z",
+      updated_at: "2026-09-15T00:00:00Z",
+    },
+  }));
+}
 
 export const ExifSectionStub = () => <div data-testid="exif" />;
 

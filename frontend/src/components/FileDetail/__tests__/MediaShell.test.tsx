@@ -14,10 +14,12 @@ import {
   claimSlot,
   loaded,
   makeFile,
+  relationMocks,
   setApiResponses,
+  setViewport,
   slotMocks,
   usePolicyMock,
-  setViewport,
+  withRelations,
 } from "./harness";
 
 vi.mock("next/navigation", () => ({
@@ -30,9 +32,16 @@ vi.mock("../../FilePreview", async () => ({
 vi.mock("../../ActiveSummaryHost", async () => ({
   ActiveSummaryHost: (await import("./harness")).ActiveSummaryHostStub,
 }));
-vi.mock("../../RelatedFilesSection", async () => ({
-  RelatedFilesSection: (await import("./harness")).RelatedFilesSectionStub,
+vi.mock("../related/RelatedPanel", async () => ({
+  RelatedPanel: (await import("./harness")).RelatedPanelStub,
 }));
+vi.mock("../related/useFileRelations", async () => ({
+  useFileRelations: (await import("./harness")).useFileRelationsStub,
+}));
+
+beforeEach(() => {
+  relationMocks.value = [];
+});
 vi.mock("../../ExifSection", async () => ({
   ExifSection: (await import("./harness")).ExifSectionStub,
 }));
@@ -188,15 +197,56 @@ describe("media on the shell, beside", () => {
     );
   });
 
-  it("draws the addon's derived relations in the Info tab", async () => {
+  it("lists no Related tab for a file with no relation and no derived source", async () => {
     withTranscript();
+    await renderMedia();
+
+    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
+    expect(screen.queryByTestId("related-panel")).toBeNull();
+  });
+
+  it("lists Related after the core tabs and before the addon tabs when the file has a relation", async () => {
+    withTranscript();
+    withRelations(2);
+    await renderMedia();
+
+    expect(tabs()).toEqual(["Info", "Chapters", "Related", "Transcript"]);
+    const panel = screen.getByTestId("related-panel");
+    expect(panel).toHaveAttribute("data-count", "2");
+    expect(
+      document.getElementById("inspector-panel-related"),
+    ).toContainElement(panel);
+  });
+
+  it("lists Related for a file with no relation when an addon publishes to it", async () => {
+    claimSlot("file-relations", [
+      { id: "derived", label: "Derived", priority: 10, addonName: "some-addon" },
+    ]);
+    await renderMedia(makeFile({ has_chapters: false }));
+
+    expect(tabs()).toEqual(["Info", "Related"]);
+    expect(screen.getByTestId("related-panel")).toHaveAttribute("data-count", "0");
+  });
+
+  it("draws no relations in the Info tab", async () => {
+    withRelations(1);
     claimSlot("file-relations", [
       { id: "derived", label: "Derived", priority: 10, addonName: "some-addon" },
     ]);
     await renderMedia();
 
-    expect(screen.getByTestId("addon-slot-file-relations")).toBeInTheDocument();
-    expect(screen.getByTestId("related-files")).toBeInTheDocument();
+    const info = document.getElementById("inspector-panel-info")!;
+    expect(info).not.toContainElement(screen.getByTestId("related-panel"));
+    expect(info.querySelector("[data-testid='addon-slot-file-relations']")).toBeNull();
+    expect(screen.getAllByTestId("related-panel")).toHaveLength(1);
+  });
+
+  it("drops the Related tab while the relations are still unanswered", async () => {
+    relationMocks.value = null;
+    withTranscript();
+    await renderMedia();
+
+    expect(tabs()).toEqual(["Info", "Chapters", "Transcript"]);
   });
 
   it("keeps the beside/below toggle off a phone", async () => {
@@ -486,6 +536,18 @@ describe("media on the shell, on a phone", () => {
     const { container } = await renderMediaAwaitingChrome();
     const main = container.querySelector("main");
     expect(main?.style.paddingBottom).toBe(`${SHEET_PEEK_PX}px`);
+  });
+
+  it("gives the sheet the same tab set, Related included", async () => {
+    withTranscript();
+    withRelations(1);
+    await renderMediaAwaitingChrome();
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    await screen.findByTestId("mobile-inspector-sheet");
+
+    expect(tabs()).toEqual(["Info", "Chapters", "Related", "Transcript"]);
+    expect(screen.getAllByTestId("related-panel")).toHaveLength(1);
   });
 
   it("raises the sheet to half, not straight to full", async () => {

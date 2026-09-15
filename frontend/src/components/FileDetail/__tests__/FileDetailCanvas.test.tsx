@@ -9,9 +9,11 @@ import {
   claimSlot,
   loaded,
   makeFile,
+  relationMocks,
   setApiResponses,
   slotMocks,
   usePolicyMock,
+  withRelations,
 } from "./harness";
 
 // `vi.mock` has to stay in this file because it is hoisted per file.
@@ -22,9 +24,16 @@ vi.mock("../../FilePreview", async () => ({
 vi.mock("../../ActiveSummaryHost", async () => ({
   ActiveSummaryHost: (await import("./harness")).ActiveSummaryHostStub,
 }));
-vi.mock("../../RelatedFilesSection", async () => ({
-  RelatedFilesSection: (await import("./harness")).RelatedFilesSectionStub,
+vi.mock("../related/RelatedPanel", async () => ({
+  RelatedPanel: (await import("./harness")).RelatedPanelStub,
 }));
+vi.mock("../related/useFileRelations", async () => ({
+  useFileRelations: (await import("./harness")).useFileRelationsStub,
+}));
+
+beforeEach(() => {
+  relationMocks.value = [];
+});
 vi.mock("../../ExifSection", async () => ({
   ExifSection: (await import("./harness")).ExifSectionStub,
 }));
@@ -332,20 +341,21 @@ describe("FileDetailContent companion region (collection route)", () => {
 
   it("places the audio companion directly below the player", async () => {
     slotMocks.occupied.add("player-side");
+    withRelations(1);
     const { container } = await renderFile(
       makeFile({ filename: "ep.mp3", file_type: "audio", mime_type: "audio/mpeg" }),
     );
 
     const order = Array.from(
       container.querySelectorAll(
-        "[data-testid='file-preview'], [data-testid='addon-slot-player-side'], [data-testid='related-files']",
+        "[data-testid='file-preview'], [data-testid='addon-slot-player-side'], [data-testid='related-panel']",
       ),
     ).map((el) => el.getAttribute("data-testid"));
 
     expect(order).toEqual([
       "file-preview",
       "addon-slot-player-side",
-      "related-files",
+      "related-panel",
     ]);
   });
 
@@ -662,7 +672,7 @@ describe("FileDetailContent rail width", () => {
   });
 });
 
-describe("the collection route and the Related group", () => {
+describe("the collection route and its relations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
@@ -675,9 +685,18 @@ describe("the collection route and the Related group", () => {
     vi.restoreAllMocks();
   });
 
-  it("reaches an addon's derived relations, which moved out of the other slot", async () => {
-    // An addon publishing to `file-relations` has moved its entry out of
-    // `file-detail-sections`, so a host drawing only the latter loses it.
+  it("draws the relations under one heading, without tabs", async () => {
+    withRelations(2);
+    setApiResponses(makeFile());
+    render(<FileDetailContent fileId="f1" drive="main" surface="collection" />);
+    await loaded();
+
+    expect(screen.getByRole("heading", { level: 2, name: "Related" })).toBeInTheDocument();
+    expect(screen.getByTestId("related-panel")).toHaveAttribute("data-count", "2");
+    expect(screen.queryByTestId("inspector-tabs")).toBeNull();
+  });
+
+  it("reaches an addon's derived relations for a file with none of its own", async () => {
     claimSlot("file-relations", [
       { id: "derived", label: "Derived", priority: 10, addonName: "some-addon" },
     ]);
@@ -685,20 +704,17 @@ describe("the collection route and the Related group", () => {
     render(<FileDetailContent fileId="f1" drive="main" surface="collection" />);
     await loaded();
 
-    expect(screen.getByTestId("addon-slot-file-relations")).toBeInTheDocument();
-    expect(screen.getByTestId("related-files")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 3 })).toBeInTheDocument();
+    expect(screen.getByTestId("related-panel")).toHaveAttribute("data-count", "0");
+    expect(screen.getByRole("heading", { level: 2, name: "Related" })).toBeInTheDocument();
   });
 
-  it("draws no grouping heading where there is nothing to group with", async () => {
-    // Asked of the catalogue and not of the DOM: a derived source may be a
-    // collapsed control that has rendered nothing yet.
+  it("draws nothing where there is nothing related", async () => {
     setApiResponses(makeFile());
     render(<FileDetailContent fileId="f1" drive="main" surface="collection" />);
     await loaded();
 
-    expect(screen.getByTestId("related-files")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { level: 3 })).toBeNull();
+    expect(screen.queryByTestId("related-panel")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Related" })).toBeNull();
   });
 });
 

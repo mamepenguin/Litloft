@@ -9,9 +9,10 @@ import {
   loaded,
   makeFile,
   overlaySidebarSpy,
+  relationMocks,
   setApiResponses,
-  usePolicyMock,
   setViewport,
+  usePolicyMock,
 } from "./harness";
 
 // The stub bodies live in ./harness; `vi.mock` itself has to stay here,
@@ -27,9 +28,16 @@ vi.mock("../../FilePreview", async () => ({
 vi.mock("../../ActiveSummaryHost", async () => ({
   ActiveSummaryHost: (await import("./harness")).ActiveSummaryHostStub,
 }));
-vi.mock("../../RelatedFilesSection", async () => ({
-  RelatedFilesSection: (await import("./harness")).RelatedFilesSectionStub,
+vi.mock("../related/RelatedPanel", async () => ({
+  RelatedPanel: (await import("./harness")).RelatedPanelStub,
 }));
+vi.mock("../related/useFileRelations", async () => ({
+  useFileRelations: (await import("./harness")).useFileRelationsStub,
+}));
+
+beforeEach(() => {
+  relationMocks.value = [];
+});
 vi.mock("../../ExifSection", async () => ({
   ExifSection: (await import("./harness")).ExifSectionStub,
 }));

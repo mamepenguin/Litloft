@@ -96,6 +96,11 @@ export const REQUIRED = [
   ".py-2\\.5 {",
   ".h-8 {",
   ".w-8 {",
+  ".w-14 {",
+  ".line-clamp-2 {",
+  ".wrap-anywhere {",
+  ".gap-x-2 {",
+  ".gap-y-0\\.5 {",
 ];
 /**
  * The compiler that emits this sheet is the compiler that builds the app.

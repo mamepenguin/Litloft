@@ -231,7 +231,8 @@ describe("every card grid goes through lib/cardGrid", () => {
 
 describe("grids that are not card grids", () => {
   it.each([
-    "frontend/src/components/RelatedFilesSection.tsx",
+    "frontend/src/components/FileDetail/related/RelatedPanel.tsx",
+    "frontend/src/components/FileDetail/related/RelatedFileRow.tsx",
     "frontend/src/app/page.tsx",
     "frontend/src/components/archive/ArchiveEntryGrid.tsx",
   ])("%s stays outside the scan's reach", (rel) => {

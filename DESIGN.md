@@ -968,19 +968,33 @@ Info tab. Only the canvas differs, and there are two:
 The companion rail below has the same width for the same reason, not by sharing a
 value; a change to one is not a change to the other.
 
-### The Related group
+### The Related tab
 
-One heading over core's relations and whatever addons derive.
+A core inspector tab after Info and the other core tabs, before addon tabs. It is
+listed when the file has a relation or when any addon publishes to
+`file-relations`; the Info tab draws no relations.
 
-- The heading is drawn **only when there is a second source**.
-- Heading `text-sm font-semibold text-text-muted`; **members a step quieter**,
-  `text-xs font-medium text-text-muted`, no card and no glyph. At section weight a
-  member is as loud as the heading and it reads as two lists.
-- Ungrouped, core's relations are an ordinary section with a card.
-- The members may live in different repositories; these weights are the contract.
-- **The relations list takes a second column at `45rem` of its own width**, never
-  the window's: the same list appears in a narrow rail and in wide stacks. `45rem`
-  is where each of two columns is at least as wide as the rail's single column.
+- **Sections, in order, each omitted when empty**: links from this file
+  (`origin = markdown`, outgoing), links to this file (`origin = markdown`,
+  incoming), related files (every other relation, either direction), then the
+  `file-relations` slot. A counterpart appears once per section.
+- Section label `text-xs font-medium text-text-muted`, the count beside it at
+  `font-normal`; no card and no glyph. Addon entries in the slot use the same
+  weight: the members may live in different repositories, and these weights are
+  the contract.
+- Row: `rounded-xl px-2.5 py-2`, hover `bg-bg-elevated`, opening the counterpart's
+  canonical file URL. Title `text-sm`, two lines at most; folder under it
+  `text-xs text-text-muted`, or the drive root label.
+- Leading mark: a 16px file-type icon, or for video, audio and images with a
+  thumbnail a `56×32` thumbnail (`rounded-lg`, `object-cover`) carrying the
+  duration when the file has one.
+- A missing counterpart stays in the list at `opacity-60` with the "missing" label.
+- **The rows take a second column at `45rem` of the list's own width**, never the
+  window's: the same list appears in the narrow rail and in the collection stack.
+  `45rem` is where each of two columns is at least as wide as the rail's single
+  column.
+- On the collection route, which has no inspector, the same sections sit under one
+  `Related` heading.
 
 ### Companion region (media file detail)
 

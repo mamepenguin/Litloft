@@ -230,12 +230,14 @@ export interface RelatedFileSummary {
   id: string;
   drive: string;
   filename: string;
+  title: string;
   folder_path: string;
   file_type: string;
   mime_type: string;
   thumbnail_url: string;
   has_thumbnail: boolean;
   file_size: number;
+  duration: number | null;
   missing_since: string | null;
   created_at: string;
   updated_at: string;
@@ -244,6 +246,9 @@ export interface RelatedFileSummary {
 export interface FileRelationItem {
   relation_id: number;
   kind: string;
+  direction: "outgoing" | "incoming";
+  /** Direction says who links to whom only for `markdown`. */
+  origin: "markdown" | "internal" | null;
   created_at: string;
   created_by: string | null;
   file: RelatedFileSummary;
