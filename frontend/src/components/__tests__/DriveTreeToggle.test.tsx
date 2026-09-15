@@ -29,7 +29,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(route.search),
 }));
 
-import { FixedTreeToggle } from "../FixedTreeToggle";
+import { DriveTreeToggle } from "../DriveTreeToggle";
 
 const treeToggle = () => screen.queryByRole("button", { name: /tree/i });
 
@@ -41,7 +41,7 @@ beforeEach(() => {
   route.search = "";
 });
 
-describe("the tree toggle beside the menu button", () => {
+describe("the tree toggle for the current drive", () => {
   it.each([
     ["the drive home", "/drive/work", ""],
     ["the Library root", "/drive/work", "view=library"],
@@ -50,7 +50,7 @@ describe("the tree toggle beside the menu button", () => {
   ])("is offered on %s, where the tree pane mounts", (_name, pathname, search) => {
     route.pathname = pathname;
     route.search = search;
-    render(<FixedTreeToggle />);
+    render(<DriveTreeToggle />);
     expect(treeToggle()).not.toBeNull();
   });
 
@@ -63,7 +63,7 @@ describe("the tree toggle beside the menu button", () => {
   ])("is not offered on %s, which has no tree pane", (_name, pathname, search) => {
     route.pathname = pathname;
     route.search = search;
-    render(<FixedTreeToggle />);
+    render(<DriveTreeToggle />);
     expect(treeToggle()).toBeNull();
   });
 
@@ -75,7 +75,7 @@ describe("the tree toggle beside the menu button", () => {
   ])("is offered above md only while a file is open %s", (_name, pathname, search) => {
     route.pathname = pathname;
     route.search = search;
-    render(<FixedTreeToggle />);
+    render(<DriveTreeToggle />);
     const classes = treeToggle()!.className.split(/\s+/);
     expect(classes).toContain("hidden");
     expect(classes).toContain("md:flex");
@@ -83,7 +83,7 @@ describe("the tree toggle beside the menu button", () => {
   });
 
   it("is offered at every width while no file is open", () => {
-    render(<FixedTreeToggle />);
+    render(<DriveTreeToggle />);
     const classes = treeToggle()!.className.split(/\s+/);
     expect(classes).toContain("flex");
     expect(classes).not.toContain("hidden");
@@ -92,28 +92,20 @@ describe("the tree toggle beside the menu button", () => {
   it("is not offered outside a drive", () => {
     route.drive = null;
     route.pathname = "/";
-    render(<FixedTreeToggle />);
+    render(<DriveTreeToggle />);
     expect(treeToggle()).toBeNull();
   });
 
   // The full-screen file page knows its drive but mounts no tree pane.
   it("is not offered on a page outside the drive routes, even with a drive", () => {
     route.pathname = "/files/abc123";
-    render(<FixedTreeToggle />);
+    render(<DriveTreeToggle />);
     expect(treeToggle()).toBeNull();
   });
 
-  // The menu button is `fixed left-3` at the safe-area top + 12, 40px and
-  // rounded-2xl; the toggle takes the same box one button to its right.
-  it("is the menu button's box, one button to its right, at its top", () => {
-    render(<FixedTreeToggle />);
-    const button = treeToggle()!;
-    const classes = button.className.split(/\s+/);
+  it("takes the menu button's box", () => {
+    render(<DriveTreeToggle />);
+    const classes = treeToggle()!.className.split(/\s+/);
     for (const c of ["h-10", "w-10", "rounded-2xl"]) expect(classes).toContain(c);
-    const slot = button.parentElement as HTMLElement;
-    for (const c of ["fixed", "left-[60px]", "z-50"]) expect(slot.className.split(/\s+/)).toContain(c);
-    // jsdom reorders the calc, so the two terms are checked, not the string.
-    expect(slot.style.top).toContain("safe-area-inset-top");
-    expect(slot.style.top).toContain("12px");
   });
 });

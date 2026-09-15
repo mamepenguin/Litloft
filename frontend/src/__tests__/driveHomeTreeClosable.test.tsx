@@ -27,7 +27,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import DriveLayout from "@/app/drive/[name]/layout";
-import { FixedTreeToggle } from "@/components/FixedTreeToggle";
+import { DriveTreeToggle } from "@/components/DriveTreeToggle";
 import { DriveHome } from "@/components/DriveHome";
 import { treeEnabledStore } from "@/lib/treeEnabledStore";
 
@@ -71,7 +71,7 @@ describe("the drive home and the tree pane", () => {
     driveHasTreeOn("media");
     render(
       <>
-        <FixedTreeToggle />
+        <DriveTreeToggle />
         <DriveLayout>
           <DriveHome driveName="media" />
         </DriveLayout>
@@ -86,7 +86,7 @@ describe("the drive home and the tree pane", () => {
     driveHasTreeOn("media");
     render(
       <>
-        <FixedTreeToggle />
+        <DriveTreeToggle />
         <DriveLayout>
           <DriveHome driveName="media" />
         </DriveLayout>

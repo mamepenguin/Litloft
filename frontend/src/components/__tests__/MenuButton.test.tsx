@@ -45,6 +45,12 @@ describe("the sidebar's menu button", () => {
     );
   };
 
+  it("is the tree toggle's box", () => {
+    renderShell(false);
+    const classes = button().className.split(/\s+/);
+    for (const c of ["h-10", "w-10", "rounded-2xl"]) expect(classes).toContain(c);
+  });
+
   it("looks pressed while the sidebar is open", () => {
     renderShell(true);
     expect(button()).toHaveAttribute("aria-pressed", "true");
@@ -82,6 +88,13 @@ describe("the sidebar's menu button", () => {
     );
     const toggle = screen.getByTestId("tree-toggle");
     expect(toggle.getAttribute("data-drive")).toBe("main");
-    expect(toggle.parentElement!.className.split(/\s+/)).toContain("left-[60px]");
+    const row = screen.getByTestId("chrome-buttons");
+    expect([...row.children]).toEqual([button(), toggle]);
+    for (const c of ["fixed", "left-3", "z-50", "flex", "gap-2"]) {
+      expect(row.className.split(/\s+/)).toContain(c);
+    }
+    // jsdom reorders the calc, so the two terms are checked, not the string.
+    expect(row.style.top).toContain("safe-area-inset-top");
+    expect(row.style.top).toContain("12px");
   });
 });
