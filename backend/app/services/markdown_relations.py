@@ -80,6 +80,20 @@ def extract_links(content: str) -> ExtractedLinks:
 MARKDOWN_ORIGIN = "markdown"
 
 
+def direct_reference_ids(content: str, file_id: str) -> set[str]:
+    """File ids named by ``loft://`` links and frontmatter ``source_file_ids``."""
+    ids = set(extract_links(content).loft_ids)
+    try:
+        from app.services.frontmatter import parse as parse_frontmatter
+
+        raw_ids = parse_frontmatter(content).metadata.get("source_file_ids")
+        if isinstance(raw_ids, list):
+            ids |= {item for item in raw_ids if isinstance(item, str) and item}
+    except Exception:
+        pass
+    return ids - {file_id}
+
+
 def sync_markdown_file_relations(
     db: Session,
     file_id: str,
@@ -88,25 +102,11 @@ def sync_markdown_file_relations(
     self_dir: str,
 ) -> list[ResolveDiagnostic]:
     extracted = extract_links(content)
-    loft_ids = {item for item in extracted.loft_ids if item != file_id}
     wiki_ids, diagnostics = resolve_wiki_targets(
         db, drive, self_dir, extracted.wiki_targets
     )
 
-    fm_ids: set[str] = set()
-    try:
-        from app.services.frontmatter import parse as parse_frontmatter
-
-        raw_ids = parse_frontmatter(content).metadata.get("source_file_ids")
-        if isinstance(raw_ids, list):
-            fm_ids = {
-                item for item in raw_ids
-                if isinstance(item, str) and item and item != file_id
-            }
-    except Exception:
-        pass
-
-    requested_ids = (loft_ids | fm_ids) - {file_id}
+    requested_ids = direct_reference_ids(content, file_id)
     valid_direct_ids: set[str] = set()
     if requested_ids:
         rows = (

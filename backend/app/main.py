@@ -21,7 +21,7 @@ from app.models import File
 from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, progress, uploads, ws
 from app.routers import addon_proxy, admin_config, drive_policies, internal, smart_folders
 from app.services.fileops import physical_delete
-from app.services.relation_origin_backfill import backfill_markdown_relation_origin
+from app.services.relation_seed_flip import flip_cited_seed_relations
 from app.services.scanner import scan_all_drives
 from app.services import addon_registry, drive_seed, event_hooks
 from app.services.upload import cleanup_abandoned_uploads
@@ -256,12 +256,12 @@ def _load_addons(app: FastAPI) -> None:
             logger.exception("Failed to load addon: %s", name)
 
 
-def _run_relation_origin_backfill() -> None:
+def _run_relation_seed_flip() -> None:
     db = SessionLocal()
     try:
-        backfill_markdown_relation_origin(db)
+        flip_cited_seed_relations(db)
     except Exception:
-        logger.exception("relation origin backfill failed")
+        logger.exception("relation seed flip failed")
     finally:
         db.close()
 
@@ -302,8 +302,8 @@ async def lifespan(app: FastAPI):
     init_db()
     logger.info("Database initialized")
     # Before any request is served, so no note save can interleave with the
-    # resync of that note.
-    _run_relation_origin_backfill()
+    # flip of that note's rows.
+    _run_relation_seed_flip()
     load_passwords()
     init_jwt_secret()
     logger.info("Auth initialized")
