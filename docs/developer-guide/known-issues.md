@@ -107,6 +107,12 @@ place and "added" in the other.
 switch.** `useInlineRename` clears the message on a timer rather than on
 navigation, so it can be read against the new drive's contents.
 
+**One Escape can close two popups on a folder screen.** With the toolbar's `…`
+or `Add` menu open, moving by keyboard into another popup or field that handles
+Escape itself — the tree pane's type filter, the selection bar's tag input, a
+sidebar collection name — and pressing Escape closes that and the menu together.
+Reached only by keyboard.
+
 ## Addons
 
 **A search scope passed as a new object on every render re-renders without end.** `useSearchScope` updates provider state, so a component that also reads the active scope and builds its scope inline loops. Keep the scope object stable (`useMemo`).
