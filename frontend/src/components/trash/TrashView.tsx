@@ -11,6 +11,7 @@ import { useSelection } from "@/hooks/useSelection";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { Button } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PageFrame } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { SelectionBar } from "@/components/SelectionBar";
@@ -106,23 +107,27 @@ export function TrashView({ driveName }: TrashViewProps) {
   }, []);
 
   return (
-    <div className="min-w-0 w-full flex-1 py-4 sm:py-6">
-      <PageHeader
-        breadcrumb={<Breadcrumb driveName={driveName} driveIsAncestor />}
-        titleIcon={Trash2}
-        title={tt("title")}
-        actions={
-          files.length > 0 ? (
-            <Button variant="danger" onClick={() => setEmptyConfirmOpen(true)}>
-              <Trash2 size={16} />
-              {tt("emptyTrash")}
-            </Button>
-          ) : undefined
-        }
-      />
+    <PageFrame
+      width="full"
+      header={
+        <PageHeader
+          breadcrumb={<Breadcrumb driveName={driveName} driveIsAncestor />}
+          titleIcon={Trash2}
+          title={tt("title")}
+          actions={
+            files.length > 0 ? (
+              <Button variant="danger" onClick={() => setEmptyConfirmOpen(true)}>
+                <Trash2 size={16} />
+                {tt("emptyTrash")}
+              </Button>
+            ) : undefined
+          }
+        />
+      }
+    >
 
       {/* `px-4`, matching PageHeader's own padding. */}
-      <div className="px-4">
+      <div className="px-4 pb-4 sm:pb-6">
       <TrashToolbar
         sort={sort}
         order={order}
@@ -213,6 +218,6 @@ export function TrashView({ driveName }: TrashViewProps) {
           setPurgeTarget(null);
         }}
       />
-    </div>
+    </PageFrame>
   );
 }

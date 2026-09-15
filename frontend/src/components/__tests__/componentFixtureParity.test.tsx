@@ -191,6 +191,11 @@ describe("the component fixture's page", () => {
       (m) => m[1],
     );
     expect(declared).toEqual([
+      "chrome-buttons",
+      "page-frame-full",
+      "page-frame-wide",
+      "page-frame-list",
+      "page-frame-reading",
       "plain",
       "bottom-bar",
       "transformed",

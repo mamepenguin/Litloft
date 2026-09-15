@@ -77,7 +77,7 @@ If `passwords.json` is empty (`[]`) or absent, every viewer is implicitly an adm
 
 ## Moving between drives
 
-The drive you are in is the row at the top of the sidebar, under the Litloft logo. Press it to
+The drive you are in is the first row of the sidebar, under the menu and tree buttons. Press it to
 open the others and pick one. On surfaces that belong to no drive — the root page and
 `/admin` — that row names the list instead, as "Drives (4)", and folds the same way.
 It starts folded, and folds again whenever you arrive somewhere new, so it is

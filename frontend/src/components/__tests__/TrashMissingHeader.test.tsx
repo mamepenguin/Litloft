@@ -68,6 +68,17 @@ beforeEach(() => {
   apiMocks.getMissing.mockResolvedValue({ data: [file("a"), file("b")], meta: { total: 2 } });
 });
 
+describe("the frame", () => {
+  it.each([
+    ["Trash", () => <TrashView driveName="main" />],
+    ["Missing", () => <MissingView driveName="main" />],
+  ])("%s wears a full-width frame", async (_name, view) => {
+    render(view());
+    const heading = await screen.findByRole("heading", { level: 1 });
+    expect(heading.closest("header")!.parentElement?.getAttribute("data-page-frame")).toBe("full");
+  });
+});
+
 describe("Trash header", () => {
   it("offers a way back to the drive", async () => {
     render(<TrashView driveName="main" />);
@@ -93,8 +104,8 @@ describe("Trash header", () => {
     render(<TrashView driveName="main" />);
     const heading = await screen.findByRole("heading", { level: 1 });
     const titleRow = heading.closest("div")!.parentElement!;
-    const icons = [...titleRow.children].filter(
-      (el) => el.tagName === "svg" || el.tagName === "SVG",
+    const icons = [...titleRow.children].flatMap((el) =>
+      [...el.children].filter((c) => c.tagName.toLowerCase() === "svg" && !c.closest("button")),
     );
     expect(icons).toHaveLength(1);
   });

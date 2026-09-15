@@ -153,7 +153,6 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
               folderPath={file.folder_path}
               title={file.title || file.filename}
               onBack={handleBack}
-              showTreeToggle={false}
             />
           ) : (
             // Holds the row's place so the page does not step down when

@@ -7,11 +7,15 @@ import {
   type ReactNode,
 } from "react";
 import { createRoot } from "react-dom/client";
-import { Trash2 } from "lucide-react";
+import { FolderTree, Trash2 } from "lucide-react";
 
 import { NextIntlClientProvider } from "next-intl";
 
 import { AddButton } from "@/components/AddButton";
+import { Button } from "@/components/Button";
+import { ChromeButtons } from "@/components/ChromeButtons";
+import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
+import { PageHeader } from "@/components/PageHeader";
 import { ContextMenu } from "@/components/ContextMenu";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import enMessages from "@/messages-core/en.json";
@@ -747,7 +751,61 @@ function ScopedSearchEn(): ReactElement {
   return <ScopedSearch locale="en" />;
 }
 
+/**
+ * The leading control stands in for `TreeToggle`, whose own hooks need the
+ * app's providers; what is measured is the row it sits in. The parent is a
+ * flex column because every screen that wears the frame puts it in one, and a
+ * capped column shrinks to its content there unless it asks for the width.
+ */
+function PageFrameArrangement({ width }: { width: PageFrameWidth }): ReactElement {
+  return (
+    <div className="flex min-h-screen flex-col">
+    <PageFrame
+      width={width}
+      header={
+        <PageHeader
+          leading={
+            <button type="button" aria-label="Show tree" className="h-8 w-8 rounded-lg">
+              <FolderTree size={16} />
+            </button>
+          }
+          titleIcon={FolderTree}
+          title="ライブラリのフォルダとファイルを一覧する"
+          scope="動画 · 118件"
+          actions={<Button variant="primary">新規ノート</Button>}
+        />
+      }
+    >
+      <div id="page-body" className="px-4">
+        <p>body</p>
+      </div>
+    </PageFrame>
+    </div>
+  );
+}
+
+const PageFrameFull = (): ReactElement => <PageFrameArrangement width="full" />;
+const PageFrameWide = (): ReactElement => <PageFrameArrangement width="wide" />;
+const PageFrameList = (): ReactElement => <PageFrameArrangement width="list" />;
+const PageFrameReading = (): ReactElement => <PageFrameArrangement width="reading" />;
+
+/** The stubbed pathname is a drive route, so the tree toggle is drawn. */
+function ChromeButtonsArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <CurrentDriveProvider>
+        <ChromeButtons />
+      </CurrentDriveProvider>
+    </NextIntlClientProvider>
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
+  "chrome-buttons": ChromeButtonsArrangement,
+  "page-frame-full": PageFrameFull,
+  "page-frame-wide": PageFrameWide,
+  "page-frame-list": PageFrameList,
+  "page-frame-reading": PageFrameReading,
   plain: Plain,
   "bottom-bar": BottomBar,
   transformed: Transformed,

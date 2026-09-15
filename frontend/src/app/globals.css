@@ -125,6 +125,8 @@
      player"), and two unrelated rules wearing the same number get merged by
      the next reader. */
   --container-list-row: 60rem;
+  --container-wide: 72rem;
+  --container-reading: 48rem;
   --font-sans: -apple-system, system-ui, "Segoe UI", Roboto, "Oxygen-Sans",
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", Ubuntu, Cantarell,
     "Fira Sans", "Droid Sans", "Helvetica Neue", Helvetica,

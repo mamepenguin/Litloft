@@ -7,7 +7,6 @@ import { ChevronLeft, PanelRight, PanelRightClose } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { Breadcrumb } from "../Breadcrumb";
-import { TreeToggle } from "../TreeToggle";
 
 interface FileDetailChromeProps {
   drive: string;
@@ -20,7 +19,6 @@ interface FileDetailChromeProps {
     open: boolean;
     onToggle: () => void;
   };
-  showTreeToggle?: boolean;
 }
 
 export function FileDetailChrome({
@@ -31,7 +29,6 @@ export function FileDetailChrome({
   onBack,
   children,
   inspector,
-  showTreeToggle = true,
 }: FileDetailChromeProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
@@ -92,15 +89,6 @@ export function FileDetailChrome({
       data-testid="file-detail-chrome"
       className="flex h-12 shrink-0 items-center gap-2 border-b border-bg-border bg-bg-card px-3"
     >
-      {/* TreeToggle is desktop-only — on mobile the layout uses a tree
-          ⇄ file-detail screen swap, so the toggle has no visible effect
-          here. The back control below is the mobile equivalent. */}
-      {showTreeToggle && (
-        <div className="hidden md:flex">
-          <TreeToggle drive={drive} />
-        </div>
-      )}
-
       {/* Two forms of the same statement, one per width. Rendering both
           and hiding one costs a duplicate DOM node and buys a layout
           that needs no measurement to decide between them.

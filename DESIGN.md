@@ -432,6 +432,20 @@ own zoom. The cap decides where fitting stops, not how large a page the reader m
 ask for. It does not apply to actual size, whose whole promise is the page's real
 size.
 
+### 3.8 Page column measure
+
+A page's header and content share one column, capped at one of four widths:
+
+| Token | Cap | For |
+|---|---|---|
+| `full` | none | grids and listings that use the whole pane |
+| `max-w-wide` | `72rem` | card rails and browsers that stop reading well wider |
+| `max-w-list-row` | `60rem` | a column of list rows (§3.6) |
+| `max-w-reading` | `48rem` | prose and a conversation |
+
+- **Header and content take the same cap.** A header wider than its content puts
+  the title away from what it names.
+
 ---
 
 ## 4. Depth & Elevation
@@ -526,6 +540,18 @@ One header for every screen with a subject, in up to three rows:
 - **The scope line** (counts, duration, state, drive name) sits under the title;
   with no title it joins the trail.
 - The leading control stays in the same place across the screen's modes.
+- **The title does not move between screens a sidebar row opens.** The same space
+  sits above every header, and such a screen's top level has no trail.
+- **Controls that change the layout belong to the app toolbar, not the page
+  header.** The tree toggle sits beside the menu button, the same size at the same
+  height, so it stays put whichever page or file is open.
+- **The header is as wide as the content under it** (§3.8), and starts at the
+  content's left edge.
+- **The icon and title are the sidebar row's.** The icon sits in a tile beside the
+  title and the scope line.
+- **The scope line is the drive and the screen's count.** An unknown count shows
+  the drive alone, never `0`.
+- **The primary action ends the subject row.**
 
 ### Tabs
 
@@ -608,8 +634,10 @@ this file from the one beside it?*
 
 - Background `bg-bg-sidebar`; active row `bg-bg-elevated rounded-2xl font-medium`;
   `fixed`, full height, `w-60`.
-- Composition, top to bottom: **logo → current drive → views → addons →
-  reorderable sections → Lock.** The current drive is one row that opens the
+- Composition, top to bottom: **the row the menu and tree buttons sit on →
+  current drive → views → addons → reorderable sections → Lock.** No logo: that
+  row belongs to the two buttons, which stay put whether the sidebar is open,
+  over the page or beside it. The current drive is one row that opens the
   others, so the sidebar reads as a place before a menu. Views carry no heading;
   the user-ordered sections keep theirs.
 - **Two modes.** Inline on wide screens (≥ 1200px), pushing the layout, with the

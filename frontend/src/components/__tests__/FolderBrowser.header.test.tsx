@@ -236,12 +236,56 @@ describe("which screen names itself in a heading", () => {
     expect(heading?.textContent ?? null).toBe(expected);
   });
 
-  it.each(SUBJECT_BY_SCREEN)("%s tells the trail whether it is the subject", (_name, screen_, expected) => {
+  it.each(SUBJECT_BY_SCREEN.filter(([, , expected]) => expected === null))(
+    "%s keeps its trail as the subject",
+    (_name, screen_) => {
+      render(screen_());
+      expect(screen.getByLabelText("Breadcrumb").getAttribute("data-drive-is-ancestor")).toBe("no");
+    },
+  );
+
+  it.each(SUBJECT_BY_SCREEN)("%s leaves the tree toggle to the app toolbar", (_name, screen_) => {
     render(screen_());
-    expect(screen.getByLabelText("Breadcrumb").getAttribute("data-drive-is-ancestor")).toBe(
-      expected === null ? "no" : "yes",
-    );
+    expect(screen.queryByTestId("tree-toggle")).toBeNull();
   });
+
+  it.each(SUBJECT_BY_SCREEN)("%s wears a full-width frame", (_name, screen_) => {
+    const { container } = render(screen_());
+    const header = container.querySelector("header")!;
+    expect(header.parentElement?.getAttribute("data-page-frame")).toBe("full");
+  });
+});
+
+describe("the Library root header", () => {
+  const renderRoot = () =>
+    render(<FolderBrowser driveName="main" folderPath="" view="library" />);
+
+  it("draws no trail, so the title sits where Home's does", () => {
+    renderRoot();
+    expect(screen.queryByLabelText("Breadcrumb")).toBeNull();
+  });
+
+  it("states the drive and the count on one scope line", () => {
+    renderRoot();
+    expect(screen.getByText("main · 42 items")).toBeInTheDocument();
+  });
+
+  it("states the drive alone before the count is known", () => {
+    listing.loading = true;
+    renderRoot();
+    const heading = screen.getByRole("heading", { level: 1 });
+    const scope = heading.nextElementSibling;
+    expect(scope?.textContent).toBe("main");
+  });
+
+  it("wears the sidebar row's icon ahead of the title", () => {
+    const { container } = renderRoot();
+    const titleRow = screen.getByRole("heading", { level: 1 }).closest("header > div")!;
+    expect(titleRow.querySelector("svg.lucide-folder-tree")).not.toBeNull();
+    expect(container.querySelectorAll("header svg.lucide-folder-tree")).toHaveLength(1);
+  });
+
+
 });
 
 describe("the folder header", () => {
@@ -263,10 +307,10 @@ describe("the folder header", () => {
     expect(screen.getByText("0 items")).toBeInTheDocument();
   });
 
-  it("keeps the tree toggle leftmost", () => {
+  it("starts its trail row with the breadcrumb", () => {
     const { container } = renderFolder();
     const firstRow = container.querySelector("header > div")!;
-    expect(firstRow.firstElementChild?.getAttribute("data-testid")).toBe("tree-toggle");
+    expect(firstRow.firstElementChild?.getAttribute("aria-label")).toBe("Breadcrumb");
   });
 });
 
@@ -287,14 +331,6 @@ describe("the search header", () => {
     renderFolder({ searchQuery: "cats" });
     expect(screen.getByRole("button", { name: "Save search" })).toBeInTheDocument();
     expect(screen.getByTestId("slot-search-modes")).toBeInTheDocument();
-  });
-
-  it("keeps the tree toggle, leftmost, in search mode too", () => {
-    const { container } = renderFolder({ searchQuery: "cats" });
-    const firstRow = container.querySelector("header > div")!;
-    expect(firstRow.firstElementChild?.getAttribute("data-testid")).toBe(
-      "tree-toggle",
-    );
   });
 
   it("offers neither of those outside search mode", () => {
@@ -451,10 +487,6 @@ describe("what the header hands the breadcrumb", () => {
 
 describe("what the header hands its children", () => {
 
-  it("gives the tree toggle the drive it is browsing", () => {
-    renderFolder();
-    expect(screen.getByTestId("tree-toggle").getAttribute("data-drive")).toBe("main");
-  });
 
   // Non-default values throughout: an assertion written with a default is
   // true before the code runs.
@@ -511,14 +543,9 @@ describe("the trail's drop target", () => {
     expect(dropProps()).toEqual({ handlers: "yes", target: "yes" });
   });
 
-  /**
-   * At the Library root the drive chip is the folder the reader is standing
-   * in, but it is also the destination for anything dragged out of the tree
-   * pane, which lists the whole drive.
-   */
   const OFFERED_BY_SCREEN: [string, () => React.ReactElement][] = [
     ["a folder", () => <FolderBrowser driveName="main" folderPath="videos" />],
-    ["the Library root", () => <FolderBrowser driveName="main" folderPath="" view="library" />],
+    ["a folder under Library", () => <FolderBrowser driveName="main" folderPath="videos" view="library" />],
     ["the drive root with no view", () => <FolderBrowser driveName="main" folderPath="" />],
   ];
 

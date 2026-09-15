@@ -68,16 +68,14 @@ export function PageHeader({
       )}
 
       {hasTitle && (
-        <div className="flex min-w-0 items-start gap-2">
+        <div className="flex min-w-0 items-start gap-3">
           {!hasTrailRow && leading}
           {/* `aria-hidden` is written explicitly even though lucide-react
               would supply the same attribute on its own. */}
           {TitleIcon && (
-            <TitleIcon
-              size={20}
-              aria-hidden="true"
-              className="mt-1 flex-shrink-0 text-text-muted"
-            />
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated text-text-primary">
+              <TitleIcon size={20} aria-hidden="true" />
+            </div>
           )}
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-2xl font-bold text-text-primary">

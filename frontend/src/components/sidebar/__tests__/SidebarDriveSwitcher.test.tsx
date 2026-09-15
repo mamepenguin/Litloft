@@ -189,7 +189,6 @@ describe("sidebar top — item 10", () => {
       (a.textContent ?? "").trim(),
     );
     expect(labels).toEqual([
-      "Litloft",
       "Home",
       "Library",
       "Favorites",

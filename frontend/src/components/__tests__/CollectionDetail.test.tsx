@@ -168,6 +168,12 @@ describe("CollectionDetail", () => {
     expect(screen.getByText("2 items")).toBeInTheDocument();
   });
 
+  it("wears a wide frame", async () => {
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    const heading = await screen.findByRole("heading", { name: "My Collection" });
+    expect(heading.closest("header")!.parentElement?.getAttribute("data-page-frame")).toBe("wide");
+  });
+
   it("shows the Play button when the collection contains audio/video", async () => {
     render(<CollectionDetail drive="main" collectionId="c1" />);
     await waitFor(() =>
@@ -290,11 +296,10 @@ describe("CollectionDetail", () => {
       });
     });
 
-    it("keeps the tree toggle at the start of the header", async () => {
+    it("leaves the tree toggle to the app toolbar", async () => {
       const { container } = render(<CollectionDetail drive="main" collectionId="c1" />);
       await screen.findByRole("button", { name: "My Collection" });
-      const firstRow = container.querySelector("header > div")!;
-      expect(firstRow.querySelector("[data-testid='tree-toggle']")).not.toBeNull();
+      expect(container.querySelector("header [data-testid='tree-toggle']")).toBeNull();
     });
   });
 

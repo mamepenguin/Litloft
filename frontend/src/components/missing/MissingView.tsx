@@ -10,6 +10,7 @@ import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { Button } from "@/components/Button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { PageFrame } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { ViewToggle } from "@/components/ViewToggle";
 import { MissingFileGrid } from "@/components/missing/MissingFileGrid";
@@ -70,31 +71,35 @@ export function MissingView({ driveName }: MissingViewProps) {
   }, []);
 
   return (
-    <div className="min-w-0 w-full flex-1 py-4 sm:py-6">
-      <PageHeader
-        breadcrumb={<Breadcrumb driveName={driveName} driveIsAncestor />}
-        titleIcon={AlertTriangle}
-        title={tm("title")}
-        scope={
-          <>
-            {tm("description")}
-            {files.length > 0 && <> · {tc("items", { count: total })}</>}
-          </>
-        }
-        actions={
-          files.length > 0 ? (
+    <PageFrame
+      width="full"
+      header={
+        <PageHeader
+          breadcrumb={<Breadcrumb driveName={driveName} driveIsAncestor />}
+          titleIcon={AlertTriangle}
+          title={tm("title")}
+          scope={
             <>
-              <ViewToggle onChange={setViewMode} />
-              <Button variant="danger" onClick={() => setPurgeAllOpen(true)}>
-                <Trash2 size={16} />
-                {tm("purgeAll")}
-              </Button>
+              {tm("description")}
+              {files.length > 0 && <> · {tc("items", { count: total })}</>}
             </>
-          ) : undefined
-        }
-      />
+          }
+          actions={
+            files.length > 0 ? (
+              <>
+                <ViewToggle onChange={setViewMode} />
+                <Button variant="danger" onClick={() => setPurgeAllOpen(true)}>
+                  <Trash2 size={16} />
+                  {tm("purgeAll")}
+                </Button>
+              </>
+            ) : undefined
+          }
+        />
+      }
+    >
 
-      <div className="px-4">
+      <div className="px-4 pb-4 sm:pb-6">
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
@@ -139,6 +144,6 @@ export function MissingView({ driveName }: MissingViewProps) {
           setPurgeTarget(null);
         }}
       />
-    </div>
+    </PageFrame>
   );
 }

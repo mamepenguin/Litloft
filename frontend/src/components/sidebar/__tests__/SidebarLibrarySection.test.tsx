@@ -17,9 +17,13 @@ const overrideAware = (href: string, active?: boolean) =>
   (active ?? href.includes("favorites")) ? "active" : "inactive";
 
 describe("SidebarLibrarySection", () => {
-  it("renders Litloft logo link", () => {
-    render(<SidebarLibrarySection libraryActive={false} driveBase={null} currentDrive={null} linkClass={linkClass} close={vi.fn()} />);
-    expect(screen.getByText("Litloft")).toBeInTheDocument();
+  // The top row is where the fixed menu and tree buttons sit.
+  it("draws no logo and no link to the drive picker", () => {
+    const { container } = render(<SidebarLibrarySection libraryActive={false} driveBase="/drive/main" currentDrive="main" linkClass={linkClass} close={vi.fn()} />);
+    expect(screen.queryByText("Litloft")).toBeNull();
+    expect(container.querySelector('a[href="/"]')).toBeNull();
+    const row = screen.getByTestId("sidebar-button-row").className.split(/\s+/);
+    for (const c of ["h-10", "shrink-0"]) expect(row).toContain(c);
   });
 
   it("renders home link", () => {
