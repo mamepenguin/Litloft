@@ -78,6 +78,45 @@ describe("FolderListRow", () => {
     expect(screen.getByText(/5/)).toBeInTheDocument();
   });
 
+  it("says what the count is made of, as the card does", () => {
+    render(
+      <FolderListRow
+        folder={folder({ file_count: 138, kind_counts: { video: 135, document: 3 } })}
+        driveName="main"
+      />,
+    );
+    const count = screen.getByText("138 items", { exact: false });
+    expect(count.textContent).toBe("138 items · Video 135 · Document 3");
+  });
+
+  it("drops the breakdown below sm and keeps the count", () => {
+    render(
+      <FolderListRow
+        folder={folder({ file_count: 12, kind_counts: { document: 12 } })}
+        driveName="main"
+      />,
+    );
+    const kinds = screen.getByText("· Document", { exact: false });
+    expect(kinds.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["hidden", "sm:inline"]),
+    );
+    expect(kinds.parentElement!.firstChild!.textContent).toBe("12 items");
+  });
+
+  it("draws no breakdown for an empty folder", () => {
+    render(<FolderListRow folder={folder({ file_count: 0 })} driveName="main" />);
+    expect(screen.getByText("0 items").textContent).toBe("0 items");
+  });
+
+  it("draws the glyph in a bare column rather than a thumbnail-sized tile", () => {
+    const { container } = render(<FolderListRow folder={folder()} driveName="main" />);
+    const column = container.querySelector(".w-24") as HTMLElement;
+    expect(column).toBeTruthy();
+    const cls = column.className.split(/\s+/);
+    expect(cls).not.toContain("h-14");
+    expect(cls).not.toContain("bg-bg-elevated");
+  });
+
   it("takes a drop, like the card does", () => {
     const onDrop = vi.fn();
     const { container } = render(
