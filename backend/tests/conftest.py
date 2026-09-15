@@ -138,8 +138,6 @@ def client(tmp_path):
         return None
 
     main.scan_all_drives = noop_scan_all_drives
-    orig_run_relation_seed_flip = main._run_relation_seed_flip
-    main._run_relation_seed_flip = lambda: None
     main.purge_expired_trash = noop_purge_expired_trash
 
     yielded_session = TestSession()
@@ -149,7 +147,6 @@ def client(tmp_path):
     finally:
         yielded_session.close()
         config.DRIVES_CONFIG = orig_drives_config
-        main._run_relation_seed_flip = orig_run_relation_seed_flip
         config.DATA_DIR = orig_data
         config.THUMBNAILS_DIR = orig_thumbs
         config.CONVERTED_DIR = orig_converted

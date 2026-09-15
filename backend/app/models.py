@@ -316,9 +316,9 @@ class FileRelation(Base):
         DateTime, default=lambda: datetime.now(UTC)
     )
     created_by: Mapped[str | None] = mapped_column(String(16), nullable=True)
-    # "markdown" when file_id_a's Markdown link sync wrote the row; NULL when
-    # it came through the Internal API. Direction alone does not say who
-    # wrote a row.
+    # "markdown": file_id_a's Markdown link sync wrote the row. "internal": the
+    # Internal API did. NULL: written before origins were recorded. Direction
+    # alone does not say who wrote a row.
     origin: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     __table_args__ = (

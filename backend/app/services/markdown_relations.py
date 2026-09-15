@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Literal
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -78,6 +79,7 @@ def extract_links(content: str) -> ExtractedLinks:
 
 
 MARKDOWN_ORIGIN = "markdown"
+INTERNAL_ORIGIN = "internal"
 
 
 def direct_reference_ids(content: str, file_id: str) -> set[str]:
@@ -121,31 +123,53 @@ def sync_markdown_file_relations(
         valid_direct_ids = {row.id for row in rows}
 
     target_ids = (valid_direct_ids | wiki_ids) - {file_id}
-    outgoing = {
-        relation.file_id_b: relation
-        for relation in db.query(FileRelation).filter(
-            FileRelation.file_id_a == file_id,
+    touching = (
+        db.query(FileRelation)
+        .filter(
+            or_(
+                FileRelation.file_id_a == file_id,
+                FileRelation.file_id_b == file_id,
+            ),
             FileRelation.kind == "related",
         )
+        .all()
+    )
+    own = {
+        relation.file_id_b: relation
+        for relation in touching
+        if relation.origin == MARKDOWN_ORIGIN and relation.file_id_a == file_id
     }
-    for target_id in target_ids:
-        relation = outgoing.get(target_id)
-        if relation is None:
-            db.add(
-                FileRelation(
-                    file_id_a=file_id,
-                    file_id_b=target_id,
-                    kind="related",
-                    origin=MARKDOWN_ORIGIN,
-                    created_at=datetime.now(UTC),
-                )
-            )
-        elif relation.origin != MARKDOWN_ORIGIN:
-            relation.origin = MARKDOWN_ORIGIN
-    for target_id, relation in outgoing.items():
-        if target_id in target_ids:
+    # A row with no origin predates origins, so nothing says who wrote it. It
+    # is reconciled the way every row was then: kept only as this note's link.
+    for relation in touching:
+        if relation.origin is not None:
             continue
-        if relation.origin == MARKDOWN_ORIGIN:
+        if (
+            relation.file_id_a == file_id
+            and relation.file_id_b in target_ids
+            and relation.file_id_b not in own
+        ):
+            relation.origin = MARKDOWN_ORIGIN
+            own[relation.file_id_b] = relation
+        else:
+            db.delete(relation)
+    held_by_others = {
+        relation.file_id_b
+        for relation in touching
+        if relation.file_id_a == file_id and relation.origin not in (None, MARKDOWN_ORIGIN)
+    }
+    for target_id in target_ids - set(own) - held_by_others:
+        db.add(
+            FileRelation(
+                file_id_a=file_id,
+                file_id_b=target_id,
+                kind="related",
+                origin=MARKDOWN_ORIGIN,
+                created_at=datetime.now(UTC),
+            )
+        )
+    for target_id, relation in own.items():
+        if target_id not in target_ids:
             db.delete(relation)
     return diagnostics
 

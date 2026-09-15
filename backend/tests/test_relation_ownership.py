@@ -23,9 +23,15 @@ def _save(api, drive_dir, file: File, body: str):
     assert r.status_code == 200, r.text
 
 
-def _unmarked(session, a: File, b: File, kind: str = "related") -> None:
-    session.add(FileRelation(file_id_a=a.id, file_id_b=b.id, kind=kind))
+def _unmarked(
+    session, a: File, b: File, kind: str = "related", origin: str | None = None
+) -> None:
+    session.add(FileRelation(file_id_a=a.id, file_id_b=b.id, kind=kind, origin=origin))
     session.commit()
+
+
+def _internal(session, a: File, b: File) -> None:
+    _unmarked(session, a, b, origin="internal")
 
 
 class TestSaveOwnsOnlyItsMarkdownRows:
@@ -96,27 +102,36 @@ class TestSaveOwnsOnlyItsMarkdownRows:
 
         assert _rows(session) == {(first.id, target.id, "related", "markdown")}
 
-    def test_unmarked_incoming_row_survives_save(self, client):
+    def test_internal_incoming_row_survives_save(self, client):
         api, session, drive_dir, _ = client
         note = _seed_md(session, drive_dir, "note.md")
         source = _seed_video(session, drive_dir, "source.mp4")
-        _unmarked(session, source, note)
+        _internal(session, source, note)
 
         _save(api, drive_dir, note, "No citations.\n")
 
-        assert _rows(session) == {(source.id, note.id, "related", None)}
+        assert _rows(session) == {(source.id, note.id, "related", "internal")}
 
-    def test_unmarked_outgoing_row_not_linked_survives_save(self, client):
+    def test_internal_outgoing_row_survives_save_linked_or_not(self, client):
         api, session, drive_dir, _ = client
         note = _seed_md(session, drive_dir, "note.md")
+        linked = _seed_video(session, drive_dir, "linked.mp4")
         other = _seed_video(session, drive_dir, "other.mp4")
-        _unmarked(session, note, other)
+        fresh = _seed_video(session, drive_dir, "fresh.mp4")
+        _internal(session, note, linked)
+        _internal(session, note, other)
 
-        _save(api, drive_dir, note, "No links.\n")
+        _save(api, drive_dir, note, f"[v](loft://{linked.id}) [f](loft://{fresh.id})\n")
 
-        assert _rows(session) == {(note.id, other.id, "related", None)}
+        assert _rows(session) == {
+            (note.id, linked.id, "related", "internal"),
+            (note.id, other.id, "related", "internal"),
+            (note.id, fresh.id, "related", "markdown"),
+        }
 
-    def test_unmarked_outgoing_row_that_is_linked_is_adopted(self, client):
+
+class TestLegacyRowsFollowThePreOriginRule:
+    def test_legacy_outgoing_row_that_is_linked_is_marked(self, client):
         api, session, drive_dir, _ = client
         note = _seed_md(session, drive_dir, "note.md")
         target = _seed_video(session, drive_dir, "target.mp4")
@@ -127,6 +142,62 @@ class TestSaveOwnsOnlyItsMarkdownRows:
 
         _save(api, drive_dir, note, "Dropped.\n")
         assert _rows(session) == set()
+
+    def test_legacy_outgoing_row_not_linked_is_removed(self, client):
+        api, session, drive_dir, _ = client
+        note = _seed_md(session, drive_dir, "note.md")
+        other = _seed_video(session, drive_dir, "other.mp4")
+        _unmarked(session, note, other)
+
+        _save(api, drive_dir, note, "No links.\n")
+
+        assert _rows(session) == set()
+
+    def test_legacy_seed_the_note_cites_becomes_its_link(self, client):
+        api, session, drive_dir, _ = client
+        source = _seed_video(session, drive_dir, "source.mp4")
+        note = _seed_md(session, drive_dir, "note.md")
+        _unmarked(session, source, note)
+
+        _save(api, drive_dir, note, f'---\nsource_file_ids:\n  - "{source.id}"\n---\n')
+        assert _rows(session) == {(note.id, source.id, "related", "markdown")}
+
+        _save(api, drive_dir, note, "Uncited.\n")
+        assert _rows(session) == set()
+
+    def test_legacy_seed_the_note_does_not_cite_is_removed(self, client):
+        api, session, drive_dir, _ = client
+        source = _seed_video(session, drive_dir, "source.mp4")
+        note = _seed_md(session, drive_dir, "note.md")
+        _unmarked(session, source, note)
+
+        _save(api, drive_dir, note, "Uncited.\n")
+
+        assert _rows(session) == set()
+
+    def test_legacy_incoming_link_returns_when_the_linking_note_is_saved(self, client):
+        api, session, drive_dir, _ = client
+        source = _seed_md(session, drive_dir, "source.md", "See [[target]].\n")
+        target = _seed_md(session, drive_dir, "target.md")
+        _unmarked(session, source, target)
+
+        _save(api, drive_dir, target, "No links.\n")
+        assert _rows(session) == set()
+
+        _save(api, drive_dir, source, "See [[target]] again.\n")
+        assert _rows(session) == {(source.id, target.id, "related", "markdown")}
+
+    def test_marked_rows_of_other_notes_survive_a_legacy_cleanup(self, client):
+        api, session, drive_dir, _ = client
+        first = _seed_md(session, drive_dir, "first.md")
+        note = _seed_md(session, drive_dir, "note.md")
+        other = _seed_video(session, drive_dir, "other.mp4")
+        _save(api, drive_dir, first, "[[note]]\n")
+        _unmarked(session, note, other)
+
+        _save(api, drive_dir, note, "No links.\n")
+
+        assert _rows(session) == {(first.id, note.id, "related", "markdown")}
 
     def test_other_kinds_are_left_alone(self, client):
         api, session, drive_dir, _ = client
@@ -216,6 +287,21 @@ class TestCreateSyncsMarkdown:
         assert (drive_dir / "kept.md").read_text() == "See [[nothing]].\n"
         session.expire_all()
         assert session.query(File).filter(File.id == r.json()["id"]).count() == 1
+
+
+class TestInternalApiRowsAreMarked:
+    def test_created_relation_records_internal_origin(self, client):
+        api, session, drive_dir, _ = client
+        a = _seed_video(session, drive_dir, "a.mp4")
+        b = _seed_video(session, drive_dir, "b.mp4")
+
+        r = api.post(
+            "/api/internal/file_relations",
+            json={"file_id_a": a.id, "file_id_b": b.id, "kind": "related"},
+        )
+        assert r.status_code in (200, 201), r.text
+
+        assert _rows(session) == {(a.id, b.id, "related", "internal")}
 
 
 class TestPublicListingShowsEachCounterpartOnce:
