@@ -73,7 +73,6 @@ export function MissingView({ driveName }: MissingViewProps) {
   return (
     <PageFrame
       width="full"
-      className="flex-1 pb-4 sm:pb-6"
       header={
         <PageHeader
           breadcrumb={<Breadcrumb driveName={driveName} driveIsAncestor />}
@@ -100,7 +99,7 @@ export function MissingView({ driveName }: MissingViewProps) {
       }
     >
 
-      <div className="px-4">
+      <div className="px-4 pb-4 sm:pb-6">
 
       {loading ? (
         <div className="flex items-center justify-center py-16">

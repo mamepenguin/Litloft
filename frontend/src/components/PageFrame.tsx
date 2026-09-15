@@ -16,16 +16,16 @@ export interface PageFrameProps {
   width: PageFrameWidth;
   header: ReactNode;
   children?: ReactNode;
-  className?: string;
 }
 
 /**
- * Carries no padding. The title's Y is `PageHeader`'s own `py-2`, which is
- * also where the file-detail chrome puts the tree toggle; a top padding here
- * would make the toggle jump when a file is opened from a folder.
+ * Carries no padding and takes no class from the page. The title's Y is
+ * `PageHeader`'s own `py-2`, which is also where the file-detail chrome puts
+ * the tree toggle; padding above the header would make the toggle jump when a
+ * file is opened from a folder.
  */
-export function PageFrame({ width, header, children, className }: PageFrameProps) {
-  const classes = ["flex w-full min-w-0 flex-col", WIDTH_CLASS[width], className]
+export function PageFrame({ width, header, children }: PageFrameProps) {
+  const classes = ["flex w-full min-w-0 flex-1 flex-col", WIDTH_CLASS[width]]
     .filter(Boolean)
     .join(" ");
   return (

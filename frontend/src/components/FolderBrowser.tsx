@@ -511,7 +511,6 @@ export function FolderBrowser({
   const inner = (
     <PageFrame
       width="full"
-      className="flex-1"
       header={
         <PageHeader
           leading={<TreeToggle drive={driveName} />}

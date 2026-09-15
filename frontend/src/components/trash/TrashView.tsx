@@ -109,7 +109,6 @@ export function TrashView({ driveName }: TrashViewProps) {
   return (
     <PageFrame
       width="full"
-      className="flex-1 pb-4 sm:pb-6"
       header={
         <PageHeader
           breadcrumb={<Breadcrumb driveName={driveName} driveIsAncestor />}
@@ -128,7 +127,7 @@ export function TrashView({ driveName }: TrashViewProps) {
     >
 
       {/* `px-4`, matching PageHeader's own padding. */}
-      <div className="px-4">
+      <div className="px-4 pb-4 sm:pb-6">
       <TrashToolbar
         sort={sort}
         order={order}

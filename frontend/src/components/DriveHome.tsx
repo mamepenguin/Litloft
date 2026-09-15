@@ -374,7 +374,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           anything below it. */}
       <PageFrame
         width="full"
-        className="flex-1"
         header={
           <PageHeader
             leading={<TreeToggle drive={driveName} />}

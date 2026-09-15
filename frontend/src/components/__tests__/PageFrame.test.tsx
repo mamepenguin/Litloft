@@ -44,12 +44,11 @@ describe("PageFrame", () => {
   // every screen that wears the frame and not on the file-detail chrome.
   it("adds no vertical padding above the header", () => {
     render(
-      <PageFrame width="wide" header={<PageHeader title="T" />} className="flex-1">
+      <PageFrame width="wide" header={<PageHeader title="T" />}>
         <p>body</p>
       </PageFrame>,
     );
     const frame = frameOf(screen.getByRole("heading", { level: 1 }));
     expect([...frame.classList].filter((c) => /^(sm:|md:)?(p|py|pt)-/.test(c))).toEqual([]);
-    expect(frame.classList.contains("flex-1")).toBe(true);
   });
 });

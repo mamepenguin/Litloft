@@ -244,7 +244,6 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
           indent the header past everything under it. */}
       <PageFrame
         width="wide"
-        className="pb-6"
         header={
           <PageHeader
             leading={<TreeToggle drive={drive} />}
@@ -357,7 +356,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
         }
       >
 
-        <div className="px-4">
+        <div className="px-4 pb-6">
         {items.length === 0 ? (
           <EmptyState
             icon={ListPlus}
