@@ -13,6 +13,7 @@ from app.models import TRUST_UNVERIFIED, EmptyFolder, File, PinnedFolder, Tag, W
 from app.routers.progress import get_viewer_id
 from app.services import event_hooks
 from app.schemas import (
+    FolderCountResponse,
     DriveResponse,
     DriveSummaryResponse,
     DuplicateGroup,
@@ -841,10 +842,14 @@ def list_drive_tags(
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
     folder_path: str | None = None,
+    path: str | None = None,
+    type: FileKindParam | None = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
     if folder_path:
         folder_path = _validate_folder_path(folder_path)
+    if path:
+        path = _validate_folder_path(path)
 
     query = (
         db.query(Tag.name, func.count(file_tags.c.file_id).label("count"))
@@ -855,6 +860,11 @@ def list_drive_tags(
             (file_tags.c.file_id.is_(None)) | active_file_filter(),
         )
     )
+    kind = _normalize_kind(type)
+    if kind is not None:
+        # A kind asks about files, so a tag no file of that kind carries is
+        # not part of the answer.
+        query = _apply_kind_filter(query.filter(file_tags.c.file_id.isnot(None)), kind)
     if folder_path:
         query = query.filter(
             (file_tags.c.file_id.is_(None))
@@ -862,8 +872,28 @@ def list_drive_tags(
             | (File.folder_path.like(_escape_like(folder_path) + "/%", escape="\\"))
         )
 
+    if path is not None:
+        query = query.filter(file_tags.c.file_id.isnot(None), File.folder_path == path)
+
     results = query.group_by(Tag.id).order_by(Tag.name).all()
     return [TagResponse(name=name, count=count) for name, count in results]
+
+
+@router.get("/{drive_name}/folder-counts", response_model=list[FolderCountResponse])
+def list_folder_counts(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    type: FileKindParam | None = None,
+):
+    """Active files per exact ``folder_path``, optionally of one kind."""
+    _validate_drive(drive_name, unlocked_groups)
+    query = db.query(File.folder_path, func.count(File.id)).filter(
+        File.drive == drive_name, active_file_filter()
+    )
+    query = _apply_kind_filter(query, _normalize_kind(type))
+    rows = query.group_by(File.folder_path).order_by(File.folder_path).all()
+    return [FolderCountResponse(path=path, count=count) for path, count in rows]
 
 
 @router.post("/{drive_name}/folders", response_model=FolderResponse)

@@ -101,6 +101,14 @@ navigation, so it can be read against the new drive's contents.
 
 ## Addons
 
+**All notes cuts a deep folder's own name off.** Rail labels truncate from the end, so `Knowledge/docs/superpowers/specs` can show only its parent path.
+
+**A tag with a non-ASCII capital lists nothing when chosen.** The rail counts `Übung` but the list filter lowercases with SQLite's ASCII-only `lower()`, so choosing it shows no notes.
+
+**While searching within All notes, the rail's counts ignore the search.** They count the folder's notes, not the matches.
+
+**The All notes tag removal link is announced without the tag text shown.** Its accessible name replaces the visible `#tag`, and after it is pressed focus falls back to the page.
+
 **Notes search highlights the wrong letters when a title contains a character whose lowercase form is longer.** A title such as `İstanbul ai` searched for `ai` marks `a` and `i` one position early. Match positions are taken from the lowercased string.
 
 **Continue writing cards show the change date, in a different format from the rows below.** A card reads `09/02` where the row reads `9月2日`, and it is when the note last changed, not when it was last opened.
