@@ -94,7 +94,7 @@ JSON array of password objects, read by `backend/app/auth.py` `load_passwords()`
 | `password` | string | yes | Plaintext password compared via HMAC-SHA256. |
 | `groups` | string[] | yes | The `access_group` names this password unlocks. |
 
-Both fields must be non-empty, and every entry in `groups` must be a non-empty string; anything else raises at load. The settings GUI (`PUT /api/admin/config/passwords`) adds two checks: every referenced group must be declared as some drive's `access_group` or be `__admin__`, and password values must be unique across entries. `GET /api/admin/config/passwords` returns every password masked as `***` — real values never leave the server, so the form must send a new password to rotate one.
+Both fields must be non-empty, and every entry in `groups` must be a non-empty string; anything else raises at load. The settings GUI (`PUT /api/admin/config/passwords`) adds two checks: every referenced group must be declared as some drive's `access_group`, and password values must be unique across entries. `GET /api/admin/config/passwords` returns every password masked as `***` — real values never leave the server, so the form must send a new password to rotate one.
 
 Multiple passwords may grant overlapping groups.
 
@@ -102,7 +102,7 @@ Multiple passwords may grant overlapping groups.
 
 `backend/app/auth.py` `is_admin()` grants admin to a viewer who has unlocked **every** `access_group` declared in `drives.json`, or who holds the reserved sentinel group `__admin__`. When `drives.json` declares no protected drive at all and no `__admin__` password exists, everyone is admin (graceful degradation) — that is also the state right after a fresh install.
 
-The `/setup` wizard adds `__admin__` to the password it saves in protected mode, and the settings GUI accepts it when you add a password. Its point is the "every drive stays public, but `/admin` is still gated" configuration.
+`__admin__` is not declared by any drive, so the settings GUI rejects it as an unknown group. Granting it means hand-editing `passwords.json` and restarting. Its point is the "every drive stays public, but `/admin` is still gated" configuration.
 
 ---
 

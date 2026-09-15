@@ -33,7 +33,7 @@ If no drives appear, no directories are mounted under `/app/drives/`. Fix the `s
 
 Pick how access is gated:
 
-- **Public** — every drive is visible to everyone on the LAN. `passwords.json` is saved as empty (`[]`), which is treated exactly like having no passwords at all.
+- **Public** — every drive is visible to everyone on the LAN. `passwords.json` stays empty (`[]`), which is treated exactly like having no passwords at all.
 - **Protected** — at least one drive uses an `access_group`. You will set passwords in step 5.
 
 You can switch later from the admin settings page.
@@ -66,7 +66,7 @@ If the list of installed addons cannot be loaded, the step says so and offers **
 A summary of what you configured: drive count, access mode, addon enablement. Click **Finish**; the wizard:
 
 1. Writes `drives.json` with your names and access groups (atomic write through `.tmp` + rename), replacing the seeded stubs.
-2. Rewrites `passwords.json`: the password you entered if you chose Protected, `[]` if you chose Public. Any entry written there before Finish is replaced.
+2. Writes password entries into `passwords.json` if you chose Protected (the file already exists as `[]`; the wizard fills it in).
 3. Writes the per-drive addon policy into `drives.json` under each drive's `addons` field.
 4. Creates `data/setup_completed`.
 5. Triggers a backend rescan.

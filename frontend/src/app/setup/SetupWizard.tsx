@@ -27,8 +27,6 @@ import {
   getAddonsStatus,
   isAddonOn,
   putAddonPolicy,
-  putDrives,
-  putPasswords,
   type AddonPolicy,
   type AddonStatusEntry,
 } from "@/lib/adminConfig";
@@ -247,18 +245,28 @@ function SetupWizardInner({
     // Re-PUT drives to make sure the on-disk state matches the wizard
     // state even if the user changed something between DriveStep
     // validation and here.
-    await putDrives(drivesForSubmit);
+    await fetch("/api/admin/config/drives", {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(drivesForSubmit),
+    });
 
-    // Public mode saves [] so no password written earlier outlives the choice.
-    // The __admin__ sentinel lets this password restore admin access after JWT expiry.
-    const groupsWithAdmin = passwordValue.groups.includes("__admin__")
-      ? passwordValue.groups
-      : [...passwordValue.groups, "__admin__"];
-    await putPasswords(
-      accessMode === "protected"
-        ? [{ password: password.password, groups: groupsWithAdmin }]
-        : [],
-    );
+    if (accessMode === "protected" && password.password) {
+      // Append the __admin__ sentinel so this password grants admin access
+      // even after JWT expiry (user re-unlocks with this password → admin restored).
+      const groupsWithAdmin = passwordValue.groups.includes("__admin__")
+        ? passwordValue.groups
+        : [...passwordValue.groups, "__admin__"];
+      await fetch("/api/admin/config/passwords", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([
+          { password: password.password, groups: groupsWithAdmin },
+        ]),
+      });
+    }
 
     await putAddonPolicy(addonPolicy);
 

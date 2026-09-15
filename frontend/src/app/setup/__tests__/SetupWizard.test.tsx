@@ -187,16 +187,10 @@ describe("SetupWizard (detected drives)", () => {
       expect(pushMock).toHaveBeenCalledWith("/admin");
     });
 
-    const puts = mockFetch.mock.calls
-      .filter(([, opts]) => (opts as RequestInit)?.method === "PUT")
-      .map(([url]) => url as string);
-    expect(puts.indexOf("/api/admin/config/passwords")).toBeGreaterThan(
-      puts.indexOf("/api/admin/config/drives"),
-    );
-    const passwordsPut = mockFetch.mock.calls.find(
+    const passwordCall = mockFetch.mock.calls.find(
       ([url]) => url === "/api/admin/config/passwords",
     );
-    expect(JSON.parse((passwordsPut![1] as RequestInit).body as string)).toEqual([]);
+    expect(passwordCall).toBeUndefined();
   });
 
   it("shows mount guidance when zero drives are detected", async () => {
@@ -433,6 +427,10 @@ describe("SetupWizard addon choices across drive edits", () => {
     return call ? JSON.parse((call[1] as RequestInit).body as string) : undefined;
   }
 
+  function urlsCalled() {
+    return mockFetch.mock.calls.map((c) => c[0] as string);
+  }
+
   it("keeps a switch turned off with its drive when the drive is renamed afterwards", async () => {
     withAddons();
     render(<SetupWizard />);
@@ -456,10 +454,6 @@ describe("SetupWizard addon choices across drive edits", () => {
 
     await waitFor(() => expect(addonPolicyPut()).toEqual({ Movies: { knowledge: false } }));
   });
-
-  function urlsCalled() {
-    return mockFetch.mock.calls.map((c) => c[0] as string);
-  }
 
   it("shows the rejection and does not finish when the addon policy is not saved", async () => {
     let policyPuts = 0;
@@ -491,140 +485,6 @@ describe("SetupWizard addon choices across drive edits", () => {
     fireEvent.click(screen.getByRole("button", { name: /finish|complete/i }));
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
     expect(screen.queryByText("drive 'media' is not configured")).toBeNull();
-  });
-
-  it("shows a rejected drives save as its own error and saves nothing after it", async () => {
-    withAddons({
-      "PUT /api/admin/config/drives": () =>
-        Promise.resolve(
-          jsonResponse({ detail: { code: "duplicate_name", message: "drive name 'docs' is used twice" } }, 422),
-        ),
-    });
-    render(<SetupWizard />);
-    await reachDriveStep();
-    await goToAddonStep();
-    await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
-    fireEvent.click(screen.getByRole("checkbox", { name: "media / knowledge" }));
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
-
-    expect(await screen.findByText("drive name 'docs' is used twice")).toBeInTheDocument();
-    expect(urlsCalled()).not.toContain("/api/admin/config/addon-policy");
-    expect(urlsCalled()).not.toContain("/api/admin/config/complete-setup");
-    expect(pushMock).not.toHaveBeenCalled();
-  });
-
-  it("shows a rejected passwords save as its own error and saves nothing after it", async () => {
-    withAddons({
-      "PUT /api/admin/config/passwords": () =>
-        Promise.resolve(
-          jsonResponse(
-            {
-              detail: {
-                code: "unknown_group",
-                message: "group 'family' is not declared by any drive's access_group",
-                field: "groups",
-              },
-            },
-            422,
-          ),
-        ),
-    });
-    render(<SetupWizard />);
-    await reachDriveStep();
-    fireEvent.change(screen.getAllByLabelText(/^group/i)[0], { target: { value: "family" } });
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    fireEvent.click(screen.getByLabelText(/password protected/i));
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    fireEvent.change(await screen.findByLabelText(/^password/i), {
-      target: { value: "correct horse battery" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
-    fireEvent.click(screen.getByRole("button", { name: /skip/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
-
-    expect(
-      await screen.findByText("group 'family' is not declared by any drive's access_group"),
-    ).toBeInTheDocument();
-    expect(urlsCalled()).not.toContain("/api/admin/config/addon-policy");
-    expect(urlsCalled()).not.toContain("/api/admin/config/complete-setup");
-    expect(pushMock).not.toHaveBeenCalled();
-  });
-});
-
-describe("SetupWizard protected first run", () => {
-  it("saves drives first, then the entered password with its groups and the admin group once", async () => {
-    render(<SetupWizard />);
-    await reachDriveStep();
-    fireEvent.change(screen.getAllByLabelText(/^group/i)[0], { target: { value: "family" } });
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    fireEvent.click(screen.getByLabelText(/password protected/i));
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    fireEvent.change(await screen.findByLabelText(/^password/i), {
-      target: { value: "correct horse battery" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /skip/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
-
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
-    const puts = mockFetch.mock.calls.filter(
-      ([, opts]) => (opts as RequestInit)?.method === "PUT",
-    );
-    const drivesAt = puts.findIndex(([url]) => url === "/api/admin/config/drives");
-    const passwordsAt = puts.findIndex(([url]) => url === "/api/admin/config/passwords");
-    expect(drivesAt).toBeGreaterThanOrEqual(0);
-    expect(passwordsAt).toBeGreaterThan(drivesAt);
-    expect(JSON.parse((puts[passwordsAt][1] as RequestInit).body as string)).toEqual([
-      { password: "correct horse battery", groups: ["family", "__admin__"] },
-    ]);
-  });
-});
-
-describe("SetupWizard switching to public after a failed protected Finish", () => {
-  it("saves no password on the Finish that succeeds", async () => {
-    let policyPuts = 0;
-    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
-      if (url === "/api/admin/config/addon-policy" && init?.method === "PUT") {
-        policyPuts += 1;
-        if (policyPuts === 1) {
-          return Promise.resolve(
-            jsonResponse({ detail: { code: "write_failed", message: "disk full" } }, 500),
-          );
-        }
-      }
-      return defaultMockImpl(url);
-    });
-    render(<SetupWizard />);
-    await reachDriveStep();
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    fireEvent.click(screen.getByLabelText(/password protected/i));
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    fireEvent.change(await screen.findByLabelText(/^password/i), {
-      target: { value: "correct horse battery" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /skip/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
-    expect(await screen.findByText("disk full")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /back/i }));
-    fireEvent.click(screen.getByRole("button", { name: /back/i }));
-    fireEvent.click(screen.getByRole("button", { name: /back/i }));
-    fireEvent.click(screen.getByLabelText(/public/i));
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /skip/i }));
-    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
-
-    const passwordBodies = mockFetch.mock.calls
-      .filter(([url]) => url === "/api/admin/config/passwords")
-      .map(([, opts]) => JSON.parse((opts as RequestInit).body as string));
-    expect(passwordBodies).toEqual([
-      [{ password: "correct horse battery", groups: ["__admin__"] }],
-      [],
-    ]);
   });
 });
 

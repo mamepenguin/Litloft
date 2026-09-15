@@ -30,7 +30,7 @@ Lists every entry in `passwords.json`, with passwords masked as `***` (the serve
 Per row:
 
 - **Password** — only editable on row creation; existing rows are read-only on this field.
-- **Groups** — the `access_group` names this password unlocks. Adding `__admin__` makes it an admin password.
+- **Groups** — the `access_group` names this password unlocks.
 - **Delete** — removes the entry.
 
 Adding a password is a separate workflow: enter the password value, choose groups, save. The backend writes to `passwords.json` atomically.
