@@ -34,6 +34,15 @@ them to `[]`, losing the names, passwords and addon policy set in the browser,
 and yes to the `search-config.yml` prompt restores the `.example` contents. Every
 prompt defaults to no.
 
+**Choosing Protected in `/setup` saves no password.** The wizard adds `__admin__`
+to the password's groups and the settings API rejects `__admin__` as an unknown
+group; the wizard ignores the rejection and finishes, so every drive stays public
+and `/admin` stays open. Reached on every first run that picks Protected.
+
+**`/setup` finishes when saving drives or passwords fails.** Only the addon
+policy save is checked, so a rejected drives save shows up as an unknown drive
+error from the policy save, or not at all.
+
 ## Files
 
 **Most existing links show under Related files rather than Links from / Links to.** Relations recorded before relation origins existed have no direction owner; each moves to the link sections when its note is next saved.
@@ -139,16 +148,6 @@ knowledge message namespace, `useActiveSummary`'s knowledge WebSocket event,
 `dirtyRegistry`'s `"knowledge-editor"` source, the knowledge active-summary URL
 in `lib/api.ts`, `semanticSearch` reading the intelligence catalogue entry and
 search URL, and `featureFlags`' inline knowledge editor flag.
-
-**`/setup` drops the addon choices after a drive is renamed.** Pressing an addon
-switch and then going back to rename a drive leaves the old name in the policy
-the wizard saves, which the backend rejects as an unknown drive without the
-wizard saying so, so no addon choice from the step is saved.
-
-**`/setup` reports no addons enabled when the addon list fails to load.** If
-`/api/addons/status` fails, the addon step draws no switches and the summary
-counts zero, yet nothing is saved, so every installed addon is enabled on every
-drive.
 
 **Turning an addon off and on in `/admin/settings` forgets its feature switches.**
 An addon whose saved policy holds feature settings (`transcription_cloud: false`,

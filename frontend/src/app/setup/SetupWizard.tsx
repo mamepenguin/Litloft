@@ -26,6 +26,7 @@ import type { Locale } from "@/i18n/config";
 import {
   getAddonsStatus,
   isAddonOn,
+  putAddonPolicy,
   type AddonPolicy,
   type AddonStatusEntry,
 } from "@/lib/adminConfig";
@@ -123,22 +124,57 @@ function SetupWizardInner({
     password: "",
     groups: [],
   });
-  const [addonPolicy, setAddonPolicy] = useState<AddonPolicy>({});
+  // Keyed by drive path: the name is still editable when the switches are pressed.
+  const [addonChoices, setAddonChoices] = useState<AddonPolicy>({});
   const [addons, setAddons] = useState<AddonStatusEntry[]>([]);
+  const [addonsFailed, setAddonsFailed] = useState(false);
+
+  const loadAddons = useCallback((isCancelled: () => boolean) => {
+    getAddonsStatus()
+      .then((list) => {
+        if (!isCancelled()) setAddons(list);
+      })
+      .catch(() => {
+        if (!isCancelled()) setAddonsFailed(true);
+      });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    getAddonsStatus()
-      .then((list) => {
-        if (!cancelled) setAddons(list);
-      })
-      .catch(() => {
-        // Without the list the step draws no switches and the summary counts none.
-      });
+    loadAddons(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAddons]);
+
+  const retryAddons = useCallback(() => {
+    setAddonsFailed(false);
+    loadAddons(() => false);
+  }, [loadAddons]);
+
+  const addonPolicy = useMemo<AddonPolicy>(
+    () =>
+      Object.fromEntries(
+        drives
+          .filter((d) => addonChoices[d.path] !== undefined)
+          .map((d) => [d.name, addonChoices[d.path]]),
+      ),
+    [addonChoices, drives],
+  );
+
+  const setAddonPolicy = useCallback(
+    (next: AddonPolicy) => {
+      setAddonChoices((prev) => ({
+        ...prev,
+        ...Object.fromEntries(
+          drives
+            .filter((d) => next[d.name] !== undefined)
+            .map((d) => [d.path, next[d.name]]),
+        ),
+      }));
+    },
+    [drives],
+  );
 
   const order = useMemo(
     () => (accessMode === "protected" ? ORDER_PROTECTED : ORDER_PUBLIC),
@@ -186,6 +222,7 @@ function SetupWizardInner({
     [drivesForSubmit],
   );
   const addonOnCount = useMemo(() => {
+    if (addonsFailed) return null;
     let count = 0;
     for (const drv of drivesForSubmit) {
       for (const addon of addons) {
@@ -193,7 +230,7 @@ function SetupWizardInner({
       }
     }
     return count;
-  }, [addonPolicy, addons, drivesForSubmit]);
+  }, [addonPolicy, addons, addonsFailed, drivesForSubmit]);
 
   const summary = useMemo(
     () => ({
@@ -231,12 +268,7 @@ function SetupWizardInner({
       });
     }
 
-    await fetch("/api/admin/config/addon-policy", {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(addonPolicy),
-    });
+    await putAddonPolicy(addonPolicy);
 
     if (accessMode === "protected" && password.password) {
       await fetch("/api/auth/unlock", {
@@ -322,6 +354,8 @@ function SetupWizardInner({
           <AddonPolicyStep
             drives={drivesForSubmit}
             addons={addons}
+            loadFailed={addonsFailed}
+            onRetry={retryAddons}
             value={addonPolicy}
             onChange={setAddonPolicy}
             onNext={goNext}

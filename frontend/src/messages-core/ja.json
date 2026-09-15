@@ -1028,7 +1028,8 @@
         "public": "全公開",
         "protected": "パスワード保護",
         "addons": "有効なアドオン",
-        "addonUnit": " 件"
+        "addonUnit": " 件",
+        "addonsDefault": "既定のまま（すべて有効）"
       },
       "nextSteps": {
         "title": "次の手順",
@@ -1119,7 +1120,9 @@
       "legendTitle": "アドオンの説明",
       "skipDescription": "今は設定せずに次へ進めます。",
       "skipNote": "今は決めずに進めて構いません。あとで/adminから変更できます。",
-      "noDescription": "（このアドオンの説明はありません）"
+      "noDescription": "（このアドオンの説明はありません）",
+      "loadFailed": "アドオンの一覧を読み込めませんでした。",
+      "retry": "再試行"
     }
   },
   "errors": {

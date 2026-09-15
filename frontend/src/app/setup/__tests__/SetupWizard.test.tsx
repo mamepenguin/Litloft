@@ -397,3 +397,158 @@ describe("SetupWizard with addons installed", () => {
     await waitFor(() => expect(addonPolicyPut()).toEqual({ media: { knowledge: false } }));
   });
 });
+
+describe("SetupWizard addon choices across drive edits", () => {
+  const TWO_ADDONS = {
+    addons: { intelligence: { scope: "drive" }, knowledge: { scope: "drive" } },
+    slots: {},
+  };
+
+  function withAddons(overrides: Record<string, () => Promise<Response>> = {}) {
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      const key = `${init?.method ?? "GET"} ${url}`;
+      if (overrides[key]) return overrides[key]();
+      if (url === "/api/addons/status") return Promise.resolve(jsonResponse(TWO_ADDONS));
+      return defaultMockImpl(url);
+    });
+  }
+
+  async function goToAddonStep() {
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/public/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+  }
+
+  function addonPolicyPut() {
+    const call = mockFetch.mock.calls.find(
+      ([url, opts]) =>
+        url === "/api/admin/config/addon-policy" && (opts as RequestInit)?.method === "PUT",
+    );
+    return call ? JSON.parse((call[1] as RequestInit).body as string) : undefined;
+  }
+
+  function urlsCalled() {
+    return mockFetch.mock.calls.map((c) => c[0] as string);
+  }
+
+  it("keeps a switch turned off with its drive when the drive is renamed afterwards", async () => {
+    withAddons();
+    render(<SetupWizard />);
+    await reachDriveStep();
+    await goToAddonStep();
+    await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
+    fireEvent.click(screen.getByRole("checkbox", { name: "media / knowledge" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    fireEvent.change(screen.getByDisplayValue("media"), { target: { value: "Movies" } });
+    await goToAddonStep();
+
+    expect(screen.getByRole("checkbox", { name: "Movies / knowledge" })).not.toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /finish|complete/i })).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/^3\s*addon/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /finish|complete/i }));
+
+    await waitFor(() => expect(addonPolicyPut()).toEqual({ Movies: { knowledge: false } }));
+  });
+
+  it("shows the rejection and does not finish when the addon policy is not saved", async () => {
+    let policyPuts = 0;
+    withAddons({
+      "PUT /api/admin/config/addon-policy": () => {
+        policyPuts += 1;
+        return Promise.resolve(
+          policyPuts === 1
+            ? jsonResponse(
+                { detail: { code: "unknown_drive", message: "drive 'media' is not configured" } },
+                422,
+              )
+            : jsonResponse({ ok: true }),
+        );
+      },
+    });
+    render(<SetupWizard />);
+    await reachDriveStep();
+    await goToAddonStep();
+    await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
+    fireEvent.click(screen.getByRole("checkbox", { name: "media / knowledge" }));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
+
+    expect(await screen.findByText("drive 'media' is not configured")).toBeInTheDocument();
+    expect(urlsCalled()).not.toContain("/api/admin/config/complete-setup");
+    expect(pushMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /finish|complete/i }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    expect(screen.queryByText("drive 'media' is not configured")).toBeNull();
+  });
+});
+
+describe("SetupWizard when the addon list does not load", () => {
+  it("finishes without saving a policy that disables anything", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/addons/status") {
+        return Promise.resolve(jsonResponse({ detail: "boom" }, 500));
+      }
+      return defaultMockImpl(url);
+    });
+    render(<SetupWizard />);
+    await reachDriveStep();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/public/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    await screen.findByText(/could not load the addon list/i);
+    fireEvent.click(screen.getByRole("button", { name: /skip/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    const policyPut = mockFetch.mock.calls.find(
+      ([url, opts]) =>
+        url === "/api/admin/config/addon-policy" && (opts as RequestInit)?.method === "PUT",
+    );
+    expect(JSON.parse((policyPut![1] as RequestInit).body as string)).toEqual({});
+    expect(
+      mockFetch.mock.calls.map((c) => c[0] as string),
+    ).toContain("/api/admin/config/complete-setup");
+  });
+
+  it("says the list could not be loaded, retries it, and does not count zero addons", async () => {
+    let statusCalls = 0;
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/addons/status") {
+        statusCalls += 1;
+        return Promise.resolve(
+          statusCalls === 1
+            ? jsonResponse({ detail: "boom" }, 500)
+            : jsonResponse({ addons: { knowledge: { scope: "drive" } }, slots: {} }),
+        );
+      }
+      return defaultMockImpl(url);
+    });
+    render(<SetupWizard />);
+    await reachDriveStep();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/public/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    expect(await screen.findByText(/could not load the addon list/i)).toBeInTheDocument();
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /skip/i }));
+    await screen.findByRole("button", { name: /finish|complete/i });
+    expect(screen.queryByText(/^0\s*addon/)).toBeNull();
+    expect(screen.getByText(/left at their defaults/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /retry/i }));
+    await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(2));
+    expect(screen.queryByText(/could not load the addon list/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /skip/i }));
+    await screen.findByRole("button", { name: /finish|complete/i });
+    expect(screen.getByText(/^2\s*addon/)).toBeInTheDocument();
+  });
+});
