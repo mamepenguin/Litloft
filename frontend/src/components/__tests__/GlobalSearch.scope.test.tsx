@@ -421,6 +421,16 @@ describe("GlobalSearch with a scope", () => {
       expect(mockFetchSemanticHits).toHaveBeenCalledWith("review", "main", expect.anything());
     });
 
+    it("with the chip's button, leaving focus in the field", () => {
+      shell(<ScopedScreen />);
+      openFromHeader();
+      input().blur();
+      expect(document.activeElement).not.toBe(input());
+
+      fireEvent.click(chipRemover()!);
+      expect(document.activeElement).toBe(input());
+    });
+
     it("with Backspace on an empty field", () => {
       shell(<ScopedScreen />);
       openFromHeader();
@@ -512,6 +522,38 @@ describe("GlobalSearch with a scope", () => {
       );
     });
 
+    it("opens a clicked row and remembers the query", async () => {
+      twoNotes();
+      shell(<ScopedScreen />);
+      openFromHeader();
+      await typeQuery("review");
+      await waitFor(() => expect(screen.getAllByTestId("scoped-result-item")).toHaveLength(2));
+
+      fireEvent.click(screen.getAllByTestId("scoped-result-item")[1]);
+      expect(mockRouterPush).toHaveBeenCalledWith("/files/n2");
+      expect(JSON.parse(localStorage.getItem("search-history:main")!)).toEqual(["review"]);
+    });
+
+    it("does nothing on Enter in an empty field", () => {
+      shell(<ScopedScreen />);
+      openFromHeader();
+      fireEvent.keyDown(input(), { key: "Enter" });
+      expect(mockRouterPush).not.toHaveBeenCalled();
+      expect(screen.getAllByRole("textbox")).toHaveLength(1);
+    });
+
+    it("trims the query it hands to the see-all destination", () => {
+      shell(<ScopedScreen />);
+      openFromHeader();
+      fireEvent.change(input(), { target: { value: "  a&b  " } });
+      expect(screen.getByRole("link", { name: "See all Notes matching “a&b”" })).toHaveAttribute(
+        "href",
+        "/drive/main/addons/knowledge?view=all&q=a%26b",
+      );
+      fireEvent.keyDown(input(), { key: "Enter" });
+      expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/addons/knowledge?view=all&q=a%26b");
+    });
+
     it("goes to the normal search page when the scope has no see-all destination", () => {
       shell(<ScopedScreen scope={{ label: "Notes", type: "text" }} />);
       openFromHeader();
@@ -541,7 +583,9 @@ describe("GlobalSearch with a scope", () => {
         expect(screen.getByText(hint)).toBeInTheDocument();
       }
 
-      fireEvent.click(link);
+      // `fireEvent` answers false when a handler prevented the default, which
+      // is what keeps the browser from also loading the href as a new document.
+      expect(fireEvent.click(link)).toBe(false);
       expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/addons/knowledge?view=all&q=a%26b");
       expect(screen.queryByRole("textbox")).toBeNull();
     });
