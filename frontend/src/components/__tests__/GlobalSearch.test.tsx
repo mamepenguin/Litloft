@@ -151,7 +151,7 @@ describe("GlobalSearch", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     driveState.current = "main";
-    try { localStorage.removeItem("search-history"); } catch { /* jsdom */ }
+    localStorage.clear();
     mockGetWatchHistory.mockResolvedValue([]);
     mockGetDriveFiles.mockResolvedValue({
       data: [],
