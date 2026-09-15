@@ -165,11 +165,7 @@ const sortQueryOf = () =>
 const viewModeOf = () =>
   screen.getByTestId("folder-content").getAttribute("data-view-mode");
 
-/**
- * `FolderToolbar` renders its `leftActions` group twice, one per breakpoint,
- * and CSS hides one.
- */
-const OFFERED = 2;
+const OFFERED = 1;
 
 const addButtons = () => screen.queryAllByRole("button", { name: "Add" });
 const newFolderButtons = () =>

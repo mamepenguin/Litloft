@@ -123,17 +123,17 @@ const FLOOR: Record<string, string[]> = {
 
 /** Where each control lives. Empty chain means "on the bar at every width". */
 const SCOPE: Record<string, string[]> = {
-  Play: [],
+  Add: [],
   Filter: [],
   "Filter: Text · Verified only": [],
   "More actions": [],
   "Search the whole drive": [],
+  INPUT: ["md:w-40", "md:flex-initial"],
+  Create: [],
+  Cancel: [],
   // Everything that leaves the bar leaves at 768, where `00-basis.md` ends
   // the mobile form.
-  Add: ["hidden", "md:flex"],
-  INPUT: ["md:w-40", "md:flex-initial", "hidden", "md:block"],
-  Create: ["hidden", "md:block"],
-  Cancel: ["hidden", "md:block"],
+  Play: ["hidden", "md:flex"],
   "View: Grid view": ["hidden", "md:flex"],
   "Sort: Newest first": ["hidden", "md:flex"],
   "Sort: Relevance": ["hidden", "md:flex"],
@@ -225,7 +225,8 @@ describe("what the folder toolbar keeps on the bar", () => {
 
     const face = screen.getByRole("button", { name: /^Filter:/ });
     expect([...face.querySelector("span")!.classList].sort()).toEqual([
-      "max-lg:max-w-24",
+      "max-sm:max-w-16",
+      "sm:max-lg:max-w-24",
       "truncate",
     ]);
     // The icon must not be the thing that shrinks. Without `shrink-0` the
@@ -247,10 +248,10 @@ describe("what the folder toolbar keeps on the bar", () => {
     expect([...link.querySelector("svg")!.classList]).toContain("shrink-0");
   });
 
-  it("caps the filter face only once a second axis makes it long", () => {
-    // The cap is 96px and the widest single-axis face is "Unjudged only" at
-    // 95 — one label-length from eliding a face that fits. So the cap
-    // arrives with the second axis rather than sitting on the control.
+  it("caps any active filter face below 640, and only a second axis above it", () => {
+    // From 640 the cap is 96px and the widest single-axis face is "Unjudged
+    // only" at 95, so it arrives with the second axis. Below 640 the bar
+    // shares its row with Add and `…`, and 95 is already too wide at 320.
     const face = () => screen.getByRole("button", { name: /^Filter/ });
     const classes = () => [...face().querySelector("span")!.classList].sort();
 
@@ -258,12 +259,12 @@ describe("what the folder toolbar keeps on the bar", () => {
     expect(classes()).toEqual(["truncate"]);
 
     rerender(<FolderToolbar {...props} typeFilter="text" />);
-    expect(classes()).toEqual(["truncate"]);
+    expect(classes()).toEqual(["max-sm:max-w-16", "truncate"]);
 
     rerender(
       <FolderToolbar {...props} typeFilter="text" trustFilter="verified" />,
     );
-    expect(classes()).toEqual(["max-lg:max-w-24", "truncate"]);
+    expect(classes()).toEqual(["max-sm:max-w-16", "sm:max-lg:max-w-24", "truncate"]);
   });
 
   it("keeps the overflow's breakpoint wrapper out of the menu's own children", () => {
@@ -283,60 +284,36 @@ describe("what the folder toolbar keeps on the bar", () => {
     }
   });
 
-  it("hands the left group from one row to the other with no width between", () => {
-    // Read out of the DOM rather than written twice, so moving the
-    // breakpoint has to move every member or fail here.
+  it("draws the toolbar as one bar, with nothing above it", () => {
     const { container } = render(<FolderToolbar {...props} creatingFolder />);
-    const bp = (el: Element) => {
-      const shown = [...el.classList].find((c) => /^[a-z]{2}:(flex|block)$/.test(c));
-      const hidden = [...el.classList].find((c) => /^[a-z]{2}:hidden$/.test(c));
-      return (shown ?? hidden)?.split(":")[0];
-    };
+    expect(container.children).toHaveLength(1);
+    expect(container.firstElementChild).toBe(bar(container));
+  });
 
-    const flowRow = container.firstElementChild!;
-    expect([...flowRow.classList]).toContain("md:hidden");
-
-    // Every element on the bar that appears at a breakpoint, partitioned by
-    // which one. Found by class rather than listed, so a fourth arrival has
-    // to join a group or fail the count.
+  it("hides controls at the overflow's breakpoint and at no other", () => {
+    // Found by class rather than listed, so an arrival at a different width
+    // fails the partition.
+    const { container } = render(<FolderToolbar {...props} creatingFolder />);
     const byBreakpoint: Record<string, number> = {};
     for (const el of bar(container).querySelectorAll<HTMLElement>("*")) {
       if (![...el.classList].includes("hidden")) continue;
-      const at = bp(el);
+      const at = [...el.classList]
+        .find((c) => /^[a-z]{2}:(flex|block)$/.test(c))
+        ?.split(":")[0];
       if (at) byBreakpoint[at] = (byBreakpoint[at] ?? 0) + 1;
     }
-
-    // Four at one width: `Add`, the name field, and the two arranging
-    // menus.
     const wide = BAR_WIDE.className.replace("hidden ", "").split(":")[0];
-    expect(bp(flowRow)).toBe(wide);
-    expect(byBreakpoint).toEqual({ [wide]: 4 });
+    // Play and the two arranging menus.
+    expect(byBreakpoint).toEqual({ [wide]: 3 });
   });
 
-  it("draws the name field once per breakpoint, each on a line of its own", () => {
+  it("draws the name field once, as a line of its own on the bar", () => {
     const { container } = render(<FolderToolbar {...props} creatingFolder />);
     const fields = [...container.querySelectorAll<HTMLElement>('input[type="text"]')];
-    expect(fields).toHaveLength(2);
-
-    const scopeOf = (field: HTMLElement, token: string) => {
-      let el: HTMLElement | null = field;
-      while (el) {
-        if ([...el.classList].includes(token)) return el;
-        el = el.parentElement;
-      }
-      return null;
-    };
-    // Asserted on the wrapper, not on the inner row: the inner one has
-    // `w-full` too, and it is the outer one that is the flex item.
-    const flow = fields.find((f) => scopeOf(f, "md:hidden"));
-    const onBar = fields.find((f) => scopeOf(f, "md:block"));
-    expect(flow).toBeDefined();
-    expect(onBar).toBeDefined();
-    expect([...scopeOf(onBar!, "md:block")!.classList].sort()).toEqual([
-      "hidden",
-      "md:block",
-      "w-full",
-    ]);
+    expect(fields).toHaveLength(1);
+    const row = fields[0].parentElement!;
+    expect(row.parentElement).toBe(bar(container));
+    expect([...row.classList]).toContain("w-full");
   });
 
   it("puts nothing on the bar when no folder is being named", () => {
@@ -348,10 +325,6 @@ describe("what the folder toolbar keeps on the bar", () => {
   });
 
   it("gives the name field a line rather than a place in the row", () => {
-    // `w-full` on the field's own wrapper is what keeps it from competing
-    // with the controls. Nested inside the left group, `w-full` is 100% of
-    // that group rather than of the row, so the group grows and the row it
-    // sits on wraps instead.
     const { container } = render(<FolderToolbar {...props} creatingFolder />);
     const field = container.querySelector<HTMLElement>('input[type="text"]')!;
     const row = field.parentElement!;
@@ -363,6 +336,7 @@ describe("what the folder toolbar keeps on the bar", () => {
     const { container } = render(<FolderToolbar {...props} />);
     const wide = [...bar(container).querySelectorAll<HTMLElement>('[data-bar="wide"]')];
     expect(wide.map((el) => nameOf(controls(el)[0]))).toEqual([
+      "Play",
       "View: Grid view",
       "Sort: Newest first",
     ]);
@@ -372,10 +346,10 @@ describe("what the folder toolbar keeps on the bar", () => {
     for (const el of wide) {
       expect([...el.classList].join(" ")).toContain(BAR_WIDE.className);
     }
-    expect(bar(container).querySelectorAll("[data-bar]").length).toBe(2);
+    expect(bar(container).querySelectorAll("[data-bar]").length).toBe(3);
   });
 
-  it("puts the two that leave into the overflow, at exactly the widths they left", () => {
+  it("puts the three that leave into the overflow, at exactly the widths they left", () => {
     // The two halves of one decision. Read from `BAR_WIDE` rather than
     // written out, so moving the breakpoint moves both or fails here: a bar
     // that hides a control at 900px while the overflow only offers it below
@@ -386,7 +360,11 @@ describe("what the folder toolbar keeps on the bar", () => {
     const groups = screen
       .getByRole("menu")
       .querySelectorAll<HTMLElement>(`.${breakpoint}\\:hidden`);
-    expect(groups).toHaveLength(1);
+    expect(
+      [...groups].map((g) =>
+        [...g.querySelectorAll('[role^="menuitem"]')].map((r) => (r.textContent ?? "").trim())[0],
+      ),
+    ).toEqual(["Play", "Grid view"]);
     expect(controls(container).map(nameOf)).toContain("View: Grid view");
   });
 
@@ -416,11 +394,34 @@ describe("what the folder toolbar keeps on the bar", () => {
     fireEvent.click(screen.getByLabelText("More actions"));
     const menu = screen.getByRole("menu");
     const inOverflow = rowsOf(menu).filter(
-      (r) => !["Selection mode", "Rescan", "Pin this folder"].includes(r),
+      (r) => !["Play", "Selection mode", "Rescan", "Pin this folder"].includes(r),
     );
 
     expect(inOverflow).toEqual(onBar);
     expect(inOverflow.length).toBe(rows);
+  });
+
+  it("plays from the overflow and closes it", () => {
+    const onPlayAll = vi.fn();
+    render(<FolderToolbar {...props} onPlayAll={onPlayAll} />);
+    fireEvent.click(screen.getByLabelText("More actions"));
+    fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Play" }));
+    expect(onPlayAll).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["nothing is playable", { hasPlayableFiles: false }],
+    ["scoped to a tag", { tagFilter: "recipes" }],
+    ["searching", { isSearch: true }],
+    ["in a special view", { isSpecialView: true }],
+  ])("offers Play in neither place when %s", (_case, overrides) => {
+    render(<FolderToolbar {...props} {...overrides} />);
+    expect(screen.queryByRole("button", { name: "Play" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("More actions"));
+    expect(
+      within(screen.getByRole("menu")).queryByRole("menuitem", { name: "Play" }),
+    ).not.toBeInTheDocument();
   });
 
   it("closes the overflow when a choice inside it is taken", () => {

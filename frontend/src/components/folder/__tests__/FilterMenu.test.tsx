@@ -20,7 +20,6 @@ describe("FilterMenu", () => {
   it("carries a word before anything is filtered", () => {
     render(<FilterMenu {...base} />);
     expect(trigger()).toHaveAccessibleName("Filter");
-    // No width cap at rest; the cap arrives with the second axis.
     expect([...trigger().querySelector("span")!.classList]).toEqual(["truncate"]);
   });
 

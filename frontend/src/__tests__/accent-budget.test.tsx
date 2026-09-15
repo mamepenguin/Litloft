@@ -502,12 +502,9 @@ describe("accent budget — Library root", () => {
   it("spends its one fill on Add", async () => {
     const { container } = render(<FolderBrowser driveName="main" folderPath="" view="library" />);
     await screen.findAllByRole("button", { name: "Add" });
-    // Two, because the toolbar renders its left group once for each
-    // breakpoint and jsdom applies no stylesheet, so both are in the
-    // tree. Declared rather than deduped away, so a third copy — a real
-    // second fill drawn with the same label — cannot hide behind the set
-    // below.
-    expect(accentFills(container)).toHaveLength(2);
+    // Counted as well as named, so a second fill drawn with the same label
+    // cannot hide behind the set below.
+    expect(accentFills(container)).toHaveLength(1);
     expect(fillLabels(container)).toEqual(["Add"]);
   });
 

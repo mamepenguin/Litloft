@@ -72,14 +72,14 @@ columns beside it stay near enough each other to read as one row rather than as
 two things at opposite ends of the window. The row itself still spans the full width, so the
 whole strip stays clickable and lights up on hover.
 
-Below 768px the bar carries **Play**, **Filter** and `…`. **View** and
-**Sort** move inside `…` as sections of it — the same rows, in the same
-order — and **Add** moves into its own row just above the bar, with any
-addon buttons beside it.
+Below 768px the bar is one row: **Add**, **Filter** and `…`. **Play**,
+**View** and **Sort** move inside `…` — View and Sort as sections of it, with
+the same rows in the same order.
 
-Nothing loses its label. The Filter button naming both of its axes, and the
-"Search the whole drive" link on a folder reached through a tag, are the two
-whose labels can outgrow the space; both are shortened with an ellipsis
+Nothing loses its label. The Filter button naming an active filter (below
+640px) or both of its axes, and the "Search the whole drive" link on a folder
+reached through a tag, are the two whose labels can outgrow the space; both
+are shortened with an ellipsis
 rather than dropped, and the full text stays in the control's accessible
 name. Every control the app itself draws on the bar is at least 44px for
 touch — a button contributed by an addon is that addon's to size.

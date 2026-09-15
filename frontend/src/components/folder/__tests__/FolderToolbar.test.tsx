@@ -18,10 +18,8 @@ vi.mock("@/components/AddonSlotsProvider", () => ({
   useAddonSlots: () => ({ hasSlot: () => true }),
 }));
 
-// `AddButton` appears twice — mobile row and desktop sticky bar — so every
-// lookup takes the first.
 const openAddMenu = () => {
-  fireEvent.click(screen.getAllByRole("button", { name: "Add" })[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
 };
 
 const sortControl = () => screen.queryByRole("button", { name: /^Sort/ });
@@ -77,18 +75,17 @@ describe("FolderToolbar", () => {
     const menuSlots = () =>
       addonSlotProps.filter((s) => s.id === "folder-actions-menu");
 
-    // The slot is only asked for once the menu is open, and the toolbar
-    // draws one menu per breakpoint.
+    // The slot is only asked for once the menu is open.
     const openEvery = () =>
       screen
         .getAllByRole("button", { name: "Add" })
         .forEach((b) => fireEvent.click(b));
 
-    it("is asked for at both widths", () => {
+    it("is asked for once, when the menu opens", () => {
       render(<FolderToolbar {...defaultProps} />);
       expect(menuSlots()).toHaveLength(0);
       openEvery();
-      expect(menuSlots()).toHaveLength(2);
+      expect(menuSlots()).toHaveLength(1);
     });
 
     it("is handed the folder it is looking at", () => {
@@ -373,7 +370,7 @@ describe("FolderToolbar", () => {
         .getAllByRole("button", { name: "Add" })
         .forEach((b) => fireEvent.click(b));
       const slots = addonSlotProps.filter((s) => s.id === "folder-actions-menu");
-      expect(slots).toHaveLength(2);
+      expect(slots).toHaveLength(1);
       for (const slot of slots) {
         expect(slot.props).toMatchObject({
           drive: "test-drive",

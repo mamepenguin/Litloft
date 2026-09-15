@@ -169,10 +169,9 @@ export function FolderToolbar({
   ) : null;
 
   /**
-   * `w-full` and a **direct child of the wrapping row**, not a sibling of
-   * `Add` inside the left group. Nested there, `w-full` is 100% of the
-   * group rather than of the row, so the group grows and the row it sits
-   * on wraps instead.
+   * `w-full` and a **direct child of the wrapping row**. Nested in a group,
+   * `w-full` is 100% of the group rather than of the row, so the group grows
+   * and the controls beside it wrap instead.
    */
   const createFolderRow = creatingFolder ? (
     <div className="flex w-full items-center gap-2">
@@ -216,26 +215,16 @@ export function FolderToolbar({
     </div>
   ) : null;
 
+  const showPlayAll = hasPlayableFiles && !hidePlayAll;
+
   return (
     <>
-      {/* `md`, not `sm`, and the same 768 the arranging menus use: the left
-          group on the bar at 640 wraps it as soon as the New Folder field
-          opens. */}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-1 md:hidden">
-        {leftActions}
-        {createFolderRow}
-      </div>
-
       {/* Must be a direct child of the flex column containing block so that
           sticky has sufficient height to actually stick.
           z-20 matches the Header so that FilterField's absolute search icon
           (z-10) is covered when the bar sticks. */}
       <div className="sticky top-0 z-20 mb-2 flex flex-wrap items-center gap-2 bg-bg-primary px-4 py-2">
-        {leftActions && (
-          <div className="hidden items-center gap-2 md:flex">
-            {leftActions}
-          </div>
-        )}
+        {leftActions}
 
         {/* `flex` on this div is what keeps the link at its content width.
             Without it the div is a block and the link fills it.
@@ -252,20 +241,16 @@ export function FolderToolbar({
           <div className="flex-1" />
         )}
 
-        {/* Not the overflow menu, and not accent-filled: playing a music
-            album or a video folder is a first-class action, but the screen
-            gets one fill and `Add` holds it. */}
-        {hasPlayableFiles && !hidePlayAll && (
-          <Button
-            // Its word survives 375px. The mobile rule reduces the *number*
-            // of controls on the bar, not their labels.
-            variant="secondary"
-            size="sm"
-            onClick={onPlayAll}
-          >
-            <Play size={16} />
-            {tc("play")}
-          </Button>
+        {/* Not accent-filled: the screen gets one fill and `Add` holds it.
+            Below 768 Play is the control that leaves the bar, so Add, Filter
+            and `…` share one row down to 320px. */}
+        {showPlayAll && (
+          <div {...BAR_WIDE}>
+            <Button variant="secondary" size="sm" onClick={onPlayAll}>
+              <Play size={16} />
+              {tc("play")}
+            </Button>
+          </div>
         )}
 
         {!hideArrangingControls && (
@@ -314,6 +299,19 @@ export function FolderToolbar({
                 {/* `md:hidden` and `BAR_WIDE` are the two halves of one
                     decision: a control that leaves the bar has to arrive
                     here. */}
+                {showPlayAll && (
+                  <div className="md:hidden" role="presentation">
+                    <ActionMenuItem
+                      icon={Play}
+                      label={tc("play")}
+                      onClick={() => {
+                        onPlayAll();
+                        closeMore();
+                      }}
+                    />
+                    <MenuSeparator />
+                  </div>
+                )}
                 {!hideArrangingControls && (
                   <div className="md:hidden" role="presentation">
                     <ViewGroup
@@ -415,13 +413,7 @@ export function FolderToolbar({
             )}
         </div>
 
-        {/* The wrapper is inside the condition, not around the contents: an
-            always-rendered `w-full` box is a flex item whether or not it
-            holds anything, so an empty one takes a line and the row-gap
-            with it. */}
-        {createFolderRow && (
-          <div className="hidden w-full md:block">{createFolderRow}</div>
-        )}
+        {createFolderRow}
       </div>
     </>
   );
