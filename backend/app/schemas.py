@@ -785,12 +785,14 @@ class RelatedFileSummary(_UtcDateTimeMixin, BaseModel):
     id: str
     drive: str
     filename: str
+    title: str
     folder_path: str
     file_type: str
     mime_type: str
     thumbnail_url: str
     has_thumbnail: bool
     file_size: int
+    duration: float | None = None
     missing_since: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -799,6 +801,8 @@ class RelatedFileSummary(_UtcDateTimeMixin, BaseModel):
 class FileRelationItem(_UtcDateTimeMixin, BaseModel):
     relation_id: int
     kind: str
+    direction: Literal["outgoing", "incoming"]
+    origin: str | None = None
     created_at: datetime
     created_by: str | None = None
     file: RelatedFileSummary

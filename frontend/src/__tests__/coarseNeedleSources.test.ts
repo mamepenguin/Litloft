@@ -152,7 +152,7 @@ describe("pointer-coarse needle sources", () => {
 
     // Counted rather than enumerated: writing the class names out as
     // literals here would make this file a source for every one of them.
-    expect(REQUIRED).toHaveLength(55);
+    expect(REQUIRED).toHaveLength(60);
 
     expect(NEEDLE_PARTS).toHaveLength(7);
     expect(CANNOT_BE_ABSENT).toHaveLength(4);

@@ -93,7 +93,7 @@ Litloft's frontend has a small set of named slots:
 - `search-modes` — appended to the search page sidebar.
 - `file-detail-sections` — stacked sections in the file detail inspector's **Info** tab (AI summary, suggested tags, the Knowledge editor, …).
 - `player-side` — a tab beside a media file, for something that follows playback (a transcript). One entry is one tab, and an entry that says it has nothing for a file gets none.
-- `file-relations` — under the inspector's **Related** heading, for connections an addon derives rather than the user states (similar files).
+- `file-relations` — in the inspector's **Related** tab, for connections an addon derives rather than the user states (similar files), or a way into them (the connections graph).
 - `file-detail-actions` — the file's action row, beside like and favourite, for a per-file action worth one press.
 - `dashboard-widgets` — admin dashboard cards.
 - `dashboard-alerts` — a band above the drive cards, for something an operator should see before anything else. Absent when there is nothing to report.

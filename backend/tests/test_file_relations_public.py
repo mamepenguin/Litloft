@@ -48,10 +48,16 @@ def _seed_file(
 
 
 def _seed_relation(
-    db, a: File, b: File, *, kind: str = "related", created_by: str | None = None
+    db,
+    a: File,
+    b: File,
+    *,
+    kind: str = "related",
+    created_by: str | None = None,
+    origin: str | None = None,
 ) -> FileRelation:
     rel = FileRelation(
-        file_id_a=a.id, file_id_b=b.id, kind=kind, created_by=created_by
+        file_id_a=a.id, file_id_b=b.id, kind=kind, created_by=created_by, origin=origin
     )
     db.add(rel)
     db.commit()
@@ -167,3 +173,115 @@ class TestListFileRelations:
             == f"/api/files/{b.id}/thumbnail"
         )
         assert item["file"]["has_thumbnail"] is False
+
+    def test_response_carries_title_and_duration(self, client):
+        c, db, _, _ = client
+        a = _seed_file(db, "a.mp4")
+        b = _seed_file(db, "b.mp4")
+        b.title = "Episode two"
+        b.duration = 1935.0
+        db.commit()
+        _seed_relation(db, a, b)
+
+        item = c.get(f"/api/files/{a.id}/relations").json()["relations"][0]
+        assert item["file"]["title"] == "Episode two"
+        assert item["file"]["duration"] == 1935.0
+
+
+class TestRelationDirectionAndOrigin:
+    def test_direction_is_outgoing_from_a_and_incoming_to_b(self, client):
+        c, db, _, _ = client
+        a = _seed_file(db, "a.mp4")
+        b = _seed_file(db, "b.mp4")
+        _seed_relation(db, a, b, origin="markdown")
+
+        from_a = c.get(f"/api/files/{a.id}/relations").json()["relations"]
+        from_b = c.get(f"/api/files/{b.id}/relations").json()["relations"]
+        assert [(i["direction"], i["origin"]) for i in from_a] == [
+            ("outgoing", "markdown")
+        ]
+        assert [(i["direction"], i["origin"]) for i in from_b] == [
+            ("incoming", "markdown")
+        ]
+
+    def test_origin_is_passed_through(self, client):
+        c, db, _, _ = client
+        a = _seed_file(db, "a.mp4")
+        b = _seed_file(db, "b.mp4")
+        cc = _seed_file(db, "c.mp4")
+        _seed_relation(db, a, b, origin="internal")
+        _seed_relation(db, a, cc)
+
+        items = c.get(f"/api/files/{a.id}/relations").json()["relations"]
+        assert {i["file"]["id"]: i["origin"] for i in items} == {
+            b.id: "internal",
+            cc.id: None,
+        }
+
+    def test_mutual_links_are_listed_once_per_direction_newest_first(self, client):
+        c, db, _, _ = client
+        a = _seed_file(db, "a.mp4")
+        b = _seed_file(db, "b.mp4")
+        _seed_relation(db, a, b, origin="markdown")
+        _seed_relation(db, b, a, origin="markdown")
+
+        items = c.get(f"/api/files/{a.id}/relations").json()["relations"]
+        assert [(i["file"]["id"], i["direction"]) for i in items] == [
+            (b.id, "incoming"),
+            (b.id, "outgoing"),
+        ]
+
+    def test_same_counterpart_kind_and_direction_is_listed_once(self, client):
+        c, db, _, _ = client
+        a = _seed_file(db, "a.mp4")
+        b = _seed_file(db, "b.mp4")
+        cc = _seed_file(db, "c.mp4")
+        _seed_relation(db, a, b, kind="related")
+        _seed_relation(db, a, b, kind="derived_from")
+        _seed_relation(db, a, cc, kind="related")
+
+        items = c.get(f"/api/files/{a.id}/relations").json()["relations"]
+        keys = [(i["file"]["id"], i["kind"], i["direction"]) for i in items]
+        assert sorted(keys) == sorted(
+            [
+                (b.id, "related", "outgoing"),
+                (b.id, "derived_from", "outgoing"),
+                (cc.id, "related", "outgoing"),
+            ]
+        )
+
+    def test_trashed_counterpart_is_dropped_in_both_directions(self, client):
+        c, db, _, _ = client
+        a = _seed_file(db, "a.mp4")
+        b = _seed_file(db, "b.mp4", deleted_at=datetime.now(UTC))
+        _seed_relation(db, a, b, origin="markdown")
+        _seed_relation(db, b, a, origin="markdown")
+
+        assert c.get(f"/api/files/{a.id}/relations").json()["relations"] == []
+
+
+from tests.test_target_drive_access import LOCKED_DRIVE, OPEN_DRIVE, two_drives  # noqa: E402,F401
+
+
+class TestRelationsRespectDriveAccess:
+    def test_a_source_in_a_locked_drive_answers_404(self, two_drives):
+        api, db, _, _ = two_drives
+        locked = _seed_file(db, "locked.mp4", drive=LOCKED_DRIVE)
+        other = _seed_file(db, "other.mp4", drive=LOCKED_DRIVE)
+        _seed_relation(db, locked, other, origin="markdown")
+
+        assert api.get(f"/api/files/{locked.id}/relations").status_code == 404
+
+    def test_a_counterpart_in_another_drive_is_never_listed(self, two_drives):
+        api, db, _, _ = two_drives
+        source = _seed_file(db, "source.mp4", drive=OPEN_DRIVE)
+        same = _seed_file(db, "same.mp4", drive=OPEN_DRIVE)
+        foreign_out = _seed_file(db, "out.mp4", drive=LOCKED_DRIVE)
+        foreign_in = _seed_file(db, "in.mp4", drive=LOCKED_DRIVE)
+        _seed_relation(db, source, foreign_out, origin="markdown")
+        _seed_relation(db, foreign_in, source, origin="markdown")
+        _seed_relation(db, source, same, origin="internal")
+
+        res = api.get(f"/api/files/{source.id}/relations")
+        assert res.status_code == 200
+        assert [i["file"]["id"] for i in res.json()["relations"]] == [same.id]

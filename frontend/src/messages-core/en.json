@@ -171,6 +171,9 @@
     "activeSummaryFallbackOpen": "Open note file",
     "relatedFilesTitle": "Related files",
     "relatedFileMissing": "missing",
+    "relatedLinksFrom": "Links from this file",
+    "relatedLinksTo": "Links to this file",
+    "relatedDriveRoot": "Drive root",
     "relatedFileSizeBytes": "{size} bytes",
     "layoutBeside": "Move transcript beside the player",
     "layoutStack": "Move transcript below the player",
@@ -891,13 +894,13 @@
       "tags": "Tags",
       "related": "Related files",
       "aiSummary": "AI summary",
-      "comments": "Comments",
-      "relatedGroup": "Related"
+      "comments": "Comments"
     },
     "tabs": {
       "info": "Info",
       "chapters": "Chapters",
-      "pages": "Pages"
+      "pages": "Pages",
+      "related": "Related"
     },
     "saveDot": {
       "idle": "Save state",

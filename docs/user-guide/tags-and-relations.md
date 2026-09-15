@@ -101,7 +101,7 @@ For `.md` files, the backend extracts the links in the note and synchronises the
 - `[[wiki links]]` — resolved against Markdown files in the same drive.
 - `source_file_ids` in the frontmatter — the files a note cites.
 
-The sync is a full reconciliation, not an append: links you remove from the note lose their relation too. So a Markdown note that links to other Litloft files automatically populates that file's *Related files* section, and vice versa.
+The sync is a full reconciliation, not an append: links you remove from the note lose their relation too. So a Markdown note that links to other Litloft files automatically appears in the **Related** tab of both files: under *Links from this file* on the note, and under *Links to this file* on the file it links to.
 
 A note reconciles only the relations its own links wrote. Saving the file on the receiving end of a link never removes it, and neither does the sync remove a relation an addon created through the Internal API. Two notes that link to each other keep one relation per direction.
 
@@ -109,15 +109,23 @@ Like the tag projection, this runs in its own commit — a failure to resolve li
 
 ### Where relations show up
 
-The file detail page has a **Related files** section listing every relation, in both directions, newest first, with a count in the heading. A file related in both directions appears once. Trashed files drop out of the list; missing files stay, greyed out and labelled, so the link is not silently forgotten while a drive is unmounted.
+The inspector on a file's page has a **Related** tab, after **Info**. It is there when the file has at least one relation, or when an addon adds something to it (for example Similar files from Intelligence, or the graph link from Knowledge). The Info tab does not list relations.
 
-The section hides itself entirely when a file has no relations.
+The tab has up to three lists, newest first, each with a count and each left out when empty:
 
-**One tile per row or two, decided by the space the list has** — not by the size of the window.
+- **Links from this file** — files this Markdown note links to.
+- **Links to this file** — Markdown notes that link to this file.
+- **Related files** — every other relation, such as one an addon created, in either direction.
 
-The same list is drawn in three places of very different widths: the inspector, a fixed 24rem column whatever the screen is doing; and the vertical layout, which some files get on the file page and every file gets while a collection or a folder is playing. The vertical one is as wide as the page allows — at most 1120px, and less again when the folder tree is beside it.
+Two notes that link to each other each show the other under both *Links from* and *Links to*. A file appears at most once in each list.
 
-Two tiles fit a row only where there is 45rem to put them in. Below that each tile takes the row, because a second column that halves the width also halves the filename, and a related file whose name you cannot read is not a link you can follow. On a 1512px screen that makes the inspector one column and the vertical layout two.
+Each row opens the related file. It shows the file's title and its folder (or *Drive root*); videos, audio and images that have a thumbnail show it, with the length for video and audio. Trashed files drop out of the lists; missing files stay, greyed out and labelled, so the link is not silently forgotten while a drive is unmounted.
+
+Addon entries follow the lists: Intelligence's **Similar files**, collapsed until you open it, and on Markdown and text files Knowledge's **See connections as a graph** link.
+
+While a collection is playing there is no inspector, so the same lists appear under a **Related** heading below the player.
+
+**One row per line or two, decided by the space the list has** — not by the size of the window. In the inspector, a fixed 24rem column, there is always one. Under a playing collection, which is as wide as the page allows, two fit a line only where there is 45rem to put them in, because a second column that halves the width also halves the name.
 
 ### API
 

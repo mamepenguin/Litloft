@@ -1927,12 +1927,14 @@ def _related_file_summary(file: File) -> RelatedFileSummary:
         id=file.id,
         drive=file.drive,
         filename=file.filename,
+        title=file.title,
         folder_path=file.folder_path,
         file_type=file.file_type,
         mime_type=file.mime_type,
         thumbnail_url=f"/api/files/{file.id}/thumbnail",
         has_thumbnail=file.thumbnail_path is not None,
         file_size=file.file_size,
+        duration=file.duration,
         missing_since=file.missing_since,
         created_at=file.created_at,
         updated_at=file.updated_at,
@@ -1990,20 +1992,17 @@ def list_file_relations(
     )
     by_id = {f.id: f for f in other_files}
 
-    # Notes linking each other hold one row per direction; this listing is
-    # undirected, so each (counterpart, kind) is shown once.
     items: list[FileRelationItem] = []
-    listed: set[tuple[str, str]] = set()
     for rel in relations:
-        other_id = relation_other[rel.id]
-        other = by_id.get(other_id)
-        if other is None or (other_id, rel.kind) in listed:
+        other = by_id.get(relation_other[rel.id])
+        if other is None:
             continue
-        listed.add((other_id, rel.kind))
         items.append(
             FileRelationItem(
                 relation_id=rel.id,
                 kind=rel.kind,
+                direction="outgoing" if rel.file_id_a == file_id else "incoming",
+                origin=rel.origin,
                 created_at=rel.created_at,
                 created_by=rel.created_by,
                 file=_related_file_summary(other),

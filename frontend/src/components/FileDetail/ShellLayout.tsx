@@ -26,16 +26,16 @@ import { ExifSection } from "../ExifSection";
 import { FileDetailShell } from "../FileDetailShell";
 import { FilePreview } from "../FilePreview";
 import { MediaLayoutToggle } from "../MediaLayoutToggle";
-import { RelatedFilesSection } from "../RelatedFilesSection";
 import { MarkdownDocumentLayout } from "../markdown/MarkdownDocumentLayout";
 import { FileNavControls } from "./FileNavControls";
 import { MediaCanvas } from "./MediaCanvas";
 import { InspectorShell } from "./inspector/InspectorShell";
-import { RelatedGroup } from "./inspector/RelatedGroup";
 import { buildInspectorTabs } from "./inspector/tabs";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 import type { SlotAvailability } from "./hooks/useSlotAvailability";
 import { useSheetHalfSnap } from "./hooks/useSheetHalfSnap";
+import { RelatedPanel } from "./related/RelatedPanel";
+import { useFileRelations } from "./related/useFileRelations";
 
 export interface ShellLayoutProps {
   file: FileItem;
@@ -135,6 +135,10 @@ export function ShellLayout({
   const tGlobal = useTranslations();
   const { getSlotEntries } = useAddonSlots();
   const [mediaLayout] = useMediaLayoutPreference();
+  const relations = useFileRelations(fileId);
+  const relatedListed =
+    (relations?.length ?? 0) > 0 ||
+    getSlotEntries("file-relations").length > 0;
   // Writing to the store the shell's own toggle reads, rather than
   // holding a second copy of the state: choosing "beside" has to be able
   // to reveal where it just put the panel. The store rather than
@@ -212,13 +216,6 @@ export function ShellLayout({
   // Index-Details placeholders would be noise rather than affordance.
   const infoTabContent = (withHeavySummaries: boolean) => (
     <>
-      {/* The addon half arrives through a slot rather than by id: core
-          naming `similar-files` here would be exactly the core-to-addon
-          dependency the rules forbid. */}
-      <RelatedGroup>
-        <RelatedFilesSection fileId={fileId} />
-        <AddonSlot id="file-relations" layout="stack" props={addonSlotProps} />
-      </RelatedGroup>
       <ExifSection fileId={fileId} fileType={file.file_type} />
       {!isHtmlPreview && (
         <AddonSlot
@@ -264,6 +261,16 @@ export function ShellLayout({
                 className="h-full"
               />
             ) : null,
+        },
+        {
+          id: "related",
+          label: tabLabels("related"),
+          content: relatedListed ? (
+            <RelatedPanel
+              relations={relations ?? []}
+              addonSlotProps={addonSlotProps}
+            />
+          ) : null,
         },
       ],
       addonTabs: companionInTabs

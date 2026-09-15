@@ -10,6 +10,7 @@ import * as api from "@/lib/api";
 import {
   loaded,
   makeFile,
+  relationMocks,
   setApiResponses,
   usePolicyMock,
 } from "./harness";
@@ -24,9 +25,16 @@ vi.mock("../../FilePreview", async () => ({
 vi.mock("../../ActiveSummaryHost", async () => ({
   ActiveSummaryHost: (await import("./harness")).ActiveSummaryHostStub,
 }));
-vi.mock("../../RelatedFilesSection", async () => ({
-  RelatedFilesSection: (await import("./harness")).RelatedFilesSectionStub,
+vi.mock("../related/RelatedPanel", async () => ({
+  RelatedPanel: (await import("./harness")).RelatedPanelStub,
 }));
+vi.mock("../related/useFileRelations", async () => ({
+  useFileRelations: (await import("./harness")).useFileRelationsStub,
+}));
+
+beforeEach(() => {
+  relationMocks.value = [];
+});
 vi.mock("../../ExifSection", async () => ({
   ExifSection: (await import("./harness")).ExifSectionStub,
 }));

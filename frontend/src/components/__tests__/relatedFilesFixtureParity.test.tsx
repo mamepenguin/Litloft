@@ -5,21 +5,7 @@ import { join } from "node:path";
 
 import type { FileRelationsResponse } from "@/lib/api";
 
-const getFileRelations = vi.fn<(id: string) => Promise<FileRelationsResponse>>();
-
-// `getStreamUrl` is not used by the component today, and that is the
-// point: the hover case below has to be able to render a `VideoPreview`
-// if somebody adds one, or it would fail for the wrong reason and read
-// as a guard that works.
-vi.mock("@/lib/api", () => ({
-  getFileRelations: (id: string) => getFileRelations(id),
-  getStreamUrl: (id: string) => `/api/files/${id}/stream`,
-  getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
-}));
-
-vi.mock("../AddonSlotsProvider", () => ({
-  useAddonSlots: () => ({ getSlotEntries: () => [] }),
-}));
+vi.mock("../AddonSlot", () => ({ AddonSlot: () => null }));
 
 vi.mock("next/link", () => ({
   default: ({
@@ -37,7 +23,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-import { RelatedFilesSection } from "../RelatedFilesSection";
+import { RelatedPanel } from "../FileDetail/related/RelatedPanel";
 
 afterEach(cleanup);
 
@@ -113,18 +99,22 @@ type Relation = FileRelationsResponse["relations"][number];
 const relation = (over: Partial<Relation["file"]>, id: number): Relation => ({
   relation_id: id,
   kind: "related",
+  direction: "outgoing",
+  origin: "internal",
   created_at: "2026-09-08T00:00:00Z",
   created_by: null,
   file: {
     id: `f${id}`.padEnd(12, "x"),
     drive: "test-drive",
     filename: "4822843331_db5bab77bb_o.jpg",
+    title: "4822843331_db5bab77bb_o",
     folder_path: "test_images",
     file_type: "image",
     mime_type: "image/jpeg",
     thumbnail_url: "/api/files/x/thumbnail",
     has_thumbnail: true,
     file_size: 1234,
+    duration: null,
     missing_since: null,
     created_at: "2026-09-08T00:00:00Z",
     updated_at: "2026-09-08T00:00:00Z",
@@ -132,18 +122,13 @@ const relation = (over: Partial<Relation["file"]>, id: number): Relation => ({
   },
 });
 
-/**
- * `thumbnail` and `icon` are chosen by `has_thumbnail`, not by kind — but
- * the kind also picks the glyph beside the name, so the pair is written out
- * rather than derived.
- */
 const STATES: Record<string, Relation> = {
   thumbnail: relation({}, 1),
   // For the media guard below: this codebase mounts a `<video>` behind
   // `file_type === "video"` plus a hover delay, so states that are all
   // images and documents never walk that branch.
   video: relation(
-    { filename: "clip.mp4", file_type: "video", mime_type: "video/mp4" },
+    { filename: "clip.mp4", file_type: "video", mime_type: "video/mp4", duration: 1935 },
     4,
   ),
   icon: relation(
@@ -168,8 +153,9 @@ const STATES: Record<string, Relation> = {
 };
 
 async function renderTile(state: Relation): Promise<HTMLElement> {
-  getFileRelations.mockResolvedValue({ relations: [state] });
-  const { container } = render(<RelatedFilesSection fileId="f1" />);
+  const { container } = render(
+    <RelatedPanel relations={[state]} addonSlotProps={{}} />,
+  );
   await screen.findByRole("link");
   return container.querySelector<HTMLElement>(".related-files-grid > a")!;
 }
@@ -204,10 +190,10 @@ describe("the related-files layout fixture's markup table", () => {
     const host = document.querySelector(".related-files-host")!;
     const grid = host.firstElementChild!;
     expect(classOf(host)).toBe("related-files-host");
-    expect(classOf(grid)).toBe("related-files-grid grid gap-2");
+    expect(classOf(grid)).toBe("related-files-grid grid gap-x-2 gap-y-0.5");
     expect(FIXTURE_HTML).toContain('host.className = "related-files-host"');
     expect(FIXTURE_HTML).toContain(
-      'grid.className = "related-files-grid grid gap-2"',
+      'grid.className = "related-files-grid grid gap-x-2 gap-y-0.5"',
     );
   });
 });
@@ -253,18 +239,20 @@ describe("no media in the containment scope", () => {
   });
 
   it("contains nothing but the grid, and nothing but tiles inside it", async () => {
-    getFileRelations.mockResolvedValue({
-      relations: Object.values(STATES).map((r, i) => ({
-        ...r,
-        relation_id: i + 1,
-      })),
-    });
-    const { container } = render(<RelatedFilesSection fileId="f1" />);
+    const { container } = render(
+      <RelatedPanel
+        relations={Object.values(STATES).map((r, i) => ({
+          ...r,
+          relation_id: i + 1,
+        }))}
+        addonSlotProps={{}}
+      />,
+    );
     await screen.findAllByRole("link");
 
     const host = container.querySelector(".related-files-host")!;
     expect(Array.from(host.children).map((c) => classOf(c))).toEqual([
-      "related-files-grid grid gap-2",
+      "related-files-grid grid gap-x-2 gap-y-0.5",
     ]);
     const grid = host.firstElementChild!;
     expect(

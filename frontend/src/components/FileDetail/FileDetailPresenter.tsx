@@ -9,9 +9,8 @@ import { ActiveSummaryHost } from "../ActiveSummaryHost";
 import { AddonSlot } from "../AddonSlot";
 import { CommentSection } from "../CommentSection";
 import { ExifSection } from "../ExifSection";
-import { RelatedFilesSection } from "../RelatedFilesSection";
 import { FileDetailCanvas } from "./FileDetailCanvas";
-import { RelatedGroup } from "./inspector/RelatedGroup";
+import { RelatedStack } from "./related/RelatedStack";
 import { ShellLayout } from "./ShellLayout";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 import type { SlotAvailability } from "./hooks/useSlotAvailability";
@@ -149,14 +148,7 @@ export function FileDetailPresenter({
 
       <div className="mt-4 space-y-4">
         <ActiveSummaryHost fileId={fileId} drive={drive} />
-        {/* Here because an addon publishing to `file-relations` has
-            *moved* its entry out of `file-detail-sections` — the slot below
-            no longer reaches it — so this column would otherwise lose the
-            section outright. */}
-        <RelatedGroup>
-          <RelatedFilesSection fileId={fileId} />
-          <AddonSlot id="file-relations" layout="stack" props={addonSlotProps} />
-        </RelatedGroup>
+        <RelatedStack fileId={fileId} addonSlotProps={addonSlotProps} />
         <ExifSection fileId={fileId} fileType={file.file_type} />
         <AddonSlot
           id="file-detail-sections"

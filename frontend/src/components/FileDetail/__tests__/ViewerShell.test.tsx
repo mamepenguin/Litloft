@@ -8,12 +8,14 @@ import {
   claimSlot,
   loaded,
   makeFile,
+  publishedArchiveState,
+  publishedPdfState,
+  relationMocks,
   setApiResponses,
+  setViewport,
   slotMocks,
   usePolicyMock,
-  setViewport,
-  publishedPdfState,
-  publishedArchiveState,
+  withRelations,
 } from "./harness";
 
 vi.mock("next/navigation", () => ({
@@ -26,9 +28,16 @@ vi.mock("../../FilePreview", async () => ({
 vi.mock("../../ActiveSummaryHost", async () => ({
   ActiveSummaryHost: (await import("./harness")).ActiveSummaryHostStub,
 }));
-vi.mock("../../RelatedFilesSection", async () => ({
-  RelatedFilesSection: (await import("./harness")).RelatedFilesSectionStub,
+vi.mock("../related/RelatedPanel", async () => ({
+  RelatedPanel: (await import("./harness")).RelatedPanelStub,
 }));
+vi.mock("../related/useFileRelations", async () => ({
+  useFileRelations: (await import("./harness")).useFileRelationsStub,
+}));
+
+beforeEach(() => {
+  relationMocks.value = [];
+});
 vi.mock("../../ExifSection", async () => ({
   ExifSection: (await import("./harness")).ExifSectionStub,
 }));
@@ -219,7 +228,6 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
     expect(row.classList.contains("file-action-row-touch")).toBe(true);
     expect(row.classList.contains("file-action-row-compact")).toBe(false);
     expect(screen.getByTestId("comments")).toBeInTheDocument();
-    expect(screen.getByTestId("related-files")).toBeInTheDocument();
   });
 
   it("draws exactly one page row, with exactly one way back in it", async () => {
@@ -281,6 +289,28 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
   });
 });
 
+
+describe.each([
+  ["a PDF", PDF],
+  ["an image", IMAGE],
+  ["a plain text file", TEXT],
+])("the Related tab on %s", (_name, kind) => {
+  it("is listed after Info when the file has a relation", async () => {
+    withRelations(1);
+    await renderKind(kind);
+
+    expect(tabs()).toEqual(["Info", "Related"]);
+    const info = document.getElementById("inspector-panel-info")!;
+    expect(info).not.toContainElement(screen.getByTestId("related-panel"));
+  });
+
+  it("is not listed with no relation and no derived source", async () => {
+    await renderKind(kind);
+
+    expect(tabs()).not.toContain("Related");
+    expect(screen.queryByTestId("related-panel")).toBeNull();
+  });
+});
 
 describe("the PDF's page-list tab", () => {
   const renderPdf = async (state: NonNullable<typeof publishedPdfState.value>) => {

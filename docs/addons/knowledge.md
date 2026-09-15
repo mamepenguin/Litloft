@@ -339,7 +339,7 @@ Alongside it, a **Create note** action in any file's `[...]` menu creates a stub
 
 ## Connections graph
 
-`GET /api/addons/knowledge/connections-graph` returns a force-directed view of the current drive, drawn on its own page, `/drive/{drive}/addons/knowledge/connections`, which the Notes page links to at the bottom. It unions two edge sources:
+`GET /api/addons/knowledge/connections-graph` returns a force-directed view of the current drive, drawn on its own page, `/drive/{drive}/addons/knowledge/connections`. The Notes page links to it at the bottom, and so does the **Related** tab of every Markdown or text file (**See connections as a graph**, after the file's relations). It unions two edge sources:
 
 - core `file_relations` — explicit file-to-file relations;
 - `note_origin_sources` — notes citing files through `source_file_ids`.

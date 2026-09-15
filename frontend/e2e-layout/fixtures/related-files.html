@@ -15,184 +15,207 @@
     <link rel="stylesheet" href="./globals.built.css" />
   </head>
   <body>
-    <!--
-      `video` shares `thumbnail`'s geometry; it exists so the parity test
-      has a video relation to render.
-    -->
     <script type="application/json" id="fixture-markup">
       {
         "thumbnail": {
           "tag": "a",
-          "class": "group flex gap-3 rounded-xl border border-bg-border bg-bg-card p-2 transition-colors hover:border-warm-silver/60 hover:bg-bg-elevated",
-          "attrs": { "href": "*" },
+          "class": "flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-bg-elevated items-center",
+          "attrs": {
+            "href": "*"
+          },
           "children": [
             {
-              "tag": "div",
-              "class": "relative flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-bg-elevated",
+              "tag": "span",
+              "class": "relative h-8 w-14 shrink-0 overflow-hidden rounded-lg bg-bg-elevated",
               "children": [
                 {
                   "tag": "img",
                   "class": "h-full w-full object-cover",
-                  "attrs": { "alt": "", "loading": "lazy", "src": "*" }
+                  "attrs": {
+                    "alt": "",
+                    "loading": "lazy",
+                    "src": "*"
+                  }
                 }
               ]
             },
             {
-              "tag": "div",
-              "class": "flex min-w-0 flex-1 flex-col justify-between py-0.5",
+              "tag": "span",
+              "class": "flex min-w-0 flex-1 flex-col",
               "children": [
                 {
-                  "tag": "div",
-                  "class": "flex items-center gap-1.5 text-sm font-medium text-text-primary",
-                  "children": [
-                    {
-                      "tag": "svg",
-                      "class": "lucide lucide-image text-text-muted",
-                      "attrs": { "width": "14", "height": "14" }
-                    },
-                    { "tag": "span", "class": "truncate", "children": [] }
-                  ]
+                  "tag": "span",
+                  "class": "line-clamp-2 text-sm leading-[1.45] wrap-anywhere text-text-primary",
+                  "attrs": {
+                    "data-related-title": "true"
+                  },
+                  "children": []
                 },
                 {
-                  "tag": "div",
-                  "class": "flex items-center gap-2 text-xs text-text-muted",
+                  "tag": "span",
+                  "class": "mt-px flex min-w-0 items-center gap-1.5 text-xs text-text-muted",
                   "children": [
-                    { "tag": "span", "class": "truncate", "children": [] }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-
-        "video": {
-          "tag": "a",
-          "class": "group flex gap-3 rounded-xl border border-bg-border bg-bg-card p-2 transition-colors hover:border-warm-silver/60 hover:bg-bg-elevated",
-          "attrs": { "href": "*" },
-          "children": [
-            {
-              "tag": "div",
-              "class": "relative flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-bg-elevated",
-              "children": [
-                {
-                  "tag": "img",
-                  "class": "h-full w-full object-cover",
-                  "attrs": { "alt": "", "loading": "lazy", "src": "*" }
-                }
-              ]
-            },
-            {
-              "tag": "div",
-              "class": "flex min-w-0 flex-1 flex-col justify-between py-0.5",
-              "children": [
-                {
-                  "tag": "div",
-                  "class": "flex items-center gap-1.5 text-sm font-medium text-text-primary",
-                  "children": [
-                    {
-                      "tag": "svg",
-                      "class": "lucide lucide-film text-text-muted",
-                      "attrs": { "width": "14", "height": "14" }
-                    },
-                    { "tag": "span", "class": "truncate", "children": [] }
-                  ]
-                },
-                {
-                  "tag": "div",
-                  "class": "flex items-center gap-2 text-xs text-text-muted",
-                  "children": [
-                    { "tag": "span", "class": "truncate", "children": [] }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-
-        "icon": {
-          "tag": "a",
-          "class": "group flex gap-3 rounded-xl border border-bg-border bg-bg-card p-2 transition-colors hover:border-warm-silver/60 hover:bg-bg-elevated",
-          "attrs": { "href": "*" },
-          "children": [
-            {
-              "tag": "div",
-              "class": "relative flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-bg-elevated",
-              "children": [
-                {
-                  "tag": "svg",
-                  "class": "lucide lucide-file-text text-text-muted",
-                  "attrs": { "width": "14", "height": "14" }
-                }
-              ]
-            },
-            {
-              "tag": "div",
-              "class": "flex min-w-0 flex-1 flex-col justify-between py-0.5",
-              "children": [
-                {
-                  "tag": "div",
-                  "class": "flex items-center gap-1.5 text-sm font-medium text-text-primary",
-                  "children": [
-                    {
-                      "tag": "svg",
-                      "class": "lucide lucide-file-text text-text-muted",
-                      "attrs": { "width": "14", "height": "14" }
-                    },
-                    { "tag": "span", "class": "truncate", "children": [] }
-                  ]
-                },
-                {
-                  "tag": "div",
-                  "class": "flex items-center gap-2 text-xs text-text-muted",
-                  "children": [
-                    { "tag": "span", "class": "truncate", "children": [] }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-
-        "missing": {
-          "tag": "a",
-          "class": "group flex gap-3 rounded-xl border border-bg-border bg-bg-card p-2 transition-colors hover:border-warm-silver/60 hover:bg-bg-elevated opacity-60",
-          "attrs": { "href": "*" },
-          "children": [
-            {
-              "tag": "div",
-              "class": "relative flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-bg-elevated",
-              "children": [
-                {
-                  "tag": "svg",
-                  "class": "lucide lucide-file-text text-text-muted",
-                  "attrs": { "width": "14", "height": "14" }
-                }
-              ]
-            },
-            {
-              "tag": "div",
-              "class": "flex min-w-0 flex-1 flex-col justify-between py-0.5",
-              "children": [
-                {
-                  "tag": "div",
-                  "class": "flex items-center gap-1.5 text-sm font-medium text-text-primary",
-                  "children": [
-                    {
-                      "tag": "svg",
-                      "class": "lucide lucide-file-text text-text-muted",
-                      "attrs": { "width": "14", "height": "14" }
-                    },
-                    { "tag": "span", "class": "truncate", "children": [] }
-                  ]
-                },
-                {
-                  "tag": "div",
-                  "class": "flex items-center gap-2 text-xs text-text-muted",
-                  "children": [
-                    { "tag": "span", "class": "truncate", "children": [] },
                     {
                       "tag": "span",
-                      "class": "rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] font-medium uppercase text-text-muted",
+                      "class": "truncate",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "video": {
+          "tag": "a",
+          "class": "flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-bg-elevated items-center",
+          "attrs": {
+            "href": "*"
+          },
+          "children": [
+            {
+              "tag": "span",
+              "class": "relative h-8 w-14 shrink-0 overflow-hidden rounded-lg bg-bg-elevated",
+              "children": [
+                {
+                  "tag": "img",
+                  "class": "h-full w-full object-cover",
+                  "attrs": {
+                    "alt": "",
+                    "loading": "lazy",
+                    "src": "*"
+                  }
+                },
+                {
+                  "tag": "span",
+                  "class": "absolute right-0.5 bottom-0.5 rounded-lg bg-black/70 px-1 text-[9px] leading-tight font-medium text-white",
+                  "attrs": {
+                    "data-related-duration": "true"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "tag": "span",
+              "class": "flex min-w-0 flex-1 flex-col",
+              "children": [
+                {
+                  "tag": "span",
+                  "class": "line-clamp-2 text-sm leading-[1.45] wrap-anywhere text-text-primary",
+                  "attrs": {
+                    "data-related-title": "true"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "mt-px flex min-w-0 items-center gap-1.5 text-xs text-text-muted",
+                  "children": [
+                    {
+                      "tag": "span",
+                      "class": "truncate",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "icon": {
+          "tag": "a",
+          "class": "flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-bg-elevated items-start",
+          "attrs": {
+            "href": "*"
+          },
+          "children": [
+            {
+              "tag": "span",
+              "class": "mt-0.5 shrink-0 text-text-muted",
+              "children": [
+                {
+                  "tag": "svg",
+                  "class": "lucide lucide-file-text",
+                  "attrs": {
+                    "width": "16",
+                    "height": "16"
+                  }
+                }
+              ]
+            },
+            {
+              "tag": "span",
+              "class": "flex min-w-0 flex-1 flex-col",
+              "children": [
+                {
+                  "tag": "span",
+                  "class": "line-clamp-2 text-sm leading-[1.45] wrap-anywhere text-text-primary",
+                  "attrs": {
+                    "data-related-title": "true"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "mt-px flex min-w-0 items-center gap-1.5 text-xs text-text-muted",
+                  "children": [
+                    {
+                      "tag": "span",
+                      "class": "truncate",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "missing": {
+          "tag": "a",
+          "class": "flex gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-bg-elevated items-start opacity-60",
+          "attrs": {
+            "href": "*"
+          },
+          "children": [
+            {
+              "tag": "span",
+              "class": "mt-0.5 shrink-0 text-text-muted",
+              "children": [
+                {
+                  "tag": "svg",
+                  "class": "lucide lucide-file-text",
+                  "attrs": {
+                    "width": "16",
+                    "height": "16"
+                  }
+                }
+              ]
+            },
+            {
+              "tag": "span",
+              "class": "flex min-w-0 flex-1 flex-col",
+              "children": [
+                {
+                  "tag": "span",
+                  "class": "line-clamp-2 text-sm leading-[1.45] wrap-anywhere text-text-primary",
+                  "attrs": {
+                    "data-related-title": "true"
+                  },
+                  "children": []
+                },
+                {
+                  "tag": "span",
+                  "class": "mt-px flex min-w-0 items-center gap-1.5 text-xs text-text-muted",
+                  "children": [
+                    {
+                      "tag": "span",
+                      "class": "truncate",
+                      "children": []
+                    },
+                    {
+                      "tag": "span",
+                      "class": "shrink-0 rounded-lg bg-bg-elevated px-1.5 py-0.5 text-[10px] font-medium uppercase",
                       "children": []
                     }
                   ]
@@ -237,10 +260,13 @@
         const spec = SHAPES[shape];
         if (!spec) throw new Error(`no such tile shape: ${shape}`);
         const tile = build(spec);
-        const spans = tile.querySelectorAll("span.truncate");
-        spans[0].textContent = name;
-        if (spans[1]) spans[1].textContent = folder;
-        if (shape === "missing" && spans[2]) spans[2].textContent = "missing";
+        tile.querySelector("[data-related-title]").textContent = name;
+        tile.querySelector("span.truncate").textContent = folder;
+        const duration = tile.querySelector("[data-related-duration]");
+        if (duration) duration.textContent = "32:15";
+        if (shape === "missing") {
+          tile.querySelector("span.truncate").nextElementSibling.textContent = "missing";
+        }
         tile.dataset.shape = shape;
         return tile;
       };
@@ -253,7 +279,7 @@
         const host = document.createElement("div");
         host.className = "related-files-host";
         const grid = document.createElement("div");
-        grid.className = "related-files-grid grid gap-2";
+        grid.className = "related-files-grid grid gap-x-2 gap-y-0.5";
         // `forceColumns` overrides the stylesheet's answer; it exists only
         // to lay out what a rejected threshold would have produced.
         if (forceColumns) {
@@ -268,31 +294,14 @@
         frame.append(host);
       };
 
-      /**
-       * The character count is measured with the span's own resolved font
-       * through a canvas, not guessed from a width.
-       */
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height };
+      };
+
       window.measureRelated = () => {
         const grid = document.querySelector(".related-files-grid");
         const tiles = [...grid.children];
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        // The fractional box, not `clientWidth`: an integer width rounds
-        // down and can drop the last character of a name that fits. The
-        // half-pixel is an order below a glyph.
-        const visibleChars = (span) => {
-          const cs = getComputedStyle(span);
-          ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-          const room = span.getBoundingClientRect().width + 0.5;
-          const text = span.textContent;
-          let n = 0;
-          while (n < text.length && ctx.measureText(text.slice(0, n + 1)).width <= room) {
-            n += 1;
-          }
-          return n;
-        };
-
         const tops = new Set(tiles.map((t) => Math.round(t.getBoundingClientRect().top)));
 
         return {
@@ -300,13 +309,18 @@
           rows: tops.size,
           columns: Math.round(tiles.length / tops.size),
           tiles: tiles.map((tile) => {
-            const name = tile.querySelector("span.truncate");
+            const title = tile.querySelector("[data-related-title]");
+            const lineHeight = parseFloat(getComputedStyle(title).lineHeight);
+            const thumb = tile.querySelector(".relative");
+            const duration = tile.querySelector("[data-related-duration]");
             return {
               shape: tile.dataset.shape,
-              width: tile.getBoundingClientRect().width,
-              nameWidth: name.getBoundingClientRect().width,
-              nameChars: visibleChars(name),
-              nameLength: name.textContent.length,
+              tile: box(tile),
+              title: box(title),
+              titleLines: Math.round(title.getBoundingClientRect().height / lineHeight),
+              titleClipped: title.scrollHeight > title.clientHeight + 1,
+              thumb: thumb ? box(thumb) : null,
+              duration: duration ? box(duration) : null,
             };
           }),
         };

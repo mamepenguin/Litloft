@@ -171,6 +171,9 @@
     "activeSummaryFallbackOpen": "ノートファイルを開く",
     "relatedFilesTitle": "関連ファイル",
     "relatedFileMissing": "見つからない",
+    "relatedLinksFrom": "このノートからのリンク",
+    "relatedLinksTo": "このノートへのリンク",
+    "relatedDriveRoot": "ドライブ直下",
     "relatedFileSizeBytes": "{size}バイト",
     "layoutBeside": "文字起こしを動画の横に表示",
     "layoutStack": "文字起こしを動画の下に表示",
@@ -891,13 +894,13 @@
       "tags": "タグ",
       "related": "関連ファイル",
       "aiSummary": "AI要約",
-      "comments": "コメント",
-      "relatedGroup": "関連"
+      "comments": "コメント"
     },
     "tabs": {
       "info": "情報",
       "chapters": "チャプター",
-      "pages": "ページ"
+      "pages": "ページ",
+      "related": "関連"
     },
     "saveDot": {
       "idle": "保存状態",
