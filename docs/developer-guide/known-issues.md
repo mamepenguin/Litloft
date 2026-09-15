@@ -118,8 +118,6 @@ Reached only by keyboard.
 
 **All notes cuts a deep folder's own name off.** Rail labels truncate from the end, so `Knowledge/docs/superpowers/specs` can show only its parent path.
 
-**A tag with a non-ASCII capital lists nothing when chosen.** The rail counts `Übung` but the list filter lowercases with SQLite's ASCII-only `lower()`, so choosing it shows no notes.
-
 **While searching within All notes, the rail's counts ignore the search.** They count the folder's notes, not the matches.
 
 **The All notes tag removal link is announced without the tag text shown.** Its accessible name replaces the visible `#tag`, and after it is pressed focus falls back to the page.
@@ -135,11 +133,6 @@ Reached only by keyboard.
 whenever an addon directory under `addons/` is empty, so leaving an in-process
 addon's submodule uninitialised — the only way to remove it — is undone by the
 next run.
-
-**`GET /api/addons/status?drive=` tells anyone whether a locked drive exists.**
-It takes no credentials. A drive name that is not configured gets an empty
-catalogue; a configured drive gets its catalogue whether or not it is unlocked.
-Reachable without logging in, by guessing names.
 
 **An addon whose container is down is still listed.** The catalogue checks only
 that the addon's proxy target variable is set. `health_check` is declared in the
@@ -220,12 +213,6 @@ still open.
 classification finishes (about 400 ms) imports it as a single loft instead of
 subscribing.** The Import from URL dialog classifies on submit and is not
 affected.
-
-**An in-process addon whose `scope` is a list or object stops loading its startup
-hook.** `_validate_scope` tests membership in a set, which raises for an
-unhashable value instead of rejecting it, so the addon's `on_startup` is skipped
-rather than the addon being cleanly refused. Reached only by writing such an
-`ADDON_META`.
 
 **Right after a drive switch, the previous drive's addon slots can render with the
 new drive's props.** `AddonSlotsProvider` keeps the old drive's `slots` until the

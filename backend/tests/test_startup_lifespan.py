@@ -199,6 +199,38 @@ class TestLoadingAnAddon:
         assert name not in addon_registry.get_all()
         assert name not in main._loaded_addons
 
+    @pytest.mark.parametrize(
+        "scope", ['["drive"]', '{"drive": True}'], ids=["list", "object"]
+    )
+    def test_an_unhashable_scope_is_refused_and_its_startup_hook_still_queued(
+        self, addons_dir, caplog, scope
+    ):
+        name = f"{_PACKAGE_PREFIX}badscope"
+        _write_addon(
+            addons_dir,
+            name,
+            f'''
+            from fastapi import APIRouter
+
+            router = APIRouter()
+            ADDON_META = {{"label": "Bad scope", "icon": "x", "scope": {scope}}}
+
+            async def on_startup():
+                return None
+            ''',
+        )
+
+        with caplog.at_level(logging.ERROR):
+            _load(addons_dir)
+
+        assert name not in addon_registry.get_all()
+        assert name not in main._loaded_addons
+        assert [fn.__module__ for fn in main._addon_startup_fns] == [
+            f"addons.{name}.router"
+        ]
+        assert "invalid 'scope'" in caplog.text
+        assert "Failed to load addon" not in caplog.text
+
     def test_an_addon_that_raises_on_import_does_not_stop_the_others(
         self, addons_dir
     ):

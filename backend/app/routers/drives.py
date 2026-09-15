@@ -754,7 +754,7 @@ def list_drive_files(
             File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
         )
     if tag:
-        query = query.filter(File.tags.any(func.lower(Tag.name) == tag.lower()))
+        query = query.filter(File.tags.any(func.lower(Tag.name) == func.lower(tag)))
     query = _apply_kind_filter(query, _normalize_kind(type))
     if trust == "unreviewed":
         # Not a tier: the review queue is "nobody has ruled on this", which

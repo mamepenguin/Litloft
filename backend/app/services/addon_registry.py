@@ -22,7 +22,7 @@ _VALID_SCOPES = {"drive", "global", "both"}
 def _validate_scope(name: str, meta: dict[str, Any]) -> bool:
     """Return True if meta declares a valid scope, log and return False otherwise."""
     scope = meta.get("scope")
-    if scope not in _VALID_SCOPES:
+    if not isinstance(scope, str) or scope not in _VALID_SCOPES:
         logger.error(
             "Addon %r skipped: missing or invalid 'scope' field (got %r, expected one of %s)",
             name,

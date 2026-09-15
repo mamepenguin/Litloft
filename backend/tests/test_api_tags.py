@@ -243,6 +243,43 @@ class TestTagFilter:
         assert len(res.json()["data"]) == 1
         assert res.json()["data"][0]["id"] == f1.id
 
+    def test_filter_lists_what_the_rail_counts_for_a_non_ascii_capital(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1")
+        f2 = _seed_file(db, drive_dir, "2")
+        f3 = _seed_file(db, drive_dir, "3")
+        assert c.put(f"/api/files/{f1.id}/tags", json={"tags": ["Übung"]}).status_code == 200
+        assert c.put(f"/api/files/{f2.id}/tags", json={"tags": ["Übung"]}).status_code == 200
+        assert c.put(f"/api/files/{f3.id}/tags", json={"tags": ["übung"]}).status_code == 200
+
+        rail = {t["name"]: t["count"] for t in c.get(f"/api/drives/{TEST_DRIVE}/tags").json()}
+        assert rail == {"Übung": 2, "übung": 1}
+        listed = {
+            name: sorted(
+                f["id"]
+                for f in c.get(f"/api/drives/{TEST_DRIVE}/files", params={"tag": name}).json()["data"]
+            )
+            for name in ("Übung", "übung")
+        }
+        assert listed == {"Übung": sorted([f1.id, f2.id]), "übung": [f3.id]}
+
+    def test_filter_ignores_ascii_case(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["Night"]})
+        listed = c.get(f"/api/drives/{TEST_DRIVE}/files", params={"tag": "night"}).json()["data"]
+        assert [f["id"] for f in listed] == [f1.id]
+
+    def test_batch_tagging_reuses_a_non_ascii_capital_tag(self, client):
+        c, db, drive_dir, data_dir = client
+        f1 = _seed_file(db, drive_dir, "1")
+        f2 = _seed_file(db, drive_dir, "2")
+        c.put(f"/api/files/{f1.id}/tags", json={"tags": ["Übung"]})
+        res = c.put("/api/files/batch/tags", json={"ids": [f2.id], "tags": ["Übung"]})
+        assert res.status_code == 200
+        rail = {t["name"]: t["count"] for t in c.get(f"/api/drives/{TEST_DRIVE}/tags").json()}
+        assert rail == {"Übung": 2}
+
     def test_filter_no_match(self, client):
         c, db, drive_dir, data_dir = client
         _seed_file(db, drive_dir)
