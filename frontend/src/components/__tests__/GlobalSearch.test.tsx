@@ -61,6 +61,23 @@ vi.mock("@/lib/searchCache", () => ({
   clearSearchCache: (...args: unknown[]) => mockClearSearchCache(...args),
 }));
 
+// Every term list the empty state is rendered with, including renders that
+// are replaced before anything else happens — the DOM alone cannot show those.
+const offeredTerms = vi.hoisted(() => ({ renders: [] as string[][] }));
+
+vi.mock("../search/SearchEmptyState", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../search/SearchEmptyState")>();
+  return {
+    ...actual,
+    SearchEmptyState: (props: Parameters<typeof actual.SearchEmptyState>[0]) => {
+      offeredTerms.renders.push(
+        props.items.flatMap((item) => (item.kind === "term" ? [item.term] : [])),
+      );
+      return <actual.SearchEmptyState {...props} />;
+    },
+  };
+});
+
 vi.mock("../FileTypeIcon", () => ({
   FileTypeIcon: ({ fileType }: { fileType: string }) => (
     <span data-testid={`icon-${fileType}`} />
@@ -467,6 +484,7 @@ describe("GlobalSearch", () => {
     afterEach(() => {
       try {
         localStorage.removeItem("search-history:main");
+        localStorage.removeItem("search-history:other");
       } catch {
         /* jsdom */
       }
@@ -546,6 +564,22 @@ describe("GlobalSearch", () => {
       expect(mockRouterPush).toHaveBeenCalledWith(
         expect.stringContaining("q=chapters"),
       );
+    });
+
+    it("offers the new drive's recent terms when the drive changes while open", () => {
+      seedHistory(["whisper"]);
+      localStorage.setItem("search-history:other", JSON.stringify(["chapters"]));
+      const { rerender } = render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      expect(screen.getAllByText("whisper").length).toBeGreaterThanOrEqual(1);
+
+      offeredTerms.renders = [];
+      driveState.current = "other";
+      rerender(<GlobalSearch />);
+
+      expect(screen.queryByText("whisper")).toBeNull();
+      expect(screen.getAllByText("chapters").length).toBeGreaterThanOrEqual(1);
+      expect(offeredTerms.renders.flat()).not.toContain("whisper");
     });
 
     it("renders nothing in the body when there is no history", () => {

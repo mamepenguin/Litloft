@@ -58,7 +58,10 @@ export function GlobalSearch() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [semanticPending, setSemanticPending] = useState(false);
-  const [history, setHistory] = useState<string[]>([]);
+  const [historyData, setHistoryData] = useState<{
+    drive: string;
+    terms: string[];
+  } | null>(null);
   const [recentData, setRecentData] = useState<{
     drive: string;
     type: SearchScope["type"] | null;
@@ -102,12 +105,11 @@ export function GlobalSearch() {
   }, []);
 
   const openSearch = useCallback(() => {
-    setHistory(drive ? getHistory(drive) : []);
     setScopeRemoved(false);
     setOpen(true);
     if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
     focusTimerRef.current = setTimeout(focusInput, 50);
-  }, [drive, focusInput]);
+  }, [focusInput]);
 
   useEffect(
     () => () => {
@@ -215,6 +217,12 @@ export function GlobalSearch() {
       cancelled = true;
     };
   }, [open, drive, scopeType]);
+
+  useEffect(() => {
+    if (open && drive) setHistoryData({ drive, terms: getHistory(drive) });
+  }, [open, drive]);
+
+  const history = historyData?.drive === drive ? historyData.terms : [];
 
   const recentFiles =
     recentData && recentData.drive === drive && recentData.type === scopeType
@@ -381,7 +389,7 @@ export function GlobalSearch() {
       const normalized = term.trim();
       if (!normalized || !drive) return;
       try {
-        setHistory(addToHistory(drive, normalized));
+        setHistoryData({ drive, terms: addToHistory(drive, normalized) });
       } catch {
       }
       closeSearch();
@@ -394,7 +402,7 @@ export function GlobalSearch() {
 
   function handleSelect(url: string) {
     try {
-      if (drive) setHistory(addToHistory(drive, query));
+      if (drive) setHistoryData({ drive, terms: addToHistory(drive, query) });
     } catch {
     }
     closeSearch();
@@ -430,7 +438,7 @@ export function GlobalSearch() {
       if (removedIndex === selectedIndex) setSelectedIndex(-1);
       else if (removedIndex < selectedIndex) setSelectedIndex(selectedIndex - 1);
     }
-    setHistory(removeFromHistory(drive, term));
+    setHistoryData({ drive, terms: removeFromHistory(drive, term) });
   }
 
   function handleFillInput(term: string, e: React.MouseEvent) {

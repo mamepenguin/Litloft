@@ -1,8 +1,15 @@
 import { act, renderHook } from "@testing-library/react";
-import { StrictMode } from "react";
+import { StrictMode, createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { RENAME_FOCUS_ATTR, useInlineRename } from "../useInlineRename";
+
+const location = vi.hoisted(() => ({ pathname: "/drive/alfa" }));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => location.pathname,
+}));
 
 function setup() {
   const onRenamed = vi.fn();
@@ -192,6 +199,20 @@ describe("useInlineRename", () => {
 
     expect(document.activeElement).not.toBe(row);
     row.remove();
+  });
+
+  it("drops the message when the drive changes, before its timer runs out", () => {
+    location.pathname = "/drive/alfa";
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(CurrentDriveProvider, null, children);
+    const { result, rerender } = renderHook(() => useInlineRename(vi.fn()), { wrapper });
+    act(() => result.current.cancel("That name is already taken"));
+    expect(result.current.error).toBe("That name is already taken");
+
+    location.pathname = "/drive/bravo";
+    rerender();
+
+    expect(result.current.error).toBeNull();
   });
 
   it("clears a stale message when the next edit begins", () => {

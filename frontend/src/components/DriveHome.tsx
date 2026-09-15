@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { History, Clock, Home, Star, ThumbsUp } from "lucide-react";
+import { History, FilePlus, Home, Star, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, PaginatedResponse, WatchHistoryItem } from "@/types";
 import { getDriveFiles, getWatchHistory } from "@/lib/api";
@@ -421,7 +421,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
       <CarouselSection
         title={t("recentAdded")}
-        icon={<Clock size={20} className="text-text-muted" />}
+        icon={<FilePlus size={20} className="text-text-muted" />}
         files={recent.files}
         loading={recent.loading}
         totalCount={recent.total}

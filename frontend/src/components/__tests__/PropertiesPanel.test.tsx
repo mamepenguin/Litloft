@@ -152,6 +152,11 @@ describe("PropertiesPanel", () => {
     expect(screen.getByText("Web clip")).toBeInTheDocument();
   });
 
+  it("labels a note captured from a source", () => {
+    render(<PropertiesPanel frontmatter={{ origin: "source_capture" }} />);
+    expect(screen.getByText("Captured from a source")).toBeInTheDocument();
+  });
+
   it("renders unknown origin values verbatim", () => {
     render(<PropertiesPanel frontmatter={{ origin: "exotic" }} />);
     // The translation mock does not throw for a missing key, so either the

@@ -39,6 +39,14 @@ describe("SidebarLibrarySection", () => {
     expect(screen.getByText("All Files")).toBeInTheDocument();
   });
 
+  it("draws Recently Viewed as a history mark and Recently Added as a new file", () => {
+    render(<SidebarLibrarySection libraryActive={false} driveBase="/drive/main" currentDrive="main" linkClass={linkClass} close={vi.fn()} />);
+    const iconOf = (label: string) =>
+      screen.getByText(label).closest("a")?.querySelector("svg")?.getAttribute("class");
+    expect(iconOf("Recently Viewed")).toContain("lucide-history");
+    expect(iconOf("Recently Added")).toContain("lucide-file-plus");
+  });
+
   it("hides library links when driveBase is null", () => {
     render(<SidebarLibrarySection libraryActive={false} driveBase={null} currentDrive={null} linkClass={linkClass} close={vi.fn()} />);
     expect(screen.queryByText("Favorites")).not.toBeInTheDocument();
