@@ -261,6 +261,9 @@ describe("what the folder toolbar keeps on the bar", () => {
     rerender(<FolderToolbar {...props} typeFilter="text" />);
     expect(classes()).toEqual(["max-sm:max-w-16", "truncate"]);
 
+    rerender(<FolderToolbar {...props} trustFilter="unreviewed" />);
+    expect(classes()).toEqual(["max-sm:max-w-16", "truncate"]);
+
     rerender(
       <FolderToolbar {...props} typeFilter="text" trustFilter="verified" />,
     );
@@ -408,6 +411,19 @@ describe("what the folder toolbar keeps on the bar", () => {
     fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Play" }));
     expect(onPlayAll).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["in select mode", { selectable: true }],
+    ["naming a new folder", { creatingFolder: true }],
+    ["filtering on both axes", { typeFilter: "video" as const, trustFilter: "verified" as const }],
+  ])("offers Play on the bar and in the overflow while %s", (_case, overrides) => {
+    render(<FolderToolbar {...props} {...overrides} />);
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("More actions"));
+    expect(
+      within(screen.getByRole("menu")).getByRole("menuitem", { name: "Play" }),
+    ).toBeInTheDocument();
   });
 
   it.each([
