@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
+import { useCurrentDrive } from "@/components/CurrentDriveProvider";
+
 const ERROR_TTL_MS = 3000;
 
 /**
@@ -100,6 +102,12 @@ export function useInlineRename(onRenamed: () => void): InlineRenameApi {
       if (refocusTimerRef.current !== null) clearTimeout(refocusTimerRef.current);
     };
   }, []);
+
+  const drive = useCurrentDrive();
+  useEffect(() => {
+    clearTimer();
+    setError(null);
+  }, [drive]);
 
   const start = useCallback((path: string) => {
     clearTimer();

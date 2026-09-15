@@ -1002,7 +1002,9 @@
     "origin": {
       "webclip": "Web clip",
       "detailed_summary": "AI summary",
-      "manual": "Manual"
+      "manual": "Manual",
+      "source_capture": "Captured from a source",
+      "ask_answer": "Saved from Ask"
     },
     "sourcesMore": "{n} more",
     "sourceMissing": "Deleted or inaccessible"

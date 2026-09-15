@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, FilePlus, Files, FolderTree, Home, Star, ThumbsUp } from "lucide-react";
+import { FilePlus, Files, FolderTree, History, Home, Star, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
 import type { AddonNavEntry } from "@/lib/addonNavigation";
@@ -67,7 +67,7 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
             {t("liked")}
           </Link>
           <Link href={`${driveBase}?view=recent`} onClick={close} className={linkClass(`${driveBase}?view=recent`)}>
-            <Clock size={16} />
+            <History size={16} />
             {t("recentlyViewed")}
           </Link>
           <Link href={`${driveBase}?view=recent-added`} onClick={close} className={linkClass(`${driveBase}?view=recent-added`)}>

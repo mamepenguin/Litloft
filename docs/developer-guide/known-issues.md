@@ -42,8 +42,6 @@ prompt defaults to no.
 
 **The Related tab's "See connections as a graph" link is small on a phone.** It is 13px text with a 21px-high hit area at 390px.
 
-**A note captured from a source shows `propertiesPanel.origin.source_capture` in its Properties panel.** The origin label for captures has no translation.
-
 **A relation recorded before relation origins existed disappears when its target note is saved first.** A backlink from note Y to note X that predates the upgrade is removed by X's first save and reappears on Y's next save. Rows written after the upgrade are not affected.
 
 **Such a relation, when its note still links it, can move to the top of Related files on the first save.** A pre-origin `(source, note)` row the note cites is replaced by the note's own row, with a new creation time.
@@ -108,15 +106,6 @@ no tree under it.** The toggle is decided by the URL, and the collection page
 mounts its pane only once the collection has loaded. Pressing it flips the
 drive's tree setting and nothing else.
 
-**The sidebar and Home disagree on two icons, and one of them means two
-things.** Recently Viewed and Recently Added are `Clock` / `FilePlus` in the
-sidebar and `History` / `Clock` on Home — so a clock face is "viewed" in one
-place and "added" in the other.
-
-**A failed inline rename keeps its message for three seconds across a drive
-switch.** `useInlineRename` clears the message on a timer rather than on
-navigation, so it can be read against the new drive's contents.
-
 **One Escape can close two popups on a folder screen.** With the toolbar's `…`
 or `Add` menu open, moving by keyboard into another popup or field that handles
 Escape itself — the tree pane's type filter, the selection bar's tag input, a
@@ -126,8 +115,6 @@ Reached only by keyboard.
 ## Addons
 
 **A search scope passed as a new object on every render re-renders without end.** `useSearchScope` updates provider state, so a component that also reads the active scope and builds its scope inline loops. Keep the scope object stable (`useMemo`).
-
-**The search modal left open across a drive change offers the previous drive's recent search terms** in its empty state until it is closed.
 
 **All notes cuts a deep folder's own name off.** Rail labels truncate from the end, so `Knowledge/docs/superpowers/specs` can show only its parent path.
 
