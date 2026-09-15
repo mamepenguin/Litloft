@@ -104,7 +104,7 @@ const props = {
 
 const rows = () => screen.getAllByRole("menuitem").map((el) => el.textContent?.trim() ?? "");
 
-function renderToolbar(overrides: Partial<typeof props> = {}) {
+function renderToolbar(overrides: Partial<Parameters<typeof FolderToolbar>[0]> = {}) {
   render(
     <ShortcutsProvider>
       <FolderToolbar {...props} {...overrides} />
