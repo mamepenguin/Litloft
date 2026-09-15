@@ -202,3 +202,59 @@ def test_unknown_drive_returns_empty_catalogue(client):
     resp = c.get("/api/addons/status", params={"drive": "no-such-drive"})
     assert resp.status_code == 200
     assert resp.json() == {"addons": {}, "slots": {}}
+
+
+def _write_locked_and_public_drives(config, base):
+    config.DRIVES_CONFIG.write_text(json.dumps([
+        {"name": "public", "path": base, "addons": {"fakeintel": True}},
+        {"name": "secret", "path": base, "access_group": "family",
+         "addons": {"fakeintel": True}},
+    ]))
+    config._drives_cache = None
+
+
+def test_locked_drive_answers_like_an_unknown_drive(client):
+    import app.config as config
+
+    c, _, drive_dir, _ = client
+    snap = dict(addon_registry._registry)
+    try:
+        _register_test_addon(
+            "fakeintel",
+            **{"file-detail-sections": [{"id": "x", "label": "X", "priority": 10}]},
+        )
+        _write_locked_and_public_drives(config, str(drive_dir))
+
+        locked = c.get("/api/addons/status", params={"drive": "secret"})
+        unknown = c.get("/api/addons/status", params={"drive": "no-such-drive"})
+        public = c.get("/api/addons/status", params={"drive": "public"})
+
+        assert (locked.status_code, locked.json()) == (unknown.status_code, unknown.json())
+        assert locked.json() == {"addons": {}, "slots": {}}
+        assert "fakeintel" in public.json()["addons"]
+    finally:
+        _restore_registry(snap)
+
+
+def test_unlocked_drive_gets_its_catalogue(client):
+    import app.config as config
+    from app.auth import COOKIE_NAME, create_jwt
+
+    c, _, drive_dir, _ = client
+    snap = dict(addon_registry._registry)
+    try:
+        _register_test_addon(
+            "fakeintel",
+            **{"file-detail-sections": [{"id": "x", "label": "X", "priority": 10}]},
+        )
+        _write_locked_and_public_drives(config, str(drive_dir))
+        token, _ = create_jwt(["family"], remember=False)
+        c.cookies.set(COOKIE_NAME, token)
+
+        body = c.get("/api/addons/status", params={"drive": "secret"}).json()
+
+        assert "fakeintel" in body["addons"]
+        assert [e["addonName"] for e in body["slots"]["file-detail-sections"]] == ["fakeintel"]
+    finally:
+        c.cookies.clear()
+        _restore_registry(snap)

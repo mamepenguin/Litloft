@@ -22,7 +22,7 @@ _VALID_SCOPES = {"drive", "global", "both"}
 def _validate_scope(name: str, meta: dict[str, Any]) -> bool:
     """Return True if meta declares a valid scope, log and return False otherwise."""
     scope = meta.get("scope")
-    if scope not in _VALID_SCOPES:
+    if not isinstance(scope, str) or scope not in _VALID_SCOPES:
         logger.error(
             "Addon %r skipped: missing or invalid 'scope' field (got %r, expected one of %s)",
             name,
@@ -116,6 +116,9 @@ def register_in_process(name: str, meta: dict[str, Any]) -> bool:
 
     Returns True if registered, False if skipped due to invalid metadata.
     """
+    if not isinstance(meta, dict):
+        logger.error("Addon %r skipped: ADDON_META must be a dict (got %r)", name, meta)
+        return False
     meta_copy = {**meta, "type": meta.get("type", "in_process")}
     if not _validate_scope(name, meta_copy):
         return False

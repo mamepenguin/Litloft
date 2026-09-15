@@ -38,7 +38,7 @@ Pagination: list endpoints that paginate take `page` (1-based) and `limit` (defa
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/health` | Liveness probe. Always `{ "status": "ok" }` with `200` once the app is up. No auth. This is what the Docker healthcheck polls (every 30s, 10s timeout, 3 retries, 10s start period). |
-| `GET` | `/api/addons/status?drive=` | Loaded-addon catalogue and UI slot map. Without `drive`: every loaded addon (admin/global view). With `drive`: addons whose per-drive `index` policy is off are dropped, along with their slots. External-service addons whose target env var is unset are omitted entirely. An unknown `drive` yields empty maps (not `404`). |
+| `GET` | `/api/addons/status?drive=` | Loaded-addon catalogue and UI slot map. Without `drive`: every loaded addon (admin/global view). With `drive`: addons whose per-drive `index` policy is off are dropped, along with their slots. External-service addons whose target env var is unset are omitted entirely. An unknown `drive`, or one the caller has not unlocked, yields the same empty maps (not `404`). |
 
 ## Auth
 

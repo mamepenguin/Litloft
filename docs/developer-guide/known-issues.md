@@ -124,11 +124,6 @@ whenever an addon directory under `addons/` is empty, so leaving an in-process
 addon's submodule uninitialised — the only way to remove it — is undone by the
 next run.
 
-**`GET /api/addons/status?drive=` tells anyone whether a locked drive exists.**
-It takes no credentials. A drive name that is not configured gets an empty
-catalogue; a configured drive gets its catalogue whether or not it is unlocked.
-Reachable without logging in, by guessing names.
-
 **An addon whose container is down is still listed.** The catalogue checks only
 that the addon's proxy target variable is set. `health_check` is declared in the
 intelligence and knowledge manifests and documented, but nothing reads it, so
@@ -203,12 +198,6 @@ still open.
 classification finishes (about 400 ms) imports it as a single loft instead of
 subscribing.** The Import from URL dialog classifies on submit and is not
 affected.
-
-**An in-process addon whose `scope` is a list or object stops loading its startup
-hook.** `_validate_scope` tests membership in a set, which raises for an
-unhashable value instead of rejecting it, so the addon's `on_startup` is skipped
-rather than the addon being cleanly refused. Reached only by writing such an
-`ADDON_META`.
 
 **Right after a drive switch, the previous drive's addon slots can render with the
 new drive's props.** `AddonSlotsProvider` keeps the old drive's `slots` until the

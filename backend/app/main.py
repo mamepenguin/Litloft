@@ -10,12 +10,12 @@ from typing import Callable, Coroutine, Iterable
 
 import time
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from sqlalchemy.orm.exc import ObjectDeletedError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.database import SessionLocal, init_db
-from app.auth import init_jwt_secret, load_passwords
+from app.auth import check_drive_access, get_unlocked_groups, init_jwt_secret, load_passwords
 import app.config as config
 from app.models import File
 from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, progress, uploads, ws
@@ -365,7 +365,7 @@ app.include_router(addon_proxy.router)
 
 
 @app.get("/api/addons/status")
-async def addons_status(drive: str | None = None):
+async def addons_status(request: Request, drive: str | None = None):
     """Return the addon catalogue, optionally filtered by a drive.
 
     When ``drive`` is omitted (admin / global UI) every loaded addon
@@ -377,9 +377,9 @@ async def addons_status(drive: str | None = None):
     UI-side hook for the "intelligence: false" config: the sidebar
     link disappears, the slot stays empty, no API calls fire.
 
-    A ``drive`` that is not in drives.json yields an empty addon /
-    slot map rather than 404 so the frontend can render the admin
-    surface without special-casing missing drives.
+    A ``drive`` that is not in drives.json, or that the caller has not
+    unlocked, yields the same empty addon / slot map rather than 404, so
+    the answer does not reveal whether a locked drive exists.
     """
     # Strip internal-only fields (proxy config) before returning to clients
     _FRONTEND_FIELDS = {"label", "description", "icon", "href", "type", "slots", "scope", "policy_features", "navigation"}
@@ -421,8 +421,8 @@ async def addons_status(drive: str | None = None):
         return {"addons": addons, "slots": slots}
 
     try:
-        config.get_drive_path(drive)  # validate drive exists
-    except ValueError:
+        check_drive_access(drive, get_unlocked_groups(request))
+    except HTTPException:
         return {"addons": {}, "slots": {}}
 
     enabled_names = {
