@@ -36,6 +36,14 @@ prompt defaults to no.
 
 ## Files
 
+**Most existing links show under Related files rather than Links from / Links to.** Relations recorded before relation origins existed have no direction owner; each moves to the link sections when its note is next saved.
+
+**The Related tab does not follow a save made in place.** After editing a note's links on its own page, the tab keeps the previous lists until the page is opened again.
+
+**The Related tab's "See connections as a graph" link is small on a phone.** It is 13px text with a 21px-high hit area at 390px.
+
+**A note captured from a source shows `propertiesPanel.origin.source_capture` in its Properties panel.** The origin label for captures has no translation.
+
 **A relation recorded before relation origins existed disappears when its target note is saved first.** A backlink from note Y to note X that predates the upgrade is removed by X's first save and reappears on Y's next save. Rows written after the upgrade are not affected.
 
 **Such a relation, when its note still links it, can move to the top of Related files on the first save.** A pre-origin `(source, note)` row the note cites is replaced by the note's own row, with a new creation time.
