@@ -101,10 +101,16 @@ export function FilterMenu({
       >
         <Filter size={16} className="shrink-0" />
         <span
-          // Capped only once a second axis is on, and only below 1024px.
-          // The 144px this control contributes to the budget in
-          // `ToolbarMenu.tsx` is that capped width, not its natural one.
-          className={`truncate ${activeLabels.length > 1 ? "max-lg:max-w-24" : ""}`}
+          // Below 640 any active filter is capped: at 320px the folder bar
+          // shares its row with Add and `…`, and one long axis ("Unjudged
+          // only") already wraps it. From 640 to 1024 only a second axis is.
+          className={`truncate ${
+            activeLabels.length > 1
+              ? "max-sm:max-w-16 sm:max-lg:max-w-24"
+              : isFiltering
+                ? "max-sm:max-w-16"
+                : ""
+          }`}
         >
           {isFiltering ? activeLabels.join(" · ") : t("filter")}
         </span>
