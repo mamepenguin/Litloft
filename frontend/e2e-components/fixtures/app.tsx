@@ -13,6 +13,7 @@ import { NextIntlClientProvider } from "next-intl";
 
 import { AddButton } from "@/components/AddButton";
 import { Button } from "@/components/Button";
+import { ChromeButtons } from "@/components/ChromeButtons";
 import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { ContextMenu } from "@/components/ContextMenu";
@@ -783,11 +784,28 @@ function PageFrameArrangement({ width }: { width: PageFrameWidth }): ReactElemen
   );
 }
 
+const PageFrameFull = (): ReactElement => <PageFrameArrangement width="full" />;
+const PageFrameWide = (): ReactElement => <PageFrameArrangement width="wide" />;
+const PageFrameList = (): ReactElement => <PageFrameArrangement width="list" />;
+const PageFrameReading = (): ReactElement => <PageFrameArrangement width="reading" />;
+
+/** The stubbed pathname is a drive route, so the tree toggle is drawn. */
+function ChromeButtonsArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <CurrentDriveProvider>
+        <ChromeButtons />
+      </CurrentDriveProvider>
+    </NextIntlClientProvider>
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
-  "page-frame-full": () => <PageFrameArrangement width="full" />,
-  "page-frame-wide": () => <PageFrameArrangement width="wide" />,
-  "page-frame-list": () => <PageFrameArrangement width="list" />,
-  "page-frame-reading": () => <PageFrameArrangement width="reading" />,
+  "chrome-buttons": ChromeButtonsArrangement,
+  "page-frame-full": PageFrameFull,
+  "page-frame-wide": PageFrameWide,
+  "page-frame-list": PageFrameList,
+  "page-frame-reading": PageFrameReading,
   plain: Plain,
   "bottom-bar": BottomBar,
   transformed: Transformed,

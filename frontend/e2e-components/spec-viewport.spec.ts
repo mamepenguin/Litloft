@@ -41,6 +41,7 @@ const DEVICE_HEIGHT_PX = 727;
 const AT_THE_PHONE_WIDTH = [
   "add-menu.spec.ts",
   "anchored-direction.spec.ts",
+  "chrome-buttons.spec.ts",
   "page-frame.spec.ts",
   "popup-dismiss.spec.ts",
   "quick-note-footer.spec.ts",
