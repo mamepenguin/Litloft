@@ -1028,7 +1028,8 @@
         "public": "Public",
         "protected": "Password protected",
         "addons": "Enabled addons",
-        "addonUnit": " addon(s)"
+        "addonUnit": " addon(s)",
+        "addonsDefault": "Left at their defaults (all on)"
       },
       "nextSteps": {
         "title": "Next steps",
@@ -1119,7 +1120,9 @@
       "legendTitle": "What these addons are",
       "skipDescription": "You can skip and configure later.",
       "skipNote": "You can skip this step and decide later from /admin.",
-      "noDescription": "(No description for this addon)"
+      "noDescription": "(No description for this addon)",
+      "loadFailed": "Could not load the addon list.",
+      "retry": "Retry"
     }
   },
   "errors": {

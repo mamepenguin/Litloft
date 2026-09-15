@@ -9,6 +9,8 @@ import { isAddonOn, type AddonStatusEntry, type AddonPolicy } from "@/lib/adminC
 interface Props {
   drives: DriveDraft[];
   addons: AddonStatusEntry[];
+  loadFailed?: boolean;
+  onRetry?: () => void;
   value: AddonPolicy;
   onChange: (policy: AddonPolicy) => void;
   onNext: () => void;
@@ -61,6 +63,8 @@ function AddonRow({
 export function AddonPolicyStep({
   drives,
   addons,
+  loadFailed = false,
+  onRetry,
   value,
   onChange,
   onNext,
@@ -132,6 +136,17 @@ export function AddonPolicyStep({
               </div>
             </div>
           ))}
+        </div>
+      ) : loadFailed ? (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-danger">{tAddon("loadFailed")}</p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-2xl bg-sand px-4 py-2 text-sm hover:bg-sand-hover"
+          >
+            {tAddon("retry")}
+          </button>
         </div>
       ) : (
         <p className="text-sm text-text-muted">{tAddon("skipDescription")}</p>

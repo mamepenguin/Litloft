@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 export interface CompleteSummary {
   driveCount: number;
   accessMode: "public" | "protected";
-  addonOnCount: number;
+  addonOnCount: number | null;
 }
 
 interface Props {
@@ -95,8 +95,14 @@ export function CompleteStep({
           <div className="flex justify-between">
             <dt className="text-text-muted">{tComplete("summary.addons")}</dt>
             <dd className="font-medium text-text-primary">
-              {summary.addonOnCount}
-              {tComplete("summary.addonUnit")}
+              {summary.addonOnCount === null ? (
+                tComplete("summary.addonsDefault")
+              ) : (
+                <>
+                  {summary.addonOnCount}
+                  {tComplete("summary.addonUnit")}
+                </>
+              )}
             </dd>
           </div>
         </dl>

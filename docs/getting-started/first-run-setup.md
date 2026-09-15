@@ -57,6 +57,10 @@ Per-feature flags are not offered here. The wizard is a yes-or-no per addon; the
 
 An addon or feature nothing has been saved for is **on**. Skipping this step leaves every installed addon enabled on every drive, and only the switches you turn off are saved.
 
+A switch belongs to its drive, so renaming the drive afterwards on the Drives step keeps your choice.
+
+If the list of installed addons cannot be loaded, the step says so and offers **Retry**. Continuing without it saves nothing, so every installed addon stays enabled on every drive, and the summary says the addons were left at their defaults.
+
 If no addons are installed, this step is skipped automatically.
 
 ## Step 7 — Complete
@@ -68,6 +72,8 @@ A summary of what you configured: drive count, access mode, addon enablement. Cl
 3. Writes the per-drive addon policy into `drives.json` under each drive's `addons` field.
 4. Creates `data/setup_completed`.
 5. Triggers a backend rescan.
+
+If saving the addon policy is rejected, the error is shown under the summary and setup is not marked complete; fix the cause and click **Finish** again.
 
 You are then redirected to the home page (`/`) listing your drives.
 
