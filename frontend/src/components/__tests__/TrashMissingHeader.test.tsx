@@ -68,6 +68,17 @@ beforeEach(() => {
   apiMocks.getMissing.mockResolvedValue({ data: [file("a"), file("b")], meta: { total: 2 } });
 });
 
+describe("the frame", () => {
+  it.each([
+    ["Trash", () => <TrashView driveName="main" />],
+    ["Missing", () => <MissingView driveName="main" />],
+  ])("%s wears a full-width frame", async (_name, view) => {
+    render(view());
+    const heading = await screen.findByRole("heading", { level: 1 });
+    expect(heading.closest("header")!.parentElement?.getAttribute("data-page-frame")).toBe("full");
+  });
+});
+
 describe("Trash header", () => {
   it("offers a way back to the drive", async () => {
     render(<TrashView driveName="main" />);

@@ -558,6 +558,29 @@ describe("the drive root's header", () => {
     mockGetWatchHistory.mockResolvedValue([]);
   });
 
+  it("wears a full-width frame", () => {
+    render(<DriveHome driveName="media" />);
+    const header = screen.getByRole("heading", { level: 1 }).closest("header")!;
+    expect(header.parentElement?.getAttribute("data-page-frame")).toBe("full");
+  });
+
+  it("wears the sidebar row's icon ahead of the title", () => {
+    const { container } = render(<DriveHome driveName="media" />);
+    const titleRow = screen.getByRole("heading", { level: 1 }).closest("header > div")!;
+    expect(titleRow.querySelector("svg.lucide-house")).not.toBeNull();
+    expect(container.querySelectorAll("header svg.lucide-house")).toHaveLength(1);
+  });
+
+  // The header is `px-4`; a wider inset here puts every row to the right of
+  // the title it sits under.
+  it("insets the rows under the header exactly as far as the header", () => {
+    render(<DriveHome driveName="media" />);
+    const header = screen.getByRole("heading", { level: 1 }).closest("header")!;
+    const body = header.nextElementSibling as HTMLElement;
+    const inset = (el: Element) =>
+      [...el.classList].filter((c) => /^(sm:|md:|lg:)?(px|pl)-/.test(c)).sort();
+    expect(inset(body)).toEqual(inset(header));
+  });
   it("carries Add beside the breadcrumb", async () => {
     render(<DriveHome driveName="media" />);
     const add = await screen.findByRole("button", { name: "Add" });

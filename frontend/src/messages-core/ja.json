@@ -19,6 +19,7 @@
     "pause": "一時停止",
     "lock": "ロック",
     "items": "{count}件",
+    "driveScope": "{drive} · {detail}",
     "loadContent": "読み込む",
     "fileSizeLarge": "ファイルサイズが大きすぎます ({size})",
     "loadFailed": "読み込みに失敗しました: {error}",

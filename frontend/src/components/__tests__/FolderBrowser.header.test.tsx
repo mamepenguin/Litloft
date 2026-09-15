@@ -236,11 +236,54 @@ describe("which screen names itself in a heading", () => {
     expect(heading?.textContent ?? null).toBe(expected);
   });
 
-  it.each(SUBJECT_BY_SCREEN)("%s tells the trail whether it is the subject", (_name, screen_, expected) => {
-    render(screen_());
-    expect(screen.getByLabelText("Breadcrumb").getAttribute("data-drive-is-ancestor")).toBe(
-      expected === null ? "no" : "yes",
-    );
+  it.each(SUBJECT_BY_SCREEN.filter(([, , expected]) => expected === null))(
+    "%s keeps its trail as the subject",
+    (_name, screen_) => {
+      render(screen_());
+      expect(screen.getByLabelText("Breadcrumb").getAttribute("data-drive-is-ancestor")).toBe("no");
+    },
+  );
+
+  it.each(SUBJECT_BY_SCREEN)("%s wears a full-width frame", (_name, screen_) => {
+    const { container } = render(screen_());
+    const header = container.querySelector("header")!;
+    expect(header.parentElement?.getAttribute("data-page-frame")).toBe("full");
+  });
+});
+
+describe("the Library root header", () => {
+  const renderRoot = () =>
+    render(<FolderBrowser driveName="main" folderPath="" view="library" />);
+
+  it("draws no trail, so the title sits where Home's does", () => {
+    renderRoot();
+    expect(screen.queryByLabelText("Breadcrumb")).toBeNull();
+  });
+
+  it("states the drive and the count on one scope line", () => {
+    renderRoot();
+    expect(screen.getByText("main · 42 items")).toBeInTheDocument();
+  });
+
+  it("states the drive alone before the count is known", () => {
+    listing.loading = true;
+    renderRoot();
+    const heading = screen.getByRole("heading", { level: 1 });
+    const scope = heading.nextElementSibling;
+    expect(scope?.textContent).toBe("main");
+  });
+
+  it("wears the sidebar row's icon ahead of the title", () => {
+    const { container } = renderRoot();
+    const titleRow = screen.getByRole("heading", { level: 1 }).closest("header > div")!;
+    expect(titleRow.querySelector("svg.lucide-folder-tree")).not.toBeNull();
+    expect(container.querySelectorAll("header svg.lucide-folder-tree")).toHaveLength(1);
+  });
+
+  it("keeps the tree toggle leftmost on the title row", () => {
+    renderRoot();
+    const titleRow = screen.getByRole("heading", { level: 1 }).closest("header > div")!;
+    expect(titleRow.firstElementChild?.getAttribute("data-testid")).toBe("tree-toggle");
   });
 });
 
@@ -511,14 +554,9 @@ describe("the trail's drop target", () => {
     expect(dropProps()).toEqual({ handlers: "yes", target: "yes" });
   });
 
-  /**
-   * At the Library root the drive chip is the folder the reader is standing
-   * in, but it is also the destination for anything dragged out of the tree
-   * pane, which lists the whole drive.
-   */
   const OFFERED_BY_SCREEN: [string, () => React.ReactElement][] = [
     ["a folder", () => <FolderBrowser driveName="main" folderPath="videos" />],
-    ["the Library root", () => <FolderBrowser driveName="main" folderPath="" view="library" />],
+    ["a folder under Library", () => <FolderBrowser driveName="main" folderPath="videos" view="library" />],
     ["the drive root with no view", () => <FolderBrowser driveName="main" folderPath="" />],
   ];
 

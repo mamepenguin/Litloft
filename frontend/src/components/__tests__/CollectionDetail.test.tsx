@@ -168,6 +168,12 @@ describe("CollectionDetail", () => {
     expect(screen.getByText("2 items")).toBeInTheDocument();
   });
 
+  it("wears a wide frame", async () => {
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    const heading = await screen.findByRole("heading", { name: "My Collection" });
+    expect(heading.closest("header")!.parentElement?.getAttribute("data-page-frame")).toBe("wide");
+  });
+
   it("shows the Play button when the collection contains audio/video", async () => {
     render(<CollectionDetail drive="main" collectionId="c1" />);
     await waitFor(() =>

@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardPaste, X } from "lucide-react";
+import { ClipboardPaste, FolderTree, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
 import type { FileItem, FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { PageFrame } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { TreeToggle } from "@/components/TreeToggle";
 import { UploadZone } from "@/components/UploadZone";
@@ -504,62 +505,73 @@ export function FolderBrowser({
 
   const dragInFlight = dragState.isDragging || isInternalDragging;
 
-  const inner = (
-    <div className="flex min-w-0 w-full flex-1 flex-col">
-      <PageHeader
-        leading={<TreeToggle drive={driveName} />}
-        breadcrumb={
-          isSearch ? undefined : (
-            <Breadcrumb
-              driveName={driveName}
-              folderPath={folderPath}
-              driveIsAncestor={isLibraryRoot}
-              getDropTargetProps={dragInFlight ? getDropTargetProps : undefined}
-              isDropTarget={dragInFlight ? isDropTarget : undefined}
-            />
-          )
-        }
-        // Search names its subject in a heading because there is no path
-        // to name it, and the Library root because its trail stops at the
-        // drive. A folder is named by its trail, so it passes neither.
-        title={
-          isSearch
-            ? tSearch("heading", { query: searchQuery ?? "" })
-            : isLibraryRoot
-              ? tSidebar("library")
-              : undefined
-        }
-        // `settledTotal`, not `total`: a refetch sets `total` to 0 and
-        // `loading` to true together, so neither raw value can be shown.
-        scope={
-          settledTotal === null
-            ? undefined
-            : tCommon("items", { count: settledTotal })
-        }
-        actions={
-          isSearch ? (
-            <>
-              <SmartFolderSaveButton
-                drive={driveName}
-                query={searchQuery ?? ""}
-                typeFilter={typeFilter}
-                smartFolderId={smartFolderId ?? null}
-              />
-              <AddonSlot
-                id="search-modes"
-                layout="stack"
-                props={{
-                  query: searchQuery ?? "",
-                  drive: driveName,
-                  filter: typeFilter ?? "all",
-                  onSelect: handleSemanticSelect,
-                }}
-              />
-            </>
-          ) : undefined
-        }
-      />
+  const countLabel =
+    settledTotal === null ? null : tCommon("items", { count: settledTotal });
 
+  const inner = (
+    <PageFrame
+      width="full"
+      className="flex-1"
+      header={
+        <PageHeader
+          leading={<TreeToggle drive={driveName} />}
+          // No trail at the Library root: the row would put its title lower
+          // than Home's and every other destination's.
+          breadcrumb={
+            isSearch || isLibraryRoot ? undefined : (
+              <Breadcrumb
+                driveName={driveName}
+                folderPath={folderPath}
+                getDropTargetProps={dragInFlight ? getDropTargetProps : undefined}
+                isDropTarget={dragInFlight ? isDropTarget : undefined}
+              />
+            )
+          }
+          titleIcon={isLibraryRoot && !isSearch ? FolderTree : undefined}
+          // Search names its subject in a heading because there is no path
+          // to name it, and the Library root because it has no trail. A folder
+          // is named by its trail, so it passes neither.
+          title={
+            isSearch
+              ? tSearch("heading", { query: searchQuery ?? "" })
+              : isLibraryRoot
+                ? tSidebar("library")
+                : undefined
+          }
+          // `settledTotal`, not `total`: a refetch sets `total` to 0 and
+          // `loading` to true together, so neither raw value can be shown.
+          scope={
+            isLibraryRoot && !isSearch
+              ? countLabel === null
+                ? driveName
+                : tCommon("driveScope", { drive: driveName, detail: countLabel })
+              : (countLabel ?? undefined)
+          }
+          actions={
+            isSearch ? (
+              <>
+                <SmartFolderSaveButton
+                  drive={driveName}
+                  query={searchQuery ?? ""}
+                  typeFilter={typeFilter}
+                  smartFolderId={smartFolderId ?? null}
+                />
+                <AddonSlot
+                  id="search-modes"
+                  layout="stack"
+                  props={{
+                    query: searchQuery ?? "",
+                    drive: driveName,
+                    filter: typeFilter ?? "all",
+                    onSelect: handleSemanticSelect,
+                  }}
+                />
+              </>
+            ) : undefined
+          }
+        />
+      }
+    >
       {!hideToolbar && <FolderToolbar
         isSpecialView={isSpecialView}
         isWriteDestination={isWriteDestination}
@@ -708,7 +720,7 @@ export function FolderBrowser({
         />
       )}
       </div>
-    </div>
+    </PageFrame>
   );
 
   if (isSearch) return inner;

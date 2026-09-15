@@ -432,6 +432,20 @@ own zoom. The cap decides where fitting stops, not how large a page the reader m
 ask for. It does not apply to actual size, whose whole promise is the page's real
 size.
 
+### 3.8 Page column measure
+
+A page's header and content share one column, capped at one of four widths:
+
+| Token | Cap | For |
+|---|---|---|
+| `full` | none | grids and listings that use the whole pane |
+| `max-w-wide` | `72rem` | card rails and browsers that stop reading well wider |
+| `max-w-list-row` | `60rem` | a column of list rows (§3.6) |
+| `max-w-reading` | `48rem` | prose and a conversation |
+
+- **Header and content take the same cap.** A header wider than its content puts
+  the title away from what it names.
+
 ---
 
 ## 4. Depth & Elevation
@@ -526,6 +540,16 @@ One header for every screen with a subject, in up to three rows:
 - **The scope line** (counts, duration, state, drive name) sits under the title;
   with no title it joins the trail.
 - The leading control stays in the same place across the screen's modes.
+- **The title does not move between screens a sidebar row opens.** Nothing sits
+  above the header, and such a screen's top level has no trail. The file-detail
+  chrome's tree toggle is at the same height, so opening a file does not move it
+  either.
+- **The header is as wide as the content under it** (§3.8), and starts at the
+  content's left edge.
+- **The icon and title are the sidebar row's.**
+- **The scope line is the drive and the screen's count.** An unknown count shows
+  the drive alone, never `0`.
+- **The primary action ends the subject row.**
 
 ### Tabs
 

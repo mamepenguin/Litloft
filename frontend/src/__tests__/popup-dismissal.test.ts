@@ -440,7 +440,7 @@ describe("An outside press", () => {
     // Adding or deleting any source file under `frontend/src` changes this
     // number.
     expect(relative(REPO_ROOT, CORE_ROOT)).toBe("frontend/src");
-    expect(sourceFiles(CORE_ROOT).length).toBe(429);
+    expect(sourceFiles(CORE_ROOT).length).toBe(430);
   });
 
   it.each([

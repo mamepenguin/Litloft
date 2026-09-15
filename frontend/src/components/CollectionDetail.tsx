@@ -17,6 +17,7 @@ import { Button } from "@/components/Button";
 import { ActionMenuItem } from "@/components/ActionMenuItem";
 import { EmptyState } from "@/components/EmptyState";
 import { OverflowMenu } from "@/components/OverflowMenu";
+import { PageFrame } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { CollectionItemsPane } from "@/components/CollectionItemsPane";
 import { FileGrid } from "@/components/FileGrid";
@@ -241,115 +242,120 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
     >
       {/* No `px-4` here: PageHeader carries its own, and an outer one would
           indent the header past everything under it. */}
-      <div className="mx-auto w-full max-w-6xl py-6">
-        <PageHeader
-          leading={<TreeToggle drive={drive} />}
-          breadcrumb={<Breadcrumb driveName={drive} driveIsAncestor />}
-          title={
-            editingName ? (
-              <input
-                autoFocus
-                value={nameDraft}
-                onChange={(e) => setNameDraft(e.target.value)}
-                onBlur={handleSaveName}
-                onCompositionEnd={ime.onCompositionEnd}
-                onKeyDown={(e) => {
-                  if (ime.isImeKeystroke(e)) return;
-                  if (e.key === "Enter") handleSaveName();
-                  if (e.key === "Escape") {
-                    setNameDraft(detail.name);
-                    setEditingName(false);
-                  }
-                }}
-                // Inside the <h1>, but an <input> does not inherit type, so
-                // the heading size is repeated here and only here.
-                className="w-full rounded-2xl bg-bg-card px-3 py-1 text-2xl font-bold text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
-              />
-            ) : (
-              // A <button>, not an <h1>: PageHeader supplies the heading, and
-              // nesting one inside it would be invalid.
-              <button
-                type="button"
-                onClick={() => {
-                  setNameDraft(detail.name);
-                  setEditingName(true);
-                }}
-                className="-ml-2 block max-w-full cursor-text truncate rounded-2xl px-2 py-0.5 text-left hover:bg-bg-elevated"
-              >
-                {detail.name}
-              </button>
-            )
-          }
-          scope={
-            <>
-              {editingDescription ? (
-                <textarea
+      <PageFrame
+        width="wide"
+        className="pb-6"
+        header={
+          <PageHeader
+            leading={<TreeToggle drive={drive} />}
+            breadcrumb={<Breadcrumb driveName={drive} driveIsAncestor />}
+            title={
+              editingName ? (
+                <input
                   autoFocus
-                  value={descriptionDraft}
-                  onChange={(e) => setDescriptionDraft(e.target.value)}
-                  onBlur={handleSaveDescription}
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onBlur={handleSaveName}
+                  onCompositionEnd={ime.onCompositionEnd}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                      e.preventDefault();
-                      handleSaveDescription();
-                    }
+                    if (ime.isImeKeystroke(e)) return;
+                    if (e.key === "Enter") handleSaveName();
                     if (e.key === "Escape") {
-                      setDescriptionDraft(detail.description ?? "");
-                      setEditingDescription(false);
+                      setNameDraft(detail.name);
+                      setEditingName(false);
                     }
                   }}
-                  placeholder={t("descriptionPlaceholder")}
-                  rows={3}
-                  className="w-full rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
+                  // Inside the <h1>, but an <input> does not inherit type, so
+                  // the heading size is repeated here and only here.
+                  className="w-full rounded-2xl bg-bg-card px-3 py-1 text-2xl font-bold text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
                 />
               ) : (
+                // A <button>, not an <h1>: PageHeader supplies the heading, and
+                // nesting one inside it would be invalid.
                 <button
                   type="button"
                   onClick={() => {
-                    setDescriptionDraft(detail.description ?? "");
-                    setEditingDescription(true);
+                    setNameDraft(detail.name);
+                    setEditingName(true);
                   }}
-                  className="-ml-2 block w-full cursor-text rounded-2xl px-2 py-0.5 text-left hover:bg-bg-elevated"
+                  className="-ml-2 block max-w-full cursor-text truncate rounded-2xl px-2 py-0.5 text-left hover:bg-bg-elevated"
                 >
-                  {detail.description ?? (
-                    <span className="text-text-muted/50">
-                      {t("descriptionPlaceholder")}
-                    </span>
-                  )}
+                  {detail.name}
                 </button>
-              )}
-              <div className="mt-1 text-xs text-text-muted">
-                {t("itemCount", { count: items.length })}
-              </div>
-            </>
-          }
-          actions={
-            <>
-              {hasMedia && (
-                <Button variant="primary" onClick={handlePlay}>
-                  <Play size={16} />
-                  {t("play")}
-                </Button>
-              )}
-              {/* Behind `…`: an icon-only Trash beside the screen's primary
-                  action put a destructive control one mis-aimed tap from
-                  Play. */}
-              <OverflowMenu label={t("moreActions", { name: detail.name })}>
-                {(close) => (
-                  <ActionMenuItem
-                    icon={Trash2}
-                    danger
-                    label={t("deleteCollection")}
-                    onClick={() => {
-                      close();
-                      setDeletingCollection(true);
+              )
+            }
+            scope={
+              <>
+                {editingDescription ? (
+                  <textarea
+                    autoFocus
+                    value={descriptionDraft}
+                    onChange={(e) => setDescriptionDraft(e.target.value)}
+                    onBlur={handleSaveDescription}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        handleSaveDescription();
+                      }
+                      if (e.key === "Escape") {
+                        setDescriptionDraft(detail.description ?? "");
+                        setEditingDescription(false);
+                      }
                     }}
+                    placeholder={t("descriptionPlaceholder")}
+                    rows={3}
+                    className="w-full rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
                   />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDescriptionDraft(detail.description ?? "");
+                      setEditingDescription(true);
+                    }}
+                    className="-ml-2 block w-full cursor-text rounded-2xl px-2 py-0.5 text-left hover:bg-bg-elevated"
+                  >
+                    {detail.description ?? (
+                      <span className="text-text-muted/50">
+                        {t("descriptionPlaceholder")}
+                      </span>
+                    )}
+                  </button>
                 )}
-              </OverflowMenu>
-            </>
-          }
-        />
+                <div className="mt-1 text-xs text-text-muted">
+                  {t("itemCount", { count: items.length })}
+                </div>
+              </>
+            }
+            actions={
+              <>
+                {hasMedia && (
+                  <Button variant="primary" onClick={handlePlay}>
+                    <Play size={16} />
+                    {t("play")}
+                  </Button>
+                )}
+                {/* Behind `…`: an icon-only Trash beside the screen's primary
+                    action put a destructive control one mis-aimed tap from
+                    Play. */}
+                <OverflowMenu label={t("moreActions", { name: detail.name })}>
+                  {(close) => (
+                    <ActionMenuItem
+                      icon={Trash2}
+                      danger
+                      label={t("deleteCollection")}
+                      onClick={() => {
+                        close();
+                        setDeletingCollection(true);
+                      }}
+                    />
+                  )}
+                </OverflowMenu>
+              </>
+            }
+          />
+        }
+      >
 
         <div className="px-4">
         {items.length === 0 ? (
@@ -413,7 +419,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
             </div>
           </div>
         )}
-      </div>
+      </PageFrame>
     </TwoPaneLayout>
   );
 }

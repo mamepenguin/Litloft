@@ -7,11 +7,14 @@ import {
   type ReactNode,
 } from "react";
 import { createRoot } from "react-dom/client";
-import { Trash2 } from "lucide-react";
+import { FolderTree, Trash2 } from "lucide-react";
 
 import { NextIntlClientProvider } from "next-intl";
 
 import { AddButton } from "@/components/AddButton";
+import { Button } from "@/components/Button";
+import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
+import { PageHeader } from "@/components/PageHeader";
 import { ContextMenu } from "@/components/ContextMenu";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import enMessages from "@/messages-core/en.json";
@@ -747,7 +750,40 @@ function ScopedSearchEn(): ReactElement {
   return <ScopedSearch locale="en" />;
 }
 
+/**
+ * The leading control stands in for `TreeToggle`, whose own hooks need the
+ * app's providers; what is measured is the row it sits in.
+ */
+function PageFrameArrangement({ width }: { width: PageFrameWidth }): ReactElement {
+  return (
+    <PageFrame
+      width={width}
+      header={
+        <PageHeader
+          leading={
+            <button type="button" aria-label="Show tree" className="h-8 w-8 rounded-lg">
+              <FolderTree size={16} />
+            </button>
+          }
+          titleIcon={FolderTree}
+          title="ライブラリのフォルダとファイルを一覧する"
+          scope="動画 · 118件"
+          actions={<Button variant="primary">新規ノート</Button>}
+        />
+      }
+    >
+      <div id="page-body" className="px-4">
+        <p>body</p>
+      </div>
+    </PageFrame>
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
+  "page-frame-full": () => <PageFrameArrangement width="full" />,
+  "page-frame-wide": () => <PageFrameArrangement width="wide" />,
+  "page-frame-list": () => <PageFrameArrangement width="list" />,
+  "page-frame-reading": () => <PageFrameArrangement width="reading" />,
   plain: Plain,
   "bottom-bar": BottomBar,
   transformed: Transformed,

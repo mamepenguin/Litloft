@@ -19,6 +19,7 @@
     "pause": "Pause",
     "lock": "Lock",
     "items": "{count} items",
+    "driveScope": "{drive} · {detail}",
     "loadContent": "Load",
     "fileSizeLarge": "File is large ({size})",
     "loadFailed": "Failed to load: {error}",

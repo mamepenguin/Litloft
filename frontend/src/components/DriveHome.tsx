@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { History, Clock, Star, ThumbsUp } from "lucide-react";
+import { History, Clock, Home, Star, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem, PaginatedResponse, WatchHistoryItem } from "@/types";
 import { getDriveFiles, getWatchHistory } from "@/lib/api";
@@ -13,6 +13,7 @@ import { AddonSlot } from "./AddonSlot";
 import { CarouselSection } from "./CarouselSection";
 import { ContinueWatchingSection } from "./ContinueWatchingSection";
 import { EmptyState } from "./EmptyState";
+import { PageFrame } from "./PageFrame";
 import { PageHeader } from "./PageHeader";
 import { TreeToggle } from "./TreeToggle";
 import { useProfile } from "./ProfileProvider";
@@ -371,25 +372,31 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           toolbar to carry it, and it is this screen's one accent fill
           (DESIGN.md §2.2) — placed once rather than repeated beside
           anything below it. */}
-      <PageHeader
-        leading={<TreeToggle drive={driveName} />}
-        title={tSidebar("home")}
-        scope={driveName}
-        actions={
-          <AddButton
-            // Rightmost here, unlike the folder toolbar's leftmost one:
-            // the menu is wider than its trigger, so anchored left it
-            // would grow off the right edge of the page.
-            align="right"
-            // `fileIds` is empty rather than the files the rows below show:
-            // rows that act on a listing's files would otherwise offer to
-            // run over a sample this page picked.
-            addonProps={{ drive: driveName, path: "", surface: "home", fileIds: [] }}
+      <PageFrame
+        width="full"
+        className="flex-1"
+        header={
+          <PageHeader
+            leading={<TreeToggle drive={driveName} />}
+            titleIcon={Home}
+            title={tSidebar("home")}
+            scope={driveName}
+            actions={
+              <AddButton
+                // Rightmost here, unlike the folder toolbar's leftmost one:
+                // the menu is wider than its trigger, so anchored left it
+                // would grow off the right edge of the page.
+                align="right"
+                // `fileIds` is empty rather than the files the rows below show:
+                // rows that act on a listing's files would otherwise offer to
+                // run over a sample this page picked.
+                addonProps={{ drive: driveName, path: "", surface: "home", fileIds: [] }}
+              />
+            }
           />
         }
-      />
-
-      <div className="space-y-8 px-4 pb-6 pt-2 sm:px-6 sm:pb-8 sm:pt-4">
+      >
+      <div className="space-y-8 px-4 pb-6 pt-2 sm:pb-8 sm:pt-4">
       {hasProfile && (
         <ContinueWatchingSection
           items={continueWatching}
@@ -478,6 +485,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
       )}
 
       </div>
+      </PageFrame>
     </UploadZone>
   );
 }
