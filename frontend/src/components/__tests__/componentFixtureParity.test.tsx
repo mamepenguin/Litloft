@@ -217,6 +217,8 @@ describe("the component fixture's page", () => {
       "add-menu",
       "quick-note-footer-ja",
       "quick-note-footer-en",
+      "scoped-search-ja",
+      "scoped-search-en",
     ]);
   });
 });

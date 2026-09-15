@@ -27,6 +27,29 @@ It arrives in two stages. Name matches come back in a single round trip and are 
 
 Each hit shows its title, and under it a second line only when that line says something the title does not — the folder the file sits in, or a filename the title no longer derives from. A file called `kyoto.mp4` still titled "Kyoto" gets its folder or nothing at all; the same file retitled "Autumn in Kyoto" shows its filename again, because by then the filename is a fact the title has stopped carrying.
 
+### Narrowed to one kind
+
+Some screens narrow the modal to one kind of file while they are open. A note's
+page does this when the Knowledge addon is installed, and so does its **Go to
+note** button. The modal then opens with a chip before the query naming the
+scope (for example **Notes**), and:
+
+- Only name matches of that kind are listed, each with its folder and the date it
+  last changed; the part of the title that matches is highlighted. There is no
+  second stage — the search by meaning is not narrowed by kind, so it is not run.
+- Before you type, only recently opened files of that kind are listed, and your
+  recent search terms are not.
+- `↑` / `↓` choose a row and `Enter` opens it. `Enter` with no row chosen goes to
+  the full list the screen offers for that kind (for notes, All notes with your
+  query), or to the search page when it offers none. The same list is linked at
+  the bottom right of the modal.
+- To search everything instead, press the chip's `×`, or `Backspace` in an empty
+  field. The query you typed stays and the modal searches again without the
+  scope. `Backspace` in a field with text in it only deletes text.
+
+The next time you open the modal from a screen that does not narrow it, it
+searches everything again. The scope never changes the drive.
+
 ## Built-in keyword search
 
 `/drive/<name>/search?q=<query>`

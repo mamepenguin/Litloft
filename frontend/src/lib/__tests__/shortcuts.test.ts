@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { normalizeKey } from "../shortcuts";
+import { formatShortcut, formatShortcutPart, normalizeKey } from "../shortcuts";
 
 const realPlatform = Object.getOwnPropertyDescriptor(
   window.navigator,
@@ -80,5 +80,24 @@ describe("normalizeKey — platform-aware modifiers", () => {
     expect(normalizeKey(makeEvent({ key: "j", altKey: true }))).toBe("alt+j");
     setPlatform("Win32");
     expect(normalizeKey(makeEvent({ key: "j", altKey: true }))).toBe("alt+j");
+  });
+});
+
+describe("formatShortcut — how a chord is written for the reader", () => {
+  it("writes the primary modifier as the Command glyph on macOS", () => {
+    setPlatform("MacIntel");
+    expect(formatShortcut("ctrl+k")).toBe("⌘K");
+    expect(formatShortcutPart("shift")).toBe("⇧");
+  });
+
+  it("spells it out elsewhere", () => {
+    setPlatform("Win32");
+    expect(formatShortcut("ctrl+k")).toBe("Ctrl+K");
+    expect(formatShortcut("ctrl+shift+f")).toBe("Ctrl+Shift+F");
+  });
+
+  it("names the keys that have no printable face", () => {
+    setPlatform("Linux x86_64");
+    expect(["escape", "space", "arrowup"].map(formatShortcutPart)).toEqual(["Esc", "Space", "↑"]);
   });
 });

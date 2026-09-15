@@ -227,7 +227,13 @@
     "recentSearches": "最近の検索",
     "sceneSearchToggle": "シーン検索",
     "sceneSearchHint": "動画の中で特定のシーンが映っている箇所を探す",
-    "semanticPending": "意味でも探しています…"
+    "semanticPending": "意味でも探しています…",
+    "scopeRemove": "{label}の範囲を外す",
+    "scopeSeeAll": "{label}で「{query}」をすべて探す",
+    "hintSelect": "選ぶ",
+    "hintOpen": "開く",
+    "hintRemoveScope": "範囲を外す",
+    "driveRoot": "ドライブ直下"
   },
   "smartFolder": {
     "sectionTitle": "スマートフォルダ",

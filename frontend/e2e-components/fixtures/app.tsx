@@ -16,6 +16,12 @@ import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import enMessages from "@/messages-core/en.json";
 import jaMessages from "@/messages-core/ja.json";
 import { QuickNotePresenter } from "@/components/quick-note/QuickNotePresenter";
+import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
+import { GlobalSearch } from "@/components/GlobalSearch";
+import {
+  GlobalSearchProvider,
+  useGlobalSearch,
+} from "@/components/search/GlobalSearchProvider";
 import {
   MobileInspectorSheet,
   SHEET_STATE_HALF,
@@ -702,6 +708,40 @@ function QuickNoteFooterEn(): ReactElement {
   return <QuickNoteFooter locale="en" />;
 }
 
+function OpenScoped({ label }: { label: string }): null {
+  const search = useGlobalSearch();
+  useEffect(() => {
+    search.open({
+      scope: { label, type: "text", seeAllHref: (q) => `/notes?q=${encodeURIComponent(q)}` },
+    });
+  }, [search, label]);
+  return null;
+}
+
+/** The modal opened scoped; the spec types the query. Requests fail offline. */
+function ScopedSearch({ locale }: { locale: "en" | "ja" }): ReactElement {
+  return (
+    <NextIntlClientProvider locale={locale} messages={locale === "ja" ? jaMessages : enMessages}>
+      <ShortcutsProvider>
+        <CurrentDriveProvider>
+          <GlobalSearchProvider>
+            <GlobalSearch />
+            <OpenScoped label={locale === "ja" ? "ノート" : "Notes"} />
+          </GlobalSearchProvider>
+        </CurrentDriveProvider>
+      </ShortcutsProvider>
+    </NextIntlClientProvider>
+  );
+}
+
+function ScopedSearchJa(): ReactElement {
+  return <ScopedSearch locale="ja" />;
+}
+
+function ScopedSearchEn(): ReactElement {
+  return <ScopedSearch locale="en" />;
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   plain: Plain,
   "bottom-bar": BottomBar,
@@ -729,6 +769,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "add-menu": AddMenu,
   "quick-note-footer-ja": QuickNoteFooterJa,
   "quick-note-footer-en": QuickNoteFooterEn,
+  "scoped-search-ja": ScopedSearchJa,
+  "scoped-search-en": ScopedSearchEn,
 };
 
 function App(): ReactElement {

@@ -27,56 +27,17 @@ import type { FileItemWithMatch, WatchHistoryItem } from "@/types";
 import { useCurrentDrive } from "./CurrentDriveProvider";
 import { MergedResultItem } from "./search/MergedResultItem";
 import { SearchEmptyState, type EmptyItem } from "./search/SearchEmptyState";
+import { addToHistory, getHistory, removeFromHistory } from "./search/searchHistory";
+import {
+  useRegisterGlobalSearch,
+  type GlobalSearchOpenOptions,
+  type SearchScope,
+} from "./search/GlobalSearchProvider";
+import { ScopeChip, ScopedFooter, ScopedResultItem } from "./search/ScopedSearchParts";
 
-const MAX_HISTORY = 20;
 const POPUP_LIMIT = 8;
 
 const RECENT_FILE_LIMIT = 8;
-
-function historyKey(drive: string): string {
-  return `search-history:${drive}`;
-}
-
-/**
- * The value is validated rather than trusted: this key can hold anything a
- * hand edit, an older schema, or another tab left behind.
- */
-function getHistory(drive: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(historyKey(drive));
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((entry): entry is string => typeof entry === "string");
-  } catch {
-    return [];
-  }
-}
-
-function saveHistory(drive: string, history: string[]): void {
-  try {
-    localStorage.setItem(historyKey(drive), JSON.stringify(history));
-  } catch {
-    // Safari private mode can throw on localStorage; the history list is
-    // best-effort UX, not a correctness requirement.
-  }
-}
-
-function addToHistory(drive: string, term: string): string[] {
-  const normalized = term.trim();
-  if (!normalized) return getHistory(drive);
-  const prev = getHistory(drive).filter((h) => h !== normalized);
-  const next = [normalized, ...prev].slice(0, MAX_HISTORY);
-  saveHistory(drive, next);
-  return next;
-}
-
-function removeFromHistory(drive: string, term: string): string[] {
-  const next = getHistory(drive).filter((h) => h !== term);
-  saveHistory(drive, next);
-  return next;
-}
 
 export function GlobalSearch() {
   const t = useTranslations("search");
@@ -86,6 +47,8 @@ export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [scope, setScope] = useState<SearchScope | null>(null);
+  const scopeType = scope?.type ?? null;
   const [merged, setMerged] = useState<FileItemWithMatch[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -93,6 +56,7 @@ export function GlobalSearch() {
   const [history, setHistory] = useState<string[]>([]);
   const [recentData, setRecentData] = useState<{
     drive: string;
+    type: SearchScope["type"] | null;
     items: WatchHistoryItem[];
   } | null>(null);
   const ime = useImeKeyGuard();
@@ -122,18 +86,30 @@ export function GlobalSearch() {
     return () => mql.removeEventListener?.("change", apply);
   }, []);
 
-  const openSearch = useCallback(() => {
-    setHistory(drive ? getHistory(drive) : []);
-    setOpen(true);
-    setTimeout(() => {
-      const isMobile = window.matchMedia("(max-width: 639px)").matches;
-      if (isMobile) {
-        mobileInputRef.current?.focus();
-      } else {
-        desktopInputRef.current?.focus();
-      }
-    }, 50);
-  }, [drive]);
+  const focusInput = useCallback(() => {
+    const isMobile = window.matchMedia("(max-width: 639px)").matches;
+    if (isMobile) {
+      mobileInputRef.current?.focus();
+    } else {
+      desktopInputRef.current?.focus();
+    }
+  }, []);
+
+  const openWith = useCallback(
+    (nextScope: SearchScope | null) => {
+      setHistory(drive ? getHistory(drive) : []);
+      setScope(nextScope);
+      setOpen(true);
+      setTimeout(focusInput, 50);
+    },
+    [drive, focusInput],
+  );
+
+  const { defaultScope } = useRegisterGlobalSearch((options?: GlobalSearchOpenOptions) => {
+    if (!open) openWith(options?.scope ?? defaultScope());
+  });
+
+  const openSearch = useCallback(() => openWith(defaultScope()), [openWith, defaultScope]);
 
   const { openCheatSheet } = useShortcutsContext();
 
@@ -216,20 +192,25 @@ export function GlobalSearch() {
       return;
     }
     let cancelled = false;
-    getWatchHistory(drive, RECENT_FILE_LIMIT, "all")
+    const request = scopeType
+      ? getWatchHistory(drive, RECENT_FILE_LIMIT, "all", scopeType)
+      : getWatchHistory(drive, RECENT_FILE_LIMIT, "all");
+    request
       .then((items) => {
-        if (!cancelled) setRecentData({ drive, items });
+        if (!cancelled) setRecentData({ drive, type: scopeType, items });
       })
       .catch(() => {
-        if (!cancelled) setRecentData({ drive, items: [] });
+        if (!cancelled) setRecentData({ drive, type: scopeType, items: [] });
       });
     return () => {
       cancelled = true;
     };
-  }, [open, drive]);
+  }, [open, drive, scopeType]);
 
   const recentFiles =
-    recentData && recentData.drive === drive ? recentData.items : [];
+    recentData && recentData.drive === drive && recentData.type === scopeType
+      ? recentData.items
+      : [];
 
   // It is the *order*, not the array. `paint()` builds a fresh array every
   // run, including the one where the second stage came back with nothing to
@@ -252,7 +233,7 @@ export function GlobalSearch() {
   useEffect(() => {
     highlightedRef.current = { kind: "none" };
     setSelectedIndex(-1);
-  }, [query, open]);
+  }, [query, open, scopeType]);
 
   // A history reply landing after the reader arrowed onto a result would
   // otherwise take the highlight off a row that never moved.
@@ -280,7 +261,7 @@ export function GlobalSearch() {
     const cacheKey: SearchCacheKey = {
       drive,
       query: trimmed,
-      type: null,
+      type: scopeType,
       includeSceneClip: false,
     };
 
@@ -335,7 +316,9 @@ export function GlobalSearch() {
 
       const filenameP = getDriveFiles(
         drive,
-        { search: trimmed, limit: POPUP_LIMIT },
+        scopeType
+          ? { search: trimmed, limit: POPUP_LIMIT, type: scopeType }
+          : { search: trimmed, limit: POPUP_LIMIT },
         { signal: ctrl.signal },
       )
         .then((res) => {
@@ -347,7 +330,9 @@ export function GlobalSearch() {
           if (!ctrl.signal.aborted) setLoading(false);
         });
 
-      const semanticP = isSemanticSearchAvailable(drive)
+      // Semantic hits are not filtered by kind, so a scoped search has no
+      // second stage.
+      const semanticP = (scopeType ? Promise.resolve(false) : isSemanticSearchAvailable(drive))
         .then((available) => {
           if (!available || ctrl.signal.aborted) return [] as SemanticHit[];
           setSemanticPending(true);
@@ -380,7 +365,7 @@ export function GlobalSearch() {
       setSemanticPending(false);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, open, drive]);
+  }, [query, open, drive, scopeType]);
 
   const navigateToSearchPage = useCallback(
     (term: string) => {
@@ -408,7 +393,17 @@ export function GlobalSearch() {
   }
 
   function handleSubmit(term: string) {
+    const normalized = term.trim();
+    if (scope?.seeAllHref && normalized) {
+      handleSelect(scope.seeAllHref(normalized));
+      return;
+    }
     navigateToSearchPage(term);
+  }
+
+  function removeScope() {
+    setScope(null);
+    focusInput();
   }
 
   function handleHistorySubmit(term: string) {
@@ -432,24 +427,20 @@ export function GlobalSearch() {
   function handleFillInput(term: string, e: React.MouseEvent) {
     e.stopPropagation();
     setQuery(term);
-    const isMobile = window.matchMedia("(max-width: 639px)").matches;
-    if (isMobile) {
-      mobileInputRef.current?.focus();
-    } else {
-      desktopInputRef.current?.focus();
-    }
+    focusInput();
   }
 
   const hasResults = merged.length > 0;
   const hasQuery = query.trim().length > 0;
 
   // Files first: the chord's main use is getting back to what you just had
-  // open, which should be one Enter away.
+  // open, which should be one Enter away. A recent term leads to the unscoped
+  // search page, so a scoped modal offers none.
   const emptyItems: EmptyItem[] = hasQuery
     ? []
     : [
         ...recentFiles.map<EmptyItem>((file) => ({ kind: "file", file })),
-        ...history.map<EmptyItem>((term) => ({ kind: "term", term })),
+        ...(scope ? [] : history).map<EmptyItem>((term) => ({ kind: "term", term })),
       ];
   const showEmptyState = emptyItems.length > 0;
   const recentFileCount = hasQuery ? 0 : recentFiles.length;
@@ -494,12 +485,17 @@ export function GlobalSearch() {
       onCompositionEnd={ime.onCompositionEnd}
       onKeyDown={(e) => {
         if (ime.isImeKeystroke(e)) return;
-        if (e.key === "ArrowDown") {
+        if (e.key === "Backspace" && scope && query === "") {
+          e.preventDefault();
+          removeScope();
+        } else if (e.key === "ArrowDown") {
           e.preventDefault();
           const maxIdx = showEmptyState
             ? emptyItems.length - 1
             : hasResults
-              ? merged.length
+              ? scope
+                ? merged.length - 1
+                : merged.length
               : -1;
           if (maxIdx >= 0) moveHighlight((prev) => Math.min(maxIdx, prev + 1));
         } else if (e.key === "ArrowUp") {
@@ -548,6 +544,26 @@ export function GlobalSearch() {
     </button>
   );
 
+  // Outside the scroll area on purpose: the search resolves in two stages,
+  // and a row inside the list would slide the results down the page every
+  // time the second one lands.
+  const footer = () => (
+    <div className="flex items-center justify-between border-t border-bg-border px-4 py-2">
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={openShortcuts}
+          className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
+        >
+          <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
+          {tsc("title")}
+        </button>
+        {legendEntry()}
+      </div>
+      {searchProgress()}
+    </div>
+  );
+
   const resultsList = (mobile: boolean) => (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
       {loading && merged.length === 0 ? (
@@ -556,7 +572,21 @@ export function GlobalSearch() {
         </div>
       ) : (
         <>
-          {merged.length > 0 && (
+          {merged.length > 0 && scope && (
+            <div className="py-1.5">
+              {merged.map((file, idx) => (
+                <div key={file.id} data-search-item={idx}>
+                  <ScopedResultItem
+                    file={file}
+                    query={query}
+                    isSelected={selectedIndex === idx}
+                    onSelect={handleSelect}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          {merged.length > 0 && !scope && (
             <>
               {merged.map((file, idx) => (
                 <div key={file.id} data-search-item={idx}>
@@ -623,6 +653,7 @@ export function GlobalSearch() {
             >
               <ArrowLeft size={20} />
             </button>
+            {scope && <ScopeChip scope={scope} onRemove={removeScope} />}
             <div className="relative flex-1">
               {searchInput(mobileInputRef, true)}
               {query && (
@@ -659,23 +690,11 @@ export function GlobalSearch() {
               ) : null}
             </div>
 
-            {/* Outside the scroll area on purpose: the search resolves in
-                two stages, and a row inside the list would slide the
-                results down the page every time the second one lands. */}
-            <div className="flex items-center justify-between border-t border-bg-border px-4 py-2">
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={openShortcuts}
-                  className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
-                >
-                  <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
-                  {tsc("title")}
-                </button>
-                {legendEntry()}
-              </div>
-              {searchProgress()}
-            </div>
+            {scope ? (
+              <ScopedFooter scope={scope} query={query} mobile onSeeAll={handleSelect} />
+            ) : (
+              footer()
+            )}
           </div>,
           document.body
         )}
@@ -694,6 +713,7 @@ export function GlobalSearch() {
           <div className="relative z-10 w-full max-w-3xl rounded-2xl border border-bg-border bg-bg-primary shadow-lg animate-fade-in-scale">
             <div className="flex items-center gap-3 border-b border-bg-border px-4 py-3">
               <Search size={18} className="flex-shrink-0 text-text-muted" />
+              {scope && <ScopeChip scope={scope} onRemove={removeScope} />}
               {searchInput(desktopInputRef, false)}
               {query && (
                 <button
@@ -729,23 +749,16 @@ export function GlobalSearch() {
               resultsList(false)
             ) : null}
 
-            {/* Outside the scroll area on purpose: the search resolves in
-                two stages, and a row inside the list would slide the
-                results down the page every time the second one lands. */}
-            <div className="flex items-center justify-between border-t border-bg-border px-4 py-2">
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={openShortcuts}
-                  className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
-                >
-                  <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
-                  {tsc("title")}
-                </button>
-                {legendEntry()}
-              </div>
-              {searchProgress()}
-            </div>
+            {scope ? (
+              <ScopedFooter
+                scope={scope}
+                query={query}
+                mobile={false}
+                onSeeAll={handleSelect}
+              />
+            ) : (
+              footer()
+            )}
           </div>
         </div>,
           document.body
