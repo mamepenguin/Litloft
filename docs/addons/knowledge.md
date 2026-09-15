@@ -232,17 +232,22 @@ editor. It is hidden on drives where the `editor` feature is off.
 
 Below the header:
 
-- **Find a note** searches titles and folder paths (up to 200 characters). The
-  results page is `?q={query}`, 30 at a time with **Show more**, and its count
-  is the number of matching notes. If a page fails to load, the same button
-  tries again. The results pages show only the results and a way back.
-- **Continue writing** lists the text files you opened most recently. It
-  appears only when a profile is set and there is history to show.
-- **Recent notes** lists the eight most recently updated notes. **All notes**
-  (`?view=all`) lists every note in the same order, 30 at a time.
-- The web clip form and recent clips come after the notes, followed by a link
-  to **Note & file connections**, the graph's own page
-  (`/drive/{drive}/addons/knowledge/connections`).
+- The search field searches titles and folder paths (up to 200 characters) on
+  Enter. The results page is `?q={query}`, keeps the query in the field with a
+  clear button, highlights matches in titles and folders, shows 30 at a time
+  with **Show more**, and counts the matching notes. If a page fails to load,
+  the same button tries again.
+- **Continue writing** lists up to three text files you opened most recently,
+  as cards showing the start of the text. It appears only when a profile is set
+  and there is history to show.
+- **Recent notes** lists the eight most recently updated notes in rows grouped
+  by calendar age (today, past 7 days, past 30 days, earlier), each with the
+  note's first line, folder and time. **All notes** (`?view=all`) lists every
+  note in the same order, 30 at a time.
+- Two entries close the page: **Web clip**, which opens the clip form and recent
+  clips below them, and **Note & file connections**, the graph's own page
+  (`/drive/{drive}/addons/knowledge/connections`). Both are hidden on the
+  results pages.
 
 A note opens in the ordinary file screen, and its previous and next arrows
 follow that file's folder, not the Notes order. The editor is for Markdown
@@ -250,7 +255,7 @@ only: a `.txt` note opens for reading. "Recently updated" follows the file's
 `updated_at`, which also moves when tags or favourites change.
 
 Each part loads on its own, so a failure in one leaves the others working. A
-bookmarklet landing (`?prefill=…`) puts the clip form first. The older
+bookmarklet landing (`?prefill=…`) opens the clip form under the search field. The older
 `?edit={fileId}` link still redirects to the file's screen, with the editor
 open when the file is Markdown.
 

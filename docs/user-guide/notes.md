@@ -7,12 +7,16 @@ them without walking the folder tree.
 
 ## Finding a note
 
-- Type in **Find a note** and press **Find**. Matches are by title or folder
-  name, not by the words inside the note. The result count is at the top, and
-  **Show more** loads the next 30.
-- **Continue writing** shows the notes you opened most recently. It appears
-  only when you have set a nickname (profile).
-- **Recent notes** shows the most recently changed notes. Adding a tag or a
+- Type in the search field and press Enter. Matches are by title or folder
+  name, not by the words inside the note, and the matching part is
+  highlighted. The result count is at the top, **Show more** loads the next 30,
+  and the × in the field goes back to the page.
+- **Continue writing** shows up to three notes you opened most recently, each
+  with the start of its text. It appears only when you have set a nickname
+  (profile).
+- **Recent notes** shows the eight most recently changed notes, grouped into
+  today, the past 7 days, the past 30 days and earlier. Each row shows the
+  first line of the note, its folder and when it changed. Adding a tag or a
   favourite also counts as a change. **All notes** lists every note.
 
 Selecting a note opens it in the usual file screen. The previous and next
@@ -28,13 +32,12 @@ appear here.
 note, and opens it in the editor. Cancelling creates nothing. The button is
 missing on drives where note editing is turned off.
 
-## Web clips
+## Web clips and connections
 
-The web clip form and your recent clips are further down the page. If you
-arrive from the bookmarklet, the clip form is at the top and the page is sent
-for you.
+At the bottom of the page, **Web clip** opens the clip form, HTML paste, the
+bookmarklet and your recent clips below it; press it again to close them. If
+you arrive from the bookmarklet, the clip form is already open under the search
+field and the page is sent for you.
 
-## Connections
-
-**Note & file connections**, the link at the bottom of the page, opens a graph
-of how notes and files in the drive cite and relate to each other.
+**Note & file connections**, beside it, opens a graph of how notes and files in
+the drive cite and relate to each other.
