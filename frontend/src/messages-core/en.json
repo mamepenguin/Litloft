@@ -227,7 +227,13 @@
     "recentSearches": "Recent searches",
     "sceneSearchToggle": "Scene search",
     "sceneSearchHint": "Find specific moments inside videos",
-    "semanticPending": "Also searching by meaning…"
+    "semanticPending": "Also searching by meaning…",
+    "scopeRemove": "Remove the {label} scope",
+    "scopeSeeAll": "See all {label} matching “{query}”",
+    "hintSelect": "Select",
+    "hintOpen": "Open",
+    "hintRemoveScope": "Remove scope",
+    "driveRoot": "Drive root"
   },
   "smartFolder": {
     "sectionTitle": "Smart Folders",

@@ -54,6 +54,28 @@ function isMacPlatform(): boolean {
   )
 }
 
+export function formatShortcutPart(part: string): string {
+  const mac = isMacPlatform()
+  if (part === "ctrl") return mac ? "⌘" : "Ctrl"
+  if (part === "shift") return mac ? "⇧" : "Shift"
+  if (part === "alt") return mac ? "⌥" : "Alt"
+  if (part === "space") return "Space"
+  if (part === "escape") return "Esc"
+  if (part === "arrowleft") return "←"
+  if (part === "arrowright") return "→"
+  if (part === "arrowup") return "↑"
+  if (part === "arrowdown") return "↓"
+  return part.toUpperCase()
+}
+
+/** A chord as one string, in the form macOS or everything else writes it. */
+export function formatShortcut(key: string): string {
+  return key
+    .split("+")
+    .map(formatShortcutPart)
+    .join(isMacPlatform() ? "" : "+")
+}
+
 /**
  * Shortcuts are declared with the canonical "ctrl+X" form regardless of
  * platform. The actual hardware modifier required depends on the OS:

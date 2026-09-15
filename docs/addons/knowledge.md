@@ -5,6 +5,7 @@ The `knowledge` addon turns Litloft into a personal notes vault and web-clip arc
 ## What it provides
 
 - **Notes page** — **Notes** in the sidebar finds the drive's Markdown and text files by title or folder, with recent and continue-writing lists.
+- **Go to note** — on a note's screen, opens search narrowed to the drive's notes; `Cmd/Ctrl+K` opens it narrowed there too.
 - **Markdown editor** — a CodeMirror 6 editor with live preview, autosave, wiki links, and drag-and-drop image upload.
 - **New note from Add** — the **Add** menu on Home and in Library folders offers **New note**, which creates a Markdown file in that folder after you confirm its folder and name, then opens it in the editor.
 - **Version history** — every text write is snapshotted; the editor lists past versions with a diff and a restore action.
@@ -260,7 +261,12 @@ Below the header:
   results pages.
 
 A note opens in the ordinary file screen, and its previous and next arrows
-follow that file's folder, not the Notes order. The editor is for Markdown
+follow that file's folder, not the Notes order. Its action row
+(`file-detail-actions`) carries **Go to note** for Markdown and text files: it
+opens the core search modal scoped to notes (`{ type: "text" }`, labelled
+Notes, with a see-all link to `?view=all&q={query}`) and registers the same
+scope while the note is on screen, so `Cmd/Ctrl+K` opens scoped there too (see
+[Scoping the search modal](../ADDON-DEVELOPMENT.md#scoping-the-search-modal)). The editor is for Markdown
 only: a `.txt` note opens for reading. "Recently updated" follows the file's
 `updated_at`, which also moves when tags or favourites change.
 

@@ -1153,6 +1153,49 @@ quickNote.open({ drive, folder });
   navigates to the new file with `edit=1`, which opens the editor where one is
   installed.
 
+### Scoping the search modal
+
+The header search modal (`Cmd/Ctrl+K`) can be opened narrowed to one kind of
+file. Core does not know what the scope is for: the label, the kind and the
+see-all destination all come from you.
+
+```typescript
+import {
+  useGlobalSearch,
+  useSearchScope,
+  type SearchScope,
+} from "@/components/search/GlobalSearchProvider";
+
+const scope: SearchScope = {
+  label: t("notes"),
+  type: "text",
+  seeAllHref: (query) => `/drive/${encodeURIComponent(drive)}/my-list?q=${encodeURIComponent(query)}`,
+};
+
+useSearchScope(isRelevant ? scope : null); // the modal is scoped while this is mounted
+useGlobalSearch().open();                    // open it now, in that scope
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `label` | `string` | Shown in the chip before the query and in the see-all link, so pass it translated. |
+| `type` | `FileKind` | The kind the name search is narrowed to (the same values as the listing's `type`). |
+| `seeAllHref` | `(query: string) => string` (optional) | Where the see-all link and `Enter` with no highlighted row go. The query is passed trimmed and unencoded; encode it yourself. Without it, both go to the core search page. |
+
+- `useSearchScope(scope)` applies while the calling component is mounted, to
+  `Cmd/Ctrl+K`, the header button, `open()` and a modal that is already open:
+  when the component unmounts with the modal open, the chip and the see-all link
+  go and the query runs unscoped in the drive now on screen. Pass `null` to
+  register nothing. If two mounted components register, the one that registered
+  last wins until it unmounts. Keep the scope object stable (`useMemo`); a new
+  object replaces the registered one.
+- `open()` opens the modal the way `Cmd/Ctrl+K` does. It does nothing while the
+  modal is already open, or outside the app shell.
+- A scoped search sends the name search with `type` and no semantic search, and
+  lists recently opened files of that kind only. The viewer can remove the scope
+  (`×`, or `Backspace` in an empty field); the same query then runs unscoped.
+- The scope never changes the drive: results stay in the current drive.
+
 ---
 
 ## Core API Surface for In-Process Addons

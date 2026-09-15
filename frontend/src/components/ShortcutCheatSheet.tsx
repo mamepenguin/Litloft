@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  formatShortcutPart,
   orderContexts,
   type ShortcutContextDef,
   type ShortcutDef,
@@ -14,25 +15,8 @@ interface ShortcutCheatSheetProps {
   onClose: () => void;
 }
 
-const isMac =
-  typeof navigator !== "undefined" &&
-  /Mac|iPhone|iPad|iPod/.test(navigator.platform);
-
-function formatKeyPart(p: string): string {
-  if (p === "ctrl")      return isMac ? "⌘" : "Ctrl";
-  if (p === "shift")     return isMac ? "⇧" : "Shift";
-  if (p === "alt")       return isMac ? "⌥" : "Alt";
-  if (p === "space")     return "Space";
-  if (p === "escape")    return "Esc";
-  if (p === "arrowleft")  return "←";
-  if (p === "arrowright") return "→";
-  if (p === "arrowup")    return "↑";
-  if (p === "arrowdown")  return "↓";
-  return p.toUpperCase();
-}
-
 function KbdKey({ value }: { value: string }) {
-  const parts = value.split("+").map(formatKeyPart);
+  const parts = value.split("+").map(formatShortcutPart);
   return (
     <span className="flex items-center gap-0.5">
       {parts.map((part, i) => (

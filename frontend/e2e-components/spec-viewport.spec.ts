@@ -43,6 +43,7 @@ const AT_THE_PHONE_WIDTH = [
   "anchored-direction.spec.ts",
   "popup-dismiss.spec.ts",
   "quick-note-footer.spec.ts",
+  "scoped-search.spec.ts",
   "sheet-gesture.spec.ts",
   "spec-viewport.spec.ts",
 ] as const;

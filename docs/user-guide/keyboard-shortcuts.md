@@ -41,6 +41,12 @@ What the modal is depends on whether you type, not on which chord opened it:
 before you type it lists what you recently opened, and typing turns it into a
 search. See [search](search.md#the-search-modal).
 
+On a screen that narrows the search to one kind of file — a note's page, with
+the Knowledge addon installed — both chords open the modal already narrowed,
+with the scope shown as a chip before the query. See
+[narrowed to one kind](search.md#narrowed-to-one-kind). The chords themselves do
+not change.
+
 ### Quick Note panel
 
 | Key | Action |
