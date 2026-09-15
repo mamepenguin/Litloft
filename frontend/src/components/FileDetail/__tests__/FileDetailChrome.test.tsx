@@ -152,20 +152,9 @@ describe("FileDetailChrome", () => {
     );
   });
 
-  it("leaves the tree toggle out where there is no tree", () => {
-    // `TreeToggle` names itself for what pressing it would do, and the
-    // tree starts enabled, so it offers to turn the tree off.
-    const treeToggles = () => screen.queryAllByRole("button", { name: /tree/i });
-
-    const { rerender } = render(
-      <FileDetailChrome drive="main" title="x.mp4" />,
-    );
-    expect(treeToggles()).toHaveLength(1);
-
-    rerender(
-      <FileDetailChrome drive="main" title="x.mp4" showTreeToggle={false} />,
-    );
-    expect(treeToggles()).toHaveLength(0);
+  it("leaves the tree toggle to the app toolbar", () => {
+    render(<FileDetailChrome drive="main" title="x.mp4" />);
+    expect(screen.queryAllByRole("button", { name: /tree/i })).toHaveLength(0);
   });
 
   it("puts a caller's own leaf where the file name would go", () => {

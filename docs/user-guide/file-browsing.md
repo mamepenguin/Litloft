@@ -1,6 +1,6 @@
 # Browsing files
 
-Files and folders are browsed on the Library screen, which opens at the drive root (`/drive/<name>?view=library`) and walks down from there; subfolders open at `/drive/<name>/<path>`. The drive home page (`/drive/<name>`) is what the drive opens on, and it answers a different question — what is worth continuing or returning to. Its header names the page — **Home**, with the drive underneath — and carries the tree toggle on the left and the **Add** button on the right; below it are *content rows* (Continue watching, Recently Viewed, Recently added, Favourites, Liked). It draws no folder cards, and the files it draws are the ones those rows surfaced — the folders and files that *sit at the drive root* are in Library. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
+Files and folders are browsed on the Library screen, which opens at the drive root (`/drive/<name>?view=library`) and walks down from there; subfolders open at `/drive/<name>/<path>`. The drive home page (`/drive/<name>`) is what the drive opens on, and it answers a different question — what is worth continuing or returning to. Its header names the page — **Home**, with the drive underneath — and carries the **Add** button on the right; below it are *content rows* (Continue watching, Recently Viewed, Recently added, Favourites, Liked). It draws no folder cards, and the files it draws are the ones those rows surfaced — the folders and files that *sit at the drive root* are in Library. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
 
 ## Drive home layout
 
@@ -270,8 +270,9 @@ by the tree borrowing the space. Below 1200px the sidebar already opens over
 the content rather than beside it, so there is nothing to lend and nothing
 changes.
 
-Both buttons show which one is holding the job: the tree toggle in the toolbar
-and the hamburger each look pressed while their surface is the one on.
+The tree toggle sits in the top bar beside the hamburger, on every screen that
+has the tree, including an open file. Both buttons show which one is holding the
+job: each looks pressed while its surface is the one on.
 
 The path above the file list is always there, whichever of the two is showing.
 

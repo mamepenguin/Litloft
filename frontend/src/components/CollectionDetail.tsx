@@ -22,7 +22,6 @@ import { PageHeader } from "@/components/PageHeader";
 import { CollectionItemsPane } from "@/components/CollectionItemsPane";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
-import { TreeToggle } from "@/components/TreeToggle";
 import { ViewToggle } from "@/components/ViewToggle";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
@@ -246,7 +245,6 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
         width="wide"
         header={
           <PageHeader
-            leading={<TreeToggle drive={drive} />}
             breadcrumb={<Breadcrumb driveName={drive} driveIsAncestor />}
             title={
               editingName ? (

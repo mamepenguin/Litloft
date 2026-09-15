@@ -540,13 +540,15 @@ One header for every screen with a subject, in up to three rows:
 - **The scope line** (counts, duration, state, drive name) sits under the title;
   with no title it joins the trail.
 - The leading control stays in the same place across the screen's modes.
-- **The title does not move between screens a sidebar row opens.** Nothing sits
-  above the header, and such a screen's top level has no trail. The file-detail
-  chrome's tree toggle is at the same height, so opening a file does not move it
-  either.
+- **The title does not move between screens a sidebar row opens.** The same space
+  sits above every header, and such a screen's top level has no trail.
+- **Controls that change the layout belong to the app toolbar, not the page
+  header.** The tree toggle sits beside the menu button, the same size at the same
+  height, so it stays put whichever page or file is open.
 - **The header is as wide as the content under it** (§3.8), and starts at the
   content's left edge.
-- **The icon and title are the sidebar row's.**
+- **The icon and title are the sidebar row's.** The icon sits in a tile beside the
+  title and the scope line.
 - **The scope line is the drive and the screen's count.** An unknown count shows
   the drive alone, never `0`.
 - **The primary action ends the subject row.**

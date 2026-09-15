@@ -244,6 +244,11 @@ describe("which screen names itself in a heading", () => {
     },
   );
 
+  it.each(SUBJECT_BY_SCREEN)("%s leaves the tree toggle to the app toolbar", (_name, screen_) => {
+    render(screen_());
+    expect(screen.queryByTestId("tree-toggle")).toBeNull();
+  });
+
   it.each(SUBJECT_BY_SCREEN)("%s wears a full-width frame", (_name, screen_) => {
     const { container } = render(screen_());
     const header = container.querySelector("header")!;
@@ -280,11 +285,7 @@ describe("the Library root header", () => {
     expect(container.querySelectorAll("header svg.lucide-folder-tree")).toHaveLength(1);
   });
 
-  it("keeps the tree toggle leftmost on the title row", () => {
-    renderRoot();
-    const titleRow = screen.getByRole("heading", { level: 1 }).closest("header > div")!;
-    expect(titleRow.firstElementChild?.getAttribute("data-testid")).toBe("tree-toggle");
-  });
+
 });
 
 describe("the folder header", () => {
@@ -306,10 +307,10 @@ describe("the folder header", () => {
     expect(screen.getByText("0 items")).toBeInTheDocument();
   });
 
-  it("keeps the tree toggle leftmost", () => {
+  it("starts its trail row with the breadcrumb", () => {
     const { container } = renderFolder();
     const firstRow = container.querySelector("header > div")!;
-    expect(firstRow.firstElementChild?.getAttribute("data-testid")).toBe("tree-toggle");
+    expect(firstRow.firstElementChild?.getAttribute("aria-label")).toBe("Breadcrumb");
   });
 });
 
@@ -330,14 +331,6 @@ describe("the search header", () => {
     renderFolder({ searchQuery: "cats" });
     expect(screen.getByRole("button", { name: "Save search" })).toBeInTheDocument();
     expect(screen.getByTestId("slot-search-modes")).toBeInTheDocument();
-  });
-
-  it("keeps the tree toggle, leftmost, in search mode too", () => {
-    const { container } = renderFolder({ searchQuery: "cats" });
-    const firstRow = container.querySelector("header > div")!;
-    expect(firstRow.firstElementChild?.getAttribute("data-testid")).toBe(
-      "tree-toggle",
-    );
   });
 
   it("offers neither of those outside search mode", () => {
@@ -494,10 +487,6 @@ describe("what the header hands the breadcrumb", () => {
 
 describe("what the header hands its children", () => {
 
-  it("gives the tree toggle the drive it is browsing", () => {
-    renderFolder();
-    expect(screen.getByTestId("tree-toggle").getAttribute("data-drive")).toBe("main");
-  });
 
   // Non-default values throughout: an assertion written with a default is
   // true before the code runs.

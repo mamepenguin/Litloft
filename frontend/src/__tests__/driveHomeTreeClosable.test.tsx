@@ -15,12 +15,19 @@ vi.mock("@/components/ClipboardProvider", () => ({
 vi.mock("@/components/folder/FolderTreePane", () => ({
   FolderTreePane: () => <div data-testid="tree-pane-contents" />,
 }));
+vi.mock("@/components/GlobalSearch", () => ({ GlobalSearch: () => null }));
+vi.mock("@/components/quick-note", () => ({ QuickNote: () => null }));
+vi.mock("@/components/CurrentDriveProvider", () => ({ useCurrentDrive: () => "media" }));
+vi.mock("@/components/ProfileProvider", () => ({
+  useProfile: () => ({ nickname: null, setNickname: vi.fn(), clearNickname: vi.fn() }),
+}));
 vi.mock("@/lib/api", () => ({
   getDriveFiles: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } }),
   getWatchHistory: vi.fn().mockResolvedValue([]),
 }));
 
 import DriveLayout from "@/app/drive/[name]/layout";
+import { Header } from "@/components/Header";
 import { DriveHome } from "@/components/DriveHome";
 import { treeEnabledStore } from "@/lib/treeEnabledStore";
 
@@ -41,12 +48,12 @@ function paneIsOpen(): boolean {
 }
 
 /**
- * The page header's own control, not the `md:hidden` close button inside the
+ * The app toolbar's control, not the `md:hidden` close button inside the
  * pane: that one carries the same name, is in the document at every width
  * under jsdom, and writes a different store.
  */
 function headerTreeControl(): HTMLElement {
-  const header = document.querySelector("header")!;
+  const header = document.querySelector("header[data-app-header]")!;
   const control = Array.from(header.querySelectorAll("button")).find(
     (button) => button.getAttribute("aria-label") === "Hide tree",
   );
@@ -64,9 +71,12 @@ describe("the drive home and the tree pane", () => {
   it("opens the pane when the drive's stored flag is on", async () => {
     driveHasTreeOn("media");
     render(
-      <DriveLayout>
-        <DriveHome driveName="media" />
-      </DriveLayout>,
+      <>
+        <Header />
+        <DriveLayout>
+          <DriveHome driveName="media" />
+        </DriveLayout>
+      </>,
     );
     await screen.findByRole("button", { name: "Add" });
     expect(paneIsOpen()).toBe(true);
@@ -76,9 +86,12 @@ describe("the drive home and the tree pane", () => {
   it("gives the reader a way to put it away again", async () => {
     driveHasTreeOn("media");
     render(
-      <DriveLayout>
-        <DriveHome driveName="media" />
-      </DriveLayout>,
+      <>
+        <Header />
+        <DriveLayout>
+          <DriveHome driveName="media" />
+        </DriveLayout>
+      </>,
     );
     await screen.findByRole("button", { name: "Add" });
     expect(paneIsOpen()).toBe(true);

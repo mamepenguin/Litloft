@@ -10,7 +10,6 @@ import type { FileItem, FileKind, SortField, SortOrder, TrustFilter, ViewMode } 
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { PageFrame } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
-import { TreeToggle } from "@/components/TreeToggle";
 import { UploadZone } from "@/components/UploadZone";
 import { SelectionBar } from "@/components/SelectionBar";
 import { SmartFolderSaveButton } from "@/components/SmartFolderSaveButton";
@@ -513,7 +512,6 @@ export function FolderBrowser({
       width="full"
       header={
         <PageHeader
-          leading={<TreeToggle drive={driveName} />}
           // No trail at the Library root: the row would put its title lower
           // than Home's and every other destination's.
           breadcrumb={

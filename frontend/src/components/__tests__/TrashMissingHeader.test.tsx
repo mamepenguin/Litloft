@@ -104,8 +104,8 @@ describe("Trash header", () => {
     render(<TrashView driveName="main" />);
     const heading = await screen.findByRole("heading", { level: 1 });
     const titleRow = heading.closest("div")!.parentElement!;
-    const icons = [...titleRow.children].filter(
-      (el) => el.tagName === "svg" || el.tagName === "SVG",
+    const icons = [...titleRow.children].flatMap((el) =>
+      [...el.children].filter((c) => c.tagName.toLowerCase() === "svg" && !c.closest("button")),
     );
     expect(icons).toHaveLength(1);
   });

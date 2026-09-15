@@ -15,7 +15,6 @@ import { ContinueWatchingSection } from "./ContinueWatchingSection";
 import { EmptyState } from "./EmptyState";
 import { PageFrame } from "./PageFrame";
 import { PageHeader } from "./PageHeader";
-import { TreeToggle } from "./TreeToggle";
 import { useProfile } from "./ProfileProvider";
 
 interface DriveHomeProps {
@@ -359,15 +358,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           order. That is the state WAI-ARIA forbids, it predates this
           change, and it is the sidebar's to fix.
 
-          The tree toggle stays, against the same section of the spec.
-          It does not name the subject — it puts the folder tree away,
-          and this route mounts that pane, so a reader arriving with the
-          tree on would otherwise have nothing here to close it with
-          (arbitration 24; `driveHomeTreeClosable.test.tsx`).
-
-          Y-aligned with FolderBrowser's, so the tree toggle sits at the
-          same height on the drive root, in a sub folder and on a file.
-
           Add is on the header because this page draws no folder
           toolbar to carry it, and it is this screen's one accent fill
           (DESIGN.md §2.2) — placed once rather than repeated beside
@@ -376,7 +366,6 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         width="full"
         header={
           <PageHeader
-            leading={<TreeToggle drive={driveName} />}
             titleIcon={Home}
             title={tSidebar("home")}
             scope={driveName}

@@ -19,13 +19,11 @@ export interface PageFrameProps {
 }
 
 /**
- * Carries no padding and takes no class from the page. The title's Y is
- * `PageHeader`'s own `py-2`, which is also where the file-detail chrome puts
- * the tree toggle; padding above the header would make the toggle jump when a
- * file is opened from a folder.
+ * Takes no class from the page: the space above the header is the frame's
+ * alone, so every screen that wears it puts its title at the same height.
  */
 export function PageFrame({ width, header, children }: PageFrameProps) {
-  const classes = ["flex w-full min-w-0 flex-1 flex-col", WIDTH_CLASS[width]]
+  const classes = ["flex w-full min-w-0 flex-1 flex-col pt-5", WIDTH_CLASS[width]]
     .filter(Boolean)
     .join(" ");
   return (

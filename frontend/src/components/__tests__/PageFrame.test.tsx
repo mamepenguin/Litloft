@@ -40,15 +40,13 @@ describe("PageFrame", () => {
     expect([...frame.children].map((c) => c.tagName)).toEqual(["HEADER", "P"]);
   });
 
-  // The title's Y is the header's own `py-2`; padding here would move it on
-  // every screen that wears the frame and not on the file-detail chrome.
-  it("adds no vertical padding above the header", () => {
+  it("puts the header 20px below the toolbar, and nothing else above it", () => {
     render(
       <PageFrame width="wide" header={<PageHeader title="T" />}>
         <p>body</p>
       </PageFrame>,
     );
     const frame = frameOf(screen.getByRole("heading", { level: 1 }));
-    expect([...frame.classList].filter((c) => /^(sm:|md:)?(p|py|pt)-/.test(c))).toEqual([]);
+    expect([...frame.classList].filter((c) => /^(sm:|md:)?(p|py|pt)-/.test(c))).toEqual(["pt-5"]);
   });
 });

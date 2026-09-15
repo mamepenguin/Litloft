@@ -220,6 +220,14 @@ describe("PageHeader", () => {
       ).toBeInTheDocument();
     });
 
+    it("sets the icon in a 40px tile beside the title", () => {
+      const { container } = render(<PageHeader titleIcon={Trash2} title="Trash" scope="3 items" />);
+      const tile = container.querySelector("svg")!.parentElement!;
+      const classes = tile.className.split(/\s+/);
+      for (const c of ["h-10", "w-10", "rounded-xl", "bg-bg-elevated"]) expect(classes).toContain(c);
+      expect(tile.nextElementSibling?.querySelector("h1")).not.toBeNull();
+    });
+
     it("renders no icon when none is given", () => {
       const { container } = render(<PageHeader title="Settings" />);
       expect(container.querySelector("svg")).toBeNull();

@@ -7,6 +7,7 @@ import { useGlobalSearch, useSearchScope } from "../search/GlobalSearchProvider"
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => "/",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("../CurrentDriveProvider", () => ({

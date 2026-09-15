@@ -13,8 +13,8 @@ const FIXTURE = pathToFileURL(PAGE).href;
 /** The column caps from `globals.css`, in px at a 16px root. */
 const MAX_PX = { full: null, wide: 1152, list: 960, reading: 768 } as const;
 
-/** `PageHeader`'s `py-2`: the frame adds nothing above it. */
-const TITLE_TOP = 8;
+/** PageFrame's `pt-5` plus `PageHeader`'s `py-2`. */
+const TITLE_TOP = 28;
 
 const WIDTHS = [1425, 375] as const;
 
