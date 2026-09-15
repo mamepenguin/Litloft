@@ -86,6 +86,21 @@ class TestTagCountsByKind:
         assert res.status_code == 200
         assert res.json() == [{"name": "AI", "count": 2}, {"name": "設計", "count": 1}]
 
+    def test_path_counts_only_files_directly_in_that_folder(self, client):
+        api, db, _, _ = client
+        _file(db, "root.md", mime="text/markdown", tags=["AI"])
+        _file(db, "Inbox/a.md", mime="text/markdown", tags=["AI", "設計"])
+        _file(db, "Inbox/Deep/b.md", mime="text/markdown", tags=["AI", "深い"])
+
+        assert api.get(f"/api/drives/{TEST_DRIVE}/tags?type=text&path=Inbox").json() == [
+            {"name": "AI", "count": 1},
+            {"name": "設計", "count": 1},
+        ]
+        assert api.get(f"/api/drives/{TEST_DRIVE}/tags?type=text&path=").json() == [
+            {"name": "AI", "count": 1},
+        ]
+        assert api.get(f"/api/drives/{TEST_DRIVE}/tags?path=../etc").status_code == 400
+
     def test_without_a_kind_the_listing_is_unchanged(self, client):
         api, db, _, _ = client
         _file(db, "a.md", mime="text/markdown", tags=["AI"])

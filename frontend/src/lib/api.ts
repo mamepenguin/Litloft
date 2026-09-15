@@ -100,9 +100,12 @@ export async function getDriveTags(
   drive: string,
   folderPath?: string | null,
   type?: FileKind,
+  /** Files directly in this folder only; `""` is the drive root. */
+  path?: string | null,
 ): Promise<Tag[]> {
   const params = new URLSearchParams();
   if (folderPath) params.set("folder_path", folderPath);
+  if (path !== undefined && path !== null) params.set("path", path);
   if (type) params.set("type", type);
   const qs = params.toString();
   return fetchJSON<Tag[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/tags${qs ? `?${qs}` : ""}`);

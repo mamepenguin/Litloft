@@ -245,7 +245,7 @@ Below the header:
   note's first line, folder and time. **All notes** (`?view=all`) lists every
   note, 30 at a time, as a browser: a flat list of folders that hold notes
   (each counting its direct notes, from `GET /api/drives/{drive}/folder-counts?type=text`)
-  and of tags on notes (`GET /api/drives/{drive}/tags?type=text`), a search
+  and of tags on notes directly in the chosen folder (`GET /api/drives/{drive}/tags?type=text&path=`; drive-wide with no folder), a search
   within the chosen scope, and a sort by update, title or creation. The scope
   is the URL: `folder=` (present and empty for the drive root), `tag=`,
   `sort=title|created` and `q=`. Sorted by update the rows are grouped by age;
