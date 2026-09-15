@@ -847,7 +847,8 @@ Addons can inject UI components into predefined **slots** in the core applicatio
 | `player-side` | Beside a media player — an **inspector tab** where the reader has chosen "beside", a bounded box under the description where they have chosen "below" | Stack | Something that follows the file as it plays: a transcript, a cue list. One entry is one tab. See [Occupying the player-side slot](#occupying-the-player-side-slot) — the host places it two different ways and tells the entry which. |
 | `dashboard-widgets` | Admin dashboard | Cards | Index statistics, cloud sync status |
 | `dashboard-alerts` | Admin dashboard, above the drive cards | Stack | Something is wrong and an operator should see it before anything else — a queue of failed jobs, a provider that stopped answering. Render nothing when there is nothing wrong: the host draws no wrapper and no heading, so an entry that always renders is a permanent band above the page. |
-| `folder-actions-menu` | Inside the folder toolbar's **Add** menu, under a separator below the core's own rows | Stack of menu rows | Anything that puts something into the current folder — a batch of AI-written tags, an import from a URL. Receives `{ drive, fileIds, path }` plus the reserved `onRequestClose`, and draws `ActionMenuItem` rows under the same contract as `file-actions-menu`. |
+| `folder-actions-menu` | Inside the folder toolbar's **Add** menu, under a separator below the core's own rows | Stack of menu rows | Anything that puts something into the current folder — a new note, an import from a URL. Receives `{ drive, fileIds, path }` plus the reserved `onRequestClose`, and draws `ActionMenuItem` rows under the same contract as `file-actions-menu`. |
+| `folder-bulk-actions-menu` | Inside the folder toolbar's `…` menu, under a separator below the core's own rows | Stack of menu rows | Commands over the files the listing holds, such as a batch of AI-written tags. Shown only where the listing is a folder or the drive root — not on search results, a tag-filtered root or a special view. See [Contributing to the folder `…` menu](#contributing-to-the-folder--menu). |
 | ~~`folder-actions`~~ | — | — | **Removed.** It drew a second button beside `Add`, which cost the folder toolbar a control it does not have room for — measured, it wrapped the bar onto two rows between 768 and 785px. Use `folder-actions-menu`. |
 | `file-actions-menu` | The `[...]` overflow menu on the file detail page | Stack of menu rows | Per-file actions too infrequent to deserve a section of their own. See [Contributing to the file actions menu](#contributing-to-the-file-actions-menu) — entries have extra obligations. |
 | `file-detail-actions` | The file detail page's primary action row, between the state controls and the `[...]` menu | Inline buttons | Per-file actions that deserve to be reachable in one press rather than through the overflow menu — the file counterpart of `folder-actions-menu`. See [Contributing to the file action row](#contributing-to-the-file-action-row). |
@@ -1065,6 +1066,26 @@ closes, so a missed `false` does not leave the next menu undismissable.
 The host renders nothing at all — not even the separator — when no addon
 declares the slot, so an installed-but-idle addon costs the menu no
 space.
+
+### Contributing to the folder `…` menu
+
+`folder-bulk-actions-menu` takes the same rows and the same reserved props as
+[the add menu](#contributing-to-the-add-menu), including the dialog rules. The
+difference is what belongs there: the add menu is for putting something into
+the folder, and this menu is for acting on the files already listed.
+
+| Prop | Type | Meaning |
+|---|---|---|
+| `drive` | `string` | The drive being browsed. |
+| `surface` | `"library"` | Always Library; Home has no `…` menu. |
+| `path` | `string` | The folder being browsed, drive-relative; `""` at the drive root. |
+| `fileIds` | `string[]` | The files the listing has loaded, which part-way down a long folder is not the whole folder. |
+| `onRequestClose` | `() => void` | Ask the host to close the menu. Reserved. |
+| `onDialogOpenChange` | `(open: boolean) => void` | Report a dialog opened or closed. Reserved. |
+
+The host renders the slot only on a folder or the drive root. Return `null`
+when there is nothing to act on (an empty `fileIds`, a feature turned off for
+the drive); the separator goes with it.
 
 ### Declaring Slots
 

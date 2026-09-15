@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckSquare,
   MoreHorizontal,
@@ -14,6 +14,10 @@ import {
 import { useTranslations } from "next-intl";
 import type { FileKind, SortField, SortOrder, TrustFilter, ViewMode } from "@/types";
 import { AddButton } from "@/components/AddButton";
+import { AddonSlot } from "@/components/AddonSlot";
+import { useAddonSlots } from "@/components/AddonSlotsProvider";
+import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { useImeKeyGuard } from "@/lib/ime";
 import { FilterMenu } from "./FilterMenu";
 import { Button } from "@/components/Button";
@@ -24,6 +28,13 @@ import { SortGroup, SortMenu } from "./SortMenu";
 import { DismissScrim } from "@/components/DismissScrim";
 import { ViewGroup, ViewMenu } from "@/components/ViewMenu";
 import { WidenTagScopeLink, type WidenTagScope } from "./WidenTagScopeLink";
+
+/**
+ * Addon rows in the `…` menu: commands over the files the listing holds.
+ * Rows that put something into the folder belong to `ADD_MENU_SLOT` instead.
+ * The row contract is the Add menu's.
+ */
+export const BULK_ACTIONS_MENU_SLOT = "folder-bulk-actions-menu";
 
 interface FolderToolbarProps {
   isSpecialView: boolean;
@@ -103,7 +114,44 @@ export function FolderToolbar({
   const ime = useImeKeyGuard();
 
   const [moreOpen, setMoreOpen] = useState(false);
+  const [moreDialogOpen, setMoreDialogOpen] = useState(false);
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
   const moreSurface = useMenuSurface(moreOpen);
+  const { hasSlot } = useAddonSlots();
+  const showBulkRows = !hideMutatingActions && hasSlot(BULK_ACTIONS_MENU_SLOT);
+
+  // Focus moves before the focused row unmounts, or it lands on `<body>`.
+  const closeMore = useCallback(() => {
+    setMoreDialogOpen(false);
+    setMoreOpen(false);
+    moreTriggerRef.current?.focus();
+  }, []);
+
+  // An entry that never reports `false` must not leave the next menu
+  // ignoring Escape and outside presses.
+  useEffect(() => {
+    if (!moreOpen) setMoreDialogOpen(false);
+  }, [moreOpen]);
+
+  // `editingOnly: false`: nothing traps focus in this menu, and the default
+  // would leave Escape inert once Tab walks out into a field.
+  useShortcuts(
+    "folder-more-menu",
+    "Dialog",
+    [
+      {
+        key: "escape",
+        label: "Close",
+        editingOnly: false,
+        hidden: true,
+        handler: () => {
+          closeMore();
+        },
+      },
+    ],
+    moreOpen && !moreDialogOpen,
+    OVERLAY_PRIORITY,
+  );
   // Held here, not inside each menu. The same choice is offered twice — on
   // the bar from 768 up and inside `…` below it — and two switchers each
   // holding their own state would answer differently on the two sides of
@@ -237,6 +285,7 @@ export function FolderToolbar({
 
         <div ref={moreSurface.wrapperRef} className="relative">
             <button
+              ref={moreTriggerRef}
               onClick={() => setMoreOpen((s) => !s)}
               className={`flex items-center justify-center rounded-2xl border border-bg-border p-2 transition-colors pointer-coarse:h-11 pointer-coarse:w-11 ${
                 selectable
@@ -251,7 +300,7 @@ export function FolderToolbar({
               <MoreHorizontal size={16} />
             </button>
             {moreOpen && (
-              <DismissScrim onDismiss={() => setMoreOpen(false)}>
+              <DismissScrim onDismiss={() => setMoreOpen(false)} disabled={moreDialogOpen}>
                 <div
                   ref={moreSurface.panelRef}
                   role="menu"
@@ -266,7 +315,7 @@ export function FolderToolbar({
                       mode={view.mode}
                       onSelect={(next) => {
                         view.select(next);
-                        setMoreOpen(false);
+                        closeMore();
                       }}
                     />
                     <MenuSeparator />
@@ -276,13 +325,13 @@ export function FolderToolbar({
                       allowRelevance={isSearch}
                       onChange={(nextSort, nextOrder) => {
                         onSortChange(nextSort, nextOrder);
-                        setMoreOpen(false);
+                        closeMore();
                       }}
                       onReshuffle={
                         sort === "random" && onReshuffle
                           ? () => {
                               onReshuffle();
-                              setMoreOpen(false);
+                              closeMore();
                             }
                           : undefined
                       }
@@ -296,7 +345,7 @@ export function FolderToolbar({
                   active={selectable}
                   onClick={() => {
                     onToggleSelectable();
-                    setMoreOpen(false);
+                    closeMore();
                   }}
                 />
                 {!isSearch && (
@@ -304,7 +353,7 @@ export function FolderToolbar({
                     role="menuitem"
                     onClick={() => {
                       if (!scanning) onScan();
-                      setMoreOpen(false);
+                      closeMore();
                     }}
                     disabled={scanning}
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated disabled:opacity-50"
@@ -321,7 +370,7 @@ export function FolderToolbar({
                     role="menuitem"
                     onClick={() => {
                       onTogglePin!(pinnablePath);
-                      setMoreOpen(false);
+                      closeMore();
                     }}
                     className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
                   >
@@ -334,6 +383,27 @@ export function FolderToolbar({
                       {isPinned ? t("unpinFolder") : t("pinFolder")}
                     </span>
                   </button>
+                )}
+                {showBulkRows && (
+                  /* The rule is this element's own border so `empty:hidden`
+                     removes it with the rows when every entry draws nothing. */
+                  <div
+                    role="none"
+                    className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+                  >
+                    <AddonSlot
+                      id={BULK_ACTIONS_MENU_SLOT}
+                      layout="stack"
+                      props={{
+                        drive,
+                        path: folderPath ?? "",
+                        fileIds,
+                        surface: "library",
+                        onRequestClose: closeMore,
+                        onDialogOpenChange: setMoreDialogOpen,
+                      }}
+                    />
+                  </div>
                 )}
                 </div>
               </DismissScrim>
