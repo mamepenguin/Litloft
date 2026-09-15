@@ -32,6 +32,7 @@ interface RowMeasurement {
   link: Box;
   thumb: Box | null;
   name: Box;
+  kinds: Box | null;
   nameTruncated: boolean;
   controls: { label: string; box: Box }[];
 }
@@ -238,6 +239,7 @@ test.describe("with a mouse", () => {
       expect(star.left - file.link.right).toBe(GAP_PX);
 
       expect(by.folder.row.height).toBe(w.folderFine);
+      expect(by.folder.controls[0].box.right).toBe(more.right);
       expect(by.folder.thumb!.left).toBe(file.thumb!.left);
       expect(by.folder.name.left).toBe(file.name.left);
 
@@ -263,6 +265,51 @@ test.describe("with a mouse", () => {
       }
       expect(file.nameTruncated).toBe(true);
       expect(before.nameTruncated).toBe(true);
+    });
+  }
+});
+
+test.describe("a folder row's breakdown", () => {
+  test.use({ hasTouch: false });
+
+  async function folderRow(
+    page: import("@playwright/test").Page,
+    viewport: number,
+    width: number,
+    name: string,
+  ) {
+    await page.setViewportSize({ width: viewport, height: 900 });
+    await page.goto(FIXTURE);
+    await page.evaluate(
+      (spec) => window.buildListColumn(spec),
+      { width, shapes: ["folder"], name },
+    );
+    const m = await page.evaluate(() => window.measureRows());
+    expect(m.rows).toHaveLength(1);
+    return m.rows[0];
+  }
+
+  test("is not drawn below sm, even when the name leaves room", async ({ page }) => {
+    const row = await folderRow(page, 383, 343, "Folder");
+    expect(row.kinds!.width).toBe(0);
+  });
+
+  for (const width of [700, 440]) {
+    test(`shows whole beside a short name at ${width}px`, async ({ page }) => {
+      const row = await folderRow(page, 740, width, "Folder");
+      expect(row.nameTruncated).toBe(false);
+      expect(row.kinds!.width).toBeGreaterThan(0);
+      const truncated = await page.evaluate(() => {
+        const el = document.querySelector("#frame span.sm\\:block")!;
+        return el.scrollWidth > el.clientWidth;
+      });
+      expect(truncated).toBe(false);
+    });
+
+    test(`gives way before a long name does at ${width}px`, async ({ page }) => {
+      const row = await folderRow(page, 740, width, LONG_NAME);
+      expect(row.nameTruncated).toBe(true);
+      expect(row.kinds!.width).toBe(0);
     });
   }
 });

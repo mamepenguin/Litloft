@@ -68,18 +68,15 @@ export function FolderListRow({
     </div>
   );
 
-  const meta = (
-    <span className="flex-shrink-0 text-xs tabular-nums text-text-muted">
-      {count}
-      {kinds && <span className="hidden sm:inline"> · {kinds}</span>}
-    </span>
+  const countLabel = (
+    <span className="ml-auto flex-shrink-0 text-xs tabular-nums text-text-muted">{count}</span>
   );
 
   return (
     <div
       className={`group flex items-center gap-3 border-b border-bg-border bg-bg-card p-2.5 transition-colors last:border-b-0 hover:bg-bg-elevated sm:p-2${
         // On a coarse pointer the 44px actions button is the row's height.
-        onContextMenu ? ` pointer-coarse:py-0 ${ROW_FURNITURE_PADDING}` : " pointer-coarse:py-3"
+        onContextMenu ? ` pointer-coarse:py-0 ${ROW_FURNITURE_PADDING}` : ""
       }${
         isDropTarget ? " bg-bg-elevated ring-2 ring-accent ring-inset" : ""
       }${isDragging ? " opacity-40" : ""}${dragEnabled ? " select-none" : ""}`}
@@ -107,7 +104,7 @@ export function FolderListRow({
                 onCancel={onRenameCancel}
               />
             </div>
-            {meta}
+            {countLabel}
           </div>
         </div>
       ) : (
@@ -119,10 +116,17 @@ export function FolderListRow({
         >
           {thumbnail}
           <div className="flex min-w-0 max-w-list-row flex-1 items-center gap-2">
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
+            <span className="min-w-0 truncate text-sm font-semibold text-text-primary">
               {folder.name}
             </span>
-            {meta}
+            {countLabel}
+            {/* Grows from zero into whatever the name leaves, so a long name
+                truncates the breakdown away before it truncates itself. */}
+            {kinds && (
+              <span className="hidden min-w-0 max-w-max flex-grow basis-0 truncate text-xs tabular-nums text-text-muted sm:block">
+                · {kinds}
+              </span>
+            )}
           </div>
         </Link>
       )}

@@ -85,8 +85,8 @@ describe("FolderListRow", () => {
         driveName="main"
       />,
     );
-    const count = screen.getByText("138 items", { exact: false });
-    expect(count.textContent).toBe("138 items · Video 135 · Document 3");
+    expect(screen.getByText("138 items")).toBeInTheDocument();
+    expect(screen.getByText("· Video 135 · Document 3")).toBeInTheDocument();
   });
 
   it("drops the breakdown below sm and keeps the count", () => {
@@ -96,16 +96,16 @@ describe("FolderListRow", () => {
         driveName="main"
       />,
     );
-    const kinds = screen.getByText("· Document", { exact: false });
+    const kinds = screen.getByText("· Document");
     expect(kinds.className.split(/\s+/)).toEqual(
-      expect.arrayContaining(["hidden", "sm:inline"]),
+      expect.arrayContaining(["hidden", "sm:block"]),
     );
-    expect(kinds.parentElement!.firstChild!.textContent).toBe("12 items");
+    expect(kinds.previousElementSibling!.textContent).toBe("12 items");
   });
 
   it("draws no breakdown for an empty folder", () => {
     render(<FolderListRow folder={folder({ file_count: 0 })} driveName="main" />);
-    expect(screen.getByText("0 items").textContent).toBe("0 items");
+    expect(screen.getByText("0 items").nextElementSibling).toBeNull();
   });
 
   it("draws the glyph in a bare column rather than a thumbnail-sized tile", () => {
