@@ -80,6 +80,7 @@ export function GlobalSearch() {
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const desktopInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drive = useCurrentDrive();
 
   useEffect(() => {
@@ -104,8 +105,16 @@ export function GlobalSearch() {
     setHistory(drive ? getHistory(drive) : []);
     setScopeRemoved(false);
     setOpen(true);
-    setTimeout(focusInput, 50);
+    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    focusTimerRef.current = setTimeout(focusInput, 50);
   }, [drive, focusInput]);
+
+  useEffect(
+    () => () => {
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    },
+    [],
+  );
 
   useRegisterGlobalSearch(() => {
     if (!open) openSearch();
