@@ -18,6 +18,10 @@ vi.mock("../SidebarProvider", () => ({
 }));
 vi.mock("../Sidebar", () => ({ Sidebar: () => <aside /> }));
 vi.mock("../Header", () => ({ Header: () => <header /> }));
+vi.mock("../CurrentDriveProvider", () => ({ useCurrentDrive: () => "main" }));
+vi.mock("../TreeToggle", () => ({
+  TreeToggle: ({ drive }: { drive: string }) => <button data-testid="tree-toggle" data-drive={drive} />,
+}));
 vi.mock("../ShortcutsProvider", () => ({
   ShortcutsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -61,5 +65,23 @@ describe("the sidebar's menu button", () => {
   it("spends no accent on it", () => {
     renderShell(true);
     expect(button().className).not.toMatch(/(^|[\s:])bg-accent/);
+  });
+
+  it.each([
+    ["closed", false, false],
+    ["open beside the page", true, false],
+    ["open over the page", true, true],
+  ])("keeps the tree toggle beside it while the sidebar is %s", (_name, isOpen, isOverlay) => {
+    cleanup();
+    sidebarState.isOpen = isOpen;
+    sidebarState.isOverlay = isOverlay;
+    render(
+      <AppShell>
+        <div>content</div>
+      </AppShell>,
+    );
+    const toggle = screen.getByTestId("tree-toggle");
+    expect(toggle.getAttribute("data-drive")).toBe("main");
+    expect(toggle.parentElement!.className.split(/\s+/)).toContain("left-[60px]");
   });
 });

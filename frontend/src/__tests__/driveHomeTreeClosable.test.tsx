@@ -27,7 +27,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import DriveLayout from "@/app/drive/[name]/layout";
-import { Header } from "@/components/Header";
+import { FixedTreeToggle } from "@/components/FixedTreeToggle";
 import { DriveHome } from "@/components/DriveHome";
 import { treeEnabledStore } from "@/lib/treeEnabledStore";
 
@@ -48,14 +48,13 @@ function paneIsOpen(): boolean {
 }
 
 /**
- * The app toolbar's control, not the `md:hidden` close button inside the
+ * The control beside the menu button, not the `md:hidden` close button inside the
  * pane: that one carries the same name, is in the document at every width
  * under jsdom, and writes a different store.
  */
 function headerTreeControl(): HTMLElement {
-  const header = document.querySelector("header[data-app-header]")!;
-  const control = Array.from(header.querySelectorAll("button")).find(
-    (button) => button.getAttribute("aria-label") === "Hide tree",
+  const control = Array.from(document.querySelectorAll("button")).find(
+    (button) => button.getAttribute("aria-label") === "Hide tree" && !button.closest("aside"),
   );
   expect(control, "the header carries no control for the tree").not.toBeUndefined();
   return control!;
@@ -72,7 +71,7 @@ describe("the drive home and the tree pane", () => {
     driveHasTreeOn("media");
     render(
       <>
-        <Header />
+        <FixedTreeToggle />
         <DriveLayout>
           <DriveHome driveName="media" />
         </DriveLayout>
@@ -87,7 +86,7 @@ describe("the drive home and the tree pane", () => {
     driveHasTreeOn("media");
     render(
       <>
-        <Header />
+        <FixedTreeToggle />
         <DriveLayout>
           <DriveHome driveName="media" />
         </DriveLayout>

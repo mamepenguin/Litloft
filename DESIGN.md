@@ -634,8 +634,10 @@ this file from the one beside it?*
 
 - Background `bg-bg-sidebar`; active row `bg-bg-elevated rounded-2xl font-medium`;
   `fixed`, full height, `w-60`.
-- Composition, top to bottom: **logo → current drive → views → addons →
-  reorderable sections → Lock.** The current drive is one row that opens the
+- Composition, top to bottom: **the row the menu and tree buttons sit on →
+  current drive → views → addons → reorderable sections → Lock.** No logo: that
+  row belongs to the two buttons, which stay put whether the sidebar is open,
+  over the page or beside it. The current drive is one row that opens the
   others, so the sidebar reads as a place before a menu. Views carry no heading;
   the user-ordered sections keep theirs.
 - **Two modes.** Inline on wide screens (≥ 1200px), pushing the layout, with the

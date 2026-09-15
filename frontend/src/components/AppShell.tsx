@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Menu } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { FixedTreeToggle } from "./FixedTreeToggle";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { useSidebar } from "./SidebarProvider";
@@ -50,6 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="min-h-dvh">
             <Sidebar />
             <MenuButton />
+            <FixedTreeToggle />
             <div
               className={`flex min-h-dvh min-w-0 flex-col transition-[padding] duration-150 ease-out ${
                 inlineOpen ? "min-[1200px]:pl-60" : ""

@@ -109,7 +109,6 @@ describe("addon destinations in the sidebar", () => {
     catalogue = BUNDLED;
     render(<Sidebar />);
     expect(rowLabels()).toEqual([
-      "Litloft",
       "Home",
       "Library",
       "Ask",
@@ -164,7 +163,6 @@ describe("addon destinations in the sidebar", () => {
     catalogue = {};
     render(<Sidebar />);
     expect(rowLabels()).toEqual([
-      "Litloft",
       "Home",
       "Library",
       "Favorites",

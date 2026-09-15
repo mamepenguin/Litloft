@@ -270,8 +270,9 @@ by the tree borrowing the space. Below 1200px the sidebar already opens over
 the content rather than beside it, so there is nothing to lend and nothing
 changes.
 
-The tree toggle sits in the top bar beside the hamburger, on every screen that
-has the tree, including an open file. Both buttons show which one is holding the
+The tree toggle sits at the top-left beside the hamburger, and stays there
+whether the sidebar is open, over the page or beside it, on every screen that
+has the tree, including an open file (on a narrow window an open file hides it). Both buttons show which one is holding the
 job: each looks pressed while its surface is the one on.
 
 The path above the file list is always there, whichever of the two is showing.

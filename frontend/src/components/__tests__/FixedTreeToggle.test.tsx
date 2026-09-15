@@ -22,33 +22,14 @@ const route = vi.hoisted(() => ({
   pathname: "/drive/work",
   search: "",
 }));
-const sidebarState = vi.hoisted(() => ({ isOpen: false, isOverlay: false }));
 
-vi.mock("../GlobalSearch", () => ({ GlobalSearch: () => null }));
-vi.mock("../AddonSlot", () => ({ AddonSlot: () => null }));
-vi.mock("../quick-note", () => ({ QuickNote: () => null }));
 vi.mock("../CurrentDriveProvider", () => ({ useCurrentDrive: () => route.drive }));
-vi.mock("../ProfileProvider", () => ({
-  useProfile: () => ({ nickname: null, setNickname: vi.fn(), clearNickname: vi.fn() }),
-}));
-vi.mock("../SidebarProvider", () => ({
-  useSidebar: () => ({
-    isOpen: sidebarState.isOpen,
-    isOverlay: sidebarState.isOverlay,
-    toggle: vi.fn(),
-    close: vi.fn(),
-    setOverlayMode: vi.fn(),
-    refreshKey: 0,
-    requestRefresh: vi.fn(),
-  }),
-}));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
   usePathname: () => route.pathname,
   useSearchParams: () => new URLSearchParams(route.search),
 }));
 
-import { Header } from "../Header";
+import { FixedTreeToggle } from "../FixedTreeToggle";
 
 const treeToggle = () => screen.queryByRole("button", { name: /tree/i });
 
@@ -58,11 +39,9 @@ beforeEach(() => {
   route.drive = "work";
   route.pathname = "/drive/work";
   route.search = "";
-  sidebarState.isOpen = false;
-  sidebarState.isOverlay = false;
 });
 
-describe("the tree toggle in the app header", () => {
+describe("the tree toggle beside the menu button", () => {
   it.each([
     ["the drive home", "/drive/work", ""],
     ["the Library root", "/drive/work", "view=library"],
@@ -71,7 +50,7 @@ describe("the tree toggle in the app header", () => {
   ])("is offered on %s, where the tree pane mounts", (_name, pathname, search) => {
     route.pathname = pathname;
     route.search = search;
-    render(<Header />);
+    render(<FixedTreeToggle />);
     expect(treeToggle()).not.toBeNull();
   });
 
@@ -84,7 +63,7 @@ describe("the tree toggle in the app header", () => {
   ])("is not offered on %s, which has no tree pane", (_name, pathname, search) => {
     route.pathname = pathname;
     route.search = search;
-    render(<Header />);
+    render(<FixedTreeToggle />);
     expect(treeToggle()).toBeNull();
   });
 
@@ -96,7 +75,7 @@ describe("the tree toggle in the app header", () => {
   ])("is offered above md only while a file is open %s", (_name, pathname, search) => {
     route.pathname = pathname;
     route.search = search;
-    render(<Header />);
+    render(<FixedTreeToggle />);
     const classes = treeToggle()!.className.split(/\s+/);
     expect(classes).toContain("hidden");
     expect(classes).toContain("md:flex");
@@ -104,7 +83,7 @@ describe("the tree toggle in the app header", () => {
   });
 
   it("is offered at every width while no file is open", () => {
-    render(<Header />);
+    render(<FixedTreeToggle />);
     const classes = treeToggle()!.className.split(/\s+/);
     expect(classes).toContain("flex");
     expect(classes).not.toContain("hidden");
@@ -113,44 +92,28 @@ describe("the tree toggle in the app header", () => {
   it("is not offered outside a drive", () => {
     route.drive = null;
     route.pathname = "/";
-    render(<Header />);
+    render(<FixedTreeToggle />);
     expect(treeToggle()).toBeNull();
   });
 
   // The full-screen file page knows its drive but mounts no tree pane.
   it("is not offered on a page outside the drive routes, even with a drive", () => {
     route.pathname = "/files/abc123";
-    render(<Header />);
+    render(<FixedTreeToggle />);
     expect(treeToggle()).toBeNull();
   });
 
-  it("leads the header's controls", () => {
-    const { container } = render(<Header />);
-    const header = container.querySelector("header")!;
-    const firstButton = header.querySelector("button");
-    expect(firstButton).toBe(treeToggle());
-  });
-
-  // The menu button is fixed at top 12 as a 40px rounded-2xl box; matching it
-  // is what puts the two on one line.
-  it("is the menu button's box, at the menu button's top", () => {
-    render(<Header />);
+  // The menu button is `fixed left-3` at the safe-area top + 12, 40px and
+  // rounded-2xl; the toggle takes the same box one button to its right.
+  it("is the menu button's box, one button to its right, at its top", () => {
+    render(<FixedTreeToggle />);
     const button = treeToggle()!;
     const classes = button.className.split(/\s+/);
     for (const c of ["h-10", "w-10", "rounded-2xl"]) expect(classes).toContain(c);
-    const slot = button.parentElement!.className.split(/\s+/);
-    for (const c of ["self-start", "mt-3"]) expect(slot).toContain(c);
-  });
-
-  it.each([
-    ["closed", false, false, "ml-11"],
-    ["open over the page", true, true, "ml-11"],
-    ["open beside the page", true, false, "-ml-1"],
-  ])("clears the menu button when the sidebar is %s", (_name, isOpen, isOverlay, margin) => {
-    sidebarState.isOpen = isOpen;
-    sidebarState.isOverlay = isOverlay;
-    render(<Header />);
-    const slot = treeToggle()!.parentElement!.className.split(/\s+/);
-    expect(slot.filter((c) => /^-?ml-/.test(c))).toEqual([margin]);
+    const slot = button.parentElement as HTMLElement;
+    for (const c of ["fixed", "left-[60px]", "z-50"]) expect(slot.className.split(/\s+/)).toContain(c);
+    // jsdom reorders the calc, so the two terms are checked, not the string.
+    expect(slot.style.top).toContain("safe-area-inset-top");
+    expect(slot.style.top).toContain("12px");
   });
 });

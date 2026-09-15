@@ -10,16 +10,12 @@ import { GlobalSearch } from "./GlobalSearch";
 import { QuickNote } from "./quick-note";
 import { AddonSlot } from "./AddonSlot";
 import { useCurrentDrive } from "./CurrentDriveProvider";
-import { useSidebar } from "./SidebarProvider";
-import { TreeToggle } from "./TreeToggle";
 
 export function Header() {
   const tp = useTranslations("profile");
   const { nickname } = useProfile();
   const router = useRouter();
   const drive = useCurrentDrive();
-  const { isOpen: sidebarOpen, isOverlay: sidebarOverlay } = useSidebar();
-  const sidebarBeside = sidebarOpen && !sidebarOverlay;
 
   const goToSettings = useCallback(() => {
     router.push("/settings");
@@ -51,7 +47,6 @@ export function Header() {
   return (
     <header
       ref={headerRef}
-      data-app-header
       // PWA safe-area: reserve the iOS status-bar inset above and
       // keep a stable 56px content area so the avatar / search /
       // menu button stay visually centred independently of the inset.
@@ -61,14 +56,6 @@ export function Header() {
       }}
       className="sticky top-0 z-20 flex flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4"
     >
-      {/* The menu button is fixed at the viewport's top-left, over this bar
-          unless the sidebar sits beside the page, so the toggle clears it
-          and copies its top rather than centring in the bar. */}
-      {drive && (
-        <div className={`mt-3 self-start ${sidebarBeside ? "-ml-1" : "ml-11"}`}>
-          <TreeToggle drive={drive} />
-        </div>
-      )}
       <div className="flex-1" />
 
       <div className="flex items-center gap-1">

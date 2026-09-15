@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clock, FilePlus, Files, FolderTree, Home, Star, ThumbsUp, Warehouse } from "lucide-react";
+import { Clock, FilePlus, Files, FolderTree, Home, Star, ThumbsUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
 import type { AddonNavEntry } from "@/lib/addonNavigation";
@@ -31,12 +31,9 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
 
   return (
     <>
-      <div className="mb-2 py-2 pr-3 pl-12">
-        <Link href="/" onClick={close} className="flex items-center gap-2 text-lg font-bold text-text-primary">
-          <Warehouse size={20} className="text-text-muted" />
-          Litloft
-        </Link>
-      </div>
+      {/* Where the fixed menu and tree buttons sit. Empty, so without
+          `shrink-0` the scrolling column squeezes it to nothing. */}
+      <div aria-hidden="true" data-testid="sidebar-button-row" className="mb-2 h-10 shrink-0" />
 
       <SidebarDriveSwitcher drives={drives} currentDrive={currentDrive} close={close} />
 
