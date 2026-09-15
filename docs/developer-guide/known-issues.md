@@ -94,9 +94,19 @@ it: the target lights up, the drop lands, nothing happens and nothing is said.
 filtered but no row says so and no row clears it. No link in the app produces
 this URL; it is reachable only by typing it.
 
-**Below 1200 px, the drive picker is two steps from a drive's Home.** The
-sidebar is `aria-hidden` when closed and the header has no link to `/`, so
-getting back means opening the menu first. Accepted.
+**Inside a drive, nothing links to the drive picker `/`.** The sidebar's logo
+carried the only link and was removed to leave its row to the menu and tree
+buttons. Other drives stay reachable through the sidebar's drive switcher; the
+picker, and its card leading to `/unlock`, only by typing the URL. Accepted.
+
+**A failed Library listing reads `<drive> · 0 items`.** The listing hook sets
+the total to 0 on a failed request, so the scope line cannot tell a failure
+from an empty drive. Reached when the listing request fails.
+
+**A collection that is still loading, or not found, shows the tree toggle with
+no tree under it.** The toggle is decided by the URL, and the collection page
+mounts its pane only once the collection has loaded. Pressing it flips the
+drive's tree setting and nothing else.
 
 **The sidebar and Home disagree on two icons, and one of them means two
 things.** Recently Viewed and Recently Added are `Clock` / `FilePlus` in the
