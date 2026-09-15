@@ -373,10 +373,11 @@ describe("useQuickNote().open", () => {
   });
 
   it("uses the drive's remembered folder when the given folder is not a valid path", async () => {
+    localStorage.setItem("quick-note:destination:notes", JSON.stringify({ folder: "Scratch" }));
     mockGetDrives.mockResolvedValue(drivesOf("photos", "notes"));
     renderWithOpener({ drive: "notes", folder: "../outside" });
     await openFromPage();
-    expect(screen.getByText("notes / Inbox")).toBeInTheDocument();
+    expect(screen.getByText("notes / Scratch")).toBeInTheDocument();
   });
 
   it("ignores a folder given without a drive", async () => {
@@ -479,6 +480,25 @@ describe("useQuickNote().open", () => {
       await act(async () => pending[1]!.resolve(drivesOf("photos")));
       expect(saveButton()).toBeEnabled();
     });
+  });
+
+  it("leaves an open panel and its discard question alone when opened again", async () => {
+    mockGetDrives.mockResolvedValue(drivesOf("photos", "notes"));
+    renderWithOpener({ drive: "notes", folder: "Projects" });
+    await openFromHeader();
+    typeBody("unanswered");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    const discard = await screen.findByRole("button", { name: "Discard" });
+    await waitFor(() => expect(discard).toHaveFocus());
+
+    fireEvent.keyDown(discard, { key: "n" });
+    await settle();
+    expect(screen.getByRole("button", { name: "Discard" })).toHaveFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByLabelText("Note text")).toHaveValue("unanswered");
+    expect(screen.getByRole("button", { name: /Destination/ })).toHaveTextContent("photos / Inbox");
+    expect(mockGetDrives).toHaveBeenCalledTimes(1);
   });
 
   it("returns focus to the control that opened it", async () => {
