@@ -24,6 +24,10 @@ export function TreeToggle({ drive, visible = true }: TreeToggleProps) {
   if (!pathname.startsWith("/drive/")) return null;
   if (routeHidesTree({ pathname, view: searchParams.get("view"), includeStandalone: true })) return null;
 
+  // Below `md` an open file hides the pane; pressing the toggle there changes
+  // nothing on screen and only arms a full-viewport tree for when it closes.
+  const display = searchParams.get("file") !== null ? "hidden md:flex" : "flex";
+
   return (
     <button
       type="button"
@@ -31,7 +35,7 @@ export function TreeToggle({ drive, visible = true }: TreeToggleProps) {
       aria-pressed={treeVisible}
       aria-label={treeVisible ? t("treeOff") : t("treeOn")}
       title={treeVisible ? t("treeOff") : t("treeOn")}
-      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl transition-colors hover:bg-bg-elevated hover:text-text-primary ${
+      className={`${display} h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl transition-colors hover:bg-bg-elevated hover:text-text-primary ${
         treeVisible ? "bg-bg-elevated text-text-primary" : "text-text-muted"
       }`}
     >

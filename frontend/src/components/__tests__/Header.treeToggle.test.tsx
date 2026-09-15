@@ -88,6 +88,28 @@ describe("the tree toggle in the app header", () => {
     expect(treeToggle()).toBeNull();
   });
 
+  // Below `md` an open file hides the pane, and pressing the toggle there
+  // would only arm a full-viewport tree for the moment the file closes.
+  it.each([
+    ["in a folder", "/drive/work/videos", "file=f1"],
+    ["at the drive root", "/drive/work", "file=f1"],
+  ])("is offered above md only while a file is open %s", (_name, pathname, search) => {
+    route.pathname = pathname;
+    route.search = search;
+    render(<Header />);
+    const classes = treeToggle()!.className.split(/\s+/);
+    expect(classes).toContain("hidden");
+    expect(classes).toContain("md:flex");
+    expect(classes).not.toContain("flex");
+  });
+
+  it("is offered at every width while no file is open", () => {
+    render(<Header />);
+    const classes = treeToggle()!.className.split(/\s+/);
+    expect(classes).toContain("flex");
+    expect(classes).not.toContain("hidden");
+  });
+
   it("is not offered outside a drive", () => {
     route.drive = null;
     route.pathname = "/";

@@ -62,6 +62,12 @@ vi.mock("@/components/AddonSlot", () => ({
 }));
 
 const mockRefreshTree = vi.fn();
+// Stands in for the real toggle, which renders nothing at this fixture's
+// pathname, so a page that drew one would still be seen doing it.
+vi.mock("@/components/TreeToggle", () => ({
+  TreeToggle: () => <button data-testid="tree-toggle">tree</button>,
+}));
+
 vi.mock("@/components/TreeRefreshContext", () => ({
   useTreeRefresh: () => mockRefreshTree,
 }));
@@ -556,6 +562,11 @@ describe("the drive root's header", () => {
     mockProfile.nickname = null;
     mockGetDriveFiles.mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
     mockGetWatchHistory.mockResolvedValue([]);
+  });
+
+  it("leaves the tree toggle to the app toolbar", () => {
+    render(<DriveHome driveName="media" />);
+    expect(screen.queryByTestId("tree-toggle")).toBeNull();
   });
 
   it("wears a full-width frame", () => {
