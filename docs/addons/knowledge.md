@@ -227,8 +227,11 @@ Appends are ETag-guarded and serialised per target path, so two commits racing i
 `/drive/{drive}/addons/knowledge` is **Notes**, a page for finding this drive's
 Markdown and text files (`.md`, `.markdown`, `.txt`, or `text/markdown`). It has
 the app's standard page header, with **New note** as its only primary action.
-New note asks for a folder and a name, creates the file, and opens it in the
-editor. It is hidden on drives where the `editor` feature is off.
+New note opens the core [Quick Note](../user-guide/quick-note.md) panel with this
+drive preselected and, on All notes with a folder chosen, that folder. The panel
+creates the file only when saved; its **Save and open** opens the new note with
+`edit=1`. New note is shown whatever the `editor` feature says, because Quick
+Note does not need the editor.
 
 Below the header:
 

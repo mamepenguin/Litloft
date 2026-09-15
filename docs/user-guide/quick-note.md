@@ -11,6 +11,8 @@ Two ways in, both available on every page:
 - Press `N`. Like the other single-character shortcuts, this fires only when no input has focus, which is what keeps it out of the Markdown editor, the search box, and comment fields.
 - Use the **Quick note** action in the header. The button works everywhere, including while you are typing in a text field, and on screens that have no active drive at all (the root drive picker, `/admin`, `/admin/settings`).
 
+Some screens open the same panel for you — **New note** on the Notes page does, with that page's drive (and, on All notes, the folder you have chosen) already selected as the destination. That preselection is for that one note: it is not remembered unless the save succeeds, and the next time you open Quick Note from the header the usual order below applies again.
+
 The panel opens as a dialog over the current page with the cursor already in the note text — you can start typing immediately. `Tab` stays inside the dialog while it is open.
 
 ## Nothing is created until you save
@@ -21,7 +23,10 @@ The note text lives only in the panel, in browser memory. It is never written to
 - If the note already has text in it, closing asks first — **Discard this note?**, with **Keep editing** and **Discard**. There is no undo after **Discard**.
 - Reloading the page loses an unsaved note by design.
 
-Saving does not navigate. The panel closes, a toast confirms where the file landed (`drive/folder/name.md`), and you are still on the page you started from, at the same scroll position, with the same video still playing.
+The panel has two ways to save:
+
+- **Save** does not navigate. The panel closes, a toast confirms where the file landed (`drive/folder/name.md`), and you are still on the page you started from, at the same scroll position, with the same video still playing.
+- **Save and open**, at the left of the footer, saves exactly the same file and then takes you to it, opened for editing when an editor is installed (the Knowledge addon's). It does nothing different from **Save** until the save has succeeded: if the save fails, you stay where you are and the panel keeps your text and shows the error.
 
 ## Choosing where the note goes
 
@@ -31,12 +36,13 @@ The panel shows the destination as one collapsed line — **Destination: `drive`
 
 The drive is resolved fresh every time the panel opens, in this order:
 
-1. The drive of the screen you opened the panel from, if you can currently reach it.
-2. The drive of your last successful Quick Note save, if you can currently reach it.
-3. The only accessible drive, if you have exactly one.
-4. Otherwise **nothing is preselected**. The destination section opens itself and waits for you to choose.
+1. The drive a screen asked for when it opened the panel (such as **New note** on the Notes page), if you can currently reach it.
+2. The drive of the screen you opened the panel from, if you can currently reach it.
+3. The drive of your last successful Quick Note save, if you can currently reach it.
+4. The only accessible drive, if you have exactly one.
+5. Otherwise **nothing is preselected**. The destination section opens itself and waits for you to choose.
 
-There is deliberately no alphabetical fallback for step 4. A drive is a security boundary, so filing a note into the wrong one is worse than asking for one click. The list of drives comes from the server on every open, so a drive you no longer have unlocked is never offered and never quietly reused.
+There is deliberately no alphabetical fallback for step 5. A drive is a security boundary, so filing a note into the wrong one is worse than asking for one click. The list of drives comes from the server on every open, so a drive you no longer have unlocked is never offered and never quietly reused.
 
 ### The folder
 
@@ -69,7 +75,7 @@ An ordinary Markdown file in an ordinary folder. There is no separate notes stor
 
 ## When Save is unavailable
 
-The **Save** button stays disabled until there is non-whitespace text and a confirmed destination. It also refuses in these cases:
+**Save** and **Save and open** stay disabled until there is non-whitespace text and a confirmed destination, and both are disabled while a save is in progress, so pressing twice never creates two files. It also refuses in these cases:
 
 | Situation | What the panel does |
 |---|---|
@@ -80,4 +86,4 @@ The **Save** button stays disabled until there is non-whitespace text and a conf
 
 ## Keys
 
-`Cmd/Ctrl+Enter` saves and `Esc` closes — both work with the cursor still in the note text. See [keyboard shortcuts](keyboard-shortcuts.md) for the full set.
+`Cmd/Ctrl+Enter` saves (like **Save**, it does not navigate) and `Esc` closes — both work with the cursor still in the note text. See [keyboard shortcuts](keyboard-shortcuts.md) for the full set.

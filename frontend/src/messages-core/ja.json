@@ -1144,6 +1144,7 @@
     "noDrives": "保存できるドライブがありません。",
     "drivesFailed": "ドライブを読み込めませんでした。",
     "retry": "再試行",
+    "saveAndOpen": "保存して開く",
     "saving": "保存中...",
     "saved": "{path} に保存しました",
     "saveFailed": "ノートを保存できませんでした。",

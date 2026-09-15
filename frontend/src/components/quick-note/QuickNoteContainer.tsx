@@ -8,16 +8,20 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { createTextFile, getDrives } from "@/lib/api";
+import { buildCanonicalFileUrl } from "@/lib/canonicalFileUrl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { useCurrentDrive } from "../CurrentDriveProvider";
 import { useToast } from "../ToastProvider";
 import { QuickNotePresenter } from "./QuickNotePresenter";
+import { useRegisterQuickNote, type QuickNoteOpenOptions } from "./QuickNoteProvider";
 import { deriveQuickNoteFilename } from "./quickNoteFilename";
 import {
+  isValidQuickNoteFolder,
   QUICK_NOTE_DEFAULT_FOLDER,
   readQuickNoteFolder,
   readQuickNoteLastDrive,
@@ -39,6 +43,16 @@ function destinationFor(drive: string | null): Destination {
     drive,
     folder: drive ? readQuickNoteFolder(drive) : QUICK_NOTE_DEFAULT_FOLDER,
   };
+}
+
+function requestedDestination(
+  request: QuickNoteOpenOptions | null,
+  accessibleDrives: string[],
+): Destination | null {
+  const drive = request?.drive;
+  if (!drive || !accessibleDrives.includes(drive)) return null;
+  const folder = request?.folder;
+  return isValidQuickNoteFolder(folder) ? { drive, folder } : destinationFor(drive);
 }
 
 const FOCUSABLE_SELECTOR = [
@@ -71,9 +85,13 @@ export function QuickNoteContainer() {
   const tc = useTranslations("common");
   const tsc = useTranslations("shortcuts");
   const toast = useToast();
+  const router = useRouter();
   const currentDrive = useCurrentDrive();
 
   const [open, setOpen] = useState(false);
+  // Read synchronously by `openPanel`, so a second open in the same tick does
+  // not replace the first opening's request.
+  const openRef = useRef(false);
   const [body, setBody] = useState("");
   const [drives, setDrives] = useState<string[]>([]);
   const [drivesLoading, setDrivesLoading] = useState(false);
@@ -88,7 +106,7 @@ export function QuickNoteContainer() {
   });
   const { drive, folder } = destination;
   const [destinationOpen, setDestinationOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<"save" | "open" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [discardOpen, setDiscardOpen] = useState(false);
 
@@ -96,6 +114,14 @@ export function QuickNoteContainer() {
   const discardRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  // A drive-list response applies only to the opening that requested it, so
+  // a slow response from a closed opening cannot decide the next one.
+  const openingRef = useRef<{ id: number; request: QuickNoteOpenOptions | null }>({
+    id: 0,
+    request: null,
+  });
+  const resolvedOpeningRef = useRef<number | null>(null);
   // Latched separately from `submitting` so two synchronous invocations
   // (double click, or click plus Cmd+Enter) cannot both open a request.
   const inFlightRef = useRef(false);
@@ -109,20 +135,23 @@ export function QuickNoteContainer() {
   }, [currentDrive]);
 
   /**
-   * The response is authoritative. `reresolve` distinguishes the two callers:
-   *
-   * - opening the panel re-runs the whole resolution order, so moving from
-   *   drive A to drive B and opening again targets B rather than silently
-   *   keeping A (which would file the note in the wrong security boundary);
-   * - a retry or a post-403 refresh keeps the selection the user made in this
-   *   session, as long as it is still in the response.
+   * The response is authoritative. The first confirmed list of an opening
+   * re-runs the whole resolution order, so moving from drive A to drive B and
+   * opening again targets B rather than silently keeping A (which would file
+   * the note in the wrong security boundary). A later refresh in the same
+   * opening (post-403) keeps the selection the user made, as long as it is
+   * still in the response.
    */
-  const loadDrives = useCallback(async (options?: { reresolve?: boolean }) => {
-    const reresolve = options?.reresolve === true;
+  const loadDrives = useCallback(async () => {
+    const opening = openingRef.current;
+    const isCurrent = () => openingRef.current === opening;
     setDrivesLoading(true);
     setDrivesFailed(false);
     try {
       const names = (await getDrives()).map((d) => d.name);
+      if (!isCurrent()) return;
+      const reresolve = resolvedOpeningRef.current !== opening.id;
+      resolvedOpeningRef.current = opening.id;
       setDrives(names);
       setDestination((previous) => {
         if (!reresolve && previous.drive && names.includes(previous.drive)) {
@@ -130,41 +159,50 @@ export function QuickNoteContainer() {
         }
         // A fresh open also re-reads the folder preference, so a folder that
         // was picked but never saved successfully does not carry over.
-        return destinationFor(
-          resolveQuickNoteDrive({
-            currentDrive: currentDriveRef.current,
-            lastDrive: readQuickNoteLastDrive(),
-            accessibleDrives: names,
-          }),
+        return (
+          requestedDestination(opening.request, names) ??
+          destinationFor(
+            resolveQuickNoteDrive({
+              currentDrive: currentDriveRef.current,
+              lastDrive: readQuickNoteLastDrive(),
+              accessibleDrives: names,
+            }),
+          )
         );
       });
     } catch {
+      if (!isCurrent()) return;
       // The list could not be confirmed. Keep whatever is selected on screen
       // but treat the destination as unverified — `canSave` refuses to write
       // to a drive this session has not seen in an accessible-drive response.
       setDrives([]);
       setDrivesFailed(true);
     } finally {
-      setDrivesLoading(false);
+      if (isCurrent()) setDrivesLoading(false);
     }
   }, []);
 
-  const openPanel = useCallback(() => {
-    setOpen((wasOpen) => {
-      if (wasOpen) return true;
-      setError(null);
-      setDiscardOpen(false);
-      setDestinationOpen(false);
-      return true;
-    });
+  const openPanel = useCallback((options?: QuickNoteOpenOptions) => {
+    if (openRef.current) return;
+    openRef.current = true;
+    openingRef.current = { id: openingRef.current.id + 1, request: options ?? null };
+    const active = document.activeElement;
+    openerRef.current =
+      active instanceof HTMLElement && active !== document.body ? active : null;
+    setError(null);
+    setDiscardOpen(false);
+    setDestinationOpen(false);
+    setOpen(true);
   }, []);
+
+  useRegisterQuickNote(openPanel);
 
   // Drives are re-fetched and re-resolved on every open rather than cached:
   // access can change between two notes, the user may have navigated to a
   // different drive, and this is a single cheap request.
   useEffect(() => {
     if (!open) return;
-    void loadDrives({ reresolve: true });
+    void loadDrives();
   }, [open, loadDrives]);
 
   useEffect(() => {
@@ -203,7 +241,9 @@ export function QuickNoteContainer() {
     }
     if (wasOpenRef.current) {
       wasOpenRef.current = false;
-      triggerRef.current?.focus();
+      const opener = openerRef.current;
+      openerRef.current = null;
+      (opener?.isConnected ? opener : triggerRef.current)?.focus();
     }
   }, [open]);
 
@@ -214,6 +254,7 @@ export function QuickNoteContainer() {
     drive !== null && !drivesLoading && !drivesFailed && drives.includes(drive);
 
   const closeAndClear = useCallback(() => {
+    openRef.current = false;
     setOpen(false);
     setBody("");
     setError(null);
@@ -235,7 +276,7 @@ export function QuickNoteContainer() {
     bodyRef.current?.focus();
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (mode: "save" | "open") => {
     if (inFlightRef.current) return;
     if (!drive || !destinationReady || body.trim().length === 0) return;
     if (overLimit) {
@@ -244,7 +285,7 @@ export function QuickNoteContainer() {
     }
 
     inFlightRef.current = true;
-    setSubmitting(true);
+    setSubmitting(mode);
     setError(null);
     try {
       const path = folder ? `${folder}/${filename}` : filename;
@@ -260,6 +301,9 @@ export function QuickNoteContainer() {
         : file.filename;
       toast.success(t("saved", { path: `${drive}/${savedPath}` }));
       closeAndClear();
+      if (mode === "open") {
+        router.push(buildCanonicalFileUrl(file, file.id, { edit: "1" }));
+      }
     } catch (err) {
       const status = statusOf(err);
       if (status === 413) setError(t("tooLarge"));
@@ -275,7 +319,7 @@ export function QuickNoteContainer() {
       }
     } finally {
       inFlightRef.current = false;
-      setSubmitting(false);
+      setSubmitting(null);
     }
   }, [
     drive,
@@ -286,6 +330,7 @@ export function QuickNoteContainer() {
     filename,
     toast,
     t,
+    router,
     closeAndClear,
     loadDrives,
   ]);
@@ -325,7 +370,7 @@ export function QuickNoteContainer() {
   // a field. That is what keeps the global command out of the Knowledge
   // editor, search, and comment boxes; the header button still works there.
   useShortcuts("quick-note", tsc("quickNote"), [
-    { key: "n", label: tsc("quickNote"), handler: openPanel },
+    { key: "n", label: tsc("quickNote"), handler: () => openPanel() },
   ]);
 
   // The open panel owns Escape and Cmd/Ctrl+Enter outright. `editingOnly:
@@ -348,7 +393,7 @@ export function QuickNoteContainer() {
         label: tc("save"),
         editingOnly: false,
         handler: () => {
-          if (!discardOpen) void handleSave();
+          if (!discardOpen) void handleSave("save");
         },
       },
     ],
@@ -357,12 +402,12 @@ export function QuickNoteContainer() {
   );
 
   const canSave =
-    !submitting && !overLimit && body.trim().length > 0 && destinationReady;
+    submitting === null && !overLimit && body.trim().length > 0 && destinationReady;
 
   return (
     <QuickNotePresenter
       open={open}
-      onOpen={openPanel}
+      onOpen={() => openPanel()}
       triggerRef={triggerRef}
       dialogRef={dialogRef}
       onDialogKeyDown={handleDialogKeyDown}
@@ -383,7 +428,8 @@ export function QuickNoteContainer() {
       canSave={canSave}
       submitting={submitting}
       error={error ?? (overLimit ? t("tooLarge") : null)}
-      onSave={() => void handleSave()}
+      onSave={() => void handleSave("save")}
+      onSaveAndOpen={() => void handleSave("open")}
       onRequestClose={requestClose}
       discardOpen={discardOpen}
       discardRef={discardRef}

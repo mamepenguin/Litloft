@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   Folder as FolderIcon,
+  PenLine,
   SquarePen,
   X,
 } from "lucide-react";
@@ -38,9 +39,10 @@ export interface QuickNotePresenterProps {
   onReloadDrives: () => void;
 
   canSave: boolean;
-  submitting: boolean;
+  submitting: "save" | "open" | null;
   error: string | null;
   onSave: () => void;
+  onSaveAndOpen: () => void;
   onRequestClose: () => void;
 
   discardOpen: boolean;
@@ -78,6 +80,7 @@ export function QuickNotePresenter({
   submitting,
   error,
   onSave,
+  onSaveAndOpen,
   onRequestClose,
   discardOpen,
   discardRef,
@@ -231,25 +234,31 @@ export function QuickNotePresenter({
         </div>
 
         <div
-          className="flex items-center justify-end gap-2 border-t border-bg-border px-5 py-3"
+          className="flex flex-wrap items-center justify-between gap-2 border-t border-bg-border px-5 py-3"
           inert={discardOpen}
         >
-          <button
-            type="button"
-            onClick={onRequestClose}
-            className="rounded-2xl bg-sand px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-sand-hover"
-          >
-            {tc("cancel")}
-          </button>
-          <Button
-            variant="primary"
-            size="lg"
-            type="button"
-            onClick={onSave}
-            disabled={!canSave}
-          >
-            {submitting ? t("saving") : tc("save")}
+          <Button variant="ghost" className="shrink-0" onClick={onSaveAndOpen} disabled={!canSave}>
+            <PenLine size={14} strokeWidth={1.8} aria-hidden="true" />
+            {submitting === "open" ? t("saving") : t("saveAndOpen")}
           </Button>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onRequestClose}
+              className="rounded-2xl bg-sand px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-sand-hover"
+            >
+              {tc("cancel")}
+            </button>
+            <Button
+              variant="primary"
+              size="lg"
+              type="button"
+              onClick={onSave}
+              disabled={!canSave}
+            >
+              {submitting === "save" ? t("saving") : tc("save")}
+            </Button>
+          </div>
         </div>
 
         {/* Discard confirmation. Rendered inside the panel rather than as a
