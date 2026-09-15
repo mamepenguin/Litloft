@@ -249,16 +249,16 @@ function SetupWizardInner({
     // validation and here.
     await putDrives(drivesForSubmit);
 
-    if (accessMode === "protected" && password.password) {
-      // Append the __admin__ sentinel so this password grants admin access
-      // even after JWT expiry (user re-unlocks with this password → admin restored).
-      const groupsWithAdmin = passwordValue.groups.includes("__admin__")
-        ? passwordValue.groups
-        : [...passwordValue.groups, "__admin__"];
-      await putPasswords([
-        { password: password.password, groups: groupsWithAdmin },
-      ]);
-    }
+    // Public mode saves [] so no password written earlier outlives the choice.
+    // The __admin__ sentinel lets this password restore admin access after JWT expiry.
+    const groupsWithAdmin = passwordValue.groups.includes("__admin__")
+      ? passwordValue.groups
+      : [...passwordValue.groups, "__admin__"];
+    await putPasswords(
+      accessMode === "protected"
+        ? [{ password: password.password, groups: groupsWithAdmin }]
+        : [],
+    );
 
     await putAddonPolicy(addonPolicy);
 

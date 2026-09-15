@@ -187,10 +187,16 @@ describe("SetupWizard (detected drives)", () => {
       expect(pushMock).toHaveBeenCalledWith("/admin");
     });
 
-    const passwordCall = mockFetch.mock.calls.find(
+    const puts = mockFetch.mock.calls
+      .filter(([, opts]) => (opts as RequestInit)?.method === "PUT")
+      .map(([url]) => url as string);
+    expect(puts.indexOf("/api/admin/config/passwords")).toBeGreaterThan(
+      puts.indexOf("/api/admin/config/drives"),
+    );
+    const passwordsPut = mockFetch.mock.calls.find(
       ([url]) => url === "/api/admin/config/passwords",
     );
-    expect(passwordCall).toBeUndefined();
+    expect(JSON.parse((passwordsPut![1] as RequestInit).body as string)).toEqual([]);
   });
 
   it("shows mount guidance when zero drives are detected", async () => {
@@ -572,6 +578,52 @@ describe("SetupWizard protected first run", () => {
     expect(passwordsAt).toBeGreaterThan(drivesAt);
     expect(JSON.parse((puts[passwordsAt][1] as RequestInit).body as string)).toEqual([
       { password: "correct horse battery", groups: ["family", "__admin__"] },
+    ]);
+  });
+});
+
+describe("SetupWizard switching to public after a failed protected Finish", () => {
+  it("saves no password on the Finish that succeeds", async () => {
+    let policyPuts = 0;
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "/api/admin/config/addon-policy" && init?.method === "PUT") {
+        policyPuts += 1;
+        if (policyPuts === 1) {
+          return Promise.resolve(
+            jsonResponse({ detail: { code: "write_failed", message: "disk full" } }, 500),
+          );
+        }
+      }
+      return defaultMockImpl(url);
+    });
+    render(<SetupWizard />);
+    await reachDriveStep();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/password protected/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.change(await screen.findByLabelText(/^password/i), {
+      target: { value: "correct horse battery" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /skip/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
+    expect(await screen.findByText("disk full")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    fireEvent.click(screen.getByLabelText(/public/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /skip/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+
+    const passwordBodies = mockFetch.mock.calls
+      .filter(([url]) => url === "/api/admin/config/passwords")
+      .map(([, opts]) => JSON.parse((opts as RequestInit).body as string));
+    expect(passwordBodies).toEqual([
+      [{ password: "correct horse battery", groups: ["__admin__"] }],
+      [],
     ]);
   });
 });
