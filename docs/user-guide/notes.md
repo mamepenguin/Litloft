@@ -48,9 +48,14 @@ appear here.
 
 ## Writing a new note
 
-**New note**, at the top right, asks for a folder and a file name, creates the
-note, and opens it in the editor. Cancelling creates nothing. The button is
-missing on drives where note editing is turned off.
+**New note**, at the top right, opens [Quick Note](quick-note.md) with this
+drive already chosen as the destination. On **All notes** with a folder chosen,
+that folder is chosen too; otherwise the folder is the one Quick Note remembers
+for the drive. Nothing is created until you save: **Save** files the note and
+keeps you on the Notes page, and **Save and open** files it and opens it in the
+editor. Cancelling creates nothing.
+
+The button is there even on drives where note editing is turned off.
 
 ## Web clips and connections
 
