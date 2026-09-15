@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactElement,
@@ -21,6 +22,7 @@ import { GlobalSearch } from "@/components/GlobalSearch";
 import {
   GlobalSearchProvider,
   useGlobalSearch,
+  useSearchScope,
 } from "@/components/search/GlobalSearchProvider";
 import {
   MobileInspectorSheet,
@@ -709,12 +711,15 @@ function QuickNoteFooterEn(): ReactElement {
 }
 
 function OpenScoped({ label }: { label: string }): null {
+  const scope = useMemo(
+    () => ({ label, type: "text" as const, seeAllHref: (q: string) => `/notes?q=${encodeURIComponent(q)}` }),
+    [label],
+  );
+  useSearchScope(scope);
   const search = useGlobalSearch();
   useEffect(() => {
-    search.open({
-      scope: { label, type: "text", seeAllHref: (q) => `/notes?q=${encodeURIComponent(q)}` },
-    });
-  }, [search, label]);
+    search.open();
+  }, [search]);
   return null;
 }
 

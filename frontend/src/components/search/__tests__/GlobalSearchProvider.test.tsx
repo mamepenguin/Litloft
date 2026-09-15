@@ -4,25 +4,19 @@ import { useState } from "react";
 
 import {
   GlobalSearchProvider,
+  useActiveSearchScope,
   useGlobalSearch,
   useRegisterGlobalSearch,
   useSearchScope,
-  type GlobalSearchOpenOptions,
   type SearchScope,
 } from "../GlobalSearchProvider";
 
 const NOTES: SearchScope = { label: "Notes", type: "text" };
 const PICTURES: SearchScope = { label: "Pictures", type: "image" };
 
-function Host({ onOpen }: { onOpen: (scope: SearchScope | null) => void }) {
-  const { defaultScope } = useRegisterGlobalSearch((options?: GlobalSearchOpenOptions) =>
-    onOpen(options?.scope ?? defaultScope()),
-  );
-  return (
-    <button type="button" onClick={() => onOpen(defaultScope())}>
-      header-search
-    </button>
-  );
+function ActiveScope() {
+  const scope = useActiveSearchScope();
+  return <output data-testid="active">{scope ? scope.label : "none"}</output>;
 }
 
 function Registrant({ scope }: { scope: SearchScope | null }) {
@@ -30,35 +24,47 @@ function Registrant({ scope }: { scope: SearchScope | null }) {
   return null;
 }
 
-function Opener({ options }: { options?: GlobalSearchOpenOptions }) {
-  const search = useGlobalSearch();
-  return (
-    <button type="button" onClick={() => search.open(options)}>
-      page-open
-    </button>
-  );
-}
+const active = () => screen.getByTestId("active").textContent;
 
 describe("GlobalSearchProvider", () => {
-  it("opens the registered modal from anywhere under it, with the scope passed", () => {
+  it("opens the registered modal from anywhere under it", () => {
     const onOpen = vi.fn();
+    function Host() {
+      useRegisterGlobalSearch(onOpen);
+      return null;
+    }
+    function Opener() {
+      const search = useGlobalSearch();
+      return (
+        <button type="button" onClick={() => search.open()}>
+          page-open
+        </button>
+      );
+    }
     render(
       <GlobalSearchProvider>
-        <Host onOpen={onOpen} />
-        <Opener options={{ scope: NOTES }} />
+        <Host />
+        <Opener />
       </GlobalSearchProvider>,
     );
     fireEvent.click(screen.getByRole("button", { name: "page-open" }));
-    expect(onOpen).toHaveBeenCalledWith(NOTES);
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
   it("does nothing outside a provider", () => {
-    render(<Opener options={{ scope: NOTES }} />);
+    function Opener() {
+      const search = useGlobalSearch();
+      return (
+        <button type="button" onClick={() => search.open()}>
+          page-open
+        </button>
+      );
+    }
+    render(<Opener />);
     fireEvent.click(screen.getByRole("button", { name: "page-open" }));
   });
 
-  it("has no default scope until a registrant mounts, and none after it unmounts", () => {
-    const onOpen = vi.fn();
+  it("has no active scope until a registrant mounts, and none after it unmounts", () => {
     function Page() {
       const [mounted, setMounted] = useState(false);
       return (
@@ -72,81 +78,77 @@ describe("GlobalSearchProvider", () => {
     }
     render(
       <GlobalSearchProvider>
-        <Host onOpen={onOpen} />
+        <ActiveScope />
         <Page />
       </GlobalSearchProvider>,
     );
-    const header = screen.getByRole("button", { name: "header-search" });
-
-    fireEvent.click(header);
-    expect(onOpen).toHaveBeenLastCalledWith(null);
-
+    expect(active()).toBe("none");
     fireEvent.click(screen.getByRole("button", { name: "toggle" }));
-    fireEvent.click(header);
-    expect(onOpen).toHaveBeenLastCalledWith(NOTES);
-
+    expect(active()).toBe("Notes");
     fireEvent.click(screen.getByRole("button", { name: "toggle" }));
-    fireEvent.click(header);
-    expect(onOpen).toHaveBeenLastCalledWith(null);
+    expect(active()).toBe("none");
   });
 
-  it("keeps a registrant's scope when a later one unmounts", () => {
-    const onOpen = vi.fn();
+  it.each([
+    ["the later one leaves", "second", "Notes"],
+    ["the earlier one leaves", "first", "Pictures"],
+  ])("keeps the other registrant's scope when %s", (_, leaving, remaining) => {
     function Page() {
-      const [second, setSecond] = useState(true);
+      const [present, setPresent] = useState({ first: true, second: true });
       return (
         <>
-          <Registrant scope={NOTES} />
-          {second && <Registrant scope={PICTURES} />}
-          <button type="button" onClick={() => setSecond(false)}>
-            drop-second
+          {present.first && <Registrant scope={NOTES} />}
+          {present.second && <Registrant scope={PICTURES} />}
+          <button type="button" onClick={() => setPresent((p) => ({ ...p, [leaving]: false }))}>
+            leave
           </button>
         </>
       );
     }
     render(
       <GlobalSearchProvider>
-        <Host onOpen={onOpen} />
+        <ActiveScope />
         <Page />
       </GlobalSearchProvider>,
     );
-    const header = screen.getByRole("button", { name: "header-search" });
-
-    fireEvent.click(header);
-    expect(onOpen).toHaveBeenLastCalledWith(PICTURES);
-
-    fireEvent.click(screen.getByRole("button", { name: "drop-second" }));
-    fireEvent.click(header);
-    expect(onOpen).toHaveBeenLastCalledWith(NOTES);
+    expect(active()).toBe("Pictures");
+    fireEvent.click(screen.getByRole("button", { name: "leave" }));
+    expect(active()).toBe(remaining);
   });
 
   it("registers nothing for a null scope", () => {
-    const onOpen = vi.fn();
     render(
       <GlobalSearchProvider>
-        <Host onOpen={onOpen} />
+        <ActiveScope />
         <Registrant scope={null} />
       </GlobalSearchProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "header-search" }));
-    expect(onOpen).toHaveBeenLastCalledWith(null);
+    expect(active()).toBe("none");
   });
 
-  it("answers with the registrant's latest scope, not the one it mounted with", () => {
-    const onOpen = vi.fn();
+  it("answers with the registrant's latest scope, in its place in the stack", () => {
     const { rerender } = render(
       <GlobalSearchProvider>
-        <Host onOpen={onOpen} />
+        <ActiveScope />
         <Registrant scope={NOTES} />
+        <Registrant scope={PICTURES} />
       </GlobalSearchProvider>,
     );
     rerender(
       <GlobalSearchProvider>
-        <Host onOpen={onOpen} />
+        <ActiveScope />
+        <Registrant scope={{ label: "Notes, renamed", type: "text" }} />
         <Registrant scope={PICTURES} />
       </GlobalSearchProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "header-search" }));
-    expect(onOpen).toHaveBeenLastCalledWith(PICTURES);
+    expect(active()).toBe("Pictures");
+    rerender(
+      <GlobalSearchProvider>
+        <ActiveScope />
+        <Registrant scope={{ label: "Notes, renamed", type: "text" }} />
+        <Registrant scope={{ label: "Pictures, renamed", type: "image" }} />
+      </GlobalSearchProvider>,
+    );
+    expect(active()).toBe("Pictures, renamed");
   });
 });

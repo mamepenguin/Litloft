@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { AppShell } from "../AppShell";
-import { useGlobalSearch } from "../search/GlobalSearchProvider";
+import { useGlobalSearch, useSearchScope } from "../search/GlobalSearchProvider";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
@@ -41,13 +41,13 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
+const NOTES = { label: "Notes", type: "text" } as const;
+
 function PageButton() {
+  useSearchScope(NOTES);
   const search = useGlobalSearch();
   return (
-    <button
-      type="button"
-      onClick={() => search.open({ scope: { label: "Notes", type: "text" } })}
-    >
+    <button type="button" onClick={() => search.open()}>
       page-go-to
     </button>
   );

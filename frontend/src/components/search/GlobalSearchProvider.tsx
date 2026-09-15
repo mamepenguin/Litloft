@@ -2,10 +2,12 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
 
@@ -21,95 +23,104 @@ export interface SearchScope {
   seeAllHref?: (query: string) => string;
 }
 
-export interface GlobalSearchOpenOptions {
-  scope?: SearchScope;
+type OpenHandler = () => void;
+
+interface ScopeEntry {
+  token: symbol;
+  scope: SearchScope;
 }
 
-type OpenHandler = (options?: GlobalSearchOpenOptions) => void;
-type ScopeReader = () => SearchScope | null;
-
-interface GlobalSearchContextValue {
+interface GlobalSearchActions {
   open: OpenHandler;
   register: (handler: OpenHandler) => () => void;
-  pushScope: (read: ScopeReader) => () => void;
-  defaultScope: () => SearchScope | null;
+  pushScope: (entry: ScopeEntry) => () => void;
+  updateScope: (entry: ScopeEntry) => void;
 }
 
-const GlobalSearchContext = createContext<GlobalSearchContextValue | null>(null);
+const ActionsContext = createContext<GlobalSearchActions | null>(null);
+const ActiveScopeContext = createContext<SearchScope | null>(null);
 
 /**
  * The modal is mounted once, in the header; this lets code anywhere under the
- * app shell open that same modal, and lets a screen say what ⌘K searches while
- * it is on screen.
+ * app shell open that same modal, and lets a screen say what it searches while
+ * the screen is mounted.
  */
 export function GlobalSearchProvider({ children }: { children: ReactNode }) {
   const handlerRef = useRef<OpenHandler | null>(null);
   // A stack rather than one slot: when two registrants overlap, the one
   // leaving must not take the other's scope with it.
-  const scopesRef = useRef<ScopeReader[]>([]);
+  const [entries, setEntries] = useState<ScopeEntry[]>([]);
 
-  const value = useMemo<GlobalSearchContextValue>(
+  const actions = useMemo<GlobalSearchActions>(
     () => ({
-      open: (options) => handlerRef.current?.(options),
+      open: () => handlerRef.current?.(),
       register: (handler) => {
         handlerRef.current = handler;
         return () => {
           if (handlerRef.current === handler) handlerRef.current = null;
         };
       },
-      pushScope: (read) => {
-        scopesRef.current = [...scopesRef.current, read];
-        return () => {
-          scopesRef.current = scopesRef.current.filter((entry) => entry !== read);
-        };
+      pushScope: (entry) => {
+        setEntries((prev) => [...prev, entry]);
+        return () => setEntries((prev) => prev.filter((e) => e.token !== entry.token));
       },
-      defaultScope: () => scopesRef.current.at(-1)?.() ?? null,
+      updateScope: (entry) =>
+        setEntries((prev) => prev.map((e) => (e.token === entry.token ? entry : e))),
     }),
     [],
   );
 
+  const active = entries.at(-1)?.scope ?? null;
+
   return (
-    <GlobalSearchContext.Provider value={value}>{children}</GlobalSearchContext.Provider>
+    <ActionsContext.Provider value={actions}>
+      <ActiveScopeContext.Provider value={active}>{children}</ActiveScopeContext.Provider>
+    </ActionsContext.Provider>
   );
 }
 
 /**
- * Outside a provider `open` does nothing. `open()` without a scope opens the
- * modal the way ⌘K does, in the screen's registered scope if there is one.
+ * Opens the modal the way ⌘K does, in the scope of whatever screen is mounted.
+ * Outside a provider it does nothing.
  */
 export function useGlobalSearch(): { open: OpenHandler } {
-  const ctx = useContext(GlobalSearchContext);
+  const ctx = useContext(ActionsContext);
   return useMemo(() => ({ open: ctx?.open ?? (() => {}) }), [ctx]);
 }
 
-/** Makes `scope` what ⌘K and the header button open while the caller is mounted. */
+/** Scopes the search while the caller is mounted; `null` registers nothing. */
 export function useSearchScope(scope: SearchScope | null): void {
-  const ctx = useContext(GlobalSearchContext);
-  const scopeRef = useRef(scope);
-  useEffect(() => {
-    scopeRef.current = scope;
-  }, [scope]);
+  const ctx = useContext(ActionsContext);
+  const [token] = useState(() => Symbol("search-scope"));
   const active = scope !== null;
+
+  // Pushed once per mount; a new scope object replaces the entry in place
+  // below, so it keeps its position in the stack.
   useEffect(() => {
-    if (!ctx || !active) return;
-    return ctx.pushScope(() => scopeRef.current);
-  }, [ctx, active]);
+    if (!ctx || !scope) return;
+    return ctx.pushScope({ token, scope });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, active, token]);
+
+  useEffect(() => {
+    if (ctx && scope) ctx.updateScope({ token, scope });
+  }, [ctx, scope, token]);
 }
 
-export function useRegisterGlobalSearch(handler: OpenHandler): {
-  defaultScope: () => SearchScope | null;
-} {
-  const ctx = useContext(GlobalSearchContext);
+/** The scope of the most recently mounted registrant still mounted. */
+export function useActiveSearchScope(): SearchScope | null {
+  return useContext(ActiveScopeContext);
+}
+
+export function useRegisterGlobalSearch(handler: OpenHandler): void {
+  const ctx = useContext(ActionsContext);
   const handlerRef = useRef(handler);
   useEffect(() => {
     handlerRef.current = handler;
   }, [handler]);
+  const stable = useCallback(() => handlerRef.current(), []);
   useEffect(() => {
     if (!ctx) return;
-    return ctx.register((options) => handlerRef.current(options));
-  }, [ctx]);
-  return useMemo(
-    () => ({ defaultScope: ctx?.defaultScope ?? (() => null) }),
-    [ctx],
-  );
+    return ctx.register(stable);
+  }, [ctx, stable]);
 }

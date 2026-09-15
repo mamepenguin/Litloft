@@ -47,8 +47,10 @@ scope (for example **Notes**), and:
   field. The query you typed stays and the modal searches again without the
   scope. `Backspace` in a field with text in it only deletes text.
 
-The next time you open the modal from a screen that does not narrow it, it
-searches everything again. The scope never changes the drive.
+Removing the scope lasts until the modal closes; the next opening on the same
+screen is narrowed again. If you leave the screen while the modal is open (for
+example with the back gesture), the scope goes with it and the modal searches
+everything in the drive you are now in. The scope never changes the drive.
 
 ## Built-in keyword search
 

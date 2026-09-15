@@ -19,8 +19,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockRouterPush, replace: vi.fn() }),
 }));
 
+const driveState = vi.hoisted(() => ({ current: "main" }));
+
 vi.mock("../CurrentDriveProvider", () => ({
-  useCurrentDrive: () => "main",
+  useCurrentDrive: () => driveState.current,
 }));
 
 const mockGetDriveFiles = vi.fn();
@@ -150,6 +152,7 @@ describe("GlobalSearch with a scope", () => {
     vi.useFakeTimers();
     answerMatchMedia(false);
     localStorage.clear();
+    driveState.current = "main";
     mockGetWatchHistory.mockResolvedValue([]);
     mockGetDriveFiles.mockResolvedValue(page([]));
     mockFetchSemanticHits.mockResolvedValue([]);
@@ -272,38 +275,120 @@ describe("GlobalSearch with a scope", () => {
     });
   });
 
-  describe("passed to open", () => {
-    function Opener() {
+  describe("opened by a screen", () => {
+    function GoToNote() {
+      useSearchScope(NOTES);
       const search = useGlobalSearch();
       return (
-        <button type="button" onClick={() => search.open({ scope: NOTES })}>
+        <button type="button" onClick={() => search.open()}>
           go-to-note
         </button>
       );
     }
 
-    it("opens the modal scoped with no screen registration", () => {
-      shell(<Opener />);
+    it("opens the modal in the screen's scope", () => {
+      shell(<GoToNote />);
       fireEvent.click(screen.getByRole("button", { name: "go-to-note" }));
       expect(chipRemover()).not.toBeNull();
     });
 
     it("leaves a modal that is already open as it is", () => {
-      shell(<Opener />);
+      shell(<GoToNote />);
       openFromHeader();
+      fireEvent.click(chipRemover()!);
       fireEvent.click(screen.getByRole("button", { name: "go-to-note" }));
       expect(chipRemover()).toBeNull();
     });
 
-    it("does not stay scoped for the next opening", () => {
-      shell(<Opener />);
+    it("shows the scope again on the next opening after it was removed", () => {
+      shell(<GoToNote />);
       fireEvent.click(screen.getByRole("button", { name: "go-to-note" }));
+      fireEvent.click(chipRemover()!);
+      expect(chipRemover()).toBeNull();
       fireEvent.keyDown(document, { key: "Escape" });
       expect(screen.queryByRole("textbox")).toBeNull();
 
       openFromHeader();
-      expect(screen.getAllByRole("textbox")).toHaveLength(1);
+      expect(chipRemover()).not.toBeNull();
+    });
+  });
+
+  describe("when the screen that registered it goes away with the modal open", () => {
+    function Navigable({ children }: { children: (leave: () => void) => ReactNode }) {
+      const [on, setOn] = useState(true);
+      return (
+        <>
+          {on && <ScopedScreen />}
+          {children(() => setOn(false))}
+        </>
+      );
+    }
+
+    it("drops the chip, the kind and the see-all link, and searches the current drive", async () => {
+      let leave = () => {};
+      const { rerender } = shell(
+        <Navigable>
+          {(l) => {
+            leave = l;
+            return null;
+          }}
+        </Navigable>,
+      );
+      openFromHeader();
+      await typeQuery("lens");
+      expect(chipRemover()).not.toBeNull();
+      expect(screen.getByRole("link", { name: /See all Notes/ })).toBeInTheDocument();
+      expect(mockGetDriveFiles.mock.calls.at(-1)![1]).toMatchObject({ type: "text" });
+
+      driveState.current = "other";
+      await act(async () => {
+        leave();
+        rerender(
+          <ShortcutsProvider>
+            <GlobalSearchProvider>
+              <GlobalSearch />
+              <Navigable>{() => null}</Navigable>
+            </GlobalSearchProvider>
+          </ShortcutsProvider>,
+        );
+      });
+      await act(async () => {
+        vi.advanceTimersByTime(350);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
       expect(chipRemover()).toBeNull();
+      expect(screen.queryByRole("link")).toBeNull();
+      const [drive, params] = mockGetDriveFiles.mock.calls.at(-1)!;
+      expect(drive).toBe("other");
+      expect(params).toEqual({ search: "lens", limit: 8 });
+
+      fireEvent.keyDown(input(), { key: "Enter" });
+      expect(mockRouterPush).toHaveBeenCalledWith("/drive/other/search?q=lens");
+    });
+
+    it("keeps an earlier screen's scope when a later one leaves", () => {
+      const PICTURES: SearchScope = { label: "Pictures", type: "image" };
+      function Page() {
+        const [later, setLater] = useState(true);
+        return (
+          <>
+            <ScopedScreen />
+            {later && <ScopedScreen scope={PICTURES} />}
+            <button type="button" onClick={() => setLater(false)}>
+              leave-later
+            </button>
+          </>
+        );
+      }
+      shell(<Page />);
+      openFromHeader();
+      expect(screen.getByRole("button", { name: "Remove the Pictures scope" })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "leave-later" }));
+      expect(chipRemover()).not.toBeNull();
+      expect(screen.queryByRole("button", { name: "Remove the Pictures scope" })).toBeNull();
     });
   });
 

@@ -29,8 +29,8 @@ import { MergedResultItem } from "./search/MergedResultItem";
 import { SearchEmptyState, type EmptyItem } from "./search/SearchEmptyState";
 import { addToHistory, getHistory, removeFromHistory } from "./search/searchHistory";
 import {
+  useActiveSearchScope,
   useRegisterGlobalSearch,
-  type GlobalSearchOpenOptions,
   type SearchScope,
 } from "./search/GlobalSearchProvider";
 import { ScopeChip, ScopedFooter, ScopedResultItem } from "./search/ScopedSearchParts";
@@ -47,7 +47,12 @@ export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [scope, setScope] = useState<SearchScope | null>(null);
+  // The scope is read live from whatever screen is mounted, never copied: a
+  // modal left open across a navigation must not keep the previous screen's
+  // destination. Only the viewer's removal belongs to this opening.
+  const registeredScope = useActiveSearchScope();
+  const [scopeRemoved, setScopeRemoved] = useState(false);
+  const scope = scopeRemoved ? null : registeredScope;
   const scopeType = scope?.type ?? null;
   const [merged, setMerged] = useState<FileItemWithMatch[]>([]);
   const [total, setTotal] = useState(0);
@@ -95,21 +100,16 @@ export function GlobalSearch() {
     }
   }, []);
 
-  const openWith = useCallback(
-    (nextScope: SearchScope | null) => {
-      setHistory(drive ? getHistory(drive) : []);
-      setScope(nextScope);
-      setOpen(true);
-      setTimeout(focusInput, 50);
-    },
-    [drive, focusInput],
-  );
+  const openSearch = useCallback(() => {
+    setHistory(drive ? getHistory(drive) : []);
+    setScopeRemoved(false);
+    setOpen(true);
+    setTimeout(focusInput, 50);
+  }, [drive, focusInput]);
 
-  const { defaultScope } = useRegisterGlobalSearch((options?: GlobalSearchOpenOptions) => {
-    if (!open) openWith(options?.scope ?? defaultScope());
+  useRegisterGlobalSearch(() => {
+    if (!open) openSearch();
   });
-
-  const openSearch = useCallback(() => openWith(defaultScope()), [openWith, defaultScope]);
 
   const { openCheatSheet } = useShortcutsContext();
 
@@ -402,7 +402,7 @@ export function GlobalSearch() {
   }
 
   function removeScope() {
-    setScope(null);
+    setScopeRemoved(true);
     focusInput();
   }
 
