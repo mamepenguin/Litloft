@@ -752,10 +752,13 @@ function ScopedSearchEn(): ReactElement {
 
 /**
  * The leading control stands in for `TreeToggle`, whose own hooks need the
- * app's providers; what is measured is the row it sits in.
+ * app's providers; what is measured is the row it sits in. The parent is a
+ * flex column because every screen that wears the frame puts it in one, and a
+ * capped column shrinks to its content there unless it asks for the width.
  */
 function PageFrameArrangement({ width }: { width: PageFrameWidth }): ReactElement {
   return (
+    <div className="flex min-h-screen flex-col">
     <PageFrame
       width={width}
       header={
@@ -776,6 +779,7 @@ function PageFrameArrangement({ width }: { width: PageFrameWidth }): ReactElemen
         <p>body</p>
       </div>
     </PageFrame>
+    </div>
   );
 }
 
