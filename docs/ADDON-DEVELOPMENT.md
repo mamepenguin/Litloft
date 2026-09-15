@@ -641,7 +641,7 @@ The header is required when `CORE_INTERNAL_SECRET` is set on both sides. When un
 |----------|-------------|
 | `GET /files/{file_id}/content` | Raw text body. Mime allowlist (`text/markdown`, `text/plain`); size cap (`CORE_INTERNAL_CONTENT_MAX_BYTES`, default 10 MB). 415 on non-text or non-UTF-8. |
 | `POST /files/{file_id}/tags` | Body `{tags: []}` → 204. Same validation as `PUT /api/files/{id}/tags`. Used by the knowledge scanner to project frontmatter onto core `File.tags`. |
-| `POST /file_relations` | Body `{file_id_a, file_id_b, kind, viewer_id?}`. Creates a relation (same drive only). 400 self / cross-drive, 404 missing files, 409 duplicate. A relation created here is never removed or rewritten by the core's Markdown link sync; a note linking the same file adds no second row. |
+| `POST /file_relations` | Body `{file_id_a, file_id_b, kind, viewer_id?}`. Creates a relation (same drive only). 400 self / cross-drive, 404 missing files, 409 duplicate. A relation created here is never removed or rewritten by the core's Markdown link sync. |
 | `DELETE /file_relations/{relation_id}` | Removes a relation by id. |
 | `GET /viewer-history?viewer_id=&drive=&after=&before=&kind=` | File IDs the viewer touched in the drive within `[after, before)`. `kind=viewed` (default) or `not_viewed`. Drive isolation via JOIN to `files` so cross-drive viewer history never leaks. |
 | `POST /restart-pending` | Body `{source, reason?}` → 204. Touches `data/restart_pending` so the core's `RestartBanner` prompts the user to restart. Use when an addon changes user-visible config that requires a container restart to take effect. `source` is the addon name (opaque to core). |
