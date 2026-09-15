@@ -95,3 +95,41 @@ class TestTagCountsByKind:
             {"name": "AI", "count": 2},
             {"name": "動画", "count": 1},
         ]
+
+
+from tests.test_target_drive_access import LOCKED_DRIVE, OPEN_DRIVE, two_drives  # noqa: E402,F401
+
+
+def _file_in(db, drive: str, path: str, tags=()):
+    *folders, filename = path.split("/")
+    row = File(
+        filename=filename, title=filename, drive=drive, folder_path="/".join(folders),
+        file_path=path, file_size=1, file_type="document", mime_type="text/markdown",
+    )
+    for name in tags:
+        tag = db.query(Tag).filter(Tag.drive == drive, Tag.name == name).first() or Tag(name=name, drive=drive)
+        row.tags.append(tag)
+    db.add(row)
+    db.commit()
+
+
+class TestDriveBoundary:
+    def test_a_locked_drive_answers_404_on_both_endpoints(self, two_drives):
+        api, db, _, _ = two_drives
+        _file_in(db, LOCKED_DRIVE, "Secret/a.md", tags=["hidden"])
+
+        assert api.get(f"/api/drives/{LOCKED_DRIVE}/folder-counts?type=text").status_code == 404
+        assert api.get(f"/api/drives/{LOCKED_DRIVE}/tags?type=text").status_code == 404
+
+    def test_another_drives_files_are_never_counted(self, two_drives):
+        api, db, _, _ = two_drives
+        _file_in(db, OPEN_DRIVE, "Notes/a.md", tags=["shared"])
+        _file_in(db, LOCKED_DRIVE, "Notes/b.md", tags=["shared", "hidden"])
+        _file_in(db, LOCKED_DRIVE, "Secret/c.md")
+
+        assert api.get(f"/api/drives/{OPEN_DRIVE}/folder-counts?type=text").json() == [
+            {"path": "Notes", "count": 1}
+        ]
+        assert api.get(f"/api/drives/{OPEN_DRIVE}/tags?type=text").json() == [
+            {"name": "shared", "count": 1}
+        ]
