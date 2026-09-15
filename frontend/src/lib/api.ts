@@ -104,8 +104,8 @@ export async function getDriveTags(
   const params = new URLSearchParams();
   if (folderPath) params.set("folder_path", folderPath);
   if (type) params.set("type", type);
-  const query = params.size > 0 ? `?${params}` : "";
-  return fetchJSON<Tag[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/tags${query}`);
+  const qs = params.toString();
+  return fetchJSON<Tag[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/tags${qs ? `?${qs}` : ""}`);
 }
 
 export async function getFolderCounts(drive: string, type?: FileKind): Promise<FolderCount[]> {
