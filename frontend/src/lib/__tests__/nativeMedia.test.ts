@@ -41,9 +41,7 @@ async function load(): Promise<Media> {
 /** Ids handed out in order, so a test can name them. */
 function scriptIds(...ids: string[]) {
   const queue = [...ids];
-  return vi
-    .spyOn(crypto, "randomUUID")
-    .mockImplementation(() => (queue.shift() ?? "unexpected-id") as `${string}-${string}-${string}-${string}-${string}`);
+  return () => queue.shift() ?? "unexpected-id";
 }
 
 afterEach(() => {
@@ -64,9 +62,8 @@ describe("the wire", () => {
 
   beforeEach(async () => {
     installShell();
-    scriptIds("load-1", "seek-1");
     const media = await load();
-    channel = new media.MediaChannel();
+    channel = new media.MediaChannel(scriptIds("load-1", "seek-1"));
   });
 
   afterEach(() => channel.dispose());
@@ -135,6 +132,24 @@ describe("the media channel", () => {
   });
 
   afterEach(() => channel.dispose());
+
+  it("makes its ids without randomUUID, which a plain-HTTP page does not have", () => {
+    const fresh = new media.MediaChannel();
+    vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
+      throw new TypeError("crypto.randomUUID is not a function");
+    });
+    const before = posted.length;
+
+    fresh.load({ url: "http://litloft.local:3000/api/files/c/stream", title: "C" });
+    fresh.seek(3);
+
+    const sent = posted.slice(before);
+    expect(sent.map((m) => m.type)).toEqual(["media.load", "media.seek"]);
+    expect(sent[0].loadId).toMatch(/^[0-9a-f]{32}$/);
+    expect(sent[1].seekId).toMatch(/^[0-9a-f]{32}$/);
+    expect(sent[1].seekId).not.toBe(sent[0].loadId);
+    fresh.dispose();
+  });
 
   it("gives every file and every seek an id of its own", () => {
     channel.seek(10);

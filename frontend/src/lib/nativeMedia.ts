@@ -37,6 +37,15 @@ const INITIAL: MediaShadow = Object.freeze({
   status: "loading",
 });
 
+/**
+ * `crypto.randomUUID` exists only in a secure context, and the app is usually
+ * reached over plain HTTP on a LAN address.
+ */
+function randomId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export class MediaChannel {
   private shadow: MediaShadow = INITIAL;
   private unsubscribe: (() => void) | null = null;
@@ -66,7 +75,7 @@ export class MediaChannel {
   /** Fires once per file, when the shell reports it cannot be played. */
   onFailed: (() => void) | null = null;
 
-  constructor() {
+  constructor(private readonly newId: () => string = randomId) {
     this.unsubscribe = subscribeToShell((message) => {
       if (message.type === "media.state") this.apply(message);
     });
@@ -81,7 +90,7 @@ export class MediaChannel {
     this.pendingSeek = null;
     this.readySent = false;
     this.failedSent = false;
-    this.loadId = crypto.randomUUID();
+    this.loadId = this.newId();
     postToShell({ type: "media.load", loadId: this.loadId, ...source });
   }
 
@@ -99,7 +108,7 @@ export class MediaChannel {
 
   seek(time: number): void {
     if (this.loadId === null) return;
-    const seekId = crypto.randomUUID();
+    const seekId = this.newId();
     this.pendingSeek = { seekId, time };
     this.shadow = { ...this.shadow, time, ended: false };
     postToShell({ type: "media.seek", loadId: this.loadId, seekId, time });
