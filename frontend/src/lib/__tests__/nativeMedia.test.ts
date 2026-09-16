@@ -106,6 +106,7 @@ describe("the wire", () => {
       volume: 1,
       buffered: 12,
       ended: false,
+      stalled: false,
       status: "ready",
     });
 
@@ -188,6 +189,7 @@ describe("the media channel", () => {
       volume: 0.3,
       buffered: 60,
       ended: false,
+      stalled: false,
       status: "ready",
     });
   });
@@ -277,6 +279,16 @@ describe("the media channel", () => {
       expect(channel.read().time).toBe(91);
     });
 
+    /** A seek from the lock screen can land after it and settle it. */
+    it("takes the position the shell reports with it, wherever that is", () => {
+      report({ time: 10, paused: false });
+      channel.seek(90);
+
+      report({ time: 5, paused: false, seekId: seekId() });
+
+      expect(channel.read().time).toBe(5);
+    });
+
     /** A seek on a file that failed is never reported as reached. */
     it("lets go when the file fails", () => {
       channel.seek(90);
@@ -328,6 +340,31 @@ describe("the media channel", () => {
       deliver({ ...contract.states.readyWhilePaused, loadId: next });
 
       expect(ready).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("running out of data", () => {
+    it("is announced when it starts and when it ends, once each", () => {
+      const changes = vi.fn();
+      channel.onStalledChange = changes;
+
+      report({ paused: false });
+      report({ ...contract.states.stalledWhilePlaying, loadId });
+      report({ ...contract.states.stalledWhilePlaying, loadId });
+      expect(changes.mock.calls).toEqual([[true]]);
+      expect(channel.read().stalled).toBe(true);
+
+      report({ paused: false, time: 12 });
+      expect(changes.mock.calls).toEqual([[true], [false]]);
+    });
+
+    it("is not taken from another file's report", () => {
+      const changes = vi.fn();
+      channel.onStalledChange = changes;
+
+      deliver({ ...contract.states.stalledWhilePlaying, loadId: "someone-else" });
+
+      expect(changes).not.toHaveBeenCalled();
     });
   });
 

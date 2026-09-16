@@ -181,7 +181,6 @@ describe("AudioTransport", () => {
     state.rate = 1.25;
     state.time = 1;
     await tickClock();
-    // Changed elsewhere, such as from the lock screen.
     state.rate = 1;
     state.time = 2;
     await tickClock();
@@ -204,6 +203,17 @@ describe("AudioTransport", () => {
     expect(speed()).toHaveTextContent("1.5x");
   });
 
+  describe("while waiting for the server", () => {
+    it("says so, and can still be paused", () => {
+      const { mc } = makeController({ paused: false });
+      render(<AudioTransport mc={mc} waiting />);
+
+      expect(screen.getByRole("status")).toHaveTextContent("Waiting for the server");
+      expect(screen.getByRole("button", { name: "Pause" })).toBeEnabled();
+      expect(slider()).toBeEnabled();
+    });
+  });
+
   describe("when the file cannot be loaded", () => {
     it("says so", () => {
       const { mc } = makeController();
@@ -219,6 +229,13 @@ describe("AudioTransport", () => {
       expect(screen.getByRole("button", { name: "Play" })).toBeDisabled();
       expect(slider()).toBeDisabled();
       expect(speed()).toBeDisabled();
+    });
+
+    it("says so rather than that it is waiting", () => {
+      const { mc } = makeController();
+      render(<AudioTransport mc={mc} failed waiting />);
+
+      expect(screen.queryByRole("status")).toBeNull();
     });
 
     it("says nothing while the file is fine", () => {

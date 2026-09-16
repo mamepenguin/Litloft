@@ -69,8 +69,9 @@ extension SharedMediaState {
             await player.apply(.play, loadId: "a").value
         }
 
-        private var playing: Bool {
-            MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyTitle] as? String == "Background"
+        private func playing(_ coordinator: WebView.Coordinator) -> Bool {
+            let title = MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyTitle] as? String
+            return title == "Background" && coordinator.player?.nowPlaying.isPlaying == true
         }
 
         @Test("a page that dies on screen is put back at once")
@@ -80,7 +81,7 @@ extension SharedMediaState {
             try await playTone(on: coordinator)
             try killContent(of: webView)
 
-            #expect(await waitUntil { !playing }, "no navigation started")
+            #expect(await waitUntil { !playing(coordinator) }, "no navigation started")
             #expect(await waitUntil { model.state == .loaded && webView.url?.host() == "localhost" })
             withExtendedLifetime(coordinator) {}
         }
@@ -95,11 +96,17 @@ extension SharedMediaState {
             // Long past the moment WebKit would have reloaded it itself.
             try await Task.sleep(for: .seconds(3))
             #expect(webView.url == nil, "the page came back while off screen")
-            #expect(playing)
+            #expect(playing(coordinator))
 
             NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
-            #expect(await waitUntil { !playing }, "the page was not put back")
+            #expect(await waitUntil { !playing(coordinator) }, "the page was not put back")
             #expect(await waitUntil { model.state == .loaded && webView.url?.host() == "localhost" })
+
+            // Put back once: later returns are ordinary and must not reload.
+            try await playTone(on: coordinator)
+            NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+            try await Task.sleep(for: .seconds(1))
+            #expect(playing(coordinator), "a later return reloaded the page")
             withExtendedLifetime(coordinator) {}
         }
 

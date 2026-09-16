@@ -96,6 +96,23 @@ extension SharedMediaState {
 
         /// Otherwise the next file's first report says it has ended, and
         /// autoplay skips it.
+        @Test("a seek after the end is where play starts")
+        func seekAfterTheEndIsKept() async throws {
+            let rig = PlayerRig()
+            await rig.load(try tone(seconds: 2), as: "a")
+            await rig.player.apply(.play, loadId: "a").value
+            #expect(await rig.waitFor { rig.last?.ended == true })
+
+            rig.player.apply(.seek(time: 0.6, seekId: "back"), loadId: "a")
+            #expect(await rig.waitFor { rig.last?.seekId == "back" })
+            #expect(rig.last?.ended == false)
+            await rig.player.apply(.play, loadId: "a").value
+            try? await Task.sleep(for: .milliseconds(300))
+
+            #expect((rig.last?.time ?? 0) > 0.55, "started from \(rig.last?.time ?? -1)")
+            await rig.player.apply(.unload, loadId: "a").value
+        }
+
         @Test("the next file does not start out ended")
         func nextFileIsNotEnded() async throws {
             let rig = PlayerRig()
@@ -204,6 +221,8 @@ extension SharedMediaState {
         func foregroundReports() async throws {
             let rig = PlayerRig()
             await rig.load(try tone(seconds: 3), as: "a")
+            #expect(await rig.waitFor { rig.last?.status == .ready })
+            try? await Task.sleep(for: .milliseconds(300))
             let before = rig.states.count
 
             NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)

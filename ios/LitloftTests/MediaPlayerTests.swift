@@ -77,7 +77,7 @@ extension SharedMediaState {
 
             #expect(await rig.waitFor { rig.last?.seekId == "s1" })
             let reached = try #require(rig.states.first { $0.seekId == "s1" })
-            #expect(abs(reached.time - 2.5) < 0.05, "reported reached at \\(reached.time)")
+            #expect(abs(reached.time - 2.5) < 0.05, "reported reached at \(reached.time)")
             await rig.player.apply(.unload, loadId: "a").value
         }
 
@@ -97,6 +97,43 @@ extension SharedMediaState {
             #expect(await rig.waitFor { rig.last?.seekId == "second" })
             try? await Task.sleep(for: .milliseconds(300))
             #expect(!rig.states.contains { $0.seekId == "first" })
+            let settled = try #require(rig.states.first { $0.seekId == "second" })
+            #expect(abs(settled.time - 200) < 0.5, "settled at \(settled.time)")
+            await rig.player.apply(.unload, loadId: "a").value
+        }
+
+        /// The lock screen's seek lands last, so it is the one that settles
+        /// the page's; otherwise the page would hold its own position for good.
+        @Test("a lock-screen seek that overtakes the page's settles the page's", arguments: [false, true])
+        func remoteSeekSettlesThePagesSeek(overHTTP: Bool) async throws {
+            let rig = PlayerRig()
+            if overHTTP {
+                try await LocalLitloft.require()
+                await rig.load(LocalLitloft.stream, as: "a")
+            } else {
+                await rig.load(try tone(seconds: 30), as: "a")
+            }
+            #expect(await rig.waitFor { rig.last?.status == .ready })
+
+            rig.player.apply(.seek(time: 20, seekId: "page"), loadId: "a")
+            rig.player.nowPlaying.onSeek?(5)
+
+            #expect(await rig.waitFor { rig.last?.seekId == "page" }, "the page's seek was never settled")
+            #expect(await rig.waitFor { abs((rig.last?.time ?? 0) - 5) < 0.5 }, "landed at \(rig.last?.time ?? -1)")
+            await rig.player.apply(.unload, loadId: "a").value
+        }
+
+        @Test("a lock-screen seek alone is reported without a page seek")
+        func remoteSeekAloneCarriesNoId() async throws {
+            let rig = PlayerRig()
+            await rig.load(try tone(seconds: 30), as: "a")
+            #expect(await rig.waitFor { rig.last?.status == .ready })
+            let before = rig.states.count
+
+            rig.player.nowPlaying.onSeek?(12)
+
+            #expect(await rig.waitFor { rig.states.dropFirst(before).contains { abs($0.time - 12) < 0.05 } })
+            #expect(rig.states.dropFirst(before).allSatisfy { $0.seekId == nil })
             await rig.player.apply(.unload, loadId: "a").value
         }
 

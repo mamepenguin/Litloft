@@ -17,9 +17,12 @@ export const PLAYBACK_RATES = [1, 1.25, 1.5, 1.75, 2];
 export function AudioTransport({
   mc,
   failed = false,
+  waiting = false,
 }: {
   mc: MediaController | null;
   failed?: boolean;
+  /** Playback is held up waiting for the server. */
+  waiting?: boolean;
 }) {
   const t = useTranslations("player");
   const { currentTime, duration, paused } = useMediaClock(mc);
@@ -107,6 +110,11 @@ export function AudioTransport({
           {`${shownRate}x`}
         </button>
       </div>
+      {waiting && !failed && (
+        <p role="status" className="text-xs text-text-muted">
+          {t("waitingForServer")}
+        </p>
+      )}
       {failed && (
         <p role="alert" className="text-xs text-danger">
           {t("loadFailed")}

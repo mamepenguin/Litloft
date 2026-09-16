@@ -53,6 +53,11 @@ export interface MediaState {
   /** Seconds continuously readable from the start, not a total. */
   buffered: number;
   ended: boolean;
+  /**
+   * Playback ran out of data and is waiting for more. A stream that stops
+   * answering stays here rather than failing.
+   */
+  stalled: boolean;
 }
 
 export type InboundMessage = { type: "pong"; seq: number } | MediaState;

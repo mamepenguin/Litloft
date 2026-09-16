@@ -28,9 +28,12 @@ struct MediaState: Encodable, Equatable {
     /// Seconds continuously readable from the start, not a total.
     let buffered: Double
     let ended: Bool
+    /// Ran out of data while playing. AVPlayer keeps waiting for a stream that
+    /// stops answering rather than failing it.
+    let stalled: Bool
 
     private enum CodingKeys: String, CodingKey {
-        case type, loadId, status, seekId, time, duration, paused, rate, volume, buffered, ended
+        case type, loadId, status, seekId, time, duration, paused, rate, volume, buffered, ended, stalled
     }
 
     /// Absent ids are sent as null rather than left out, as the web side reads them.
@@ -47,6 +50,7 @@ struct MediaState: Encodable, Equatable {
         try container.encode(volume, forKey: .volume)
         try container.encode(buffered, forKey: .buffered)
         try container.encode(ended, forKey: .ended)
+        try container.encode(stalled, forKey: .stalled)
     }
 }
 
@@ -61,7 +65,9 @@ enum MediaCommand: Equatable {
     case load(MediaSource)
     case play
     case pause
-    case seek(time: Double, seekId: String)
+    /// A seek the shell makes itself, from the lock screen, has no id: the web
+    /// side did not issue it.
+    case seek(time: Double, seekId: String?)
     case unload
     case setRate(Double)
     case setVolume(Double)

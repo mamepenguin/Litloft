@@ -22,19 +22,23 @@ final class MediaPlayer {
     private var endObserver: NSObjectProtocol?
     private var foregroundObserver: NSObjectProtocol?
     private var statusObservation: NSKeyValueObservation?
+    private var stallObserver: NSObjectProtocol?
+    private var playingObservation: NSKeyValueObservation?
 
     private var source: MediaSource?
     /// The web side's id for the file now held; commands naming another are
     /// stale and do nothing.
     private var loadId: String?
     private var ended = false
+    private var stalled = false
     private var publishedDuration = 0.0
 
-    /// The seek most recently issued, and the latest one the player has
-    /// reached. Only the former may become the latter: a seek overtaken by
-    /// another still completes, and while the file is loading it even says
-    /// it finished.
-    private var latestSeekId: String?
+    /// Only the latest seek's completion counts: one overtaken by another
+    /// still completes, and while the file is loading it even says it
+    /// finished. Once it lands, the web side's latest seek is settled, even
+    /// when the one that landed came from the lock screen after it.
+    private var latestSeek = 0
+    private var webSeekId: String?
     private var reachedSeekId: String?
 
     /// Loading reads the cookie jar, so it cannot be synchronous, and a command
@@ -58,18 +62,20 @@ final class MediaPlayer {
         player.allowsExternalPlayback = true
 
         watchForForeground()
+        watchForResumption()
         nowPlaying.onPlay = { [weak self] in self?.applyFromRemote(.play) }
         nowPlaying.onPause = { [weak self] in self?.applyFromRemote(.pause) }
         nowPlaying.onSeek = { [weak self] time in
-            self?.applyFromRemote(.seek(time: time, seekId: UUID().uuidString))
+            self?.applyFromRemote(.seek(time: time, seekId: nil))
         }
     }
 
     isolated deinit {
-        for observer in [endObserver, foregroundObserver].compactMap({ $0 }) {
+        for observer in [endObserver, stallObserver, foregroundObserver].compactMap({ $0 }) {
             NotificationCenter.default.removeObserver(observer)
         }
         statusObservation?.invalidate()
+        playingObservation?.invalidate()
         if let timeObserver {
             player.removeTimeObserver(timeObserver)
         }
@@ -92,6 +98,19 @@ final class MediaPlayer {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in self?.report() }
+        }
+    }
+
+    /// A stall ends only when playback moves again; nothing else reports that
+    /// while the timebase is stopped.
+    private func watchForResumption() {
+        playingObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
+            guard player.timeControlStatus == .playing else { return }
+            Task { @MainActor in
+                guard let self, self.stalled else { return }
+                self.stalled = false
+                self.report()
+            }
         }
     }
 
@@ -197,22 +216,24 @@ final class MediaPlayer {
 
     /// Not awaited: a seek on a file that failed to load never completes, and
     /// everything behind it would wait for good.
-    private func seek(to time: Double, seekId: String) {
+    private func seek(to time: Double, seekId: String?) {
         guard player.currentItem?.status != .failed else { return }
-        latestSeekId = seekId
+        if let seekId { webSeekId = seekId }
+        latestSeek += 1
+        let seek = latestSeek
         ended = false
         player.seek(
             to: CMTime(seconds: time, preferredTimescale: 600),
             toleranceBefore: .zero,
             toleranceAfter: .zero
         ) { [weak self] _ in
-            Task { @MainActor in self?.reached(seekId) }
+            Task { @MainActor in self?.reached(seek) }
         }
     }
 
-    private func reached(_ seekId: String) {
-        guard seekId == latestSeekId else { return }
-        reachedSeekId = seekId
+    private func reached(_ seek: Int) {
+        guard seek == latestSeek else { return }
+        reachedSeekId = webSeekId
         report()
     }
 
@@ -236,15 +257,18 @@ final class MediaPlayer {
     }
 
     private func replaceItem(with item: AVPlayerItem?) {
-        if let endObserver {
-            NotificationCenter.default.removeObserver(endObserver)
-            self.endObserver = nil
+        for observer in [endObserver, stallObserver].compactMap({ $0 }) {
+            NotificationCenter.default.removeObserver(observer)
         }
+        endObserver = nil
+        stallObserver = nil
         statusObservation?.invalidate()
         statusObservation = nil
-        latestSeekId = nil
+        latestSeek += 1
+        webSeekId = nil
         reachedSeekId = nil
         ended = false
+        stalled = false
         publishedDuration = 0
 
         player.replaceCurrentItem(with: item)
@@ -257,6 +281,16 @@ final class MediaPlayer {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in self?.finish() }
+        }
+        stallObserver = NotificationCenter.default.addObserver(
+            forName: AVPlayerItem.playbackStalledNotification,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.stalled = true
+                self?.report()
+            }
         }
         // Readiness and failure arrive whether or not anything is playing, and
         // nothing else would report them while paused.
@@ -301,7 +335,8 @@ extension MediaPlayer {
             rate: Double(player.defaultRate),
             volume: Double(player.volume),
             buffered: bufferedSeconds(),
-            ended: ended
+            ended: ended,
+            stalled: stalled
         )
     }
 
@@ -317,7 +352,8 @@ extension MediaPlayer {
             artist: source.artist,
             duration: duration,
             time: seconds(player.currentTime()),
-            rate: Double(player.rate)
+            // The rate stays up while waiting; the lock screen would count on.
+            rate: stalled ? 0 : Double(player.rate)
         ))
     }
 
@@ -359,20 +395,5 @@ extension MediaPlayer {
     private func seconds(_ time: CMTime) -> Double {
         let value = CMTimeGetSeconds(time)
         return value.isFinite ? value : 0
-    }
-}
-
-/// Resumes a continuation with whichever of two answers comes first.
-@MainActor
-private final class FirstAnswer {
-    private var continuation: CheckedContinuation<[HTTPCookie], Never>?
-
-    init(_ continuation: CheckedContinuation<[HTTPCookie], Never>) {
-        self.continuation = continuation
-    }
-
-    func give(_ cookies: [HTTPCookie]) {
-        continuation?.resume(returning: cookies)
-        continuation = nil
     }
 }

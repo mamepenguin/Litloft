@@ -164,18 +164,26 @@ describe("AudioPlayer inside the iOS shell", () => {
   /** What the shell reports about `fileId`: loaded, playable, and where it is. */
   function report(
     fileId: string,
-    reading: { time: number; duration: number; ended?: boolean; paused?: boolean; status?: string },
+    reading: {
+      time: number;
+      duration: number;
+      ended?: boolean;
+      paused?: boolean;
+      status?: string;
+      stalled?: boolean;
+    },
   ) {
     (window as StubbedWindow).__litloft?.receive({
       type: "media.state",
       loadId: loadIdFor(fileId),
       status: "ready",
       seekId: null,
-      paused: false,
+      paused: true,
       rate: 1,
       volume: 1,
       buffered: 0,
       ended: false,
+      stalled: false,
       ...reading,
     });
   }
@@ -290,6 +298,50 @@ describe("AudioPlayer inside the iOS shell", () => {
     rerender(<AudioPlayer file={fileB} />);
 
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("says when playback is waiting for the server, until it moves again", async () => {
+    render(<AudioPlayer file={mockFile} />);
+    await act(async () => {
+      report("audio-1", { time: 11, duration: 180, paused: false, stalled: true });
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Waiting for the server");
+    expect(screen.getByRole("button", { name: /^(Play|Pause)$/ })).toBeEnabled();
+
+    await act(async () => {
+      report("audio-1", { time: 12, duration: 180, paused: false });
+    });
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("does not carry a wait over to the next file, or back to the same one", async () => {
+    const { rerender } = render(<AudioPlayer file={mockFile} />);
+    await act(async () => {
+      report("audio-1", { time: 11, duration: 180, paused: false, stalled: true });
+    });
+
+    rerender(<AudioPlayer file={fileB} />);
+    expect(screen.queryByRole("status")).toBeNull();
+
+    rerender(<AudioPlayer file={mockFile} />);
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  /** The player lives on across files, so the failure must be the old load's alone. */
+  it("does not carry a failure over to the same file opened again", async () => {
+    const { rerender } = render(<AudioPlayer file={mockFile} />);
+    await act(async () => {
+      report("audio-1", { time: 0, duration: 0, status: "failed" });
+    });
+    rerender(<AudioPlayer file={fileB} />);
+    rerender(<AudioPlayer file={mockFile} />);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    await act(async () => {
+      report("audio-1", { time: 0, duration: 180 });
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("button", { name: "Play" })).toBeEnabled();
   });
 
   /** Renaming the file being listened to must not reload it. */

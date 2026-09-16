@@ -27,7 +27,8 @@
       "rate": 1,
       "volume": 1,
       "buffered": 0,
-      "ended": false
+      "ended": false,
+      "stalled": false
     },
     "readyWhilePaused": {
       "type": "media.state",
@@ -40,7 +41,8 @@
       "rate": 1,
       "volume": 1,
       "buffered": 12,
-      "ended": false
+      "ended": false,
+      "stalled": false
     },
     "seekLanded": {
       "type": "media.state",
@@ -53,7 +55,8 @@
       "rate": 1.5,
       "volume": 0.25,
       "buffered": 60,
-      "ended": false
+      "ended": false,
+      "stalled": false
     },
     "failed": {
       "type": "media.state",
@@ -66,7 +69,22 @@
       "rate": 1,
       "volume": 1,
       "buffered": 0,
-      "ended": false
+      "ended": false,
+      "stalled": false
+    },
+    "stalledWhilePlaying": {
+      "type": "media.state",
+      "loadId": "load-1",
+      "status": "ready",
+      "seekId": null,
+      "time": 11.5,
+      "duration": 180,
+      "paused": false,
+      "rate": 1,
+      "volume": 1,
+      "buffered": 11.5,
+      "ended": false,
+      "stalled": true
     },
     "nothingLoaded": {
       "type": "media.state",
@@ -79,7 +97,8 @@
       "rate": 1,
       "volume": 1,
       "buffered": 0,
-      "ended": false
+      "ended": false,
+      "stalled": false
     }
   }
 }
