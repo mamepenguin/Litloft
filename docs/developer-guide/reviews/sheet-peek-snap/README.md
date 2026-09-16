@@ -19,6 +19,9 @@ rounds were briefed with, with the user's revisions marked.
   the sticky player's stacking level. The user had that handling taken out
   again and the full-screen stacking left for its own change, with the other
   pre-existing findings, in `known-issues.md`.
+- **r3** on `a193b7cf`: the removal. Bucket A empty; the round only removed
+  code, so the loop read as converged. Invariant 8 still has no test
+  (pre-existing).
 
 Read the code for what the system does now. These files quote it as it stood at
 the SHA each round reviewed.
