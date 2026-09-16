@@ -26,10 +26,9 @@ private let source = MediaSource(
     artworkURL: nil
 )
 
-/// `MPNowPlayingInfoCenter` is process-wide, and `.serialized` only orders a
-/// suite against itself, so everything that touches it lives in this one.
+extension SharedMediaState {
 @MainActor
-@Suite(.serialized)
+@Suite
 struct LockScreenTests {
     @Test("what the lock screen is given is what the file is")
     func publishesTheFile() {
@@ -154,4 +153,5 @@ struct LockScreenTests {
 
         #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo == nil)
     }
+}
 }

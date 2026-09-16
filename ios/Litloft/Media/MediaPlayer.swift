@@ -69,11 +69,15 @@ final class MediaPlayer {
     /// advancing would tell the web that one of its own commands had landed.
     @discardableResult
     func applyFromRemote(_ command: MediaCommand) -> Task<Void, Never> {
-        apply(command, seq: appliedSeq)
+        enqueue(command, seq: nil)
     }
 
     @discardableResult
     func apply(_ command: MediaCommand, seq: Int) -> Task<Void, Never> {
+        enqueue(command, seq: seq)
+    }
+
+    private func enqueue(_ command: MediaCommand, seq: Int?) -> Task<Void, Never> {
         let previous = pending
         let task = Task { [weak self] in
             await previous?.value
@@ -83,7 +87,10 @@ final class MediaPlayer {
         return task
     }
 
-    private func perform(_ command: MediaCommand, seq: Int) async {
+    /// `appliedSeq` means the effect of that command can now be observed, so it
+    /// is raised only once the command has finished — and not at all for a
+    /// command the web side did not issue.
+    private func perform(_ command: MediaCommand, seq: Int?) async {
         switch command {
         case .load(let source):
             await load(source)
@@ -96,7 +103,7 @@ final class MediaPlayer {
         case .pause:
             player.pause()
         case .seek(let time):
-            seek(to: time)
+            await seek(to: time)
         case .setRate(let rate):
             // Setting a rate starts playback; only carry it while playing.
             if player.rate != 0 { player.rate = Float(rate) }
@@ -107,7 +114,7 @@ final class MediaPlayer {
             unload()
         }
 
-        appliedSeq = seq
+        if let seq { appliedSeq = seq }
         publishNowPlaying()
         emitTick()
     }
@@ -178,15 +185,13 @@ final class MediaPlayer {
         ))
     }
 
-    private func seek(to time: Double) {
+    private func seek(to time: Double) async {
         ended = false
-        player.seek(
+        await player.seek(
             to: CMTime(seconds: time, preferredTimescale: 600),
             toleranceBefore: .zero,
             toleranceAfter: .zero
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.emitTick() }
-        }
+        )
     }
 
     /// A periodic observer only fires while the timebase runs, so every applied

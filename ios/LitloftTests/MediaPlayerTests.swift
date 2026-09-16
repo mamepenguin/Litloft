@@ -1,159 +1,216 @@
 import AVFoundation
 import Foundation
-import UIKit
 import MediaPlayer
 import Testing
+import UIKit
 
 @testable import Litloft
 
 @MainActor
-struct MediaPlayerTests {
-    private struct Rig {
-        let player: MediaPlayer
-        let ticks: () -> [MediaTick]
-        let session: FakeAudioSession
+private final class PlayerRig {
+    let player: MediaPlayer
+    let session = FakeAudioSession()
+    private(set) var ticks: [MediaTick] = []
+
+    init(jar: CookieJar = SlowCookieJar()) {
+        player = MediaPlayer(jar: jar, audioSession: session)
+        player.onTick = { [unowned self] in ticks.append($0) }
     }
 
-    private func makeRig() -> Rig {
-        let session = FakeAudioSession()
-        let player = MediaPlayer(jar: SlowCookieJar(), audioSession: session)
-        var ticks: [MediaTick] = []
-        player.onTick = { ticks.append($0) }
-        return Rig(player: player, ticks: { ticks }, session: session)
+    var sequence: [Int] { ticks.map(\.appliedSeq) }
+
+    /// The first tick carrying a sequence at or above `seq`.
+    func firstTick(atOrAbove seq: Int) -> MediaTick? {
+        ticks.first { $0.appliedSeq >= seq }
     }
 
-    private func makePlayer() -> (player: MediaPlayer, ticks: () -> [MediaTick]) {
-        let rig = makeRig()
-        return (rig.player, rig.ticks)
-    }
-
-    /// Holding the audio session makes the whole app eligible for background
-    /// audio, the web view's own media included.
-    @Test("the audio session is not taken before there is anything to play")
-    func sessionIsNotTakenEarly() async {
-        let rig = makeRig()
-        let (player, session) = (rig.player, rig.session)
-
-        await player.apply(.play, seq: 1).value
-
-        #expect(session.log.isEmpty)
-    }
-
-    @Test("the audio session is taken with a file and given back with it")
-    func sessionFollowsTheFile() async {
-        let rig = makeRig()
-        let (player, session) = (rig.player, rig.session)
-
-        await player.apply(.load(source), seq: 1).value
-        #expect(session.isHeld)
-
-        await player.apply(.unload, seq: 2).value
-        #expect(session.isHeld == false)
-        #expect(session.log == ["take", "release"])
-    }
-
-    private let source = MediaSource(
-        url: URL(string: "http://litloft.local:3000/api/files/abc/stream")!,
-        title: "A recording",
-        artist: nil,
-        artworkURL: nil
-    )
-
-    @Test("a command that arrives while a load is still running waits for it")
-    func commandsApplyInOrder() async {
-        let (player, ticks) = makePlayer()
-
-        player.apply(.load(source), seq: 1)
-        let last = player.apply(.play, seq: 2)
-        await last.value
-
-        let sequence = ticks().map(\.appliedSeq)
-        #expect(sequence == sequence.sorted(), "appliedSeq must never go backwards, got \(sequence)")
-        #expect(sequence.last == 2)
-    }
-
-    @Test("a run of commands reports each one in turn")
-    func everyCommandIsReported() async {
-        let (player, ticks) = makePlayer()
-
-        player.apply(.load(source), seq: 1)
-        player.apply(.pause, seq: 2)
-        player.apply(.setVolume(0.5), seq: 3)
-        await player.apply(.seek(0), seq: 4).value
-
-        // A seek settling emits again for the same command, so the claim is
-        // about the order commands are reported in, not the tick count.
-        var seen: [Int] = []
-        for seq in ticks().map(\.appliedSeq) where seen.last != seq {
-            seen.append(seq)
+    func waitFor(timeout: Duration = .seconds(5), _ condition: () -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while !condition() {
+            if ContinuousClock.now > deadline { return false }
+            try? await Task.sleep(for: .milliseconds(20))
         }
-        #expect(seen == [1, 2, 3, 4])
+        return true
     }
+}
 
-    @Test("a paused player still reports, since the clock is not running")
-    func pauseIsReported() async {
-        let (player, ticks) = makePlayer()
+extension SharedMediaState {
+    @MainActor
+    @Suite
+    struct MediaPlayerTests {
+        private let remote = MediaSource(
+            url: URL(string: "http://litloft.local:3000/api/files/abc/stream")!,
+            title: "A recording",
+            artist: nil,
+            artworkURL: nil
+        )
 
-        await player.apply(.pause, seq: 7).value
+        private func local(seconds: Double) throws -> MediaSource {
+            MediaSource(url: try ToneFile.make(seconds: seconds), title: "Tone", artist: nil, artworkURL: nil)
+        }
 
-        #expect(ticks().last?.paused == true)
-        #expect(ticks().last?.appliedSeq == 7)
-    }
+        // MARK: ordering
 
-    @Test("a length the player cannot know is reported as none")
-    func unknownDurationIsZero() async {
-        let (player, ticks) = makePlayer()
+        @Test("a command that arrives while a load is still running waits for it")
+        func commandsApplyInOrder() async {
+            let rig = PlayerRig()
 
-        await player.apply(.pause, seq: 1).value
+            let load = rig.player.apply(.load(remote), seq: 1)
+            let play = rig.player.apply(.play, seq: 2)
+            // Both, not just the last: without the chain, the play finishes
+            // first and the load lands after it.
+            await load.value
+            await play.value
 
-        #expect(ticks().last?.duration == 0)
-    }
+            #expect(rig.sequence == rig.sequence.sorted(), "went backwards: \(rig.sequence)")
+            #expect(rig.sequence.last == 2)
+        }
 
-    @Test("a press on the lock screen does not claim a web command landed")
-    func remoteDoesNotAdvanceTheSequence() async {
-        let (player, ticks) = makePlayer()
-        await player.apply(.load(source), seq: 4).value
+        @Test("a run of commands reports each one in turn")
+        func everyCommandIsReported() async {
+            let rig = PlayerRig()
 
-        await player.applyFromRemote(.play).value
-        await player.applyFromRemote(.pause).value
+            rig.player.apply(.load(remote), seq: 1)
+            rig.player.apply(.pause, seq: 2)
+            rig.player.apply(.setVolume(0.5), seq: 3)
+            await rig.player.apply(.seek(0), seq: 4).value
 
-        #expect(ticks().map(\.appliedSeq).allSatisfy { $0 <= 4 })
-        #expect(ticks().last?.appliedSeq == 4)
-    }
+            var seen: [Int] = []
+            for seq in rig.sequence where seen.last != seq {
+                seen.append(seq)
+            }
+            #expect(seen == [1, 2, 3, 4])
+        }
 
-    @Test("a remote press still takes effect")
-    func remoteStillActs() async {
-        let (player, ticks) = makePlayer()
-        await player.apply(.load(source), seq: 1).value
-        await player.apply(.play, seq: 2).value
-        // Asserting only the end state would pass on a player that was never
-        // playing, which is most of them in a test.
-        #expect(ticks().last?.paused == false)
+        // MARK: remote commands
 
-        await player.applyFromRemote(.pause).value
+        @Test("a press on the lock screen does not claim a web command landed")
+        func remoteDoesNotAdvanceTheSequence() async {
+            let rig = PlayerRig()
+            await rig.player.apply(.load(remote), seq: 4).value
 
-        #expect(ticks().last?.paused == true)
-    }
+            await rig.player.applyFromRemote(.play).value
+            await rig.player.applyFromRemote(.pause).value
 
-    @Test("coming back on screen reports where the file got to")
-    func foregroundReports() async {
-        let (player, ticks) = makePlayer()
-        await player.apply(.load(source), seq: 3).value
-        let before = ticks().count
+            #expect(rig.sequence.allSatisfy { $0 <= 4 })
+            #expect(rig.sequence.last == 4)
+        }
 
-        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
-        await Task.yield()
+        /// The press is queued behind a web command that has not run yet. Taking
+        /// the sequence when the press arrives, rather than when it runs, would
+        /// set it back below that command.
+        @Test("a press queued behind a web command does not move the sequence back")
+        func remoteQueuedBehindWebCommand() async {
+            let rig = PlayerRig()
+            await rig.player.apply(.pause, seq: 1).value
 
-        #expect(ticks().count > before)
-        #expect(ticks().last?.appliedSeq == 3, "a tick nobody asked for must not move the sequence")
-    }
+            rig.player.apply(.seek(0), seq: 2)
+            await rig.player.applyFromRemote(.play).value
 
-    @Test("volume is carried through to the player")
-    func volumeIsApplied() async {
-        let (player, ticks) = makePlayer()
+            #expect(rig.sequence == rig.sequence.sorted(), "went backwards: \(rig.sequence)")
+            #expect(rig.sequence.last == 2)
+        }
 
-        await player.apply(.setVolume(0.25), seq: 1).value
+        @Test("a remote press still takes effect")
+        func remoteStillActs() async throws {
+            let rig = PlayerRig()
+            await rig.player.apply(.load(try local(seconds: 3)), seq: 1).value
+            await rig.player.apply(.play, seq: 2).value
+            // Asserting only the end state would pass on a player that was
+            // never playing.
+            #expect(rig.ticks.last?.paused == false)
 
-        #expect(ticks().last?.volume == 0.25)
+            await rig.player.applyFromRemote(.pause).value
+
+            #expect(rig.ticks.last?.paused == true)
+            await rig.player.apply(.unload, seq: 3).value
+        }
+
+        // MARK: seeking
+
+        /// A tick at the seek's sequence tells the web its hold can go; if the
+        /// position in it is still the old one, the thumb jumps back and a
+        /// stale position can be saved.
+        @Test("a seek is acknowledged only once the position has moved")
+        func seekIsAcknowledgedAfterItLands() async throws {
+            let rig = PlayerRig()
+            await rig.player.apply(.load(try local(seconds: 4)), seq: 1).value
+            await rig.player.apply(.pause, seq: 2).value
+
+            await rig.player.apply(.seek(2.5), seq: 3).value
+
+            let acknowledged = try #require(rig.firstTick(atOrAbove: 3))
+            #expect(abs(acknowledged.time - 2.5) < 0.05, "acknowledged at \(acknowledged.time)")
+            await rig.player.apply(.unload, seq: 4).value
+        }
+
+        // MARK: audio session
+
+        /// Holding the audio session makes the whole app eligible for background
+        /// audio, the web view's own media included.
+        @Test("the audio session is not taken before there is anything to play")
+        func sessionIsNotTakenEarly() async {
+            let rig = PlayerRig()
+
+            await rig.player.apply(.play, seq: 1).value
+
+            #expect(rig.session.log.isEmpty)
+        }
+
+        @Test("the audio session is taken with a file and given back with it")
+        func sessionFollowsTheFile() async {
+            let rig = PlayerRig()
+
+            await rig.player.apply(.load(remote), seq: 1).value
+            #expect(rig.session.isHeld)
+
+            await rig.player.apply(.unload, seq: 2).value
+            #expect(rig.session.isHeld == false)
+            #expect(rig.session.log == ["take", "release"])
+        }
+
+        // MARK: reporting
+
+        @Test("a paused player still reports, since the clock is not running")
+        func pauseIsReported() async {
+            let rig = PlayerRig()
+
+            await rig.player.apply(.pause, seq: 7).value
+
+            #expect(rig.ticks.last?.paused == true)
+            #expect(rig.ticks.last?.appliedSeq == 7)
+        }
+
+        @Test("a length the player cannot know is reported as none")
+        func unknownDurationIsZero() async {
+            let rig = PlayerRig()
+
+            await rig.player.apply(.pause, seq: 1).value
+
+            #expect(rig.ticks.last?.duration == 0)
+        }
+
+        @Test("volume is carried through to the player")
+        func volumeIsApplied() async {
+            let rig = PlayerRig()
+
+            await rig.player.apply(.setVolume(0.25), seq: 1).value
+
+            #expect(rig.ticks.last?.volume == 0.25)
+        }
+
+        @Test("coming back on screen reports where the file got to")
+        func foregroundReports() async {
+            let rig = PlayerRig()
+            await rig.player.apply(.load(remote), seq: 3).value
+            let before = rig.ticks.count
+
+            NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+            await Task.yield()
+
+            #expect(rig.ticks.count > before)
+            #expect(rig.ticks.last?.appliedSeq == 3, "a tick nobody asked for must not move the sequence")
+            await rig.player.apply(.unload, seq: 4).value
+        }
     }
 }
