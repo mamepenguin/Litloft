@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import UIKit
 import MediaPlayer
 import Testing
 
@@ -95,6 +96,19 @@ struct MediaPlayerTests {
         await player.applyFromRemote(.pause).value
 
         #expect(ticks().last?.paused == true)
+    }
+
+    @Test("coming back on screen reports where the file got to")
+    func foregroundReports() async {
+        let (player, ticks) = makePlayer()
+        await player.apply(.load(source), seq: 3).value
+        let before = ticks().count
+
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        await Task.yield()
+
+        #expect(ticks().count > before)
+        #expect(ticks().last?.appliedSeq == 3, "a tick nobody asked for must not move the sequence")
     }
 
     @Test("volume is carried through to the player")

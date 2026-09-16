@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import UIKit
 import os
 
 /// Plays Litloft's media natively so it keeps going when the app is not on
@@ -17,6 +18,7 @@ final class MediaPlayer {
 
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
+    private var foregroundObserver: NSObjectProtocol?
     private var appliedSeq = 0
     private var ended = false
 
@@ -35,14 +37,29 @@ final class MediaPlayer {
         player.allowsExternalPlayback = true
 
         nowPlaying.takeCommands()
+        watchForForeground()
         nowPlaying.onPlay = { [weak self] in self?.applyFromRemote(.play) }
         nowPlaying.onPause = { [weak self] in self?.applyFromRemote(.pause) }
         nowPlaying.onSeek = { [weak self] time in self?.applyFromRemote(.seek(time)) }
     }
 
     isolated deinit {
-        if let endObserver {
-            NotificationCenter.default.removeObserver(endObserver)
+        for observer in [endObserver, foregroundObserver].compactMap({ $0 }) {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    /// While the app is off screen the web view is suspended and nothing
+    /// delivered to it arrives. Playing media self-corrects on the next tick,
+    /// but one that stopped out there — it ran out, a call interrupted it —
+    /// stops ticking, so the web side would never hear what became of it.
+    private func watchForForeground() {
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.emitTick() }
         }
     }
 
