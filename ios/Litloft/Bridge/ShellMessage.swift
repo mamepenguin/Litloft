@@ -1,18 +1,25 @@
 import Foundation
 
 /// The wire shape shared with `frontend/src/lib/nativeBridge.ts`. Both sides
-/// are hand-written, so a change here is a change there.
+/// are checked against `frontend/src/lib/__tests__/fixtures/shell-contract.json`.
 struct ShellMessage: Codable, Equatable {
     let type: String
     let seq: Int
 }
 
-/// What the shell reports back while something is playing. `appliedSeq` is the
-/// highest command it has acted on, which is how the web side tells a reading
-/// taken before a command from one taken after it.
-struct MediaTick: Codable, Equatable {
-    let type = "media.tick"
-    let appliedSeq: Int
+enum MediaStatus: String, Encodable, Equatable {
+    case loading
+    case ready
+    case failed
+}
+
+/// What the shell reports about the file it holds, sent whenever any of it
+/// changes. `loadId` and `seekId` are the web side's own ids handed back, so it
+/// matches a report by equality rather than inferring from its order.
+struct MediaState: Encodable, Equatable {
+    let loadId: String?
+    let status: MediaStatus
+    let seekId: String?
     let time: Double
     let duration: Double
     let paused: Bool
@@ -23,7 +30,23 @@ struct MediaTick: Codable, Equatable {
     let ended: Bool
 
     private enum CodingKeys: String, CodingKey {
-        case type, appliedSeq, time, duration, paused, rate, volume, buffered, ended
+        case type, loadId, status, seekId, time, duration, paused, rate, volume, buffered, ended
+    }
+
+    /// Absent ids are sent as null rather than left out, as the web side reads them.
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode("media.state", forKey: .type)
+        try container.encode(loadId, forKey: .loadId)
+        try container.encode(status, forKey: .status)
+        try container.encode(seekId, forKey: .seekId)
+        try container.encode(time, forKey: .time)
+        try container.encode(duration, forKey: .duration)
+        try container.encode(paused, forKey: .paused)
+        try container.encode(rate, forKey: .rate)
+        try container.encode(volume, forKey: .volume)
+        try container.encode(buffered, forKey: .buffered)
+        try container.encode(ended, forKey: .ended)
     }
 }
 
@@ -38,16 +61,17 @@ enum MediaCommand: Equatable {
     case load(MediaSource)
     case play
     case pause
-    case seek(Double)
+    case seek(time: Double, seekId: String)
+    case unload
     case setRate(Double)
     case setVolume(Double)
-    case unload
 }
 
-/// What a decoded message asks the shell to do.
+/// What a decoded message asks the shell to do. `loadId` names the file a
+/// command is for; the player-wide settings have none.
 enum ShellAction: Equatable {
     case reply(ShellMessage)
-    case media(MediaCommand, seq: Int)
+    case media(MediaCommand, loadId: String?)
 }
 
 enum ShellMessageType {

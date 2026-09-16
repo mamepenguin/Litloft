@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 import type { MediaShadow } from "../nativeMedia";
 
@@ -10,10 +10,9 @@ interface StubbedWindow extends Window {
 }
 
 const win = () => window as StubbedWindow;
-let posted: Record<string, unknown>[] = [];
 
 function shadow(overrides: Partial<MediaShadow> = {}): MediaShadow {
-  return { time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, ...overrides };
+  return { time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, status: "ready", ...overrides };
 }
 
 /** The channel's own behaviour has its own tests; this is about the contract. */
@@ -49,10 +48,6 @@ async function make(initial?: MediaShadow): Promise<{ controller: Controller; ch
 afterEach(() => {
   delete win().webkit;
   delete win().__litloft;
-});
-
-beforeEach(() => {
-  posted = [];
 });
 
 describe("the shell's MediaController", () => {

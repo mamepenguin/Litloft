@@ -14,7 +14,7 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
 
     /// Set by whatever owns the player; absent until then, so a command that
     /// arrives early is dropped rather than queued.
-    var onMediaCommand: ((MediaCommand, Int) -> Void)?
+    var onMediaCommand: ((MediaCommand, String?) -> Void)?
 
     init(server: URL) {
         self.server = server
@@ -41,8 +41,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         switch action {
         case .reply(let message):
             deliver(message)
-        case .media(let command, let seq):
-            onMediaCommand?(command, seq)
+        case .media(let command, let loadId):
+            onMediaCommand?(command, loadId)
         }
     }
 
@@ -55,18 +55,43 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     nonisolated static func route(body: Any, from origin: MessageOrigin, server: URL) -> ShellAction? {
         guard origin.isTrusted(for: server),
               let body = body as? [String: Any],
-              let type = body["type"] as? String,
-              let seq = body["seq"] as? Int
+              let type = body["type"] as? String
         else { return nil }
 
         if type == ShellMessageType.ping {
+            guard let seq = body["seq"] as? Int else { return nil }
             return .reply(ShellMessage(type: ShellMessageType.pong, seq: seq))
         }
-        guard let command = mediaCommand(type, body, server: server) else { return nil }
-        return .media(command, seq: seq)
+        return mediaAction(type, body, server: server)
     }
 
-    private nonisolated static func mediaCommand(
+    /// A command about a file must name it; the player-wide settings do not.
+    private nonisolated static func mediaAction(
+        _ type: String,
+        _ body: [String: Any],
+        server: URL
+    ) -> ShellAction? {
+        if let setting = playerSetting(type, body) {
+            return .media(setting, loadId: nil)
+        }
+        guard let loadId = nonEmpty(body["loadId"]),
+              let command = fileCommand(type, body, server: server)
+        else { return nil }
+        return .media(command, loadId: loadId)
+    }
+
+    private nonisolated static func playerSetting(_ type: String, _ body: [String: Any]) -> MediaCommand? {
+        switch type {
+        case "media.setRate":
+            (body["rate"] as? Double).flatMap { $0.isFinite && $0 > 0 ? .setRate($0) : nil }
+        case "media.setVolume":
+            (body["volume"] as? Double).flatMap { $0.isFinite ? .setVolume(min(max($0, 0), 1)) : nil }
+        default:
+            nil
+        }
+    }
+
+    private nonisolated static func fileCommand(
         _ type: String,
         _ body: [String: Any],
         server: URL
@@ -78,17 +103,21 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
             return .play
         case "media.pause":
             return .pause
-        case "media.seek":
-            return (body["time"] as? Double).flatMap { $0.isFinite ? .seek($0) : nil }
-        case "media.setRate":
-            return (body["rate"] as? Double).flatMap { $0.isFinite && $0 > 0 ? .setRate($0) : nil }
-        case "media.setVolume":
-            return (body["volume"] as? Double).flatMap { $0.isFinite ? .setVolume(min(max($0, 0), 1)) : nil }
         case "media.unload":
             return .unload
+        case "media.seek":
+            guard let seekId = nonEmpty(body["seekId"]),
+                  let time = body["time"] as? Double, time.isFinite
+            else { return nil }
+            return .seek(time: time, seekId: seekId)
         default:
             return nil
         }
+    }
+
+    private nonisolated static func nonEmpty(_ value: Any?) -> String? {
+        guard let string = value as? String, !string.isEmpty else { return nil }
+        return string
     }
 
     /// The session's cookies go with whatever is loaded here, so both addresses
@@ -113,8 +142,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         )
     }
 
-    func deliver(_ tick: MediaTick) {
-        send(tick, describedAs: tick.type)
+    func deliver(_ state: MediaState) {
+        send(state, describedAs: "media.state")
     }
 
     private func deliver(_ message: ShellMessage) {

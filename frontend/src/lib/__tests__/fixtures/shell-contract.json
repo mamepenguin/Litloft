@@ -1,0 +1,85 @@
+{
+  "commands": {
+    "load": {
+      "type": "media.load",
+      "loadId": "load-1",
+      "url": "http://litloft.local:3000/api/files/abc/stream",
+      "title": "A recording",
+      "artist": "Someone",
+      "artworkUrl": "http://litloft.local:3000/api/files/abc/thumbnail"
+    },
+    "play": { "type": "media.play", "loadId": "load-1" },
+    "pause": { "type": "media.pause", "loadId": "load-1" },
+    "seek": { "type": "media.seek", "loadId": "load-1", "seekId": "seek-1", "time": 42.5 },
+    "unload": { "type": "media.unload", "loadId": "load-1" },
+    "setRate": { "type": "media.setRate", "rate": 1.5 },
+    "setVolume": { "type": "media.setVolume", "volume": 0.25 }
+  },
+  "states": {
+    "loading": {
+      "type": "media.state",
+      "loadId": "load-1",
+      "status": "loading",
+      "seekId": null,
+      "time": 0,
+      "duration": 0,
+      "paused": true,
+      "rate": 1,
+      "volume": 1,
+      "buffered": 0,
+      "ended": false
+    },
+    "readyWhilePaused": {
+      "type": "media.state",
+      "loadId": "load-1",
+      "status": "ready",
+      "seekId": null,
+      "time": 0,
+      "duration": 180,
+      "paused": true,
+      "rate": 1,
+      "volume": 1,
+      "buffered": 12,
+      "ended": false
+    },
+    "seekLanded": {
+      "type": "media.state",
+      "loadId": "load-1",
+      "status": "ready",
+      "seekId": "seek-1",
+      "time": 42.5,
+      "duration": 180,
+      "paused": false,
+      "rate": 1.5,
+      "volume": 0.25,
+      "buffered": 60,
+      "ended": false
+    },
+    "failed": {
+      "type": "media.state",
+      "loadId": "load-1",
+      "status": "failed",
+      "seekId": null,
+      "time": 0,
+      "duration": 0,
+      "paused": true,
+      "rate": 1,
+      "volume": 1,
+      "buffered": 0,
+      "ended": false
+    },
+    "nothingLoaded": {
+      "type": "media.state",
+      "loadId": null,
+      "status": "loading",
+      "seekId": null,
+      "time": 0,
+      "duration": 0,
+      "paused": true,
+      "rate": 1,
+      "volume": 1,
+      "buffered": 0,
+      "ended": false
+    }
+  }
+}

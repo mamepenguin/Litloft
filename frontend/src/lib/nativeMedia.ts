@@ -8,12 +8,11 @@
 
 import {
   isNativeShell,
-  nextSequence,
   postToShell,
   subscribeToShell,
   type MediaSource,
-  type MediaCommand,
-  type MediaTick,
+  type MediaState,
+  type MediaStatus,
 } from "./nativeBridge";
 
 export interface MediaShadow {
@@ -24,6 +23,7 @@ export interface MediaShadow {
   volume: number;
   buffered: number;
   ended: boolean;
+  status: MediaStatus;
 }
 
 const INITIAL: MediaShadow = Object.freeze({
@@ -34,6 +34,7 @@ const INITIAL: MediaShadow = Object.freeze({
   volume: 1,
   buffered: 0,
   ended: false,
+  status: "loading",
 });
 
 export class MediaChannel {
@@ -41,32 +42,29 @@ export class MediaChannel {
   private unsubscribe: (() => void) | null = null;
 
   /**
-   * A seek is the one command whose effect the viewer sees before the shell
-   * can confirm it, so its value stands until a reading taken after it lands.
-   * Everything else is read back from the shell rather than assumed.
+   * The file this channel is for. A report carrying any other id is about
+   * something else; none is accepted before a load or after an unload.
    */
-  private pendingSeek: { seq: number; time: number } | null = null;
+  private loadId: string | null = null;
 
   /**
-   * The load this channel is for. A reading below it was taken before the
-   * shell switched files, so it describes some other file; none is accepted
-   * before a load or after an unload.
+   * A seek is the one command whose effect the viewer sees before the shell
+   * can confirm it, so its position stands until the shell reports that seek
+   * as reached — or reports that the file failed, when it never will be.
    */
-  private loadSeq: number | null = null;
+  private pendingSeek: { seekId: string; time: number } | null = null;
+
+  private readySent = false;
 
   /** Fires once when the shell reports the file has run out. */
   onEnded: (() => void) | null = null;
 
-  /**
-   * Fires once per file, on the first reading with a usable length — the
-   * shell's equivalent of a media element's loaded metadata.
-   */
+  /** Fires once per file, when the shell reports it can be played. */
   onReady: (() => void) | null = null;
-  private readySent = false;
 
   constructor() {
     this.unsubscribe = subscribeToShell((message) => {
-      if (message.type === "media.tick") this.apply(message);
+      if (message.type === "media.state") this.apply(message);
     });
   }
 
@@ -78,42 +76,47 @@ export class MediaChannel {
     this.shadow = INITIAL;
     this.pendingSeek = null;
     this.readySent = false;
-    this.loadSeq = this.send({ type: "media.load", ...source });
+    this.loadId = crypto.randomUUID();
+    postToShell({ type: "media.load", loadId: this.loadId, ...source });
   }
 
   play(): void {
+    if (this.loadId === null) return;
     this.shadow = { ...this.shadow, paused: false };
-    this.send({ type: "media.play" });
+    postToShell({ type: "media.play", loadId: this.loadId });
   }
 
   pause(): void {
+    if (this.loadId === null) return;
     this.shadow = { ...this.shadow, paused: true };
-    this.send({ type: "media.pause" });
+    postToShell({ type: "media.pause", loadId: this.loadId });
   }
 
   seek(time: number): void {
-    const seq = this.send({ type: "media.seek", time });
-    this.pendingSeek = { seq, time };
+    if (this.loadId === null) return;
+    const seekId = crypto.randomUUID();
+    this.pendingSeek = { seekId, time };
     this.shadow = { ...this.shadow, time, ended: false };
+    postToShell({ type: "media.seek", loadId: this.loadId, seekId, time });
   }
 
   /** The shell may refuse a rate, so the shadow waits for what it reports. */
   setRate(rate: number): void {
-    this.send({ type: "media.setRate", rate });
+    postToShell({ type: "media.setRate", rate });
   }
 
   setVolume(volume: number): void {
-    this.send({ type: "media.setVolume", volume });
+    postToShell({ type: "media.setVolume", volume });
   }
 
   /**
    * The last reading is kept: whatever tears down next still reads the
-   * position to save it. The shell answers an unload with a tick of its own,
-   * which would otherwise overwrite that reading with zeros.
+   * position to save it.
    */
   unload(): void {
-    this.send({ type: "media.unload" });
-    this.loadSeq = null;
+    if (this.loadId === null) return;
+    postToShell({ type: "media.unload", loadId: this.loadId });
+    this.loadId = null;
     this.pendingSeek = null;
   }
 
@@ -122,35 +125,29 @@ export class MediaChannel {
     this.unsubscribe = null;
   }
 
-  private send(command: MediaCommand): number {
-    const seq = nextSequence();
-    postToShell({ ...command, seq });
-    return seq;
-  }
+  private apply(state: MediaState): void {
+    if (this.loadId === null || state.loadId !== this.loadId) return;
 
-  private apply(tick: MediaTick): void {
-    if (this.loadSeq === null || tick.appliedSeq < this.loadSeq) return;
-
-    // `appliedSeq` only rises, so once a seek has landed no later tick can
-    // fall behind it again and the pending value stops mattering on its own.
     const pending = this.pendingSeek;
-    const stale = pending !== null && tick.appliedSeq < pending.seq;
+    const holding = pending !== null && state.seekId !== pending.seekId && state.status !== "failed";
+    if (!holding) this.pendingSeek = null;
 
-    const justEnded = tick.ended && !this.shadow.ended;
+    const justEnded = state.ended && !this.shadow.ended;
 
     this.shadow = {
-      // A tick from before the seek carries the old position. The rest of it
-      // is still the freshest reading there is, so only this field waits.
-      time: stale ? pending!.time : tick.time,
-      duration: tick.duration,
-      paused: tick.paused,
-      rate: tick.rate,
-      volume: tick.volume,
-      buffered: tick.buffered,
-      ended: tick.ended,
+      // Every other field is the freshest reading there is, so only the
+      // position waits for the seek.
+      time: holding ? pending.time : state.time,
+      duration: state.duration,
+      paused: state.paused,
+      rate: state.rate,
+      volume: state.volume,
+      buffered: state.buffered,
+      ended: state.ended,
+      status: state.status,
     };
 
-    if (!this.readySent && tick.duration > 0) {
+    if (!this.readySent && state.status === "ready") {
       this.readySent = true;
       this.onReady?.();
     }

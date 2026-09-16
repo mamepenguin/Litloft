@@ -100,19 +100,6 @@ struct LockScreenTests {
         #expect(nowPlaying.hasCommands == false)
     }
 
-    @Test("loading takes the transport and unloading gives it back")
-    func playerTakesAndReleasesTheTransport() async {
-        let player = MediaPlayer(jar: SlowCookieJar(), audioSession: FakeAudioSession())
-
-        await player.apply(.play, seq: 1).value
-        #expect(MPRemoteCommandCenter.shared().playCommand.isEnabled)
-
-        await player.apply(.load(source), seq: 2).value
-        await player.apply(.unload, seq: 3).value
-
-        #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo == nil)
-    }
-
     @Test("clearing leaves nothing behind for the next file")
     func clearing() {
         let nowPlaying = NowPlaying()
@@ -126,9 +113,9 @@ struct LockScreenTests {
     @Test("loading a file puts it on the lock screen")
     func loadPublishesTheFile() async {
         let player = MediaPlayer(jar: SlowCookieJar())
-        defer { player.applyFromRemote(.unload) }
+        defer { player.apply(.unload, loadId: "a") }
 
-        await player.apply(.load(source), seq: 1).value
+        await player.apply(.load(source), loadId: "a").value
 
         #expect(published[MPMediaItemPropertyTitle] as? String == "耳ソージは気持ちいいゾ")
         #expect(published[MPMediaItemPropertyArtist] as? String == "Litloft")
@@ -138,8 +125,8 @@ struct LockScreenTests {
     func unloadClearsTheLockScreen() async {
         let player = MediaPlayer(jar: SlowCookieJar())
 
-        await player.apply(.load(source), seq: 1).value
-        await player.apply(.unload, seq: 2).value
+        await player.apply(.load(source), loadId: "a").value
+        await player.apply(.unload, loadId: "a").value
 
         #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo == nil)
     }
@@ -149,7 +136,7 @@ struct LockScreenTests {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         let player = MediaPlayer(jar: SlowCookieJar())
 
-        await player.apply(.pause, seq: 1).value
+        await player.apply(.pause, loadId: nil).value
 
         #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo == nil)
     }

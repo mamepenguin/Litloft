@@ -59,11 +59,11 @@ struct WebView: UIViewRepresentable {
             let player = MediaPlayer(jar: webView.configuration.websiteDataStore.httpCookieStore)
             self.player = player
 
-            bridge.onMediaCommand = { [weak player] command, seq in
-                player?.apply(command, seq: seq)
+            bridge.onMediaCommand = { [weak player] command, loadId in
+                player?.apply(command, loadId: loadId)
             }
-            player.onTick = { [weak bridge] tick in
-                bridge?.deliver(tick)
+            player.onState = { [weak bridge] state in
+                bridge?.deliver(state)
             }
         }
 

@@ -18,25 +18,33 @@ export interface MediaSource {
   artworkUrl?: string;
 }
 
-/** A command before it is stamped with its place in the order. */
-export type MediaCommand =
-  | ({ type: "media.load" } & MediaSource)
-  | { type: "media.play" }
-  | { type: "media.pause" }
-  | { type: "media.seek"; time: number }
-  | { type: "media.setRate"; rate: number }
-  | { type: "media.setVolume"; volume: number }
-  | { type: "media.unload" };
-
-export type OutboundMessage = ({ type: "ping" } | MediaCommand) & { seq: number };
-
 /**
- * `appliedSeq` is the highest command the shell has acted on, which is how a
- * reading taken before a command can be told from one taken after it.
+ * `loadId` and `seekId` are issued here and handed back unchanged by the shell,
+ * so a report is matched to what it is about by equality rather than inferred
+ * from its order. The shell drops a command whose `loadId` is not the file it
+ * currently holds.
  */
-export interface MediaTick {
-  type: "media.tick";
-  appliedSeq: number;
+export type MediaCommand =
+  | ({ type: "media.load"; loadId: string } & MediaSource)
+  | { type: "media.play"; loadId: string }
+  | { type: "media.pause"; loadId: string }
+  | { type: "media.seek"; loadId: string; seekId: string; time: number }
+  | { type: "media.unload"; loadId: string }
+  | { type: "media.setRate"; rate: number }
+  | { type: "media.setVolume"; volume: number };
+
+export type OutboundMessage = { type: "ping"; seq: number } | MediaCommand;
+
+export type MediaStatus = "loading" | "ready" | "failed";
+
+/** What the shell reports, sent whenever any of it changes. */
+export interface MediaState {
+  type: "media.state";
+  /** Null when nothing is loaded. */
+  loadId: string | null;
+  status: MediaStatus;
+  /** The last seek issued whose position the player has reached. */
+  seekId: string | null;
   time: number;
   duration: number;
   paused: boolean;
@@ -47,7 +55,7 @@ export interface MediaTick {
   ended: boolean;
 }
 
-export type InboundMessage = { type: "pong"; seq: number } | MediaTick;
+export type InboundMessage = { type: "pong"; seq: number } | MediaState;
 
 interface ShellMessageHandler {
   postMessage(body: unknown): void;
@@ -121,16 +129,11 @@ export function subscribeToShell(listener: (message: InboundMessage) => void): (
 
 let nextSeq = 0;
 
-/** One counter for the whole channel, so commands have a total order. */
-export function nextSequence(): number {
-  return ++nextSeq;
-}
-
 /** Resolves false in a browser, and on a shell that does not answer. */
 export function pingShell(timeoutMs = PING_TIMEOUT_MS): Promise<boolean> {
   if (!isNativeShell()) return Promise.resolve(false);
 
-  const seq = nextSequence();
+  const seq = ++nextSeq;
   return new Promise((resolve) => {
     let settled = false;
     const finish = (answered: boolean) => {

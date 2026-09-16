@@ -20,14 +20,14 @@ extension SharedMediaState {
             let player = try #require(coordinator.player)
 
             let tone = try ToneFile.make(seconds: 3)
-            await player.apply(.load(MediaSource(url: tone, title: "Locked", artist: nil, artworkURL: nil)), seq: 1)
-                .value
+            let source = MediaSource(url: tone, title: "Locked", artist: nil, artworkURL: nil)
+            await player.apply(.load(source), loadId: "a").value
             #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyTitle] as? String == "Locked")
 
             coordinator.webView(webView, didStartProvisionalNavigation: nil)
             // Waits behind whatever the navigation queued, without stopping
             // anything itself.
-            await player.applyFromRemote(.setVolume(1)).value
+            await player.apply(.setVolume(1), loadId: nil).value
 
             #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo == nil)
         }

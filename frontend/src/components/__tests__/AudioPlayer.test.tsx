@@ -157,15 +157,20 @@ describe("AudioPlayer inside the iOS shell", () => {
   }
   let posted: Record<string, unknown>[];
 
-  const loadSeqFor = (fileId: string) =>
+  const loadIdFor = (fileId: string) =>
     posted.filter((m) => m.type === "media.load" && String(m.url).includes(`/${fileId}/`)).at(-1)
-      ?.seq as number;
+      ?.loadId as string;
 
-  /** What the shell reports about `fileId`, taken after that file loaded. */
-  function report(fileId: string, reading: { time: number; duration: number; ended?: boolean; paused?: boolean }) {
+  /** What the shell reports about `fileId`: loaded, playable, and where it is. */
+  function report(
+    fileId: string,
+    reading: { time: number; duration: number; ended?: boolean; paused?: boolean; status?: string },
+  ) {
     (window as StubbedWindow).__litloft?.receive({
-      type: "media.tick",
-      appliedSeq: loadSeqFor(fileId),
+      type: "media.state",
+      loadId: loadIdFor(fileId),
+      status: "ready",
+      seekId: null,
       paused: false,
       rate: 1,
       volume: 1,
