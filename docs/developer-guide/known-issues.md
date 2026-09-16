@@ -128,9 +128,14 @@ not. A tap produces no navigation, no error and no feedback, and the link target
 cannot be reached from inside the app. Whether these should open in Safari or in
 an in-app browser is undecided.
 
-**A long press inside the page is not verified.** The shell returns nil from
-`contextMenuConfigurationFor` so Litloft's own context menus win, but no machine
-here can drive a long press. Unverified rather than known-broken.
+**A long press starts a text selection instead of reaching the card underneath.**
+Blue highlight with selection handles, on some presses and not others — wherever
+selectable text sits under the finger. Measured in the shell and in mobile
+Safari: identical, so it is the web app's behaviour and not the shell's.
+`body { -webkit-touch-callout: none }` in `globals.css` governs the link and
+image callout, not text selection; `-webkit-user-select` does, and it is not set.
+A fix belongs in core, on the chrome (cards, rows, toolbars) and not on prose,
+which must stay selectable.
 
 ## Addons
 
