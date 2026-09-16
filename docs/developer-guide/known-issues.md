@@ -133,6 +133,13 @@ played by the shell so far, so a video is still the web view's and WebKit
 suspends it. Confirmed on device. Video moves to the native player in a later
 phase.
 
+**If iOS ends the page's process while audio plays in the background, playback
+stops when the app comes back.** The shell keeps the audio going and puts the
+page back only once the app is on screen again. That reload stops the player,
+as every full navigation does. Nothing saves the listening position while the
+page is gone, so the saved position is the last one from before the process
+ended.
+
 **A long press starts a text selection instead of reaching the card underneath.**
 Blue highlight with selection handles, on some presses and not others — wherever
 selectable text sits under the finger. Measured in the shell and in mobile

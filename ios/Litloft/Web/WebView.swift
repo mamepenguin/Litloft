@@ -46,9 +46,27 @@ struct WebView: UIViewRepresentable {
 
         private(set) var player: MediaPlayer?
 
+        /// When WebKit's content process dies, WebKit reloads the page itself
+        /// unless this delegate handles it, and that reload stops the player.
+        /// Off screen the audio is what the viewer is using, so the page waits
+        /// until the app is back.
+        var isActive: () -> Bool = { UIApplication.shared.applicationState == .active }
+        private weak var webView: WKWebView?
+        private var pageObservation: NSKeyValueObservation?
+        private var lastPage: URL?
+        private var pageToRestore: URL?
+        private var activationObserver: NSObjectProtocol?
+
         init(model: WebViewModel) {
             self.model = model
             self.bridge = ShellBridge(server: model.serverURL)
+        }
+
+        isolated deinit {
+            pageObservation?.invalidate()
+            if let activationObserver {
+                NotificationCenter.default.removeObserver(activationObserver)
+            }
         }
 
         /// The bridge and the player hold each other's callbacks, so both
@@ -68,7 +86,40 @@ struct WebView: UIViewRepresentable {
         }
 
         func start(_ webView: WKWebView) {
+            watch(webView)
             webView.load(URLRequest(url: model.serverURL))
+        }
+
+        /// The address is read as it changes: the app moves between pages
+        /// without loading them, and a dead page has no address left.
+        func watch(_ webView: WKWebView) {
+            self.webView = webView
+            pageObservation = webView.observe(\.url, options: [.new]) { [weak self] _, change in
+                guard let url = change.newValue ?? nil else { return }
+                Task { @MainActor in self?.lastPage = url }
+            }
+            activationObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in self?.restorePage() }
+            }
+        }
+
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            let page = lastPage ?? model.serverURL
+            if isActive() {
+                webView.load(URLRequest(url: page))
+            } else {
+                pageToRestore = page
+            }
+        }
+
+        private func restorePage() {
+            guard let page = pageToRestore else { return }
+            pageToRestore = nil
+            webView?.load(URLRequest(url: page))
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
