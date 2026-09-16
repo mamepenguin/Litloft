@@ -1,50 +1,36 @@
 import Foundation
 import WebKit
 
-/// Carries Litloft's session cookies between the three places that need them:
-/// the web view's store, `HTTPCookieStorage` (which `AVPlayer` reads), and the
-/// keychain (which survives a website-data purge).
+/// Keeps the web view's cookie jar and the keychain in step for the
+/// configured server's session cookies.
 @MainActor
 final class CookieBridge: NSObject, WKHTTPCookieStoreObserver {
-    private weak var store: WKHTTPCookieStore?
+    private let host: String
+    private weak var jar: WKHTTPCookieStore?
 
-    /// Injects the stored session into both jars, then watches the web view's
-    /// store so later changes reach them too.
-    func attach(to store: WKHTTPCookieStore) async {
-        self.store = store
+    init(host: String) {
+        self.host = host
+    }
 
-        for cookie in CookieVault.load() {
-            await store.setCookie(cookie)
-            HTTPCookieStorage.shared.setCookie(cookie)
-        }
-
-        store.add(self)
+    /// Injects the stored session, then watches the jar so later changes —
+    /// including a sign-out — reach the keychain.
+    func attach(to jar: WKHTTPCookieStore, then load: @escaping () -> Void) async {
+        self.jar = jar
+        await SessionCookies.restoreThenLoad(into: jar, stored: CookieVault.load(), load: load)
+        jar.add(self)
     }
 
     nonisolated func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
         Task { @MainActor in
-            await capture(from: cookieStore)
+            await SessionCookies.capture(from: cookieStore, host: host)
         }
     }
 
-    private func capture(from cookieStore: WKHTTPCookieStore) async {
-        let cookies = await cookieStore.allCookies()
-        let tracked = cookies.filter { CookieVault.trackedNames.contains($0.name) }
-
-        for cookie in tracked {
-            HTTPCookieStorage.shared.setCookie(cookie)
+    func forget() async {
+        guard let jar else {
+            CookieVault.clear()
+            return
         }
-        CookieVault.save(tracked)
-    }
-
-    /// Drops the session everywhere. The web view's own store is left to the
-    /// caller, which owns its lifetime.
-    static func forget() {
-        CookieVault.clear()
-        for name in CookieVault.trackedNames {
-            HTTPCookieStorage.shared.cookies?
-                .filter { $0.name == name }
-                .forEach { HTTPCookieStorage.shared.deleteCookie($0) }
-        }
+        await SessionCookies.forget(from: jar, host: host)
     }
 }

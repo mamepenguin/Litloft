@@ -26,7 +26,10 @@ final class WebViewModel {
         state = .loaded
     }
 
+    /// A cancelled load means a newer one took over, so the page the viewer
+    /// is waiting for is still on its way.
     func markFailed(_ error: Error) {
+        guard URLError.Code(rawValue: (error as NSError).code) != .cancelled else { return }
         state = .failed(message(for: error))
     }
 

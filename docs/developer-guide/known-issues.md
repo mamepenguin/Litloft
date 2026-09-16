@@ -119,6 +119,19 @@ Escape itself — the tree pane's type filter, the selection bar's tag input, a
 sidebar collection name — and pressing Escape closes that and the menu together.
 Reached only by keyboard.
 
+## iOS shell
+
+**External links do nothing.** Every non-`loft://` markdown link renders with
+`target="_blank"`. `WKWebView` discards such a navigation unless the UI delegate
+implements `webView(_:createWebViewWith:for:windowFeatures:)`, and the shell does
+not. A tap produces no navigation, no error and no feedback, and the link target
+cannot be reached from inside the app. Whether these should open in Safari or in
+an in-app browser is undecided.
+
+**A long press inside the page is not verified.** The shell returns nil from
+`contextMenuConfigurationFor` so Litloft's own context menus win, but no machine
+here can drive a long press. Unverified rather than known-broken.
+
 ## Addons
 
 **A search scope passed as a new object on every render re-renders without end.** `useSearchScope` updates provider state, so a component that also reads the active scope and builds its scope inline loops. Keep the scope object stable (`useMemo`).

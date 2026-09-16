@@ -9,6 +9,8 @@ struct StoredCookie: Codable, Equatable {
     let path: String
     let expiresDate: Date?
     let isSecure: Bool
+    let isHTTPOnly: Bool
+    let sameSite: String?
 
     init?(_ cookie: HTTPCookie) {
         guard !cookie.name.isEmpty else { return nil }
@@ -18,6 +20,8 @@ struct StoredCookie: Codable, Equatable {
         path = cookie.path
         expiresDate = cookie.expiresDate
         isSecure = cookie.isSecure
+        isHTTPOnly = cookie.isHTTPOnly
+        sameSite = cookie.sameSitePolicy?.rawValue
     }
 
     var isExpired: Bool {
@@ -38,6 +42,16 @@ struct StoredCookie: Codable, Equatable {
         if isSecure {
             properties[.secure] = "TRUE"
         }
+        if isHTTPOnly {
+            properties[Self.httpOnlyKey] = "TRUE"
+        }
+        if let sameSite {
+            properties[.sameSitePolicy] = HTTPCookieStringPolicy(rawValue: sameSite)
+        }
         return HTTPCookie(properties: properties)
     }
+
+    /// `HTTPCookie` reads this back into `isHTTPOnly`, but Foundation ships no
+    /// constant for it.
+    private static let httpOnlyKey = HTTPCookiePropertyKey("HttpOnly")
 }

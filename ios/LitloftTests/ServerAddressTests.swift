@@ -88,6 +88,26 @@ struct ServerSettingsTests {
         #expect(ServerSettings(defaults: defaults).serverURL == nil)
     }
 
+    @Test("the previous address is offered again after leaving a server")
+    func forgetKeepsTheAddressForTheSetupScreen() {
+        let defaults = makeDefaults()
+        let settings = ServerSettings(defaults: defaults)
+        settings.use(URL(string: "http://litloft.local:3000")!)
+
+        settings.forget()
+
+        #expect(settings.serverURL == nil)
+        #expect(settings.lastAddress == "http://litloft.local:3000")
+    }
+
+    @Test("a restored address is offered as the previous one")
+    func restoredAddressIsOffered() {
+        let defaults = makeDefaults()
+        defaults.set("http://192.168.1.50:3000", forKey: "serverURL")
+
+        #expect(ServerSettings(defaults: defaults).lastAddress == "http://192.168.1.50:3000")
+    }
+
     @Test("forgetting clears the stored address")
     func forget() {
         let defaults = makeDefaults()

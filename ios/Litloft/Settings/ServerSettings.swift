@@ -6,6 +6,7 @@ final class ServerSettings {
     private static let key = "serverURL"
 
     private(set) var serverURL: URL?
+    private(set) var lastAddress = ""
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -13,6 +14,7 @@ final class ServerSettings {
         // build, or edited by hand, is not trusted.
         if let stored = defaults.string(forKey: Self.key) {
             serverURL = ServerAddress.parse(stored)
+            lastAddress = serverURL?.absoluteString ?? ""
         }
     }
 
@@ -20,10 +22,12 @@ final class ServerSettings {
 
     func use(_ url: URL) {
         serverURL = url
+        lastAddress = url.absoluteString
         defaults.set(url.absoluteString, forKey: Self.key)
     }
 
     func forget() {
+        lastAddress = serverURL?.absoluteString ?? lastAddress
         serverURL = nil
         defaults.removeObject(forKey: Self.key)
     }

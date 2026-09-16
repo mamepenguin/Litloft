@@ -20,6 +20,18 @@ function installShell(): { posted: unknown[] } {
   return { posted };
 }
 
+function installThrowingShell(): void {
+  win().webkit = {
+    messageHandlers: {
+      litloft: {
+        postMessage: () => {
+          throw new Error("the web view is tearing down");
+        },
+      },
+    },
+  };
+}
+
 function deliver(payload: unknown): void {
   win().__litloft?.receive(payload);
 }
@@ -147,6 +159,30 @@ describe("inside the shell", () => {
 
     await vi.advanceTimersByTimeAsync(1000);
     await expect(answered).resolves.toBe(false);
+  });
+
+  it("swallows a handler that throws while the view tears down", async () => {
+    installThrowingShell();
+    const tearing = await load();
+
+    expect(() => tearing.postToShell({ type: "ping", seq: 1 })).not.toThrow();
+    await expect(tearing.pingShell(1)).resolves.toBe(false);
+  });
+
+  it("gives two pings in flight different seqs", async () => {
+    vi.useFakeTimers();
+    const first = bridge.pingShell(1000);
+    const second = bridge.pingShell(1000);
+
+    const seqs = (posted as { seq: number }[]).map((m) => m.seq);
+    expect(new Set(seqs).size).toBe(2);
+
+    // Answer only the second: the first must stay unanswered.
+    deliver({ type: "pong", seq: seqs[1] });
+    await expect(second).resolves.toBe(true);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(first).resolves.toBe(false);
   });
 
   it("releases the global once a ping settles", async () => {

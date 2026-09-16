@@ -24,20 +24,36 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
-        guard let body = message.body as? [String: Any],
-              let type = body["type"] as? String,
-              let seq = body["seq"] as? Int
-        else {
-            log.error("dropped a message that does not match the wire shape")
+        guard let reply = Self.route(body: message.body, fromMainFrame: message.frameInfo.isMainFrame) else {
+            log.error("dropped an unroutable message")
             return
         }
+        deliver(reply)
+    }
 
+    /// The whole acceptance decision: who may command the shell, what a command
+    /// has to look like, and what answers it. Pure, so a test can hold it.
+    ///
+    /// The handler is injected into every frame — WebKit offers no way to scope
+    /// that — and replies only ever reach the main frame, so a subframe could
+    /// otherwise command the shell and never hear back.
+    nonisolated static func route(body: Any, fromMainFrame: Bool) -> ShellMessage? {
+        guard fromMainFrame,
+              let body = body as? [String: Any],
+              let type = body["type"] as? String,
+              let seq = body["seq"] as? Int
+        else { return nil }
+
+        return reply(to: type, seq: seq)
+    }
+
+    /// The whole command table. Pure, so a test can hold it.
+    nonisolated static func reply(to type: String, seq: Int) -> ShellMessage? {
         switch type {
         case ShellMessageType.ping:
-            log.debug("ping \(seq, privacy: .public)")
-            deliver(ShellMessage(type: ShellMessageType.pong, seq: seq))
+            return ShellMessage(type: ShellMessageType.pong, seq: seq)
         default:
-            log.error("no handler for message type \(type, privacy: .public)")
+            return nil
         }
     }
 

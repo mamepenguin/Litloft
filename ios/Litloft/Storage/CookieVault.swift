@@ -2,8 +2,7 @@ import Foundation
 import os
 
 /// Keeps Litloft's session cookies across launches. WebKit may purge its own
-/// website data, and `AVPlayer` reads `HTTPCookieStorage` rather than the web
-/// view's store, so neither is a durable home on its own.
+/// website data, which is the only other place they live.
 enum CookieVault {
     /// Set by the backend on unlock, and the viewer identity that rides
     /// alongside it.
@@ -12,12 +11,27 @@ enum CookieVault {
     private static let account = "session-cookies"
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Litloft", category: "cookies")
 
-    static func save(_ cookies: [HTTPCookie]) {
-        let stored = cookies
-            .filter { trackedNames.contains($0.name) }
-            .compactMap(StoredCookie.init)
+    /// A cookie belongs to the session only if the configured server issued it.
+    /// Matching on name alone would adopt a same-named cookie from any origin
+    /// the web view happens to have visited.
+    static func tracked(in cookies: [HTTPCookie], host: String) -> [HTTPCookie] {
+        cookies.filter { trackedNames.contains($0.name) && matches(domain: $0.domain, host: host) }
+    }
 
-        guard !stored.isEmpty else { return }
+    static func matches(domain: String, host: String) -> Bool {
+        let domain = domain.hasPrefix(".") ? String(domain.dropFirst()) : domain
+        let host = host.lowercased()
+        let lowered = domain.lowercased()
+        return lowered == host || host.hasSuffix("." + lowered)
+    }
+
+    /// An empty set is a sign-out, not a no-op: it clears what was stored.
+    static func save(_ cookies: [HTTPCookie]) {
+        let stored = cookies.compactMap(StoredCookie.init)
+        guard !stored.isEmpty else {
+            clear()
+            return
+        }
 
         do {
             try Keychain.set(try JSONEncoder().encode(stored), account: account)
