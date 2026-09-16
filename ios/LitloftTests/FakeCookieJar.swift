@@ -61,3 +61,20 @@ final class SlowCookieJar: CookieJar {
         return []
     }
 }
+
+@MainActor
+final class FakeAudioSession: AudioSession {
+    private(set) var log: [String] = []
+
+    var isHeld: Bool {
+        log.last == "take"
+    }
+
+    func take() {
+        log.append("take")
+    }
+
+    func release() {
+        log.append("release")
+    }
+}

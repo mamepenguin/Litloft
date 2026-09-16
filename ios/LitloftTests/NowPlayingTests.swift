@@ -87,6 +87,33 @@ struct LockScreenTests {
         #expect(calls == ["play", "pause"])
     }
 
+    @Test("the transport is answered only while there is something to play")
+    func commandsFollowTheFile() {
+        let nowPlaying = NowPlaying()
+        defer { nowPlaying.clear() }
+
+        #expect(nowPlaying.hasCommands == false)
+
+        nowPlaying.takeCommands()
+        #expect(nowPlaying.hasCommands)
+
+        nowPlaying.releaseCommands()
+        #expect(nowPlaying.hasCommands == false)
+    }
+
+    @Test("loading takes the transport and unloading gives it back")
+    func playerTakesAndReleasesTheTransport() async {
+        let player = MediaPlayer(jar: SlowCookieJar(), audioSession: FakeAudioSession())
+
+        await player.apply(.play, seq: 1).value
+        #expect(MPRemoteCommandCenter.shared().playCommand.isEnabled)
+
+        await player.apply(.load(source), seq: 2).value
+        await player.apply(.unload, seq: 3).value
+
+        #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo == nil)
+    }
+
     @Test("clearing leaves nothing behind for the next file")
     func clearing() {
         let nowPlaying = NowPlaying()

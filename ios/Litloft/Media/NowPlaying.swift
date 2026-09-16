@@ -24,7 +24,14 @@ final class NowPlaying {
     private let center = MPNowPlayingInfoCenter.default()
     private var artworkTask: Task<Void, Never>?
 
+    /// The shell answers the transport only while it has something to play;
+    /// otherwise Control Center offers buttons that do nothing.
+    private(set) var hasCommands = false
+
     func takeCommands() {
+        guard !hasCommands else { return }
+        hasCommands = true
+
         let commands = MPRemoteCommandCenter.shared()
 
         commands.playCommand.addTarget { [weak self] _ in
@@ -86,10 +93,26 @@ final class NowPlaying {
         }
     }
 
+    func releaseCommands() {
+        guard hasCommands else { return }
+        hasCommands = false
+
+        let commands = MPRemoteCommandCenter.shared()
+        for command in [
+            commands.playCommand,
+            commands.pauseCommand,
+            commands.togglePlayPauseCommand
+        ] {
+            command.removeTarget(nil)
+        }
+        commands.changePlaybackPositionCommand.removeTarget(nil)
+    }
+
     func clear() {
         artworkTask?.cancel()
         artworkTask = nil
         center.nowPlayingInfo = nil
+        releaseCommands()
     }
 
     /// The thumbnail sits behind the same access control as the file, and the

@@ -8,11 +8,48 @@ import Testing
 
 @MainActor
 struct MediaPlayerTests {
-    private func makePlayer() -> (player: MediaPlayer, ticks: () -> [MediaTick]) {
-        let player = MediaPlayer(jar: SlowCookieJar())
+    private struct Rig {
+        let player: MediaPlayer
+        let ticks: () -> [MediaTick]
+        let session: FakeAudioSession
+    }
+
+    private func makeRig() -> Rig {
+        let session = FakeAudioSession()
+        let player = MediaPlayer(jar: SlowCookieJar(), audioSession: session)
         var ticks: [MediaTick] = []
         player.onTick = { ticks.append($0) }
-        return (player, { ticks })
+        return Rig(player: player, ticks: { ticks }, session: session)
+    }
+
+    private func makePlayer() -> (player: MediaPlayer, ticks: () -> [MediaTick]) {
+        let rig = makeRig()
+        return (rig.player, rig.ticks)
+    }
+
+    /// Holding the audio session makes the whole app eligible for background
+    /// audio, the web view's own media included.
+    @Test("the audio session is not taken before there is anything to play")
+    func sessionIsNotTakenEarly() async {
+        let rig = makeRig()
+        let (player, session) = (rig.player, rig.session)
+
+        await player.apply(.play, seq: 1).value
+
+        #expect(session.log.isEmpty)
+    }
+
+    @Test("the audio session is taken with a file and given back with it")
+    func sessionFollowsTheFile() async {
+        let rig = makeRig()
+        let (player, session) = (rig.player, rig.session)
+
+        await player.apply(.load(source), seq: 1).value
+        #expect(session.isHeld)
+
+        await player.apply(.unload, seq: 2).value
+        #expect(session.isHeld == false)
+        #expect(session.log == ["take", "release"])
     }
 
     private let source = MediaSource(

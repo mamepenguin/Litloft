@@ -14,6 +14,7 @@ final class MediaPlayer {
 
     private let player = AVPlayer()
     private let jar: CookieJar
+    private let audioSession: AudioSession
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Litloft", category: "player")
 
     private var timeObserver: Any?
@@ -32,11 +33,11 @@ final class MediaPlayer {
 
     var onTick: ((MediaTick) -> Void)?
 
-    init(jar: CookieJar) {
+    init(jar: CookieJar, audioSession: AudioSession = SystemAudioSession()) {
         self.jar = jar
+        self.audioSession = audioSession
         player.allowsExternalPlayback = true
 
-        nowPlaying.takeCommands()
         watchForForeground()
         nowPlaying.onPlay = { [weak self] in self?.applyFromRemote(.play) }
         nowPlaying.onPause = { [weak self] in self?.applyFromRemote(.pause) }
@@ -87,7 +88,10 @@ final class MediaPlayer {
         case .load(let source):
             await load(source)
         case .play:
-            activateAudioSession()
+            // Nothing to play means nothing to hold the session for, and
+            // holding it would let the web view's own media outlive the screen.
+            guard player.currentItem != nil else { break }
+            audioSession.take()
             player.play()
         case .pause:
             player.pause()
@@ -117,7 +121,8 @@ final class MediaPlayer {
         replaceItem(with: AVPlayerItem(asset: asset))
         ended = false
         self.source = source
-        activateAudioSession()
+        audioSession.take()
+        nowPlaying.takeCommands()
 
         nowPlaying.clearArtwork()
         if let artworkURL = source.artworkURL {
@@ -152,6 +157,7 @@ final class MediaPlayer {
         ended = false
         source = nil
         nowPlaying.clear()
+        audioSession.release()
     }
 
     private func finish() {
@@ -229,12 +235,4 @@ final class MediaPlayer {
         return value.isFinite ? value : 0
     }
 
-    private func activateAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback)
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            log.error("could not take the audio session: \(error, privacy: .public)")
-        }
-    }
 }

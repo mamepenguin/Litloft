@@ -128,6 +128,11 @@ not. A tap produces no navigation, no error and no feedback, and the link target
 cannot be reached from inside the app. Whether these should open in Safari or in
 an in-app browser is undecided.
 
+**Video stops when the app leaves the screen; audio does not.** Only audio is
+played by the shell so far, so a video is still the web view's and WebKit
+suspends it. Confirmed on device. Video moves to the native player in a later
+phase.
+
 **A long press starts a text selection instead of reaching the card underneath.**
 Blue highlight with selection handles, on some presses and not others — wherever
 selectable text sits under the finger. Measured in the shell and in mobile
