@@ -10,7 +10,10 @@ struct WebView: UIViewRepresentable {
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.websiteDataStore = .default()
 
+        context.coordinator.bridge.install(in: configuration)
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        context.coordinator.bridge.attach(to: webView)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
@@ -39,6 +42,7 @@ struct WebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let model: WebViewModel
         let cookies = CookieBridge()
+        let bridge = ShellBridge()
         var lastReloadToken = 0
 
         init(model: WebViewModel) {
