@@ -47,3 +47,17 @@ func makeCookie(
     if let sameSite { properties[.sameSitePolicy] = sameSite }
     return HTTPCookie(properties: properties)!
 }
+
+/// A jar that makes the async half of loading observable.
+@MainActor
+final class SlowCookieJar: CookieJar {
+    var delayNanoseconds: UInt64 = 20_000_000
+
+    func setCookie(_ cookie: HTTPCookie) async {}
+    func deleteCookie(_ cookie: HTTPCookie) async {}
+
+    func allCookies() async -> [HTTPCookie] {
+        try? await Task.sleep(nanoseconds: delayNanoseconds)
+        return []
+    }
+}

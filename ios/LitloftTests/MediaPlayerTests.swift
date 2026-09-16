@@ -1,22 +1,9 @@
 import AVFoundation
 import Foundation
+import MediaPlayer
 import Testing
 
 @testable import Litloft
-
-/// A jar that makes the async half of loading observable.
-@MainActor
-private final class SlowCookieJar: CookieJar {
-    var delayNanoseconds: UInt64 = 20_000_000
-
-    func setCookie(_ cookie: HTTPCookie) async {}
-    func deleteCookie(_ cookie: HTTPCookie) async {}
-
-    func allCookies() async -> [HTTPCookie] {
-        try? await Task.sleep(nanoseconds: delayNanoseconds)
-        return []
-    }
-}
 
 @MainActor
 struct MediaPlayerTests {
@@ -83,6 +70,32 @@ struct MediaPlayerTests {
         await player.apply(.pause, seq: 1).value
 
         #expect(ticks().last?.duration == 0)
+    }
+
+    @Test("a press on the lock screen does not claim a web command landed")
+    func remoteDoesNotAdvanceTheSequence() async {
+        let (player, ticks) = makePlayer()
+        await player.apply(.load(source), seq: 4).value
+
+        await player.applyFromRemote(.play).value
+        await player.applyFromRemote(.pause).value
+
+        #expect(ticks().map(\.appliedSeq).allSatisfy { $0 <= 4 })
+        #expect(ticks().last?.appliedSeq == 4)
+    }
+
+    @Test("a remote press still takes effect")
+    func remoteStillActs() async {
+        let (player, ticks) = makePlayer()
+        await player.apply(.load(source), seq: 1).value
+        await player.apply(.play, seq: 2).value
+        // Asserting only the end state would pass on a player that was never
+        // playing, which is most of them in a test.
+        #expect(ticks().last?.paused == false)
+
+        await player.applyFromRemote(.pause).value
+
+        #expect(ticks().last?.paused == true)
     }
 
     @Test("volume is carried through to the player")

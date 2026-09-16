@@ -25,18 +25,33 @@ final class MediaPlayer {
     /// different — otherwise a later command applies first and `appliedSeq`,
     /// which the web side relies on to order readings, goes backwards.
     private var pending: Task<Void, Never>?
+    private let nowPlaying = NowPlaying()
+    private var source: MediaSource?
 
     var onTick: ((MediaTick) -> Void)?
 
     init(jar: CookieJar) {
         self.jar = jar
         player.allowsExternalPlayback = true
+
+        nowPlaying.takeCommands()
+        nowPlaying.onPlay = { [weak self] in self?.applyFromRemote(.play) }
+        nowPlaying.onPause = { [weak self] in self?.applyFromRemote(.pause) }
+        nowPlaying.onSeek = { [weak self] time in self?.applyFromRemote(.seek(time)) }
     }
 
     isolated deinit {
         if let endObserver {
             NotificationCenter.default.removeObserver(endObserver)
         }
+    }
+
+    /// A press on the lock screen is not a command the web side issued, so it
+    /// carries the sequence already applied rather than advancing it —
+    /// advancing would tell the web that one of its own commands had landed.
+    @discardableResult
+    func applyFromRemote(_ command: MediaCommand) -> Task<Void, Never> {
+        apply(command, seq: appliedSeq)
     }
 
     @discardableResult
@@ -72,6 +87,7 @@ final class MediaPlayer {
         }
 
         appliedSeq = seq
+        publishNowPlaying()
         emitTick()
     }
 
@@ -83,7 +99,13 @@ final class MediaPlayer {
 
         replaceItem(with: AVPlayerItem(asset: asset))
         ended = false
+        self.source = source
         activateAudioSession()
+
+        nowPlaying.clearArtwork()
+        if let artworkURL = source.artworkURL {
+            nowPlaying.showArtwork(from: artworkURL, cookies: cookies)
+        }
 
         if source.startAt > 0 {
             seek(to: source.startAt)
@@ -115,11 +137,26 @@ final class MediaPlayer {
         replaceItem(with: nil)
         stopTicking()
         ended = false
+        source = nil
+        nowPlaying.clear()
     }
 
     private func finish() {
         ended = true
+        publishNowPlaying()
         emitTick()
+    }
+
+    private func publishNowPlaying() {
+        guard let source else { return }
+        nowPlaying.isPlaying = player.rate != 0
+        nowPlaying.update(NowPlaying.State(
+            title: source.title,
+            artist: source.artist,
+            duration: seconds(player.currentItem?.duration ?? .indefinite),
+            time: seconds(player.currentTime()),
+            rate: Double(player.rate)
+        ))
     }
 
     private func seek(to time: Double) {
