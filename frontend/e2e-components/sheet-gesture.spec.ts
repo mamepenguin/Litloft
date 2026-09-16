@@ -502,7 +502,6 @@ test.describe("the raised sheet over a file page", () => {
       () => document.getElementById("page")!.scrollTop,
     );
     expect(scrolled).toBeGreaterThan(30);
-    expect((await read(page)).state).toBe("");
   });
 });
 

@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useMemo,
   useRef,
   useState,
@@ -56,16 +54,6 @@ export const SHEET_PEEK_HEIGHT = `calc(${SHEET_PEEK_PX}px + env(safe-area-inset-
 
 export const SHEET_SCROLLER_PADDING_BOTTOM =
   "calc(env(safe-area-inset-bottom, 0px) + 16px)";
-
-/**
- * Lowers the sheet to its resting strip. Outside a file page's shell there
- * is no sheet, and it does nothing.
- */
-export const CollapseSheetContext = createContext<() => void>(() => {});
-
-export function useCollapseSheet(): () => void {
-  return useContext(CollapseSheetContext);
-}
 
 export function isSheetExpanded(state: SheetState): boolean {
   return state !== SHEET_STATE_PEEK;

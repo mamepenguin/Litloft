@@ -7,13 +7,11 @@ import { resolve, dirname } from "node:path";
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
 import { inspectorOpenStorageKey } from "@/lib/inspectorOpenStore";
-import { SHEET_PEEK_PX, SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
+import { SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
 import {
   SHEET_PEEK_HEIGHT,
   SHEET_VISIBLE_HEIGHT,
-  useCollapseSheet,
 } from "@/components/MobileInspectorSheet";
-import { FileDetailShell } from "@/components/FileDetailShell";
 import { CANVAS_PADDING_REM } from "@/lib/layoutSizes";
 import {
   claimSlot,
@@ -570,25 +568,6 @@ describe("media on the shell, on a phone", () => {
 
     expect(tabs()).toEqual(["Info", "Chapters", "Related", "Transcript"]);
     expect(screen.getAllByTestId("related-panel")).toHaveLength(1);
-  });
-
-  it("gives the page a way to lower the raised sheet", async () => {
-    let collapse: () => void = () => {};
-    function Grab() {
-      collapse = useCollapseSheet();
-      return null;
-    }
-    setApiResponses(makeFile({ has_chapters: false }));
-    render(
-      <FileDetailShell drive="main" title="t" inspector={<div />}>
-        <Grab />
-      </FileDetailShell>,
-    );
-    fireEvent.click(screen.getByTestId("inspector-toggle"));
-    await screen.findByTestId("mobile-inspector-sheet");
-
-    act(() => collapse());
-    await screen.findByTestId("mobile-inspector-peek");
   });
 
   it("raises the sheet to half, not straight to full", async () => {

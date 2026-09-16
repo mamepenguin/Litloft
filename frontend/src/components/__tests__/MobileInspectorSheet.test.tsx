@@ -26,7 +26,6 @@ import {
   SHEET_STATE_HALF,
   SHEET_STATE_PEEK,
   isSheetExpanded,
-  useCollapseSheet,
   sheetSnapPoints,
   sheetStateForSnap,
   type SheetState,
@@ -333,19 +332,6 @@ function expanded(state: SheetState, halfSnap?: number) {
   );
   return { drawer: screen.getByTestId("mobile-inspector-sheet") };
 }
-
-describe("collapsing the sheet from inside the page", () => {
-  it("does nothing where there is no sheet", () => {
-    function Probe() {
-      const collapse = useCollapseSheet();
-      return <button onClick={collapse}>collapse</button>;
-    }
-    render(<Probe />);
-    expect(() =>
-      fireEvent.click(screen.getByRole("button", { name: "collapse" })),
-    ).not.toThrow();
-  });
-});
 
 describe("isSheetExpanded", () => {
   it("calls only the resting state unexpanded", () => {

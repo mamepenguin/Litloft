@@ -739,8 +739,6 @@ higher than whatever it currently sits under.
 - **A dialog opened from inside the sheet portals to the page**, never into the
   sheet: the sheet is transformed, so a `fixed` box inside it lands below the
   screen.
-- **A player going full screen lowers the sheet**, because the pinned frame is
-  inside the page and under the raised sheet.
 - **At rest the drawer is not mounted.** An open drawer is a dialog layer that
   takes every Escape on the page and lifts itself over the keyboard for any
   focused field.
