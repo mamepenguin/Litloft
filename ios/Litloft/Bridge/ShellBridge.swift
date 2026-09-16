@@ -9,7 +9,12 @@ import os
 final class ShellBridge: NSObject, WKScriptMessageHandler {
     static let handlerName = "litloft"
 
+    private let server: URL
     private weak var webView: WKWebView?
+
+    init(server: URL) {
+        self.server = server
+    }
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Litloft", category: "bridge")
 
     func install(in configuration: WKWebViewConfiguration) {
@@ -24,7 +29,7 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage
     ) {
-        guard let reply = Self.route(body: message.body, fromMainFrame: message.frameInfo.isMainFrame) else {
+        guard let reply = Self.route(body: message.body, from: MessageOrigin(message), server: server) else {
             log.error("dropped an unroutable message")
             return
         }
@@ -34,11 +39,11 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     /// The whole acceptance decision: who may command the shell, what a command
     /// has to look like, and what answers it. Pure, so a test can hold it.
     ///
-    /// The handler is injected into every frame — WebKit offers no way to scope
-    /// that — and replies only ever reach the main frame, so a subframe could
-    /// otherwise command the shell and never hear back.
-    nonisolated static func route(body: Any, fromMainFrame: Bool) -> ShellMessage? {
-        guard fromMainFrame,
+    /// The handler is injected into every frame of every document the web view
+    /// loads — WebKit offers no way to scope that — so the sender is checked
+    /// here instead.
+    nonisolated static func route(body: Any, from origin: MessageOrigin, server: URL) -> ShellMessage? {
+        guard origin.isTrusted(for: server),
               let body = body as? [String: Any],
               let type = body["type"] as? String,
               let seq = body["seq"] as? Int

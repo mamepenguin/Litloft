@@ -41,11 +41,12 @@ struct WebView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let model: WebViewModel
-        let bridge = ShellBridge()
+        let bridge: ShellBridge
         var lastReloadToken = 0
 
         init(model: WebViewModel) {
             self.model = model
+            self.bridge = ShellBridge(server: model.serverURL)
         }
 
         func start(_ webView: WKWebView) {

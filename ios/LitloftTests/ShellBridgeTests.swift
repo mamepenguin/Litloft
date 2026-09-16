@@ -3,6 +3,59 @@ import Testing
 
 @testable import Litloft
 
+private let server = URL(string: "http://litloft.local:3000")!
+
+private func origin(
+    mainFrame: Bool = true,
+    scheme: String = "http",
+    host: String = "litloft.local",
+    port: Int = 3000
+) -> MessageOrigin {
+    MessageOrigin(isMainFrame: mainFrame, scheme: scheme, host: host, port: port)
+}
+
+struct MessageOriginTests {
+    @Test("the server's own main frame is trusted")
+    func serverIsTrusted() {
+        #expect(origin().isTrusted(for: server))
+    }
+
+    /// Whichever convention WebKit uses for a default port, it has to agree
+    /// with the URL the shell was pointed at.
+    @Test("a default port matches however either side spells it", arguments: [
+        ("http", "http://litloft.local", 0, true),
+        ("http", "http://litloft.local", 80, true),
+        ("http", "http://litloft.local:80", 0, true),
+        ("http", "http://litloft.local:80", 80, true),
+        ("https", "https://litloft.local", 0, true),
+        ("https", "https://litloft.local", 443, true),
+        ("https", "https://litloft.local:443", 443, true),
+        ("http", "http://litloft.local", 3000, false),
+        ("http", "http://litloft.local:3000", 0, false),
+        ("http", "http://litloft.local:3000", 80, false),
+        ("https", "https://litloft.local", 80, false)
+    ])
+    func defaultPorts(scheme: String, url: String, port: Int, expected: Bool) {
+        let origin = origin(scheme: scheme, host: "litloft.local", port: port)
+        #expect(origin.isTrusted(for: URL(string: url)!) == expected)
+    }
+
+    @Test("a stranger is not trusted")
+    func strangersAreNotTrusted() {
+        #expect(origin(mainFrame: false).isTrusted(for: server) == false)
+        #expect(origin(host: "evil.example").isTrusted(for: server) == false)
+        #expect(origin(scheme: "https").isTrusted(for: server) == false)
+        #expect(origin(port: 3001).isTrusted(for: server) == false)
+        #expect(origin(host: "litloft.local.evil.example").isTrusted(for: server) == false)
+        #expect(origin(host: "sub.litloft.local").isTrusted(for: server) == false)
+    }
+
+    @Test("host and scheme are compared without case")
+    func caseIsFolded() {
+        #expect(origin(scheme: "HTTP", host: "LITLOFT.local").isTrusted(for: server))
+    }
+}
+
 struct ShellBridgeTests {
     @Test("a ping is answered with a pong carrying the same seq")
     func pingIsAnswered() throws {
@@ -12,12 +65,13 @@ struct ShellBridgeTests {
         #expect(reply.seq == 42)
     }
 
-    @Test("a well-formed ping from a subframe is not answered")
-    func subframeIsNotTrusted() {
+    @Test("a well-formed ping from anyone but the server is not answered")
+    func onlyTheServerIsAnswered() {
         let ping: Any = ["type": "ping", "seq": 42]
 
-        #expect(ShellBridge.route(body: ping, fromMainFrame: true) != nil)
-        #expect(ShellBridge.route(body: ping, fromMainFrame: false) == nil)
+        #expect(ShellBridge.route(body: ping, from: origin(), server: server) != nil)
+        #expect(ShellBridge.route(body: ping, from: origin(mainFrame: false), server: server) == nil)
+        #expect(ShellBridge.route(body: ping, from: origin(host: "evil.example"), server: server) == nil)
     }
 
     @Test("a body that is not a command is not answered")
@@ -32,7 +86,7 @@ struct ShellBridgeTests {
         ]
 
         for body in bodies {
-            #expect(ShellBridge.route(body: body, fromMainFrame: true) == nil)
+            #expect(ShellBridge.route(body: body, from: origin(), server: server) == nil)
         }
     }
 
