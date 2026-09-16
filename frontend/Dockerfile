@@ -1,6 +1,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
+COPY frontend/patches/ ./patches/
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY frontend/ .
 COPY addon[s]/ /tmp/_all_addons/
