@@ -153,8 +153,29 @@ describe("AudioPlayer", () => {
 describe("AudioPlayer inside the iOS shell", () => {
   interface StubbedWindow extends Window {
     webkit?: unknown;
+    __litloft?: { receive(payload: unknown): void };
   }
   let posted: Record<string, unknown>[];
+
+  const loadSeqFor = (fileId: string) =>
+    posted.filter((m) => m.type === "media.load" && String(m.url).includes(`/${fileId}/`)).at(-1)
+      ?.seq as number;
+
+  /** What the shell reports about `fileId`, taken after that file loaded. */
+  function report(fileId: string, reading: { time: number; duration: number; ended?: boolean; paused?: boolean }) {
+    (window as StubbedWindow).__litloft?.receive({
+      type: "media.tick",
+      appliedSeq: loadSeqFor(fileId),
+      paused: false,
+      rate: 1,
+      volume: 1,
+      buffered: 0,
+      ended: false,
+      ...reading,
+    });
+  }
+
+  const fileB: FileItem = { ...mockFile, id: "audio-2", filename: "b.mp3", title: "Song B" };
 
   beforeEach(() => {
     posted = [];
@@ -167,6 +188,7 @@ describe("AudioPlayer inside the iOS shell", () => {
 
   afterEach(() => {
     delete (window as StubbedWindow).webkit;
+    delete (window as StubbedWindow).__litloft;
   });
 
   /** Two players on one file would both stream it and both be heard. */
@@ -208,5 +230,93 @@ describe("AudioPlayer inside the iOS shell", () => {
     unmount();
 
     expect(posted.some((m) => m.type === "media.unload")).toBe(true);
+  });
+
+  describe("watch history", () => {
+    beforeEach(() => {
+      mockSaveWatchProgress.mockClear();
+      mockGetWatchProgress.mockClear();
+    });
+
+    it("saves the position as the file plays", async () => {
+      vi.useFakeTimers();
+      try {
+        render(<AudioPlayer file={mockFile} />);
+        await act(async () => {
+          report("audio-1", { time: 2, duration: 180 });
+          await vi.advanceTimersByTimeAsync(MEDIA_CLOCK_IDLE_MS);
+        });
+        await act(async () => {
+          report("audio-1", { time: 30, duration: 180 });
+          await vi.advanceTimersByTimeAsync(MEDIA_CLOCK_IDLE_MS * 2);
+        });
+
+        expect(mockSaveWatchProgress).toHaveBeenCalledWith("audio-1", 30, 180);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    /** Unloading used to zero the reading before this save could read it. */
+    it("saves where the listener got to when they leave", async () => {
+      vi.useFakeTimers();
+      try {
+        const { unmount } = render(<AudioPlayer file={mockFile} />);
+        await act(async () => {
+          report("audio-1", { time: 2, duration: 180 });
+          await vi.advanceTimersByTimeAsync(MEDIA_CLOCK_IDLE_MS);
+        });
+        await act(async () => {
+          report("audio-1", { time: 30, duration: 180 });
+          await vi.advanceTimersByTimeAsync(MEDIA_CLOCK_IDLE_MS);
+        });
+        expect(mockSaveWatchProgress).toHaveBeenLastCalledWith("audio-1", 30, 180);
+        // Past the teardown threshold, short of the next periodic save.
+        await act(async () => {
+          report("audio-1", { time: 33, duration: 180 });
+          await vi.advanceTimersByTimeAsync(MEDIA_CLOCK_IDLE_MS);
+        });
+        mockSaveWatchProgress.mockClear();
+
+        unmount();
+
+        expect(mockSaveWatchProgress).toHaveBeenCalledWith("audio-1", 33, 180);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("records the end and moves on when the file runs out", async () => {
+      const onEnded = vi.fn();
+      render(<AudioPlayer file={mockFile} onEnded={onEnded} />);
+
+      await act(async () => {
+        report("audio-1", { time: 180, duration: 180, ended: true, paused: true });
+      });
+
+      expect(onEnded).toHaveBeenCalledOnce();
+      expect(mockSaveWatchProgress).toHaveBeenCalledWith("audio-1", 180, 180);
+    });
+
+    /**
+     * The previous file's end is still in flight when autoplay moves to the
+     * next one; applied there, it marks a file nobody heard as finished.
+     */
+    it("does not mark the next file finished with the previous file's end", async () => {
+      const onEnded = vi.fn();
+      const { rerender } = render(<AudioPlayer file={mockFile} onEnded={onEnded} />);
+      await act(async () => {
+        report("audio-1", { time: 180, duration: 180, ended: true, paused: true });
+      });
+
+      rerender(<AudioPlayer file={fileB} onEnded={onEnded} />);
+      await act(async () => {
+        // Still about audio-1: taken before audio-2 was loaded.
+        report("audio-1", { time: 180, duration: 180, ended: true, paused: true });
+      });
+
+      expect(onEnded).toHaveBeenCalledOnce();
+      expect(mockSaveWatchProgress).not.toHaveBeenCalledWith("audio-2", expect.anything(), expect.anything());
+    });
   });
 });

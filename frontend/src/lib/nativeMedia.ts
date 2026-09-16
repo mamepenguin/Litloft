@@ -47,6 +47,13 @@ export class MediaChannel {
    */
   private pendingSeek: { seq: number; time: number } | null = null;
 
+  /**
+   * The load this channel is for. A reading below it was taken before the
+   * shell switched files, so it describes some other file; none is accepted
+   * before a load or after an unload.
+   */
+  private loadSeq: number | null = null;
+
   /** Fires once when the shell reports the file has run out. */
   onEnded: (() => void) | null = null;
 
@@ -63,7 +70,7 @@ export class MediaChannel {
   load(source: MediaSource): void {
     this.shadow = INITIAL;
     this.pendingSeek = null;
-    this.send({ type: "media.load", ...source });
+    this.loadSeq = this.send({ type: "media.load", ...source });
   }
 
   play(): void {
@@ -91,9 +98,14 @@ export class MediaChannel {
     this.send({ type: "media.setVolume", volume });
   }
 
+  /**
+   * The last reading is kept: whatever tears down next still reads the
+   * position to save it. The shell answers an unload with a tick of its own,
+   * which would otherwise overwrite that reading with zeros.
+   */
   unload(): void {
     this.send({ type: "media.unload" });
-    this.shadow = INITIAL;
+    this.loadSeq = null;
     this.pendingSeek = null;
   }
 
@@ -109,6 +121,8 @@ export class MediaChannel {
   }
 
   private apply(tick: MediaTick): void {
+    if (this.loadSeq === null || tick.appliedSeq < this.loadSeq) return;
+
     // `appliedSeq` only rises, so once a seek has landed no later tick can
     // fall behind it again and the pending value stops mattering on its own.
     const pending = this.pendingSeek;

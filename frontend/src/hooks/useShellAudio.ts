@@ -17,7 +17,10 @@ export function useShellAudio(
   file: FileItem,
   { autoPlay, onEnded }: { autoPlay: boolean; onEnded?: () => void },
 ): MediaController | null {
-  const [mc, setMc] = useState<MediaController | null>(null);
+  // Keyed by file: after the file changes, the previous controller is still in
+  // state for one render, and handing it out would let the new file's
+  // progress read the old file's position.
+  const [owned, setOwned] = useState<{ fileId: string; mc: MediaController } | null>(null);
 
   // Read at the moment the file runs out rather than captured at load, so a
   // changing handler does not tear the player down.
@@ -44,15 +47,15 @@ export function useShellAudio(
     });
     if (autoPlayRef.current) channel.play();
 
-    setMc(createNativeShellController(channel));
+    setOwned({ fileId: file.id, mc: createNativeShellController(channel) });
 
     return () => {
       channel.onEnded = null;
       channel.unload();
       channel.dispose();
-      setMc(null);
+      setOwned(null);
     };
   }, [file.id, title, artist]);
 
-  return mc;
+  return owned?.fileId === file.id ? owned.mc : null;
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 type Media = typeof import("../nativeMedia");
+type Channel = InstanceType<Media["MediaChannel"]>;
 type Tick = import("../nativeBridge").MediaTick;
 
 interface StubbedWindow extends Window {
@@ -20,27 +21,18 @@ function installShell(): void {
   };
 }
 
-function tick(overrides: Partial<Tick> = {}): void {
-  win().__litloft?.receive({
-    type: "media.tick",
-    appliedSeq: 0,
-    time: 0,
-    duration: 0,
-    paused: true,
-    rate: 1,
-    volume: 1,
-    buffered: 0,
-    ended: false,
-    ...overrides,
-  });
+function deliver(tick: Tick): void {
+  win().__litloft?.receive(tick);
 }
 
-const seqOf = (type: string) => posted.find((m) => m.type === type)?.seq as number;
+const seqOf = (type: string) => posted.filter((m) => m.type === type).at(-1)?.seq as number;
 
 async function load(): Promise<Media> {
   vi.resetModules();
   return import("../nativeMedia");
 }
+
+const SOURCE = { url: "http://litloft.local:3000/api/files/a/stream", title: "A" };
 
 afterEach(() => {
   delete win().webkit;
@@ -56,12 +48,28 @@ describe("outside the shell", () => {
 
 describe("the media channel", () => {
   let media: Media;
-  let channel: InstanceType<Media["MediaChannel"]>;
+  let channel: Channel;
+
+  /** A reading of this channel's own file, taken at `appliedSeq`. */
+  const tick = (overrides: Partial<Tick> = {}) =>
+    deliver({
+      type: "media.tick",
+      appliedSeq: seqOf("media.load"),
+      time: 0,
+      duration: 0,
+      paused: true,
+      rate: 1,
+      volume: 1,
+      buffered: 0,
+      ended: false,
+      ...overrides,
+    });
 
   beforeEach(async () => {
     installShell();
     media = await load();
     channel = new media.MediaChannel();
+    channel.load(SOURCE);
   });
 
   afterEach(() => channel.dispose());
@@ -72,24 +80,18 @@ describe("the media channel", () => {
     channel.seek(30);
 
     const seqs = posted.map((m) => m.seq as number);
-    expect(seqs).toHaveLength(3);
-    expect(seqs[1]).toBeGreaterThan(seqs[0]);
-    expect(seqs[2]).toBeGreaterThan(seqs[1]);
+    expect(seqs).toHaveLength(4);
+    expect(seqs).toEqual([...seqs].sort((a, b) => a - b));
+    expect(new Set(seqs).size).toBe(4);
   });
 
   it("sends what the shell needs to play and label a file", () => {
-    channel.load({ url: "http://litloft.local:3000/api/files/abc/stream", title: "A note" });
-
-    expect(posted[0]).toMatchObject({
-      type: "media.load",
-      url: "http://litloft.local:3000/api/files/abc/stream",
-      title: "A note",
-    });
+    expect(posted[0]).toMatchObject({ type: "media.load", ...SOURCE });
     expect(channel.read().time).toBe(0);
   });
 
   it("reads back what the shell reports", () => {
-    tick({ time: 42, duration: 100, paused: false, rate: 1.5, volume: 0.3, buffered: 60, ended: false });
+    tick({ time: 42, duration: 100, paused: false, rate: 1.5, volume: 0.3, buffered: 60 });
 
     expect(channel.read()).toEqual({
       time: 42,
@@ -110,100 +112,168 @@ describe("the media channel", () => {
     expect(channel.read().rate).toBe(1.5);
   });
 
-  it("holds a seek until a reading taken after it arrives", () => {
-    tick({ time: 10, duration: 100, paused: false, appliedSeq: 0 });
-    channel.seek(90);
-    expect(channel.read().time).toBe(90);
+  describe("a seek", () => {
+    it("holds its position until a reading taken after it arrives", () => {
+      tick({ time: 10, duration: 100, paused: false });
+      channel.seek(90);
+      expect(channel.read().time).toBe(90);
 
-    // In flight when the seek went out: its position is from before.
-    tick({ time: 11, duration: 100, paused: false, appliedSeq: 0 });
-    expect(channel.read().time).toBe(90);
+      // This file's, but from before the seek landed.
+      tick({ time: 11, duration: 100, paused: false });
+      expect(channel.read().time).toBe(90);
 
-    tick({ time: 90.5, duration: 100, paused: false, appliedSeq: seqOf("media.seek") });
-    expect(channel.read().time).toBe(90.5);
+      tick({ time: 90.5, duration: 100, paused: false, appliedSeq: seqOf("media.seek") });
+      expect(channel.read().time).toBe(90.5);
+    });
+
+    it("lets every other field update while it is outstanding", () => {
+      channel.seek(90);
+      tick({ time: 11, duration: 250, paused: false, volume: 0.2 });
+
+      const shadow = channel.read();
+      expect(shadow.time).toBe(90);
+      expect(shadow.duration).toBe(250);
+      expect(shadow.paused).toBe(false);
+      expect(shadow.volume).toBe(0.2);
+    });
+
+    it("takes the newer of two, whichever order the readings arrive in", () => {
+      channel.seek(30);
+      channel.seek(60);
+      const second = seqOf("media.seek");
+
+      tick({ time: 30, appliedSeq: second - 1 });
+      expect(channel.read().time).toBe(60);
+
+      tick({ time: 60, appliedSeq: second });
+      expect(channel.read().time).toBe(60);
+    });
+
+    it("stops holding once it is acknowledged", () => {
+      channel.seek(90);
+      tick({ time: 90, appliedSeq: seqOf("media.seek") });
+      tick({ time: 91, appliedSeq: seqOf("media.seek") });
+
+      expect(channel.read().time).toBe(91);
+    });
   });
 
-  it("keeps reporting everything else while a seek is outstanding", () => {
-    channel.seek(90);
-    tick({ time: 11, duration: 250, paused: false, volume: 0.2, appliedSeq: 0 });
+  describe("a reading about another file", () => {
+    it("is not applied to this one", () => {
+      tick({ time: 5, duration: 100 });
 
-    const shadow = channel.read();
-    expect(shadow.time).toBe(90);
-    expect(shadow.duration).toBe(250);
-    expect(shadow.paused).toBe(false);
-    expect(shadow.volume).toBe(0.2);
+      deliver({
+        type: "media.tick",
+        appliedSeq: seqOf("media.load") - 1,
+        time: 180,
+        duration: 180,
+        paused: false,
+        rate: 1,
+        volume: 1,
+        buffered: 180,
+        ended: true,
+      });
+
+      expect(channel.read()).toMatchObject({ time: 5, duration: 100, ended: false });
+    });
+
+    /** The previous file's end, still in flight when the next one loaded. */
+    it("does not say this file ran out", () => {
+      const ended = vi.fn();
+      channel.onEnded = ended;
+
+      deliver({
+        type: "media.tick",
+        appliedSeq: seqOf("media.load") - 1,
+        time: 180,
+        duration: 180,
+        paused: true,
+        rate: 1,
+        volume: 1,
+        buffered: 180,
+        ended: true,
+      });
+
+      expect(ended).not.toHaveBeenCalled();
+    });
+
+    it("is not accepted before a file is loaded", async () => {
+      const fresh = new media.MediaChannel();
+      deliver({
+        type: "media.tick",
+        appliedSeq: 9_999,
+        time: 42,
+        duration: 100,
+        paused: false,
+        rate: 1,
+        volume: 1,
+        buffered: 0,
+        ended: false,
+      });
+
+      expect(fresh.read().time).toBe(0);
+      fresh.dispose();
+    });
   });
 
-  it("takes the newer of two seeks, whichever order the ticks arrive in", () => {
-    channel.seek(30);
-    channel.seek(60);
-    const second = posted.filter((m) => m.type === "media.seek").at(-1)!.seq as number;
+  describe("the end of a file", () => {
+    it("is said once", () => {
+      const ended = vi.fn();
+      channel.onEnded = ended;
 
-    tick({ time: 30, appliedSeq: second - 1 });
-    expect(channel.read().time).toBe(60);
+      tick({ time: 100, duration: 100, ended: true });
+      // The shell says it again when the app comes back on screen.
+      tick({ time: 100, duration: 100, ended: true });
 
-    tick({ time: 60, appliedSeq: second });
-    expect(channel.read().time).toBe(60);
+      expect(ended).toHaveBeenCalledOnce();
+    });
+
+    it("is said again for the next file that runs out", () => {
+      const ended = vi.fn();
+      channel.onEnded = ended;
+
+      tick({ ended: true });
+      channel.load({ url: "http://litloft.local:3000/api/files/b/stream", title: "B" });
+      tick({ ended: true });
+
+      expect(ended).toHaveBeenCalledTimes(2);
+    });
+
+    it("is not said while the file is still playing", () => {
+      const ended = vi.fn();
+      channel.onEnded = ended;
+
+      tick({ time: 50, duration: 100 });
+
+      expect(ended).not.toHaveBeenCalled();
+    });
   });
 
-  it("stops holding a position once the seek is acknowledged", () => {
-    channel.seek(90);
-    tick({ time: 90, appliedSeq: seqOf("media.seek") });
-    tick({ time: 91, appliedSeq: seqOf("media.seek") });
+  describe("unloading", () => {
+    /** Whatever tears down next reads the position to save it. */
+    it("keeps the last reading", () => {
+      tick({ time: 42, duration: 180, paused: false });
 
-    expect(channel.read().time).toBe(91);
-  });
+      channel.unload();
 
-  it("says the file ran out, once", () => {
-    const ended = vi.fn();
-    channel.onEnded = ended;
+      expect(channel.read()).toMatchObject({ time: 42, duration: 180 });
+    });
 
-    tick({ time: 100, duration: 100, ended: true });
-    tick({ time: 100, duration: 100, ended: true });
+    it("is not undone by the shell's own answer to it", () => {
+      tick({ time: 42, duration: 180 });
+      channel.unload();
 
-    expect(ended).toHaveBeenCalledOnce();
-  });
+      tick({ time: 0, duration: 0, appliedSeq: seqOf("media.unload") });
 
-  it("says it again if a new file also runs out", () => {
-    const ended = vi.fn();
-    channel.onEnded = ended;
-
-    tick({ ended: true });
-    channel.load({ url: "http://litloft.local:3000/x", title: "Another" });
-    tick({ ended: true });
-
-    expect(ended).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not say the file ran out while it is still playing", () => {
-    const ended = vi.fn();
-    channel.onEnded = ended;
-
-    tick({ time: 50, duration: 100, ended: false });
-
-    expect(ended).not.toHaveBeenCalled();
+      expect(channel.read()).toMatchObject({ time: 42, duration: 180 });
+    });
   });
 
   it("ignores a payload that is not a tick", () => {
-    tick({ time: 5, appliedSeq: 0 });
+    tick({ time: 5 });
     win().__litloft?.receive({ type: "pong", seq: 1 });
 
     expect(channel.read().time).toBe(5);
-  });
-
-  it("forgets everything on unload", () => {
-    tick({ time: 42, duration: 100, paused: false, ended: true });
-    channel.unload();
-
-    expect(channel.read()).toEqual({
-      time: 0,
-      duration: 0,
-      paused: true,
-      rate: 1,
-      volume: 1,
-      buffered: 0,
-      ended: false,
-    });
   });
 
   it("stops listening once disposed", () => {
