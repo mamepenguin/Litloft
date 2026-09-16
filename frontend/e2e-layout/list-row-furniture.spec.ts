@@ -61,7 +61,7 @@ const PAD_PX = 10;
 const PAD_SM_PX = 8;
 const STAR_FINE_PX = 28;
 const MORE_FINE_PX = 24;
-/** A folder row with its bottom border: the 44px floor, or a 20px line plus padding. */
+/** A folder row with its bottom border: the 44px control floor. */
 const FOLDER_ROW_COARSE_PX = 45;
 
 /**
