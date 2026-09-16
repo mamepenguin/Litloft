@@ -1,14 +1,14 @@
 "use client";
 
 import { Pause, Play } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { formatDuration } from "@/lib/format";
 import type { MediaController } from "@/lib/mediaController";
 import { useMediaClock } from "@/lib/mediaClock";
 
-const RATES = [1, 1.25, 1.5, 1.75, 2];
+export const PLAYBACK_RATES = [1, 1.25, 1.5, 1.75, 2];
 
 /**
  * A transport for audio, where there is no frame to lay controls over: the
@@ -18,6 +18,14 @@ export function AudioTransport({ mc }: { mc: MediaController | null }) {
   const t = useTranslations("player");
   const { currentTime, duration, paused } = useMediaClock(mc);
   const [scrubbing, setScrubbing] = useState<number | null>(null);
+
+  // The clock does not carry the rate, and while paused nothing else changes
+  // to re-render with it, so the chosen rate is shown at once and corrected
+  // whenever the clock next moves.
+  const [shownRate, setShownRate] = useState(1);
+  useEffect(() => {
+    if (mc) setShownRate(mc.getPlaybackRate());
+  }, [mc, currentTime, paused, duration]);
 
   const position = scrubbing ?? currentTime;
   const seekable = duration > 0;
@@ -32,9 +40,11 @@ export function AudioTransport({ mc }: { mc: MediaController | null }) {
 
   const cycleRate = useCallback(() => {
     if (!mc) return;
-    const next = RATES[(RATES.indexOf(mc.getPlaybackRate()) + 1) % RATES.length];
+    const index = PLAYBACK_RATES.indexOf(shownRate);
+    const next = PLAYBACK_RATES[(index + 1) % PLAYBACK_RATES.length];
     mc.setPlaybackRate(next);
-  }, [mc]);
+    setShownRate(next);
+  }, [mc, shownRate]);
 
   return (
     <div className="flex w-full max-w-md items-center gap-3">
@@ -59,6 +69,9 @@ export function AudioTransport({ mc }: { mc: MediaController | null }) {
         onChange={(event) => setScrubbing(Number(event.target.value))}
         onPointerUp={(event) => commit(Number(event.currentTarget.value))}
         onKeyUp={(event) => commit(Number(event.currentTarget.value))}
+        // A drag the system takes over ends without a pointerup.
+        onPointerCancel={() => setScrubbing(null)}
+        onBlur={() => setScrubbing(null)}
         className="h-1 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-bg-border accent-accent disabled:cursor-not-allowed"
       />
 
@@ -75,7 +88,7 @@ export function AudioTransport({ mc }: { mc: MediaController | null }) {
         aria-label={t("speed")}
         className="shrink-0 rounded-lg px-2 py-1 text-xs tabular-nums text-text-muted transition-colors hover:bg-bg-elevated disabled:opacity-40"
       >
-        {mc ? `${mc.getPlaybackRate()}x` : "1x"}
+        {`${shownRate}x`}
       </button>
     </div>
   );

@@ -57,6 +57,13 @@ export class MediaChannel {
   /** Fires once when the shell reports the file has run out. */
   onEnded: (() => void) | null = null;
 
+  /**
+   * Fires once per file, on the first reading with a usable length — the
+   * shell's equivalent of a media element's loaded metadata.
+   */
+  onReady: (() => void) | null = null;
+  private readySent = false;
+
   constructor() {
     this.unsubscribe = subscribeToShell((message) => {
       if (message.type === "media.tick") this.apply(message);
@@ -70,6 +77,7 @@ export class MediaChannel {
   load(source: MediaSource): void {
     this.shadow = INITIAL;
     this.pendingSeek = null;
+    this.readySent = false;
     this.loadSeq = this.send({ type: "media.load", ...source });
   }
 
@@ -142,6 +150,10 @@ export class MediaChannel {
       ended: tick.ended,
     };
 
+    if (!this.readySent && tick.duration > 0) {
+      this.readySent = true;
+      this.onReady?.();
+    }
     if (justEnded) this.onEnded?.();
   }
 }

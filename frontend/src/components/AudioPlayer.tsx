@@ -30,9 +30,11 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
   // The handler needs the controller this call produces, so it arrives through
   // a ref rather than the two being defined in a circle.
   const endedRef = useRef<(() => void) | undefined>(undefined);
+  const readyRef = useRef<(() => Promise<void>) | undefined>(undefined);
   const shellMc = useShellAudio(file, {
     autoPlay: autoPlay || preferAutoplay,
     onEnded: () => endedRef.current?.(),
+    onReady: () => readyRef.current?.() ?? Promise.resolve(),
   });
   const mc = native ? shellMc : elementMc;
 
@@ -71,6 +73,7 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
     onEnded?.();
   }, [notifyEnded, onEnded]);
   endedRef.current = handleEnded;
+  readyRef.current = notifyReady;
 
   // In the shell the lock screen is the shell's, and two owners would fight
   // over it.

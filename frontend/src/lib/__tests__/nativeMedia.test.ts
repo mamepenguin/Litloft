@@ -249,6 +249,40 @@ describe("the media channel", () => {
     });
   });
 
+  describe("readiness", () => {
+    it("is announced on the first reading with a usable length", () => {
+      const ready = vi.fn();
+      channel.onReady = ready;
+
+      tick({ duration: 0 });
+      expect(ready).not.toHaveBeenCalled();
+
+      tick({ duration: 180 });
+      tick({ duration: 180, time: 1 });
+      expect(ready).toHaveBeenCalledOnce();
+    });
+
+    it("is announced again for the next file", () => {
+      const ready = vi.fn();
+      channel.onReady = ready;
+
+      tick({ duration: 180 });
+      channel.load({ url: "http://litloft.local:3000/api/files/b/stream", title: "B" });
+      tick({ duration: 90 });
+
+      expect(ready).toHaveBeenCalledTimes(2);
+    });
+
+    it("is not announced by a reading about another file", () => {
+      const ready = vi.fn();
+      channel.onReady = ready;
+
+      tick({ duration: 180, appliedSeq: seqOf("media.load") - 1 });
+
+      expect(ready).not.toHaveBeenCalled();
+    });
+  });
+
   describe("unloading", () => {
     /** Whatever tears down next reads the position to save it. */
     it("keeps the last reading", () => {

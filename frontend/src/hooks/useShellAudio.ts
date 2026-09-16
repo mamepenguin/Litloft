@@ -15,7 +15,16 @@ import type { FileItem } from "@/types";
  */
 export function useShellAudio(
   file: FileItem,
-  { autoPlay, onEnded }: { autoPlay: boolean; onEnded?: () => void },
+  {
+    autoPlay,
+    onEnded,
+    onReady,
+  }: {
+    autoPlay: boolean;
+    onEnded?: () => void;
+    /** Settles once the resume point, if any, has been applied. */
+    onReady?: () => Promise<void>;
+  },
 ): MediaController | null {
   // Keyed by file: after the file changes, the previous controller is still in
   // state for one render, and handing it out would let the new file's
@@ -26,36 +35,52 @@ export function useShellAudio(
   // changing handler does not tear the player down.
   const endedRef = useRef(onEnded);
   endedRef.current = onEnded;
+  const readyRef = useRef(onReady);
+  readyRef.current = onReady;
   const autoPlayRef = useRef(autoPlay);
   autoPlayRef.current = autoPlay;
 
-  const title = file.title || file.filename;
-  const artist = file.folder_path || file.drive;
+  // Read when the file loads rather than listed as dependencies: renaming the
+  // file being listened to must not reload it.
+  const labelRef = useRef({ title: "", artist: "" });
+  labelRef.current = {
+    title: file.title || file.filename,
+    artist: file.folder_path || file.drive,
+  };
 
   useEffect(() => {
     const channel = createMediaChannel();
     if (!channel) return;
+    // The resume read is a round trip; the file can change while it is out,
+    // and the shell has one player, so a late play would start the next file.
+    let current = true;
 
     channel.onEnded = () => endedRef.current?.();
+    // Autoplay waits for the resume decision, or playback starts at zero and
+    // the restored position lands a moment later.
+    channel.onReady = () => {
+      void Promise.resolve(readyRef.current?.()).then(() => {
+        if (current && autoPlayRef.current) channel.play();
+      });
+    };
     channel.load({
       // The shell hands this to AVPlayer, which has no page to resolve it
       // against.
       url: new URL(getStreamUrl(file.id), window.location.origin).toString(),
-      title,
-      artist,
+      ...labelRef.current,
       artworkUrl: new URL(getThumbnailUrl(file.id), window.location.origin).toString(),
     });
-    if (autoPlayRef.current) channel.play();
-
     setOwned({ fileId: file.id, mc: createNativeShellController(channel) });
 
     return () => {
+      current = false;
       channel.onEnded = null;
+      channel.onReady = null;
       channel.unload();
       channel.dispose();
       setOwned(null);
     };
-  }, [file.id, title, artist]);
+  }, [file.id]);
 
   return owned?.fileId === file.id ? owned.mc : null;
 }

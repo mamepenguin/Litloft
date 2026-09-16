@@ -214,13 +214,64 @@ describe("AudioPlayer inside the iOS shell", () => {
     expect(screen.getByRole("slider", { name: "Seek" })).toBeInTheDocument();
   });
 
-  it("starts playing when autoplay is asked for, and not otherwise", () => {
+  /**
+   * Playing before the resume decision starts at zero, and the restored
+   * position lands a moment later — heard as the file starting over.
+   */
+  it("starts an autoplay only after the resume point is applied", async () => {
+    mockGetWatchProgress.mockResolvedValueOnce({ position: 60, duration: 180 });
     render(<AudioPlayer file={mockFile} autoPlay />);
-    expect(posted.some((m) => m.type === "media.play")).toBe(true);
-
-    posted.length = 0;
-    render(<AudioPlayer file={mockFile} />);
     expect(posted.some((m) => m.type === "media.play")).toBe(false);
+
+    await act(async () => {
+      report("audio-1", { time: 0, duration: 180, paused: true });
+    });
+
+    const types = posted.map((m) => m.type);
+    const seek = posted.findIndex((m) => m.type === "media.seek" && m.time === 60);
+    const play = types.indexOf("media.play");
+    expect(seek).toBeGreaterThanOrEqual(0);
+    expect(play).toBeGreaterThan(seek);
+  });
+
+  it("does not start without autoplay", async () => {
+    render(<AudioPlayer file={mockFile} />);
+
+    await act(async () => {
+      report("audio-1", { time: 0, duration: 180, paused: true });
+    });
+
+    expect(posted.some((m) => m.type === "media.play")).toBe(false);
+  });
+
+  /** The shell has one player; a late play would start whatever loaded next. */
+  it("does not start the next file with the previous file's autoplay", async () => {
+    let settle: (value: { position: number; duration: number }) => void = () => {};
+    mockGetWatchProgress.mockReturnValueOnce(new Promise((resolve) => { settle = resolve; }));
+    const { rerender } = render(<AudioPlayer file={mockFile} autoPlay />);
+    await act(async () => {
+      report("audio-1", { time: 0, duration: 180, paused: true });
+    });
+
+    // Autoplay stays on as it advances, so only the stale read can be blamed.
+    rerender(<AudioPlayer file={fileB} autoPlay />);
+    const before = posted.length;
+    await act(async () => {
+      settle({ position: 0, duration: 0 });
+    });
+
+    expect(posted.slice(before).some((m) => m.type === "media.play")).toBe(false);
+  });
+
+  /** Renaming the file being listened to must not reload it. */
+  it("keeps playing when the file is renamed", () => {
+    const { rerender } = render(<AudioPlayer file={mockFile} />);
+    const loads = posted.filter((m) => m.type === "media.load").length;
+
+    rerender(<AudioPlayer file={{ ...mockFile, title: "Renamed" }} />);
+
+    expect(posted.filter((m) => m.type === "media.load")).toHaveLength(loads);
+    expect(posted.some((m) => m.type === "media.unload")).toBe(false);
   });
 
   it("gives the file back when it goes away", () => {
