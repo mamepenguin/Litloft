@@ -43,7 +43,7 @@ For local development (running the backend outside Docker) symlink the addon int
 
 | Flag | Default | What it does |
 |---|---|---|
-| `url_import` | `true` | Hides **Import from URL** in the Add menu for this drive. Imports from the Media Import page and the API are not blocked by this flag. |
+| `url_import` | `true` | Hides **Import from URL** in the Add menu for this drive. Imports from the YouTube & Feeds page and the API are not blocked by this flag. |
 
 If absent, graceful-degradation kicks in (`true`).
 
@@ -51,7 +51,7 @@ If absent, graceful-degradation kicks in (`true`).
 
 Two paths:
 
-- **From the UI** — open **Add** on Home or in a Library folder and choose **Import from URL**. The dialog starts at that folder (the drive root on Home), imports a single video as a `.loft`, and keeps the URL and folder if the import fails so you can try again. Channel, playlist and feed URLs are not imported here; subscribe to them from the **Manage** view of the Media Import page.
+- **From the UI** — open **Add** on Home or in a Library folder and choose **Import from URL**. The dialog starts at that folder (the drive root on Home), imports a single video as a `.loft`, and keeps the URL and folder if the import fails so you can try again. Channel, playlist and feed URLs are not imported here; subscribe to them from the **Manage** view of the YouTube & Feeds page.
 - **From the API** — `POST /api/addons/media_import/link` with `{ "drive": "...", "folder_path": "...", "url": "...", "stt_mode": "manual" }` and the `X-Lit-Drive` header.
 
 The pipeline:
@@ -132,7 +132,7 @@ Subscriptions let the addon track YouTube channels and playlists, then poll
 periodically for new videos.
 
 - Channel / playlist registration: paste a YouTube channel or playlist URL in
-  the Media Import UI, or call `POST /api/addons/media_import/subscriptions`.
+  the YouTube & Feeds page, or call `POST /api/addons/media_import/subscriptions`.
 - Manual sync is available from the UI and via
   `POST /api/addons/media_import/subscriptions/{id}/sync`.
 - Periodic polling discovers new uploads and creates `.loft` files in the
@@ -143,7 +143,8 @@ periodically for new videos.
 ## YouTube & Feeds: Watch and Manage
 
 The addon's page is **YouTube & Feeds** in the sidebar, under **Sources**
-(`/drive/{drive}/addons/media_import`). It has two views.
+(`/drive/{drive}/addons/media_import`). Its header carries the same name and icon
+and names the drive, with no source count. It has two views.
 
 **Watch** shows videos from subscriptions you chose to surface, in two lanes:
 
