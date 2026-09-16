@@ -1,39 +1,31 @@
 import Foundation
 
-/// Moving Litloft's session between the keychain and a cookie jar. Separate
-/// from `CookieBridge` so the ordering and the filtering can be tested.
+/// Litloft's session lives in the web view's own cookie store, which is
+/// persistent — a login already survives a relaunch. The only thing the shell
+/// has to do is take the session with it when the viewer leaves a server.
 @MainActor
 enum SessionCookies {
-    /// Puts the stored session back in the jar, and reports what it put there.
-    @discardableResult
-    static func restore(into jar: CookieJar, from stored: [HTTPCookie]) async -> [HTTPCookie] {
-        for cookie in stored {
-            await jar.setCookie(cookie)
-        }
-        return stored
+    /// Set by the backend on unlock, and the viewer identity that rides
+    /// alongside it.
+    static let names: Set<String> = ["access_token", "lit_viewer"]
+
+    /// A cookie belongs to the session only if the configured server issued it.
+    /// Matching on name alone would take a same-named cookie from any origin
+    /// the web view happens to have visited.
+    static func session(in cookies: [HTTPCookie], host: String) -> [HTTPCookie] {
+        cookies.filter { names.contains($0.name) && matches(domain: $0.domain, host: host) }
     }
 
-    /// Reads the jar and persists whatever of the session it holds. An empty
-    /// result clears the vault, so a sign-out is not mistaken for "no news".
-    @discardableResult
-    static func capture(from jar: CookieJar, host: String) async -> [HTTPCookie] {
-        let tracked = CookieVault.tracked(in: await jar.allCookies(), host: host)
-        CookieVault.save(tracked)
-        return tracked
+    static func matches(domain: String, host: String) -> Bool {
+        let domain = (domain.hasPrefix(".") ? String(domain.dropFirst()) : domain).lowercased()
+        let host = host.lowercased()
+        return domain == host || host.hasSuffix("." + domain)
     }
 
-    /// The first request must carry the restored session, or it lands on the
-    /// unlock screen. Ordering lives here so a test can hold it.
-    static func restoreThenLoad(into jar: CookieJar, stored: [HTTPCookie], load: () -> Void) async {
-        await restore(into: jar, from: stored)
-        load()
-    }
-
-    /// Drops the session from every store the shell owns.
+    /// Leaving a server takes its session with it.
     static func forget(from jar: CookieJar, host: String) async {
-        for cookie in CookieVault.tracked(in: await jar.allCookies(), host: host) {
+        for cookie in session(in: await jar.allCookies(), host: host) {
             await jar.deleteCookie(cookie)
         }
-        CookieVault.clear()
     }
 }

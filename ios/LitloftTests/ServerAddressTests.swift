@@ -108,6 +108,27 @@ struct ServerSettingsTests {
         #expect(ServerSettings(defaults: defaults).lastAddress == "http://192.168.1.50:3000")
     }
 
+    @Test("leaving a server clears both its session and its address")
+    func leaveClearsSessionAndAddress() async {
+        let defaults = makeDefaults()
+        let settings = ServerSettings(defaults: defaults)
+        let url = URL(string: "http://litloft.local:3000")!
+        settings.use(url)
+
+        let jar = FakeCookieJar([
+            makeCookie(name: "access_token", domain: "litloft.local"),
+            makeCookie(name: "NEXT_LOCALE", domain: "litloft.local"),
+            makeCookie(name: "access_token", domain: "other.local")
+        ])
+
+        await settings.leave(url, jar: jar)
+
+        #expect(settings.serverURL == nil)
+        #expect(defaults.string(forKey: "serverURL") == nil)
+        #expect(await jar.allCookies().map(\.name).sorted() == ["NEXT_LOCALE", "access_token"])
+        #expect(await jar.allCookies().first { $0.name == "access_token" }?.domain == "other.local")
+    }
+
     @Test("forgetting clears the stored address")
     func forget() {
         let defaults = makeDefaults()

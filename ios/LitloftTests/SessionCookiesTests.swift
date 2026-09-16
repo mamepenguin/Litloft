@@ -1,55 +1,47 @@
 import Foundation
 import Testing
-import WebKit
 
 @testable import Litloft
 
 @MainActor
 struct SessionCookiesTests {
-    @Test("the stored session is put back in the jar")
-    func restorePutsCookiesBack() async {
-        let jar = FakeCookieJar()
-        let stored = [makeCookie(name: "access_token"), makeCookie(name: "lit_viewer")]
+    @Test("leaving a server takes its session out of the jar")
+    func forgetClearsTheSession() async {
+        let jar = FakeCookieJar([
+            makeCookie(name: "access_token"),
+            makeCookie(name: "lit_viewer"),
+            makeCookie(name: "NEXT_LOCALE")
+        ])
 
-        await SessionCookies.restore(into: jar, from: stored)
+        await SessionCookies.forget(from: jar, host: "litloft.local")
 
-        #expect(jar.calls == ["set:access_token", "set:lit_viewer"])
-        #expect(await jar.allCookies().count == 2)
+        #expect(await jar.allCookies().map(\.name) == ["NEXT_LOCALE"])
     }
 
-    @Test("the first load happens after the session is in the jar")
-    func restoreComesBeforeLoad() async {
-        let jar = FakeCookieJar()
-        var jarWhenLoadRan: [String] = []
-        var loadRan = false
+    @Test("leaving a server leaves another server's session alone")
+    func forgetSparesOtherHosts() async {
+        let jar = FakeCookieJar([
+            makeCookie(name: "access_token", domain: "litloft.local"),
+            makeCookie(name: "access_token", domain: "other.local")
+        ])
 
-        await SessionCookies.restoreThenLoad(
-            into: jar,
-            stored: [makeCookie(name: "access_token")],
-            load: {
-                loadRan = true
-                jarWhenLoadRan = jar.cookies.map(\.name)
-            }
-        )
+        await SessionCookies.forget(from: jar, host: "litloft.local")
 
-        #expect(loadRan)
-        // Asserting the two sides separately would pass in either order; what
-        // matters is what the jar held at the moment the request went out.
-        #expect(jarWhenLoadRan == ["access_token"])
+        #expect(await jar.allCookies().map(\.domain) == ["other.local"])
     }
 
     @Test("a cookie from another host is not part of the session")
-    func foreignHostIsNotTracked() {
+    func foreignHostIsNotSession() {
         let cookies = [
             makeCookie(name: "access_token", domain: "litloft.local"),
             makeCookie(name: "access_token", domain: "evil.example"),
             makeCookie(name: "lit_viewer", domain: "evil.example")
         ]
 
-        let tracked = CookieVault.tracked(in: cookies, host: "litloft.local")
+        let session = SessionCookies.session(in: cookies, host: "litloft.local")
 
-        #expect(tracked.count == 1)
-        #expect(tracked.first?.domain == "litloft.local")
+        #expect(session.count == 1)
+        #expect(session.first?.domain == "litloft.local")
     }
 
     @Test("a cookie the server did not issue is not part of the session")
@@ -60,30 +52,20 @@ struct SessionCookiesTests {
             makeCookie(name: "anything")
         ]
 
-        #expect(CookieVault.tracked(in: cookies, host: "litloft.local").map(\.name) == ["access_token"])
+        #expect(SessionCookies.session(in: cookies, host: "litloft.local").map(\.name) == ["access_token"])
     }
 
-    @Test("a leading-dot domain still matches its host", arguments: [
+    @Test("a domain matches its host regardless of dot or case", arguments: [
         (".litloft.local", "litloft.local", true),
         ("litloft.local", "litloft.local", true),
+        ("LITLOFT.local", "litloft.LOCAL", true),
+        ("MacBook-Pro-M3.local", "macbook-pro-m3.local", true),
         ("litloft.local", "sub.litloft.local", true),
         ("litloft.local", "notlitloft.local", false),
+        ("litloft.local", "litloft.local.evil.example", false),
         ("evil.example", "litloft.local", false)
     ])
     func domainMatching(domain: String, host: String, expected: Bool) {
-        #expect(CookieVault.matches(domain: domain, host: host) == expected)
-    }
-
-    @Test("leaving a server takes its session out of the jar")
-    func forgetClearsTheJar() async {
-        let jar = FakeCookieJar([
-            makeCookie(name: "access_token"),
-            makeCookie(name: "lit_viewer"),
-            makeCookie(name: "NEXT_LOCALE")
-        ])
-
-        await SessionCookies.forget(from: jar, host: "litloft.local")
-
-        #expect(await jar.allCookies().map(\.name) == ["NEXT_LOCALE"])
+        #expect(SessionCookies.matches(domain: domain, host: host) == expected)
     }
 }

@@ -83,6 +83,34 @@ struct WebViewModelTests {
         }
     }
 
+    @Test("another domain's -999 is not a cancellation")
+    func foreignDomainIsNotCancelled() {
+        let model = model()
+        model.markLoading()
+        model.markFailed(NSError(domain: "WKErrorDomain", code: -999))
+
+        guard case .failed = model.state else {
+            Issue.record("a -999 outside NSURLErrorDomain must still reach the error view")
+            return
+        }
+    }
+
+    @Test("an error outside NSURLErrorDomain keeps its own description")
+    func foreignDomainKeepsItsMessage() {
+        let model = model()
+        model.markFailed(NSError(
+            domain: "WKErrorDomain",
+            code: 102,
+            userInfo: [NSLocalizedDescriptionKey: "Frame load interrupted"]
+        ))
+
+        guard case .failed(let message) = model.state else {
+            Issue.record("expected the error state")
+            return
+        }
+        #expect(message == "Frame load interrupted")
+    }
+
     @Test("retry puts it back into loading")
     func retryReloads() {
         let model = model()

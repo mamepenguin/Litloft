@@ -26,6 +26,13 @@ final class ServerSettings {
         defaults.set(url.absoluteString, forKey: Self.key)
     }
 
+    /// Leaving a server: its session goes out of the jar, then the address
+    /// goes out of settings.
+    func leave(_ serverURL: URL, jar: CookieJar) async {
+        await SessionCookies.forget(from: jar, host: serverURL.host() ?? "")
+        forget()
+    }
+
     func forget() {
         lastAddress = serverURL?.absoluteString ?? lastAddress
         serverURL = nil

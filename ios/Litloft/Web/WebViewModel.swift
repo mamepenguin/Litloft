@@ -29,7 +29,7 @@ final class WebViewModel {
     /// A cancelled load means a newer one took over, so the page the viewer
     /// is waiting for is still on its way.
     func markFailed(_ error: Error) {
-        guard URLError.Code(rawValue: (error as NSError).code) != .cancelled else { return }
+        guard !Self.isCancelled(error) else { return }
         state = .failed(message(for: error))
     }
 
@@ -38,8 +38,17 @@ final class WebViewModel {
         state = .loading
     }
 
+    /// A code alone means nothing: every domain numbers its own errors.
+    private static func isCancelled(_ error: Error) -> Bool {
+        let error = error as NSError
+        return error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled
+    }
+
     private func message(for error: Error) -> String {
-        switch URLError.Code(rawValue: (error as NSError).code) {
+        let error = error as NSError
+        guard error.domain == NSURLErrorDomain else { return error.localizedDescription }
+
+        switch URLError.Code(rawValue: error.code) {
         case .cannotConnectToHost, .cannotFindHost:
             return String(localized: "Litloft is not answering at \(serverURL.absoluteString).")
         case .notConnectedToInternet, .networkConnectionLost:

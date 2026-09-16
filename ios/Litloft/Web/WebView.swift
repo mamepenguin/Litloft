@@ -41,23 +41,15 @@ struct WebView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let model: WebViewModel
-        let cookies: CookieBridge
         let bridge = ShellBridge()
         var lastReloadToken = 0
 
         init(model: WebViewModel) {
             self.model = model
-            self.cookies = CookieBridge(host: model.serverURL.host() ?? "")
         }
 
-        /// The stored session has to be in the jar before the first request,
-        /// or the load lands on the unlock screen.
         func start(_ webView: WKWebView) {
-            Task { [model] in
-                await cookies.attach(to: webView.configuration.websiteDataStore.httpCookieStore) {
-                    webView.load(URLRequest(url: model.serverURL))
-                }
-            }
+            webView.load(URLRequest(url: model.serverURL))
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
