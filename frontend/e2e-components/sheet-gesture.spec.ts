@@ -39,7 +39,6 @@ const stepsFor = (down: number) =>
 const SCROLLER = "[data-testid='mobile-inspector-content']";
 const SURFACE = "[data-testid='mobile-inspector-surface']";
 const KNOB = "[data-vaul-handle]";
-const OVERLAY = "[data-testid='mobile-inspector-overlay']";
 
 let navigation = 0;
 
@@ -418,17 +417,128 @@ test.describe("how the sheet leaves", () => {
     offScreen(await read(page));
   });
 
-  test("tapping the dimmed page slides it off the screen before it collapses", async ({
+});
+
+const INSET_BOTTOM_PX = 34;
+
+/** A real inset, which Chromium applies to `env(safe-area-inset-bottom)`. */
+async function withBottomInset(page: Page): Promise<void> {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setSafeAreaInsetsOverride", {
+    insets: { bottom: INSET_BOTTOM_PX },
+  });
+}
+
+test.describe("the resting strip over a page with a bottom inset", () => {
+  test("stands 56px above the inset and the page ends above it", async ({
     page,
   }) => {
-    await open(page, "sheet-gesture");
-    await page.locator(OVERLAY).tap({ position: { x: 20, y: 20 } });
+    await withBottomInset(page);
+    await open(page, "sheet-over-page-peek");
+    const m = await page.evaluate(() => {
+      const main = document.getElementById("page")!;
+      main.scrollTop = main.scrollHeight;
+      const strip = document
+        .querySelector("[data-testid='mobile-inspector-peek']")!
+        .getBoundingClientRect();
+      const end = document.getElementById("page-end")!.getBoundingClientRect();
+      const row = document.getElementById("peek-row")!.getBoundingClientRect();
+      return {
+        rowCenter: (row.top + row.bottom) / 2,
+        stripHeight: strip.height,
+        stripBottom: strip.bottom,
+        viewportHeight: window.innerHeight,
+        pageEndBottom: end.bottom,
+        stripTop: strip.top,
+      };
+    });
+    expect(m.stripHeight).toBe(56 + INSET_BOTTOM_PX);
+    // Centred below the 1px top border in what is left of the 56px, not in
+    // the whole strip.
+    expect(m.rowCenter).toBeCloseTo(m.stripTop + 1 + 55 / 2, 1);
+    expect(m.stripBottom).toBe(m.viewportHeight);
+    expect(m.pageEndBottom).toBeLessThanOrEqual(m.stripTop);
+    expect(m.pageEndBottom).toBeGreaterThan(m.stripTop - 1);
+  });
+});
 
-    await expect(page.locator("body")).toHaveAttribute(
-      "data-sheet-state",
-      "peek",
+test.describe("the raised sheet over a file page", () => {
+  test("is drawn over the page's header and its sticky player", async ({
+    page,
+  }) => {
+    await open(page, "sheet-over-page-full");
+    const hit = await page.evaluate(() => {
+      const top = document
+        .querySelector("[data-testid='mobile-inspector-sheet']")!
+        .getBoundingClientRect().top;
+      const header = document.getElementById("page-header")!.getBoundingClientRect();
+      const player = document.getElementById("player")!.getBoundingClientRect();
+      const sheet = document.querySelector("[data-testid='mobile-inspector-sheet']")!;
+      const hitAt = (y: number) => sheet.contains(document.elementFromPoint(20, y));
+      return {
+        overlapsHeader: header.bottom > top + 2,
+        overlapsPlayer: player.bottom > top + 2,
+        overHeader: hitAt(Math.min(header.bottom, player.top) - 1),
+        overPlayer: hitAt(player.bottom - 1),
+      };
+    });
+    expect(hit).toMatchObject({
+      overlapsHeader: true,
+      overlapsPlayer: true,
+      overHeader: true,
+      overPlayer: true,
+    });
+  });
+
+  test("leaves the page scrollable", async ({ page }) => {
+    await open(page, "sheet-over-page-half");
+    await swipe(page, {
+      from: "#page-header",
+      down: -75,
+      steps: 5,
+      ...FLICK,
+    });
+    const scrolled = await page.evaluate(
+      () => document.getElementById("page")!.scrollTop,
     );
-    offScreen(await read(page));
+    expect(scrolled).toBeGreaterThan(30);
+  });
+});
+
+test.describe("the page behind the raised sheet", () => {
+  test("takes a tap, and the sheet stays where it is", async ({ page }) => {
+    await open(page, "sheet-gesture");
+    const before = await read(page);
+    await page.locator("#underneath").tap({ position: { x: 20, y: 20 } });
+    await page.waitForTimeout(600);
+
+    expect(
+      await page.evaluate(() => ({
+        clicks: (document.getElementById("underneath") as HTMLElement).dataset
+          .clicks,
+        hidden: document.querySelector("[aria-hidden='true'] #underneath"),
+        pointerEvents: document.body.style.pointerEvents,
+      })),
+    ).toEqual({ clicks: "1", hidden: null, pointerEvents: "auto" });
+    const after = await read(page);
+    expect(after.state).toBe("");
+    expect(after.surfaceTop).toBeCloseTo(before.surfaceTop, 0);
+  });
+
+  test("is covered by an overlay sidebar opened over it", async ({ page }) => {
+    await open(page, "sheet-under-sidebar");
+    const hit = await page.evaluate(() => {
+      const top = document
+        .querySelector("[data-testid='mobile-inspector-content']")!
+        .getBoundingClientRect().top;
+      const at = (x: number) =>
+        document.elementFromPoint(x, top + 40)?.id ?? "";
+      return { underPanel: at(40), besidePanel: at(window.innerWidth - 20) };
+    });
+    expect(hit).toEqual({
+      underPanel: "sidebar",
+      besidePanel: "sidebar-backdrop",
+    });
   });
 });
 

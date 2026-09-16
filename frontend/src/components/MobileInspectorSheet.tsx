@@ -27,7 +27,6 @@ import {
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { useSheetDismissMotion } from "@/hooks/useSheetDismissMotion";
 import { useSheetPullToCollapse } from "@/hooks/useSheetPullToCollapse";
-import { DialogPortalProvider } from "./DialogPortal";
 
 /**
  * A state, not a snap: what `half` means in vaul's units is derived per file
@@ -49,6 +48,9 @@ export const SHEET_STATE_FULL: SheetState = "full";
  */
 export const SHEET_VISIBLE_HEIGHT =
   "calc(100% - var(--snap-point-height, 0px))";
+
+/** The resting strip, and the room the page keeps free for it. */
+export const SHEET_PEEK_HEIGHT = `calc(${SHEET_PEEK_PX}px + env(safe-area-inset-bottom, 0px))`;
 
 export const SHEET_SCROLLER_PADDING_BOTTOM =
   "calc(env(safe-area-inset-bottom, 0px) + 16px)";
@@ -72,11 +74,11 @@ export function sheetStateForSnap(snap: number | string | null): SheetState {
 
 /**
  * The drawer is mounted only while expanded, and the peek strip is drawn
- * outside it: vaul's own `modal` prop never reaches Radix, so a drawer
- * mounted at rest puts `aria-hidden="true"` on the whole application.
+ * outside it: an open drawer is a Radix layer, which takes every Escape on
+ * the page, and vaul lifts it over the keyboard for any focused field.
  *
- * `fadeFromIndex={0}` because vaul defaults it to the *last* snap point,
- * which would leave `half` covering the page with no dim to say so.
+ * Not modal, so the page and the player stay usable while it is up. vaul
+ * draws no backdrop for a drawer that is not modal.
  *
  * Without `handleOnly` vaul decides per frame, from whether the scroller
  * happens to be at its top, so reading with a finger still down turns into
@@ -96,17 +98,14 @@ export function MobileInspectorSheet({
   children: ReactNode;
 }): ReactElement | null {
   const t = useTranslations("inspector");
-  const [dialogHost, setDialogHost] = useState<HTMLDivElement | null>(null);
   // State rather than a ref: the drawer is not mounted at `peek`, so this
   // node comes and goes with the sheet's state and the gesture's effect
   // has to re-run when it does.
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
-  const overlayRef = useRef<HTMLDivElement | null>(null);
   const expanded = isSheetExpanded(state);
   const { dismiss, isDismissing } = useSheetDismissMotion({
     surfaceRef,
-    overlayRef,
     expanded,
     onDismissed: useCallback(
       () => onStateChange(SHEET_STATE_PEEK),
@@ -185,7 +184,10 @@ export function MobileInspectorSheet({
     return (
       <div
         data-testid="mobile-inspector-peek"
-        style={{ height: `${SHEET_PEEK_PX}px` }}
+        style={{
+          height: SHEET_PEEK_HEIGHT,
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        }}
         className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2 border-t border-bg-border bg-bg-card px-4"
       >
         {peek}
@@ -203,23 +205,19 @@ export function MobileInspectorSheet({
         if (isDismissing()) return;
         onStateChange(sheetStateForSnap(next));
       }}
-      fadeFromIndex={0}
-      modal
+      modal={false}
       handleOnly
       onOpenChange={(next) => {
         if (!next) dismiss({ velocity: knobReleaseVelocity.current });
       }}
     >
       <Drawer.Portal>
-        <Drawer.Overlay
-          ref={overlayRef}
-          data-testid="mobile-inspector-overlay"
-          className="fixed inset-0 z-[45] bg-black/50"
-        />
         <Drawer.Content
           data-testid="mobile-inspector-sheet"
           data-snap={state}
-          className="fixed bottom-0 left-0 right-0 z-[46] flex flex-col outline-none"
+          // Under the overlay sidebar and its backdrop, which can be opened
+          // while the sheet is up.
+          className="fixed bottom-0 left-0 right-0 z-[25] flex flex-col outline-none"
           style={{ height: drawerHeight }}
           onPointerDownCapture={onKnobPointerDown}
           onPointerMoveCapture={onKnobPointerMove}
@@ -258,16 +256,10 @@ export function MobileInspectorSheet({
                 className="min-h-0 flex-1 overflow-auto overscroll-contain"
                 style={{ paddingBottom: SHEET_SCROLLER_PADDING_BOTTOM }}
               >
-                <DialogPortalProvider target={dialogHost}>
-                  {children}
-                </DialogPortalProvider>
+                {children}
               </div>
             </div>
           </div>
-          {/* Host for dialogs opened from inside the sheet. vaul is
-              modal, so a dialog portalled beside the sheet would be
-              stacked correctly and still be inert. */}
-          <div ref={setDialogHost} />
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

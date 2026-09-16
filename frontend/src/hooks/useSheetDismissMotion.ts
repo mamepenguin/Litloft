@@ -27,12 +27,10 @@ export interface SheetDismiss {
  */
 export function useSheetDismissMotion({
   surfaceRef,
-  overlayRef,
   expanded,
   onDismissed,
 }: {
   surfaceRef: RefObject<HTMLElement | null>;
-  overlayRef: RefObject<HTMLElement | null>;
   expanded: boolean;
   onDismissed: () => void;
 }): SheetDismiss {
@@ -78,16 +76,11 @@ export function useSheetDismissMotion({
       );
       const ms = sheetDismissDurationMs(distance, velocity);
 
-      // Touches go to the overlay while it leaves, so a second gesture
-      // cannot catch a sheet that is already on its way out.
+      // A second gesture cannot catch a sheet that is already on its way
+      // out.
       surface.style.pointerEvents = "none";
       surface.style.transition = `transform ${ms}ms ${SHEET_DISMISS_EASING}`;
       surface.style.transform = `translate3d(0, ${pull + distance}px, 0)`;
-      const overlay = overlayRef.current;
-      if (overlay) {
-        overlay.style.transition = `opacity ${ms}ms ${SHEET_DISMISS_EASING}`;
-        overlay.style.opacity = "0";
-      }
 
       const onEnd = (event: TransitionEvent) => {
         if (event.target === surface && event.propertyName === "transform") {
@@ -107,7 +100,7 @@ export function useSheetDismissMotion({
       const timer = window.setTimeout(finish, ms + FINISH_GRACE_MS);
       cancelRef.current = cancel;
     },
-    [surfaceRef, overlayRef],
+    [surfaceRef],
   );
 
   const isDismissing = useCallback(() => dismissingRef.current, []);

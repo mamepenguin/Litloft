@@ -319,7 +319,7 @@ describe("the fixture's declarations", () => {
     "framedShimPaddingTop",
     "mediaHost",
     "pageRoot",
-    "peekPx",
+    "peekHeight",
     "player",
   ];
   const COMPARED_IN_FILE_PREVIEW = ["playerBleed"];

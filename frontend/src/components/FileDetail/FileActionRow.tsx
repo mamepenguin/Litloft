@@ -22,8 +22,8 @@ export interface FileActionRowProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   addonSlotProps: Record<string, unknown>;
   /**
-   * Trust, Cast and the gallery launcher are not dropped but *not lifted* —
-   * they live in the inspector's fixed part.
+   * Trust, Cast, the gallery launcher and addon entries are not dropped but
+   * *not lifted* — they live in the inspector's fixed part.
    */
   compact?: boolean;
 }
@@ -85,11 +85,13 @@ export function FileActionRow({
       )}
       {/* Entries bring their own trigger and take no sizing from the host.
           Before the overflow menu, so `⋮` stays last as it reads everywhere. */}
-      <AddonSlot
-        id="file-detail-actions"
-        layout="stack"
-        props={addonSlotProps}
-      />
+      {!compact && (
+        <AddonSlot
+          id="file-detail-actions"
+          layout="stack"
+          props={addonSlotProps}
+        />
+      )}
       <FileActions
         file={file}
         onUpdate={onRefetch}

@@ -8,6 +8,7 @@ import { FileActions, MENU_GAP_PX } from "@/components/FileActions";
 import { SHEET_PEEK_PX } from "@/lib/sheetSnap";
 import {
   MobileInspectorSheet,
+  SHEET_PEEK_HEIGHT,
   SHEET_STATE_PEEK,
 } from "@/components/MobileInspectorSheet";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
@@ -244,8 +245,10 @@ describe("the file-actions layout fixture's class lists", () => {
     expect(sorted(tokens(strip.className))).toEqual(
       sorted(tokens(str("strip"))),
     );
-    expect(SPEC.stripHeightPx).toBe(SHEET_PEEK_PX);
-    expect(strip.style.height).toBe(`${SHEET_PEEK_PX}px`);
+    expect(SPEC.stripHeight).toBe(SHEET_PEEK_HEIGHT);
+    expect(strip.getAttribute("style")).toMatch(
+      new RegExp(`height:\\s*calc\\(${SHEET_PEEK_PX}px \\+ env\\(`),
+    );
   });
 
   it("declares the gap the component adds to the menu's height", () => {
@@ -261,7 +264,7 @@ describe("the file-actions layout fixture's class lists", () => {
       "menuItem",
       "right",
       "strip",
-      "stripHeightPx",
+      "stripHeight",
       "toastBase",
       "trigger",
       "up",

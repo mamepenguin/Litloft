@@ -7,8 +7,11 @@ import { resolve, dirname } from "node:path";
 import { FileDetailContent } from "../../FileDetailContent";
 import type { FileItem } from "@/types";
 import { inspectorOpenStorageKey } from "@/lib/inspectorOpenStore";
-import { SHEET_PEEK_PX, SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
-import { SHEET_VISIBLE_HEIGHT } from "@/components/MobileInspectorSheet";
+import { SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
+import {
+  SHEET_PEEK_HEIGHT,
+  SHEET_VISIBLE_HEIGHT,
+} from "@/components/MobileInspectorSheet";
 import { CANVAS_PADDING_REM } from "@/lib/layoutSizes";
 import {
   claimSlot,
@@ -532,10 +535,27 @@ describe("media on the shell, on a phone", () => {
     expect(row.querySelector("[data-testid='cast']")).not.toBeNull();
   });
 
-  it("ends the page above the strip it rests behind", async () => {
+  it("ends the page above the strip it rests behind, home indicator included", async () => {
     const { container } = await renderMediaAwaitingChrome();
-    const main = container.querySelector("main");
-    expect(main?.style.paddingBottom).toBe(`${SHEET_PEEK_PX}px`);
+    const style = container.querySelector("main")?.getAttribute("style") ?? "";
+    expect(style).toMatch(/padding-bottom:\s*calc\(56px \+ env\(/);
+    expect(style).toContain("safe-area-inset-bottom");
+  });
+
+  it("leaves addon buttons off the strip and puts them in the raised sheet, once", async () => {
+    await renderMediaAwaitingChrome(makeFile({ has_chapters: false }));
+
+    const peek = await screen.findByTestId("mobile-inspector-peek");
+    expect(peek.querySelector("[data-testid='addon-slot-file-detail-actions']")).toBeNull();
+    expect(peek.querySelector("[data-testid='file-actions']")).not.toBeNull();
+    expect(screen.queryAllByTestId("addon-slot-file-detail-actions")).toHaveLength(0);
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    const sheet = await screen.findByTestId("mobile-inspector-sheet");
+    expect(screen.getAllByTestId("addon-slot-file-detail-actions")).toHaveLength(1);
+    expect(sheet).toContainElement(
+      screen.getByTestId("addon-slot-file-detail-actions"),
+    );
   });
 
   it("gives the sheet the same tab set, Related included", async () => {
@@ -1174,10 +1194,10 @@ describe("the layout fixture's page, against the shell", () => {
     const { container } = await renderMediaAwaitingChrome(
       makeFile({ has_chapters: false }),
     );
-    expect(container.querySelector("main")!.style.paddingBottom).toBe(
-      `${SPEC.peekPx}px`,
-    );
-    expect(SPEC.peekPx).toBe(SHEET_PEEK_PX);
+    expect(
+      container.querySelector("main")!.getAttribute("style"),
+    ).toMatch(/padding-bottom:\s*calc\(56px \+ env\(/);
+    expect(SPEC.peekHeight).toBe(SHEET_PEEK_HEIGHT);
   });
 });
 

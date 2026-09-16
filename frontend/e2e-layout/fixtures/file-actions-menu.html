@@ -27,7 +27,7 @@
         "right": "right-0",
         "left": "left-0",
         "strip": "fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2 border-t border-bg-border bg-bg-card px-4",
-        "stripHeightPx": 56,
+        "stripHeight": "calc(56px + env(safe-area-inset-bottom, 0px))",
         "gapPx": 4
       }
     </script>
@@ -93,7 +93,8 @@
 
         const strip = document.createElement("div");
         strip.className = SPEC.strip;
-        strip.style.height = `${SPEC.stripHeightPx}px`;
+        strip.style.height = SPEC.stripHeight;
+        strip.style.paddingBottom = "env(safe-area-inset-bottom, 0px)";
 
         strip.append(anchor({ direction, align: "right", items }));
 

@@ -699,9 +699,8 @@ higher than whatever it currently sits under.
 
 | Tier | `z` | What belongs here |
 |---|---|---|
-| In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), an inspector covering the canvas (`z-20`), anchored popovers, the sidebar backdrop (`z-30`) |
+| In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), an inspector covering the canvas (`z-20`), the raised mobile Bottom Sheet (`z-[25]`), anchored popovers, the sidebar backdrop (`z-30`) |
 | Floating surfaces | `z-40` | Overlay sidebar, mini-player, upload progress, bottom-anchored mobile menus, the Bottom Sheet's resting strip |
-| Inspector sheet | `z-[45]` / `z-[46]` | The mobile Bottom Sheet — above every floating surface, below every dialog |
 | Modal dialogs | `z-50` | Confirm / Rename / Move and anything that interrupts to ask, including addon dialogs |
 | Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page |
 | Always on top | `z-[100]` | Shortcut cheat sheet, quick note, file save, toasts |
@@ -712,14 +711,14 @@ higher than whatever it currently sits under.
 - **A panel that has run out of room is still in-flow chrome.**
 - **An immersive viewer takes the page out of reach, not just out of sight**: the
   rest of the page is `inert` and body scroll is locked until it closes.
-- **A dialog portals into the active modal layer**, never straight into
-  `document.body`, or it is inert while the Bottom Sheet is open.
+- **The raised Bottom Sheet sits between the page's chrome and the sidebar's
+  backdrop.** It is not modal, so the overlay sidebar can be opened over it.
 
 **The Bottom Sheet rests; it does not close.** Three states:
 
 | State | What is on screen |
 |---|---|
-| peek | The file's name and the row that acts on it |
+| peek | The file's name, like, favourite and `⋮`, above the home indicator |
 | half | The top of the inspector. On a page with a player, the sheet's top edge meets the player's bottom edge, so the video stays whole; elsewhere a fixed fraction of the window |
 | full | Most of the inspector column, with room to read a tab |
 
@@ -731,8 +730,18 @@ higher than whatever it currently sits under.
   starts inside the scrolled content belongs to the scroller, and reaches the
   sheet only if the finger keeps pushing after the content is back at its top —
   so a fling that coasts to the top never drags the sheet.
-- **A dismiss gesture** — backdrop, Escape, swipe down — collapses to `peek`.
-- **Dim the backdrop from `half`.**
+- **Not modal at `half` and `full`.** No backdrop, nothing made inert and no
+  focus trap: the page scrolls and the player can be paused while the sheet is
+  up, and a press outside the sheet does not move it.
+- **A dismiss gesture** — Escape, swipe down — collapses to `peek`.
+- **Addon buttons are not on the resting strip.** They are in the raised sheet's
+  own row, with the labels, trust and Cast.
+- **A dialog opened from inside the sheet portals to the page**, never into the
+  sheet: the sheet is transformed, so a `fixed` box inside it lands below the
+  screen.
+- **At rest the drawer is not mounted.** An open drawer is a dialog layer that
+  takes every Escape on the page and lifts itself over the keyboard for any
+  focused field.
 - **On a phone the sheet is one scroller.** The inspector's header scrolls away
   with the content; only the tab strip sticks.
 - **The player is never moved into or re-parented by the sheet**; re-parenting
@@ -740,8 +749,8 @@ higher than whatever it currently sits under.
 - **Nothing goes inside the player's box but the player and the controls that act
   on it**, and nothing wraps it: the sheet protects and the phone pins everything
   in that box.
-- **The resting strip owns the bottom edge of a file page.** Anything anchoring to
-  the bottom goes above it.
+- **The resting strip owns the bottom edge of a file page, home indicator
+  included.** Anything anchoring to the bottom goes above it.
 
 ### Over-video chrome (player controls, mini-player buttons, full-screen viewers)
 
