@@ -31,12 +31,12 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
   // a ref rather than the two being defined in a circle.
   const endedRef = useRef<(() => void) | undefined>(undefined);
   const readyRef = useRef<(() => Promise<void>) | undefined>(undefined);
-  const shellMc = useShellAudio(file, {
+  const shell = useShellAudio(file, {
     autoPlay: autoPlay || preferAutoplay,
     onEnded: () => endedRef.current?.(),
     onReady: () => readyRef.current?.() ?? Promise.resolve(),
   });
-  const mc = native ? shellMc : elementMc;
+  const mc = native ? shell.mc : elementMc;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -98,7 +98,7 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
           size on a `.loft` reference is the pointer's. */}
       <p className="mb-6 text-sm text-text-primary">{file.filename}</p>
       {native ? (
-        <AudioTransport mc={mc} />
+        <AudioTransport mc={mc} failed={shell.failed} />
       ) : (
         <audio
           ref={audioRef}

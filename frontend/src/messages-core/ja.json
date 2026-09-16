@@ -396,6 +396,7 @@
     "unmute": "ミュート解除",
     "volume": "音量",
     "speed": "再生速度",
+    "loadFailed": "読み込めませんでした",
     "fullscreen": "全画面表示",
     "exitFullscreen": "全画面表示を終了",
     "seek": "シーク",

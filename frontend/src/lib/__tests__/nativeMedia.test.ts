@@ -316,6 +316,51 @@ describe("the media channel", () => {
     });
   });
 
+  describe("failure", () => {
+    it("is announced once when the shell says the file cannot be played", () => {
+      const failed = vi.fn();
+      channel.onFailed = failed;
+
+      report({ status: "loading", duration: 0 });
+      expect(failed).not.toHaveBeenCalled();
+
+      report({ ...contract.states.failed, loadId });
+      report({ ...contract.states.failed, loadId });
+      expect(failed).toHaveBeenCalledOnce();
+      expect(channel.read().status).toBe("failed");
+    });
+
+    it("is not announced for a file that plays", () => {
+      const failed = vi.fn();
+      channel.onFailed = failed;
+
+      report({ status: "ready" });
+
+      expect(failed).not.toHaveBeenCalled();
+    });
+
+    it("is not taken from another file's report", () => {
+      const failed = vi.fn();
+      channel.onFailed = failed;
+
+      deliver({ ...contract.states.failed, loadId: "someone-else" });
+
+      expect(failed).not.toHaveBeenCalled();
+    });
+
+    it("is announced again for the next file", () => {
+      const failed = vi.fn();
+      channel.onFailed = failed;
+
+      report({ ...contract.states.failed, loadId });
+      channel.load({ url: "http://litloft.local:3000/api/files/b/stream", title: "B" });
+      const next = posted.at(-1)?.loadId as string;
+      deliver({ ...contract.states.failed, loadId: next });
+
+      expect(failed).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("the end of a file", () => {
     it("is said once, however many times the shell repeats it", () => {
       const ended = vi.fn();

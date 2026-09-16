@@ -268,6 +268,30 @@ describe("AudioPlayer inside the iOS shell", () => {
     expect(posted.slice(before).some((m) => m.type === "media.play")).toBe(false);
   });
 
+  it("says when the shell cannot load the file", async () => {
+    render(<AudioPlayer file={mockFile} autoPlay />);
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    await act(async () => {
+      report("audio-1", { time: 0, duration: 0, paused: true, status: "failed" });
+    });
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play" })).toBeDisabled();
+    expect(posted.some((m) => m.type === "media.play")).toBe(false);
+  });
+
+  it("does not carry a failure over to the next file", async () => {
+    const { rerender } = render(<AudioPlayer file={mockFile} />);
+    await act(async () => {
+      report("audio-1", { time: 0, duration: 0, paused: true, status: "failed" });
+    });
+
+    rerender(<AudioPlayer file={fileB} />);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   /** Renaming the file being listened to must not reload it. */
   it("keeps playing when the file is renamed", () => {
     const { rerender } = render(<AudioPlayer file={mockFile} />);

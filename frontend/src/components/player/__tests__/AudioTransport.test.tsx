@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 
-import { AudioTransport } from "../AudioTransport";
+import { AudioTransport, PLAYBACK_RATES } from "../AudioTransport";
 import type { MediaController } from "@/lib/mediaController";
 import { MEDIA_CLOCK_IDLE_MS } from "@/lib/mediaClock";
 
@@ -90,6 +90,21 @@ describe("AudioTransport", () => {
     expect(mc.seek).not.toHaveBeenCalled();
   });
 
+  it("goes back to following playback when the bar loses focus mid-drag", async () => {
+    const { mc, state } = makeController({ time: 10, paused: false });
+    render(<AudioTransport mc={mc} />);
+    await tickClock();
+
+    fireEvent.change(slider(), { target: { value: "90" } });
+    fireEvent.blur(slider());
+
+    state.time = 12;
+    await tickClock();
+
+    expect(slider().value).toBe("12");
+    expect(mc.seek).not.toHaveBeenCalled();
+  });
+
   it("cannot be dragged before the length is known", () => {
     const { mc } = makeController({ duration: 0 });
     render(<AudioTransport mc={mc} />);
@@ -129,6 +144,90 @@ describe("AudioTransport", () => {
     await tickClock();
 
     expect(speed()).toHaveTextContent("1.5x");
+  });
+
+  /** The player still reports the old rate for a moment after each press. */
+  it("keeps stepping forward while the player catches up", async () => {
+    const { mc, state } = makeController({ paused: false });
+    render(<AudioTransport mc={mc} />);
+
+    fireEvent.click(speed());
+    state.time = 1;
+    await tickClock();
+    expect(speed()).toHaveTextContent("1.25x");
+
+    fireEvent.click(speed());
+    state.time = 2;
+    await tickClock();
+    expect(speed()).toHaveTextContent("1.5x");
+
+    state.rate = 1.25;
+    state.time = 3;
+    await tickClock();
+    expect(speed()).toHaveTextContent("1.5x");
+
+    state.rate = 1.5;
+    state.time = 4;
+    await tickClock();
+    expect(speed()).toHaveTextContent("1.5x");
+    expect(mc.setPlaybackRate.mock.calls).toEqual([[1.25], [1.5]]);
+  });
+
+  it("follows the player again once it reports the chosen speed", async () => {
+    const { mc, state } = makeController({ paused: false });
+    render(<AudioTransport mc={mc} />);
+    fireEvent.click(speed());
+
+    state.rate = 1.25;
+    state.time = 1;
+    await tickClock();
+    // Changed elsewhere, such as from the lock screen.
+    state.rate = 1;
+    state.time = 2;
+    await tickClock();
+
+    expect(speed()).toHaveTextContent("1x");
+  });
+
+  it("follows the player after stepping all the way round", async () => {
+    const { mc, state } = makeController({ paused: false });
+    render(<AudioTransport mc={mc} />);
+    for (let i = 0; i < PLAYBACK_RATES.length; i++) fireEvent.click(speed());
+    expect(speed()).toHaveTextContent("1x");
+
+    state.time = 1;
+    await tickClock();
+    state.rate = 1.5;
+    state.time = 2;
+    await tickClock();
+
+    expect(speed()).toHaveTextContent("1.5x");
+  });
+
+  describe("when the file cannot be loaded", () => {
+    it("says so", () => {
+      const { mc } = makeController();
+      render(<AudioTransport mc={mc} failed />);
+
+      expect(screen.getByRole("alert")).toHaveTextContent("Could not load this file");
+    });
+
+    it("offers nothing to press", () => {
+      const { mc } = makeController({ duration: 180 });
+      render(<AudioTransport mc={mc} failed />);
+
+      expect(screen.getByRole("button", { name: "Play" })).toBeDisabled();
+      expect(slider()).toBeDisabled();
+      expect(speed()).toBeDisabled();
+    });
+
+    it("says nothing while the file is fine", () => {
+      const { mc } = makeController();
+      render(<AudioTransport mc={mc} />);
+
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(screen.getByRole("button", { name: "Play" })).toBeEnabled();
+    });
   });
 
   it("does nothing without a controller", () => {

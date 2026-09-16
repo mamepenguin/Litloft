@@ -55,12 +55,16 @@ export class MediaChannel {
   private pendingSeek: { seekId: string; time: number } | null = null;
 
   private readySent = false;
+  private failedSent = false;
 
   /** Fires once when the shell reports the file has run out. */
   onEnded: (() => void) | null = null;
 
   /** Fires once per file, when the shell reports it can be played. */
   onReady: (() => void) | null = null;
+
+  /** Fires once per file, when the shell reports it cannot be played. */
+  onFailed: (() => void) | null = null;
 
   constructor() {
     this.unsubscribe = subscribeToShell((message) => {
@@ -76,6 +80,7 @@ export class MediaChannel {
     this.shadow = INITIAL;
     this.pendingSeek = null;
     this.readySent = false;
+    this.failedSent = false;
     this.loadId = crypto.randomUUID();
     postToShell({ type: "media.load", loadId: this.loadId, ...source });
   }
@@ -150,6 +155,10 @@ export class MediaChannel {
     if (!this.readySent && state.status === "ready") {
       this.readySent = true;
       this.onReady?.();
+    }
+    if (!this.failedSent && state.status === "failed") {
+      this.failedSent = true;
+      this.onFailed?.();
     }
     if (justEnded) this.onEnded?.();
   }
