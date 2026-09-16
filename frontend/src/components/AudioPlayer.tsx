@@ -14,12 +14,27 @@ import {
 import { usePlaybackProgress } from "@/lib/playbackProgress";
 import { CastButton } from "./CastButton";
 import { AutoplayToggle } from "./AutoplayToggle";
+import { AudioTransport } from "./player/AudioTransport";
+import { useShellAudio } from "@/hooks/useShellAudio";
+import { isNativeShell } from "@/lib/nativeBridge";
 
 export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean; onMediaController?: (mc: MediaController | null) => void }) {
   const t = useTranslations("player");
   const [preferAutoplay] = useAutoplayPreference();
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [mc, setMc] = useState<MediaController | null>(null);
+  const [elementMc, setElementMc] = useState<MediaController | null>(null);
+
+  // The shell plays it natively, so no element is rendered and none of the
+  // element wiring below runs.
+  const native = isNativeShell();
+  // The handler needs the controller this call produces, so it arrives through
+  // a ref rather than the two being defined in a circle.
+  const endedRef = useRef<(() => void) | undefined>(undefined);
+  const shellMc = useShellAudio(file, {
+    autoPlay: autoPlay || preferAutoplay,
+    onEnded: () => endedRef.current?.(),
+  });
+  const mc = native ? shellMc : elementMc;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -32,13 +47,14 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
     const controller = createNativeVideoController(
       audio as unknown as HTMLVideoElement,
     );
-    setMc(controller);
-    onMediaController?.(controller);
-    return () => {
-      setMc(null);
-      onMediaController?.(null);
-    };
-  }, [file.id, onMediaController]);
+    setElementMc(controller);
+    return () => setElementMc(null);
+  }, [file.id]);
+
+  useEffect(() => {
+    onMediaController?.(mc);
+    return () => onMediaController?.(null);
+  }, [mc, onMediaController]);
 
   const { notifyEnded, notifyReady } = usePlaybackProgress({
     mc,
@@ -54,9 +70,12 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
     notifyEnded();
     onEnded?.();
   }, [notifyEnded, onEnded]);
+  endedRef.current = handleEnded;
 
+  // In the shell the lock screen is the shell's, and two owners would fight
+  // over it.
   useEffect(() => {
-    if (!mc) return;
+    if (!mc || native) return;
     return setupMediaSession(
       mc,
       {
@@ -66,7 +85,7 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
       },
       { onNextTrack: onEnded },
     );
-  }, [mc, file.id, file.title, file.filename, file.folder_path, file.drive, onEnded]);
+  }, [mc, native, file.id, file.title, file.filename, file.folder_path, file.drive, onEnded]);
 
   return (
     <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-12">
@@ -75,20 +94,25 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
           transport bar of the `<audio controls>` right below, and the
           size on a `.loft` reference is the pointer's. */}
       <p className="mb-6 text-sm text-text-primary">{file.filename}</p>
-      <audio
-        ref={audioRef}
-        src={getStreamUrl(file.id)}
-        controls
-        autoPlay={autoPlay || preferAutoplay}
-        preload="metadata"
-        className="w-full max-w-md"
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={handleEnded}
-      >
-        {t("audioNotSupported")}
-      </audio>
+      {native ? (
+        <AudioTransport mc={mc} />
+      ) : (
+        <audio
+          ref={audioRef}
+          src={getStreamUrl(file.id)}
+          controls
+          autoPlay={autoPlay || preferAutoplay}
+          preload="metadata"
+          className="w-full max-w-md"
+          onLoadedMetadata={handleLoadedMetadata}
+          onEnded={handleEnded}
+        >
+          {t("audioNotSupported")}
+        </audio>
+      )}
       <div className="mt-3 flex items-center gap-3">
-        <CastButton mediaRef={audioRef} />
+        {/* AirPlay is the shell's own, through AVPlayer. */}
+        {!native && <CastButton mediaRef={audioRef} />}
         <AutoplayToggle />
       </div>
     </div>

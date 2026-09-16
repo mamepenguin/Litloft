@@ -149,3 +149,64 @@ describe("AudioPlayer", () => {
     });
   });
 });
+
+describe("AudioPlayer inside the iOS shell", () => {
+  interface StubbedWindow extends Window {
+    webkit?: unknown;
+  }
+  let posted: Record<string, unknown>[];
+
+  beforeEach(() => {
+    posted = [];
+    (window as StubbedWindow).webkit = {
+      messageHandlers: {
+        litloft: { postMessage: (body: unknown) => posted.push(body as Record<string, unknown>) },
+      },
+    };
+  });
+
+  afterEach(() => {
+    delete (window as StubbedWindow).webkit;
+  });
+
+  /** Two players on one file would both stream it and both be heard. */
+  it("renders no audio element, so nothing plays twice", () => {
+    render(<AudioPlayer file={mockFile} />);
+    expect(document.querySelector("audio")).toBeNull();
+  });
+
+  it("hands the shell an address AVPlayer can resolve", () => {
+    render(<AudioPlayer file={mockFile} />);
+
+    const load = posted.find((m) => m.type === "media.load");
+    expect(load).toMatchObject({
+      url: "http://localhost:3000/api/files/audio-1/stream",
+      title: "Test Song",
+      artworkUrl: "http://localhost:3000/api/files/audio-1/thumbnail",
+    });
+  });
+
+  it("offers a transport of its own, since the element's is gone", () => {
+    render(<AudioPlayer file={mockFile} />);
+    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+    expect(screen.getByRole("slider", { name: "Seek" })).toBeInTheDocument();
+  });
+
+  it("starts playing when autoplay is asked for, and not otherwise", () => {
+    render(<AudioPlayer file={mockFile} autoPlay />);
+    expect(posted.some((m) => m.type === "media.play")).toBe(true);
+
+    posted.length = 0;
+    render(<AudioPlayer file={mockFile} />);
+    expect(posted.some((m) => m.type === "media.play")).toBe(false);
+  });
+
+  it("gives the file back when it goes away", () => {
+    const { unmount } = render(<AudioPlayer file={mockFile} />);
+    posted.length = 0;
+
+    unmount();
+
+    expect(posted.some((m) => m.type === "media.unload")).toBe(true);
+  });
+});

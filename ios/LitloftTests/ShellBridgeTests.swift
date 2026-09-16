@@ -117,8 +117,7 @@ struct ShellBridgeTests {
             "url": "http://litloft.local:3000/api/files/abc/stream",
             "title": "A recording",
             "artist": "Someone",
-            "artworkUrl": "http://litloft.local:3000/api/files/abc/thumbnail",
-            "startAt": 42.5
+            "artworkUrl": "http://litloft.local:3000/api/files/abc/thumbnail"
         ]
 
         #expect(ShellBridge.route(body: body, from: origin(), server: server) == .media(.load(MediaSource(
@@ -126,7 +125,6 @@ struct ShellBridgeTests {
             title: "A recording",
             artist: "Someone",
             artworkURL: URL(string: "http://litloft.local:3000/api/files/abc/thumbnail")!,
-            startAt: 42.5
         )), seq: 3))
     }
 
@@ -165,20 +163,6 @@ struct ShellBridgeTests {
                                   from: origin(), server: server) == .media(.setVolume(0), seq: 1))
     }
 
-    @Test("a load that starts at a position the player cannot use starts at zero")
-    func unusableStartIsZero() {
-        let body: [String: Any] = [
-            "type": "media.load", "seq": 1,
-            "url": "http://litloft.local:3000/x", "title": "t",
-            "startAt": Double.nan
-        ]
-        guard case .media(.load(let source), _)? =
-            ShellBridge.route(body: body, from: origin(), server: server) else {
-            Issue.record("expected a load")
-            return
-        }
-        #expect(source.startAt == 0)
-    }
 }
 
 @MainActor

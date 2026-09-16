@@ -16,7 +16,6 @@ export interface MediaSource {
   title: string;
   artist?: string;
   artworkUrl?: string;
-  startAt?: number;
 }
 
 /** A command before it is stamped with its place in the order. */
@@ -43,6 +42,8 @@ export interface MediaTick {
   paused: boolean;
   rate: number;
   volume: number;
+  /** Seconds continuously readable from the start, not a total. */
+  buffered: number;
   ended: boolean;
 }
 

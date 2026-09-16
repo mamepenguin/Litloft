@@ -22,6 +22,7 @@ export interface MediaShadow {
   paused: boolean;
   rate: number;
   volume: number;
+  buffered: number;
   ended: boolean;
 }
 
@@ -31,6 +32,7 @@ const INITIAL: MediaShadow = Object.freeze({
   paused: true,
   rate: 1,
   volume: 1,
+  buffered: 0,
   ended: false,
 });
 
@@ -45,6 +47,9 @@ export class MediaChannel {
    */
   private pendingSeek: { seq: number; time: number } | null = null;
 
+  /** Fires once when the shell reports the file has run out. */
+  onEnded: (() => void) | null = null;
+
   constructor() {
     this.unsubscribe = subscribeToShell((message) => {
       if (message.type === "media.tick") this.apply(message);
@@ -56,7 +61,7 @@ export class MediaChannel {
   }
 
   load(source: MediaSource): void {
-    this.shadow = { ...INITIAL, time: source.startAt ?? 0 };
+    this.shadow = INITIAL;
     this.pendingSeek = null;
     this.send({ type: "media.load", ...source });
   }
@@ -109,6 +114,8 @@ export class MediaChannel {
     const pending = this.pendingSeek;
     const stale = pending !== null && tick.appliedSeq < pending.seq;
 
+    const justEnded = tick.ended && !this.shadow.ended;
+
     this.shadow = {
       // A tick from before the seek carries the old position. The rest of it
       // is still the freshest reading there is, so only this field waits.
@@ -117,8 +124,11 @@ export class MediaChannel {
       paused: tick.paused,
       rate: tick.rate,
       volume: tick.volume,
+      buffered: tick.buffered,
       ended: tick.ended,
     };
+
+    if (justEnded) this.onEnded?.();
   }
 }
 

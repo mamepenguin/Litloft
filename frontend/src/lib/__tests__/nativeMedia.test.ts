@@ -29,6 +29,7 @@ function tick(overrides: Partial<Tick> = {}): void {
     paused: true,
     rate: 1,
     volume: 1,
+    buffered: 0,
     ended: false,
     ...overrides,
   });
@@ -77,19 +78,18 @@ describe("the media channel", () => {
   });
 
   it("sends what the shell needs to play and label a file", () => {
-    channel.load({ url: "http://litloft.local:3000/api/files/abc/stream", title: "A note", startAt: 12 });
+    channel.load({ url: "http://litloft.local:3000/api/files/abc/stream", title: "A note" });
 
     expect(posted[0]).toMatchObject({
       type: "media.load",
       url: "http://litloft.local:3000/api/files/abc/stream",
       title: "A note",
-      startAt: 12,
     });
-    expect(channel.read().time).toBe(12);
+    expect(channel.read().time).toBe(0);
   });
 
   it("reads back what the shell reports", () => {
-    tick({ time: 42, duration: 100, paused: false, rate: 1.5, volume: 0.3, ended: false });
+    tick({ time: 42, duration: 100, paused: false, rate: 1.5, volume: 0.3, buffered: 60, ended: false });
 
     expect(channel.read()).toEqual({
       time: 42,
@@ -97,6 +97,7 @@ describe("the media channel", () => {
       paused: false,
       rate: 1.5,
       volume: 0.3,
+      buffered: 60,
       ended: false,
     });
   });
@@ -153,6 +154,36 @@ describe("the media channel", () => {
     expect(channel.read().time).toBe(91);
   });
 
+  it("says the file ran out, once", () => {
+    const ended = vi.fn();
+    channel.onEnded = ended;
+
+    tick({ time: 100, duration: 100, ended: true });
+    tick({ time: 100, duration: 100, ended: true });
+
+    expect(ended).toHaveBeenCalledOnce();
+  });
+
+  it("says it again if a new file also runs out", () => {
+    const ended = vi.fn();
+    channel.onEnded = ended;
+
+    tick({ ended: true });
+    channel.load({ url: "http://litloft.local:3000/x", title: "Another" });
+    tick({ ended: true });
+
+    expect(ended).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not say the file ran out while it is still playing", () => {
+    const ended = vi.fn();
+    channel.onEnded = ended;
+
+    tick({ time: 50, duration: 100, ended: false });
+
+    expect(ended).not.toHaveBeenCalled();
+  });
+
   it("ignores a payload that is not a tick", () => {
     tick({ time: 5, appliedSeq: 0 });
     win().__litloft?.receive({ type: "pong", seq: 1 });
@@ -170,6 +201,7 @@ describe("the media channel", () => {
       paused: true,
       rate: 1,
       volume: 1,
+      buffered: 0,
       ended: false,
     });
   });

@@ -93,13 +93,11 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
               let title = body["title"] as? String
         else { return nil }
 
-        let startAt = body["startAt"] as? Double
         return MediaSource(
             url: url,
             title: title,
             artist: body["artist"] as? String,
-            artworkURL: (body["artworkUrl"] as? String).flatMap(URL.init(string:)),
-            startAt: (startAt?.isFinite == true && startAt! > 0) ? startAt! : 0
+            artworkURL: (body["artworkUrl"] as? String).flatMap(URL.init(string:))
         )
     }
 

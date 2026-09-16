@@ -18,10 +18,12 @@ struct MediaTick: Codable, Equatable {
     let paused: Bool
     let rate: Double
     let volume: Double
+    /// Seconds continuously readable from the start, not a total.
+    let buffered: Double
     let ended: Bool
 
     private enum CodingKeys: String, CodingKey {
-        case type, appliedSeq, time, duration, paused, rate, volume, ended
+        case type, appliedSeq, time, duration, paused, rate, volume, buffered, ended
     }
 }
 
@@ -30,7 +32,6 @@ struct MediaSource: Equatable {
     let title: String
     let artist: String?
     let artworkURL: URL?
-    let startAt: Double
 }
 
 enum MediaCommand: Equatable {

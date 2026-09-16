@@ -106,10 +106,6 @@ final class MediaPlayer {
         if let artworkURL = source.artworkURL {
             nowPlaying.showArtwork(from: artworkURL, cookies: cookies)
         }
-
-        if source.startAt > 0 {
-            seek(to: source.startAt)
-        }
     }
 
     private func replaceItem(with item: AVPlayerItem?) {
@@ -199,8 +195,16 @@ final class MediaPlayer {
             paused: player.rate == 0,
             rate: Double(player.defaultRate),
             volume: Double(player.volume),
+            buffered: bufferedSeconds(),
             ended: ended
         ))
+    }
+
+    /// The end of the last loaded range, not the sum of them: after seeking
+    /// back, a leftover range ahead would overstate what is continuously ready.
+    private func bufferedSeconds() -> Double {
+        guard let last = player.currentItem?.loadedTimeRanges.last?.timeRangeValue else { return 0 }
+        return seconds(CMTimeAdd(last.start, last.duration))
     }
 
     private func seconds(_ time: CMTime) -> Double {

@@ -18,8 +18,7 @@ struct MediaPlayerTests {
         url: URL(string: "http://litloft.local:3000/api/files/abc/stream")!,
         title: "A recording",
         artist: nil,
-        artworkURL: nil,
-        startAt: 0
+        artworkURL: nil
     )
 
     @Test("a command that arrives while a load is still running waits for it")

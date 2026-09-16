@@ -23,8 +23,7 @@ private let source = MediaSource(
     url: URL(string: "http://litloft.local:3000/api/files/abc/stream")!,
     title: "耳ソージは気持ちいいゾ",
     artist: "Litloft",
-    artworkURL: nil,
-    startAt: 0
+    artworkURL: nil
 )
 
 /// `MPNowPlayingInfoCenter` is process-wide, and `.serialized` only orders a
