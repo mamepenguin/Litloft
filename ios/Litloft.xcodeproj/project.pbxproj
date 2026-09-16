@@ -19,21 +19,22 @@
 /* Begin PBXFileReference section */
 		AA00000000000000000005 /* Litloft.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Litloft.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA00000000000000000010 /* Litloft-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Litloft-Info.plist"; sourceTree = "<group>"; };
+		AA00000000000000000020 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Shared.xcconfig; path = Config/Shared.xcconfig; sourceTree = "<group>"; };
 		AA00000000000000000012 /* LitloftTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LitloftTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		AA00000000000000000009 /* Litloft */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Litloft; sourceTree = "<group>"; };
-		AA00000000000000000011 /* LitloftTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = LitloftTests; sourceTree = "<group>"; };
-/* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXTargetDependency section */
-		AA00000000000000000017 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = AA00000000000000000004 /* Litloft */;
-			targetProxy = AA00000000000000000018 /* PBXContainerItemProxy */;
+		AA00000000000000000009 /* Litloft */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Litloft;
+			sourceTree = "<group>";
 		};
-/* End PBXTargetDependency section */
+		AA00000000000000000011 /* LitloftTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = LitloftTests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		AA00000000000000000007 /* Frameworks */ = {
@@ -59,6 +60,7 @@
 				AA00000000000000000009 /* Litloft */,
 				AA00000000000000000011 /* LitloftTests */,
 				AA00000000000000000010 /* Litloft-Info.plist */,
+				AA00000000000000000020 /* Shared.xcconfig */,
 				AA00000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -189,9 +191,18 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		AA00000000000000000017 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AA00000000000000000004 /* Litloft */;
+			targetProxy = AA00000000000000000018 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
 		AA0000000000000000000C /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA00000000000000000020 /* Shared.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -215,6 +226,7 @@
 		};
 		AA0000000000000000000D /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AA00000000000000000020 /* Shared.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -236,9 +248,11 @@
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(LITLOFT_DEVELOPMENT_TEAM)";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Litloft-Info.plist";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Litloft connects to your Litloft server on this network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -247,7 +261,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mamepenguin.Litloft;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(LITLOFT_BUNDLE_ID)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
@@ -261,9 +275,11 @@
 				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "$(LITLOFT_DEVELOPMENT_TEAM)";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Litloft-Info.plist";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Litloft connects to your Litloft server on this network.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -272,7 +288,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mamepenguin.Litloft;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(LITLOFT_BUNDLE_ID)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
@@ -288,7 +304,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mamepenguin.LitloftTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(LITLOFT_BUNDLE_ID).Tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -304,7 +320,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 0.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mamepenguin.LitloftTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(LITLOFT_BUNDLE_ID).Tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
