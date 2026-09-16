@@ -62,14 +62,18 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         if type == ShellMessageType.ping {
             return .reply(ShellMessage(type: ShellMessageType.pong, seq: seq))
         }
-        guard let command = mediaCommand(type, body) else { return nil }
+        guard let command = mediaCommand(type, body, server: server) else { return nil }
         return .media(command, seq: seq)
     }
 
-    private nonisolated static func mediaCommand(_ type: String, _ body: [String: Any]) -> MediaCommand? {
+    private nonisolated static func mediaCommand(
+        _ type: String,
+        _ body: [String: Any],
+        server: URL
+    ) -> MediaCommand? {
         switch type {
         case "media.load":
-            return source(body).map(MediaCommand.load)
+            return source(body, server: server).map(MediaCommand.load)
         case "media.play":
             return .play
         case "media.pause":
@@ -87,17 +91,25 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         }
     }
 
-    private nonisolated static func source(_ body: [String: Any]) -> MediaSource? {
+    /// The session's cookies go with whatever is loaded here, so both addresses
+    /// must be the server's own. Artwork from anywhere else is dropped rather
+    /// than refusing the file, since the file itself is fine.
+    private nonisolated static func source(_ body: [String: Any], server: URL) -> MediaSource? {
         guard let raw = body["url"] as? String,
               let url = URL(string: raw),
+              MessageOrigin.isSameOrigin(url, as: server),
               let title = body["title"] as? String
         else { return nil }
+
+        let artwork = (body["artworkUrl"] as? String)
+            .flatMap(URL.init(string:))
+            .flatMap { MessageOrigin.isSameOrigin($0, as: server) ? $0 : nil }
 
         return MediaSource(
             url: url,
             title: title,
             artist: body["artist"] as? String,
-            artworkURL: (body["artworkUrl"] as? String).flatMap(URL.init(string:))
+            artworkURL: artwork
         )
     }
 

@@ -169,6 +169,30 @@ extension SharedMediaState {
             #expect(rig.session.log == ["take", "release"])
         }
 
+        // MARK: navigation
+
+        @Test("a full navigation stops the file and takes it off the lock screen")
+        func navigationStopsPlayback() async {
+            let rig = PlayerRig()
+            await rig.player.apply(.load(remote), seq: 5).value
+            #expect(rig.session.isHeld)
+
+            await rig.player.stopForNavigation().value
+
+            #expect(rig.session.isHeld == false)
+            #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo == nil)
+            #expect(rig.sequence.last == 5, "the web did not ask for this")
+        }
+
+        @Test("a navigation with nothing playing gives nothing back")
+        func navigationWithNothingLoaded() async {
+            let rig = PlayerRig()
+
+            await rig.player.stopForNavigation().value
+
+            #expect(rig.session.log.isEmpty)
+        }
+
         // MARK: reporting
 
         @Test("a paused player still reports, since the clock is not running")

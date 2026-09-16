@@ -44,7 +44,7 @@ struct WebView: UIViewRepresentable {
         let bridge: ShellBridge
         var lastReloadToken = 0
 
-        private var player: MediaPlayer?
+        private(set) var player: MediaPlayer?
 
         init(model: WebViewModel) {
             self.model = model
@@ -73,6 +73,7 @@ struct WebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
             model.markLoading()
+            player?.stopForNavigation()
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

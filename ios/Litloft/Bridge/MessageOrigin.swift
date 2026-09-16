@@ -42,6 +42,20 @@ struct MessageOrigin: Equatable {
                 == Self.canonical(port: server.port ?? 0, scheme: expectedScheme)
     }
 
+    /// Whether `url` belongs to `server`, by the same rule a sender does.
+    static func isSameOrigin(_ url: URL, as server: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(),
+              let host = url.host()?.lowercased(),
+              let serverScheme = server.scheme?.lowercased(),
+              let serverHost = server.host()?.lowercased()
+        else { return false }
+
+        return scheme == serverScheme
+            && host == serverHost
+            && canonical(port: url.port ?? 0, scheme: scheme)
+                == canonical(port: server.port ?? 0, scheme: serverScheme)
+    }
+
     /// Both sides go through this rather than one being converted to the
     /// other's convention: `URL` omits a default port and `WKSecurityOrigin` is
     /// documented to report 0 for one, but a build that reported 80 instead

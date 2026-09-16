@@ -128,6 +128,38 @@ struct ShellBridgeTests {
         )), seq: 3))
     }
 
+    /// The session's cookies go with what is loaded; see invariant 12.
+    @Test("a file from anywhere but the server is not loaded")
+    func foreignFileIsRefused() {
+        for url in [
+            "http://evil.example/stream",
+            "https://litloft.local:3000/api/files/abc/stream",
+            "http://litloft.local:3001/api/files/abc/stream",
+            "http://litloft.local.evil.example:3000/stream",
+            "file:///etc/hosts"
+        ] {
+            let body: [String: Any] = ["type": "media.load", "seq": 1, "url": url, "title": "t"]
+            #expect(ShellBridge.route(body: body, from: origin(), server: server) == nil, "accepted \(url)")
+        }
+    }
+
+    @Test("artwork from anywhere but the server is dropped, and the file still loads")
+    func foreignArtworkIsDropped() {
+        let body: [String: Any] = [
+            "type": "media.load", "seq": 1,
+            "url": "http://litloft.local:3000/api/files/abc/stream",
+            "title": "t",
+            "artworkUrl": "http://evil.example/steal"
+        ]
+
+        guard case .media(.load(let source), _)? =
+            ShellBridge.route(body: body, from: origin(), server: server) else {
+            Issue.record("the file itself should still load")
+            return
+        }
+        #expect(source.artworkURL == nil)
+    }
+
     @Test("a load without a url or a title is not a command")
     func loadNeedsUrlAndTitle() {
         let bodies: [[String: Any]] = [

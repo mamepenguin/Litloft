@@ -72,6 +72,13 @@ final class MediaPlayer {
         enqueue(command, seq: nil)
     }
 
+    /// A full navigation replaces the page that owned this playback without
+    /// its teardown running — Lock is one — so the shell stops it itself.
+    @discardableResult
+    func stopForNavigation() -> Task<Void, Never> {
+        enqueue(.unload, seq: nil)
+    }
+
     @discardableResult
     func apply(_ command: MediaCommand, seq: Int) -> Task<Void, Never> {
         enqueue(command, seq: seq)
@@ -158,6 +165,9 @@ final class MediaPlayer {
     }
 
     private func unload() {
+        // Every page load arrives here too; with nothing loaded there is no
+        // session or lock-screen entry to give back.
+        guard source != nil else { return }
         player.pause()
         replaceItem(with: nil)
         stopTicking()
