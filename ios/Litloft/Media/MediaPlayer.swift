@@ -15,6 +15,7 @@ final class MediaPlayer {
     private let player = AVPlayer()
     private let jar: CookieJar
     private let audioSession: AudioSession
+    private let cookieReadLimit: Duration
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Litloft", category: "player")
 
     private var timeObserver: Any?
@@ -22,6 +23,7 @@ final class MediaPlayer {
     private var foregroundObserver: NSObjectProtocol?
     private var appliedSeq = 0
     private var ended = false
+    private var publishedDuration = 0.0
 
     /// Loading has to read the cookie jar, so it cannot be synchronous. Every
     /// command goes through the same chain rather than only that one being
@@ -33,9 +35,18 @@ final class MediaPlayer {
 
     var onTick: ((MediaTick) -> Void)?
 
-    init(jar: CookieJar, audioSession: AudioSession = SystemAudioSession()) {
+    /// `cookieReadLimit`: WebKit answers from another process, and every later
+    /// command — a pause pressed on the lock screen included — waits behind a
+    /// load until it does. Two seconds is far past a normal answer and still
+    /// short enough for a press to feel answered.
+    init(
+        jar: CookieJar,
+        audioSession: AudioSession = SystemAudioSession(),
+        cookieReadLimit: Duration = .seconds(2)
+    ) {
         self.jar = jar
         self.audioSession = audioSession
+        self.cookieReadLimit = cookieReadLimit
         player.allowsExternalPlayback = true
 
         watchForForeground()
@@ -47,6 +58,16 @@ final class MediaPlayer {
     isolated deinit {
         for observer in [endObserver, foregroundObserver].compactMap({ $0 }) {
             NotificationCenter.default.removeObserver(observer)
+        }
+        if let timeObserver {
+            player.removeTimeObserver(timeObserver)
+        }
+        // Torn down with a file still loaded — the web view went away with the
+        // server it belonged to — so nobody else will give these back.
+        if source != nil {
+            player.pause()
+            nowPlaying.clear()
+            audioSession.release()
         }
     }
 
@@ -102,11 +123,7 @@ final class MediaPlayer {
         case .load(let source):
             await load(source)
         case .play:
-            // Nothing to play means nothing to hold the session for, and
-            // holding it would let the web view's own media outlive the screen.
-            guard player.currentItem != nil else { break }
-            audioSession.take()
-            player.play()
+            await play()
         case .pause:
             player.pause()
         case .seek(let time):
@@ -126,10 +143,20 @@ final class MediaPlayer {
         emitTick()
     }
 
+    private func play() async {
+        // Nothing to play means nothing to hold the session for, and holding it
+        // would let the web view's own media outlive the screen.
+        guard player.currentItem != nil else { return }
+        // At the end AVPlayer ignores play; a media element starts over.
+        if ended { await seek(to: 0) }
+        audioSession.take()
+        player.play()
+    }
+
     private func load(_ source: MediaSource) async {
         // AVURLAsset takes cookies at construction; the jar is where the
         // session lives, so it is read here rather than kept in step.
-        let cookies = SessionCookies.session(in: await jar.allCookies(), host: source.url.host() ?? "")
+        let cookies = await sessionCookies(for: source.url.host() ?? "")
         let asset = AVURLAsset(url: source.url, options: [AVURLAssetHTTPCookiesKey: cookies])
 
         replaceItem(with: AVPlayerItem(asset: asset))
@@ -141,6 +168,23 @@ final class MediaPlayer {
         nowPlaying.clearArtwork()
         if let artworkURL = source.artworkURL {
             nowPlaying.showArtwork(from: artworkURL, cookies: cookies)
+        }
+    }
+
+    /// Past the limit the file loads without them: a public drive plays, and a
+    /// protected one fails to load rather than holding up everything behind it.
+    private func sessionCookies(for host: String) async -> [HTTPCookie] {
+        let jar = self.jar
+        let limit = cookieReadLimit
+        return await withCheckedContinuation { continuation in
+            let answer = FirstAnswer(continuation)
+            Task { @MainActor in
+                answer.give(SessionCookies.session(in: await jar.allCookies(), host: host))
+            }
+            Task { @MainActor in
+                try? await Task.sleep(for: limit)
+                answer.give([])
+            }
         }
     }
 
@@ -173,6 +217,7 @@ final class MediaPlayer {
         stopTicking()
         ended = false
         source = nil
+        publishedDuration = 0
         nowPlaying.clear()
         audioSession.release()
     }
@@ -185,11 +230,13 @@ final class MediaPlayer {
 
     private func publishNowPlaying() {
         guard let source else { return }
+        let duration = seconds(player.currentItem?.duration ?? .indefinite)
+        publishedDuration = duration
         nowPlaying.isPlaying = player.rate != 0
         nowPlaying.update(NowPlaying.State(
             title: source.title,
             artist: source.artist,
-            duration: seconds(player.currentItem?.duration ?? .indefinite),
+            duration: duration,
             time: seconds(player.currentTime()),
             rate: Double(player.rate)
         ))
@@ -224,12 +271,18 @@ final class MediaPlayer {
     }
 
     private func emitTick() {
+        let duration = seconds(player.currentItem?.duration ?? .indefinite)
+        // The length usually arrives after the load, with nothing else to
+        // tell the lock screen about it.
+        if source != nil, duration != publishedDuration {
+            publishNowPlaying()
+        }
         onTick?(MediaTick(
             appliedSeq: appliedSeq,
             time: seconds(player.currentTime()),
             // Zero rather than a guess when the length is unknown: the web side
             // treats a non-positive duration as "no usable length".
-            duration: seconds(player.currentItem?.duration ?? .indefinite),
+            duration: duration,
             paused: player.rate == 0,
             rate: Double(player.defaultRate),
             volume: Double(player.volume),
@@ -250,4 +303,19 @@ final class MediaPlayer {
         return value.isFinite ? value : 0
     }
 
+}
+
+/// Resumes a continuation with whichever of two answers comes first.
+@MainActor
+private final class FirstAnswer {
+    private var continuation: CheckedContinuation<[HTTPCookie], Never>?
+
+    init(_ continuation: CheckedContinuation<[HTTPCookie], Never>) {
+        self.continuation = continuation
+    }
+
+    func give(_ cookies: [HTTPCookie]) {
+        continuation?.resume(returning: cookies)
+        continuation = nil
+    }
 }

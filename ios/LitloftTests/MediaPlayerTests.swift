@@ -12,8 +12,8 @@ private final class PlayerRig {
     let session = FakeAudioSession()
     private(set) var ticks: [MediaTick] = []
 
-    init(jar: CookieJar = SlowCookieJar()) {
-        player = MediaPlayer(jar: jar, audioSession: session)
+    init(jar: CookieJar = SlowCookieJar(), cookieReadLimit: Duration = .seconds(2)) {
+        player = MediaPlayer(jar: jar, audioSession: session, cookieReadLimit: cookieReadLimit)
         player.onTick = { [unowned self] in ticks.append($0) }
     }
 
@@ -167,6 +167,91 @@ extension SharedMediaState {
             await rig.player.apply(.unload, seq: 2).value
             #expect(rig.session.isHeld == false)
             #expect(rig.session.log == ["take", "release"])
+        }
+
+        // MARK: the end of a file
+
+        @Test("a file played to its end is reported as ended")
+        func playsToTheEnd() async throws {
+            let rig = PlayerRig()
+            await rig.player.apply(.load(try local(seconds: 0.6)), seq: 1).value
+            await rig.player.apply(.play, seq: 2).value
+
+            let ended = await rig.waitFor { rig.ticks.last?.ended == true }
+
+            #expect(ended)
+            #expect(rig.ticks.last?.paused == true)
+            await rig.player.apply(.unload, seq: 3).value
+        }
+
+        /// A media element starts over; AVPlayer at its end ignores play.
+        @Test("play after the end starts the file again")
+        func playAfterTheEndRestarts() async throws {
+            let rig = PlayerRig()
+            await rig.player.apply(.load(try local(seconds: 0.6)), seq: 1).value
+            await rig.player.apply(.play, seq: 2).value
+            #expect(await rig.waitFor { rig.ticks.last?.ended == true })
+
+            await rig.player.apply(.play, seq: 3).value
+
+            let restarted = try #require(rig.firstTick(atOrAbove: 3))
+            #expect(restarted.ended == false)
+            #expect(restarted.paused == false)
+            #expect(restarted.time < 0.5, "resumed at \(restarted.time)")
+            await rig.player.apply(.unload, seq: 4).value
+        }
+
+        // MARK: the lock screen
+
+        @Test("the lock screen learns the length once the file reports it")
+        func lengthReachesTheLockScreen() async throws {
+            let rig = PlayerRig()
+            await rig.player.apply(.load(try local(seconds: 3)), seq: 1).value
+            await rig.player.apply(.play, seq: 2).value
+
+            #expect(await rig.waitFor { (rig.ticks.last?.duration ?? 0) > 0 })
+            // One more tick after the length is known is what republishes it.
+            let count = rig.ticks.count
+            #expect(await rig.waitFor { rig.ticks.count > count })
+
+            let info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+            let length = try #require(info[MPMediaItemPropertyPlaybackDuration] as? Double)
+            #expect(abs(length - 3) < 0.1)
+            #expect(info[MPNowPlayingInfoPropertyIsLiveStream] as? Bool == false)
+            await rig.player.apply(.unload, seq: 3).value
+        }
+
+        // MARK: a stalled cookie read
+
+        @Test("a pause is not held up for long by a cookie read that never answers")
+        func stalledCookieReadDoesNotHoldEverything() async {
+            let rig = PlayerRig(jar: StallingCookieJar(), cookieReadLimit: .milliseconds(200))
+            let started = ContinuousClock.now
+
+            rig.player.apply(.load(remote), seq: 1)
+            await rig.player.applyFromRemote(.pause).value
+
+            #expect(ContinuousClock.now - started < .seconds(2))
+            #expect(rig.ticks.last?.paused == true)
+            await rig.player.apply(.unload, seq: 2).value
+        }
+
+        // MARK: teardown
+
+        @Test("a player dropped with a file loaded gives back what it held")
+        func droppedPlayerCleansUp() async {
+            let session = await loadAndDrop()
+
+            #expect(session.isHeld == false)
+            #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo == nil)
+        }
+
+        private func loadAndDrop() async -> FakeAudioSession {
+            let rig = PlayerRig()
+            await rig.player.apply(.load(remote), seq: 1).value
+            #expect(rig.session.isHeld)
+            #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo != nil)
+            return rig.session
         }
 
         // MARK: navigation

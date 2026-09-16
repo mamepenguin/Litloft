@@ -78,3 +78,15 @@ final class FakeAudioSession: AudioSession {
         log.append("release")
     }
 }
+
+/// A jar whose answer is far too late to wait for.
+@MainActor
+final class StallingCookieJar: CookieJar {
+    func setCookie(_ cookie: HTTPCookie) async {}
+    func deleteCookie(_ cookie: HTTPCookie) async {}
+
+    func allCookies() async -> [HTTPCookie] {
+        try? await Task.sleep(for: .seconds(60))
+        return []
+    }
+}
