@@ -236,16 +236,16 @@ candidate pending; generation and dismissal do not write core chapters.
 
 ### Ask (RAG)
 
-The page names itself *Ask this drive*, offers an example question rather than
-echoing the `?q=` it was opened with, and puts the number of files it will read
-above the box — the same line *Find* carries, because a drive is a boundary and
-"found nothing" and "looked in the wrong place" read alike without it. That count
-is the size of the **drive**, not of the index: it is every active file there,
-while Ask retrieves from the subset carrying a transcript, a caption or an
-embedding. The line is simply absent when the call behind it fails, because a
-wrong number would be read as the size of the index and believed. Under the
-box it says that answers take a few seconds and that transcripts and text are
-sent to the LLM API, before anything is sent.
+The page offers an example question rather than echoing the `?q=` it was
+opened with. Its header names the drive and how many files it holds — the same
+header *Find* carries, because a drive is a boundary and "found nothing" and
+"looked in the wrong place" read alike without it. That count is the size of the
+**drive**, not of the index: it is every active file there, while Ask retrieves
+from the subset carrying a transcript, a caption or an embedding. When the call
+behind it fails the header names the drive alone, never a number, because a
+wrong number would be read as the size of the index and believed. Under the box
+it says that answers take a few seconds and that transcripts and text are sent
+to the LLM API, before anything is sent.
 
 `POST /api/addons/intelligence/ask` is question answering over your library:
 
@@ -725,6 +725,7 @@ Whisper and BLIP are only used during indexing, so they can be unloaded after a 
 When enabled, the intelligence addon contributes:
 
 - **Search modes** — *Semantic Search* and *Find* (sidebar of `/drive/<name>/search`), plus *Scene search* toggle and *Ask* input.
+- **Ask page** — the sidebar's *Ask* row opens `/drive/<name>/addons/intelligence`. Its header is titled *Ask* with the sidebar row's icon, names the drive and how many files it holds (the drive alone when that count cannot be fetched), and carries the *Ask* / *Find* tabs; both tabs share that header, so switching between them moves nothing.
 - **File detail sections** — a section appears once it has something in it. Until then
   there is no heading; the way to make one is the **AI** menu below.
   - *Unverified Source* (shown only on a file you have not yet ruled on — see below)
