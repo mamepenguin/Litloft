@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  createContext,
   useCallback,
+  useContext,
   useMemo,
   useRef,
   useState,
@@ -27,7 +29,6 @@ import {
 import { useViewportHeight } from "@/hooks/useViewportHeight";
 import { useSheetDismissMotion } from "@/hooks/useSheetDismissMotion";
 import { useSheetPullToCollapse } from "@/hooks/useSheetPullToCollapse";
-import { DialogPortalProvider } from "./DialogPortal";
 
 /**
  * A state, not a snap: what `half` means in vaul's units is derived per file
@@ -55,6 +56,16 @@ export const SHEET_PEEK_HEIGHT = `calc(${SHEET_PEEK_PX}px + env(safe-area-inset-
 
 export const SHEET_SCROLLER_PADDING_BOTTOM =
   "calc(env(safe-area-inset-bottom, 0px) + 16px)";
+
+/**
+ * Lowers the sheet to its resting strip. Outside a file page's shell there
+ * is no sheet, and it does nothing.
+ */
+export const CollapseSheetContext = createContext<() => void>(() => {});
+
+export function useCollapseSheet(): () => void {
+  return useContext(CollapseSheetContext);
+}
 
 export function isSheetExpanded(state: SheetState): boolean {
   return state !== SHEET_STATE_PEEK;
@@ -99,7 +110,6 @@ export function MobileInspectorSheet({
   children: ReactNode;
 }): ReactElement | null {
   const t = useTranslations("inspector");
-  const [dialogHost, setDialogHost] = useState<HTMLDivElement | null>(null);
   // State rather than a ref: the drawer is not mounted at `peek`, so this
   // node comes and goes with the sheet's state and the gesture's effect
   // has to re-run when it does.
@@ -258,13 +268,10 @@ export function MobileInspectorSheet({
                 className="min-h-0 flex-1 overflow-auto overscroll-contain"
                 style={{ paddingBottom: SHEET_SCROLLER_PADDING_BOTTOM }}
               >
-                <DialogPortalProvider target={dialogHost}>
-                  {children}
-                </DialogPortalProvider>
+                {children}
               </div>
             </div>
           </div>
-          <div ref={setDialogHost} />
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

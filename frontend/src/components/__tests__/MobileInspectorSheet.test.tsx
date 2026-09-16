@@ -26,6 +26,7 @@ import {
   SHEET_STATE_HALF,
   SHEET_STATE_PEEK,
   isSheetExpanded,
+  useCollapseSheet,
   sheetSnapPoints,
   sheetStateForSnap,
   type SheetState,
@@ -269,7 +270,7 @@ describe("MobileInspectorSheet", () => {
     );
   });
 
-  it("hosts dialogs opened from inside it, where they stay interactive", async () => {
+  it("sends dialogs opened from inside it to the page, out of its transform", async () => {
     function DialogFromInsideTheSheet() {
       const target = useDialogPortalTarget();
       if (!target) return null;
@@ -295,9 +296,10 @@ describe("MobileInspectorSheet", () => {
       name: "launched from the sheet",
     });
     expect(dialog.closest("[aria-hidden='true']")).toBeNull();
+    expect(dialog.parentElement).toBe(document.body);
     expect(
       dialog.closest("[data-testid='mobile-inspector-sheet']"),
-    ).not.toBeNull();
+    ).toBeNull();
     expect(screen.getByRole("button", { name: "confirm" })).toBeInTheDocument();
   });
 
@@ -331,6 +333,19 @@ function expanded(state: SheetState, halfSnap?: number) {
   );
   return { drawer: screen.getByTestId("mobile-inspector-sheet") };
 }
+
+describe("collapsing the sheet from inside the page", () => {
+  it("does nothing where there is no sheet", () => {
+    function Probe() {
+      const collapse = useCollapseSheet();
+      return <button onClick={collapse}>collapse</button>;
+    }
+    render(<Probe />);
+    expect(() =>
+      fireEvent.click(screen.getByRole("button", { name: "collapse" })),
+    ).not.toThrow();
+  });
+});
 
 describe("isSheetExpanded", () => {
   it("calls only the resting state unexpanded", () => {

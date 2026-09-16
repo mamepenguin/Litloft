@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { VideoPlayer } from "../VideoPlayer";
 import { ShortcutsProvider } from "../ShortcutsProvider";
+import { CollapseSheetContext } from "../MobileInspectorSheet";
 
 vi.mock("@/lib/api", () => ({
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
@@ -131,6 +132,31 @@ describe("VideoPlayer", () => {
     fireEvent.keyDown(document, { key: "f" });
     await waitFor(() => expect(frame).toHaveClass("fixed", "inset-0", "z-50"));
     expect(frame).not.toHaveClass("aspect-video");
+  });
+
+  it("lowers the file sheet when it pins the frame, and only then", async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("pointer: coarse"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    window.scrollTo = vi.fn();
+    const collapse = vi.fn();
+    const { container } = render(
+      <ShortcutsProvider>
+        <CollapseSheetContext.Provider value={collapse}>
+          <VideoPlayer videoId="vid-1" />
+        </CollapseSheetContext.Provider>
+      </ShortcutsProvider>,
+    );
+    const frame = container.querySelector<HTMLElement>("[data-testid='player-frame']")!;
+
+    await screen.findByRole("button", { name: "Settings" });
+    expect(collapse).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: "f" });
+    await waitFor(() => expect(frame).toHaveClass("fixed", "inset-0", "z-50"));
+    expect(collapse).toHaveBeenCalledOnce();
   });
 
   it("does not treat waiting on a paused video as active playback", async () => {

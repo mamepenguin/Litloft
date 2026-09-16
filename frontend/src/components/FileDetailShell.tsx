@@ -20,6 +20,7 @@ import { useInspectorFit } from "./FileDetail/hooks/useInspectorFit";
 import { InspectorPane } from "./InspectorPane";
 import { SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
 import {
+  CollapseSheetContext,
   MobileInspectorSheet,
   SHEET_PEEK_HEIGHT,
   SHEET_STATE_HALF,
@@ -117,6 +118,7 @@ export function FileDetailShell({
   }, []);
 
   const toggle = useCallback(() => setOpen(!open), [open, setOpen]);
+  const collapseSheet = useCallback(() => setSheetState(SHEET_STATE_PEEK), []);
 
   const shortcuts = useMemo(
     () => [
@@ -141,59 +143,61 @@ export function FileDetailShell({
   }, [isMobile, toggle]);
 
   return (
-    <div
-      data-testid="file-detail-shell"
-      // The player reads this through a stylesheet, never through a
-      // prop, to stick to the top of the canvas.
-      data-sheet-snap={
-        isMobile ? (sheetExpanded ? "expanded" : "peek") : undefined
-      }
-      className="flex h-full w-full flex-col"
-    >
-      <FileDetailChrome
-        drive={drive}
-        folderPath={folderPath}
-        title={title}
-        titleNode={titleNode}
-        onBack={onBack}
-        inspector={{
-          open: isMobile ? sheetExpanded : open,
-          onToggle: handleInspectorButton,
-        }}
-      >
-        {chromeControls}
-      </FileDetailChrome>
+    <CollapseSheetContext.Provider value={collapseSheet}>
       <div
-        ref={attachInspectorFitHost}
-        data-testid="inspector-fit-host"
-        className="relative flex min-h-0 flex-1"
+        data-testid="file-detail-shell"
+        // The player reads this through a stylesheet, never through a
+        // prop, to stick to the top of the canvas.
+        data-sheet-snap={
+          isMobile ? (sheetExpanded ? "expanded" : "peek") : undefined
+        }
+        className="flex h-full w-full flex-col"
       >
-        <main
-          ref={attachCanvas}
-          data-canvas-floor={floorActive ? "true" : undefined}
-          className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto"
-          // The sheet rests over the bottom of the page, so the page
-          // has to end above it.
-          style={
-            isMobile
-              ? { paddingBottom: SHEET_PEEK_HEIGHT }
-              : undefined
-          }
+        <FileDetailChrome
+          drive={drive}
+          folderPath={folderPath}
+          title={title}
+          titleNode={titleNode}
+          onBack={onBack}
+          inspector={{
+            open: isMobile ? sheetExpanded : open,
+            onToggle: handleInspectorButton,
+          }}
         >
-          {children}
-        </main>
-        {inspectorOpenOnDesktop && <InspectorPane>{inspector}</InspectorPane>}
+          {chromeControls}
+        </FileDetailChrome>
+        <div
+          ref={attachInspectorFitHost}
+          data-testid="inspector-fit-host"
+          className="relative flex min-h-0 flex-1"
+        >
+          <main
+            ref={attachCanvas}
+            data-canvas-floor={floorActive ? "true" : undefined}
+            className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto"
+            // The sheet rests over the bottom of the page, so the page
+            // has to end above it.
+            style={
+              isMobile
+                ? { paddingBottom: SHEET_PEEK_HEIGHT }
+                : undefined
+            }
+          >
+            {children}
+          </main>
+          {inspectorOpenOnDesktop && <InspectorPane>{inspector}</InspectorPane>}
+        </div>
+        {isMobile && (
+          <MobileInspectorSheet
+            state={sheetState}
+            onStateChange={setSheetState}
+            halfSnap={halfSnap}
+            peek={sheetPeek}
+          >
+            {mobileSheet ?? inspector}
+          </MobileInspectorSheet>
+        )}
       </div>
-      {isMobile && (
-        <MobileInspectorSheet
-          state={sheetState}
-          onStateChange={setSheetState}
-          halfSnap={halfSnap}
-          peek={sheetPeek}
-        >
-          {mobileSheet ?? inspector}
-        </MobileInspectorSheet>
-      )}
-    </div>
+    </CollapseSheetContext.Provider>
   );
 }

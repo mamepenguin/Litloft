@@ -26,6 +26,7 @@ import { useNativePlayerUiPreference } from "@/lib/nativePlayerUi";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import MediaControls from "./player/MediaControls";
 import { useFullscreen } from "./player/hooks/useFullscreen";
+import { useCollapseSheet } from "./MobileInspectorSheet";
 import {
   NativeToggleButtons,
   SubtitleTrackPicker,
@@ -130,6 +131,11 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
   const [playerUi, setPlayerUi] = useNativePlayerUiPreference();
   const [playing, setPlaying] = useState(false);
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
+  const collapseSheet = useCollapseSheet();
+  // The pinned frame is inside the page, so a raised sheet would cover it.
+  useEffect(() => {
+    if (pseudoFullscreen) collapseSheet();
+  }, [pseudoFullscreen, collapseSheet]);
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
   // One controller for the life of this element, held in state so the
   // hooks below re-run when it appears. Building a fresh one per call

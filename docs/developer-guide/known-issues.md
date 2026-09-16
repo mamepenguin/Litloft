@@ -45,6 +45,10 @@ error from the policy save, or not at all.
 
 ## Files
 
+**One Escape closes both the overlay sidebar and the file sheet under it.** On a phone, with the file sheet raised and the sidebar opened over it, Escape lowers the sheet as well as closing the sidebar.
+
+**A focused field on a file page lifts the raised sheet above the keyboard.** On a phone, typing into the page (a note, the title) while the file sheet is raised moves the sheet up with the keyboard instead of leaving it where it was.
+
 **Most existing links show under Related files rather than Links from / Links to.** Relations recorded before relation origins existed have no direction owner; each moves to the link sections when its note is next saved.
 
 **The Related tab does not follow a save made in place.** After editing a note's links on its own page, the tab keeps the previous lists until the page is opened again.

@@ -30,7 +30,9 @@ import {
 } from "@/components/search/GlobalSearchProvider";
 import {
   MobileInspectorSheet,
+  SHEET_PEEK_HEIGHT,
   SHEET_STATE_HALF,
+  SHEET_STATE_PEEK,
   type SheetState,
 } from "@/components/MobileInspectorSheet";
 import { DismissScrim } from "@/components/DismissScrim";
@@ -646,6 +648,73 @@ function SheetGestureShort(): ReactElement {
   return <SheetGesture bodyPx={40} />;
 }
 
+/**
+ * A file page as the shell draws it on a phone: a scrolling canvas holding
+ * something at the header's tier and the sticky player, with the sheet over
+ * it. The header is tall only so the raised sheet overlaps it.
+ */
+function SheetOverPage({ state }: { state: SheetState }): ReactElement {
+  const resting = state === SHEET_STATE_PEEK;
+  return (
+    <NextIntlClientProvider
+      locale="en"
+      messages={{ inspector: { title: "Details", sheetDescription: "Sheet" } }}
+    >
+      <div
+        data-sheet-snap={resting ? "peek" : "expanded"}
+        // Not `fixed`, which would put the header's tier in a stacking
+        // context of its own and out of the sheet's reach.
+        className="absolute inset-0 flex flex-col"
+      >
+        <main
+          id="page"
+          className="flex min-h-0 flex-1 flex-col overflow-auto"
+          style={resting ? { paddingBottom: SHEET_PEEK_HEIGHT } : undefined}
+        >
+          <div
+            id="page-header"
+            className="sticky top-0 z-20 shrink-0 bg-bg-card"
+            style={{ height: "160px" }}
+          >
+            header
+          </div>
+          <div className="media-detail-host shrink-0">
+            <div id="player" className="media-detail-player">
+              <div style={{ height: "220px", background: "#000" }} />
+            </div>
+          </div>
+          <div className="shrink-0" style={{ height: "2000px" }}>
+            the description
+          </div>
+          <div id="page-end" className="shrink-0" style={{ height: "24px" }}>
+            the end of the page
+          </div>
+        </main>
+      </div>
+      <MobileInspectorSheet
+        state={state}
+        onStateChange={() => {}}
+        halfSnap={0.4}
+        peek={<div id="peek-row">peek</div>}
+      >
+        <div style={{ height: "1200px" }}>the inspector</div>
+      </MobileInspectorSheet>
+    </NextIntlClientProvider>
+  );
+}
+
+function SheetOverPagePeek(): ReactElement {
+  return <SheetOverPage state={SHEET_STATE_PEEK} />;
+}
+
+function SheetOverPageHalf(): ReactElement {
+  return <SheetOverPage state={SHEET_STATE_HALF} />;
+}
+
+function SheetOverPageFull(): ReactElement {
+  return <SheetOverPage state="full" />;
+}
+
 /** The overlay sidebar's backdrop and panel, opened over a raised sheet. */
 function SheetUnderSidebar(): ReactElement {
   return (
@@ -837,6 +906,9 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "sheet-gesture": SheetGestureScrollable,
   "sheet-gesture-short": SheetGestureShort,
   "sheet-under-sidebar": SheetUnderSidebar,
+  "sheet-over-page-peek": SheetOverPagePeek,
+  "sheet-over-page-half": SheetOverPageHalf,
+  "sheet-over-page-full": SheetOverPageFull,
   "measured-sheet-peek": MeasuredSheetPeek,
   "measured-sheet-half": MeasuredSheetHalf,
   "measured-sheet-full": MeasuredSheetFull,

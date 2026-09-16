@@ -419,6 +419,93 @@ test.describe("how the sheet leaves", () => {
 
 });
 
+const INSET_BOTTOM_PX = 34;
+
+/** A real inset, which Chromium applies to `env(safe-area-inset-bottom)`. */
+async function withBottomInset(page: Page): Promise<void> {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setSafeAreaInsetsOverride", {
+    insets: { bottom: INSET_BOTTOM_PX },
+  });
+}
+
+test.describe("the resting strip over a page with a bottom inset", () => {
+  test("stands 56px above the inset and the page ends above it", async ({
+    page,
+  }) => {
+    await withBottomInset(page);
+    await open(page, "sheet-over-page-peek");
+    const m = await page.evaluate(() => {
+      const main = document.getElementById("page")!;
+      main.scrollTop = main.scrollHeight;
+      const strip = document
+        .querySelector("[data-testid='mobile-inspector-peek']")!
+        .getBoundingClientRect();
+      const end = document.getElementById("page-end")!.getBoundingClientRect();
+      const row = document.getElementById("peek-row")!.getBoundingClientRect();
+      return {
+        rowCenter: (row.top + row.bottom) / 2,
+        stripHeight: strip.height,
+        stripBottom: strip.bottom,
+        viewportHeight: window.innerHeight,
+        pageEndBottom: end.bottom,
+        stripTop: strip.top,
+      };
+    });
+    expect(m.stripHeight).toBe(56 + INSET_BOTTOM_PX);
+    // Centred below the 1px top border in what is left of the 56px, not in
+    // the whole strip.
+    expect(m.rowCenter).toBeCloseTo(m.stripTop + 1 + 55 / 2, 1);
+    expect(m.stripBottom).toBe(m.viewportHeight);
+    expect(m.pageEndBottom).toBeLessThanOrEqual(m.stripTop);
+    expect(m.pageEndBottom).toBeGreaterThan(m.stripTop - 1);
+  });
+});
+
+test.describe("the raised sheet over a file page", () => {
+  test("is drawn over the page's header and its sticky player", async ({
+    page,
+  }) => {
+    await open(page, "sheet-over-page-full");
+    const hit = await page.evaluate(() => {
+      const top = document
+        .querySelector("[data-testid='mobile-inspector-sheet']")!
+        .getBoundingClientRect().top;
+      const header = document.getElementById("page-header")!.getBoundingClientRect();
+      const player = document.getElementById("player")!.getBoundingClientRect();
+      const sheet = document.querySelector("[data-testid='mobile-inspector-sheet']")!;
+      const hitAt = (y: number) => sheet.contains(document.elementFromPoint(20, y));
+      return {
+        overlapsHeader: header.bottom > top + 2,
+        overlapsPlayer: player.bottom > top + 2,
+        overHeader: hitAt(Math.min(header.bottom, player.top) - 1),
+        overPlayer: hitAt(player.bottom - 1),
+      };
+    });
+    expect(hit).toMatchObject({
+      overlapsHeader: true,
+      overlapsPlayer: true,
+      overHeader: true,
+      overPlayer: true,
+    });
+  });
+
+  test("leaves the page scrollable", async ({ page }) => {
+    await open(page, "sheet-over-page-half");
+    await swipe(page, {
+      from: "#page-header",
+      down: -75,
+      steps: 5,
+      ...FLICK,
+    });
+    const scrolled = await page.evaluate(
+      () => document.getElementById("page")!.scrollTop,
+    );
+    expect(scrolled).toBeGreaterThan(30);
+    expect((await read(page)).state).toBe("");
+  });
+});
+
 test.describe("the page behind the raised sheet", () => {
   test("takes a tap, and the sheet stays where it is", async ({ page }) => {
     await open(page, "sheet-gesture");

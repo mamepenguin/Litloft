@@ -6,12 +6,6 @@ import {
   type ReactNode,
 } from "react";
 
-/**
- * The mobile Bottom Sheet runs vaul in `modal` mode, which puts
- * `pointer-events: none` on `<body>` and `aria-hidden="true"` on every other
- * body child, so a dialog opened from inside the sheet and portalled to
- * `document.body` would be rendered, stacked correctly, and completely inert.
- */
 const DialogPortalContext = createContext<HTMLElement | null>(null);
 
 export function DialogPortalProvider({
