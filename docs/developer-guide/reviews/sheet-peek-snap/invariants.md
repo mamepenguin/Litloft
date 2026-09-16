@@ -1,25 +1,24 @@
-# core: mobile sheet non-modal, peek as a snap — R-0 invariants
+# core: mobile sheet non-modal when raised, resting strip clears the safe area — R-0 invariants
 
-Change: the file-detail Bottom Sheet on phones is non-modal in every state and
-stays mounted, with peek as vaul's first snap point, so the resting bar can be
-dragged up. The resting bar clears the bottom safe-area inset. The action row
-lives only in the sheet's header on phones.
+Change: the file-detail Bottom Sheet on phones is non-modal at half and full
+(no `aria-hidden` on the page, no focus trap, no backdrop), and sits below the
+overlay sidebar. The resting strip and the page's bottom reserve include the
+bottom safe-area inset. The resting strip no longer carries addon buttons.
 
-Approved by the user on 2026-09-16.
-
-1. While the sheet is at peek, no element outside the sheet has `aria-hidden`
-   set by the sheet, `body` has no `pointer-events: none`, and the page scrolls.
-2. At half, a tap on the player reaches the player (play/pause), and the sheet
-   stays at half.
-3. A tap or pointerdown outside the sheet never changes the sheet's state.
-4. Exactly one `FileActionRow` is mounted on a mobile file-detail page, in every
-   sheet state.
-5. At peek the header row's bottom edge is at
-   `innerHeight − safe-area-inset-bottom`; the page's last content ends above
-   the header's top edge.
-6. Dragging the knob up from peek and releasing settles on half or full;
-   releasing near peek settles on peek.
-7. A content pull or a knob flick that used to close the sheet leaves it at
-   peek, never unmounted or off screen.
-8. Content below the header is not focusable at peek (`inert`).
-9. Changing files resets the sheet to peek.
+1. At half and full, no element outside the sheet has `aria-hidden` set by the
+   sheet, `body` has no `pointer-events: none`, and focus is not trapped in the
+   sheet.
+2. At half, a tap on the page (the player included) reaches the page, and the
+   sheet stays at half.
+3. At rest nothing of the drawer is mounted: no Radix layer, so an Escape or a
+   focused field on the page is the page's alone.
+4. The strip is 56px above the bottom inset, which it pads; the page's last
+   content ends above the strip's top edge, inset included.
+5. An overlay sidebar or its backdrop opened while the sheet is raised is drawn
+   above the sheet.
+6. The strip shows the file name, like, favourite and `⋮`, and no
+   `file-detail-actions` addon entry; the raised sheet still shows those
+   entries, once.
+7. Escape, a content pull and a knob release below half still collapse the
+   sheet to the strip, never closing it.
+8. Changing files resets the sheet to the strip.

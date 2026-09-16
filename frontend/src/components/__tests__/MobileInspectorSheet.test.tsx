@@ -21,6 +21,7 @@ import {
 } from "@/lib/sheetSnap";
 import {
   MobileInspectorSheet,
+  SHEET_PEEK_HEIGHT,
   SHEET_STATE_FULL,
   SHEET_STATE_HALF,
   SHEET_STATE_PEEK,
@@ -85,10 +86,15 @@ describe("MobileInspectorSheet", () => {
     expect(screen.getByTestId("peek-content")).toBeInTheDocument();
   });
 
-  it("gives the peek row exactly the height the design names", () => {
+  it("gives the peek row the design's height above the home indicator", () => {
+    // Through the constant: jsdom rewrites an `env()` it re-serialises, and
+    // drops the padding that is nothing but one.
+    expect(SHEET_PEEK_HEIGHT).toBe(
+      `calc(${SHEET_PEEK_PX}px + env(safe-area-inset-bottom, 0px))`,
+    );
     renderSheet();
-    const row = screen.getByTestId("mobile-inspector-peek");
-    expect(row.style.height).toBe(`${SHEET_PEEK_PX}px`);
+    const style = screen.getByTestId("mobile-inspector-peek").getAttribute("style") ?? "";
+    expect(style).toMatch(/height:\s*calc\(56px \+ env\(/);
   });
 
   it("mounts no dialog at rest, so the page is not hidden from a reader", () => {
@@ -125,12 +131,31 @@ describe("MobileInspectorSheet", () => {
     expect(screen.queryByTestId("mobile-inspector-sheet")).toBeNull();
   });
 
-  it("dims the page at half, the state the toggle opens", async () => {
-    // vaul fades its overlay from the *last* snap point by default.
-    renderSheet(SHEET_STATE_HALF);
-    const overlay = await screen.findByTestId("mobile-inspector-overlay");
-    expect(overlay.dataset.vaulSnapPointsOverlay).toBe("true");
-  });
+  for (const state of [SHEET_STATE_HALF, SHEET_STATE_FULL]) {
+    it(`leaves the page exposed, operable and undimmed at ${state}`, async () => {
+      const page = document.createElement("button");
+      document.body.appendChild(page);
+      try {
+        const { onStateChange } = renderSheet(state);
+        await screen.findByTestId("mobile-inspector-sheet");
+
+        expect(page.closest("[aria-hidden='true']")).toBeNull();
+        expect(document.body.style.pointerEvents).not.toBe("none");
+        expect(document.querySelector("[data-vaul-overlay]")).toBeNull();
+
+        act(() => page.focus());
+        expect(document.activeElement).toBe(page);
+
+        fireEvent.pointerDown(page);
+        fireEvent.pointerUp(page);
+        fireEvent.click(page);
+        await act(() => new Promise((resolve) => setTimeout(resolve, 600)));
+        expect(onStateChange).not.toHaveBeenCalled();
+      } finally {
+        page.remove();
+      }
+    });
+  }
 
   it("collapses to peek on a dismiss gesture instead of closing", async () => {
     const { onStateChange } = renderSheet(SHEET_STATE_HALF);
@@ -228,19 +253,12 @@ describe("MobileInspectorSheet", () => {
     });
   });
 
-  it("sits below the modal-dialog tier", async () => {
-    // Dialogs opened from inside the sheet portal at z-50; if the sheet
-    // outranked them they would be launched and immediately buried.
+  it("sits above the page's chrome and below the sidebar's backdrop", async () => {
     renderSheet(SHEET_STATE_FULL);
     const sheet = await screen.findByTestId("mobile-inspector-sheet");
-    const overlay = screen.getByTestId("mobile-inspector-overlay");
-
-    for (const el of [sheet, overlay]) {
-      const tier = /z-\[(\d+)\]/.exec(el.className)?.[1];
-      expect(tier).toBeDefined();
-      expect(Number(tier)).toBeLessThan(50);
-      expect(Number(tier)).toBeGreaterThan(40);
-    }
+    expect([...sheet.classList].filter((token) => /^z-/.test(token))).toEqual([
+      "z-[25]",
+    ]);
   });
 
   it("marks its scroller as the one that scrolls the inspector's panels", async () => {
@@ -545,9 +563,6 @@ describe("pulling the sheet down by its content", () => {
 
     expect(onStateChange).not.toHaveBeenCalled();
     expect(surface.style.transform).toBe("translate3d(0, 300px, 0)");
-    expect(screen.getByTestId("mobile-inspector-overlay").style.opacity).toBe(
-      "0",
-    );
 
     await waitFor(() => {
       expect(onStateChange).toHaveBeenCalledWith(SHEET_STATE_PEEK);

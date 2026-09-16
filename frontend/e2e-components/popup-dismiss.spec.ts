@@ -347,12 +347,17 @@ test.describe("a menu in the sheet's resting strip", () => {
           bottomIsTheScreen:
             Math.round(strip.getBoundingClientRect().bottom) ===
             window.innerHeight,
+          height: strip.getBoundingClientRect().height,
+          paddingBottom: strip.style.paddingBottom,
           drawerMounted: !!document.querySelector("[data-vaul-drawer]"),
         };
       }),
     ).toEqual({
       transformed: false,
       bottomIsTheScreen: true,
+      // Chromium reports no inset, so the strip is its 56px row.
+      height: 56,
+      paddingBottom: "env(safe-area-inset-bottom, 0px)",
       drawerMounted: false,
     });
   });

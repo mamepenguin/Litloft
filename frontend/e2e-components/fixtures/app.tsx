@@ -646,6 +646,20 @@ function SheetGestureShort(): ReactElement {
   return <SheetGesture bodyPx={40} />;
 }
 
+/** The overlay sidebar's backdrop and panel, opened over a raised sheet. */
+function SheetUnderSidebar(): ReactElement {
+  return (
+    <>
+      <SheetGesture bodyPx={2000} />
+      <div id="sidebar-backdrop" className="fixed inset-0 z-30 bg-black/30" />
+      <nav
+        id="sidebar"
+        className="fixed top-0 left-0 z-40 h-dvh w-60 bg-bg-sidebar"
+      />
+    </>
+  );
+}
+
 /**
  * The Add menu with the shortcut stack it answers Escape through. The page
  * control fills the lower half, so a press outside the menu lands on it.
@@ -822,6 +836,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "sheet-full-up": SheetFullUp,
   "sheet-gesture": SheetGestureScrollable,
   "sheet-gesture-short": SheetGestureShort,
+  "sheet-under-sidebar": SheetUnderSidebar,
   "measured-sheet-peek": MeasuredSheetPeek,
   "measured-sheet-half": MeasuredSheetHalf,
   "measured-sheet-full": MeasuredSheetFull,

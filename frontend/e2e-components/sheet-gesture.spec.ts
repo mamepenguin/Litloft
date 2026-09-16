@@ -39,7 +39,6 @@ const stepsFor = (down: number) =>
 const SCROLLER = "[data-testid='mobile-inspector-content']";
 const SURFACE = "[data-testid='mobile-inspector-surface']";
 const KNOB = "[data-vaul-handle]";
-const OVERLAY = "[data-testid='mobile-inspector-overlay']";
 
 let navigation = 0;
 
@@ -418,17 +417,42 @@ test.describe("how the sheet leaves", () => {
     offScreen(await read(page));
   });
 
-  test("tapping the dimmed page slides it off the screen before it collapses", async ({
-    page,
-  }) => {
-    await open(page, "sheet-gesture");
-    await page.locator(OVERLAY).tap({ position: { x: 20, y: 20 } });
+});
 
-    await expect(page.locator("body")).toHaveAttribute(
-      "data-sheet-state",
-      "peek",
-    );
-    offScreen(await read(page));
+test.describe("the page behind the raised sheet", () => {
+  test("takes a tap, and the sheet stays where it is", async ({ page }) => {
+    await open(page, "sheet-gesture");
+    const before = await read(page);
+    await page.locator("#underneath").tap({ position: { x: 20, y: 20 } });
+    await page.waitForTimeout(600);
+
+    expect(
+      await page.evaluate(() => ({
+        clicks: (document.getElementById("underneath") as HTMLElement).dataset
+          .clicks,
+        hidden: document.querySelector("[aria-hidden='true'] #underneath"),
+        pointerEvents: document.body.style.pointerEvents,
+      })),
+    ).toEqual({ clicks: "1", hidden: null, pointerEvents: "auto" });
+    const after = await read(page);
+    expect(after.state).toBe("");
+    expect(after.surfaceTop).toBeCloseTo(before.surfaceTop, 0);
+  });
+
+  test("is covered by an overlay sidebar opened over it", async ({ page }) => {
+    await open(page, "sheet-under-sidebar");
+    const hit = await page.evaluate(() => {
+      const top = document
+        .querySelector("[data-testid='mobile-inspector-content']")!
+        .getBoundingClientRect().top;
+      const at = (x: number) =>
+        document.elementFromPoint(x, top + 40)?.id ?? "";
+      return { underPanel: at(40), besidePanel: at(window.innerWidth - 20) };
+    });
+    expect(hit).toEqual({
+      underPanel: "sidebar",
+      besidePanel: "sidebar-backdrop",
+    });
   });
 });
 

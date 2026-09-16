@@ -18,9 +18,10 @@ import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import { FileDetailChrome } from "./FileDetail/FileDetailChrome";
 import { useInspectorFit } from "./FileDetail/hooks/useInspectorFit";
 import { InspectorPane } from "./InspectorPane";
-import { SHEET_PEEK_PX, SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
+import { SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
 import {
   MobileInspectorSheet,
+  SHEET_PEEK_HEIGHT,
   SHEET_STATE_HALF,
   SHEET_STATE_PEEK,
   isSheetExpanded,
@@ -175,7 +176,7 @@ export function FileDetailShell({
           // has to end above it.
           style={
             isMobile
-              ? { paddingBottom: `${SHEET_PEEK_PX}px` }
+              ? { paddingBottom: SHEET_PEEK_HEIGHT }
               : undefined
           }
         >

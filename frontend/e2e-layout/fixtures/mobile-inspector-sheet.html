@@ -21,7 +21,7 @@
     -->
     <script type="application/json" id="fixture-markup">
       {
-        "drawer": "fixed bottom-0 left-0 right-0 z-[46] flex flex-col outline-none",
+        "drawer": "fixed bottom-0 left-0 right-0 z-[25] flex flex-col outline-none",
         "surface": "h-full flex flex-col rounded-t-2xl border-t border-bg-border bg-bg-card",
         "visible": "flex min-h-0 shrink-0 flex-col",
         "visibleHeight": "calc(100% - var(--snap-point-height, 0px))",
@@ -45,7 +45,7 @@
         "player": "media-detail-player",
         "playerBleed": "-mx-4 -mt-4 md:mx-0 md:mt-0",
         "framedShimPaddingTop": "56.25%",
-        "peekPx": 56
+        "peekHeight": "calc(56px + env(safe-area-inset-bottom, 0px))"
       }
     </script>
 
@@ -184,7 +184,7 @@
         const canvas = document.createElement("main");
         canvas.className = SPEC.canvas;
         canvas.dataset.testid = "file-detail-canvas";
-        canvas.style.paddingBottom = `${SPEC.peekPx}px`;
+        canvas.style.paddingBottom = SPEC.peekHeight;
 
         const mediaHost = document.createElement("div");
         mediaHost.className = SPEC.mediaHost;

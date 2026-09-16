@@ -212,6 +212,7 @@ describe("the component fixture's page", () => {
       "sheet-full-up",
       "sheet-gesture",
       "sheet-gesture-short",
+      "sheet-under-sidebar",
       "measured-sheet-peek",
       "measured-sheet-half",
       "measured-sheet-full",
