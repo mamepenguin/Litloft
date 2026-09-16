@@ -3,6 +3,7 @@ import SwiftUI
 struct ConnectionErrorView: View {
     let message: String
     let onRetry: () -> Void
+    let onChangeServer: () -> Void
 
     var body: some View {
         VStack(spacing: 20) {
@@ -18,11 +19,19 @@ struct ConnectionErrorView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            Button(action: onRetry) {
-                Text("Try again")
-                    .frame(maxWidth: 220)
+            VStack(spacing: 10) {
+                Button(action: onRetry) {
+                    Text("Try again")
+                        .frame(maxWidth: 220)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button(action: onChangeServer) {
+                    Text("Change server")
+                        .frame(maxWidth: 220)
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.borderedProminent)
             .controlSize(.large)
         }
         .padding(32)

@@ -20,8 +20,8 @@ struct WebView: UIViewRepresentable {
         webView.scrollView.backgroundColor = .systemBackground
         webView.scrollView.alwaysBounceHorizontal = false
 
-        webView.load(URLRequest(url: model.serverURL))
         context.coordinator.lastReloadToken = model.reloadToken
+        context.coordinator.start(webView)
         return webView
     }
 
@@ -38,10 +38,20 @@ struct WebView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let model: WebViewModel
+        let cookies = CookieBridge()
         var lastReloadToken = 0
 
         init(model: WebViewModel) {
             self.model = model
+        }
+
+        /// The stored session has to be in the jar before the first request,
+        /// or the load lands on the unlock screen.
+        func start(_ webView: WKWebView) {
+            Task {
+                await cookies.attach(to: webView.configuration.websiteDataStore.httpCookieStore)
+                webView.load(URLRequest(url: model.serverURL))
+            }
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
@@ -67,7 +77,7 @@ struct WebView: UIViewRepresentable {
         // Litloft draws its own context menus; the system callout would fight them.
         func webView(
             _ webView: WKWebView,
-            contextMenuConfigurationForElement elementInfo: WKContextMenuElementInfo
+            contextMenuConfigurationFor elementInfo: WKContextMenuElementInfo
         ) async -> UIContextMenuConfiguration? {
             nil
         }

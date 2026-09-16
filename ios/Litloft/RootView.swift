@@ -1,16 +1,17 @@
 import SwiftUI
 
 struct RootView: View {
-    @State private var model = WebViewModel()
+    @State private var settings = ServerSettings()
 
     var body: some View {
-        ZStack {
-            WebView(model: model)
-
-            if case .failed(let message) = model.state {
-                ConnectionErrorView(message: message) {
-                    model.retry()
-                }
+        if let serverURL = settings.serverURL {
+            WebShell(serverURL: serverURL) {
+                settings.forget()
+            }
+            .id(serverURL)
+        } else {
+            ServerSetupView { url in
+                settings.use(url)
             }
         }
     }

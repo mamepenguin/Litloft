@@ -14,7 +14,7 @@ final class WebViewModel {
 
     let serverURL: URL
 
-    init(serverURL: URL = ServerConnection.defaultURL) {
+    init(serverURL: URL) {
         self.serverURL = serverURL
     }
 
@@ -27,7 +27,7 @@ final class WebViewModel {
     }
 
     func markFailed(_ error: Error) {
-        state = .failed(Self.message(for: error))
+        state = .failed(message(for: error))
     }
 
     func retry() {
@@ -35,11 +35,10 @@ final class WebViewModel {
         state = .loading
     }
 
-    private static func message(for error: Error) -> String {
-        let code = URLError.Code(rawValue: (error as NSError).code)
-        switch code {
+    private func message(for error: Error) -> String {
+        switch URLError.Code(rawValue: (error as NSError).code) {
         case .cannotConnectToHost, .cannotFindHost:
-            return String(localized: "Litloft is not answering at \(ServerConnection.defaultURL.absoluteString).")
+            return String(localized: "Litloft is not answering at \(serverURL.absoluteString).")
         case .notConnectedToInternet, .networkConnectionLost:
             return String(localized: "This device is not on the network.")
         case .timedOut:
