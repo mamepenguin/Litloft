@@ -1,0 +1,127 @@
+"use client";
+
+/**
+ * The shell plays the media; this keeps a shadow of what it reports so the
+ * synchronous `MediaController` contract can be answered without waiting for a
+ * round trip.
+ */
+
+import {
+  isNativeShell,
+  nextSequence,
+  postToShell,
+  subscribeToShell,
+  type MediaSource,
+  type MediaCommand,
+  type MediaTick,
+} from "./nativeBridge";
+
+export interface MediaShadow {
+  time: number;
+  duration: number;
+  paused: boolean;
+  rate: number;
+  volume: number;
+  ended: boolean;
+}
+
+const INITIAL: MediaShadow = Object.freeze({
+  time: 0,
+  duration: 0,
+  paused: true,
+  rate: 1,
+  volume: 1,
+  ended: false,
+});
+
+export class MediaChannel {
+  private shadow: MediaShadow = INITIAL;
+  private unsubscribe: (() => void) | null = null;
+
+  /**
+   * A seek is the one command whose effect the viewer sees before the shell
+   * can confirm it, so its value stands until a reading taken after it lands.
+   * Everything else is read back from the shell rather than assumed.
+   */
+  private pendingSeek: { seq: number; time: number } | null = null;
+
+  constructor() {
+    this.unsubscribe = subscribeToShell((message) => {
+      if (message.type === "media.tick") this.apply(message);
+    });
+  }
+
+  read(): MediaShadow {
+    return this.shadow;
+  }
+
+  load(source: MediaSource): void {
+    this.shadow = { ...INITIAL, time: source.startAt ?? 0 };
+    this.pendingSeek = null;
+    this.send({ type: "media.load", ...source });
+  }
+
+  play(): void {
+    this.shadow = { ...this.shadow, paused: false };
+    this.send({ type: "media.play" });
+  }
+
+  pause(): void {
+    this.shadow = { ...this.shadow, paused: true };
+    this.send({ type: "media.pause" });
+  }
+
+  seek(time: number): void {
+    const seq = this.send({ type: "media.seek", time });
+    this.pendingSeek = { seq, time };
+    this.shadow = { ...this.shadow, time, ended: false };
+  }
+
+  /** The shell may refuse a rate, so the shadow waits for what it reports. */
+  setRate(rate: number): void {
+    this.send({ type: "media.setRate", rate });
+  }
+
+  setVolume(volume: number): void {
+    this.send({ type: "media.setVolume", volume });
+  }
+
+  unload(): void {
+    this.send({ type: "media.unload" });
+    this.shadow = INITIAL;
+    this.pendingSeek = null;
+  }
+
+  dispose(): void {
+    this.unsubscribe?.();
+    this.unsubscribe = null;
+  }
+
+  private send(command: MediaCommand): number {
+    const seq = nextSequence();
+    postToShell({ ...command, seq });
+    return seq;
+  }
+
+  private apply(tick: MediaTick): void {
+    // `appliedSeq` only rises, so once a seek has landed no later tick can
+    // fall behind it again and the pending value stops mattering on its own.
+    const pending = this.pendingSeek;
+    const stale = pending !== null && tick.appliedSeq < pending.seq;
+
+    this.shadow = {
+      // A tick from before the seek carries the old position. The rest of it
+      // is still the freshest reading there is, so only this field waits.
+      time: stale ? pending!.time : tick.time,
+      duration: tick.duration,
+      paused: tick.paused,
+      rate: tick.rate,
+      volume: tick.volume,
+      ended: tick.ended,
+    };
+  }
+}
+
+export function createMediaChannel(): MediaChannel | null {
+  return isNativeShell() ? new MediaChannel() : null;
+}

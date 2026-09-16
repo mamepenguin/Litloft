@@ -10,9 +10,43 @@ const HANDLER_NAME = "litloft";
 const RECEIVER_NAME = "__litloft";
 const PING_TIMEOUT_MS = 2000;
 
-export type OutboundMessage = { type: "ping"; seq: number };
+/** What the shell needs to play something and label it on the lock screen. */
+export interface MediaSource {
+  url: string;
+  title: string;
+  artist?: string;
+  artworkUrl?: string;
+  startAt?: number;
+}
 
-export type InboundMessage = { type: "pong"; seq: number };
+/** A command before it is stamped with its place in the order. */
+export type MediaCommand =
+  | ({ type: "media.load" } & MediaSource)
+  | { type: "media.play" }
+  | { type: "media.pause" }
+  | { type: "media.seek"; time: number }
+  | { type: "media.setRate"; rate: number }
+  | { type: "media.setVolume"; volume: number }
+  | { type: "media.unload" };
+
+export type OutboundMessage = ({ type: "ping" } | MediaCommand) & { seq: number };
+
+/**
+ * `appliedSeq` is the highest command the shell has acted on, which is how a
+ * reading taken before a command can be told from one taken after it.
+ */
+export interface MediaTick {
+  type: "media.tick";
+  appliedSeq: number;
+  time: number;
+  duration: number;
+  paused: boolean;
+  rate: number;
+  volume: number;
+  ended: boolean;
+}
+
+export type InboundMessage = { type: "pong"; seq: number } | MediaTick;
 
 interface ShellMessageHandler {
   postMessage(body: unknown): void;
@@ -86,11 +120,16 @@ export function subscribeToShell(listener: (message: InboundMessage) => void): (
 
 let nextSeq = 0;
 
+/** One counter for the whole channel, so commands have a total order. */
+export function nextSequence(): number {
+  return ++nextSeq;
+}
+
 /** Resolves false in a browser, and on a shell that does not answer. */
 export function pingShell(timeoutMs = PING_TIMEOUT_MS): Promise<boolean> {
   if (!isNativeShell()) return Promise.resolve(false);
 
-  const seq = ++nextSeq;
+  const seq = nextSequence();
   return new Promise((resolve) => {
     let settled = false;
     const finish = (answered: boolean) => {
