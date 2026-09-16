@@ -32,11 +32,6 @@ interface RowMeasurement {
   link: Box;
   thumb: Box | null;
   name: Box;
-  kinds: Box | null;
-  kindsTextWidth: number | null;
-  kindsTruncated: boolean;
-  count: Box | null;
-  countTruncated: boolean;
   nameTruncated: boolean;
   controls: { label: string; box: Box }[];
 }
@@ -66,7 +61,6 @@ const PAD_PX = 10;
 const PAD_SM_PX = 8;
 const STAR_FINE_PX = 28;
 const MORE_FINE_PX = 24;
-const NAME_GAP_PX = 8;
 /** A folder row with its bottom border: the 44px floor, or a 20px line plus padding. */
 const FOLDER_ROW_COARSE_PX = 45;
 
@@ -273,67 +267,3 @@ test.describe("with a mouse", () => {
     });
   }
 });
-
-for (const pointer of POINTERS) {
-  test.describe(`a folder row's breakdown, ${pointer} pointer`, () => {
-    test.use({ hasTouch: pointer === "coarse" });
-
-    async function folderRow(
-      page: import("@playwright/test").Page,
-      viewport: number,
-      width: number,
-      name: string,
-    ) {
-      await page.setViewportSize({ width: viewport, height: 900 });
-      await page.goto(FIXTURE);
-      await page.evaluate(
-        (spec) => window.buildListColumn(spec),
-        { width, shapes: ["folder"], name },
-      );
-      const m = await page.evaluate(() => window.measureRows());
-      expect(m.coarse).toBe(pointer === "coarse");
-      expect(m.rows).toHaveLength(1);
-      const row = m.rows[0];
-      expect(row.countTruncated).toBe(false);
-      expect(row.count!.right).toBe(row.link.right);
-      return row;
-    }
-
-    test("is not drawn below sm, even when the name leaves room", async ({ page }) => {
-      const row = await folderRow(page, 383, 343, "Folder");
-      expect(row.kinds!.width).toBe(0);
-    });
-
-    for (const width of [700, 440]) {
-      test(`shows whole, flush right, beside a short name at ${width}px`, async ({
-        page,
-      }) => {
-        await page.setViewportSize({ width: 740, height: 900 });
-        await page.goto(FIXTURE);
-        await page.evaluate(
-          (spec) => window.buildListColumn(spec),
-          { width, shapes: ["folder"], name: "Folder" },
-        );
-        const m = await page.evaluate(() => window.measureRows());
-        expect(m.coarse).toBe(pointer === "coarse");
-        const row = m.rows[0];
-        expect(row.nameTruncated).toBe(false);
-        expect(row.kinds!.width).toBeGreaterThan(0);
-        expect(row.kindsTruncated).toBe(false);
-        expect(row.kinds!.width).toBeCloseTo(row.kindsTextWidth!, 0);
-        expect(row.kinds!.right).toBe(row.link.right);
-        expect(row.count!.right).toBe(row.kinds!.left);
-        expect(row.countTruncated).toBe(false);
-      });
-
-      test(`gives way, gap and all, before a long name does at ${width}px`, async ({
-        page,
-      }) => {
-        const row = await folderRow(page, 740, width, LONG_NAME);
-        expect(row.nameTruncated).toBe(true);
-        expect(row.kinds!.width).toBe(0);
-        expect(row.count!.left - row.name.right).toBe(NAME_GAP_PX);
-      });
-    }
-  });
-}

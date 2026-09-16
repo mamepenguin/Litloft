@@ -78,36 +78,6 @@ describe("FolderListRow", () => {
     expect(screen.getByText(/5/)).toBeInTheDocument();
   });
 
-  it("says what the count is made of, as the card does", () => {
-    render(
-      <FolderListRow
-        folder={folder({ file_count: 138, kind_counts: { video: 135, document: 3 } })}
-        driveName="main"
-      />,
-    );
-    expect(screen.getByText("138 items")).toBeInTheDocument();
-    expect(screen.getByText("· Video 135 · Document 3")).toBeInTheDocument();
-  });
-
-  it("drops the breakdown below sm and keeps the count", () => {
-    render(
-      <FolderListRow
-        folder={folder({ file_count: 12, kind_counts: { document: 12 } })}
-        driveName="main"
-      />,
-    );
-    const kinds = screen.getByText("· Document");
-    expect(kinds.className.split(/\s+/)).toEqual(
-      expect.arrayContaining(["hidden", "sm:block"]),
-    );
-    expect(kinds.previousElementSibling!.textContent).toBe("12 items");
-  });
-
-  it("draws no breakdown for an empty folder", () => {
-    render(<FolderListRow folder={folder({ file_count: 0 })} driveName="main" />);
-    expect(screen.getByText("0 items").nextElementSibling).toBeNull();
-  });
-
   it("draws the glyph in a bare column rather than a thumbnail-sized tile", () => {
     const { container } = render(<FolderListRow folder={folder()} driveName="main" />);
     const column = container.querySelector(".w-24") as HTMLElement;

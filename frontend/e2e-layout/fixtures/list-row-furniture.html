@@ -390,21 +390,15 @@
                   "children": [
                     {
                       "tag": "span",
-                      "class": "min-w-0 truncate text-sm font-semibold text-text-primary",
+                      "class": "min-w-0 flex-1 truncate text-sm font-semibold text-text-primary",
                       "children": [],
                       "text": "Folder"
                     },
                     {
                       "tag": "span",
-                      "class": "ml-auto flex-shrink-0 text-xs tabular-nums text-text-muted",
+                      "class": "flex-shrink-0 text-xs tabular-nums text-text-muted",
                       "children": [],
                       "text": "3 items"
-                    },
-                    {
-                      "tag": "span",
-                      "class": "-ml-2 hidden min-w-0 max-w-max flex-grow basis-0 truncate text-xs tabular-nums text-text-muted sm:block",
-                      "children": [],
-                      "text": "\u00a0· Video 2 · Image 1"
                     }
                   ]
                 }
@@ -637,22 +631,6 @@
               thumb: box(row.querySelector(".w-24")),
               name: box(row.querySelector("span.truncate")),
               kinds: box(row.querySelector("span.sm\\:block")),
-              kindsTextWidth: (() => {
-                const el = row.querySelector("span.sm\\:block");
-                if (!el) return null;
-                const range = document.createRange();
-                range.selectNodeContents(el);
-                return range.getBoundingClientRect().width;
-              })(),
-              kindsTruncated: (() => {
-                const el = row.querySelector("span.sm\\:block");
-                return el ? el.scrollWidth > el.clientWidth : false;
-              })(),
-              count: box(row.querySelector("span.ml-auto")),
-              countTruncated: (() => {
-                const el = row.querySelector("span.ml-auto");
-                return el ? el.scrollWidth > el.clientWidth : false;
-              })(),
               nameTruncated: (() => {
                 const el = row.querySelector("span.truncate");
                 return el.scrollWidth > el.clientWidth;

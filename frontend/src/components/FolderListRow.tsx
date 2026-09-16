@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Folder, MoreVertical } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useFolderMeta } from "@/hooks/useFolderMeta";
 import { RENAME_FOCUS_ATTR } from "@/hooks/useInlineRename";
 import type { Folder as FolderType } from "@/types";
 import { InlineNameEditor } from "./InlineNameEditor";
@@ -58,7 +57,7 @@ export function FolderListRow({
   const dragEnabled = draggable && !isEditing;
   const editing = isEditing && onRenameCommit && onRenameCancel;
 
-  const { count, kinds } = useFolderMeta(folder);
+  const t = useTranslations("folder");
 
   // As wide as `FileListRow`'s thumbnail but not as tall, so folder names
   // start on the file titles' left edge without the row growing to 56px.
@@ -68,8 +67,10 @@ export function FolderListRow({
     </div>
   );
 
-  const countLabel = (
-    <span className="ml-auto flex-shrink-0 text-xs tabular-nums text-text-muted">{count}</span>
+  const meta = (
+    <span className="flex-shrink-0 text-xs tabular-nums text-text-muted">
+      {t("items", { count: folder.file_count })}
+    </span>
   );
 
   return (
@@ -104,7 +105,7 @@ export function FolderListRow({
                 onCancel={onRenameCancel}
               />
             </div>
-            {countLabel}
+            {meta}
           </div>
         </div>
       ) : (
@@ -116,19 +117,10 @@ export function FolderListRow({
         >
           {thumbnail}
           <div className="flex min-w-0 max-w-list-row flex-1 items-center gap-2">
-            <span className="min-w-0 truncate text-sm font-semibold text-text-primary">
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
               {folder.name}
             </span>
-            {countLabel}
-            {/* Grows from zero into whatever the name leaves, so a long name
-                truncates the breakdown away before it truncates itself. The
-                negative margin hands back the row's gap, so a breakdown
-                squeezed to nothing takes nothing from the name. */}
-            {kinds && (
-              <span className="-ml-2 hidden min-w-0 max-w-max flex-grow basis-0 truncate text-xs tabular-nums text-text-muted sm:block">
-                {`\u00a0· ${kinds}`}
-              </span>
-            )}
+            {meta}
           </div>
         </Link>
       )}
