@@ -13,9 +13,5 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Litloft connects to your Litloft server on this network.</string>
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_litloft._tcp</string>
-	</array>
 </dict>
 </plist>
