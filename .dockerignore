@@ -51,6 +51,10 @@ drives.json
 passwords.json
 event-hooks.json
 
+# ── Native client ───────────────────────────────────────────────────────
+# The iOS shell is built by Xcode, not by any image here.
+ios/
+
 # ── Documentation and design material ───────────────────────────────────
 # docs/superpowers/ is gitignored pre-implementation material; the rest is
 # prose that no image serves.

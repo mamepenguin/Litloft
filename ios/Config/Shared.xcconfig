@@ -1,0 +1,7 @@
+// Identity that differs per developer. Defaults here keep a fresh clone
+// building for the simulator; Local.xcconfig overrides them for a device.
+LITLOFT_BUNDLE_ID = com.mamepenguin.Litloft
+LITLOFT_DEVELOPMENT_TEAM =
+
+// Optional, and not tracked. Copy Local.xcconfig.example to create it.
+#include? "Local.xcconfig"
