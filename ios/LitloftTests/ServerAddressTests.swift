@@ -29,6 +29,12 @@ struct ServerAddressTests {
         #expect(ServerAddress.parse("litloft.local")?.absoluteString == "http://litloft.local")
     }
 
+    @Test("a .local hostname with hyphens is accepted")
+    func localHostname() {
+        #expect(ServerAddress.parse("MacBook-Pro-M3.local:3000")?.absoluteString
+            == "http://MacBook-Pro-M3.local:3000")
+    }
+
     @Test("an IPv6 literal is accepted")
     func ipv6() {
         #expect(ServerAddress.parse("http://[fe80::1]:3000") != nil)
