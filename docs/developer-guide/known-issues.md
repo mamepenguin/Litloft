@@ -140,6 +140,12 @@ as every full navigation does. Nothing saves the listening position while the
 page is gone, so the saved position is the last one from before the process
 ended.
 
+**After Lock, a back swipe may bring back a file page whose player is gone.**
+WebKit's back-forward cache restores the previous document with its script
+state, and the shell stopped that page's playback when Lock navigated away.
+The restored page still believes it holds the file, and its commands are
+ignored. The restore was measured on `/`, not on a file page.
+
 **A long press starts a text selection instead of reaching the card underneath.**
 Blue highlight with selection handles, on some presses and not others — wherever
 selectable text sits under the finger. Measured in the shell and in mobile
