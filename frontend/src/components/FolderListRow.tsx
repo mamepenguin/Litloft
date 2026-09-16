@@ -50,7 +50,6 @@ export function FolderListRow({
   onCardFocus,
   onCardBlur,
 }: FolderListRowProps) {
-  const t = useTranslations("folder");
   const tFile = useTranslations("file");
   // While the name is being edited the row stops being a drag source: a
   // text selection inside a `draggable` ancestor is swallowed by the drag
@@ -58,11 +57,13 @@ export function FolderListRow({
   const dragEnabled = draggable && !isEditing;
   const editing = isEditing && onRenameCommit && onRenameCancel;
 
-  // The same 14×24 frame `FileListRow` gives a thumbnail, so folder rows
-  // and file rows line their text up on the same left edge.
+  const t = useTranslations("folder");
+
+  // As wide as `FileListRow`'s thumbnail but not as tall, so folder names
+  // start on the file titles' left edge without the row growing to 56px.
   const thumbnail = (
-    <div className="flex h-14 w-24 flex-shrink-0 items-center justify-center rounded-lg bg-bg-elevated">
-      <Folder size={22} className="text-text-muted" />
+    <div className="flex w-24 flex-shrink-0 justify-center">
+      <Folder size={18} className="text-text-muted" />
     </div>
   );
 
@@ -74,7 +75,10 @@ export function FolderListRow({
 
   return (
     <div
-      className={`group flex items-center gap-3 border-b border-bg-border bg-bg-card p-2.5 transition-colors last:border-b-0 hover:bg-bg-elevated sm:p-2${onContextMenu ? ` ${ROW_FURNITURE_PADDING}` : ""}${
+      className={`group flex items-center gap-3 border-b border-bg-border bg-bg-card p-2.5 transition-colors last:border-b-0 hover:bg-bg-elevated sm:p-2${
+        // On a coarse pointer the 44px actions button is the row's height.
+        onContextMenu ? ` pointer-coarse:py-0 ${ROW_FURNITURE_PADDING}` : ""
+      }${
         isDropTarget ? " bg-bg-elevated ring-2 ring-accent ring-inset" : ""
       }${isDragging ? " opacity-40" : ""}${dragEnabled ? " select-none" : ""}`}
       draggable={dragEnabled}

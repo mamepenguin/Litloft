@@ -78,6 +78,15 @@ describe("FolderListRow", () => {
     expect(screen.getByText(/5/)).toBeInTheDocument();
   });
 
+  it("draws the glyph in a bare column rather than a thumbnail-sized tile", () => {
+    const { container } = render(<FolderListRow folder={folder()} driveName="main" />);
+    const column = container.querySelector(".w-24") as HTMLElement;
+    expect(column).toBeTruthy();
+    const cls = column.className.split(/\s+/);
+    expect(cls).not.toContain("h-14");
+    expect(cls).not.toContain("bg-bg-elevated");
+  });
+
   it("takes a drop, like the card does", () => {
     const onDrop = vi.fn();
     const { container } = render(

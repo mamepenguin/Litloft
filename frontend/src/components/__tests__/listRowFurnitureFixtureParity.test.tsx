@@ -168,7 +168,13 @@ const file = {
   updated_at: "2026-09-01T00:00:00Z",
 } as unknown as FileItemWithMatch;
 
-const folder = { name: "Folder", path: "Folder", file_count: 3 } as Folder;
+const folder: Folder = {
+  name: "Folder",
+  path: "Folder",
+  file_count: 3,
+  kind_counts: { video: 2, image: 1 },
+  dominant_kind: "video",
+};
 
 /**
  * Each file state is a real call site: the props are the ones a caller

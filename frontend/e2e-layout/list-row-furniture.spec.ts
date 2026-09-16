@@ -61,6 +61,8 @@ const PAD_PX = 10;
 const PAD_SM_PX = 8;
 const STAR_FINE_PX = 28;
 const MORE_FINE_PX = 24;
+/** A folder row with its bottom border: the 44px control floor. */
+const FOLDER_ROW_COARSE_PX = 45;
 
 /**
  * 343 and 288 are the row on a 375px and a 320px phone (the page's `px-4`
@@ -77,6 +79,7 @@ const WIDTHS = [
     width: 343,
     pad: PAD_PX,
     label: "the row on a 375px phone",
+    folderFine: 45,
     link: { grouped: 245, separated: 227, fine: 247 },
     name: { grouped: 137, separated: 119, fine: 139 },
   },
@@ -84,6 +87,7 @@ const WIDTHS = [
     width: 288,
     pad: PAD_PX,
     label: "the row on a 320px phone",
+    folderFine: 45,
     link: { grouped: 190, separated: 172, fine: 192 },
     name: { grouped: 82, separated: 64, fine: 84 },
   },
@@ -91,6 +95,7 @@ const WIDTHS = [
     width: 700,
     pad: PAD_SM_PX,
     label: "a row above the sm breakpoint",
+    folderFine: 41,
     link: { grouped: 604, separated: 588, fine: 608 },
     // Above `sm` the row also draws the date beside the name, whose width
     // is the runner's font.
@@ -173,6 +178,9 @@ test.describe("with a finger", () => {
       expect(by.folder.row.right).toBe(file.row.right);
       expect(folderMore.right).toBe(more.right);
       expect(folderMore.width).toBe(FLOOR_PX);
+      expect(by.folder.row.height).toBe(FOLDER_ROW_COARSE_PX);
+      expect(by.folder.thumb!.left).toBe(file.thumb!.left);
+      expect(by.folder.name.left).toBe(file.name.left);
 
       const noStarMore = by.fileNoStar.controls[0].box;
       expect(noStarMore.right).toBe(more.right);
@@ -228,6 +236,11 @@ test.describe("with a mouse", () => {
       expect(more.left - star.right).toBe(GAP_PX);
       expect(file.row.right - more.right).toBe(w.pad);
       expect(star.left - file.link.right).toBe(GAP_PX);
+
+      expect(by.folder.row.height).toBe(w.folderFine);
+      expect(by.folder.controls[0].box.right).toBe(more.right);
+      expect(by.folder.thumb!.left).toBe(file.thumb!.left);
+      expect(by.folder.name.left).toBe(file.name.left);
 
       const before = by.separated;
       expect(before.controls).toHaveLength(2);
