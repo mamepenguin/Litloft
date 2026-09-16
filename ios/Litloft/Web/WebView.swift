@@ -13,7 +13,7 @@ struct WebView: UIViewRepresentable {
         context.coordinator.bridge.install(in: configuration)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        context.coordinator.bridge.attach(to: webView)
+        context.coordinator.attachBridge(to: webView)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
@@ -44,9 +44,27 @@ struct WebView: UIViewRepresentable {
         let bridge: ShellBridge
         var lastReloadToken = 0
 
+        private var player: MediaPlayer?
+
         init(model: WebViewModel) {
             self.model = model
             self.bridge = ShellBridge(server: model.serverURL)
+        }
+
+        /// The bridge and the player hold each other's callbacks, so both
+        /// sides are weak.
+        func attachBridge(to webView: WKWebView) {
+            bridge.attach(to: webView)
+
+            let player = MediaPlayer(jar: webView.configuration.websiteDataStore.httpCookieStore)
+            self.player = player
+
+            bridge.onMediaCommand = { [weak player] command, seq in
+                player?.apply(command, seq: seq)
+            }
+            player.onTick = { [weak bridge] tick in
+                bridge?.deliver(tick)
+            }
         }
 
         func start(_ webView: WKWebView) {

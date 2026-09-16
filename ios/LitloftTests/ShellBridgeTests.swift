@@ -59,10 +59,9 @@ struct MessageOriginTests {
 struct ShellBridgeTests {
     @Test("a ping is answered with a pong carrying the same seq")
     func pingIsAnswered() throws {
-        let reply = try #require(ShellBridge.reply(to: "ping", seq: 42))
+        let action = ShellBridge.route(body: ["type": "ping", "seq": 42], from: origin(), server: server)
 
-        #expect(reply.type == "pong")
-        #expect(reply.seq == 42)
+        #expect(action == .reply(ShellMessage(type: "pong", seq: 42)))
     }
 
     @Test("a well-formed ping from anyone but the server is not answered")
@@ -90,11 +89,95 @@ struct ShellBridgeTests {
         }
     }
 
-    @Test("an unknown message type is not answered")
-    func unknownTypeIsUnanswered() {
-        #expect(ShellBridge.reply(to: "seek", seq: 1) == nil)
-        #expect(ShellBridge.reply(to: "pong", seq: 1) == nil)
-        #expect(ShellBridge.reply(to: "", seq: 1) == nil)
+    @Test("an unknown message type asks for nothing")
+    func unknownTypeIsIgnored() {
+        for type in ["pong", "media.tick", "seek", ""] {
+            #expect(ShellBridge.route(body: ["type": type, "seq": 1], from: origin(), server: server) == nil)
+        }
+    }
+
+    @Test("a transport command carries its sequence through")
+    func transportCommands() {
+        let cases: [(String, MediaCommand)] = [
+            ("media.play", .play),
+            ("media.pause", .pause),
+            ("media.unload", .unload)
+        ]
+        for (type, expected) in cases {
+            #expect(ShellBridge.route(body: ["type": type, "seq": 9], from: origin(), server: server)
+                == .media(expected, seq: 9))
+        }
+    }
+
+    @Test("a load carries everything the lock screen needs")
+    func loadCarriesMetadata() {
+        let body: [String: Any] = [
+            "type": "media.load",
+            "seq": 3,
+            "url": "http://litloft.local:3000/api/files/abc/stream",
+            "title": "A recording",
+            "artist": "Someone",
+            "artworkUrl": "http://litloft.local:3000/api/files/abc/thumbnail",
+            "startAt": 42.5
+        ]
+
+        #expect(ShellBridge.route(body: body, from: origin(), server: server) == .media(.load(MediaSource(
+            url: URL(string: "http://litloft.local:3000/api/files/abc/stream")!,
+            title: "A recording",
+            artist: "Someone",
+            artworkURL: URL(string: "http://litloft.local:3000/api/files/abc/thumbnail")!,
+            startAt: 42.5
+        )), seq: 3))
+    }
+
+    @Test("a load without a url or a title is not a command")
+    func loadNeedsUrlAndTitle() {
+        let bodies: [[String: Any]] = [
+            ["type": "media.load", "seq": 1, "title": "t"],
+            ["type": "media.load", "seq": 1, "url": "http://litloft.local:3000/x"],
+            ["type": "media.load", "seq": 1, "url": 5, "title": "t"]
+        ]
+        for body in bodies {
+            #expect(ShellBridge.route(body: body, from: origin(), server: server) == nil)
+        }
+    }
+
+    @Test("a position the player cannot use is not a command")
+    func unusableNumbersAreRejected() {
+        let rejected: [[String: Any]] = [
+            ["type": "media.seek", "seq": 1, "time": Double.nan],
+            ["type": "media.seek", "seq": 1, "time": Double.infinity],
+            ["type": "media.seek", "seq": 1],
+            ["type": "media.setRate", "seq": 1, "rate": 0.0],
+            ["type": "media.setRate", "seq": 1, "rate": -1.0],
+            ["type": "media.setVolume", "seq": 1, "volume": Double.nan]
+        ]
+        for body in rejected {
+            #expect(ShellBridge.route(body: body, from: origin(), server: server) == nil)
+        }
+    }
+
+    @Test("a volume outside the scale is brought back onto it")
+    func volumeIsClamped() {
+        #expect(ShellBridge.route(body: ["type": "media.setVolume", "seq": 1, "volume": 4.0],
+                                  from: origin(), server: server) == .media(.setVolume(1), seq: 1))
+        #expect(ShellBridge.route(body: ["type": "media.setVolume", "seq": 1, "volume": -2.0],
+                                  from: origin(), server: server) == .media(.setVolume(0), seq: 1))
+    }
+
+    @Test("a load that starts at a position the player cannot use starts at zero")
+    func unusableStartIsZero() {
+        let body: [String: Any] = [
+            "type": "media.load", "seq": 1,
+            "url": "http://litloft.local:3000/x", "title": "t",
+            "startAt": Double.nan
+        ]
+        guard case .media(.load(let source), _)? =
+            ShellBridge.route(body: body, from: origin(), server: server) else {
+            Issue.record("expected a load")
+            return
+        }
+        #expect(source.startAt == 0)
     }
 }
 
