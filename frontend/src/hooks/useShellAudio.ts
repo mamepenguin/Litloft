@@ -12,7 +12,7 @@ export interface ShellAudio {
   /** Null in a browser, where the caller keeps its element. */
   mc: MediaController | null;
   failed: boolean;
-  stalled: boolean;
+  waiting: boolean;
 }
 
 /**
@@ -37,7 +37,7 @@ export function useShellAudio(
   // progress read the old file's position.
   const [owned, setOwned] = useState<{ fileId: string; mc: MediaController } | null>(null);
   const [failedFileId, setFailedFileId] = useState<string | null>(null);
-  const [stalledFileId, setStalledFileId] = useState<string | null>(null);
+  const [waitingFileId, setWaitingFileId] = useState<string | null>(null);
 
   // Read at the moment the file runs out rather than captured at load, so a
   // changing handler does not tear the player down.
@@ -71,7 +71,7 @@ export function useShellAudio(
       });
     };
     channel.onFailed = () => setFailedFileId(file.id);
-    channel.onStalledChange = (stalled) => setStalledFileId(stalled ? file.id : null);
+    channel.onWaitingChange = (waiting) => setWaitingFileId(waiting ? file.id : null);
     channel.load({
       // The shell hands this to AVPlayer, which has no page to resolve it
       // against.
@@ -85,9 +85,9 @@ export function useShellAudio(
       channel.onEnded = null;
       channel.onReady = null;
       channel.onFailed = null;
-      channel.onStalledChange = null;
+      channel.onWaitingChange = null;
       setFailedFileId(null);
-      setStalledFileId(null);
+      setWaitingFileId(null);
       channel.unload();
       channel.dispose();
       setOwned(null);
@@ -97,6 +97,6 @@ export function useShellAudio(
   return {
     mc: owned?.fileId === file.id ? owned.mc : null,
     failed: failedFileId === file.id,
-    stalled: stalledFileId === file.id,
+    waiting: waitingFileId === file.id,
   };
 }

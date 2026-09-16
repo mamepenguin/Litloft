@@ -21,7 +21,6 @@ export function AudioTransport({
 }: {
   mc: MediaController | null;
   failed?: boolean;
-  /** Playback is held up waiting for the server. */
   waiting?: boolean;
 }) {
   const t = useTranslations("player");
@@ -112,7 +111,7 @@ export function AudioTransport({
       </div>
       {waiting && !failed && (
         <p role="status" className="text-xs text-text-muted">
-          {t("waitingForServer")}
+          {t("buffering")}
         </p>
       )}
       {failed && (

@@ -22,15 +22,13 @@ final class MediaPlayer {
     private var endObserver: NSObjectProtocol?
     private var foregroundObserver: NSObjectProtocol?
     private var statusObservation: NSKeyValueObservation?
-    private var stallObserver: NSObjectProtocol?
-    private var playingObservation: NSKeyValueObservation?
+    private var waitingObservation: NSKeyValueObservation?
 
     private var source: MediaSource?
     /// The web side's id for the file now held; commands naming another are
     /// stale and do nothing.
     private var loadId: String?
     private var ended = false
-    private var stalled = false
     private var publishedDuration = 0.0
 
     /// Only the latest seek's completion counts: one overtaken by another
@@ -62,7 +60,7 @@ final class MediaPlayer {
         player.allowsExternalPlayback = true
 
         watchForForeground()
-        watchForResumption()
+        watchForWaiting()
         nowPlaying.onPlay = { [weak self] in self?.applyFromRemote(.play) }
         nowPlaying.onPause = { [weak self] in self?.applyFromRemote(.pause) }
         nowPlaying.onSeek = { [weak self] time in
@@ -71,11 +69,11 @@ final class MediaPlayer {
     }
 
     isolated deinit {
-        for observer in [endObserver, stallObserver, foregroundObserver].compactMap({ $0 }) {
+        for observer in [endObserver, foregroundObserver].compactMap({ $0 }) {
             NotificationCenter.default.removeObserver(observer)
         }
         statusObservation?.invalidate()
-        playingObservation?.invalidate()
+        waitingObservation?.invalidate()
         if let timeObserver {
             player.removeTimeObserver(timeObserver)
         }
@@ -101,16 +99,10 @@ final class MediaPlayer {
         }
     }
 
-    /// A stall ends only when playback moves again; nothing else reports that
-    /// while the timebase is stopped.
-    private func watchForResumption() {
-        playingObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
-            guard player.timeControlStatus == .playing else { return }
-            Task { @MainActor in
-                guard let self, self.stalled else { return }
-                self.stalled = false
-                self.report()
-            }
+    /// Waiting stops the timebase, so the ticks that would carry it stop too.
+    private func watchForWaiting() {
+        waitingObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
+            Task { @MainActor in self?.report() }
         }
     }
 
@@ -257,18 +249,16 @@ final class MediaPlayer {
     }
 
     private func replaceItem(with item: AVPlayerItem?) {
-        for observer in [endObserver, stallObserver].compactMap({ $0 }) {
-            NotificationCenter.default.removeObserver(observer)
+        if let endObserver {
+            NotificationCenter.default.removeObserver(endObserver)
+            self.endObserver = nil
         }
-        endObserver = nil
-        stallObserver = nil
         statusObservation?.invalidate()
         statusObservation = nil
         latestSeek += 1
         webSeekId = nil
         reachedSeekId = nil
         ended = false
-        stalled = false
         publishedDuration = 0
 
         player.replaceCurrentItem(with: item)
@@ -281,16 +271,6 @@ final class MediaPlayer {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in self?.finish() }
-        }
-        stallObserver = NotificationCenter.default.addObserver(
-            forName: AVPlayerItem.playbackStalledNotification,
-            object: item,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.stalled = true
-                self?.report()
-            }
         }
         // Readiness and failure arrive whether or not anything is playing, and
         // nothing else would report them while paused.
@@ -308,6 +288,12 @@ final class MediaPlayer {
 // MARK: reporting
 
 extension MediaPlayer {
+    /// A stream that stops answering leaves the player here for good rather
+    /// than failing it, and so does every start until the first data arrives.
+    private var waiting: Bool {
+        player.timeControlStatus == .waitingToPlayAtSpecifiedRate
+    }
+
     private var status: MediaStatus {
         switch player.currentItem?.status {
         case .readyToPlay: .ready
@@ -336,7 +322,7 @@ extension MediaPlayer {
             volume: Double(player.volume),
             buffered: bufferedSeconds(),
             ended: ended,
-            stalled: stalled
+            waiting: waiting
         )
     }
 
@@ -353,7 +339,7 @@ extension MediaPlayer {
             duration: duration,
             time: seconds(player.currentTime()),
             // The rate stays up while waiting; the lock screen would count on.
-            rate: stalled ? 0 : Double(player.rate)
+            rate: waiting ? 0 : Double(player.rate)
         ))
     }
 

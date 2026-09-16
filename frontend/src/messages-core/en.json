@@ -397,7 +397,7 @@
     "volume": "Volume",
     "speed": "Playback speed",
     "loadFailed": "Could not load this file",
-    "waitingForServer": "Waiting for the server",
+    "buffering": "Loading…",
     "fullscreen": "Full screen",
     "exitFullscreen": "Exit full screen",
     "seek": "Seek",

@@ -47,36 +47,36 @@ struct ContractTests {
     func everyStateIsCovered() throws {
         let names = try #require(try SharedContract.load()["states"]).keys
         #expect(Set(names) == [
-            "loading", "readyWhilePaused", "seekLanded", "failed", "stalledWhilePlaying", "nothingLoaded"
+            "loading", "readyWhilePaused", "seekLanded", "failed", "waitingWhilePlaying", "nothingLoaded"
         ])
     }
 
     @Test("every report the shell sends is spelled as the web side reads it", arguments: [
         ("loading", MediaState(
             loadId: "load-1", status: .loading, seekId: nil,
-            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, stalled: false
+            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false
         )),
         ("readyWhilePaused", MediaState(
             loadId: "load-1", status: .ready, seekId: nil,
-            time: 0, duration: 180, paused: true, rate: 1, volume: 1, buffered: 12, ended: false, stalled: false
+            time: 0, duration: 180, paused: true, rate: 1, volume: 1, buffered: 12, ended: false, waiting: false
         )),
         ("seekLanded", MediaState(
             loadId: "load-1", status: .ready, seekId: "seek-1",
             time: 42.5, duration: 180, paused: false, rate: 1.5, volume: 0.25, buffered: 60,
-            ended: false, stalled: false
+            ended: false, waiting: false
         )),
         ("failed", MediaState(
             loadId: "load-1", status: .failed, seekId: nil,
-            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, stalled: false
+            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false
         )),
-        ("stalledWhilePlaying", MediaState(
+        ("waitingWhilePlaying", MediaState(
             loadId: "load-1", status: .ready, seekId: nil,
             time: 11.5, duration: 180, paused: false, rate: 1, volume: 1, buffered: 11.5,
-            ended: false, stalled: true
+            ended: false, waiting: true
         )),
         ("nothingLoaded", MediaState(
             loadId: nil, status: .loading, seekId: nil,
-            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, stalled: false
+            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false
         ))
     ])
     func states(name: String, state: MediaState) throws {

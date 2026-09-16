@@ -98,7 +98,7 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
           size on a `.loft` reference is the pointer's. */}
       <p className="mb-6 text-sm text-text-primary">{file.filename}</p>
       {native ? (
-        <AudioTransport mc={mc} failed={shell.failed} waiting={shell.stalled} />
+        <AudioTransport mc={mc} failed={shell.failed} waiting={shell.waiting} />
       ) : (
         <audio
           ref={audioRef}

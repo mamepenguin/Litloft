@@ -203,12 +203,12 @@ describe("AudioTransport", () => {
     expect(speed()).toHaveTextContent("1.5x");
   });
 
-  describe("while waiting for the server", () => {
+  describe("while the shell waits for data", () => {
     it("says so, and can still be paused", () => {
       const { mc } = makeController({ paused: false });
       render(<AudioTransport mc={mc} waiting />);
 
-      expect(screen.getByRole("status")).toHaveTextContent("Waiting for the server");
+      expect(screen.getByRole("status")).toHaveTextContent("Loading");
       expect(screen.getByRole("button", { name: "Pause" })).toBeEnabled();
       expect(slider()).toBeEnabled();
     });

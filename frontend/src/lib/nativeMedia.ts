@@ -23,7 +23,7 @@ export interface MediaShadow {
   volume: number;
   buffered: number;
   ended: boolean;
-  stalled: boolean;
+  waiting: boolean;
   status: MediaStatus;
 }
 
@@ -35,7 +35,7 @@ const INITIAL: MediaShadow = Object.freeze({
   volume: 1,
   buffered: 0,
   ended: false,
-  stalled: false,
+  waiting: false,
   status: "loading",
 });
 
@@ -77,8 +77,8 @@ export class MediaChannel {
   /** Fires once per file, when the shell reports it cannot be played. */
   onFailed: (() => void) | null = null;
 
-  /** Fires when playback runs out of data, and again when it recovers. */
-  onStalledChange: ((stalled: boolean) => void) | null = null;
+  /** Fires when the shell starts and stops waiting for data. */
+  onWaitingChange: ((waiting: boolean) => void) | null = null;
 
   constructor(private readonly newId: () => string = randomId) {
     this.unsubscribe = subscribeToShell((message) => {
@@ -152,7 +152,7 @@ export class MediaChannel {
     if (!holding) this.pendingSeek = null;
 
     const justEnded = state.ended && !this.shadow.ended;
-    const stalledChanged = state.stalled !== this.shadow.stalled;
+    const waitingChanged = state.waiting !== this.shadow.waiting;
 
     this.shadow = {
       // Every other field is the freshest reading there is, so only the
@@ -164,7 +164,7 @@ export class MediaChannel {
       volume: state.volume,
       buffered: state.buffered,
       ended: state.ended,
-      stalled: state.stalled,
+      waiting: state.waiting,
       status: state.status,
     };
 
@@ -176,7 +176,7 @@ export class MediaChannel {
       this.failedSent = true;
       this.onFailed?.();
     }
-    if (stalledChanged) this.onStalledChange?.(state.stalled);
+    if (waitingChanged) this.onWaitingChange?.(state.waiting);
     if (justEnded) this.onEnded?.();
   }
 }

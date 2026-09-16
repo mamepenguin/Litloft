@@ -54,10 +54,11 @@ export interface MediaState {
   buffered: number;
   ended: boolean;
   /**
-   * Playback ran out of data and is waiting for more. A stream that stops
-   * answering stays here rather than failing.
+   * Asked to play and waiting for data: briefly at every start, and for as
+   * long as a stream that stops answering stays silent, since that is not
+   * reported as a failure.
    */
-  stalled: boolean;
+  waiting: boolean;
 }
 
 export type InboundMessage = { type: "pong"; seq: number } | MediaState;

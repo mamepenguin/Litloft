@@ -106,7 +106,7 @@ describe("the wire", () => {
       volume: 1,
       buffered: 12,
       ended: false,
-      stalled: false,
+      waiting: false,
       status: "ready",
     });
 
@@ -189,7 +189,7 @@ describe("the media channel", () => {
       volume: 0.3,
       buffered: 60,
       ended: false,
-      stalled: false,
+      waiting: false,
       status: "ready",
     });
   });
@@ -343,16 +343,16 @@ describe("the media channel", () => {
     });
   });
 
-  describe("running out of data", () => {
+  describe("waiting for data", () => {
     it("is announced when it starts and when it ends, once each", () => {
       const changes = vi.fn();
-      channel.onStalledChange = changes;
+      channel.onWaitingChange = changes;
 
       report({ paused: false });
-      report({ ...contract.states.stalledWhilePlaying, loadId });
-      report({ ...contract.states.stalledWhilePlaying, loadId });
+      report({ ...contract.states.waitingWhilePlaying, loadId });
+      report({ ...contract.states.waitingWhilePlaying, loadId });
       expect(changes.mock.calls).toEqual([[true]]);
-      expect(channel.read().stalled).toBe(true);
+      expect(channel.read().waiting).toBe(true);
 
       report({ paused: false, time: 12 });
       expect(changes.mock.calls).toEqual([[true], [false]]);
@@ -360,9 +360,9 @@ describe("the media channel", () => {
 
     it("is not taken from another file's report", () => {
       const changes = vi.fn();
-      channel.onStalledChange = changes;
+      channel.onWaitingChange = changes;
 
-      deliver({ ...contract.states.stalledWhilePlaying, loadId: "someone-else" });
+      deliver({ ...contract.states.waitingWhilePlaying, loadId: "someone-else" });
 
       expect(changes).not.toHaveBeenCalled();
     });

@@ -170,7 +170,7 @@ describe("AudioPlayer inside the iOS shell", () => {
       ended?: boolean;
       paused?: boolean;
       status?: string;
-      stalled?: boolean;
+      waiting?: boolean;
     },
   ) {
     (window as StubbedWindow).__litloft?.receive({
@@ -183,7 +183,7 @@ describe("AudioPlayer inside the iOS shell", () => {
       volume: 1,
       buffered: 0,
       ended: false,
-      stalled: false,
+      waiting: false,
       ...reading,
     });
   }
@@ -300,12 +300,12 @@ describe("AudioPlayer inside the iOS shell", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("says when playback is waiting for the server, until it moves again", async () => {
+  it("says it is loading while the shell waits for data, until it plays", async () => {
     render(<AudioPlayer file={mockFile} />);
     await act(async () => {
-      report("audio-1", { time: 11, duration: 180, paused: false, stalled: true });
+      report("audio-1", { time: 11, duration: 180, paused: false, waiting: true });
     });
-    expect(screen.getByRole("status")).toHaveTextContent("Waiting for the server");
+    expect(screen.getByRole("status")).toHaveTextContent("Loading");
     expect(screen.getByRole("button", { name: /^(Play|Pause)$/ })).toBeEnabled();
 
     await act(async () => {
@@ -317,7 +317,7 @@ describe("AudioPlayer inside the iOS shell", () => {
   it("does not carry a wait over to the next file, or back to the same one", async () => {
     const { rerender } = render(<AudioPlayer file={mockFile} />);
     await act(async () => {
-      report("audio-1", { time: 11, duration: 180, paused: false, stalled: true });
+      report("audio-1", { time: 11, duration: 180, paused: false, waiting: true });
     });
 
     rerender(<AudioPlayer file={fileB} />);

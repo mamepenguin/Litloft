@@ -12,7 +12,7 @@ interface StubbedWindow extends Window {
 const win = () => window as StubbedWindow;
 
 function shadow(overrides: Partial<MediaShadow> = {}): MediaShadow {
-  return { time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, stalled: false, status: "ready", ...overrides };
+  return { time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false, status: "ready", ...overrides };
 }
 
 /** The channel's own behaviour has its own tests; this is about the contract. */
