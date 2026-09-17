@@ -151,6 +151,10 @@ describe("VideoPlayer inside the iOS shell", () => {
     );
     await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/files/vid-1/subtitles/0", expect.anything()));
 
+    act(() => report({ time: 0.5, paused: false }));
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(screen.queryByText("First line")).toBeNull();
+
     act(() => report({ time: 2, paused: false }));
 
     expect(await screen.findByText("First line")).toBeInTheDocument();
@@ -188,6 +192,24 @@ describe("VideoPlayer inside the iOS shell", () => {
     await act(async () => report());
 
     await waitFor(() => expect(posted.some((m) => m.type === "media.play")).toBe(true));
+  });
+
+  it("starts an autoplay the viewer chose in the player's own setting", async () => {
+    window.localStorage.setItem("video-share-autoplay", "true");
+    render(<VideoPlayer videoId="vid-1" />);
+
+    await act(async () => report());
+
+    await waitFor(() => expect(posted.some((m) => m.type === "media.play")).toBe(true));
+  });
+
+  it("does not start by itself otherwise", async () => {
+    render(<VideoPlayer videoId="vid-1" />);
+
+    await act(async () => report());
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(posted.some((m) => m.type === "media.play")).toBe(false);
   });
 
   it("hands its controller to the page, and takes it back when it goes", () => {
