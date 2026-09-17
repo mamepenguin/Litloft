@@ -15,3 +15,10 @@ the root `data-player-fullscreen` attribute the hook already sets.
    and gone after an exit or an unmount mid-fullscreen.
 5. Native fullscreen does not set the root attribute.
 6. Exiting pseudo-fullscreen still consumes its history entry as before.
+7. *(Added by the user after round 1.)* From the player up to
+   `file-detail-shell`, no box creates a stacking context: each is exactly the
+   box the layout fixture draws. (Above the shell, checked by review only.)
+8. *(Added by the user after round 1.)* Toasts stay above a pinned player.
+9. *(Recorded by the user after round 1.)* A modal-tier surface opened while a
+   player is pinned is drawn under it; accepted and listed in
+   `known-issues.md`.

@@ -68,6 +68,7 @@ for (const sheet of SHEETS) {
       centre: "frame",
       bottomMiddle: "frame",
       underMenuButton: "frame",
+      underToast: "toast",
     });
     expect(m.playerZ).toBe("60");
   });

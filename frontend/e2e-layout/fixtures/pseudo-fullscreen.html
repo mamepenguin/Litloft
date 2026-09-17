@@ -16,6 +16,8 @@
         "header": "sticky top-0 z-20 flex flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4",
         "chromeButtons": "fixed left-3 z-50 flex items-center gap-2",
         "pageRoot": "flex h-full w-full flex-col",
+        "fitHost": "relative flex min-h-0 flex-1",
+        "toasts": "pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-col items-end gap-2",
         "canvas": "flex min-w-0 min-h-0 flex-1 flex-col overflow-auto",
         "mediaHost": "media-detail-host w-full space-y-4 p-4",
         "player": "media-detail-player",
@@ -63,6 +65,7 @@
         shell.dataset.sheetSnap = sheet === "peek" ? "peek" : "expanded";
         shell.style.minHeight = "0";
 
+        const fitHost = el("div", SPEC.fitHost, "fit-host");
         const canvas = el("main", SPEC.canvas, "canvas");
         const host = el("div", SPEC.mediaHost);
         const player = el("div", SPEC.player, "player");
@@ -81,7 +84,8 @@
         body.textContent = "the description";
         host.append(player, body);
         canvas.append(host);
-        shell.append(canvas);
+        fitHost.append(canvas);
+        shell.append(fitHost);
 
         if (sheet === "peek") {
           const strip = el("div", SPEC.strip, "strip");
@@ -98,6 +102,13 @@
         menu.textContent = "menu";
         chrome.append(menu);
         root.append(chrome);
+
+        const toasts = el("div", SPEC.toasts, "toasts");
+        const toast = el("div", "pointer-events-auto rounded-2xl bg-bg-card px-3 py-2", "toast");
+        toast.textContent = "a toast";
+        toasts.append(toast);
+        document.body.append(toasts);
+        toasts.dataset.fixturePortal = "";
 
         if (sheet === "full") {
           const drawer = el("div", SPEC.drawer, "drawer");
@@ -123,6 +134,10 @@
           bottomRight: [r.right - inset, r.bottom - inset],
           centre: [(r.left + r.right) / 2, (r.top + r.bottom) / 2],
           bottomMiddle: [(r.left + r.right) / 2, r.bottom - inset],
+          underToast: (() => {
+            const t = document.getElementById("toast").getBoundingClientRect();
+            return [(t.left + t.right) / 2, (t.top + t.bottom) / 2];
+          })(),
           underMenuButton: (() => {
             const b = document.getElementById("menu-button").getBoundingClientRect();
             return [(b.left + b.right) / 2, (b.top + b.bottom) / 2];

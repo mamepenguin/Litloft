@@ -1201,6 +1201,42 @@ describe("the layout fixture's page, against the shell", () => {
   });
 });
 
+describe("the pseudo-fullscreen fixture's chain, against the shell", () => {
+  const PINNABLE: Record<string, string | number> = JSON.parse(
+    readFileSync(
+      resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        "../../../../e2e-layout/fixtures/pseudo-fullscreen.html",
+      ),
+      "utf-8",
+    ).match(
+      /<script type="application\/json" id="fixture-markup">([\s\S]*?)<\/script>/,
+    )![1],
+  );
+
+  it("puts the player under exactly the boxes the fixture draws, parent by parent", async () => {
+    // A box on this chain that made a stacking context would hold a pinned
+    // player under the page again, and the fixture would not show it.
+    setViewport(400);
+    const { container } = await renderMediaAwaitingChrome(
+      makeFile({ has_chapters: false }),
+    );
+    const player = container.querySelector(".media-detail-player")!;
+    const chain: string[] = [];
+    for (let el = player.parentElement; el; el = el.parentElement) {
+      chain.push(el.className);
+      if (el.dataset.testid === "file-detail-shell") break;
+    }
+    const sorted = (classes: string | number) =>
+      String(classes).split(/\s+/).filter(Boolean).sort().join(" ");
+    expect(chain.map(sorted)).toEqual(
+      ["mediaHost", "canvas", "fitHost", "pageRoot"].map((key) =>
+        sorted(PINNABLE[key]),
+      ),
+    );
+  });
+});
+
 describe("what the canvas keeps and what the inspector takes", () => {
   it("shows the description in the canvas, not the inspector", async () => {
     const { container } = await renderMedia(

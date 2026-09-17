@@ -29,6 +29,7 @@ describe("the pseudo-fullscreen layout fixture's class lists", () => {
       "canvas",
       "chromeButtons",
       "drawer",
+      "fitHost",
       "frameBase",
       "frameInline",
       "framePinned",
@@ -38,6 +39,7 @@ describe("the pseudo-fullscreen layout fixture's class lists", () => {
       "player",
       "strip",
       "surface",
+      "toasts",
     ]);
   });
 
@@ -56,6 +58,12 @@ describe("the pseudo-fullscreen layout fixture's class lists", () => {
     for (const key of ["frameBase", "framePinned", "frameInline"]) {
       expect(player, key).toContain(`"${SPEC[key]}"`);
     }
+  });
+
+  it("stacks the toasts as the toast provider does", () => {
+    expect(read("src/components/ToastProvider.tsx")).toContain(
+      `className="${SPEC.toasts}"`,
+    );
   });
 
   it("draws the header and the menu button with their components' classes", () => {

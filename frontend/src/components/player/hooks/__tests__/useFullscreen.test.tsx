@@ -338,6 +338,11 @@ describe("useFullscreen — document side effects", () => {
     const { result } = renderFullscreen();
     await act(async () => result.current.toggle());
     expect(requestFullscreen).toHaveBeenCalledTimes(1);
+    fullscreenElement = frame;
+    act(() => {
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+    expect(result.current.isFullscreen).toBe(true);
     expect(document.documentElement.dataset.playerFullscreen).toBeUndefined();
   });
 

@@ -47,6 +47,8 @@ error from the policy save, or not at all.
 
 **One Escape closes both the overlay sidebar and the file sheet under it.** On a phone, with the file sheet raised and the sidebar opened over it, Escape lowers the sheet as well as closing the sidebar.
 
+**A dialog opened with a keyboard shortcut while a phone player fills the screen opens under the player.** Reached on an iPhone with a hardware keyboard (for example the search shortcut): the dialog takes focus and Escape but is hidden until the player leaves full screen.
+
 **Some addon dialogs opened from the raised file sheet appear below the screen.** Saving a detailed summary to Knowledge and the Knowledge file-link picker draw in place inside the sheet instead of over the page.
 
 **A focused field on a file page lifts the raised sheet above the keyboard.** On a phone, typing into the page (a note, the title) while the file sheet is raised moves the sheet up with the keyboard instead of leaving it where it was.
