@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>pseudo fullscreen — layout fixture</title>
+    <!--
+      No <style> of its own: every declaration measured here has to come
+      out of the app's own stylesheet.
+    -->
+    <link rel="stylesheet" href="./globals.built.css" />
+  </head>
+  <body>
+    <script type="application/json" id="fixture-markup">
+      {
+        "header": "sticky top-0 z-20 flex flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4",
+        "chromeButtons": "fixed left-3 z-50 flex items-center gap-2",
+        "pageRoot": "flex h-full w-full flex-col",
+        "fitHost": "relative flex min-h-0 flex-1",
+        "toasts": "pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-col items-end gap-2",
+        "canvas": "flex min-w-0 min-h-0 flex-1 flex-col overflow-auto",
+        "mediaHost": "media-detail-host w-full space-y-4 p-4",
+        "player": "media-detail-player",
+        "frameBase": "overflow-hidden bg-black focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
+        "framePinned": "fixed inset-0 z-50 rounded-none",
+        "frameInline": "relative aspect-video w-full md:rounded-xl",
+        "strip": "fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2 border-t border-bg-border bg-bg-card px-4",
+        "drawer": "fixed bottom-0 left-0 right-0 z-[25] flex flex-col outline-none",
+        "surface": "h-full flex flex-col rounded-t-2xl border-t border-bg-border bg-bg-card"
+      }
+    </script>
+
+    <div id="root"></div>
+
+    <script>
+      const SPEC = JSON.parse(
+        document.getElementById("fixture-markup").textContent,
+      );
+
+      const el = (tag, className, id) => {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (id) node.id = id;
+        return node;
+      };
+
+      /**
+       * `sheet`: "peek" draws the resting strip, "full" the raised drawer
+       * at full. `pinned` pins the frame the way the players do;
+       * `marked` sets the root attribute `useFullscreen` sets while it does.
+       */
+      window.buildPinnablePage = ({ sheet, pinned, marked }) => {
+        const root = document.getElementById("root");
+        root.replaceChildren();
+        document.querySelectorAll("[data-fixture-portal]").forEach((n) => n.remove());
+        root.style.height = "100vh";
+        root.style.display = "flex";
+        root.style.flexDirection = "column";
+
+        const header = el("header", SPEC.header, "header");
+        header.style.minHeight = "3.5rem";
+        header.textContent = "header";
+
+        const shell = el("div", SPEC.pageRoot, "shell");
+        shell.dataset.sheetSnap = sheet === "peek" ? "peek" : "expanded";
+        shell.style.minHeight = "0";
+
+        const fitHost = el("div", SPEC.fitHost, "fit-host");
+        const canvas = el("main", SPEC.canvas, "canvas");
+        const host = el("div", SPEC.mediaHost);
+        const player = el("div", SPEC.player, "player");
+        const wrapper = el("div", "w-full");
+        const frame = el(
+          "div",
+          `${SPEC.frameBase} ${pinned ? SPEC.framePinned : SPEC.frameInline}`,
+          "frame",
+        );
+        if (marked) document.documentElement.dataset.playerFullscreen = "true";
+        else delete document.documentElement.dataset.playerFullscreen;
+        wrapper.append(frame);
+        player.append(wrapper);
+        const body = el("div");
+        body.style.height = "1500px";
+        body.textContent = "the description";
+        host.append(player, body);
+        canvas.append(host);
+        fitHost.append(canvas);
+        shell.append(fitHost);
+
+        if (sheet === "peek") {
+          const strip = el("div", SPEC.strip, "strip");
+          strip.style.height = "56px";
+          strip.textContent = "strip";
+          shell.append(strip);
+        }
+
+        root.append(header, shell);
+
+        const chrome = el("div", SPEC.chromeButtons, "chrome-buttons");
+        chrome.style.top = "12px";
+        const menu = el("button", "h-10 w-10 rounded-2xl bg-bg-card", "menu-button");
+        menu.textContent = "menu";
+        chrome.append(menu);
+        root.append(chrome);
+
+        const toasts = el("div", SPEC.toasts, "toasts");
+        const toast = el("div", "pointer-events-auto rounded-2xl bg-bg-card px-3 py-2", "toast");
+        toast.textContent = "a toast";
+        toasts.append(toast);
+        document.body.append(toasts);
+        toasts.dataset.fixturePortal = "";
+
+        if (sheet === "full") {
+          const drawer = el("div", SPEC.drawer, "drawer");
+          drawer.dataset.fixturePortal = "";
+          drawer.style.height = `${0.9 * window.innerHeight}px`;
+          drawer.style.transform = `translate3d(0, ${0.1 * window.innerHeight}px, 0)`;
+          const surface = el("div", SPEC.surface, "sheet-surface");
+          surface.textContent = "sheet";
+          drawer.append(surface);
+          document.body.append(drawer);
+        }
+      };
+
+      /** What is on top at the frame's corners, its centre and its edges' middles. */
+      window.hitTheFrame = () => {
+        const frame = document.getElementById("frame");
+        const r = frame.getBoundingClientRect();
+        const inset = 3;
+        const points = {
+          topLeft: [r.left + inset, r.top + inset],
+          topRight: [r.right - inset, r.top + inset],
+          bottomLeft: [r.left + inset, r.bottom - inset],
+          bottomRight: [r.right - inset, r.bottom - inset],
+          centre: [(r.left + r.right) / 2, (r.top + r.bottom) / 2],
+          bottomMiddle: [(r.left + r.right) / 2, r.bottom - inset],
+          underToast: (() => {
+            const t = document.getElementById("toast").getBoundingClientRect();
+            return [(t.left + t.right) / 2, (t.top + t.bottom) / 2];
+          })(),
+          underMenuButton: (() => {
+            const b = document.getElementById("menu-button").getBoundingClientRect();
+            return [(b.left + b.right) / 2, (b.top + b.bottom) / 2];
+          })(),
+        };
+        const out = {};
+        for (const [name, [x, y]] of Object.entries(points)) {
+          const hit = document.elementFromPoint(x, y);
+          out[name] = hit && frame.contains(hit) ? "frame" : hit ? hit.id || hit.tagName : "";
+        }
+        return {
+          rect: { top: r.top, left: r.left, width: r.width, height: r.height },
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+          playerZ: getComputedStyle(document.getElementById("player")).zIndex,
+          hits: out,
+        };
+      };
+
+      /** What is on top where the strip or the sheet overlaps the inline player. */
+      window.hitOverThePlayer = () => {
+        const player = document.getElementById("player").getBoundingClientRect();
+        const cover =
+          document.getElementById("strip") ?? document.getElementById("drawer");
+        const c = cover.getBoundingClientRect();
+        const top = Math.max(player.top, c.top);
+        const bottom = Math.min(player.bottom, c.bottom);
+        if (bottom <= top) return { overlap: false, hit: "" };
+        const hit = document.elementFromPoint(20, (top + bottom) / 2);
+        return { overlap: true, hit: hit ? hit.id : "" };
+      };
+    </script>
+  </body>
+</html>

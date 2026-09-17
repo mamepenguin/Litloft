@@ -333,7 +333,20 @@ describe("useFullscreen — history", () => {
 });
 
 describe("useFullscreen — document side effects", () => {
-  it("marks the document so the mini player can stand down", async () => {
+  it("leaves the document unmarked in native fullscreen", async () => {
+    setNativeSupport("ok");
+    const { result } = renderFullscreen();
+    await act(async () => result.current.toggle());
+    expect(requestFullscreen).toHaveBeenCalledTimes(1);
+    fullscreenElement = frame;
+    act(() => {
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+    expect(result.current.isFullscreen).toBe(true);
+    expect(document.documentElement.dataset.playerFullscreen).toBeUndefined();
+  });
+
+  it("marks the document while the frame is pinned", async () => {
     const { result } = renderFullscreen();
     await act(async () => result.current.toggle());
     expect(document.documentElement.dataset.playerFullscreen).toBe("true");

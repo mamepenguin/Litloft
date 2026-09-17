@@ -347,8 +347,8 @@ export function useFullscreen({
       width: body.style.width,
     };
 
-    // Read by useMiniPlayer: with no Fullscreen API involved there is
-    // no fullscreenchange event for it to observe.
+    // `globals.css` lifts the phone player's sticky box on this: the pinned
+    // frame cannot rise above the stacking context that box makes.
     root.dataset.playerFullscreen = "true";
     // position:fixed as well as overflow:hidden — iOS Safari scrolls
     // the background regardless of overflow alone.
