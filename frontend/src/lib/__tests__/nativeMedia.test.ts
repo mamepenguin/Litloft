@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { MediaState } from "../nativeBridge";
+import type { MediaKind, MediaState, SurfaceGeometry } from "../nativeBridge";
 
 type Media = typeof import("../nativeMedia");
 type Channel = InstanceType<Media["MediaChannel"]>;
@@ -68,19 +68,26 @@ describe("the wire", () => {
 
   afterEach(() => channel.dispose());
 
-  it("sends each command exactly as the shared sample spells it", () => {
+  it("sends each command exactly as the shared sample spells it", async () => {
     const { commands } = contract;
     channel.load({
       url: commands.load.url as string,
       title: commands.load.title as string,
       artist: commands.load.artist as string,
       artworkUrl: commands.load.artworkUrl as string,
-    });
+    }, commands.load.kind as MediaKind);
     channel.play();
     channel.pause();
     channel.seek(42.5);
     channel.setRate(1.5);
     channel.setVolume(0.25);
+    const geometry = (name: string) => commands[name].geometry as SurfaceGeometry | null;
+    channel.setSurface(geometry("surfaceDocument"));
+    channel.setSurface(geometry("surfaceSticky"));
+    channel.setSurface(geometry("surfaceFixed"));
+    channel.setSurface(geometry("surfaceGone"));
+    channel.setPip(true);
+    (await import("../nativeBridge")).reportPageBackground("#1a0e10");
     channel.unload();
 
     expect(posted).toEqual([
@@ -90,12 +97,18 @@ describe("the wire", () => {
       commands.seek,
       commands.setRate,
       commands.setVolume,
+      commands.surfaceDocument,
+      commands.surfaceSticky,
+      commands.surfaceFixed,
+      commands.surfaceGone,
+      commands.pip,
+      commands.pageBackground,
       commands.unload,
     ]);
   });
 
   it("reads each report the shared sample spells", () => {
-    channel.load({ url: "http://litloft.local:3000/api/files/abc/stream", title: "A" });
+    channel.load({ url: "http://litloft.local:3000/api/files/abc/stream", title: "A" }, "audio");
 
     deliver(contract.states.readyWhilePaused);
     expect(channel.read()).toEqual({
@@ -107,11 +120,16 @@ describe("the wire", () => {
       buffered: 12,
       ended: false,
       waiting: false,
+      pip: false,
+      pipPossible: true,
       status: "ready",
     });
 
+    deliver(contract.states.inPictureInPicture);
+    expect(channel.read()).toMatchObject({ pip: true, pipPossible: true });
+
     deliver(contract.states.failed);
-    expect(channel.read().status).toBe("failed");
+    expect(channel.read()).toMatchObject({ status: "failed", pip: false, pipPossible: false });
   });
 });
 
@@ -128,7 +146,7 @@ describe("the media channel", () => {
     installShell();
     media = await load();
     channel = new media.MediaChannel();
-    channel.load({ url: "http://litloft.local:3000/api/files/a/stream", title: "A" });
+    channel.load({ url: "http://litloft.local:3000/api/files/a/stream", title: "A" }, "audio");
     loadId = posted[0].loadId as string;
   });
 
@@ -141,7 +159,7 @@ describe("the media channel", () => {
     });
     const before = posted.length;
 
-    fresh.load({ url: "http://litloft.local:3000/api/files/c/stream", title: "C" });
+    fresh.load({ url: "http://litloft.local:3000/api/files/c/stream", title: "C" }, "audio");
     fresh.seek(3);
 
     const sent = posted.slice(before);
@@ -155,7 +173,7 @@ describe("the media channel", () => {
   it("gives every file and every seek an id of its own", () => {
     channel.seek(10);
     channel.seek(20);
-    channel.load({ url: "http://litloft.local:3000/api/files/b/stream", title: "B" });
+    channel.load({ url: "http://litloft.local:3000/api/files/b/stream", title: "B" }, "audio");
 
     const ids = posted.flatMap((m) => [m.loadId, m.seekId]).filter(Boolean);
     const seekIds = posted.filter((m) => m.type === "media.seek").map((m) => m.seekId);
@@ -172,6 +190,8 @@ describe("the media channel", () => {
     fresh.play();
     fresh.pause();
     fresh.seek(5);
+    fresh.setSurface(null);
+    fresh.setPip(true);
     fresh.unload();
 
     expect(posted.length).toBe(before);
@@ -190,6 +210,8 @@ describe("the media channel", () => {
       buffered: 60,
       ended: false,
       waiting: false,
+      pip: false,
+      pipPossible: true,
       status: "ready",
     });
   });
@@ -335,7 +357,7 @@ describe("the media channel", () => {
       channel.onReady = ready;
 
       report({ status: "ready" });
-      channel.load({ url: "http://litloft.local:3000/api/files/b/stream", title: "B" });
+      channel.load({ url: "http://litloft.local:3000/api/files/b/stream", title: "B" }, "audio");
       const next = posted.at(-1)?.loadId as string;
       deliver({ ...contract.states.readyWhilePaused, loadId: next });
 
@@ -405,7 +427,7 @@ describe("the media channel", () => {
       channel.onFailed = failed;
 
       report({ ...contract.states.failed, loadId });
-      channel.load({ url: "http://litloft.local:3000/api/files/b/stream", title: "B" });
+      channel.load({ url: "http://litloft.local:3000/api/files/b/stream", title: "B" }, "audio");
       const next = posted.at(-1)?.loadId as string;
       deliver({ ...contract.states.failed, loadId: next });
 
@@ -429,7 +451,7 @@ describe("the media channel", () => {
       channel.onEnded = ended;
 
       report({ ended: true });
-      channel.load({ url: "http://litloft.local:3000/api/files/b/stream", title: "B" });
+      channel.load({ url: "http://litloft.local:3000/api/files/b/stream", title: "B" }, "audio");
       deliver({ ...contract.states.readyWhilePaused, loadId: posted.at(-1)?.loadId as string, ended: true });
 
       expect(ended).toHaveBeenCalledTimes(2);

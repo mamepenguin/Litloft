@@ -10,9 +10,11 @@ import {
   isNativeShell,
   postToShell,
   subscribeToShell,
+  type MediaKind,
   type MediaSource,
   type MediaState,
   type MediaStatus,
+  type SurfaceGeometry,
 } from "./nativeBridge";
 
 export interface MediaShadow {
@@ -24,6 +26,8 @@ export interface MediaShadow {
   buffered: number;
   ended: boolean;
   waiting: boolean;
+  pip: boolean;
+  pipPossible: boolean;
   status: MediaStatus;
 }
 
@@ -36,6 +40,8 @@ const INITIAL: MediaShadow = Object.freeze({
   buffered: 0,
   ended: false,
   waiting: false,
+  pip: false,
+  pipPossible: false,
   status: "loading",
 });
 
@@ -90,13 +96,13 @@ export class MediaChannel {
     return this.shadow;
   }
 
-  load(source: MediaSource): void {
+  load(source: MediaSource, kind: MediaKind): void {
     this.shadow = INITIAL;
     this.pendingSeek = null;
     this.readySent = false;
     this.failedSent = false;
     this.loadId = this.newId();
-    postToShell({ type: "media.load", loadId: this.loadId, ...source });
+    postToShell({ type: "media.load", loadId: this.loadId, kind, ...source });
   }
 
   play(): void {
@@ -117,6 +123,17 @@ export class MediaChannel {
     this.pendingSeek = { seekId, time };
     this.shadow = { ...this.shadow, time, ended: false };
     postToShell({ type: "media.seek", loadId: this.loadId, seekId, time });
+  }
+
+  setSurface(geometry: SurfaceGeometry | null): void {
+    if (this.loadId === null) return;
+    postToShell({ type: "media.surface", loadId: this.loadId, geometry });
+  }
+
+  /** The shadow waits for the shell: starting picture in picture can fail. */
+  setPip(active: boolean): void {
+    if (this.loadId === null) return;
+    postToShell({ type: "media.pip", loadId: this.loadId, active });
   }
 
   /** The shell may refuse a rate, so the shadow waits for what it reports. */
@@ -165,6 +182,8 @@ export class MediaChannel {
       buffered: state.buffered,
       ended: state.ended,
       waiting: state.waiting,
+      pip: state.pip,
+      pipPossible: state.pipPossible,
       status: state.status,
     };
 

@@ -142,7 +142,7 @@ final class MediaPlayer {
         if let commandLoadId, commandLoadId != loadId { return }
 
         switch command {
-        case .load:
+        case .load, .surface, .pip:
             return
         case .play:
             play()
@@ -322,7 +322,9 @@ extension MediaPlayer {
             volume: Double(player.volume),
             buffered: bufferedSeconds(),
             ended: ended,
-            waiting: waiting
+            waiting: waiting,
+            pip: false,
+            pipPossible: false
         )
     }
 

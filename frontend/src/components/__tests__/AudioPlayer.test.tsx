@@ -184,6 +184,8 @@ describe("AudioPlayer inside the iOS shell", () => {
       buffered: 0,
       ended: false,
       waiting: false,
+      pip: false,
+      pipPossible: false,
       ...reading,
     });
   }
@@ -215,6 +217,7 @@ describe("AudioPlayer inside the iOS shell", () => {
 
     const load = posted.find((m) => m.type === "media.load");
     expect(load).toMatchObject({
+      kind: "audio",
       url: "http://localhost:3000/api/files/audio-1/stream",
       title: "Test Song",
       artworkUrl: "http://localhost:3000/api/files/audio-1/thumbnail",

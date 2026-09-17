@@ -33,7 +33,8 @@ struct ContractTests {
             url: URL(string: "http://litloft.local:3000/api/files/abc/stream")!,
             title: "A recording",
             artist: "Someone",
-            artworkURL: URL(string: "http://litloft.local:3000/api/files/abc/thumbnail")!
+            artworkURL: URL(string: "http://litloft.local:3000/api/files/abc/thumbnail")!,
+            kind: .video
         )), loadId: "load-1"))
         #expect(try route("play") == .media(.play, loadId: "load-1"))
         #expect(try route("pause") == .media(.pause, loadId: "load-1"))
@@ -41,42 +42,80 @@ struct ContractTests {
         #expect(try route("unload") == .media(.unload, loadId: "load-1"))
         #expect(try route("setRate") == .media(.setRate(1.5), loadId: nil))
         #expect(try route("setVolume") == .media(.setVolume(0.25), loadId: nil))
+        #expect(try route("surfaceDocument") == .media(.surface(SurfaceGeometry(
+            left: 0, width: 402, height: 226.125, anchor: .document, top: 104, stick: nil
+        )), loadId: "load-1"))
+        #expect(try route("surfaceSticky") == .media(.surface(SurfaceGeometry(
+            left: 16, width: 370, height: 208.125,
+            anchor: .scroller(CGRect(x: 0, y: 56, width: 402, height: 722)), top: 24,
+            stick: SurfaceGeometry.Stick(top: 56, limit: 1200)
+        )), loadId: "load-1"))
+        #expect(try route("surfaceFixed") == .media(.surface(SurfaceGeometry(
+            left: 0, width: 874, height: 402, anchor: .fixed, top: 0, stick: nil
+        )), loadId: "load-1"))
+        #expect(try route("surfaceGone") == .media(.surface(nil), loadId: "load-1"))
+        #expect(try route("pip") == .media(.pip(active: true), loadId: "load-1"))
+        #expect(try route("pageBackground") == .pageBackground(PageColor(
+            red: 0x1A / 255, green: 0x0E / 255, blue: 0x10 / 255
+        )))
+    }
+
+    @Test("every command in the shared sample is checked here")
+    func everyCommandIsCovered() throws {
+        let names = try #require(try SharedContract.load()["commands"]).keys
+        #expect(Set(names) == [
+            "load", "play", "pause", "seek", "unload", "setRate", "setVolume",
+            "surfaceDocument", "surfaceSticky", "surfaceFixed", "surfaceGone", "pip", "pageBackground"
+        ])
     }
 
     @Test("every report in the shared sample is checked here")
     func everyStateIsCovered() throws {
         let names = try #require(try SharedContract.load()["states"]).keys
         #expect(Set(names) == [
-            "loading", "readyWhilePaused", "seekLanded", "failed", "waitingWhilePlaying", "nothingLoaded"
+            "loading", "readyWhilePaused", "seekLanded", "failed", "waitingWhilePlaying",
+            "inPictureInPicture", "nothingLoaded"
         ])
     }
 
     @Test("every report the shell sends is spelled as the web side reads it", arguments: [
         ("loading", MediaState(
             loadId: "load-1", status: .loading, seekId: nil,
-            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false
+            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false,
+            pip: false, pipPossible: false
         )),
         ("readyWhilePaused", MediaState(
             loadId: "load-1", status: .ready, seekId: nil,
-            time: 0, duration: 180, paused: true, rate: 1, volume: 1, buffered: 12, ended: false, waiting: false
+            time: 0, duration: 180, paused: true, rate: 1, volume: 1, buffered: 12, ended: false, waiting: false,
+            pip: false, pipPossible: true
         )),
         ("seekLanded", MediaState(
             loadId: "load-1", status: .ready, seekId: "seek-1",
             time: 42.5, duration: 180, paused: false, rate: 1.5, volume: 0.25, buffered: 60,
-            ended: false, waiting: false
+            ended: false, waiting: false,
+            pip: false, pipPossible: true
         )),
         ("failed", MediaState(
             loadId: "load-1", status: .failed, seekId: nil,
-            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false
+            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false,
+            pip: false, pipPossible: false
         )),
         ("waitingWhilePlaying", MediaState(
             loadId: "load-1", status: .ready, seekId: nil,
             time: 11.5, duration: 180, paused: false, rate: 1, volume: 1, buffered: 11.5,
-            ended: false, waiting: true
+            ended: false, waiting: true,
+            pip: false, pipPossible: true
+        )),
+        ("inPictureInPicture", MediaState(
+            loadId: "load-1", status: .ready, seekId: nil,
+            time: 42.5, duration: 180, paused: false, rate: 1.5, volume: 0.25, buffered: 60,
+            ended: false, waiting: false,
+            pip: true, pipPossible: true
         )),
         ("nothingLoaded", MediaState(
             loadId: nil, status: .loading, seekId: nil,
-            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false
+            time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false,
+            pip: false, pipPossible: false
         ))
     ])
     func states(name: String, state: MediaState) throws {

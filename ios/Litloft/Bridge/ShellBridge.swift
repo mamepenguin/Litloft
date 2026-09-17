@@ -15,6 +15,7 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     /// Set by whatever owns the player; absent until then, so a command that
     /// arrives early is dropped rather than queued.
     var onMediaCommand: ((MediaCommand, String?) -> Void)?
+    var onPageBackground: ((PageColor) -> Void)?
 
     init(server: URL) {
         self.server = server
@@ -43,6 +44,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
             deliver(message)
         case .media(let command, let loadId):
             onMediaCommand?(command, loadId)
+        case .pageBackground(let color):
+            onPageBackground?(color)
         }
     }
 
@@ -61,6 +64,9 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         if type == ShellMessageType.ping {
             guard let seq = body["seq"] as? Int else { return nil }
             return .reply(ShellMessage(type: ShellMessageType.pong, seq: seq))
+        }
+        if type == "page.background" {
+            return (body["color"] as? String).flatMap(pageColor).map(ShellAction.pageBackground)
         }
         return mediaAction(type, body, server: server)
     }
@@ -105,6 +111,11 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
             return .pause
         case "media.unload":
             return .unload
+        case "media.surface":
+            if body["geometry"] is NSNull { return .surface(nil) }
+            return (body["geometry"] as? [String: Any]).flatMap(geometry).map(MediaCommand.surface)
+        case "media.pip":
+            return (body["active"] as? Bool).map { .pip(active: $0) }
         case "media.seek":
             guard let seekId = nonEmpty(body["seekId"]),
                   let time = body["time"] as? Double, time.isFinite
@@ -113,6 +124,66 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         default:
             return nil
         }
+    }
+
+    private nonisolated static func number(_ value: Any?) -> Double? {
+        // A JSON boolean arrives as an NSNumber too.
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+        let double = number.doubleValue
+        return double.isFinite ? double : nil
+    }
+
+    private nonisolated static func geometry(_ body: [String: Any]) -> SurfaceGeometry? {
+        guard let left = number(body["x"]),
+              let width = number(body["width"]), width > 0,
+              let height = number(body["height"]), height > 0,
+              let top = number(body["top"]),
+              let anchorName = body["anchor"] as? String
+        else { return nil }
+
+        let anchor: SurfaceGeometry.Anchor
+        switch anchorName {
+        case "document":
+            anchor = .document
+        case "fixed":
+            anchor = .fixed
+        case "scroller":
+            guard let box = body["scroller"] as? [String: Any],
+                  let boxX = number(box["x"]), let boxY = number(box["y"]),
+                  let boxWidth = number(box["width"]), let boxHeight = number(box["height"])
+            else { return nil }
+            anchor = .scroller(CGRect(x: boxX, y: boxY, width: boxWidth, height: boxHeight))
+        default:
+            return nil
+        }
+
+        let stick: SurfaceGeometry.Stick?
+        switch (number(body["stickTop"]), number(body["stickLimit"])) {
+        case let (top?, limit?):
+            stick = SurfaceGeometry.Stick(top: top, limit: limit)
+        case (nil, nil):
+            guard body["stickTop"] == nil || body["stickTop"] is NSNull,
+                  body["stickLimit"] == nil || body["stickLimit"] is NSNull
+            else { return nil }
+            stick = nil
+        default:
+            return nil
+        }
+        return SurfaceGeometry(left: left, width: width, height: height, anchor: anchor, top: top, stick: stick)
+    }
+
+    /// `#rgb` or `#rrggbb`, which is how the page's colour tokens are written.
+    nonisolated static func pageColor(_ css: String) -> PageColor? {
+        var hex = css.trimmingCharacters(in: .whitespaces)
+        guard hex.hasPrefix("#") else { return nil }
+        hex.removeFirst()
+        if hex.count == 3 { hex = hex.map { "\($0)\($0)" }.joined() }
+        guard hex.count == 6, hex.allSatisfy(\.isHexDigit), let value = UInt32(hex, radix: 16) else { return nil }
+        return PageColor(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
     }
 
     private nonisolated static func nonEmpty(_ value: Any?) -> String? {
@@ -127,7 +198,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         guard let raw = body["url"] as? String,
               let url = URL(string: raw),
               MessageOrigin.isSameOrigin(url, as: server),
-              let title = body["title"] as? String
+              let title = body["title"] as? String,
+              let kind = (body["kind"] as? String).flatMap(MediaKind.init(rawValue:))
         else { return nil }
 
         let artwork = (body["artworkUrl"] as? String)
@@ -138,7 +210,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
             url: url,
             title: title,
             artist: body["artist"] as? String,
-            artworkURL: artwork
+            artworkURL: artwork,
+            kind: kind
         )
     }
 

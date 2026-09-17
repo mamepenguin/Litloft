@@ -78,7 +78,7 @@ export function useShellAudio(
       url: new URL(getStreamUrl(file.id), window.location.origin).toString(),
       ...labelRef.current,
       artworkUrl: new URL(getThumbnailUrl(file.id), window.location.origin).toString(),
-    });
+    }, "audio");
     setOwned({ fileId: file.id, mc: createNativeShellController(channel) });
 
     return () => {

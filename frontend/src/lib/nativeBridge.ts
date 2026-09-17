@@ -24,16 +24,50 @@ export interface MediaSource {
  * from its order. The shell drops a command whose `loadId` is not the file it
  * currently holds.
  */
+export type MediaKind = "audio" | "video";
+
+/**
+ * Where the page draws the video, in terms that do not change while the page
+ * scrolls; the shell follows scrolling itself, from its own scroll offsets.
+ *
+ * `top` is measured from the document's top for `"document"`, from the
+ * scrolling element's content top for `"scroller"`, and from the viewport's
+ * top for `"fixed"`.
+ */
+export interface SurfaceGeometry {
+  x: number;
+  width: number;
+  height: number;
+  anchor: "document" | "scroller" | "fixed";
+  top: number;
+  /** The scrolling element's box in the viewport, for `"scroller"`. */
+  scroller: { x: number; y: number; width: number; height: number } | null;
+  /**
+   * Present only while a sticky ancestor actually sticks against the element
+   * that scrolls: the viewport top it sticks at, and the content coordinate
+   * the frame's bottom cannot pass.
+   */
+  stickTop: number | null;
+  stickLimit: number | null;
+}
+
 export type MediaCommand =
-  | ({ type: "media.load"; loadId: string } & MediaSource)
+  | ({ type: "media.load"; loadId: string; kind: MediaKind } & MediaSource)
   | { type: "media.play"; loadId: string }
   | { type: "media.pause"; loadId: string }
   | { type: "media.seek"; loadId: string; seekId: string; time: number }
   | { type: "media.unload"; loadId: string }
   | { type: "media.setRate"; rate: number }
-  | { type: "media.setVolume"; volume: number };
+  | { type: "media.setVolume"; volume: number }
+  /** No `geometry` means the page shows no frame for the video. */
+  | { type: "media.surface"; loadId: string; geometry: SurfaceGeometry | null }
+  | { type: "media.pip"; loadId: string; active: boolean };
 
-export type OutboundMessage = { type: "ping"; seq: number } | MediaCommand;
+export type OutboundMessage =
+  | { type: "ping"; seq: number }
+  | MediaCommand
+  /** The page's background colour, which the shell paints around the video. */
+  | { type: "page.background"; color: string };
 
 export type MediaStatus = "loading" | "ready" | "failed";
 
@@ -59,6 +93,13 @@ export interface MediaState {
    * reported as a failure.
    */
   waiting: boolean;
+  pip: boolean;
+  /** Whether picture in picture can start for what is loaded now. */
+  pipPossible: boolean;
+}
+
+export function reportPageBackground(color: string): void {
+  postToShell({ type: "page.background", color });
 }
 
 export type InboundMessage = { type: "pong"; seq: number } | MediaState;
