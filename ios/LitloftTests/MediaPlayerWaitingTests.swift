@@ -10,9 +10,11 @@ extension SharedMediaState {
     struct MediaPlayerWaitingTests {
         private func stream(
             cutAfter: TimeInterval,
-            outage: TimeInterval? = nil
+            outage: TimeInterval? = nil,
+            down: BreakingStream.Down = .closing
         ) async throws -> (BreakingStream, MediaSource) {
-            let server = try BreakingStream(file: try ToneFile.make(seconds: 120), cutAfter: cutAfter, outage: outage)
+            let tone = try ToneFile.make(seconds: 120)
+            let server = try BreakingStream(file: tone, cutAfter: cutAfter, outage: outage, down: down)
             let url = try await server.start()
             return (server, MediaSource(url: url, title: "Stream", artist: nil, artworkURL: nil))
         }
@@ -48,8 +50,26 @@ extension SharedMediaState {
             rig.player.apply(.seek(time: 100, seekId: "far"), loadId: "a")
             await rig.player.apply(.play, loadId: "a").value
 
-            #expect(await rig.waitFor(timeout: .seconds(10)) { rig.last?.waiting == true })
+            // Every start waits a moment, so only a wait that lasts is this one.
+            try await Task.sleep(for: .seconds(4))
+            #expect(rig.last?.waiting == true)
+            #expect(abs((rig.last?.time ?? 0) - 100) < 0.5)
             #expect(lockScreenRate == 0)
+            await rig.player.apply(.unload, loadId: "a").value
+        }
+
+        @Test("playing a file whose server never answers is reported waiting")
+        func playWhileLoadingIsWaiting() async throws {
+            let (server, source) = try await stream(cutAfter: -1, down: .silent)
+            defer { server.stop() }
+            let rig = PlayerRig()
+            await rig.load(source, as: "a")
+
+            await rig.player.apply(.play, loadId: "a").value
+
+            try await Task.sleep(for: .seconds(4))
+            #expect(rig.last?.waiting == true)
+            #expect(rig.last?.status == .loading)
             await rig.player.apply(.unload, loadId: "a").value
         }
 
@@ -60,6 +80,7 @@ extension SharedMediaState {
             let rig = PlayerRig()
             await rig.load(source, as: "a")
             await rig.player.apply(.play, loadId: "a").value
+            #expect(await rig.waitFor(timeout: .seconds(10)) { (rig.last?.time ?? 0) > 1 })
             #expect(await rig.waitFor(timeout: .seconds(30)) { rig.last?.waiting == true })
 
             await rig.player.apply(.pause, loadId: "a").value

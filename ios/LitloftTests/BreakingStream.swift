@@ -5,17 +5,27 @@ import Network
 /// way a server that sleeps or loses its drive does. With `outage`, it answers
 /// again once that has passed.
 final class BreakingStream: @unchecked Sendable {
+    enum Down {
+        /// Closes every connection.
+        case closing
+        /// Takes the request and never answers it.
+        case silent
+    }
+
     private let listener: NWListener
     private let body: Data
     private let cutAfter: TimeInterval
     private let outage: TimeInterval?
+    private let down: Down
+    private var held: [NWConnection] = []
     private let queue = DispatchQueue(label: "BreakingStream")
     private var firstRequest: Date?
 
-    init(file: URL, cutAfter: TimeInterval, outage: TimeInterval? = nil) throws {
+    init(file: URL, cutAfter: TimeInterval, outage: TimeInterval? = nil, down: Down = .closing) throws {
         body = try Data(contentsOf: file)
         self.cutAfter = cutAfter
         self.outage = outage
+        self.down = down
         listener = try NWListener(using: .tcp, on: .any)
         listener.newConnectionHandler = { [weak self] connection in self?.serve(connection) }
     }
@@ -33,6 +43,7 @@ final class BreakingStream: @unchecked Sendable {
 
     func stop() {
         listener.cancel()
+        queue.async { self.held.forEach { $0.cancel() } }
     }
 
     private var answering: Bool {
@@ -51,7 +62,10 @@ final class BreakingStream: @unchecked Sendable {
             }
             if firstRequest == nil { firstRequest = Date() }
             guard answering else {
-                connection.cancel()
+                switch down {
+                case .closing: connection.cancel()
+                case .silent: held.append(connection)
+                }
                 return
             }
             respond(to: request, on: connection)
