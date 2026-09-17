@@ -136,6 +136,29 @@ not. A tap produces no navigation, no error and no feedback, and the link target
 cannot be reached from inside the app. Whether these should open in Safari or in
 an in-app browser is undecided.
 
+**Video stops when the app leaves the screen; audio does not.** Only audio is
+played by the shell so far, so a video is still the web view's and WebKit
+suspends it. Confirmed on device. Video moves to the native player in a later
+phase.
+
+**If iOS ends the page's process while audio plays in the background, playback
+stops when the app comes back.** The shell keeps the audio going and puts the
+page back only once the app is on screen again. That reload stops the player,
+as every full navigation does. Nothing saves the listening position while the
+page is gone, so the saved position is the last one from before the process
+ended.
+
+**With autoplay on, an audio file whose server never answers shows nothing.**
+Autoplay waits for the shell to report the file ready before it sends play, so
+a load that never finishes sends no play. The shell reports waiting only while
+asked to play, so the page shows neither "Loading…" nor a failure.
+
+**After Lock, a back swipe may bring back a file page whose player is gone.**
+WebKit's back-forward cache restores the previous document with its script
+state, and the shell stopped that page's playback when Lock navigated away.
+The restored page still believes it holds the file, and its commands are
+ignored. The restore was measured on `/`, not on a file page.
+
 **A long press starts a text selection instead of reaching the card underneath.**
 Blue highlight with selection handles, on some presses and not others — wherever
 selectable text sits under the finger. Measured in the shell and in mobile

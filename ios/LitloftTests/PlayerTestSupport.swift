@@ -1,0 +1,62 @@
+import AVFoundation
+import Foundation
+import MediaPlayer
+import Testing
+import UIKit
+
+@testable import Litloft
+
+@MainActor
+final class PlayerRig {
+    let player: MediaPlayer
+    let session = FakeAudioSession()
+    private(set) var states: [MediaState] = []
+
+    init(jar: CookieJar = SlowCookieJar(), cookieReadLimit: Duration = .seconds(2)) {
+        player = MediaPlayer(jar: jar, audioSession: session, cookieReadLimit: cookieReadLimit)
+        player.onState = { [unowned self] in states.append($0) }
+    }
+
+    var last: MediaState? { states.last }
+
+    func waitFor(timeout: Duration = .seconds(5), _ condition: () -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while !condition() {
+            if ContinuousClock.now > deadline { return false }
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        return true
+    }
+
+    func load(_ source: MediaSource, as loadId: String) async {
+        await player.apply(.load(source), loadId: loadId).value
+    }
+}
+
+func tone(seconds: Double) throws -> MediaSource {
+    MediaSource(url: try ToneFile.make(seconds: seconds), title: "Tone", artist: nil, artworkURL: nil)
+}
+
+/// The running Litloft; these tests need a real stream and a real 404.
+enum LocalLitloft {
+    static let stream = MediaSource(
+        url: URL(string: "http://localhost:3000/api/files/26n_RDXe6Bvv/stream")!,
+        title: "Remote", artist: nil, artworkURL: nil
+    )
+    static let missing = MediaSource(
+        url: URL(string: "http://localhost:3000/api/files/zzzzzzzzzzzz/stream")!,
+        title: "Missing", artist: nil, artworkURL: nil
+    )
+
+    static func require() async throws {
+        // The stream answers GET only; one byte is enough to know it is there.
+        var request = URLRequest(url: stream.url)
+        request.setValue("bytes=0-0", forHTTPHeaderField: "Range")
+        request.timeoutInterval = 3
+        let status = try? await (URLSession.shared.data(for: request).1 as? HTTPURLResponse)?.statusCode
+        try #require(
+            status == 206 || status == 200,
+            "Litloft is not answering on localhost:3000 (got \(String(describing: status))); these tests stream from it"
+        )
+    }
+}

@@ -396,6 +396,8 @@
     "unmute": "Unmute",
     "volume": "Volume",
     "speed": "Playback speed",
+    "loadFailed": "Could not load this file",
+    "buffering": "Loading…",
     "fullscreen": "Full screen",
     "exitFullscreen": "Exit full screen",
     "seek": "Seek",

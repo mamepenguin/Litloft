@@ -19,8 +19,8 @@
 /* Begin PBXFileReference section */
 		AA00000000000000000005 /* Litloft.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Litloft.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA00000000000000000010 /* Litloft-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Litloft-Info.plist"; sourceTree = "<group>"; };
-		AA00000000000000000020 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Shared.xcconfig; path = Config/Shared.xcconfig; sourceTree = "<group>"; };
 		AA00000000000000000012 /* LitloftTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LitloftTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA00000000000000000020 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Shared.xcconfig; path = Config/Shared.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */

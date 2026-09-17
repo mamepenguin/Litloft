@@ -106,6 +106,7 @@ Audio keeps the browser's own `<audio controls>` bar rather than Litloft's — t
 - Resume from last position and `last_played_at` updated on open.
 - Media session for OS controls. Title and subtitle come from Litloft's own metadata (file title, folder path); the artwork is the file's Litloft thumbnail, not embedded ID3 art.
 - Cast button and an autoplay toggle sit below the player.
+- In the [iOS app](ios-app.md) the app plays the audio itself, so it continues with the screen locked. The page then shows Litloft's own play, seek and speed controls instead of the browser's bar, and the lock screen takes the place of the media session and the cast button.
 
 ## Image viewer
 

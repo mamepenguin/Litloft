@@ -10,9 +10,58 @@ const HANDLER_NAME = "litloft";
 const RECEIVER_NAME = "__litloft";
 const PING_TIMEOUT_MS = 2000;
 
-export type OutboundMessage = { type: "ping"; seq: number };
+/** What the shell needs to play something and label it on the lock screen. */
+export interface MediaSource {
+  url: string;
+  title: string;
+  artist?: string;
+  artworkUrl?: string;
+}
 
-export type InboundMessage = { type: "pong"; seq: number };
+/**
+ * `loadId` and `seekId` are issued here and handed back unchanged by the shell,
+ * so a report is matched to what it is about by equality rather than inferred
+ * from its order. The shell drops a command whose `loadId` is not the file it
+ * currently holds.
+ */
+export type MediaCommand =
+  | ({ type: "media.load"; loadId: string } & MediaSource)
+  | { type: "media.play"; loadId: string }
+  | { type: "media.pause"; loadId: string }
+  | { type: "media.seek"; loadId: string; seekId: string; time: number }
+  | { type: "media.unload"; loadId: string }
+  | { type: "media.setRate"; rate: number }
+  | { type: "media.setVolume"; volume: number };
+
+export type OutboundMessage = { type: "ping"; seq: number } | MediaCommand;
+
+export type MediaStatus = "loading" | "ready" | "failed";
+
+/** What the shell reports, sent whenever any of it changes. */
+export interface MediaState {
+  type: "media.state";
+  /** Null when nothing is loaded. */
+  loadId: string | null;
+  status: MediaStatus;
+  /** The last seek issued whose position the player has reached. */
+  seekId: string | null;
+  time: number;
+  duration: number;
+  paused: boolean;
+  rate: number;
+  volume: number;
+  /** Seconds continuously readable from the start, not a total. */
+  buffered: number;
+  ended: boolean;
+  /**
+   * Asked to play and waiting for data: briefly at every start, and for as
+   * long as a stream that stops answering stays silent, since that is not
+   * reported as a failure.
+   */
+  waiting: boolean;
+}
+
+export type InboundMessage = { type: "pong"; seq: number } | MediaState;
 
 interface ShellMessageHandler {
   postMessage(body: unknown): void;

@@ -47,3 +47,46 @@ func makeCookie(
     if let sameSite { properties[.sameSitePolicy] = sameSite }
     return HTTPCookie(properties: properties)!
 }
+
+/// A jar that makes the async half of loading observable.
+@MainActor
+final class SlowCookieJar: CookieJar {
+    var delayNanoseconds: UInt64 = 20_000_000
+
+    func setCookie(_ cookie: HTTPCookie) async {}
+    func deleteCookie(_ cookie: HTTPCookie) async {}
+
+    func allCookies() async -> [HTTPCookie] {
+        try? await Task.sleep(nanoseconds: delayNanoseconds)
+        return []
+    }
+}
+
+@MainActor
+final class FakeAudioSession: AudioSession {
+    private(set) var log: [String] = []
+
+    var isHeld: Bool {
+        log.last == "take"
+    }
+
+    func take() {
+        log.append("take")
+    }
+
+    func release() {
+        log.append("release")
+    }
+}
+
+/// A jar whose answer is far too late to wait for.
+@MainActor
+final class StallingCookieJar: CookieJar {
+    func setCookie(_ cookie: HTTPCookie) async {}
+    func deleteCookie(_ cookie: HTTPCookie) async {}
+
+    func allCookies() async -> [HTTPCookie] {
+        try? await Task.sleep(for: .seconds(60))
+        return []
+    }
+}
