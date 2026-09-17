@@ -83,6 +83,9 @@ export class MediaChannel {
   /** Fires once per file, when the shell reports it cannot be played. */
   onFailed: (() => void) | null = null;
 
+  /** Fires when picture in picture starts, stops, or becomes possible or not. */
+  onPictureInPictureChange: (() => void) | null = null;
+
   /** Fires when the shell starts and stops waiting for data. */
   onWaitingChange: ((waiting: boolean) => void) | null = null;
 
@@ -170,6 +173,8 @@ export class MediaChannel {
 
     const justEnded = state.ended && !this.shadow.ended;
     const waitingChanged = state.waiting !== this.shadow.waiting;
+    const pipChanged =
+      state.pip !== this.shadow.pip || state.pipPossible !== this.shadow.pipPossible;
 
     this.shadow = {
       // Every other field is the freshest reading there is, so only the
@@ -196,6 +201,7 @@ export class MediaChannel {
       this.onFailed?.();
     }
     if (waitingChanged) this.onWaitingChange?.(state.waiting);
+    if (pipChanged) this.onPictureInPictureChange?.();
     if (justEnded) this.onEnded?.();
   }
 }

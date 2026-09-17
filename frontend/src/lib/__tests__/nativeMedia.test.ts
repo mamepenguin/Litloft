@@ -365,6 +365,23 @@ describe("the media channel", () => {
     });
   });
 
+  describe("picture in picture", () => {
+    it("is announced when it starts, stops, or becomes possible, and not otherwise", () => {
+      const changes = vi.fn();
+      channel.onPictureInPictureChange = changes;
+
+      report({ pipPossible: false });
+      report({ pipPossible: false, time: 1 });
+      expect(changes).not.toHaveBeenCalled();
+
+      report({ pipPossible: true });
+      report({ pipPossible: true, pip: true });
+      report({ pipPossible: true, pip: true, time: 2 });
+      expect(changes).toHaveBeenCalledTimes(2);
+      expect(channel.read()).toMatchObject({ pip: true, pipPossible: true });
+    });
+  });
+
   describe("waiting for data", () => {
     it("is announced when it starts and when it ends, once each", () => {
       const changes = vi.fn();

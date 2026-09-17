@@ -23,9 +23,11 @@ import {
 } from "@/lib/mediaController";
 import { usePlaybackProgress } from "@/lib/playbackProgress";
 import { useNativePlayerUiPreference } from "@/lib/nativePlayerUi";
-import { useShortcuts } from "@/hooks/useShortcuts";
 import MediaControls from "./player/MediaControls";
 import { useFullscreen } from "./player/hooks/useFullscreen";
+import { useVideoShortcuts } from "./player/hooks/useVideoShortcuts";
+import { ShellVideoPlayer } from "./player/ShellVideoPlayer";
+import { isNativeShell } from "@/lib/nativeBridge";
 import {
   NativeToggleButtons,
   SubtitleTrackPicker,
@@ -110,7 +112,7 @@ function LitloftVideoControls({
   );
 }
 
-export const VideoPlayer = forwardRef(function VideoPlayer(
+const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
   {
     videoId,
     subtitles = [],
@@ -200,49 +202,7 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
     );
   }, [mc, videoId, title, subtitleText, onEnded]);
 
-  const tShortcuts = useTranslations("shortcuts");
-
-  useShortcuts("video-player", tShortcuts("videoPlayer"), [
-    {
-      key: "space",
-      label: tShortcuts("play"),
-      handler: () => mc?.togglePlay(),
-    },
-    {
-      key: "arrowleft",
-      label: tShortcuts("seekBack10"),
-      handler: () => mc?.seek(mc.getCurrentTime() - 10),
-    },
-    {
-      key: "arrowright",
-      label: tShortcuts("seekForward10"),
-      handler: () => mc?.seek(mc.getCurrentTime() + 10),
-    },
-    {
-      key: "arrowup",
-      label: tShortcuts("seekForward60"),
-      handler: () => mc?.seek(mc.getCurrentTime() + 60),
-    },
-    {
-      key: "arrowdown",
-      label: tShortcuts("seekBack60"),
-      handler: () => mc?.seek(mc.getCurrentTime() - 60),
-    },
-    {
-      key: "m",
-      label: tShortcuts("mute"),
-      handler: () => mc?.toggleMute(),
-    },
-    {
-      key: "f",
-      label: tShortcuts("fullscreen"),
-      handler: () => {
-        const toggle = fullscreenToggleRef.current;
-        if (toggle) toggle();
-        else mc?.toggleFullscreen();
-      },
-    },
-  ]);
+  useVideoShortcuts(mc, fullscreenToggleRef);
 
   return (
     <div className="w-full">
@@ -322,4 +282,16 @@ export const VideoPlayer = forwardRef(function VideoPlayer(
       )}
     </div>
   );
+});
+
+/**
+ * Inside the iOS shell the shell plays the video, so there is no element to
+ * hand back through `ref`.
+ */
+export const VideoPlayer = forwardRef(function VideoPlayer(
+  props: VideoPlayerProps,
+  ref: Ref<HTMLVideoElement>,
+) {
+  if (isNativeShell()) return <ShellVideoPlayer {...props} />;
+  return <BrowserVideoPlayer {...props} ref={ref} />;
 });
