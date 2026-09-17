@@ -83,6 +83,10 @@ struct WebView: UIViewRepresentable {
             player.onState = { [weak bridge] state in
                 bridge?.deliver(state)
             }
+            player.surface.attach(to: webView)
+            bridge.onPageBackground = { [weak player] color in
+                player?.surface.setPageColor(color)
+            }
         }
 
         func start(_ webView: WKWebView) {
@@ -129,6 +133,7 @@ struct WebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             model.markLoaded()
+            player?.surface.pageDidLoad()
         }
 
         func webView(

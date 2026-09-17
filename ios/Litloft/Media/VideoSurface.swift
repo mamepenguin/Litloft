@@ -1,0 +1,343 @@
+import AVFoundation
+import AVKit
+import UIKit
+import WebKit
+import os
+
+final class PlayerLayerView: UIView {
+    override static var layerClass: AnyClass { AVPlayerLayer.self }
+    // swiftlint:disable:next force_cast
+    var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+}
+
+/// Shows the player's video behind the web view, where the page draws its
+/// frame. The page makes that frame and its ancestors transparent; this keeps
+/// the web view's own layers transparent too and follows the frame on every
+/// display frame.
+@MainActor
+final class VideoSurface: NSObject {
+    private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Litloft", category: "surface")
+    private let player: AVPlayer
+    let view = PlayerLayerView()
+    private weak var webView: WKWebView?
+
+    private var showsVideo = false
+    private var geometry: SurfaceGeometry?
+    private var pageColor: UIColor?
+    private weak var scroller: UIScrollView?
+    private var scrollerBox: CGRect?
+    private var framesSinceSearch = 0
+    private var swipe: Double = 0
+    private var followsSwipe = false
+    private var link: CADisplayLink?
+    private var observers: [NSObjectProtocol] = []
+
+    private var pip: AVPictureInPictureController?
+    private var pipPossibleObservation: NSKeyValueObservation?
+    private(set) var pipStarting = false
+
+    /// Picture in picture started, stopped, or became possible or impossible.
+    var onPictureInPictureChange: (() -> Void)?
+
+    init(player: AVPlayer) {
+        self.player = player
+        super.init()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .black
+        view.isHidden = true
+        view.playerLayer.player = player
+        view.playerLayer.videoGravity = .resizeAspect
+    }
+
+    isolated deinit {
+        link?.invalidate()
+        pipPossibleObservation?.invalidate()
+        for observer in observers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        view.removeFromSuperview()
+    }
+
+    func attach(to webView: WKWebView) {
+        self.webView = webView
+        webView.isOpaque = false
+        webView.insertSubview(view, at: 0)
+        preparePictureInPicture()
+        watchLifecycle()
+
+        let link = CADisplayLink(target: DisplayLinkTarget(self), selector: #selector(DisplayLinkTarget.tick))
+        link.isPaused = true
+        link.add(to: .main, forMode: .common)
+        self.link = link
+    }
+
+    // MARK: what the page says
+
+    /// Called for every load and unload. Only a video has anything to show,
+    /// and a new file shows nothing until its page places it.
+    func showsVideo(_ shows: Bool) {
+        showsVideo = shows
+        geometry = nil
+        scroller = nil
+        scrollerBox = nil
+        refresh()
+        onPictureInPictureChange?()
+    }
+
+    func place(_ geometry: SurfaceGeometry?) {
+        self.geometry = geometry
+        if case .scroller(let box) = geometry?.anchor {
+            if box != scrollerBox || scroller?.window == nil {
+                scrollerBox = box
+                searchForScroller()
+            }
+        } else {
+            scroller = nil
+            scrollerBox = nil
+        }
+        followSwipe()
+        refresh()
+    }
+
+    func setPageColor(_ color: PageColor) {
+        pageColor = UIColor(red: color.red, green: color.green, blue: color.blue, alpha: 1)
+        clearBackgrounds()
+    }
+
+    /// WebKit repaints its own backgrounds when a page loads and whenever the
+    /// page's colour changes; the frame loop clears them again while a video
+    /// shows, and this puts the page's colour back for everything else.
+    func pageDidLoad() {
+        clearBackgrounds()
+    }
+
+    // MARK: following the frame
+
+    private var visible: Bool { showsVideo && geometry != nil }
+
+    private func refresh() {
+        link?.isPaused = !visible
+        if visible {
+            clearBackgrounds()
+            follow()
+        } else {
+            view.isHidden = true
+        }
+    }
+
+    /// WebKit builds a scrolling element's scroll view a frame or more after
+    /// the page has laid it out, which is when the page reports it; until one
+    /// turns up, it is looked for again every few frames.
+    private func searchForScroller() {
+        guard let box = scrollerBox else { return }
+        framesSinceSearch = 0
+        scroller = findScroller(matching: box)
+    }
+
+    fileprivate func follow() {
+        guard visible, let geometry, let webView else { return }
+        if scrollerBox != nil, scroller?.window == nil {
+            framesSinceSearch += 1
+            if framesSinceSearch >= 10 { searchForScroller() }
+        }
+        let main = webView.scrollView
+        let offsets = SurfacePlacement.Offsets(
+            document: Double(main.contentOffset.y + main.adjustedContentInset.top),
+            scroller: scroller.map { Double($0.contentOffset.y + $0.adjustedContentInset.top) }
+        )
+        clearBackgrounds()
+        guard let frame = SurfacePlacement.frame(for: geometry, offsets: offsets, swipe: swipe) else {
+            view.isHidden = true
+            return
+        }
+        if view.frame != frame {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            view.frame = frame
+            CATransaction.commit()
+        }
+        view.isHidden = false
+    }
+
+    /// The page's frame is transparent, but three of WebKit's own layers are
+    /// not. The web view's own background is drawn beneath its subviews, the
+    /// video included, so it carries the page's colour and fills whatever the
+    /// page leaves bare, a back-swipe snapshot included.
+    private func clearBackgrounds() {
+        guard let webView else { return }
+        if let pageColor {
+            if webView.backgroundColor != pageColor { webView.backgroundColor = pageColor }
+            if webView.underPageBackgroundColor != pageColor { webView.underPageBackgroundColor = pageColor }
+        }
+        guard showsVideo else { return }
+        if webView.scrollView.backgroundColor != .clear { webView.scrollView.backgroundColor = .clear }
+        for subview in webView.scrollView.subviews
+        where Self.isContentView(subview) && subview.backgroundColor != .clear {
+            subview.backgroundColor = .clear
+        }
+    }
+
+    nonisolated static func isContentView(_ view: UIView) -> Bool {
+        String(describing: type(of: view)) == "WKContentView"
+    }
+
+    /// WebKit backs a scrolling element with a scroll view of its own, placed
+    /// where the element is; the page reports the element's box, so the box
+    /// identifies it.
+    private func findScroller(matching box: CGRect) -> UIScrollView? {
+        guard let webView else { return nil }
+        var found: UIScrollView?
+        func walk(_ parent: UIView) {
+            for subview in parent.subviews {
+                if let scroll = subview as? UIScrollView, scroll !== webView.scrollView,
+                   let frame = scroll.superview?.convert(scroll.frame, to: webView),
+                   Self.matches(frame, box) {
+                    found = scroll
+                }
+                walk(subview)
+            }
+        }
+        walk(webView.scrollView)
+        return found
+    }
+
+    nonisolated static func matches(_ frame: CGRect, _ box: CGRect) -> Bool {
+        let tolerance: CGFloat = 2
+        return abs(frame.minX - box.minX) < tolerance && abs(frame.minY - box.minY) < tolerance
+            && abs(frame.width - box.width) < tolerance && abs(frame.height - box.height) < tolerance
+    }
+
+    /// A back swipe slides a snapshot of the page, not the page. The system's
+    /// recognizers sit on the web view's ancestors and exist only once
+    /// back-forward gestures are allowed, so they are looked up late.
+    private func followSwipe() {
+        guard !followsSwipe, let webView else { return }
+        var ancestor: UIView? = webView
+        while let current = ancestor {
+            for recognizer in current.gestureRecognizers ?? []
+            where recognizer is UIPanGestureRecognizer
+                && String(describing: type(of: recognizer)).contains("ParallaxTransition") {
+                recognizer.addTarget(self, action: #selector(swiped(_:)))
+                followsSwipe = true
+            }
+            ancestor = current.superview
+        }
+    }
+
+    @objc private func swiped(_ recognizer: UIPanGestureRecognizer) {
+        switch recognizer.state {
+        case .began, .changed:
+            swipe = Double(recognizer.translation(in: webView).x)
+        default:
+            swipe = 0
+        }
+        follow()
+    }
+
+    // MARK: background and picture in picture
+
+    private func watchLifecycle() {
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.enteredBackground() }
+        })
+        observers.append(center.addObserver(
+            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.becameActive() }
+        })
+    }
+
+    /// A player still attached to a layer is paused by the system when the app
+    /// leaves the screen; audio keeps going once it is detached. Picture in
+    /// picture needs the layer, so it stays while that is on or starting.
+    func enteredBackground() {
+        guard !isPictureInPictureActive, !pipStarting else { return }
+        view.playerLayer.player = nil
+    }
+
+    func becameActive() {
+        view.playerLayer.player = player
+        if isPictureInPictureActive {
+            pip?.stopPictureInPicture()
+        }
+    }
+
+    var isPictureInPictureActive: Bool { pip?.isPictureInPictureActive ?? false }
+
+    var isPictureInPicturePossible: Bool {
+        showsVideo && (pip?.isPictureInPicturePossible ?? false)
+    }
+
+    func setPictureInPicture(_ active: Bool) {
+        guard showsVideo, let pip else { return }
+        if active, !pip.isPictureInPictureActive {
+            pip.startPictureInPicture()
+        } else if !active, pip.isPictureInPictureActive {
+            pip.stopPictureInPicture()
+        }
+    }
+
+    private func preparePictureInPicture() {
+        guard AVPictureInPictureController.isPictureInPictureSupported(),
+              let pip = AVPictureInPictureController(playerLayer: view.playerLayer)
+        else { return }
+        pip.canStartPictureInPictureAutomaticallyFromInline = true
+        pip.delegate = self
+        pipPossibleObservation = pip.observe(\.isPictureInPicturePossible) { [weak self] _, _ in
+            Task { @MainActor in self?.onPictureInPictureChange?() }
+        }
+        self.pip = pip
+    }
+}
+
+extension VideoSurface: AVPictureInPictureControllerDelegate {
+    nonisolated func pictureInPictureControllerWillStartPictureInPicture(_ controller: AVPictureInPictureController) {
+        MainActor.assumeIsolated { pipStarting = true }
+    }
+
+    nonisolated func pictureInPictureControllerDidStartPictureInPicture(_ controller: AVPictureInPictureController) {
+        MainActor.assumeIsolated {
+            pipStarting = false
+            onPictureInPictureChange?()
+        }
+    }
+
+    nonisolated func pictureInPictureController(
+        _ controller: AVPictureInPictureController,
+        failedToStartPictureInPictureWithError error: Error
+    ) {
+        MainActor.assumeIsolated {
+            pipStarting = false
+            onPictureInPictureChange?()
+        }
+    }
+
+    nonisolated func pictureInPictureControllerDidStopPictureInPicture(_ controller: AVPictureInPictureController) {
+        MainActor.assumeIsolated { onPictureInPictureChange?() }
+    }
+
+    /// The video is already back behind the page's frame; nothing to restore.
+    nonisolated func pictureInPictureController(
+        _ controller: AVPictureInPictureController,
+        restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void
+    ) {
+        completionHandler(true)
+    }
+}
+
+/// A display link keeps its target alive; this keeps the surface out of that.
+@MainActor
+private final class DisplayLinkTarget: NSObject {
+    private weak var surface: VideoSurface?
+
+    init(_ surface: VideoSurface) {
+        self.surface = surface
+    }
+
+    @objc func tick() {
+        surface?.follow()
+    }
+}
