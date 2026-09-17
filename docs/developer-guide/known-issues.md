@@ -140,6 +140,11 @@ as every full navigation does. Nothing saves the listening position while the
 page is gone, so the saved position is the last one from before the process
 ended.
 
+**With autoplay on, an audio file whose server never answers shows nothing.**
+Autoplay waits for the shell to report the file ready before it sends play, so
+a load that never finishes sends no play. The shell reports waiting only while
+asked to play, so the page shows neither "Loading…" nor a failure.
+
 **After Lock, a back swipe may bring back a file page whose player is gone.**
 WebKit's back-forward cache restores the previous document with its script
 state, and the shell stopped that page's playback when Lock navigated away.

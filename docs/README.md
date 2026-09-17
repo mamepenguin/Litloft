@@ -34,6 +34,7 @@ For everyday users: viewers, players, search, organisation.
 - [Comments and watch history](user-guide/comments-history.md)
 - [Profile and preferences](user-guide/profile-preferences.md)
 - [Keyboard shortcuts and gestures](user-guide/keyboard-shortcuts.md)
+- [iOS app](user-guide/ios-app.md) — build and connect the app; background audio.
 
 ### Administration (Admin Guide)
 
