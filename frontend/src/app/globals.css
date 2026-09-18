@@ -133,6 +133,12 @@
     "ヒラギノ角ゴ Pro W3", メイリオ, Meiryo, "ＭＳ Ｐゴシック", Arial, sans-serif;
 }
 
+/* On body this does nothing: only the root element's value reaches the
+   viewport, and iOS rubber-bands the viewport with the sticky header in it. */
+html {
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -140,7 +146,6 @@ body {
   line-height: 1.6;
   text-rendering: optimizeLegibility;
   touch-action: manipulation;
-  overscroll-behavior: contain;
   -webkit-touch-callout: none;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
