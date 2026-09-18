@@ -51,16 +51,34 @@ final class FileDownloads: NSObject, WKDownloadDelegate {
         places.removeValue(forKey: ObjectIdentifier(download))
     }
 
+    /// The sheet is raised over a window of its own rather than over the page:
+    /// presenting it on the app's own view controller leaves the web view
+    /// resized after it goes.
     private static func share(_ file: URL) {
-        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let root = scene.windows.first(where: \.isKeyWindow)?.rootViewController
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive })
         else { return }
+
+        let window = UIWindow(windowScene: scene)
+        window.backgroundColor = .clear
+        window.rootViewController = UIViewController()
+        window.isHidden = false
+        guard let root = window.rootViewController else { return }
 
         let sheet = UIActivityViewController(activityItems: [file], applicationActivities: nil)
         sheet.popoverPresentationController?.sourceView = root.view
         sheet.popoverPresentationController?.sourceRect = CGRect(
             x: root.view.bounds.midX, y: root.view.bounds.maxY, width: 0, height: 0
         )
+        // The window lives as long as the sheet it holds, and no longer.
+        sheet.completionWithItemsHandler = { _, _, _, _ in
+            window.isHidden = true
+            held.remove(window)
+        }
+        held.insert(window)
         root.present(sheet, animated: true)
     }
+
+    private static var held: Set<UIWindow> = []
 }
