@@ -26,15 +26,25 @@ function fakeChannel() {
 }
 
 let box = { x: 0, y: 104, width: 390, height: 219 };
-function Player({ channel, show = true }: { channel: MediaChannel | null; show?: boolean }) {
+function Player({
+  channel,
+  show = true,
+  fullscreen = false,
+}: {
+  channel: MediaChannel | null;
+  show?: boolean;
+  fullscreen?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useShellSurface(ref, channel);
   return (
     <div data-testid="page" style={{ backgroundColor: "rgb(1, 2, 3)" }}>
       <div data-testid="column" className="bg-bg-primary">
+        <p data-testid="sibling">beside the frame</p>
         {show && (
           <div
             data-testid="frame"
+            style={fullscreen ? { position: "fixed" } : undefined}
             ref={(element) => {
               ref.current = element;
               if (element) {
@@ -136,6 +146,27 @@ describe("useShellSurface", () => {
     nextFrame();
     unmount();
     expect(document.body.style.getPropertyValue("background-color")).toBe("");
+  });
+
+  /** In fullscreen the frame covers the viewport, and the video is under
+   * everything the page paints. */
+  it("leaves only the frame painting while it is out of flow, and puts the page back", () => {
+    const channel = fakeChannel();
+    const { getByTestId, rerender } = render(<Player channel={channel as unknown as MediaChannel} />);
+    nextFrame();
+    expect(getByTestId("sibling").style.visibility).toBe("");
+    expect(getByTestId("header").style.visibility).toBe("");
+
+    rerender(<Player channel={channel as unknown as MediaChannel} fullscreen />);
+    nextFrame();
+    expect(getByTestId("sibling").style.visibility).toBe("hidden");
+    expect(getByTestId("header").style.visibility).toBe("hidden");
+    expect(getByTestId("frame").style.visibility).toBe("");
+
+    rerender(<Player channel={channel as unknown as MediaChannel} />);
+    nextFrame();
+    expect(getByTestId("sibling").style.visibility).toBe("");
+    expect(getByTestId("header").style.visibility).toBe("");
   });
 
   it("tells the shell the page's colour, and again when it changes", () => {

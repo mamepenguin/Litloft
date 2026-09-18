@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 
 import {
+  clipsOverflow,
   computeSurfaceGeometry,
   layoutKey,
   measureSurface,
@@ -38,13 +39,14 @@ describe("computeSurfaceGeometry", () => {
     const geometry = computeSurfaceGeometry(
       measurement({
         scrollY: 999,
-        scroller: { box: { x: 0, y: 56, width: 402, height: 700 }, scrollTop: 40 },
+        scroller: { box: { x: 0, y: 56, width: 402, height: 700 }, documentTop: 1056, scrollTop: 40 },
       }),
     );
     expect(geometry).toMatchObject({
       anchor: "scroller",
       top: 120 - 56 + 40,
-      scroller: { x: 0, y: 56, width: 402, height: 700 },
+      // The box says where the element is in the document, not in the viewport.
+      scroller: { x: 0, y: 1056, width: 402, height: 700 },
     });
   });
 
@@ -76,7 +78,7 @@ describe("computeSurfaceGeometry", () => {
     const geometry = computeSurfaceGeometry(
       measurement({
         frame: { ...frame, y: 70 },
-        scroller: { box: { x: 0, y: 56, width: 402, height: 700 }, scrollTop: 200 },
+        scroller: { box: { x: 0, y: 56, width: 402, height: 700 }, documentTop: 56, scrollTop: 200 },
         sticky: { cssTop: 8, frameOffset: 6, belowFrame: 0, blockBottom: 1000, naturalTop: -100 },
       }),
     );
@@ -103,6 +105,30 @@ describe("sameGeometry", () => {
   });
 });
 
+describe("clipsOverflow", () => {
+  const style = (overflow: string, overflowX = overflow, overflowY = overflow) => ({
+    overflow,
+    overflowX,
+    overflowY,
+  });
+
+  it("is false only where nothing is clipped", () => {
+    expect(clipsOverflow(style("visible"))).toBe(false);
+    // jsdom leaves it empty where a browser says "visible".
+    expect(clipsOverflow(style(""))).toBe(false);
+  });
+
+  it("is true for every way of clipping, on either axis", () => {
+    expect(clipsOverflow(style("hidden"))).toBe(true);
+    expect(clipsOverflow(style("auto"))).toBe(true);
+    expect(clipsOverflow(style("scroll"))).toBe(true);
+    expect(clipsOverflow(style("clip"))).toBe(true);
+    expect(clipsOverflow(style("", "visible", "auto"))).toBe(true);
+    expect(clipsOverflow(style("", "hidden", "visible"))).toBe(true);
+    expect(clipsOverflow(style("visible auto", "visible", "auto"))).toBe(true);
+  });
+});
+
 describe("measureSurface", () => {
   afterEach(() => {
     document.body.innerHTML = "";
@@ -119,6 +145,20 @@ describe("measureSurface", () => {
     element.scrollTop = scrollTop;
   }
 
+  it("reports the scrolling element where it is in the document, not in the viewport", () => {
+    document.body.innerHTML = `<div id="scroller" style="overflow-y: auto"><div id="frame"></div></div>`;
+    const scroller = document.getElementById("scroller")!;
+    scrollable(scroller, 0);
+    place(scroller, { x: 0, y: -40, width: 402, height: 700 });
+    place(document.getElementById("frame")!, frame);
+    Object.defineProperty(window, "scrollY", { value: 200, configurable: true });
+
+    const geometry = computeSurfaceGeometry(measureSurface(document.getElementById("frame")!).measurement);
+
+    expect(geometry.scroller).toEqual({ x: 0, y: 160, width: 402, height: 700 });
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+  });
+
   it("finds the element that scrolls, and not one that could but does not", () => {
     document.body.innerHTML = `
       <div id="scroller" style="overflow-y: auto">
@@ -132,7 +172,11 @@ describe("measureSurface", () => {
     const structure = measureSurface(document.getElementById("frame")!);
 
     expect(structure.scroller).toBe(scroller);
-    expect(structure.measurement.scroller).toEqual({ box: { x: 0, y: 56, width: 402, height: 700 }, scrollTop: 30 });
+    expect(structure.measurement.scroller).toEqual({
+      box: { x: 0, y: 56, width: 402, height: 700 },
+      documentTop: 56,
+      scrollTop: 30,
+    });
     expect(structure.measurement.fixed).toBe(false);
   });
 

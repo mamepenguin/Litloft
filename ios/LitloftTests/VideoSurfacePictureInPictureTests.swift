@@ -7,40 +7,6 @@ import WebKit
 @testable import Litloft
 
 @MainActor
-private final class FakePictureInPicture: PictureInPicture {
-    var isActive = false
-    var isPossible = true
-    var starts = 0
-    var stops = 0
-    var onStarting: ((Bool) -> Void)?
-    var onChange: (() -> Void)?
-
-    func start() {
-        starts += 1
-        onStarting?(true)
-        isActive = true
-        onStarting?(false)
-        onChange?()
-    }
-
-    func stop() {
-        stops += 1
-        isActive = false
-        onChange?()
-    }
-
-    /// The system starts it by itself when the app leaves the screen.
-    func startAutomatically() {
-        onStarting?(true)
-    }
-
-    func failToStart() {
-        onStarting?(false)
-        onChange?()
-    }
-}
-
-@MainActor
 private struct Rig {
     let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
     let player = AVPlayer()

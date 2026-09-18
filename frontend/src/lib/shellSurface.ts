@@ -34,7 +34,9 @@ export interface SurfaceMeasurement {
   frame: Box;
   scrollY: number;
   fixed: boolean;
-  scroller: { box: Box; scrollTop: number } | null;
+  /** `box` is where the scrolling element is now; `documentTop` is where it is
+   * in the document, which is what identifies it to the shell. */
+  scroller: { box: Box; documentTop: number; scrollTop: number } | null;
   sticky: StickyMeasurement | null;
 }
 
@@ -55,7 +57,7 @@ export function computeSurfaceGeometry(m: SurfaceMeasurement): SurfaceGeometry {
     ...base,
     anchor: m.scroller ? "scroller" : "document",
     top: viewportTop + origin,
-    scroller: m.scroller ? { ...m.scroller.box } : null,
+    scroller: m.scroller ? { ...m.scroller.box, y: m.scroller.documentTop } : null,
     stickTop,
     stickLimit,
   };
@@ -72,6 +74,15 @@ function roundNumbers(_key: string, value: unknown): unknown {
 
 function box(rect: DOMRect): Box {
   return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+}
+
+/**
+ * The same box in the document's coordinates. The shell identifies the
+ * scrolling element by this box, and a viewport box would only match while the
+ * document sits where it did when the page measured it.
+ */
+function documentBox(rect: DOMRect): Box {
+  return { x: rect.x + window.scrollX, y: rect.y + window.scrollY, width: rect.width, height: rect.height };
 }
 
 function isRoot(element: Element | null): boolean {
@@ -95,12 +106,21 @@ function isFixed(frame: Element): boolean {
   return false;
 }
 
+/**
+ * Whether an element clips what overflows it, which is what sticky sticks
+ * against. Written as its own function because jsdom answers `""` where a
+ * browser answers `"visible"`, so a test against the DOM cannot tell the two
+ * apart.
+ */
+export function clipsOverflow(style: { overflow: string; overflowX: string; overflowY: string }): boolean {
+  const clips = (value: string) => value !== "" && value !== "visible";
+  return clips(style.overflow) || clips(style.overflowY) || clips(style.overflowX);
+}
+
 /** Sticky sticks against its nearest clipping ancestor, which may not scroll. */
 function clipperOf(element: Element): Element | null {
   for (let node = element.parentElement; node && !isRoot(node); node = node.parentElement) {
-    const style = getComputedStyle(node);
-    const clips = (value: string) => value !== "" && value !== "visible";
-    if (clips(style.overflow) || clips(style.overflowY) || clips(style.overflowX)) return node;
+    if (clipsOverflow(getComputedStyle(node))) return node;
   }
   return null;
 }
@@ -155,7 +175,13 @@ export function measureSurface(frame: Element): SurfaceStructure {
       frame: box(frame.getBoundingClientRect()),
       scrollY: window.scrollY,
       fixed,
-      scroller: scroller ? { box: box(scroller.getBoundingClientRect()), scrollTop: scroller.scrollTop } : null,
+        scroller: scroller
+        ? {
+            box: box(scroller.getBoundingClientRect()),
+            documentTop: documentBox(scroller.getBoundingClientRect()).y,
+            scrollTop: scroller.scrollTop,
+          }
+        : null,
       sticky: sticky ? measureSticky(frame, sticky) : null,
     },
   };
@@ -168,7 +194,8 @@ export function measureSurface(frame: Element): SurfaceStructure {
  */
 export function layoutKey(frame: Element, structure: SurfaceStructure): string {
   const rect = frame.getBoundingClientRect();
-  const size = `${rect.x}:${rect.width}x${rect.height}`;
+  // Fullscreen takes the frame out of flow without moving or resizing it.
+  const size = `${getComputedStyle(frame).position}:${rect.x}:${rect.width}x${rect.height}`;
   if (structure.sticky) return size;
   if (structure.measurement.fixed) return `${size}@${rect.y}`;
   const origin = structure.scroller

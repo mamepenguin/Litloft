@@ -54,12 +54,13 @@ final class MediaPlayer {
     init(
         jar: CookieJar,
         audioSession: AudioSession = SystemAudioSession(),
-        cookieReadLimit: Duration = .seconds(2)
+        cookieReadLimit: Duration = .seconds(2),
+        pictureInPicture: @escaping (AVPlayerLayer) -> PictureInPicture? = { SystemPictureInPicture(layer: $0) }
     ) {
         self.jar = jar
         self.audioSession = audioSession
         self.cookieReadLimit = cookieReadLimit
-        surface = VideoSurface(player: player)
+        surface = VideoSurface(player: player, pictureInPicture: pictureInPicture)
         player.allowsExternalPlayback = true
 
         surface.onPictureInPictureChange = { [weak self] in self?.report() }

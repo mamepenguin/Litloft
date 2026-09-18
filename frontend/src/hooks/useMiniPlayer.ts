@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type { MediaController } from "@/lib/mediaController";
 import { useMediaClock } from "@/lib/mediaClock";
+import { isNativeShell } from "@/lib/nativeBridge";
 
 export interface MiniPlayerInputs {
   intersecting: boolean;
@@ -10,6 +11,12 @@ export interface MiniPlayerInputs {
   fullscreen: boolean;
   osPip: boolean;
   desktop: boolean;
+  /**
+   * The iOS shell plays the video behind the page and offers picture in
+   * picture, which is the same thing done better: it keeps playing outside the
+   * app, and it is the system's own window.
+   */
+  shell: boolean;
 }
 
 /**
@@ -18,6 +25,7 @@ export interface MiniPlayerInputs {
  * paused by the browser anyway, so the paused gate already covers it.
  */
 export function shouldShowMini(inputs: MiniPlayerInputs): boolean {
+  if (inputs.shell) return false;
   if (!inputs.desktop) return false;
   if (inputs.fullscreen) return false;
   if (inputs.osPip) return false;
@@ -118,7 +126,7 @@ export function useMiniPlayer({
 
   const isMini =
     !dismissed &&
-    shouldShowMini({ intersecting, paused, fullscreen, osPip, desktop });
+    shouldShowMini({ intersecting, paused, fullscreen, osPip, desktop, shell: isNativeShell() });
 
   const restore = useCallback(() => {
     const el = containerRef.current;

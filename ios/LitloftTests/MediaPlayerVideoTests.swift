@@ -70,6 +70,40 @@ extension SharedMediaState {
             await rig.player.apply(.unload, loadId: "b").value
         }
 
+        @Test("what the page is told about picture in picture is what the system says, for a video")
+        func reportsWhatPictureInPictureSays() async throws {
+            let pip = FakePictureInPicture()
+            let rig = PlayerRig(pictureInPicture: { _ in pip })
+            let webView = onScreen(rig)
+            defer { webView.removeFromSuperview() }
+            await rig.load(video(try tone(seconds: 3)), as: "a")
+            await rig.player.apply(.surface(frame), loadId: "a").value
+            #expect(rig.last?.pipPossible == true)
+            #expect(rig.last?.pip == false)
+
+            await rig.player.apply(.pip(active: true), loadId: "a").value
+            #expect(rig.last?.pip == true)
+
+            pip.isPossible = false
+            await rig.player.apply(.setVolume(1), loadId: nil).value
+            #expect(rig.last?.pipPossible == false)
+            await rig.player.apply(.unload, loadId: "a").value
+        }
+
+        @Test("audio is never offered picture in picture, whatever the system says")
+        func audioIsNeverOffered() async throws {
+            let pip = FakePictureInPicture()
+            let rig = PlayerRig(pictureInPicture: { _ in pip })
+            let webView = onScreen(rig)
+            defer { webView.removeFromSuperview() }
+            await rig.load(try tone(seconds: 3), as: "a")
+
+            await rig.player.apply(.surface(frame), loadId: "a").value
+
+            #expect(rig.last?.pipPossible == false)
+            await rig.player.apply(.unload, loadId: "a").value
+        }
+
         @Test("a surface or picture-in-picture change reports nothing it did not change")
         func surfaceDoesNotReport() async throws {
             let rig = PlayerRig()

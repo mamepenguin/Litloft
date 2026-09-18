@@ -8,9 +8,10 @@ import os
 @MainActor
 final class ShellBridge: NSObject, WKScriptMessageHandler {
     static let handlerName = "litloft"
-    /// Raised whenever the shell stops understanding what an older page sends,
-    /// or starts sending what an older page cannot read. The page compares it
-    /// with its own and plays the file itself when the shell is behind.
+    /// Raised when a page needs something this shell did not have before. The
+    /// page refuses a shell below the version it needs and plays the file
+    /// itself. A shell ahead of the page keeps answering it, and says so when
+    /// a command is one it cannot read.
     static let contractVersion = 2
 
     private let server: URL

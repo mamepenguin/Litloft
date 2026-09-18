@@ -225,6 +225,32 @@ extension SharedMediaState {
             #expect(await until { !page.surface.view.isHidden && page.surface.view.frame.minY == 280 })
         }
 
+        @Test("a scrolling element is found by where it is in the document, wherever the document sits")
+        func scrollerFoundAfterTheDocumentScrolled() async throws {
+            let page = Page()
+            defer { page.close() }
+            try await page.load("""
+                <div style='height:400px'></div>
+                <div id=s style='height:400px;overflow:auto'><div style='height:3000px'></div></div>
+                <div style='height:2000px'></div>
+                """)
+            let documentTop = try #require(try await page.script("""
+                document.getElementById('s').getBoundingClientRect().y + window.scrollY
+                """) as? Double)
+
+            page.webView.scrollView.setContentOffset(CGPoint(x: 0, y: 100), animated: false)
+            try await Task.sleep(for: .milliseconds(300))
+            #expect(try await page.script("window.scrollY") as? Double == 100)
+            page.surface.showsVideo(true)
+            page.surface.place(SurfaceGeometry(
+                left: 0, width: 390, height: 219,
+                anchor: .scroller(CGRect(x: 0, y: documentTop, width: 390, height: 400)), top: 50, stick: nil
+            ))
+
+            #expect(await until { !page.surface.view.isHidden && page.surface.view.frame.minY == 350 },
+                    "hidden=\(page.surface.view.isHidden) at \(page.surface.view.frame.minY)")
+        }
+
         @Test("a frame in a scrolling element that cannot be found is not shown")
         func unknownScrollerHides() async throws {
             let page = Page()

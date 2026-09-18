@@ -93,7 +93,7 @@ struct MediaSource: Equatable {
 struct SurfaceGeometry: Equatable {
     enum Anchor: Equatable {
         case document
-        /// The scrolling element's box in the viewport.
+        /// The scrolling element's box, its top in the document's coordinates.
         case scroller(CGRect)
         case fixed
     }

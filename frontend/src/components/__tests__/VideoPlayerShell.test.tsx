@@ -6,12 +6,15 @@ import { VideoPlayer } from "../VideoPlayer";
 const mockSetupMediaSession = vi.fn(() => () => {});
 const mockSetupBackgroundPiP = vi.fn(() => () => {});
 
+const mockSaveWatchProgress = vi.fn().mockResolvedValue(undefined);
+const mockGetWatchProgress = vi.fn().mockResolvedValue({ position: 0, duration: 0 });
+
 vi.mock("@/lib/api", () => ({
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
   getSubtitleUrl: (id: string, index: number) => `/api/files/${id}/subtitles/${index}`,
-  saveWatchProgress: vi.fn().mockResolvedValue(undefined),
-  getWatchProgress: vi.fn().mockResolvedValue({ position: 0, duration: 0 }),
+  saveWatchProgress: (...args: unknown[]) => mockSaveWatchProgress(...(args as [])),
+  getWatchProgress: (...args: unknown[]) => mockGetWatchProgress(...(args as [])),
   deleteWatchProgress: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -66,6 +69,9 @@ First line
 beforeEach(() => {
   posted = [];
   window.localStorage.clear();
+  mockSaveWatchProgress.mockClear();
+  mockGetWatchProgress.mockClear();
+  mockGetWatchProgress.mockResolvedValue({ position: 0, duration: 0 });
   mockSetupMediaSession.mockClear();
   mockSetupBackgroundPiP.mockClear();
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -213,6 +219,32 @@ describe("VideoPlayer inside the iOS shell", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     expect(posted.some((m) => m.type === "media.play")).toBe(false);
+  });
+
+  it("starts where the viewer left off, before it plays", async () => {
+    mockGetWatchProgress.mockResolvedValueOnce({ position: 75, duration: 120 });
+    render(<VideoPlayer videoId="vid-1" autoPlay />);
+
+    await act(async () => report());
+
+    await waitFor(() => expect(posted.some((m) => m.type === "media.play")).toBe(true));
+    const types = posted.map((m) => m.type);
+    const seek = posted.findIndex((m) => m.type === "media.seek" && m.time === 75);
+    expect(seek).toBeGreaterThanOrEqual(0);
+    expect(types.indexOf("media.play")).toBeGreaterThan(seek);
+  });
+
+  it("records where the file ended rather than forgetting it", async () => {
+    const onEnded = vi.fn();
+    render(<VideoPlayer videoId="vid-1" onEnded={onEnded} />);
+    await act(async () => report({ time: 5, paused: false }));
+
+    await act(async () => report({ time: 120, duration: 120, ended: true, paused: false }));
+
+    await waitFor(() =>
+      expect(mockSaveWatchProgress).toHaveBeenCalledWith("vid-1", 120, 120),
+    );
+    expect(onEnded).toHaveBeenCalled();
   });
 
   it("hands its controller to the page, and takes it back when it goes", () => {

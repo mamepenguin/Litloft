@@ -15,36 +15,63 @@ import {
 /** How often the page's structure is looked at again when nothing resized. */
 const STRUCTURE_EVERY_FRAMES = 30;
 
-interface Cleared {
+interface Saved {
   value: string;
   priority: string;
 }
 
+type Marks = Map<HTMLElement, Saved>;
+
+function mark(node: HTMLElement, property: string, value: string, marks: Marks): void {
+  if (marks.has(node)) return;
+  marks.set(node, {
+    value: node.style.getPropertyValue(property),
+    priority: node.style.getPropertyPriority(property),
+  });
+  node.style.setProperty(property, value, "important");
+}
+
+function unmark(node: HTMLElement, property: string, marks: Marks): void {
+  const saved = marks.get(node);
+  marks.delete(node);
+  if (!saved?.value) node.style.removeProperty(property);
+  else node.style.setProperty(property, saved.value, saved.priority);
+}
+
 /**
- * The shell shows the video behind the page, so the frame's ancestors must not
- * paint over it. Each keeps whatever inline background it had, to put back.
+ * The shell draws the video beneath everything the page paints, so the page has
+ * to leave the frame's rectangle bare. In flow, the frame's ancestors are the
+ * only things painting there, so clearing their backgrounds is enough. Out of
+ * flow — the frame covering the viewport in fullscreen — anything else on the
+ * page would paint over the video, so everything off the frame's path is
+ * hidden as well. Each element keeps whatever it had inline, to put back.
  */
-function clearAncestors(frame: Element, cleared: Map<HTMLElement, Cleared>): void {
-  const now = new Set<HTMLElement>();
+function openHole(frame: Element, outOfFlow: boolean, cleared: Marks, hidden: Marks): void {
+  const path = new Set<HTMLElement>();
   for (let node = frame.parentElement; node; node = node.parentElement) {
-    now.add(node);
-    if (cleared.has(node)) continue;
-    cleared.set(node, {
-      value: node.style.getPropertyValue("background-color"),
-      priority: node.style.getPropertyPriority("background-color"),
-    });
-    node.style.setProperty("background-color", "transparent", "important");
+    path.add(node);
+    mark(node, "background-color", "transparent", cleared);
   }
   for (const node of [...cleared.keys()]) {
-    if (!now.has(node)) restore(node, cleared);
+    if (!path.has(node)) unmark(node, "background-color", cleared);
+  }
+
+  for (const ancestor of path) {
+    for (const child of ancestor.children) {
+      if (!(child instanceof HTMLElement) || child === frame || path.has(child)) continue;
+      if (outOfFlow) mark(child, "visibility", "hidden", hidden);
+    }
+  }
+  for (const node of [...hidden.keys()]) {
+    if (!outOfFlow || !node.parentElement || !path.has(node.parentElement)) {
+      unmark(node, "visibility", hidden);
+    }
   }
 }
 
-function restore(node: HTMLElement, cleared: Map<HTMLElement, Cleared>): void {
-  const saved = cleared.get(node);
-  cleared.delete(node);
-  if (!saved?.value) node.style.removeProperty("background-color");
-  else node.style.setProperty("background-color", saved.value, saved.priority);
+function closeHole(cleared: Marks, hidden: Marks): void {
+  for (const node of [...cleared.keys()]) unmark(node, "background-color", cleared);
+  for (const node of [...hidden.keys()]) unmark(node, "visibility", hidden);
 }
 
 function pageBackground(): string {
@@ -61,7 +88,8 @@ export function useShellSurface(
 ): void {
   useEffect(() => {
     if (!channel) return;
-    const cleared = new Map<HTMLElement, Cleared>();
+    const cleared: Marks = new Map();
+    const hidden: Marks = new Map();
     let sent: SurfaceGeometry | null = null;
     let sentAny = false;
     let background = "";
@@ -83,7 +111,6 @@ export function useShellSurface(
       const frame = frameRef.current;
       let geometry: SurfaceGeometry | null = null;
       if (frame && frame.isConnected) {
-        clearAncestors(frame, cleared);
         const moved =
           !structure ||
           frameCount % STRUCTURE_EVERY_FRAMES === 0 ||
@@ -92,10 +119,11 @@ export function useShellSurface(
           structure = measureSurface(frame);
           lastKey = layoutKey(frame, structure);
         }
+        openHole(frame, structure!.measurement.fixed, cleared, hidden);
         const { width, height } = structure!.measurement.frame;
         if (width > 0 && height > 0) geometry = computeSurfaceGeometry(structure!.measurement);
       } else {
-        for (const node of [...cleared.keys()]) restore(node, cleared);
+        closeHole(cleared, hidden);
         structure = null;
       }
 
@@ -109,7 +137,7 @@ export function useShellSurface(
 
     return () => {
       cancelAnimationFrame(handle);
-      for (const node of [...cleared.keys()]) restore(node, cleared);
+      closeHole(cleared, hidden);
     };
   }, [channel, frameRef]);
 }

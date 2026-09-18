@@ -191,12 +191,19 @@ final class VideoSurface: NSObject {
     /// identifies it.
     private func findScroller(matching box: CGRect) -> UIScrollView? {
         guard let webView else { return nil }
+        // The page reports where the element is in the document; the scroll
+        // views are where they are now.
+        let main = webView.scrollView
+        let documentOffset = Double(main.contentOffset.y + main.adjustedContentInset.top)
+        let expected = CGRect(
+            x: box.minX, y: box.minY - documentOffset, width: box.width, height: box.height
+        )
         var found: UIScrollView?
         func walk(_ parent: UIView) {
             for subview in parent.subviews {
                 if let scroll = subview as? UIScrollView, scroll !== webView.scrollView,
                    let frame = scroll.superview?.convert(scroll.frame, to: webView),
-                   Self.matches(frame, box) {
+                   Self.matches(frame, expected) {
                     found = scroll
                 }
                 walk(subview)

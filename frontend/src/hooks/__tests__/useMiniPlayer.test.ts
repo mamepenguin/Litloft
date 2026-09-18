@@ -11,6 +11,7 @@ describe("shouldShowMini", () => {
     fullscreen: false,
     osPip: false,
     desktop: true,
+    shell: false,
   };
 
   it("returns true when player is off-screen and playing on desktop", () => {
@@ -35,6 +36,11 @@ describe("shouldShowMini", () => {
 
   it("returns false on mobile regardless of other state", () => {
     expect(shouldShowMini({ ...base, desktop: false })).toBe(false);
+  });
+
+  /** The shell has picture in picture, which outlives the app itself. */
+  it("returns false inside the iOS shell", () => {
+    expect(shouldShowMini({ ...base, shell: true })).toBe(false);
   });
 });
 

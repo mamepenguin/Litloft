@@ -40,7 +40,11 @@ export interface SurfaceGeometry {
   height: number;
   anchor: "document" | "scroller" | "fixed";
   top: number;
-  /** The scrolling element's box in the viewport, for `"scroller"`. */
+  /**
+   * For `"scroller"`: the scrolling element's box, with `y` in the document's
+   * coordinates so the shell can tell which of its scroll views this is
+   * whatever the document has scrolled.
+   */
   scroller: { x: number; y: number; width: number; height: number } | null;
   /**
    * Present only while a sticky ancestor actually sticks against the element
