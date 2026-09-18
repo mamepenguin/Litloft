@@ -133,6 +133,7 @@ private final class Page {
     }
 
     func close() async {
+        await webView.closeAllMediaPresentations()
         try? await Task.sleep(for: .milliseconds(800))
         webView.removeFromSuperview()
     }

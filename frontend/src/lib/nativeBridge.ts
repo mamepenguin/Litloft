@@ -64,7 +64,8 @@ export type MediaCommand =
   | { type: "media.setRate"; rate: number }
   | { type: "media.setVolume"; volume: number }
   | { type: "media.surface"; loadId: string; geometry: SurfaceGeometry | null }
-  | { type: "media.pip"; loadId: string; active: boolean };
+  | { type: "media.pip"; loadId: string; active: boolean }
+  | { type: "media.fullscreen"; loadId: string };
 
 export type OutboundMessage =
   | { type: "ping"; seq: number }

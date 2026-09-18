@@ -1,0 +1,189 @@
+import AVFoundation
+import Foundation
+import Testing
+import UIKit
+import WebKit
+
+@testable import Litloft
+
+private let movie = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .appendingPathComponent("Fixtures/tiny.mp4")
+
+private let twoSeconds = CMTime(seconds: 2, preferredTimescale: 600)
+
+private let frame = SurfaceGeometry(left: 0, width: 390, height: 219, anchor: .fixed, top: 50, stick: nil)
+
+@MainActor
+private final class Rig {
+    let fullscreen = FakeSystemFullscreen()
+    let pip = FakePictureInPicture()
+    let rig: PlayerRig
+    let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
+
+    init(systemPlayer: SystemFullscreen? = nil) {
+        let pip = pip
+        rig = PlayerRig(pictureInPicture: { _ in pip }, fullscreen: systemPlayer ?? fullscreen)
+        UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.windows.first }
+            .first?
+            .addSubview(webView)
+        rig.player.surface.attach(to: webView)
+    }
+
+    var avPlayer: AVPlayer? { rig.player.surface.view.playerLayer.player }
+
+    func load(_ kind: MediaKind, as loadId: String) async throws {
+        let url = kind == .video ? movie : try tone(seconds: 3).url
+        await rig.load(MediaSource(url: url, title: "A file", artist: nil, artworkURL: nil, kind: kind), as: loadId)
+        await rig.player.apply(.surface(frame), loadId: loadId).value
+    }
+
+    func close() async {
+        await rig.player.apply(.unload, loadId: nil).value
+        webView.removeFromSuperview()
+    }
+}
+
+extension SharedMediaState {
+    @MainActor
+    @Suite
+    struct MediaPlayerFullscreenTests {
+        @Test("the page's request shows the player's own video in the system's fullscreen player")
+        func presentsThePlayersVideo() async throws {
+            let rig = Rig()
+            try await rig.load(.video, as: "a")
+
+            await rig.rig.player.apply(.fullscreen, loadId: "a").value
+
+            #expect(rig.fullscreen.presented.count == 1)
+            #expect(rig.fullscreen.presented.first === rig.avPlayer)
+            await rig.close()
+        }
+
+        @Test("audio has no picture to show in fullscreen")
+        func audioIsNotPresented() async throws {
+            let rig = Rig()
+            try await rig.load(.audio, as: "a")
+
+            await rig.rig.player.apply(.fullscreen, loadId: "a").value
+
+            #expect(rig.fullscreen.presented.isEmpty)
+            await rig.close()
+        }
+
+        @Test("a request about a file no longer loaded does nothing")
+        func staleRequestDoesNothing() async throws {
+            let rig = Rig()
+            try await rig.load(.video, as: "a")
+            try await rig.load(.video, as: "b")
+
+            await rig.rig.player.apply(.fullscreen, loadId: "a").value
+
+            #expect(rig.fullscreen.presented.isEmpty)
+            await rig.close()
+        }
+
+        @Test("a second request while it is up presents nothing more")
+        func presentedOnce() async throws {
+            let rig = Rig()
+            try await rig.load(.video, as: "a")
+
+            await rig.rig.player.apply(.fullscreen, loadId: "a").value
+            await rig.rig.player.apply(.fullscreen, loadId: "a").value
+
+            #expect(rig.fullscreen.presented.count == 1)
+            await rig.close()
+        }
+
+        @Test("while it is up, only it starts picture in picture when the app leaves; afterwards the page's does again")
+        func pictureInPictureIsHandedOver() async throws {
+            let rig = Rig()
+            try await rig.load(.video, as: "a")
+            #expect(rig.pip.startsAutomatically)
+
+            await rig.rig.player.apply(.fullscreen, loadId: "a").value
+            #expect(!rig.pip.startsAutomatically)
+
+            rig.fullscreen.end()
+            #expect(rig.pip.startsAutomatically)
+            await rig.close()
+        }
+
+        @Test("the page's picture in picture closes as the fullscreen player opens")
+        func pagePictureInPictureCloses() async throws {
+            let rig = Rig()
+            try await rig.load(.video, as: "a")
+            await rig.rig.player.apply(.pip(active: true), loadId: "a").value
+            #expect(rig.pip.isActive)
+
+            await rig.rig.player.apply(.fullscreen, loadId: "a").value
+
+            #expect(!rig.pip.isActive)
+            await rig.close()
+        }
+
+        @Test("when it goes away the page is told where the viewer left the video, even paused")
+        func endReportsThePosition() async throws {
+            let rig = Rig()
+            try await rig.load(.video, as: "a")
+            await rig.rig.player.apply(.fullscreen, loadId: "a").value
+            let player = try #require(rig.avPlayer)
+            await player.seek(to: twoSeconds, toleranceBefore: .zero, toleranceAfter: .zero)
+            let before = rig.rig.states.count
+
+            rig.fullscreen.end()
+
+            #expect(rig.rig.states.count > before, "the page was never told")
+            #expect(abs((rig.rig.last?.time ?? 0) - 2) < 0.1)
+            #expect(rig.rig.last?.paused == true)
+            await rig.close()
+        }
+
+        @Test("closing the system's player leaves the video where the viewer left it", arguments: [1, 2])
+        func closingKeepsThePosition(round: Int) async throws {
+            let system = SystemFullscreenPlayer()
+            let rig = Rig(systemPlayer: system)
+            try await rig.load(.video, as: "a")
+            let player = try #require(rig.avPlayer)
+
+            for _ in 0..<round {
+                await rig.rig.player.apply(.fullscreen, loadId: "a").value
+                #expect(await rig.rig.waitFor { system.isActive })
+                await player.seek(to: twoSeconds, toleranceBefore: .zero, toleranceAfter: .zero)
+                try await Task.sleep(for: .milliseconds(600))
+                system.dismiss()
+                try await Task.sleep(for: .milliseconds(600))
+            }
+
+            #expect(abs(player.currentTime().seconds - 2) < 0.1)
+            #expect(abs((rig.rig.last?.time ?? 0) - 2) < 0.1)
+            await rig.close()
+        }
+
+        @Test("another file puts the fullscreen player away", arguments: [MediaKind.video, .audio])
+        func anotherFileDismisses(kind: MediaKind) async throws {
+            let rig = Rig()
+            try await rig.load(.video, as: "a")
+            await rig.rig.player.apply(.fullscreen, loadId: "a").value
+
+            try await rig.load(kind, as: "b")
+
+            #expect(!rig.fullscreen.isActive)
+            #expect(rig.pip.startsAutomatically)
+            await rig.close()
+        }
+
+        @Test("unloading puts the fullscreen player away")
+        func unloadDismisses() async throws {
+            let rig = Rig()
+            try await rig.load(.video, as: "a")
+            await rig.rig.player.apply(.fullscreen, loadId: "a").value
+
+            await rig.rig.player.apply(.unload, loadId: "a").value
+
+            #expect(!rig.fullscreen.isActive)
+            await rig.close()
+        }
+    }
+}

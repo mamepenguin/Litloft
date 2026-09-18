@@ -90,6 +90,7 @@ describe("the wire", () => {
     channel.setSurface(geometry("surfaceFixed"));
     channel.setSurface(geometry("surfaceGone"));
     channel.setPip(true);
+    channel.enterFullscreen();
     (await import("../nativeBridge")).reportPageBackground("#1a0e10");
     channel.unload();
 
@@ -105,6 +106,7 @@ describe("the wire", () => {
       commands.surfaceFixed,
       commands.surfaceGone,
       commands.pip,
+      commands.fullscreen,
       commands.pageBackground,
       commands.unload,
     ]);
@@ -195,6 +197,7 @@ describe("the media channel", () => {
     fresh.seek(5);
     fresh.setSurface(null);
     fresh.setPip(true);
+    fresh.enterFullscreen();
     fresh.unload();
 
     expect(posted.length).toBe(before);

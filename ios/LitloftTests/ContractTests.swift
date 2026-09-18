@@ -60,6 +60,7 @@ struct ContractTests {
         )), loadId: "load-1"))
         #expect(try route("surfaceGone") == .media(.surface(nil), loadId: "load-1"))
         #expect(try route("pip") == .media(.pip(active: true), loadId: "load-1"))
+        #expect(try route("fullscreen") == .media(.fullscreen, loadId: "load-1"))
         #expect(try route("pageBackground") == .pageBackground(PageColor(
             red: 0x1A / 255, green: 0x0E / 255, blue: 0x10 / 255
         )))
@@ -82,7 +83,7 @@ struct ContractTests {
         let names = try #require(try SharedContract.load()["commands"]).keys
         #expect(Set(names) == [
             "load", "play", "pause", "seek", "unload", "setRate", "setVolume",
-            "surfaceDocument", "surfaceSticky", "surfaceFixed", "surfaceGone", "pip", "pageBackground",
+            "surfaceDocument", "surfaceSticky", "surfaceFixed", "surfaceGone", "pip", "fullscreen", "pageBackground",
             "embedFullscreen"
         ])
     }

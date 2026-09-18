@@ -18,6 +18,7 @@ import { useShellSurface } from "@/hooks/useShellSurface";
 import { useAutoplayPreference } from "@/lib/autoplay";
 import type { MediaController } from "@/lib/mediaController";
 import { useMediaClock } from "@/lib/mediaClock";
+import { shellHasSystemFullscreen } from "@/lib/nativeBridge";
 import type { MediaChannel } from "@/lib/nativeMedia";
 import { usePlaybackProgress } from "@/lib/playbackProgress";
 import { cuesAt } from "@/lib/vtt";
@@ -26,7 +27,7 @@ import MediaControls from "./MediaControls";
 import { SettingToggle } from "./MediaControls/parts/SettingToggle";
 import { useFullscreen } from "./hooks/useFullscreen";
 import { useVideoShortcuts } from "./hooks/useVideoShortcuts";
-import { NativeAutoplayToggle, SubtitleTrackOptions } from "./NativeSettingsRows";
+import { NativeAutoplayToggle, SubtitleTrackOptions, SystemFullscreenButton } from "./NativeSettingsRows";
 
 export interface ShellVideoPlayerProps {
   videoId: string;
@@ -126,6 +127,9 @@ function Controls({
       settingsToggles={
         <>
           {channel && <PictureInPictureRow channel={channel} />}
+          {channel && shellHasSystemFullscreen() && (
+            <SystemFullscreenButton onOpen={() => channel.enterFullscreen()} />
+          )}
           <NativeAutoplayToggle />
         </>
       }
