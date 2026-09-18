@@ -75,10 +75,16 @@ final class FileDownloads: NSObject, WKDownloadDelegate {
         guard let scene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
             .first(where: { $0.activationState == .foregroundActive })
-        else { return }
+        else {
+            // Off screen there is nothing to raise a sheet over, and the file
+            // is already downloaded: it waits rather than being dropped.
+            whenActive { share(file) }
+            return
+        }
 
         let window = UIWindow(windowScene: scene)
         window.backgroundColor = .clear
+        window.isOpaque = false
         window.rootViewController = UIViewController()
         window.isHidden = false
         guard let root = window.rootViewController else { return }
@@ -98,4 +104,16 @@ final class FileDownloads: NSObject, WKDownloadDelegate {
     }
 
     private static var held: Set<UIWindow> = []
+
+    private static func whenActive(_ act: @escaping @MainActor () -> Void) {
+        var token: NSObjectProtocol?
+        token = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            token.map { NotificationCenter.default.removeObserver($0) }
+            MainActor.assumeIsolated(act)
+        }
+    }
 }

@@ -54,7 +54,6 @@ struct WebView: UIViewRepresentable {
         /// until the app is back.
         var isActive: () -> Bool = { UIApplication.shared.applicationState == .active }
         private weak var webView: WKWebView?
-        private var diverted = false
         private var pageObservation: NSKeyValueObservation?
         private var lastPage: URL?
         private var pageToRestore: URL?
@@ -197,26 +196,17 @@ struct WebView: UIViewRepresentable {
             navigationResponse: WKNavigationResponse,
             didBecome download: WKDownload
         ) {
-            divertedToDownload()
             downloads.take(download)
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-            diverted = false
             model.markLoading()
         }
 
-        /// Apart from the delegate because `WKDownload` cannot be built in a
-        /// test. It lives until the navigation it belongs to ends.
-        func divertedToDownload() {
-            diverted = true
-        }
-
-        /// WebKit reports a load the shell turned into a download as a failure
-        /// of the page — which never went anywhere. Every other failure is one.
-        func loadFailed(_ error: Error) {
-            guard !diverted else { return }
-            model.markFailed(error)
+        /// The page on screen is what a stopped load costs, so the model is
+        /// told whether there is one rather than asked to guess why it stopped.
+        func loadFailed(_ error: Error, pageOnScreen: Bool) {
+            model.markFailed(error, pageOnScreen: pageOnScreen)
         }
 
         /// The player stops when the page it belongs to is actually replaced.
@@ -235,11 +225,11 @@ struct WebView: UIViewRepresentable {
             didFailProvisionalNavigation navigation: WKNavigation!,
             withError error: Error
         ) {
-            loadFailed(error)
+            loadFailed(error, pageOnScreen: webView.url != nil)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            loadFailed(error)
+            loadFailed(error, pageOnScreen: webView.url != nil)
         }
 
         // Litloft draws its own context menus; the system callout would fight them.

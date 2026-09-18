@@ -120,22 +120,18 @@ struct ExternalLinkDelegateTests {
         #expect(rig.coordinator.policy(for: response(nil)) == .allow)
     }
 
-    /// The load that was fetching the file is stopped to hand it over, and
-    /// WebKit reports that as a failure of the page that never moved.
-    @Test("the failure of a load turned into a download is not shown")
-    func divertedLoadIsNotAFailure() {
+    /// The shell stops the load that was fetching a file in order to hand it
+    /// over, and WebKit reports that as a failure. With nothing on screen the
+    /// error view is the only way back to the address picker.
+    @Test("an interrupted first load still reaches the viewer")
+    func interruptedFirstLoadIsShown() {
         let rig = Rig()
         let interrupted = NSError(domain: "WebKitErrorDomain", code: 102)
 
-        rig.coordinator.divertedToDownload()
-        rig.coordinator.loadFailed(interrupted)
-        #expect(rig.coordinator.model.state == .loading)
+        rig.coordinator.webView(rig.webView, didFailProvisionalNavigation: nil, withError: interrupted)
 
-        // The next navigation is a page again, and its failure is the viewer's.
-        rig.coordinator.webView(rig.webView, didStartProvisionalNavigation: nil)
-        rig.coordinator.loadFailed(interrupted)
         guard case .failed = rig.coordinator.model.state else {
-            Issue.record("a load the shell did not divert must still reach the error view")
+            Issue.record("the app was left blank with no way out, got \(rig.coordinator.model.state)")
             return
         }
     }

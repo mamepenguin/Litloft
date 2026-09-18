@@ -95,6 +95,23 @@ extension SharedMediaState {
             return title == "Background" && coordinator.player?.nowPlaying.isPlaying == true
         }
 
+        /// A file taken as a download stops the load that was fetching it, and
+        /// the page the viewer is reading never moved.
+        @Test("an interrupted load is not shown while a page is up")
+        func interruptedLoadWithAPageUp() async throws {
+            let shell = try await openShell(active: true)
+            let (coordinator, webView, model) = (shell.coordinator, shell.webView, shell.model)
+
+            coordinator.webView(
+                webView,
+                didFailProvisionalNavigation: nil,
+                withError: NSError(domain: "WebKitErrorDomain", code: 102)
+            )
+
+            #expect(model.state == .loaded)
+            withExtendedLifetime(coordinator) {}
+        }
+
         @Test("a page that dies on screen is put back at once")
         func deadPageOnScreenIsReloaded() async throws {
             let shell = try await openShell(active: true)

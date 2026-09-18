@@ -26,10 +26,11 @@ final class WebViewModel {
         state = .loaded
     }
 
-    /// A cancelled load means a newer one took over, so the page the viewer
-    /// is waiting for is still on its way.
-    func markFailed(_ error: Error) {
-        guard !Self.isCancelled(error) else { return }
+    /// `pageOnScreen` decides how much a stopped load costs the viewer: with a
+    /// page up they keep what they were reading, with none this error is all
+    /// they would have.
+    func markFailed(_ error: Error, pageOnScreen: Bool) {
+        guard Self.reaches(error, pageOnScreen: pageOnScreen) else { return }
         state = .failed(message(for: error))
     }
 
@@ -39,9 +40,14 @@ final class WebViewModel {
     }
 
     /// A code alone means nothing: every domain numbers its own errors.
-    private static func isCancelled(_ error: Error) -> Bool {
+    ///
+    /// A cancelled load was replaced by a newer one, which reports its own
+    /// outcome. An interrupted frame load is how WebKit reports a load the
+    /// shell stopped on its own say-so, by taking the file as a download.
+    private static func reaches(_ error: Error, pageOnScreen: Bool) -> Bool {
         let error = error as NSError
-        return error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled
+        if error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled { return false }
+        return !(pageOnScreen && error.domain == "WebKitErrorDomain" && error.code == 102)
     }
 
     private func message(for error: Error) -> String {
