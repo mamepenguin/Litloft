@@ -6,4 +6,5 @@ export {
   SubtitleTrackOptions,
   SubtitleTrackPicker,
   SystemFullscreenButton,
+  VideoSystemFullscreenButton,
 } from "./NativeSettingsRows";

@@ -120,6 +120,32 @@ export function SystemFullscreenButton({ onOpen }: { onOpen: () => void }) {
   );
 }
 
+interface WebKitFullscreenVideo extends HTMLVideoElement {
+  webkitEnterFullscreen?: () => void;
+}
+
+/**
+ * Where a browser has no element fullscreen — Safari on iPhone and the app
+ * added to the home screen — the video element's own fullscreen is the
+ * system's player.
+ */
+export function VideoSystemFullscreenButton({ video }: VideoRowProps) {
+  const enter = (video as WebKitFullscreenVideo | null)?.webkitEnterFullscreen;
+  if (!video || typeof enter !== "function" || typeof video.requestFullscreen === "function") return null;
+
+  return (
+    <SystemFullscreenButton
+      onOpen={() => {
+        try {
+          enter.call(video);
+        } catch {
+          // Refused until the video has its metadata; the button simply does nothing yet.
+        }
+      }}
+    />
+  );
+}
+
 export function SubtitleTrackPicker({ video }: VideoRowProps) {
   const [, setCaptionsPreferred] = useCaptionsPreference();
   const [, setVersion] = useState(0);
@@ -231,6 +257,7 @@ export function NativeToggleButtons({
   return (
     <>
       <PictureInPictureToggle video={video} />
+      <VideoSystemFullscreenButton video={video} />
       <NativeAutoplayToggle />
       <NativePlayerUiToggle
         browser={browserControls}
