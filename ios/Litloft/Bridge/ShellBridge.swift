@@ -16,15 +16,16 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
 
     private let server: URL
     private weak var webView: WKWebView?
-    let embeds = EmbedFrames()
+    let embeds: EmbedFrames
 
     /// Set by whatever owns the player; absent until then, so a command that
     /// arrives early is dropped rather than queued.
     var onMediaCommand: ((MediaCommand, String?) -> Void)?
     var onPageBackground: ((PageColor) -> Void)?
 
-    init(server: URL) {
+    init(server: URL, embeds: EmbedFrames = EmbedFrames()) {
         self.server = server
+        self.embeds = embeds
     }
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Litloft", category: "bridge")
 

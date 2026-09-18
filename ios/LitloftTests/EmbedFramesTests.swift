@@ -35,6 +35,7 @@ struct EmbedFramesTests {
         (false, "https", "www.youtube.com", "https://www.youtube.com/embed/dQw4w9WgXcQ/extra"),
         (false, "https", "www.youtube.com", "https://www.youtube.com/embed/tooShort"),
         (false, "https", "www.youtube.com", "https://www.youtube.com/embed/dQw4w9WgX%3C"),
+        (false, "https", "www.youtube.com", "https://www.youtube.com/v/dQw4w9WgXcQ"),
         (false, "http", "www.youtube.com", "https://www.youtube.com/embed/dQw4w9WgXcQ"),
         (false, "https", "www.youtube.com", "http://www.youtube.com/embed/dQw4w9WgXcQ"),
         (false, "https", "evil.example", "https://www.youtube.com/embed/dQw4w9WgXcQ"),
@@ -44,6 +45,20 @@ struct EmbedFramesTests {
     ])
     func othersAreIgnored(main: Bool, scheme: String, host: String, url: String) {
         #expect(videoId(main: main, scheme: scheme, host: host, url: url) == nil)
+    }
+
+    @Test("a video id is exactly eleven of YouTube's own characters", arguments: [
+        ("dQw4w9WgXcQ", true),
+        ("a-b_c1D2e3F", true),
+        ("dQw4w9WgXcQQ", false),
+        ("dQw4w9WgXc", false),
+        ("dQw4w9WgX.Q", false),
+        ("dQw4w9WgX Q", false),
+        ("dQw4w9WgXcé", false),
+        ("dQw4w9WgXc٣", false)
+    ])
+    func videoIdShape(value: String, valid: Bool) {
+        #expect(EmbedFrames.isVideoId(value) == valid)
     }
 
     @Test("a frame with no address is not recorded")

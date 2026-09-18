@@ -4,22 +4,34 @@ import os
 
 /// Reaches the `<video>` inside a YouTube embed, which the page cannot: the
 /// frame is another origin. A script in a content world of the shell's own
-/// announces each embed frame as it loads, and the shell keeps the frame so it
-/// can later ask its video to enter the system's fullscreen player.
+/// announces each frame as it loads, and the shell keeps the embed frames so it
+/// can later ask one's video to enter the system's fullscreen player.
 ///
 /// The world's handler exists only in that world, so YouTube's own scripts
-/// cannot post to it; the frame is still judged by WebKit's account of it, not
-/// by anything the script says.
+/// cannot post to it; a frame is judged by WebKit's account of it, never by
+/// anything the script says.
 @MainActor
 final class EmbedFrames: NSObject, WKScriptMessageHandler {
     static let handlerName = "litloftEmbed"
     static let world = WKContentWorld.world(name: "litloft-embeds")
 
-    private nonisolated static let hosts: Set<String> = ["www.youtube.com", "www.youtube-nocookie.com"]
+    /// Where embeds are served from. A test serves its own under a scheme it
+    /// registers, since it cannot reach YouTube.
+    struct Provider: Sendable {
+        let scheme: String
+        let hosts: Set<String>
 
+        static let youtube = Provider(scheme: "https", hosts: ["www.youtube.com", "www.youtube-nocookie.com"])
+    }
+
+    private let provider: Provider
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Litloft", category: "embeds")
     private weak var webView: WKWebView?
     private var frames: [String: WKFrameInfo] = [:]
+
+    init(provider: Provider = .youtube) {
+        self.provider = provider
+    }
 
     func install(in configuration: WKWebViewConfiguration) {
         let controller = configuration.userContentController
@@ -46,21 +58,28 @@ final class EmbedFrames: NSObject, WKScriptMessageHandler {
             isMainFrame: frame.isMainFrame,
             scheme: origin.protocol,
             host: origin.host,
-            url: frame.request.url
+            url: frame.request.url,
+            provider: provider
         ) else { return }
         log.info("embed frame for \(videoId, privacy: .public)")
         frames[videoId] = frame
     }
 
-    /// The video a frame embeds, or nil for any frame that is not a YouTube
-    /// embed. Pure, so a test can hold it.
-    nonisolated static func videoId(isMainFrame: Bool, scheme: String, host: String, url: URL?) -> String? {
+    /// The video a frame embeds, or nil for any frame that is not an embed.
+    /// Pure, so a test can hold it.
+    nonisolated static func videoId(
+        isMainFrame: Bool,
+        scheme: String,
+        host: String,
+        url: URL?,
+        provider: Provider = .youtube
+    ) -> String? {
         guard !isMainFrame,
-              scheme.lowercased() == "https",
-              hosts.contains(host.lowercased()),
+              scheme.lowercased() == provider.scheme,
+              provider.hosts.contains(host.lowercased()),
               let url,
-              url.scheme?.lowercased() == "https",
-              let urlHost = url.host()?.lowercased(), hosts.contains(urlHost)
+              url.scheme?.lowercased() == provider.scheme,
+              let urlHost = url.host()?.lowercased(), provider.hosts.contains(urlHost)
         else { return nil }
         let parts = url.pathComponents
         guard parts.count == 3, parts[1] == "embed", isVideoId(parts[2]) else { return nil }
@@ -71,8 +90,9 @@ final class EmbedFrames: NSObject, WKScriptMessageHandler {
         value.count == 11 && value.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }
     }
 
-    /// A frame the page has since removed, or one whose video has no metadata
-    /// yet, does nothing.
+    /// A frame is recorded when it loads and may have moved on since, so the
+    /// script checks where it is before it acts. A frame the page has since
+    /// removed, or one whose video has no picture yet, does nothing.
     func enterFullscreen(videoId: String) {
         guard let webView, let frame = frames[videoId] else {
             log.info("no embed frame for \(videoId, privacy: .public)")
@@ -80,7 +100,11 @@ final class EmbedFrames: NSObject, WKScriptMessageHandler {
         }
         webView.callAsyncJavaScript(
             Self.enterFullscreenScript,
-            arguments: [:],
+            arguments: [
+                "scheme": provider.scheme + ":",
+                "hosts": Array(provider.hosts),
+                "path": "/embed/" + videoId
+            ],
             in: frame,
             in: Self.world
         ) { [log] result in
@@ -94,6 +118,9 @@ final class EmbedFrames: NSObject, WKScriptMessageHandler {
     }
 
     static let enterFullscreenScript = """
+        if (location.protocol !== scheme || !hosts.includes(location.hostname) || location.pathname !== path) {
+            return false;
+        }
         const video = document.querySelector("video");
         if (!video || typeof video.webkitEnterFullscreen !== "function") return false;
         video.webkitEnterFullscreen();
