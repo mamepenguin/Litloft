@@ -12,10 +12,11 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     /// page refuses a shell below the version it needs and plays the file
     /// itself. A shell ahead of the page keeps answering it, and says so when
     /// a command is one it cannot read.
-    static let contractVersion = 2
+    static let contractVersion = 3
 
     private let server: URL
     private weak var webView: WKWebView?
+    let embeds = EmbedFrames()
 
     /// Set by whatever owns the player; absent until then, so a command that
     /// arrives early is dropped rather than queued.
@@ -34,10 +35,12 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
             injectionTime: .atDocumentStart,
             forMainFrameOnly: true
         ))
+        embeds.install(in: configuration)
     }
 
     func attach(to webView: WKWebView) {
         self.webView = webView
+        embeds.attach(to: webView)
     }
 
     func userContentController(
@@ -56,6 +59,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
             onMediaCommand?(command, loadId)
         case .pageBackground(let color):
             onPageBackground?(color)
+        case .embedFullscreen(let videoId):
+            embeds.enterFullscreen(videoId: videoId)
         case .unreadable(let loadId):
             log.error("a command about \(loadId, privacy: .public) was not readable")
             deliver(MediaState.unreadable(loadId: loadId))
@@ -80,6 +85,10 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         }
         if type == "page.background" {
             return (body["color"] as? String).flatMap(pageColor).map(ShellAction.pageBackground)
+        }
+        if type == "embed.fullscreen" {
+            return (body["videoId"] as? String)
+                .flatMap { EmbedFrames.isVideoId($0) ? ShellAction.embedFullscreen(videoId: $0) : nil }
         }
         return mediaAction(type, body, server: server)
     }

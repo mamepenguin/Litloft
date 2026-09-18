@@ -59,8 +59,18 @@ describe("the contract version", () => {
     win().__litloftShell = { version: contract.version };
     expect(bridge.shellVersion()).toBe(contract.version);
     expect(bridge.isNativeShell()).toBe(true);
+    expect(bridge.shellHasSystemFullscreen()).toBe(true);
+  });
 
-    win().__litloftShell = { version: contract.version - 1 };
+  it("plays through a shell one version back, without its system fullscreen", async () => {
+    installShell();
+    const bridge = await load();
+
+    win().__litloftShell = { version: 2 };
+    expect(bridge.isNativeShell()).toBe(true);
+    expect(bridge.shellHasSystemFullscreen()).toBe(false);
+
+    win().__litloftShell = { version: 1 };
     expect(bridge.isNativeShell()).toBe(false);
   });
 
@@ -83,6 +93,11 @@ describe("outside the shell", () => {
 
   it("reports that it is not the native shell", () => {
     expect(bridge.isNativeShell()).toBe(false);
+  });
+
+  it("offers no system fullscreen, even when a page announces a version", () => {
+    win().__litloftShell = { version: 3 };
+    expect(bridge.shellHasSystemFullscreen()).toBe(false);
   });
 
   it("swallows a post rather than throwing", () => {
@@ -118,6 +133,14 @@ describe("inside the shell", () => {
 
   it("reports that it is the native shell", () => {
     expect(bridge.isNativeShell()).toBe(true);
+  });
+
+  it("asks for an embed's fullscreen as the shared sample spells it", () => {
+    const contract = JSON.parse(
+      readFileSync(join(__dirname, "fixtures", "shell-contract.json"), "utf-8"),
+    ) as { commands: Record<string, { videoId: string }> };
+    bridge.requestEmbedFullscreen(contract.commands.embedFullscreen.videoId);
+    expect(posted).toEqual([contract.commands.embedFullscreen]);
   });
 
   it("hands a message to the shell", () => {

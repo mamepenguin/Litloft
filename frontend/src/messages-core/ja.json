@@ -383,6 +383,7 @@
     "autoplayOff": "自動再生OFF",
     "autoplay": "自動再生",
     "pictureInPicture": "ピクチャ・イン・ピクチャ",
+    "systemFullscreen": "iOS のプレイヤーで開く",
     "subtitleTrack": "字幕トラック",
     "subtitleTrackOff": "オフ",
     "browserControls": "ブラウザ標準の操作バー",

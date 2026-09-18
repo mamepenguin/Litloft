@@ -1,0 +1,102 @@
+import Foundation
+import WebKit
+import os
+
+/// Reaches the `<video>` inside a YouTube embed, which the page cannot: the
+/// frame is another origin. A script in a content world of the shell's own
+/// announces each embed frame as it loads, and the shell keeps the frame so it
+/// can later ask its video to enter the system's fullscreen player.
+///
+/// The world's handler exists only in that world, so YouTube's own scripts
+/// cannot post to it; the frame is still judged by WebKit's account of it, not
+/// by anything the script says.
+@MainActor
+final class EmbedFrames: NSObject, WKScriptMessageHandler {
+    static let handlerName = "litloftEmbed"
+    static let world = WKContentWorld.world(name: "litloft-embeds")
+
+    private nonisolated static let hosts: Set<String> = ["www.youtube.com", "www.youtube-nocookie.com"]
+
+    private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Litloft", category: "embeds")
+    private weak var webView: WKWebView?
+    private var frames: [String: WKFrameInfo] = [:]
+
+    func install(in configuration: WKWebViewConfiguration) {
+        let controller = configuration.userContentController
+        controller.add(self, contentWorld: Self.world, name: Self.handlerName)
+        controller.addUserScript(WKUserScript(
+            source: "window.webkit.messageHandlers.\(Self.handlerName).postMessage(null);",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false,
+            in: Self.world
+        ))
+    }
+
+    func attach(to webView: WKWebView) {
+        self.webView = webView
+    }
+
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        let frame = message.frameInfo
+        let origin = frame.securityOrigin
+        guard let videoId = Self.videoId(
+            isMainFrame: frame.isMainFrame,
+            scheme: origin.protocol,
+            host: origin.host,
+            url: frame.request.url
+        ) else { return }
+        log.info("embed frame for \(videoId, privacy: .public)")
+        frames[videoId] = frame
+    }
+
+    /// The video a frame embeds, or nil for any frame that is not a YouTube
+    /// embed. Pure, so a test can hold it.
+    nonisolated static func videoId(isMainFrame: Bool, scheme: String, host: String, url: URL?) -> String? {
+        guard !isMainFrame,
+              scheme.lowercased() == "https",
+              hosts.contains(host.lowercased()),
+              let url,
+              url.scheme?.lowercased() == "https",
+              let urlHost = url.host()?.lowercased(), hosts.contains(urlHost)
+        else { return nil }
+        let parts = url.pathComponents
+        guard parts.count == 3, parts[1] == "embed", isVideoId(parts[2]) else { return nil }
+        return parts[2]
+    }
+
+    nonisolated static func isVideoId(_ value: String) -> Bool {
+        value.count == 11 && value.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }
+    }
+
+    /// A frame the page has since removed, or one whose video has no metadata
+    /// yet, does nothing.
+    func enterFullscreen(videoId: String) {
+        guard let webView, let frame = frames[videoId] else {
+            log.info("no embed frame for \(videoId, privacy: .public)")
+            return
+        }
+        webView.callAsyncJavaScript(
+            Self.enterFullscreenScript,
+            arguments: [:],
+            in: frame,
+            in: Self.world
+        ) { [log] result in
+            switch result {
+            case .success(let entered):
+                log.info("fullscreen in the embed: \(String(describing: entered), privacy: .public)")
+            case .failure(let error):
+                log.error("fullscreen in the embed failed: \(error, privacy: .public)")
+            }
+        }
+    }
+
+    static let enterFullscreenScript = """
+        const video = document.querySelector("video");
+        if (!video || typeof video.webkitEnterFullscreen !== "function") return false;
+        video.webkitEnterFullscreen();
+        return true;
+        """
+}

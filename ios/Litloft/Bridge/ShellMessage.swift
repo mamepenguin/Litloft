@@ -140,6 +140,7 @@ enum ShellAction: Equatable {
     case reply(ShellMessage)
     case media(MediaCommand, loadId: String?)
     case pageBackground(PageColor)
+    case embedFullscreen(videoId: String)
     /// A command about a file this shell cannot read, from a page built
     /// against another version of the contract. Reported rather than dropped,
     /// or the page waits for a load that will never happen.
