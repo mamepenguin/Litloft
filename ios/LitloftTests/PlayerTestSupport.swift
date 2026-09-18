@@ -110,7 +110,6 @@ final class FakePictureInPicture: PictureInPicture {
 @MainActor
 final class FakeSystemFullscreen: SystemFullscreen {
     var isActive = false
-    var isInPictureInPicture = false
     var onChange: ((Bool) -> Void)?
     private(set) var presented: [AVPlayer] = []
     private(set) var letGoes = 0
@@ -128,8 +127,6 @@ final class FakeSystemFullscreen: SystemFullscreen {
     func letGo() {
         letGoes += 1
     }
-
-    func takeBack(_ player: AVPlayer) {}
 
     /// The viewer closed it, or its picture in picture ended.
     func end() {

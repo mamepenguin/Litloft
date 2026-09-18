@@ -8,18 +8,14 @@ import UIKit
 protocol SystemFullscreen: AnyObject {
     /// On screen, or carried on in the picture in picture it started.
     var isActive: Bool { get }
-    /// Its picture in picture is on or starting.
-    var isInPictureInPicture: Bool { get }
     /// It became active or stopped being active.
     var onChange: ((Bool) -> Void)? { get set }
     func present(_ player: AVPlayer, from view: UIView)
     /// Takes it off the screen; a picture in picture it started carries on.
     func dismiss()
-    /// A player still held here is paused by the system when the app leaves
-    /// the screen, unless it is in picture in picture.
+    /// Off screen and not in picture in picture, a player still held here is
+    /// paused by the system when the app leaves the screen.
     func letGo()
-    /// It shows the player it let go of again.
-    func takeBack(_ player: AVPlayer)
 }
 
 @MainActor
@@ -27,7 +23,7 @@ final class SystemFullscreenPlayer: NSObject, SystemFullscreen, AVPlayerViewCont
     /// Made once and kept, with its player while it is up: releasing it, or
     /// taking the player from it, as it closes puts the player back to the start.
     private var controller: AVPlayerViewController?
-    private(set) var isInPictureInPicture = false
+    private var inPictureInPicture = false
     private var reported = false
 
     var onChange: ((Bool) -> Void)?
@@ -35,7 +31,7 @@ final class SystemFullscreenPlayer: NSObject, SystemFullscreen, AVPlayerViewCont
     /// Read from the controller rather than kept, so the order AVKit calls
     /// back in does not matter.
     var isActive: Bool {
-        isInPictureInPicture || controller?.presentingViewController != nil
+        inPictureInPicture || controller?.presentingViewController != nil
     }
 
     /// The player the fullscreen player shows.
@@ -57,12 +53,8 @@ final class SystemFullscreenPlayer: NSObject, SystemFullscreen, AVPlayerViewCont
     }
 
     func letGo() {
+        guard !isActive else { return }
         controller?.player = nil
-    }
-
-    func takeBack(_ player: AVPlayer) {
-        guard let controller, controller.player == nil else { return }
-        controller.player = player
     }
 
     private func makeController() -> AVPlayerViewController {
@@ -124,7 +116,7 @@ final class SystemFullscreenPlayer: NSObject, SystemFullscreen, AVPlayerViewCont
     }
 
     func setPictureInPicture(_ active: Bool) {
-        isInPictureInPicture = active
+        inPictureInPicture = active
         settle()
     }
 }

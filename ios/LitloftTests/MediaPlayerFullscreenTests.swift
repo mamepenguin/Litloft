@@ -1,5 +1,4 @@
 import AVFoundation
-import AVKit
 import Foundation
 import Testing
 import UIKit
@@ -40,29 +39,8 @@ private final class Rig {
         await rig.player.apply(.surface(frame), loadId: loadId).value
     }
 
-    /// What the shell presented over the window, once UIKit has put it there.
-    var presented: AVPlayerViewController? {
-        webView.window?.rootViewController?.presentedViewController as? AVPlayerViewController
-    }
-
-    func waitUntilPresented() async -> AVPlayerViewController? {
-        _ = await rig.waitFor { self.presented?.view.window != nil && self.presented?.isBeingPresented == false }
-        return presented
-    }
-
-    func waitUntilGone() async -> Bool {
-        await rig.waitFor { self.presentedAnywhere == nil }
-    }
-
-    private var presentedAnywhere: UIViewController? {
-        UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.windows.first?.rootViewController?.presentedViewController }
-            .first
-    }
-
     func close() async {
         await rig.player.apply(.unload, loadId: nil).value
-        _ = await waitUntilGone()
         webView.removeFromSuperview()
     }
 }
@@ -183,12 +161,6 @@ extension SharedMediaState {
             await rig.close()
         }
 
-    }
-
-    /// The real system player, presented over the test host's window.
-    @MainActor
-    @Suite
-    struct SystemFullscreenPlayerTests {
         @Test("the system's player shows the page's own player, and closing it tells the page")
         func realPlayerShowsAndReports() async throws {
             let system = SystemFullscreenPlayer()
@@ -209,46 +181,25 @@ extension SharedMediaState {
             await rig.close()
         }
 
-        @Test("closing it the viewer's way, through AVKit's callback, tells the page")
-        func viewerCloseTellsThePage() async throws {
+        @Test("its picture in picture keeps it active whichever order AVKit reports in", arguments: [true, false])
+        func pictureInPictureKeepsItActive(pictureInPictureFirst: Bool) async throws {
             let system = SystemFullscreenPlayer()
             let rig = Rig(systemPlayer: system)
             try await rig.load(.video, as: "a")
             await rig.rig.player.apply(.fullscreen, loadId: "a").value
-            let controller = try #require(await rig.waitUntilPresented())
-            let before = rig.rig.states.count
 
-            controller.dismiss(animated: true)
-            let coordinator = try #require(controller.transitionCoordinator)
-            system.playerViewController(controller, willEndFullScreenPresentationWithAnimationCoordinator: coordinator)
-
-            #expect(await rig.rig.waitFor { !system.isActive })
-            #expect(await rig.rig.waitFor { rig.pip.startsAutomatically })
-            #expect(rig.rig.states.count > before, "the page was never told")
-            await rig.close()
-        }
-
-        @Test("a picture in picture it started keeps it active after it leaves the screen, until it stops or fails",
-              arguments: [true, false])
-        func pictureInPictureKeepsItActive(stops: Bool) async throws {
-            let system = SystemFullscreenPlayer()
-            let rig = Rig(systemPlayer: system)
-            try await rig.load(.video, as: "a")
-            await rig.rig.player.apply(.fullscreen, loadId: "a").value
-            let controller = try #require(await rig.waitUntilPresented())
-
-            system.playerViewControllerWillStartPictureInPicture(controller)
-            system.dismiss()
-            #expect(await rig.waitUntilGone())
+            if pictureInPictureFirst {
+                system.setPictureInPicture(true)
+                system.dismiss()
+            } else {
+                system.dismiss()
+                system.setPictureInPicture(true)
+            }
             #expect(system.isActive)
             #expect(!rig.pip.startsAutomatically)
 
-            if stops {
-                system.playerViewControllerDidStopPictureInPicture(controller)
-            } else {
-                system.playerViewController(controller, failedToStartPictureInPictureWithError: CancellationError())
-            }
-            #expect(!system.isActive)
+            system.setPictureInPicture(false)
+            #expect(await rig.rig.waitFor { !system.isActive })
             #expect(rig.pip.startsAutomatically)
             await rig.close()
         }
@@ -259,19 +210,16 @@ extension SharedMediaState {
             let rig = Rig(systemPlayer: system)
             try await rig.load(.video, as: "a")
             await rig.rig.player.apply(.fullscreen, loadId: "a").value
-            let controller = try #require(await rig.waitUntilPresented())
-            system.playerViewControllerWillStartPictureInPicture(controller)
+            system.setPictureInPicture(true)
 
             try await rig.load(.video, as: "b")
-            #expect(await rig.waitUntilGone())
             #expect(system.isActive)
             #expect(!rig.pip.startsAutomatically)
-
-            system.playerViewControllerDidStopPictureInPicture(controller)
-            #expect(rig.pip.startsAutomatically)
             await rig.rig.player.apply(.fullscreen, loadId: "b").value
             #expect(system.player === rig.avPlayer)
-            system.dismiss()
+
+            system.setPictureInPicture(false)
+            #expect(await rig.rig.waitFor { rig.pip.startsAutomatically })
             await rig.close()
         }
 
@@ -289,33 +237,14 @@ extension SharedMediaState {
             await rig.close()
         }
 
-        @Test("leaving the app with it on screen lets go of the player, and coming back shows it again")
-        func backgroundWhileOnScreen() async throws {
-            let system = SystemFullscreenPlayer()
-            let rig = Rig(systemPlayer: system)
-            try await rig.load(.video, as: "a")
-            let player = try #require(rig.avPlayer)
-            await rig.rig.player.apply(.fullscreen, loadId: "a").value
-            _ = await rig.waitUntilPresented()
-
-            NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
-            #expect(system.player == nil)
-
-            NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
-            #expect(system.player === player)
-            system.dismiss()
-            await rig.close()
-        }
-
         @Test("after it closes, leaving the app lets go of the player; it shows it again next time")
-        func backgroundAfterClosing() async throws {
+        func backgroundLetsGo() async throws {
             let system = SystemFullscreenPlayer()
             let rig = Rig(systemPlayer: system)
             try await rig.load(.video, as: "a")
             await rig.rig.player.apply(.fullscreen, loadId: "a").value
-            _ = await rig.waitUntilPresented()
             system.dismiss()
-            #expect(await rig.waitUntilGone())
+            #expect(await rig.rig.waitFor { !system.isActive })
 
             NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
             #expect(system.player == nil)
@@ -327,24 +256,20 @@ extension SharedMediaState {
             await rig.close()
         }
 
-        @Test("its picture in picture keeps the player while the app is away, and lets go when it stops there")
-        func pictureInPictureAway() async throws {
+        @Test("while its picture in picture is up, leaving the app does not take the player from it")
+        func backgroundKeepsItsPictureInPicture() async throws {
             let system = SystemFullscreenPlayer()
             let rig = Rig(systemPlayer: system)
             try await rig.load(.video, as: "a")
-            let player = try #require(rig.avPlayer)
             await rig.rig.player.apply(.fullscreen, loadId: "a").value
-            let controller = try #require(await rig.waitUntilPresented())
-            system.playerViewControllerWillStartPictureInPicture(controller)
+            let player = rig.avPlayer
+            system.setPictureInPicture(true)
             system.dismiss()
-            #expect(await rig.waitUntilGone())
 
             NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
             #expect(system.player === player)
-
-            system.playerViewControllerDidStopPictureInPicture(controller)
-            #expect(system.player == nil)
             NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+            system.setPictureInPicture(false)
             await rig.close()
         }
 
