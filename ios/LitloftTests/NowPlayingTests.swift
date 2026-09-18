@@ -2,6 +2,7 @@ import AVFoundation
 import Foundation
 import MediaPlayer
 import Testing
+import UIKit
 
 @testable import Litloft
 
@@ -98,6 +99,23 @@ struct LockScreenTests {
 
         nowPlaying.releaseCommands()
         #expect(nowPlaying.hasCommands == false)
+    }
+
+    /// The lock screen's dictionary is built on a queue of MediaPlayer's own,
+    /// and asking there for a picture that only the main actor may hand over
+    /// traps the whole app.
+    @Test("the picture is handed over from a thread that is not the main one")
+    func artworkOffTheMainThread() async {
+        let image = UIImage(systemName: "film") ?? UIImage()
+        nonisolated(unsafe) let artwork = NowPlaying.artwork(of: image)
+
+        let drawn: Bool = await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                continuation.resume(returning: artwork.image(at: image.size) != nil)
+            }
+        }
+
+        #expect(drawn)
     }
 
     @Test("clearing leaves nothing behind for the next file")
