@@ -278,6 +278,50 @@ struct WebViewModelTests {
         #expect(message == "Frame load interrupted")
     }
 
+    /// The shell stops a load itself when it takes the file or hands the
+    /// address to another app. Nothing else will report that load.
+    @Test("a load the shell stopped settles on what is on screen")
+    func stoppedSettlesOnTheScreen() {
+        let withPage = model()
+        withPage.markLoading()
+        withPage.markStopped(pageOnScreen: true)
+        #expect(withPage.state == .loaded)
+
+        let without = model()
+        without.markLoading()
+        without.markStopped(pageOnScreen: false)
+        guard case .failed(let message) = without.state else {
+            Issue.record("with nothing on screen the viewer must be given a way back, got \(without.state)")
+            return
+        }
+        #expect(message.contains("litloft.local"))
+    }
+
+    @Test("an error for a load that is no longer in flight says nothing")
+    func failuresOnlyCountWhileLoading() {
+        let model = model()
+        model.markLoading()
+        model.markStopped(pageOnScreen: true)
+
+        model.markFailed(NSError(domain: "WebKitErrorDomain", code: 102))
+        model.markFailed(URLError(.notConnectedToInternet))
+
+        #expect(model.state == .loaded)
+    }
+
+    @Test("a real failure is shown while a load is in flight")
+    func realFailuresReachWhileLoading() {
+        let model = model()
+        model.markLoading()
+
+        model.markFailed(URLError(.notConnectedToInternet))
+
+        guard case .failed = model.state else {
+            Issue.record("a real failure was swallowed, got \(model.state)")
+            return
+        }
+    }
+
     @Test("retry puts it back into loading")
     func retryReloads() {
         let model = model()

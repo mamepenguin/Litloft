@@ -129,13 +129,6 @@ Reached only by keyboard.
 
 ## iOS shell
 
-**External links do nothing.** Every non-`loft://` markdown link renders with
-`target="_blank"`. `WKWebView` discards such a navigation unless the UI delegate
-implements `webView(_:createWebViewWith:for:windowFeatures:)`, and the shell does
-not. A tap produces no navigation, no error and no feedback, and the link target
-cannot be reached from inside the app. Whether these should open in Safari or in
-an in-app browser is undecided.
-
 **A `.loft` embed in the app has no mini player on an iPad.** The mini player is
 off everywhere inside the app, because the video the app itself plays offers
 picture in picture instead. A `.loft` file is played by the page's iframe, which

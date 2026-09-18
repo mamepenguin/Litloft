@@ -12,7 +12,10 @@ struct WebShell: View {
 
     var body: some View {
         ZStack {
+            // The page reads the safe area itself, and keeping the web view
+            // inside it leaves a band the page cannot paint.
             WebView(model: model)
+                .ignoresSafeArea(edges: .bottom)
 
             if case .failed(let message) = model.state {
                 ConnectionErrorView(

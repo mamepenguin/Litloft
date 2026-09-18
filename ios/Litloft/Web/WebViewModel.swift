@@ -26,11 +26,24 @@ final class WebViewModel {
         state = .loaded
     }
 
-    /// A cancelled load means a newer one took over, so the page the viewer
-    /// is waiting for is still on its way.
+    /// Only the load that is in flight can fail. An error for one already
+    /// accounted for — stopped by the shell, replaced by a newer load — says
+    /// nothing about what the viewer is looking at.
     func markFailed(_ error: Error) {
-        guard !Self.isCancelled(error) else { return }
+        guard state == .loading, !Self.isCancelled(error) else { return }
         state = .failed(message(for: error))
+    }
+
+    /// The shell stopped the load itself: the file went to the viewer, or the
+    /// address went to another app. Neither leaves a page behind, so what is
+    /// already on screen is the answer — and with nothing there, the viewer is
+    /// left with a blank app and no way back to the address they typed.
+    func markStopped(pageOnScreen: Bool) {
+        guard !pageOnScreen else {
+            state = .loaded
+            return
+        }
+        state = .failed(String(localized: "There is no page to show at \(serverURL.absoluteString)."))
     }
 
     func retry() {
@@ -38,7 +51,8 @@ final class WebViewModel {
         state = .loading
     }
 
-    /// A code alone means nothing: every domain numbers its own errors.
+    /// A cancelled load was replaced by a newer one, which reports its own
+    /// outcome. A code alone means nothing: every domain numbers its own errors.
     private static func isCancelled(_ error: Error) -> Bool {
         let error = error as NSError
         return error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled
