@@ -38,9 +38,21 @@ private struct Rig {
         coordinator.openInNewWindow(URLRequest(url: URL(string: address)!), in: webView)
     }
 
-    func navigate(_ address: String, inMainFrame: Bool = true) -> WKNavigationActionPolicy {
-        coordinator.policy(for: URL(string: address)!, inMainFrame: inMainFrame)
+    func navigate(_ address: String, inMainFrame: Bool = true, pageOnScreen: Bool = true) -> WKNavigationActionPolicy {
+        coordinator.policy(for: URL(string: address)!, inMainFrame: inMainFrame, pageOnScreen: pageOnScreen)
     }
+
+    func answer(_ disposition: String?, pageOnScreen: Bool = true) -> WKNavigationResponsePolicy {
+        let response = HTTPURLResponse(
+            url: URL(string: "http://litloft.local:3000/api/files/abc/download")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: disposition.map { ["Content-Disposition": $0] }
+        )!
+        return coordinator.policy(for: response, pageOnScreen: pageOnScreen)
+    }
+
+    var state: WebViewModel.State { coordinator.model.state }
 }
 
 @MainActor
@@ -102,38 +114,86 @@ struct ExternalLinkDelegateTests {
         #expect(rig.navigate("javascript:void(0)") == .cancel)
         #expect(rig.opener.opened.isEmpty)
         #expect(rig.webView.loaded.isEmpty)
+
+        // Stopped is stopped, whatever the shell stopped it for.
+        #expect(rig.navigate("javascript:void(0)", pageOnScreen: false) == .cancel)
+        guard case .failed = rig.state else {
+            Issue.record("the app was left blank with no way out, got \(rig.state)")
+            return
+        }
     }
 
     @Test("a file the server marks as an attachment is taken as a download, and a page is not")
     func attachmentsBecomeDownloads() {
         let rig = Rig()
-        func response(_ disposition: String?) -> URLResponse {
-            HTTPURLResponse(
-                url: URL(string: "http://litloft.local:3000/api/files/abc/download")!,
-                statusCode: 200,
-                httpVersion: nil,
-                headerFields: disposition.map { ["Content-Disposition": $0] }
-            )!
-        }
 
-        #expect(rig.coordinator.policy(for: response("attachment; filename=\"a.mp4\"")) == .download)
-        #expect(rig.coordinator.policy(for: response(nil)) == .allow)
+        #expect(rig.answer("attachment; filename=\"a.mp4\"") == .download)
+        #expect(rig.answer(nil) == .allow)
     }
 
-    /// The shell stops the load that was fetching a file in order to hand it
-    /// over, and WebKit reports that as a failure. With nothing on screen the
-    /// error view is the only way back to the address picker.
-    @Test("an interrupted first load still reaches the viewer")
-    func interruptedFirstLoadIsShown() {
+    /// The first thing the shell loads answering with a file is how the app is
+    /// left blank: WebKit reports nothing at all, so only the shell's own
+    /// decision can say that nothing will be drawn.
+    @Test("a file arriving with nothing on screen leaves the viewer a way out")
+    func attachmentWithNothingOnScreen() {
         let rig = Rig()
-        let interrupted = NSError(domain: "WebKitErrorDomain", code: 102)
 
-        rig.coordinator.webView(rig.webView, didFailProvisionalNavigation: nil, withError: interrupted)
+        #expect(rig.answer("attachment; filename=\"a.mp4\"", pageOnScreen: false) == .download)
 
-        guard case .failed = rig.coordinator.model.state else {
-            Issue.record("the app was left blank with no way out, got \(rig.coordinator.model.state)")
+        guard case .failed = rig.state else {
+            Issue.record("the app was left blank with no way out, got \(rig.state)")
             return
         }
+    }
+
+    /// A page the shell is told to leave — an address off the origin — reaches
+    /// the viewer the same way, and WebKit reports nothing there either.
+    @Test("an address handed away with nothing on screen leaves the viewer a way out")
+    func handedAwayWithNothingOnScreen() {
+        let rig = Rig()
+
+        #expect(rig.navigate("https://example.com/article", pageOnScreen: false) == .cancel)
+
+        guard case .failed = rig.state else {
+            Issue.record("the app was left blank with no way out, got \(rig.state)")
+            return
+        }
+    }
+
+    /// The page the viewer is reading is what a stopped load leaves behind, and
+    /// the model has to say so: nothing else ends the load it started.
+    @Test("a stopped load with a page up settles on the page")
+    func stoppedWithAPageUp() {
+        let rig = Rig()
+
+        rig.coordinator.model.markLoading()
+        #expect(rig.answer("attachment; filename=\"a.mp4\"") == .download)
+        #expect(rig.state == .loaded)
+
+        rig.coordinator.model.markLoading()
+        #expect(rig.navigate("https://example.com/article") == .cancel)
+        #expect(rig.state == .loaded)
+    }
+
+    /// An error arrives for the load in flight, and for no other: one the shell
+    /// already accounted for says nothing about what is on screen.
+    @Test("a failure is shown while a load is in flight, and ignored after one was stopped")
+    func failuresFollowTheLoadInFlight() {
+        let interrupted = NSError(domain: "WebKitErrorDomain", code: 102)
+
+        let loading = Rig()
+        loading.coordinator.model.markLoading()
+        loading.coordinator.webView(loading.webView, didFailProvisionalNavigation: nil, withError: interrupted)
+        guard case .failed = loading.state else {
+            Issue.record("a load in flight failed and nothing was said, got \(loading.state)")
+            return
+        }
+
+        let stopped = Rig()
+        stopped.coordinator.model.markLoading()
+        #expect(stopped.answer("attachment; filename=\"a.mp4\"") == .download)
+        stopped.coordinator.webView(stopped.webView, didFail: nil, withError: interrupted)
+        #expect(stopped.state == .loaded, "the page the file came from was taken away")
     }
 
     /// The YouTube embed navigates inside its own frame, to a site that is not

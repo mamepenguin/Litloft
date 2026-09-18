@@ -105,13 +105,17 @@ final class FileDownloads: NSObject, WKDownloadDelegate {
 
     private static var held: Set<UIWindow> = []
 
+    /// Once, however many times the app is brought back.
     private static func whenActive(_ act: @escaping @MainActor () -> Void) {
         var token: NSObjectProtocol?
+        var spent = false
         token = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
             queue: .main
         ) { _ in
+            guard !spent else { return }
+            spent = true
             token.map { NotificationCenter.default.removeObserver($0) }
             MainActor.assumeIsolated(act)
         }

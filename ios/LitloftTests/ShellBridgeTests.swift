@@ -220,7 +220,7 @@ struct WebViewModelTests {
     @Test("an unreachable server raises the retry screen")
     func unreachableShowsError() {
         let model = model()
-        model.markFailed(URLError(.cannotConnectToHost), pageOnScreen: false)
+        model.markFailed(URLError(.cannotConnectToHost))
 
         guard case .failed(let message) = model.state else {
             Issue.record("expected the error state, got \(model.state)")
@@ -233,7 +233,7 @@ struct WebViewModelTests {
     func cancelledIsNotAFailure() {
         let model = model()
         model.markLoading()
-        model.markFailed(URLError(.cancelled), pageOnScreen: true)
+        model.markFailed(URLError(.cancelled))
 
         #expect(model.state == .loading)
     }
@@ -241,8 +241,8 @@ struct WebViewModelTests {
     @Test("a cancelled load does not erase an error already on screen")
     func cancelledDoesNotClearAnError() {
         let model = model()
-        model.markFailed(URLError(.timedOut), pageOnScreen: true)
-        model.markFailed(URLError(.cancelled), pageOnScreen: true)
+        model.markFailed(URLError(.timedOut))
+        model.markFailed(URLError(.cancelled))
 
         guard case .failed = model.state else {
             Issue.record("expected the error state to survive, got \(model.state)")
@@ -254,7 +254,7 @@ struct WebViewModelTests {
     func foreignDomainIsNotCancelled() {
         let model = model()
         model.markLoading()
-        model.markFailed(NSError(domain: "WKErrorDomain", code: -999), pageOnScreen: true)
+        model.markFailed(NSError(domain: "WKErrorDomain", code: -999))
 
         guard case .failed = model.state else {
             Issue.record("a -999 outside NSURLErrorDomain must still reach the error view")
@@ -265,14 +265,11 @@ struct WebViewModelTests {
     @Test("an error outside NSURLErrorDomain keeps its own description")
     func foreignDomainKeepsItsMessage() {
         let model = model()
-        model.markFailed(
-            NSError(
-                domain: "WKErrorDomain",
-                code: 102,
-                userInfo: [NSLocalizedDescriptionKey: "Frame load interrupted"]
-            ),
-            pageOnScreen: true
-        )
+        model.markFailed(NSError(
+            domain: "WKErrorDomain",
+            code: 102,
+            userInfo: [NSLocalizedDescriptionKey: "Frame load interrupted"]
+        ))
 
         guard case .failed(let message) = model.state else {
             Issue.record("expected the error state")
@@ -281,45 +278,54 @@ struct WebViewModelTests {
         #expect(message == "Frame load interrupted")
     }
 
-    /// Taking a file as a download stops the load that was fetching it. With
-    /// the page still there the viewer lost nothing; with nothing on screen
-    /// this error is the only way back to the address picker.
-    @Test("an interrupted load is shown when there is no page, and not when there is")
-    func interruptedDependsOnWhatIsOnScreen() {
-        let interrupted = NSError(domain: "WebKitErrorDomain", code: 102)
-
+    /// The shell stops a load itself when it takes the file or hands the
+    /// address to another app. Nothing else will report that load.
+    @Test("a load the shell stopped settles on what is on screen")
+    func stoppedSettlesOnTheScreen() {
         let withPage = model()
         withPage.markLoading()
-        withPage.markFailed(interrupted, pageOnScreen: true)
-        #expect(withPage.state == .loading)
+        withPage.markStopped(pageOnScreen: true)
+        #expect(withPage.state == .loaded)
 
         let without = model()
         without.markLoading()
-        without.markFailed(interrupted, pageOnScreen: false)
-        guard case .failed = without.state else {
-            Issue.record("with nothing on screen the viewer must be given the error, got \(without.state)")
+        without.markStopped(pageOnScreen: false)
+        guard case .failed(let message) = without.state else {
+            Issue.record("with nothing on screen the viewer must be given a way back, got \(without.state)")
             return
         }
+        #expect(message.contains("litloft.local"))
     }
 
-    @Test("a real failure is shown whether or not a page is up")
-    func realFailuresAlwaysReach() {
-        for pageOnScreen in [true, false] {
-            let model = model()
-            model.markLoading()
-            model.markFailed(URLError(.notConnectedToInternet), pageOnScreen: pageOnScreen)
+    @Test("an error for a load that is no longer in flight says nothing")
+    func failuresOnlyCountWhileLoading() {
+        let model = model()
+        model.markLoading()
+        model.markStopped(pageOnScreen: true)
 
-            guard case .failed = model.state else {
-                Issue.record("a real failure was swallowed with pageOnScreen = \(pageOnScreen)")
-                return
-            }
+        model.markFailed(NSError(domain: "WebKitErrorDomain", code: 102))
+        model.markFailed(URLError(.notConnectedToInternet))
+
+        #expect(model.state == .loaded)
+    }
+
+    @Test("a real failure is shown while a load is in flight")
+    func realFailuresReachWhileLoading() {
+        let model = model()
+        model.markLoading()
+
+        model.markFailed(URLError(.notConnectedToInternet))
+
+        guard case .failed = model.state else {
+            Issue.record("a real failure was swallowed, got \(model.state)")
+            return
         }
     }
 
     @Test("retry puts it back into loading")
     func retryReloads() {
         let model = model()
-        model.markFailed(URLError(.timedOut), pageOnScreen: true)
+        model.markFailed(URLError(.timedOut))
         let before = model.reloadToken
 
         model.retry()

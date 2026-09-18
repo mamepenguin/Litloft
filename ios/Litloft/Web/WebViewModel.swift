@@ -26,12 +26,24 @@ final class WebViewModel {
         state = .loaded
     }
 
-    /// `pageOnScreen` decides how much a stopped load costs the viewer: with a
-    /// page up they keep what they were reading, with none this error is all
-    /// they would have.
-    func markFailed(_ error: Error, pageOnScreen: Bool) {
-        guard Self.reaches(error, pageOnScreen: pageOnScreen) else { return }
+    /// Only the load that is in flight can fail. An error for one already
+    /// accounted for — stopped by the shell, replaced by a newer load — says
+    /// nothing about what the viewer is looking at.
+    func markFailed(_ error: Error) {
+        guard state == .loading, !Self.isCancelled(error) else { return }
         state = .failed(message(for: error))
+    }
+
+    /// The shell stopped the load itself: the file went to the viewer, or the
+    /// address went to another app. Neither leaves a page behind, so what is
+    /// already on screen is the answer — and with nothing there, the viewer is
+    /// left with a blank app and no way back to the address they typed.
+    func markStopped(pageOnScreen: Bool) {
+        guard !pageOnScreen else {
+            state = .loaded
+            return
+        }
+        state = .failed(String(localized: "There is no page to show at \(serverURL.absoluteString)."))
     }
 
     func retry() {
@@ -39,15 +51,11 @@ final class WebViewModel {
         state = .loading
     }
 
-    /// A code alone means nothing: every domain numbers its own errors.
-    ///
     /// A cancelled load was replaced by a newer one, which reports its own
-    /// outcome. An interrupted frame load is how WebKit reports a load the
-    /// shell stopped on its own say-so, by taking the file as a download.
-    private static func reaches(_ error: Error, pageOnScreen: Bool) -> Bool {
+    /// outcome. A code alone means nothing: every domain numbers its own errors.
+    private static func isCancelled(_ error: Error) -> Bool {
         let error = error as NSError
-        if error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled { return false }
-        return !(pageOnScreen && error.domain == "WebKitErrorDomain" && error.code == 102)
+        return error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled
     }
 
     private func message(for error: Error) -> String {

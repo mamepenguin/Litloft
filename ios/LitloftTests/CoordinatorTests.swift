@@ -7,6 +7,15 @@ import WebKit
 @testable import Litloft
 
 @MainActor
+private final class RecordingOpener: URLOpener {
+    nonisolated(unsafe) var opened: [URL] = []
+
+    func open(_ url: URL) {
+        opened.append(url)
+    }
+}
+
+@MainActor
 private struct OpenShell {
     let coordinator: WebView.Coordinator
     let webView: WKWebView
@@ -63,10 +72,10 @@ extension SharedMediaState {
 
         // MARK: a dead page
 
-        private func openShell(active: Bool) async throws -> OpenShell {
+        private func openShell(active: Bool, opener: URLOpener = SystemURLOpener()) async throws -> OpenShell {
             try await LocalLitloft.require()
             let model = WebViewModel(serverURL: URL(string: "http://localhost:3000/")!)
-            let coordinator = WebView.Coordinator(model: model)
+            let coordinator = WebView.Coordinator(model: model, opener: opener)
             coordinator.isActive = { active }
             let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
             coordinator.attachBridge(to: webView)
@@ -97,11 +106,19 @@ extension SharedMediaState {
 
         /// A file taken as a download stops the load that was fetching it, and
         /// the page the viewer is reading never moved.
-        @Test("an interrupted load is not shown while a page is up")
-        func interruptedLoadWithAPageUp() async throws {
+        @Test("a download leaves the page it was asked from, and the model says so")
+        func downloadLeavesThePageUp() async throws {
             let shell = try await openShell(active: true)
             let (coordinator, webView, model) = (shell.coordinator, shell.webView, shell.model)
+            let attachment = HTTPURLResponse(
+                url: URL(string: "http://localhost:3000/api/files/abc/download")!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Disposition": "attachment; filename=\"a.mp4\""]
+            )!
 
+            model.markLoading()
+            #expect(coordinator.policy(for: attachment, pageOnScreen: webView.url != nil) == .download)
             coordinator.webView(
                 webView,
                 didFailProvisionalNavigation: nil,
@@ -109,6 +126,50 @@ extension SharedMediaState {
             )
 
             #expect(model.state == .loaded)
+            withExtendedLifetime(coordinator) {}
+        }
+
+        /// The whole way through WebKit: a real page sends itself somewhere
+        /// else, and the shell answers the policy question for it.
+        @Test("a page that sends itself off the origin is handed to the system")
+        func offOriginNavigationIsHandedOver() async throws {
+            let opener = RecordingOpener()
+            let shell = try await openShell(active: true, opener: opener)
+            let (coordinator, webView, model) = (shell.coordinator, shell.webView, shell.model)
+            let wasShowing = try #require(webView.url)
+
+            _ = try? await webView.evaluateJavaScript("location.href = 'https://example.com/article'; 1")
+
+            #expect(await waitUntil { opener.opened == [URL(string: "https://example.com/article")!] })
+            #expect(webView.url == wasShowing, "the shell went there itself")
+            #expect(model.state == .loaded, "the page the viewer is on was reported as gone")
+            withExtendedLifetime(coordinator) {}
+        }
+
+        /// The address the viewer typed sends them somewhere else before any
+        /// page arrives. WebKit reports nothing for a load stopped this way, so
+        /// the shell has to say it itself — or the app sits blank with no way
+        /// back to the address picker (R-0 8).
+        @Test("a first load that redirects off the origin leaves a way out")
+        func firstLoadRedirectedAway() async throws {
+            let server = try RedirectServer(to: "https://example.com/article")
+            defer { server.stop() }
+            let address = try await server.start()
+            let opener = RecordingOpener()
+            let model = WebViewModel(serverURL: address)
+            let coordinator = WebView.Coordinator(model: model, opener: opener)
+            let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+            coordinator.attachBridge(to: webView)
+            webView.navigationDelegate = coordinator
+
+            coordinator.start(webView)
+
+            #expect(await waitUntil { opener.opened == [URL(string: "https://example.com/article")!] })
+            #expect(!webView.hasCommittedPage, "a page arrived after all")
+            guard case .failed = model.state else {
+                Issue.record("the app was left blank with no way out, got \(model.state)")
+                return
+            }
             withExtendedLifetime(coordinator) {}
         }
 

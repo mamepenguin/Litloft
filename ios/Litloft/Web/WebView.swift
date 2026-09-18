@@ -1,6 +1,13 @@
 import SwiftUI
 import WebKit
 
+extension WKWebView {
+    /// `url` answers with the address of a navigation still in flight, which is
+    /// not on screen and may never be. What the viewer is looking at is the
+    /// page WebKit has committed.
+    var hasCommittedPage: Bool { backForwardList.currentItem != nil }
+}
+
 struct WebView: UIViewRepresentable {
     let model: WebViewModel
 
@@ -161,10 +168,14 @@ struct WebView: UIViewRepresentable {
             _ webView: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction
         ) async -> WKNavigationActionPolicy {
-            policy(for: navigationAction.request.url, inMainFrame: navigationAction.targetFrame?.isMainFrame == true)
+            policy(
+                for: navigationAction.request.url,
+                inMainFrame: navigationAction.targetFrame?.isMainFrame == true,
+                pageOnScreen: webView.hasCommittedPage
+            )
         }
 
-        func policy(for url: URL?, inMainFrame: Bool) -> WKNavigationActionPolicy {
+        func policy(for url: URL?, inMainFrame: Bool, pageOnScreen: Bool) -> WKNavigationActionPolicy {
             guard inMainFrame else { return .allow }
 
             switch ExternalLink.destination(for: url, server: model.serverURL, current: nil) {
@@ -172,8 +183,10 @@ struct WebView: UIViewRepresentable {
                 return .allow
             case .system:
                 url.map { opener.open($0) }
+                model.markStopped(pageOnScreen: pageOnScreen)
                 return .cancel
             case .nothing:
+                model.markStopped(pageOnScreen: pageOnScreen)
                 return .cancel
             }
         }
@@ -184,11 +197,13 @@ struct WebView: UIViewRepresentable {
             _ webView: WKWebView,
             decidePolicyFor navigationResponse: WKNavigationResponse
         ) async -> WKNavigationResponsePolicy {
-            policy(for: navigationResponse.response)
+            policy(for: navigationResponse.response, pageOnScreen: webView.hasCommittedPage)
         }
 
-        func policy(for response: URLResponse) -> WKNavigationResponsePolicy {
-            FileDownloads.isAttachment(response) ? .download : .allow
+        func policy(for response: URLResponse, pageOnScreen: Bool) -> WKNavigationResponsePolicy {
+            guard FileDownloads.isAttachment(response) else { return .allow }
+            model.markStopped(pageOnScreen: pageOnScreen)
+            return .download
         }
 
         func webView(
@@ -201,12 +216,6 @@ struct WebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
             model.markLoading()
-        }
-
-        /// The page on screen is what a stopped load costs, so the model is
-        /// told whether there is one rather than asked to guess why it stopped.
-        func loadFailed(_ error: Error, pageOnScreen: Bool) {
-            model.markFailed(error, pageOnScreen: pageOnScreen)
         }
 
         /// The player stops when the page it belongs to is actually replaced.
@@ -225,11 +234,11 @@ struct WebView: UIViewRepresentable {
             didFailProvisionalNavigation navigation: WKNavigation!,
             withError error: Error
         ) {
-            loadFailed(error, pageOnScreen: webView.url != nil)
+            model.markFailed(error)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            loadFailed(error, pageOnScreen: webView.url != nil)
+            model.markFailed(error)
         }
 
         // Litloft draws its own context menus; the system callout would fight them.
