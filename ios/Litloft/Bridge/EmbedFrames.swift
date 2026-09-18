@@ -117,13 +117,25 @@ final class EmbedFrames: NSObject, WKScriptMessageHandler {
         }
     }
 
+    /// YouTube marks its video to play inline. The mark is taken off for as
+    /// long as the system player shows it, so leaving the app can move it into
+    /// picture in picture as it does from YouTube's own fullscreen button.
     static let enterFullscreenScript = """
         if (location.protocol !== scheme || !hosts.includes(location.hostname) || location.pathname !== path) {
             return false;
         }
         const video = document.querySelector("video");
         if (!video || typeof video.webkitEnterFullscreen !== "function") return false;
-        video.webkitEnterFullscreen();
+        const inline = ["playsinline", "webkit-playsinline"].filter((name) => video.hasAttribute(name));
+        const restore = () => inline.forEach((name) => video.setAttribute(name, ""));
+        inline.forEach((name) => video.removeAttribute(name));
+        try {
+            video.webkitEnterFullscreen();
+        } catch (error) {
+            restore();
+            throw error;
+        }
+        video.addEventListener("webkitendfullscreen", restore, { once: true });
         return true;
         """
 }

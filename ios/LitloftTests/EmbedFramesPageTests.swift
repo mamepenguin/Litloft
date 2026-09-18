@@ -24,20 +24,27 @@ private final class EmbedServer: NSObject, WKURLSchemeHandler {
         let url = task.request.url!
         let source = "data:video/mp4;base64," + (video ?? Data()).base64EncodedString()
         let hostile = url.host() == "frames.test" ? "" : "Array.prototype.includes = () => true;"
+        // A video with nothing to load has no metadata, and WebKit refuses to take it fullscreen.
+        let src = url.lastPathComponent == blank ? "" : "src=\"\(source)\""
         let html = """
             <!doctype html><body>
-            <video playsinline muted preload="auto" src="\(source)"></video>
+            <video playsinline webkit-playsinline muted preload="auto" \(src)></video>
             <script>
             \(hostile)
             const video = document.querySelector("video");
             const tell = (what) => parent.postMessage(what + ":" + location.pathname, "*");
+            const marks = () => ["playsinline", "webkit-playsinline"].filter((name) => video.hasAttribute(name)).length;
             video.addEventListener("loadedmetadata", () => tell("ready"));
             video.addEventListener("webkitbeginfullscreen", () => {
                 tell("fullscreen");
+                tell(`marks-${marks()}`);
                 tell(`playback-${video.paused ? "paused" : "playing"}-${video.currentTime >= 3 ? "kept" : "moved"}`
                     + `-${location.href === document.URL && location.hash === "" ? "home" : "away"}`);
             });
+            video.addEventListener("webkitendfullscreen", () => setTimeout(() => tell(`left-marks-${marks()}`)));
             addEventListener("message", (event) => {
+                if (event.data === "marks") tell(`marks-${marks()}`);
+                if (event.data === "ended") video.dispatchEvent(new Event("webkitendfullscreen"));
                 if (event.data === "play") {
                     video.currentTime = 3;
                     video.play().then(() => tell("playing"));
@@ -133,12 +140,14 @@ private final class Page {
     }
 
     func close() async {
+        await webView.closeAllMediaPresentations()
         try? await Task.sleep(for: .milliseconds(800))
         webView.removeFromSuperview()
     }
 }
 
 private let first = "M7lc1UVf-VE"
+private let blank = "NoMetadata1"
 private let second = "dQw4w9WgXcQ"
 
 extension SharedMediaState {
@@ -213,6 +222,37 @@ extension SharedMediaState {
             try await page.askForFullscreen(first)
 
             #expect(!(await page.waitFor("fullscreen:/embed/\(first)", seconds: 2)), "acted on a foreign frame")
+            await page.close()
+        }
+
+        @Test("the video is unmarked for inline play while the system player shows it, and marked again when it ends")
+        func inlineMarksComeBack() async throws {
+            try #require(video != nil)
+            let page = Page()
+            page.open(first)
+            #expect(await page.waitFor("ready:/embed/\(first)"))
+
+            try await page.askForFullscreen(first)
+            #expect(await page.waitFor("fullscreen:/embed/\(first)"))
+            #expect(await page.waitFor("marks-0:/embed/\(first)", seconds: 2))
+
+            try await page.tell(first, "ended")
+            #expect(await page.waitFor("left-marks-2:/embed/\(first)"))
+            await page.close()
+        }
+
+        @Test("a video the system refuses keeps its inline marks")
+        func refusedKeepsItsMarks() async throws {
+            let page = Page()
+            page.open(blank)
+            #expect(await page.waitFor("handler-undefined:/embed/\(blank)"))
+
+            try await page.askForFullscreen(blank)
+            try await Task.sleep(for: .milliseconds(500))
+            try await page.tell(blank, "marks")
+
+            #expect(await page.waitFor("marks-2:/embed/\(blank)"))
+            #expect(!(await page.events.contains("fullscreen:/embed/\(blank)")))
             await page.close()
         }
 
