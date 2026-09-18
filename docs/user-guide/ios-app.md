@@ -1,8 +1,9 @@
 # iOS app
 
 The iOS app shows the same Litloft web app you use in a browser. It exists to
-do what a browser on the phone cannot: audio plays through the app itself, so
-it keeps going with the screen locked or another app in front.
+do what a browser on the phone cannot: the app plays the audio and the video
+itself, so a file keeps going with the screen locked or another app in front,
+and a video moves into a picture-in-picture window by itself.
 
 It is not on the App Store. You build it from `ios/` in this repository.
 
@@ -41,6 +42,26 @@ output such as AirPlay is chosen from the system controls.
 Resuming from where you stopped, the listening history and autoplay work as
 they do in a browser — see [Viewers and players](viewers-and-players.md#audio-player).
 
+## Watching video
+
+The app plays the video too, behind the page, where the player's frame is. The
+controls, the seek bar, the speed, the gestures and the chapters are Litloft's
+own, exactly as in a browser.
+
+- **Leaving the app moves the video into a small window.** Going to the home
+  screen, or to another app, opens iOS's picture-in-picture window and the
+  video keeps playing there. Coming back to Litloft puts it back in the page.
+- **The settings sheet has a Picture-in-Picture switch** for opening that
+  window without leaving the app.
+- **Locking the screen keeps the sound.** The picture stops, as it does for
+  any video on iOS; the lock screen controls the file as it does for audio.
+- **Subtitles** are drawn by the page, so they follow the file's own subtitle
+  tracks and the subtitle switch in the settings sheet. They are not shown in
+  the picture-in-picture window or in the system's full-screen player.
+- **The mini player is not used in the app.** In a browser, scrolling a playing
+  video off screen shrinks it into a corner; in the app, picture in picture
+  does that job and keeps playing outside Litloft as well.
+
 ### What the messages under the controls mean
 
 - **Loading…** — the app is waiting for data. It shows for a moment every time
@@ -60,7 +81,8 @@ they do in a browser — see [Viewers and players](viewers-and-players.md#audio-
 
 ## Limitations
 
-- **Video** still plays in the page, so it stops when the app leaves the
-  screen.
+- **YouTube and other web videos** (`.loft` reference files) still play in the
+  page, so they stop when the app leaves the screen.
+- **Subtitles do not show in picture in picture.**
 - **Links to other sites** in notes do nothing when tapped.
 - **A long press** on some text starts a text selection, as it does in Safari.

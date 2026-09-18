@@ -141,6 +141,12 @@ played by the shell so far, so a video is still the web view's and WebKit
 suspends it. Confirmed on device. Video moves to the native player in a later
 phase.
 
+**After a theme change, a back swipe shows the old colours until it finishes.**
+The shell's swipe animation draws the page as it was when it was left, so
+switching between light and dark and then swiping back shows the previous
+colours for the length of the animation. It does not happen in the browser or
+the PWA; why the shell differs has not been investigated.
+
 **If iOS ends the page's process while audio plays in the background, playback
 stops when the app comes back.** The shell keeps the audio going and puts the
 page back only once the app is on screen again. That reload stops the player,
