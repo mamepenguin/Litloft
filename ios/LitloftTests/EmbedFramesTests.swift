@@ -100,6 +100,14 @@ struct EmbedFramesTests {
     }
 
     @MainActor
+    @Test("the shell's embeds are YouTube's")
+    func shellWatchesYouTube() {
+        #expect(ShellBridge(server: server).embeds.provider == EmbedFrames.Provider(
+            scheme: "https", hosts: ["www.youtube.com", "www.youtube-nocookie.com"]
+        ))
+    }
+
+    @MainActor
     @Test("the embed script runs in every frame, not only the page")
     func scriptRunsInEveryFrame() throws {
         let configuration = WKWebViewConfiguration()

@@ -17,14 +17,14 @@ final class EmbedFrames: NSObject, WKScriptMessageHandler {
 
     /// Where embeds are served from. A test serves its own under a scheme it
     /// registers, since it cannot reach YouTube.
-    struct Provider: Sendable {
+    struct Provider: Sendable, Equatable {
         let scheme: String
         let hosts: Set<String>
 
         static let youtube = Provider(scheme: "https", hosts: ["www.youtube.com", "www.youtube-nocookie.com"])
     }
 
-    private let provider: Provider
+    let provider: Provider
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Litloft", category: "embeds")
     private weak var webView: WKWebView?
     private var frames: [String: WKFrameInfo] = [:]
