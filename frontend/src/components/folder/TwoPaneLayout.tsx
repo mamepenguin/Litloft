@@ -100,7 +100,7 @@ export function TwoPaneLayout({
   return (
     <TreeRefreshContext.Provider value={refreshTree}>
     <ScrollContainerContext.Provider value={sectionRef}>
-      <div className="flex h-[calc(100dvh-3.5rem)] w-full overflow-clip">
+      <div className="flex h-below-header w-full overflow-clip">
         <aside
           className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-150 ease-out ${treeAsideWidth}`}
           aria-label={leftPaneAriaLabel ?? "Folder tree"}
@@ -137,7 +137,7 @@ export function TwoPaneLayout({
         </aside>
         <section
           ref={sectionRef}
-          className={`${showSectionOnMobile ? "flex" : "hidden md:flex"} scrollbar-hover h-full min-w-0 flex-1 flex-col overflow-y-auto`}
+          className={`${showSectionOnMobile ? "flex" : "hidden md:flex"} scrollbar-hover h-full min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain`}
         >
           {hasFile && fileId ? <RightPaneFile fileId={fileId} drive={drive} /> : children}
           {!hasFile && <span className="sr-only">{t("noSelection")}</span>}

@@ -35,13 +35,13 @@ export default function DriveLayout({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
-  // The wrapper div mirrors `TwoPaneLayout`'s outer `h-[calc(100dvh-3.5rem)]`
+  // The wrapper div mirrors `TwoPaneLayout`'s outer `h-below-header`
   // box so PaneShell's `h-full` chain has a definite height to resolve against.
   if (isCrossFolderRoute) {
     const fileId = searchParams.get("file");
     if (fileId) {
       return (
-        <div className="h-[calc(100dvh-3.5rem)] w-full overflow-hidden">
+        <div className="h-below-header w-full overflow-hidden">
           <RightPaneFile fileId={fileId} drive={driveName} />
         </div>
       );
