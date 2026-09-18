@@ -21,7 +21,7 @@ final class MediaPlayer {
     let surface: VideoSurface
 
     private var timeObserver: Any?
-    private var endObserver: NSObjectProtocol?
+    private var itemObservers: [NSObjectProtocol] = []
     private var foregroundObserver: NSObjectProtocol?
     private var statusObservation: NSKeyValueObservation?
     private var waitingObservation: NSKeyValueObservation?
@@ -76,7 +76,7 @@ final class MediaPlayer {
     }
 
     isolated deinit {
-        for observer in [endObserver, foregroundObserver].compactMap({ $0 }) {
+        for observer in itemObservers + [foregroundObserver].compactMap({ $0 }) {
             NotificationCenter.default.removeObserver(observer)
         }
         statusObservation?.invalidate()
@@ -271,10 +271,8 @@ final class MediaPlayer {
     }
 
     private func replaceItem(with item: AVPlayerItem?) {
-        if let endObserver {
-            NotificationCenter.default.removeObserver(endObserver)
-            self.endObserver = nil
-        }
+        itemObservers.forEach(NotificationCenter.default.removeObserver)
+        itemObservers = []
         statusObservation?.invalidate()
         statusObservation = nil
         latestSeek += 1
@@ -287,13 +285,12 @@ final class MediaPlayer {
         startTicking()
 
         guard let item else { return }
-        endObserver = NotificationCenter.default.addObserver(
-            forName: AVPlayerItem.didPlayToEndTimeNotification,
-            object: item,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in self?.finish() }
-        }
+        itemObservers = [
+            item.observe(AVPlayerItem.didPlayToEndTimeNotification) { [weak self] in self?.finish() },
+            // Whatever moved it, the system's own player included, it is no
+            // longer at the end.
+            item.observe(AVPlayerItem.timeJumpedNotification) { [weak self] in self?.jumped() }
+        ]
         // Readiness and failure arrive whether or not anything is playing, and
         // nothing else would report them while paused.
         statusObservation = item.observe(\.status, options: [.new]) { [weak self] _, _ in
@@ -303,6 +300,12 @@ final class MediaPlayer {
 
     private func finish() {
         ended = true
+        report()
+    }
+
+    private func jumped() {
+        guard ended else { return }
+        ended = false
         report()
     }
 }
