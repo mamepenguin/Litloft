@@ -131,9 +131,9 @@ Reached only by keyboard.
 
 **A `.loft` embed in the app has no mini player on an iPad.** The mini player is
 off everywhere inside the app, because the video the app itself plays offers
-picture in picture instead. A `.loft` file is played by the page's iframe, which
-the app does not play and which has no picture in picture, so at iPad width it
-loses the corner window and gains nothing.
+picture in picture instead. A `.loft` file is played by the page's iframe, so it
+reaches picture in picture only through **Open in the iOS player** in the
+settings sheet, not by leaving the app from the page.
 
 **After a theme change, a back swipe shows the old colours until it finishes.**
 The shell's swipe animation draws the page as it was when it was left, so

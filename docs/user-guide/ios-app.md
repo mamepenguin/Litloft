@@ -53,6 +53,10 @@ own, exactly as in a browser.
   video keeps playing there. Coming back to Litloft puts it back in the page.
 - **The settings sheet has a Picture-in-Picture switch** for opening that
   window without leaving the app.
+- **Open in the iOS player**, also in the settings sheet, shows the video in
+  iOS's own full-screen player. Closing it brings you back to the page at the
+  point you left off. While it is open, leaving the app moves the video into
+  the picture-in-picture window, as it does from the page.
 - **Locking the screen keeps the sound.** The picture stops, as it does for
   any video on iOS; the lock screen controls the file as it does for audio.
 - **Subtitles** are drawn by the page, so they follow the file's own subtitle
@@ -95,6 +99,9 @@ own, exactly as in a browser.
 ## Limitations
 
 - **YouTube and other web videos** (`.loft` reference files) still play in the
-  page, so they stop when the app leaves the screen.
+  page, so they stop when the app leaves the screen. For a YouTube video, use
+  **Open in the iOS player** in the settings sheet: from iOS's full-screen
+  player, leaving the app moves the video into the picture-in-picture window
+  and it keeps playing. Subtitles and Litloft's controls are not shown there.
 - **Subtitles do not show in picture in picture.**
 - **A long press** on some text starts a text selection, as it does in Safari.
