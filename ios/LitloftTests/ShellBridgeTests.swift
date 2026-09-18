@@ -108,8 +108,7 @@ struct ShellBridgeTests {
 
     /// Without the id the shell cannot tell which file a command is for.
     @Test("a command about a file that does not name one does nothing", arguments: [
-        "media.load", "media.play", "media.pause", "media.seek", "media.unload", "media.surface", "media.pip",
-        "media.fullscreen"
+        "media.load", "media.play", "media.pause", "media.seek", "media.unload", "media.surface", "media.pip"
     ])
     func fileCommandsNeedALoadId(type: String) {
         let base: [String: Any] = [

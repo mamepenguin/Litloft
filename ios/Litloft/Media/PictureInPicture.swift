@@ -8,8 +8,6 @@ import AVKit
 protocol PictureInPicture: AnyObject {
     var isActive: Bool { get }
     var isPossible: Bool { get }
-    /// Whether leaving the app starts it by itself.
-    var startsAutomatically: Bool { get set }
     func start()
     func stop()
     /// It is about to start, so the layer it draws from must stay attached.
@@ -46,11 +44,6 @@ final class SystemPictureInPicture: NSObject, PictureInPicture, AVPictureInPictu
 
     var isActive: Bool { controller.isPictureInPictureActive }
     var isPossible: Bool { controller.isPictureInPicturePossible }
-
-    var startsAutomatically: Bool {
-        get { controller.canStartPictureInPictureAutomaticallyFromInline }
-        set { controller.canStartPictureInPictureAutomaticallyFromInline = newValue }
-    }
 
     func start() {
         controller.startPictureInPicture()

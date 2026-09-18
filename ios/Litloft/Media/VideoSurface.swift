@@ -36,24 +36,17 @@ final class VideoSurface: NSObject {
     private let makePictureInPicture: (AVPlayerLayer) -> PictureInPicture?
     private(set) var pipStarting = false
     private var wasInBackground = false
-    private let fullscreen: SystemFullscreen
 
     /// Picture in picture started, stopped, or became possible or impossible.
     var onPictureInPictureChange: (() -> Void)?
-    /// The system's fullscreen player went away; the viewer may have moved the
-    /// video while it was up.
-    var onFullscreenEnd: (() -> Void)?
 
     init(
         player: AVPlayer,
-        pictureInPicture: @escaping (AVPlayerLayer) -> PictureInPicture? = { SystemPictureInPicture(layer: $0) },
-        fullscreen: SystemFullscreen = SystemFullscreenPlayer()
+        pictureInPicture: @escaping (AVPlayerLayer) -> PictureInPicture? = { SystemPictureInPicture(layer: $0) }
     ) {
         self.player = player
         makePictureInPicture = pictureInPicture
-        self.fullscreen = fullscreen
         super.init()
-        fullscreen.onEnd = { [weak self] in self?.fullscreenEnded() }
         view.isUserInteractionEnabled = false
         view.backgroundColor = .black
         view.isHidden = true
@@ -90,7 +83,6 @@ final class VideoSurface: NSObject {
         // Whatever is in picture in picture is this player, and the file it was
         // playing is on its way out.
         if isPictureInPictureActive { pip?.stop() }
-        fullscreen.dismiss()
         showsVideo = shows
         geometry = nil
         scroller = nil
@@ -325,24 +317,6 @@ final class VideoSurface: NSObject {
             self?.onPictureInPictureChange?()
         }
         self.pip = pip
-    }
-}
-
-// MARK: the system's fullscreen player
-
-extension VideoSurface {
-    /// While it is up it owns picture in picture, so this surface's own does
-    /// not also start when the app leaves the screen.
-    func presentFullscreen() {
-        guard showsVideo, !fullscreen.isActive, let webView else { return }
-        if isPictureInPictureActive { pip?.stop() }
-        pip?.startsAutomatically = false
-        fullscreen.present(player, from: webView)
-    }
-
-    fileprivate func fullscreenEnded() {
-        pip?.startsAutomatically = true
-        onFullscreenEnd?()
     }
 }
 

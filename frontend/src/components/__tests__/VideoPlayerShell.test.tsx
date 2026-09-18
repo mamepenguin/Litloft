@@ -151,25 +151,6 @@ describe("VideoPlayer inside the iOS shell", () => {
     ]);
   });
 
-  it("asks the shell to open the file in the iOS player", async () => {
-    (window as StubbedWindow).__litloftShell = { version: 3 };
-    render(<VideoPlayer videoId="vid-1" />);
-    await openSettings();
-
-    fireEvent.click(screen.getByRole("button", { name: "Open in the iOS player" }));
-
-    expect(posted.filter((m) => m.type === "media.fullscreen")).toEqual([
-      { type: "media.fullscreen", loadId: loadId() },
-    ]);
-  });
-
-  it("does not offer the iOS player in a shell that cannot open it", async () => {
-    render(<VideoPlayer videoId="vid-1" />);
-    await openSettings();
-
-    expect(screen.queryByRole("button", { name: "Open in the iOS player" })).toBeNull();
-  });
-
   it("shows the caption for the moment the shell reports", async () => {
     render(
       <VideoPlayer

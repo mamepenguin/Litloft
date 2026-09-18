@@ -132,8 +132,6 @@ enum MediaCommand: Equatable {
     /// No geometry: the page shows no frame for the video.
     case surface(SurfaceGeometry?)
     case pip(active: Bool)
-    /// Into the system's own fullscreen player.
-    case fullscreen
 }
 
 /// What a decoded message asks the shell to do. `loadId` names the file a

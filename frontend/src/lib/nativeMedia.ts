@@ -139,12 +139,6 @@ export class MediaChannel {
     postToShell({ type: "media.pip", loadId: this.loadId, active });
   }
 
-  /** The system player owns the way back; the shell reports where it left the file. */
-  enterFullscreen(): void {
-    if (this.loadId === null) return;
-    postToShell({ type: "media.fullscreen", loadId: this.loadId });
-  }
-
   /** The shell may refuse a rate, so the shadow waits for what it reports. */
   setRate(rate: number): void {
     postToShell({ type: "media.setRate", rate });

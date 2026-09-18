@@ -152,8 +152,6 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
             return (body["geometry"] as? [String: Any]).flatMap(geometry).map(MediaCommand.surface)
         case "media.pip":
             return (body["active"] as? Bool).map { .pip(active: $0) }
-        case "media.fullscreen":
-            return .fullscreen
         case "media.seek":
             guard let seekId = nonEmpty(body["seekId"]),
                   let time = body["time"] as? Double, time.isFinite

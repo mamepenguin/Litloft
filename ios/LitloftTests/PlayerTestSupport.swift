@@ -15,15 +15,13 @@ final class PlayerRig {
     init(
         jar: CookieJar = SlowCookieJar(),
         cookieReadLimit: Duration = .seconds(2),
-        pictureInPicture: @escaping (AVPlayerLayer) -> PictureInPicture? = { _ in nil },
-        fullscreen: SystemFullscreen = FakeSystemFullscreen()
+        pictureInPicture: @escaping (AVPlayerLayer) -> PictureInPicture? = { _ in nil }
     ) {
         player = MediaPlayer(
             jar: jar,
             audioSession: session,
             cookieReadLimit: cookieReadLimit,
-            pictureInPicture: pictureInPicture,
-            fullscreen: fullscreen
+            pictureInPicture: pictureInPicture
         )
         player.onState = { [unowned self] in states.append($0) }
     }
@@ -76,7 +74,6 @@ enum LocalLitloft {
 final class FakePictureInPicture: PictureInPicture {
     var isActive = false
     var isPossible = true
-    var startsAutomatically = true
     var starts = 0
     var stops = 0
     var onStarting: ((Bool) -> Void)?
@@ -104,30 +101,5 @@ final class FakePictureInPicture: PictureInPicture {
     func failToStart() {
         onStarting?(false)
         onChange?()
-    }
-}
-
-@MainActor
-final class FakeSystemFullscreen: SystemFullscreen {
-    var isActive = false
-    var onEnd: (() -> Void)?
-    private(set) var presented: [AVPlayer] = []
-    private(set) var dismissals = 0
-
-    func present(_ player: AVPlayer, from view: UIView) {
-        presented.append(player)
-        isActive = true
-    }
-
-    func dismiss() {
-        dismissals += 1
-        end()
-    }
-
-    /// The viewer closed it, or its picture in picture ended.
-    func end() {
-        guard isActive else { return }
-        isActive = false
-        onEnd?()
     }
 }

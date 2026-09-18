@@ -55,17 +55,15 @@ final class MediaPlayer {
         jar: CookieJar,
         audioSession: AudioSession = SystemAudioSession(),
         cookieReadLimit: Duration = .seconds(2),
-        pictureInPicture: @escaping (AVPlayerLayer) -> PictureInPicture? = { SystemPictureInPicture(layer: $0) },
-        fullscreen: SystemFullscreen = SystemFullscreenPlayer()
+        pictureInPicture: @escaping (AVPlayerLayer) -> PictureInPicture? = { SystemPictureInPicture(layer: $0) }
     ) {
         self.jar = jar
         self.audioSession = audioSession
         self.cookieReadLimit = cookieReadLimit
-        surface = VideoSurface(player: player, pictureInPicture: pictureInPicture, fullscreen: fullscreen)
+        surface = VideoSurface(player: player, pictureInPicture: pictureInPicture)
         player.allowsExternalPlayback = true
 
         surface.onPictureInPictureChange = { [weak self] in self?.report() }
-        surface.onFullscreenEnd = { [weak self] in self?.report() }
         watchForForeground()
         watchForWaiting()
         nowPlaying.onPlay = { [weak self] in self?.applyFromRemote(.play) }
@@ -163,8 +161,6 @@ final class MediaPlayer {
             return
         case .pip(let active):
             surface.setPictureInPicture(active)
-        case .fullscreen:
-            surface.presentFullscreen()
         case .play:
             play()
         case .pause:
@@ -342,7 +338,7 @@ extension MediaPlayer {
             paused: player.rate == 0,
             rate: Double(player.defaultRate),
             volume: Double(player.volume),
-            buffered: player.currentItem?.bufferedSeconds ?? 0,
+            buffered: bufferedSeconds(),
             ended: ended,
             waiting: waiting,
             pip: surface.isPictureInPictureActive,
@@ -393,5 +389,12 @@ extension MediaPlayer {
         guard let timeObserver else { return }
         player.removeTimeObserver(timeObserver)
         self.timeObserver = nil
+    }
+
+    /// The end of the last loaded range, not the sum of them: after seeking
+    /// back, a leftover range ahead would overstate what is continuously ready.
+    private func bufferedSeconds() -> Double {
+        guard let last = player.currentItem?.loadedTimeRanges.last?.timeRangeValue else { return 0 }
+        return CMTimeAdd(last.start, last.duration).finiteSeconds
     }
 }
