@@ -650,6 +650,17 @@ div[data-citation-section-path]:not(tr) {
   .markdown-body table { font-size: 0.93em; }
 }
 
+/* The header's height, which the panes below it subtract from the viewport.
+   Leaving out the safe-area inset makes the document taller than the screen,
+   and iOS then rubber-bands the whole page, header included. */
+@utility min-h-header {
+  min-height: calc(3.5rem + env(safe-area-inset-top, 0px));
+}
+
+@utility h-below-header {
+  height: calc(100dvh - 3.5rem - env(safe-area-inset-top, 0px));
+}
+
 @utility break-anywhere {
   word-break: normal;
   overflow-wrap: anywhere;

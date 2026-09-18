@@ -50,11 +50,8 @@ export function Header() {
       // PWA safe-area: reserve the iOS status-bar inset above and
       // keep a stable 56px content area so the avatar / search /
       // menu button stay visually centred independently of the inset.
-      style={{
-        paddingTop: "env(safe-area-inset-top, 0px)",
-        minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))",
-      }}
-      className="sticky top-0 z-20 flex flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4"
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      className="min-h-header sticky top-0 z-20 flex flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4"
     >
       <div className="flex-1" />
 

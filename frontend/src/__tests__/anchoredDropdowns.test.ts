@@ -187,7 +187,7 @@ describe("the vertical table", () => {
  */
 const OVERFLOW_CLIP_OCCURRENCES = [
   'frontend/src/components/folder/TwoPaneLayout.tsx :: ' +
-    '<div className="flex h-[calc(100dvh-3.5rem)] w-full overflow-clip">',
+    '<div className="flex h-below-header w-full overflow-clip">',
 ] as const;
 
 describe("overflow: clip", () => {
