@@ -90,6 +90,26 @@ extension SharedMediaState {
             await rig.player.apply(.unload, loadId: "a").value
         }
 
+        /// Leaving the app starts it without the page asking, and while the
+        /// video is paused there are no ticks to carry the change instead.
+        @Test("a picture in picture the page did not ask for is reported anyway")
+        func systemStartedPictureInPictureIsReported() async throws {
+            let pip = FakePictureInPicture()
+            let rig = PlayerRig(pictureInPicture: { _ in pip })
+            let webView = onScreen(rig)
+            defer { webView.removeFromSuperview() }
+            await rig.load(video(try tone(seconds: 3)), as: "a")
+            await rig.player.apply(.surface(frame), loadId: "a").value
+            try await Task.sleep(for: .milliseconds(200))
+            let before = rig.states.count
+
+            pip.start()
+
+            #expect(rig.states.count > before, "the page was never told")
+            #expect(rig.last?.pip == true)
+            await rig.player.apply(.unload, loadId: "a").value
+        }
+
         @Test("audio is never offered picture in picture, whatever the system says")
         func audioIsNeverOffered() async throws {
             let pip = FakePictureInPicture()

@@ -162,11 +162,37 @@ describe("useShellSurface", () => {
     expect(getByTestId("sibling").style.visibility).toBe("hidden");
     expect(getByTestId("header").style.visibility).toBe("hidden");
     expect(getByTestId("frame").style.visibility).toBe("");
+    // visibility inherits, so hiding an ancestor takes the frame and its
+    // controls with it.
+    expect(getByTestId("column").style.visibility).toBe("");
+    expect(getByTestId("page").style.visibility).toBe("");
+    expect(document.body.style.visibility).toBe("");
 
     rerender(<Player channel={channel as unknown as MediaChannel} />);
     nextFrame();
     expect(getByTestId("sibling").style.visibility).toBe("");
     expect(getByTestId("header").style.visibility).toBe("");
+  });
+
+  it("puts the page back when the frame goes while it is out of flow", () => {
+    const channel = fakeChannel();
+    const { getByTestId, rerender, unmount } = render(
+      <Player channel={channel as unknown as MediaChannel} fullscreen />,
+    );
+    nextFrame();
+    expect(getByTestId("sibling").style.visibility).toBe("hidden");
+
+    rerender(<Player channel={channel as unknown as MediaChannel} fullscreen show={false} />);
+    nextFrame();
+    expect(getByTestId("sibling").style.visibility).toBe("");
+
+    rerender(<Player channel={channel as unknown as MediaChannel} fullscreen />);
+    nextFrame();
+    const sibling = getByTestId("sibling");
+    expect(sibling.style.visibility).toBe("hidden");
+
+    unmount();
+    expect(sibling.style.visibility).toBe("");
   });
 
   it("tells the shell the page's colour, and again when it changes", () => {

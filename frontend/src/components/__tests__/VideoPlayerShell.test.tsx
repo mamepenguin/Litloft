@@ -237,7 +237,8 @@ describe("VideoPlayer inside the iOS shell", () => {
   it("records where the file ended rather than forgetting it", async () => {
     const onEnded = vi.fn();
     render(<VideoPlayer videoId="vid-1" onEnded={onEnded} />);
-    await act(async () => report({ time: 5, paused: false }));
+    await act(async () => report({ time: 118, duration: 120, paused: false }));
+    await waitFor(() => expect(mockSaveWatchProgress).toHaveBeenCalledWith("vid-1", 118, 120));
 
     await act(async () => report({ time: 120, duration: 120, ended: true, paused: false }));
 

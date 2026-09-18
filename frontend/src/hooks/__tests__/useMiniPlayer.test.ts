@@ -198,6 +198,24 @@ describe("useMiniPlayer", () => {
     expect(result.current.hook.isMini).toBe(false);
   });
 
+  it("does not become mini inside the iOS shell", () => {
+    const shellWindow = window as typeof window & { webkit?: unknown; __litloftShell?: unknown };
+    shellWindow.webkit = { messageHandlers: { litloft: { postMessage: vi.fn() } } };
+    shellWindow.__litloftShell = { version: 2 };
+    try {
+      const mc = makeMc(false);
+      const { result } = renderWithRef(mc);
+      fireIntersect(false);
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(result.current.hook.isMini).toBe(false);
+    } finally {
+      delete shellWindow.webkit;
+      delete shellWindow.__litloftShell;
+    }
+  });
+
   it("does not become mini on mobile", () => {
     installMatchMediaMock(false);
     const mc = makeMc(false);
