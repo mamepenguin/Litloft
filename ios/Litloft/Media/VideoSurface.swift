@@ -275,13 +275,14 @@ final class VideoSurface: NSObject {
     }
 
     /// A player still attached to a layer is paused by the system when the app
-    /// leaves the screen; audio keeps going once it is detached. Picture in
-    /// picture needs the layer, so it stays while that is on or starting.
+    /// leaves the screen; audio keeps going once this surface and the system
+    /// player have both let go. A picture in picture, either one's, needs its
+    /// layer, so nothing lets go while one is on or starting.
     func enteredBackground() {
         wasInBackground = true
-        fullscreen.letGo()
-        guard !isPictureInPictureActive, !pipStarting else { return }
+        guard !isPictureInPictureActive, !pipStarting, !fullscreen.isInPictureInPicture else { return }
         view.playerLayer.player = nil
+        fullscreen.letGo()
     }
 
     /// Picture in picture kept the layer while it started or ran. Off screen
@@ -293,6 +294,7 @@ final class VideoSurface: NSObject {
 
     func becameActive() {
         view.playerLayer.player = player
+        fullscreen.takeBack(player)
         // Pulling Control Center down and letting it go is not coming back.
         guard wasInBackground else { return }
         wasInBackground = false
@@ -342,7 +344,9 @@ extension VideoSurface {
     /// does not also start when the app leaves the screen.
     fileprivate func fullscreenChanged(_ active: Bool) {
         pip?.startsAutomatically = !active
-        if !active { onFullscreenEnd?() }
+        guard !active else { return }
+        letGoIfStillAway()
+        onFullscreenEnd?()
     }
 }
 
