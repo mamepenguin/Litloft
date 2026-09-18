@@ -42,6 +42,7 @@ struct WebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let model: WebViewModel
         let bridge: ShellBridge
+        let opener: URLOpener
         var lastReloadToken = 0
 
         private(set) var player: MediaPlayer?
@@ -57,9 +58,10 @@ struct WebView: UIViewRepresentable {
         private var pageToRestore: URL?
         private var activationObserver: NSObjectProtocol?
 
-        init(model: WebViewModel) {
+        init(model: WebViewModel, opener: URLOpener = SystemURLOpener()) {
             self.model = model
             self.bridge = ShellBridge(server: model.serverURL)
+            self.opener = opener
         }
 
         isolated deinit {
@@ -124,6 +126,55 @@ struct WebView: UIViewRepresentable {
             guard let page = pageToRestore else { return }
             pageToRestore = nil
             webView?.load(URLRequest(url: page))
+        }
+
+        /// The app has no second window: an address of the server's own is read
+        /// where the viewer is, and anything else is handed over.
+        func webView(
+            _ webView: WKWebView,
+            createWebViewWith configuration: WKWebViewConfiguration,
+            for navigationAction: WKNavigationAction,
+            windowFeatures: WKWindowFeatures
+        ) -> WKWebView? {
+            openInNewWindow(navigationAction.request, in: webView)
+            return nil
+        }
+
+        /// Apart from the delegate because `WKNavigationAction` cannot be built
+        /// outside WebKit, and a stand-in for it crashes as it is released.
+        func openInNewWindow(_ request: URLRequest, in webView: WKWebView) {
+            switch ExternalLink.destination(for: request.url, server: model.serverURL, current: webView.url) {
+            case .shell: webView.load(request)
+            case .system: request.url.map { opener.open($0) }
+            case .nothing: break
+            }
+        }
+
+        /// Only what the shell itself shows is judged here. A request for a new
+        /// window is answered above, and a frame inside the page — an embed —
+        /// navigates on its own.
+        ///
+        /// The page showing is not passed on, so a reload is a navigation to
+        /// the server like any other.
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationAction: WKNavigationAction
+        ) async -> WKNavigationActionPolicy {
+            policy(for: navigationAction.request.url, inMainFrame: navigationAction.targetFrame?.isMainFrame == true)
+        }
+
+        func policy(for url: URL?, inMainFrame: Bool) -> WKNavigationActionPolicy {
+            guard inMainFrame else { return .allow }
+
+            switch ExternalLink.destination(for: url, server: model.serverURL, current: nil) {
+            case .shell:
+                return .allow
+            case .system:
+                url.map { opener.open($0) }
+                return .cancel
+            case .nothing:
+                return .cancel
+            }
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
