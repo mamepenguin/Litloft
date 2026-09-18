@@ -12,8 +12,17 @@ final class PlayerRig {
     let session = FakeAudioSession()
     private(set) var states: [MediaState] = []
 
-    init(jar: CookieJar = SlowCookieJar(), cookieReadLimit: Duration = .seconds(2)) {
-        player = MediaPlayer(jar: jar, audioSession: session, cookieReadLimit: cookieReadLimit)
+    init(
+        jar: CookieJar = SlowCookieJar(),
+        cookieReadLimit: Duration = .seconds(2),
+        pictureInPicture: @escaping (AVPlayerLayer) -> PictureInPicture? = { _ in nil }
+    ) {
+        player = MediaPlayer(
+            jar: jar,
+            audioSession: session,
+            cookieReadLimit: cookieReadLimit,
+            pictureInPicture: pictureInPicture
+        )
         player.onState = { [unowned self] in states.append($0) }
     }
 
@@ -58,5 +67,39 @@ enum LocalLitloft {
             status == 206 || status == 200,
             "Litloft is not answering on localhost:3000 (got \(String(describing: status))); these tests stream from it"
         )
+    }
+}
+
+@MainActor
+final class FakePictureInPicture: PictureInPicture {
+    var isActive = false
+    var isPossible = true
+    var starts = 0
+    var stops = 0
+    var onStarting: ((Bool) -> Void)?
+    var onChange: (() -> Void)?
+
+    func start() {
+        starts += 1
+        onStarting?(true)
+        isActive = true
+        onStarting?(false)
+        onChange?()
+    }
+
+    func stop() {
+        stops += 1
+        isActive = false
+        onChange?()
+    }
+
+    /// The system starts it by itself when the app leaves the screen.
+    func startAutomatically() {
+        onStarting?(true)
+    }
+
+    func failToStart() {
+        onStarting?(false)
+        onChange?()
     }
 }

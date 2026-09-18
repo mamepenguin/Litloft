@@ -88,9 +88,14 @@ final class NowPlaying {
         artworkTask?.cancel()
         artworkTask = Task { [weak self] in
             guard let image = await Self.fetchImage(url, cookies: cookies), !Task.isCancelled else { return }
-            self?.center.nowPlayingInfo?[MPMediaItemPropertyArtwork] =
-                MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+            self?.center.nowPlayingInfo?[MPMediaItemPropertyArtwork] = Self.artwork(of: image)
         }
+    }
+
+    /// The system asks for the picture on a queue of its own, so the handler
+    /// must not be tied to the main actor: an isolated one traps there.
+    nonisolated static func artwork(of image: UIImage) -> MPMediaItemArtwork {
+        MPMediaItemArtwork(boundsSize: image.size) { _ in image }
     }
 
     func releaseCommands() {

@@ -24,16 +24,53 @@ export interface MediaSource {
  * from its order. The shell drops a command whose `loadId` is not the file it
  * currently holds.
  */
+export type MediaKind = "audio" | "video";
+
+/**
+ * Where the page draws the video, in terms that do not change while the page
+ * scrolls; the shell follows scrolling itself, from its own scroll offsets.
+ *
+ * `top` is measured from the document's top for `"document"`, from the
+ * scrolling element's content top for `"scroller"`, and from the viewport's
+ * top for `"fixed"`.
+ */
+export interface SurfaceGeometry {
+  x: number;
+  width: number;
+  height: number;
+  anchor: "document" | "scroller" | "fixed";
+  top: number;
+  /**
+   * For `"scroller"`: the scrolling element's box, with `y` in the document's
+   * coordinates so the shell can tell which of its scroll views this is
+   * whatever the document has scrolled.
+   */
+  scroller: { x: number; y: number; width: number; height: number } | null;
+  /**
+   * Present only while a sticky ancestor actually sticks against the element
+   * that scrolls: where it sticks and the content coordinate its bottom cannot
+   * pass, both counted from the top of whatever scrolls.
+   */
+  stickTop: number | null;
+  stickLimit: number | null;
+}
+
 export type MediaCommand =
-  | ({ type: "media.load"; loadId: string } & MediaSource)
+  | ({ type: "media.load"; loadId: string; kind: MediaKind } & MediaSource)
   | { type: "media.play"; loadId: string }
   | { type: "media.pause"; loadId: string }
   | { type: "media.seek"; loadId: string; seekId: string; time: number }
   | { type: "media.unload"; loadId: string }
   | { type: "media.setRate"; rate: number }
-  | { type: "media.setVolume"; volume: number };
+  | { type: "media.setVolume"; volume: number }
+  | { type: "media.surface"; loadId: string; geometry: SurfaceGeometry | null }
+  | { type: "media.pip"; loadId: string; active: boolean };
 
-export type OutboundMessage = { type: "ping"; seq: number } | MediaCommand;
+export type OutboundMessage =
+  | { type: "ping"; seq: number }
+  | MediaCommand
+  /** The page's background colour, which the shell paints around the video. */
+  | { type: "page.background"; color: string };
 
 export type MediaStatus = "loading" | "ready" | "failed";
 
@@ -59,6 +96,13 @@ export interface MediaState {
    * reported as a failure.
    */
   waiting: boolean;
+  pip: boolean;
+  /** Whether picture in picture can start for what is loaded now. */
+  pipPossible: boolean;
+}
+
+export function reportPageBackground(color: string): void {
+  postToShell({ type: "page.background", color });
 }
 
 export type InboundMessage = { type: "pong"; seq: number } | MediaState;
@@ -69,6 +113,7 @@ interface ShellMessageHandler {
 
 interface ShellWindow extends Window {
   webkit?: { messageHandlers?: Record<string, ShellMessageHandler | undefined> };
+  __litloftShell?: { version?: number };
   [RECEIVER_NAME]?: { receive(payload: unknown): void };
 }
 
@@ -80,8 +125,22 @@ function handler(): ShellMessageHandler | null {
   return shellWindow()?.webkit?.messageHandlers?.[HANDLER_NAME] ?? null;
 }
 
+/**
+ * What this page needs the shell to understand. A shell and a page are updated
+ * separately — the app is built from this repository, the server is pulled — so
+ * an older shell is a normal state. It is told apart by what it announces, and
+ * the page then plays the file itself rather than sending it commands the shell
+ * would drop.
+ */
+const REQUIRED_SHELL_VERSION = 2;
+
+export function shellVersion(): number {
+  const announced = shellWindow()?.__litloftShell?.version;
+  return typeof announced === "number" ? announced : 0;
+}
+
 export function isNativeShell(): boolean {
-  return handler() !== null;
+  return handler() !== null && shellVersion() >= REQUIRED_SHELL_VERSION;
 }
 
 export function postToShell(message: OutboundMessage): void {

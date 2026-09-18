@@ -17,6 +17,8 @@ final class MediaPlayer {
     private let audioSession: AudioSession
     private let cookieReadLimit: Duration
     let nowPlaying = NowPlaying()
+    /// Where a video is shown; the web view it belongs to attaches it.
+    let surface: VideoSurface
 
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
@@ -52,13 +54,16 @@ final class MediaPlayer {
     init(
         jar: CookieJar,
         audioSession: AudioSession = SystemAudioSession(),
-        cookieReadLimit: Duration = .seconds(2)
+        cookieReadLimit: Duration = .seconds(2),
+        pictureInPicture: @escaping (AVPlayerLayer) -> PictureInPicture? = { SystemPictureInPicture(layer: $0) }
     ) {
         self.jar = jar
         self.audioSession = audioSession
         self.cookieReadLimit = cookieReadLimit
+        surface = VideoSurface(player: player, pictureInPicture: pictureInPicture)
         player.allowsExternalPlayback = true
 
+        surface.onPictureInPictureChange = { [weak self] in self?.report() }
         watchForForeground()
         watchForWaiting()
         nowPlaying.onPlay = { [weak self] in self?.applyFromRemote(.play) }
@@ -141,9 +146,21 @@ final class MediaPlayer {
         // Player-wide settings carry no id; everything else is about one file.
         if let commandLoadId, commandLoadId != loadId { return }
 
-        switch command {
-        case .load:
+        if case .surface(let geometry) = command {
+            // Where the page draws the video is nothing the page needs told back.
+            surface.place(geometry)
             return
+        }
+        run(command)
+        report()
+    }
+
+    private func run(_ command: MediaCommand) {
+        switch command {
+        case .load, .surface:
+            return
+        case .pip(let active):
+            surface.setPictureInPicture(active)
         case .play:
             play()
         case .pause:
@@ -159,7 +176,6 @@ final class MediaPlayer {
         case .unload:
             unload()
         }
-        report()
     }
 
     private func play() {
@@ -184,6 +200,7 @@ final class MediaPlayer {
         replaceItem(with: AVPlayerItem(asset: asset))
         self.source = source
         self.loadId = loadId
+        surface.showsVideo(source.kind == .video)
         audioSession.take()
         nowPlaying.takeCommands()
 
@@ -202,6 +219,7 @@ final class MediaPlayer {
         stopTicking()
         source = nil
         loadId = nil
+        surface.showsVideo(false)
         nowPlaying.clear()
         audioSession.release()
     }
@@ -313,16 +331,18 @@ extension MediaPlayer {
             loadId: loadId,
             status: status,
             seekId: reachedSeekId,
-            time: seconds(player.currentTime()),
+            time: player.currentTime().finiteSeconds,
             // Zero rather than a guess when the length is unknown: the web side
             // treats a non-positive duration as "no usable length".
-            duration: seconds(player.currentItem?.duration ?? .indefinite),
+            duration: (player.currentItem?.duration ?? .indefinite).finiteSeconds,
             paused: player.rate == 0,
             rate: Double(player.defaultRate),
             volume: Double(player.volume),
             buffered: bufferedSeconds(),
             ended: ended,
-            waiting: waiting
+            waiting: waiting,
+            pip: surface.isPictureInPictureActive,
+            pipPossible: surface.isPictureInPicturePossible
         )
     }
 
@@ -337,7 +357,7 @@ extension MediaPlayer {
             title: source.title,
             artist: source.artist,
             duration: duration,
-            time: seconds(player.currentTime()),
+            time: player.currentTime().finiteSeconds,
             // The rate stays up while waiting; the lock screen would count on.
             rate: waiting ? 0 : Double(player.rate)
         ))
@@ -375,11 +395,6 @@ extension MediaPlayer {
     /// back, a leftover range ahead would overstate what is continuously ready.
     private func bufferedSeconds() -> Double {
         guard let last = player.currentItem?.loadedTimeRanges.last?.timeRangeValue else { return 0 }
-        return seconds(CMTimeAdd(last.start, last.duration))
-    }
-
-    private func seconds(_ time: CMTime) -> Double {
-        let value = CMTimeGetSeconds(time)
-        return value.isFinite ? value : 0
+        return CMTimeAdd(last.start, last.duration).finiteSeconds
     }
 }

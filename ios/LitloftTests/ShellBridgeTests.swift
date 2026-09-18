@@ -108,15 +108,18 @@ struct ShellBridgeTests {
 
     /// Without the id the shell cannot tell which file a command is for.
     @Test("a command about a file that does not name one does nothing", arguments: [
-        "media.load", "media.play", "media.pause", "media.seek", "media.unload"
+        "media.load", "media.play", "media.pause", "media.seek", "media.unload", "media.surface", "media.pip"
     ])
     func fileCommandsNeedALoadId(type: String) {
         let base: [String: Any] = [
             "type": type,
             "url": "http://litloft.local:3000/api/files/abc/stream",
             "title": "t",
+            "kind": "audio",
             "seekId": "seek-1",
-            "time": 1.0
+            "time": 1.0,
+            "geometry": NSNull(),
+            "active": true
         ]
         #expect(route(base) == nil)
 
@@ -151,7 +154,9 @@ struct ShellBridgeTests {
             "http://litloft.local.evil.example:3000/stream",
             "file:///etc/hosts"
         ] {
-            let body: [String: Any] = ["type": "media.load", "loadId": "load-1", "url": url, "title": "t"]
+            let body: [String: Any] = [
+                "type": "media.load", "loadId": "load-1", "kind": "audio", "url": url, "title": "t"
+            ]
             #expect(route(body) == nil, "accepted \(url)")
         }
     }
@@ -159,7 +164,7 @@ struct ShellBridgeTests {
     @Test("artwork from anywhere but the server is dropped, and the file still loads")
     func foreignArtworkIsDropped() {
         let body: [String: Any] = [
-            "type": "media.load", "loadId": "load-1",
+            "type": "media.load", "loadId": "load-1", "kind": "audio",
             "url": "http://litloft.local:3000/api/files/abc/stream",
             "title": "t",
             "artworkUrl": "http://evil.example/steal"
@@ -175,9 +180,9 @@ struct ShellBridgeTests {
     @Test("a load without a url or a title does nothing")
     func loadNeedsUrlAndTitle() {
         let bodies: [[String: Any]] = [
-            ["type": "media.load", "loadId": "load-1", "title": "t"],
-            ["type": "media.load", "loadId": "load-1", "url": "http://litloft.local:3000/x"],
-            ["type": "media.load", "loadId": "load-1", "url": 5, "title": "t"]
+            ["type": "media.load", "loadId": "load-1", "kind": "audio", "title": "t"],
+            ["type": "media.load", "loadId": "load-1", "kind": "audio", "url": "http://litloft.local:3000/x"],
+            ["type": "media.load", "loadId": "load-1", "kind": "audio", "url": 5, "title": "t"]
         ]
         for body in bodies {
             #expect(route(body) == nil)

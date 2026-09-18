@@ -1,8 +1,10 @@
 {
+  "version": 2,
   "commands": {
     "load": {
       "type": "media.load",
       "loadId": "load-1",
+      "kind": "video",
       "url": "http://litloft.local:3000/api/files/abc/stream",
       "title": "A recording",
       "artist": "Someone",
@@ -13,7 +15,52 @@
     "seek": { "type": "media.seek", "loadId": "load-1", "seekId": "seek-1", "time": 42.5 },
     "unload": { "type": "media.unload", "loadId": "load-1" },
     "setRate": { "type": "media.setRate", "rate": 1.5 },
-    "setVolume": { "type": "media.setVolume", "volume": 0.25 }
+    "setVolume": { "type": "media.setVolume", "volume": 0.25 },
+    "surfaceDocument": {
+      "type": "media.surface",
+      "loadId": "load-1",
+      "geometry": {
+        "x": 0,
+        "width": 402,
+        "height": 226.125,
+        "anchor": "document",
+        "top": 104,
+        "scroller": null,
+        "stickTop": null,
+        "stickLimit": null
+      }
+    },
+    "surfaceSticky": {
+      "type": "media.surface",
+      "loadId": "load-1",
+      "geometry": {
+        "x": 16,
+        "width": 370,
+        "height": 208.125,
+        "anchor": "scroller",
+        "top": 24,
+        "scroller": { "x": 0, "y": 56, "width": 402, "height": 722 },
+        "stickTop": 8,
+        "stickLimit": 1200
+      }
+    },
+    "surfaceFixed": {
+      "type": "media.surface",
+      "loadId": "load-1",
+      "geometry": {
+        "x": 0,
+        "width": 874,
+        "height": 402,
+        "anchor": "fixed",
+        "top": 0,
+        "scroller": null,
+        "stickTop": null,
+        "stickLimit": null
+      }
+    },
+    "surfaceGone": { "type": "media.surface", "loadId": "load-1", "geometry": null },
+    "pip": { "type": "media.pip", "loadId": "load-1", "active": true },
+    "pageBackground": { "type": "page.background", "color": "#1a0e10" }
   },
   "states": {
     "loading": {
@@ -28,7 +75,9 @@
       "volume": 1,
       "buffered": 0,
       "ended": false,
-      "waiting": false
+      "waiting": false,
+      "pip": false,
+      "pipPossible": false
     },
     "readyWhilePaused": {
       "type": "media.state",
@@ -42,7 +91,9 @@
       "volume": 1,
       "buffered": 12,
       "ended": false,
-      "waiting": false
+      "waiting": false,
+      "pip": false,
+      "pipPossible": true
     },
     "seekLanded": {
       "type": "media.state",
@@ -56,7 +107,9 @@
       "volume": 0.25,
       "buffered": 60,
       "ended": false,
-      "waiting": false
+      "waiting": false,
+      "pip": false,
+      "pipPossible": true
     },
     "failed": {
       "type": "media.state",
@@ -70,7 +123,9 @@
       "volume": 1,
       "buffered": 0,
       "ended": false,
-      "waiting": false
+      "waiting": false,
+      "pip": false,
+      "pipPossible": false
     },
     "waitingWhilePlaying": {
       "type": "media.state",
@@ -84,7 +139,25 @@
       "volume": 1,
       "buffered": 11.5,
       "ended": false,
-      "waiting": true
+      "waiting": true,
+      "pip": false,
+      "pipPossible": true
+    },
+    "inPictureInPicture": {
+      "type": "media.state",
+      "loadId": "load-1",
+      "status": "ready",
+      "seekId": null,
+      "time": 42.5,
+      "duration": 180,
+      "paused": false,
+      "rate": 1.5,
+      "volume": 0.25,
+      "buffered": 60,
+      "ended": false,
+      "waiting": false,
+      "pip": true,
+      "pipPossible": true
     },
     "nothingLoaded": {
       "type": "media.state",
@@ -98,7 +171,9 @@
       "volume": 1,
       "buffered": 0,
       "ended": false,
-      "waiting": false
+      "waiting": false,
+      "pip": false,
+      "pipPossible": false
     }
   }
 }

@@ -3,5 +3,6 @@ export {
   NativePlayerUiToggle,
   NativeToggleButtons,
   PictureInPictureToggle,
+  SubtitleTrackOptions,
   SubtitleTrackPicker,
 } from "./NativeSettingsRows";

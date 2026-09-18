@@ -15,7 +15,7 @@ import { usePlaybackProgress } from "@/lib/playbackProgress";
 import { CastButton } from "./CastButton";
 import { AutoplayToggle } from "./AutoplayToggle";
 import { AudioTransport } from "./player/AudioTransport";
-import { useShellAudio } from "@/hooks/useShellAudio";
+import { useShellMedia } from "@/hooks/useShellMedia";
 import { isNativeShell } from "@/lib/nativeBridge";
 
 export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean; onMediaController?: (mc: MediaController | null) => void }) {
@@ -31,7 +31,12 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
   // a ref rather than the two being defined in a circle.
   const endedRef = useRef<(() => void) | undefined>(undefined);
   const readyRef = useRef<(() => Promise<void>) | undefined>(undefined);
-  const shell = useShellAudio(file, {
+  const shell = useShellMedia({
+    id: file.id,
+    kind: "audio",
+    title: file.title || file.filename,
+    artist: file.folder_path || file.drive,
+  }, {
     autoPlay: autoPlay || preferAutoplay,
     onEnded: () => endedRef.current?.(),
     onReady: () => readyRef.current?.() ?? Promise.resolve(),

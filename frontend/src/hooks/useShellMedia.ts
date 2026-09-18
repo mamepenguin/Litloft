@@ -4,13 +4,23 @@ import { useEffect, useRef, useState } from "react";
 
 import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
 import type { MediaController } from "@/lib/mediaController";
-import { createMediaChannel } from "@/lib/nativeMedia";
+import type { MediaKind } from "@/lib/nativeBridge";
+import { createMediaChannel, type MediaChannel } from "@/lib/nativeMedia";
 import { createNativeShellController } from "@/lib/nativeMediaController";
-import type { FileItem } from "@/types";
 
-export interface ShellAudio {
+export interface ShellMediaFile {
+  id: string;
+  kind: MediaKind;
+  /** What the lock screen shows. */
+  title: string;
+  artist: string;
+}
+
+export interface ShellMedia {
   /** Null in a browser, where the caller keeps its element. */
   mc: MediaController | null;
+  /** The same file's channel, for what a controller has no words for. */
+  channel: MediaChannel | null;
   failed: boolean;
   waiting: boolean;
 }
@@ -19,8 +29,8 @@ export interface ShellAudio {
  * Plays a file through the iOS shell rather than a media element, so it keeps
  * going when the app is off screen.
  */
-export function useShellAudio(
-  file: FileItem,
+export function useShellMedia(
+  file: ShellMediaFile,
   {
     autoPlay,
     onEnded,
@@ -31,11 +41,15 @@ export function useShellAudio(
     /** Settles once the resume point, if any, has been applied. */
     onReady?: () => Promise<void>;
   },
-): ShellAudio {
+): ShellMedia {
   // Keyed by file: after the file changes, the previous controller is still in
   // state for one render, and handing it out would let the new file's
   // progress read the old file's position.
-  const [owned, setOwned] = useState<{ fileId: string; mc: MediaController } | null>(null);
+  const [owned, setOwned] = useState<{
+    fileId: string;
+    mc: MediaController;
+    channel: MediaChannel;
+  } | null>(null);
   const [failedFileId, setFailedFileId] = useState<string | null>(null);
   const [waitingFileId, setWaitingFileId] = useState<string | null>(null);
 
@@ -51,10 +65,7 @@ export function useShellAudio(
   // Read when the file loads rather than listed as dependencies: renaming the
   // file being listened to must not reload it.
   const labelRef = useRef({ title: "", artist: "" });
-  labelRef.current = {
-    title: file.title || file.filename,
-    artist: file.folder_path || file.drive,
-  };
+  labelRef.current = { title: file.title, artist: file.artist };
 
   useEffect(() => {
     const channel = createMediaChannel();
@@ -78,8 +89,8 @@ export function useShellAudio(
       url: new URL(getStreamUrl(file.id), window.location.origin).toString(),
       ...labelRef.current,
       artworkUrl: new URL(getThumbnailUrl(file.id), window.location.origin).toString(),
-    });
-    setOwned({ fileId: file.id, mc: createNativeShellController(channel) });
+    }, file.kind);
+    setOwned({ fileId: file.id, mc: createNativeShellController(channel), channel });
 
     return () => {
       channel.onEnded = null;
@@ -92,10 +103,12 @@ export function useShellAudio(
       channel.dispose();
       setOwned(null);
     };
-  }, [file.id]);
+  }, [file.id, file.kind]);
 
+  const current = owned?.fileId === file.id ? owned : null;
   return {
-    mc: owned?.fileId === file.id ? owned.mc : null,
+    mc: current?.mc ?? null,
+    channel: current?.channel ?? null,
     failed: failedFileId === file.id,
     waiting: waitingFileId === file.id,
   };

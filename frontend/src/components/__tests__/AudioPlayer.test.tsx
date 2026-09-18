@@ -153,6 +153,7 @@ describe("AudioPlayer", () => {
 describe("AudioPlayer inside the iOS shell", () => {
   interface StubbedWindow extends Window {
     webkit?: unknown;
+  __litloftShell?: { version?: number };
     __litloft?: { receive(payload: unknown): void };
   }
   let posted: Record<string, unknown>[];
@@ -184,6 +185,8 @@ describe("AudioPlayer inside the iOS shell", () => {
       buffered: 0,
       ended: false,
       waiting: false,
+      pip: false,
+      pipPossible: false,
       ...reading,
     });
   }
@@ -192,6 +195,7 @@ describe("AudioPlayer inside the iOS shell", () => {
 
   beforeEach(() => {
     posted = [];
+    (window as StubbedWindow).__litloftShell = { version: 2 };
     (window as StubbedWindow).webkit = {
       messageHandlers: {
         litloft: { postMessage: (body: unknown) => posted.push(body as Record<string, unknown>) },
@@ -201,6 +205,7 @@ describe("AudioPlayer inside the iOS shell", () => {
 
   afterEach(() => {
     delete (window as StubbedWindow).webkit;
+  delete (window as StubbedWindow).__litloftShell;
     delete (window as StubbedWindow).__litloft;
   });
 
@@ -215,6 +220,7 @@ describe("AudioPlayer inside the iOS shell", () => {
 
     const load = posted.find((m) => m.type === "media.load");
     expect(load).toMatchObject({
+      kind: "audio",
       url: "http://localhost:3000/api/files/audio-1/stream",
       title: "Test Song",
       artworkUrl: "http://localhost:3000/api/files/audio-1/thumbnail",

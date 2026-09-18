@@ -11,6 +11,7 @@ describe("shouldShowMini", () => {
     fullscreen: false,
     osPip: false,
     desktop: true,
+    shell: false,
   };
 
   it("returns true when player is off-screen and playing on desktop", () => {
@@ -35,6 +36,11 @@ describe("shouldShowMini", () => {
 
   it("returns false on mobile regardless of other state", () => {
     expect(shouldShowMini({ ...base, desktop: false })).toBe(false);
+  });
+
+  /** The shell has picture in picture, which outlives the app itself. */
+  it("returns false inside the iOS shell", () => {
+    expect(shouldShowMini({ ...base, shell: true })).toBe(false);
   });
 });
 
@@ -190,6 +196,24 @@ describe("useMiniPlayer", () => {
       vi.advanceTimersByTime(300);
     });
     expect(result.current.hook.isMini).toBe(false);
+  });
+
+  it("does not become mini inside the iOS shell", () => {
+    const shellWindow = window as typeof window & { webkit?: unknown; __litloftShell?: unknown };
+    shellWindow.webkit = { messageHandlers: { litloft: { postMessage: vi.fn() } } };
+    shellWindow.__litloftShell = { version: 2 };
+    try {
+      const mc = makeMc(false);
+      const { result } = renderWithRef(mc);
+      fireIntersect(false);
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(result.current.hook.isMini).toBe(false);
+    } finally {
+      delete shellWindow.webkit;
+      delete shellWindow.__litloftShell;
+    }
   });
 
   it("does not become mini on mobile", () => {

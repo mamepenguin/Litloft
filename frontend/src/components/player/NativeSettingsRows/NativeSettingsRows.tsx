@@ -95,7 +95,6 @@ export function NativePlayerUiToggle({
 }
 
 export function SubtitleTrackPicker({ video }: VideoRowProps) {
-  const t = useTranslations("player");
   const [, setCaptionsPreferred] = useCaptionsPreference();
   const [, setVersion] = useState(0);
   const tracks = video ? textTracks(video) : [];
@@ -127,6 +126,27 @@ export function SubtitleTrackPicker({ video }: VideoRowProps) {
     setVersion((version) => version + 1);
   };
 
+  return (
+    <SubtitleTrackOptions
+      options={tracks.map((track, index) => ({
+        key: track.id || `${track.language}-${index}`,
+        label: track.label || track.language || `${index + 1}`,
+      }))}
+      selected={selected}
+      onSelect={select}
+    />
+  );
+}
+
+export interface SubtitleTrackOptionsProps {
+  options: { key: string; label: string }[];
+  /** -1 for off. */
+  selected: number;
+  onSelect: (index: number) => void;
+}
+
+export function SubtitleTrackOptions({ options, selected, onSelect }: SubtitleTrackOptionsProps) {
+  const t = useTranslations("player");
   const optionClass = (checked: boolean) =>
     [
       "inline-flex h-11 items-center justify-center gap-1 rounded-2xl px-3 text-sm",
@@ -145,26 +165,25 @@ export function SubtitleTrackPicker({ video }: VideoRowProps) {
           type="button"
           role="radio"
           aria-checked={selected === -1}
-          onClick={() => select(-1)}
+          onClick={() => onSelect(-1)}
           className={optionClass(selected === -1)}
         >
           {selected === -1 && <Check size={14} aria-hidden="true" />}
           {t("subtitleTrackOff")}
         </button>
-        {tracks.map((track, index) => {
+        {options.map((option, index) => {
           const checked = selected === index;
-          const label = track.label || track.language || `${index + 1}`;
           return (
             <button
-              key={track.id || `${track.language}-${index}`}
+              key={option.key}
               type="button"
               role="radio"
               aria-checked={checked}
-              onClick={() => select(index)}
+              onClick={() => onSelect(index)}
               className={optionClass(checked)}
             >
               {checked && <Check size={14} aria-hidden="true" />}
-              {label}
+              {option.label}
             </button>
           );
         })}

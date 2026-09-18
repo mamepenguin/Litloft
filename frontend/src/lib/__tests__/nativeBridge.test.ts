@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 type Bridge = typeof import("../nativeBridge");
 
 interface StubbedWindow extends Window {
   webkit?: unknown;
+  __litloftShell?: { version?: number };
   __litloft?: { receive(payload: unknown): void };
 }
 
@@ -16,11 +19,13 @@ async function load(): Promise<Bridge> {
 
 function installShell(): { posted: unknown[] } {
   const posted: unknown[] = [];
+  win().__litloftShell = { version: 2 };
   win().webkit = { messageHandlers: { litloft: { postMessage: (body: unknown) => posted.push(body) } } };
   return { posted };
 }
 
 function installThrowingShell(): void {
+  win().__litloftShell = { version: 2 };
   win().webkit = {
     messageHandlers: {
       litloft: {
@@ -38,8 +43,35 @@ function deliver(payload: unknown): void {
 
 afterEach(() => {
   delete win().webkit;
+  delete win().__litloftShell;
   delete win().__litloft;
   vi.useRealTimers();
+});
+
+describe("the contract version", () => {
+  it("is the one the shared sample names, so both sides agree", async () => {
+    const contract = JSON.parse(
+      readFileSync(join(__dirname, "fixtures", "shell-contract.json"), "utf-8"),
+    ) as { version: number };
+    installShell();
+    const bridge = await load();
+
+    win().__litloftShell = { version: contract.version };
+    expect(bridge.shellVersion()).toBe(contract.version);
+    expect(bridge.isNativeShell()).toBe(true);
+
+    win().__litloftShell = { version: contract.version - 1 };
+    expect(bridge.isNativeShell()).toBe(false);
+  });
+
+  it("is not a shell at all without one", async () => {
+    installShell();
+    const bridge = await load();
+    delete win().__litloftShell;
+
+    expect(bridge.shellVersion()).toBe(0);
+    expect(bridge.isNativeShell()).toBe(false);
+  });
 });
 
 describe("outside the shell", () => {
