@@ -174,13 +174,57 @@ extension SharedMediaState {
 
             coordinator.start(webView)
 
-            #expect(await waitUntil { if case .failed = model.state { return true } else { return false } },
+            // Not any failure: the one the shell raises for a load that left
+            // no page, which is what carries the way back to the picker.
+            let wayOut = WebViewModel.State.failed("There is no page to show at \(address.absoluteString).")
+            #expect(await waitUntil { model.state == wayOut },
                     "the app was left blank with no way out, state is \(model.state)")
             if case .attachment = answer {
                 #expect(await waitUntil { offered.files.count == 1 }, "the file was not handed to the viewer")
             } else {
                 #expect(await waitUntil { opener.opened == [URL(string: "https://example.com/article")!] })
             }
+            withExtendedLifetime(coordinator) {}
+        }
+
+        /// Asking for a file from the page the viewer is reading: the wiring
+        /// that tells the model a page is there is only exercised here — a
+        /// seam test passes the answer in by hand.
+        @Test("a file asked for from a live page leaves the page alone")
+        func downloadFromALivePage() async throws {
+            let shell = try await openShell(active: true)
+            let (coordinator, webView, model) = (shell.coordinator, shell.webView, shell.model)
+            let offered = Offered()
+            coordinator.downloads.offer = { offered.files.append($0) }
+            let wasShowing = try #require(webView.url)
+
+            _ = try? await webView.evaluateJavaScript(
+                "location.href = '\(LocalLitloft.stream.url.absoluteString)?download=true'; 1"
+            )
+
+            #expect(await waitUntil { offered.files.count == 1 }, "the file was not handed to the viewer")
+            #expect(model.state == .loaded, "the page the file came from was reported as gone")
+            #expect(webView.url == wasShowing)
+            withExtendedLifetime(coordinator) {}
+        }
+
+        /// A frame inside the page fetching a file must not speak for the page.
+        @Test("a file inside a frame does not end the page's own load")
+        func downloadInsideAFrame() async throws {
+            let shell = try await openShell(active: true)
+            let (coordinator, webView, model) = (shell.coordinator, shell.webView, shell.model)
+            let offered = Offered()
+            coordinator.downloads.offer = { offered.files.append($0) }
+            model.markLoading()
+
+            _ = try? await webView.evaluateJavaScript("""
+                const frame = document.createElement('iframe');
+                frame.src = '\(LocalLitloft.stream.url.absoluteString)?download=true';
+                document.body.appendChild(frame); 1
+            """)
+
+            #expect(await waitUntil { offered.files.count == 1 }, "the file was not handed to the viewer")
+            #expect(model.state == .loading, "a frame decided the page's own load had ended")
             withExtendedLifetime(coordinator) {}
         }
 

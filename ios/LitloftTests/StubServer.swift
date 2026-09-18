@@ -63,9 +63,14 @@ final class StubServer: @unchecked Sendable {
         connection.start(queue: queue)
         connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { [weak self] _, _, _, _ in
             guard let self else { return }
-            connection.send(content: Data(head.utf8), completion: .contentProcessed { _ in
-                connection.cancel()
-            })
+            // The close says the body is complete; cancelling the connection as
+            // soon as the bytes are handed over can cut it short instead.
+            connection.send(
+                content: Data(head.utf8),
+                contentContext: .finalMessage,
+                isComplete: true,
+                completion: .contentProcessed { _ in }
+            )
         }
     }
 }
