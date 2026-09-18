@@ -133,7 +133,6 @@ struct WebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             model.markLoaded()
-            player?.surface.pageDidLoad()
         }
 
         func webView(

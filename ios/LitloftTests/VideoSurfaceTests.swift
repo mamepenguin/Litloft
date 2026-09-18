@@ -34,7 +34,6 @@ private final class Page {
         let height = try await webView.evaluateJavaScript("document.documentElement.scrollHeight") as? Double ?? 0
         // The layout reaches the web view's own scroll view a moment later.
         #expect(await until { self.webView.scrollView.contentSize.height >= height - 1 })
-        surface.pageDidLoad()
     }
 
     func script(_ source: String) async throws -> Any? {
@@ -137,6 +136,27 @@ extension SharedMediaState {
                 document.body.style.background = '#00f';
                 """)
             try await Task.sleep(for: .milliseconds(300))
+
+            #expect(await until { page.webView.scrollView.backgroundColor == .clear })
+            let content = try #require(page.webView.scrollView.subviews.first(where: VideoSurface.isContentView))
+            #expect(await until { content.backgroundColor == .clear })
+        }
+
+        /// A page of Litloft's own, which carries a theme colour and the
+        /// styles the app really uses: WebKit paints its own layers from
+        /// those, and the test pages here do not.
+        @Test("WebKit's colours are kept off a real page of the app's")
+        func realPageStaysClear() async throws {
+            try await LocalLitloft.require()
+            let page = Page()
+            defer { page.close() }
+            page.surface.setPageColor(PageColor(red: 1, green: 1, blue: 1))
+            page.surface.showsVideo(true)
+            page.surface.place(documentFrame(top: 0))
+
+            page.webView.load(URLRequest(url: URL(string: "http://localhost:3000/")!))
+            #expect(await until(.seconds(20)) { !page.webView.isLoading })
+            try await Task.sleep(for: .seconds(2))
 
             #expect(await until { page.webView.scrollView.backgroundColor == .clear })
             let content = try #require(page.webView.scrollView.subviews.first(where: VideoSurface.isContentView))

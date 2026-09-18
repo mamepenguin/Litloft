@@ -111,13 +111,6 @@ final class VideoSurface: NSObject {
         clearBackgrounds()
     }
 
-    /// WebKit repaints its own backgrounds when a page loads and whenever the
-    /// page's colour changes; the frame loop clears them again while a video
-    /// shows, and this puts the page's colour back for everything else.
-    func pageDidLoad() {
-        clearBackgrounds()
-    }
-
     // MARK: following the frame
 
     private var visible: Bool { showsVideo && geometry != nil }
@@ -157,7 +150,6 @@ final class VideoSurface: NSObject {
                 )
             }
         )
-        clearBackgrounds()
         guard let frame = SurfacePlacement.frame(for: geometry, offsets: offsets, swipe: swipe) else {
             view.isHidden = true
             return
@@ -171,10 +163,11 @@ final class VideoSurface: NSObject {
         view.isHidden = false
     }
 
-    /// The page's frame is transparent, but three of WebKit's own layers are
-    /// not. The web view's own background is drawn beneath its subviews, the
-    /// video included, so it carries the page's colour and fills whatever the
-    /// page leaves bare, a back-swipe snapshot included.
+    /// The web view and its scroll view are painted for overscroll (`WebView`),
+    /// and that paint would cover the video. The web view's own background is
+    /// drawn beneath its subviews, the video included, so it keeps the page's
+    /// colour and fills whatever the page leaves bare, a back-swipe snapshot
+    /// included; the scroll view above it is cleared.
     private func clearBackgrounds() {
         guard let webView else { return }
         if let pageColor {
