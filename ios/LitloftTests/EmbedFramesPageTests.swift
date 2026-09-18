@@ -106,6 +106,15 @@ private final class Page {
         get async { (try? await run("window.events ?? []")) as? [String] ?? [] }
     }
 
+    func waitUntil(seconds: Double = 5, _ condition: ([String]) -> Bool) async -> Bool {
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            if condition(await events) { return true }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return false
+    }
+
     func waitFor(_ event: String, seconds: Double = 10) async -> Bool {
         let deadline = Date().addingTimeInterval(seconds)
         while Date() < deadline {
@@ -235,6 +244,10 @@ extension SharedMediaState {
             try await page.askForFullscreen(first)
             #expect(await page.waitFor("fullscreen:/embed/\(first)"))
             #expect(await page.waitFor("marks-0:/embed/\(first)", seconds: 2))
+            try await Task.sleep(for: .milliseconds(500))
+            try await page.tell(first, "marks")
+            let stillOff = await page.waitUntil { $0.filter { $0 == "marks-0:/embed/\(first)" }.count == 2 }
+            #expect(stillOff, "put back while still shown")
 
             try await page.tell(first, "ended")
             #expect(await page.waitFor("left-marks-2:/embed/\(first)"))
