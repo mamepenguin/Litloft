@@ -136,10 +136,11 @@ not. A tap produces no navigation, no error and no feedback, and the link target
 cannot be reached from inside the app. Whether these should open in Safari or in
 an in-app browser is undecided.
 
-**Video stops when the app leaves the screen; audio does not.** Only audio is
-played by the shell so far, so a video is still the web view's and WebKit
-suspends it. Confirmed on device. Video moves to the native player in a later
-phase.
+**A `.loft` embed in the app has no mini player on an iPad.** The mini player is
+off everywhere inside the app, because the video the app itself plays offers
+picture in picture instead. A `.loft` file is played by the page's iframe, which
+the app does not play and which has no picture in picture, so at iPad width it
+loses the corner window and gains nothing.
 
 **After a theme change, a back swipe shows the old colours until it finishes.**
 The shell's swipe animation draws the page as it was when it was left, so
