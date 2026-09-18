@@ -53,7 +53,7 @@ final class VideoSurface: NSObject {
         makePictureInPicture = pictureInPicture
         self.fullscreen = fullscreen
         super.init()
-        fullscreen.onChange = { [weak self] active in self?.fullscreenChanged(active) }
+        fullscreen.onEnd = { [weak self] in self?.fullscreenEnded() }
         view.isUserInteractionEnabled = false
         view.backgroundColor = .black
         view.isHidden = true
@@ -279,7 +279,6 @@ final class VideoSurface: NSObject {
     /// picture needs the layer, so it stays while that is on or starting.
     func enteredBackground() {
         wasInBackground = true
-        fullscreen.letGo()
         guard !isPictureInPictureActive, !pipStarting else { return }
         view.playerLayer.player = nil
     }
@@ -332,17 +331,18 @@ final class VideoSurface: NSObject {
 // MARK: the system's fullscreen player
 
 extension VideoSurface {
+    /// While it is up it owns picture in picture, so this surface's own does
+    /// not also start when the app leaves the screen.
     func presentFullscreen() {
         guard showsVideo, !fullscreen.isActive, let webView else { return }
         if isPictureInPictureActive { pip?.stop() }
+        pip?.startsAutomatically = false
         fullscreen.present(player, from: webView)
     }
 
-    /// While it is active it owns picture in picture, so this surface's own
-    /// does not also start when the app leaves the screen.
-    fileprivate func fullscreenChanged(_ active: Bool) {
-        pip?.startsAutomatically = !active
-        if !active { onFullscreenEnd?() }
+    fileprivate func fullscreenEnded() {
+        pip?.startsAutomatically = true
+        onFullscreenEnd?()
     }
 }
 

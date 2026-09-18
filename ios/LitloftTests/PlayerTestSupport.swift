@@ -110,28 +110,24 @@ final class FakePictureInPicture: PictureInPicture {
 @MainActor
 final class FakeSystemFullscreen: SystemFullscreen {
     var isActive = false
-    var onChange: ((Bool) -> Void)?
+    var onEnd: (() -> Void)?
     private(set) var presented: [AVPlayer] = []
-    private(set) var letGoes = 0
+    private(set) var dismissals = 0
 
     func present(_ player: AVPlayer, from view: UIView) {
         presented.append(player)
         isActive = true
-        onChange?(true)
     }
 
     func dismiss() {
+        dismissals += 1
         end()
-    }
-
-    func letGo() {
-        letGoes += 1
     }
 
     /// The viewer closed it, or its picture in picture ended.
     func end() {
         guard isActive else { return }
         isActive = false
-        onChange?(false)
+        onEnd?()
     }
 }
