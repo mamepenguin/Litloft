@@ -30,6 +30,7 @@ vi.mock("@/components/ProfileProvider", () => ({
 
 interface StubbedWindow extends Window {
   webkit?: unknown;
+  __litloftShell?: { version?: number };
   __litloft?: { receive(payload: unknown): void };
 }
 
@@ -79,6 +80,7 @@ beforeEach(() => {
       url.includes("/subtitles") ? new Response(vtt) : new Response("", { status: 404 }),
     ),
   );
+  (window as StubbedWindow).__litloftShell = { version: 2 };
   (window as StubbedWindow).webkit = {
     messageHandlers: { litloft: { postMessage: (body: unknown) => posted.push(body as Record<string, unknown>) } },
   };
@@ -87,6 +89,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   delete (window as StubbedWindow).webkit;
+  delete (window as StubbedWindow).__litloftShell;
   delete (window as StubbedWindow).__litloft;
 });
 
@@ -225,9 +228,28 @@ describe("VideoPlayer inside the iOS shell", () => {
   });
 });
 
+describe("VideoPlayer with a shell that is behind this page", () => {
+  it("plays the file itself rather than sending commands the shell cannot read", () => {
+    (window as StubbedWindow).__litloftShell = { version: 1 };
+    render(<VideoPlayer videoId="vid-1" />);
+
+    expect(document.querySelector("video")).not.toBeNull();
+    expect(posted).toEqual([]);
+  });
+
+  it("does the same when the shell announces nothing at all", () => {
+    delete (window as StubbedWindow).__litloftShell;
+    render(<VideoPlayer videoId="vid-1" />);
+
+    expect(document.querySelector("video")).not.toBeNull();
+    expect(posted).toEqual([]);
+  });
+});
+
 describe("VideoPlayer in a browser", () => {
   it("keeps its element and says nothing to a shell", () => {
     delete (window as StubbedWindow).webkit;
+  delete (window as StubbedWindow).__litloftShell;
     render(<VideoPlayer videoId="vid-1" />);
 
     expect(document.querySelector("video")).not.toBeNull();

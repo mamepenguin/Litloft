@@ -8,6 +8,10 @@ import os
 @MainActor
 final class ShellBridge: NSObject, WKScriptMessageHandler {
     static let handlerName = "litloft"
+    /// Raised whenever the shell stops understanding what an older page sends,
+    /// or starts sending what an older page cannot read. The page compares it
+    /// with its own and plays the file itself when the shell is behind.
+    static let contractVersion = 2
 
     private let server: URL
     private weak var webView: WKWebView?
@@ -24,6 +28,11 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
 
     func install(in configuration: WKWebViewConfiguration) {
         configuration.userContentController.add(self, name: Self.handlerName)
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: "window.__litloftShell = { version: \(Self.contractVersion) };",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        ))
     }
 
     func attach(to webView: WKWebView) {
@@ -46,6 +55,9 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
             onMediaCommand?(command, loadId)
         case .pageBackground(let color):
             onPageBackground?(color)
+        case .unreadable(let loadId):
+            log.error("a command about \(loadId, privacy: .public) was not readable")
+            deliver(MediaState.unreadable(loadId: loadId))
         }
     }
 
@@ -80,10 +92,25 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         if let setting = playerSetting(type, body) {
             return .media(setting, loadId: nil)
         }
-        guard let loadId = nonEmpty(body["loadId"]),
-              let command = fileCommand(type, body, server: server)
-        else { return nil }
+        guard let loadId = nonEmpty(body["loadId"]) else { return nil }
+        if type == "media.load" { return loadAction(body, loadId: loadId, server: server) }
+        guard let command = fileCommand(type, body, server: server) else { return nil }
         return .media(command, loadId: loadId)
+    }
+
+    /// A file this shell refuses is silently not loaded; a file it cannot read
+    /// is reported, because the page that sent it is built against another
+    /// version of the contract and would otherwise wait for good.
+    private nonisolated static func loadAction(
+        _ body: [String: Any],
+        loadId: String,
+        server: URL
+    ) -> ShellAction? {
+        guard let source = source(body, server: server) else { return nil }
+        guard let kind = (body["kind"] as? String).flatMap(MediaKind.init(rawValue:)) else {
+            return .unreadable(loadId: loadId)
+        }
+        return .media(.load(source.with(kind)), loadId: loadId)
     }
 
     private nonisolated static func playerSetting(_ type: String, _ body: [String: Any]) -> MediaCommand? {
@@ -103,8 +130,6 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         server: URL
     ) -> MediaCommand? {
         switch type {
-        case "media.load":
-            return source(body, server: server).map(MediaCommand.load)
         case "media.play":
             return .play
         case "media.pause":
@@ -198,8 +223,7 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         guard let raw = body["url"] as? String,
               let url = URL(string: raw),
               MessageOrigin.isSameOrigin(url, as: server),
-              let title = body["title"] as? String,
-              let kind = (body["kind"] as? String).flatMap(MediaKind.init(rawValue:))
+              let title = body["title"] as? String
         else { return nil }
 
         let artwork = (body["artworkUrl"] as? String)
@@ -210,8 +234,7 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
             url: url,
             title: title,
             artist: body["artist"] as? String,
-            artworkURL: artwork,
-            kind: kind
+            artworkURL: artwork
         )
     }
 

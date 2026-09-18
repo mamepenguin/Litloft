@@ -47,9 +47,8 @@ export function computeSurfaceGeometry(m: SurfaceMeasurement): SurfaceGeometry {
   const viewportTop = m.sticky ? m.sticky.naturalTop : m.frame.y;
   // Converts a viewport y into the coordinates the anchor scrolls in.
   const origin = m.scroller ? m.scroller.scrollTop - m.scroller.box.y : m.scrollY;
-  const stickTop = m.sticky
-    ? m.sticky.cssTop + m.sticky.frameOffset + (m.scroller ? m.scroller.box.y : 0)
-    : null;
+  // Counted from the top of whatever scrolls, as `top` is.
+  const stickTop = m.sticky ? m.sticky.cssTop + m.sticky.frameOffset : null;
   const stickLimit = m.sticky ? m.sticky.blockBottom + origin - m.sticky.belowFrame : null;
 
   return {

@@ -14,6 +14,7 @@ const contract = JSON.parse(
 
 interface StubbedWindow extends Window {
   webkit?: unknown;
+  __litloftShell?: { version?: number };
   __litloft?: { receive(payload: unknown): void };
 }
 
@@ -22,6 +23,7 @@ let posted: Record<string, unknown>[] = [];
 
 function installShell(): void {
   posted = [];
+  win().__litloftShell = { version: 2 };
   win().webkit = {
     messageHandlers: {
       litloft: { postMessage: (body: unknown) => posted.push(body as Record<string, unknown>) },
@@ -47,6 +49,7 @@ function scriptIds(...ids: string[]) {
 afterEach(() => {
   vi.restoreAllMocks();
   delete win().webkit;
+  delete win().__litloftShell;
   delete win().__litloft;
 });
 
@@ -196,6 +199,10 @@ describe("the media channel", () => {
 
     expect(posted.length).toBe(before);
     fresh.dispose();
+  });
+
+  it("says the shell is not in picture in picture until it reports", () => {
+    expect(channel.read()).toMatchObject({ pip: false, pipPossible: false });
   });
 
   it("reads back what the shell reports", () => {

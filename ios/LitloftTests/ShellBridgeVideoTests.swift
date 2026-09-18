@@ -28,11 +28,12 @@ struct ShellBridgeVideoTests {
             "type": "media.load", "loadId": "load-1",
             "url": "http://litloft.local:3000/api/files/abc/stream", "title": "t"
         ]
-        #expect(route(base) == nil)
+        // Reported, not dropped: a page that spells it differently must hear so.
+        #expect(route(base) == .unreadable(loadId: "load-1"))
 
         var unknown = base
         unknown["kind"] = "image"
-        #expect(route(unknown) == nil)
+        #expect(route(unknown) == .unreadable(loadId: "load-1"))
 
         var video = base
         video["kind"] = "video"
@@ -43,6 +44,25 @@ struct ShellBridgeVideoTests {
         #expect(source.kind == .video)
     }
 
+    @Test("a load this shell cannot read is reported as failed rather than dropped")
+    func unreadableLoadIsReported() {
+        let body: [String: Any] = [
+            "type": "media.load", "loadId": "load-1",
+            "url": "http://litloft.local:3000/api/files/abc/stream", "title": "t"
+        ]
+        #expect(route(body) == .unreadable(loadId: "load-1"))
+
+        let state = MediaState.unreadable(loadId: "load-1")
+        #expect(state.status == .failed)
+        #expect(state.loadId == "load-1")
+    }
+
+    @Test("only a load is worth reporting: the rest of a stale page's commands are dropped")
+    func otherUnreadableCommandsAreDropped() {
+        #expect(route(["type": "media.seek", "loadId": "load-1", "time": 1.0]) == nil)
+        #expect(route(["type": "media.surface", "loadId": "load-1"]) == nil)
+    }
+
     @Test("a frame the shell cannot place does nothing")
     func unplaceableSurfaceIsRejected() {
         let rejected: [[String: Any?]] = [
@@ -50,7 +70,8 @@ struct ShellBridgeVideoTests {
             ["anchor": "floating"], ["anchor": NSNull()], ["width": "402"], ["width": true],
             ["anchor": "scroller"],
             ["anchor": "scroller", "scroller": ["x": 0, "y": 0, "width": 10]],
-            ["stickTop": 10], ["stickLimit": 10], ["stickTop": 10, "stickLimit": "x"]
+            ["stickTop": 10], ["stickLimit": 10], ["stickTop": 10, "stickLimit": "x"],
+            ["stickTop": "a", "stickLimit": "b"], ["stickTop": true, "stickLimit": false]
         ]
         for changes in rejected {
             #expect(route(surface(changes)) == nil, "accepted \(changes)")

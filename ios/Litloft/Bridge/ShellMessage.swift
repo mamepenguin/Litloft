@@ -64,12 +64,27 @@ enum MediaKind: String, Equatable {
     case video
 }
 
+extension MediaState {
+    /// Nothing is loaded and nothing will be: only the failure is worth saying.
+    static func unreadable(loadId: String) -> MediaState {
+        MediaState(
+            loadId: loadId, status: .failed, seekId: nil, time: 0, duration: 0,
+            paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false,
+            pip: false, pipPossible: false
+        )
+    }
+}
+
 struct MediaSource: Equatable {
     let url: URL
     let title: String
     let artist: String?
     let artworkURL: URL?
     var kind: MediaKind = .audio
+
+    func with(_ kind: MediaKind) -> MediaSource {
+        MediaSource(url: url, title: title, artist: artist, artworkURL: artworkURL, kind: kind)
+    }
 }
 
 /// Where the page draws the video, in terms that do not change while the page
@@ -125,6 +140,10 @@ enum ShellAction: Equatable {
     case reply(ShellMessage)
     case media(MediaCommand, loadId: String?)
     case pageBackground(PageColor)
+    /// A command about a file this shell cannot read, from a page built
+    /// against another version of the contract. Reported rather than dropped,
+    /// or the page waits for a load that will never happen.
+    case unreadable(loadId: String)
 }
 
 enum ShellMessageType {

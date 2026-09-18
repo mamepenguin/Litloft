@@ -32,15 +32,20 @@ final class VideoSurface: NSObject {
     private var link: CADisplayLink?
     private var observers: [NSObjectProtocol] = []
 
-    private var pip: AVPictureInPictureController?
-    private var pipPossibleObservation: NSKeyValueObservation?
+    private var pip: PictureInPicture?
+    private let makePictureInPicture: (AVPlayerLayer) -> PictureInPicture?
     private(set) var pipStarting = false
+    private var wasInBackground = false
 
     /// Picture in picture started, stopped, or became possible or impossible.
     var onPictureInPictureChange: (() -> Void)?
 
-    init(player: AVPlayer) {
+    init(
+        player: AVPlayer,
+        pictureInPicture: @escaping (AVPlayerLayer) -> PictureInPicture? = { SystemPictureInPicture(layer: $0) }
+    ) {
         self.player = player
+        makePictureInPicture = pictureInPicture
         super.init()
         view.isUserInteractionEnabled = false
         view.backgroundColor = .black
@@ -51,7 +56,6 @@ final class VideoSurface: NSObject {
 
     isolated deinit {
         link?.invalidate()
-        pipPossibleObservation?.invalidate()
         for observer in observers {
             NotificationCenter.default.removeObserver(observer)
         }
@@ -76,6 +80,9 @@ final class VideoSurface: NSObject {
     /// Called for every load and unload. Only a video has anything to show,
     /// and a new file shows nothing until its page places it.
     func showsVideo(_ shows: Bool) {
+        // Whatever is in picture in picture is this player, and the file it was
+        // playing is on its way out.
+        if isPictureInPictureActive { pip?.stop() }
         showsVideo = shows
         geometry = nil
         scroller = nil
@@ -143,7 +150,12 @@ final class VideoSurface: NSObject {
         let main = webView.scrollView
         let offsets = SurfacePlacement.Offsets(
             document: Double(main.contentOffset.y + main.adjustedContentInset.top),
-            scroller: scroller.map { Double($0.contentOffset.y + $0.adjustedContentInset.top) }
+            scroller: scroller.map {
+                (
+                    top: Double($0.superview?.convert($0.frame.origin, to: webView).y ?? 0),
+                    scrolled: Double($0.contentOffset.y + $0.adjustedContentInset.top)
+                )
+            }
         )
         clearBackgrounds()
         guard let frame = SurfacePlacement.frame(for: geometry, offsets: offsets, swipe: swipe) else {
@@ -215,8 +227,7 @@ final class VideoSurface: NSObject {
         var ancestor: UIView? = webView
         while let current = ancestor {
             for recognizer in current.gestureRecognizers ?? []
-            where recognizer is UIPanGestureRecognizer
-                && String(describing: type(of: recognizer)).contains("ParallaxTransition") {
+            where recognizer is UIPanGestureRecognizer && Self.slidesThePage(recognizer) {
                 recognizer.addTarget(self, action: #selector(swiped(_:)))
                 followsSwipe = true
             }
@@ -224,7 +235,12 @@ final class VideoSurface: NSObject {
         }
     }
 
-    @objc private func swiped(_ recognizer: UIPanGestureRecognizer) {
+    /// The system's own back-forward swipe, named for the parallax it draws.
+    nonisolated static func slidesThePage(_ recognizer: UIGestureRecognizer) -> Bool {
+        String(describing: type(of: recognizer)).contains("ParallaxTransition")
+    }
+
+    @objc func swiped(_ recognizer: UIPanGestureRecognizer) {
         switch recognizer.state {
         case .began, .changed:
             swipe = Double(recognizer.translation(in: webView).x)
@@ -254,77 +270,53 @@ final class VideoSurface: NSObject {
     /// leaves the screen; audio keeps going once it is detached. Picture in
     /// picture needs the layer, so it stays while that is on or starting.
     func enteredBackground() {
+        wasInBackground = true
         guard !isPictureInPictureActive, !pipStarting else { return }
         view.playerLayer.player = nil
     }
 
+    /// Picture in picture kept the layer while it started or ran. Off screen
+    /// without it, the system pauses a player that still has one.
+    private func letGoIfStillAway() {
+        guard wasInBackground else { return }
+        enteredBackground()
+    }
+
     func becameActive() {
         view.playerLayer.player = player
+        // Pulling Control Center down and letting it go is not coming back.
+        guard wasInBackground else { return }
+        wasInBackground = false
         if isPictureInPictureActive {
-            pip?.stopPictureInPicture()
+            pip?.stop()
         }
     }
 
-    var isPictureInPictureActive: Bool { pip?.isPictureInPictureActive ?? false }
+    var isPictureInPictureActive: Bool { pip?.isActive ?? false }
 
     var isPictureInPicturePossible: Bool {
-        showsVideo && (pip?.isPictureInPicturePossible ?? false)
+        showsVideo && (pip?.isPossible ?? false)
     }
 
     func setPictureInPicture(_ active: Bool) {
         guard showsVideo, let pip else { return }
-        if active, !pip.isPictureInPictureActive {
-            pip.startPictureInPicture()
-        } else if !active, pip.isPictureInPictureActive {
-            pip.stopPictureInPicture()
+        if active, !pip.isActive {
+            pip.start()
+        } else if !active, pip.isActive {
+            pip.stop()
         }
     }
 
     private func preparePictureInPicture() {
-        guard AVPictureInPictureController.isPictureInPictureSupported(),
-              let pip = AVPictureInPictureController(playerLayer: view.playerLayer)
-        else { return }
-        pip.canStartPictureInPictureAutomaticallyFromInline = true
-        pip.delegate = self
-        pipPossibleObservation = pip.observe(\.isPictureInPicturePossible) { [weak self] _, _ in
-            Task { @MainActor in self?.onPictureInPictureChange?() }
+        guard let pip = makePictureInPicture(view.playerLayer) else { return }
+        pip.onStarting = { [weak self] starting in self?.pipStarting = starting }
+        pip.onChange = { [weak self] in
+            // Started, stopped or gave up. Off screen without it, the player
+            // has to let go of its layer or the system pauses it.
+            self?.letGoIfStillAway()
+            self?.onPictureInPictureChange?()
         }
         self.pip = pip
-    }
-}
-
-extension VideoSurface: AVPictureInPictureControllerDelegate {
-    nonisolated func pictureInPictureControllerWillStartPictureInPicture(_ controller: AVPictureInPictureController) {
-        MainActor.assumeIsolated { pipStarting = true }
-    }
-
-    nonisolated func pictureInPictureControllerDidStartPictureInPicture(_ controller: AVPictureInPictureController) {
-        MainActor.assumeIsolated {
-            pipStarting = false
-            onPictureInPictureChange?()
-        }
-    }
-
-    nonisolated func pictureInPictureController(
-        _ controller: AVPictureInPictureController,
-        failedToStartPictureInPictureWithError error: Error
-    ) {
-        MainActor.assumeIsolated {
-            pipStarting = false
-            onPictureInPictureChange?()
-        }
-    }
-
-    nonisolated func pictureInPictureControllerDidStopPictureInPicture(_ controller: AVPictureInPictureController) {
-        MainActor.assumeIsolated { onPictureInPictureChange?() }
-    }
-
-    /// The video is already back behind the page's frame; nothing to restore.
-    nonisolated func pictureInPictureController(
-        _ controller: AVPictureInPictureController,
-        restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void
-    ) {
-        completionHandler(true)
     }
 }
 

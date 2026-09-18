@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import WebKit
 
 @testable import Litloft
 
@@ -12,9 +13,13 @@ private enum SharedContract {
         .deletingLastPathComponent()
         .appendingPathComponent("frontend/src/lib/__tests__/fixtures/shell-contract.json")
 
-    static func load() throws -> [String: [String: [String: Any]]] {
+    static func whole() throws -> [String: Any] {
         let data = try Data(contentsOf: url)
-        return try #require(JSONSerialization.jsonObject(with: data) as? [String: [String: [String: Any]]])
+        return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+
+    static func load() throws -> [String: [String: [String: Any]]] {
+        try whole().compactMapValues { $0 as? [String: [String: Any]] }
     }
 }
 
@@ -48,7 +53,7 @@ struct ContractTests {
         #expect(try route("surfaceSticky") == .media(.surface(SurfaceGeometry(
             left: 16, width: 370, height: 208.125,
             anchor: .scroller(CGRect(x: 0, y: 56, width: 402, height: 722)), top: 24,
-            stick: SurfaceGeometry.Stick(top: 56, limit: 1200)
+            stick: SurfaceGeometry.Stick(top: 8, limit: 1200)
         )), loadId: "load-1"))
         #expect(try route("surfaceFixed") == .media(.surface(SurfaceGeometry(
             left: 0, width: 874, height: 402, anchor: .fixed, top: 0, stick: nil
@@ -58,6 +63,17 @@ struct ContractTests {
         #expect(try route("pageBackground") == .pageBackground(PageColor(
             red: 0x1A / 255, green: 0x0E / 255, blue: 0x10 / 255
         )))
+    }
+
+    @MainActor
+    @Test("the shell announces the contract version the shared sample names")
+    func versionIsTheSharedOne() throws {
+        #expect(try SharedContract.whole()["version"] as? Int == ShellBridge.contractVersion)
+
+        let configuration = WKWebViewConfiguration()
+        ShellBridge(server: server).install(in: configuration)
+        let scripts = configuration.userContentController.userScripts.map(\.source)
+        #expect(scripts.contains { $0.contains("__litloftShell") && $0.contains("\(ShellBridge.contractVersion)") })
     }
 
     @Test("every command in the shared sample is checked here")

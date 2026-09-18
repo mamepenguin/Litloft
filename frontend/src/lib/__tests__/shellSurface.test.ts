@@ -83,7 +83,7 @@ describe("computeSurfaceGeometry", () => {
     expect(geometry).toMatchObject({
       anchor: "scroller",
       top: -100 - 56 + 200,
-      stickTop: 56 + 8 + 6,
+      stickTop: 8 + 6,
       stickLimit: 1000 - 56 + 200,
     });
   });

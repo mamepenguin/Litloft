@@ -10,30 +10,40 @@ enum SurfacePlacement {
     /// `.scroller` anchor, when one was found.
     struct Offsets: Equatable {
         var document: Double
-        var scroller: Double?
+        /// The scroll view behind a `.scroller` anchor: where its top is in the
+        /// web view now, and how far it has scrolled. Read live, because the
+        /// page reports the box it measured and that box moves with the
+        /// document.
+        var scroller: (top: Double, scrolled: Double)?
+
+        static func == (lhs: Offsets, rhs: Offsets) -> Bool {
+            lhs.document == rhs.document && lhs.scroller?.top == rhs.scroller?.top
+                && lhs.scroller?.scrolled == rhs.scroller?.scrolled
+        }
     }
 
     /// Nil when the frame cannot be placed: a `.scroller` anchor whose scroll
     /// view was not found would otherwise sit wherever the page last was.
     static func frame(for geometry: SurfaceGeometry, offsets: Offsets, swipe: Double) -> CGRect? {
         let scrolled: Double
-        var top: Double
+        // Where the anchor's own viewport starts in the web view.
+        let base: Double
         switch geometry.anchor {
         case .document:
             scrolled = offsets.document
-            top = geometry.top - scrolled
-        case .scroller(let box):
-            guard let offset = offsets.scroller else { return nil }
-            scrolled = offset
-            top = Double(box.minY) + geometry.top - scrolled
+            base = 0
+        case .scroller:
+            guard let scroller = offsets.scroller else { return nil }
+            scrolled = scroller.scrolled
+            base = scroller.top
         case .fixed:
             scrolled = 0
-            top = geometry.top
+            base = 0
         }
+        var top = base + geometry.top - scrolled
 
         if let stick = geometry.stick {
-            let base: Double = if case .scroller(let box) = geometry.anchor { Double(box.minY) } else { 0 }
-            top = max(top, stick.top)
+            top = max(top, base + stick.top)
             // Stuck, it still leaves with the block that holds it.
             top = min(top, base + stick.limit - scrolled - geometry.height)
         }

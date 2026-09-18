@@ -242,3 +242,74 @@ extension SharedMediaState {
         }
     }
 }
+
+/// Named as WebKit's own back-forward recognizer is, since that name is what
+/// the surface looks for.
+private final class ParallaxTransitionPanGestureStub: UIPanGestureRecognizer {
+    var moved = CGPoint.zero
+    var reported = UIGestureRecognizer.State.changed
+    override var state: UIGestureRecognizer.State {
+        get { reported }
+        set { reported = newValue }
+    }
+    override func translation(in view: UIView?) -> CGPoint { moved }
+}
+
+extension SharedMediaState {
+    @MainActor
+    @Suite
+    struct VideoSurfaceSwipeTests {
+        @Test("the surface follows the recognizer that slides the page, and no other")
+        func picksTheRightRecognizer() {
+            #expect(VideoSurface.slidesThePage(ParallaxTransitionPanGestureStub()))
+            #expect(!VideoSurface.slidesThePage(UIPanGestureRecognizer()))
+            #expect(!VideoSurface.slidesThePage(UITapGestureRecognizer()))
+        }
+
+        @Test("a swipe carries the video with the page, and the video goes back when it ends")
+        func swipeCarriesTheVideo() {
+            let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
+            UIApplication.shared.connectedScenes
+                .compactMap { ($0 as? UIWindowScene)?.windows.first }
+                .first?
+                .addSubview(webView)
+            defer { webView.removeFromSuperview() }
+            let surface = VideoSurface(player: AVPlayer(), pictureInPicture: { _ in nil })
+            surface.attach(to: webView)
+            surface.showsVideo(true)
+            surface.place(SurfaceGeometry(left: 0, width: 390, height: 219, anchor: .fixed, top: 40, stick: nil))
+
+            let recognizer = ParallaxTransitionPanGestureStub()
+            recognizer.moved = CGPoint(x: 120, y: 0)
+            surface.swiped(recognizer)
+            #expect(surface.view.frame.minX == 120)
+
+            recognizer.moved = .zero
+            recognizer.reported = .ended
+            surface.swiped(recognizer)
+            #expect(surface.view.frame.minX == 0)
+        }
+
+        @Test("a video whose frame can no longer be placed is not left behind")
+        func unplaceableFrameIsHidden() {
+            let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
+            UIApplication.shared.connectedScenes
+                .compactMap { ($0 as? UIWindowScene)?.windows.first }
+                .first?
+                .addSubview(webView)
+            defer { webView.removeFromSuperview() }
+            let surface = VideoSurface(player: AVPlayer(), pictureInPicture: { _ in nil })
+            surface.attach(to: webView)
+            surface.showsVideo(true)
+            surface.place(SurfaceGeometry(left: 0, width: 390, height: 219, anchor: .fixed, top: 40, stick: nil))
+            #expect(!surface.view.isHidden)
+
+            surface.place(SurfaceGeometry(
+                left: 0, width: 390, height: 219,
+                anchor: .scroller(CGRect(x: 3, y: 7, width: 11, height: 13)), top: 0, stick: nil
+            ))
+
+            #expect(surface.view.isHidden, "left where the last frame was")
+        }
+    }
+}
