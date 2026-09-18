@@ -95,6 +95,51 @@ struct ExternalLinkDelegateTests {
         #expect(rig.opener.opened.isEmpty)
     }
 
+    @Test("a link the page neutralised takes the shell nowhere")
+    func navigationToNothing() {
+        let rig = Rig()
+
+        #expect(rig.navigate("javascript:void(0)") == .cancel)
+        #expect(rig.opener.opened.isEmpty)
+        #expect(rig.webView.loaded.isEmpty)
+    }
+
+    @Test("a file the server marks as an attachment is taken as a download, and a page is not")
+    func attachmentsBecomeDownloads() {
+        let rig = Rig()
+        func response(_ disposition: String?) -> URLResponse {
+            HTTPURLResponse(
+                url: URL(string: "http://litloft.local:3000/api/files/abc/download")!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: disposition.map { ["Content-Disposition": $0] }
+            )!
+        }
+
+        #expect(rig.coordinator.policy(for: response("attachment; filename=\"a.mp4\"")) == .download)
+        #expect(rig.coordinator.policy(for: response(nil)) == .allow)
+    }
+
+    /// The load that was fetching the file is stopped to hand it over, and
+    /// WebKit reports that as a failure of the page that never moved.
+    @Test("the failure of a load turned into a download is not shown")
+    func divertedLoadIsNotAFailure() {
+        let rig = Rig()
+        let interrupted = NSError(domain: "WebKitErrorDomain", code: 102)
+
+        rig.coordinator.divertedToDownload()
+        rig.coordinator.loadFailed(interrupted)
+        #expect(rig.coordinator.model.state == .loading)
+
+        // The next navigation is a page again, and its failure is the viewer's.
+        rig.coordinator.webView(rig.webView, didStartProvisionalNavigation: nil)
+        rig.coordinator.loadFailed(interrupted)
+        guard case .failed = rig.coordinator.model.state else {
+            Issue.record("a load the shell did not divert must still reach the error view")
+            return
+        }
+    }
+
     /// The YouTube embed navigates inside its own frame, to a site that is not
     /// the server's.
     @Test("a frame inside the page is left alone")

@@ -238,17 +238,6 @@ struct WebViewModelTests {
         #expect(model.state == .loading)
     }
 
-    /// Taking a file as a download stops the load that was fetching it, and
-    /// the page the viewer is on never went anywhere.
-    @Test("a load the shell stopped itself is not a failure")
-    func stoppedByTheShellIsNotAFailure() {
-        let model = model()
-        model.markLoading()
-        model.markFailed(NSError(domain: "WebKitErrorDomain", code: 102))
-
-        #expect(model.state == .loading)
-    }
-
     @Test("a cancelled load does not erase an error already on screen")
     func cancelledDoesNotClearAnError() {
         let model = model()

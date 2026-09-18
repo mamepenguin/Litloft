@@ -41,6 +41,37 @@ struct FileDownloadsTests {
         #expect(first.lastPathComponent == "話.mp4")
         #expect(first != second)
         #expect(FileManager.default.fileExists(atPath: first.deletingLastPathComponent().path))
-        #expect(!FileDownloads.place(named: "").lastPathComponent.isEmpty, "a file with no name is still a file")
+        #expect(FileDownloads.place(named: "").lastPathComponent == "download", "a file with no name is still a file")
+    }
+
+    @MainActor
+    @Test("a file that arrives is offered where it was put")
+    func offersWhatArrived() {
+        let downloads = FileDownloads()
+        var offered: [URL] = []
+        downloads.offer = { offered.append($0) }
+        let place = URL(fileURLWithPath: "/tmp/a/話.mp4")
+        let key = ObjectIdentifier(downloads)
+
+        downloads.keep(place, as: key)
+        downloads.arrived(key)
+
+        #expect(offered == [place])
+    }
+
+    @MainActor
+    @Test("a file that never arrives is not offered")
+    func offersNothingElse() {
+        let downloads = FileDownloads()
+        var offered: [URL] = []
+        downloads.offer = { offered.append($0) }
+        let key = ObjectIdentifier(downloads)
+
+        downloads.keep(URL(fileURLWithPath: "/tmp/a/lost.mp4"), as: key)
+        downloads.lost(key)
+        downloads.arrived(key)
+        downloads.arrived(ObjectIdentifier(FileDownloads()))
+
+        #expect(offered.isEmpty)
     }
 }

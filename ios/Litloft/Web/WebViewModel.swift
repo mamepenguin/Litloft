@@ -39,14 +39,9 @@ final class WebViewModel {
     }
 
     /// A code alone means nothing: every domain numbers its own errors.
-    ///
-    /// WebKit reports a load it stopped on the shell's own say-so — a file
-    /// taken as a download, an address handed to another app — as a failure of
-    /// the page that is still perfectly well on screen.
     private static func isCancelled(_ error: Error) -> Bool {
         let error = error as NSError
-        if error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled { return true }
-        return error.domain == "WebKitErrorDomain" && error.code == 102
+        return error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled
     }
 
     private func message(for error: Error) -> String {

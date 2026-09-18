@@ -54,6 +54,7 @@ struct WebView: UIViewRepresentable {
         /// until the app is back.
         var isActive: () -> Bool = { UIApplication.shared.applicationState == .active }
         private weak var webView: WKWebView?
+        private var diverted = false
         private var pageObservation: NSKeyValueObservation?
         private var lastPage: URL?
         private var pageToRestore: URL?
@@ -184,7 +185,11 @@ struct WebView: UIViewRepresentable {
             _ webView: WKWebView,
             decidePolicyFor navigationResponse: WKNavigationResponse
         ) async -> WKNavigationResponsePolicy {
-            FileDownloads.isAttachment(navigationResponse.response) ? .download : .allow
+            policy(for: navigationResponse.response)
+        }
+
+        func policy(for response: URLResponse) -> WKNavigationResponsePolicy {
+            FileDownloads.isAttachment(response) ? .download : .allow
         }
 
         func webView(
@@ -192,11 +197,26 @@ struct WebView: UIViewRepresentable {
             navigationResponse: WKNavigationResponse,
             didBecome download: WKDownload
         ) {
+            divertedToDownload()
             downloads.take(download)
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            diverted = false
             model.markLoading()
+        }
+
+        /// Apart from the delegate because `WKDownload` cannot be built in a
+        /// test. It lives until the navigation it belongs to ends.
+        func divertedToDownload() {
+            diverted = true
+        }
+
+        /// WebKit reports a load the shell turned into a download as a failure
+        /// of the page — which never went anywhere. Every other failure is one.
+        func loadFailed(_ error: Error) {
+            guard !diverted else { return }
+            model.markFailed(error)
         }
 
         /// The player stops when the page it belongs to is actually replaced.
@@ -215,11 +235,11 @@ struct WebView: UIViewRepresentable {
             didFailProvisionalNavigation navigation: WKNavigation!,
             withError error: Error
         ) {
-            model.markFailed(error)
+            loadFailed(error)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            model.markFailed(error)
+            loadFailed(error)
         }
 
         // Litloft draws its own context menus; the system callout would fight them.

@@ -32,23 +32,40 @@ final class FileDownloads: NSObject, WKDownloadDelegate {
         download.delegate = self
     }
 
+    // MARK: what happens to a file, in terms a test can name
+    //
+    // `WKDownload` cannot be built outside WebKit, so the delegate below only
+    // turns one into a key.
+
+    func keep(_ place: URL, as key: ObjectIdentifier) {
+        places[key] = place
+    }
+
+    func arrived(_ key: ObjectIdentifier) {
+        guard let place = places.removeValue(forKey: key) else { return }
+        offer(place)
+    }
+
+    func lost(_ key: ObjectIdentifier) {
+        places.removeValue(forKey: key)
+    }
+
     func download(
         _ download: WKDownload,
         decideDestinationUsing response: URLResponse,
         suggestedFilename: String
     ) async -> URL? {
         let place = Self.place(named: suggestedFilename)
-        places[ObjectIdentifier(download)] = place
+        keep(place, as: ObjectIdentifier(download))
         return place
     }
 
     func downloadDidFinish(_ download: WKDownload) {
-        guard let place = places.removeValue(forKey: ObjectIdentifier(download)) else { return }
-        offer(place)
+        arrived(ObjectIdentifier(download))
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
-        places.removeValue(forKey: ObjectIdentifier(download))
+        lost(ObjectIdentifier(download))
     }
 
     /// The sheet is raised over a window of its own rather than over the page:
