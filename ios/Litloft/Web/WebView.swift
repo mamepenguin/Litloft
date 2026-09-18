@@ -43,6 +43,7 @@ struct WebView: UIViewRepresentable {
         let model: WebViewModel
         let bridge: ShellBridge
         let opener: URLOpener
+        let downloads = FileDownloads()
         var lastReloadToken = 0
 
         private(set) var player: MediaPlayer?
@@ -177,8 +178,31 @@ struct WebView: UIViewRepresentable {
             }
         }
 
+        /// A response the server marks as a file is taken as a download rather
+        /// than drawn: the web view would replace the app's own screen with it.
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationResponse: WKNavigationResponse
+        ) async -> WKNavigationResponsePolicy {
+            FileDownloads.isAttachment(navigationResponse.response) ? .download : .allow
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            navigationResponse: WKNavigationResponse,
+            didBecome download: WKDownload
+        ) {
+            downloads.take(download)
+        }
+
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
             model.markLoading()
+        }
+
+        /// The player stops when the page it belongs to is actually replaced.
+        /// A navigation that becomes a download never commits, and the page —
+        /// with whatever it is playing — stays.
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
             player?.stopForNavigation()
         }
 

@@ -79,10 +79,22 @@ own, exactly as in a browser.
   The page is loaded again when you return to the app, and playback stops then.
   The listening position saved is the last one from before the page ended.
 
+## Links and downloads
+
+- **A link to another site opens in Safari.** Notes, file properties and the
+  YouTube frame all lead outside Litloft, and the app hands those addresses to
+  iOS rather than showing them itself. Playback carries on while you are away:
+  a video moves into the picture-in-picture window and audio keeps going.
+- **A `mailto:` or `tel:` link** goes to Mail or the phone, the same way.
+- **Litloft's own pages open in the app.** Where a browser would open a second
+  tab — Open in new tab in the folder tree — the app opens it where you are,
+  because it has no tabs.
+- **Download offers the file to iOS.** Choose Save to Files to keep it, or send
+  it to another app. The page you were on stays where it is.
+
 ## Limitations
 
 - **YouTube and other web videos** (`.loft` reference files) still play in the
   page, so they stop when the app leaves the screen.
 - **Subtitles do not show in picture in picture.**
-- **Links to other sites** in notes do nothing when tapped.
 - **A long press** on some text starts a text selection, as it does in Safari.

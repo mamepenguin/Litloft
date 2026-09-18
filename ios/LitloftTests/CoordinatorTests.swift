@@ -32,12 +32,33 @@ extension SharedMediaState {
             await player.apply(.load(source), loadId: "a").value
             #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyTitle] as? String == "Locked")
 
-            coordinator.webView(webView, didStartProvisionalNavigation: nil)
+            coordinator.webView(webView, didCommit: nil)
             // Waits behind whatever the navigation queued, without stopping
             // anything itself.
             await player.apply(.setVolume(1), loadId: nil).value
 
             #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo == nil)
+        }
+
+        /// Asking for a file starts a navigation that turns into a download and
+        /// never replaces the page, so what the viewer is listening to stays.
+        @Test("a navigation that never arrives leaves the player alone")
+        func downloadKeepsThePlayer() async throws {
+            let model = WebViewModel(serverURL: URL(string: "http://litloft.local:3000")!)
+            let coordinator = WebView.Coordinator(model: model)
+            let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+            coordinator.attachBridge(to: webView)
+            let player = try #require(coordinator.player)
+
+            let tone = try ToneFile.make(seconds: 3)
+            let source = MediaSource(url: tone, title: "Kept", artist: nil, artworkURL: nil)
+            await player.apply(.load(source), loadId: "a").value
+
+            coordinator.webView(webView, didStartProvisionalNavigation: nil)
+            await player.apply(.setVolume(1), loadId: nil).value
+
+            #expect(MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyTitle] as? String == "Kept")
+            await player.apply(.unload, loadId: "a").value
         }
 
         // MARK: a dead page
