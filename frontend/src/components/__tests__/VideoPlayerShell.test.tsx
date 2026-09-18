@@ -299,6 +299,43 @@ describe("VideoPlayer with a shell that is behind this page", () => {
 });
 
 describe("VideoPlayer in a browser", () => {
+  function inBrowser(elementFullscreen: boolean) {
+    delete (window as StubbedWindow).webkit;
+    delete (window as StubbedWindow).__litloftShell;
+    const enter = vi.fn();
+    Object.defineProperty(HTMLVideoElement.prototype, "webkitEnterFullscreen", { configurable: true, value: enter });
+    Object.defineProperty(HTMLVideoElement.prototype, "requestFullscreen", {
+      configurable: true,
+      value: elementFullscreen ? vi.fn() : undefined,
+    });
+    return enter;
+  }
+
+  afterEach(() => {
+    const prototype = HTMLVideoElement.prototype as { requestFullscreen?: unknown; webkitEnterFullscreen?: unknown };
+    delete prototype.requestFullscreen;
+    delete prototype.webkitEnterFullscreen;
+  });
+
+  it("offers the iOS player where there is no element fullscreen, and hands it the video", async () => {
+    const enter = inBrowser(false);
+    render(<VideoPlayer videoId="vid-1" />);
+    await openSettings();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open in the iOS player" }));
+
+    expect(enter).toHaveBeenCalledOnce();
+    expect(enter.mock.contexts[0]).toBe(document.querySelector("video"));
+  });
+
+  it("does not offer the iOS player where the browser has element fullscreen", async () => {
+    inBrowser(true);
+    render(<VideoPlayer videoId="vid-1" />);
+    await openSettings();
+
+    expect(screen.queryByRole("button", { name: "Open in the iOS player" })).toBeNull();
+  });
+
   it("keeps its element and says nothing to a shell", () => {
     delete (window as StubbedWindow).webkit;
   delete (window as StubbedWindow).__litloftShell;
