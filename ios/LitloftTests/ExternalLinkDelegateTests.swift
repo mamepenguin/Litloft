@@ -42,14 +42,18 @@ private struct Rig {
         coordinator.policy(for: URL(string: address)!, inMainFrame: inMainFrame, pageOnScreen: pageOnScreen)
     }
 
-    func answer(_ disposition: String?, pageOnScreen: Bool = true) -> WKNavigationResponsePolicy {
+    func answer(
+        _ disposition: String?,
+        isForMainFrame: Bool = true,
+        pageOnScreen: Bool = true
+    ) -> WKNavigationResponsePolicy {
         let response = HTTPURLResponse(
             url: URL(string: "http://litloft.local:3000/api/files/abc/download")!,
             statusCode: 200,
             httpVersion: nil,
             headerFields: disposition.map { ["Content-Disposition": $0] }
         )!
-        return coordinator.policy(for: response, pageOnScreen: pageOnScreen)
+        return coordinator.policy(for: response, isForMainFrame: isForMainFrame, pageOnScreen: pageOnScreen)
     }
 
     var state: WebViewModel.State { coordinator.model.state }
@@ -175,18 +179,57 @@ struct ExternalLinkDelegateTests {
         #expect(rig.state == .loaded)
     }
 
+    /// A file inside a frame is taken as a download too, but the page it sits
+    /// in is still loading and still the viewer's.
+    @Test("a file inside a frame does not end the page's own load")
+    func frameDownloadLeavesThePageAlone() {
+        let rig = Rig()
+        rig.coordinator.model.markLoading()
+
+        #expect(rig.answer("attachment; filename=\"a.mp4\"", isForMainFrame: false) == .download)
+
+        #expect(rig.state == .loading)
+    }
+
+    /// Everything the viewer is ever told about a failure runs through the load
+    /// being in flight, so the page they had must give way to the error when
+    /// the next load cannot be fetched at all.
+    @Test("a navigation that fails after a page is up still reaches the viewer")
+    func failureAfterAPageIsUp() {
+        let rig = Rig()
+        rig.coordinator.model.markLoaded()
+
+        rig.coordinator.webView(rig.webView, didStartProvisionalNavigation: nil)
+        rig.coordinator.webView(
+            rig.webView,
+            didFailProvisionalNavigation: nil,
+            withError: URLError(.cannotConnectToHost)
+        )
+
+        guard case .failed = rig.state else {
+            Issue.record("the server stopped answering and the viewer was told nothing, got \(rig.state)")
+            return
+        }
+    }
+
     /// An error arrives for the load in flight, and for no other: one the shell
     /// already accounted for says nothing about what is on screen.
     @Test("a failure is shown while a load is in flight, and ignored after one was stopped")
     func failuresFollowTheLoadInFlight() {
         let interrupted = NSError(domain: "WebKitErrorDomain", code: 102)
 
-        let loading = Rig()
-        loading.coordinator.model.markLoading()
-        loading.coordinator.webView(loading.webView, didFailProvisionalNavigation: nil, withError: interrupted)
-        guard case .failed = loading.state else {
-            Issue.record("a load in flight failed and nothing was said, got \(loading.state)")
-            return
+        let reports: [(Rig) -> Void] = [
+            { $0.coordinator.webView($0.webView, didFailProvisionalNavigation: nil, withError: interrupted) },
+            { $0.coordinator.webView($0.webView, didFail: nil, withError: interrupted) }
+        ]
+        for reportIt in reports {
+            let loading = Rig()
+            loading.coordinator.model.markLoading()
+            reportIt(loading)
+            guard case .failed = loading.state else {
+                Issue.record("a load in flight failed and nothing was said, got \(loading.state)")
+                return
+            }
         }
 
         let stopped = Rig()

@@ -1,13 +1,6 @@
 import SwiftUI
 import WebKit
 
-extension WKWebView {
-    /// `url` answers with the address of a navigation still in flight, which is
-    /// not on screen and may never be. What the viewer is looking at is the
-    /// page WebKit has committed.
-    var hasCommittedPage: Bool { backForwardList.currentItem != nil }
-}
-
 struct WebView: UIViewRepresentable {
     let model: WebViewModel
 
@@ -61,6 +54,16 @@ struct WebView: UIViewRepresentable {
         /// until the app is back.
         var isActive: () -> Bool = { UIApplication.shared.applicationState == .active }
         private weak var webView: WKWebView?
+
+        /// Kept rather than asked for: no property of `WKWebView` answers
+        /// "is anything drawn". `url` names a navigation still in flight and
+        /// the back-forward list outlives the page a dead process took with it,
+        /// so the shell records the two moments it already passes through.
+        private var pageOnScreen = false
+
+        /// What the shell believes is drawn, for a test to check against the
+        /// page it can see.
+        var hasPageOnScreen: Bool { pageOnScreen }
         private var pageObservation: NSKeyValueObservation?
         private var lastPage: URL?
         private var pageToRestore: URL?
@@ -122,6 +125,7 @@ struct WebView: UIViewRepresentable {
         }
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            pageOnScreen = false
             let page = lastPage ?? model.serverURL
             if isActive() {
                 webView.load(URLRequest(url: page))
@@ -171,7 +175,7 @@ struct WebView: UIViewRepresentable {
             policy(
                 for: navigationAction.request.url,
                 inMainFrame: navigationAction.targetFrame?.isMainFrame == true,
-                pageOnScreen: webView.hasCommittedPage
+                pageOnScreen: pageOnScreen
             )
         }
 
@@ -197,12 +201,22 @@ struct WebView: UIViewRepresentable {
             _ webView: WKWebView,
             decidePolicyFor navigationResponse: WKNavigationResponse
         ) async -> WKNavigationResponsePolicy {
-            policy(for: navigationResponse.response, pageOnScreen: webView.hasCommittedPage)
+            policy(
+                for: navigationResponse.response,
+                isForMainFrame: navigationResponse.isForMainFrame,
+                pageOnScreen: pageOnScreen
+            )
         }
 
-        func policy(for response: URLResponse, pageOnScreen: Bool) -> WKNavigationResponsePolicy {
+        /// A file inside a frame is still taken as a download, but it is not
+        /// the page: only the main frame's own load ends the shell's.
+        func policy(
+            for response: URLResponse,
+            isForMainFrame: Bool,
+            pageOnScreen: Bool
+        ) -> WKNavigationResponsePolicy {
             guard FileDownloads.isAttachment(response) else { return .allow }
-            model.markStopped(pageOnScreen: pageOnScreen)
+            if isForMainFrame { model.markStopped(pageOnScreen: pageOnScreen) }
             return .download
         }
 
@@ -222,6 +236,7 @@ struct WebView: UIViewRepresentable {
         /// A navigation that becomes a download never commits, and the page —
         /// with whatever it is playing — stays.
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+            pageOnScreen = true
             player?.stopForNavigation()
         }
 

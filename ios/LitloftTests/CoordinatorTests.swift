@@ -7,6 +7,11 @@ import WebKit
 @testable import Litloft
 
 @MainActor
+private final class Offered {
+    var files: [URL] = []
+}
+
+@MainActor
 private final class RecordingOpener: URLOpener {
     nonisolated(unsafe) var opened: [URL] = []
 
@@ -118,7 +123,7 @@ extension SharedMediaState {
             )!
 
             model.markLoading()
-            #expect(coordinator.policy(for: attachment, pageOnScreen: webView.url != nil) == .download)
+            #expect(coordinator.policy(for: attachment, isForMainFrame: true, pageOnScreen: true) == .download)
             coordinator.webView(
                 webView,
                 didFailProvisionalNavigation: nil,
@@ -146,30 +151,51 @@ extension SharedMediaState {
             withExtendedLifetime(coordinator) {}
         }
 
-        /// The address the viewer typed sends them somewhere else before any
-        /// page arrives. WebKit reports nothing for a load stopped this way, so
-        /// the shell has to say it itself — or the app sits blank with no way
-        /// back to the address picker (R-0 8).
-        @Test("a first load that redirects off the origin leaves a way out")
-        func firstLoadRedirectedAway() async throws {
-            let server = try RedirectServer(to: "https://example.com/article")
+        /// The address the viewer typed never puts a page on screen: it sends
+        /// them somewhere else, or it answers with a file. The shell says so
+        /// itself — or the app sits blank with no way back to the address
+        /// picker (R-0 8).
+        @Test("a first load that puts no page up leaves a way out", arguments: [
+            StubServer.Answer.redirect(destination: "https://example.com/article"),
+            StubServer.Answer.attachment(named: "recording.mp4")
+        ])
+        func firstLoadWithNoPage(answer: StubServer.Answer) async throws {
+            let server = try StubServer(answer)
             defer { server.stop() }
             let address = try await server.start()
             let opener = RecordingOpener()
             let model = WebViewModel(serverURL: address)
             let coordinator = WebView.Coordinator(model: model, opener: opener)
+            let offered = Offered()
+            coordinator.downloads.offer = { offered.files.append($0) }
             let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
             coordinator.attachBridge(to: webView)
             webView.navigationDelegate = coordinator
 
             coordinator.start(webView)
 
-            #expect(await waitUntil { opener.opened == [URL(string: "https://example.com/article")!] })
-            #expect(!webView.hasCommittedPage, "a page arrived after all")
-            guard case .failed = model.state else {
-                Issue.record("the app was left blank with no way out, got \(model.state)")
-                return
+            #expect(await waitUntil { if case .failed = model.state { return true } else { return false } },
+                    "the app was left blank with no way out, state is \(model.state)")
+            if case .attachment = answer {
+                #expect(await waitUntil { offered.files.count == 1 }, "the file was not handed to the viewer")
+            } else {
+                #expect(await waitUntil { opener.opened == [URL(string: "https://example.com/article")!] })
             }
+            withExtendedLifetime(coordinator) {}
+        }
+
+        /// The back-forward list still names the page a dead process took
+        /// away, so the shell keeps the fact itself rather than asking.
+        @Test("the page a dead process took with it is not still on screen")
+        func deadPageIsNotOnScreen() async throws {
+            let shell = try await openShell(active: false)
+            let (coordinator, webView) = (shell.coordinator, shell.webView)
+            #expect(coordinator.hasPageOnScreen, "a page was loaded and committed")
+
+            try killContent(of: webView)
+
+            #expect(await waitUntil { !coordinator.hasPageOnScreen })
+            #expect(webView.backForwardList.currentItem != nil, "the list forgot it, so nothing was proved")
             withExtendedLifetime(coordinator) {}
         }
 
