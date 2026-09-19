@@ -17,6 +17,7 @@ import { ChromeButtons } from "@/components/ChromeButtons";
 import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { ContextMenu } from "@/components/ContextMenu";
+import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import enMessages from "@/messages-core/en.json";
 import jaMessages from "@/messages-core/ja.json";
@@ -883,6 +884,50 @@ function ChromeButtonsArrangement(): ReactElement {
   );
 }
 
+/**
+ * The frame is what clips the seek knob, so the arrangement draws a real
+ * one: the 16:9 `overflow-hidden` box both video players put the controls
+ * in.
+ */
+function PlayerFrame({ visible }: { visible: boolean }): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div
+        id="player-frame"
+        className="relative aspect-video w-full overflow-hidden bg-black"
+      >
+        <TouchControlsPresenter
+          displayTime={30}
+          duration={120}
+          bufferedFraction={0.5}
+          paused={false}
+          muted={false}
+          volume={1}
+          playbackRate={1}
+          interrupted={false}
+          visible={visible}
+          isFullscreen={false}
+          onTogglePlay={noop}
+          onSkip={noop}
+          onScrubStart={noop}
+          onScrubChange={noop}
+          onScrubEnd={noop}
+          onToggleMute={noop}
+          onVolumeChange={noop}
+          onPlaybackRateChange={noop}
+          onToggleFullscreen={noop}
+          captions="unavailable"
+          onToggleCaptions={noop}
+        />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+const PlayerSeekBar = (): ReactElement => <PlayerFrame visible />;
+const PlayerHairline = (): ReactElement => <PlayerFrame visible={false} />;
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "chrome-buttons": ChromeButtonsArrangement,
   "page-frame-full": PageFrameFull,
@@ -921,6 +966,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "quick-note-footer-en": QuickNoteFooterEn,
   "scoped-search-ja": ScopedSearchJa,
   "scoped-search-en": ScopedSearchEn,
+  "player-seek-bar": PlayerSeekBar,
+  "player-hairline": PlayerHairline,
 };
 
 function App(): ReactElement {

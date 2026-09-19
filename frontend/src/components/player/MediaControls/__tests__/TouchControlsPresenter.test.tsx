@@ -147,11 +147,19 @@ describe("TouchControlsPresenter", () => {
       expect(screen.queryByTestId("seek-knob")).not.toBeInTheDocument();
     });
 
-    it("sits on the bottom edge of the frame", () => {
-      // 28px down a 40px row leaves the 12px line flush with the bottom.
+    it("puts the track on the bottom edge of the frame, knob hanging past it", () => {
+      // 32px down a 40px row leaves the 4px track flush with the bottom, and
+      // the 12px knob centred on it hanging 4px past.
       const { container } = renderControls();
       const line = container.querySelector<HTMLElement>('[data-testid="seek-line"]');
-      expect(line?.style.top).toBe("28px");
+      expect(line?.style.top).toBe("32px");
+    });
+
+    it("draws the knob in the indicator colour", () => {
+      renderControls();
+      expect(screen.getByTestId("seek-knob").className).toContain(
+        "bg-player-indicator",
+      );
     });
 
     it("leaves a hairline behind once the controls fade out", () => {

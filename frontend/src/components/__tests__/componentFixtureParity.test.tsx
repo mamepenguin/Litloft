@@ -228,6 +228,8 @@ describe("the component fixture's page", () => {
       "quick-note-footer-en",
       "scoped-search-ja",
       "scoped-search-en",
+      "player-seek-bar",
+      "player-hairline",
     ]);
   });
 });

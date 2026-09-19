@@ -136,6 +136,19 @@ describe("CompactControlsPresenter", () => {
       expect(root?.className).toContain("pointer-events-none");
     });
 
+    it("draws the hairline on a grey track in the indicator colour", () => {
+      const { container } = renderControls({ visible: false });
+      const hairline = container.querySelector<HTMLElement>(
+        '[data-testid="progress-hairline"]',
+      );
+      expect(hairline?.className.split(" ")).toContain(
+        "bg-player-indicator-track",
+      );
+      expect(screen.getByTestId("hairline-played").className.split(" ")).toContain(
+        "bg-player-indicator",
+      );
+    });
+
     it("shows the progress hairline only once the bar is hidden", () => {
       const { container, unmount } = renderControls({ visible: true });
       expect(

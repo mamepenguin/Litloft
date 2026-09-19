@@ -19,14 +19,15 @@ export function ProgressHairline({
     <div
       data-testid="progress-hairline"
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-0.5 overflow-hidden bg-white/25"
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-0.5 overflow-hidden bg-player-indicator-track"
     >
       <div
         className="absolute inset-y-0 left-0 bg-white/40"
         style={{ width: toPercent(bufferedFraction) }}
       />
       <div
-        className="absolute inset-y-0 left-0 bg-accent"
+        data-testid="hairline-played"
+        className="absolute inset-y-0 left-0 bg-player-indicator"
         style={{ width: toPercent(playedFraction) }}
       />
     </div>

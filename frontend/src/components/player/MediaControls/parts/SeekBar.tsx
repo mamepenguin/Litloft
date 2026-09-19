@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 
 const ROW_PX = 40;
 const LINE_PX = 12;
+const TRACK_PX = 4;
 
 /** Rounding keeps float noise (0.42 * 100 === 42.00000000000001) out of
  *  the rendered style. */
@@ -84,7 +85,12 @@ export function SeekBar({
     (0.5 - playedFraction) * LINE_PX
   }px)`;
 
-  const trackOffsetPx = variant === "edge" ? ROW_PX - LINE_PX : (ROW_PX - LINE_PX) / 2;
+  // `edge` lands the track on the row's bottom edge, which is the frame's;
+  // the knob is taller than the track, so it hangs past that edge.
+  const trackOffsetPx =
+    variant === "edge"
+      ? ROW_PX - (LINE_PX + TRACK_PX) / 2
+      : (ROW_PX - LINE_PX) / 2;
 
   return (
     <div
@@ -143,7 +149,7 @@ export function SeekBar({
           />
           <div
             data-testid="played-range"
-            className="absolute inset-y-0 left-0 bg-accent"
+            className="absolute inset-y-0 left-0 bg-player-indicator"
             style={{ width: toPercent(playedFraction) }}
           />
         </div>
@@ -151,7 +157,7 @@ export function SeekBar({
         {!disabled && (
           <div
             data-testid="seek-knob"
-            className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+            className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-player-indicator"
             style={{ left: knobLeft }}
           />
         )}
