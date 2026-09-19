@@ -15,7 +15,8 @@ import { usePolicy } from "@/hooks/usePolicy";
 import { ridesFileDetailShell } from "@/lib/fileDetailShell";
 import { useOverlaySidebar } from "@/components/SidebarProvider";
 import { useFileNav } from "@/hooks/useFileNav";
-import { getFile } from "@/lib/api";
+import { getFileShared } from "@/lib/api";
+import { peekFileSeed } from "@/lib/fileSeed";
 import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
 
@@ -43,22 +44,22 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const initialPage = pageParam ? Number(pageParam) : undefined;
   const highlight = searchParams.get("highlight") || undefined;
 
-  // FileDetailContent does its own getFile internally; the dual fetch is
-  // accepted.
-  const [file, setFile] = useState<FileItem | null>(null);
+  const [file, setFile] = useState<FileItem | null>(() => peekFileSeed(fileId));
   const [galleryOpen, setGalleryOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    setFile(null);
-    getFile(fileId)
+    const seed = peekFileSeed(fileId);
+    setFile(seed);
+    if (seed) setOverrideDrive(seed.drive);
+    getFileShared(fileId)
       .then((f) => {
         if (cancelled) return;
         setFile(f);
         setOverrideDrive(f.drive);
       })
       .catch(() => {
-        // FileDetailContent below renders its own error state.
+        if (!cancelled) setFile(null);
       });
     return () => {
       cancelled = true;

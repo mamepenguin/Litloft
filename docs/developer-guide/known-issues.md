@@ -59,6 +59,12 @@ error from the policy save, or not at all.
 
 **A relation recorded before relation origins existed disappears when its target note is saved first.** A backlink from note Y to note X that predates the upgrade is removed by X's first save and reappears on Y's next save. Rows written after the upgrade are not affected.
 
+**A trashed or missing file opened again shows as a live file for a moment.** If the file was listed earlier in the session, reopening it (Back, a bookmark, collection or folder play) draws it with its player until its own request answers, then shows File not found; in collection mode the player can start.
+
+**A note's title renamed in the page row within the first moment after opening is dropped.** The rename field accepts input before the note's own data has arrived, and a rename submitted then is ignored without an error.
+
+**The file's inspector controls do not respond for the first moment after opening.** Download, open and cast, and links in the description, stay inert with the edit controls until the file's own data arrives.
+
 **Such a relation, when its note still links it, can move to the top of Related files on the first save.** A pre-origin `(source, note)` row the note cites is replaced by the note's own row, with a new creation time.
 
 **An addon deleting its own relation hides a link the note still has.** If `DELETE /api/internal/file_relations/{id}` removes an `internal` (N, T) row while N links T, the link is not listed until N is saved again; posting (N, T) after the link exists returns 409.

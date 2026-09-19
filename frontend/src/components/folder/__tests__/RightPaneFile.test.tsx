@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   render,
   screen,
@@ -6,9 +7,15 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { _resetFileSeedForTests, seedFiles } from "@/lib/fileSeed";
+
+// `mockGetFile` answers the shared request, which is the only one a host
+// may make; `mockGetFileDirect` is there to show it made no other.
 const mockGetFile = vi.fn();
+const mockGetFileDirect = vi.fn();
 vi.mock("@/lib/api", () => ({
-  getFile: (...args: unknown[]) => mockGetFile(...args),
+  getFile: (...args: unknown[]) => mockGetFileDirect(...args),
+  getFileShared: (...args: unknown[]) => mockGetFile(...args),
   getFileNeighbors: vi.fn().mockResolvedValue({ prev_id: null, next_id: null }),
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
   recordFileView: vi.fn(),
@@ -125,14 +132,17 @@ const baseFile = {
   subtitles: [],
   deleted_at: null,
   missing_since: null,
-  trust_tier: "verified",
+  trust_tier: "verified" as const,
   trust_reviewed_at: null,
   created_at: "2026-05-01T00:00:00Z",
   updated_at: "2026-05-01T00:00:00Z",
+  image_width: null,
+  image_height: null,
 };
 
 beforeEach(() => {
   mockGetFile.mockReset();
+  mockGetFileDirect.mockReset();
   mockClearFile.mockReset();
   mockSelectFile.mockReset();
   fileDetailProps.length = 0;
@@ -148,16 +158,13 @@ afterEach(() => {
 });
 
 describe("RightPaneFile", () => {
-  it("shows loading then renders FileDetailContent", async () => {
-    mockGetFile.mockResolvedValue(baseFile);
+  it("renders FileDetailContent without waiting for the file", () => {
+    mockGetFile.mockReturnValue(new Promise(() => {}));
     render(<RightPaneFile fileId="abc123" drive="work" />);
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
-    );
     expect(screen.getByTestId("file-detail-content")).toHaveTextContent(
       "detail:abc123",
     );
+    expect(screen.queryByText("Loading...")).toBeNull();
   });
 
   it("suppresses the PaneShell header for Markdown files (DocumentLayout owns chrome)", async () => {
@@ -317,23 +324,10 @@ describe("RightPaneFile", () => {
   // `FileDetailContent` is stubbed here, so what is testable is whether
   // this host decides to draw a row at all.
   describe("the page row", () => {
-    it("draws the row while the file is still being fetched", async () => {
-      // Nothing is mounted yet that could draw one.
-      let resolveFile: (f: unknown) => void = () => {};
-      mockGetFile.mockReturnValue(
-        new Promise((resolve) => {
-          resolveFile = resolve;
-        }),
-      );
+    it("draws no row of its own while the file is still being fetched", () => {
+      mockGetFile.mockReturnValue(new Promise(() => {}));
       render(<RightPaneFile fileId="abc123" drive="work" />);
-
-      const row = await screen.findByTestId("file-detail-chrome");
-      expect(row).toHaveTextContent("work");
-
-      resolveFile(baseFile);
-      await waitFor(() =>
-        expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
-      );
+      expect(screen.queryByTestId("file-detail-chrome")).toBeNull();
     });
 
     it("draws no row of its own once the file has resolved, whatever it is", async () => {
@@ -473,5 +467,76 @@ describe("RightPaneFile — the prev/next walk it publishes", () => {
     mockSearchParams.delete("sort");
     mockSearchParams.delete("order");
     mockSearchParams.delete("nav");
+  });
+});
+
+describe("RightPaneFile, the file it holds", () => {
+  afterEach(() => {
+    _resetFileSeedForTests();
+  });
+
+  it("asks through the shared request and nothing else", async () => {
+    mockGetFile.mockResolvedValue(baseFile);
+    render(<RightPaneFile fileId="abc123" drive="work" />);
+    await waitFor(() =>
+      expect(screen.getByTestId("image-gallery")).toBeInTheDocument(),
+    );
+    expect(mockGetFile).toHaveBeenCalledTimes(1);
+    expect(mockGetFileDirect).not.toHaveBeenCalled();
+  });
+
+  it("holds a list's copy before the answer arrives", () => {
+    seedFiles([baseFile]);
+    mockGetFile.mockReturnValue(new Promise(() => {}));
+    render(<RightPaneFile fileId="abc123" drive="work" />);
+    expect(screen.getByTestId("image-gallery")).toBeInTheDocument();
+  });
+
+  it("says the file is not there when it cannot be read, list copy or not", async () => {
+    seedFiles([baseFile]);
+    mockGetFile.mockRejectedValue(new Error("API error: 404"));
+    render(<RightPaneFile fileId="abc123" drive="work" />);
+    expect(await screen.findByText("File not found")).toBeInTheDocument();
+  });
+
+  it("ignores an answer for a file it has already left", async () => {
+    let answerFirst: (f: unknown) => void = () => {};
+    mockGetFile.mockImplementation((id: string) =>
+      id === "abc123"
+        ? new Promise((resolve) => {
+            answerFirst = resolve;
+          })
+        : Promise.resolve({ ...baseFile, id: "xyz" }),
+    );
+    const { rerender } = render(<RightPaneFile fileId="abc123" drive="work" />);
+    rerender(<RightPaneFile fileId="xyz" drive="work" />);
+    await waitFor(() =>
+      expect(imageGalleryProps.at(-1)?.file).toMatchObject({ id: "xyz" }),
+    );
+    await act(async () => {
+      answerFirst(baseFile);
+    });
+    expect(imageGalleryProps.at(-1)?.file).toMatchObject({ id: "xyz" });
+  });
+
+  it("ignores a failure for a file it has already left", async () => {
+    let failFirst: (e: unknown) => void = () => {};
+    mockGetFile.mockImplementation((id: string) =>
+      id === "abc123"
+        ? new Promise((_resolve, reject) => {
+            failFirst = reject;
+          })
+        : Promise.resolve({ ...baseFile, id: "xyz" }),
+    );
+    const { rerender } = render(<RightPaneFile fileId="abc123" drive="work" />);
+    rerender(<RightPaneFile fileId="xyz" drive="work" />);
+    await waitFor(() =>
+      expect(screen.getByTestId("image-gallery")).toBeInTheDocument(),
+    );
+    await act(async () => {
+      failFirst(new Error("API error: 404"));
+    });
+    expect(screen.queryByText("File not found")).toBeNull();
+    expect(screen.getByTestId("file-detail-content")).toHaveTextContent("detail:xyz");
   });
 });

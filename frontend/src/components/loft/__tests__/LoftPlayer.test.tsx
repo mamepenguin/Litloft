@@ -53,4 +53,21 @@ describe("LoftPlayer", () => {
     await screen.findByTestId("probe-embed");
     await waitFor(() => expect(recorded.at(-1)?.initialTime).toBe(90));
   });
+
+  it("while the .loft is read, holds a 16:9 box showing the poster", () => {
+    vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
+    render(<LoftPlayer fileId="abc123456789" posterUrl="/thumb.jpg" />);
+    const box = screen.getByTestId("loft-loading");
+    expect(box).toHaveClass("aspect-video");
+    expect(box.style.backgroundImage).toContain("/thumb.jpg");
+    expect(box.querySelector(".animate-spin")).toBeNull();
+  });
+
+  it("holds the same box without a poster", () => {
+    vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
+    render(<LoftPlayer fileId="abc123456789" />);
+    const box = screen.getByTestId("loft-loading");
+    expect(box).toHaveClass("aspect-video");
+    expect(box.style.backgroundImage).toBe("");
+  });
 });

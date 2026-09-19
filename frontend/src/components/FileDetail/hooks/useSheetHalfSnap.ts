@@ -16,8 +16,8 @@ import { useViewportHeight } from "@/hooks/useViewportHeight";
  * **The snap is solved once and held for the whole of a scroll**, which
  * relies on the stylesheet taking the host's top padding off on this surface.
  *
- * No file dependency: `useFileDetailData` does `setFile(null)` the moment
- * `fileId` changes, so this whole subtree is unmounted and built again.
+ * No file dependency: `FileDetailContent` mounts once per file, so this
+ * whole subtree is built again for the next one.
  */
 export function useSheetHalfSnap(
   playerRef: RefObject<HTMLElement | null>,

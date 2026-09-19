@@ -7,7 +7,12 @@ import { render, screen } from "@testing-library/react";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import { FileNavProvider, type FileNavState } from "@/lib/fileNavContext";
-import { makeFile, setApiResponses, usePolicyMock } from "./harness";
+import {
+  makeFile,
+  setApiResponses,
+  shellLoaded,
+  usePolicyMock,
+} from "./harness";
 import type { FileItem } from "@/types";
 
 vi.mock("next/navigation", () => ({
@@ -29,8 +34,10 @@ vi.mock("../../CastButton", async () => ({
 vi.mock("../../ChaptersPanel", async () => ({
   ChaptersPanel: (await import("./harness")).ChaptersPanelStub,
 }));
+const apiMocks = vi.hoisted(() => ({ getFile: vi.fn() }));
 vi.mock("@/lib/api", () => ({
-  getFile: vi.fn(),
+  getFile: apiMocks.getFile,
+  getFileShared: (id: string) => apiMocks.getFile(id),
   recordFileView: vi.fn(),
   likeFile: vi.fn(),
   dislikeFile: vi.fn(),
@@ -77,7 +84,7 @@ async function renderKind(overrides: Partial<FileItem>) {
       <FileDetailContent fileId="f1" drive="main" />
     </FileNavProvider>,
   );
-  await screen.findByTestId("file-detail-chrome");
+  await shellLoaded();
 }
 
 describe("prev / next in the page row", () => {

@@ -25,7 +25,6 @@ const SUMMARY = join(FRONTEND, "coverage", "coverage-summary.json");
  */
 const NO_INSTRUMENTABLE_CODE = [
   "src/addons/media_import/watch/index.ts",
-  "src/components/FileDetailContent.tsx",
   "src/components/loft/types.ts",
   "src/components/player/MediaControls/index.ts",
   "src/components/player/MediaControls/types.ts",

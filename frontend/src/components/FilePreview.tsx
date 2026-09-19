@@ -98,6 +98,7 @@ export function FilePreview({
   );
 
   const kind = playerKind(file);
+  const posterUrl = file.has_thumbnail ? getThumbnailUrl(file.id) : undefined;
 
   if (kind === "loft") {
     return (
@@ -108,6 +109,7 @@ export function FilePreview({
             onMediaController={relayMc}
             initialTime={initialTime}
             durationHint={file.duration}
+            posterUrl={posterUrl}
             onEnded={onEnded}
             mediaSessionMetadata={{
               title: file.title || file.filename,
@@ -132,6 +134,7 @@ export function FilePreview({
             autoPlay={autoPlay}
             initialTime={initialTime}
             duration={file.duration}
+            posterUrl={posterUrl}
             title={file.title || file.filename}
             subtitleText={file.folder_path || file.drive}
             onMediaController={relayMc}

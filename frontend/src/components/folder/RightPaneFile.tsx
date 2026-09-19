@@ -10,10 +10,21 @@ import { ImageGallery } from "@/components/ImageGallery";
 import { useFileNav } from "@/hooks/useFileNav";
 import { FileNavProvider } from "@/lib/fileNavContext";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
-import { getFile } from "@/lib/api";
+import { getFileShared } from "@/lib/api";
+import { peekFileSeed } from "@/lib/fileSeed";
 import { resolveFileNavOrdering } from "@/lib/fileNavOrdering";
 import { normalizeSortParam } from "@/lib/sortField";
 import type { FileItem } from "@/types";
+
+type PaneState =
+  | { status: "loading" }
+  | { status: "loaded"; file: FileItem }
+  | { status: "error" };
+
+function initialState(id: string): PaneState {
+  const seed = peekFileSeed(id);
+  return seed ? { status: "loaded", file: seed } : { status: "loading" };
+}
 
 interface RightPaneFileProps {
   fileId: string;
@@ -30,14 +41,7 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   const { clearFile, selectFile } = useSelectedFile();
   const searchParams = useSearchParams();
 
-  // FileDetailContent does its own fetch internally. The double fetch is
-  // cheap and short-lived; sharing through context is overkill for
-  // a single host that only needs file_type / mime_type / filename.
-  const [state, setState] = useState<
-    | { status: "loading" }
-    | { status: "loaded"; file: FileItem }
-    | { status: "error" }
-  >({ status: "loading" });
+  const [state, setState] = useState<PaneState>(() => initialState(fileId));
   const [galleryOpen, setGalleryOpen] = useState(false);
   // Callback ref + state so FileDetailContent receives the actual DOM
   // element on first render (a useRef value would be null on the
@@ -49,8 +53,8 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
   useEffect(() => {
     let cancelled = false;
-    setState({ status: "loading" });
-    getFile(fileId)
+    setState(initialState(fileId));
+    getFileShared(fileId)
       .then((file) => {
         if (!cancelled) setState({ status: "loaded", file });
       })
@@ -85,16 +89,6 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   const sortQuery = normalizeSortParam(searchParams.get("sort"));
   const orderQuery = searchParams.get("order") ?? undefined;
 
-  if (state.status === "loading") {
-    return (
-      <PaneShell chrome={<FileDetailChrome drive={drive} title="" />}>
-        <div className="flex h-full items-center justify-center text-sm text-text-muted">
-          {t("loading")}
-        </div>
-      </PaneShell>
-    );
-  }
-
   if (state.status === "error") {
     return (
       <PaneShell chrome={<FileDetailChrome drive={drive} title="" />}>
@@ -110,8 +104,8 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
       <PaneShell
         // No chrome from this host, ever. `FileDetailShell` draws the
         // row, and handing PaneShell a second row would stack two
-        // identical bars. The loading and error states above still draw the
-        // row, because there is no shell mounted yet to draw it.
+        // identical bars. The error state above still draws the row,
+        // because there is no shell mounted to draw it.
         chrome={undefined}
         scrollRef={setScrollRootCb}
       >

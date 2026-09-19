@@ -23,6 +23,7 @@ import {
   slotMocks,
   usePolicyMock,
   withRelations,
+  shellLoaded,
 } from "./harness";
 
 vi.mock("next/navigation", () => ({
@@ -79,8 +80,10 @@ vi.mock("../../CastButton", async () => ({
 vi.mock("../../ChaptersPanel", async () => ({
   ChaptersPanel: (await import("./harness")).ChaptersPanelStub,
 }));
+const apiMocks = vi.hoisted(() => ({ getFile: vi.fn() }));
 vi.mock("@/lib/api", () => ({
-  getFile: vi.fn(),
+  getFile: apiMocks.getFile,
+  getFileShared: (id: string) => apiMocks.getFile(id),
   recordFileView: vi.fn(),
   likeFile: vi.fn(),
   dislikeFile: vi.fn(),
@@ -134,7 +137,7 @@ async function renderMediaAwaitingChrome(
 ) {
   setApiResponses(file);
   const utils = render(<FileDetailContent fileId="f1" drive="main" />);
-  await screen.findByTestId("file-detail-chrome");
+  await shellLoaded();
   return utils;
 }
 
@@ -1060,14 +1063,14 @@ describe("the sheet's half, derived from the player", () => {
     const { container, rerender } = render(
       <FileDetailContent fileId="f1" drive="main" />,
     );
-    await screen.findByTestId("file-detail-chrome");
+    await shellLoaded();
     const before = publishedSnap(await openSheet());
     const wrapper = container.querySelector(".media-detail-player")!;
 
     stubPlayerBox(PLAYER_BOTTOM * 1.5);
     setApiResponses(makeFile({ id: "f2", has_chapters: false }));
     rerender(<FileDetailContent fileId="f2" drive="main" />);
-    await screen.findByTestId("file-detail-chrome");
+    await shellLoaded();
 
     expect(container.querySelector(".media-detail-player")).not.toBe(wrapper);
     const after = publishedSnap(await openSheet());

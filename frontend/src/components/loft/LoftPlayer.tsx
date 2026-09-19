@@ -19,6 +19,7 @@ export interface LoftPlayerProps {
   durationHint?: number | null;
   onEnded?: () => void;
   mediaSessionMetadata?: MediaSessionMetadataInput;
+  posterUrl?: string;
 }
 
 export default function LoftPlayer({
@@ -28,6 +29,7 @@ export default function LoftPlayer({
   durationHint,
   onEnded,
   mediaSessionMetadata,
+  posterUrl,
 }: LoftPlayerProps) {
   const [content, setContent] = useState<LoftContent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,9 +51,11 @@ export default function LoftPlayer({
 
   if (!content) {
     return (
-      <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-      </div>
+      <div
+        data-testid="loft-loading"
+        className="aspect-video w-full rounded-xl bg-bg-card bg-cover bg-center"
+        style={posterUrl ? { backgroundImage: `url("${posterUrl}")` } : undefined}
+      />
     );
   }
 

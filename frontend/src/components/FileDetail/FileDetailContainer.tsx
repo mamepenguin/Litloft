@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
@@ -20,6 +21,7 @@ import { FileActionRow } from "./FileActionRow";
 import { FileMetaBlock } from "./FileMetaBlock";
 import { useCompanionMetrics } from "./hooks/useCompanionMetrics";
 import { useFileDetailData } from "./hooks/useFileDetailData";
+import { FileDetailSkeleton } from "./FileDetailSkeleton";
 import { useSlotAvailability } from "./hooks/useSlotAvailability";
 
 export interface FileDetailContentProps {
@@ -53,6 +55,7 @@ export function FileDetailContainer({
   autoPlay,
   surface = "canonical",
 }: FileDetailContentProps) {
+  const tPane = useTranslations("rightPane");
   const { getSlotEntries, hasSlot } = useAddonSlots();
   const slotAvailability = useSlotAvailability(fileId);
   const isMobile = useIsMobile();
@@ -91,15 +94,6 @@ export function FileDetailContainer({
 
   const metrics = useCompanionMetrics(file?.id, scrollRoot);
 
-  // The capture controller belongs to whatever viewer is mounted, and
-  // the viewer is replaced when the file changes. Dropping it here
-  // rather than waiting for the next viewer to publish one keeps a
-  // stale controller from being handed to the addon slots of the file
-  // that has just been opened.
-  useEffect(() => {
-    setDocumentCaptureController(null);
-  }, [fileId]);
-
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
       setMediaController(mc);
@@ -108,11 +102,23 @@ export function FileDetailContainer({
     [onMediaController],
   );
 
+  if (!file && data.failed) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8 text-sm text-text-muted">
+        {tPane("notFound")}
+      </div>
+    );
+  }
+
   if (!file) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-      </div>
+      <FileDetailSkeleton
+        drive={drive}
+        surface={surface}
+        onBack={onBack}
+        onScrollRootChange={setShellScrollRoot}
+        resetKey={fileId}
+      />
     );
   }
 
@@ -199,29 +205,33 @@ export function FileDetailContainer({
     onFileChange: setFile,
   };
 
+  // Until the file's own answer arrives, what is on screen may be a list's
+  // older copy, and every control in here writes a field of it back.
   const meta = (
-    <FileMetaBlock
-      file={file}
-      editing={data.editing}
-      editTitle={data.editTitle}
-      editDesc={data.editDesc}
-      saving={data.saving}
-      onEditTitleChange={data.setEditTitle}
-      onEditDescChange={data.setEditDesc}
-      onSave={data.save}
-      onCancelEdit={data.cancelEditing}
-      onStartEdit={data.startEditing}
-      onFileChange={setFile}
-      onRefetch={data.refetch}
-      onAfterDelete={onAfterDelete}
-      onRequestImageGallery={onRequestImageGallery}
-      isTimedMedia={isTimedMedia}
-      mediaController={mediaController}
-      videoRef={videoRef}
-      addonSlotProps={addonSlotProps}
-      tagChips={tagChipNode}
-      hoistDescription={descriptionInCanvas}
-    />
+    <div inert={!data.fresh} className="contents">
+      <FileMetaBlock
+        file={file}
+        editing={data.editing}
+        editTitle={data.editTitle}
+        editDesc={data.editDesc}
+        saving={data.saving}
+        onEditTitleChange={data.setEditTitle}
+        onEditDescChange={data.setEditDesc}
+        onSave={data.save}
+        onCancelEdit={data.cancelEditing}
+        onStartEdit={data.startEditing}
+        onFileChange={setFile}
+        onRefetch={data.refetch}
+        onAfterDelete={onAfterDelete}
+        onRequestImageGallery={onRequestImageGallery}
+        isTimedMedia={isTimedMedia}
+        mediaController={mediaController}
+        videoRef={videoRef}
+        addonSlotProps={addonSlotProps}
+        tagChips={tagChipNode}
+        hoistDescription={descriptionInCanvas}
+      />
+    </div>
   );
 
   // The 56px the Bottom Sheet rests at. Built here rather than in the
@@ -231,7 +241,7 @@ export function FileDetailContainer({
   const fileDisplayName = file.title || file.filename;
   const sheetPeek =
     ridesShell && isMobile ? (
-      <>
+      <div inert={!data.fresh} className="contents">
         {/* Not a heading. The name is announced by the sheet's own
             title when it is up, and a second heading for the same file
             at a shallower level than the inspector's `h1` inverted the
@@ -250,7 +260,7 @@ export function FileDetailContainer({
           addonSlotProps={addonSlotProps}
           compact
         />
-      </>
+      </div>
     ) : undefined;
 
   return (

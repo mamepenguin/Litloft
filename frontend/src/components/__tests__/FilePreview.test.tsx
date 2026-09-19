@@ -35,8 +35,10 @@ vi.mock("@/lib/api", () => ({
 }));
 
 vi.mock("../VideoPlayer", () => ({
-  VideoPlayer: ({ videoId }: { videoId: string }) => (
-    <div data-testid="video-player">{videoId}</div>
+  VideoPlayer: ({ videoId, posterUrl }: { videoId: string; posterUrl?: string }) => (
+    <div data-testid="video-player" data-poster={posterUrl ?? ""}>
+      {videoId}
+    </div>
   ),
 }));
 
@@ -88,8 +90,10 @@ vi.mock("../FileTypeIcon", () => ({
 }));
 
 vi.mock("../loft/LoftPlayer", () => ({
-  default: ({ fileId }: { fileId: string }) => (
-    <div data-testid="loft-player">{fileId}</div>
+  default: ({ fileId, posterUrl }: { fileId: string; posterUrl?: string }) => (
+    <div data-testid="loft-player" data-poster={posterUrl ?? ""}>
+      {fileId}
+    </div>
   ),
 }));
 
@@ -128,6 +132,25 @@ function makeFile(overrides: Partial<FileItem> = {}): FileItem {
 }
 
 describe("FilePreview", () => {
+  it.each([
+    ["video-player", {}],
+    [
+      "loft-player",
+      { mime_type: "application/vnd.litloft.loft+json", filename: "clip.loft" },
+    ],
+  ] as const)("gives %s the thumbnail as its poster when there is one", (testId, kind) => {
+    const { unmount } = render(
+      <FilePreview file={makeFile({ ...kind, has_thumbnail: true })} />,
+    );
+    expect(screen.getByTestId(testId)).toHaveAttribute(
+      "data-poster",
+      "/api/files/file-1/thumbnail",
+    );
+    unmount();
+    render(<FilePreview file={makeFile({ ...kind, has_thumbnail: false })} />);
+    expect(screen.getByTestId(testId)).toHaveAttribute("data-poster", "");
+  });
+
   it("renders VideoPlayer for video files", () => {
     render(<FilePreview file={makeFile()} />);
     expect(screen.getByTestId("video-player")).toBeInTheDocument();

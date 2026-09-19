@@ -3,14 +3,15 @@
  * so a helper that called it for you would run in the wrong file.
  */
 import { useEffect } from "react";
-import { vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { expect, vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
 
 import * as api from "@/lib/api";
 import type { FileRelationItem } from "@/lib/api";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import type { SlotEntry } from "@/lib/addons";
 import type { FileItem } from "@/types";
+import type { DocumentCaptureController } from "@/lib/documentCapture";
 import {
   PdfDocumentStore,
   type PdfController,
@@ -37,6 +38,10 @@ export const publishedPdfState: { value: Partial<PdfDocumentState> | null } = {
   value: null,
 };
 
+export const publishedCapture: { value: DocumentCaptureController | null } = {
+  value: null,
+};
+
 export const publishedArchiveState: {
   value: Partial<ArchiveState> | null;
 } = { value: null };
@@ -45,10 +50,17 @@ export const FilePreviewStub = vi.fn(
   ({
     onPdfController,
     onArchiveController,
+    onDocumentCaptureController,
   }: {
     onPdfController?: (c: PdfController | null) => void;
     onArchiveController?: (c: ArchiveController | null) => void;
+    onDocumentCaptureController?: (c: DocumentCaptureController | null) => void;
   }) => {
+    useEffect(() => {
+      if (!onDocumentCaptureController || !publishedCapture.value) return;
+      onDocumentCaptureController(publishedCapture.value);
+      return () => onDocumentCaptureController(null);
+    }, [onDocumentCaptureController]);
     useEffect(() => {
       if (!onPdfController || !publishedPdfState.value) return;
       const store = new PdfDocumentStore();
@@ -198,6 +210,7 @@ export function AddonSlotStub({
         typeof props?.fileId === "string" ? props.fileId : undefined
       }
       data-prop-drive={typeof props?.drive === "string" ? props.drive : undefined}
+      data-has-capture={props?.documentCaptureController ? "true" : "false"}
     />
   );
 }
@@ -302,6 +315,18 @@ export function makeFile(overrides: Partial<FileItem> = {}): FileItem {
  * having been called returns before the response lands.
  */
 export const loaded = () => screen.findByTestId("file-actions");
+
+/**
+ * For surfaces whose inspector starts closed, where `loaded()` never
+ * resolves. The page row alone is not enough: the loading skeleton draws
+ * one too.
+ */
+export async function shellLoaded() {
+  await waitFor(() =>
+    expect(screen.queryByTestId("file-detail-skeleton")).toBeNull(),
+  );
+  return screen.findByTestId("file-detail-chrome");
+}
 
 export function setApiResponses(file: FileItem) {
   (api.getFile as ReturnType<typeof vi.fn>).mockResolvedValue(file);
