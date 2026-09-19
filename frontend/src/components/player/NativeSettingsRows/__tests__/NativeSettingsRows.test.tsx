@@ -5,6 +5,7 @@ import {
   NativeAutoplayToggle,
   PictureInPictureToggle,
   SubtitleTrackPicker,
+  VideoSystemFullscreenButton,
 } from "../NativeSettingsRows";
 
 function videoWithTracks(
@@ -32,6 +33,55 @@ function videoWithTracks(
   });
   return { video, textTracks };
 }
+
+describe("the iOS player button for a video element", () => {
+  const button = () => screen.queryByRole("button", { name: "Open in the iOS player" });
+
+  function video({ webkit, element }: { webkit?: () => void; element?: boolean }): HTMLVideoElement {
+    const video = document.createElement("video");
+    if (webkit) Object.defineProperty(video, "webkitEnterFullscreen", { configurable: true, value: webkit });
+    Object.defineProperty(video, "requestFullscreen", {
+      configurable: true,
+      value: element ? vi.fn() : undefined,
+    });
+    return video;
+  }
+
+  it("hands the video to the system's player where there is no element fullscreen", () => {
+    const enter = vi.fn();
+    const element = video({ webkit: enter });
+    render(<VideoSystemFullscreenButton video={element} />);
+
+    fireEvent.click(button()!);
+
+    expect(enter).toHaveBeenCalledOnce();
+    expect(enter.mock.contexts[0]).toBe(element);
+  });
+
+  it("is not offered where the browser has element fullscreen", () => {
+    render(<VideoSystemFullscreenButton video={video({ webkit: vi.fn(), element: true })} />);
+    expect(button()).toBeNull();
+  });
+
+  it("is not offered by a browser without the video's own fullscreen", () => {
+    render(<VideoSystemFullscreenButton video={video({})} />);
+    expect(button()).toBeNull();
+  });
+
+  it("does nothing, rather than breaking, when the video refuses", () => {
+    render(
+      <VideoSystemFullscreenButton
+        video={video({
+          webkit: () => {
+            throw new DOMException("no metadata", "InvalidStateError");
+          },
+        })}
+      />,
+    );
+    expect(() => fireEvent.click(button()!)).not.toThrow();
+    expect(button()).not.toBeNull();
+  });
+});
 
 describe("native settings rows", () => {
   beforeEach(() => {

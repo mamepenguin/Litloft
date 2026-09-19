@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "commands": {
     "load": {
       "type": "media.load",
@@ -60,7 +60,8 @@
     },
     "surfaceGone": { "type": "media.surface", "loadId": "load-1", "geometry": null },
     "pip": { "type": "media.pip", "loadId": "load-1", "active": true },
-    "pageBackground": { "type": "page.background", "color": "#1a0e10" }
+    "pageBackground": { "type": "page.background", "color": "#1a0e10" },
+    "embedFullscreen": { "type": "embed.fullscreen", "videoId": "dQw4w9WgXcQ" }
   },
   "states": {
     "loading": {

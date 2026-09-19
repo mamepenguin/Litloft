@@ -5,4 +5,6 @@ export {
   PictureInPictureToggle,
   SubtitleTrackOptions,
   SubtitleTrackPicker,
+  SystemFullscreenButton,
+  VideoSystemFullscreenButton,
 } from "./NativeSettingsRows";

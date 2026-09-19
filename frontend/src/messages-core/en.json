@@ -383,6 +383,7 @@
     "autoplayOff": "Autoplay OFF",
     "autoplay": "Autoplay",
     "pictureInPicture": "Picture-in-Picture",
+    "systemFullscreen": "Open in the iOS player",
     "subtitleTrack": "Subtitle track",
     "subtitleTrackOff": "Off",
     "browserControls": "Browser controls",

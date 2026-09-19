@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, MonitorPlay, PictureInPicture2, Play } from "lucide-react";
+import { Check, Fullscreen, MonitorPlay, PictureInPicture2, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useAutoplayPreference } from "@/lib/autoplay";
@@ -91,6 +91,58 @@ export function NativePlayerUiToggle({
     >
       <MonitorPlay size={18} aria-hidden="true" />
     </SettingToggle>
+  );
+}
+
+/**
+ * Hands the video to the system's own fullscreen player. The system player
+ * owns the way back, so there is no state to show: this is a button, not a
+ * switch.
+ */
+export function SystemFullscreenButton({ onOpen }: { onOpen: () => void }) {
+  const t = useTranslations("player");
+  const label = t("systemFullscreen");
+
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onOpen}
+      className={[
+        "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl",
+        "text-white transition-colors motion-reduce:transition-none hover:bg-white/10",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring",
+      ].join(" ")}
+    >
+      <Fullscreen size={18} aria-hidden="true" />
+    </button>
+  );
+}
+
+interface WebKitFullscreenVideo extends HTMLVideoElement {
+  webkitEnterFullscreen?: () => void;
+}
+
+/**
+ * Where a browser has no element fullscreen — Safari on iPhone and the app
+ * added to the home screen — the video element's own fullscreen is the
+ * system's player.
+ */
+export function VideoSystemFullscreenButton({ video }: VideoRowProps) {
+  const enter = (video as WebKitFullscreenVideo | null)?.webkitEnterFullscreen;
+  if (!video || typeof enter !== "function" || typeof video.requestFullscreen === "function") return null;
+
+  return (
+    <SystemFullscreenButton
+      onOpen={() => {
+        try {
+          enter.call(video);
+        } catch {
+          // Refused until the video has its metadata; the button simply does nothing yet.
+        }
+      }}
+    />
   );
 }
 
@@ -205,6 +257,7 @@ export function NativeToggleButtons({
   return (
     <>
       <PictureInPictureToggle video={video} />
+      <VideoSystemFullscreenButton video={video} />
       <NativeAutoplayToggle />
       <NativePlayerUiToggle
         browser={browserControls}

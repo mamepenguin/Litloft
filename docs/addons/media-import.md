@@ -103,6 +103,8 @@ The file viewer routes `.loft` files through an *adaptive player* dispatcher:
 | SoundCloud (Phase 1) | Link card | A native player is on the roadmap. |
 | Other | Link card | Fallback when no provider integration exists. |
 
+In the [iOS app](../user-guide/ios-app.md), the YouTube player's settings sheet has **Open in the iOS player**, which shows the video in iOS's own full-screen player. Leaving the app from there moves it into the picture-in-picture window, where it keeps playing. The button is not shown in a browser, where the embed has no way into that player.
+
 Resume positions for `.loft` files are tracked in the same `WatchHistory` table as native files (the embedded player posts progress through a postMessage bridge).
 
 ## Loft Metadata file-detail section

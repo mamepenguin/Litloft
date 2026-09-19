@@ -95,6 +95,9 @@ own, exactly as in a browser.
 ## Limitations
 
 - **YouTube and other web videos** (`.loft` reference files) still play in the
-  page, so they stop when the app leaves the screen.
+  page, so they stop when the app leaves the screen. For a YouTube video, use
+  **Open in the iOS player** in the settings sheet: from iOS's full-screen
+  player, leaving the app moves the video into the picture-in-picture window
+  and it keeps playing. Subtitles and Litloft's controls are not shown there.
 - **Subtitles do not show in picture in picture.**
 - **A long press** on some text starts a text selection, as it does in Safari.

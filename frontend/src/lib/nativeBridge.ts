@@ -70,7 +70,9 @@ export type OutboundMessage =
   | { type: "ping"; seq: number }
   | MediaCommand
   /** The page's background colour, which the shell paints around the video. */
-  | { type: "page.background"; color: string };
+  | { type: "page.background"; color: string }
+  /** A YouTube embed's video, which only the shell can reach, into the system's fullscreen player. */
+  | { type: "embed.fullscreen"; videoId: string };
 
 export type MediaStatus = "loading" | "ready" | "failed";
 
@@ -141,6 +143,17 @@ export function shellVersion(): number {
 
 export function isNativeShell(): boolean {
   return handler() !== null && shellVersion() >= REQUIRED_SHELL_VERSION;
+}
+
+const SYSTEM_FULLSCREEN_SHELL_VERSION = 3;
+
+/** Whether the shell can open a video in the system's fullscreen player. */
+export function shellHasSystemFullscreen(): boolean {
+  return handler() !== null && shellVersion() >= SYSTEM_FULLSCREEN_SHELL_VERSION;
+}
+
+export function requestEmbedFullscreen(videoId: string): void {
+  postToShell({ type: "embed.fullscreen", videoId });
 }
 
 export function postToShell(message: OutboundMessage): void {
