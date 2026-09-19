@@ -128,12 +128,8 @@ def _sync_md_file_relations(
 def _is_markdown_file(file: File) -> bool:
     """Whether frontmatter should be parsed on content writes for ``file``.
 
-    Mirrors the frontend ``isMarkdown`` heuristic (frontend/src/lib/tags.ts):
-    trust ``text/markdown`` first, fall back to the ``.md`` extension
-    because some older rows still report ``text/plain`` for ``.md``.
-    Keeping the two sides aligned is a spec §D1 requirement — a file
-    that the UI treats as markdown must project frontmatter on the
-    backend, and vice versa.
+    Must agree with the frontend's ``isMarkdown``. The extension fallback
+    covers older rows that report ``text/plain`` for ``.md``.
     """
     if (file.mime_type or "") == "text/markdown":
         return True
@@ -144,10 +140,8 @@ def replace_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
     """Replace ``file.tags`` with the given names, reusing existing Tag rows.
 
     Shared by ``PUT /api/files/{id}/tags`` and the internal
-    ``POST /api/internal/files/{id}/tags`` (spec
-    ``2026-04-24-knowledge-tag-unification.md``). Case-insensitive dedup
-    via ``func.lower(Tag.name)``; the ``Tag`` namespace is per-drive
-    (``uq_tags_drive_name``).
+    ``POST /api/internal/files/{id}/tags``. Case-insensitive dedup; the
+    ``Tag`` namespace is per-drive.
 
     SECURITY: callers MUST verify drive access before invoking this
     helper. It performs no authorisation check — it trusts that
@@ -331,18 +325,13 @@ def _check_target_drive_access(
 ) -> None:
     """Gate the *destination* of a move/copy.
 
-    ``_get_file_or_404`` covers the file being moved, but ``target_drive``
-    comes straight from the request body and previously only reached
-    ``fileops.resolve_drive_path``, which checks that the drive exists and
-    nothing more. Without this, a caller holding one drive's password could
-    move or copy files into a drive they cannot see.
+    ``target_drive`` comes from the request body; without this a caller
+    holding one drive's password could move files into a drive they cannot
+    see.
 
-    Any falsy value means "same drive as the source", which the source-side
-    check has already covered. That includes the empty string: both
-    ``fileops.move_file`` and ``copy_file`` resolve the destination with
-    ``target_drive or src_drive``, and the schema sets no ``min_length``, so
-    ``""`` has always been an accepted way of saying "leave it where it is".
-    Testing ``is None`` here would turn that into a 404.
+    Any falsy value, including ``""``, means "same drive as the source"
+    (``fileops`` uses ``target_drive or src_drive``), so this does not test
+    ``is None``.
 
     Raises 404 (not 403) for both locked and unknown drives, so the response
     cannot be used to tell the two apart.
@@ -659,16 +648,9 @@ def get_file_neighbors(
 
     # ``position`` and ``total`` count the same rows the arrows can walk,
     # which is why the NULL filter is here and not only in the keyset
-    # comparisons below. A NULL sort key drops out of every ``<`` / ``>``
-    # on its own, so under ``sort=liked_at`` a folder of one liked file
-    # and one unliked one used to answer "1 of 2" beside a next button
-    # that had nowhere to go. Counting a population the reader cannot
-    # reach is worse than not counting: it says something is there.
-    #
-    # ``liked_at`` is the only nullable sort column today. The filter is
-    # written for all of them anyway rather than branching on the column
-    # name — a second nullable sort would otherwise reintroduce this
-    # silently.
+    # comparisons below: a NULL sort key drops out of every ``<`` / ``>``,
+    # so counting it would report rows the arrows cannot reach. Applied to
+    # every sort column, not just the nullable ``liked_at``.
     ranked = folder.filter(sort_col.is_not(None))
     total = ranked.count()
 
@@ -1457,8 +1439,6 @@ def _inject_md_id(
     ``None`` when no injection happened (malformed UTF-8/YAML, or the
     body already had a valid id — in which case ``new_md_id`` is still
     returned for projection so ``File.md_id`` stays in sync).
-
-    Spec: docs/superpowers/specs/2026-05-12-markdown-link-three-forms.md §3.1.
     """
     try:
         body_str = body.decode("utf-8")
@@ -1478,7 +1458,7 @@ def _inject_md_id(
     came_from_fm = isinstance(fm_id_raw, (str, int)) and str(fm_id_raw) == new_id
     came_from_db = (not came_from_fm) and file.md_id == new_id
     if not came_from_fm and not came_from_db:
-        # Same-second collision insurance (spec §3.1): when the freshly
+        # Same-second collision insurance: when the freshly
         # generated 14-digit id already exists as another file's md_id
         # in the same drive, append the millisecond component to extend
         # to 17 digits. 14-digit ids remain the common case.
@@ -1563,8 +1543,8 @@ async def put_file_content(
         if _strip_etag_quotes(if_match) != current_etag:
             raise HTTPException(status_code=412, detail="ETag mismatch")
 
-        # Spec 2026-05-12-markdown-link-three-forms §3.1: inject frontmatter
-        # ``id:`` for .md writes so wiki-link resolution has a stable handle.
+        # Inject frontmatter ``id:`` for .md writes so wiki-link resolution
+        # has a stable handle.
         # Skipped silently on UnicodeDecodeError / malformed YAML — id is
         # never blocked on the write path.
         injected_md_id: str | None = None
@@ -1595,7 +1575,7 @@ async def put_file_content(
         except ContentConflictError:
             raise HTTPException(status_code=412, detail="ETag mismatch")
 
-        # β canonical rule (spec 2026-04-24, Phase 11): for .md files,
+        # For .md files,
         # the frontmatter's ``tags:`` is the source of truth for
         # ``File.tags``. Project synchronously so UI edits see the
         # effect without waiting for the knowledge scanner's hourly
@@ -1634,7 +1614,7 @@ async def put_file_content(
                     "put_content: tag projection failed for %s", file_id
                 )
 
-            # Phase B (spec 2026-05-12 §3.6): project frontmatter
+            # Project frontmatter
             # ``aliases:`` to ``File.md_aliases`` so the wiki-link
             # resolver can match alias-form targets. Isolated like the
             # tag projection — a parse / write failure must not roll
@@ -1834,8 +1814,7 @@ def get_wiki_resolutions(
 ):
     """Return the resolver verdict for every ``[[X]]`` in a ``.md`` body.
 
-    Spec ``2026-05-12-markdown-link-three-forms.md`` §3.8. Lets the
-    renderer pick per-link styling (resolved / unresolved / ambiguous)
+    Lets the renderer pick per-link styling (resolved / unresolved / ambiguous)
     without re-parsing the body in the browser.
 
     Response shape::
@@ -1953,8 +1932,8 @@ def list_file_relations(
     The source file must be accessible to the caller (drive unlock).
     Results exclude related files that have been trashed; missing files
     are included so the UI can grey them out without dropping history.
-    Related files live on the same drive as the source (spec R4), so
-    access already covers both sides.
+    Related files live on the same drive as the source, so access already
+    covers both sides.
     """
     source = _get_file_or_404(db, file_id, unlocked_groups)
 

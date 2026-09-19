@@ -2,19 +2,11 @@
 
 import { useLayoutEffect, useState, type RefObject } from "react";
 
-/**
- * Physical, not logical. The tree has no RTL form, and the classes these
- * map to are physical too.
- */
 export type AnchoredSide = "left" | "right";
 
 /**
  * Spelled out rather than built: a class assembled at runtime is not in
  * the text Tailwind scans, so the rule is never emitted.
- *
- * `sm:`-scoped spellings are **not** here. Merging them in would put a
- * caller one character away from giving an always-anchored panel no
- * vertical placement at all below the breakpoint.
  */
 export const ANCHORED_VERTICAL = {
   1: { px: 4, down: "top-full mt-1", up: "bottom-full mb-1" },
@@ -38,11 +30,6 @@ export interface AnchoredDirectionOptions {
   triggerRef: RefObject<HTMLElement | null>;
   panelRef: RefObject<HTMLElement | null>;
   open: boolean;
-  /**
-   * The gap is part of the room the panel needs: without it a panel whose
-   * height lands in the last few pixels of the space below is kept
-   * downward and its final pixels sit past the edge.
-   */
   gapPx: number;
   preferSide?: AnchoredSide;
 }
@@ -60,31 +47,16 @@ interface Frame {
 }
 
 /**
- * Not the same as the first ancestor with an `overflow` value. An overflow
- * box clips a positioned descendant only while it is still in that
- * descendant's containing-block chain, and the chain leaves the DOM
- * parentage twice:
- *
- *   - at a `fixed` ancestor. It is laid out against the viewport, so
- *     nothing above it clips the subtree.
- *   - at an `absolute` ancestor, and then only as far as *its* own
- *     containing block: the nearest positioned ancestor. Static boxes in
- *     between are not in the chain and do not clip.
- *
- * Not implemented: an ancestor with `transform` / `filter` / `contain`,
- * which becomes the containing block of even a `fixed` descendant. vaul's
- * drawer is one; what saves a panel inside it is that the sheet's own
- * scroller is found first.
+ * Follows the containing-block chain, not the DOM parentage: nothing above
+ * a `fixed` ancestor clips, and static boxes between an `absolute` ancestor
+ * and its containing block do not clip either. `transform` / `filter` /
+ * `contain` ancestors are not handled.
  */
 function clippingFrame(wrapper: HTMLElement): Frame | null {
-  // Set while the walk is between an `absolute` ancestor and that
-  // ancestor's containing block, where only a positioned box counts.
   let inAbsoluteDetour = false;
   for (let el = wrapper.parentElement; el; el = el.parentElement) {
     const { overflowX, overflowY, position } = getComputedStyle(el);
-    // Positive test rather than `!== "static"`: an unset `position` reads
-    // as `""` outside a browser, and the whole point of the flag is that a
-    // *static* box inside the detour cannot clip.
+    // Not `!== "static"`: an unset `position` reads as `""` outside a browser.
     const positioned =
       position === "relative" ||
       position === "absolute" ||
@@ -103,20 +75,14 @@ function clippingFrame(wrapper: HTMLElement): Frame | null {
       };
     }
     if (position === "fixed") return null;
-    // Only a positioned box moves the flag: it is the one that ends a
-    // detour, or starts one. A static ancestor leaves it alone, which is
-    // what keeps the detour running across the statics inside it.
     if (positioned) inAbsoluteDetour = position === "absolute";
   }
   return null;
 }
 
 /**
- * `window.innerHeight` is the layout viewport, which an on-screen keyboard
- * does not move; `visualViewport` is what is left visible. Its offsets are
- * expressed against the layout viewport's origin — the same origin a client
- * rect is — so the visible band is `[offsetTop, offsetTop + height]` and
- * not `[0, height]`.
+ * `visualViewport`, not `innerHeight`, so an on-screen keyboard counts. Its
+ * band is `[offsetTop, offsetTop + height]`, not `[0, height]`.
  */
 function viewportFrame(): Frame {
   const vv = typeof window === "undefined" ? undefined : window.visualViewport;
@@ -137,17 +103,9 @@ function viewportFrame(): Frame {
 }
 
 /**
- * The decision is made from the **rendered box**, not from a breakpoint and
- * not from a row count: a menu's height is its content's to change. It is
- * re-derived while the panel is open, because the things it reads move.
- *
- * A panel that is not anchored has no direction to pick. The test for that
- * is the panel's own computed `position`; asking a media query which form
- * is on screen would be a guess at the same fact.
- *
- * Neither answer is cleared when the panel closes: `FileActions` raises an
- * error toast off the same trigger *after* its menu has gone, and a reset
- * would put the message in the corner the menu was not allowed to use.
+ * Decided from the rendered box and re-derived while open. Not reset on
+ * close: an error toast raised off the same trigger after the menu has
+ * gone reuses the direction.
  */
 export function useAnchoredDirection({
   triggerRef,
@@ -171,10 +129,6 @@ export function useAnchoredDirection({
 
       const triggerRect = wrapper.getBoundingClientRect();
       const panelRect = panel.getBoundingClientRect();
-      // The room a panel has is what is *both* unclipped and on screen, so
-      // the two frames are intersected rather than chosen between: an
-      // on-screen keyboard shrinks what is visible without moving any
-      // element's box.
       const clip = clippingFrame(wrapper);
       const visible = viewportFrame();
       const frame = clip
@@ -186,23 +140,14 @@ export function useAnchoredDirection({
           }
         : visible;
 
-      // `triggerRect` is the wrapper's, which the panel — being absolute,
-      // out of flow — does not move, and the panel's size is the same
-      // whichever corner it is drawn in. So neither reading depends on the
-      // answer it feeds.
-      //
-      // Each axis flips only when the other side is the better of the
-      // two, so a trigger with room for neither keeps the direction the
-      // panel reads as everywhere else.
+      // Each axis flips only when the other side is better, so a trigger
+      // with room for neither keeps the default direction.
       const spaceBelow = frame.bottom - triggerRect.bottom;
       const spaceAbove = triggerRect.top - frame.top;
       setOpenUp(
         panelRect.height + gapPx > spaceBelow && spaceAbove > spaceBelow,
       );
 
-      // The panel's own rendered width rather than a constant stating it,
-      // so there is no second number to disagree with the `w-*` /
-      // `min-w-*` it is actually drawn at.
       const roomFromRight = triggerRect.right - frame.left;
       const roomFromLeft = frame.right - triggerRect.left;
       const [preferred, other] =
@@ -217,12 +162,8 @@ export function useAnchoredDirection({
 
     measure();
 
-    // The panel's own size changes when an `AddonSlot` resolves a dynamic
-    // `import()` after the first paint. The visible band changes when an
-    // on-screen keyboard comes or goes, and panning a zoomed page moves it
-    // without resizing it, so `scroll` is a second subscription rather
-    // than a duplicate. `window`'s own `resize` is the fallback for where
-    // `visualViewport` does not exist rather than a third subscription.
+    // The panel resizes when an addon row loads late; `visualViewport`
+    // `scroll` catches panning a zoomed page, which does not resize it.
     const panel = panelRef.current;
     const observer =
       panel && typeof ResizeObserver !== "undefined"

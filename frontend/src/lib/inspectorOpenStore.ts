@@ -13,15 +13,8 @@ export function inspectorOpenStorageKey(drive: string): string {
   return `${STORAGE_PREFIX}${drive}`;
 }
 /**
- * Deliberately not the 960px (`60rem`) in `globals.css`: 960 asks whether
- * a rail *can* sit beside the player, against the host's measured width;
- * this asks whether the inspector *should* start open, against the
- * viewport.
- *
- * **Do not raise it.** A media file's transcript and chapters are
- * inspector tabs by default, so every pixel this sits above 1120 is a
- * band where a video opens with both of them mounted behind a closed
- * pane.
+ * Not the 960px in `globals.css`, which is about the host's width, not the
+ * viewport. Do not raise it: above it, transcript and chapters start hidden.
  */
 const VIEWPORT_OPEN_THRESHOLD = 1120;
 

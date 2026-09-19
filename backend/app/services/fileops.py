@@ -162,34 +162,17 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> str | Non
     """Free the UNIQUE ``file_path`` slot at ``new_rel`` *within* ``drive``
     before a create / move / rename / upload writes that path.
 
-    ``file_path`` carries a per-drive UNIQUE constraint
-    (``UniqueConstraint("drive", "file_path")``), so a stale DB record in
-    the *same drive* holding ``new_rel`` causes an IntegrityError at
-    flush/commit time — *after* the filesystem operation has already
-    happened — leaving FS and DB inconsistent (the "file disappears"
-    symptom). A record at the same relative path in a *different* drive is
-    irrelevant and must be left untouched (a drive is a security boundary;
-    two drives legitimately each hold e.g. a root ``README.md``).
-
-    Callers MUST have already verified the physical destination does not
-    exist on disk, so any record found here truly has no live FS copy.
+    Otherwise a stale row would raise IntegrityError *after* the filesystem
+    operation, leaving FS and DB inconsistent. Callers MUST have verified the
+    destination does not exist on disk.
 
     Per record state:
-      • Active (no deleted_at / no missing_since)
-            → 409. A live record claims the path; refuse so the user can
-              rescan (→ Missing) then purge it deliberately.
-      • Trashed (deleted_at set), FS copy gone
-            → purge the ghost. The user already expressed delete intent and
-              nothing physical remains; keeping a fake-path record would only
-              create an invisible, unpurgeable entry.
-      • Missing (missing_since set)
-            → retire the ghost's file_path to a placeholder. The record is
-              preserved (watch-history / tags / comments survive) and stays
-              visible in the Missing view for the user to purge later. Its id
-              is returned: it still names the thumbnail cache slot derived from
-              the freed path, and the caller that goes on to *write* that slot
-              has to take the name away — but only once it has written it. The
-              purge reaches a JPEG through that pointer and nothing else does.
+      • Active → 409; the user must rescan and purge it deliberately.
+      • Trashed → purge the ghost.
+      • Missing → retire its file_path to a placeholder, keeping the row
+        (watch history, tags, comments). Its id is returned because it still
+        names the thumbnail cache slot of the freed path; the caller clears
+        that pointer only after writing the slot.
     """
     conflict = (
         db.query(File)
@@ -315,10 +298,8 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
         raise HTTPException(status_code=409, detail="Target file already exists")
     # Everything from the exclusive create to the commit owns the file that
     # create just made: whatever fails in between, the destination goes back
-    # to not existing. This used to be three handlers covering parts of the
-    # span, and the gap between them left a *complete* copy behind with no
-    # row pointing at it — which the next file in the batch was then
-    # suffixed around, and the next scan indexed as a second real file.
+    # to not existing. A copy left behind with no row would be indexed as a
+    # second real file by the next scan.
     try:
         shutil.copy2(str(old_full), str(new_full))
 

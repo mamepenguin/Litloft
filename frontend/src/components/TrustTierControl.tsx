@@ -8,14 +8,9 @@ import { setFileTrustTier } from "@/lib/api";
 import type { FileItem, TrustTier } from "@/types";
 
 /**
- * `trust_tier` and `trust_reviewed_at` encode four states, and the control
- * differs across them: an unreviewed file is being asked a question, whereas
- * a decided one is offering a reversal. `verified` with no stamp is the
- * bulk-migrated backlog — it grounds Ask today, so it reads as trusted, but
- * it has never actually been judged.
- *
- * Withdrawing trust destroys nothing (the file stays, and anything distilled
- * from it keeps its own standing), so there is no confirmation step.
+ * `verified` with no `trust_reviewed_at` is the bulk-migrated backlog: it
+ * grounds Ask, so it reads as trusted, but nobody has judged it. No
+ * confirmation step, because withdrawing trust destroys nothing.
  */
 export function TrustTierControl({
   file,
@@ -43,17 +38,8 @@ export function TrustTierControl({
   const target: TrustTier = verified ? "unverified" : "verified";
   const action = verified ? t("withdraw") : t("trust");
 
-  // Both states carry their label: this control renders once, on the file
-  // detail page, so the "label repeated across a library is noise" argument
-  // for list rows does not apply.
-  //
-  // The badge deliberately reports the tier alone. Whether anyone has *ruled*
-  // on the file is a different question; putting it here made every
-  // untouched file look like a warning.
-  //
-  // One button rather than a chip beside an action button: state and action
-  // are the same axis, so the click does the opposite of what is shown. The
-  // action is the accessible name so it is never guesswork.
+  // One button: it shows the state and clicking does the opposite, so the
+  // action is its accessible name.
   return (
     <button
       onClick={() => apply(target)}

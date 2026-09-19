@@ -42,43 +42,16 @@ def _run_purge_batch(
 ) -> tuple[list[str], set[tuple[str, str]], set[str]]:
     """Synchronous purge work — runs in a thread via asyncio.to_thread.
 
-    Also returns the drives touched, because the caller emits the purge
-    notification after this returns, when the ids no longer resolve to
-    anything.
+    Load-bearing:
 
-    Each of the following is load-bearing, with the failure it prevents:
-
-    ``skipped`` is what makes the loop terminate. The batch query is re-run
-    from the top rather than paged, so a row that raises and is only logged
-    comes back in the next batch unchanged; with nothing committed, the same
-    rows are re-read forever. **Every** failure arm has to add to it — an arm
-    that reasons its way out ("this row must be gone, so the query will not
-    return it") makes termination depend on why the row failed, which is the
-    one thing the loop cannot know.
-
-    **A row is committed, or rolled back, on its own.** ``physical_delete``
-    deletes and flushes the row before its last step, so a failure in that
-    tail leaves a pending DELETE in the session. Under a shared batch commit
-    that DELETE rides out on the next row's success — destroying the file and
-    the row while this function reports the id as unpurgeable and no
-    ``files.purged`` ever names it. Committing per row also puts the id in
-    ``all_purged_ids`` only once its delete is durable, so a commit that
-    raises cannot announce a purge that was rolled back.
-
-    ``_PURGE_BATCH_SIZE`` is therefore the size of a query page, not of a
-    transaction. A savepoint per row would be the other way to isolate a
-    failure, and it is not free here: as the engine is configured, pysqlite
-    emits no ``BEGIN`` of its own, so SQLite commits on ``RELEASE`` of the
-    outermost savepoint and the isolation would be imaginary. Making it real
-    means changing how every session in the application begins a
-    transaction — a wider blast radius than this function is worth.
-
-    The bookkeeping columns are read before the first commit, for the reason
-    in the comment at the loop.
-
-    The unlink is outside all of this and does not need to be inside it: a
-    tail failure leaves the bytes gone and the row back, and the retry finds
-    the file already absent, skips it, and completes.
+    - **Every** failure arm adds to ``skipped``. The batch query is re-run
+      from the top, so an unskipped failing row is re-read forever.
+    - Each row is committed or rolled back on its own. ``physical_delete``
+      flushes its DELETE before its last step, so under a shared commit a
+      failed row's DELETE would ride out on the next row's success.
+      ``_PURGE_BATCH_SIZE`` is a query page size, not a transaction size.
+    - Not a savepoint per row: pysqlite emits no ``BEGIN``, so SQLite
+      commits on ``RELEASE`` and the isolation would be imaginary.
     """
     all_purged_ids: list[str] = []
     folders_to_check: set[tuple[str, str]] = set()
@@ -257,24 +230,7 @@ def _load_addons(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Drive bootstrap: pre-seed count -> setup-sentinel migration -> seed.
-    #
-    # The mere *existence* of drives.json no longer distinguishes a fresh
-    # install from an upgrade: the shrunk configure.py writes an empty
-    # ``[]`` for brand-new users too (a footgun guard for the single-file
-    # bind-mount — an absent host file would otherwise make Docker mount a
-    # directory at /app/drives.json). The discriminator is the **pre-seed
-    # non-empty** state: only a non-empty drives.json means a pre-existing
-    # user who configured logical settings via the old configure.py and
-    # must keep skipping /setup. An empty ``[]`` is a new user — the
-    # sentinel must NOT be touched so /setup runs, and the seed then
-    # populates drives.json from the Docker mount directories.
-    #
-    # Ordering is load-bearing (spec 2026-05-19 §3.1, H5 grounding fix):
-    # the pre-seed count is read once, the migration inspects that
-    # pre-seed count and runs *before* the seed, and everything here
-    # happens before scan_all_drives() so the freshly seeded drives are
-    # picked up and the persistent _drives_cache is invalidated in time.
+    # Must run before scan_all_drives() so freshly seeded drives are scanned.
     drive_seed.run_startup_drive_bootstrap()
 
     # The restart-pending flag is set by admin_config writes. Once we've
@@ -297,8 +253,7 @@ async def lifespan(app: FastAPI):
         # Surface the unset secret at startup so the ops-time implication
         # is visible without grep. Docker network isolation is still the
         # primary defence, but any container on the network can hit write
-        # endpoints like POST /api/internal/files/{id}/tags unauthenticated
-        # (spec 2026-04-24-knowledge-tag-unification.md).
+        # endpoints like POST /api/internal/files/{id}/tags unauthenticated.
         logger.warning(
             "CORE_INTERNAL_SECRET is unset — internal write endpoints "
             "(e.g. POST /api/internal/files/{id}/tags) are reachable from "

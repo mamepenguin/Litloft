@@ -1,10 +1,8 @@
 "use client";
 
 /**
- * The hook holds every piece of state in a ref and never calls setState.
- * Its host is a video player: routing bookkeeping through React state
- * would re-render the whole player four times a second to maintain a
- * number nobody displays.
+ * State lives in refs, never setState: the host is a video player that
+ * would otherwise re-render on every clock tick.
  */
 
 import { useCallback, useEffect, useRef } from "react";
@@ -15,44 +13,21 @@ import { getSavedProgress, saveProgress } from "./recentlyPlayed";
 import { useProfile } from "@/components/ProfileProvider";
 
 const SAVE_INTERVAL = 5;
-/**
- * Dead zone at both ends of the timeline. Below it there is nothing
- * worth restoring; above it the viewer already finished and would be
- * dropped straight back at the end.
- */
+/** Dead zone at both ends of the timeline where resume is skipped. */
 const RESUME_THRESHOLD = 5;
-/**
- * Minimum drift before the teardown write is worth making. Without it,
- * leaving right after a periodic save repeats it.
- */
 const TEARDOWN_MIN_DELTA = 1;
 
 export interface UsePlaybackProgressOptions {
   mc: MediaController | null;
   fileId: string;
-  /**
-   * An explicitly requested start position — the intelligence addon's
-   * timestamped citations (`?t=`). Outranks stored progress: the viewer
-   * asked for this moment, so silently snapping back to where they last
-   * left off would be a bug.
-   */
+  /** An explicitly requested start position (`?t=`). Outranks stored progress. */
   initialTime?: number | null;
 }
 
 export interface UsePlaybackProgressResult {
-  /**
-   * Completion is an event, not a clock reading. Inferring it from
-   * "position reached duration and playback stopped" is exactly the
-   * fabricated completed state the playback contract refuses, so the
-   * players keep detecting the end and this hook decides what to write.
-   */
+  /** Completion is an event from the player, never inferred from the clock. */
   notifyEnded: () => void;
-  /**
-   * A player that wants to start playing itself should await this
-   * first. Otherwise autoplay begins at zero and the restored position
-   * lands a moment later, which the viewer sees and hears as the video
-   * starting over before jumping.
-   */
+  /** Await before autoplay, or playback starts at zero and then jumps. */
   notifyReady: () => Promise<void>;
 }
 
@@ -70,14 +45,8 @@ export function usePlaybackProgress({
 
   const lastSavedRef = useRef(0);
   const resumedRef = useRef(false);
-  /**
-   * True while the stored position is being read.
-   *
-   * Periodic saving has to stand still until that settles. The read is a
-   * network round-trip, and if playback crosses SAVE_INTERVAL before it
-   * lands, the periodic save writes the position the viewer resumed
-   * *from* — clobbering the very marker being restored.
-   */
+  // Blocks periodic saving while the stored position is being read, or
+  // a save could clobber the marker being restored.
   const resumePendingRef = useRef(false);
   const resumeNowRef = useRef<(() => Promise<void>) | null>(null);
 
@@ -166,11 +135,8 @@ export function usePlaybackProgress({
         lastSavedRef.current = requested;
         return Promise.resolve();
       }
-      // Restoring stored progress does need one — the upper bound of the
-      // resume window is measured from the end. Media that never reports
-      // a usable duration, a live stream, therefore never resumes, which
-      // is correct: there is no position to be at. Reporting "settled"
-      // anyway is what lets such a player get on with playing.
+      // Stored progress needs a length (the window is measured from the
+      // end), so a live stream never resumes.
       if (!usable(duration)) return Promise.resolve();
       resumedRef.current = true;
       return restoreStored(duration);
@@ -212,15 +178,9 @@ export function usePlaybackProgress({
       cancelled = true;
       resumeNowRef.current = null;
       unsubscribe();
-      // Leaving between periodic saves would otherwise discard up to
-      // SAVE_INTERVAL seconds. Read the controller directly rather than
-      // the clock: its last tick can be up to a second old on a paused
-      // player, and this is the reading that has to be right.
+      // Read the controller, not the clock: its last tick can be stale.
       try {
         if (mc.isInterrupted?.()) return;
-        // Leaving before the restore landed: writing here would replace
-        // the stored position with the one playback happened to be at
-        // while waiting for it.
         if (resumePendingRef.current) return;
         const currentTime = mc.getCurrentTime();
         const duration = mc.getDuration();

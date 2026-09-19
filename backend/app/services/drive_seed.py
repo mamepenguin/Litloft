@@ -114,21 +114,14 @@ def run_startup_drive_bootstrap() -> None:
 def _migrate_setup_sentinel(pre_seed_count: int) -> None:
     """Touch the setup-completed sentinel for pre-existing users only.
 
-    drives.json existing on disk no longer distinguishes a fresh install
-    from an upgrade: the shrunk configure.py writes an empty ``[]`` for
-    brand-new users too. The discriminator is therefore whether the
-    **pre-seed** drives.json was *non-empty* — only then is this a user who
-    already configured logical settings via the old configure.py and must
-    keep skipping /setup. An empty ``[]`` (new user) must NOT touch the
-    sentinel, so the seed can populate drives.json and /setup still runs.
+    configure.py writes ``[]`` for new installs too, so the file existing
+    proves nothing; a **non-empty** pre-seed drives.json is what marks a user
+    who configured drives by hand and must skip /setup.
     """
     if pre_seed_count < 1:
         return
-    # A non-empty drives.json produced by our own startup seed is NOT a
-    # legacy hand-config: if the marker is present, leave the sentinel absent
-    # so a new user who restarts before completing /setup still reaches the
-    # wizard. Genuine pre-GUI users predate the seed regime and
-    # have no marker, so they keep skipping /setup as before.
+    # Our own seed also leaves drives.json non-empty; the marker keeps a new
+    # user who restarts before finishing /setup on the wizard.
     if config._auto_seeded_marker().exists():
         logger.info(
             "Skipping setup-sentinel migration: drives.json is auto-seeded"

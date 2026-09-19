@@ -153,9 +153,8 @@ export function ClipboardProvider({ children }: { children: ReactNode }) {
         setClipboard(null);
         removeFromStorage();
       }
-      // The clipboard used to be the only trace that some of them did not
-      // arrive. Clearing it takes that away, so what it was standing in
-      // for has to be said.
+      // The clipboard is cleared on partial success, so the failures must
+      // be reported here.
       if (result.failed > 0) {
         toast.error(t("pasteFailed", { count: result.failed }));
       }

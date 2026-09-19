@@ -33,28 +33,12 @@ def normalise_chapters(
     title under ``tags``, yt-dlp puts it at the top level — so extraction
     stays with each producer. What must not differ is what happens next:
 
-    * an entry with no usable title is dropped. An untitled marker is not
-      something a person can navigate by, and rendering a blank row is
-      worse than rendering nothing;
-    * times are coerced, and an entry whose start will not coerce — or
-      coerces to something that is not a finite number — is dropped
-      rather than guessed at. ``float()`` accepts ``"nan"`` and
-      ``"inf"``, and this is an external-input boundary: the addon hands
-      yt-dlp's values straight to it. Neither survives the round trip.
-      SQLite stores NaN as NULL, so a NaN start violates the column's
-      NOT NULL and takes the whole ingest transaction down with it;
-      Infinity stores fine and then breaks JSON encoding on read, which
-      is worse — the chapter endpoint 500s for that file until someone
-      deletes the row. An unusable end is nulled rather than costing the
-      row, matching how a missing end is already treated;
-    * ``ordering`` is assigned **after** filtering, so it stays
-      contiguous. Sorting only cares about relative values, but a caller
-      that reads it as "chapter N of M" would be wrong about a set with
-      holes in it.
-
-    Kept here rather than beside either prober because a second
-    implementation of these three rules is how the two producers would
-    start disagreeing about the same file.
+    * an entry with no usable title is dropped;
+    * an entry whose start is not a finite number is dropped, and an
+      unusable end is nulled. ``float()`` accepts ``"nan"`` / ``"inf"``:
+      NaN breaks the NOT NULL column on insert, and Infinity breaks JSON
+      encoding on every later read;
+    * ``ordering`` is assigned **after** filtering, so it stays contiguous.
     """
     rows: list[ChapterRow] = []
     for entry in raw or ():
