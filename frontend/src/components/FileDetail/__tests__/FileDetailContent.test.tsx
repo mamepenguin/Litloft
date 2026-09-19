@@ -155,6 +155,63 @@ describe("FileDetailContent", () => {
     _resetFileSeedForTests();
   });
 
+  it("keeps the phone's sheet controls inert while the file is a list's copy", async () => {
+    const { seedFiles, _resetFileSeedForTests } = await import("@/lib/fileSeed");
+    setViewport(400);
+    seedFiles([makeFile()]);
+    let answer: (f: unknown) => void = () => {};
+    (api.getFile as ReturnType<typeof vi.fn>).mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    (api.recordFileView as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    render(<FileDetailContent fileId="f1" drive="main" />);
+
+    const favourites = screen.getAllByTestId("favorite");
+    expect(favourites).toHaveLength(1);
+    for (const button of favourites) {
+      expect(button.closest("[inert]")).not.toBeNull();
+    }
+    await act(async () => {
+      answer(makeFile());
+    });
+    for (const button of screen.getAllByTestId("favorite")) {
+      expect(button.closest("[inert]")).toBeNull();
+    }
+    _resetFileSeedForTests();
+  });
+
+  it("says the file is not there when it cannot be read, list copy or not", async () => {
+    const { seedFiles, _resetFileSeedForTests } = await import("@/lib/fileSeed");
+    seedFiles([makeFile({ title: "Trashed clip" })]);
+    (api.getFile as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("API error: 404"),
+    );
+    (api.recordFileView as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    render(<FileDetailContent fileId="f1" drive="main" surface="collection" />);
+
+    expect(await screen.findByText("File not found")).toBeInTheDocument();
+    expect(screen.queryByText("Trashed clip")).toBeNull();
+    expect(screen.queryByTestId("file-preview")).toBeNull();
+    _resetFileSeedForTests();
+  });
+
+  it("builds the view afresh for each file, list copy or not", async () => {
+    const { seedFiles, _resetFileSeedForTests } = await import("@/lib/fileSeed");
+    setApiResponses(makeFile());
+    const { rerender } = render(<FileDetailContent fileId="f1" drive="main" />);
+    await loaded();
+    const first = screen.getByTestId("file-preview");
+
+    seedFiles([makeFile({ id: "f2", title: "Sample 2" })]);
+    (api.getFile as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+    rerender(<FileDetailContent fileId="f2" drive="main" />);
+
+    expect(screen.getByTestId("file-preview")).not.toBe(first);
+    _resetFileSeedForTests();
+  });
+
   it("never calls useOverlaySidebar (host responsibility)", async () => {
     setApiResponses(makeFile());
     render(<FileDetailContent fileId="f1" drive="main" />);

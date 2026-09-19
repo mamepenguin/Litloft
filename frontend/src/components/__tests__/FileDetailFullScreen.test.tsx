@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 
+import { _resetFileSeedForTests, seedFiles } from "@/lib/fileSeed";
+
+// `mockGetFile` answers the shared request, which is the only one a host
+// may make; `mockGetFileDirect` is there to show it made no other.
 const mockGetFile = vi.fn();
+const mockGetFileDirect = vi.fn();
 vi.mock("@/lib/api", () => ({
-  getFile: (...args: unknown[]) => mockGetFile(...args),
+  getFile: (...args: unknown[]) => mockGetFileDirect(...args),
   getFileShared: (...args: unknown[]) => mockGetFile(...args),
   getFileNeighbors: vi.fn().mockResolvedValue({
     prev_id: null,
@@ -103,14 +108,17 @@ const baseFile = {
   subtitles: [],
   deleted_at: null,
   missing_since: null,
-  trust_tier: "verified",
+  trust_tier: "verified" as const,
   trust_reviewed_at: null,
   created_at: "2026-05-01T00:00:00Z",
   updated_at: "2026-05-01T00:00:00Z",
+  image_width: null,
+  image_height: null,
 };
 
 beforeEach(() => {
   mockGetFile.mockReset();
+  mockGetFileDirect.mockReset();
   mockReplace.mockReset();
   mockPush.mockReset();
   mockBack.mockReset();
@@ -308,5 +316,61 @@ describe("FileDetailFullScreen", () => {
       const props = fileDetailContentProps[fileDetailContentProps.length - 1];
       expect(typeof props.onBack).toBe("function");
     });
+  });
+});
+
+describe("FileDetailFullScreen, the file it draws", () => {
+  afterEach(() => {
+    _resetFileSeedForTests();
+  });
+
+  it("asks through the shared request and nothing else", async () => {
+    mockGetFile.mockResolvedValue(baseFile);
+    render(<FileDetailFullScreen fileId="abc" />);
+    await waitFor(() =>
+      expect(screen.getByTestId("file-detail-chrome")).toHaveTextContent(
+        "Sample Video",
+      ),
+    );
+    expect(mockGetFile).toHaveBeenCalledTimes(1);
+    expect(mockGetFileDirect).not.toHaveBeenCalled();
+  });
+
+  it("draws a list's copy before the answer arrives", () => {
+    seedFiles([baseFile]);
+    mockGetFile.mockReturnValue(new Promise(() => {}));
+    render(<FileDetailFullScreen fileId="abc" />);
+    expect(screen.getByTestId("file-detail-chrome")).toHaveTextContent(
+      "Sample Video",
+    );
+    expect(driveMocks.setOverrideDriveSpy).toHaveBeenCalledWith("main");
+  });
+
+  it("lets go of a list's copy when the file cannot be read", async () => {
+    seedFiles([{ ...baseFile, title: "Trashed clip" }]);
+    mockGetFile.mockRejectedValue(new Error("API error: 404"));
+    render(<FileDetailFullScreen fileId="abc" />);
+    await waitFor(() => expect(screen.queryByText(/Trashed clip/)).toBeNull());
+  });
+
+  it("ignores an answer for a file it has already left", async () => {
+    let answerFirst: (f: unknown) => void = () => {};
+    mockGetFile.mockImplementation((id: string) =>
+      id === "abc"
+        ? new Promise((resolve) => {
+            answerFirst = resolve;
+          })
+        : Promise.resolve({ ...baseFile, id: "xyz", title: "Other", drive: "second" }),
+    );
+    const { rerender } = render(<FileDetailFullScreen fileId="abc" />);
+    rerender(<FileDetailFullScreen fileId="xyz" />);
+    await waitFor(() =>
+      expect(screen.getByTestId("file-detail-chrome")).toHaveTextContent("Other"),
+    );
+    await act(async () => {
+      answerFirst(baseFile);
+    });
+    expect(screen.getByTestId("file-detail-chrome")).toHaveTextContent("Other");
+    expect(driveMocks.setOverrideDriveSpy).toHaveBeenLastCalledWith("second");
   });
 });

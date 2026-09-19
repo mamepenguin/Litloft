@@ -128,6 +128,72 @@ describe("useFileDetailData with a seed", () => {
   });
 });
 
+describe("useFileDetailData when the file changes in place", () => {
+  it("hands back the next file from the first render after the change", async () => {
+    seedFiles([file({ id: "f1", title: "one" }), file({ id: "f2", title: "two" })]);
+    apiMocks.getFileShared.mockImplementation((id: string) =>
+      id === "f1" ? Promise.resolve(file({ id: "f1", title: "one" })) : new Promise(() => {}),
+    );
+    const seen: Array<[string, string | undefined]> = [];
+    const { result, rerender } = renderHook(
+      ({ id }) => {
+        const data = useFileDetailData(id);
+        seen.push([id, data.file?.id]);
+        return data;
+      },
+      { initialProps: { id: "f1" } },
+    );
+    await waitFor(() => expect(result.current.fresh).toBe(true));
+    seen.length = 0;
+    rerender({ id: "f2" });
+    expect(seen[0]).toEqual(["f2", "f2"]);
+  });
+
+  it("is not fresh again until the next file answers, and writes nothing", async () => {
+    seedFiles([file({ id: "f1" }), file({ id: "f2", title: "seed two" })]);
+    apiMocks.getFileShared.mockImplementation((id: string) =>
+      id === "f1" ? Promise.resolve(file({ id: "f1" })) : new Promise(() => {}),
+    );
+    const { result, rerender } = renderHook(({ id }) => useFileDetailData(id), {
+      initialProps: { id: "f1" },
+    });
+    await waitFor(() => expect(result.current.fresh).toBe(true));
+    rerender({ id: "f2" });
+    expect(result.current.fresh).toBe(false);
+    act(() => result.current.startEditing());
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(apiMocks.updateFile).not.toHaveBeenCalled();
+  });
+
+  it("a write answered for the file already left does not replace the one on screen", async () => {
+    seedFiles([file({ id: "f1" }), file({ id: "f2", title: "two" })]);
+    apiMocks.getFileShared.mockImplementation((id: string) =>
+      Promise.resolve(file({ id, title: id === "f1" ? "one" : "two" })),
+    );
+    const { result, rerender } = renderHook(({ id }) => useFileDetailData(id), {
+      initialProps: { id: "f1" },
+    });
+    await waitFor(() => expect(result.current.fresh).toBe(true));
+    const setFileOfOne = result.current.setFile;
+    rerender({ id: "f2" });
+    await waitFor(() => expect(result.current.fresh).toBe(true));
+    act(() => setFileOfOne(file({ id: "f1", title: "one renamed" })));
+    expect(result.current.file?.title).toBe("two");
+  });
+});
+
+describe("useFileDetailData when the file cannot be read", () => {
+  it("drops the seed and says so", async () => {
+    seedFiles([file()]);
+    apiMocks.getFileShared.mockRejectedValue(new Error("API error: 404"));
+    const { result } = renderHook(() => useFileDetailData("f1"));
+    await waitFor(() => expect(result.current.failed).toBe(true));
+    expect(result.current.file).toBeNull();
+  });
+});
+
 describe("useFileDetailData without a seed", () => {
   it("has no file until the request answers", async () => {
     apiMocks.getFileShared.mockResolvedValue(file());

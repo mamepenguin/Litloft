@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { batchGetFiles, getDriveFiles, getFileShared, getMissing, getTrash } from "@/lib/api";
+import {
+  batchGetFiles,
+  getCollection,
+  getDriveFiles,
+  getDuplicates,
+  getFileShared,
+  getMissing,
+  getTrash,
+  getWatchHistory,
+} from "@/lib/api";
 import { _resetFileSeedForTests, peekFileSeed } from "@/lib/fileSeed";
 
 const mockFetch = vi.fn();
@@ -23,29 +32,66 @@ afterEach(() => {
 });
 
 describe("list fetchers seed the file detail", () => {
-  it("getDriveFiles seeds every item it returns", async () => {
-    mockFetch.mockResolvedValueOnce(
-      jsonResponse({ data: [{ id: "a" }, { id: "b" }], meta: { total: 2, page: 1, limit: 50 } }),
-    );
-    await getDriveFiles("d", {});
+  const page = (ids: string[]) => ({
+    data: ids.map((id) => ({ id })),
+    meta: { total: ids.length, page: 1, limit: 50 },
+  });
+
+  it.each([
+    ["getDriveFiles", () => getDriveFiles("d", {}), page(["a", "b"])],
+    ["batchGetFiles", () => batchGetFiles(["a", "b"]), [{ id: "a" }, { id: "b" }]],
+    [
+      "getWatchHistory",
+      () => getWatchHistory("d"),
+      { data: [{ id: "a" }, { id: "b" }] },
+    ],
+    [
+      "getCollection",
+      () => getCollection("d", "c1"),
+      {
+        id: "c1",
+        items: [
+          { id: 1, position: 0, file: { id: "a" } },
+          { id: 2, position: 1, file: { id: "b" } },
+        ],
+      },
+    ],
+    [
+      "getDuplicates",
+      () => getDuplicates("d"),
+      { groups: [{ hash: "h", total_size: 0, files: [{ id: "a" }, { id: "b" }] }] },
+    ],
+  ] as const)("%s seeds every file it returns", async (_name, call, body) => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(body));
+    await call();
     expect(peekFileSeed("a")?.id).toBe("a");
     expect(peekFileSeed("b")?.id).toBe("b");
   });
 
-  it("batchGetFiles seeds every item it returns", async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse([{ id: "c" }]));
-    await batchGetFiles(["c"]);
-    expect(peekFileSeed("c")?.id).toBe("c");
+  it.each([
+    ["getTrash", () => getTrash("d")],
+    ["getMissing", () => getMissing("d")],
+  ] as const)("%s does not seed", async (_name, call) => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(page(["t"])));
+    await call();
+    expect(peekFileSeed("t")).toBeNull();
   });
 
-  it("trash and missing listings do not seed", async () => {
-    mockFetch
-      .mockResolvedValueOnce(jsonResponse({ data: [{ id: "t" }], meta: { total: 1, page: 1, limit: 50 } }))
-      .mockResolvedValueOnce(jsonResponse({ data: [{ id: "m" }], meta: { total: 1, page: 1, limit: 50 } }));
-    await getTrash("d");
-    await getMissing("d");
-    expect(peekFileSeed("t")).toBeNull();
-    expect(peekFileSeed("m")).toBeNull();
+  it("a trashed or missing file in a seeding list is not seeded", async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse({
+        id: "c1",
+        items: [
+          { id: 1, position: 0, file: { id: "gone", deleted_at: "2026-01-01T00:00:00Z" } },
+          { id: 2, position: 1, file: { id: "lost", missing_since: "2026-01-01T00:00:00Z" } },
+          { id: 3, position: 2, file: { id: "here", deleted_at: null, missing_since: null } },
+        ],
+      }),
+    );
+    await getCollection("d", "c1");
+    expect(peekFileSeed("gone")).toBeNull();
+    expect(peekFileSeed("lost")).toBeNull();
+    expect(peekFileSeed("here")?.id).toBe("here");
   });
 });
 

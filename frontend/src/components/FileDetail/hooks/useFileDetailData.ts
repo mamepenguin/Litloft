@@ -24,6 +24,7 @@ export interface FileDetailData {
   file: FileItem | null;
   /** False while `file` is a list's copy rather than this file's own answer. */
   fresh: boolean;
+  failed: boolean;
   setFile: React.Dispatch<React.SetStateAction<FileItem | null>>;
   chaptersPresent: boolean;
   chaptersVersion: number;
@@ -43,11 +44,36 @@ export interface FileDetailData {
   refetch: () => void;
 }
 
+interface FileEntry {
+  id: string;
+  file: FileItem | null;
+  fresh: boolean;
+  failed: boolean;
+}
+
+function seededEntry(id: string): FileEntry {
+  return { id, file: peekFileSeed(id), fresh: false, failed: false };
+}
+
 export function useFileDetailData(fileId: string): FileDetailData {
   const { requestRefresh: refreshSidebar } = useSidebar();
 
-  const [file, setFile] = useState<FileItem | null>(() => peekFileSeed(fileId));
-  const [fresh, setFresh] = useState(false);
+  // Keyed by id so that nothing belonging to the previous file is handed
+  // back under the next file's id, not even for the render before the
+  // effect below runs.
+  const [stored, setStored] = useState<FileEntry>(() => seededEntry(fileId));
+  const entry = stored.id === fileId ? stored : seededEntry(fileId);
+  const { file, fresh, failed } = entry;
+
+  const setFile = useCallback<FileDetailData["setFile"]>(
+    (action) =>
+      setStored((prev) => {
+        const next = typeof action === "function" ? action(prev.file) : action;
+        if (next && next.id !== prev.id) return prev;
+        return { ...prev, file: next };
+      }),
+    [],
+  );
   /**
    * Held apart from ``file`` on purpose: the mutation endpoints answer with
    * the plain ``FileResponse`` and every one does ``setFile(updated)``, so
@@ -65,8 +91,7 @@ export function useFileDetailData(fileId: string): FileDetailData {
 
   useEffect(() => {
     const seed = peekFileSeed(fileId);
-    setFile(seed);
-    setFresh(false);
+    setStored(seededEntry(fileId));
     setEditTitle(seed?.title ?? "");
     setEditDesc(seed?.description ?? "");
     setChaptersPresent(false);
@@ -76,15 +101,14 @@ export function useFileDetailData(fileId: string): FileDetailData {
     getFileShared(fileId)
       .then((f) => {
         if (cancelled) return;
-        setFile(f);
-        setFresh(true);
+        setStored({ id: fileId, file: f, fresh: true, failed: false });
         setChaptersPresent(f.has_chapters === true);
         setEditTitle(f.title);
         setEditDesc(f.description);
       })
       .catch(() => {
-        // Host renders the loading / not-found UI when ``file`` is
-        // null below, so swallow the error here.
+        if (cancelled) return;
+        setStored({ id: fileId, file: null, fresh: false, failed: true });
       });
     addRecentlyPlayed(fileId);
     // Fire-and-forget; must fire exactly once per mounted fileId.
@@ -189,6 +213,7 @@ export function useFileDetailData(fileId: string): FileDetailData {
   return {
     file,
     fresh,
+    failed,
     setFile,
     chaptersPresent,
     chaptersVersion,

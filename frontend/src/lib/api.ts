@@ -621,9 +621,11 @@ export async function createCollection(
 }
 
 export async function getCollection(drive: string, id: string): Promise<CollectionDetail> {
-  return fetchJSON<CollectionDetail>(
+  const collection = await fetchJSON<CollectionDetail>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/collections/${id}`
   );
+  seedFiles(collection.items?.map((entry) => entry.file));
+  return collection;
 }
 
 export interface CollectionUpdate {
@@ -757,6 +759,7 @@ export async function getWatchHistory(
   const result = await fetchJSON<{ data: WatchHistoryItem[] }>(
     `${API_BASE}/drives/${encodeURIComponent(driveName)}/watch-history${qs ? `?${qs}` : ""}`
   );
+  seedFiles(result.data);
   return result.data;
 }
 
@@ -836,9 +839,11 @@ export async function batchPurge(ids: string[]): Promise<{ purged: number; error
 }
 
 export async function getDuplicates(drive: string): Promise<DuplicatesResponse> {
-  return fetchJSON<DuplicatesResponse>(
+  const duplicates = await fetchJSON<DuplicatesResponse>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/duplicates`
   );
+  seedFiles(duplicates.groups?.flatMap((group) => group.files));
+  return duplicates;
 }
 
 export async function getDashboard(): Promise<DashboardResponse> {

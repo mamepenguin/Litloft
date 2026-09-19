@@ -14,6 +14,9 @@ const seeds = new Map<string, FileItem>();
 export function seedFiles(items: readonly FileItem[] | undefined): void {
   if (!Array.isArray(items)) return;
   for (const item of items) {
+    // A trashed or missing file answers 404 in detail; drawing it would
+    // show a file that is not there.
+    if (item.deleted_at || item.missing_since) continue;
     seeds.delete(item.id);
     seeds.set(item.id, item);
   }

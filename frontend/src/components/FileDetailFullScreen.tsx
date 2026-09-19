@@ -59,7 +59,7 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
         setOverrideDrive(f.drive);
       })
       .catch(() => {
-        // FileDetailContent below renders its own error state.
+        if (!cancelled) setFile(null);
       });
     return () => {
       cancelled = true;

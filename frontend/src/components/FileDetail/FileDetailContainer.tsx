@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
@@ -54,6 +55,7 @@ export function FileDetailContainer({
   autoPlay,
   surface = "canonical",
 }: FileDetailContentProps) {
+  const tPane = useTranslations("rightPane");
   const { getSlotEntries, hasSlot } = useAddonSlots();
   const slotAvailability = useSlotAvailability(fileId);
   const isMobile = useIsMobile();
@@ -108,6 +110,14 @@ export function FileDetailContainer({
     },
     [onMediaController],
   );
+
+  if (!file && data.failed) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8 text-sm text-text-muted">
+        {tPane("notFound")}
+      </div>
+    );
+  }
 
   if (!file) {
     return (
@@ -264,6 +274,9 @@ export function FileDetailContainer({
 
   return (
     <FileDetailPresenter
+      // One mount per file: a player kept across a change of file plays the
+      // previous file's media under the next file's id until it reloads.
+      key={fileId}
       file={file}
       fileId={fileId}
       drive={drive}
