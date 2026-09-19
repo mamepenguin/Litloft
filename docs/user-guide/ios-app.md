@@ -5,6 +5,10 @@ do what a browser on the phone cannot: the app plays the audio and the video
 itself, so a file keeps going with the screen locked or another app in front,
 and a video moves into a picture-in-picture window by itself.
 
+The page stops below the status bar, as it does when Litloft is added to the
+home screen, and the app fills the status bar area with the page's background
+colour, following the theme.
+
 It is not on the App Store. You build it from `ios/` in this repository.
 
 ## Building and installing
