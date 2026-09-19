@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 
+import { useReportPageBackground } from "@/hooks/useReportPageBackground";
+
 import { ChromeButtons } from "./ChromeButtons";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -13,6 +15,7 @@ import { GlobalSearchProvider } from "./search/GlobalSearchProvider";
 export function AppShell({ children }: { children: ReactNode }) {
   const { isOpen, isOverlay } = useSidebar();
   const inlineOpen = isOpen && !isOverlay;
+  useReportPageBackground();
 
   return (
     <ShortcutsProvider>

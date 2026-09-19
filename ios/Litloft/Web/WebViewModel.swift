@@ -11,11 +11,16 @@ final class WebViewModel {
 
     private(set) var state: State = .loading
     private(set) var reloadToken = 0
+    private(set) var pageColor: PageColor?
 
     let serverURL: URL
 
     init(serverURL: URL) {
         self.serverURL = serverURL
+    }
+
+    func setPageColor(_ color: PageColor) {
+        pageColor = color
     }
 
     func markLoading() {

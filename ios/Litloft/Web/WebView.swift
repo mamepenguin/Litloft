@@ -97,7 +97,8 @@ struct WebView: UIViewRepresentable {
                 bridge?.deliver(state)
             }
             player.surface.attach(to: webView)
-            bridge.onPageBackground = { [weak player] color in
+            bridge.onPageBackground = { [weak player, weak model] color in
+                model?.setPageColor(color)
                 player?.surface.setPageColor(color)
             }
         }

@@ -12,8 +12,11 @@ struct WebShell: View {
 
     var body: some View {
         ZStack {
-            // The page reads the safe area itself, and keeping the web view
-            // inside it leaves a band the page cannot paint.
+            // Fills where the web view does not reach. The web view stays out
+            // of the top safe area as the PWA's page does: the page's overlays
+            // do not avoid it.
+            band.ignoresSafeArea()
+
             WebView(model: model)
                 .ignoresSafeArea(edges: .bottom)
 
@@ -25,5 +28,10 @@ struct WebShell: View {
                 )
             }
         }
+    }
+
+    private var band: Color {
+        guard let color = model.pageColor else { return Color(.systemBackground) }
+        return Color(red: color.red, green: color.green, blue: color.blue)
     }
 }

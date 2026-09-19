@@ -19,7 +19,6 @@ interface StubbedWindow extends Window {
   webkit?: unknown;
   __litloftShell?: { version?: number };
 }
-let posted: Record<string, unknown>[] = [];
 
 function fakeChannel() {
   return { setSurface: vi.fn<(geometry: SurfaceGeometry | null) => void>() };
@@ -70,12 +69,10 @@ beforeEach(() => {
   vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {
     frames = [];
   });
-  posted = [];
   (window as StubbedWindow).__litloftShell = { version: 2 };
   (window as StubbedWindow).webkit = {
-    messageHandlers: { litloft: { postMessage: (body: unknown) => posted.push(body as Record<string, unknown>) } },
+    messageHandlers: { litloft: { postMessage: () => {} } },
   };
-  document.documentElement.style.setProperty("--bg-primary", "#1a0e10");
   Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
 });
 
@@ -83,7 +80,6 @@ afterEach(() => {
   vi.restoreAllMocks();
   delete (window as StubbedWindow).webkit;
   delete (window as StubbedWindow).__litloftShell;
-  document.documentElement.style.removeProperty("--bg-primary");
 });
 
 describe("useShellSurface", () => {
@@ -193,18 +189,6 @@ describe("useShellSurface", () => {
 
     unmount();
     expect(sibling.style.visibility).toBe("");
-  });
-
-  it("tells the shell the page's colour, and again when it changes", () => {
-    render(<Player channel={fakeChannel() as unknown as MediaChannel} />);
-    nextFrame(3);
-    expect(posted.filter((m) => m.type === "page.background")).toEqual([
-      { type: "page.background", color: "#1a0e10" },
-    ]);
-
-    document.documentElement.style.setProperty("--bg-primary", "#ffffff");
-    nextFrame();
-    expect(posted.filter((m) => m.type === "page.background").map((m) => m.color)).toEqual(["#1a0e10", "#ffffff"]);
   });
 
   it("does nothing outside the shell", () => {
