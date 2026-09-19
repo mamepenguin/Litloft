@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mockGetFile = vi.fn();
 vi.mock("@/lib/api", () => ({
   getFile: (...args: unknown[]) => mockGetFile(...args),
+  getFileShared: (...args: unknown[]) => mockGetFile(...args),
   getFileNeighbors: vi.fn().mockResolvedValue({ prev_id: null, next_id: null }),
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
   recordFileView: vi.fn(),
@@ -148,16 +149,13 @@ afterEach(() => {
 });
 
 describe("RightPaneFile", () => {
-  it("shows loading then renders FileDetailContent", async () => {
-    mockGetFile.mockResolvedValue(baseFile);
+  it("renders FileDetailContent without waiting for the file", () => {
+    mockGetFile.mockReturnValue(new Promise(() => {}));
     render(<RightPaneFile fileId="abc123" drive="work" />);
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
-    );
     expect(screen.getByTestId("file-detail-content")).toHaveTextContent(
       "detail:abc123",
     );
+    expect(screen.queryByText("Loading...")).toBeNull();
   });
 
   it("suppresses the PaneShell header for Markdown files (DocumentLayout owns chrome)", async () => {
@@ -317,23 +315,10 @@ describe("RightPaneFile", () => {
   // `FileDetailContent` is stubbed here, so what is testable is whether
   // this host decides to draw a row at all.
   describe("the page row", () => {
-    it("draws the row while the file is still being fetched", async () => {
-      // Nothing is mounted yet that could draw one.
-      let resolveFile: (f: unknown) => void = () => {};
-      mockGetFile.mockReturnValue(
-        new Promise((resolve) => {
-          resolveFile = resolve;
-        }),
-      );
+    it("draws no row of its own while the file is still being fetched", () => {
+      mockGetFile.mockReturnValue(new Promise(() => {}));
       render(<RightPaneFile fileId="abc123" drive="work" />);
-
-      const row = await screen.findByTestId("file-detail-chrome");
-      expect(row).toHaveTextContent("work");
-
-      resolveFile(baseFile);
-      await waitFor(() =>
-        expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
-      );
+      expect(screen.queryByTestId("file-detail-chrome")).toBeNull();
     });
 
     it("draws no row of its own once the file has resolved, whatever it is", async () => {

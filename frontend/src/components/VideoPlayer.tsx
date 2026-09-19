@@ -43,6 +43,7 @@ interface VideoPlayerProps {
   title?: string;
   subtitleText?: string;
   onMediaController?: (mc: MediaController | null) => void;
+  posterUrl?: string;
 }
 
 interface LitloftVideoControlsProps {
@@ -123,6 +124,7 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
     title,
     subtitleText,
     onMediaController,
+    posterUrl,
   }: VideoPlayerProps,
   ref: Ref<HTMLVideoElement>,
 ) {
@@ -220,6 +222,7 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
         <video
           ref={setVideoElement}
           src={getStreamUrl(videoId)}
+          poster={posterUrl}
           controls={playerUi === "browser"}
           playsInline
           preload="metadata"

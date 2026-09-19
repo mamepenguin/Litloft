@@ -32,6 +32,7 @@ vi.mock("@/lib/api", () => ({
   getFolders: (...args: unknown[]) => mockGetFolders(...args),
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getFile: (...args: unknown[]) => mockGetFile(...args),
+  getFileShared: (...args: unknown[]) => mockGetFile(...args),
   getStreamUrl: (id: string) => `/api/files/${id}/stream`,
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
   // Plain functions so afterEach's vi.restoreAllMocks() can't strip

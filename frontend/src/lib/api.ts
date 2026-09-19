@@ -1,5 +1,6 @@
 import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
+import { seedFiles } from "@/lib/fileSeed";
 
 const API_BASE = "/api";
 
@@ -90,10 +91,12 @@ export async function getDriveFiles(
   if (params.page) searchParams.set("page", String(params.page));
   if (params.limit) searchParams.set("limit", String(params.limit));
 
-  return fetchJSON<PaginatedResponse>(
+  const page = await fetchJSON<PaginatedResponse>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/files?${searchParams.toString()}`,
     options?.signal ? { signal: options.signal } : undefined,
   );
+  seedFiles(page.data);
+  return page;
 }
 
 export async function getDriveTags(
@@ -146,6 +149,28 @@ export async function scanDrive(drive: string): Promise<ScanResult> {
 
 export async function getFile(id: string): Promise<FileItem> {
   return fetchJSON<FileItem>(`${API_BASE}/files/${id}`);
+}
+
+const inFlightFiles = new Map<string, Promise<FileItem>>();
+
+/**
+ * `getFile` for opening a file: everyone who asks while a request is out
+ * gets that request, so the page and the view inside it cost one round
+ * trip. Not for refetching after a write — that must see the write.
+ */
+export function getFileShared(id: string): Promise<FileItem> {
+  const pending = inFlightFiles.get(id);
+  if (pending) return pending;
+  const request = getFile(id)
+    .then((file) => {
+      seedFiles([file]);
+      return file;
+    })
+    .finally(() => {
+      inFlightFiles.delete(id);
+    });
+  inFlightFiles.set(id, request);
+  return request;
 }
 
 export async function getFileExif(id: string): Promise<FileExif> {
@@ -439,11 +464,13 @@ export async function cancelUpload(drive: string, uploadId: string): Promise<voi
 }
 
 export async function batchGetFiles(ids: string[]): Promise<FileItem[]> {
-  return fetchJSON<FileItem[]>(`${API_BASE}/files/batch/get`, {
+  const files = await fetchJSON<FileItem[]>(`${API_BASE}/files/batch/get`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   });
+  seedFiles(files);
+  return files;
 }
 
 export async function batchDelete(ids: string[]): Promise<{ deleted: number; errors: { id: string; error: string }[] }> {

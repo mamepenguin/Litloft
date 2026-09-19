@@ -80,8 +80,10 @@ vi.mock("../../CastButton", async () => ({
 vi.mock("../../ChaptersPanel", async () => ({
   ChaptersPanel: (await import("./harness")).ChaptersPanelStub,
 }));
+const apiMocks = vi.hoisted(() => ({ getFile: vi.fn() }));
 vi.mock("@/lib/api", () => ({
-  getFile: vi.fn(),
+  getFile: apiMocks.getFile,
+  getFileShared: (id: string) => apiMocks.getFile(id),
   recordFileView: vi.fn(),
   likeFile: vi.fn(),
   dislikeFile: vi.fn(),
@@ -131,6 +133,26 @@ describe("FileDetailContent", () => {
     expect(api.getFile).toHaveBeenCalledWith("f2");
     expect(api.recordFileView).toHaveBeenCalledTimes(2);
     expect(api.recordFileView).toHaveBeenLastCalledWith("f2");
+  });
+
+  it("keeps the controls inert while the file on screen is a list's copy", async () => {
+    const { seedFiles, _resetFileSeedForTests } = await import("@/lib/fileSeed");
+    seedFiles([makeFile()]);
+    let answer: (f: unknown) => void = () => {};
+    (api.getFile as ReturnType<typeof vi.fn>).mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    (api.recordFileView as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    render(<FileDetailContent fileId="f1" drive="main" />);
+
+    expect(screen.getByTestId("file-actions").closest("[inert]")).not.toBeNull();
+    await act(async () => {
+      answer(makeFile());
+    });
+    expect(screen.getByTestId("file-actions").closest("[inert]")).toBeNull();
+    _resetFileSeedForTests();
   });
 
   it("never calls useOverlaySidebar (host responsibility)", async () => {

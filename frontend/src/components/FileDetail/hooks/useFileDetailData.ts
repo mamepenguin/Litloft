@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { getFile, recordFileView, renameFile, updateFile } from "@/lib/api";
+import {
+  getFile,
+  getFileShared,
+  recordFileView,
+  renameFile,
+  updateFile,
+} from "@/lib/api";
+import { peekFileSeed } from "@/lib/fileSeed";
 import { addRecentlyPlayed } from "@/lib/recentlyPlayed";
 import { clearListSnapshot } from "@/lib/listSnapshot";
 import {
@@ -15,6 +22,8 @@ import type { FileItem } from "@/types";
 
 export interface FileDetailData {
   file: FileItem | null;
+  /** False while `file` is a list's copy rather than this file's own answer. */
+  fresh: boolean;
   setFile: React.Dispatch<React.SetStateAction<FileItem | null>>;
   chaptersPresent: boolean;
   chaptersVersion: number;
@@ -37,7 +46,8 @@ export interface FileDetailData {
 export function useFileDetailData(fileId: string): FileDetailData {
   const { requestRefresh: refreshSidebar } = useSidebar();
 
-  const [file, setFile] = useState<FileItem | null>(null);
+  const [file, setFile] = useState<FileItem | null>(() => peekFileSeed(fileId));
+  const [fresh, setFresh] = useState(false);
   /**
    * Held apart from ``file`` on purpose: the mutation endpoints answer with
    * the plain ``FileResponse`` and every one does ``setFile(updated)``, so
@@ -46,21 +56,28 @@ export function useFileDetailData(fileId: string): FileDetailData {
   const [chaptersPresent, setChaptersPresent] = useState(false);
   const [chaptersVersion, setChaptersVersion] = useState(0);
   const [editing, setEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editDesc, setEditDesc] = useState("");
+  const [editTitle, setEditTitle] = useState(() => peekFileSeed(fileId)?.title ?? "");
+  const [editDesc, setEditDesc] = useState(
+    () => peekFileSeed(fileId)?.description ?? "",
+  );
   const [saving, setSaving] = useState(false);
   const [tagSaveVersion, setTagSaveVersion] = useState(0);
 
   useEffect(() => {
-    setFile(null);
+    const seed = peekFileSeed(fileId);
+    setFile(seed);
+    setFresh(false);
+    setEditTitle(seed?.title ?? "");
+    setEditDesc(seed?.description ?? "");
     setChaptersPresent(false);
     setChaptersVersion(0);
     setEditing(false);
     let cancelled = false;
-    getFile(fileId)
+    getFileShared(fileId)
       .then((f) => {
         if (cancelled) return;
         setFile(f);
+        setFresh(true);
         setChaptersPresent(f.has_chapters === true);
         setEditTitle(f.title);
         setEditDesc(f.description);
@@ -126,7 +143,7 @@ export function useFileDetailData(fileId: string): FileDetailData {
   }, []);
 
   const save = useCallback(async () => {
-    if (!file) return;
+    if (!file || !fresh) return;
     setSaving(true);
     try {
       const updated = await updateFile(file.id, {
@@ -140,11 +157,11 @@ export function useFileDetailData(fileId: string): FileDetailData {
     } finally {
       setSaving(false);
     }
-  }, [file, editTitle, editDesc]);
+  }, [file, fresh, editTitle, editDesc]);
 
   const rename = useCallback(
     async (newFilename: string) => {
-      if (!file) return;
+      if (!file || !fresh) return;
       try {
         const updated = await renameFile(file.id, newFilename);
         setFile(updated);
@@ -157,10 +174,12 @@ export function useFileDetailData(fileId: string): FileDetailData {
         console.error("Failed to rename file:", err);
       }
     },
-    [file, refreshSidebar],
+    [file, fresh, refreshSidebar],
   );
 
-  const startEditing = useCallback(() => setEditing(true), []);
+  const startEditing = useCallback(() => {
+    if (fresh) setEditing(true);
+  }, [fresh]);
   const cancelEditing = useCallback(() => {
     setEditing(false);
     setEditTitle(file?.title ?? "");
@@ -169,6 +188,7 @@ export function useFileDetailData(fileId: string): FileDetailData {
 
   return {
     file,
+    fresh,
     setFile,
     chaptersPresent,
     chaptersVersion,

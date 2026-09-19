@@ -3,7 +3,7 @@
  * leaves below it, because that layout is where a second row would come from.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import * as api from "@/lib/api";
@@ -71,8 +71,10 @@ vi.mock("../../CastButton", async () => ({
 vi.mock("../../ChaptersPanel", async () => ({
   ChaptersPanel: (await import("./harness")).ChaptersPanelStub,
 }));
+const apiMocks = vi.hoisted(() => ({ getFile: vi.fn() }));
 vi.mock("@/lib/api", () => ({
-  getFile: vi.fn(),
+  getFile: apiMocks.getFile,
+  getFileShared: (id: string) => apiMocks.getFile(id),
   recordFileView: vi.fn(),
   likeFile: vi.fn(),
   dislikeFile: vi.fn(),
@@ -119,8 +121,11 @@ describe("file detail page row", () => {
   it("puts the file's own folder in that row", async () => {
     setApiResponses(markdownFile());
     render(<FileDetailContent fileId="f1" drive="main" />);
-    const row = await screen.findByTestId("file-detail-chrome");
-    expect(row).toHaveTextContent("notes");
+    await waitFor(() =>
+      expect(screen.getByTestId("file-detail-chrome")).toHaveTextContent(
+        "notes",
+      ),
+    );
     expect(screen.getByTestId("file-detail-back")).toHaveAttribute(
       "href",
       "/drive/main/notes",
@@ -130,11 +135,14 @@ describe("file detail page row", () => {
   it("draws exactly one for a video, which rides the shell too now", async () => {
     setApiResponses(makeFile({ folder_path: "clips" }));
     render(<FileDetailContent fileId="f1" drive="main" />);
-    const row = await screen.findByTestId("file-detail-chrome");
+    await waitFor(() =>
+      expect(screen.getByTestId("file-detail-chrome")).toHaveTextContent(
+        "clips",
+      ),
+    );
 
     expect(screen.getAllByTestId("file-detail-chrome")).toHaveLength(1);
     expect(screen.getAllByTestId("file-detail-back")).toHaveLength(1);
-    expect(row).toHaveTextContent("clips");
     expect(api.getFile).toHaveBeenCalledWith("f1");
   });
 

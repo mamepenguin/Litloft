@@ -35,6 +35,18 @@ describe("VideoPlayer", () => {
     expect(video?.getAttribute("src")).toBe("/api/files/vid-1/stream");
   });
 
+  it("shows the poster it is given until playback starts", () => {
+    render(<VideoPlayer videoId="vid-1" posterUrl="/thumb.jpg" />);
+    expect(document.querySelector("video")?.getAttribute("poster")).toBe(
+      "/thumb.jpg",
+    );
+  });
+
+  it("has no poster when none is given", () => {
+    render(<VideoPlayer videoId="vid-1" />);
+    expect(document.querySelector("video")?.hasAttribute("poster")).toBe(false);
+  });
+
   it("uses Litloft controls by default and keeps playsInline", async () => {
     render(<VideoPlayer videoId="vid-1" />);
     const video = document.querySelector("video")!;

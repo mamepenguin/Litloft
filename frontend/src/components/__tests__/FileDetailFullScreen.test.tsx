@@ -4,6 +4,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 const mockGetFile = vi.fn();
 vi.mock("@/lib/api", () => ({
   getFile: (...args: unknown[]) => mockGetFile(...args),
+  getFileShared: (...args: unknown[]) => mockGetFile(...args),
   getFileNeighbors: vi.fn().mockResolvedValue({
     prev_id: null,
     next_id: null,
