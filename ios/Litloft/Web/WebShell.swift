@@ -17,8 +17,6 @@ struct WebShell: View {
             // do not avoid it.
             band.ignoresSafeArea()
 
-            // The page reads the safe area itself, and keeping the web view
-            // inside it leaves a band the page cannot paint.
             WebView(model: model)
                 .ignoresSafeArea(edges: .bottom)
 
