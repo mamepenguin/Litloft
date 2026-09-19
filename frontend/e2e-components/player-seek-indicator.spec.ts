@@ -33,32 +33,34 @@ function backgroundOf(
   );
 }
 
-test("the played track ends on the frame's bottom edge", async ({ page }) => {
+test("the knob stays inside the frame, clear of its bottom edge", async ({
+  page,
+}) => {
   await open(page, "player-seek-bar");
 
   const frame = (await page.locator("#player-frame").boundingBox())!;
-  const played = (await page
-    .locator('[data-testid="played-range"]')
-    .boundingBox())!;
+  const knob = (await page.locator('[data-testid="seek-knob"]').boundingBox())!;
 
-  expect(played.y + played.height).toBeCloseTo(frame.y + frame.height, 1);
+  expect(frame.y + frame.height - (knob.y + knob.height)).toBeCloseTo(4, 1);
 });
 
-test("the knob hangs past that edge", async ({ page }) => {
+test("the bar runs through the middle of the knob", async ({ page }) => {
   await open(page, "player-seek-bar");
 
-  const frame = (await page.locator("#player-frame").boundingBox())!;
   const played = (await page
     .locator('[data-testid="played-range"]')
     .boundingBox())!;
   const knob = (await page.locator('[data-testid="seek-knob"]').boundingBox())!;
 
-  // The knob is 12px on a 4px track, so 4 of it is outside the frame.
-  expect(knob.y + knob.height - (frame.y + frame.height)).toBeCloseTo(4, 1);
   expect(knob.y + knob.height / 2).toBeCloseTo(played.y + played.height / 2, 1);
+  // The knob is 12px on a 4px track, so it stands 4px out of it either way.
+  expect(knob.y).toBeCloseTo(played.y - 4, 1);
+  expect(knob.y + knob.height).toBeCloseTo(played.y + played.height + 4, 1);
 });
 
-test("the hairline left behind keeps that same edge", async ({ page }) => {
+test("the hairline left behind sits on the frame's bottom edge", async ({
+  page,
+}) => {
   await open(page, "player-hairline");
 
   const frame = (await page.locator("#player-frame").boundingBox())!;

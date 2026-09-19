@@ -147,12 +147,11 @@ describe("TouchControlsPresenter", () => {
       expect(screen.queryByTestId("seek-knob")).not.toBeInTheDocument();
     });
 
-    it("puts the track on the bottom edge of the frame, knob hanging past it", () => {
-      // 32px down a 40px row leaves the 4px track flush with the bottom, and
-      // the 12px knob centred on it hanging 4px past.
+    it("keeps the knob clear of the frame's bottom edge", () => {
+      // 24px down a 40px row leaves the 12px knob 4px short of the bottom.
       const { container } = renderControls();
       const line = container.querySelector<HTMLElement>('[data-testid="seek-line"]');
-      expect(line?.style.top).toBe("32px");
+      expect(line?.style.top).toBe("24px");
     });
 
     it("draws the knob in the indicator colour", () => {
