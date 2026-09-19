@@ -13,6 +13,7 @@ import {
   relationMocks,
   setApiResponses,
   usePolicyMock,
+  shellLoaded,
 } from "./harness";
 
 vi.mock("next/navigation", () => ({
@@ -112,7 +113,7 @@ describe("file detail page row", () => {
     // Waited on rather than `loaded()`: on this branch the action row
     // lives in the inspector, and jsdom's 1024px viewport leaves the
     // inspector closed, so `file-actions` never appears.
-    await screen.findByTestId("file-detail-chrome");
+    await shellLoaded();
 
     expect(screen.getAllByTestId("file-detail-chrome")).toHaveLength(1);
     expect(screen.getAllByTestId("file-detail-back")).toHaveLength(1);

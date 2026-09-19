@@ -3,8 +3,8 @@
  * so a helper that called it for you would run in the wrong file.
  */
 import { useEffect } from "react";
-import { vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { expect, vi } from "vitest";
+import { screen, waitFor } from "@testing-library/react";
 
 import * as api from "@/lib/api";
 import type { FileRelationItem } from "@/lib/api";
@@ -315,6 +315,18 @@ export function makeFile(overrides: Partial<FileItem> = {}): FileItem {
  * having been called returns before the response lands.
  */
 export const loaded = () => screen.findByTestId("file-actions");
+
+/**
+ * For surfaces whose inspector starts closed, where `loaded()` never
+ * resolves. The page row alone is not enough: the loading skeleton draws
+ * one too.
+ */
+export async function shellLoaded() {
+  await waitFor(() =>
+    expect(screen.queryByTestId("file-detail-skeleton")).toBeNull(),
+  );
+  return screen.findByTestId("file-detail-chrome");
+}
 
 export function setApiResponses(file: FileItem) {
   (api.getFile as ReturnType<typeof vi.fn>).mockResolvedValue(file);

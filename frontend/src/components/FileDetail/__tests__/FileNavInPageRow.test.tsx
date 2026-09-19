@@ -7,7 +7,12 @@ import { render, screen } from "@testing-library/react";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import { FileNavProvider, type FileNavState } from "@/lib/fileNavContext";
-import { makeFile, setApiResponses, usePolicyMock } from "./harness";
+import {
+  makeFile,
+  setApiResponses,
+  shellLoaded,
+  usePolicyMock,
+} from "./harness";
 import type { FileItem } from "@/types";
 
 vi.mock("next/navigation", () => ({
@@ -79,7 +84,7 @@ async function renderKind(overrides: Partial<FileItem>) {
       <FileDetailContent fileId="f1" drive="main" />
     </FileNavProvider>,
   );
-  await screen.findByTestId("file-detail-chrome");
+  await shellLoaded();
 }
 
 describe("prev / next in the page row", () => {

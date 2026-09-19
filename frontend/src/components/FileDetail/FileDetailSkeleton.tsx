@@ -65,14 +65,19 @@ export function FileDetailSkeleton({
 
   if (surface !== "canonical") {
     return (
-      <div role="status" aria-label={t("loading")}>
+      <div role="status" aria-label={t("loading")} data-testid="file-detail-skeleton">
         <CanvasSkeleton />
       </div>
     );
   }
 
   return (
-    <div role="status" aria-label={t("loading")} className="contents">
+    <div
+      role="status"
+      aria-label={t("loading")}
+      data-testid="file-detail-skeleton"
+      className="contents"
+    >
       <FileDetailShell
         drive={drive}
         title=""
