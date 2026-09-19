@@ -216,9 +216,8 @@ function SidebarNav() {
         return null;
       })}
 
-      {/* Below the reader's own sections, per spec §5.1: these are about
-          the drive rather than about what is in it, and are reached
-          rarely. */}
+      {/* Below the reader's own sections: these are about the drive
+          rather than about what is in it, and are reached rarely. */}
       <AddonNavRows entries={utilityAddons} linkClass={linkClass} close={closeIfOverlay} />
 
       <SidebarSystemSection driveBase={driveBase} linkClass={linkClass} close={closeIfOverlay} driveSummary={driveSummary} isAdmin={authStatus?.is_admin === true} />

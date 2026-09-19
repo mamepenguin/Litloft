@@ -1,10 +1,6 @@
 /**
- * Tag rows deliberately do **not** go through here. Their href is a
- * toggle (apply the tag, or clear it), so it stops carrying `?tag=` at
- * exactly the moment the row is selected — deriving the highlight from
- * the href would drop it. `activeTag` is
- * still read below, so a bare drive link is not marked active while a
- * tag filter is applied.
+ * Tag rows do not go through here: their href is a toggle, so it drops
+ * `?tag=` exactly when the row is selected.
  */
 export function isSidebarLinkActive({
   href,
@@ -25,16 +21,10 @@ export function isSidebarLinkActive({
 
   const base = `/drive/${encodeURIComponent(currentDrive)}`;
 
-  // `samePath`, not `===`: `base` is always the encoded spelling and
-  // `usePathname()` may report either, so a raw comparison answers no for
-  // every row on a drive whose name is not its own encoding.
   const atDriveRoot = samePath(pathname, base);
 
-  // Matched by the view value the href carries, not against a list of
-  // the views that exist. A list is the wrong shape for this question:
-  // a row whose value is absent from it renders unselected, and nothing
-  // errors or warns, so the omission is only visible to someone looking
-  // at the sidebar for that one view.
+  // Matched by the href's own view value, not against a list of views, so
+  // a new view cannot be forgotten.
   const viewPrefix = `${base}?view=`;
   if (href.startsWith(viewPrefix)) {
     return atDriveRoot && activeView === href.slice(viewPrefix.length);

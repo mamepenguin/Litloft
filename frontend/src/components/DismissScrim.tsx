@@ -14,17 +14,9 @@ export interface DismissScrimProps {
   /** Rendered immediately after the scrim, as its sibling. */
   children: ReactElement;
   className?: string;
-  /**
-   * Only for a scrim that is the popup's *stated* way out. A menu whose
-   * scrim is transparent gains nothing from a tab stop that reads as a
-   * control and does nothing but close.
-   */
+  /** Only for a scrim that is the popup's stated way out; makes it a button. */
   label?: string;
-  /**
-   * Ignore presses while true, keeping the popup mounted. Rendering the
-   * popup without the scrim instead would change the element at its
-   * position and remount everything inside it.
-   */
+  /** Ignore presses while true. Unmounting the scrim would remount the popup. */
   disabled?: boolean;
   "data-testid"?: string;
 }
@@ -32,24 +24,14 @@ export interface DismissScrimProps {
 export const DISMISS_SCRIM_ATTR = "data-dismiss-scrim";
 
 /**
- * `capture` on `document` is the first listener in the path, so
- * `stopPropagation` there keeps the click from every element handler and
- * from React's own root listener, and `preventDefault` keeps a link from
- * navigating and a label from toggling its control. Both are needed:
- * stopping propagation alone leaves the default action.
- *
- * A press that could have produced a click but did not is abandoned by
- * whatever says so: a `pointercancel` (the touch became a scroll), a
- * keystroke, or a second press. Without that, a swallow sits armed and
- * eats some later, unrelated click.
+ * A pending swallow is disarmed by `pointercancel`, a keystroke or a second
+ * press; otherwise it would eat a later, unrelated click.
  */
 let disarm: (() => void) | null = null;
 
 const PRIMARY_BUTTON = 0;
 
 function swallowTheClickThisPressProduces(press: Event): void {
-  // A press that produces no click has nothing to swallow, and arming for
-  // one leaves the swallow sitting until something abandons it.
   if ("button" in press && (press as PointerEvent).button !== PRIMARY_BUTTON) {
     return;
   }
@@ -81,14 +63,8 @@ function swallowTheClickThisPressProduces(press: Event): void {
 }
 
 /**
- * **A popup can be raised *by* a press this component never saw** —
- * `useContextMenu` opens `ContextMenu` from a 500 ms timer on
- * `touchstart` — so a popup that mounts *during* a press arms the swallow
- * for that press.
- *
- * Watched from module scope, because the press it has to know about
- * starts before any scrim exists — installing the listener from a mount
- * would be too late for exactly the case this is for.
+ * A popup can mount during a press (a long-press context menu), so that
+ * press is tracked from module scope, before any scrim exists.
  */
 let pressInFlight: Event | null = null;
 
@@ -108,21 +84,9 @@ if (typeof document !== "undefined") {
 }
 
 /**
- * The scrim does not absorb the click. A scrim can only absorb a tap that
- * lands *on it*, which is a claim about stacking that nothing can hold; a
- * touch's `click` is dispatched after `touchend`, against whatever is
- * topmost then, so the press is answered and the click it produces is
- * refused.
- *
- * The trigger is deliberately outside: every trigger here toggles, and its
- * click is swallowed, so pressing it while open closes the popup exactly
- * once.
- *
- * `pointer-events: none` is inline rather than in the class list so that
- * no caller's own classes can turn it back on.
- *
- * Escape is not here. It goes through `useShortcuts`, which knows what is
- * stacked above what.
+ * Dismisses on the press and swallows the click it produces, rather than
+ * relying on the scrim being on top when a touch's click is dispatched.
+ * `pointer-events: none` is inline so caller classes cannot undo it.
  */
 export function DismissScrim({
   onDismiss,
@@ -169,9 +133,7 @@ export function DismissScrim({
         {...{ [DISMISS_SCRIM_ATTR]: "" }}
         data-testid={testId}
         className={className}
-        // The keyboard's way through: an activation with no press before
-        // it arms nothing, so this is the path that closes the panel for
-        // a reader on Enter or Space.
+        // Keyboard activation (Enter / Space) arrives with no press.
         onClick={() => onDismiss()}
       />
     ) : (

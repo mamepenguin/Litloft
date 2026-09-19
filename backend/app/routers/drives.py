@@ -92,9 +92,7 @@ def _validate_folder_path(path: str) -> str:
 #
 # It is ``File.file_type`` with two refinements nested under
 # ``document``: text and PDF are documents, and asking for documents
-# returns them. The tree used to know only four of these buckets and the
-# listing only the six flat ones, so the same file could satisfy one
-# filter and not the other — see ``_apply_kind_filter``.
+# returns them.
 #
 # ``subtitle`` is accepted because it is a real ``file_type``, but the
 # scanner never registers subtitle files as rows and no UI offers it, so
@@ -201,24 +199,11 @@ def _classify_kind(
 ) -> str:
     """Map a File row to the kind vocabulary the UI names files by.
 
-    **This has to agree with `_apply_kind_filter`**, because the two are
-    read side by side: the folder card says "40 items · Archive" and the
-    Filter menu's *Archive* is expected to return those forty rows. Two
-    implementations that agreed the day they were written is what
-    produced the drift `_apply_kind_filter`'s own docstring is about, so
-    the points of contact are spelled out here:
-
-    - the flat kinds are `file_type` itself, `archive` included — it used
-      to fall into `other`, which was invisible while this only fed
-      `dominant_kind` (a view-mode guess) and wrong the moment it became
-      a label;
-    - text and PDF are recognised by mime, or by extension for rows
-      whose mime was never recorded, exactly as `_KIND_SUFFIXES` exists
-      for. A caller with no `filename` to hand gets the mime-only half.
-
-    `subtitle` is the one deliberate divergence: `?type=subtitle` selects
-    those rows, and nothing in the UI offers that filter or a word for
-    the kind, so they are counted as `other`.
+    **Must agree with `_apply_kind_filter`**: the folder card's
+    "40 items · Archive" and the Filter menu's *Archive* must return the
+    same rows. Text and PDF are recognised by mime, or by extension for rows
+    with no recorded mime. `subtitle` is counted as `other` on purpose: no
+    UI names that kind.
     """
     return _classify_kind_parts(file_type, mime_type, _kind_by_suffix(filename))
 
@@ -267,22 +252,10 @@ def _list_folder_tree_flat(
     type_filter: FileKind | None,
     include_files: bool,
 ) -> list[FolderTreeNode]:
-    """Return the entire drive tree as a flat list.
+    """Return the entire drive tree as a flat list, for the tree filter.
 
-    Used by the tree filter (spec 2026-05-09) which must evaluate matches
-    against the whole drive, not just the root level. Folders are emitted
-    irrespective of ``type_filter`` so the filter can fall back to
-    name-only matching on folders. Files honor ``type_filter`` exactly
-    like the lazy-load path. Soft-deleted / missing files are excluded
-    via ``active_file_filter()``.
-
-    ``include_files`` is what makes the tree filter agree with the tree it
-    filters: the pane's filter field says "find a folder", and it is this
-    list it searches, so with files hidden the filter must not match a
-    filename either.
-
-    Caps the response at ``_FLAT_TREE_MAX_ENTRIES`` so a runaway drive
-    cannot blow up the frontend.
+    Folders are emitted irrespective of ``type_filter``; files honor it.
+    Capped at ``_FLAT_TREE_MAX_ENTRIES``.
     """
     files: list[File] = []
     if include_files:
@@ -353,11 +326,8 @@ def list_drives(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     drives = filter_drives(config.load_drives(), unlocked_groups)
-    # Single grouped query for all drives (no N+1); active-only counts
-    # (active_file_filter excludes trash/missing per design-decisions.md).
-    # counts is computed for every drive but only attached to the
-    # access-filtered visible drives, so a locked drive's count never
-    # leaves the server (spec 2026-05-19-root-home-enrichment §2.1).
+    # Counted for every drive but attached only to visible ones, so a locked
+    # drive's count never leaves the server.
     counts = dict(
         db.query(File.drive, func.count(File.id))
         .filter(active_file_filter())
@@ -464,8 +434,7 @@ def list_folders(
     #
     # Two consumers, one scan: `dominant_kind` (which view mode a folder
     # opens in) is the argmax of these counts, and the folder card shows
-    # the largest few of them beside the total. The breakdown used to be
-    # built here and thrown away.
+    # the largest few of them beside the total.
     kind_counts: dict[str, dict[str, int]] = {}
     dominant_kind_map: dict[str, str | None] = {fp: None for fp in folders}
     if folders:
@@ -544,7 +513,7 @@ def list_folder_tree(
     flat: bool = False,
     include_files: bool = False,
 ):
-    """Lazy-expandable folder tree for the 2-pane left tree (spec topic 10).
+    """Lazy-expandable folder tree for the 2-pane left tree.
 
     Default mode (``flat=false``): returns one level (depth=1) of children
     under ``root``:
@@ -553,25 +522,12 @@ def list_folder_tree(
     - with ``include_files``, files at depth 1 whose ``mime_type`` /
       ``file_type`` matches ``type_filter``
 
-    ``include_files`` defaults to ``False`` — the tree is a map of the
-    drive's shape, and the pane beside it already lists the files in the
-    folder you are standing in. The default matches the UI's default so
-    that reading this reference and reading the screen give the same
-    answer; the "Show files too" toggle is what sends ``true``.
+    Folders carry ``file_count`` (recursive, after filter) and
+    ``has_children``. ``has_children`` follows ``include_files`` (with files
+    hidden, a folder holding only files is a leaf); ``file_count`` does not.
 
-    Folders carry ``file_count`` (recursive count after filter) and
-    ``has_children`` so the tree can decide whether to render an expand
-    caret. ``has_children`` follows ``include_files``, because it answers
-    "will expanding this show anything": with files hidden, a folder
-    holding only files is a leaf. ``file_count`` does not follow it — that
-    is the folder's size, which does not change with what the tree draws.
-
-    Flat mode (``flat=true``, spec 2026-05-09 tree filter): returns the
-    *entire* drive tree as a single flat list of folder + file nodes
-    bypassing the depth cap. Used by the tree filter to evaluate matches
-    deeper than the root level. Capped at ``_FLAT_TREE_MAX_ENTRIES`` (50k)
-    entries; larger drives are out of scope for this phase. Access control
-    filters (``active_file_filter``, drive permission) still apply.
+    Flat mode (``flat=true``): the entire drive tree as one flat list, for
+    the tree filter. Capped at ``_FLAT_TREE_MAX_ENTRIES``.
     """
     _validate_drive(drive_name, unlocked_groups)
     if root:
@@ -710,10 +666,7 @@ def list_drive_files(
     """List a drive's active files.
 
     `path` is an exact `folder_path` match by default — direct children only.
-    `recursive=True` widens it to the folder's whole subtree, which is what a
-    folder-scoped tag filter needs (spec 2026-08-21-folder-scoped-tag-filter).
-    The default stays False so every existing caller is unchanged: `path=""`
-    keeps meaning "root level" for RootFileListing / ImageGallery.
+    `recursive=True` widens it to the folder's whole subtree.
     """
     _validate_drive(drive_name, unlocked_groups)
     if path is not None and path:
@@ -739,10 +692,7 @@ def list_drive_files(
         normalized_search = unicodedata.normalize("NFC", search)
         escaped_search = _escape_like(normalized_search)
         pattern = f"%{escaped_search}%"
-        # spec 2026-05-02-search-path-match: match both title and folder_path.
-        # Catches use cases where folder-name classification is useful (e.g.
-        # searching "kyoto" under travel/kyoto/...). Per-card badge routing
-        # is handled by _classify_match_source below.
+        # Match folder_path too, so "kyoto" finds files under travel/kyoto/.
         query = query.filter(or_(
             File.title.ilike(pattern, escape="\\"),
             File.folder_path.ilike(pattern, escape="\\"),
@@ -905,8 +855,6 @@ async def create_folder(
 ):
     _validate_drive(drive_name, unlocked_groups)
     result = fileops.create_folder(drive_name, body.path, body.name, db)
-    # Notify subscribers (tree pane, right pane, addons) that the drive's
-    # folder topology changed. Spec 2026-05-09-tree-and-pane-refresh-sync.
     await event_hooks.emit(
         "folders.created", {"drive": drive_name, "path": result["path"]}
     )
@@ -941,8 +889,7 @@ async def create_text_file(
     editors and content creators (e.g., quick notes from the FolderToolbar
     "New File" button or the Cmd+N shortcut).
 
-    Phase 4 of the Vault-Core merger removed the extension allowlist —
-    any extension is creatable. Name conflicts with active or trashed
+    Any extension is creatable. Name conflicts with active or trashed
     files are auto-resolved by appending `` (n)`` before the extension.
     With ``conflict_mode=error``, any collision returns 409 instead.
     In the default rename mode, conflicts with a *missing* row at the same
@@ -1161,9 +1108,7 @@ async def rename_folder(
     file_ids = result.get("file_ids") or []
     if file_ids:
         await event_hooks.emit("files.moved", {"file_ids": file_ids})
-    # Always emit folders.moved so empty-folder renames are observable
-    # too (file_ids is empty in that case and the files.moved emit is
-    # skipped). Spec 2026-05-09-tree-and-pane-refresh-sync.
+    # Emitted unconditionally: renaming an empty folder moves no files.
     await event_hooks.emit(
         "folders.moved",
         {"drive": drive_name, "old_path": body.path, "new_path": result["path"]},

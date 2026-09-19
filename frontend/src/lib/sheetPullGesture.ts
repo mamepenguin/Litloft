@@ -30,17 +30,9 @@ export type SheetPullOwner = "undecided" | "scroller" | "sheet";
 
 export interface SheetPullState {
   owner: SheetPullOwner;
-  /**
-   * How far down the sheet is drawn, in px. Zero unless the sheet owns
-   * the gesture, and never negative — the sheet does not rise from its
-   * content, because rising is what the knob is for.
-   */
+  /** How far down the sheet is drawn, in px. Never negative. */
   pull: number;
-  /**
-   * The finger's displacement at the moment the sheet took the gesture,
-   * so the sheet starts from where it was handed over rather than from
-   * where the finger first touched. `null` until then.
-   */
+  /** The finger's displacement when the sheet took the gesture. */
   origin: number | null;
   /**
    * Downward movement the scroller did **not** consume while sitting at
@@ -67,9 +59,6 @@ export function beginSheetPull({
   scrollTop,
   maxScroll,
 }: SheetPullBegin): SheetPullState {
-  // Both still wait for a direction: taking every touch in a sheet that
-  // does not scroll means refusing the browser an upward or sideways one it
-  // could have answered.
   const takeable = maxScroll <= 0 || scrollTop <= SHEET_PULL_TOP_EPS_PX;
   return {
     owner: takeable ? "undecided" : "scroller",
@@ -110,11 +99,7 @@ export function advanceSheetPull(
   if (delta < 0 || scrollTop > SHEET_PULL_TOP_EPS_PX) {
     return { ...state, ...moved, pushedPastTop: 0 };
   }
-  /**
-   * Without the subtraction the whole of a move that *arrives* at the top
-   * counts as a push past it, and one fling sample is enough to clear the
-   * handoff.
-   */
+  // Otherwise a fling that arrives at the top counts as a push past it.
   const consumed = Math.max(0, state.lastScrollTop - scrollTop);
   const pushedPastTop = state.pushedPastTop + Math.max(0, delta - consumed);
   if (pushedPastTop < SHEET_PULL_HANDOFF_PX) {

@@ -417,11 +417,8 @@ async def _proxy_request(
                 headers=_filter_request_headers(request),
             )
 
-            # Forward client-facing errors (4xx) from the upstream addon
-            # as-is so meaningful validation / permission responses reach
-            # the browser. Previously every non-2xx became a generic 502,
-            # which hid useful error details like "insufficient_content"
-            # or "auto-tags feature disabled".
+            # Forward 4xx as-is so the addon's own error detail reaches the
+            # browser instead of a generic 502.
             if 400 <= resp.status_code < 500:
                 try:
                     body = resp.json()

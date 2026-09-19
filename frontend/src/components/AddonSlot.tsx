@@ -40,19 +40,9 @@ interface AddonSlotProps {
   /**
    * How the host draws the entries it gets back.
    *
-   * There is no `"menu"` here, and its absence is the design rather than
-   * an omission. A menu-shaped slot is already expressible: the host
-   * opens its own `role="menu"` container, renders the slot inside it
-   * with `layout="stack"`, and each entry draws
-   * `components/ActionMenuItem` rows — the contract `file-actions-menu`
-   * has shipped under since spec `2026-08-30-file-actions-menu-addon-slot.md`
-   * §6, with two addons on it. A second mechanism for the same shape
-   * would give the host two ways to say one thing, and `AddonSlot`
-   * cannot draw a row for an entry anyway: it holds the entry's label,
-   * not its icon or its action.
-   *
-   * `addon-slot-layouts.test.ts` holds every value here to a branch
-   * below, so this union cannot grow a member that renders nothing again.
+   * There is deliberately no `"menu"`: a menu-shaped slot is the host's
+   * own `role="menu"` wrapping `layout="stack"`, with each entry drawing
+   * `ActionMenuItem` rows (see `file-actions-menu`).
    */
   layout?: "tabs" | "stack";
   /**
@@ -61,10 +51,8 @@ interface AddonSlotProps {
    * sorting / tab activation, so an empty resulting set still hides the
    * entire slot (matches the `sorted.length === 0` early return).
    *
-   * Used by the Markdown DocumentLayout split (spec
-   * `2026-05-10-markdown-document-layout.md`) to send `knowledge-edit`
-   * to the canvas while the rest go to the Inspector. Both undefined →
-   * full back-compat (every entry rendered, original behaviour).
+   * Used by the Markdown DocumentLayout split to send `knowledge-edit`
+   * to the canvas while the rest go to the Inspector.
    */
   includeIds?: string[];
   /**

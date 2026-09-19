@@ -6,26 +6,14 @@ import {
 } from "@/lib/driveViews";
 import { samePath } from "./isSidebarLinkActive";
 
-/**
- * The Library row yields to a Pin by asking whether *this* pathname is
- * a pin's destination, and "the same folder" is a question about encoding
- * as much as about the path — two spellings of the rule would let the two
- * rows both light on a folder whose name is not its own encoding.
- */
+/** The one encoding of a pin's href, shared so Library and Pin agree. */
 export function pinHrefFor(driveBase: string, path: string): string {
   return `${driveBase}/${path.split("/").map(encodeURIComponent).join("/")}`;
 }
 
 /**
- * Not part of `isSidebarLinkActive`, and deliberately: that function
- * answers from an href alone, and this row's answer cannot be. Library is
- * selected on URLs it does not link to (every folder path), and unselected
- * on one it does (a pinned folder).
- *
- * Collections and Smart Folders need no clause of
- * their own, and writing one would be worse than leaving it out: their
- * destinations are `/drive/{d}/collections/{id}` and `/drive/{d}/search`,
- * which the route tests below already exclude.
+ * Not part of `isSidebarLinkActive`: Library is selected on URLs it does
+ * not link to (every folder path), so its href alone cannot answer.
  */
 export function isLibraryRowActive({
   pathname,
@@ -43,9 +31,6 @@ export function isLibraryRowActive({
 }): boolean {
   if (!driveBase) return false;
 
-  // Before the root branch, not after it. Below the early return this
-  // clause governs folder paths only, and `?view=library&tag=x` is a URL
-  // `app/drive/[name]/page.tsx` treats as a location on purpose.
   if (activeTag) return false;
 
   if (samePath(pathname, driveBase)) {

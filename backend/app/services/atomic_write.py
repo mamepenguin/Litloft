@@ -1,38 +1,17 @@
-"""Replacing a file's contents, with no second way to do it wrong.
+"""Atomic file replacement.
 
-**Two functions, because there are two meanings.** The mode policy is chosen by
-which one you call, not by an argument: a caller that can pass a policy is a
-caller that can pass the wrong one.
+The mode policy is chosen by which function you call, not by an argument:
 
-- `replace_file_contents` / `replacing_file` — a file in a **drive**. The
-  destination belongs to the user, who may have chmod'ed it on purpose, so an
-  existing mode is preserved.
-- `write_generated_file` / `generating_file` — a file under **`DATA_DIR`**.
-  Thumbnails, caches and job records are regenerated from something else and
-  nobody chmods them, so the mode is what a plain `open()` would have produced.
-  Fixed, not preserved: preserving it here would pin whatever the destination
-  happens to carry, including a mode left behind by an earlier bug, and
-  regeneration is the path by which such a file heals.
+- `replace_file_contents` / `replacing_file` — a file in a **drive**. The user
+  may have chmod'ed it on purpose, so an existing mode is preserved.
+- `write_generated_file` / `generating_file` — a file under **`DATA_DIR`**. The
+  mode is fixed, so regenerating a file also repairs a bad mode.
 
-Beyond the mode, a caller cannot:
+The temporary file sits in the destination's directory (so `rename(2)` stays on
+one filesystem), starts with a dot (so the scanner skips it), and keeps the
+destination's extension (ffmpeg infers the output format from it).
 
-- **name the temporary file, or any part of it.** It is created in the
-  destination's own directory — which is what makes `rename(2)` atomic; a
-  caller that picks the path can pick one on another filesystem, where
-  `os.replace` raises `EXDEV` — with a **leading dot**, which is what keeps the
-  scanner from indexing it, and carrying the destination's own extension,
-  because ffmpeg infers its output format from the name it is handed.
-- **leave a temporary file behind.** Removal is in a `finally`. A `return` out
-  of the block cannot leak one — `contextlib` resumes the generator and the
-  write is published — so what `finally` buys over `except Exception` is
-  `BaseException`: a `KeyboardInterrupt` mid-assembly cleans up too.
-- **publish a half-written file.** The rename happens on clean exit from the
-  block and nowhere else. To give up, raise `AbandonWrite`.
-
-What this does **not** promise is durability. `os.replace` is atomic with
-respect to what a reader can see; surviving a power cut needs `fsync` on the
-temporary file and on its directory, which nothing in this tree does. A separate
-guarantee, deliberately not made here.
+Not durable across a power cut: nothing here calls `fsync`.
 """
 from __future__ import annotations
 
@@ -58,9 +37,7 @@ _GENERATED_FILE_MODE = 0o666 & ~_process_umask()
 class AbandonWrite(Exception):
     """Raise inside a write block to discard it without publishing.
 
-    The temporary file is removed and the destination is untouched, and this
-    propagates for the caller to catch: a caller that cannot tell "abandoned"
-    from "published" reports success for a file it never wrote.
+    It propagates, so the caller can tell "abandoned" from "published".
     """
 
 

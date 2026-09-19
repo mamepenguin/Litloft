@@ -107,11 +107,7 @@ const variantConfig: Record<
  * Something to do, or somewhere to go.
  *
  * The two are not interchangeable: a destination rendered as a `<button>`
- * cannot be middle-clicked, copied, or opened in a new tab, and the one
- * call to action this component has that *is* a destination — widening a
- * tag filter to the whole drive — was previously drawn outside the
- * component with its own hand-written accent recipe, sitting under a
- * `-mt-8` that pulled it up into the space the actions row now occupies.
+ * cannot be middle-clicked, copied, or opened in a new tab.
  */
 export type EmptyStateAction =
   | { label: string; onClick: () => void; href?: never; newTab?: never; download?: never }
@@ -133,14 +129,8 @@ export type EmptyStateAction =
 interface BaseProps {
   /**
    * The one accent-filled button, when the empty state has something to
-   * offer. Singular by type, not by convention: DESIGN.md §2.2 allows one
-   * accent fill per screen, and an `actions: [{variant}]` array would let a
-   * caller write two and find out at review time, or not at all.
-   *
-   * This is the same move `.claude/rules` calls for elsewhere — make the
-   * drift unrepresentable rather than detectable (hako
-   * `jADDX0HR4wxm4m8DxDLrE`). Two calls to action mean the screen has not
-   * decided what it wants.
+   * offer. Singular by type: DESIGN.md §2.2 allows one accent fill per
+   * screen.
    */
   primaryAction?: EmptyStateAction;
   /** Outlined buttons beside it. Rendered after the primary one. */

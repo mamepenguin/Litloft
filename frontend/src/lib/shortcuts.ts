@@ -24,14 +24,8 @@ export interface ShortcutContextDef {
 export const OVERLAY_PRIORITY = 100
 
 /**
- * Tier for something opened *on top of* an overlay, which takes Escape
- * before the overlay under it does — so closing it leaves that overlay
- * where the reader left it.
- *
- * A tier rather than a later push at `OVERLAY_PRIORITY`: within a tier the
- * order is "most recently pushed", which for two contexts in one component
- * is hook order — true, but not a rule a reader can see or a later edit
- * can be trusted to preserve.
+ * Tier for something opened on top of an overlay. A tier rather than a
+ * later push, because push order within one component is just hook order.
  */
 export const NESTED_OVERLAY_PRIORITY = 200
 
@@ -77,23 +71,9 @@ export function formatShortcut(key: string): string {
 }
 
 /**
- * Shortcuts are declared with the canonical "ctrl+X" form regardless of
- * platform. The actual hardware modifier required depends on the OS:
- *
- *   - macOS:        Cmd (metaKey) is the primary modifier.
- *                   A bare Ctrl press does NOT match a "ctrl+X" shortcut —
- *                   that follows the platform convention (Mac apps use Cmd
- *                   for shortcuts; Ctrl is the OS literal Control key for
- *                   emacs-style cursor moves and chorded keys we shouldn't
- *                   shadow).
- *   - Windows/Linux: Ctrl (ctrlKey) is the primary modifier. Meta (Win/Super
- *                   key) is OS-reserved and won't fire our shortcuts.
- *
- * Rule for Shift: include "shift+" only when another modifier (the platform
- * primary or Alt) is also held, OR when the key is a named key (length > 1,
- * e.g. ArrowLeft). For plain Shift+printable (Shift+/ → "?"), e.key already
- * returns the final character, so prepending "shift+" would break matching
- * against shortcut definitions like { key: "?" }.
+ * "ctrl" means Cmd on macOS; a bare Ctrl there does not match, so
+ * emacs-style bindings stay free. "shift+" is omitted for Shift+printable,
+ * because `e.key` is already the shifted character ("?", not "/").
  */
 export function normalizeKey(e: KeyboardEvent): string {
   const parts: string[] = []

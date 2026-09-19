@@ -27,18 +27,8 @@ import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import type { UploadFileEntry } from "@/hooks/useUpload";
 
 /**
- * The slot for addon rows inside this menu.
- *
- * A second id rather than a second contract on the slot it replaced: that
- * one drew a standalone button in the toolbar, and an entry written for it
- * renders a button. Rendering the same entry inside a `role="menu"` gives a
- * button in a dropdown whose own dropdown opens over its parent, so
- * redefining the old id would have broken every addon on it for as long as
- * each repository took to catch up. Addons moved by declaring this id
- * instead, and the old slot is gone.
- *
- * The contract is `file-actions-menu`'s, unchanged: entries draw
- * `ActionMenuItem` rows and are indistinguishable from the host's own.
+ * The slot for addon rows inside this menu. The contract is
+ * `file-actions-menu`'s: entries draw `ActionMenuItem` rows.
  */
 export const ADD_MENU_SLOT = "folder-actions-menu";
 
@@ -65,9 +55,7 @@ interface AddButtonProps {
  * Everything that puts something into the current folder, behind one
  * control.
  *
- * This is the folder toolbar's single accent fill (DESIGN.md §2.2). It was
- * three buttons — upload, new folder, new note — plus an addon's own, each
- * competing for the same corner, two of them accent-filled.
+ * This is the folder toolbar's single accent fill (DESIGN.md §2.2).
  */
 export function AddButton({
   onCreateFolder,
@@ -120,23 +108,9 @@ export function AddButton({
     if (!menuOpen) setAddonDialogOpen(false);
   }, [menuOpen]);
 
-  // A popup must be dismissable from the keyboard. Without it the only
-  // ways out are a press outside it or picking a row, so a keyboard user
-  // who opens this menu cannot back out of it.
-  //
-  // On the shortcut stack, not on `document`: a listener does not know
-  // what is stacked above it, and `escape-listeners.test.ts` records the
-  // presses that were answered twice before this was the rule.
-  // `OVERLAY_PRIORITY` is what puts this menu ahead of the page beneath
-  // while it is open. `FileActions` carries the same block and the
-  // reasoning in full.
-  //
-  // `editingOnly: false` because nothing traps focus inside this menu, so
-  // Tab walks out of the last row into whatever follows in the document.
-  // The provider counts a focused field as "editing", and the default
-  // fires only when nothing is — which would leave Escape inert exactly
-  // there, with the menu still up. The test case for that state is what
-  // makes the flag checkable.
+  // On the shortcut stack, not on `document`, so one press is answered
+  // once. `editingOnly: false` because nothing traps focus here: Tab can
+  // leave the menu for a field, and Escape must still close it.
   useShortcuts(
     "add-menu",
     "Dialog",
@@ -159,34 +133,9 @@ export function AddButton({
     <div
       ref={menuRef}
       role="menu"
-      // Capped and scrollable, like every other menu on this bar,
-      // and it keeps its own geometry rather than taking the shared
-      // surface.
-      //
-      // **Which side it grows from is not the reason.** That used
-      // to be it, and `useMenuSurface` took it away by growing an
-      // `align` parameter. The reason that is left is the form:
-      // every class the shared surface hands back is `sm:`-scoped,
-      // because that surface is a viewport-spanning sheet below
-      // 640px and an anchored panel above it. This menu is
-      // anchored at every width — its scrim says so and draws no
-      // tint — so taking those classes would leave it with no
-      // vertical placement at all under the breakpoint, and taking
-      // the sheet with them would turn a control on every folder
-      // toolbar into a bottom sheet on a phone.
-      //
-      // The *measurement* is shared even so: that is the part that
-      // was a near-copy, and it is `useAnchoredDirection` above.
-      //
-      // It grows with `folder-actions-menu`: three contributed rows
-      // take it from four to seven. Uncapped it runs past the fold
-      // of a landscape phone, and capped it fits and scrolls; the
-      // numbers are in the PR that measured them.
-      //
-      // `max-h` is against the viewport, not against the room below
-      // the trigger, so a cap is not a direction — which is why the
-      // hook decides that separately, and why this menu used to end
-      // below the fold with the cap doing its job.
+      // Not `useMenuSurface`: its classes are `sm:`-scoped because it is
+      // a bottom sheet on phones, and this menu stays anchored at every
+      // width. Capped because addon rows can push it past the fold.
       className={`absolute z-30 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:max-h-[70vh] ${
         ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
       } ${
@@ -222,17 +171,8 @@ export function AddButton({
         />
       )}
       {showAddonRows && (
-        /* The rule is this element's own border, not a sibling, so
-           `empty:hidden` can take both away together. `hasSlot` only
-           answers "did an addon declare this slot" — an entry that
-           did may still render nothing here (a drive with the
-           addon's feature policy off does exactly that), and the
-           rule would then hang under the last core row with nothing
-           beneath it. Ported from `FileActions`, which carries this
-           for the same reason.
-
-           `role="none"`: the rows inside must read as direct
-           children of `role="menu"`, and the rule is decoration. */
+        /* The divider is this element's own border so `empty:hidden`
+           removes it when a declared addon renders nothing (policy off). */
         <div
           role="none"
           className="mt-1 border-t border-bg-border pt-1 empty:hidden"

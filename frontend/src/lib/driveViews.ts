@@ -28,12 +28,7 @@ export function isStandaloneView(view: string | null): boolean {
  */
 export const LIBRARY_VIEW = "library";
 
-/**
- * Exact, not lenient. An unrecognised `?view=` value is passed through to
- * the drive-wide file list by design, so `?view=Library`,
- * `?view=my-library` and `?view=library ` are unknown values, not
- * spellings of this one.
- */
+/** Exact: other spellings are unknown views, not this one. */
 export function isLibraryRootView(view: string | null | undefined): boolean {
   return view === LIBRARY_VIEW;
 }
