@@ -192,3 +192,19 @@ describe("FileListRow's text preview for Office files", () => {
     expect(document.querySelector('[data-testid="text-thumbnail"]')).not.toBeNull();
   });
 });
+
+describe("the list row's link", () => {
+  it("goes to the file in its own folder, not through /files/{id}", () => {
+    render(
+      <FileListRow
+        file={{ ...file, drive: "work", folder_path: "Q1/reports" }}
+        onContextMenu={vi.fn()}
+        sortQuery="?sort=name&order=asc&nav=folder"
+      />,
+    );
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/drive/work/Q1/reports?file=f1&sort=name&order=asc&nav=folder",
+    );
+  });
+});

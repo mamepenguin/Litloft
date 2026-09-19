@@ -67,7 +67,7 @@ describe("FileCard", () => {
   it("links to file page", () => {
     render(<FileCard file={mockFile} />);
     const links = screen.getAllByRole("link");
-    const fileLink = links.find((l) => l.getAttribute("href") === "/files/abc123def456");
+    const fileLink = links.find((l) => l.getAttribute("href") === "/drive/test-drive/%E6%97%85%E8%A1%8C?file=abc123def456");
     expect(fileLink).toBeTruthy();
   });
 
@@ -131,7 +131,7 @@ describe("FileCard", () => {
         />
       );
       const link = screen.getAllByRole("link").find(
-        (l) => l.getAttribute("href") === "/files/abc123def456",
+        (l) => l.getAttribute("href") === "/drive/test-drive/%E6%97%85%E8%A1%8C?file=abc123def456",
       );
       expect(link).toBeTruthy();
       fireEvent.touchStart(link!, { touches: [{ clientX: 10, clientY: 10 }] });
@@ -147,7 +147,7 @@ describe("FileCard", () => {
         />
       );
       const link = screen.getAllByRole("link").find(
-        (l) => l.getAttribute("href") === "/files/abc123def456",
+        (l) => l.getAttribute("href") === "/drive/test-drive/%E6%97%85%E8%A1%8C?file=abc123def456",
       );
       fireEvent.touchEnd(link!);
       expect(onTouchEnd).toHaveBeenCalledTimes(1);
@@ -162,7 +162,7 @@ describe("FileCard", () => {
         />
       );
       const link = screen.getAllByRole("link").find(
-        (l) => l.getAttribute("href") === "/files/abc123def456",
+        (l) => l.getAttribute("href") === "/drive/test-drive/%E6%97%85%E8%A1%8C?file=abc123def456",
       );
       fireEvent.touchMove(link!, { touches: [{ clientX: 30, clientY: 30 }] });
       expect(onTouchMove).toHaveBeenCalledTimes(1);
@@ -198,7 +198,7 @@ describe("FileCard", () => {
       render(<FileCard file={mockFile} />);
       expect(screen.getByRole("link")).toHaveAttribute(
         "href",
-        "/files/abc123def456",
+        "/drive/test-drive/%E6%97%85%E8%A1%8C?file=abc123def456",
       );
     });
 
