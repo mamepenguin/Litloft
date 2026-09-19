@@ -212,8 +212,10 @@ export function TouchControlsPresenter({
       )}
 
       {/* Outside the faded container: this is what remains once the
-          controls go away. */}
-      {!visible && (
+          controls go away. Full screen on a phone is the one place that
+          keeps nothing: the frame is the whole screen, and a line across
+          it is a mark on the picture rather than chrome on a player. */}
+      {!visible && !isFullscreen && (
         <ProgressHairline
           playedFraction={playedFraction}
           bufferedFraction={bufferedFraction}

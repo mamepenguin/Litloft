@@ -171,6 +171,11 @@ describe("TouchControlsPresenter", () => {
       renderControls({ visible: true });
       expect(screen.queryByTestId("progress-hairline")).not.toBeInTheDocument();
     });
+
+    it("leaves nothing behind in full screen", () => {
+      renderControls({ visible: false, isFullscreen: true });
+      expect(screen.queryByTestId("progress-hairline")).not.toBeInTheDocument();
+    });
   });
 
   describe("interrupted (ad break)", () => {
