@@ -147,11 +147,18 @@ describe("TouchControlsPresenter", () => {
       expect(screen.queryByTestId("seek-knob")).not.toBeInTheDocument();
     });
 
-    it("sits on the bottom edge of the frame", () => {
-      // 28px down a 40px row leaves the 12px line flush with the bottom.
+    it("keeps the knob clear of the frame's bottom edge", () => {
+      // 24px down a 40px row leaves the 12px knob 4px short of the bottom.
       const { container } = renderControls();
       const line = container.querySelector<HTMLElement>('[data-testid="seek-line"]');
-      expect(line?.style.top).toBe("28px");
+      expect(line?.style.top).toBe("24px");
+    });
+
+    it("draws the knob in the indicator colour", () => {
+      renderControls();
+      expect(screen.getByTestId("seek-knob").className).toContain(
+        "bg-player-indicator",
+      );
     });
 
     it("leaves a hairline behind once the controls fade out", () => {
@@ -161,6 +168,11 @@ describe("TouchControlsPresenter", () => {
 
     it("shows no hairline while the real bar is up", () => {
       renderControls({ visible: true });
+      expect(screen.queryByTestId("progress-hairline")).not.toBeInTheDocument();
+    });
+
+    it("leaves nothing behind in full screen", () => {
+      renderControls({ visible: false, isFullscreen: true });
       expect(screen.queryByTestId("progress-hairline")).not.toBeInTheDocument();
     });
   });

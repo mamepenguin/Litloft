@@ -194,6 +194,8 @@ for an error surface in markup use `bg-danger/15`.
 | `--accent-cta` | `#d63031` | CTA button (same as accent) |
 | `--accent-teal` | `#103c25` | Success / accepted state |
 | `--accent-amber` | `#78350f` | AI-generated / suggestion pending state |
+| `--player-indicator` | `var(--accent)` | Player progress indicator (played range and knob) |
+| `--player-indicator-track` | `rgba(112,112,112,0.85)` | Grey behind the indicator where no scrim carries it |
 | `--sand` | `#e5e5e0` | Secondary button background (warm sand) |
 | `--sand-hover` | `#d5d5d0` | Sand hover state |
 | `--warm-light` | `#e0e0d9` | Circle buttons, subtle badge backgrounds |
@@ -220,6 +222,7 @@ for an error surface in markup use `bg-danger/15`.
 | `--accent-hover` | `#f07070` | Lighter coral |
 | `--accent-teal` | `#4caf80` | Bright green |
 | `--accent-amber` | `#f4c674` | Warm honey |
+| `--player-indicator` | `#ffffff` | White rather than coral: the indicator is read against the picture |
 | `--sand` | `#3d2023` | Dark sand |
 | `--sand-hover` | `#4a2a2e` | Dark sand hover |
 | `--warm-light` | `#3d2023` | Same as sand |
@@ -756,8 +759,8 @@ higher than whatever it currently sits under.
 
 Chrome **on top of a video frame** deliberately ignores the theme tokens: its
 backdrop is the picture, near-black in practice, so theme surfaces would draw pale
-controls on a black frame in light mode. Full-screen image and archive viewers
-follow the same rules.
+controls on a black frame in light mode. The seek indicator below is the one
+exception. Full-screen image and archive viewers follow the same rules.
 
 - Foreground `text-white`; secondary `text-white/70`; dividers and inert marks
   `text-white/50`.
@@ -772,8 +775,22 @@ follow the same rules.
   with a slight blur, masked so it has no seam), because the embed draws its own
   chrome in the same strip. Use the plain scrim while the embed owns the frame
   (ad, end screen).
-- Track fills `bg-white/25` empty, `bg-white/40` buffered, `bg-accent` played and
-  volume.
+- Track fills `bg-white/25` empty and `bg-white/40` buffered; the volume
+  slider's played range is `bg-accent`.
+- **The seek indicator follows the theme**: `--player-indicator` — coral in
+  light, white in dark — fills the played range and the knob alike, in the
+  control bar and in the hairline that stays behind once the bar fades. Dark
+  mode takes white because the mark reads against the picture, not against a
+  surface. The hairline has no scrim under it, so its empty track is
+  `--player-indicator-track` rather than `bg-white/25`.
+- **The bar sits as low as the knob allows** in the touch and compact layouts:
+  the knob is taller than the track and centred on it, so the track stops 8px
+  short of the frame's bottom edge and the knob clears it by 4px. Only the
+  hairline is on the edge itself. The pointer layout centres the bar in its own
+  row above the buttons instead.
+- **Full screen on a phone leaves nothing behind**: there the frame is the whole
+  screen, so a line across it reads as a mark on the picture rather than as
+  chrome, and the touch layout drops the hairline. In the page it keeps it.
 - Focus rings still use `ring-focus-ring`; radius follows §5.
 - **Transient gesture feedback**: a half-disc `bg-white/15`, icon plus label,
   fading, `aria-hidden` — the same operation must also be a real button or
