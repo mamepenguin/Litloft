@@ -499,6 +499,26 @@ describe("RightPaneFile, the file it holds", () => {
     expect(await screen.findByText("File not found")).toBeInTheDocument();
   });
 
+  it("ignores an answer for a file it has already left", async () => {
+    let answerFirst: (f: unknown) => void = () => {};
+    mockGetFile.mockImplementation((id: string) =>
+      id === "abc123"
+        ? new Promise((resolve) => {
+            answerFirst = resolve;
+          })
+        : Promise.resolve({ ...baseFile, id: "xyz" }),
+    );
+    const { rerender } = render(<RightPaneFile fileId="abc123" drive="work" />);
+    rerender(<RightPaneFile fileId="xyz" drive="work" />);
+    await waitFor(() =>
+      expect(imageGalleryProps.at(-1)?.file).toMatchObject({ id: "xyz" }),
+    );
+    await act(async () => {
+      answerFirst(baseFile);
+    });
+    expect(imageGalleryProps.at(-1)?.file).toMatchObject({ id: "xyz" });
+  });
+
   it("ignores a failure for a file it has already left", async () => {
     let failFirst: (e: unknown) => void = () => {};
     mockGetFile.mockImplementation((id: string) =>

@@ -11,6 +11,7 @@ import type { FileRelationItem } from "@/lib/api";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import type { SlotEntry } from "@/lib/addons";
 import type { FileItem } from "@/types";
+import type { DocumentCaptureController } from "@/lib/documentCapture";
 import {
   PdfDocumentStore,
   type PdfController,
@@ -37,6 +38,10 @@ export const publishedPdfState: { value: Partial<PdfDocumentState> | null } = {
   value: null,
 };
 
+export const publishedCapture: { value: DocumentCaptureController | null } = {
+  value: null,
+};
+
 export const publishedArchiveState: {
   value: Partial<ArchiveState> | null;
 } = { value: null };
@@ -45,10 +50,17 @@ export const FilePreviewStub = vi.fn(
   ({
     onPdfController,
     onArchiveController,
+    onDocumentCaptureController,
   }: {
     onPdfController?: (c: PdfController | null) => void;
     onArchiveController?: (c: ArchiveController | null) => void;
+    onDocumentCaptureController?: (c: DocumentCaptureController | null) => void;
   }) => {
+    useEffect(() => {
+      if (!onDocumentCaptureController || !publishedCapture.value) return;
+      onDocumentCaptureController(publishedCapture.value);
+      return () => onDocumentCaptureController(null);
+    }, [onDocumentCaptureController]);
     useEffect(() => {
       if (!onPdfController || !publishedPdfState.value) return;
       const store = new PdfDocumentStore();
@@ -198,6 +210,7 @@ export function AddonSlotStub({
         typeof props?.fileId === "string" ? props.fileId : undefined
       }
       data-prop-drive={typeof props?.drive === "string" ? props.drive : undefined}
+      data-has-capture={props?.documentCaptureController ? "true" : "false"}
     />
   );
 }

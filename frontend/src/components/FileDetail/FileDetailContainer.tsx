@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import type { FileItem } from "@/types";
@@ -93,15 +93,6 @@ export function FileDetailContainer({
   const scrollRoot = ridesShell ? shellScrollRoot : (miniPlayerRoot ?? null);
 
   const metrics = useCompanionMetrics(file?.id, scrollRoot);
-
-  // The capture controller belongs to whatever viewer is mounted, and
-  // the viewer is replaced when the file changes. Dropping it here
-  // rather than waiting for the next viewer to publish one keeps a
-  // stale controller from being handed to the addon slots of the file
-  // that has just been opened.
-  useEffect(() => {
-    setDocumentCaptureController(null);
-  }, [fileId]);
 
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
@@ -274,9 +265,6 @@ export function FileDetailContainer({
 
   return (
     <FileDetailPresenter
-      // One mount per file: a player kept across a change of file plays the
-      // previous file's media under the next file's id until it reloads.
-      key={fileId}
       file={file}
       fileId={fileId}
       drive={drive}

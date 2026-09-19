@@ -353,6 +353,34 @@ describe("FileDetailFullScreen, the file it draws", () => {
     await waitFor(() => expect(screen.queryByText(/Trashed clip/)).toBeNull());
   });
 
+  it("draws the next file's list copy when the file changes", () => {
+    seedFiles([baseFile, { ...baseFile, id: "xyz", title: "Next one" }]);
+    mockGetFile.mockReturnValue(new Promise(() => {}));
+    const { rerender } = render(<FileDetailFullScreen fileId="abc" />);
+    rerender(<FileDetailFullScreen fileId="xyz" />);
+    expect(screen.getByTestId("file-detail-chrome")).toHaveTextContent("Next one");
+  });
+
+  it("ignores a failure for a file it has already left", async () => {
+    let failFirst: (e: unknown) => void = () => {};
+    mockGetFile.mockImplementation((id: string) =>
+      id === "abc"
+        ? new Promise((_resolve, reject) => {
+            failFirst = reject;
+          })
+        : Promise.resolve({ ...baseFile, id: "xyz", title: "Other" }),
+    );
+    const { rerender } = render(<FileDetailFullScreen fileId="abc" />);
+    rerender(<FileDetailFullScreen fileId="xyz" />);
+    await waitFor(() =>
+      expect(screen.getByTestId("file-detail-chrome")).toHaveTextContent("Other"),
+    );
+    await act(async () => {
+      failFirst(new Error("API error: 404"));
+    });
+    expect(screen.getByTestId("file-detail-chrome")).toHaveTextContent("Other");
+  });
+
   it("ignores an answer for a file it has already left", async () => {
     let answerFirst: (f: unknown) => void = () => {};
     mockGetFile.mockImplementation((id: string) =>
