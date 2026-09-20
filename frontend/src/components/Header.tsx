@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef } from "react";
 import { User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { TRANSITION_NAMES } from "@/lib/transitionNames";
 
 import { useProfile } from "./ProfileProvider";
 import { GlobalSearch } from "./GlobalSearch";
@@ -54,7 +53,6 @@ export function Header() {
       style={{
         paddingTop: "env(safe-area-inset-top, 0px)",
         minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))",
-        viewTransitionName: TRANSITION_NAMES.appHeader,
       }}
       className="sticky top-0 z-20 flex flex-shrink-0 items-center border-b border-bg-border bg-bg-primary px-4"
     >

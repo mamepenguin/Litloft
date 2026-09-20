@@ -1,4 +1,5 @@
 import { render } from "@testing-library/react";
+import { StrictMode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NavigationCommitSignal } from "../NavigationCommitSignal";
@@ -58,6 +59,16 @@ describe("NavigationCommitSignal", () => {
     view.rerender(<NavigationCommitSignal />);
 
     expect(notify).toHaveBeenCalledWith("/drive/main/movies");
+  });
+
+  it("reports once when StrictMode runs the mount effect twice", () => {
+    render(
+      <StrictMode>
+        <NavigationCommitSignal />
+      </StrictMode>,
+    );
+
+    expect(notify).toHaveBeenCalledOnce();
   });
 
   it("stays quiet on a re-render that did not change the url", () => {

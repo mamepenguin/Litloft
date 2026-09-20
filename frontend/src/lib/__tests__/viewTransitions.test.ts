@@ -17,26 +17,31 @@ interface FakeHandle {
 
 let handles: FakeHandle[] = [];
 
-function installViewTransition(): void {
-  (document as unknown as Record<string, unknown>).startViewTransition = (
-    cb: () => unknown,
-  ) => {
-    const updateCallbackDone = Promise.resolve(cb()).then(() => undefined);
-    const handle: FakeHandle = {
-      skipTransition: vi.fn(),
-      ready: updateCallbackDone.then(
-        () => undefined,
-        () => undefined,
-      ),
-      finished: updateCallbackDone.then(
-        () => undefined,
-        () => undefined,
-      ),
-      updateCallbackDone,
-    };
-    handles.push(handle);
-    return handle;
+/**
+ * A throwing update callback rejects `finished` and does not come back out
+ * of `startViewTransition`, so the caller cannot clean up in a `catch`.
+ */
+function fakeTransition(cb: () => unknown): FakeHandle {
+  let updateCallbackDone: Promise<void>;
+  try {
+    updateCallbackDone = Promise.resolve(cb()).then(() => undefined);
+  } catch (error) {
+    updateCallbackDone = Promise.reject(error);
+  }
+  updateCallbackDone.catch(() => undefined);
+  const handle: FakeHandle = {
+    skipTransition: vi.fn(),
+    ready: updateCallbackDone,
+    finished: updateCallbackDone,
+    updateCallbackDone,
   };
+  handles.push(handle);
+  return handle;
+}
+
+function installViewTransition(): void {
+  (document as unknown as Record<string, unknown>).startViewTransition =
+    fakeTransition;
 }
 
 function removeViewTransition(): void {
@@ -134,15 +139,7 @@ describe("navigateWithTransition — the transition", () => {
     ) => {
       nameAtCapture = hero.style.viewTransitionName;
       vtAtCapture = document.documentElement.dataset.vt;
-      const updateCallbackDone = Promise.resolve(cb()).then(() => undefined);
-      const handle: FakeHandle = {
-        skipTransition: vi.fn(),
-        ready: updateCallbackDone,
-        finished: updateCallbackDone,
-        updateCallbackDone,
-      };
-      handles.push(handle);
-      return handle;
+      return fakeTransition(cb);
     };
 
     navigateWithTransition(vi.fn(), { hero, direction: "folder-down" });
@@ -157,15 +154,8 @@ describe("navigateWithTransition — the transition", () => {
       cb: () => unknown,
     ) => {
       order.push("start");
-      const updateCallbackDone = Promise.resolve(cb()).then(() => undefined);
+      const handle = fakeTransition(cb);
       order.push("callback-returned");
-      const handle: FakeHandle = {
-        skipTransition: vi.fn(),
-        ready: updateCallbackDone,
-        finished: updateCallbackDone,
-        updateCallbackDone,
-      };
-      handles.push(handle);
       return handle;
     };
 
@@ -209,6 +199,10 @@ describe("navigateWithTransition — the transition", () => {
 });
 
 describe("navigateWithTransition — nothing is left behind", () => {
+  it("holds input for no longer than the declared budget", () => {
+    expect(COMMIT_TIMEOUT_MS).toBe(250);
+  });
+
   it("skips the transition and cleans up when the navigation never commits", async () => {
     vi.useFakeTimers();
     const hero = card();
@@ -216,7 +210,11 @@ describe("navigateWithTransition — nothing is left behind", () => {
     navigateWithTransition(vi.fn(), { hero, direction: "folder-down" });
     expect(hero.style.viewTransitionName).toBe("file-hero");
 
-    await vi.advanceTimersByTimeAsync(COMMIT_TIMEOUT_MS + 1);
+    await vi.advanceTimersByTimeAsync(249);
+    expect(handles[0].skipTransition).not.toHaveBeenCalled();
+    expect(hero.style.viewTransitionName).toBe("file-hero");
+
+    await vi.advanceTimersByTimeAsync(2);
 
     expect(handles[0].skipTransition).toHaveBeenCalledOnce();
     expect(namedElements()).toEqual([]);
@@ -233,24 +231,19 @@ describe("navigateWithTransition — nothing is left behind", () => {
 
     expect(namedElements()).toEqual([second]);
 
-    await vi.advanceTimersByTimeAsync(COMMIT_TIMEOUT_MS + 1);
+    await vi.advanceTimersByTimeAsync(251);
     expect(namedElements()).toEqual([]);
   });
 
   it("leaves nothing behind when the navigation throws", async () => {
     const hero = card();
 
-    try {
-      navigateWithTransition(
-        () => {
-          throw new Error("boom");
-        },
-        { hero, direction: "folder-up" },
-      );
-    } catch {
-      // Whether the browser surfaces this synchronously or as a rejected
-      // update callback is the browser's business; the cleanup is ours.
-    }
+    navigateWithTransition(
+      () => {
+        throw new Error("boom");
+      },
+      { hero, direction: "folder-up" },
+    );
     await flush();
 
     expect(namedElements()).toEqual([]);

@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
-import "./view-transitions.css";
 
 import { AppShell } from "@/components/AppShell";
 import { DirtyBlocker } from "@/components/DirtyBlocker";

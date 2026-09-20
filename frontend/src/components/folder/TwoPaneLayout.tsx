@@ -7,7 +7,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { ScrollContainerContext } from "@/lib/scrollContainer";
-import { TRANSITION_NAMES } from "@/lib/transitionNames";
 
 import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
@@ -108,7 +107,6 @@ export function TwoPaneLayout({
       <div className="flex h-below-header w-full overflow-clip">
         <aside
           className={`h-full flex-shrink-0 overflow-hidden transition-[width] duration-150 ease-out ${treeAsideWidth}`}
-          style={{ viewTransitionName: TRANSITION_NAMES.folderTree }}
           aria-label={leftPaneAriaLabel ?? "Folder tree"}
           aria-hidden={!treeOpen}
           // aria-hidden alone lets keyboard focus still land on the
