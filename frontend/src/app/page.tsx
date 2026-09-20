@@ -4,6 +4,7 @@ import { HardDrive, Lock } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import type { AuthStatus, Drive } from "@/types";
 import { COOKIE_NAME, sanitizeNickname } from "@/lib/nickname";
+import { driveHref } from "@/lib/driveViews";
 import { HomeHeader } from "./HomeHeader";
 
 async function fetchDrives(cookieHeader: string | undefined): Promise<Drive[]> {
@@ -103,7 +104,7 @@ export default async function Home() {
             {drives.map((drive) => (
               <Link
                 key={drive.name}
-                href={`/drive/${encodeURIComponent(drive.name)}`}
+                href={driveHref(drive.name, "home")}
                 // `border-transparent`, not "no border": the unlock cell
                 // beside it is outlined, and a 1px border grows the box.
                 className="group flex items-center gap-3 rounded-2xl border border-transparent bg-bg-card p-4 shadow-card transition-colors duration-200 hover:bg-bg-elevated"

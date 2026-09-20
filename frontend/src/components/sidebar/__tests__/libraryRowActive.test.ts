@@ -46,16 +46,16 @@ function litRows({
 
 describe("which fixed sidebar row is lit", () => {
   const STATES: [string, Parameters<typeof litRows>[0], string[]][] = [
-    ["the drive root", { pathname: BASE }, ["Home"]],
-    ["the Library root", { pathname: BASE, activeView: "library" }, ["Library"]],
+    ["the Library root", { pathname: BASE }, ["Library"]],
+    ["Home", { pathname: BASE, activeView: "home" }, ["Home"]],
     ["a folder", { pathname: `${BASE}/recipes` }, ["Library"]],
     ["a nested folder", { pathname: `${BASE}/recipes/winter` }, ["Library"]],
     ["a pinned folder", { pathname: `${BASE}/recipes/soup` }, ["Pin: recipes/soup"]],
     // The Tag row computes its own highlight inside `SidebarTagsSection`, so
     // these states declare the empty set: Library gives it up.
     ["a folder with a tag on it", { pathname: `${BASE}/recipes`, activeTag: "soup" }, []],
-    ["the drive root with a tag on it", { pathname: BASE, activeTag: "soup" }, []],
-    ["the Library root with a tag on it", { pathname: BASE, activeView: "library", activeTag: "soup" }, []],
+    ["the Library root with a tag on it", { pathname: BASE, activeTag: "soup" }, []],
+    ["Home with a tag on it", { pathname: BASE, activeView: "home", activeTag: "soup" }, ["Home"]],
     ["a special view", { pathname: BASE, activeView: "favorites" }, ["Favorites"]],
     ["trash", { pathname: BASE, activeView: "trash" }, ["Trash"]],
     ["search, which is also where a Smart Folder lands", { pathname: `${BASE}/search` }, []],
@@ -80,8 +80,8 @@ describe("which fixed sidebar row is lit", () => {
 
   it("declares one lit row per state, or none where the owner is elsewhere", () => {
     const byCount = (n: number) => STATES.filter(([, , expected]) => expected.length === n);
-    expect(byCount(1)).toHaveLength(11);
-    expect(byCount(0)).toHaveLength(9);
+    expect(byCount(1)).toHaveLength(12);
+    expect(byCount(0)).toHaveLength(8);
     expect(byCount(1).length + byCount(0).length).toBe(STATES.length);
   });
 });

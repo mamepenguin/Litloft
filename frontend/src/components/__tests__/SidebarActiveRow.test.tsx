@@ -296,7 +296,7 @@ describe("a row whose highlight cannot come from its href", () => {
 
   it("lights nothing while no tag is applied", () => {
     render(<Sidebar />);
-    expect(highlighted()).toEqual(["Home"]);
+    expect(highlighted()).toEqual(["Library"]);
   });
 });
 

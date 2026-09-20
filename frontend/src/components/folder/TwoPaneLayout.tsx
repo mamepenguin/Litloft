@@ -12,6 +12,7 @@ import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { useTreeVisible } from "@/hooks/useTreeVisible";
 import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
+import { driveHref } from "@/lib/driveViews";
 import { TreeRefreshContext } from "@/components/TreeRefreshContext";
 import { useOverlaySidebarWhen } from "@/components/SidebarProvider";
 
@@ -51,7 +52,10 @@ export function TwoPaneLayout({
   const handleSelectFolder = useCallback(
     (path: string) => {
       const segments = path.split("/").filter(Boolean).map(encodeURIComponent);
-      const target = segments.length === 0 ? driveBase : `${driveBase}/${segments.join("/")}`;
+      const target =
+        segments.length === 0
+          ? driveHref(drive, "library")
+          : `${driveBase}/${segments.join("/")}`;
       // Jumping the viewport back to the top would feel like the tree
       // itself collapsed.
       if (target !== pathname) {
@@ -60,7 +64,7 @@ export function TwoPaneLayout({
         clearFile();
       }
     },
-    [driveBase, pathname, router, hasFile, clearFile],
+    [drive, driveBase, pathname, router, hasFile, clearFile],
   );
 
   const handleSelectFile = useCallback(

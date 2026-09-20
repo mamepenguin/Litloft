@@ -58,7 +58,8 @@ Both fire while the note textarea has focus.
 
 ## File browsing
 
-These fire on `/drive/<name>` and `/drive/<name>/<path>` pages.
+These fire on the Library root (`/drive/<name>`) and on folder pages
+(`/drive/<name>/<path>`), not on Home.
 
 | Key | Action |
 |---|---|

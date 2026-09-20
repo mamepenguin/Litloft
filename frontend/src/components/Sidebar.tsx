@@ -18,6 +18,7 @@ import { useCollectionManagement } from "./sidebar/useCollectionManagement";
 import { SidebarLibrarySection } from "./sidebar/SidebarLibrarySection";
 import { SidebarSystemSection } from "./sidebar/SidebarSystemSection";
 import { isLibraryRowActive, pinHrefFor } from "./sidebar/libraryRowActive";
+import { normaliseDriveView } from "@/lib/driveViews";
 import { SidebarCollectionsSection } from "./sidebar/SidebarCollectionsSection";
 import { SidebarPinsSection } from "./sidebar/SidebarPinsSection";
 import { SidebarSmartFoldersSection } from "./sidebar/SidebarSmartFoldersSection";
@@ -51,7 +52,7 @@ function SidebarNav() {
   const currentDrive = useCurrentDrive();
   const currentFolderPath = useCurrentFolderPath();
   const setOverrideDrive = useSetOverrideDrive();
-  const activeView = searchParams.get("view");
+  const activeView = normaliseDriveView(searchParams.get("view"));
   const activeTag = searchParams.get("tag");
 
   const { addons, catalogueDrive } = useAddonSlots();

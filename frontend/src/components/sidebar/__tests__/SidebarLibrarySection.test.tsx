@@ -73,7 +73,7 @@ describe("SidebarLibrarySection", () => {
     const { rerender } = render(
       <SidebarLibrarySection libraryActive={false} driveBase="/drive/main" currentDrive="main" linkClass={overrideAware} close={vi.fn()} />,
     );
-    expect(screen.getByText("Library").closest("a")).toHaveAttribute("href", "/drive/main?view=library");
+    expect(screen.getByText("Library").closest("a")).toHaveAttribute("href", "/drive/main");
     expect(screen.getByText("Library").closest("a")?.className).toBe("inactive");
 
     rerender(

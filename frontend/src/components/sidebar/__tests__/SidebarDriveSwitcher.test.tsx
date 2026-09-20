@@ -31,7 +31,7 @@ describe("SidebarDriveSwitcher", () => {
 
     expect(screen.getByRole("link", { name: /notes/ })).toHaveAttribute(
       "href",
-      "/drive/notes",
+      "/drive/notes?view=home",
     );
     expect(screen.getByRole("link", { name: /vault/ })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /media/ })).not.toBeInTheDocument();
@@ -71,7 +71,7 @@ describe("SidebarDriveSwitcher", () => {
       for (const name of ["media", "notes", "vault"]) {
         expect(screen.getByRole("link", { name: new RegExp(name) })).toHaveAttribute(
           "href",
-          `/drive/${name}`,
+          `/drive/${name}?view=home`,
         );
       }
     });

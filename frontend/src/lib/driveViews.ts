@@ -23,14 +23,22 @@ export function isStandaloneView(view: string | null): boolean {
 }
 
 /**
- * Library belongs in neither set above: Library *is* the hierarchy, seen
- * from its top, and keeps both the tree and its toggle.
+ * `?view=library` is an alias for the bare drive URL, rewritten rather than
+ * branched on: `view` is part of the list snapshot key, the listing reset key
+ * and the counted subject, so leaving the alias spelled differently would file
+ * one screen under two of each.
+ *
+ * Every reader of `?view=` goes through this, not only the route layer — the
+ * sidebar reads the same query to decide which row is lit.
  */
-export const LIBRARY_VIEW = "library";
+export function normaliseDriveView(view: string | null): string | null {
+  return view === "library" ? null : view;
+}
 
-/** Exact: other spellings are unknown views, not this one. */
-export function isLibraryRootView(view: string | null | undefined): boolean {
-  return view === LIBRARY_VIEW;
+/** The two addresses of a drive's root. Nothing builds the bare form by hand. */
+export function driveHref(drive: string, kind: "home" | "library"): string {
+  const base = `/drive/${encodeURIComponent(drive)}`;
+  return kind === "home" ? `${base}?view=home` : base;
 }
 
 /**

@@ -148,7 +148,7 @@ describe("/ root home (Server Component)", () => {
     render(await Home());
     expect(screen.getByText("count:1234")).toBeTruthy();
     const link = screen.getByRole("link", { name: /Media/ });
-    expect(link.getAttribute("href")).toBe("/drive/Media");
+    expect(link.getAttribute("href")).toBe("/drive/Media?view=home");
   });
 
   it("shows an empty-drive label instead of a count when file_count is 0", async () => {
