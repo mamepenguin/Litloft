@@ -47,7 +47,6 @@ const AT_THE_PHONE_WIDTH = [
   "popup-dismiss.spec.ts",
   "quick-note-footer.spec.ts",
   "scoped-search.spec.ts",
-  "view-transition-hero.spec.ts",
   "view-transition-push.spec.ts",
   "sheet-gesture.spec.ts",
   "spec-viewport.spec.ts",

@@ -103,10 +103,7 @@ export function FilePreview({
 
   if (kind === "loft") {
     return (
-      <div
-        data-file-hero=""
-        className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0"
-      >
+      <div className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0">
         <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
           <LoftPlayer
             fileId={file.id}
@@ -128,10 +125,7 @@ export function FilePreview({
 
   if (kind === "video") {
     return (
-      <div
-        data-file-hero=""
-        className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0"
-      >
+      <div className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0">
         <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
           <VideoPlayer
             ref={videoRef}

@@ -27,7 +27,6 @@ export function ImageCanvas({ file }: { file: FileItem }) {
 
   return (
     <div
-      data-file-hero=""
       className="flex w-full items-center justify-center overflow-hidden rounded-xl bg-bg-card"
     >
       <span

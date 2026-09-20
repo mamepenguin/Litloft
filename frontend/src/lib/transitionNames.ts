@@ -4,8 +4,6 @@
  * makes that checkable.
  */
 export const TRANSITION_NAMES = {
-  /** The picture that grows from a listing card into the open file. */
-  fileHero: "file-hero",
   /** The scrolling section holding the page, which slides between folders. */
   listing: "listing",
 } as const;

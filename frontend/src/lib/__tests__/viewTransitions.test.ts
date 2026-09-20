@@ -57,18 +57,6 @@ function setReducedMotion(reduced: boolean): void {
   })) as unknown as typeof window.matchMedia;
 }
 
-function card(): HTMLElement {
-  const el = document.createElement("div");
-  document.body.appendChild(el);
-  return el;
-}
-
-function namedElements(): HTMLElement[] {
-  return Array.from(document.body.querySelectorAll<HTMLElement>("*")).filter(
-    (el) => el.style.viewTransitionName !== "",
-  );
-}
-
 /** Drain the microtask queue without advancing fake timers. */
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 
@@ -93,58 +81,48 @@ describe("navigateWithTransition — when no transition may run", () => {
   it("navigates directly when the browser has no startViewTransition", () => {
     removeViewTransition();
     const navigate = vi.fn();
-    const hero = card();
-
-    navigateWithTransition("folder-down", navigate, { hero });
+    
+    navigateWithTransition("folder-down", navigate);
 
     expect(navigate).toHaveBeenCalledOnce();
-    expect(namedElements()).toEqual([]);
     expect(document.documentElement.dataset.vt).toBeUndefined();
   });
 
   it("navigates directly under prefers-reduced-motion", () => {
     setReducedMotion(true);
     const navigate = vi.fn();
-    const hero = card();
-
-    navigateWithTransition("folder-down", navigate, { hero });
+    
+    navigateWithTransition("folder-down", navigate);
 
     expect(navigate).toHaveBeenCalledOnce();
     expect(handles).toHaveLength(0);
-    expect(namedElements()).toEqual([]);
     expect(document.documentElement.dataset.vt).toBeUndefined();
   });
 
   it("navigates directly when the tab is dirty, because the guard may never run the navigation", () => {
     dirtyRegistry.set("file-1", "knowledge-editor", true);
     const navigate = vi.fn();
-    const hero = card();
-
-    navigateWithTransition("folder-up", navigate, { hero });
+    
+    navigateWithTransition("folder-up", navigate);
 
     expect(navigate).toHaveBeenCalledOnce();
     expect(handles).toHaveLength(0);
-    expect(namedElements()).toEqual([]);
     expect(document.documentElement.dataset.vt).toBeUndefined();
   });
 });
 
 describe("navigateWithTransition — the transition", () => {
-  it("names the hero and sets the direction before the browser captures", () => {
-    const hero = card();
-    let nameAtCapture = "";
+  it("sets the kind before the browser captures", () => {
     let vtAtCapture: string | undefined;
     (document as unknown as Record<string, unknown>).startViewTransition = (
       cb: () => unknown,
     ) => {
-      nameAtCapture = hero.style.viewTransitionName;
       vtAtCapture = document.documentElement.dataset.vt;
       return fakeTransition(cb);
     };
 
-    navigateWithTransition("folder-down", vi.fn(), { hero });
+    navigateWithTransition("folder-down", vi.fn());
 
-    expect(nameAtCapture).toBe("file-hero");
     expect(vtAtCapture).toBe("folder-down");
   });
 
@@ -159,33 +137,24 @@ describe("navigateWithTransition — the transition", () => {
       return handle;
     };
 
-    navigateWithTransition("folder-down", () => order.push("navigate"), {
-      hero: card(),
-    });
+    navigateWithTransition("folder-down", () => order.push("navigate"));
 
     expect(order).toEqual(["start", "navigate", "callback-returned"]);
   });
 
   it("clears the name and the direction once the transition finishes", async () => {
-    const hero = card();
-
-    navigateWithTransition("folder-down", vi.fn(), { hero });
+    
+    navigateWithTransition("folder-down", vi.fn());
     notifyNavigationCommit("/drive/a/movies");
     await flush();
-
-    expect(namedElements()).toEqual([]);
     expect(document.documentElement.dataset.vt).toBeUndefined();
   });
 
   it("ignores a commit notification for the url it started from", async () => {
     vi.useFakeTimers();
-    const hero = card();
-    let settled = false;
+        let settled = false;
 
-    navigateWithTransition("folder-down", () => {}, {
-      hero,
-      startUrl: "/drive/a",
-    });
+    navigateWithTransition("folder-down", () => {}, { startUrl: "/drive/a" });
     handles[0].updateCallbackDone.then(() => {
       settled = true;
     });
@@ -241,49 +210,42 @@ describe("navigateWithTransition — nothing is left behind", () => {
 
   it("skips the transition and cleans up when the navigation never commits", async () => {
     vi.useFakeTimers();
-    const hero = card();
 
-    navigateWithTransition("folder-down", vi.fn(), { hero });
-    expect(hero.style.viewTransitionName).toBe("file-hero");
+    navigateWithTransition("folder-down", vi.fn());
+    expect(document.documentElement.dataset.vt).toBe("folder-down");
 
     await vi.advanceTimersByTimeAsync(99);
     expect(handles[0].skipTransition).not.toHaveBeenCalled();
-    expect(hero.style.viewTransitionName).toBe("file-hero");
+    expect(document.documentElement.dataset.vt).toBe("folder-down");
 
     await vi.advanceTimersByTimeAsync(2);
 
     expect(handles[0].skipTransition).toHaveBeenCalledOnce();
-    expect(namedElements()).toEqual([]);
     expect(document.documentElement.dataset.vt).toBeUndefined();
   });
 
-  it("never leaves two elements holding the hero name when a second transition interrupts the first", async () => {
+  it("lets go of the kind when a second transition interrupts the first", async () => {
     vi.useFakeTimers();
-    const first = card();
-    const second = card();
 
-    navigateWithTransition("folder-down", vi.fn(), { hero: first });
-    navigateWithTransition("folder-down", vi.fn(), { hero: second });
+    navigateWithTransition("folder-down", vi.fn());
+    navigateWithTransition("folder-up", vi.fn());
 
-    expect(namedElements()).toEqual([second]);
+    expect(document.documentElement.dataset.vt).toBe("folder-up");
+    expect(handles[0].skipTransition).toHaveBeenCalledOnce();
 
     await vi.advanceTimersByTimeAsync(101);
-    expect(namedElements()).toEqual([]);
+    expect(document.documentElement.dataset.vt).toBeUndefined();
   });
 
   it("leaves nothing behind when the navigation throws", async () => {
-    const hero = card();
-
+    
     navigateWithTransition(
       "folder-up",
       () => {
         throw new Error("boom");
       },
-      { hero },
     );
     await flush();
-
-    expect(namedElements()).toEqual([]);
     expect(document.documentElement.dataset.vt).toBeUndefined();
   });
 
@@ -292,7 +254,7 @@ describe("navigateWithTransition — nothing is left behind", () => {
     window.history.replaceState(null, "", "/drive/main?file=abc123");
     let settled = false;
 
-    navigateWithTransition("folder-down", () => {}, { hero: card() });
+    navigateWithTransition("folder-down", () => {});
     handles[0].updateCallbackDone.then(() => {
       settled = true;
     });
@@ -315,8 +277,8 @@ describe("navigateWithTransition — nothing is left behind", () => {
       return fakeTransition(cb);
     };
 
-    navigateWithTransition("file-open", vi.fn(), { hero: card() });
+    navigateWithTransition("folder-flat", vi.fn());
 
-    expect(seen).toBe("file-open");
+    expect(seen).toBe("folder-flat");
   });
 });

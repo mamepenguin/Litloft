@@ -1,7 +1,6 @@
 "use client";
 
 import { dirtyRegistry } from "./dirtyRegistry";
-import { TRANSITION_NAMES } from "./transitionNames";
 
 /**
  * What the navigation is, which the stylesheet reads off `<html>`. It is
@@ -10,15 +9,9 @@ import { TRANSITION_NAMES } from "./transitionNames";
  * backdrop root for as long as it is set, transition or not — exists only
  * for the length of one.
  */
-export type TransitionKind =
-  | "folder-down"
-  | "folder-up"
-  | "folder-flat"
-  | "file-open";
+export type TransitionKind = "folder-down" | "folder-up" | "folder-flat";
 
 export interface TransitionOptions {
-  /** The card the open file grows out of. */
-  hero?: HTMLElement | null;
   /** Defaults to the current url; a commit back to it does not count. */
   startUrl?: string;
 }
@@ -38,7 +31,6 @@ interface ViewTransitionLike {
 }
 
 interface Pending {
-  hero: HTMLElement | null;
   startUrl: string;
   committed: boolean;
   timer: ReturnType<typeof setTimeout> | undefined;
@@ -65,7 +57,6 @@ function cleanup(p: Pending): void {
   if (p.cleaned) return;
   p.cleaned = true;
   clearTimeout(p.timer);
-  if (p.hero) p.hero.style.viewTransitionName = "";
   delete document.documentElement.dataset.vt;
   if (pending === p) pending = null;
 }
@@ -89,7 +80,6 @@ export function navigateWithTransition(
   navigate?: () => void,
   options: TransitionOptions = {},
 ): void {
-  const { hero = null } = options;
   const start = (
     document as Document & {
       startViewTransition?: (cb: () => unknown) => ViewTransitionLike;
@@ -111,7 +101,6 @@ export function navigateWithTransition(
   if (pending) supersede(pending);
 
   const p: Pending = {
-    hero,
     startUrl: options.startUrl ?? currentUrl(),
     committed: false,
     timer: undefined,
@@ -121,7 +110,6 @@ export function navigateWithTransition(
   };
   pending = p;
 
-  if (hero) hero.style.viewTransitionName = TRANSITION_NAMES.fileHero;
   document.documentElement.dataset.vt = kind;
 
   let transition: ViewTransitionLike | undefined;
