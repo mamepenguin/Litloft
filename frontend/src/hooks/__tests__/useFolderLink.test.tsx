@@ -19,13 +19,13 @@ vi.mock("@/lib/viewTransitions", () => ({
 
 /** Fires the `onNavigate` the hook builds for `href`. */
 function navigateTo(href: string): void {
-  let onNavigate: (() => void) | null = null;
+  const captured: (() => void)[] = [];
   function Probe() {
-    onNavigate = useFolderLink()(href).onNavigate;
+    captured.push(useFolderLink()(href).onNavigate);
     return null;
   }
   const view = render(<Probe />);
-  onNavigate!();
+  captured[0]();
   view.unmount();
 }
 
