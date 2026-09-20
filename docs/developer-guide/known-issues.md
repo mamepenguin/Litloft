@@ -69,6 +69,8 @@ error from the policy save, or not at all.
 
 **A file link built before a folder rename points at the old folder.** Listings carry each file's folder, so a card pressed between a rename elsewhere and the listing's refresh opens the file in a folder that no longer exists; the file itself still opens.
 
+**The folder toolbar's view, sort and filter controls disappear while a listing reloads.** Changing the sort, typing in the filter, or a scan finishing empties the listing for a moment, and an unanswered listing looks empty to the toolbar, so the controls leave and come back. Three attempts to hold them are measured in `reviews/listing-loading-dropped/`.
+
 **Such a relation, when its note still links it, can move to the top of Related files on the first save.** A pre-origin `(source, note)` row the note cites is replaced by the note's own row, with a new creation time.
 
 **An addon deleting its own relation hides a link the note still has.** If `DELETE /api/internal/file_relations/{id}` removes an `internal` (N, T) row while N links T, the link is not listed until N is saved again; posting (N, T) after the link exists returns 409.
