@@ -102,7 +102,10 @@ export function FilePreview({
 
   if (kind === "loft") {
     return (
-      <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
+      <div
+        data-file-hero=""
+        className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0"
+      >
         <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
           <LoftPlayer
             fileId={file.id}
@@ -124,7 +127,10 @@ export function FilePreview({
 
   if (kind === "video") {
     return (
-      <div className="-mx-4 -mt-4 md:mx-0 md:mt-0">
+      <div
+        data-file-hero=""
+        className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0"
+      >
         <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
           <VideoPlayer
             ref={videoRef}
@@ -146,7 +152,10 @@ export function FilePreview({
 
   if (file.file_type === "image") {
     return (
-      <div className="flex w-full items-center justify-center overflow-hidden rounded-xl bg-bg-card">
+      <div
+        data-file-hero=""
+        className="flex w-full items-center justify-center overflow-hidden rounded-xl bg-bg-card"
+      >
         <img
           src={getStreamUrl(file.id)}
           alt={file.title}

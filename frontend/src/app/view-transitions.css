@@ -57,3 +57,20 @@ html[data-vt] [data-listing-scroller] {
     animation: 200ms cubic-bezier(0.2, 0, 0, 1) both vt-push-from-start;
   }
 }
+
+/*
+ * Opening a file: the pressed card's picture becomes the box the file is
+ * shown in. `cover` on both snapshots is what keeps the picture itself
+ * undistorted while the box changes shape — a card crops to 16:9 and the
+ * detail opens at the picture's own ratio, so without it the image is
+ * stretched in flight rather than re-cropped.
+ */
+html[data-vt="file-open"] [data-file-hero] {
+  view-transition-name: file-hero;
+}
+
+html[data-vt="file-open"]::view-transition-old(file-hero),
+html[data-vt="file-open"]::view-transition-new(file-hero) {
+  object-fit: cover;
+  animation-duration: 200ms;
+}

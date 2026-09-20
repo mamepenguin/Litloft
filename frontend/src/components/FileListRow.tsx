@@ -117,7 +117,10 @@ function FileListRowImpl({
           {ordinal}
         </span>
       )}
-      <div className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24">
+      <div
+        data-file-thumb=""
+        className="relative h-14 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-bg-elevated sm:h-14 sm:w-24"
+      >
         {hasThumbnail ? (
           <img
             src={getThumbnailUrl(file.id)}

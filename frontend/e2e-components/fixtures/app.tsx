@@ -928,6 +928,84 @@ function FolderPushArrangement(): ReactElement {
   );
 }
 
+
+
+/** 3:4, with circles so a non-uniform scale is visible rather than inferred. */
+const PORTRAIT =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="320">' +
+      '<rect width="240" height="320" fill="#7a5cff"/>' +
+      Array.from({ length: 24 }, (_, i) =>
+        `<circle cx="${20 + (i % 6) * 40}" cy="${20 + Math.floor(i / 6) * 40}" r="13" fill="white"/>`,
+      ).join("") +
+      "</svg>",
+  );
+
+/**
+ * Opening a file: a card cropped to 16:9 whose picture becomes a box at the
+ * picture's own ratio. The two shapes are the point — a hero that never
+ * changes ratio cannot show whether the picture is re-cropped or stretched.
+ */
+function FileOpenArrangement(): ReactElement {
+  const [open, setOpen] = useState(false);
+  useLayoutEffect(() => {
+    notifyNavigationCommit(open ? "/drive/main?file=abc" : "/drive/main");
+  }, [open]);
+
+  const go = (to: boolean, hero: HTMLElement | null) => {
+    navigateWithTransition("file-open", () => setOpen(to), { hero });
+  };
+
+  return (
+    <div className="flex h-screen flex-col bg-bg-primary">
+      <header className="flex h-14 flex-none items-center border-b border-bg-border px-4">
+        chrome
+      </header>
+      <section
+        data-listing-scroller=""
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-bg-primary"
+      >
+        {open ? (
+          <div className="p-4">
+            <button id="close-file" type="button" onClick={(e) => go(false, e.currentTarget.closest("section")!.querySelector("[data-file-hero]"))}>
+              close
+            </button>
+            <div
+              data-file-hero=""
+              className="flex w-full items-center justify-center overflow-hidden rounded-xl bg-bg-card"
+            >
+              <img
+                src={PORTRAIT}
+                alt=""
+                width={240}
+                height={320}
+                className="max-h-[70vh] w-auto object-contain"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="p-4">
+            <button
+              id="open-file"
+              type="button"
+              className="block w-56"
+              onClick={(e) => go(true, e.currentTarget.querySelector("[data-file-thumb]"))}
+            >
+              <div
+                data-file-thumb=""
+                className="relative aspect-video overflow-hidden rounded-2xl bg-bg-elevated"
+              >
+                <img src={PORTRAIT} alt="" className="h-full w-full object-cover" />
+              </div>
+            </button>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 const PageFrameFull = (): ReactElement => <PageFrameArrangement width="full" />;
 const PageFrameWide = (): ReactElement => <PageFrameArrangement width="wide" />;
 const PageFrameList = (): ReactElement => <PageFrameArrangement width="list" />;
@@ -1029,6 +1107,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "player-seek-bar": PlayerSeekBar,
   "player-hairline": PlayerHairline,
   "folder-push": FolderPushArrangement,
+  "file-open": FileOpenArrangement,
 };
 
 function App(): ReactElement {
