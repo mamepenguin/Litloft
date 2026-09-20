@@ -146,11 +146,14 @@ export function TwoPaneLayout({
         </aside>
         <section
           ref={sectionRef}
-          className={`${showSectionOnMobile ? "flex" : "hidden md:flex"} scrollbar-hover h-full min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain`}
+          className={`${showSectionOnMobile ? "flex" : "hidden md:flex"} scrollbar-hover h-full min-w-0 flex-1 flex-col overflow-y-auto overscroll-y-contain bg-bg-primary`}
           // The transition names the scroller, not the page inside it: a
           // snapshot is positioned against the viewport and nothing clips
           // it, so naming a page several times the viewport's height paints
-          // it over the app's own header.
+          // it over the app's own header. It carries the page colour rather
+          // than inheriting it from `body`, because a snapshot of a
+          // transparent element is transparent, and the screen behind it
+          // shows through.
           data-listing-scroller=""
         >
           {hasFile && fileId ? <RightPaneFile fileId={fileId} drive={drive} /> : children}

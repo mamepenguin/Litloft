@@ -24,6 +24,7 @@ interface Named {
   name: string;
   top: number;
   bottom: number;
+  backgroundAlpha: number;
 }
 
 interface Probe {
@@ -64,7 +65,16 @@ const INSTALL = () => {
         .filter(({ el }) => el !== document.documentElement)
         .map(({ el, name }) => {
           const box = el.getBoundingClientRect();
-          return { name, top: Math.round(box.top), bottom: Math.round(box.bottom) };
+          return {
+            name,
+            top: Math.round(box.top),
+            bottom: Math.round(box.bottom),
+            backgroundAlpha: (() => {
+              const colour = getComputedStyle(el).backgroundColor;
+              const parts = colour.match(/[\d.]+/g) ?? [];
+              return parts.length === 4 ? Number(parts[3]) : 1;
+            })(),
+          };
         }),
       viewportHeight: window.innerHeight,
     };
@@ -152,6 +162,27 @@ test("names nothing that reaches outside the window, at any scroll position", as
   for (const box of during.boxes) {
     expect(box.top).toBeGreaterThanOrEqual(0);
     expect(box.bottom).toBeLessThanOrEqual(during.viewportHeight);
+  }
+
+  await settled(page);
+});
+
+/**
+ * A snapshot of a transparent element is transparent, so whatever the
+ * transition put behind it shows through — the outgoing screen, which a
+ * push leaves dimmed rather than gone. Inheriting the page colour from an
+ * ancestor is not enough; the named element has to paint it.
+ */
+test("names nothing that its snapshot would leave see-through", async ({
+  page,
+}) => {
+  await open(page);
+
+  const during = await page.evaluate(() => window.__pressAndSample("go-down"));
+
+  expect(during.boxes).toHaveLength(1);
+  for (const box of during.boxes) {
+    expect(box.backgroundAlpha).toBe(1);
   }
 
   await settled(page);
