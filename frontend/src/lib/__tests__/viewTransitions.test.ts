@@ -236,7 +236,7 @@ describe("navigateWithTransition — when something else drives the navigation",
 
 describe("navigateWithTransition — nothing is left behind", () => {
   it("holds input for no longer than the declared budget", () => {
-    expect(COMMIT_TIMEOUT_MS).toBe(250);
+    expect(COMMIT_TIMEOUT_MS).toBe(100);
   });
 
   it("skips the transition and cleans up when the navigation never commits", async () => {
@@ -246,7 +246,7 @@ describe("navigateWithTransition — nothing is left behind", () => {
     navigateWithTransition("folder-down", vi.fn(), { hero });
     expect(hero.style.viewTransitionName).toBe("file-hero");
 
-    await vi.advanceTimersByTimeAsync(249);
+    await vi.advanceTimersByTimeAsync(99);
     expect(handles[0].skipTransition).not.toHaveBeenCalled();
     expect(hero.style.viewTransitionName).toBe("file-hero");
 
@@ -267,7 +267,7 @@ describe("navigateWithTransition — nothing is left behind", () => {
 
     expect(namedElements()).toEqual([second]);
 
-    await vi.advanceTimersByTimeAsync(251);
+    await vi.advanceTimersByTimeAsync(101);
     expect(namedElements()).toEqual([]);
   });
 

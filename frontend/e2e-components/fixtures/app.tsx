@@ -876,9 +876,14 @@ function PageFrameArrangement({ width }: { width: PageFrameWidth }): ReactElemen
 
 
 /**
- * Drives one folder navigation through the real entry point. The layout
- * effect stands in for `NavigationCommitSignal`, which needs a router the
- * fixture does not have; it reports the same thing at the same moment.
+ * Drives one folder navigation through the real entry point, inside the
+ * shape the app has: a bounded scroller holding a page several times its
+ * own height. A short page cannot show what a snapshot does when it is
+ * taller than the box that clips it.
+ *
+ * The layout effect stands in for `NavigationCommitSignal`, which needs a
+ * router the fixture does not have; it reports the same thing at the same
+ * moment.
  */
 function FolderPushArrangement(): ReactElement {
   const [path, setPath] = useState("/drive/main");
@@ -891,21 +896,33 @@ function FolderPushArrangement(): ReactElement {
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <button id="go-down" type="button" onClick={() => go("/drive/main/movies")}>
-        down
-      </button>
-      <button id="go-up" type="button" onClick={() => go("/drive/main")}>
-        up
-      </button>
-      <PageFrame
-        width="full"
-        header={<PageHeader titleIcon={FolderTree} title={path} />}
+    <div className="flex h-screen flex-col">
+      <header className="flex h-14 flex-none items-center gap-3 border-b border-bg-border bg-bg-primary px-4">
+        <span id="app-chrome">chrome</span>
+        <button id="go-down" type="button" onClick={() => go("/drive/main/movies")}>
+          down
+        </button>
+        <button id="go-up" type="button" onClick={() => go("/drive/main")}>
+          up
+        </button>
+      </header>
+      <section
+        data-listing-scroller=""
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
       >
-        <div id="page-body" className="px-4">
-          <p>{path}</p>
-        </div>
-      </PageFrame>
+        <PageFrame
+          width="full"
+          header={<PageHeader titleIcon={FolderTree} title={path} />}
+        >
+          <div id="page-body" className="px-4">
+            {Array.from({ length: 60 }, (_, i) => (
+              <p key={i} className="h-16">
+                {path} row {i}
+              </p>
+            ))}
+          </div>
+        </PageFrame>
+      </section>
     </div>
   );
 }

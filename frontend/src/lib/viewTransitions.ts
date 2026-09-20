@@ -25,9 +25,12 @@ export interface TransitionOptions {
 
 /**
  * The page accepts no input until the update callback settles, so a
- * navigation that never commits has to stop holding it.
+ * navigation that never commits has to stop holding it. This plus the
+ * 200ms the stylesheet animates for is the whole input-blocking budget:
+ * a commit slower than this loses its animation rather than the page
+ * losing its input.
  */
-export const COMMIT_TIMEOUT_MS = 250;
+export const COMMIT_TIMEOUT_MS = 100;
 
 interface ViewTransitionLike {
   finished: Promise<unknown>;

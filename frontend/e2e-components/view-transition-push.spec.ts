@@ -1,7 +1,8 @@
 /**
  * What only a browser can answer about a view transition: which names are
- * live while one runs, that no value is on two elements at once, and that
- * the document is clean afterwards.
+ * live while one runs, that no value is on two elements at once, that a
+ * named element is small enough for its snapshot to sit where it belongs,
+ * and that the document is clean afterwards.
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -17,39 +18,57 @@ const FIXTURE = pathToFileURL(PAGE).href;
  * `<html>` at all times and groups everything left over.
  */
 const AT_REST = ["root"];
-const DURING = ["listing", "page-heading", "root"];
+const DURING = ["listing", "root"];
+
+interface Named {
+  name: string;
+  top: number;
+  bottom: number;
+}
 
 interface Probe {
   kind: string | null;
   names: string[];
   groups: string[];
+  /** Every named element but `<html>`, in viewport coordinates. */
+  boxes: Named[];
+  viewportHeight: number;
 }
 
 declare global {
   interface Window {
     __probe: () => Probe;
-    /** Presses a control, then samples the first frame that is animating. */
     __pressAndSample: (id: string) => Promise<Probe>;
+    __scrollListing: (top: number) => number;
   }
 }
 
 const INSTALL = () => {
-  window.__probe = () => ({
-    kind: document.documentElement.dataset.vt ?? null,
-    names: Array.from(document.querySelectorAll("*"))
-      .map((el) => getComputedStyle(el).viewTransitionName)
-      .filter((name) => name && name !== "none")
-      .sort(),
-    groups: [
-      ...new Set(
-        document
-          .getAnimations()
-          .map((a) => String((a.effect as KeyframeEffect)?.pseudoElement ?? ""))
-          .filter((p) => p.startsWith("::view-transition-group("))
-          .map((p) => p.slice("::view-transition-group(".length, -1)),
-      ),
-    ].sort(),
-  });
+  window.__probe = () => {
+    const named = Array.from(document.querySelectorAll("*"))
+      .map((el) => ({ el, name: getComputedStyle(el).viewTransitionName }))
+      .filter(({ name }) => name && name !== "none");
+    return {
+      kind: document.documentElement.dataset.vt ?? null,
+      names: named.map(({ name }) => name).sort(),
+      groups: [
+        ...new Set(
+          document
+            .getAnimations()
+            .map((a) => String((a.effect as KeyframeEffect)?.pseudoElement ?? ""))
+            .filter((p) => p.startsWith("::view-transition-group("))
+            .map((p) => p.slice("::view-transition-group(".length, -1)),
+        ),
+      ].sort(),
+      boxes: named
+        .filter(({ el }) => el !== document.documentElement)
+        .map(({ el, name }) => {
+          const box = el.getBoundingClientRect();
+          return { name, top: Math.round(box.top), bottom: Math.round(box.bottom) };
+        }),
+      viewportHeight: window.innerHeight,
+    };
+  };
 
   // Pressed and sampled inside the page: the pseudo-elements exist only
   // between the two captures, which is shorter than a round trip.
@@ -61,6 +80,12 @@ const INSTALL = () => {
       await new Promise(requestAnimationFrame);
     }
     return window.__probe();
+  };
+
+  window.__scrollListing = (top: number) => {
+    const scroller = document.querySelector("[data-listing-scroller]")!;
+    scroller.scrollTop = top;
+    return scroller.scrollTop;
   };
 };
 
@@ -82,16 +107,15 @@ const settled = (page: Page) =>
     })
     .toBe(null);
 
-test("names the listing and the heading only while a transition runs, and never twice", async ({
+test("names the scroller only while a transition runs, and never twice", async ({
   page,
 }) => {
   await open(page);
 
-  expect(await page.evaluate(() => window.__probe())).toEqual({
-    kind: null,
-    names: AT_REST,
-    groups: [],
-  });
+  const before = await page.evaluate(() => window.__probe());
+  expect(before.kind).toBe(null);
+  expect(before.names).toEqual(AT_REST);
+  expect(before.groups).toEqual([]);
 
   const during = await page.evaluate(() => window.__pressAndSample("go-down"));
 
@@ -102,12 +126,35 @@ test("names the listing and the heading only while a transition runs, and never 
 
   await settled(page);
 
-  expect(await page.evaluate(() => window.__probe())).toEqual({
-    kind: null,
-    names: AT_REST,
-    groups: [],
-  });
-  await expect(page.locator("#page-body")).toHaveText("/drive/main/movies");
+  const after = await page.evaluate(() => window.__probe());
+  expect(after.kind).toBe(null);
+  expect(after.names).toEqual(AT_REST);
+  expect(after.groups).toEqual([]);
+  await expect(page.locator("#page-body")).toContainText("/drive/main/movies");
+});
+
+/**
+ * A snapshot is placed against the viewport and nothing clips it, so a
+ * named element taller than the window paints outside whatever was
+ * clipping it — over the app's own chrome.
+ */
+test("names nothing that reaches outside the window, at any scroll position", async ({
+  page,
+}) => {
+  await open(page);
+
+  const scrolled = await page.evaluate(() => window.__scrollListing(900));
+  expect(scrolled).toBeGreaterThan(0);
+
+  const during = await page.evaluate(() => window.__pressAndSample("go-down"));
+
+  expect(during.boxes).toHaveLength(1);
+  for (const box of during.boxes) {
+    expect(box.top).toBeGreaterThanOrEqual(0);
+    expect(box.bottom).toBeLessThanOrEqual(during.viewportHeight);
+  }
+
+  await settled(page);
 });
 
 test("pushes the listing the other way coming back up", async ({ page }) => {
@@ -122,5 +169,5 @@ test("pushes the listing the other way coming back up", async ({ page }) => {
   expect(up.groups).toEqual(DURING);
 
   await settled(page);
-  await expect(page.locator("#page-body")).toHaveText("/drive/main");
+  await expect(page.locator("#page-body")).toContainText("/drive/main row");
 });
