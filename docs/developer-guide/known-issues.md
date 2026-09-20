@@ -117,10 +117,6 @@ The drive chip in the trail and the root band in the tree both offer themselves
 as destinations while dragging. The backend answers 409 and the handler swallows
 it: the target lights up, the drop lands, nothing happens and nothing is said.
 
-**`?view=library&tag=<tag>` leaves the whole column unlit.** The listing is
-filtered but no row says so and no row clears it. No link in the app produces
-this URL; it is reachable only by typing it.
-
 **Inside a drive, nothing links to the drive picker `/`.** The sidebar's logo
 carried the only link and was removed to leave its row to the menu and tree
 buttons. Other drives stay reachable through the sidebar's drive switcher; the

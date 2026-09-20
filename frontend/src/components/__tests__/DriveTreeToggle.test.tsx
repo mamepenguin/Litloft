@@ -43,8 +43,9 @@ beforeEach(() => {
 
 describe("the tree toggle for the current drive", () => {
   it.each([
-    ["the drive home", "/drive/work", ""],
-    ["the Library root", "/drive/work", "view=library"],
+    ["the Library root", "/drive/work", ""],
+    ["the Library alias", "/drive/work", "view=library"],
+    ["the drive home", "/drive/work", "view=home"],
     ["a folder", "/drive/work/videos", ""],
     ["a collection", "/drive/work/collections/c1", ""],
   ])("is offered on %s, where the tree pane mounts", (_name, pathname, search) => {

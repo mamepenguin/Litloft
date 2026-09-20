@@ -4,8 +4,8 @@
  * does not render.
  */
 export const FIXED_SIDEBAR_ROWS: readonly { label: string; view: string | null }[] = [
-  { label: "Home", view: null },
-  { label: "Library", view: "library" },
+  { label: "Home", view: "home" },
+  { label: "Library", view: null },
   { label: "Favorites", view: "favorites" },
   { label: "Liked", view: "liked" },
   { label: "Recently Viewed", view: "recent" },

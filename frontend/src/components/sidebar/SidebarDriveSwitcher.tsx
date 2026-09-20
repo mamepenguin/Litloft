@@ -6,15 +6,12 @@ import { ChevronDown, ChevronRight, HardDrive, Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import type { Drive } from "@/types";
+import { driveHref } from "@/lib/driveViews";
 
 interface SidebarDriveSwitcherProps {
   drives: Drive[];
   currentDrive: string | null;
   close: () => void;
-}
-
-function driveHref(name: string): string {
-  return `/drive/${encodeURIComponent(name)}`;
 }
 
 /**
@@ -114,7 +111,7 @@ export function SidebarDriveSwitcher({ drives, currentDrive, close }: SidebarDri
         ))}
       {listVisible &&
         others.map((drive) => {
-          const href = driveHref(drive.name);
+          const href = driveHref(drive.name, "home");
           return (
             <Link key={drive.name} href={href} onClick={close} className={rowClass(false)}>
               <HardDrive size={16} className="shrink-0" />

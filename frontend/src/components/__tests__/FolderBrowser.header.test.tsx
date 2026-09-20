@@ -209,22 +209,19 @@ function renderFolder(
 const SUBJECT_BY_SCREEN: [string, () => React.ReactElement, string | null][] = [
   [
     "the Library root",
-    () => <FolderBrowser driveName="main" folderPath="" view="library" />,
+    () => <FolderBrowser driveName="main" folderPath="" />,
     "Library",
-  ],
-  [
-    "a folder under Library",
-    () => <FolderBrowser driveName="main" folderPath="videos" view="library" />,
-    null,
   ],
   [
     "a folder reached by its path",
     () => <FolderBrowser driveName="main" folderPath="videos" />,
     null,
   ],
+  // `""` and "no folder at all" are one value under `!folderPath`; a
+  // cross-folder view is the screen that tells them apart.
   [
-    "the drive root with no view at all",
-    () => <FolderBrowser driveName="main" folderPath="" />,
+    "a cross-folder view",
+    () => <FolderBrowser driveName="main" view="favorites" />,
     null,
   ],
 ];
@@ -545,13 +542,20 @@ describe("the trail's drop target", () => {
 
   const OFFERED_BY_SCREEN: [string, () => React.ReactElement][] = [
     ["a folder", () => <FolderBrowser driveName="main" folderPath="videos" />],
-    ["a folder under Library", () => <FolderBrowser driveName="main" folderPath="videos" view="library" />],
-    ["the drive root with no view", () => <FolderBrowser driveName="main" folderPath="" />],
   ];
 
   it.each(OFFERED_BY_SCREEN)("%s offers the trail while a drag is in flight", (_name, screen_) => {
     dragging.internal = true;
     render(screen_());
     expect(dropProps()).toEqual({ handlers: "yes", target: "yes" });
+  });
+
+  // The root names itself in a heading instead of a trail, so there is no
+  // trail on it to drop onto. Dropping *to* the root is offered by the drive
+  // segment of a folder's trail, which the rows above cover.
+  it("is absent at the Library root even mid-drag", () => {
+    dragging.internal = true;
+    render(<FolderBrowser driveName="main" folderPath="" />);
+    expect(screen.queryByLabelText("Breadcrumb")).toBeNull();
   });
 });

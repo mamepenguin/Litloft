@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { AddonSlot } from "@/components/AddonSlot";
 import type { AddonNavEntry } from "@/lib/addonNavigation";
 import type { Drive } from "@/types";
+import { driveHref } from "@/lib/driveViews";
 import { AddonNavRows } from "./AddonNavRows";
 import { SidebarDriveSwitcher } from "./SidebarDriveSwitcher";
 import { SidebarSectionHeading } from "./SidebarSectionHeading";
@@ -28,6 +29,8 @@ interface SidebarLibrarySectionProps {
 
 export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], linkClass, close, primaryAddons = [], sourceAddons = [], libraryActive }: SidebarLibrarySectionProps) {
   const t = useTranslations("sidebar");
+  const homeHref = currentDrive ? driveHref(currentDrive, "home") : "/";
+  const libraryHref = currentDrive ? driveHref(currentDrive, "library") : null;
 
   return (
     <>
@@ -37,17 +40,15 @@ export function SidebarLibrarySection({ driveBase, currentDrive, drives = [], li
 
       <SidebarDriveSwitcher drives={drives} currentDrive={currentDrive} close={close} />
 
-      <Link href={driveBase ?? "/"} onClick={close} className={linkClass(driveBase ?? "/")}>
+      <Link href={homeHref} onClick={close} className={linkClass(homeHref)}>
         <Home size={16} />
         {t("home")}
       </Link>
-      {driveBase && (
-        <>
-          <Link href={`${driveBase}?view=library`} onClick={close} className={linkClass(`${driveBase}?view=library`, libraryActive)}>
-            <FolderTree size={16} />
-            {t("library")}
-          </Link>
-        </>
+      {libraryHref && (
+        <Link href={libraryHref} onClick={close} className={linkClass(libraryHref, libraryActive)}>
+          <FolderTree size={16} />
+          {t("library")}
+        </Link>
       )}
       <AddonNavRows entries={primaryAddons} linkClass={linkClass} close={close} />
       {driveBase && (

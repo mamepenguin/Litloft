@@ -66,15 +66,19 @@ import { Sidebar } from "../Sidebar";
  * reader's context" change would try to preserve.
  */
 const ORIGINS: [string, string, string][] = [
-  ["the drive home", `/drive/${encodeURIComponent(HERE)}`, ""],
+  ["the Library root", `/drive/${encodeURIComponent(HERE)}`, ""],
   ["a folder", `/drive/${encodeURIComponent(HERE)}/recipes/soup`, ""],
   ["a folder under a tag", `/drive/${encodeURIComponent(HERE)}/recipes`, "tag=soup"],
-  ["the Library root", `/drive/${encodeURIComponent(HERE)}`, "view=library"],
+  // The switcher's own target carries `view=home`, so standing on one is the
+  // state where "preserve what the reader had" and "go to the other drive's
+  // Home" produce the same string for the wrong reason.
+  ["the drive home", `/drive/${encodeURIComponent(HERE)}`, "view=home"],
+  ["the Library alias", `/drive/${encodeURIComponent(HERE)}`, "view=library"],
   ["a cross-folder view", `/drive/${encodeURIComponent(HERE)}`, "view=favorites"],
   ["an addon page", `/drive/${encodeURIComponent(HERE)}/addons/knowledge`, ""],
 ];
 
-const TARGET_HOME = `/drive/${encodeURIComponent(THERE)}`;
+const TARGET_HOME = `/drive/${encodeURIComponent(THERE)}?view=home`;
 
 /** Puts both the router stand-ins and the document's URL at one place. */
 function standingAt(from: string, query: string): void {

@@ -55,7 +55,7 @@ Both the list and the click are **scoped to the folder you are in**:
 
 - The list shows only the tags used somewhere inside the current folder's subtree, with counts for that subtree — not for the whole drive.
 - Clicking a tag filters that same subtree. The count beside the tag and the number of results you get are the same number, for the same folder and the same tag.
-- At the drive root there is no folder to scope to, so a tag filter there covers the whole drive.
+- At the drive root a tag filter covers the whole drive rather than the root folder's direct subtree. It is the one place where adding a tag widens what you are looking at instead of narrowing it.
 
 Note the deliberate asymmetry with plain browsing: browsing a folder shows its **direct children**, while a tag filter shows the folder's **whole subtree**. This is the same behaviour Finder has — you browse one level, but you search everything underneath. The browsing side of this is covered in [browsing files](file-browsing.md).
 

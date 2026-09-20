@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import DrivePage from "../page";
-import { LIBRARY_VIEW } from "@/lib/driveViews";
+import { driveHref } from "@/lib/driveViews";
 
 let search = new URLSearchParams();
 
@@ -61,7 +61,7 @@ const ROUTES: { view: string; component: string; folderPath: string | undefined 
   { view: "all", component: "FolderBrowser", folderPath: undefined },
   { view: "trash", component: "TrashView", folderPath: undefined },
   { view: "missing", component: "MissingView", folderPath: undefined },
-  { view: "library", component: "FolderBrowser", folderPath: "" },
+  { view: "home", component: "DriveHome", folderPath: undefined },
 ];
 
 const renderAt = (params: Record<string, string> = {}) => {
@@ -80,13 +80,9 @@ describe("the drive route", () => {
     const branched = new Set(
       [...source.matchAll(/view === "([^"]+)"/g)].map((m) => m[1]),
     );
-    // The Library branch is a call, not a comparison; `driveViews` holds
-    // the value it tests.
-    if (source.includes("isLibraryRootView(view)")) branched.add(LIBRARY_VIEW);
     // The pass-through FolderBrowser views are not branched on by name.
     const named = new Set(
-      ROUTES.filter((r) => r.component !== "FolderBrowser" || r.folderPath === "")
-        .map((r) => r.view),
+      ROUTES.filter((r) => r.component !== "FolderBrowser").map((r) => r.view),
     );
     expect(branched).toEqual(named);
     expect(ROUTES).toHaveLength(8);
@@ -107,8 +103,25 @@ describe("the drive route", () => {
     },
   );
 
-  it("opens Home with no view and no tag", () => {
+  it("opens the Library root with no view and no tag", () => {
     renderAt();
+    expect(seen.component).toBe("FolderBrowser");
+    expect(seen.folderPath).toBe("");
+  });
+
+  // The alias is rewritten, not branched on, so it must reach the browser
+  // with the same view the bare URL gives it — a different spelling would
+  // file one screen under two list-snapshot keys.
+  it("renders ?view=library exactly as the bare drive URL does", () => {
+    renderAt();
+    const bare = { ...seen };
+    renderAt({ view: "library" });
+    expect(seen).toEqual(bare);
+  });
+
+  it("reaches Home through the href the sidebar and the top page build", () => {
+    const view = new URL(driveHref("main", "home"), "http://x").searchParams.get("view");
+    renderAt({ view: view as string });
     expect(seen.component).toBe("DriveHome");
   });
 
@@ -121,7 +134,16 @@ describe("the drive route", () => {
 
   // Unknown values fall through to the drive-wide listing by design and must
   // not be read as the Library root.
-  it.each(["not-a-view", "Library", "LIBRARY", "library ", "my-library"])(
+  it.each([
+    "not-a-view",
+    "Library",
+    "LIBRARY",
+    "library ",
+    "my-library",
+    "Home",
+    "HOME",
+    "home ",
+  ])(
     "gives ?view=%o no folder to stand in",
     (view) => {
       renderAt({ view });
@@ -132,6 +154,7 @@ describe("the drive route", () => {
 
   it("treats an empty ?view= as no view at all", () => {
     renderAt({ view: "" });
-    expect(seen.component).toBe("DriveHome");
+    expect(seen.component).toBe("FolderBrowser");
+    expect(seen.folderPath).toBe("");
   });
 });

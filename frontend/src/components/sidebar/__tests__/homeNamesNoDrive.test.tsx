@@ -93,9 +93,9 @@ describe("the root page's sidebar", () => {
     fireEvent.click(row);
     expect(row).toHaveAttribute("aria-expanded", "true");
     expect(driveLinks().map((a) => a.getAttribute("href"))).toEqual([
-      "/drive/media",
-      "/drive/notes",
-      "/drive/vault",
+      "/drive/media?view=home",
+      "/drive/notes?view=home",
+      "/drive/vault?view=home",
     ]);
   });
 

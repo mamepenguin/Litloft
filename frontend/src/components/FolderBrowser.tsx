@@ -37,7 +37,6 @@ import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
 import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
 import { Button } from "@/components/Button";
-import { isLibraryRootView } from "@/lib/driveViews";
 
 /**
  * How long scrolling must be idle before the list snapshot is
@@ -119,7 +118,9 @@ export function FolderBrowser({
   const isRecentAdded = view === "recent-added";
   const isLiked = view === "liked";
   const isAll = view === "all";
-  const isLibraryRoot = isLibraryRootView(view) && !folderPath;
+  // Strict: `!folderPath` is also true for a cross-folder view, which has no
+  // location at all.
+  const isLibraryRoot = folderPath === "";
   const isSpecialView = isFavorites || view === "recent" || isRecentAdded || isLiked || isAll;
   const isLocation = !isSpecialView && !isSearch && folderPath !== undefined;
   const isFolderAnchored = isLocation && folderPath !== "";

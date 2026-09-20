@@ -11,6 +11,7 @@ import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 import { AddButton } from "./AddButton";
 import { AddonSlot } from "./AddonSlot";
 import { CarouselSection } from "./CarouselSection";
+import { driveHref } from "@/lib/driveViews";
 import { ContinueWatchingSection } from "./ContinueWatchingSection";
 import { EmptyState } from "./EmptyState";
 import { PageFrame } from "./PageFrame";
@@ -316,7 +317,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
           <EmptyState
             variant="no-home-activity"
             secondaryActions={[
-              { label: tEmpty("openLibraryAction"), href: `${driveBase}?view=library` },
+              { label: tEmpty("openLibraryAction"), href: driveHref(driveName, "library") },
             ]}
           />
         )

@@ -247,7 +247,7 @@ describe("what the drive home says when its rows have nothing to show", () => {
     expect(screen.queryByRole("button", { name: RETRY })).toBeNull();
 
     const library = screen.getByRole("link", { name: OPEN_LIBRARY });
-    expect(library.getAttribute("href")).toBe("/drive/media?view=library");
+    expect(library.getAttribute("href")).toBe("/drive/media");
   });
 
   it("says neither on the frame before any request has been made", async () => {

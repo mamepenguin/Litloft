@@ -2,7 +2,6 @@ import {
   isDriveAddonPath,
   isDriveCollectionPath,
   isDriveSearchPath,
-  isLibraryRootView,
 } from "@/lib/driveViews";
 import { samePath } from "./isSidebarLinkActive";
 
@@ -34,9 +33,9 @@ export function isLibraryRowActive({
   if (activeTag) return false;
 
   if (samePath(pathname, driveBase)) {
-    // At the drive root only the Library view is Library. A bare
-    // `/drive/{d}` is Home, and any other `?view=` names its own row.
-    return isLibraryRootView(activeView);
+    // At the drive root the bare URL is Library; every `?view=` names its own
+    // row, Home included.
+    return !activeView;
   }
 
   if (!isUnderDriveBase(pathname, driveBase)) return false;
