@@ -137,6 +137,38 @@ describe("the component fixture's page", () => {
     },
   );
 
+  it("copies the scroller the transition names, including its own colour", () => {
+    // The browser suite measures the fixture's scroller, so what it holds
+    // about a snapshot — bounded by the window, opaque — is only true of
+    // the app while this copy matches it.
+    const layout = read(resolve(SRC, "components/folder/TwoPaneLayout.tsx"));
+    const section = /<section\n[^>]*className=\{`([^`]*)`\}[^>]*data-listing-scroller/.exec(
+      layout,
+    );
+    expect(
+      section,
+      "TwoPaneLayout no longer names a scroller for the transition",
+    ).not.toBe(null);
+
+    const fixtureScroller = fixtureClasses("listing-scroller");
+    expect(fixture).toContain("data-listing-scroller");
+    for (const fact of ["overflow-y-auto", "bg-bg-primary"]) {
+      expect(section![1]).toContain(fact);
+      expect(fixtureScroller).toContain(fact);
+    }
+  });
+
+  it("sends the tree's folder navigation through the transition entry point", () => {
+    const layout = read(resolve(SRC, "components/folder/TwoPaneLayout.tsx"));
+    const push = /navigateWithTransition\(\s*folderTransitionKind\([\s\S]*?\),\s*\(\) =>\s*router\.push\(/.exec(
+      layout,
+    );
+    expect(
+      push,
+      "the tree's folder navigation no longer runs inside a transition",
+    ).not.toBe(null);
+  });
+
   it("bounds #pane the way TwoPaneLayout bounds its tree column", () => {
     // Compared as facts rather than as a class list: the aside carries a
     // transition and a width expression this fixture has no reason to copy.
