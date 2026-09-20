@@ -65,6 +65,10 @@ error from the policy save, or not at all.
 
 **The file's inspector controls do not respond for the first moment after opening.** Download, open and cast, and links in the description, stay inert with the edit controls until the file's own data arrives.
 
+**A top-level folder named `search`, `addons` or `collections` hides its files' pages.** A file in such a folder gets a URL that collides with the drive's own routes: one in `search` opens full screen with no tree, and the others land on the addon or collection page instead of the file.
+
+**A file link built before a folder rename points at the old folder.** Listings carry each file's folder, so a card pressed between a rename elsewhere and the listing's refresh opens the file in a folder that no longer exists; the file itself still opens.
+
 **Such a relation, when its note still links it, can move to the top of Related files on the first save.** A pre-origin `(source, note)` row the note cites is replaced by the note's own row, with a new creation time.
 
 **An addon deleting its own relation hides a link the note still has.** If `DELETE /api/internal/file_relations/{id}` removes an `internal` (N, T) row while N links T, the link is not listed until N is saved again; posting (N, T) after the link exists returns 409.

@@ -202,6 +202,16 @@ describe("FileCard", () => {
       );
     });
 
+    it("hands a Cmd/Ctrl-click on the plain link to onMetaSelect instead of following it", () => {
+      const onMetaSelect = vi.fn();
+      render(<FileCard file={mockFile} onMetaSelect={onMetaSelect} />);
+      const link = screen.getByRole("link");
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true });
+      fireEvent(link, event);
+      expect(onMetaSelect).toHaveBeenCalledWith("abc123def456");
+      expect(event.defaultPrevented).toBe(true);
+    });
+
     it("absorbs the click and invokes the override when a provider is present", async () => {
       const onNavigate = vi.fn();
       const { FileNavigationOverrideProvider } = await import(

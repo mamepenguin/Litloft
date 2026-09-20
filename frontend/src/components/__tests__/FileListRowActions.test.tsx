@@ -208,3 +208,31 @@ describe("the list row's link", () => {
     );
   });
 });
+
+describe("the list row's navigation", () => {
+  it("hands a Cmd/Ctrl-click on the link to onMetaSelect instead of following it", () => {
+    const onMetaSelect = vi.fn();
+    render(
+      <FileListRow file={file} onContextMenu={vi.fn()} onMetaSelect={onMetaSelect} />,
+    );
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true });
+    fireEvent(screen.getByRole("link"), event);
+    expect(onMetaSelect).toHaveBeenCalledWith("f1");
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("gives the row to the host's own navigation where one is provided", async () => {
+    const onNavigate = vi.fn();
+    const { FileNavigationOverrideProvider } = await import(
+      "@/lib/fileNavigationOverride"
+    );
+    render(
+      <FileNavigationOverrideProvider onNavigate={onNavigate}>
+        <FileListRow file={file} onContextMenu={vi.fn()} />
+      </FileNavigationOverrideProvider>,
+    );
+    expect(screen.queryByRole("link")).toBeNull();
+    fireEvent.click(screen.getAllByRole("button")[0]);
+    expect(onNavigate).toHaveBeenCalledWith("f1");
+  });
+});
