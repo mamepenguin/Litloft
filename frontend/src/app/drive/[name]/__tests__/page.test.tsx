@@ -82,8 +82,7 @@ describe("the drive route", () => {
     );
     // The pass-through FolderBrowser views are not branched on by name.
     const named = new Set(
-      ROUTES.filter((r) => r.component !== "FolderBrowser" || r.folderPath === "")
-        .map((r) => r.view),
+      ROUTES.filter((r) => r.component !== "FolderBrowser").map((r) => r.view),
     );
     expect(branched).toEqual(named);
     expect(ROUTES).toHaveLength(8);

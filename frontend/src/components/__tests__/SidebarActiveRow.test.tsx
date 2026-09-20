@@ -278,6 +278,14 @@ describe("which row the sidebar highlights", () => {
     render(<Sidebar />);
     expect(highlighted()).toEqual([]);
   });
+
+  // The alias is rewritten where the route decides the screen *and* here,
+  // where the column decides what is lit. Only this asks the second half.
+  it("lights Library on the alias the previous release linked to", () => {
+    search = new URLSearchParams({ view: "library" });
+    render(<Sidebar />);
+    expect(highlighted()).toEqual(["Library"]);
+  });
 });
 
 describe("a row whose highlight cannot come from its href", () => {

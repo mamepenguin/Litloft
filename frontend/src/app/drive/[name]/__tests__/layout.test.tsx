@@ -104,6 +104,33 @@ describe("DriveLayout", () => {
     expect(screen.getByTestId("tree-pane")).toBeInTheDocument();
   });
 
+  // Home moved off the bare drive URL onto a `?view=`, and the pane is
+  // decided here rather than by the toggle button that reads `routeHidesTree`.
+  it("wraps children in TwoPaneLayout on the drive home", () => {
+    treeEnabledStore.set("work", true);
+    mockSearchParams = new URLSearchParams("view=home");
+    render(
+      <DriveLayout>
+        <div data-testid="page">home</div>
+      </DriveLayout>,
+    );
+    expect(screen.getByTestId("tree-pane")).toBeInTheDocument();
+  });
+
+  it("mounts RightPaneFile inside the pane on the drive home", () => {
+    treeEnabledStore.set("work", true);
+    mockSearchParams = new URLSearchParams("view=home&file=abc123");
+    render(
+      <DriveLayout>
+        <div data-testid="page">home</div>
+      </DriveLayout>,
+    );
+    expect(screen.getByTestId("right-pane")).toHaveTextContent(
+      "file:abc123/drive:work",
+    );
+    expect(screen.getByTestId("tree-pane")).toBeInTheDocument();
+  });
+
   it("does NOT wrap on addon routes even when tree is enabled", () => {
     treeEnabledStore.set("work", true);
     mockPathname = "/drive/work/addons/intelligence";

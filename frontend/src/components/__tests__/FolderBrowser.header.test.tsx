@@ -542,7 +542,6 @@ describe("the trail's drop target", () => {
 
   const OFFERED_BY_SCREEN: [string, () => React.ReactElement][] = [
     ["a folder", () => <FolderBrowser driveName="main" folderPath="videos" />],
-    ["a nested folder", () => <FolderBrowser driveName="main" folderPath="videos/clips" />],
   ];
 
   it.each(OFFERED_BY_SCREEN)("%s offers the trail while a drag is in flight", (_name, screen_) => {

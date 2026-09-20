@@ -676,9 +676,8 @@ describe("useFolderFiles", () => {
 });
 
 /**
- * `/drive/{name}?view=library` arrives at the hook as `folderPath: ""`, so
- * these cases use that value. Each pins the whole call record, so a second,
- * wrong request cannot hide beside the right one.
+ * Each case pins the whole call record, so a second, wrong request cannot hide
+ * beside the right one.
  */
 describe("useFolderFiles at the Library root", () => {
   const baseParams = {
@@ -743,12 +742,12 @@ describe("useFolderFiles at the Library root", () => {
   ];
 
   it("asks for the root folder's own children, once", async () => {
-    await settle({ folderPath: "", view: "library" });
+    await settle({ folderPath: "" });
     expect(requests()).toEqual([rootRequest()]);
   });
 
   it("renders the hierarchy: the root's folders are fetched with the root's path", async () => {
-    const { result } = await settle({ folderPath: "", view: "library" });
+    const { result } = await settle({ folderPath: "" });
     expect(mockGetFolders).toHaveBeenCalledWith("main", "");
     // The stub answers only for the root's own path, so a request for any
     // other folder shows up as an empty hierarchy rather than passing.
@@ -758,12 +757,12 @@ describe("useFolderFiles at the Library root", () => {
   // Each chip narrows the root's own listing; neither may widen it back to
   // the drive.
   it("keeps the root's path while the type chip narrows it", async () => {
-    await settle({ folderPath: "", view: "library", typeFilter: "video" });
+    await settle({ folderPath: "", typeFilter: "video" });
     expect(requests()).toEqual([rootRequest({ type: "video" })]);
   });
 
   it("keeps the root's path while the trust chip narrows it", async () => {
-    await settle({ folderPath: "", view: "library", trustFilter: "verified" });
+    await settle({ folderPath: "", trustFilter: "verified" });
     expect(requests()).toEqual([rootRequest({ trust: "verified" })]);
   });
 
@@ -777,7 +776,7 @@ describe("useFolderFiles at the Library root", () => {
   });
 
   it("widens to the drive for a tag filter at the Library root", async () => {
-    await settle({ folderPath: "", view: "library", tagFilter: "soup" });
+    await settle({ folderPath: "", tagFilter: "soup" });
     expect(requests()).toEqual([
       ["main", { path: "", recursive: true, tag: "soup", sort: "created_at", order: "desc", page: 1, limit: 30 }],
     ]);
@@ -788,7 +787,7 @@ describe("useFolderFiles at the Library root", () => {
   // the root or the drive — so an empty tag must not turn the root's own
   // listing into a recursive one.
   it("keeps the root's own listing for an empty tag", async () => {
-    await settle({ folderPath: "", view: "library", tagFilter: "" });
+    await settle({ folderPath: "", tagFilter: "" });
     expect(requests()).toEqual([rootRequest()]);
   });
 
@@ -799,7 +798,6 @@ describe("useFolderFiles at the Library root", () => {
       useFolderFiles({
         ...baseParams,
         folderPath: "",
-        view: "library",
         tagFilter: null,
         typeFilter: null,
         trustFilter: null,
@@ -830,7 +828,7 @@ describe("useFolderFiles at the Library root", () => {
   });
 
   it("follows the location across a re-render, in both directions", async () => {
-    const { rerender } = await settle({ folderPath: "", view: "library" });
+    const { rerender } = await settle({ folderPath: "" });
     expect(requests()).toEqual([rootRequest()]);
 
     mockGetDriveFiles.mockClear();
@@ -842,7 +840,7 @@ describe("useFolderFiles at the Library root", () => {
     });
 
     mockGetDriveFiles.mockClear();
-    rerender({ folderPath: "", view: "library" });
+    rerender({ folderPath: "" });
     await waitFor(() => {
       expect(distinctRequests()).toEqual([rootRequest()]);
     });
@@ -855,14 +853,13 @@ describe("useFolderFiles at the Library root", () => {
       useFolderFiles({
         ...baseParams,
         folderPath: "",
-        view: "library",
         tagFilter: null,
         typeFilter: null,
         trustFilter: null,
         initialSnapshot: {
           // `buildListSnapshotKey({driveName, folderPath, view, tagFilter})`
           // — the real one, not a stub.
-          key: "main||library|",
+          key: "main|||",
           items: [mockFile("snap1"), mockFile("snap2"), mockFile("snap3")],
           total: 3,
           pagesLoaded: 1,
@@ -892,7 +889,6 @@ describe("useFolderFiles at the Library root", () => {
           ...baseParams,
           refreshKey,
           folderPath: "",
-          view: "library",
           typeFilter: null,
           trustFilter: null,
           tagFilter: null,
