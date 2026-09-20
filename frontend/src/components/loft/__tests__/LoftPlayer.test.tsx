@@ -54,6 +54,18 @@ describe("LoftPlayer", () => {
     await waitFor(() => expect(recorded.at(-1)?.initialTime).toBe(90));
   });
 
+  it("hands the file's poster to the embed, so a blank frame can be covered", async () => {
+    render(<LoftPlayer fileId="abc123456789" posterUrl="/thumb.jpg" />);
+    await screen.findByTestId("probe-embed");
+    expect(recorded.at(-1)?.posterUrl).toBe("/thumb.jpg");
+  });
+
+  it("hands no poster for a file that has none", async () => {
+    render(<LoftPlayer fileId="abc123456789" />);
+    await screen.findByTestId("probe-embed");
+    expect(recorded.at(-1)?.posterUrl).toBeUndefined();
+  });
+
   it("while the .loft is read, holds a 16:9 box showing the poster", () => {
     vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
     render(<LoftPlayer fileId="abc123456789" posterUrl="/thumb.jpg" />);

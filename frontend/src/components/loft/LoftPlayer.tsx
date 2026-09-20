@@ -73,6 +73,7 @@ export default function LoftPlayer({
       durationHint={durationHint}
       onEnded={onEnded}
       mediaSessionMetadata={mediaSessionMetadata}
+      posterUrl={posterUrl}
     />
   );
 }

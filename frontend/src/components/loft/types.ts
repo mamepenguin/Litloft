@@ -31,4 +31,10 @@ export interface LoftEmbedProps {
    * fabricate a completed state on its behalf.
    */
   onEnded?: () => void;
+  /**
+   * The file's own thumbnail, given only when it has one. An embed whose
+   * frame is blank while it loads can hold this over it; one that draws
+   * its own poster ignores it.
+   */
+  posterUrl?: string;
 }
