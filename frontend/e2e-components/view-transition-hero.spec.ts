@@ -24,7 +24,14 @@ interface Hero {
   groups: string[];
   heroes: number;
   box: { width: number; height: number; alpha: number } | null;
-  fit: { oldFit: string; newFit: string; oldMs: string; newMs: string };
+  fit: {
+    oldFit: string;
+    newFit: string;
+    oldOpacity: string;
+    newOpacity: string;
+    oldBlend: string;
+    groupMs: string;
+  };
   /** The screen being opened onto, which must not arrive from nothing. */
   destination: { opacity: string; animation: string };
   viewport: { width: number; height: number };
@@ -77,8 +84,10 @@ const INSTALL = () => {
       fit: {
         oldFit: read("::view-transition-old(file-hero)").objectFit,
         newFit: read("::view-transition-new(file-hero)").objectFit,
-        oldMs: read("::view-transition-old(file-hero)").animationDuration,
-        newMs: read("::view-transition-new(file-hero)").animationDuration,
+        oldOpacity: read("::view-transition-old(file-hero)").opacity,
+        newOpacity: read("::view-transition-new(file-hero)").opacity,
+        oldBlend: read("::view-transition-old(file-hero)").mixBlendMode,
+        groupMs: read("::view-transition-group(file-hero)").animationDuration,
       },
       destination: {
         opacity: read("::view-transition-new(listing)").opacity,
@@ -149,12 +158,16 @@ test("re-crops the picture instead of stretching it between two shapes", async (
   const opening = await page.evaluate(() => window.__pressHero("open-file"));
 
   // `cover` is what re-crops; `fill`, the browser's default for this pair,
-  // is what stretches.
+  // is what stretches. And the pair must not cross-fade: the two snapshots
+  // are the same picture, so summing them with `plus-lighter` washes the
+  // box out to white instead of reconstructing it.
   expect(opening.fit).toEqual({
     oldFit: "cover",
     newFit: "cover",
-    oldMs: "0.2s",
-    newMs: "0.2s",
+    oldOpacity: "0",
+    newOpacity: "1",
+    oldBlend: "normal",
+    groupMs: "0.2s",
   });
 
   await settled(page);

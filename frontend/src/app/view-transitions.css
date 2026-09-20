@@ -72,6 +72,26 @@ html[data-vt="file-open"] [data-file-hero] {
 html[data-vt="file-open"]::view-transition-old(file-hero),
 html[data-vt="file-open"]::view-transition-new(file-hero) {
   object-fit: cover;
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/*
+ * Both snapshots are the same picture, so the browser's default — fade one
+ * out and the other in, summed with `plus-lighter` — adds two different
+ * crops of it together and washes the whole box out to white. Showing one
+ * of them throughout leaves the group's own morph as the only motion, and
+ * spares a full-size blend every frame.
+ */
+html[data-vt="file-open"]::view-transition-new(file-hero) {
+  opacity: 1;
+}
+
+html[data-vt="file-open"]::view-transition-old(file-hero) {
+  opacity: 0;
+}
+
+html[data-vt="file-open"]::view-transition-group(file-hero) {
   animation-duration: 200ms;
 }
 
