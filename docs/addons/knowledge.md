@@ -401,6 +401,7 @@ Everything below is reached through the core's addon proxy at `/api/addons/knowl
 | `POST /note-from-file` | Create a stub note citing a source file. |
 | `POST /distill` | Promote an LLM summary into a note (preview). |
 | `GET /notes/by_source_file/<id>` | Notes citing a given file. |
+| `POST /note-openings` | The opening text of the notes in one listing, so a row is drawn at its final height. Ids are filtered through core access control and held to this drive and to text mimes; only each file's first bytes are read. |
 | `GET /search?q=` | Keyword search over the drive's text notes. |
 | `GET /connections-graph` | Note-and-file relation graph for the drive. |
 | `POST /resync-tags/<file_id>` | Re-project one note's frontmatter tags into the core. |
