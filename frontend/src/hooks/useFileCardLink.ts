@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ElementType } from "react";
 import type { FileItem } from "@/types";
+import { fileLinkHref } from "@/lib/canonicalFileUrl";
 import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
 
 interface FileCardLinkOptions {
@@ -83,7 +84,7 @@ export function useFileCardLink({
   return {
     Wrapper: Link,
     wrapperProps: {
-      href: `/files/${file.id}${sortQuery || ""}`,
+      href: fileLinkHref(file, sortQuery),
       onClick: (e: React.MouseEvent) => {
         if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
           e.preventDefault();

@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { getThumbnailUrl } from "@/lib/api";
+import { fileLinkHref } from "@/lib/canonicalFileUrl";
 import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
 import { formatDuration } from "@/lib/format";
 import { hasKnownLength, primaryMetaText } from "@/lib/primaryMeta";
@@ -258,7 +259,7 @@ function FileListRowImpl({
         >{content}</div>
       ) : (
         <Link
-          href={`/files/${file.id}${sortQuery || ""}`}
+          href={fileLinkHref(file, sortQuery)}
           className="flex flex-1 items-center gap-3 min-w-0"
           onClick={(e: React.MouseEvent) => {
             if ((e.metaKey || e.ctrlKey) && onMetaSelect) {

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CARRIED_QUERY_KEYS,
   buildCanonicalFileUrl,
+  fileLinkHref,
 } from "../canonicalFileUrl";
 
 const baseFile = { drive: "media", folder_path: "Notes/2026" };
@@ -55,5 +56,36 @@ describe("buildCanonicalFileUrl", () => {
   it("exposes the carried-key allowlist for callers that need to mirror it", () => {
     expect(CARRIED_QUERY_KEYS).toContain("edit");
     expect(CARRIED_QUERY_KEYS).toContain("t");
+  });
+});
+
+describe("fileLinkHref", () => {
+  it.each([
+    [
+      "a nested folder, with the listing's order and the folder walk",
+      { id: "f1", drive: "media", folder_path: "Notes/2026" },
+      "?sort=name&order=asc&nav=folder",
+      "/drive/media/Notes/2026?file=f1&sort=name&order=asc&nav=folder",
+    ],
+    [
+      "the drive root, with no listing query",
+      { id: "f2", drive: "media", folder_path: "" },
+      undefined,
+      "/drive/media?file=f2",
+    ],
+    [
+      "names that need encoding",
+      { id: "f3", drive: "動画", folder_path: "YouTube/おでかけ 子ザメ" },
+      "?sort=created_at&order=desc",
+      "/drive/%E5%8B%95%E7%94%BB/YouTube/%E3%81%8A%E3%81%A7%E3%81%8B%E3%81%91%20%E5%AD%90%E3%82%B6%E3%83%A1?file=f3&sort=created_at&order=desc",
+    ],
+    [
+      "keys the redirect does not carry",
+      { id: "f4", drive: "media", folder_path: "a" },
+      "?sort=name&view=liked&q=x",
+      "/drive/media/a?file=f4&sort=name",
+    ],
+  ])("links %s to where /files/{id} would redirect", (_name, file, query, want) => {
+    expect(fileLinkHref(file, query)).toBe(want);
   });
 });

@@ -41,3 +41,18 @@ export function buildCanonicalFileUrl(
     : "";
   return `/drive/${drivePart}${folderPart}?${carried.toString()}`;
 }
+
+/**
+ * Where an in-app link to a listed file goes: the URL `/files/{id}` would
+ * redirect to, so opening the file does not leave the drive's pages.
+ */
+export function fileLinkHref(
+  file: Pick<FileItem, "id" | "drive" | "folder_path">,
+  query = "",
+): string {
+  return buildCanonicalFileUrl(
+    file,
+    file.id,
+    Object.fromEntries(new URLSearchParams(query)),
+  );
+}

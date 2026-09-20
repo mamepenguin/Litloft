@@ -192,3 +192,47 @@ describe("FileListRow's text preview for Office files", () => {
     expect(document.querySelector('[data-testid="text-thumbnail"]')).not.toBeNull();
   });
 });
+
+describe("the list row's link", () => {
+  it("goes to the file in its own folder, not through /files/{id}", () => {
+    render(
+      <FileListRow
+        file={{ ...file, drive: "work", folder_path: "Q1/reports" }}
+        onContextMenu={vi.fn()}
+        sortQuery="?sort=name&order=asc&nav=folder"
+      />,
+    );
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/drive/work/Q1/reports?file=f1&sort=name&order=asc&nav=folder",
+    );
+  });
+});
+
+describe("the list row's navigation", () => {
+  it("hands a Cmd/Ctrl-click on the link to onMetaSelect instead of following it", () => {
+    const onMetaSelect = vi.fn();
+    render(
+      <FileListRow file={file} onContextMenu={vi.fn()} onMetaSelect={onMetaSelect} />,
+    );
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true, metaKey: true });
+    fireEvent(screen.getByRole("link"), event);
+    expect(onMetaSelect).toHaveBeenCalledWith("f1");
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("gives the row to the host's own navigation where one is provided", async () => {
+    const onNavigate = vi.fn();
+    const { FileNavigationOverrideProvider } = await import(
+      "@/lib/fileNavigationOverride"
+    );
+    render(
+      <FileNavigationOverrideProvider onNavigate={onNavigate}>
+        <FileListRow file={file} onContextMenu={vi.fn()} />
+      </FileNavigationOverrideProvider>,
+    );
+    expect(screen.queryByRole("link")).toBeNull();
+    fireEvent.click(screen.getAllByRole("button")[0]);
+    expect(onNavigate).toHaveBeenCalledWith("f1");
+  });
+});
