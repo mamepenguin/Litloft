@@ -26,6 +26,7 @@ import { SidebarTagsSection } from "./sidebar/SidebarTagsSection";
 import { SectionDragHandle } from "./sidebar/SectionDragHandle";
 import { useSidebarSectionOrder } from "./sidebar/useSidebarSectionOrder";
 import { useReorderableDnD } from "./sidebar/useReorderableDnD";
+import { TRANSITION_NAMES } from "@/lib/transitionNames";
 
 /**
  * Stable IDs for the four reorderable sections (canonical order = default display order).
@@ -134,7 +135,10 @@ function SidebarNav() {
     }`;
 
   return (
-    <nav className="scrollbar-hover flex h-full flex-col gap-1 overflow-y-auto p-3">
+    <nav
+      className="scrollbar-hover flex h-full flex-col gap-1 overflow-y-auto p-3"
+      style={{ viewTransitionName: TRANSITION_NAMES.appSidebar }}
+    >
       {/* Library section: fixed at top, never reordered */}
       <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} drives={drives} linkClass={linkClass} close={closeIfOverlay} primaryAddons={primaryAddons} sourceAddons={sourceAddons} libraryActive={libraryActive} />
 

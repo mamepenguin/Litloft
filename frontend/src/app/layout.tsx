@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
+import "./view-transitions.css";
 
 import { AppShell } from "@/components/AppShell";
 import { DirtyBlocker } from "@/components/DirtyBlocker";
@@ -15,6 +16,7 @@ import { ClipboardProvider } from "@/components/ClipboardProvider";
 import { ProfileProvider } from "@/components/ProfileProvider";
 import { AddonSlotsProvider } from "@/components/AddonSlotsProvider";
 import { SetupRedirector } from "@/components/SetupRedirector";
+import { NavigationCommitSignal } from "@/components/NavigationCommitSignal";
 
 export const metadata: Metadata = {
   title: "Litloft",
@@ -62,6 +64,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: PREFERENCE_INIT_SCRIPT }} />
       </head>
       <body className="min-h-dvh">
+        <NavigationCommitSignal />
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
             <ToastProvider>

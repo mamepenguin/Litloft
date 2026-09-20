@@ -1,0 +1,22 @@
+/*
+ * A named element the browser treats as persisting animates from its old
+ * box to its new one by default. The chrome does not move between pages,
+ * so the default would be a no-op — except that a cross-fade of the root
+ * would otherwise redraw it. Holding these still is the point of naming
+ * them, so nothing is animated here.
+ */
+::view-transition-group(app-header),
+::view-transition-group(app-sidebar),
+::view-transition-group(folder-tree) {
+  animation: none;
+}
+
+::view-transition-old(app-header),
+::view-transition-new(app-header),
+::view-transition-old(app-sidebar),
+::view-transition-new(app-sidebar),
+::view-transition-old(folder-tree),
+::view-transition-new(folder-tree) {
+  animation: none;
+  mix-blend-mode: normal;
+}
