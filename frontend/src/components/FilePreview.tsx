@@ -150,6 +150,11 @@ export function FilePreview({
         <img
           src={getStreamUrl(file.id)}
           alt={file.title}
+          // The box is the destination of the shared element that grows out
+          // of the listing card, so it has to be its final size before the
+          // full picture arrives.
+          width={file.image_width ?? undefined}
+          height={file.image_height ?? undefined}
           className="max-h-[70vh] w-auto object-contain"
         />
       </div>

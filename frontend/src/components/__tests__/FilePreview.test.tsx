@@ -359,3 +359,39 @@ describe("FilePreview's Office excerpt", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("an image's box", () => {
+  it("is reserved from the file's own dimensions, before the picture loads", () => {
+    render(
+      <FilePreview
+        file={makeFile({
+          file_type: "image",
+          mime_type: "image/jpeg",
+          image_width: 1200,
+          image_height: 1600,
+        })}
+      />,
+    );
+
+    const img = screen.getByRole("img");
+    expect(img).toHaveAttribute("width", "1200");
+    expect(img).toHaveAttribute("height", "1600");
+  });
+
+  it("reserves nothing when the dimensions are unknown", () => {
+    render(
+      <FilePreview
+        file={makeFile({
+          file_type: "image",
+          mime_type: "image/jpeg",
+          image_width: null,
+          image_height: null,
+        })}
+      />,
+    );
+
+    const img = screen.getByRole("img");
+    expect(img).not.toHaveAttribute("width");
+    expect(img).not.toHaveAttribute("height");
+  });
+});
