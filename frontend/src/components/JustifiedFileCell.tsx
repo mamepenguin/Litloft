@@ -99,6 +99,7 @@ function JustifiedFileCellImpl({
       <Wrapper
         {...(wrapperProps as any)}
         aria-label={file.title}
+        data-file-thumb=""
         className={`group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated ${
           selectable ? "cursor-pointer select-none" : ""
         } ${selected ? "ring-2 ring-accent" : ""}`}
