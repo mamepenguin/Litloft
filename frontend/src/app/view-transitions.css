@@ -1,0 +1,77 @@
+/*
+ * The names live here, under `html[data-vt]`, rather than on the elements:
+ * a `view-transition-name` forms a stacking context and a backdrop root for
+ * as long as it is set, whether or not a transition is running, and that
+ * flattens `backdrop-filter` on anything inside. `lib/viewTransitions.ts`
+ * writes the attribute before the browser captures and removes it after.
+ */
+/*
+ * Only the folder push names the scroller. Opening a file does not need the
+ * listing as a layer of its own — the destination is shown at once and only
+ * the picture moves — and capturing a scroll container on its own is where
+ * a sticky toolbar inside it gets placed as though nothing were scrolled.
+ * The root capture is a plain rasterisation of the window and has no such
+ * seam.
+ */
+html[data-vt="folder-down"] [data-listing-scroller],
+html[data-vt="folder-up"] [data-listing-scroller],
+html[data-vt="folder-flat"] [data-listing-scroller] {
+  view-transition-name: listing;
+}
+
+@keyframes vt-push-from-end {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes vt-push-from-start {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes vt-push-to-start {
+  to {
+    transform: translateX(-25%);
+    opacity: 0.55;
+  }
+}
+
+@keyframes vt-push-to-end {
+  to {
+    transform: translateX(25%);
+    opacity: 0.55;
+  }
+}
+
+/*
+ * Phone only. A wide content column sliding the full width of a large
+ * screen reads as slow, so above this the listing keeps the browser's own
+ * cross-fade.
+ */
+@media (max-width: 767px) {
+  html[data-vt="folder-down"]::view-transition-old(listing) {
+    animation: 200ms cubic-bezier(0.2, 0, 0, 1) both vt-push-to-start;
+  }
+
+  html[data-vt="folder-down"]::view-transition-new(listing) {
+    animation: 200ms cubic-bezier(0.2, 0, 0, 1) both vt-push-from-end;
+  }
+
+  html[data-vt="folder-up"]::view-transition-old(listing) {
+    animation: 200ms cubic-bezier(0.2, 0, 0, 1) both vt-push-to-end;
+  }
+
+  html[data-vt="folder-up"]::view-transition-new(listing) {
+    animation: 200ms cubic-bezier(0.2, 0, 0, 1) both vt-push-from-start;
+  }
+}
+
+/*
+ * Opening a file: the pressed card's picture becomes the box the file is
+ * shown in. `cover` on both snapshots is what keeps the picture itself
+ * undistorted while the box changes shape — a card crops to 16:9 and the
+ * detail opens at the picture's own ratio, so without it the image is
+ * stretched in flight rather than re-cropped.
+ */

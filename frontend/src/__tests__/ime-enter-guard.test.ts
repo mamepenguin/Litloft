@@ -41,7 +41,6 @@ const TEXT_FIELD_ENTER = [
  */
 const NOT_A_TEXT_FIELD_ENTER = [
   "components/CommentSection.tsx",
-  "components/FileListRow.tsx",
   "components/folder/FilterField.tsx",
   "components/search/MergedResultItem.tsx",
   "hooks/useFileCardLink.ts",
@@ -95,7 +94,7 @@ function enterFiles(root: string): string[] {
 describe("core files handling Enter", () => {
   it("are all declared as a text field or not", () => {
     const declared = [...TEXT_FIELD_ENTER, ...NOT_A_TEXT_FIELD_ENTER].sort();
-    expect(declared).toHaveLength(17);
+    expect(declared).toHaveLength(16);
     expect(enterFiles(SRC)).toEqual(declared);
   });
 

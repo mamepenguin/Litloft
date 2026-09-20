@@ -7,6 +7,7 @@
 export const DESKTOP_ONLY = [
   "**/add-menu-desktop.spec.ts",
   "**/anchored-direction-desktop.spec.ts",
+  "**/view-transition-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

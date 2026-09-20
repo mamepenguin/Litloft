@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -39,6 +40,11 @@ import {
 import { DismissScrim } from "@/components/DismissScrim";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
+import { folderTransitionKind } from "@/lib/folderTransition";
+import {
+  navigateWithTransition,
+  notifyNavigationCommit,
+} from "@/lib/viewTransitions";
 
 import "../../e2e-layout/fixtures/globals.built.css";
 
@@ -868,6 +874,62 @@ function PageFrameArrangement({ width }: { width: PageFrameWidth }): ReactElemen
   );
 }
 
+
+/**
+ * Drives one folder navigation through the real entry point, inside the
+ * shape the app has: a bounded scroller holding a page several times its
+ * own height. A short page cannot show what a snapshot does when it is
+ * taller than the box that clips it.
+ *
+ * The layout effect stands in for `NavigationCommitSignal`, which needs a
+ * router the fixture does not have; it reports the same thing at the same
+ * moment.
+ */
+function FolderPushArrangement(): ReactElement {
+  const [path, setPath] = useState("/drive/main");
+  useLayoutEffect(() => {
+    notifyNavigationCommit(path);
+  }, [path]);
+
+  const go = (to: string) => {
+    navigateWithTransition(folderTransitionKind(path, to), () => setPath(to));
+  };
+
+  return (
+    <div className="flex h-screen flex-col">
+      <header className="flex h-14 flex-none items-center gap-3 border-b border-bg-border bg-bg-primary px-4">
+        <span id="app-chrome">chrome</span>
+        <button id="go-down" type="button" onClick={() => go("/drive/main/movies")}>
+          down
+        </button>
+        <button id="go-up" type="button" onClick={() => go("/drive/main")}>
+          up
+        </button>
+      </header>
+      <section
+        id="listing-scroller"
+        data-listing-scroller=""
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-bg-primary"
+      >
+        <PageFrame
+          width="full"
+          header={<PageHeader titleIcon={FolderTree} title={path} />}
+        >
+          <div id="page-body" className="px-4">
+            {Array.from({ length: 60 }, (_, i) => (
+              <p key={i} className="h-16">
+                {path} row {i}
+              </p>
+            ))}
+          </div>
+        </PageFrame>
+      </section>
+    </div>
+  );
+}
+
+
+
 const PageFrameFull = (): ReactElement => <PageFrameArrangement width="full" />;
 const PageFrameWide = (): ReactElement => <PageFrameArrangement width="wide" />;
 const PageFrameList = (): ReactElement => <PageFrameArrangement width="list" />;
@@ -968,6 +1030,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "scoped-search-en": ScopedSearchEn,
   "player-seek-bar": PlayerSeekBar,
   "player-hairline": PlayerHairline,
+  "folder-push": FolderPushArrangement,
 };
 
 function App(): ReactElement {

@@ -4,8 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import { useFileCardLink } from "@/hooks/useFileCardLink";
 import type { FileItem } from "@/types";
 
+const override = vi.hoisted(() => ({ fn: null as ((id: string) => void) | null }));
+
 vi.mock("@/lib/fileNavigationOverride", () => ({
-  useFileNavigationOverride: () => null,
+  useFileNavigationOverride: () => override.fn,
 }));
 
 const file = { id: "f1", drive: "work", folder_path: "Q1" } as FileItem;

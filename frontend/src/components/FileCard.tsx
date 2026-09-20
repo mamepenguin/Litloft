@@ -115,7 +115,9 @@ function FileCardImpl({
         onTouchEnd={selectable ? undefined : onTouchEnd}
         onTouchMove={selectable ? undefined : onTouchMove}
       >
-        <div className="relative aspect-video bg-bg-elevated rounded-2xl overflow-hidden">
+        <div
+            className="relative aspect-video bg-bg-elevated rounded-2xl overflow-hidden"
+        >
           {hasThumbnail ? (
             <img
               src={getThumbnailUrl(file.id)}
