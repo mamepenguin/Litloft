@@ -33,6 +33,12 @@ At most one row is highlighted at a time — none, on a URL that is no row's sub
 
 ## File grid and list modes
 
+Opening a file answers the press where you made it: a copy of the card's own
+picture swells a fifth and fades out over the file as it opens. It is a
+flourish on the card, not a picture travelling into the file — what the file
+shows is the original at its own shape, and a card is a crop of a thumbnail.
+Nothing appears when the system asks for reduced motion.
+
 A toolbar above the grid lets you:
 
 - Choose **grid** or **list** from the **View** menu. The button reads the layout that is on. In a real folder the choice is remembered per folder (localStorage, under `folderPrefs:{drive}`); on the drive root, in the flat views, and in search it falls back to a single global preference. Before you have ever chosen, the mode follows from what the folder mostly holds, and the question is whether a card of that kind can show you anything:

@@ -41,6 +41,7 @@ import { DismissScrim } from "@/components/DismissScrim";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
 import { folderTransitionKind } from "@/lib/folderTransition";
+import { showOpenGhost } from "@/lib/openGhost";
 import {
   navigateWithTransition,
   notifyNavigationCommit,
@@ -930,6 +931,36 @@ function FolderPushArrangement(): ReactElement {
 
 
 
+
+/**
+ * A pressed card and the copy of it that swells and fades. The real helper,
+ * so what is measured is the element it makes and when it takes it away.
+ */
+function OpenGhostArrangement(): ReactElement {
+  return (
+    <div className="flex h-screen flex-col bg-bg-primary">
+      <header className="flex h-14 flex-none items-center border-b border-bg-border px-4">
+        chrome
+      </header>
+      <div className="p-4">
+        <button
+          id="open-card"
+          type="button"
+          className="block w-56"
+          onClick={(e) => showOpenGhost(e.currentTarget.querySelector("[data-file-thumb]"))}
+        >
+          <div
+            data-file-thumb=""
+            className="relative aspect-video overflow-hidden rounded-2xl bg-bg-elevated"
+          >
+            <span id="inside-the-card">card</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const PageFrameFull = (): ReactElement => <PageFrameArrangement width="full" />;
 const PageFrameWide = (): ReactElement => <PageFrameArrangement width="wide" />;
 const PageFrameList = (): ReactElement => <PageFrameArrangement width="list" />;
@@ -1031,6 +1062,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "player-seek-bar": PlayerSeekBar,
   "player-hairline": PlayerHairline,
   "folder-push": FolderPushArrangement,
+  "open-ghost": OpenGhostArrangement,
 };
 
 function App(): ReactElement {

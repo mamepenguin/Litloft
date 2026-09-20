@@ -5,6 +5,15 @@ import type { ElementType } from "react";
 import type { FileItem } from "@/types";
 import { fileLinkHref } from "@/lib/canonicalFileUrl";
 import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
+import { showOpenGhost } from "@/lib/openGhost";
+
+/** The picture inside the pressed card, which the ghost is a copy of. */
+function pictureIn(card: EventTarget | null): HTMLElement | null {
+  if (!(card instanceof HTMLElement)) return null;
+  return card.matches("[data-file-thumb]")
+    ? card
+    : card.querySelector("[data-file-thumb]");
+}
 
 interface FileCardLinkOptions {
   file: FileItem;
@@ -66,6 +75,7 @@ export function useFileCardLink({
             return;
           }
           e.preventDefault();
+          showOpenGhost(pictureIn(e.currentTarget));
           fileNavigationOverride!(file.id);
         },
         role: "button" as const,
@@ -73,6 +83,7 @@ export function useFileCardLink({
         onKeyDown: (e: React.KeyboardEvent) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
+            showOpenGhost(pictureIn(e.currentTarget));
             fileNavigationOverride!(file.id);
           }
         },
@@ -89,7 +100,9 @@ export function useFileCardLink({
         if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
           e.preventDefault();
           onMetaSelect(file.id);
+          return;
         }
+        showOpenGhost(pictureIn(e.currentTarget));
       },
     },
   };

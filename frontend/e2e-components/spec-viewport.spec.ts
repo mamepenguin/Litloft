@@ -44,6 +44,7 @@ const AT_THE_PHONE_WIDTH = [
   "chrome-buttons.spec.ts",
   "page-frame.spec.ts",
   "player-seek-indicator.spec.ts",
+  "open-ghost.spec.ts",
   "popup-dismiss.spec.ts",
   "quick-note-footer.spec.ts",
   "scoped-search.spec.ts",
