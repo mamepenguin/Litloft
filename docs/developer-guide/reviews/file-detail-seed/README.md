@@ -23,5 +23,16 @@ before a rebase onto develop; the SHAs they name map to the merged commits as
   `recordFileView` and a one-frame collapse of the player box on an in-place
   switch were closed as B; the user-reachable ones are in `known-issues.md`.
 
+Followed up 2026-09-20, and dropped: invariant 2's revision sent the two
+extra `GET /api/files/{id}` per open to the intelligence addon, on the
+strength of a grep. Measured, that premise is wrong — one of those call
+sites is image-only and the other fires when the save dialog opens, while
+every file kind costs exactly three requests, two at mount. The callers were
+not identified: the production bundle is minified, a source-map build did
+not resolve the initiator stacks, and the three requests carry identical
+headers. They fetch metadata and cost nothing a viewer can see, so the work
+stopped rather than guess. Anyone picking it up should start from a dev-mode
+build, where the initiators have names.
+
 Read the code for what the system does now. These files quote it as it stood at
 the SHA each round reviewed.

@@ -59,6 +59,8 @@ error from the policy save, or not at all.
 
 **A relation recorded before relation origins existed disappears when its target note is saved first.** A backlink from note Y to note X that predates the upgrade is removed by X's first save and reappears on Y's next save. Rows written after the upgrade are not affected.
 
+**A file whose thumbnail bytes were removed shows a grey card where its picture belongs.** `has_thumbnail` reports the database column, so the thumbnail route answers with its placeholder image: over a YouTube player while it loads, and inside the embed-restricted card. For a `.loft` nothing regenerates the file, so it stays until the thumbnail is rebuilt by hand. Reached by deleting from `data/thumbnails` out of band.
+
 **A trashed or missing file opened again shows as a live file for a moment.** If the file was listed earlier in the session, reopening it (Back, a bookmark, collection or folder play) draws it with its player until its own request answers, then shows File not found; in collection mode the player can start.
 
 **A note's title renamed in the page row within the first moment after opening is dropped.** The rename field accepts input before the note's own data has arrived, and a rename submitted then is ignored without an error.
