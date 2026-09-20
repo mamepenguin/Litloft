@@ -319,6 +319,38 @@ describe("FileDetailFullScreen", () => {
   });
 });
 
+/**
+ * Both handlers reach these lines only on a cold tab, where
+ * `window.history.length` is 1 — which is what jsdom gives them.
+ */
+describe("FileDetailFullScreen, where it goes when there is no history", () => {
+  const WAYS_BACK: [string, string, string][] = [
+    ["a file in a folder", "movies", "/drive/main/movies"],
+    ["a file at the drive root", "", "/drive/main"],
+  ];
+
+  const propsFor = async (folderPath: string) => {
+    mockGetFile.mockResolvedValue({ ...baseFile, folder_path: folderPath });
+    render(<FileDetailFullScreen fileId="abc" />);
+    await waitFor(() =>
+      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
+    );
+    return fileDetailContentProps[fileDetailContentProps.length - 1];
+  };
+
+  it.each(WAYS_BACK)("sends Back from %s to %s", async (_name, folderPath, target) => {
+    const props = await propsFor(folderPath);
+    act(() => void (props.onBack as () => void)());
+    expect(mockPush).toHaveBeenCalledWith(target);
+  });
+
+  it.each(WAYS_BACK)("sends a delete from %s to %s", async (_name, folderPath, target) => {
+    const props = await propsFor(folderPath);
+    act(() => void (props.onAfterDelete as () => void)());
+    expect(mockPush).toHaveBeenCalledWith(target);
+  });
+});
+
 describe("FileDetailFullScreen, the file it draws", () => {
   afterEach(() => {
     _resetFileSeedForTests();
