@@ -9,6 +9,7 @@ import type { FileItem } from "@/types";
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/drive/main",
 }));
 
 const selectFileSpy = vi.fn();

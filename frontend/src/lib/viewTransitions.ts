@@ -3,12 +3,22 @@
 import { dirtyRegistry } from "./dirtyRegistry";
 import { TRANSITION_NAMES } from "./transitionNames";
 
-export type TransitionDirection = "folder-down" | "folder-up";
+/**
+ * What the navigation is, which the stylesheet reads off `<html>`. It is
+ * always set while a transition runs: the names themselves are declared
+ * under `html[data-vt]`, so that a `view-transition-name` — which forms a
+ * backdrop root for as long as it is set, transition or not — exists only
+ * for the length of one.
+ */
+export type TransitionKind =
+  | "folder-down"
+  | "folder-up"
+  | "folder-flat"
+  | "file-open";
 
 export interface TransitionOptions {
   /** The card the open file grows out of. */
   hero?: HTMLElement | null;
-  direction?: TransitionDirection;
   /** Defaults to the current url; a commit back to it does not count. */
   startUrl?: string;
 }
@@ -26,8 +36,8 @@ interface ViewTransitionLike {
 
 interface Pending {
   hero: HTMLElement | null;
-  hadDirection: boolean;
   startUrl: string;
+  committed: boolean;
   timer: ReturnType<typeof setTimeout> | undefined;
   resolve: (() => void) | undefined;
   skip: (() => void) | undefined;
@@ -53,7 +63,7 @@ function cleanup(p: Pending): void {
   p.cleaned = true;
   clearTimeout(p.timer);
   if (p.hero) p.hero.style.viewTransitionName = "";
-  if (p.hadDirection) delete document.documentElement.dataset.vt;
+  delete document.documentElement.dataset.vt;
   if (pending === p) pending = null;
 }
 
@@ -72,10 +82,11 @@ function supersede(p: Pending): void {
  * transition ever starts.
  */
 export function navigateWithTransition(
-  navigate: () => void,
+  kind: TransitionKind,
+  navigate?: () => void,
   options: TransitionOptions = {},
 ): void {
-  const { hero = null, direction } = options;
+  const { hero = null } = options;
   const start = (
     document as Document & {
       startViewTransition?: (cb: () => unknown) => ViewTransitionLike;
@@ -90,7 +101,7 @@ export function navigateWithTransition(
     prefersReducedMotion() ||
     dirtyRegistry.isDirty()
   ) {
-    navigate();
+    navigate?.();
     return;
   }
 
@@ -98,8 +109,8 @@ export function navigateWithTransition(
 
   const p: Pending = {
     hero,
-    hadDirection: direction !== undefined,
     startUrl: options.startUrl ?? currentUrl(),
+    committed: false,
     timer: undefined,
     resolve: undefined,
     skip: undefined,
@@ -108,12 +119,15 @@ export function navigateWithTransition(
   pending = p;
 
   if (hero) hero.style.viewTransitionName = TRANSITION_NAMES.fileHero;
-  if (direction) document.documentElement.dataset.vt = direction;
+  document.documentElement.dataset.vt = kind;
 
   let transition: ViewTransitionLike | undefined;
   try {
     transition = start.call(document, () => {
-      navigate();
+      navigate?.();
+      // The commit can land before the browser runs this callback, when
+      // something else is driving the navigation.
+      if (p.committed) return Promise.resolve();
       return new Promise<void>((resolve) => {
         p.resolve = resolve;
         p.timer = setTimeout(() => {
@@ -139,8 +153,22 @@ export function navigateWithTransition(
 export function notifyNavigationCommit(url: string): void {
   const p = pending;
   if (!p || p.cleaned || url === p.startUrl) return;
+  p.committed = true;
   clearTimeout(p.timer);
   p.resolve?.();
+}
+
+/**
+ * For a navigation this code does not perform — a `<Link>`, where Next
+ * owns the routing. The browser captures the destination when the update
+ * callback settles, so holding it open until the commit is enough; the
+ * callback does not have to be what changes the DOM.
+ */
+export function transitionAroundNavigation(
+  kind: TransitionKind,
+  options: TransitionOptions = {},
+): void {
+  navigateWithTransition(kind, undefined, options);
 }
 
 export function _resetViewTransitionsForTests(): void {

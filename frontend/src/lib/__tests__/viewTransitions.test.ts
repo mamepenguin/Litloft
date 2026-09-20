@@ -95,7 +95,7 @@ describe("navigateWithTransition — when no transition may run", () => {
     const navigate = vi.fn();
     const hero = card();
 
-    navigateWithTransition(navigate, { hero, direction: "folder-down" });
+    navigateWithTransition("folder-down", navigate, { hero });
 
     expect(navigate).toHaveBeenCalledOnce();
     expect(namedElements()).toEqual([]);
@@ -107,7 +107,7 @@ describe("navigateWithTransition — when no transition may run", () => {
     const navigate = vi.fn();
     const hero = card();
 
-    navigateWithTransition(navigate, { hero, direction: "folder-down" });
+    navigateWithTransition("folder-down", navigate, { hero });
 
     expect(navigate).toHaveBeenCalledOnce();
     expect(handles).toHaveLength(0);
@@ -120,7 +120,7 @@ describe("navigateWithTransition — when no transition may run", () => {
     const navigate = vi.fn();
     const hero = card();
 
-    navigateWithTransition(navigate, { hero, direction: "folder-up" });
+    navigateWithTransition("folder-up", navigate, { hero });
 
     expect(navigate).toHaveBeenCalledOnce();
     expect(handles).toHaveLength(0);
@@ -142,7 +142,7 @@ describe("navigateWithTransition — the transition", () => {
       return fakeTransition(cb);
     };
 
-    navigateWithTransition(vi.fn(), { hero, direction: "folder-down" });
+    navigateWithTransition("folder-down", vi.fn(), { hero });
 
     expect(nameAtCapture).toBe("file-hero");
     expect(vtAtCapture).toBe("folder-down");
@@ -159,7 +159,9 @@ describe("navigateWithTransition — the transition", () => {
       return handle;
     };
 
-    navigateWithTransition(() => order.push("navigate"), { hero: card() });
+    navigateWithTransition("folder-down", () => order.push("navigate"), {
+      hero: card(),
+    });
 
     expect(order).toEqual(["start", "navigate", "callback-returned"]);
   });
@@ -167,7 +169,7 @@ describe("navigateWithTransition — the transition", () => {
   it("clears the name and the direction once the transition finishes", async () => {
     const hero = card();
 
-    navigateWithTransition(vi.fn(), { hero, direction: "folder-down" });
+    navigateWithTransition("folder-down", vi.fn(), { hero });
     notifyNavigationCommit("/drive/a/movies");
     await flush();
 
@@ -180,10 +182,10 @@ describe("navigateWithTransition — the transition", () => {
     const hero = card();
     let settled = false;
 
-    navigateWithTransition(
-      () => {},
-      { hero, startUrl: "/drive/a", direction: "folder-down" },
-    );
+    navigateWithTransition("folder-down", () => {}, {
+      hero,
+      startUrl: "/drive/a",
+    });
     handles[0].updateCallbackDone.then(() => {
       settled = true;
     });
@@ -198,6 +200,40 @@ describe("navigateWithTransition — the transition", () => {
   });
 });
 
+describe("navigateWithTransition — when something else drives the navigation", () => {
+  it("does not wait out the timeout for a commit that landed before the callback ran", async () => {
+    vi.useFakeTimers();
+    let settled = false;
+    let handle: FakeHandle;
+    (document as unknown as Record<string, unknown>).startViewTransition = (
+      cb: () => unknown,
+    ) => {
+      const updateCallbackDone = Promise.resolve().then(() => cb());
+      handle = {
+        skipTransition: vi.fn(),
+        ready: updateCallbackDone.then(() => undefined),
+        finished: updateCallbackDone.then(() => undefined),
+        updateCallbackDone: updateCallbackDone.then(() => undefined),
+      };
+      handles.push(handle);
+      return handle;
+    };
+
+    navigateWithTransition("folder-down", undefined, {
+      startUrl: "/drive/a",
+    });
+    notifyNavigationCommit("/drive/a/movies");
+    handles[0].updateCallbackDone.then(() => {
+      settled = true;
+    });
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(settled).toBe(true);
+    expect(handles[0].skipTransition).not.toHaveBeenCalled();
+  });
+});
+
 describe("navigateWithTransition — nothing is left behind", () => {
   it("holds input for no longer than the declared budget", () => {
     expect(COMMIT_TIMEOUT_MS).toBe(250);
@@ -207,7 +243,7 @@ describe("navigateWithTransition — nothing is left behind", () => {
     vi.useFakeTimers();
     const hero = card();
 
-    navigateWithTransition(vi.fn(), { hero, direction: "folder-down" });
+    navigateWithTransition("folder-down", vi.fn(), { hero });
     expect(hero.style.viewTransitionName).toBe("file-hero");
 
     await vi.advanceTimersByTimeAsync(249);
@@ -226,8 +262,8 @@ describe("navigateWithTransition — nothing is left behind", () => {
     const first = card();
     const second = card();
 
-    navigateWithTransition(vi.fn(), { hero: first });
-    navigateWithTransition(vi.fn(), { hero: second });
+    navigateWithTransition("folder-down", vi.fn(), { hero: first });
+    navigateWithTransition("folder-down", vi.fn(), { hero: second });
 
     expect(namedElements()).toEqual([second]);
 
@@ -239,10 +275,11 @@ describe("navigateWithTransition — nothing is left behind", () => {
     const hero = card();
 
     navigateWithTransition(
+      "folder-up",
       () => {
         throw new Error("boom");
       },
-      { hero, direction: "folder-up" },
+      { hero },
     );
     await flush();
 
@@ -255,7 +292,7 @@ describe("navigateWithTransition — nothing is left behind", () => {
     window.history.replaceState(null, "", "/drive/main?file=abc123");
     let settled = false;
 
-    navigateWithTransition(() => {}, { hero: card() });
+    navigateWithTransition("folder-down", () => {}, { hero: card() });
     handles[0].updateCallbackDone.then(() => {
       settled = true;
     });
@@ -269,9 +306,17 @@ describe("navigateWithTransition — nothing is left behind", () => {
     expect(settled).toBe(true);
   });
 
-  it("sets no direction attribute when the caller gives no direction", () => {
-    navigateWithTransition(vi.fn(), { hero: card() });
+  it("puts the kind on the document for the stylesheet to read", () => {
+    let seen: string | undefined;
+    (document as unknown as Record<string, unknown>).startViewTransition = (
+      cb: () => unknown,
+    ) => {
+      seen = document.documentElement.dataset.vt;
+      return fakeTransition(cb);
+    };
 
-    expect(document.documentElement.dataset.vt).toBeUndefined();
+    navigateWithTransition("file-open", vi.fn(), { hero: card() });
+
+    expect(seen).toBe("file-open");
   });
 });

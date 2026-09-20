@@ -7,6 +7,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { ScrollContainerContext } from "@/lib/scrollContainer";
+import { folderTransitionKind } from "@/lib/folderTransition";
+import { navigateWithTransition } from "@/lib/viewTransitions";
 
 import { useGuardedRouter } from "@/hooks/useGuardedRouter";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
@@ -59,7 +61,10 @@ export function TwoPaneLayout({
       // Jumping the viewport back to the top would feel like the tree
       // itself collapsed.
       if (target !== pathname) {
-        router.push(target, { scroll: false });
+        navigateWithTransition(
+          folderTransitionKind(pathname, target.split("?")[0]),
+          () => router.push(target, { scroll: false }),
+        );
       } else if (hasFile) {
         clearFile();
       }

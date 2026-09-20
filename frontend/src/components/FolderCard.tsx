@@ -5,6 +5,7 @@ import { RENAME_FOCUS_ATTR } from "@/hooks/useInlineRename";
 import type { Folder as FolderType } from "@/types";
 import { folderKindBreakdown } from "@/lib/folderKindBreakdown";
 import { InlineNameEditor } from "./InlineNameEditor";
+import { useFolderLink } from "@/hooks/useFolderLink";
 
 interface FolderCardProps {
   folder: FolderType;
@@ -68,6 +69,9 @@ export function FolderCard({
       : breakdown.map((s) => `${tFilter(`type.${s.kind}`)} ${s.count}`)),
   ].join(" · ");
 
+  const folderLink = useFolderLink();
+  const folderHref = `/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`;
+
   return (
     <div
       className={`group relative flex items-center gap-3 rounded-2xl bg-bg-card p-4 shadow-card transition-colors duration-200 hover:bg-bg-elevated${
@@ -100,7 +104,8 @@ export function FolderCard({
         </div>
       ) : (
         <Link
-          href={`/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`}
+          href={folderHref}
+          {...folderLink(folderHref)}
           className="flex min-w-0 flex-1 flex-col gap-1.5"
           draggable="false"
           {...{ [RENAME_FOCUS_ATTR]: folder.path }}

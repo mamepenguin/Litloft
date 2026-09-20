@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, Home } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useFolderLink } from "@/hooks/useFolderLink";
 
 interface BreadcrumbProps {
   driveName: string;
@@ -29,6 +30,7 @@ export function Breadcrumb({
   driveIsAncestor,
 }: BreadcrumbProps) {
   const t = useTranslations("toolbar");
+  const folderLink = useFolderLink();
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
   const driveIsLeaf = segments.length === 0 && !trailingSegment && !driveIsAncestor;
 
@@ -51,6 +53,7 @@ export function Breadcrumb({
           className={`hover:text-text-primary truncate rounded-lg px-1 transition-colors${
             isDropTarget?.("") ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
           }`}
+          {...folderLink(`/drive/${encodeURIComponent(driveName)}`)}
           {...getDropTargetProps?.("")}
         >
           {driveName}
@@ -72,6 +75,7 @@ export function Breadcrumb({
                 className={`hover:text-text-primary truncate rounded-lg px-1 transition-colors${
                   isDropTarget?.(path) ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
                 }`}
+                {...folderLink(`/drive/${encodeURIComponent(driveName)}/${encodedPath}`)}
                 {...getDropTargetProps?.(path)}
               >
                 {segment}

@@ -1,0 +1,64 @@
+/*
+ * The names live here, under `html[data-vt]`, rather than on the elements:
+ * a `view-transition-name` forms a stacking context and a backdrop root for
+ * as long as it is set, whether or not a transition is running, and that
+ * flattens `backdrop-filter` on anything inside. `lib/viewTransitions.ts`
+ * writes the attribute before the browser captures and removes it after.
+ */
+html[data-vt] [data-page-frame] {
+  view-transition-name: listing;
+}
+
+html[data-vt] [data-page-frame] > header {
+  view-transition-name: page-heading;
+}
+
+@keyframes vt-push-from-end {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes vt-push-from-start {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes vt-push-to-start {
+  to {
+    transform: translateX(-25%);
+    opacity: 0.55;
+  }
+}
+
+@keyframes vt-push-to-end {
+  to {
+    transform: translateX(25%);
+    opacity: 0.55;
+  }
+}
+
+/*
+ * Phone only. A wide content column sliding the full width of a large
+ * screen reads as slow, so above this the listing keeps the browser's own
+ * cross-fade. `page-heading` keeps it everywhere: it is named so that it
+ * cross-fades in place instead of travelling with the list.
+ */
+@media (max-width: 767px) {
+  html[data-vt="folder-down"]::view-transition-old(listing) {
+    animation: 300ms cubic-bezier(0.2, 0, 0, 1) both vt-push-to-start;
+  }
+
+  html[data-vt="folder-down"]::view-transition-new(listing) {
+    animation: 300ms cubic-bezier(0.2, 0, 0, 1) both vt-push-from-end;
+  }
+
+  html[data-vt="folder-up"]::view-transition-old(listing) {
+    animation: 300ms cubic-bezier(0.2, 0, 0, 1) both vt-push-to-end;
+  }
+
+  html[data-vt="folder-up"]::view-transition-new(listing) {
+    animation: 300ms cubic-bezier(0.2, 0, 0, 1) both vt-push-from-start;
+  }
+}

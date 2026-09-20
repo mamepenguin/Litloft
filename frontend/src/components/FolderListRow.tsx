@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { RENAME_FOCUS_ATTR } from "@/hooks/useInlineRename";
 import type { Folder as FolderType } from "@/types";
 import { InlineNameEditor } from "./InlineNameEditor";
+import { useFolderLink } from "@/hooks/useFolderLink";
 import {
   ROW_FURNITURE_GROUP,
   ROW_FURNITURE_PADDING,
@@ -73,6 +74,9 @@ export function FolderListRow({
     </span>
   );
 
+  const folderLink = useFolderLink();
+  const folderHref = `/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`;
+
   return (
     <div
       className={`group flex items-center gap-3 border-b border-bg-border bg-bg-card p-2.5 transition-colors last:border-b-0 hover:bg-bg-elevated sm:p-2${
@@ -110,7 +114,8 @@ export function FolderListRow({
         </div>
       ) : (
         <Link
-          href={`/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`}
+          href={folderHref}
+          {...folderLink(folderHref)}
           className="flex min-w-0 flex-1 items-center gap-3"
           draggable="false"
           {...{ [RENAME_FOCUS_ATTR]: folder.path }}

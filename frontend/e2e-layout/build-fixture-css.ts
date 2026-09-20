@@ -14,10 +14,21 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export const INPUT_CSS = join(__dirname, "..", "src", "app", "globals.css");
+/**
+ * Not reached by Tailwind: the app imports it from the root layout beside
+ * `globals.css`, so the fixture has to append it the same way.
+ */
+export const EXTRA_CSS = join(
+  __dirname,
+  "..",
+  "src",
+  "app",
+  "view-transitions.css",
+);
 export const FIXTURE_CSS = join(__dirname, "fixtures", "globals.built.css");
 
 /**
@@ -48,6 +59,7 @@ export const REQUIRED = [
   ".related-files-grid",
   "@container related-files",
   "max-h-\\[70vh\\]",
+  "vt-push-from-end",
   ".sticky",
   // Written with the brace, because the test is `includes` on the whole
   // sheet: `.mt-1` is satisfied by `.mt-14`, and `.left-0` by `.left-0\.5`.
@@ -138,6 +150,8 @@ export default function buildFixtureCss() {
     ["--input", INPUT_CSS, "--output", FIXTURE_CSS],
     { stdio: "inherit" },
   );
+
+  appendFileSync(FIXTURE_CSS, `\n${readFileSync(EXTRA_CSS, "utf8")}`);
 
   const built = readFileSync(FIXTURE_CSS, "utf8");
   const missing = REQUIRED.filter((needle) => !built.includes(needle));
