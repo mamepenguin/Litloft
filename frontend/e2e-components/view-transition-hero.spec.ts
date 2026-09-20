@@ -25,6 +25,8 @@ interface Hero {
   heroes: number;
   box: { width: number; height: number; alpha: number } | null;
   fit: { oldFit: string; newFit: string; oldMs: string; newMs: string };
+  /** The screen being opened onto, which must not arrive from nothing. */
+  destination: { opacity: string; animation: string };
   viewport: { width: number; height: number };
 }
 
@@ -77,6 +79,10 @@ const INSTALL = () => {
         newFit: read("::view-transition-new(file-hero)").objectFit,
         oldMs: read("::view-transition-old(file-hero)").animationDuration,
         newMs: read("::view-transition-new(file-hero)").animationDuration,
+      },
+      destination: {
+        opacity: read("::view-transition-new(listing)").opacity,
+        animation: read("::view-transition-new(listing)").animationName,
       },
       viewport: { width: window.innerWidth, height: window.innerHeight },
     };
@@ -150,6 +156,20 @@ test("re-crops the picture instead of stretching it between two shapes", async (
     oldMs: "0.2s",
     newMs: "0.2s",
   });
+
+  await settled(page);
+});
+
+test("shows the file it is opening at once, and flies only the picture", async ({
+  page,
+}) => {
+  await open(page);
+
+  const during = await page.evaluate(() => window.__pressHero("open-file"));
+
+  // Anything less and the first frames show the picture in mid-air over a
+  // screen that is still fading in — the chrome above it arrives late.
+  expect(during.destination).toEqual({ opacity: "1", animation: "none" });
 
   await settled(page);
 });

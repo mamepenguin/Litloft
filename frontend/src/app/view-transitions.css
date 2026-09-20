@@ -74,3 +74,24 @@ html[data-vt="file-open"]::view-transition-new(file-hero) {
   object-fit: cover;
   animation-duration: 200ms;
 }
+
+/*
+ * The file is already open when the picture starts flying: only the hero
+ * moves. Left to the browser's cross-fade the destination arrives from
+ * nothing, so for the first frames the page shows the picture in mid-air
+ * over a screen that has not appeared yet. The scroller paints an opaque
+ * background, so showing the new side at once hides the old one under it.
+ */
+html[data-vt="file-open"]::view-transition-old(listing),
+html[data-vt="file-open"]::view-transition-new(listing) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html[data-vt="file-open"]::view-transition-new(listing) {
+  opacity: 1;
+}
+
+html[data-vt="file-open"]::view-transition-old(listing) {
+  opacity: 0;
+}
