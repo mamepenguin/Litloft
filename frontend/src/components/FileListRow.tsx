@@ -6,8 +6,8 @@ import { useTranslations } from "next-intl";
 
 import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { getThumbnailUrl } from "@/lib/api";
-import { fileLinkHref } from "@/lib/canonicalFileUrl";
 import { useFileNavigationOverride } from "@/lib/fileNavigationOverride";
+import { useFileCardLink } from "@/hooks/useFileCardLink";
 import { formatDuration } from "@/lib/format";
 import { hasKnownLength, primaryMetaText } from "@/lib/primaryMeta";
 import type { FileItem, FileItemWithMatch } from "@/types";
@@ -78,6 +78,11 @@ function FileListRowImpl({
   const t = useTranslations("file");
   const clipboard = useClipboard();
   const fileNavigationOverride = useFileNavigationOverride();
+  const { Wrapper: OpenWrapper, wrapperProps: openProps } = useFileCardLink({
+    file,
+    onMetaSelect,
+    sortQuery,
+  });
 
   const hasThumbnail =
     file.has_thumbnail || file.file_type === "video" || file.file_type === "image";
@@ -239,38 +244,13 @@ function FileListRowImpl({
           </div>
           <div className="flex flex-1 items-center gap-3 min-w-0">{content}</div>
         </div>
-      ) : fileNavigationOverride ? (
-        <div
-          role="button"
-          tabIndex={0}
-          className="flex flex-1 cursor-pointer items-center gap-3 min-w-0"
-          onClick={(e: React.MouseEvent) => {
-            if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
-              e.preventDefault();
-              onMetaSelect(file.id);
-              return;
-            }
-            e.preventDefault();
-            fileNavigationOverride(file.id);
-          }}
-          onKeyDown={(e: React.KeyboardEvent) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              fileNavigationOverride(file.id);
-            }
-          }}
-        >{content}</div>
       ) : (
-        <Link
-          href={fileLinkHref(file, sortQuery)}
-          className="flex flex-1 items-center gap-3 min-w-0"
-          onClick={(e: React.MouseEvent) => {
-            if ((e.metaKey || e.ctrlKey) && onMetaSelect) {
-              e.preventDefault();
-              onMetaSelect(file.id);
-            }
-          }}
-        >{content}</Link>
+        <OpenWrapper
+          {...(openProps as Record<string, unknown>)}
+          className={`flex flex-1 items-center gap-3 min-w-0${
+            fileNavigationOverride ? " cursor-pointer" : ""
+          }`}
+        >{content}</OpenWrapper>
       )}
       {hasRowFurniture && (
         <div className={ROW_FURNITURE_GROUP}>

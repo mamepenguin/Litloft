@@ -161,9 +161,22 @@ export function FilePreview({
           alt={file.title}
           // The box is the destination of the shared element that grows out
           // of the listing card, so it has to be its final size before the
-          // full picture arrives.
+          // full picture arrives. The thumbnail fills it meanwhile: a
+          // reserved box with nothing in it is a slab of card colour, and
+          // the formats a browser decodes slowly are the ones that hold it
+          // longest.
           width={file.image_width ?? undefined}
           height={file.image_height ?? undefined}
+          style={
+            posterUrl
+              ? {
+                  backgroundImage: `url("${posterUrl}")`,
+                  backgroundSize: "contain",
+                  backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat",
+                }
+              : undefined
+          }
           className="max-h-[70vh] w-auto object-contain"
         />
       </div>

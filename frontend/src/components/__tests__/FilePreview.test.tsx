@@ -378,6 +378,38 @@ describe("an image's box", () => {
     expect(img).toHaveAttribute("height", "1600");
   });
 
+  it("fills the reserved box with the thumbnail until the picture arrives", () => {
+    render(
+      <FilePreview
+        file={makeFile({
+          file_type: "image",
+          mime_type: "image/heic",
+          image_width: 3024,
+          image_height: 4032,
+          has_thumbnail: true,
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("img").style.backgroundImage).toContain(
+      "/api/files/file-1/thumbnail",
+    );
+  });
+
+  it("leaves the box plain when there is no thumbnail to fill it with", () => {
+    render(
+      <FilePreview
+        file={makeFile({
+          file_type: "image",
+          mime_type: "image/png",
+          has_thumbnail: false,
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("img").style.backgroundImage).toBe("");
+  });
+
   it("reserves nothing when the dimensions are unknown", () => {
     render(
       <FilePreview
