@@ -23,6 +23,7 @@ import type { MediaController } from "@/lib/mediaController";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import type { PdfController } from "@/lib/pdfController";
 import type { ArchiveController } from "@/lib/archiveController";
+import { ImageCanvas } from "./ImageCanvas";
 
 /**
  * `react-pdf` pulls in `pdfjs-dist`, which touches `DOMMatrix` while its
@@ -151,36 +152,7 @@ export function FilePreview({
   }
 
   if (file.file_type === "image") {
-    return (
-      <div
-        data-file-hero=""
-        className="flex w-full items-center justify-center overflow-hidden rounded-xl bg-bg-card"
-      >
-        <img
-          src={getStreamUrl(file.id)}
-          alt={file.title}
-          // The box is the destination of the shared element that grows out
-          // of the listing card, so it has to be its final size before the
-          // full picture arrives. The thumbnail fills it meanwhile: a
-          // reserved box with nothing in it is a slab of card colour, and
-          // the formats a browser decodes slowly are the ones that hold it
-          // longest.
-          width={file.image_width ?? undefined}
-          height={file.image_height ?? undefined}
-          style={
-            posterUrl
-              ? {
-                  backgroundImage: `url("${posterUrl}")`,
-                  backgroundSize: "contain",
-                  backgroundPosition: "center",
-                  backgroundRepeat: "no-repeat",
-                }
-              : undefined
-          }
-          className="max-h-[70vh] w-auto object-contain"
-        />
-      </div>
-    );
+    return <ImageCanvas file={file} />;
   }
 
   if (kind === "audio") {

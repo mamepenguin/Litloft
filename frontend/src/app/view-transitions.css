@@ -5,7 +5,17 @@
  * flattens `backdrop-filter` on anything inside. `lib/viewTransitions.ts`
  * writes the attribute before the browser captures and removes it after.
  */
-html[data-vt] [data-listing-scroller] {
+/*
+ * Only the folder push names the scroller. Opening a file does not need the
+ * listing as a layer of its own — the destination is shown at once and only
+ * the picture moves — and capturing a scroll container on its own is where
+ * a sticky toolbar inside it gets placed as though nothing were scrolled.
+ * The root capture is a plain rasterisation of the window and has no such
+ * seam.
+ */
+html[data-vt="folder-down"] [data-listing-scroller],
+html[data-vt="folder-up"] [data-listing-scroller],
+html[data-vt="folder-flat"] [data-listing-scroller] {
   view-transition-name: listing;
 }
 
@@ -82,13 +92,15 @@ html[data-vt="file-open"]::view-transition-new(file-hero) {
  * crops of it together and washes the whole box out to white. Showing one
  * of them throughout leaves the group's own morph as the only motion, and
  * spares a full-size blend every frame.
+ *
+ * Both are held at full opacity rather than one being picked. A snapshot
+ * carries transparency, so the card's — which is on screen already — shows
+ * through wherever the one being opened into has nothing yet, and is
+ * covered as soon as it does.
  */
+html[data-vt="file-open"]::view-transition-old(file-hero),
 html[data-vt="file-open"]::view-transition-new(file-hero) {
   opacity: 1;
-}
-
-html[data-vt="file-open"]::view-transition-old(file-hero) {
-  opacity: 0;
 }
 
 html[data-vt="file-open"]::view-transition-group(file-hero) {
@@ -99,19 +111,18 @@ html[data-vt="file-open"]::view-transition-group(file-hero) {
  * The file is already open when the picture starts flying: only the hero
  * moves. Left to the browser's cross-fade the destination arrives from
  * nothing, so for the first frames the page shows the picture in mid-air
- * over a screen that has not appeared yet. The scroller paints an opaque
- * background, so showing the new side at once hides the old one under it.
+ * over a screen that has not appeared yet.
  */
-html[data-vt="file-open"]::view-transition-old(listing),
-html[data-vt="file-open"]::view-transition-new(listing) {
+html[data-vt="file-open"]::view-transition-old(root),
+html[data-vt="file-open"]::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
 }
 
-html[data-vt="file-open"]::view-transition-new(listing) {
+html[data-vt="file-open"]::view-transition-new(root) {
   opacity: 1;
 }
 
-html[data-vt="file-open"]::view-transition-old(listing) {
+html[data-vt="file-open"]::view-transition-old(root) {
   opacity: 0;
 }

@@ -16,7 +16,7 @@ import { PAGE } from "./build-bundle";
 const FIXTURE = pathToFileURL(PAGE).href;
 
 const AT_REST = ["root"];
-const DURING = ["file-hero", "listing", "root"];
+const DURING = ["file-hero", "root"];
 
 interface Hero {
   kind: string | null;
@@ -90,8 +90,8 @@ const INSTALL = () => {
         groupMs: read("::view-transition-group(file-hero)").animationDuration,
       },
       destination: {
-        opacity: read("::view-transition-new(listing)").opacity,
-        animation: read("::view-transition-new(listing)").animationName,
+        opacity: read("::view-transition-new(root)").opacity,
+        animation: read("::view-transition-new(root)").animationName,
       },
       viewport: { width: window.innerWidth, height: window.innerHeight },
     };
@@ -164,7 +164,7 @@ test("re-crops the picture instead of stretching it between two shapes", async (
   expect(opening.fit).toEqual({
     oldFit: "cover",
     newFit: "cover",
-    oldOpacity: "0",
+    oldOpacity: "1",
     newOpacity: "1",
     oldBlend: "normal",
     groupMs: "0.2s",
