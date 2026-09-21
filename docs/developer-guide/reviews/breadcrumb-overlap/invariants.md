@@ -23,8 +23,15 @@ Declared before the first review. Revised only by the supervisor or the user.
    the back control is then the only thing that can return to the
    collection. (Round 2 finding 4: this item used to say "never both",
    which is false and would lead a reader to delete that control.)
-6. A drag over a trail segment still shows that segment's drop ring and
-   still drops onto that segment's path.
+6. A drag over a trail segment the row **draws** still shows that segment's
+   drop ring and still drops onto that segment's path. A folder folded behind
+   the marker is not drawn and has no drop target, and the marker has none
+   either: where a drop on it would land is not something the row lets the
+   reader predict. (Round 3 finding 5: this item used to say "a trail
+   segment", from before a trail could fold. The user chose to narrow it
+   rather than give the marker a target, on 2026-09-21 — a deep path loses
+   the drag shortcut to its middle folders on a wide screen, and the folder
+   menu's Move still reaches them.)
 7. `Breadcrumb` with `driveIsAncestor` draws the drive as a link, not as the
    leaf (trash, missing, collection detail depend on this).
 
