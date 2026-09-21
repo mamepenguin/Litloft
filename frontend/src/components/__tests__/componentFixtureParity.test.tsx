@@ -230,6 +230,7 @@ describe("the component fixture's page", () => {
       "file-detail-chrome-note",
       "file-detail-chrome-plain-phone",
       "file-detail-chrome-collection",
+      "file-detail-chrome-note-deep",
       "archive-toolbar-deep",
       "page-frame-full",
       "page-frame-wide",

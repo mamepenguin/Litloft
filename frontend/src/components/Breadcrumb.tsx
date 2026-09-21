@@ -79,7 +79,7 @@ export function Breadcrumb({
   const leafIndex = trailingSegment || driveIsAncestor ? -1 : items.length - 1;
   const { before, folded, after } = foldTrail(items, trailingSegment ? 1 : 2);
   // The marker stands where the folded items were, so it leads to the
-  // deepest of them: from there the trail is short enough to draw whole.
+  // deepest of them.
   const behindMarker = folded[folded.length - 1];
 
   const segment = (entry: TrailItem, index: number) => {
@@ -125,7 +125,7 @@ export function Breadcrumb({
             href={behindMarker.href}
             aria-label={behindMarker.label}
             title={folded.map((f) => f.label).join(" / ")}
-            className="flex-shrink-0 rounded-lg px-1 transition-colors hover:text-text-primary"
+            className="min-w-7 flex-shrink-0 rounded-lg px-1 text-center transition-colors hover:text-text-primary"
             {...folderLink(behindMarker.href)}
           >
             …

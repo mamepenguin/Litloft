@@ -991,7 +991,7 @@ const DEEP_FOLDER = [
  * overflowing, which grows the row instead of leaving its box.
  */
 const DEEP_LEAF =
-  "2026-09-annual-report-final-revision-board-approved-copy-for-distribution.md";
+  "2026-09-annual-report-final-revision-board-approved.md";
 
 /**
  * A note's row on a phone: the trail is hidden, and the back control, the
@@ -1123,6 +1123,31 @@ function FileDetailChromeCollectionArrangement(): ReactElement {
   );
 }
 
+/**
+ * A note opened normally, above `md`: the trail has the whole row rather than
+ * the half a collection's back control leaves it, and the rename control is
+ * the trail's last segment.
+ */
+function FileDetailChromeNoteDeepArrangement(): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary">
+        <FileDetailChrome
+          drive="Household Archive"
+          folderPath={DEEP_FOLDER}
+          title={DEEP_LEAF}
+          titleNode={<EditableTitle title={DEEP_LEAF} onRename={async () => {}} />}
+          inspector={{ open: false, onToggle: noop }}
+        >
+          <SaveDot state={{ status: "idle" }} />
+          <MarkdownViewModeToggle mode="preview" onChange={noop} />
+        </FileDetailChrome>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
 function ArchiveToolbarArrangement(): ReactElement {
   const noop = () => {};
   const crumbs = ["backup-2026-09.zip", ...DEEP_FOLDER.split("/")];
@@ -1219,6 +1244,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "file-detail-chrome-note": FileDetailChromeNoteArrangement,
   "file-detail-chrome-plain-phone": FileDetailChromePlainPhoneArrangement,
   "file-detail-chrome-collection": FileDetailChromeCollectionArrangement,
+  "file-detail-chrome-note-deep": FileDetailChromeNoteDeepArrangement,
   "archive-toolbar-deep": ArchiveToolbarArrangement,
   "page-frame-full": PageFrameFull,
   "page-frame-wide": PageFrameWide,

@@ -35,6 +35,13 @@ describe("foldTrail", () => {
     expect(foldTrail(items(9), 1).after).toEqual(["i8"]);
   });
 
+  it("folds nothing when the tail to keep is longer than the trail", () => {
+    // Without the clamp this end index goes negative, which counts from the
+    // far end and folds items out of the middle of a trail too short to fold.
+    expect(foldTrail(items(6), 9).folded).toEqual([]);
+    expect(foldTrail(items(4), 5).folded).toEqual([]);
+  });
+
   it("folds nothing out of a trail shorter than the tail it must keep", () => {
     for (const n of [0, 1, 2]) {
       const { before, folded, after } = foldTrail(items(n), 2);

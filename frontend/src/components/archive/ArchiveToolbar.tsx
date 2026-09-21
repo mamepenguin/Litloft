@@ -146,7 +146,7 @@ export function ArchiveToolbar({
 
   const { before, folded, after } = foldTrail(breadcrumbs, 2);
   // The marker stands where the folded crumbs were, so it leads to the
-  // deepest of them: from there the trail is short enough to draw whole.
+  // deepest of them.
   const behindMarker = folded[folded.length - 1];
   const leafIndex = breadcrumbs.length - 1;
 
@@ -194,7 +194,7 @@ export function ArchiveToolbar({
                 onClick={() => handleBreadcrumbClick(behindMarker.path)}
                 aria-label={behindMarker.label}
                 title={folded.map((f) => f.label).join(" / ")}
-                className="flex-shrink-0 text-sm text-text-muted transition-colors hover:text-text-primary"
+                className="min-w-7 flex-shrink-0 text-center text-sm text-text-muted transition-colors hover:text-text-primary"
               >
                 …
               </button>

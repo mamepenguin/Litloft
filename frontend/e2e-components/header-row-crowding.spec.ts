@@ -41,6 +41,7 @@ type Row = {
   leaf: Part;
   /** The folded-trail marker's accessible name, or null when it is absent. */
   marker: string | null;
+  markerWidth: number | null;
   /** Every name the trail draws, in order, the marker written as "…". */
   names: string[];
   /** Everything visible the row holds beside the trail. */
@@ -106,6 +107,7 @@ async function readTrail(
         ancestors: named.filter((el) => el !== leafLabel && el !== marker).map(measure),
         leaf: measure(leafLabel),
         marker: marker ? marker.getAttribute("aria-label") : null,
+        markerWidth: marker ? marker.clientWidth : null,
         names: named.map((el) => el.textContent.trim()),
         controls: [...row.children]
           .filter((el) => !el.contains(trail) && el.offsetParent !== null)
@@ -156,7 +158,7 @@ const CASES = [
     // Below `md` this row draws a back control instead of a trail, so the
     // trail is only measurable at the widths that draw it.
     widths: [
-      { px: 768, leafCut: true },
+      { px: 768, leafCut: false },
       { px: 1024, leafCut: false },
     ] as const,
     selectors: FILE_DETAIL,
@@ -168,16 +170,28 @@ const CASES = [
   {
     name: "the file-detail chrome during collection playback",
     arrangement: "file-detail-chrome-collection",
-    // This form draws the back control beside the trail at every width, and
-    // caps it at 45%, so the trail has roughly half the row and the name
-    // gives at one width more than the others.
+    // This form draws the back control beside the trail at every width and
+    // caps it at 45%, so the trail has roughly half the row.
     widths: [
-      { px: 768, leafCut: true },
+      { px: 768, leafCut: false },
       { px: 1024, leafCut: false },
     ] as const,
     selectors: FILE_DETAIL,
     // Three, not two: this is the form that draws the back control beside
     // the trail rather than instead of it.
+    controls: 3,
+    ancestors: 2,
+  },
+  {
+    // The form the `EditableTitle` basis fix was written for: the trail has
+    // the whole row, and its last segment is a control rather than a label.
+    name: "the file-detail chrome showing a note",
+    arrangement: "file-detail-chrome-note-deep",
+    widths: [
+      { px: 768, leafCut: true },
+      { px: 1024, leafCut: false },
+    ] as const,
+    selectors: FILE_DETAIL,
     controls: 3,
     ancestors: 2,
   },
@@ -218,8 +232,10 @@ for (const c of CASES) {
       // once there is nothing left to take from the rest.
       if (isCut(m.leaf)) expect(m.ancestors.every(isCut)).toBe(true);
       expect(m.leaf.right).toBeLessThanOrEqual(m.trail.right);
-      // Narrowing costs legibility, not reach.
+      // Narrowing costs legibility, not reach — and the marker is what the
+      // folded ancestors were reduced to, so it is a target like the rest.
       for (const a of m.ancestors) expect(a.clientWidth).toBeGreaterThan(REACHABLE_PX);
+      expect(m.markerWidth).toBeGreaterThan(REACHABLE_PX);
     });
   }
 }
@@ -252,7 +268,7 @@ const FOLD_CASES = [
       "Household Archive",
       "…",
       "Archived-2026-Originals-And-Masters",
-      "2026-09-annual-report-final-revision-board-approved-copy-for-distribution.md",
+      "2026-09-annual-report-final-revision-board-approved.md",
     ],
     marker: "Screenshots",
   },
