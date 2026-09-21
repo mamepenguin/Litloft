@@ -20,6 +20,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { ArchiveToolbar } from "@/components/archive/ArchiveToolbar";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
+import { MarkdownViewModeToggle } from "@/components/MarkdownViewModeToggle";
+import { EditableTitle } from "@/components/markdown/EditableTitle";
+import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
 import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
@@ -979,6 +982,13 @@ const DEEP_FOLDER = [
 ].join("/");
 const DEEP_LEAF = "2026-09-annual-report-final-revision.md";
 
+/**
+ * A note's row on a phone: the trail is hidden, and the back control, the
+ * rename control and the editor's own buttons share the width instead.
+ */
+const NOTE_FOLDER = "Notes/ああああああああああああああああああああ";
+const NOTE_NAME = "untitled-20260921-174327.md";
+
 function FileDetailChromeArrangement(): ReactElement {
   const noop = () => {};
   return (
@@ -991,6 +1001,26 @@ function FileDetailChromeArrangement(): ReactElement {
           inspector={{ open: false, onToggle: noop }}
         >
           <MediaLayoutToggle />
+        </FileDetailChrome>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+function FileDetailChromeNoteArrangement(): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary">
+        <FileDetailChrome
+          drive="Household Archive"
+          folderPath={NOTE_FOLDER}
+          title={NOTE_NAME}
+          titleNode={<EditableTitle title={NOTE_NAME} onRename={async () => {}} />}
+          inspector={{ open: false, onToggle: noop }}
+        >
+          <SaveDot state={{ status: "idle" }} />
+          <MarkdownViewModeToggle mode="preview" onChange={noop} hideSplit />
         </FileDetailChrome>
       </div>
     </NextIntlClientProvider>
@@ -1088,6 +1118,7 @@ const PlayerHairline = (): ReactElement => <PlayerFrame visible={false} />;
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "chrome-buttons": ChromeButtonsArrangement,
   "file-detail-chrome-deep": FileDetailChromeArrangement,
+  "file-detail-chrome-note": FileDetailChromeNoteArrangement,
   "archive-toolbar-deep": ArchiveToolbarArrangement,
   "page-frame-full": PageFrameFull,
   "page-frame-wide": PageFrameWide,

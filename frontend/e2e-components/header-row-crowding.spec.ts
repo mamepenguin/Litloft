@@ -1,6 +1,7 @@
 /**
- * A trail too long for its row, measured in Chromium with the real header
- * rows: the file-detail chrome and the archive toolbar.
+ * A header row holding more name than it has width, measured in Chromium
+ * with the real rows: the file-detail chrome in both of its forms, and the
+ * archive toolbar.
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -122,3 +123,65 @@ for (const c of CASES) {
     });
   }
 }
+
+/**
+ * Below `md` the same row draws no trail: a back control naming the parent
+ * folder, and — for a note — the rename control, which is the file's name
+ * and a button at once.
+ */
+test("a note's row on a phone: the name and the parent folder share the width, and neither leaves the row", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 400 });
+  await page.goto("about:blank");
+  await page.goto(`${FIXTURE}#file-detail-chrome-note`);
+  await expect(page.locator("body[data-ready='1']")).toHaveCount(1);
+
+  const m = await page.evaluate(() => {
+    const measure = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return {
+        left: r.left,
+        right: r.right,
+        top: r.top,
+        bottom: r.bottom,
+        scrollWidth: (el as HTMLElement).scrollWidth,
+        clientWidth: (el as HTMLElement).clientWidth,
+      };
+    };
+    const row = document.querySelector<HTMLElement>(
+      "[data-testid='file-detail-chrome']",
+    )!;
+    const back = document.querySelector<HTMLElement>(
+      "[data-testid='file-detail-back']",
+    )!;
+    const leading = back.parentElement!;
+    // The rename control is the only thing in the row that is both the
+    // file's name and a control, so it is found by what it is.
+    const name = leading.querySelector<HTMLElement>("button")!;
+    return {
+      documentScroll: document.documentElement.scrollWidth,
+      documentClient: document.documentElement.clientWidth,
+      row: measure(row),
+      leading: measure(leading),
+      back: measure(back),
+      name: measure(name),
+      controls: [...row.children]
+        .filter((el) => el !== leading && (el as HTMLElement).offsetParent !== null)
+        .map(measure),
+    };
+  });
+
+  expect(m.documentScroll).toBe(m.documentClient);
+  expect(isCut(m.row)).toBe(false);
+  expect(isCut(m.leading)).toBe(false);
+
+  // Both give way; neither is starved to nothing by the other.
+  expect(isCut(m.back)).toBe(false);
+  expect(m.back.clientWidth).toBeGreaterThan(0);
+  expect(m.name.clientWidth).toBeGreaterThan(0);
+  expect(m.name.right).toBeLessThanOrEqual(m.leading.right);
+
+  expect(m.controls.length).toBe(3);
+  for (const control of m.controls) expect(overlaps(m.name, control)).toBe(false);
+});
