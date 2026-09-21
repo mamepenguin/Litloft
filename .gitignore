@@ -59,3 +59,9 @@ test_images/
 
 # pnpm's content-addressed package cache (~800 MB, fully regenerable)
 .pnpm-store/
+
+# jev-lint's cache of model verdicts. Committing it would only help a CI run
+# that replays answers without an API key, and there is no such job; kept out
+# because a stored judgement about code that has moved is the exact artefact
+# this linter exists to find.
+/.jev-lint/

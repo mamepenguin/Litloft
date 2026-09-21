@@ -55,3 +55,22 @@ criteria at length. Neither is reviewed for precision (see
 
 Delete it. Replace it only if it is one of the kinds allowed above, and then
 with a sentence you have checked against the code.
+
+## Finding the ones that are already wrong
+
+`scripts/jev-lint.sh` reads the changed lines and asks a model whether each
+comment, docstring, name, error message and test title still matches the code
+under it. It is the only check here that can answer that; eslint, ruff and tsc
+cannot. Run it on a branch that added or edited prose, before sending the change
+to review:
+
+```bash
+scripts/jev-lint.sh                      # the diff against origin/develop
+scripts/jev-lint.sh check backend/app    # a whole tree
+scripts/jev-lint.sh check backend/app --dry-run   # what it would ask, and the price
+```
+
+It needs `TYPESAFE_API_KEY`, its answers move between runs, and no merge is
+gated on it. Treat a finding as a claim, the same as a reviewer's: read the code
+it points at, and if the prose is wrong, delete it. `.jev-lint.yaml` says which
+rules are on and why the rest are not.
