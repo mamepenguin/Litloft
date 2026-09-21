@@ -18,12 +18,19 @@ interface FrameHits {
   viewport: { width: number; height: number };
   playerZ: string;
   playerPosition: string;
+  frameZ: string;
+  shellZ: string;
   hits: Record<string, string>;
 }
 
 declare global {
   interface Window {
-    buildPinnablePage: (spec: { sheet: Sheet; pinned: boolean; marked: boolean }) => void;
+    buildPinnablePage: (spec: {
+    sheet: Sheet;
+    pinned: boolean;
+    marked: boolean;
+    rootless?: boolean;
+  }) => void;
     hitTheFrame: () => FrameHits;
     hitOverThePlayer: () => { overlap: boolean; hit: string };
   }
@@ -45,7 +52,7 @@ test.use({
 
 async function build(
   page: import("@playwright/test").Page,
-  spec: { sheet: Sheet; pinned: boolean; marked: boolean },
+  spec: { sheet: Sheet; pinned: boolean; marked: boolean; rootless?: boolean },
 ) {
   await page.goto(FIXTURE);
   await page.evaluate((s) => window.buildPinnablePage(s), spec);
@@ -72,6 +79,21 @@ for (const sheet of SHEETS) {
       underToast: "toast",
     });
     expect(m.playerPosition).toBe("static");
+    // The tier is the frame's own, not an ancestor's: a stacking context
+    // above the frame is what iOS refuses to paint the frame out of.
+    expect(m.frameZ).toBe("60");
+    expect(m.shellZ).toBe("auto");
+  });
+
+  test(`a mark left on the frame alone lifts nothing, with the sheet at ${sheet}`, async ({
+    page,
+  }) => {
+    await build(page, { sheet, pinned: true, marked: true, rootless: true });
+    const m = await page.evaluate(() => window.hitTheFrame());
+
+    expect(m.frameZ).toBe("50");
+    expect(m.playerPosition).toBe("sticky");
+    expect(m.hits.topLeft).toBe("header");
   });
 
   test(`an unmarked pinned frame is covered, with the sheet at ${sheet}`, async ({

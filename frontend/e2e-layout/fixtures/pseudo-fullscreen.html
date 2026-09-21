@@ -47,9 +47,11 @@
       /**
        * `sheet`: "peek" draws the resting strip, "full" the raised drawer
        * at full. `pinned` pins the frame the way the players do;
-       * `marked` sets the root attribute `useFullscreen` sets while it does.
+       * `marked` sets the two marks `useFullscreen` sets while it does.
+       * `rootless` marks the frame and not the root, which is the state a
+       * mark left behind on unmount would leave.
        */
-      window.buildPinnablePage = ({ sheet, pinned, marked }) => {
+      window.buildPinnablePage = ({ sheet, pinned, marked, rootless }) => {
         const root = document.getElementById("root");
         root.replaceChildren();
         document.querySelectorAll("[data-fixture-portal]").forEach((n) => n.remove());
@@ -76,8 +78,10 @@
           "frame",
         );
         if (marked) {
-          document.documentElement.dataset.playerFullscreen = "true";
           frame.dataset.pseudoFullscreen = "true";
+        }
+        if (marked && !rootless) {
+          document.documentElement.dataset.playerFullscreen = "true";
         } else {
           delete document.documentElement.dataset.playerFullscreen;
         }
@@ -157,6 +161,8 @@
           viewport: { width: window.innerWidth, height: window.innerHeight },
           playerZ: getComputedStyle(document.getElementById("player")).zIndex,
           playerPosition: getComputedStyle(document.getElementById("player")).position,
+          frameZ: getComputedStyle(frame).zIndex,
+          shellZ: getComputedStyle(document.getElementById("shell")).zIndex,
           hits: out,
         };
       };
