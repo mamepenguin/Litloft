@@ -1,0 +1,73 @@
+# The question eslint, ruff and tsc cannot answer: does the comment, the
+# docstring, the name or the test title still describe the code under it?
+# `.claude/rules/comments.md` says a false sentence is deleted rather than
+# reworded, and `review-workflow.md` R-3 keeps prose off the review loop. This
+# is where that check happens instead.
+#
+# Answers come from a model, so they move between runs. `scripts/jev-lint.sh`
+# pins the tool version; nothing here gates a merge.
+
+files:
+  - frontend/src
+  - frontend/e2e
+  - frontend/e2e-components
+  - frontend/e2e-layout
+  - frontend/scripts
+  - frontend/server.js
+  - mcp-server/src
+  - backend/app
+  - backend/scripts
+  - backend/tests
+  - configure.py
+  - scripts
+  - tests
+
+# Each addon is its own repository with its own review, so a finding under one
+# could not be committed here. The two link trees reach the same four addons
+# through generated symlinks.
+exclude:
+  - addons
+  - backend/addons
+  - frontend/src/addons
+
+# An allowlist: a rule absent from here does not run, so there is nothing to
+# write `off` against. `scripts/jev-lint.sh rules` prints every id the pinned
+# version ships — which is not the set GitHub's RULES.md lists.
+#
+# The markdown rules are left out because they grade prose style rather than
+# compare a document against the code it describes, and `docs/` is absent from
+# `files` for the same reason. `git/commit-message-describes-diff` is out
+# because `comments.md` puts commit messages and PR bodies outside precision
+# review. The remaining shipped rules judge design and coverage instead of
+# whether a claim is true, so a finding from one is an opinion to argue with,
+# not a sentence to delete.
+rules:
+  # Prose that contradicts the code beneath it. The javascript entry is not a
+  # duplicate: without it nothing reads the comments in `frontend/server.js`.
+  typescript/comment-describes-declaration: on
+  typescript/comment-describes-block: on
+  typescript/doc-errors-match-body: on
+  javascript/comment-describes-declaration: on
+  python/comment-describes-declaration: on
+  python/comment-describes-block: on
+  python/doc-errors-match-body: on
+
+  # Text a viewer or an operator reads at runtime.
+  typescript/error-message-matches-condition: on
+  typescript/log-message-matches-event: on
+
+  # A name is a promise to the next reader, and it rots the same way.
+  typescript/fn-name-promises: on
+  typescript/var-name-describes-value: on
+  typescript/type-name-describes-shape: on
+  python/fn-name-promises: on
+
+  # `test-name-verifies-claim` and `test-mocks-subject` ask what R-3 asks:
+  # would this fail if the behaviour it names broke, or does it only observe
+  # its own stubs?
+  typescript/test-name-describes-code: on
+  typescript/test-name-verifies-claim: on
+  typescript/test-mocks-subject: on
+  typescript/describe-names-subject: on
+  typescript/snapshot-only-behaviour-claim: on
+  python/test-name-describes-code: on

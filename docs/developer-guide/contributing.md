@@ -42,6 +42,28 @@ The maintainer may ask for changes; small tightening (rename a function, add a t
 
 See `.claude/rules/coding-style.md` for the full style guide.
 
+### Prose-truth lint
+
+`eslint`, `ruff` and `tsc` read the code and never the sentence above it, so a
+comment, a docstring, a variable name or a test title can drift until it says
+the opposite of what runs. `scripts/jev-lint.sh` asks a model that question over
+the lines your branch changed:
+
+```bash
+scripts/jev-lint.sh                                # diff against origin/develop
+scripts/jev-lint.sh check frontend/src             # a whole tree
+scripts/jev-lint.sh check frontend/src --dry-run   # the plan and the price, no requests
+```
+
+It needs a `TYPESAFE_API_KEY` from [typesafe.ai](https://typesafe.ai), and it
+costs a few cents per branch. Its answers come from a model and move between
+runs, so no CI job runs it and no merge waits on it — read each finding against
+the code and decide. When the prose turns out to be wrong, delete it rather than
+rewording it.
+
+`.jev-lint.yaml` holds the enabled rules, the paths, and the reasoning for the
+ones left off.
+
 ## Testing requirements
 
 Every PR includes tests for the behaviour it changes:
@@ -102,6 +124,9 @@ prettier --write 'frontend/**/*.{ts,tsx,json,css}'
 # Lint
 ruff check backend/
 eslint frontend/src
+
+# Prose-truth lint (needs TYPESAFE_API_KEY)
+./scripts/jev-lint.sh
 
 # Type-check
 mypy backend/app
