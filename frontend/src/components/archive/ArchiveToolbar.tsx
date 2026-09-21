@@ -12,7 +12,7 @@ import {
   ToolbarMenu,
 } from "@/components/ToolbarMenu";
 import { DismissScrim } from "@/components/DismissScrim";
-import { TRAIL_ANCESTOR } from "@/components/Breadcrumb";
+import { TRAIL_ANCESTOR, TRAIL_SEGMENT } from "@/components/Breadcrumb";
 import { ViewMenu } from "@/components/ViewMenu";
 import type { ArchiveContents, FileType } from "@/types";
 import type { ArchiveSortKey, ArchiveSortOrder } from "./useArchiveSort";
@@ -152,7 +152,9 @@ export function ArchiveToolbar({
             return (
               <span
                 key={crumb.path}
-                className={`flex items-center gap-1${isLast ? "" : ` ${TRAIL_ANCESTOR}`}`}
+                className={`flex items-center gap-1 ${
+                  isLast ? TRAIL_SEGMENT : TRAIL_ANCESTOR
+                }`}
               >
                 {i > 0 && (
                   <ChevronRight size={14} className="flex-shrink-0 text-text-muted" />

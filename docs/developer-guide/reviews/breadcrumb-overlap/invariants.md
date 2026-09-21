@@ -1,0 +1,34 @@
+# R-0 invariants — `fix/breadcrumb-overlap` @ 60a4ec5d
+
+Declared before the first review. Revised only by the supervisor or the user.
+
+1. A trail's last segment — the current folder, or the file's name — is drawn
+   inside the trail's own box at every width: never clipped to nothing, never
+   scrolled out of the visible strip, never painted over a control beside it.
+2. No header row that holds a trail makes the document scroll horizontally,
+   at any viewport width.
+3. Every ancestor segment stays a working link (core) or button (archive)
+   pointing at the path it names. Shrinking changes what is legible, never
+   what is reachable.
+4. The archive toolbar's entry count and its download control keep their
+   full width and stay hittable however deep the path inside the zip is.
+5. The file-detail chrome draws exactly one of its two forms at any width:
+   the back control below `md`, the trail at `md` and above — never both,
+   never neither.
+6. A drag over a trail segment still shows that segment's drop ring and
+   still drops onto that segment's path.
+7. `Breadcrumb` with `driveIsAncestor` draws the drive as a link, not as the
+   leaf (trash, missing, collection detail depend on this).
+
+## Revision, after the user ran the app (R-5)
+
+The list above was written about trails, and below `md` the file-detail row
+draws no trail. The user hit the original defect there — the rename control
+painting over the row's buttons — which the first fix did not touch. Added:
+
+8. Below `md`, the file-detail row keeps both the back control and the file's
+   name inside the row: neither overflows the row's box, neither is starved
+   to zero width by the other, and neither is painted over the save dot, the
+   view-mode toggle or the inspector button.
+9. The rename control stays a control. Narrowing it must not stop it opening
+   the rename field or committing an edit.

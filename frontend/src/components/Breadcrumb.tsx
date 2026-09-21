@@ -5,13 +5,20 @@ import { useTranslations } from "next-intl";
 import { useFolderLink } from "@/hooks/useFolderLink";
 
 /**
- * A trail names its screen's subject with its last segment, so the ancestors
- * are what give way when the row runs out of width: a shrink factor this
- * large spends the deficit on them almost entirely before the last segment
- * gives any of its own. Exported because the archive's trail is built from
- * buttons and cannot use this component.
+ * Every segment of a trail must be able to narrow. A segment's own minimum
+ * size is otherwise its label's full length — `truncate` on the label inside
+ * makes the label narrowable and says nothing about the box holding it.
  */
-export const TRAIL_ANCESTOR = "min-w-0 shrink-[999]";
+export const TRAIL_SEGMENT = "min-w-0";
+
+/**
+ * The ancestors narrow first. A trail names its screen's subject with its
+ * last segment, so a shrink factor this large spends the deficit on the rest
+ * almost entirely before that segment gives any of its own. Both are
+ * exported because the archive's trail is built from buttons and cannot use
+ * this component.
+ */
+export const TRAIL_ANCESTOR = `${TRAIL_SEGMENT} shrink-[999]`;
 
 interface BreadcrumbProps {
   driveName: string;
@@ -76,7 +83,9 @@ export function Breadcrumb({
         return (
           <span
             key={path}
-            className={`flex items-center gap-1${isLast ? "" : ` ${TRAIL_ANCESTOR}`}`}
+            className={`flex items-center gap-1 ${
+              isLast ? TRAIL_SEGMENT : TRAIL_ANCESTOR
+            }`}
           >
             <ChevronRight size={14} className="flex-shrink-0" />
             {isLast ? (

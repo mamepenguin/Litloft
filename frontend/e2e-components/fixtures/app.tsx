@@ -17,6 +17,7 @@ import { Button } from "@/components/Button";
 import { ChromeButtons } from "@/components/ChromeButtons";
 import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
+import { Breadcrumb } from "@/components/Breadcrumb";
 import { ArchiveToolbar } from "@/components/archive/ArchiveToolbar";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
@@ -969,7 +970,9 @@ function OpenGhostArrangement(): ReactElement {
 
 /**
  * A path deep enough that the trail cannot fit beside the controls at any
- * width measured here.
+ * width measured here. Its deepest folder is long too: a trail that gives
+ * way from the wrong end loses the segment naming where the reader is, and
+ * a short last segment hides that by fitting whatever happens.
  */
 const DEEP_FOLDER = [
   "Documents",
@@ -978,7 +981,7 @@ const DEEP_FOLDER = [
   "Design-Review-Notes",
   "Attachments",
   "Screenshots",
-  "Archived",
+  "Archived-2026-Originals-And-Masters",
 ].join("/");
 const DEEP_LEAF = "2026-09-annual-report-final-revision.md";
 
@@ -988,6 +991,28 @@ const DEEP_LEAF = "2026-09-annual-report-final-revision.md";
  */
 const NOTE_FOLDER = "Notes/ああああああああああああああああああああ";
 const NOTE_NAME = "untitled-20260921-174327.md";
+
+/**
+ * The folder listing's own header: the trail's last segment is a folder,
+ * not a trailing node, which is the form `FileDetailChrome` never asks for.
+ */
+function FolderListingHeaderArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <PageFrame
+        width="full"
+        header={
+          <PageHeader
+            breadcrumb={
+              <Breadcrumb driveName="Household Archive" folderPath={DEEP_FOLDER} />
+            }
+            scope="1,284 items"
+          />
+        }
+      />
+    </NextIntlClientProvider>
+  );
+}
 
 function FileDetailChromeArrangement(): ReactElement {
   const noop = () => {};
@@ -1117,6 +1142,7 @@ const PlayerHairline = (): ReactElement => <PlayerFrame visible={false} />;
 
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "chrome-buttons": ChromeButtonsArrangement,
+  "folder-listing-header-deep": FolderListingHeaderArrangement,
   "file-detail-chrome-deep": FileDetailChromeArrangement,
   "file-detail-chrome-note": FileDetailChromeNoteArrangement,
   "archive-toolbar-deep": ArchiveToolbarArrangement,
