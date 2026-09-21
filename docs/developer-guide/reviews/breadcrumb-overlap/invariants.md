@@ -10,8 +10,13 @@ Declared before the first review. Revised only by the supervisor or the user.
 3. Every ancestor segment stays a working link (core) or button (archive)
    pointing at the path it names. Shrinking changes what is legible, never
    what is reachable.
-4. The archive toolbar's entry count and its download control keep their
-   full width and stay hittable however deep the path inside the zip is.
+4. The archive toolbar's download control stays hittable at every width and
+   however deep the path inside the zip is. The entry count beside it keeps
+   its full width at `sm` and above; below `sm` it leaves the row, because
+   the two together leave the trail less than its segments need. (Round 3
+   finding 3: this item used to promise the count its full width at every
+   width. The user chose the width clause over bringing the count back,
+   after seeing both at 375px.)
 5. The file-detail chrome draws a way out at every width: the back control
    below `md`, the trail at `md` and above. Where the host supplies its own
    `onBack` — a file opened during collection playback — it draws both, and

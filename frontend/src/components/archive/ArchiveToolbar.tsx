@@ -215,7 +215,7 @@ export function ArchiveToolbar({
             count that cannot be read. */}
         {archive && (
           <span className="flex min-w-0 items-center gap-2 text-xs text-text-muted">
-            <span className="hidden truncate sm:inline">
+            <span data-testid="archive-entry-count" className="hidden truncate sm:inline">
               {t("fileCount", {
                 count: archive.total_entries,
                 size: formatFileSize(archive.total_size),

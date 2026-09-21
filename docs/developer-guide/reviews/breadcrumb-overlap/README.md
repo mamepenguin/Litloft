@@ -55,7 +55,7 @@ around it.
 |---|---|---|
 | 1 | A | fixed — the index `after` is rendered with could be shifted by one, drawing the folder the reader is in as a link to itself, with every suite green. `Breadcrumb.test.tsx` had no folded case; it does now |
 | 2 | A | fixed — where the marker leads was held by nothing: the archive's could be made inert and stay green. Both trails now assert the destination in their unit tests |
-| 3 | **raised** | invariant 4 says the archive's entry count "keeps its full width", and this branch takes it out of the row below `sm`. Only the supervisor or the user may revise the list |
+| 3 | A, after the revision | the user saw both states at 375px and chose the width clause over bringing the count back. Invariant 4 is revised, and a case now pins the count out of the row below `sm` and whole above it |
 | 4 | A | fixed — the marker was 19px, under the spec's own `REACHABLE_PX`, and was filtered out of the one hit-area assertion. It has the floor now, and the assertion covers it |
 | 5 | A + **raised** | fixed for coverage — every drop handler on every trail segment could be deleted unseen; `Breadcrumb.test.tsx` holds them now. Raised for the invariant: folding removes five folders' drop targets, and invariant 6 is written about "a trail segment" |
 | 6 | A | fixed — the one form of the file-detail row still unmeasured was the one the `EditableTitle` fix was written for. It has a case at 768 and 1024 |

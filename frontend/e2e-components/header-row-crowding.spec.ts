@@ -371,3 +371,48 @@ test("a plain file's row on a phone: the back control is the only name, and it s
   expect(m.controls.length).toBe(2);
   for (const control of m.controls) expect(overlaps(m.leading, control)).toBe(false);
 });
+
+
+/**
+ * Where the archive's entry count is drawn, per invariant 4: it keeps its
+ * full width from `sm` up, and leaves the row below it so the trail has the
+ * width its segments need. The download beside it stays at every width.
+ */
+/**
+ * A 14px glyph in `p-1`. Under `DESIGN.md`'s 32px floor for an icon-only
+ * button, which is a debt this change did not take on — pinned here so
+ * nothing narrows it further, and so the day it is widened is a deliberate
+ * edit to this line.
+ */
+const DOWNLOAD_PX = 22;
+
+const COUNT_IN_THE_ROW = [
+  { px: 375, drawn: false },
+  { px: 768, drawn: true },
+  { px: 1024, drawn: true },
+] as const;
+
+for (const { px, drawn } of COUNT_IN_THE_ROW) {
+  test(`the archive's entry count at ${px}px: ${
+    drawn ? "in the row, whole" : "out of the row"
+  }`, async ({ page }) => {
+    await openPage(page, "archive-toolbar-deep", px);
+    const m = await page.evaluate(() => {
+      const el = document.querySelector<HTMLElement>(
+        "[data-testid='archive-entry-count']",
+      )!;
+      const download = document.querySelector<HTMLElement>("a[download]")!;
+      return {
+        drawn: el.offsetParent !== null,
+        clientWidth: el.clientWidth,
+        scrollWidth: el.scrollWidth,
+        downloadWidth: download.clientWidth,
+      };
+    });
+    expect(m.drawn).toBe(drawn);
+    expect(isCut(m)).toBe(false);
+    expect(m.clientWidth).toBe(drawn ? m.scrollWidth : 0);
+    // The download does not step out, and does not give width either.
+    expect(m.downloadWidth).toBe(DOWNLOAD_PX);
+  });
+}
