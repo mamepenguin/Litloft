@@ -347,9 +347,13 @@ export function useFullscreen({
       width: body.style.width,
     };
 
-    // `globals.css` lifts the phone player's sticky box on this: the pinned
-    // frame cannot rise above the stacking context that box makes.
+    // `globals.css` unsticks the phone player's box on this: a frame pinned
+    // inside a sticky box is not painted over the chrome on iOS.
     root.dataset.playerFullscreen = "true";
+    // The box carries no stacking context any more, so the tier the pinned
+    // frame needs is set on the frame itself.
+    const frame = frameRef.current;
+    if (frame) frame.dataset.pseudoFullscreen = "true";
     // position:fixed as well as overflow:hidden — iOS Safari scrolls
     // the background regardless of overflow alone.
     body.style.overflow = "hidden";
@@ -359,13 +363,14 @@ export function useFullscreen({
 
     return () => {
       delete root.dataset.playerFullscreen;
+      if (frame) delete frame.dataset.pseudoFullscreen;
       body.style.overflow = previous.overflow;
       body.style.position = previous.position;
       body.style.top = previous.top;
       body.style.width = previous.width;
       window.scrollTo(0, scrollY);
     };
-  }, [pseudoActive]);
+  }, [pseudoActive, frameRef]);
 
   useEffect(() => {
     if (!pseudoActive) return;

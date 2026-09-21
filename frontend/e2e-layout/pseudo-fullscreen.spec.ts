@@ -17,6 +17,7 @@ interface FrameHits {
   rect: { top: number; left: number; width: number; height: number };
   viewport: { width: number; height: number };
   playerZ: string;
+  playerPosition: string;
   hits: Record<string, string>;
 }
 
@@ -70,7 +71,7 @@ for (const sheet of SHEETS) {
       underMenuButton: "frame",
       underToast: "toast",
     });
-    expect(m.playerZ).toBe("60");
+    expect(m.playerPosition).toBe("static");
   });
 
   test(`an unmarked pinned frame is covered, with the sheet at ${sheet}`, async ({
@@ -81,6 +82,7 @@ for (const sheet of SHEETS) {
     await build(page, { sheet, pinned: true, marked: false });
     const m = await page.evaluate(() => window.hitTheFrame());
 
+    expect(m.playerPosition).toBe("sticky");
     expect(m.playerZ).toBe("10");
     expect(m.hits.topLeft).toBe("header");
     expect(m.hits.underMenuButton).toBe("menu-button");
@@ -101,9 +103,11 @@ for (const sheet of SHEETS) {
     }
     const m = await page.evaluate(() => ({
       playerZ: getComputedStyle(document.getElementById("player")!).zIndex,
+      playerPosition: getComputedStyle(document.getElementById("player")!).position,
       over: window.hitOverThePlayer(),
     }));
 
+    expect(m.playerPosition).toBe("sticky");
     expect(m.playerZ).toBe("10");
     expect(m.over).toEqual({
       overlap: true,

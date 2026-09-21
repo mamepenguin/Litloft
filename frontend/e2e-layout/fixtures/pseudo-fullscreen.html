@@ -75,8 +75,12 @@
           `${SPEC.frameBase} ${pinned ? SPEC.framePinned : SPEC.frameInline}`,
           "frame",
         );
-        if (marked) document.documentElement.dataset.playerFullscreen = "true";
-        else delete document.documentElement.dataset.playerFullscreen;
+        if (marked) {
+          document.documentElement.dataset.playerFullscreen = "true";
+          frame.dataset.pseudoFullscreen = "true";
+        } else {
+          delete document.documentElement.dataset.playerFullscreen;
+        }
         wrapper.append(frame);
         player.append(wrapper);
         const body = el("div");
@@ -152,6 +156,7 @@
           rect: { top: r.top, left: r.left, width: r.width, height: r.height },
           viewport: { width: window.innerWidth, height: window.innerHeight },
           playerZ: getComputedStyle(document.getElementById("player")).zIndex,
+          playerPosition: getComputedStyle(document.getElementById("player")).position,
           hits: out,
         };
       };
