@@ -1008,9 +1008,19 @@ div[data-citation-section-path]:not(tr) {
   z-index: 10;
 }
 
-/* A frame pinned for pseudo-fullscreen is still inside this box's stacking
-   context, so the box itself goes to the immersive tier while it is. */
+/* While a frame is pinned for pseudo-fullscreen, the box stops being sticky
+   so that the frame is a plain fixed box in the root stacking context.
+   Out-ranking the chrome from inside the sticky context is not enough: iOS
+   WebKit paints the chrome over a pinned frame that holds a cross-origin
+   iframe whatever z-index the box carries. */
 :root[data-player-fullscreen] [data-sheet-snap] .media-detail-player {
+  position: static;
+}
+
+/* The tier the pinned frame needs, on the frame rather than on the box: the
+   box may not carry a stacking context, and the frame's own `z-50` loses to
+   the chrome buttons, which are `z-50` and come later. */
+:root[data-player-fullscreen] [data-sheet-snap] [data-pseudo-fullscreen] {
   z-index: 60;
 }
 
