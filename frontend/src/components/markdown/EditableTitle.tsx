@@ -60,7 +60,10 @@ export function EditableTitle({
         onClick={() => setEditing(true)}
         title={t("hint")}
         aria-label={t("hint")}
-        className="min-w-0 flex-1 truncate rounded px-1 py-0.5 text-left text-sm font-medium text-text-primary hover:bg-bg-elevated"
+        // `flex-auto`, not `flex-1`: a basis of zero contributes nothing to
+        // the row's base size, so nothing beside this ever has to give and
+        // the filename is left whatever the rest did not take.
+        className="min-w-0 flex-auto truncate rounded px-1 py-0.5 text-left text-sm font-medium text-text-primary hover:bg-bg-elevated"
       >
         {title}
       </button>

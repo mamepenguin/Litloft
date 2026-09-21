@@ -65,6 +65,43 @@ describe("ArchiveToolbar", () => {
     expect(handleBreadcrumbClick).toHaveBeenCalledWith("");
   });
 
+  // A trail too deep to draw folds, and the marker is then the only control
+  // standing for the folders it hid.
+  describe("a folded trail", () => {
+    const deep = ["Archive", "a", "b", "c", "d"].map((label, i, all) => ({
+      label,
+      path: all.slice(1, i + 1).join("/"),
+    }));
+
+    it("draws the archive, the folder above and the folder inside it", () => {
+      renderToolbar({ breadcrumbs: deep });
+      for (const drawn of ["Archive", "c", "d"]) {
+        expect(screen.getByText(drawn)).toBeInTheDocument();
+      }
+      for (const hidden of ["a", "b"]) {
+        expect(screen.queryByText(hidden)).toBeNull();
+      }
+    });
+
+    it("sends the marker to the deepest folder it hid", () => {
+      const handleBreadcrumbClick = vi.fn();
+      renderToolbar({ breadcrumbs: deep, handleBreadcrumbClick });
+
+      fireEvent.click(screen.getByText("…"));
+      expect(handleBreadcrumbClick).toHaveBeenCalledWith("a/b");
+    });
+
+    it("keeps the drawn folders pointing at their own paths", () => {
+      const handleBreadcrumbClick = vi.fn();
+      renderToolbar({ breadcrumbs: deep, handleBreadcrumbClick });
+
+      fireEvent.click(screen.getByText("c"));
+      expect(handleBreadcrumbClick).toHaveBeenLastCalledWith("a/b/c");
+      fireEvent.click(screen.getByText("Archive"));
+      expect(handleBreadcrumbClick).toHaveBeenLastCalledWith("");
+    });
+  });
+
   it("draws no <select>", () => {
     const { container } = renderToolbar();
     expect(container.querySelectorAll("select").length).toBe(0);

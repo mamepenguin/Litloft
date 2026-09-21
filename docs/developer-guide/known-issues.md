@@ -131,6 +131,18 @@ no tree under it.** The toggle is decided by the URL, and the collection page
 mounts its pane only once the collection has loaded. Pressing it flips the
 drive's tree setting and nothing else.
 
+**The archive's download control is a 22px target.** A 14px glyph in `p-1`,
+under `DESIGN.md`'s 32px floor for an icon-only button and well under the 44px
+coarse-pointer floor. Present since the archive toolbar landed; pinned at its
+current size in `frontend/e2e-components/header-row-crowding.spec.ts`, so
+widening it is a deliberate edit to that line.
+
+**A deep path's remaining trail segments hold about two characters on a
+phone.** Once the trail folds, the drive and the parent narrow to a 48px box —
+enough to press, not enough to read — before the folder you are in gives any
+width. Reached with a deep path on a phone; the fold is what keeps the current
+folder readable at all. Seen and accepted 2026-09-21.
+
 **One Escape can close two popups on a folder screen.** With the toolbar's `…`
 or `Add` menu open, moving by keyboard into another popup or field that handles
 Escape itself — the tree pane's type filter, the selection bar's tag input, a

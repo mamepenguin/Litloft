@@ -12,14 +12,21 @@ import {
   ToolbarMenu,
 } from "@/components/ToolbarMenu";
 import { DismissScrim } from "@/components/DismissScrim";
+import { TRAIL_ANCESTOR, TRAIL_SEGMENT } from "@/components/Breadcrumb";
+import { foldTrail } from "@/lib/trail";
 import { ViewMenu } from "@/components/ViewMenu";
 import type { ArchiveContents, FileType } from "@/types";
 import type { ArchiveSortKey, ArchiveSortOrder } from "./useArchiveSort";
 
+interface Breadcrumb {
+  label: string;
+  path: string;
+}
+
 interface ArchiveToolbarProps {
   fileId: string;
   archive: ArchiveContents | null;
-  breadcrumbs: Array<{ label: string; path: string }>;
+  breadcrumbs: Breadcrumb[];
   handleBreadcrumbClick: (path: string) => void;
   sort: ArchiveSortKey;
   order: ArchiveSortOrder;
@@ -137,35 +144,78 @@ export function ArchiveToolbar({
   );
   const activeFilter = TYPE_FILTERS.find((f) => f.value === typeFilter);
 
+  const { before, folded, after } = foldTrail(breadcrumbs, 2);
+  // The marker stands where the folded crumbs were, so it leads to the
+  // deepest of them.
+  const behindMarker = folded[folded.length - 1];
+  const leafIndex = breadcrumbs.length - 1;
+
+  const crumb = (entry: Breadcrumb, index: number) => {
+    const isLeaf = index === leafIndex;
+    return (
+      <span
+        key={entry.path}
+        className={`flex items-center gap-1 ${isLeaf ? TRAIL_SEGMENT : TRAIL_ANCESTOR}`}
+      >
+        {index > 0 && (
+          <ChevronRight size={14} className="flex-shrink-0 text-text-muted" />
+        )}
+        <button
+          type="button"
+          onClick={() => handleBreadcrumbClick(entry.path)}
+          className={`truncate text-sm transition-colors ${
+            isLeaf
+              ? "font-medium text-text-primary"
+              : "text-text-muted hover:text-text-primary"
+          }`}
+        >
+          {entry.label}
+        </button>
+      </span>
+    );
+  };
+
   return (
     // No `overflow-hidden`: every menu on this bar is `absolute` inside
     // this card, so clipping to the card's box would hide the popovers.
     <div className="mb-3 rounded-xl bg-bg-card">
       <div className="flex flex-wrap items-center gap-2 border-b border-bg-border px-4 py-2.5">
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          {breadcrumbs.map((crumb, i) => (
-            <span key={crumb.path} className="flex items-center gap-1">
-              {i > 0 && (
-                <ChevronRight size={14} className="text-text-muted" />
-              )}
+        <div
+          data-testid="archive-trail"
+          className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden"
+        >
+          {before.map(crumb)}
+
+          {behindMarker && (
+            <span className="flex flex-shrink-0 items-center gap-1">
+              <ChevronRight size={14} className="flex-shrink-0 text-text-muted" />
               <button
                 type="button"
-                onClick={() => handleBreadcrumbClick(crumb.path)}
-                className={`text-sm transition-colors ${
-                  i === breadcrumbs.length - 1
-                    ? "font-medium text-text-primary"
-                    : "text-text-muted hover:text-text-primary"
-                }`}
+                onClick={() => handleBreadcrumbClick(behindMarker.path)}
+                aria-label={behindMarker.label}
+                title={folded.map((f) => f.label).join(" / ")}
+                className="min-w-7 flex-shrink-0 text-center text-sm text-text-muted transition-colors hover:text-text-primary"
               >
-                {crumb.label}
+                …
               </button>
             </span>
-          ))}
+          )}
+
+          {after.map((entry, i) =>
+            crumb(entry, before.length + folded.length + i),
+          )}
         </div>
 
+        {/* The count leaves the row before the trail gives way: it is a
+            detail about the archive, and the trail says where inside it the
+            reader is. Below `sm` the two together leave the trail less than
+            its segments need, and the same breakpoint is where this bar's
+            other labels stand down (`BAR_ROOMY`). The download stays at
+            every width — a control that cannot be pressed is worse than a
+            count that cannot be read. */}
         {archive && (
-          <span className="flex items-center gap-2 text-xs text-text-muted">
-            <span>
+          <span className="flex min-w-0 items-center gap-2 text-xs text-text-muted">
+            <span data-testid="archive-entry-count" className="hidden truncate sm:inline">
               {t("fileCount", {
                 count: archive.total_entries,
                 size: formatFileSize(archive.total_size),
@@ -174,7 +224,7 @@ export function ArchiveToolbar({
             <a
               href={getDownloadUrl(fileId)}
               download
-              className="rounded-lg p-1 transition-colors hover:bg-bg-elevated hover:text-text-primary"
+              className="flex-shrink-0 rounded-lg p-1 transition-colors hover:bg-bg-elevated hover:text-text-primary"
               aria-label={t("downloadArchive")}
               title={t("downloadArchive")}
             >

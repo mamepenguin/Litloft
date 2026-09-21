@@ -17,6 +17,13 @@ import { Button } from "@/components/Button";
 import { ChromeButtons } from "@/components/ChromeButtons";
 import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
+import { Breadcrumb } from "@/components/Breadcrumb";
+import { ArchiveToolbar } from "@/components/archive/ArchiveToolbar";
+import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
+import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
+import { MarkdownViewModeToggle } from "@/components/MarkdownViewModeToggle";
+import { EditableTitle } from "@/components/markdown/EditableTitle";
+import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
 import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
@@ -961,6 +968,214 @@ function OpenGhostArrangement(): ReactElement {
   );
 }
 
+/**
+ * A path deep enough that the trail cannot fit beside the controls at any
+ * width measured here. Its deepest folder is long too: a trail that gives
+ * way from the wrong end loses the segment naming where the reader is, and
+ * a short last segment hides that by fitting whatever happens.
+ */
+const DEEP_FOLDER = [
+  "Documents",
+  "Reference",
+  "2026-Q3-Reorganisation",
+  "Design-Review-Notes",
+  "Attachments",
+  "Screenshots",
+  "Archived-2026-Originals-And-Masters",
+].join("/");
+/**
+ * Longer than the row at every width measured. The trailing segment is the
+ * only one drawn as a bare child of the trail, so it is also the only one
+ * whose narrowing rests on `truncate` alone — a name short enough to fit
+ * asks nothing of it, and a name that cannot narrow wraps rather than
+ * overflowing, which grows the row instead of leaving its box.
+ */
+const DEEP_LEAF =
+  "2026-09-annual-report-final-revision-board-approved.md";
+
+/**
+ * A note's row on a phone: the trail is hidden, and the back control, the
+ * rename control and the editor's own buttons share the width instead.
+ */
+const NOTE_FOLDER = "Notes/ああああああああああああああああああああ";
+const NOTE_NAME = "untitled-20260921-174327.md";
+
+/**
+ * The folder listing's own header: the trail's last segment is a folder,
+ * not a trailing node, which is the form `FileDetailChrome` never asks for.
+ */
+function FolderListingHeaderArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <PageFrame
+        width="full"
+        header={
+          <PageHeader
+            breadcrumb={
+              <Breadcrumb driveName="Household Archive" folderPath={DEEP_FOLDER} />
+            }
+            scope="1,284 items"
+          />
+        }
+      />
+    </NextIntlClientProvider>
+  );
+}
+
+/** Shallow enough that there is nothing worth folding. */
+function FolderListingHeaderShallowArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <PageFrame
+        width="full"
+        header={
+          <PageHeader
+            breadcrumb={
+              <Breadcrumb driveName="Household Archive" folderPath="Documents/Reference" />
+            }
+            scope="12 items"
+          />
+        }
+      />
+    </NextIntlClientProvider>
+  );
+}
+
+function FileDetailChromeArrangement(): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary">
+        <FileDetailChrome
+          drive="Household Archive"
+          folderPath={DEEP_FOLDER}
+          title={DEEP_LEAF}
+          inspector={{ open: false, onToggle: noop }}
+        >
+          <MediaLayoutToggle />
+        </FileDetailChrome>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+function FileDetailChromeNoteArrangement(): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary">
+        <FileDetailChrome
+          drive="Household Archive"
+          folderPath={NOTE_FOLDER}
+          title={NOTE_NAME}
+          titleNode={<EditableTitle title={NOTE_NAME} onRename={async () => {}} />}
+          inspector={{ open: false, onToggle: noop }}
+        >
+          <SaveDot state={{ status: "idle" }} />
+          <MarkdownViewModeToggle mode="preview" onChange={noop} hideSplit />
+        </FileDetailChrome>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+/** A plain file on a phone: a back control, and no name of its own. */
+function FileDetailChromePlainPhoneArrangement(): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary">
+        <FileDetailChrome
+          drive="Household Archive"
+          folderPath={NOTE_FOLDER}
+          title={DEEP_LEAF}
+          inspector={{ open: false, onToggle: noop }}
+        >
+          <MediaLayoutToggle />
+        </FileDetailChrome>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+/**
+ * Playing a collection: the host supplies `onBack`, so the row draws the
+ * back control *and* the trail above `md` — the one form where both are on
+ * screen at once.
+ */
+function FileDetailChromeCollectionArrangement(): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary">
+        <FileDetailChrome
+          drive="Household Archive"
+          folderPath={DEEP_FOLDER}
+          title={DEEP_LEAF}
+          titleNode={<EditableTitle title={DEEP_LEAF} onRename={async () => {}} />}
+          onBack={noop}
+          inspector={{ open: false, onToggle: noop }}
+        >
+          <MediaLayoutToggle />
+        </FileDetailChrome>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+/**
+ * A note opened normally, above `md`: the trail has the whole row rather than
+ * the half a collection's back control leaves it, and the rename control is
+ * the trail's last segment.
+ */
+function FileDetailChromeNoteDeepArrangement(): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary">
+        <FileDetailChrome
+          drive="Household Archive"
+          folderPath={DEEP_FOLDER}
+          title={DEEP_LEAF}
+          titleNode={<EditableTitle title={DEEP_LEAF} onRename={async () => {}} />}
+          inspector={{ open: false, onToggle: noop }}
+        >
+          <SaveDot state={{ status: "idle" }} />
+          <MarkdownViewModeToggle mode="preview" onChange={noop} />
+        </FileDetailChrome>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+function ArchiveToolbarArrangement(): ReactElement {
+  const noop = () => {};
+  const crumbs = ["backup-2026-09.zip", ...DEEP_FOLDER.split("/")];
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary px-4">
+        <ArchiveToolbar
+          fileId="abcdef123456"
+          archive={{ entries: [], total_entries: 1284, total_size: 734003200 }}
+          breadcrumbs={crumbs.map((label, i) => ({
+            label,
+            path: crumbs.slice(1, i + 1).join("/"),
+          }))}
+          handleBreadcrumbClick={noop}
+          sort="name"
+          order="asc"
+          typeFilter={null}
+          viewMode="list"
+          onSortChange={noop}
+          onOrderChange={noop}
+          onTypeFilterChange={noop}
+          onViewModeChange={noop}
+        />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
 const PageFrameFull = (): ReactElement => <PageFrameArrangement width="full" />;
 const PageFrameWide = (): ReactElement => <PageFrameArrangement width="wide" />;
 const PageFrameList = (): ReactElement => <PageFrameArrangement width="list" />;
@@ -1023,6 +1238,14 @@ const PlayerHairline = (): ReactElement => <PlayerFrame visible={false} />;
 
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "chrome-buttons": ChromeButtonsArrangement,
+  "folder-listing-header-deep": FolderListingHeaderArrangement,
+  "folder-listing-header-shallow": FolderListingHeaderShallowArrangement,
+  "file-detail-chrome-deep": FileDetailChromeArrangement,
+  "file-detail-chrome-note": FileDetailChromeNoteArrangement,
+  "file-detail-chrome-plain-phone": FileDetailChromePlainPhoneArrangement,
+  "file-detail-chrome-collection": FileDetailChromeCollectionArrangement,
+  "file-detail-chrome-note-deep": FileDetailChromeNoteDeepArrangement,
+  "archive-toolbar-deep": ArchiveToolbarArrangement,
   "page-frame-full": PageFrameFull,
   "page-frame-wide": PageFrameWide,
   "page-frame-list": PageFrameList,

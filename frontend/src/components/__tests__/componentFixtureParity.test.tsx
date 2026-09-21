@@ -224,6 +224,14 @@ describe("the component fixture's page", () => {
     );
     expect(declared).toEqual([
       "chrome-buttons",
+      "folder-listing-header-deep",
+      "folder-listing-header-shallow",
+      "file-detail-chrome-deep",
+      "file-detail-chrome-note",
+      "file-detail-chrome-plain-phone",
+      "file-detail-chrome-collection",
+      "file-detail-chrome-note-deep",
+      "archive-toolbar-deep",
       "page-frame-full",
       "page-frame-wide",
       "page-frame-list",

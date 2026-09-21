@@ -109,8 +109,14 @@ export function FileDetailChrome({
             rules ask for — but for a Markdown note the leaf *is* the
             rename control, and dropping a function is not the same as
             dropping a label. */}
+        {/* `flex` on a box with one child, and `flex-auto` rather than
+            `flex-1`: the rename control is nowrap text, whose minimum
+            contribution is the whole filename, so it only narrows as a flex
+            item, and only a basis of its own content wins it any width
+            against the back control beside it. Without both it lays itself
+            out at full length over the buttons to its right. */}
         {isMobile && titleNode && (
-          <span className="min-w-0 flex-1 md:hidden">{titleNode}</span>
+          <span className="flex min-w-0 flex-auto md:hidden">{titleNode}</span>
         )}
       </div>
       <div className="hidden min-w-0 flex-1 md:flex">
