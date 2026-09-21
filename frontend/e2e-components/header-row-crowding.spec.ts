@@ -121,7 +121,15 @@ async function readTrail(
 /**
  * `leafCut` and `ancestors` are declared, not read off the run. At the phone
  * width the fixture's path does not fit even with every ancestor at zero, so
- * the last segment has to give too; above it there is room and it must not.
+ * the last segment has to give too; at the widest there is room and it must
+ * not.
+ *
+ * `leafCut` is left out where whether the last segment gives is a question of
+ * a few pixels rather than of the design — a row halved between a back
+ * control and a trail, at the one width in between. Text measures differently
+ * under different system fonts, so a case with no margin answers one way here
+ * and the other way in CI. The ordering below is asserted at every width and
+ * does not depend on the metrics.
  */
 const NARROW_TO_WIDE = [
   { px: 375, leafCut: true },
@@ -173,7 +181,7 @@ const CASES = [
     // This form draws the back control beside the trail at every width and
     // caps it at 45%, so the trail has roughly half the row.
     widths: [
-      { px: 768, leafCut: false },
+      { px: 768 },
       { px: 1024, leafCut: false },
     ] as const,
     selectors: FILE_DETAIL,
@@ -188,7 +196,7 @@ const CASES = [
     name: "the file-detail chrome showing a note",
     arrangement: "file-detail-chrome-note-deep",
     widths: [
-      { px: 768, leafCut: true },
+      { px: 768 },
       { px: 1024, leafCut: false },
     ] as const,
     selectors: FILE_DETAIL,
@@ -206,7 +214,9 @@ const CASES = [
 ] as const;
 
 for (const c of CASES) {
-  for (const { px, leafCut } of c.widths) {
+  for (const w of c.widths) {
+    const { px } = w;
+    const leafCut = "leafCut" in w ? w.leafCut : undefined;
     test(`${c.name} at ${px}px: the trail stays inside its own box, on one line`, async ({
       page,
     }) => {
@@ -227,7 +237,7 @@ for (const c of CASES) {
       // Declared: a count read off the run cannot notice a segment that
       // stopped being drawn.
       expect(m.ancestors.length).toBe(c.ancestors);
-      expect(isCut(m.leaf)).toBe(leafCut);
+      if (leafCut !== undefined) expect(isCut(m.leaf)).toBe(leafCut);
       // The ordering, whichever width this is: the last segment gives only
       // once there is nothing left to take from the rest.
       if (isCut(m.leaf)) expect(m.ancestors.every(isCut)).toBe(true);
