@@ -134,6 +134,11 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   }, [file.id]);
 
   useEffect(() => {
+    // Fetched when the field opens, which is both the only moment the
+    // lists are read and the moment they must be current: the server is
+    // the only thing that knows which tags this folder carries after the
+    // last edit, so nothing here predicts it.
+    if (!adding) return;
     const drive = file.drive;
     const folderPath = file.folder_path;
     let cancelled = false;
@@ -166,7 +171,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
     // Both halves of the key matter: two drives commonly share a folder
     // path, so keying on the path alone would keep the previous drive's
     // tags across a drive switch.
-  }, [file.drive, file.folder_path]);
+  }, [adding, file.drive, file.folder_path]);
 
   // Debounced saver is only built in standalone mode — content mode
   // delegates saving to the parent (e.g. Knowledge editor's textarea
@@ -200,29 +205,10 @@ export function EditableTagChips(props: EditableTagChipsProps) {
       setError(null);
       onTagsChange?.(next);
       setTagPool((prev) => {
-        if (
-          !prev ||
-          prev.drive !== file.drive ||
-          prev.folderPath !== file.folder_path
-        ) {
-          return prev;
-        }
-        const inAll = new Set(prev.all.map((x) => x.toLowerCase()));
-        const addedAll = next.filter((x) => !inAll.has(x.toLowerCase()));
-        // The file being written is in this folder, so a tag it now
-        // carries is one this folder carries — without folding it in
-        // here, the tag just used is filtered out of the chips until
-        // something else refetches.
-        const inScoped = new Set(prev.scoped.map((t) => t.name.toLowerCase()));
-        const addedScoped = next
-          .filter((x) => !inScoped.has(x.toLowerCase()))
-          .map((name) => ({ name, count: 1 }));
-        if (addedAll.length === 0 && addedScoped.length === 0) return prev;
-        return {
-          ...prev,
-          all: [...prev.all, ...addedAll],
-          scoped: [...prev.scoped, ...addedScoped],
-        };
+        if (!prev) return prev;
+        const existing = new Set(prev.all.map((x) => x.toLowerCase()));
+        const toAdd = next.filter((x) => !existing.has(x.toLowerCase()));
+        return toAdd.length === 0 ? prev : { ...prev, all: [...prev.all, ...toAdd] };
       });
       if (contentMode) {
         const latest = contentRef.current ?? "";
@@ -236,7 +222,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
     // latest value via contentRef.current to avoid the TOCTOU where
     // a stale closure overwrites concurrent parent-side edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [contentMode, file.drive, file.folder_path, onContentChange, onTagsChange, saver],
+    [contentMode, onContentChange, onTagsChange, saver],
   );
 
   const pool = useMemo(
