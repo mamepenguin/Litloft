@@ -705,7 +705,7 @@ higher than whatever it currently sits under.
 | In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), an inspector covering the canvas (`z-20`), the raised mobile Bottom Sheet (`z-[25]`), anchored popovers, the sidebar backdrop (`z-30`) |
 | Floating surfaces | `z-40` | Overlay sidebar, mini-player, upload progress, bottom-anchored mobile menus, the Bottom Sheet's resting strip |
 | Modal dialogs | `z-50` | Confirm / Rename / Move and anything that interrupts to ask, including addon dialogs |
-| Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page; a phone player pinned to fill the screen, whose sticky box is lifted to this tier while it is |
+| Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page; a phone player's frame pinned to fill the screen |
 | Always on top | `z-[100]` | Shortcut cheat sheet, quick note, file save, toasts |
 
 - **Within a tier, do not build behaviour on the number.** Document order and

@@ -354,6 +354,34 @@ describe("useFullscreen — document side effects", () => {
     expect(document.documentElement.dataset.playerFullscreen).toBeUndefined();
   });
 
+  it("marks the frame itself while it is pinned", async () => {
+    const { result } = renderFullscreen();
+    await act(async () => result.current.toggle());
+    expect(frame.dataset.pseudoFullscreen).toBe("true");
+    await act(async () => result.current.exit());
+    expect(frame.dataset.pseudoFullscreen).toBeUndefined();
+  });
+
+  it("leaves no mark on the frame in native fullscreen", async () => {
+    setNativeSupport("ok");
+    const { result } = renderFullscreen();
+    await act(async () => result.current.toggle());
+    fullscreenElement = frame;
+    act(() => {
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+    expect(result.current.isFullscreen).toBe(true);
+    expect(frame.dataset.pseudoFullscreen).toBeUndefined();
+  });
+
+  it("takes the frame's mark away when it unmounts still pinned", async () => {
+    const { result, unmount } = renderFullscreen();
+    await act(async () => result.current.toggle());
+    expect(frame.dataset.pseudoFullscreen).toBe("true");
+    unmount();
+    expect(frame.dataset.pseudoFullscreen).toBeUndefined();
+  });
+
   it("locks the background and restores the scroll position", async () => {
     Object.defineProperty(window, "scrollY", { configurable: true, value: 420 });
     const { result } = renderFullscreen();

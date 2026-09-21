@@ -1020,7 +1020,7 @@ div[data-citation-section-path]:not(tr) {
 /* The tier the pinned frame needs, on the frame rather than on the box: the
    box may not carry a stacking context, and the frame's own `z-50` loses to
    the chrome buttons, which are `z-50` and come later. */
-[data-sheet-snap] [data-pseudo-fullscreen] {
+:root[data-player-fullscreen] [data-sheet-snap] [data-pseudo-fullscreen] {
   z-index: 60;
 }
 
