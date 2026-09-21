@@ -200,10 +200,29 @@ export function EditableTagChips(props: EditableTagChipsProps) {
       setError(null);
       onTagsChange?.(next);
       setTagPool((prev) => {
-        if (!prev) return prev;
-        const existing = new Set(prev.all.map((x) => x.toLowerCase()));
-        const toAdd = next.filter((x) => !existing.has(x.toLowerCase()));
-        return toAdd.length === 0 ? prev : { ...prev, all: [...prev.all, ...toAdd] };
+        if (
+          !prev ||
+          prev.drive !== file.drive ||
+          prev.folderPath !== file.folder_path
+        ) {
+          return prev;
+        }
+        const inAll = new Set(prev.all.map((x) => x.toLowerCase()));
+        const addedAll = next.filter((x) => !inAll.has(x.toLowerCase()));
+        // The file being written is in this folder, so a tag it now
+        // carries is one this folder carries — without folding it in
+        // here, the tag just used is filtered out of the chips until
+        // something else refetches.
+        const inScoped = new Set(prev.scoped.map((t) => t.name.toLowerCase()));
+        const addedScoped = next
+          .filter((x) => !inScoped.has(x.toLowerCase()))
+          .map((name) => ({ name, count: 1 }));
+        if (addedAll.length === 0 && addedScoped.length === 0) return prev;
+        return {
+          ...prev,
+          all: [...prev.all, ...addedAll],
+          scoped: [...prev.scoped, ...addedScoped],
+        };
       });
       if (contentMode) {
         const latest = contentRef.current ?? "";
@@ -217,7 +236,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
     // latest value via contentRef.current to avoid the TOCTOU where
     // a stale closure overwrites concurrent parent-side edits.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [contentMode, onContentChange, onTagsChange, saver],
+    [contentMode, file.drive, file.folder_path, onContentChange, onTagsChange, saver],
   );
 
   const pool = useMemo(
@@ -243,11 +262,19 @@ export function EditableTagChips(props: EditableTagChipsProps) {
     // filter in `list_drive_tags` lets orphans through, and nothing
     // clears them when their last file is hard-deleted.
     const carried = scoped.filter((tag) => tag.count > 0);
-    const allowed = new Set(carried.map((tag) => tag.name.toLowerCase()));
-    const recent = readRecentTags(file.drive).filter((name) => {
-      const lower = name.toLowerCase();
-      return allowed.has(lower) && !onFile.has(lower);
-    });
+    // Offer the drive's own spelling, not the one this device happens to
+    // have stored: `replace_file_tags` renames the shared `Tag` row to
+    // whatever casing was written last, so a drifted recent entry would
+    // rename the tag for every file that carries it.
+    const canonical = new Map(
+      carried.map((tag) => [tag.name.toLowerCase(), tag.name] as const),
+    );
+    const recent = readRecentTags(file.drive)
+      .map((name) => canonical.get(name.toLowerCase()))
+      .filter(
+        (name): name is string =>
+          name !== undefined && !onFile.has(name.toLowerCase()),
+      );
     const recentLower = new Set(recent.map((name) => name.toLowerCase()));
     const byCount = [...carried]
       .sort((a, b) => b.count - a.count)
