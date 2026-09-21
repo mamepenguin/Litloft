@@ -394,6 +394,7 @@ export function MarkdownPreview({
     mime_type: string;
     filename: string;
     drive: string;
+    folder_path: string;
   };
   onTagsChange?: (tags: string[]) => void;
   onTagsSaved?: (tags: string[]) => void;

@@ -302,6 +302,7 @@
   "tag": {
     "add": "Add tag",
     "placeholder": "Tag name...",
+    "frequentTags": "Frequently used tags",
     "maxLength": "Tag must be 30 characters or less",
     "invalidChars": "Contains invalid characters",
     "maxCount": "Maximum 10 tags allowed",

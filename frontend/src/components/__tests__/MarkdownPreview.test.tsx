@@ -186,6 +186,7 @@ body`;
           mime_type: "text/markdown",
           filename: "n.md",
           drive: "d",
+          folder_path: "notes",
         }}
         onTagsSaved={() => {}}
       />,
@@ -252,7 +253,7 @@ describe("MarkdownFileViewer", () => {
     const { rerender } = renderWithIntl(
       <MarkdownFileViewer
         fileId="fMd000000001"
-        editable={{ mime_type: "text/markdown", filename: "n.md", drive: "d" }}
+        editable={{ mime_type: "text/markdown", filename: "n.md", drive: "d", folder_path: "notes" }}
         externalReloadKey={0}
       />,
     );
@@ -265,7 +266,7 @@ describe("MarkdownFileViewer", () => {
       >
         <MarkdownFileViewer
           fileId="fMd000000001"
-          editable={{ mime_type: "text/markdown", filename: "n.md", drive: "d" }}
+          editable={{ mime_type: "text/markdown", filename: "n.md", drive: "d", folder_path: "notes" }}
           externalReloadKey={1}
         />
       </NextIntlClientProvider>,

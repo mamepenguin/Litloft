@@ -29,6 +29,7 @@ export function MarkdownFileViewer({
     mime_type: string;
     filename: string;
     drive: string;
+    folder_path: string;
   };
   externalReloadKey?: number;
   /**
@@ -104,6 +105,7 @@ export function MarkdownFileViewer({
         mime_type: editable.mime_type,
         filename: editable.filename,
         drive: editable.drive,
+        folder_path: editable.folder_path,
       }
     : undefined;
 

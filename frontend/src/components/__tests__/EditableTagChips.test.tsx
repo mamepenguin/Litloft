@@ -10,6 +10,7 @@ const file = {
   mime_type: "video/mp4",
   filename: "clip.mp4",
   drive: "media",
+  folder_path: "clips",
 };
 
 vi.mock("@/lib/api", () => ({
@@ -407,5 +408,221 @@ describe("EditableTagChips", () => {
       vi.unstubAllGlobals();
     });
 
+  });
+});
+
+describe("EditableTagChips frequent-tag chips", () => {
+  const SCOPED = [
+    { name: "beef", count: 9 },
+    { name: "carrot", count: 7 },
+    { name: "onion", count: 5 },
+  ];
+  const DRIVE_WIDE = [
+    ...SCOPED,
+    { name: "faraway", count: 30 },
+  ];
+  const RECENT_KEY = `litloft:recent-tags:${file.drive}`;
+
+  function mockPools(scoped = SCOPED, driveWide = DRIVE_WIDE) {
+    vi.mocked(getDriveTags).mockImplementation(
+      (async (_drive: string, folderPath?: string | null) =>
+        folderPath ? scoped : driveWide) as never,
+    );
+  }
+
+  function setRecent(names: string[]) {
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify(names));
+  }
+
+  function chipNames(): string[] {
+    return screen.getAllByRole("option").map((el) => el.textContent ?? "");
+  }
+
+  async function openChips(props: Record<string, unknown> = {}) {
+    render(<EditableTagChips file={file} initialTags={[]} {...props} />);
+    await waitFor(() => expect(getDriveTags).toHaveBeenCalledTimes(2));
+    clickAdd();
+    return screen.findByRole("listbox");
+  }
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockPools();
+  });
+
+  it("offers the folder's tags without anything typed", async () => {
+    await openChips();
+    expect(chipNames()).toEqual(["beef", "carrot", "onion"]);
+  });
+
+  it("puts recently used tags before the frequent ones", async () => {
+    setRecent(["onion", "carrot"]);
+    await openChips();
+    expect(chipNames()).toEqual(["onion", "carrot", "beef"]);
+  });
+
+  it("drops a recent tag that no file in this folder carries", async () => {
+    setRecent(["faraway", "onion"]);
+    await openChips();
+    expect(chipNames()).toEqual(["onion", "beef", "carrot"]);
+  });
+
+  it("drops a tag the file already has, ignoring case", async () => {
+    await openChips({ initialTags: ["BEEF"] });
+    expect(chipNames()).toEqual(["carrot", "onion"]);
+  });
+
+  it("drops a tag carried by no file", async () => {
+    mockPools([...SCOPED, { name: "orphan", count: 0 }]);
+    await openChips();
+    expect(chipNames()).toEqual(["beef", "carrot", "onion"]);
+  });
+
+  it("shows at most eight chips", async () => {
+    mockPools(
+      Array.from({ length: 12 }, (_, i) => ({
+        name: `tag${i}`,
+        count: 100 - i,
+      })),
+    );
+    await openChips();
+    expect(chipNames()).toEqual([
+      "tag0",
+      "tag1",
+      "tag2",
+      "tag3",
+      "tag4",
+      "tag5",
+      "tag6",
+      "tag7",
+    ]);
+  });
+
+  it("switches to drive-wide substring matching once the user types", async () => {
+    await openChips();
+    const input = screen.getByPlaceholderText("Tag name...") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "far" } });
+    await waitFor(() => expect(chipNames()).toEqual(["faraway"]));
+  });
+
+  it("opens nothing in a folder whose files carry no tags", async () => {
+    mockPools([]);
+    render(<EditableTagChips file={file} initialTags={[]} />);
+    await waitFor(() => expect(getDriveTags).toHaveBeenCalledTimes(2));
+    clickAdd();
+    await waitFor(() => {
+      expect(screen.queryByRole("listbox")).toBeNull();
+    });
+  });
+
+  it("offers no chips for a file sitting at the drive root", async () => {
+    render(
+      <EditableTagChips file={{ ...file, folder_path: "" }} initialTags={[]} />,
+    );
+    await waitFor(() => expect(getDriveTags).toHaveBeenCalledTimes(1));
+    clickAdd();
+    await waitFor(() => {
+      expect(screen.queryByRole("listbox")).toBeNull();
+    });
+  });
+
+  it("records a clicked chip as recently used", async () => {
+    await openChips();
+    fireEvent.pointerUp(screen.getByRole("option", { name: "carrot" }));
+    await waitFor(() => {
+      expect(JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? "[]")).toEqual([
+        "carrot",
+      ]);
+    });
+  });
+
+  it("enforces the tag cap on a chip click", async () => {
+    const full = Array.from({ length: 10 }, (_, i) => `t${i}`);
+    await openChips({ initialTags: full });
+    fireEvent.pointerUp(screen.getByRole("option", { name: "beef" }));
+    expect(screen.getByText("Maximum 10 tags allowed")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Remove beef")).toBeNull();
+  });
+
+  it("does not commit a chip left selected by an earlier search", async () => {
+    const onChange = vi.fn();
+    await openChips({ onTagsChange: onChange });
+    const input = screen.getByPlaceholderText("Tag name...") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "ca" } });
+    await waitFor(() => expect(chipNames()).toEqual(["carrot"]));
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("leaves the next click alive while chips are showing", async () => {
+    const outside = vi.fn();
+    render(
+      <div>
+        <button type="button" onClick={outside}>
+          elsewhere
+        </button>
+        <EditableTagChips file={file} initialTags={[]} />
+      </div>,
+    );
+    await waitFor(() => expect(getDriveTags).toHaveBeenCalledTimes(2));
+    clickAdd();
+    await screen.findByRole("listbox");
+    const target = screen.getByRole("button", { name: "elsewhere" });
+    fireEvent.pointerDown(target);
+    fireEvent.click(target);
+    expect(outside).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps working when localStorage refuses every operation", async () => {
+    const original = Object.getOwnPropertyDescriptor(window, "localStorage");
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get() {
+        throw new Error("site data blocked");
+      },
+    });
+    try {
+      const onChange = vi.fn();
+      render(
+        <EditableTagChips file={file} initialTags={["kept"]} onTagsChange={onChange} />,
+      );
+      await waitFor(() => expect(getDriveTags).toHaveBeenCalledTimes(2));
+      clickAdd();
+      await screen.findByRole("listbox");
+      expect(chipNames()).toEqual(["beef", "carrot", "onion"]);
+      fireEvent.pointerUp(screen.getByRole("option", { name: "beef" }));
+      await waitFor(() => expect(onChange).toHaveBeenCalledWith(["kept", "beef"]));
+      fireEvent.click(screen.getByLabelText("Remove kept"));
+      await waitFor(() => expect(onChange).toHaveBeenCalledWith(["beef"]));
+    } finally {
+      if (original) Object.defineProperty(window, "localStorage", original);
+    }
+  });
+
+  it("never paints the previous folder's tags after a move", async () => {
+    const FIRST = [{ name: "beef", count: 4 }];
+    const SECOND = [{ name: "quartz", count: 4 }];
+    vi.mocked(getDriveTags).mockImplementation(
+      (async (_drive: string, folderPath?: string | null) => {
+        if (!folderPath) return DRIVE_WIDE;
+        return folderPath === "clips" ? FIRST : SECOND;
+      }) as never,
+    );
+    const { rerender } = render(<EditableTagChips file={file} initialTags={[]} />);
+    await waitFor(() => expect(getDriveTags).toHaveBeenCalledTimes(2));
+    clickAdd();
+    await screen.findByRole("listbox");
+    expect(chipNames()).toEqual(["beef"]);
+
+    rerender(
+      <EditableTagChips
+        file={{ ...file, id: "fVid0000002B", folder_path: "archive" }}
+        initialTags={[]}
+      />,
+    );
+    expect(screen.queryAllByRole("option", { name: "beef" })).toHaveLength(0);
+    await waitFor(() => expect(chipNames()).toEqual(["quartz"]));
   });
 });
