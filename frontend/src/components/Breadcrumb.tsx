@@ -4,6 +4,15 @@ import { ChevronRight, Home } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useFolderLink } from "@/hooks/useFolderLink";
 
+/**
+ * A trail names its screen's subject with its last segment, so the ancestors
+ * are what give way when the row runs out of width: a shrink factor this
+ * large spends the deficit on them almost entirely before the last segment
+ * gives any of its own. Exported because the archive's trail is built from
+ * buttons and cannot use this component.
+ */
+export const TRAIL_ANCESTOR = "min-w-0 shrink-[999]";
+
 interface BreadcrumbProps {
   driveName: string;
   folderPath?: string;
@@ -50,7 +59,7 @@ export function Breadcrumb({
       ) : (
         <Link
           href={`/drive/${encodeURIComponent(driveName)}`}
-          className={`hover:text-text-primary truncate rounded-lg px-1 transition-colors${
+          className={`${TRAIL_ANCESTOR} hover:text-text-primary truncate rounded-lg px-1 transition-colors${
             isDropTarget?.("") ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
           }`}
           {...folderLink(`/drive/${encodeURIComponent(driveName)}`)}
@@ -65,7 +74,10 @@ export function Breadcrumb({
         const encodedPath = segments.slice(0, i + 1).map(encodeURIComponent).join("/");
         const isLast = i === segments.length - 1 && !trailingSegment;
         return (
-          <span key={path} className="flex items-center gap-1">
+          <span
+            key={path}
+            className={`flex items-center gap-1${isLast ? "" : ` ${TRAIL_ANCESTOR}`}`}
+          >
             <ChevronRight size={14} className="flex-shrink-0" />
             {isLast ? (
               <span className="font-medium text-text-primary truncate">{segment}</span>

@@ -12,6 +12,7 @@ import {
   ToolbarMenu,
 } from "@/components/ToolbarMenu";
 import { DismissScrim } from "@/components/DismissScrim";
+import { TRAIL_ANCESTOR } from "@/components/Breadcrumb";
 import { ViewMenu } from "@/components/ViewMenu";
 import type { ArchiveContents, FileType } from "@/types";
 import type { ArchiveSortKey, ArchiveSortOrder } from "./useArchiveSort";
@@ -142,29 +143,38 @@ export function ArchiveToolbar({
     // this card, so clipping to the card's box would hide the popovers.
     <div className="mb-3 rounded-xl bg-bg-card">
       <div className="flex flex-wrap items-center gap-2 border-b border-bg-border px-4 py-2.5">
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          {breadcrumbs.map((crumb, i) => (
-            <span key={crumb.path} className="flex items-center gap-1">
-              {i > 0 && (
-                <ChevronRight size={14} className="text-text-muted" />
-              )}
-              <button
-                type="button"
-                onClick={() => handleBreadcrumbClick(crumb.path)}
-                className={`text-sm transition-colors ${
-                  i === breadcrumbs.length - 1
-                    ? "font-medium text-text-primary"
-                    : "text-text-muted hover:text-text-primary"
-                }`}
+        <div
+          data-testid="archive-trail"
+          className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden"
+        >
+          {breadcrumbs.map((crumb, i) => {
+            const isLast = i === breadcrumbs.length - 1;
+            return (
+              <span
+                key={crumb.path}
+                className={`flex items-center gap-1${isLast ? "" : ` ${TRAIL_ANCESTOR}`}`}
               >
-                {crumb.label}
-              </button>
-            </span>
-          ))}
+                {i > 0 && (
+                  <ChevronRight size={14} className="flex-shrink-0 text-text-muted" />
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleBreadcrumbClick(crumb.path)}
+                  className={`truncate text-sm transition-colors ${
+                    isLast
+                      ? "font-medium text-text-primary"
+                      : "text-text-muted hover:text-text-primary"
+                  }`}
+                >
+                  {crumb.label}
+                </button>
+              </span>
+            );
+          })}
         </div>
 
         {archive && (
-          <span className="flex items-center gap-2 text-xs text-text-muted">
+          <span className="flex flex-shrink-0 items-center gap-2 text-xs text-text-muted">
             <span>
               {t("fileCount", {
                 count: archive.total_entries,

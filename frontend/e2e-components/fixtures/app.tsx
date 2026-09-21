@@ -17,6 +17,9 @@ import { Button } from "@/components/Button";
 import { ChromeButtons } from "@/components/ChromeButtons";
 import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
+import { ArchiveToolbar } from "@/components/archive/ArchiveToolbar";
+import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
+import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
 import { ContextMenu } from "@/components/ContextMenu";
 import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
@@ -961,6 +964,67 @@ function OpenGhostArrangement(): ReactElement {
   );
 }
 
+/**
+ * A path deep enough that the trail cannot fit beside the controls at any
+ * width measured here.
+ */
+const DEEP_FOLDER = [
+  "Documents",
+  "Reference",
+  "2026-Q3-Reorganisation",
+  "Design-Review-Notes",
+  "Attachments",
+  "Screenshots",
+  "Archived",
+].join("/");
+const DEEP_LEAF = "2026-09-annual-report-final-revision.md";
+
+function FileDetailChromeArrangement(): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary">
+        <FileDetailChrome
+          drive="Household Archive"
+          folderPath={DEEP_FOLDER}
+          title={DEEP_LEAF}
+          inspector={{ open: false, onToggle: noop }}
+        >
+          <MediaLayoutToggle />
+        </FileDetailChrome>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+function ArchiveToolbarArrangement(): ReactElement {
+  const noop = () => {};
+  const crumbs = ["backup-2026-09.zip", ...DEEP_FOLDER.split("/")];
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary px-4">
+        <ArchiveToolbar
+          fileId="abcdef123456"
+          archive={{ entries: [], total_entries: 1284, total_size: 734003200 }}
+          breadcrumbs={crumbs.map((label, i) => ({
+            label,
+            path: crumbs.slice(1, i + 1).join("/"),
+          }))}
+          handleBreadcrumbClick={noop}
+          sort="name"
+          order="asc"
+          typeFilter={null}
+          viewMode="list"
+          onSortChange={noop}
+          onOrderChange={noop}
+          onTypeFilterChange={noop}
+          onViewModeChange={noop}
+        />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
 const PageFrameFull = (): ReactElement => <PageFrameArrangement width="full" />;
 const PageFrameWide = (): ReactElement => <PageFrameArrangement width="wide" />;
 const PageFrameList = (): ReactElement => <PageFrameArrangement width="list" />;
@@ -1023,6 +1087,8 @@ const PlayerHairline = (): ReactElement => <PlayerFrame visible={false} />;
 
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "chrome-buttons": ChromeButtonsArrangement,
+  "file-detail-chrome-deep": FileDetailChromeArrangement,
+  "archive-toolbar-deep": ArchiveToolbarArrangement,
   "page-frame-full": PageFrameFull,
   "page-frame-wide": PageFrameWide,
   "page-frame-list": PageFrameList,
