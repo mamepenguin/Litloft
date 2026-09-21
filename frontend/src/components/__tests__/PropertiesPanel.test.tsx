@@ -270,6 +270,7 @@ describe("PropertiesPanel", () => {
       mime_type: "text/markdown",
       filename: "note.md",
       drive: "media",
+      folder_path: "notes",
     };
 
     it("shows an Add button even when frontmatter has no tags", () => {
@@ -347,6 +348,7 @@ describe("PropertiesPanel", () => {
         mime_type: "text/markdown",
         filename: "note.md",
         drive: "media",
+        folder_path: "notes",
       };
       // Without hideTags this would inject an empty tags row so the
       // user has somewhere to add tags. With hideTags, the canvas

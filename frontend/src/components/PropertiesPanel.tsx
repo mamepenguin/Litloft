@@ -330,7 +330,10 @@ function toStringArray(value: unknown): string[] {
   return [];
 }
 
-type EditableRef = Pick<FileItem, "id" | "mime_type" | "filename" | "drive">;
+type EditableRef = Pick<
+  FileItem,
+  "id" | "mime_type" | "filename" | "drive" | "folder_path"
+>;
 
 function renderValue(
   entry: NormalisedEntry,

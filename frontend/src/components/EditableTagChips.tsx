@@ -12,18 +12,24 @@ import {
 import { getDriveTags } from "@/lib/api";
 import { useImeKeyGuard } from "@/lib/ime";
 import { extractValidTags, parseNote, withTags } from "@/lib/frontmatter";
+import { readRecentTags, recordRecentTag } from "@/lib/recentTags";
 import {
   createDebouncedTagSaver,
   TAG_SAVE_DEBOUNCE_MS,
 } from "@/lib/tags";
-import type { FileItem } from "@/types";
+import type { FileItem, Tag } from "@/types";
 
-type FileRef = Pick<FileItem, "id" | "mime_type" | "filename" | "drive">;
+type FileRef = Pick<
+  FileItem,
+  "id" | "mime_type" | "filename" | "drive" | "folder_path"
+>;
 
 // Mirror of core's TagUpdate.validate_tags.
 const TAG_RE = /^[\p{L}\p{N}_-]+$/u;
 const MAX_TAGS = 10;
 const MAX_TAG_LEN = 30;
+const CHIP_LIMIT = 8;
+const TYPED_SUGGESTION_LIMIT = 5;
 
 export interface EditableTagChipsProps {
   file: FileRef;
@@ -61,7 +67,17 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   const [tags, setTags] = useState<string[]>(seedTags);
   const [adding, setAdding] = useState(false);
   const [input, setInput] = useState("");
-  const [allTags, setAllTags] = useState<string[]>([]);
+  // Carries the scope it was fetched for. Comparing that at render time
+  // rather than clearing inside the effect is what keeps the previous
+  // folder's tags off the screen: the effect body runs after the commit
+  // that would already have painted them, and this component is not
+  // remounted when `file` changes.
+  const [tagPool, setTagPool] = useState<{
+    drive: string;
+    folderPath: string;
+    all: string[];
+    scoped: Tag[];
+  } | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [error, setError] = useState<string | null>(null);
   const ime = useImeKeyGuard();
@@ -118,18 +134,44 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   }, [file.id]);
 
   useEffect(() => {
+    // Fetched when the field opens, which is both the only moment the
+    // lists are read and the moment they must be current: the server is
+    // the only thing that knows which tags this folder carries after the
+    // last edit, so nothing here predicts it.
+    if (!adding) return;
+    const drive = file.drive;
+    const folderPath = file.folder_path;
     let cancelled = false;
-    getDriveTags(file.drive)
-      .then((list) => {
-        if (!cancelled) setAllTags(list.map((tag) => tag.name));
+    Promise.all([
+      getDriveTags(drive).catch(() => [] as Tag[]),
+      // A file at the drive root has no folder neighbourhood; scoping to
+      // the whole drive there would offer the very tags the folder scope
+      // exists to keep out.
+      folderPath
+        ? getDriveTags(drive, folderPath).catch(() => [] as Tag[])
+        : Promise.resolve([] as Tag[]),
+    ])
+      .then(([all, scopedTags]) => {
+        if (cancelled) return;
+        setTagPool({
+          drive,
+          folderPath,
+          all: all.map((tag) => tag.name),
+          scoped: scopedTags,
+        });
       })
+      // Trailing, so a response that is not the shape the types promise
+      // empties the pool instead of escaping as an unhandled rejection.
       .catch(() => {
-        if (!cancelled) setAllTags([]);
+        if (!cancelled) setTagPool({ drive, folderPath, all: [], scoped: [] });
       });
     return () => {
       cancelled = true;
     };
-  }, [file.drive]);
+    // Both halves of the key matter: two drives commonly share a folder
+    // path, so keying on the path alone would keep the previous drive's
+    // tags across a drive switch.
+  }, [adding, file.drive, file.folder_path]);
 
   // Debounced saver is only built in standalone mode — content mode
   // delegates saving to the parent (e.g. Knowledge editor's textarea
@@ -162,10 +204,11 @@ export function EditableTagChips(props: EditableTagChipsProps) {
       setTags(next);
       setError(null);
       onTagsChange?.(next);
-      setAllTags((prev) => {
-        const existing = new Set(prev.map((x) => x.toLowerCase()));
+      setTagPool((prev) => {
+        if (!prev) return prev;
+        const existing = new Set(prev.all.map((x) => x.toLowerCase()));
         const toAdd = next.filter((x) => !existing.has(x.toLowerCase()));
-        return toAdd.length === 0 ? prev : [...prev, ...toAdd];
+        return toAdd.length === 0 ? prev : { ...prev, all: [...prev.all, ...toAdd] };
       });
       if (contentMode) {
         const latest = contentRef.current ?? "";
@@ -182,14 +225,52 @@ export function EditableTagChips(props: EditableTagChipsProps) {
     [contentMode, onContentChange, onTagsChange, saver],
   );
 
+  const pool = useMemo(
+    () =>
+      tagPool &&
+      tagPool.drive === file.drive &&
+      tagPool.folderPath === file.folder_path
+        ? tagPool
+        : null,
+    [tagPool, file.drive, file.folder_path],
+  );
   const suggestions = useMemo(() => {
-    if (!input.trim()) return [] as string[];
-    const lower = input.trim().toLowerCase();
-    const existing = new Set(tags.map((t) => t.toLowerCase()));
-    return allTags
-      .filter((t) => t.toLowerCase().includes(lower) && !existing.has(t.toLowerCase()))
-      .slice(0, 5);
-  }, [input, allTags, tags]);
+    const allTags = pool?.all ?? [];
+    const scoped = pool?.scoped ?? [];
+    const onFile = new Set(tags.map((t) => t.toLowerCase()));
+    const typed = input.trim().toLowerCase();
+    if (typed) {
+      return allTags
+        .filter((t) => t.toLowerCase().includes(typed) && !onFile.has(t.toLowerCase()))
+        .slice(0, TYPED_SUGGESTION_LIMIT);
+    }
+    // A tag with no files is returned for every folder — the folder
+    // filter in `list_drive_tags` lets orphans through, and nothing
+    // clears them when their last file is hard-deleted.
+    const carried = scoped.filter((tag) => tag.count > 0);
+    // Offer the drive's own spelling, not the one this device happens to
+    // have stored: `replace_file_tags` renames the shared `Tag` row to
+    // whatever casing was written last, so a drifted recent entry would
+    // rename the tag for every file that carries it.
+    const canonical = new Map(
+      carried.map((tag) => [tag.name.toLowerCase(), tag.name] as const),
+    );
+    const recent = readRecentTags(file.drive)
+      .map((name) => canonical.get(name.toLowerCase()))
+      .filter(
+        (name): name is string =>
+          name !== undefined && !onFile.has(name.toLowerCase()),
+      );
+    const recentLower = new Set(recent.map((name) => name.toLowerCase()));
+    const byCount = [...carried]
+      .sort((a, b) => b.count - a.count)
+      .map((tag) => tag.name)
+      .filter((name) => {
+        const lower = name.toLowerCase();
+        return !recentLower.has(lower) && !onFile.has(lower);
+      });
+    return [...recent, ...byCount].slice(0, CHIP_LIMIT);
+  }, [input, pool, tags, file.drive]);
 
   const { openUp, side } = useAnchoredDirection({
     triggerRef: fieldRef,
@@ -202,6 +283,7 @@ export function EditableTagChips(props: EditableTagChipsProps) {
   const closeInput = useCallback(() => {
     setAdding(false);
     setInput("");
+    setSelectedIndex(-1);
     setError(null);
   }, []);
 
@@ -226,9 +308,11 @@ export function EditableTagChips(props: EditableTagChipsProps) {
         return;
       }
       commit([...tags, trimmed]);
+      // After the commit: a refused write must not cost the tag add.
+      recordRecentTag(file.drive, trimmed);
       closeInput();
     },
-    [closeInput, commit, tags, t],
+    [closeInput, commit, file.drive, tags, t],
   );
 
   const removeTag = useCallback(
@@ -263,6 +347,41 @@ export function EditableTagChips(props: EditableTagChipsProps) {
     [closeInput, ime, input, removeTag, selectedIndex, submitTag, suggestions, tags],
   );
 
+  const typing = input.trim().length > 0;
+  const suggestionList = (
+    <div
+      ref={listRef}
+      role="listbox"
+      aria-label={typing ? t("placeholder") : t("frequentTags")}
+      // Above the sticky tab strip, which is `z-10` and later
+      // in the document: at an equal tier the strip wins the
+      // paint order and covers the top of this list, and taps
+      // that look like they land on a suggestion reach the strip
+      // instead.
+      className={`absolute z-30 w-40 rounded-lg bg-bg-card py-1 shadow-lg ${
+        ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
+      } ${side === "left" ? "left-0" : "right-0"}`}
+    >
+      {suggestions.map((s, i) => (
+        <button
+          key={s}
+          type="button"
+          role="option"
+          aria-selected={i === selectedIndex}
+          onMouseDown={(e) => e.preventDefault()}
+          onPointerUp={() => submitTag(s)}
+          className={`block w-full px-3 py-1.5 text-left text-xs ${
+            i === selectedIndex
+              ? "bg-accent text-white"
+              : "text-text-muted hover:bg-bg-elevated"
+          }`}
+        >
+          {s}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1.5">
@@ -289,7 +408,10 @@ export function EditableTagChips(props: EditableTagChipsProps) {
               autoFocus
               type="text"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                setSelectedIndex(-1);
+              }}
               onKeyDown={handleKeyDown}
               onCompositionEnd={ime.onCompositionEnd}
               onBlur={() => {
@@ -301,44 +423,22 @@ export function EditableTagChips(props: EditableTagChipsProps) {
               placeholder={t("placeholder")}
               className="w-32 rounded-full bg-bg-card px-2 py-0.5 text-xs text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-accent"
             />
-            {suggestions.length > 0 && (
-              <DismissScrim
-                onDismiss={closeInput}
-                className="fixed inset-0 z-30"
-              >
-                <div
-                  ref={listRef}
-                  role="listbox"
-                  aria-label={t("placeholder")}
-                  // Above the sticky tab strip, which is `z-10` and later
-                  // in the document: at an equal tier the strip wins the
-                  // paint order and covers the top of this list, and taps
-                  // that look like they land on a suggestion reach the strip
-                  // instead.
-                  className={`absolute z-30 w-40 rounded-lg bg-bg-card py-1 shadow-lg ${
-                    ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
-                  } ${side === "left" ? "left-0" : "right-0"}`}
+            {suggestions.length > 0 &&
+              // The scrim swallows the click its own dismissing press
+              // produces, so it arms only once the user has typed —
+              // its behaviour before chips existed. While chips are
+              // showing, `onBlur` closes the input and the click lands
+              // where it was aimed.
+              (typing ? (
+                <DismissScrim
+                  onDismiss={closeInput}
+                  className="fixed inset-0 z-30"
                 >
-                  {suggestions.map((s, i) => (
-                    <button
-                      key={s}
-                      type="button"
-                      role="option"
-                      aria-selected={i === selectedIndex}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onPointerUp={() => submitTag(s)}
-                      className={`block w-full px-3 py-1.5 text-left text-xs ${
-                        i === selectedIndex
-                          ? "bg-accent text-white"
-                          : "text-text-muted hover:bg-bg-elevated"
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </DismissScrim>
-            )}
+                  {suggestionList}
+                </DismissScrim>
+              ) : (
+                suggestionList
+              ))}
           </div>
         ) : (
           <button

@@ -168,6 +168,7 @@ export function FilePreview({
           mime_type: file.mime_type,
           filename: file.filename,
           drive: file.drive,
+          folder_path: file.folder_path,
         }}
         externalReloadKey={markdownReloadKey}
         onTagsSaved={onMarkdownTagsSaved}

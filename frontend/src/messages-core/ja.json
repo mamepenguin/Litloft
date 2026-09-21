@@ -302,6 +302,7 @@
   "tag": {
     "add": "タグ追加",
     "placeholder": "タグ名...",
+    "frequentTags": "よく使うタグ",
     "maxLength": "タグは30文字以内にしてください",
     "invalidChars": "使用できない文字が含まれています",
     "maxCount": "タグは最大10個までです",

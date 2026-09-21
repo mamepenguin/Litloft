@@ -118,6 +118,7 @@ const FORMS = [
             mime_type: "video/mp4",
             filename: "clip.mp4",
             drive: "media",
+            folder_path: "clips",
           }}
           initialTags={[]}
         />,
