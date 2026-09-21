@@ -12,9 +12,12 @@ Declared before the first review. Revised only by the supervisor or the user.
    what is reachable.
 4. The archive toolbar's entry count and its download control keep their
    full width and stay hittable however deep the path inside the zip is.
-5. The file-detail chrome draws exactly one of its two forms at any width:
-   the back control below `md`, the trail at `md` and above — never both,
-   never neither.
+5. The file-detail chrome draws a way out at every width: the back control
+   below `md`, the trail at `md` and above. Where the host supplies its own
+   `onBack` — a file opened during collection playback — it draws both, and
+   the back control is then the only thing that can return to the
+   collection. (Round 2 finding 4: this item used to say "never both",
+   which is false and would lead a reader to delete that control.)
 6. A drag over a trail segment still shows that segment's drop ring and
    still drops onto that segment's path.
 7. `Breadcrumb` with `driveIsAncestor` draws the drive as a link, not as the

@@ -20,6 +20,24 @@ At the bottom are the rows about the drive rather than about what is in it: **Tr
 
 At most one row is highlighted at a time — none, on a URL that is no row's subject. Standing in a folder highlights **Library** — including in a folder reached from the tree — except where a row of yours names that exact place: a pinned folder highlights its **Pin**, and a tag you have applied highlights that **tag**. Search results, a collection and an addon page highlight their own entry, or none, and never Library.
 
+## The breadcrumb trail
+
+The row above a listing says where you are: the home icon, the drive, the
+folders you came through, and the folder you are in, each of them a link back
+to that place.
+
+- **A deep path folds.** Beyond a few levels the trail keeps the drive, the
+  folder above you and the folder you are in, and replaces what is between
+  them with a **…** — a link to the deepest folder it hid, from where the
+  trail is short enough to draw whole. Hovering it names what is behind it.
+- **When the row is still too narrow, the ancestors give way first.** The
+  folder you are in keeps its name for as long as there is room, because that
+  is the one the screen is about; the names before it shorten to an ellipsis,
+  and they stay wide enough to press.
+- The same trail appears inside a zip in the archive viewer, and at the top of
+  a file's page above the tablet breakpoint. On a narrower screen a file's
+  page shows a back link to its folder instead.
+
 ## Folder grid
 
 - Folders show a file count and what that count is made of: *138 items · Video 135 · Document 3*. Both the count and the breakdown are **recursive** — they cover every active file in the folder *and* its subfolders. When everything in a folder is one kind, that kind is named without repeating the number: *12 items · Document*. At most the two largest kinds are named; the rest is the difference from the total.

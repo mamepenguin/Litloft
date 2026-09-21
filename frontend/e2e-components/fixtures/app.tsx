@@ -983,7 +983,15 @@ const DEEP_FOLDER = [
   "Screenshots",
   "Archived-2026-Originals-And-Masters",
 ].join("/");
-const DEEP_LEAF = "2026-09-annual-report-final-revision.md";
+/**
+ * Longer than the row at every width measured. The trailing segment is the
+ * only one drawn as a bare child of the trail, so it is also the only one
+ * whose narrowing rests on `truncate` alone — a name short enough to fit
+ * asks nothing of it, and a name that cannot narrow wraps rather than
+ * overflowing, which grows the row instead of leaving its box.
+ */
+const DEEP_LEAF =
+  "2026-09-annual-report-final-revision-board-approved-copy-for-distribution.md";
 
 /**
  * A note's row on a phone: the trail is hidden, and the back control, the
@@ -1007,6 +1015,25 @@ function FolderListingHeaderArrangement(): ReactElement {
               <Breadcrumb driveName="Household Archive" folderPath={DEEP_FOLDER} />
             }
             scope="1,284 items"
+          />
+        }
+      />
+    </NextIntlClientProvider>
+  );
+}
+
+/** Shallow enough that there is nothing worth folding. */
+function FolderListingHeaderShallowArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <PageFrame
+        width="full"
+        header={
+          <PageHeader
+            breadcrumb={
+              <Breadcrumb driveName="Household Archive" folderPath="Documents/Reference" />
+            }
+            scope="12 items"
           />
         }
       />
@@ -1046,6 +1073,50 @@ function FileDetailChromeNoteArrangement(): ReactElement {
         >
           <SaveDot state={{ status: "idle" }} />
           <MarkdownViewModeToggle mode="preview" onChange={noop} hideSplit />
+        </FileDetailChrome>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+/** A plain file on a phone: a back control, and no name of its own. */
+function FileDetailChromePlainPhoneArrangement(): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary">
+        <FileDetailChrome
+          drive="Household Archive"
+          folderPath={NOTE_FOLDER}
+          title={DEEP_LEAF}
+          inspector={{ open: false, onToggle: noop }}
+        >
+          <MediaLayoutToggle />
+        </FileDetailChrome>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+/**
+ * Playing a collection: the host supplies `onBack`, so the row draws the
+ * back control *and* the trail above `md` — the one form where both are on
+ * screen at once.
+ */
+function FileDetailChromeCollectionArrangement(): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="w-full bg-bg-primary">
+        <FileDetailChrome
+          drive="Household Archive"
+          folderPath={DEEP_FOLDER}
+          title={DEEP_LEAF}
+          titleNode={<EditableTitle title={DEEP_LEAF} onRename={async () => {}} />}
+          onBack={noop}
+          inspector={{ open: false, onToggle: noop }}
+        >
+          <MediaLayoutToggle />
         </FileDetailChrome>
       </div>
     </NextIntlClientProvider>
@@ -1143,8 +1214,11 @@ const PlayerHairline = (): ReactElement => <PlayerFrame visible={false} />;
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,
+  "folder-listing-header-shallow": FolderListingHeaderShallowArrangement,
   "file-detail-chrome-deep": FileDetailChromeArrangement,
   "file-detail-chrome-note": FileDetailChromeNoteArrangement,
+  "file-detail-chrome-plain-phone": FileDetailChromePlainPhoneArrangement,
+  "file-detail-chrome-collection": FileDetailChromeCollectionArrangement,
   "archive-toolbar-deep": ArchiveToolbarArrangement,
   "page-frame-full": PageFrameFull,
   "page-frame-wide": PageFrameWide,

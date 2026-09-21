@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronRight, Home } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useFolderLink } from "@/hooks/useFolderLink";
+import { foldTrail } from "@/lib/trail";
 
 /**
  * Every segment of a trail must be able to narrow. A segment's own minimum
@@ -12,13 +13,17 @@ import { useFolderLink } from "@/hooks/useFolderLink";
 export const TRAIL_SEGMENT = "min-w-0";
 
 /**
- * The ancestors narrow first. A trail names its screen's subject with its
- * last segment, so a shrink factor this large spends the deficit on the rest
- * almost entirely before that segment gives any of its own. Both are
- * exported because the archive's trail is built from buttons and cannot use
- * this component.
+ * The ancestors narrow first — a shrink factor this large spends the row's
+ * deficit on them almost entirely before the last segment, which names where
+ * the reader is, gives any of its own.
+ *
+ * They stop at a floor rather than at zero: a link narrowed to nothing has no
+ * hit area, and narrowing is meant to cost legibility, not reach. The floor
+ * holds the chevron, the padding and a few characters. Both are exported
+ * because the archive's trail is built from buttons and cannot use this
+ * component.
  */
-export const TRAIL_ANCESTOR = `${TRAIL_SEGMENT} shrink-[999]`;
+export const TRAIL_ANCESTOR = "min-w-12 shrink-[999]";
 
 interface BreadcrumbProps {
   driveName: string;
@@ -37,6 +42,13 @@ interface BreadcrumbProps {
   driveIsAncestor?: boolean;
 }
 
+interface TrailItem {
+  /** Drive-relative, and the drop target's path. The drive's own is "". */
+  path: string;
+  label: string;
+  href: string;
+}
+
 export function Breadcrumb({
   driveName,
   folderPath,
@@ -48,63 +60,80 @@ export function Breadcrumb({
   const t = useTranslations("toolbar");
   const folderLink = useFolderLink();
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
-  const driveIsLeaf = segments.length === 0 && !trailingSegment && !driveIsAncestor;
+  const driveHref = `/drive/${encodeURIComponent(driveName)}`;
+
+  const items: TrailItem[] = [
+    { path: "", label: driveName, href: driveHref },
+    ...segments.map((segment, i) => ({
+      path: segments.slice(0, i + 1).join("/"),
+      label: segment,
+      href: `${driveHref}/${segments
+        .slice(0, i + 1)
+        .map(encodeURIComponent)
+        .join("/")}`,
+    })),
+  ];
+
+  // Where the caller draws its own leaf, or names the location in a heading,
+  // every item here is an ancestor.
+  const leafIndex = trailingSegment || driveIsAncestor ? -1 : items.length - 1;
+  const { before, folded, after } = foldTrail(items, trailingSegment ? 1 : 2);
+  // The marker stands where the folded items were, so it leads to the
+  // deepest of them: from there the trail is short enough to draw whole.
+  const behindMarker = folded[folded.length - 1];
+
+  const segment = (entry: TrailItem, index: number) => {
+    const isLeaf = index === leafIndex;
+    return (
+      <span
+        key={entry.path}
+        className={`flex items-center gap-1 ${isLeaf ? TRAIL_SEGMENT : TRAIL_ANCESTOR}`}
+      >
+        <ChevronRight size={14} className="flex-shrink-0" />
+        {isLeaf ? (
+          <span className="truncate font-medium text-text-primary">{entry.label}</span>
+        ) : (
+          <Link
+            href={entry.href}
+            className={`truncate rounded-lg px-1 transition-colors hover:text-text-primary${
+              isDropTarget?.(entry.path) ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
+            }`}
+            {...folderLink(entry.href)}
+            {...getDropTargetProps?.(entry.path)}
+          >
+            {entry.label}
+          </Link>
+        )}
+      </span>
+    );
+  };
 
   return (
-    <nav className="flex min-w-0 flex-1 items-center gap-1 text-sm text-text-muted overflow-x-auto">
-      <Link
-        href="/"
-        className="flex-shrink-0 hover:text-text-primary"
-        aria-label={t("home")}
-      >
+    <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-sm text-text-muted">
+      <Link href="/" className="flex-shrink-0 hover:text-text-primary" aria-label={t("home")}>
         <Home size={16} />
       </Link>
 
-      <ChevronRight size={14} className="flex-shrink-0" />
-      {driveIsLeaf ? (
-        <span className="font-medium text-text-primary truncate">{driveName}</span>
-      ) : (
-        <Link
-          href={`/drive/${encodeURIComponent(driveName)}`}
-          className={`${TRAIL_ANCESTOR} hover:text-text-primary truncate rounded-lg px-1 transition-colors${
-            isDropTarget?.("") ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
-          }`}
-          {...folderLink(`/drive/${encodeURIComponent(driveName)}`)}
-          {...getDropTargetProps?.("")}
-        >
-          {driveName}
-        </Link>
+      {before.map(segment)}
+
+      {behindMarker && (
+        <span className="flex flex-shrink-0 items-center gap-1">
+          <ChevronRight size={14} className="flex-shrink-0" />
+          {/* No drop target: where a drop onto the marker would land is not
+              something the row lets the reader predict. */}
+          <Link
+            href={behindMarker.href}
+            aria-label={behindMarker.label}
+            title={folded.map((f) => f.label).join(" / ")}
+            className="flex-shrink-0 rounded-lg px-1 transition-colors hover:text-text-primary"
+            {...folderLink(behindMarker.href)}
+          >
+            …
+          </Link>
+        </span>
       )}
 
-      {segments.map((segment, i) => {
-        const path = segments.slice(0, i + 1).join("/");
-        const encodedPath = segments.slice(0, i + 1).map(encodeURIComponent).join("/");
-        const isLast = i === segments.length - 1 && !trailingSegment;
-        return (
-          <span
-            key={path}
-            className={`flex items-center gap-1 ${
-              isLast ? TRAIL_SEGMENT : TRAIL_ANCESTOR
-            }`}
-          >
-            <ChevronRight size={14} className="flex-shrink-0" />
-            {isLast ? (
-              <span className="font-medium text-text-primary truncate">{segment}</span>
-            ) : (
-              <Link
-                href={`/drive/${encodeURIComponent(driveName)}/${encodedPath}`}
-                className={`hover:text-text-primary truncate rounded-lg px-1 transition-colors${
-                  isDropTarget?.(path) ? " ring-2 ring-accent bg-accent/10 text-accent" : ""
-                }`}
-                {...folderLink(`/drive/${encodeURIComponent(driveName)}/${encodedPath}`)}
-                {...getDropTargetProps?.(path)}
-              >
-                {segment}
-              </Link>
-            )}
-          </span>
-        );
-      })}
+      {after.map((entry, i) => segment(entry, before.length + folded.length + i))}
 
       {trailingSegment && (
         <>
@@ -114,7 +143,7 @@ export function Breadcrumb({
             // too long for the row; without it a truncated filename cannot
             // be read at all.
             <span
-              className="font-medium text-text-primary truncate"
+              className="truncate font-medium text-text-primary"
               title={trailingSegment}
             >
               {trailingSegment}
