@@ -91,12 +91,18 @@ jobs:
           --coverage.thresholds.lines=0
         working-directory: frontend
 
+      # `include-hidden-files` because the directory starts with a dot, which
+      # upload-artifact@v4 excludes by default, and `if-no-files-found: error`
+      # because without it the step warns and goes green on nothing — leaving
+      # the merge job to fail on an absent directory instead.
       - name: Keep this shard's blob report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: vitest-blob-${{ matrix.shard }}
           path: frontend/.vitest-reports/
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 1
 
   # Coverage is the reason this is a job and not a step: a shard covers only
@@ -136,6 +142,20 @@ jobs:
           pattern: vitest-blob-*
           merge-multiple: true
           path: frontend/.vitest-reports
+
+      # Counted before merging: `--merge-reports` on an absent or short
+      # directory reports a directory error, not "a shard is missing".
+      - name: Check every shard reported
+        shell: bash
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          n=$(ls .vitest-reports/*.json 2>/dev/null | wc -l)
+          if [ "$n" -ne 4 ]; then
+            echo "::error::expected 4 blob reports, found $n"
+            ls -la .vitest-reports/ 2>&1 || true
+            exit 1
+          fi
 
       - name: Merge the shards and apply the floor
         run: pnpm exec vitest --merge-reports --coverage
