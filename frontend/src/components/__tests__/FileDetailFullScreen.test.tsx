@@ -332,8 +332,11 @@ describe("FileDetailFullScreen, where it goes when there is no history", () => {
   const propsFor = async (folderPath: string) => {
     mockGetFile.mockResolvedValue({ ...baseFile, folder_path: folderPath });
     render(<FileDetailFullScreen fileId="abc" />);
+    // The content mounts before the fetch lands, and both handlers return
+    // early while the file is still null, so its presence is not the arrival
+    // of the file they close over.
     await waitFor(() =>
-      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
+      expect(fileDetailContentProps.at(-1)?.drive).toBe(baseFile.drive),
     );
     return fileDetailContentProps[fileDetailContentProps.length - 1];
   };
