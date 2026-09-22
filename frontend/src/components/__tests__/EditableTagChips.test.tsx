@@ -379,8 +379,6 @@ describe("EditableTagChips", () => {
 
     it("NEVER triggers a network save in content mode", async () => {
       const onContentChange = vi.fn();
-      const fetchSpy = vi.fn();
-      vi.stubGlobal("fetch", fetchSpy);
 
       render(
         <EditableTagChips
@@ -393,19 +391,10 @@ describe("EditableTagChips", () => {
       typeAndEnter("b");
       await waitFor(() => expect(onContentChange).toHaveBeenCalled());
 
-      // getDriveTags is mocked at module level so never hits fetch.
-      // The only possible fetch would be from a debounced save path
-      // (stream + content PUT) — content mode must not do any of
-      // those.
-      const saveCalls = fetchSpy.mock.calls.filter(([url, init]) => {
-        if (typeof url !== "string") return false;
-        const method =
-          typeof init === "object" && (init as RequestInit | undefined)?.method;
-        return method === "PUT";
-      });
-      expect(saveCalls).toHaveLength(0);
-
-      vi.unstubAllGlobals();
+      // `updateFileTags`, not `fetch`: `@/lib/api` is mocked at module
+      // level, so the save never reaches the network for the spy to see.
+      await new Promise((r) => setTimeout(r, 700));
+      expect(updateFileTags).not.toHaveBeenCalled();
     });
 
   });
