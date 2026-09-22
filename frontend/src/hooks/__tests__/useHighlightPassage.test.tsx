@@ -183,6 +183,38 @@ describe("useHighlightPassage", () => {
     expect(marks).toHaveLength(3);
     expect(marks.every((m) => m.textContent !== "")).toBe(true);
     expect(marks.map((m) => m.textContent).join("")).toBe("const answer = 42");
+    expect(marks.map((m) => (m as HTMLElement).dataset.citationSeam)).toEqual([
+      "start",
+      "mid",
+      "end",
+    ]);
+  });
+
+  it("gives a single-node match no seam role to style against", () => {
+    const { container } = render(
+      <HarnessFixture
+        html="<p>The quick brown fox jumps.</p>"
+        quote="brown fox"
+      />,
+    );
+    const marks = Array.from(
+      container.querySelectorAll<HTMLElement>("mark.ask-citation-highlight"),
+    );
+    expect(marks).toHaveLength(1);
+    expect(marks[0].dataset.citationSeam).toBeUndefined();
+  });
+
+  it("gives a two-node match the two outer roles and no interior", () => {
+    const { container } = render(
+      <HarnessFixture
+        html='<pre><span class="tok">const </span><span class="tok">answer</span></pre>'
+        quote="const answer"
+      />,
+    );
+    const marks = Array.from(
+      container.querySelectorAll<HTMLElement>("mark.ask-citation-highlight"),
+    );
+    expect(marks.map((m) => m.dataset.citationSeam)).toEqual(["start", "end"]);
   });
 
   it("emits no empty <mark> when the match begins exactly at a node boundary", () => {

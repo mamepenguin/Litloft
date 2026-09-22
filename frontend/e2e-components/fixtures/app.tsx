@@ -941,9 +941,32 @@ function FolderPushArrangement(): ReactElement {
 
 
 /**
- * A pressed card and the copy of it that swells and fades. The real helper,
- * so what is measured is the element it makes and when it takes it away.
+ * The same citation in a rendered note, split across elements and whole.
+ * `.markdown-body mark` supplies the padding there, and the `pre` rule that
+ * zeroes it does not reach — so this is where the seam declarations decide
+ * what a reader sees.
  */
+function CitationSeamsProse(): ReactElement {
+  const split = useRef<HTMLParagraphElement>(null);
+  const whole = useRef<HTMLParagraphElement>(null);
+  useHighlightPassage(split, "alpha beta gamma", true);
+  useHighlightPassage(whole, "alpha beta gamma", true);
+  return (
+    <div className="markdown-body bg-bg-primary p-8 text-base">
+      <p ref={split} id="split">
+        <span>alpha </span>
+        <span>beta</span>
+        {" gamma"}
+        <span id="split-tail"> tail</span>
+      </p>
+      <p ref={whole} id="whole">
+        {"alpha beta gamma"}
+        <span id="whole-tail"> tail</span>
+      </p>
+    </div>
+  );
+}
+
 /**
  * A citation that crosses syntax-highlighting tokens, beside the same line
  * with nothing marked. Both are needed: the question is whether marking a
@@ -973,6 +996,10 @@ function CitationSeams(): ReactElement {
   );
 }
 
+/**
+ * A pressed card and the copy of it that swells and fades. The real helper,
+ * so what is measured is the element it makes and when it takes it away.
+ */
 function OpenGhostArrangement(): ReactElement {
   return (
     <div className="flex h-screen flex-col bg-bg-primary">
@@ -1317,6 +1344,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "folder-push": FolderPushArrangement,
   "open-ghost": OpenGhostArrangement,
   "citation-seams": CitationSeams,
+  "citation-seams-prose": CitationSeamsProse,
 };
 
 function App(): ReactElement {
