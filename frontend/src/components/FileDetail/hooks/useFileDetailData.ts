@@ -54,8 +54,8 @@ export function useFileDetailData(fileId: string): FileDetailData {
   const [failed, setFailed] = useState(false);
   /**
    * Held apart from ``file`` on purpose: the mutation endpoints answer with
-   * the plain ``FileResponse`` and every one does ``setFile(updated)``, so
-   * keeping the flag on the file object would make chapters disappear.
+   * the plain ``FileResponse``, so keeping the flag on the file object would
+   * make chapters disappear.
    */
   const [chaptersPresent, setChaptersPresent] = useState(false);
   const [chaptersVersion, setChaptersVersion] = useState(0);
