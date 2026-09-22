@@ -27,6 +27,7 @@ import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
 import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import enMessages from "@/messages-core/en.json";
 import jaMessages from "@/messages-core/ja.json";
 import { QuickNotePresenter } from "@/components/quick-note/QuickNotePresenter";
@@ -943,6 +944,35 @@ function FolderPushArrangement(): ReactElement {
  * A pressed card and the copy of it that swells and fades. The real helper,
  * so what is measured is the element it makes and when it takes it away.
  */
+/**
+ * A citation that crosses syntax-highlighting tokens, beside the same line
+ * with nothing marked. Both are needed: the question is whether marking a
+ * run moves the characters after it.
+ */
+function CitationSeams(): ReactElement {
+  const marked = useRef<HTMLPreElement>(null);
+  useHighlightPassage(marked, "const answer = 42", true);
+  const line = (tailId: string) => (
+    <>
+      <span className="hljs-keyword">const</span>
+      {" answer = "}
+      <span className="hljs-number">42</span>
+      {"; // "}
+      <span id={tailId}>tail</span>
+    </>
+  );
+  return (
+    <div className="bg-bg-primary p-8 font-mono text-base">
+      <pre ref={marked} id="marked" className="whitespace-pre-wrap">
+        {line("marked-tail")}
+      </pre>
+      <pre id="plain" className="whitespace-pre-wrap">
+        {line("plain-tail")}
+      </pre>
+    </div>
+  );
+}
+
 function OpenGhostArrangement(): ReactElement {
   return (
     <div className="flex h-screen flex-col bg-bg-primary">
@@ -1286,6 +1316,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "player-hairline": PlayerHairline,
   "folder-push": FolderPushArrangement,
   "open-ghost": OpenGhostArrangement,
+  "citation-seams": CitationSeams,
 };
 
 function App(): ReactElement {

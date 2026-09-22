@@ -53,6 +53,13 @@ if (typeof window !== "undefined") {
   }
 }
 
+// jsdom leaves `scrollIntoView` off the prototype entirely, so any code path
+// that scrolls an element into view throws. Patching it per test file leaks
+// across the worker; restoring it afterwards leaves the hole open again.
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function scrollIntoView() {};
+}
+
 // @testing-library/dom's waitFor() detects fake timers via `typeof jest`;
 // without the alias it polls with a faked setInterval and hangs under
 // vi.useFakeTimers().

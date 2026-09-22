@@ -165,7 +165,7 @@ function markRange(range: Range): HTMLElement[] {
 
   // Splitting mutates the nodes, so the offsets are resolved first and
   // each node is split from its tail inwards.
-  return segments.map(({ node, start, end }) => {
+  const marks = segments.map(({ node, start, end }) => {
     if (end < node.length) node.splitText(end);
     const target = start > 0 ? node.splitText(start) : node;
     const mark = document.createElement("mark");
@@ -174,6 +174,17 @@ function markRange(range: Range): HTMLElement[] {
     mark.appendChild(target);
     return mark;
   });
+
+  // One passage is drawn as one shape: the stylesheet's padding, corners
+  // and ring belong on the outer edges of the run, not at every internal
+  // boundary.
+  if (marks.length > 1) {
+    marks.forEach((mark, i) => {
+      mark.dataset.citationSeam =
+        i === 0 ? "start" : i === marks.length - 1 ? "end" : "mid";
+    });
+  }
+  return marks;
 }
 
 function collectSegments(range: Range): Segment[] {

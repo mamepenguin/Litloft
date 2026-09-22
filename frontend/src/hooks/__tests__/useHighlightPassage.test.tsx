@@ -1,12 +1,22 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { afterEach, describe, it, expect, beforeEach, vi } from "vitest";
 import { render } from "@testing-library/react";
 import { useRef } from "react";
 import { useHighlightPassage } from "../useHighlightPassage";
 
-// jsdom does not implement scrollIntoView; stub it so the hook's
-// successful path runs to completion without throwing.
+// jsdom has no frame loop the tests can wait on, so the stub runs the
+// callback inline and the scroll assertions see it within the test body.
+let scrollSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
-  Element.prototype.scrollIntoView = vi.fn();
+  scrollSpy = vi.spyOn(Element.prototype, "scrollIntoView");
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+    cb(0);
+    return 0;
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 function HarnessFixture({
@@ -21,6 +31,18 @@ function HarnessFixture({
   const ref = useRef<HTMLDivElement>(null);
   useHighlightPassage(ref, quote, ready);
   return <div ref={ref} dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+/**
+ * React re-applies `dangerouslySetInnerHTML` on every update, so the
+ * harness above rebuilds its container and can never reach the hook's
+ * already-marked guard. `TextPreview` renders plain children, which React
+ * leaves alone — that is the shape the guard exists for.
+ */
+function PlainFixture({ text, quote }: { text: string; quote: string }) {
+  const ref = useRef<HTMLPreElement>(null);
+  useHighlightPassage(ref, quote, true);
+  return <pre ref={ref}>{text}</pre>;
 }
 
 describe("useHighlightPassage", () => {
@@ -158,8 +180,43 @@ describe("useHighlightPassage", () => {
     const marks = Array.from(
       container.querySelectorAll("mark.ask-citation-highlight"),
     );
-    expect(marks.length).toBeGreaterThan(1);
+    expect(marks).toHaveLength(3);
+    expect(marks.every((m) => m.textContent !== "")).toBe(true);
     expect(marks.map((m) => m.textContent).join("")).toBe("const answer = 42");
+  });
+
+  it("emits no empty <mark> when the match begins exactly at a node boundary", () => {
+    // The offset the match resolves to is the end of the preceding node,
+    // so a segment for that node would be zero-length.
+    const { container } = render(
+      <HarnessFixture
+        html='<pre><span class="tok">lead </span><span class="tok">alpha</span></pre>'
+        quote="alpha"
+      />,
+    );
+    const marks = Array.from(
+      container.querySelectorAll("mark.ask-citation-highlight"),
+    );
+    expect(marks).toHaveLength(1);
+    expect(marks.every((m) => m.textContent !== "")).toBe(true);
+    expect(container.textContent).toBe("lead alpha");
+  });
+
+  it("marks nothing before the start of a quote that begins mid-container", () => {
+    const { container } = render(
+      <HarnessFixture
+        html={
+          '<pre><span class="tok">lead</span> <span class="tok">alpha</span>' +
+          ' <span class="tok">beta</span> tail</pre>'
+        }
+        quote="alpha beta"
+      />,
+    );
+    const marks = Array.from(
+      container.querySelectorAll("mark.ask-citation-highlight"),
+    );
+    expect(marks.map((m) => m.textContent).join("")).toBe("alpha beta");
+    expect(container.textContent).toBe("lead alpha beta tail");
   });
 
   it("marks every text node a quote crosses when it spans block elements", () => {
@@ -172,7 +229,8 @@ describe("useHighlightPassage", () => {
     const marks = Array.from(
       container.querySelectorAll("mark.ask-citation-highlight"),
     );
-    expect(marks.length).toBeGreaterThan(1);
+    expect(marks).toHaveLength(3);
+    expect(marks.every((m) => m.textContent !== "")).toBe(true);
     expect(marks.map((m) => m.textContent).join("")).toBe(
       "first half\nand the second",
     );
@@ -204,23 +262,50 @@ describe("useHighlightPassage", () => {
     ).toHaveLength(1);
   });
 
-  it("does not re-mark an already-marked container on re-render", () => {
+  it("does not nest a second <mark> when a plain-children container re-renders", () => {
     const { container, rerender } = render(
-      <HarnessFixture
-        html='<pre><span class="tok">const </span><span class="tok">answer</span></pre>'
-        quote="const answer"
-      />,
-    );
-    const first = container.querySelectorAll("mark.ask-citation-highlight")
-      .length;
-    rerender(
-      <HarnessFixture
-        html='<pre><span class="tok">const </span><span class="tok">answer</span></pre>'
-        quote="const answer"
-      />,
+      <PlainFixture text="The quick brown fox jumps." quote="brown fox" />,
     );
     expect(
       container.querySelectorAll("mark.ask-citation-highlight"),
-    ).toHaveLength(first);
+    ).toHaveLength(1);
+    rerender(<PlainFixture text="The quick brown fox jumps." quote="brown fox" />);
+    expect(
+      container.querySelectorAll("mark.ask-citation-highlight"),
+    ).toHaveLength(1);
+    expect(container.textContent).toBe("The quick brown fox jumps.");
+  });
+
+  it("scrolls to the first mark of a multi-node match", () => {
+    const { container } = render(
+      <HarnessFixture
+        html={
+          '<pre><span class="tok">const </span>' +
+          '<span class="tok">answer</span> = 42;</pre>'
+        }
+        quote="const answer = 42"
+      />,
+    );
+    const marks = container.querySelectorAll("mark.ask-citation-highlight");
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+    expect(scrollSpy.mock.instances[0]).toBe(marks[0]);
+  });
+
+  it("scrolls once however many times the same quote re-renders", () => {
+    // React re-applies `dangerouslySetInnerHTML` on every update, wiping the
+    // marks, so the hook marks again on each render. Only `scrolledRef`
+    // stops the user being yanked back each time.
+    // A fresh element each time: React bails out of re-rendering a
+    // referentially identical one, and then the effect never re-runs.
+    const fixture = () => (
+      <HarnessFixture
+        html="<p>The quick brown fox jumps.</p>"
+        quote="brown fox"
+      />
+    );
+    const view = render(fixture());
+    view.rerender(fixture());
+    view.rerender(fixture());
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
   });
 });

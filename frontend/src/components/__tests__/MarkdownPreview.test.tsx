@@ -135,7 +135,6 @@ describe("MarkdownPreview", () => {
   });
 
   it("marks a highlighted quote that crosses syntax-highlighting tokens", () => {
-    Element.prototype.scrollIntoView = vi.fn();
     const { container } = renderWithIntl(
       <MarkdownPreview
         source={"```js\nconst answer = 42;\n```"}
@@ -145,7 +144,8 @@ describe("MarkdownPreview", () => {
     const marks = Array.from(
       container.querySelectorAll("mark.ask-citation-highlight"),
     );
-    expect(marks.length).toBeGreaterThan(1);
+    expect(marks).toHaveLength(3);
+    expect(marks.every((m) => m.textContent !== "")).toBe(true);
     expect(marks.map((m) => m.textContent).join("")).toBe("const answer = 42");
   });
 
