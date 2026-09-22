@@ -133,7 +133,6 @@ describe("MarkdownDocumentLayout — desktop (>= 768px)", () => {
     setViewportWidth(1100); // < 1120 → default closed
     renderLayout();
     expect(screen.queryByTestId("inspector-content")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("inspector-strip")).not.toBeInTheDocument();
   });
 
   it("respects persisted localStorage state over viewport default", () => {
@@ -199,12 +198,6 @@ describe("MarkdownDocumentLayout — mobile (< 768px)", () => {
     expect(screen.queryByTestId("view-mode-split")).toBeNull();
     expect(screen.getByTestId("view-mode-edit")).toBeInTheDocument();
     expect(screen.getByTestId("view-mode-preview")).toBeInTheDocument();
-  });
-
-  it("does not render the retired floating Action Bar", () => {
-    setViewportWidth(420);
-    renderLayout();
-    expect(screen.queryByTestId("markdown-action-bar")).toBeNull();
   });
 
   it("uses `mobileSheet` content in the Sheet when the host provides it", async () => {

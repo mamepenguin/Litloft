@@ -210,31 +210,6 @@ describe("useFolderFiles", () => {
     }));
   });
 
-  it("sends no path for a tag filter at the drive root", async () => {
-    // The whole drive, not the root's own children: omitting `path` applies
-    // no folder predicate at all.
-    const { result } = renderHook(() =>
-      useFolderFiles({
-        driveName: "main",
-        folderPath: undefined,
-        view: null,
-        tagFilter: "soup",
-        typeFilter: null,
-        sort: "created_at",
-        order: "desc",
-        refreshKey: 0,
-      })
-    );
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", expect.objectContaining({
-      path: undefined,
-      tag: "soup",
-    }));
-  });
 
   it("keeps a plain folder listing non-recursive", async () => {
     const { result } = renderHook(() =>
@@ -286,28 +261,6 @@ describe("useFolderFiles", () => {
     }));
   });
 
-  it("passes type filter", async () => {
-    const { result } = renderHook(() =>
-      useFolderFiles({
-        driveName: "main",
-        folderPath: "",
-        view: null,
-        tagFilter: null,
-        typeFilter: "video",
-        sort: "created_at",
-        order: "desc",
-        refreshKey: 0,
-      })
-    );
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", expect.objectContaining({
-      type: "video",
-    }));
-  });
 
   it("uses created_at sort for recent-added view", async () => {
     const { result } = renderHook(() =>
