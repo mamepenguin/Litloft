@@ -29,6 +29,7 @@ import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchC
 import { VideoPlayer } from "@/components/VideoPlayer";
 import type { SubtitleInfo } from "@/types";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import enMessages from "@/messages-core/en.json";
 import jaMessages from "@/messages-core/ja.json";
 import { QuickNotePresenter } from "@/components/quick-note/QuickNotePresenter";
@@ -942,6 +943,62 @@ function FolderPushArrangement(): ReactElement {
 
 
 /**
+ * The same citation in a rendered note, split across elements and whole.
+ * `.markdown-body mark` supplies the padding there, and the `pre` rule that
+ * zeroes it does not reach — so this is where the seam declarations decide
+ * what a reader sees.
+ */
+function CitationSeamsProse(): ReactElement {
+  const split = useRef<HTMLParagraphElement>(null);
+  const whole = useRef<HTMLParagraphElement>(null);
+  useHighlightPassage(split, "alpha beta gamma", true);
+  useHighlightPassage(whole, "alpha beta gamma", true);
+  return (
+    <div className="markdown-body bg-bg-primary p-8 text-base">
+      <p ref={split} id="split">
+        <span>alpha </span>
+        <span>beta</span>
+        {" gamma"}
+        <span id="split-tail"> tail</span>
+      </p>
+      <p ref={whole} id="whole">
+        {"alpha beta gamma"}
+        <span id="whole-tail"> tail</span>
+      </p>
+    </div>
+  );
+}
+
+/**
+ * A citation that crosses syntax-highlighting tokens, beside the same line
+ * with nothing marked. Both are needed: the question is whether marking a
+ * run moves the characters after it.
+ */
+function CitationSeams(): ReactElement {
+  const marked = useRef<HTMLPreElement>(null);
+  useHighlightPassage(marked, "const answer = 42", true);
+  const line = (tailId: string) => (
+    <>
+      <span className="hljs-keyword">const</span>
+      {" answer = "}
+      <span className="hljs-number">42</span>
+      {"; // "}
+      <span id={tailId}>tail</span>
+    </>
+  );
+  return (
+    <div className="bg-bg-primary p-8 font-mono text-base">
+      <pre ref={marked} id="marked" className="whitespace-pre-wrap">
+        {line("marked-tail")}
+      </pre>
+      <pre id="plain" className="whitespace-pre-wrap">
+        {line("plain-tail")}
+      </pre>
+    </div>
+  );
+}
+
+/**
  * A pressed card and the copy of it that swells and fades. The real helper,
  * so what is measured is the element it makes and when it takes it away.
  */
@@ -1317,6 +1374,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "player-captions": PlayerCaptions,
   "folder-push": FolderPushArrangement,
   "open-ghost": OpenGhostArrangement,
+  "citation-seams": CitationSeams,
+  "citation-seams-prose": CitationSeamsProse,
 };
 
 function App(): ReactElement {

@@ -112,23 +112,24 @@ export function useHighlightPassage(
     }
 
     try {
-      const m = document.createElement("mark");
-      m.className = MARK_CLASS;
-      range.surroundContents(m);
-      if (!scrolledRef.current) {
+      const marks = markRange(range);
+      const first = marks[0];
+      if (first && !scrolledRef.current) {
         requestAnimationFrame(() => {
-          m.scrollIntoView({ block: "center", behavior: "smooth" });
+          first.scrollIntoView({ block: "center", behavior: "smooth" });
         });
         scrolledRef.current = true;
       }
       if (isDev) {
         console.info("[useHighlightPassage] match wrapped in <mark>", {
-          textPreview: m.textContent?.slice(0, 80),
+          markCount: marks.length,
+          textPreview: marks
+            .map((m) => m.textContent ?? "")
+            .join("")
+            .slice(0, 80),
         });
       }
     } catch (err) {
-      // surroundContents fails when the range crosses element
-      // boundaries (e.g. the quote spans two paragraphs).
       if (!scrolledRef.current) {
         const anchor =
           range.startContainer.nodeType === Node.ELEMENT_NODE
@@ -139,12 +140,96 @@ export function useHighlightPassage(
       }
       if (isDev) {
         console.warn(
-          "[useHighlightPassage] surroundContents failed (range crosses element boundary), scrolled to anchor only",
+          "[useHighlightPassage] could not mark the range, scrolled to anchor only",
           err,
         );
       }
     }
   });
+}
+
+interface Segment {
+  node: Text;
+  start: number;
+  end: number;
+}
+
+/**
+ * `Range.surroundContents` throws as soon as an endpoint sits inside an
+ * element the range only partially covers — which is every quote that
+ * crosses a syntax-highlighting token or a paragraph. Wrapping each
+ * intersected text node on its own has no such restriction.
+ */
+function markRange(range: Range): HTMLElement[] {
+  const segments = collectSegments(range);
+
+  // Splitting mutates the nodes, so the offsets are resolved first and
+  // each node is split from its tail inwards.
+  const marks = segments.map(({ node, start, end }) => {
+    if (end < node.length) node.splitText(end);
+    const target = start > 0 ? node.splitText(start) : node;
+    const mark = document.createElement("mark");
+    mark.className = MARK_CLASS;
+    target.parentNode?.insertBefore(mark, target);
+    mark.appendChild(target);
+    return mark;
+  });
+
+  // One passage is drawn as one shape: the stylesheet's padding, corners
+  // and ring belong on the outer edges of the run, not at every internal
+  // boundary.
+  if (marks.length > 1) {
+    marks.forEach((mark, i) => {
+      mark.dataset.citationSeam =
+        i === 0 ? "start" : i === marks.length - 1 ? "end" : "mid";
+    });
+  }
+  return marks;
+}
+
+function collectSegments(range: Range): Segment[] {
+  const { startContainer, startOffset, endContainer, endOffset } = range;
+  if (
+    startContainer.nodeType !== Node.TEXT_NODE ||
+    endContainer.nodeType !== Node.TEXT_NODE
+  ) {
+    throw new Error("markRange expects text-node endpoints");
+  }
+
+  if (startContainer === endContainer) {
+    const node = startContainer as Text;
+    return startOffset < endOffset
+      ? [{ node, start: startOffset, end: endOffset }]
+      : [];
+  }
+
+  const root =
+    range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+      ? range.commonAncestorContainer.parentNode
+      : range.commonAncestorContainer;
+  if (!root) return [];
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const segments: Segment[] = [];
+  let inside = false;
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (node === startContainer) {
+      inside = true;
+      if (startOffset < node.length) {
+        segments.push({ node, start: startOffset, end: node.length });
+      }
+      continue;
+    }
+    if (node === endContainer) {
+      if (endOffset > 0) segments.push({ node, start: 0, end: endOffset });
+      return segments;
+    }
+    if (inside && node.length > 0) {
+      segments.push({ node, start: 0, end: node.length });
+    }
+  }
+  return segments;
 }
 
 interface NodeEntry {

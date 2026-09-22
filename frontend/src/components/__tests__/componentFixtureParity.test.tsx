@@ -273,6 +273,8 @@ describe("the component fixture's page", () => {
       "player-captions",
       "folder-push",
       "open-ghost",
+      "citation-seams",
+      "citation-seams-prose",
     ]);
   });
 });

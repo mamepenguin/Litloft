@@ -710,6 +710,35 @@ div[data-citation-section-path]:not(tr) {
   box-shadow: 0 0 0 1px var(--highlight-bg);
 }
 
+/* A passage that crosses an element boundary is several <mark>s. The
+   attribute raises the specificity over `.markdown-body mark`, which
+   otherwise supplies the padding inside a rendered note. */
+.ask-citation-highlight[data-citation-seam="start"] {
+  padding-right: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.ask-citation-highlight[data-citation-seam="mid"] {
+  padding-left: 0;
+  padding-right: 0;
+  border-radius: 0;
+}
+
+.ask-citation-highlight[data-citation-seam="end"] {
+  padding-left: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* Horizontal padding moves every character after it, which in a monospace
+   block means the highlighted line no longer lines up with its
+   neighbours. */
+pre mark.ask-citation-highlight {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .wiki-link {
   text-decoration: none;
   border-bottom: 1px solid transparent;

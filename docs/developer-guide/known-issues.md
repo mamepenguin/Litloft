@@ -192,6 +192,13 @@ which must stay selectable.
 
 ## Addons
 
+**A note opened from a search result is never highlighted while the knowledge
+editor is installed.** `Editor.tsx` renders `MarkdownPreview` without the
+`highlight` prop, and a `.md` file always opens in that editor when the addon is
+present, so `?highlight=` on a note does nothing — no mark, no scroll to the
+passage. Reached by searching for a phrase inside a note and pressing the
+result. Core's own `MarkdownPreview` path is wired; the addon drops it.
+
 **A search scope passed as a new object on every render re-renders without end.** `useSearchScope` updates provider state, so a component that also reads the active scope and builds its scope inline loops. Keep the scope object stable (`useMemo`).
 
 **A tag with a non-ASCII capital lists nothing when chosen.** The rail counts `Übung` but the list filter lowercases with SQLite's ASCII-only `lower()`, so choosing it shows no notes.

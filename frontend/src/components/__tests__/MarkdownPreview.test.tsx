@@ -134,6 +134,21 @@ describe("MarkdownPreview", () => {
     expect(screen.getByText(/const x = 1;/)).toBeInTheDocument();
   });
 
+  it("marks a highlighted quote that crosses syntax-highlighting tokens", () => {
+    const { container } = renderWithIntl(
+      <MarkdownPreview
+        source={"```js\nconst answer = 42;\n```"}
+        highlight="const answer = 42"
+      />,
+    );
+    const marks = Array.from(
+      container.querySelectorAll("mark.ask-citation-highlight"),
+    );
+    expect(marks).toHaveLength(3);
+    expect(marks.every((m) => m.textContent !== "")).toBe(true);
+    expect(marks.map((m) => m.textContent).join("")).toBe("const answer = 42");
+  });
+
   it("displays frontmatter metadata when present via the Properties Panel", () => {
     // Unknown keys fall through to plain text rendering (label = raw key).
     const md = `---
