@@ -269,6 +269,31 @@ keeps only the last event, so when another live update arrives at almost the sam
 moment the ready or failed toast is sometimes not shown. The clip is still created
 and appears on the Notes page.
 
+**A YouTube feed whose entries carry no recognised video id reports "no new
+videos" rather than failing.** `_list_channel_via_rss` guards against a document
+that is not an Atom feed, but inside a real `<feed>` it skips any `<entry>`
+without a `{http://www.youtube.com/xml/schemas/2015}videoId`. If YouTube bumps
+that schema namespace or moves the id, every channel returns an empty listing,
+the fallback to yt-dlp is never reached because nothing failed, and each sync
+advances `last_synced_at` and clears the backoff. Every subscription then reads
+as healthy while importing nothing. Distinguishing it needs the listing to treat
+"entries present, none readable" as no listing at all, which no code or test
+does today.
+
+**A Media Import subscription that has never synced successfully retries every
+hour forever, ahead of every healthy one.** `_next_backoff_minutes` infers the
+ladder rung from the gap between `cooldown_until` and `last_synced_at`, so a row
+whose first sync has never succeeded — a deleted channel, or one whose listing
+cannot be fetched from either source — stays on the first rung however many
+times it has failed, while a previously-synced subscription escalates to 24
+hours on its second failure. The cron sweep serves never-synced rows first, so
+these sit permanently at the head of a capped queue. Harmless at the current
+scale (demand well under the 180 enqueues per hour the cap allows), and the
+state itself is usually unrecoverable rather than transient, so retrying is not
+wrong. What is missing is telling the operator: the card shows the ordinary
+*Backoff active*, with nothing to distinguish "waiting out a blip" from "this
+channel has never worked and probably never will".
+
 **Clip web page from Add is silent when closed before the duplicate lookup answers.**
 Pressing Clip and closing the dialog before `GET /clips?url=` returns clips nothing
 and reports nothing.

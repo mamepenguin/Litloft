@@ -192,6 +192,7 @@ lane here; they appear on Home under **Continue Watching**.
 | Captions panel is empty | The provider does not expose subtitles for this video. Try *auto-generated* if available. |
 | Embedded player blanked out | Provider-side embed restriction. Open the original URL in a tab. |
 | `Refresh metadata` does nothing | Network blocked, or provider changed their HTML. Check `docker compose logs backend`. |
+| A subscription stays on *Backoff active* | Listing the channel's videos is failing. Check `docker compose logs backend` for the cause; if the provider is down, wait for it to recover. |
 
 ## See also
 
