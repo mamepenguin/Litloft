@@ -101,6 +101,21 @@ def _validate_drives_payload(payload: Any) -> list[dict[str, Any]]:
     return payload
 
 
+def _known_groups(drives_for_groups: list[dict[str, Any]]) -> set[str]:
+    """The group names a password entry may name.
+
+    Every drive's ``access_group``, plus the admin sentinel, which names no
+    drive: it is what makes a password grant ``/admin`` (``auth.is_admin_viewer``).
+    """
+    groups = {
+        d.get("access_group")
+        for d in drives_for_groups
+        if d.get("access_group")
+    }
+    groups.add(auth.ADMIN_SENTINEL_GROUP)
+    return groups
+
+
 def _validate_passwords_payload(
     payload: Any,
     drives_for_groups: list[dict[str, Any]],
@@ -109,11 +124,7 @@ def _validate_passwords_payload(
     if not isinstance(payload, list):
         raise _validation_error("json_syntax", "passwords must be a JSON array")
 
-    known_groups = {
-        d.get("access_group")
-        for d in drives_for_groups
-        if d.get("access_group")
-    }
+    known_groups = _known_groups(drives_for_groups)
 
     seen_passwords: set[str] = set()
     for entry in payload:
@@ -413,11 +424,7 @@ def _validate_password_entry(
     if not isinstance(groups, list) or not groups:
         raise _validation_error("missing_field", "groups is required", field="groups")
 
-    known_groups = {
-        d.get("access_group")
-        for d in drives_for_groups
-        if d.get("access_group")
-    }
+    known_groups = _known_groups(drives_for_groups)
 
     for g in groups:
         if not isinstance(g, str) or not g:

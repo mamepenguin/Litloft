@@ -1204,3 +1204,74 @@ def test_put_passwords_takes_the_token_during_first_run(tmp_path, monkeypatch):
             headers={setup_token.HEADER: setup_token.setup_token()},
         )
         assert resp.status_code == 200, resp.text
+
+
+def test_put_passwords_accepts_the_admin_sentinel(admin_client):
+    """The sentinel names no drive; it is what makes a password grant /admin."""
+    c, _ = admin_client
+    resp = c.put(
+        "/api/admin/config/passwords",
+        json=[{"password": "master key", "groups": ["g1", "__admin__"]}],
+    )
+    assert resp.status_code == 200, resp.text
+
+    stored = c.get("/api/admin/config/passwords")
+    assert stored.status_code == 200, stored.text
+    assert stored.json() == [{"password": "***", "groups": ["g1", "__admin__"]}]
+
+
+def test_append_password_accepts_the_admin_sentinel(admin_client):
+    c, _ = admin_client
+    resp = c.post(
+        "/api/admin/config/passwords/append",
+        json={"password": "another key", "groups": ["__admin__"]},
+    )
+    assert resp.status_code == 200, resp.text
+    assert any(
+        e["groups"] == ["__admin__"] for e in c.get("/api/admin/config/passwords").json()
+    )
+
+
+def test_a_sentinel_only_password_earns_admin_on_a_drive_without_groups(
+    tmp_path, monkeypatch
+):
+    """The /setup Protected flow: no drive declares a group, and the one
+    password saved holds nothing but the sentinel."""
+    import app.auth as auth
+    import app.config as config
+    from app.main import app
+
+    drive_dir = tmp_path / "d"
+    drive_dir.mkdir()
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+
+    drives_json = tmp_path / "drives.json"
+    drives_json.write_text(json.dumps([{"name": "d", "path": str(drive_dir)}]))
+    passwords_json = tmp_path / "passwords.json"
+    passwords_json.write_text(json.dumps([]))
+
+    monkeypatch.setattr(config, "DRIVES_CONFIG", drives_json)
+    monkeypatch.setattr(config, "DATA_DIR", data_dir)
+    monkeypatch.setattr(config, "THUMBNAILS_DIR", data_dir / "thumbnails")
+    monkeypatch.setattr(config, "CONVERTED_DIR", data_dir / "converted")
+    monkeypatch.setattr(config, "_drives_cache", None)
+    monkeypatch.setattr(auth, "PASSWORDS_CONFIG", passwords_json)
+    monkeypatch.setattr(auth, "_passwords_cache", None)
+
+    with TestClient(app) as c:
+        resp = c.put(
+            "/api/admin/config/passwords",
+            json=[{"password": "master key", "groups": ["__admin__"]}],
+        )
+        assert resp.status_code == 200, resp.text
+
+        (data_dir / "setup_completed").touch()
+
+        locked = TestClient(app)
+        assert locked.get("/api/admin/config/passwords").status_code == 403
+
+        assert c.post(
+            "/api/auth/unlock", json={"password": "master key"}
+        ).status_code == 200
+        assert c.get("/api/admin/config/passwords").status_code == 200

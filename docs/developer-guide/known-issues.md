@@ -42,15 +42,6 @@ them to `[]`, losing the names, passwords and addon policy set in the browser,
 and yes to the `search-config.yml` prompt restores the `.example` contents. Every
 prompt defaults to no.
 
-**Choosing Protected in `/setup` saves no password.** The wizard adds `__admin__`
-to the password's groups and the settings API rejects `__admin__` as an unknown
-group; the wizard ignores the rejection and finishes, so every drive stays public
-and `/admin` stays open. Reached on every first run that picks Protected.
-
-**`/setup` finishes when saving drives or passwords fails.** Only the addon
-policy save is checked, so a rejected drives save shows up as an unknown drive
-error from the policy save, or not at all.
-
 ## Files
 
 **A file moved to another drive keeps the tags of the drive it came from.**
