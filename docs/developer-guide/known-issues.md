@@ -55,6 +55,12 @@ a chance. The extension alone cannot settle it; deciding it needs the same
 ffprobe sniff `refine_classification_with_probe` already does for audio-only
 `.mp4`.
 
+**A dotfile named after a language opens without colour.** `.gemfile` and
+`.rakefile` are admitted by the whole-filename list through a dotfile's leading
+segment, but the language lookup consults that list only for the name itself,
+so they are shown as plain text. Reached inside an archive, where a dotfile is
+listed at all.
+
 **One Escape closes both the overlay sidebar and the file sheet under it.** On a phone, with the file sheet raised and the sidebar opened over it, Escape lowers the sheet as well as closing the sidebar.
 
 **A dialog opened with a keyboard shortcut while a phone player fills the screen opens under the player.** Reached on an iPhone with a hardware keyboard (for example the search shortcut): the dialog takes focus and Escape but is hidden until the player leaves full screen.
