@@ -53,7 +53,12 @@ describe("VideoPreview", () => {
 
   it("cleans up timers on unmount", () => {
     const { unmount } = render(<VideoPreview fileId="test-123" />);
+    fireEvent.mouseEnter(screen.getByTestId("video-preview-container"));
+    expect(vi.getTimerCount()).toBe(1);
+
     unmount();
+
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("shows mute button when video is playing", () => {

@@ -125,12 +125,13 @@ describe("ContinueWatchingSection", () => {
     expect(screen.getByText("Video Two")).toBeInTheDocument();
   });
 
-  it("renders watch progress bar based on watchProgress", () => {
+  it("fills the progress bar to the fraction watched", () => {
+    // item1 stopped at 30s of 120s.
     const { container } = render(
       <ContinueWatchingSection items={[item1]} loading={false} />,
     );
-    const progressFills = container.querySelectorAll('[style*="width"]');
-    expect(progressFills.length).toBeGreaterThan(0);
+    const fills = [...container.querySelectorAll<HTMLElement>('[style*="width"]')];
+    expect(fills.map((el) => el.style.width)).toEqual(["25%"]);
   });
 
   it("opens context menu on right-click", async () => {

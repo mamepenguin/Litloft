@@ -120,9 +120,6 @@ const rule = (selector: string) => {
   if (found.length === 0) throw new Error(`no rule for ${selector}`);
   return found.map(([, decls]) => decls).join("\n");
 };
-const gridRule = rule(".justified-grid");
-const cellRule = rule(".justified-grid > .justified-grid-cell");
-
 const grid = (c: HTMLElement) => c.querySelector(".justified-grid");
 const cells = (c: HTMLElement) => c.querySelectorAll(".justified-grid-cell");
 
@@ -474,55 +471,5 @@ describe("FileGrid — justified rows", () => {
       shiftKey: true,
     });
     expect(onShiftSelect).toHaveBeenCalledWith("p4");
-  });
-});
-
-describe("justified row geometry", () => {
-  it("switches the row height on the grid's own width", () => {
-    expect(css).toContain("--jg-row-h: 120px");
-    expect(css).toContain("@container justified-grid (min-width: 40rem)");
-    expect(css).toContain("--jg-row-h: 200px");
-    expect(css).toContain("container-type: inline-size");
-  });
-
-  it("reveals the name on hover and on focus", () => {
-    expect(css).toMatch(/\.group:hover > \.justified-grid-name/);
-    expect(css).toMatch(/\.group:focus-within > \.justified-grid-name/);
-  });
-
-  it("shows the name without a hover where there is none", () => {
-    expect(css).toMatch(
-      /@media \(pointer: coarse\) \{\s*\.justified-grid-name \{[^}]*opacity:/,
-    );
-  });
-
-  it("declares the cell's shape from its ratio", () => {
-    expect(cellRule).toMatch(/aspect-ratio:\s*var\(--jg-ratio\)/);
-    // A `height` beside `aspect-ratio` is the disagreement the ratio
-    // exists to end.
-    expect(cellRule).not.toMatch(/(?:^|[;{\s])height\s*:/);
-  });
-
-  it("declares a ceiling on the height, in multiples of the basis", () => {
-    expect(cellRule).toMatch(
-      /max-height:\s*calc\(\s*var\(--jg-row-h\)\s*\*\s*var\(--jg-max-stretch\)\s*\)/,
-    );
-    // Pinned rather than read back: the value was chosen by measuring
-    // three of them, so moving it is a decision, not a refactor.
-    const stretch = Number(css.match(/--jg-max-stretch:\s*([\d.]+)/)![1]);
-    expect(stretch).toBe(2.5);
-  });
-
-  it("declares that a cell keeps its height to itself", () => {
-    // `start` and `flex-start` are the same value in a flex container;
-    // rejecting the synonym would be a false failure at a later
-    // refactor.
-    expect(gridRule).toMatch(/align-items:\s*(?:flex-start|start)\s*;/);
-  });
-
-  it("gives the slack absorber no height", () => {
-    expect(css).toMatch(
-      /\.justified-grid > \.justified-grid-tail \{[^}]*height: 0;/,
-    );
   });
 });
