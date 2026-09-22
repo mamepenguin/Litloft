@@ -437,10 +437,26 @@ describe("An outside press", () => {
   });
 
   it("looks at the whole tree it claims to", () => {
-    // Adding or deleting any source file under `frontend/src` changes this
-    // number.
+    // Sentinels rather than a count: what this guards is the walker
+    // narrowing — losing its recursion, an extension, or a directory —
+    // and a count of every file also moves whenever an unrelated one is
+    // added, which is the edit 21 of this file's 40 commits were.
     expect(relative(REPO_ROOT, CORE_ROOT)).toBe("frontend/src");
-    expect(sourceFiles(CORE_ROOT).length).toBe(460);
+    const found = new Set(
+      sourceFiles(CORE_ROOT).map((f) => relative(CORE_ROOT, f)),
+    );
+    for (const sentinel of [
+      "lib/api.ts",
+      "components/FileDetail/related/RelatedPanel.tsx",
+      "components/player/MediaControls/hooks/usePlayerGestures.ts",
+      "app/drive/[name]/addons/[addon]/[slug]/page.tsx",
+    ]) {
+      expect(found, sentinel).toContain(sentinel);
+    }
+    // And the other half: the exclusions still exclude.
+    expect([...found].filter((f) => /(^|\/)__tests__\//.test(f))).toEqual([]);
+    expect([...found].filter((f) => /\.test\.tsx?$/.test(f))).toEqual([]);
+    expect([...found].filter((f) => f.startsWith("addons/"))).toEqual([]);
   });
 
   it.each([
