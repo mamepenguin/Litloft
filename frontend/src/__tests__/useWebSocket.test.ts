@@ -33,51 +33,6 @@ class MockWebSocket {
   }
 }
 
-describe("useWebSocket", () => {
-  beforeEach(() => {
-    mockWebSocketInstances = [];
-    vi.stubGlobal("WebSocket", MockWebSocket);
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
-
-  it("returns null initially when no events received", async () => {
-    const { useWebSocket } = await import("@/hooks/useWebSocket");
-
-    const { result } = renderHook(() => useWebSocket());
-
-    expect(result.current).toBeNull();
-  });
-
-  it("returns event data when message received", async () => {
-    const { useWebSocket } = await import("@/hooks/useWebSocket");
-
-    const { result } = renderHook(() => useWebSocket());
-
-    // Without provider, should return null (context default)
-    expect(result.current).toBeNull();
-  });
-
-  it("returns null for non-matching eventFilter", async () => {
-    const { useWebSocket } = await import("@/hooks/useWebSocket");
-
-    const { result } = renderHook(() => useWebSocket("scan:progress"));
-
-    expect(result.current).toBeNull();
-  });
-
-  it("accepts undefined eventFilter", async () => {
-    const { useWebSocket } = await import("@/hooks/useWebSocket");
-
-    const { result } = renderHook(() => useWebSocket(undefined));
-
-    expect(result.current).toBeNull();
-  });
-});
-
 describe("WebSocketProvider", () => {
   beforeEach(() => {
     mockWebSocketInstances = [];

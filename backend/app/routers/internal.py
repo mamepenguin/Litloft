@@ -22,7 +22,6 @@ from app.models import (
     FileRelation,
     WatchHistory,
     active_file_filter,
-    verified_file_filter,
 )
 from app.routers.files import cleanup_orphan_tags, replace_file_tags
 from app.schemas import (

@@ -72,13 +72,12 @@ describe("MarkdownPreview", () => {
     expect(document.querySelector("iframe")).toBeNull();
   });
 
-  it("strips onerror handler from img tags", () => {
+  it("renders an event handler in raw HTML as inert text, not as an element", () => {
     renderWithIntl(
-      <MarkdownPreview source='![alt](https://example.com/x.jpg "title")' />,
+      <MarkdownPreview source='<img src="https://example.com/x.jpg" onerror="alert(1)">' />,
     );
-    const img = document.querySelector("img");
-    expect(img).not.toBeNull();
-    expect(img?.getAttribute("onerror")).toBeNull();
+    expect(document.querySelector("img")).toBeNull();
+    expect(screen.getByText(/onerror="alert\(1\)"/)).toBeInTheDocument();
   });
 
   describe("loft:// image embedding", () => {
