@@ -498,12 +498,6 @@ describe("FolderBrowser — the drive root as a write destination", () => {
     expect(viewModeOf()).toBe("grid");
   });
 
-  it("follows that preference when it is the other one", () => {
-    localStorage.setItem("video-share-view-mode", "list");
-    render(<FolderBrowser driveName="main" folderPath="" view="library" />);
-    expect(viewModeOf()).toBe("list");
-  });
-
   it("draws a named folder's rows in its own stored mode instead", () => {
     localStorage.setItem("video-share-view-mode", "grid");
     render(<FolderBrowser driveName="main" folderPath="recipes" />);

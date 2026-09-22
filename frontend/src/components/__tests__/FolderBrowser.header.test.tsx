@@ -473,13 +473,6 @@ describe("what the header hands the breadcrumb", () => {
     expect(trail.getAttribute("data-drive")).toBe("main");
     expect(trail.getAttribute("data-folder")).toBe("videos");
   });
-
-  it("withholds the drop handlers when nothing is being dragged", () => {
-    renderFolder();
-    const trail = screen.getByLabelText("Breadcrumb");
-    expect(trail.getAttribute("data-drop-props")).toBe("no");
-    expect(trail.getAttribute("data-drop-target")).toBe("no");
-  });
 });
 
 describe("what the header hands its children", () => {

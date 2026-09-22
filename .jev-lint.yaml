@@ -62,12 +62,17 @@ rules:
   typescript/type-name-describes-shape: on
   python/fn-name-promises: on
 
-  # `test-name-verifies-claim` and `test-mocks-subject` ask what R-3 asks:
-  # would this fail if the behaviour it names broke, or does it only observe
-  # its own stubs?
+  # `test-name-verifies-claim` asks what R-3 asks: would this fail if the
+  # behaviour it names broke?
+  #
+  # `test-mocks-subject` asks the other half of that and cannot answer it
+  # here. The convention in these suites is to replace a heavy child with a
+  # stub that echoes the props it was handed, so the assertion does read the
+  # stub's output — but the value in it came from the subject, which is the
+  # thing being tested. The rule cannot see the difference: over the whole
+  # tree it returned 93 findings, of which 2 held up.
   typescript/test-name-describes-code: on
   typescript/test-name-verifies-claim: on
-  typescript/test-mocks-subject: on
   typescript/describe-names-subject: on
   typescript/snapshot-only-behaviour-claim: on
   python/test-name-describes-code: on
