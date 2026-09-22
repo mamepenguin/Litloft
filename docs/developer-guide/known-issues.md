@@ -328,15 +328,6 @@ Pickup, for example) can draw for a frame or more there, and may call its API
 for that drive. The proxy's `pre_check` should answer those calls with 404; that
 has not been measured. The sidebar's addon rows do not do this.
 
-**A hard-deleted file's tags stay in the drive's tag list, and in every folder's.**
-Nothing calls `cleanup_orphan_tags` from a purge path, so a `Tag` row whose last
-file was deleted for good survives with no files attached. `list_drive_tags`
-then returns it whatever folder is asked for, because its folder filter starts
-with `file_tags.c.file_id.is_(None)` to keep unattached tags visible. The tag
-appears in the sidebar list and in the typed suggestions, and selecting it finds
-nothing. The chips in the tag field exclude it by dropping any tag with a count
-of zero; the other two surfaces do not.
-
 **Renaming a video detaches its sidecar subtitles.** `detect_subtitles` matches
 subtitle files against the video's current basename, and `rename_file` renames
 only the video, so `movie.ja.srt` stops being found the moment `movie.mp4`

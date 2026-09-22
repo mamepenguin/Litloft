@@ -23,7 +23,8 @@ from app.models import (
     WatchHistory,
     active_file_filter,
 )
-from app.routers.files import cleanup_orphan_tags, replace_file_tags
+from app.routers.files import replace_file_tags
+from app.services.tagops import cleanup_orphan_tags
 from app.schemas import (
     ChapterPromotionRequest,
     TagUpdate,
