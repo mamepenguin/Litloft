@@ -144,4 +144,83 @@ describe("useHighlightPassage", () => {
     const mark = container.querySelector("mark.ask-citation-highlight");
     expect(mark?.textContent).toMatch(/^The protagonist arrives/);
   });
+  it("marks every text node a quote crosses when it spans sibling elements", () => {
+    // The shape syntax highlighting produces: one line, several token spans.
+    const { container } = render(
+      <HarnessFixture
+        html={
+          '<pre><span class="tok">const </span>' +
+          '<span class="tok">answer</span> = 42;</pre>'
+        }
+        quote="const answer = 42"
+      />,
+    );
+    const marks = Array.from(
+      container.querySelectorAll("mark.ask-citation-highlight"),
+    );
+    expect(marks.length).toBeGreaterThan(1);
+    expect(marks.map((m) => m.textContent).join("")).toBe("const answer = 42");
+  });
+
+  it("marks every text node a quote crosses when it spans block elements", () => {
+    const { container } = render(
+      <HarnessFixture
+        html={"<p>the first half</p>\n<p>and the second half</p>"}
+        quote="first half and the second"
+      />,
+    );
+    const marks = Array.from(
+      container.querySelectorAll("mark.ask-citation-highlight"),
+    );
+    expect(marks.length).toBeGreaterThan(1);
+    expect(marks.map((m) => m.textContent).join("")).toBe(
+      "first half\nand the second",
+    );
+  });
+
+  it("leaves the text outside the quote unmarked at both ends", () => {
+    const { container } = render(
+      <HarnessFixture
+        html='<pre>before <span class="tok">middle</span> after</pre>'
+        quote="fore middle af"
+      />,
+    );
+    const marks = Array.from(
+      container.querySelectorAll("mark.ask-citation-highlight"),
+    );
+    expect(marks.map((m) => m.textContent).join("")).toBe("fore middle af");
+    expect(container.textContent).toBe("before middle after");
+  });
+
+  it("wraps a single-node match in exactly one <mark>", () => {
+    const { container } = render(
+      <HarnessFixture
+        html="<p>The quick brown fox jumps over the lazy dog.</p>"
+        quote="brown fox jumps"
+      />,
+    );
+    expect(
+      container.querySelectorAll("mark.ask-citation-highlight"),
+    ).toHaveLength(1);
+  });
+
+  it("does not re-mark an already-marked container on re-render", () => {
+    const { container, rerender } = render(
+      <HarnessFixture
+        html='<pre><span class="tok">const </span><span class="tok">answer</span></pre>'
+        quote="const answer"
+      />,
+    );
+    const first = container.querySelectorAll("mark.ask-citation-highlight")
+      .length;
+    rerender(
+      <HarnessFixture
+        html='<pre><span class="tok">const </span><span class="tok">answer</span></pre>'
+        quote="const answer"
+      />,
+    );
+    expect(
+      container.querySelectorAll("mark.ask-citation-highlight"),
+    ).toHaveLength(first);
+  });
 });
