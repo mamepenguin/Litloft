@@ -24,7 +24,7 @@ function makeMc(overrides: Partial<MediaController> = {}): MediaController {
   };
 }
 
-function coarsePointer() {
+function stubCoarsePointerMatchMedia() {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches: query.includes("pointer: coarse"),
     media: query,
@@ -225,7 +225,7 @@ describe("MediaControlsContainer", () => {
     });
 
     it("persists a new choice and applies it", async () => {
-      coarsePointer();
+      stubCoarsePointerMatchMedia();
       const mc = makeCaptionMc();
       renderControls(mc);
       await act(async () => {
@@ -240,7 +240,7 @@ describe("MediaControlsContainer", () => {
 
     it("turns captions off when the player shows them and the stored preference is already off", async () => {
       window.localStorage.setItem("video-share-captions", "false");
-      coarsePointer();
+      stubCoarsePointerMatchMedia();
       const mc = makeMc({
         getCaptions: vi.fn().mockReturnValue("on"),
         setCaptions: vi.fn(),
