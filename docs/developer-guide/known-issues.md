@@ -45,6 +45,16 @@ error from the policy save, or not at all.
 
 ## Files
 
+**A `.ts` file is classified as video and handed to the player.** Python's
+built-in type table reads that extension as `video/mp2t`, which an MPEG
+transport stream legitimately is, so `classify` files every TypeScript source
+under video: the listing counts it as one, the type filter finds it there, and
+the file page gives it a `<video>` that cannot load it. The text viewer's
+allowlist names `ts`, but the player branch is reached first, so it never gets
+a chance. The extension alone cannot settle it; deciding it needs the same
+ffprobe sniff `refine_classification_with_probe` already does for audio-only
+`.mp4`.
+
 **One Escape closes both the overlay sidebar and the file sheet under it.** On a phone, with the file sheet raised and the sidebar opened over it, Escape lowers the sheet as well as closing the sidebar.
 
 **A dialog opened with a keyboard shortcut while a phone player fills the screen opens under the player.** Reached on an iPhone with a hardware keyboard (for example the search shortcut): the dialog takes focus and Escape but is hidden until the player leaves full screen.

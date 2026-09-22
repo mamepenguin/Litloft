@@ -362,6 +362,12 @@ those surfaces.
 
 - `blockquote`, `pre`, `img` and fenced code blocks all use **12px radius** (§5
   card radius — one "long-form content block" family).
+- **The code viewer's line numbers are generated content**, never text. The
+  block reserves a `--code-gutter` column in its left padding and each line's
+  `::before` is pulled back into it by a negative margin of the same width, so
+  a wrapped line continues under the code rather than under its own number.
+  Text, not a number, is what a selection and a citation search may read out of
+  that block; a number written as a text node would land in both.
 - `blockquote`: `border-left: 3px solid var(--accent)`, `background:
   var(--bg-elevated)`, radius `0 12px 12px 0`.
 - The first and last block drop their outer margins, so they never paint a gutter
