@@ -175,6 +175,29 @@ class TestViewerIdentity:
         assert auth.get_viewer_id(request) == auth.nickname_to_viewer_id("alice")
         assert auth.get_nickname(request) == "alice"
 
+    def test_a_blank_nickname_names_no_viewer(self):
+        import app.auth as auth
+
+        for raw in ("", "   ", "\t\n"):
+            request = self._make_request({"X-Lit-Viewer": raw})
+            assert auth.get_viewer_id(request) is None
+            assert auth.get_nickname(request) is None
+
+    def test_surrounding_whitespace_is_not_part_of_the_nickname(self):
+        import app.auth as auth
+
+        padded = self._make_request({"X-Lit-Viewer": "  alice  "})
+        assert auth.get_nickname(padded) == "alice"
+        assert auth.get_viewer_id(padded) == auth.nickname_to_viewer_id("alice")
+
+    def test_the_viewer_id_is_sixteen_hex_digits(self):
+        import app.auth as auth
+
+        request = self._make_request({"X-Lit-Viewer": "alice"})
+        vid = auth.get_viewer_id(request)
+        assert len(vid) == 16
+        assert all(c in "0123456789abcdef" for c in vid)
+
     def test_overlong_header_is_ignored(self):
         import app.auth as auth
 

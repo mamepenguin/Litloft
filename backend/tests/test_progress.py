@@ -63,26 +63,6 @@ class TestNicknameToViewerId:
         assert all(c in "0123456789abcdef" for c in vid)
 
 
-class TestGetViewerId:
-    def test_none_cookie(self):
-        from app.auth import _viewer_id_from_nickname
-        assert _viewer_id_from_nickname(None) is None
-
-    def test_empty_string(self):
-        from app.auth import _viewer_id_from_nickname
-        assert _viewer_id_from_nickname("") is None
-
-    def test_whitespace_only(self):
-        from app.auth import _viewer_id_from_nickname
-        assert _viewer_id_from_nickname("   ") is None
-
-    def test_valid_nickname(self):
-        from app.auth import _viewer_id_from_nickname
-        from app.routers.progress import nickname_to_viewer_id
-        result = _viewer_id_from_nickname("alice")
-        assert result == nickname_to_viewer_id("alice")
-
-
 class TestUpdateProgress:
     def test_save_position(self, client):
         c, db, drive_dir, data_dir = client
