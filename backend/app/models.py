@@ -373,12 +373,3 @@ def active_file_filter():
     """
     return and_(File.deleted_at.is_(None), File.missing_since.is_(None))
 
-
-def verified_file_filter():
-    """Filter condition matching only files the viewer has vouched for.
-
-    Grounding surfaces (Ask citations) use this on top of
-    ``active_file_filter()``. Ordinary search must NOT apply it: unverified
-    files stay findable, they just stop acting as evidence.
-    """
-    return File.trust_tier == TRUST_VERIFIED

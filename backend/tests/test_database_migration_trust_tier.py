@@ -173,31 +173,3 @@ class TestTrustTierMigration:
                 )).all()
             }
         assert "idx_files_trust_tier" in names
-
-
-class TestVerifiedFileFilter:
-    def test_filter_matches_only_verified(self, tmp_path):
-        from app.database import Base, _migrate
-        from app.models import File, verified_file_filter
-        from sqlalchemy.orm import Session
-
-        engine = _make_engine(tmp_path)
-        Base.metadata.create_all(bind=engine)
-        _migrate(engine)
-
-        with Session(engine) as session:
-            session.add(File(
-                id="cccccccccccc", filename="c.md", title="c", drive="d",
-                file_path="c.md", file_size=1, trust_tier="verified",
-            ))
-            session.add(File(
-                id="dddddddddddd", filename="d.md", title="d", drive="d",
-                file_path="d.md", file_size=1, trust_tier="unverified",
-            ))
-            session.commit()
-
-            ids = {
-                f.id for f in
-                session.query(File).filter(verified_file_filter()).all()
-            }
-        assert ids == {"cccccccccccc"}
