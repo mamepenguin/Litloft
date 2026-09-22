@@ -186,12 +186,21 @@ export default function MediaControlsContainer({
     revealControls();
   }, [fullscreen, mc, revealControls]);
 
+  // The switch is drawn from what the player reports, so a press can ask
+  // for the value already stored. Recording the preference alone would
+  // then change no state, nothing would reach the player, and the press
+  // would do nothing at all.
   const handleToggleCaptions = useCallback(
     (enabled: boolean) => {
       setCaptionsPreferred(enabled);
+      try {
+        mc?.setCaptions?.(enabled);
+      } catch {
+        // Backend gone; the next one gets the preference on mount.
+      }
       revealControls();
     },
-    [setCaptionsPreferred, revealControls],
+    [mc, setCaptionsPreferred, revealControls],
   );
 
   const toggleControls = useCallback(() => {

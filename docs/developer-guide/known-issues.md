@@ -277,3 +277,9 @@ with `file_tags.c.file_id.is_(None)` to keep unattached tags visible. The tag
 appears in the sidebar list and in the typed suggestions, and selecting it finds
 nothing. The chips in the tag field exclude it by dropping any tag with a count
 of zero; the other two surfaces do not.
+
+**Renaming a video detaches its sidecar subtitles.** `detect_subtitles` matches
+subtitle files against the video's current basename, and `rename_file` renames
+only the video, so `movie.ja.srt` stops being found the moment `movie.mp4`
+becomes anything else. The detail page then offers the generated track, or no
+track at all. Renaming the subtitle files to match by hand attaches them again.

@@ -111,6 +111,27 @@ describe("useFileDetailData with a seed", () => {
     expect(apiMocks.renameFile).not.toHaveBeenCalled();
   });
 
+  it("keeps the subtitle tracks a metadata save does not report", async () => {
+    const subtitles = [
+      { index: 0, language: "ja", label: "Japanese", format: "srt" },
+    ];
+    apiMocks.getFileShared.mockResolvedValue(
+      file({ subtitles } as Partial<FileItem>),
+    );
+    apiMocks.updateFile.mockResolvedValue(
+      file({ title: "new title", subtitles: [] } as Partial<FileItem>),
+    );
+    const { result } = renderHook(() => useFileDetailData("f1"));
+    await waitFor(() => expect(result.current.fresh).toBe(true));
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.file?.title).toBe("new title");
+    expect(result.current.file?.subtitles).toEqual(subtitles);
+  });
+
 });
 
 describe("useFileDetailData when the file cannot be read", () => {

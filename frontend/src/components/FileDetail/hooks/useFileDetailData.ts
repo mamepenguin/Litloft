@@ -141,7 +141,11 @@ export function useFileDetailData(fileId: string): FileDetailData {
         title: editTitle,
         description: editDesc,
       });
-      setFile(updated);
+      // Only the detail endpoint looks for subtitle files, so the answer
+      // to a metadata edit reports none. Taking it at its word would pull
+      // the player's tracks out from under a video being watched, and a
+      // title cannot change which files sit beside it.
+      setFile((prev) => ({ ...updated, subtitles: prev?.subtitles ?? [] }));
       setEditing(false);
     } catch (err) {
       console.error("Failed to save file metadata:", err);
