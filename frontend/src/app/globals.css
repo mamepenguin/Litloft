@@ -739,6 +739,43 @@ pre mark.ask-citation-highlight {
   padding-right: 0;
 }
 
+/* The code viewer's line numbers.
+
+   Generated content, because the <pre>'s text is read by the citation search
+   (a TreeWalker over its text nodes) and by the capture basket
+   (Selection.toString()). A number written as a text node would land in a
+   saved quote and in the haystack a search result is matched against.
+
+   `--code-gutter` is the width of the number column; the padding on the
+   block pushes the text off it and the negative margin pulls each number
+   back into it, so a line that wraps continues under the code rather than
+   under its own number. */
+.code-view {
+  --code-gutter: 3.5ch;
+  counter-reset: code-line;
+  padding-left: calc(1rem + var(--code-gutter));
+}
+
+.code-line {
+  display: inline;
+  counter-increment: code-line;
+}
+
+.code-line::before {
+  content: counter(code-line);
+  display: inline-block;
+  width: var(--code-gutter);
+  margin-left: calc(-1 * var(--code-gutter));
+  padding-right: 1ch;
+  text-align: right;
+  color: var(--text-muted);
+  opacity: 0.6;
+  /* Browsers have disagreed about whether generated content joins the
+     selection; nothing above should depend on the answer. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .wiki-link {
   text-decoration: none;
   border-bottom: 1px solid transparent;

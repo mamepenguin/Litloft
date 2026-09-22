@@ -208,6 +208,7 @@ export function FilePreview({
       <TextPreview
         fileId={file.id}
         fileSize={file.file_size}
+        filename={file.filename}
         highlight={highlight}
         onDocumentCaptureController={onDocumentCaptureController}
       />

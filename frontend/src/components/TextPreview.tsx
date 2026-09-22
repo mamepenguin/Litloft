@@ -1,15 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import hljs from "highlight.js";
 import { getStreamUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import { fileNameParts } from "@/lib/fileNameParts";
+import { codeLanguageFor } from "@/lib/codeLanguage";
+import { splitHighlightedLines, splitPlainLines } from "@/lib/codeLines";
 import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
 const MAX_AUTO_LOAD_SIZE = 1024 * 1024;
+
+/**
+ * Highlighting and line splitting both run on the main thread, and both cost
+ * per line as well as per character: a 512 KB minified bundle is one cheap
+ * line, a 512 KB log is twenty thousand elements. Neither limit stands in for
+ * the other.
+ */
+const MAX_DECORATED_CHARS = 512 * 1024;
+const MAX_DECORATED_LINES = 5000;
 
 const TEXT_MIME_PREFIXES = ["text/"] as const;
 const TEXT_MIME_EXACT = new Set([
@@ -74,14 +86,39 @@ export function isTextPreviewable(mimeType: string, filename?: string): boolean 
   return TEXT_SUFFIXES.has(token);
 }
 
+interface Decorated {
+  /** One entry per line, without its break. */
+  lines: string[];
+  /** Whether the entries are markup from highlight.js or the file's own text. */
+  coloured: boolean;
+  /** Whether the file's last line ends in a break. */
+  trailingBreak: boolean;
+}
+
+function decorate(content: string, filename: string | undefined): Decorated | null {
+  if (content.length > MAX_DECORATED_CHARS) return null;
+
+  const plain = splitPlainLines(content);
+  if (plain.length > MAX_DECORATED_LINES) return null;
+
+  const trailingBreak = /\r?\n$/.test(content);
+  const language = filename === undefined ? null : codeLanguageFor(filename);
+  if (language === null) return { lines: plain, coloured: false, trailingBreak };
+
+  const html = hljs.highlight(content, { language, ignoreIllegals: true }).value;
+  return { lines: splitHighlightedLines(html), coloured: true, trailingBreak };
+}
+
 export function TextPreview({
   fileId,
   fileSize,
+  filename,
   highlight,
   onDocumentCaptureController,
 }: {
   fileId: string;
   fileSize: number;
+  filename?: string;
   highlight?: string;
   onDocumentCaptureController?: (
     controller: DocumentCaptureController | null,
@@ -95,6 +132,12 @@ export function TextPreview({
   const preRef = useRef<HTMLPreElement>(null);
   useDocumentCapturePublisher(preRef, onDocumentCaptureController);
   useHighlightPassage(preRef, highlight, content !== null);
+  // `null` means the file is too large to decorate, and only that: an empty
+  // string decorates to no lines, which is what an empty file should draw.
+  const decorated = useMemo(
+    () => decorate(content ?? "", filename),
+    [content, filename],
+  );
 
   useEffect(() => {
     if (!confirmed) return;
@@ -156,13 +199,46 @@ export function TextPreview({
     );
   }
 
+  const body = content ?? "";
+  const preClass =
+    "p-4 text-sm leading-relaxed text-text-primary font-mono whitespace-pre-wrap break-words";
+
+  if (decorated === null) {
+    return (
+      <div className="w-full rounded-xl bg-bg-card">
+        <p className="px-4 pt-4 text-sm text-text-muted">{t("tooLargeToDecorate")}</p>
+        <pre ref={preRef} className={preClass}>
+          {body}
+        </pre>
+      </div>
+    );
+  }
+
+  const { lines, coloured, trailingBreak } = decorated;
+  const withBreak = (i: number) => i < lines.length - 1 || trailingBreak;
+
   return (
     <div className="w-full rounded-xl bg-bg-card">
-      <pre
-        ref={preRef}
-        className="p-4 text-sm leading-relaxed text-text-primary font-mono whitespace-pre-wrap break-words"
-      >
-        {content}
+      <pre ref={preRef} className={`code-view ${preClass}`}>
+        {lines.map((line, i) =>
+          coloured ? (
+            <span
+              key={i}
+              className="code-line"
+              // highlight.js escapes the source before wrapping it. The
+              // uncoloured branch below must not share this sink: there the
+              // entry is the file's own bytes.
+              dangerouslySetInnerHTML={{
+                __html: withBreak(i) ? `${line}\n` : line,
+              }}
+            />
+          ) : (
+            <span key={i} className="code-line">
+              {line}
+              {withBreak(i) ? "\n" : ""}
+            </span>
+          ),
+        )}
       </pre>
     </div>
   );

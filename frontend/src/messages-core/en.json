@@ -736,7 +736,8 @@
     "fileSizeLarge": "File is large ({size})",
     "loadContent": "Load",
     "loading": "Loading...",
-    "loadFailed": "Failed to load: {error}"
+    "loadFailed": "Failed to load: {error}",
+    "tooLargeToDecorate": "Too large for line numbers and colour — shown as plain text."
   },
   "batchRename": {
     "title": "Batch Rename",

@@ -736,7 +736,8 @@
     "fileSizeLarge": "ファイルサイズが大きすぎます ({size})",
     "loadContent": "読み込む",
     "loading": "読み込み中...",
-    "loadFailed": "読み込みに失敗しました: {error}"
+    "loadFailed": "読み込みに失敗しました: {error}",
+    "tooLargeToDecorate": "行番号と色を付けるには大きすぎるため、そのまま表示しています。"
   },
   "batchRename": {
     "title": "一括名前変更",
