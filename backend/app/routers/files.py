@@ -753,7 +753,7 @@ def update_file_tags(
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
     replace_file_tags(db, file, update.tags)
-    cleanup_orphan_tags(db)
+    cleanup_orphan_tags(db, file.drive)
     db.commit()
     db.refresh(file)
     event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
@@ -1575,7 +1575,7 @@ async def put_file_content(
                 parsed = parse_frontmatter(body.decode("utf-8"))
                 tags = extract_valid_tags(parsed.metadata)
                 replace_file_tags(db, file, tags)
-                cleanup_orphan_tags(db)
+                cleanup_orphan_tags(db, file.drive)
                 db.commit()
             except UnicodeDecodeError:
                 db.rollback()

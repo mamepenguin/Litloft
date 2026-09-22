@@ -191,6 +191,7 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> str | Non
     if conflict.deleted_at is not None:
         db.delete(conflict)
         db.flush()
+        cleanup_orphan_tags(db, drive)
         return None
     conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
     db.flush()

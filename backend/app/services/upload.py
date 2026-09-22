@@ -15,6 +15,7 @@ from app.services.atomic_write import replacing_file
 from app.services.chapters import probe_file_chapters
 from app.services.filetype import classify, is_probeable_media
 from app.services.image_dimensions import read_image_dimensions
+from app.services.tagops import cleanup_orphan_tags
 from app.services.fileops import (
     _filename_to_title,
     untrack_empty_folder,
@@ -255,6 +256,7 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         # the slot cleanly (no fake-path leftover, no IntegrityError).
         db.delete(existing)
         db.flush()
+        cleanup_orphan_tags(db, session.drive)
         existing = None
 
     # Read from the file that just landed, not from whatever the row
