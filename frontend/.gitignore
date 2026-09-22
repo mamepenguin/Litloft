@@ -52,3 +52,6 @@ next-env.d.ts
 
 # The component fixture's bundle (built by e2e-components/build-bundle.ts)
 /e2e-components/.build/
+
+# vitest blob reports (sharded runs)
+.vitest-reports/

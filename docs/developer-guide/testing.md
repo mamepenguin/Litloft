@@ -196,6 +196,42 @@ pnpm test
 pnpm exec tsc -p tsconfig.json --noEmit
 ```
 
+## Before you push
+
+The frontend suite runs in about 40 seconds on a developer machine and about
+350 on a CI runner, so CI is where a failure is slowest to learn about, not
+where it is cheapest to find. Of the 15 CI job failures since January, 9 were
+in the frontend test job and every one of them was reproducible locally.
+
+```bash
+cd frontend
+node scripts/merge-addon-messages.mjs   # `messages/` is generated, and stale
+pnpm test && pnpm exec tsc --noEmit && pnpm lint
+```
+
+`deploy/pre-push` does exactly that, and only when the push touches
+`frontend/` or an addon's `frontend/`. It is opt-in:
+
+```bash
+ln -s ../../deploy/pre-push .git/hooks/pre-push
+```
+
+`git push --no-verify` skips it for one push.
+
+### The frontend test job is sharded
+
+CI runs `vitest --shard=k/4` across four runners and merges the blob reports in
+a job of its own. Coverage is why the merge is a separate job rather than a
+step: a shard covers only the files its own quarter touched, so a threshold
+applied per shard would measure a quarter of the tree against a whole tree's
+floor. The merged numbers match a single run exactly.
+
+Both test jobs pass `--retry=1`. It hides nothing — a test that fails twice
+still turns the build red — but a test that passes on its retry is reported as
+flaky, which is the one thing the history could not distinguish: every failed
+run to date sits at attempt 1, so nobody ever learned whether a red was a catch
+or a coin flip.
+
 ## End-to-end tests
 
 There is no whole-stack Playwright suite. The two browser suites below both
