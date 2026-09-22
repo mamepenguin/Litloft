@@ -55,6 +55,17 @@ a chance. The extension alone cannot settle it; deciding it needs the same
 ffprobe sniff `refine_classification_with_probe` already does for audio-only
 `.mp4`.
 
+**A file of long unbroken runs freezes the page for about twenty seconds
+while it is coloured.** Several highlight.js grammars are quadratic in an
+unbroken alphanumeric run. The viewer caps a line at 5000 characters and the
+file at 512K, which together bring the worst case down from twelve minutes to
+about twenty seconds, but do not bound it: measured at 104 lines of 4999
+characters each, `csharp` took 20.5s, `c` 18.3s and `ini` 13.7s, all on the
+main thread. Reached by a file whose name says `.cs`, `.c`, `.conf` or `.toml`
+and whose content is separator-free blocks — a base64 dump saved under the
+wrong extension. One separator anywhere in a line makes that line linear, so
+ordinary files of any size are unaffected.
+
 **A dotfile named after a language opens without colour.** `.gemfile` and
 `.rakefile` are admitted by the whole-filename list through a dotfile's leading
 segment, but the language lookup consults that list only for the name itself,
