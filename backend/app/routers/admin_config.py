@@ -294,6 +294,10 @@ def post_verify_setup_token(payload: Any = Body(...)) -> dict[str, bool]:
     Separate from ``setup-status`` on purpose: that endpoint is unauthenticated
     and its answer must stay the same for every caller.
     """
+    # Answering at all would mint a token on an install that finished setup
+    # long ago, and log that setup is unfinished.
+    if (config.DATA_DIR / "setup_completed").exists():
+        raise HTTPException(status_code=404, detail={"code": "setup_completed"})
     if not isinstance(payload, dict):
         raise _validation_error("json_syntax", "body must be an object")
     token = payload.get("token")

@@ -60,7 +60,7 @@ container starts, so every change needs `docker compose up -d` to take effect.
 - **What it does**: Gates every config write `/setup` makes — drives, passwords, addon policy and `complete-setup` — for as long as setup is unfinished. No admin password exists then, so the admin gate cannot apply and this stands in for it.
 - **Without it**: a token is minted per boot. Restarting the backend mid-setup replaces it; read the log again.
 - **When to set**: `configure.py` sets it in `.env` and puts it in the URL it prints, so the operator never types it. Set it yourself to keep one value across restarts.
-- **How**: `openssl rand -hex 16`. It has no effect once `setup_completed` exists.
+- **How**: `openssl rand -hex 16`. Once `setup_completed` exists nothing mints or reads a token, and `setup-token/verify` answers `404`.
 
 ### `CORE_INTERNAL_SECRET`
 - **Default**: empty

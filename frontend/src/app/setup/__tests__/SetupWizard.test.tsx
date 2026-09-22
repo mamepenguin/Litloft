@@ -643,6 +643,91 @@ describe("SetupWizard unlock step", () => {
     });
   });
 
+  it("sends the token on the protected flow's password write too", async () => {
+    await renderPastUnlock();
+    fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /get started|start|begin|setup\.welcome\.startButton/i,
+      }),
+    );
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("media")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/password protected/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.change(await screen.findByLabelText(/^password/i), {
+      target: { value: "correct horse battery" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(
+      screen.queryByRole("button", { name: /skip/i }) ??
+        screen.getByRole("button", { name: /next/i }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+
+    const call = mockFetch.mock.calls.find(
+      ([u, opts]) =>
+        u === "/api/admin/config/passwords" &&
+        (opts as RequestInit)?.method === "PUT",
+    );
+    expect(call).toBeDefined();
+    const headers = (call![1] as RequestInit).headers as Record<string, string>;
+    expect(headers["X-Litloft-Setup-Token"]).toBe(SETUP_TOKEN);
+  });
+
+  it("sends the token it verified, not what was pasted around it", async () => {
+    window.history.replaceState(null, "", "/setup");
+    render(<SetupWizard />);
+    const field = await screen.findByLabelText(/setup token/i);
+
+    fireEvent.change(field, { target: { value: `  ${SETUP_TOKEN}  ` } });
+    fireEvent.click(screen.getByRole("button", { name: /unlock setup/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /日本語/ })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /get started|start|begin|setup\.welcome\.startButton/i,
+      }),
+    );
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("media")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/public/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(
+      screen.queryByRole("button", { name: /skip/i }) ??
+        screen.getByRole("button", { name: /next/i }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+
+    const verify = mockFetch.mock.calls.find(
+      ([url]) => url === "/api/admin/config/setup-token/verify",
+    );
+    const verified = JSON.parse((verify![1] as RequestInit).body as string).token;
+    const drives = mockFetch.mock.calls.find(
+      ([u, opts]) =>
+        u === "/api/admin/config/drives" &&
+        (opts as RequestInit)?.method === "PUT",
+    );
+    const sent = (
+      (drives![1] as RequestInit).headers as Record<string, string>
+    )["X-Litloft-Setup-Token"];
+    expect(sent).toBe(verified);
+    expect(sent).toBe(SETUP_TOKEN);
+  });
+
   it("sends the token on every config write and on complete-setup", async () => {
     await renderPastUnlock();
     fireEvent.click(screen.getByRole("button", { name: /日本語/ }));

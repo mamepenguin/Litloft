@@ -65,12 +65,14 @@ export function UnlockStep({
             value={value}
             onChange={(e) => {
               setRejected(false);
-              onChange(e.target.value);
+              // Trimmed here so the value verified is the value sent: a token
+              // pasted out of a log carries whitespace either side.
+              onChange(e.target.value.trim());
             }}
             onCompositionEnd={ime.onCompositionEnd}
             onKeyDown={(e) => {
               if (ime.isImeKeystroke(e)) return;
-              if (e.key === "Enter" && value.trim()) void submit(value.trim());
+              if (e.key === "Enter" && value) void submit(value);
             }}
             autoComplete="off"
             spellCheck={false}
@@ -84,8 +86,8 @@ export function UnlockStep({
         <div className="flex justify-end">
           <button
             type="button"
-            onClick={() => void submit(value.trim())}
-            disabled={checking || !value.trim()}
+            onClick={() => void submit(value)}
+            disabled={checking || !value}
             aria-label="Unlock setup"
             className="rounded-2xl bg-accent px-5 py-2.5 text-base font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver"
           >

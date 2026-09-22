@@ -49,11 +49,16 @@ def first_run(tmp_path, monkeypatch):
 
 
 def _writes(env):
-    """Every config write the wizard makes, with a body the validators accept."""
+    """Every route under /api/admin/config that writes, with a body the
+    validators accept. Not only the four the wizard sends: any of them left
+    ungated is a way to write the configuration during first run."""
     return [
         ("PUT", "/api/admin/config/drives",
-         [{"name": "d", "path": env["drive_path"]}]),
+         [{"name": "d", "path": env["drive_path"], "access_group": "g1"}]),
         ("PUT", "/api/admin/config/passwords", []),
+        ("POST", "/api/admin/config/passwords/append",
+         {"password": "planted", "groups": ["g1"]}),
+        ("DELETE", "/api/admin/config/passwords/0", None),
         ("PUT", "/api/admin/config/addon-policy", {}),
         ("POST", "/api/admin/config/complete-setup", None),
     ]
@@ -89,6 +94,32 @@ def test_every_write_is_accepted_with_the_token(first_run):
         assert resp.status_code == 200, f"{method} {url}: {resp.text}"
 
     assert (first_run["data_dir"] / "setup_completed").exists()
+
+
+def test_the_route_list_is_every_write_under_admin_config(first_run):
+    """A route added without a gate is the defect this file exists to catch,
+    so the list above is checked against the app's own routing table."""
+    from app.main import app
+
+    routed = {
+        (method, route.path)
+        for route in app.routes
+        for method in getattr(route, "methods", set())
+        if getattr(route, "path", "").startswith("/api/admin/config")
+        and method not in ("GET", "HEAD", "OPTIONS")
+    }
+    # Not a write: it only answers whether a token would be accepted.
+    routed.discard(("POST", "/api/admin/config/setup-token/verify"))
+
+    listed = {
+        (method, url.split("?")[0].rstrip("0123456789").rstrip("/"))
+        for method, url, _ in _writes(first_run)
+    }
+    templated = {
+        (method, path.rstrip("}").rsplit("/{", 1)[0] if "/{" in path else path)
+        for method, path in routed
+    }
+    assert templated == listed
 
 
 def test_the_token_grants_nothing_once_setup_is_complete(first_run):
@@ -166,6 +197,77 @@ class TestVerify:
         assert resp.status_code == 422, resp.text
 
 
+class TestStartup:
+    """The mint has to happen at startup: the operator reads the token from
+    the log before the wizard asks for it."""
+
+    def _boot(self, tmp_path, monkeypatch, *, completed: bool):
+        drive_dir = tmp_path / "d"
+        drive_dir.mkdir()
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        drives_json = tmp_path / "drives.json"
+        drives_json.write_text(json.dumps([]))
+        passwords_json = tmp_path / "passwords.json"
+        passwords_json.write_text(json.dumps([]))
+
+        monkeypatch.setattr(config, "DRIVES_CONFIG", drives_json)
+        monkeypatch.setattr(config, "DATA_DIR", data_dir)
+        monkeypatch.setattr(config, "THUMBNAILS_DIR", data_dir / "thumbnails")
+        monkeypatch.setattr(config, "CONVERTED_DIR", data_dir / "converted")
+        monkeypatch.setattr(config, "_drives_cache", None)
+        monkeypatch.setattr(auth, "PASSWORDS_CONFIG", passwords_json)
+        monkeypatch.setattr(auth, "_passwords_cache", None)
+        monkeypatch.setattr(setup_token, "_token", None)
+        monkeypatch.delenv(setup_token.ENV_VAR, raising=False)
+        if completed:
+            (data_dir / "setup_completed").touch()
+
+        from app.main import app
+
+        with TestClient(app):
+            pass
+        return setup_token._token
+
+    def test_a_token_exists_before_anyone_asks_for_it(self, tmp_path, monkeypatch):
+        assert self._boot(tmp_path, monkeypatch, completed=False) is not None
+
+    def test_a_completed_install_mints_nothing(self, tmp_path, monkeypatch):
+        assert self._boot(tmp_path, monkeypatch, completed=True) is None
+
+    def test_a_completed_install_mints_nothing_when_asked_either(
+        self, tmp_path, monkeypatch
+    ):
+        """The verify endpoint reaches `matches()`, which mints on demand."""
+        drive_dir = tmp_path / "d"
+        drive_dir.mkdir()
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        drives_json = tmp_path / "drives.json"
+        drives_json.write_text(json.dumps([{"name": "d", "path": str(drive_dir)}]))
+        passwords_json = tmp_path / "passwords.json"
+        passwords_json.write_text(json.dumps([]))
+        monkeypatch.setattr(config, "DRIVES_CONFIG", drives_json)
+        monkeypatch.setattr(config, "DATA_DIR", data_dir)
+        monkeypatch.setattr(config, "THUMBNAILS_DIR", data_dir / "thumbnails")
+        monkeypatch.setattr(config, "CONVERTED_DIR", data_dir / "converted")
+        monkeypatch.setattr(config, "_drives_cache", None)
+        monkeypatch.setattr(auth, "PASSWORDS_CONFIG", passwords_json)
+        monkeypatch.setattr(auth, "_passwords_cache", None)
+        monkeypatch.setattr(setup_token, "_token", None)
+        monkeypatch.delenv(setup_token.ENV_VAR, raising=False)
+        (data_dir / "setup_completed").touch()
+
+        from app.main import app
+
+        with TestClient(app) as c:
+            resp = c.post(
+                "/api/admin/config/setup-token/verify", json={"token": "anything"}
+            )
+            assert resp.status_code == 404, resp.text
+        assert setup_token._token is None
+
+
 class TestWhereTheTokenComesFrom:
     def test_the_environment_wins(self, monkeypatch):
         monkeypatch.setattr(setup_token, "_token", None)
@@ -178,6 +280,16 @@ class TestWhereTheTokenComesFrom:
         minted = setup_token.setup_token()
         assert len(minted) >= 24
         assert setup_token.setup_token() == minted
+
+    def test_each_mint_is_a_fresh_secret(self, monkeypatch):
+        """A token anyone can guess gates nothing."""
+        monkeypatch.delenv(setup_token.ENV_VAR, raising=False)
+        seen = set()
+        for _ in range(8):
+            monkeypatch.setattr(setup_token, "_token", None)
+            seen.add(setup_token.setup_token())
+        assert len(seen) == 8
+        assert all(len(t) >= 24 for t in seen)
 
     def test_a_near_miss_does_not_match(self, monkeypatch):
         monkeypatch.setattr(setup_token, "_token", None)
