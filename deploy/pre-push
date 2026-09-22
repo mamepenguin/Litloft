@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# Runs, before a push, the checks CI runs slowest and this machine runs
+# fastest. Of the 15 CI job failures since January, 9 were in
+# `frontend (vitest / tsc / eslint)` — every one of them reproducible here in
+# a fraction of the time the runner takes.
+#
+# Install with:
+#   ln -s ../../deploy/pre-push .git/hooks/pre-push
+#
+# Skip a single push with `git push --no-verify`.
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+range_files() {
+  # Everything the push would add, against the upstream tip when there is one.
+  local base
+  base="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)" \
+    && git diff --name-only "$base"...HEAD \
+    || git diff --name-only origin/develop...HEAD 2>/dev/null \
+    || git diff --name-only HEAD~1...HEAD
+}
+
+files="$(range_files)"
+[ -z "$files" ] && exit 0
+
+status=0
+if grep -qE '^frontend/|^addons/[^/]+/frontend/' <<<"$files"; then
+  echo "pre-push: frontend touched — vitest, tsc, eslint"
+  (
+    cd "$root/frontend" || exit 1
+    node scripts/merge-addon-messages.mjs >/dev/null || exit 1
+    pnpm exec vitest run || exit 1
+    pnpm exec tsc --noEmit || exit 1
+    pnpm lint || exit 1
+  ) || status=1
+fi
+
+if [ $status -ne 0 ]; then
+  echo
+  echo "pre-push: a check failed. Push anyway with --no-verify if that is deliberate."
+fi
+exit $status

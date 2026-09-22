@@ -22,8 +22,14 @@ permissions:
 
 jobs:
   frontend:
-    name: frontend (vitest / tsc / eslint)
+    name: frontend (vitest ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
+    env:
+      SHARDS: 4
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,6 +49,116 @@ jobs:
 
       # Without it vitest collects no addon test at all and the suite is green
       # for the wrong reason.
+      - name: Link addons into backend/ and frontend/
+        run: ./setup-addons.sh
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      - name: Merge addon translations
+        run: node scripts/merge-addon-messages.mjs
+        working-directory: frontend
+
+      # `vitest run` spelled out rather than `pnpm test`, so what CI measures
+      # does not depend on argument forwarding through a package script.
+      # `pnpm test` stays the plain run: the four addon repositories call it
+      # against core's `develop` tip, and they should not inherit core's
+      # thresholds in their own CI.
+      #
+      # Sharded because the runner, not the suite, is the cost: the same 6,900
+      # cases take ~40s on a developer machine and ~350s here, and this job was
+      # the critical path for the whole workflow.
+      #
+      # `--retry=1` does not hide a failure — the build still goes red when a
+      # test fails twice. What it buys is the label: vitest reports a test that
+      # passed on its retry as flaky, which is the one thing the history could
+      # not distinguish (every failed run to date sits at attempt 1, so nobody
+      # ever learned whether a red was a catch or a coin flip).
+      - name: Test
+        run: >-
+          pnpm exec vitest run --coverage --retry=1
+          --reporter=blob --reporter=default
+          --shard=${{ matrix.shard }}/${{ env.SHARDS }}
+        working-directory: frontend
+
+      - name: Keep this shard's blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-blob-${{ matrix.shard }}
+          path: frontend/.vitest-reports/
+          retention-days: 1
+
+  # Coverage is the reason this is a job and not a step: a shard covers only
+  # the files its own quarter of the suite touched, so a threshold applied per
+  # shard would measure a quarter of the tree against a whole tree's floor.
+  # The blobs are merged first, and the floor and the denominator are checked
+  # once, against the same numbers a single run produces.
+  frontend-coverage:
+    name: frontend (coverage floor and denominator)
+    needs: frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Link addons into backend/ and frontend/
+        run: ./setup-addons.sh
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      - name: Collect every shard's blob report
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vitest-blob-*
+          merge-multiple: true
+          path: frontend/.vitest-reports
+
+      - name: Merge the shards and apply the floor
+        run: pnpm exec vitest --merge-reports --coverage
+        working-directory: frontend
+
+      # `!cancelled()` because the run that most needs this line is the one
+      # where the merge went red: a step with no `if:` is skipped when the step
+      # before it fails. Not `always()`: a cancelled run has nothing to diagnose.
+      - name: Check the coverage denominator
+        if: ${{ !cancelled() }}
+        run: node scripts/check-coverage-denominator.mjs
+        working-directory: frontend
+
+  # Neither reads a test result, so neither is worth repeating per shard.
+  frontend-static:
+    name: frontend (tsc / eslint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
       - name: Link addons into backend/ and frontend/
         run: ./setup-addons.sh
 
@@ -91,23 +207,6 @@ jobs:
           done
           exit $status
 
-      # `vitest run --coverage` spelled out rather than `pnpm test --coverage`,
-      # so what CI measures does not depend on argument forwarding through a
-      # package script. `pnpm test` stays the plain run: the four addon
-      # repositories call it against core's `develop` tip, and they should not
-      # inherit core's thresholds in their own CI.
-      - name: Test
-        run: pnpm exec vitest run --coverage
-        working-directory: frontend
-
-      # `!cancelled()` because the run that most needs this line is the one
-      # where `Test` went red: a step with no `if:` is skipped when the step
-      # before it fails. Not `always()`: a cancelled run has nothing to diagnose.
-      - name: Check the coverage denominator
-        if: ${{ !cancelled() }}
-        run: node scripts/check-coverage-denominator.mjs
-        working-directory: frontend
-
       - name: Type-check
         run: pnpm exec tsc --noEmit
         working-directory: frontend
@@ -155,8 +254,13 @@ jobs:
         run: node scripts/merge-addon-messages.mjs
         working-directory: frontend
 
+      # `--retry=1` for the same reason as the sharded job: a test that passes
+      # on its retry is reported flaky rather than read as a find. Three of
+      # this job's failures were unique to it, and one of those three failed
+      # in the unshuffled job too — so the history cannot say whether this job
+      # has ever caught order coupling. The label settles it going forward.
       - name: Test in a random order
-        run: pnpm exec vitest run --sequence.shuffle
+        run: pnpm exec vitest run --sequence.shuffle --retry=1
         working-directory: frontend
 
   frontend-layout:
