@@ -139,6 +139,22 @@ describe("TextPreview rendering", () => {
     expect(pre.textContent).toHaveLength(6007);
   });
 
+  it("draws a CRLF file at one row per line, not two", async () => {
+    const pre = await show("a\r\nb\r\nc\r\n", "notes.unknownext");
+    expect(pre.querySelectorAll(".code-line")).toHaveLength(3);
+    expect(pre.textContent).toBe("a\nb\nc\n");
+  });
+
+  it("folds the breaks of a file it will not decorate", async () => {
+    // The limits send a file down a path that draws it whole. What it draws
+    // is still the file with its breaks folded, or a CR-only file arrives as
+    // one run-on line.
+    const content = `let a = 1;\r${"x\r".repeat(6000)}`;
+    const pre = await show(content, "old.js");
+    expect(pre.querySelector(".code-line")).toBeNull();
+    expect(pre.textContent).toBe(content.replace(/\r/g, "\n"));
+  });
+
   it("renders an empty file as no lines and no error", async () => {
     const pre = await show("", "empty.rs");
     expect(pre.querySelectorAll(".code-line")).toHaveLength(0);

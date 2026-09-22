@@ -98,33 +98,41 @@ export function isTextPreviewable(mimeType: string, filename?: string): boolean 
 }
 
 interface Decorated {
-  /** One entry per line, without its break. */
-  lines: string[];
+  /** The file with CR and CRLF folded to LF. What every path draws. */
+  text: string;
+  /** One entry per line, without its break; `null` when too large. */
+  lines: string[] | null;
   /** Whether the entries are markup from highlight.js or the file's own text. */
   coloured: boolean;
   /** Whether the file's last line ends in a break. */
   trailingBreak: boolean;
 }
 
-function decorate(content: string, filename: string | undefined): Decorated | null {
-  if (content.length > MAX_DECORATED_CHARS) return null;
-
-  // Once, here, so both paths see the same breaks. The coloured path goes
-  // through an HTML parse, which folds CR and CRLF to LF on its own; the
-  // uncoloured one does not, so a file broken with bare CR would otherwise
-  // come out as one line on one path and many on the other.
+function decorate(content: string, filename: string | undefined): Decorated {
+  // Once, here, so every path draws the same thing. The coloured path goes
+  // through an HTML parse, which folds CR and CRLF to LF on its own; nothing
+  // else does, so a file broken with bare CR would otherwise come out as one
+  // line on one path and many on another.
   const text = content.replace(/\r\n?/g, "\n");
+  const trailingBreak = text.endsWith("\n");
+  const tooLarge = { text, lines: null, coloured: false, trailingBreak };
+
+  if (text.length > MAX_DECORATED_CHARS) return tooLarge;
 
   const plain = splitPlainLines(text);
-  if (plain.length > MAX_DECORATED_LINES) return null;
-  if (plain.some((line) => line.length > MAX_DECORATED_LINE_CHARS)) return null;
+  if (plain.length > MAX_DECORATED_LINES) return tooLarge;
+  if (plain.some((line) => line.length > MAX_DECORATED_LINE_CHARS)) return tooLarge;
 
-  const trailingBreak = text.endsWith("\n");
   const language = filename === undefined ? null : codeLanguageFor(filename);
-  if (language === null) return { lines: plain, coloured: false, trailingBreak };
+  if (language === null) return { text, lines: plain, coloured: false, trailingBreak };
 
   const html = hljs.highlight(text, { language, ignoreIllegals: true }).value;
-  return { lines: splitHighlightedLines(html), coloured: true, trailingBreak };
+  return {
+    text,
+    lines: splitHighlightedLines(html),
+    coloured: true,
+    trailingBreak,
+  };
 }
 
 export function TextPreview({
@@ -150,8 +158,6 @@ export function TextPreview({
   const preRef = useRef<HTMLPreElement>(null);
   useDocumentCapturePublisher(preRef, onDocumentCaptureController);
   useHighlightPassage(preRef, highlight, content !== null);
-  // `null` means the file is too large to decorate, and only that: an empty
-  // string decorates to no lines, which is what an empty file should draw.
   const decorated = useMemo(
     () => decorate(content ?? "", filename),
     [content, filename],
@@ -217,22 +223,22 @@ export function TextPreview({
     );
   }
 
-  const body = content ?? "";
   const preClass =
     "p-4 text-sm leading-relaxed text-text-primary font-mono whitespace-pre-wrap break-words";
 
-  if (decorated === null) {
+  const { text, lines, coloured, trailingBreak } = decorated;
+
+  if (lines === null) {
     return (
       <div className="w-full rounded-xl bg-bg-card">
         <p className="px-4 pt-4 text-sm text-text-muted">{t("tooLargeToDecorate")}</p>
         <pre ref={preRef} className={preClass}>
-          {body}
+          {text}
         </pre>
       </div>
     );
   }
 
-  const { lines, coloured, trailingBreak } = decorated;
   const withBreak = (i: number) => i < lines.length - 1 || trailingBreak;
 
   return (

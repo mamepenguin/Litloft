@@ -176,7 +176,7 @@ async function gutterStrip(
   }, index);
 }
 
-test("the number drawn beside a line is that line's number", async ({ page }) => {
+test("neighbouring lines draw different numbers in the gutter", async ({ page }) => {
   await page.goto(`${FIXTURE}#code-viewer-many`);
   await expect(page.locator("body")).toHaveAttribute(
     "data-arrangement",
@@ -184,9 +184,11 @@ test("the number drawn beside a line is that line's number", async ({ page }) =>
   );
   await expect(page.locator(".code-line")).toHaveCount(150);
 
-  // The counter's value is not readable: Chromium reports `content` as the
-  // unresolved `counter(code-line)`. What is readable is the ink, and two
-  // lines whose numbers differ cannot have drawn the same thing.
+  // Ink, because the counter's value is not readable: Chromium reports
+  // `content` as the unresolved `counter(code-line)`. This holds that a
+  // number is drawn and that it changes down the file. It cannot hold that
+  // the number is the right one — comparing pixels says "different", never
+  // "correct".
   // Sequential, not parallel: each one scrolls its line into view first.
   const strips: Buffer[] = [];
   for (const i of [0, 1, 99]) {
@@ -251,10 +253,9 @@ test("the number is inset from the block's edge, as the text is", async ({
     };
   });
 
-  // Not flush with the card: the other three sides keep the block's own
-  // padding, and a number touching the corner reads as an overflow.
-  expect(inset.numberLeft - inset.blockLeft).toBeGreaterThan(4);
-  expect(inset.numberLeft - inset.blockLeft).toBeLessThanOrEqual(inset.right);
+  // The same inset the text gets on the other three sides, not merely some
+  // inset: a range here would pass a gutter flush against the card.
+  expect(inset.numberLeft - inset.blockLeft).toBeCloseTo(inset.right, 1);
 });
 
 test("a citation crossing a line boundary is marked on both lines", async ({

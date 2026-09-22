@@ -755,8 +755,11 @@ pre mark.ask-citation-highlight {
 .code-view {
   --code-gutter: 5ch;
   counter-reset: code-line;
-  /* The inset keeps the number off the card's edge, as the block's own
-     padding keeps the text off the other three. */
+  /* One inset on all four sides, with the number column added to the left.
+     The number is as far from the card's edge as the text is from the other
+     three; a wider inset would push a four-digit gutter well past the width
+     this block had before it was numbered. */
+  padding: 0.5rem;
   padding-left: calc(0.5rem + var(--code-gutter));
 }
 
