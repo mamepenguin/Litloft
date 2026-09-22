@@ -116,9 +116,9 @@ class TestMisdeclaredFileAccessParam:
     def test_a_param_the_route_does_not_have_refuses(self, declaring, caplog):
         """The gate cannot run, so the route is refused rather than served.
 
-        Nothing else would notice: the route resolves, the caller gets 200,
-        and the id of a file in a drive they cannot open is handed to the
-        addon. The manifest still reads as gated.
+        Without the refusal nothing else would notice: the route resolves,
+        the caller gets 200, and the id of a file in a drive they cannot open
+        is handed to the addon. The manifest still reads as gated.
         """
         route = {**FILE_ROUTE, "pre_check": {"type": "file_access", "param": "fileId"}}
         c = declaring(route)

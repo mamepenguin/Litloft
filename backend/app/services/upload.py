@@ -17,7 +17,7 @@ from app.services.filetype import classify, is_probeable_media
 from app.services.image_dimensions import read_image_dimensions
 from app.services.fileops import (
     _filename_to_title,
-    remove_empty_folder_if_has_files,
+    untrack_empty_folder,
     resolve_drive_path,
     validate_filename,
     validate_path_safe,
@@ -308,7 +308,7 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
         db.add(file_record)
     db.flush()
     probe_file_chapters(db, file_record, target_full)
-    remove_empty_folder_if_has_files(db, session.drive, session.folder_path)
+    untrack_empty_folder(db, session.drive, session.folder_path)
     db.commit()
     db.refresh(file_record)
 

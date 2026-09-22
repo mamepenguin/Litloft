@@ -121,9 +121,8 @@ def get_drive_addon_policy(drive_name: str, addon_name: str) -> dict:
         { "name": "...", "addons": { "<addon>": { "<feature>": bool, ... } } }
 
     Returns empty dict if no policy is configured (= all features enabled).
-    A bool value (e.g. ``"intelligence": false``) is normalised to a dict
-    where the implicit feature ``enabled`` carries that value, and any
-    feature lookup falls back to it.
+    A bool value (e.g. ``"intelligence": false``) is normalised to
+    ``{"_all": <value>}``, which every feature lookup falls back to.
     """
     for drive in load_drives():
         if drive["name"] == drive_name:

@@ -95,7 +95,8 @@ def classify(filename: str) -> tuple[str, str]:
 
 
 def is_probeable_media(file_type: str, mime_type: str) -> bool:
-    """Return whether the path contains bytes ffprobe can inspect directly."""
+    """Whether ffprobe can read this file's own bytes: a ``.loft`` is a
+    pointer to media held elsewhere, not media."""
     return file_type in ("video", "audio") and mime_type != LOFT_MIME_TYPE
 
 

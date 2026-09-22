@@ -23,9 +23,9 @@ export function DialogPortalProvider({
 }
 
 /**
- * Returns `null` during SSR and on the very first client render inside a
- * provider whose host has not attached yet; callers should skip
- * portalling until it is non-null.
+ * Returns `null` during SSR, so callers skip portalling until it is
+ * non-null. On the client it falls back to `document.body` when no
+ * provider has attached a host of its own.
  */
 export function useDialogPortalTarget(): HTMLElement | null {
   const provided = useContext(DialogPortalContext);

@@ -35,7 +35,7 @@ export function normaliseDriveView(view: string | null): string | null {
   return view === "library" ? null : view;
 }
 
-/** The two addresses of a drive's root. Nothing builds the bare form by hand. */
+/** The two addresses of a drive's root. */
 export function driveHref(drive: string, kind: "home" | "library"): string {
   const base = `/drive/${encodeURIComponent(drive)}`;
   return kind === "home" ? `${base}?view=home` : base;

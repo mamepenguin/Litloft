@@ -39,8 +39,8 @@ def atomic_write_json(
 
     Failure modes:
       - Any IO error during write or replace propagates after we clean up
-        the temporary file. The destination file is left unchanged so the
-        running server continues using the previous valid config.
+        the temporary file. The destination is left unchanged, except on the
+        in-place EBUSY path, where ``<path>.bak`` is the recovery point.
     """
     path = Path(path)
     tmp = path.with_suffix(path.suffix + ".tmp")

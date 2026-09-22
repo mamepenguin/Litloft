@@ -18,12 +18,6 @@ export interface MediaSource {
   artworkUrl?: string;
 }
 
-/**
- * `loadId` and `seekId` are issued here and handed back unchanged by the shell,
- * so a report is matched to what it is about by equality rather than inferred
- * from its order. The shell drops a command whose `loadId` is not the file it
- * currently holds.
- */
 export type MediaKind = "audio" | "video";
 
 /**
@@ -55,6 +49,12 @@ export interface SurfaceGeometry {
   stickLimit: number | null;
 }
 
+/**
+ * `loadId` and `seekId` are issued here and handed back unchanged by the shell,
+ * so a report is matched to what it is about by equality rather than inferred
+ * from its order. The shell drops a command whose `loadId` is not the file it
+ * currently holds.
+ */
 export type MediaCommand =
   | ({ type: "media.load"; loadId: string; kind: MediaKind } & MediaSource)
   | { type: "media.play"; loadId: string }

@@ -87,9 +87,10 @@ def _filename_to_title(filename: str) -> str:
     is frequently load-bearing (`MacBook-Neo-review`, a Japanese compound), so
     it survives.
 
-    Nothing recases the words. `str.title()` uppercases the letter after every
-    non-alphabetic character and lowercases the rest of each word, which turns
-    `charon's` into `Charon'S` and `MacBook` into `Macbook`.
+    Beyond raising the first letter, nothing recases the words. `str.title()`
+    uppercases the letter after every non-alphabetic character and lowercases
+    the rest of each word, which turns `charon's` into `Charon'S` and
+    `MacBook` into `Macbook`.
     """
     stem = Path(filename).stem
     name = stem.replace("_", " ").strip()
@@ -124,7 +125,7 @@ def path_thumbnail_rel(drive: str, folder_path: str, stem: str) -> str:
     return f"{drive}/{folder_path}/{stem}.jpg" if folder_path else f"{drive}/{stem}.jpg"
 
 
-def remove_empty_folder_if_has_files(db: Session, drive: str, folder_path: str) -> None:
+def untrack_empty_folder(db: Session, drive: str, folder_path: str) -> None:
     existing = (
         db.query(EmptyFolder)
         .filter(EmptyFolder.drive == drive, EmptyFolder.path == folder_path)
@@ -331,7 +332,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
                         projected_thumb = (
                             config.THUMBNAILS_DIR / new_file.thumbnail_path
                         )
-            remove_empty_folder_if_has_files(db, dst_drive, target_folder)
+            untrack_empty_folder(db, dst_drive, target_folder)
             db.commit()
         except Exception as exc:
             db.rollback()
@@ -497,7 +498,7 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
             content = _read_markdown_for_projection(new_full)
             if content is not None:
                 project_markdown_thumbnail(db, file, content)
-        remove_empty_folder_if_has_files(db, dst_drive, target_folder)
+        untrack_empty_folder(db, dst_drive, target_folder)
         db.flush()
         _ensure_empty_folder_tracked(db, old_drive, old_folder)
         db.commit()
@@ -733,7 +734,7 @@ def restore_file(db: Session, file_id: str) -> File:
     # prevents a future bug or out-of-band DB edit from leaving the file
     # invisible after restore.
     file.missing_since = None
-    remove_empty_folder_if_has_files(db, file.drive, file.folder_path)
+    untrack_empty_folder(db, file.drive, file.folder_path)
     db.commit()
     db.refresh(file)
     return file

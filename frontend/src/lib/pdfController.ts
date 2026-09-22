@@ -1,8 +1,3 @@
-/**
- * It is a store rather than a plain object because the page changes while
- * both sides are mounted, and a React state read through a prop would be one
- * render behind the panel that just wrote it.
- */
 export interface PdfOutlineItem {
   depth: number;
   title: string;
@@ -18,6 +13,11 @@ export interface PdfDocumentState {
   outline: PdfOutlineItem[] | null;
 }
 
+/**
+ * A store rather than a plain object because the page changes while both
+ * sides are mounted, and a React state read through a prop would be one
+ * render behind the panel that just wrote it.
+ */
 export interface PdfController {
   getState(): PdfDocumentState;
   goToPage(page: number): void;
