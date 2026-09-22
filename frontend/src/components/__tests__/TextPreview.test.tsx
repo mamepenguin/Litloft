@@ -9,19 +9,21 @@ describe("TextPreview document capture", () => {
   it("publishes a selection through the shared document controller", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response("alpha\n beta", { status: 200 })),
+      vi.fn().mockResolvedValue(new Response("alpha\nbeta", { status: 200 })),
     );
     const onDocumentCaptureController = vi.fn();
-    render(
+    const { container } = render(
       <TextPreview
         fileId="text12345678"
         fileSize={12}
         onDocumentCaptureController={onDocumentCaptureController}
       />,
     );
-    const content = await screen.findByText(/alpha/);
+    await waitFor(() =>
+      expect(container.querySelector("pre")?.textContent).toContain("beta"),
+    );
     const range = document.createRange();
-    range.selectNodeContents(content);
+    range.selectNodeContents(container.querySelector("pre")!);
     const selection = window.getSelection()!;
     selection.removeAllRanges();
     selection.addRange(range);
@@ -34,6 +36,129 @@ describe("TextPreview document capture", () => {
         quote: "alpha beta",
       });
     });
+  });
+});
+
+describe("TextPreview rendering", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  async function show(content: string, filename?: string) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(content, { status: 200 })),
+    );
+    const { container } = render(
+      <TextPreview fileId="f1" fileSize={content.length} filename={filename} />,
+    );
+    await waitFor(() => expect(container.querySelector("pre")).not.toBeNull());
+    return container.querySelector("pre")!;
+  }
+
+  it("colours a file whose name names a language", async () => {
+    const pre = await show("fn main() {}\n", "main.rs");
+    expect(pre.querySelector(".hljs-keyword")).not.toBeNull();
+  });
+
+  it("draws one element per line, with the break inside it", async () => {
+    const pre = await show("a\nb\nc\n", "notes.unknownext");
+    expect(pre.querySelectorAll(".code-line")).toHaveLength(3);
+    expect(pre.textContent).toBe("a\nb\nc\n");
+  });
+
+  it.each([
+    ["a\nb\nc\n", 3],
+    ["a\nb\nc", 3],
+    ["a\n\nc\n", 3],
+    ["one line", 1],
+  ])("draws %j as %i lines", async (content, count) => {
+    const pre = await show(content, "notes.unknownext");
+    expect(pre.querySelectorAll(".code-line")).toHaveLength(count);
+  });
+
+  it.each([
+    ["fn main() {}\nlet x = 1;\n", "main.rs"],
+    ["fn main() {}\nlet x = 1;", "main.rs"],
+    ["a\nb\n", "notes.unknownext"],
+    ["a\nb", "notes.unknownext"],
+  ])("keeps every character of %j", async (content, filename) => {
+    const pre = await show(content, filename);
+    expect(pre.textContent).toBe(content);
+  });
+
+  it("does not read an uncoloured file's content as markup", async () => {
+    const pre = await show("<script>alert(1)</script>\n", "notes.unknownext");
+    expect(pre.querySelector("script")).toBeNull();
+    expect(pre.textContent).toBe("<script>alert(1)</script>\n");
+  });
+
+  it("does not read an undecorated file's content as markup either", async () => {
+    const content = `<script>alert(1)</script>\n${"x\n".repeat(6000)}`;
+    const pre = await show(content, "notes.unknownext");
+    expect(pre.querySelector("script")).toBeNull();
+    expect(pre.textContent).toBe(content);
+  });
+
+  it("says why a file too large to decorate has no line numbers", async () => {
+    const content = "x\n".repeat(6000);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(content, { status: 200 })),
+    );
+    const { container } = render(
+      <TextPreview fileId="f1" fileSize={content.length} filename="big.rs" />,
+    );
+    await waitFor(() => expect(container.querySelector("pre")).not.toBeNull());
+    expect(container.querySelector(".code-line")).toBeNull();
+    expect(container.querySelector("pre")!.textContent).toBe(content);
+    expect(screen.getByText(/line numbers/i)).toBeInTheDocument();
+  });
+
+  it("leaves a single enormous line undecorated too", async () => {
+    // One line, so the line limit says nothing about it.
+    const pre = await show(`${"x".repeat(600_000)}\n`, "bundle.js");
+    expect(pre.querySelector(".code-line")).toBeNull();
+    expect(pre.textContent).toHaveLength(600_001);
+  });
+
+  it("breaks a CR-only file into the same lines however it is drawn", async () => {
+    // The coloured path goes through an HTML parse, which folds CR to LF on
+    // its own. Nothing folds it on the uncoloured path.
+    const coloured = await show("let a = 1;\rlet b = 2;\r", "old.js");
+    const plain = await show("let a = 1;\rlet b = 2;\r", "old.unknownext");
+    expect(coloured.querySelectorAll(".code-line")).toHaveLength(2);
+    expect(plain.querySelectorAll(".code-line")).toHaveLength(2);
+    expect(plain.textContent).toBe("let a = 1;\nlet b = 2;\n");
+    expect(coloured.textContent).toBe("let a = 1;\nlet b = 2;\n");
+  });
+
+  it("leaves a file with one enormous line undecorated", async () => {
+    // Several grammars are quadratic in an unbroken alphanumeric run, so a
+    // file well under the size limit can still take minutes to colour.
+    const pre = await show(`x = "${"A".repeat(6000)}"\n`, "keys.ini");
+    expect(pre.querySelector(".code-line")).toBeNull();
+    expect(pre.textContent).toHaveLength(6007);
+  });
+
+  it("draws a CRLF file at one row per line, not two", async () => {
+    const pre = await show("a\r\nb\r\nc\r\n", "notes.unknownext");
+    expect(pre.querySelectorAll(".code-line")).toHaveLength(3);
+    expect(pre.textContent).toBe("a\nb\nc\n");
+  });
+
+  it("folds the breaks of a file it will not decorate", async () => {
+    // The limits send a file down a path that draws it whole. What it draws
+    // is still the file with its breaks folded, or a CR-only file arrives as
+    // one run-on line.
+    const content = `let a = 1;\r${"x\r".repeat(6000)}`;
+    const pre = await show(content, "old.js");
+    expect(pre.querySelector(".code-line")).toBeNull();
+    expect(pre.textContent).toBe(content.replace(/\r/g, "\n"));
+  });
+
+  it("renders an empty file as no lines and no error", async () => {
+    const pre = await show("", "empty.rs");
+    expect(pre.querySelectorAll(".code-line")).toHaveLength(0);
+    expect(pre.textContent).toBe("");
   });
 });
 
@@ -103,8 +228,6 @@ describe("isTextPreviewable", () => {
   });
 
   it("still answers on the mime alone, for the callers that pass no name", () => {
-    // `FilePreview` passes one argument, and a real file's mime was set by
-    // the same table on the way in, so it is worth trusting there.
     expect(isTextPreviewable("text/markdown")).toBe(true);
     expect(isTextPreviewable("application/json")).toBe(true);
     expect(isTextPreviewable(OPAQUE)).toBe(false);

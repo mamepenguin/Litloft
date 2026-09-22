@@ -9,6 +9,7 @@ export const DESKTOP_ONLY = [
   "**/anchored-direction-desktop.spec.ts",
   "**/view-transition-desktop.spec.ts",
   "**/citation-seams-desktop.spec.ts",
+  "**/code-viewer-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

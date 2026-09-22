@@ -203,11 +203,12 @@ export function FilePreview({
     );
   }
 
-  if (isTextPreviewable(file.mime_type)) {
+  if (isTextPreviewable(file.mime_type, file.filename)) {
     return (
       <TextPreview
         fileId={file.id}
         fileSize={file.file_size}
+        filename={file.filename}
         highlight={highlight}
         onDocumentCaptureController={onDocumentCaptureController}
       />

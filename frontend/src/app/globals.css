@@ -739,6 +739,57 @@ pre mark.ask-citation-highlight {
   padding-right: 0;
 }
 
+/* The code viewer's line numbers.
+
+   Generated content, because the <pre>'s text is read by the citation search
+   (a TreeWalker over its text nodes) and by the capture basket
+   (Selection.toString()). A number written as a text node would land in a
+   saved quote and in the haystack a search result is matched against.
+
+   `--code-gutter` is the number column: four digits and the gap to the
+   code. Four is every file the viewer numbers, because it stops numbering
+   above MAX_DECORATED_LINES and that is 5000. The block's padding pushes
+   the text off the column and the negative margin below pulls each number
+   back into it, so a line that wraps continues under the code rather than
+   under its own number. */
+.code-view {
+  --code-gutter: 5ch;
+  counter-reset: code-line;
+  /* One inset on all four sides, with the number column added to the left.
+     The number is as far from the card's edge as the text is from the other
+     three; a wider inset would push a four-digit gutter well past the width
+     this block had before it was numbered. */
+  padding: 0.5rem;
+  padding-left: calc(0.5rem + var(--code-gutter));
+}
+
+.code-line {
+  display: inline;
+  counter-increment: code-line;
+}
+
+.code-line::before {
+  content: counter(code-line);
+  display: inline-block;
+  width: var(--code-gutter);
+  margin-left: calc(-1 * var(--code-gutter));
+  /* Preflight makes this border-box, so the padding comes out of the width
+     rather than adding to it: 5ch less 0.75ch leaves 4.25ch. Four and a
+     quarter rather than four, because `ch` is the browser's rounded advance
+     of `0` and four real digits measure a hundredth of a pixel wider. */
+  padding-right: 0.75ch;
+  /* `pre-wrap` is inherited from the block, and a number that wraps inside
+     its own box makes the line two rows tall. */
+  white-space: nowrap;
+  text-align: right;
+  color: var(--text-muted);
+  opacity: 0.6;
+  /* Browsers have disagreed about whether generated content joins the
+     selection; nothing above should depend on the answer. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .wiki-link {
   text-decoration: none;
   border-bottom: 1px solid transparent;

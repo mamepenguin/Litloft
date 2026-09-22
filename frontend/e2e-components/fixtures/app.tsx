@@ -30,6 +30,10 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import type { SubtitleInfo } from "@/types";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
+import {
+  TextPreview,
+  MAX_DECORATED_LINES,
+} from "@/components/TextPreview";
 import enMessages from "@/messages-core/en.json";
 import jaMessages from "@/messages-core/ja.json";
 import { QuickNotePresenter } from "@/components/quick-note/QuickNotePresenter";
@@ -943,6 +947,83 @@ function FolderPushArrangement(): ReactElement {
 
 
 /**
+ * The real code viewer, over a source file with one line long enough to
+ * wrap. The numbers are generated content, which jsdom does not implement
+ * and cannot lay out, so what they do to a selection and to a wrapped line
+ * is only answerable here.
+ */
+const CODE_SOURCE = [
+  "fn main() {",
+  '    let message = "a line long enough that it has to wrap at this width, which is what puts a second visual row under the first";',
+  "    println!(\"{}\", message);",
+  "}",
+  "",
+].join("\n");
+
+/** The same viewer over a file whose numbers need three digits. */
+function CodeViewerMany(): ReactElement {
+  (window as unknown as Record<string, number>).__maxDecoratedLines =
+    MAX_DECORATED_LINES;
+  const source = Array.from({ length: 150 }, (_, i) => `let x${i} = ${i};`).join(
+    "\n",
+  );
+  window.fetch = (() =>
+    Promise.resolve(new Response(source, { status: 200 }))) as typeof fetch;
+  return (
+    <NextIntlClientProvider
+      locale="en"
+      messages={{
+        text: {
+          loading: "Loading",
+          loadFailed: "Failed",
+          fileSizeLarge: "Large",
+          loadContent: "Load",
+          tooLargeToDecorate: "Too large",
+        },
+      }}
+    >
+      <div id="host" className="bg-bg-primary p-8" style={{ width: 520 }}>
+        <TextPreview
+          fileId="codeviewer2"
+          fileSize={source.length}
+          filename="many.rs"
+        />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+function CodeViewer(): ReactElement {
+  window.fetch = (() =>
+    Promise.resolve(new Response(CODE_SOURCE, { status: 200 }))) as typeof fetch;
+  return (
+    <NextIntlClientProvider
+      locale="en"
+      messages={{
+        text: {
+          loading: "Loading",
+          loadFailed: "Failed",
+          fileSizeLarge: "Large",
+          loadContent: "Load",
+          tooLargeToDecorate: "Too large",
+        },
+      }}
+    >
+      <div id="host" className="bg-bg-primary p-8" style={{ width: 520 }}>
+        <TextPreview
+          fileId="codeviewer1"
+          fileSize={CODE_SOURCE.length}
+          filename="main.rs"
+          // Crosses the boundary between the last two lines, so every case
+          // in this arrangement also holds while a citation is marked.
+          highlight="message); }"
+        />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+/**
  * The same citation in a rendered note, split across elements and whole.
  * `.markdown-body mark` supplies the padding there, and the `pre` rule that
  * zeroes it does not reach — so this is where the seam declarations decide
@@ -1376,6 +1457,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "open-ghost": OpenGhostArrangement,
   "citation-seams": CitationSeams,
   "citation-seams-prose": CitationSeamsProse,
+  "code-viewer": CodeViewer,
+  "code-viewer-many": CodeViewerMany,
 };
 
 function App(): ReactElement {

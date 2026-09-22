@@ -76,12 +76,21 @@ vi.mock("../PdfPreview", () => ({
   ),
 }));
 
-vi.mock("../TextPreview", () => ({
-  TextPreview: ({ fileId }: { fileId: string }) => (
-    <div data-testid="text-preview">{fileId}</div>
-  ),
-  isTextPreviewable: (mime: string) => mime === "text/plain",
-}));
+// The predicate is the real one: what this file is about is which arguments
+// the call site hands it, and a stub answering on the mime alone cannot show
+// that the name was passed.
+vi.mock("../TextPreview", async () => {
+  const actual =
+    await vi.importActual<typeof import("../TextPreview")>("../TextPreview");
+  return {
+    isTextPreviewable: actual.isTextPreviewable,
+    TextPreview: ({ fileId, filename }: { fileId: string; filename?: string }) => (
+      <div data-testid="text-preview" data-filename={filename ?? ""}>
+        {fileId}
+      </div>
+    ),
+  };
+});
 
 vi.mock("../FileTypeIcon", () => ({
   FileTypeIcon: ({ fileType }: { fileType: string }) => (
@@ -206,6 +215,48 @@ describe("FilePreview", () => {
     render(<FilePreview file={file} />);
     expect(screen.getByTestId("text-preview")).toBeInTheDocument();
   });
+
+  // None of these four has a mime that says text; the name is all there is.
+  it.each([["main.rs"], ["main.go"], ["Makefile"], ["LICENSE"]])(
+    "renders TextPreview for %s",
+    (filename) => {
+      const file = makeFile({
+        file_type: "other",
+        mime_type: "application/octet-stream",
+        filename,
+      });
+      render(<FilePreview file={file} />);
+      expect(screen.getByTestId("text-preview")).toBeInTheDocument();
+    },
+  );
+
+  it("hands the text viewer the name it colours by", () => {
+    // Without this the viewer has no language and nothing is ever coloured.
+    const file = makeFile({
+      file_type: "other",
+      mime_type: "application/octet-stream",
+      filename: "main.rs",
+    });
+    render(<FilePreview file={file} />);
+    expect(screen.getByTestId("text-preview")).toHaveAttribute(
+      "data-filename",
+      "main.rs",
+    );
+  });
+
+  it.each([["a.out"], ["photo.raw"], ["app.bin"]])(
+    "offers no text viewer for %s",
+    (filename) => {
+      const file = makeFile({
+        file_type: "other",
+        mime_type: "application/octet-stream",
+        filename,
+      });
+      render(<FilePreview file={file} />);
+      expect(screen.queryByTestId("text-preview")).not.toBeInTheDocument();
+    },
+  );
+
 
   it("renders HtmlPreview for text/html files", () => {
     const file = makeFile({
