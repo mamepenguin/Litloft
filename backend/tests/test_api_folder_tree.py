@@ -101,7 +101,11 @@ class TestFolderTree:
         assert by_name["child"]["kind"] == "folder"
         assert by_name["note.md"]["kind"] == "file"
 
-    def test_type_filter_text_excludes_other_files(self, client):
+    # One kind, not the vocabulary: the tree shares `_apply_kind_filter`
+    # with the listing, and `test_file_kind_filter.py::TestTheVocabulary`
+    # holds every kind against a declared table. What is the tree's own is
+    # that `type_filter` reaches the filter at all.
+    def test_type_filter_reaches_the_shared_filter(self, client):
         c, db, drive_dir, data_dir = client
         _add_file(db, drive_dir, folder_path="", filename="note.md", file_type="document", mime_type="text/markdown")
         _add_file(db, drive_dir, folder_path="", filename="movie.mp4", file_type="video", mime_type="video/mp4")
@@ -111,37 +115,6 @@ class TestFolderTree:
         names = {n["name"] for n in nodes}
         assert "note.md" in names
         assert "movie.mp4" not in names
-
-    def test_type_filter_video_excludes_text(self, client):
-        c, db, drive_dir, data_dir = client
-        _add_file(db, drive_dir, folder_path="", filename="note.md", file_type="document", mime_type="text/markdown")
-        _add_file(db, drive_dir, folder_path="", filename="movie.mp4", file_type="video", mime_type="video/mp4")
-
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=video&include_files=true")
-        nodes = res.json()
-        names = {n["name"] for n in nodes}
-        assert "movie.mp4" in names
-        assert "note.md" not in names
-
-    def test_type_filter_pdf(self, client):
-        c, db, drive_dir, data_dir = client
-        _add_file(db, drive_dir, folder_path="", filename="doc.pdf", file_type="document", mime_type="application/pdf")
-        _add_file(db, drive_dir, folder_path="", filename="movie.mp4", file_type="video", mime_type="video/mp4")
-
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=pdf&include_files=true")
-        names = {n["name"] for n in res.json()}
-        assert "doc.pdf" in names
-        assert "movie.mp4" not in names
-
-    def test_type_filter_image(self, client):
-        c, db, drive_dir, data_dir = client
-        _add_file(db, drive_dir, folder_path="", filename="pic.jpg", file_type="image", mime_type="image/jpeg")
-        _add_file(db, drive_dir, folder_path="", filename="note.md", file_type="document", mime_type="text/markdown")
-
-        res = c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=image&include_files=true")
-        names = {n["name"] for n in res.json()}
-        assert "pic.jpg" in names
-        assert "note.md" not in names
 
     def test_type_filter_does_not_hide_folders(self, client):
         """Folders must remain visible even when their direct files don't match filter."""

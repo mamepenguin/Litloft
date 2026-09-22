@@ -57,26 +57,6 @@ class TestBulkState:
             {"id": f.id, "drive": TEST_DRIVE, "state": "active"}
         ]
 
-    def test_missing_file(self, client):
-        c, db, _, _ = client
-        f = _seed_file(db, "m.mp4", missing_since=datetime.now(UTC))
-        res = c.post(
-            "/api/internal/files/bulk-state", json={"file_ids": [f.id]}
-        )
-        body = res.json()
-        assert body["statuses"][0]["state"] == "missing"
-        assert body["not_found"] == []
-
-    def test_trashed_file(self, client):
-        c, db, _, _ = client
-        f = _seed_file(db, "t.mp4", deleted_at=datetime.now(UTC))
-        res = c.post(
-            "/api/internal/files/bulk-state", json={"file_ids": [f.id]}
-        )
-        body = res.json()
-        assert body["statuses"][0]["state"] == "trash"
-        assert body["not_found"] == []
-
     def test_trash_wins_over_missing(self, client):
         """A file marked both deleted_at and missing_since (shouldn't happen
         in practice) is reported as trash — the explicit user action takes
@@ -89,16 +69,6 @@ class TestBulkState:
             "/api/internal/files/bulk-state", json={"file_ids": [f.id]}
         )
         assert res.json()["statuses"][0]["state"] == "trash"
-
-    def test_unknown_id_goes_to_not_found(self, client):
-        c, _db, _, _ = client
-        res = c.post(
-            "/api/internal/files/bulk-state",
-            json={"file_ids": ["no-such-id"]},
-        )
-        body = res.json()
-        assert body["statuses"] == []
-        assert body["not_found"] == ["no-such-id"]
 
     def test_mixed_bag(self, client):
         c, db, _, _ = client

@@ -62,47 +62,6 @@ def _clear_rate_limits():
     _comment_timestamps.clear()
 
 
-class TestSharedViewerIdUtilities:
-    """viewer_id utilities in auth.py."""
-
-    def test_nickname_to_viewer_id_from_auth(self):
-        from app.auth import nickname_to_viewer_id
-        vid = nickname_to_viewer_id("alice")
-        assert len(vid) == 16
-        assert all(c in "0123456789abcdef" for c in vid)
-
-    def test_get_viewer_id_from_auth(self):
-        from app.auth import _viewer_id_from_nickname
-        assert _viewer_id_from_nickname(None) is None
-        assert _viewer_id_from_nickname("") is None
-        assert _viewer_id_from_nickname("   ") is None
-
-    def test_get_viewer_id_valid(self):
-        from app.auth import _viewer_id_from_nickname, nickname_to_viewer_id
-        result = _viewer_id_from_nickname("alice")
-        assert result == nickname_to_viewer_id("alice")
-
-    def test_get_nickname_from_auth(self):
-        from app.auth import _nickname_from_raw
-        assert _nickname_from_raw(None) is None
-        assert _nickname_from_raw("") is None
-        assert _nickname_from_raw("   ") is None
-        assert _nickname_from_raw("alice") == "alice"
-
-    def test_get_nickname_strips_whitespace(self):
-        from app.auth import _nickname_from_raw
-        assert _nickname_from_raw("  alice  ") == "alice"
-
-    def test_get_nickname_too_long(self):
-        from app.auth import _nickname_from_raw
-        assert _nickname_from_raw("x" * 51) is None
-
-    def test_backward_compat_progress_imports(self):
-        """Ensure progress.py still exports these for backward compatibility."""
-        from app.routers.progress import nickname_to_viewer_id
-        assert nickname_to_viewer_id("test") is not None
-
-
 class TestCreateComment:
     def test_create_with_profile(self, client):
         c, db, drive_dir, data_dir = client

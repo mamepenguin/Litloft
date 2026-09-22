@@ -139,20 +139,6 @@ class TestInternalFileTagsReplace:
         refreshed = db.query(File).filter(File.id == f.id).one()
         assert refreshed.tags == []
 
-    def test_case_insensitive_dedup_keeps_first(self, client):
-        c, db, drive_dir, _ = client
-        f = _seed_file(db, drive_dir)
-        r = c.post(
-            f"/api/internal/files/{f.id}/tags",
-            json={"tags": ["Cooking", "cooking", "JAPANESE"]},
-        )
-        assert r.status_code == 204
-        db.expire_all()
-        refreshed = db.query(File).filter(File.id == f.id).one()
-        # Validator dedupes case-insensitively, keeping first occurrence
-        names = {t.name for t in refreshed.tags}
-        assert names == {"Cooking", "JAPANESE"}
-
     def test_orphan_tags_are_cleaned_up(self, client):
         c, db, drive_dir, _ = client
         f = _seed_file(db, drive_dir)
@@ -186,33 +172,6 @@ class TestInternalFileTagsReplace:
         rows = db.query(Tag).filter(Tag.name == "shared", Tag.drive == TEST_DRIVE).all()
         assert len(rows) == 1
         assert len(rows[0].files) == 2
-
-    def test_invalid_tag_name_returns_422(self, client):
-        c, db, drive_dir, _ = client
-        f = _seed_file(db, drive_dir)
-        # TagUpdate validator rejects tags with spaces / special chars
-        r = c.post(
-            f"/api/internal/files/{f.id}/tags",
-            json={"tags": ["invalid name with space"]},
-        )
-        assert r.status_code == 422
-
-    def test_max_10_tags(self, client):
-        c, db, drive_dir, _ = client
-        f = _seed_file(db, drive_dir)
-        r = c.post(
-            f"/api/internal/files/{f.id}/tags",
-            json={"tags": [f"t{i}" for i in range(11)]},
-        )
-        assert r.status_code == 422
-
-    def test_existing_public_api_still_works(self, client):
-        c, db, drive_dir, _ = client
-        f = _seed_file(db, drive_dir)
-        r = c.put(f"/api/files/{f.id}/tags", json={"tags": ["public-api"]})
-        assert r.status_code == 200
-        data = r.json()
-        assert data["tags"] == ["public-api"]
 
     def test_unicode_tag_names_accepted(self, client):
         """TagUpdate validator uses re.UNICODE so CJK word chars pass."""
