@@ -8,10 +8,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     globals: true,
-    // All three Playwright directories. They are browser suites — vitest
+    // Both Playwright directories. They are browser suites — vitest
     // would collect their `.spec.ts` and fail on the Playwright import.
     exclude: [
-      "e2e/**",
       "e2e-layout/**",
       "e2e-components/**",
       "node_modules/**",

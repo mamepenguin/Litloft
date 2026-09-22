@@ -198,33 +198,11 @@ pnpm exec tsc -p tsconfig.json --noEmit
 
 ## End-to-end tests
 
-Playwright. Launches a stack and walks the UI.
+There is no whole-stack Playwright suite. The two browser suites below both
+run against a bundled fixture and need no server, which is what lets CI run
+them. A flow that needs a live stack and a seeded library is walked by hand.
 
-```bash
-cd frontend
-pnpm test:e2e          # headless
-pnpm test:e2e --ui     # Playwright UI runner
-```
-
-Tests live under `frontend/e2e/`. Critical user flows:
-
-- First-run setup wizard.
-- Login (unlock a protected drive).
-- Browse a folder, open a file, scrub a video.
-- Upload a file via drag-and-drop.
-- Trash → restore → permanently delete.
-- (When intelligence is enabled) Ask, semantic search, scene search.
-
-### Artefacts
-
-Playwright produces screenshots, videos, and traces. Read them locally:
-
-```bash
-pnpm test:e2e --reporter=html
-pnpm test:e2e:report
-```
-
-### Components in a browser, which is a third suite
+### Components in a browser
 
 `frontend/e2e-components/` is Playwright again, and it is the only place in the
 tree where **a real component is driven by a real gesture**. The repo's own vite
@@ -403,30 +381,28 @@ Adding a width is how that closes, not prose. Likewise the parity test knows the
 two components that write a `.justified-grid-cell` today; a third would arrive
 unnoticed until someone gave it a row in the table.
 
-### Why e2e is not in CI
+### There is no whole-stack browser suite
 
-Deliberate, and worth restating before anyone "fixes" it:
+There used to be one, under `frontend/e2e/`. It was removed rather than fixed,
+and the reasons are worth keeping so nobody rebuilds the same thing:
 
-- `playwright.config.ts` declares no `webServer`. The suite expects a live stack
-  already answering on `localhost:3000`.
-- Ten of the eleven read the real library through `/api/drives` and **skip
-  themselves when no drive answers** (`test.skip(() => !driveName)`). A CI run
-  without seeded drives would skip almost everything and report green — the
-  exact "passed, therefore fine" failure this CI exists to remove. The
-  eleventh, `source-capture.spec.ts`, carries no guard and would go red
-  instead. Neither result is a check.
-- Several assertions are written against a Japanese UI (`browse.spec.ts` expects
-  `main h1` to contain `ドライブ`) while `defaultLocale` is `en`. The suite
-  assumes a developer's own environment, not a clean one.
+- It was never wired into CI. `playwright.config.ts` declared no `webServer`,
+  so the suite expected a live stack already answering on `localhost:3000`.
+- Ten of its eleven specs read the real library through `/api/drives` and
+  **skipped themselves when no drive answered**. Run without seeded drives
+  they skip almost everything and report green — the exact "passed, therefore
+  fine" failure this CI exists to remove.
+- Several assertions were written against a Japanese UI while `defaultLocale`
+  is `en`, so they assumed a developer's own environment.
 
-The e2e sources are not unguarded: `tsc --noEmit` and `eslint` both cover
-`frontend/e2e/`, so type and syntax rot is caught. Putting the suite in CI needs
-a compose profile that seeds a fixture drive first; that is its own piece of
-work, not a workflow edit.
+Most of what it checked is held elsewhere: the filter specs duplicated
+`useFolderFilter` / `useTreeTextFilter` / `useTreeKindFilter` / `FilterField`
+in jsdom, and the geometry belongs in `e2e-components/`, which measures real
+boxes and does run in CI.
 
-This reasoning is about **these eleven specs**, not about browsers. The layout
-suite above runs in CI precisely because it shares none of the three problems:
-nothing to serve, nothing to seed, and nothing to skip.
+Wanting one again is reasonable. It needs a compose profile that seeds a
+fixture drive first, and every case written so an absent drive is a failure
+rather than a skip. That is its own piece of work, not a workflow edit.
 
 ## Coverage
 
