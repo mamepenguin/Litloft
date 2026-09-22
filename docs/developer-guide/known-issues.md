@@ -291,3 +291,12 @@ of what it drew. Pressed twice quickly it therefore sends the same value twice
 and the second press changes nothing. The scrub bar and the volume slider hold
 the requested value until the poll confirms it (`pendingSeek`,
 `pendingVolume`); captions have no equivalent.
+
+**The player's subtitle switch is obeyed only while Litloft draws the
+controls.** Turn captions off, hand the frame to the browser's own controls,
+and a subtitle track arriving with the file's detail answer turns itself on.
+Going back to Litloft's controls turns it off again. Where the browser-controls
+choice is already stored when the file opens, the saved "off" is not applied at
+all and the track set's own default stands. The browser's captions menu never
+writes `captionsPreferred`, so nothing on that surface records the viewer's
+choice, and asserting a stored one there would undo what they just chose.
