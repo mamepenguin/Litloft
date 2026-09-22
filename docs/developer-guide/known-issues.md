@@ -283,3 +283,11 @@ subtitle files against the video's current basename, and `rename_file` renames
 only the video, so `movie.ja.srt` stops being found the moment `movie.mp4`
 becomes anything else. The detail page then offers the generated track, or no
 track at all. Renaming the subtitle files to match by hand attaches them again.
+
+**A second press of the player's subtitle switch inside one clock tick does
+nothing.** The switch draws from what the player reports, which is polled every
+250 ms while playing and every 1000 ms while paused, and it sends the opposite
+of what it drew. Pressed twice quickly it therefore sends the same value twice
+and the second press changes nothing. The scrub bar and the volume slider hold
+the requested value until the poll confirms it (`pendingSeek`,
+`pendingVolume`); captions have no equivalent.
