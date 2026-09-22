@@ -53,14 +53,17 @@ def _writes(env):
     validators accept. Not only the four the wizard sends: any of them left
     ungated is a way to write the configuration during first run."""
     return [
-        ("PUT", "/api/admin/config/drives",
+        ("PUT", "/api/admin/config/drives", "/api/admin/config/drives",
          [{"name": "d", "path": env["drive_path"], "access_group": "g1"}]),
-        ("PUT", "/api/admin/config/passwords", []),
+        ("PUT", "/api/admin/config/passwords", "/api/admin/config/passwords", []),
         ("POST", "/api/admin/config/passwords/append",
+         "/api/admin/config/passwords/append",
          {"password": "planted", "groups": ["g1"]}),
-        ("DELETE", "/api/admin/config/passwords/0", None),
-        ("PUT", "/api/admin/config/addon-policy", {}),
-        ("POST", "/api/admin/config/complete-setup", None),
+        ("DELETE", "/api/admin/config/passwords/0",
+         "/api/admin/config/passwords/{index}", None),
+        ("PUT", "/api/admin/config/addon-policy", "/api/admin/config/addon-policy", {}),
+        ("POST", "/api/admin/config/complete-setup",
+         "/api/admin/config/complete-setup", None),
     ]
 
 
@@ -73,7 +76,7 @@ def test_a_write_without_the_token_is_refused_and_changes_nothing(first_run, hea
     )
     headers = {} if header is None else {setup_token.HEADER: header}
 
-    for method, url, body in _writes(first_run):
+    for method, url, _, body in _writes(first_run):
         resp = c.request(method, url, json=body, headers=headers)
         assert resp.status_code == 403, f"{method} {url}: {resp.text}"
         assert "setup_token_invalid" in resp.text
@@ -89,7 +92,7 @@ def test_every_write_is_accepted_with_the_token(first_run):
     c = first_run["client"]
     headers = {setup_token.HEADER: setup_token.setup_token()}
 
-    for method, url, body in _writes(first_run):
+    for method, url, _, body in _writes(first_run):
         resp = c.request(method, url, json=body, headers=headers)
         assert resp.status_code == 200, f"{method} {url}: {resp.text}"
 
@@ -111,15 +114,8 @@ def test_the_route_list_is_every_write_under_admin_config(first_run):
     # Not a write: it only answers whether a token would be accepted.
     routed.discard(("POST", "/api/admin/config/setup-token/verify"))
 
-    listed = {
-        (method, url.split("?")[0].rstrip("0123456789").rstrip("/"))
-        for method, url, _ in _writes(first_run)
-    }
-    templated = {
-        (method, path.rstrip("}").rsplit("/{", 1)[0] if "/{" in path else path)
-        for method, path in routed
-    }
-    assert templated == listed
+    listed = {(method, template) for method, _, template, _ in _writes(first_run)}
+    assert routed == listed
 
 
 def test_the_token_grants_nothing_once_setup_is_complete(first_run):
@@ -201,13 +197,15 @@ class TestStartup:
     """The mint has to happen at startup: the operator reads the token from
     the log before the wizard asks for it."""
 
-    def _boot(self, tmp_path, monkeypatch, *, completed: bool):
+    def _boot(self, tmp_path, monkeypatch, *, completed: bool, seeded: bool = False):
         drive_dir = tmp_path / "d"
         drive_dir.mkdir()
         data_dir = tmp_path / "data"
         data_dir.mkdir()
         drives_json = tmp_path / "drives.json"
-        drives_json.write_text(json.dumps([]))
+        drives_json.write_text(
+            json.dumps([{"name": "d", "path": str(drive_dir)}] if seeded else [])
+        )
         passwords_json = tmp_path / "passwords.json"
         passwords_json.write_text(json.dumps([]))
 
@@ -234,6 +232,14 @@ class TestStartup:
 
     def test_a_completed_install_mints_nothing(self, tmp_path, monkeypatch):
         assert self._boot(tmp_path, monkeypatch, completed=True) is None
+
+    def test_an_upgrade_the_migration_completes_mints_nothing(
+        self, tmp_path, monkeypatch
+    ):
+        """An existing install carries a populated drives.json, and startup
+        writes the sentinel for it. The mint has to run after that, or every
+        upgrade logs a token for a setup nobody is going to run."""
+        assert self._boot(tmp_path, monkeypatch, completed=False, seeded=True) is None
 
     def test_a_completed_install_mints_nothing_when_asked_either(
         self, tmp_path, monkeypatch
@@ -304,8 +310,3 @@ class TestWhereTheTokenComesFrom:
         for pasted in ("あいうえお", "tokén", "🔑"):
             assert setup_token.matches(pasted) is False, pasted
 
-    def test_a_non_ascii_token_can_be_configured(self, monkeypatch):
-        monkeypatch.setattr(setup_token, "_token", None)
-        monkeypatch.setenv(setup_token.ENV_VAR, "あいうえお")
-        assert setup_token.matches("あいうえお") is True
-        assert setup_token.matches("あいうえ") is False

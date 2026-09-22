@@ -27,4 +27,9 @@ Declared before the first review round (R-0).
 9. `configure.py` writes a token that the backend container actually receives,
    and the URL it prints carries that same token.
 
-TOTAL: 9 invariants
+10. **Added after round 2 (finding 1).** Whether setup is complete is asked
+    through `config.setup_completed_sentinel()` and nowhere else. Round 1's
+    finding 1 was a call site that invented its own check and forgot to make
+    one; round 2's was a detector that could not see call sites at all.
+
+TOTAL: 10 invariants

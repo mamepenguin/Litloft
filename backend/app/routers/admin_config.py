@@ -220,7 +220,7 @@ def _admin_or_first_run(request: Request) -> None:
     for it, which is what keeps the window from being open to the whole LAN.
     GETs remain admin-gated.
     """
-    sentinel = config.DATA_DIR / "setup_completed"
+    sentinel = config.setup_completed_sentinel()
     if not sentinel.exists():
         _require_setup_token(request)
         return
@@ -268,7 +268,7 @@ def get_setup_status() -> dict[str, Any]:
     to ``/setup`` before any password entry exists, and render the detected
     drives without going through the admin-gated ``GET /drives``.
     """
-    sentinel = config.DATA_DIR / "setup_completed"
+    sentinel = config.setup_completed_sentinel()
     completed = sentinel.exists()
     # Expose the detected drive list ONLY during first-run. This endpoint
     # is unauthenticated; once setup is complete the DriveStep never reads
@@ -296,7 +296,7 @@ def post_verify_setup_token(payload: Any = Body(...)) -> dict[str, bool]:
     """
     # Answering at all would mint a token on an install that finished setup
     # long ago, and log that setup is unfinished.
-    if (config.DATA_DIR / "setup_completed").exists():
+    if (config.setup_completed_sentinel()).exists():
         raise HTTPException(status_code=404, detail={"code": "setup_completed"})
     if not isinstance(payload, dict):
         raise _validation_error("json_syntax", "body must be an object")
@@ -319,7 +319,7 @@ def post_complete_setup() -> dict[str, bool]:
     silently overwrite admin's intentional state changes. The frontend
     should send users to ``/admin/settings`` in that case.
     """
-    sentinel = config.DATA_DIR / "setup_completed"
+    sentinel = config.setup_completed_sentinel()
     if sentinel.exists():
         raise HTTPException(status_code=409, detail={"code": "already_completed"})
     sentinel.parent.mkdir(parents=True, exist_ok=True)

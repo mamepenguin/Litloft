@@ -125,11 +125,21 @@ async function requestJson<T>(
   return (await res.json()) as T;
 }
 
+/** Thrown when the install has already been through setup. */
+export class SetupAlreadyCompletedError extends Error {}
+
 export async function verifySetupToken(token: string): Promise<void> {
-  await requestJson<unknown>("/api/admin/config/setup-token/verify", {
-    method: "POST",
-    body: JSON.stringify({ token }),
-  });
+  try {
+    await requestJson<unknown>("/api/admin/config/setup-token/verify", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+  } catch (err) {
+    if (err instanceof AdminConfigError && err.status === 404) {
+      throw new SetupAlreadyCompletedError();
+    }
+    throw err;
+  }
 }
 
 export async function getDrives(): Promise<DriveEntry[]> {

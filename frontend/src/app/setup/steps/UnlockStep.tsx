@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { verifySetupToken } from "@/lib/adminConfig";
+import {
+  SetupAlreadyCompletedError,
+  verifySetupToken,
+} from "@/lib/adminConfig";
 import { useImeKeyGuard } from "@/lib/ime";
 
 interface Props {
@@ -23,6 +26,7 @@ export function UnlockStep({
   const ime = useImeKeyGuard();
   const [checking, setChecking] = useState(false);
   const [rejected, setRejected] = useState(false);
+  const [completed, setCompleted] = useState(false);
   // Only what the URL arrived with is submitted on its own; every later value
   // is something being typed, and verifying each keystroke would reject it.
   const fromUrl = useRef(value);
@@ -34,8 +38,9 @@ export function UnlockStep({
       try {
         await verifySetupToken(token);
         onUnlocked();
-      } catch {
-        setRejected(true);
+      } catch (err) {
+        if (err instanceof SetupAlreadyCompletedError) setCompleted(true);
+        else setRejected(true);
       } finally {
         setChecking(false);
       }
@@ -65,6 +70,7 @@ export function UnlockStep({
             value={value}
             onChange={(e) => {
               setRejected(false);
+              setCompleted(false);
               // Trimmed here so the value verified is the value sent: a token
               // pasted out of a log carries whitespace either side.
               onChange(e.target.value.trim());
@@ -80,6 +86,9 @@ export function UnlockStep({
           />
           {rejected && (
             <p className="mt-1 text-xs text-danger">Invalid token</p>
+          )}
+          {completed && (
+            <p className="mt-1 text-xs text-text-muted">Setup is complete</p>
           )}
         </label>
 

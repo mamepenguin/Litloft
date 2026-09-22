@@ -90,7 +90,7 @@ function SetupWizardInner({
   const [internalStepIndex, setInternalStepIndex] = useState(0);
   const [setupToken, setSetupToken] = useState(() => {
     if (typeof window === "undefined") return "";
-    return new URLSearchParams(window.location.search).get("token") ?? "";
+    return (new URLSearchParams(window.location.search).get("token") ?? "").trim();
   });
   // The backend seeds drives.json from the container mounts on startup,
   // so /setup begins with N detected stubs, read from the unauthenticated

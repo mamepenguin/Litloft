@@ -210,7 +210,7 @@ def test_ordering_new_user_empty_array_does_not_touch_sentinel(seed_env):
     drives_json, data_dir, mount_root = seed_env
     drives_json.write_text("[]\n")
     _mkmounts(mount_root, ["fresh"])
-    sentinel = config._setup_completed_sentinel()
+    sentinel = config.setup_completed_sentinel()
     assert not sentinel.exists()
 
     _run_lifespan_seed_sequence()
@@ -227,7 +227,7 @@ def test_ordering_existing_user_non_empty_touches_sentinel(seed_env):
     drives_json.write_text(
         json.dumps([{"name": "legacy", "path": f"{mount_root}/legacy"}])
     )
-    sentinel = config._setup_completed_sentinel()
+    sentinel = config.setup_completed_sentinel()
     assert not sentinel.exists()
     # Genuine upgrade user predates the seed regime: no marker on disk.
     assert not config._auto_seeded_marker().exists()
@@ -250,7 +250,7 @@ def test_ordering_new_user_restart_after_seed_does_not_touch_sentinel(seed_env):
     """
     drives_json, _data, mount_root = seed_env
     _mkmounts(mount_root, ["fresh"])
-    sentinel = config._setup_completed_sentinel()
+    sentinel = config.setup_completed_sentinel()
 
     # Boot 1: empty -> seed populates drives.json + marker, sentinel absent.
     drives_json.write_text("[]\n")
@@ -271,7 +271,7 @@ def test_ordering_footgun_count_none_touches_nothing(seed_env):
     drives_json, _data, mount_root = seed_env
     drives_json.mkdir()  # footgun: /app/drives.json is a directory
     _mkmounts(mount_root, ["x"])
-    sentinel = config._setup_completed_sentinel()
+    sentinel = config.setup_completed_sentinel()
 
     _run_lifespan_seed_sequence()
 
@@ -286,7 +286,7 @@ def test_ordering_sentinel_already_present_is_noop(seed_env):
     drives_json.write_text(
         json.dumps([{"name": "kept", "path": f"{mount_root}/kept"}])
     )
-    sentinel = config._setup_completed_sentinel()
+    sentinel = config.setup_completed_sentinel()
     sentinel.touch()
     before_mtime = sentinel.stat().st_mtime
 
@@ -302,7 +302,7 @@ def test_ordering_empty_array_no_mounts_stays_empty_no_sentinel(seed_env):
     """pre-seed [] + sentinel absent + no mount dirs -> stays [], no sentinel."""
     drives_json, _data, _mount = seed_env
     drives_json.write_text("[]\n")
-    sentinel = config._setup_completed_sentinel()
+    sentinel = config.setup_completed_sentinel()
 
     _run_lifespan_seed_sequence()
 

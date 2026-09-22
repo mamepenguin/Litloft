@@ -252,7 +252,7 @@ async def lifespan(app: FastAPI):
     logger.info("Auth initialized")
     # Minting here, not at the first write, is what puts the token in the log
     # before the operator opens /setup and is asked for it.
-    if not (config.DATA_DIR / "setup_completed").exists():
+    if not config.setup_completed_sentinel().exists():
         setup_token.setup_token()
     if not os.environ.get("CORE_INTERNAL_SECRET"):
         # Surface the unset secret at startup so the ops-time implication

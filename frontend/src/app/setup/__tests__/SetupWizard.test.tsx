@@ -643,6 +643,21 @@ describe("SetupWizard unlock step", () => {
     });
   });
 
+  it("says setup is complete rather than blaming the token", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/admin/config/setup-token/verify") {
+        return Promise.resolve(
+          jsonResponse({ detail: { code: "setup_completed" } }, 404),
+        );
+      }
+      return defaultMockImpl(url);
+    });
+    render(<SetupWizard />);
+
+    expect(await screen.findByText("Setup is complete")).toBeInTheDocument();
+    expect(screen.queryByText("Invalid token")).toBeNull();
+  });
+
   it("sends the token on the protected flow's password write too", async () => {
     await renderPastUnlock();
     fireEvent.click(screen.getByRole("button", { name: /日本語/ }));

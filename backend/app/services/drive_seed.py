@@ -128,7 +128,7 @@ def _migrate_setup_sentinel(pre_seed_count: int) -> None:
         )
         return
     try:
-        sentinel = config._setup_completed_sentinel()
+        sentinel = config.setup_completed_sentinel()
         if not sentinel.exists():
             config.DATA_DIR.mkdir(parents=True, exist_ok=True)
             sentinel.touch()

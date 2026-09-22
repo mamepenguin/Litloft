@@ -39,7 +39,7 @@ def _restart_pending_flag() -> Path:
     return DATA_DIR / "restart_pending"
 
 
-def _setup_completed_sentinel() -> Path:
+def setup_completed_sentinel() -> Path:
     """Path to the setup-completed sentinel (re-evaluated each call)."""
     return DATA_DIR / "setup_completed"
 
