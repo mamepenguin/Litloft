@@ -103,8 +103,6 @@ describe("isTextPreviewable", () => {
   });
 
   it("still answers on the mime alone, for the callers that pass no name", () => {
-    // `FilePreview` passes one argument, and a real file's mime was set by
-    // the same table on the way in, so it is worth trusting there.
     expect(isTextPreviewable("text/markdown")).toBe(true);
     expect(isTextPreviewable("application/json")).toBe(true);
     expect(isTextPreviewable(OPAQUE)).toBe(false);

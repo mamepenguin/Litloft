@@ -203,7 +203,7 @@ export function FilePreview({
     );
   }
 
-  if (isTextPreviewable(file.mime_type)) {
+  if (isTextPreviewable(file.mime_type, file.filename)) {
     return (
       <TextPreview
         fileId={file.id}

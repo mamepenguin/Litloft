@@ -76,12 +76,19 @@ vi.mock("../PdfPreview", () => ({
   ),
 }));
 
-vi.mock("../TextPreview", () => ({
-  TextPreview: ({ fileId }: { fileId: string }) => (
-    <div data-testid="text-preview">{fileId}</div>
-  ),
-  isTextPreviewable: (mime: string) => mime === "text/plain",
-}));
+// The predicate is the real one: what this file is about is which arguments
+// the call site hands it, and a stub answering on the mime alone cannot show
+// that the name was passed.
+vi.mock("../TextPreview", async () => {
+  const actual =
+    await vi.importActual<typeof import("../TextPreview")>("../TextPreview");
+  return {
+    isTextPreviewable: actual.isTextPreviewable,
+    TextPreview: ({ fileId }: { fileId: string }) => (
+      <div data-testid="text-preview">{fileId}</div>
+    ),
+  };
+});
 
 vi.mock("../FileTypeIcon", () => ({
   FileTypeIcon: ({ fileType }: { fileType: string }) => (
@@ -206,6 +213,31 @@ describe("FilePreview", () => {
     render(<FilePreview file={file} />);
     expect(screen.getByTestId("text-preview")).toBeInTheDocument();
   });
+
+  it.each([
+    ["main.rs", "application/octet-stream"],
+    ["main.go", "application/octet-stream"],
+    ["Makefile", "application/octet-stream"],
+    ["LICENSE", "application/octet-stream"],
+  ])("renders TextPreview for %s, which has no text mime", (filename, mime) => {
+    const file = makeFile({ file_type: "other", mime_type: mime, filename });
+    render(<FilePreview file={file} />);
+    expect(screen.getByTestId("text-preview")).toBeInTheDocument();
+  });
+
+  it.each([["a.out"], ["photo.raw"], ["app.bin"]])(
+    "offers no text viewer for %s",
+    (filename) => {
+      const file = makeFile({
+        file_type: "other",
+        mime_type: "application/octet-stream",
+        filename,
+      });
+      render(<FilePreview file={file} />);
+      expect(screen.queryByTestId("text-preview")).not.toBeInTheDocument();
+    },
+  );
+
 
   it("renders HtmlPreview for text/html files", () => {
     const file = makeFile({
