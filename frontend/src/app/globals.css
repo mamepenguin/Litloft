@@ -746,14 +746,18 @@ pre mark.ask-citation-highlight {
    (Selection.toString()). A number written as a text node would land in a
    saved quote and in the haystack a search result is matched against.
 
-   `--code-gutter` is the width of the number column; the padding on the
-   block pushes the text off it and the negative margin pulls each number
+   `--code-gutter` is the number column: four digits and the gap to the
+   code. Four is every file the viewer numbers, because it stops numbering
+   above MAX_DECORATED_LINES and that is 5000. The block's padding pushes
+   the text off the column and the negative margin below pulls each number
    back into it, so a line that wraps continues under the code rather than
    under its own number. */
 .code-view {
-  --code-gutter: 3.5ch;
+  --code-gutter: 5ch;
   counter-reset: code-line;
-  padding-left: calc(1rem + var(--code-gutter));
+  /* The inset keeps the number off the card's edge, as the block's own
+     padding keeps the text off the other three. */
+  padding-left: calc(0.5rem + var(--code-gutter));
 }
 
 .code-line {
@@ -766,7 +770,14 @@ pre mark.ask-citation-highlight {
   display: inline-block;
   width: var(--code-gutter);
   margin-left: calc(-1 * var(--code-gutter));
-  padding-right: 1ch;
+  /* Preflight makes this border-box, so the padding comes out of the width
+     rather than adding to it: 5ch less 0.75ch leaves 4.25ch. Four and a
+     quarter rather than four, because `ch` is the browser's rounded advance
+     of `0` and four real digits measure a hundredth of a pixel wider. */
+  padding-right: 0.75ch;
+  /* `pre-wrap` is inherited from the block, and a number that wraps inside
+     its own box makes the line two rows tall. */
+  white-space: nowrap;
   text-align: right;
   color: var(--text-muted);
   opacity: 0.6;

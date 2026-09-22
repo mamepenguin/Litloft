@@ -120,6 +120,25 @@ describe("TextPreview rendering", () => {
     expect(pre.textContent).toHaveLength(600_001);
   });
 
+  it("breaks a CR-only file into the same lines however it is drawn", async () => {
+    // The coloured path goes through an HTML parse, which folds CR to LF on
+    // its own. Nothing folds it on the uncoloured path.
+    const coloured = await show("let a = 1;\rlet b = 2;\r", "old.js");
+    const plain = await show("let a = 1;\rlet b = 2;\r", "old.unknownext");
+    expect(coloured.querySelectorAll(".code-line")).toHaveLength(2);
+    expect(plain.querySelectorAll(".code-line")).toHaveLength(2);
+    expect(plain.textContent).toBe("let a = 1;\nlet b = 2;\n");
+    expect(coloured.textContent).toBe("let a = 1;\nlet b = 2;\n");
+  });
+
+  it("leaves a file with one enormous line undecorated", async () => {
+    // Several grammars are quadratic in an unbroken alphanumeric run, so a
+    // file well under the size limit can still take minutes to colour.
+    const pre = await show(`x = "${"A".repeat(6000)}"\n`, "keys.ini");
+    expect(pre.querySelector(".code-line")).toBeNull();
+    expect(pre.textContent).toHaveLength(6007);
+  });
+
   it("renders an empty file as no lines and no error", async () => {
     const pre = await show("", "empty.rs");
     expect(pre.querySelectorAll(".code-line")).toHaveLength(0);

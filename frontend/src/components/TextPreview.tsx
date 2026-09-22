@@ -21,7 +21,18 @@ const MAX_AUTO_LOAD_SIZE = 1024 * 1024;
  * the other.
  */
 const MAX_DECORATED_CHARS = 512 * 1024;
-const MAX_DECORATED_LINES = 5000;
+export const MAX_DECORATED_LINES = 5000;
+
+/**
+ * A size limit is not a time limit. Several highlight.js grammars — `ini`,
+ * which every `.toml`, `.conf`, `.env` and `.gitconfig` is read with, and
+ * `javascript` and `rust` among others — are quadratic in the length of an
+ * unbroken alphanumeric run. Measured with bare base64 under `ini`: 8 KiB
+ * 351ms, 16 KiB 1.3s, 32 KiB 5.1s, 64 KiB 19s, 400 KiB twelve minutes. One
+ * separator anywhere in the line makes it linear again, so every ordinary
+ * file is cheap and only a run this long is not.
+ */
+const MAX_DECORATED_LINE_CHARS = 5000;
 
 const TEXT_MIME_PREFIXES = ["text/"] as const;
 const TEXT_MIME_EXACT = new Set([
@@ -98,14 +109,21 @@ interface Decorated {
 function decorate(content: string, filename: string | undefined): Decorated | null {
   if (content.length > MAX_DECORATED_CHARS) return null;
 
-  const plain = splitPlainLines(content);
-  if (plain.length > MAX_DECORATED_LINES) return null;
+  // Once, here, so both paths see the same breaks. The coloured path goes
+  // through an HTML parse, which folds CR and CRLF to LF on its own; the
+  // uncoloured one does not, so a file broken with bare CR would otherwise
+  // come out as one line on one path and many on the other.
+  const text = content.replace(/\r\n?/g, "\n");
 
-  const trailingBreak = /\r?\n$/.test(content);
+  const plain = splitPlainLines(text);
+  if (plain.length > MAX_DECORATED_LINES) return null;
+  if (plain.some((line) => line.length > MAX_DECORATED_LINE_CHARS)) return null;
+
+  const trailingBreak = text.endsWith("\n");
   const language = filename === undefined ? null : codeLanguageFor(filename);
   if (language === null) return { lines: plain, coloured: false, trailingBreak };
 
-  const html = hljs.highlight(content, { language, ignoreIllegals: true }).value;
+  const html = hljs.highlight(text, { language, ignoreIllegals: true }).value;
   return { lines: splitHighlightedLines(html), coloured: true, trailingBreak };
 }
 

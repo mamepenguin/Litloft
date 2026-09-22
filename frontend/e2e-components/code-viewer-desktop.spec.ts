@@ -28,26 +28,6 @@ async function open(page: import("@playwright/test").Page) {
   await expect(page.locator(".code-line").first()).toBeVisible();
 }
 
-test("a number is drawn for every line", async ({ page }) => {
-  await open(page);
-  await expect(page.locator(".code-line")).toHaveCount(4);
-
-  // Chromium reports `content` on a counter as the unresolved
-  // `counter(code-line)`, so the number itself is not readable here. What is
-  // readable is that each line carries a drawn box for it.
-  const drawn = await page.locator(".code-line").evaluateAll((nodes) =>
-    nodes.map((n) => {
-      const before = getComputedStyle(n, "::before");
-      return { content: before.content, width: parseFloat(before.width) };
-    }),
-  );
-  expect(drawn).toHaveLength(4);
-  for (const { content, width } of drawn) {
-    expect(content).not.toBe("none");
-    expect(width).toBeGreaterThan(0);
-  }
-});
-
 test("selecting the block yields the file, and no line numbers", async ({
   page,
 }) => {
@@ -129,4 +109,173 @@ test("a wrapped line resumes under the code, not under its number", async ({
   }
   // The number is drawn beside the code, in the padding the block reserves.
   expect(geometry.lineIsGutterHit).toBe(true);
+});
+
+test("a three-digit number keeps its line one row tall", async ({ page }) => {
+  await page.goto(`${FIXTURE}#code-viewer-many`);
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-arrangement",
+    "code-viewer-many",
+  );
+  await expect(page.locator(".code-line")).toHaveCount(150);
+
+  const measured = await page.evaluate(() => {
+    const lines = [...document.querySelectorAll(".code-line")];
+    const topOf = (el: Element) => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return [...range.getClientRects()][0]?.top ?? null;
+    };
+    const stepsOver = (from: number, to: number) => {
+      const steps: number[] = [];
+      for (let i = from + 1; i <= to; i++) {
+        const a = topOf(lines[i - 1]);
+        const b = topOf(lines[i]);
+        if (a !== null && b !== null) steps.push(Math.round(b - a));
+      }
+      return [...new Set(steps)].sort((x, y) => x - y);
+    };
+    const before = getComputedStyle(lines[0], "::before");
+    return {
+      oneDigit: stepsOver(0, 8),
+      threeDigits: stepsOver(120, 148),
+      beforeHeight: parseFloat(before.height),
+      lineHeight: parseFloat(getComputedStyle(lines[0]).lineHeight),
+    };
+  });
+
+  // A number that does not fit wraps inside its own box, and the line it
+  // belongs to becomes two rows tall. Both ends of the file are one row.
+  expect(measured.threeDigits).toEqual(measured.oneDigit);
+  expect(measured.beforeHeight).toBeCloseTo(measured.lineHeight, 0);
+});
+
+/** The gutter strip beside a line, in page coordinates. */
+async function gutterStrip(
+  page: import("@playwright/test").Page,
+  index: number,
+) {
+  await page
+    .locator(".code-line")
+    .nth(index)
+    .evaluate((el) => el.scrollIntoView({ block: "center" }));
+  return page.evaluate((i) => {
+    const line = document.querySelectorAll(".code-line")[i];
+    const range = document.createRange();
+    range.selectNodeContents(line);
+    const row = [...range.getClientRects()][0];
+    const gutter = parseFloat(
+      getComputedStyle(line, "::before").width,
+    );
+    return {
+      x: Math.round(row.left - gutter),
+      y: Math.round(row.top),
+      width: Math.ceil(gutter),
+      height: Math.ceil(row.height),
+    };
+  }, index);
+}
+
+test("the number drawn beside a line is that line's number", async ({ page }) => {
+  await page.goto(`${FIXTURE}#code-viewer-many`);
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-arrangement",
+    "code-viewer-many",
+  );
+  await expect(page.locator(".code-line")).toHaveCount(150);
+
+  // The counter's value is not readable: Chromium reports `content` as the
+  // unresolved `counter(code-line)`. What is readable is the ink, and two
+  // lines whose numbers differ cannot have drawn the same thing.
+  // Sequential, not parallel: each one scrolls its line into view first.
+  const strips: Buffer[] = [];
+  for (const i of [0, 1, 99]) {
+    strips.push(await page.screenshot({ clip: await gutterStrip(page, i) }));
+  }
+
+  expect(strips[0].equals(strips[1])).toBe(false);
+  expect(strips[0].equals(strips[2])).toBe(false);
+  expect(strips[1].equals(strips[2])).toBe(false);
+});
+
+test("the gutter is sized for the largest number the viewer can draw", async ({
+  page,
+}) => {
+  await page.goto(`${FIXTURE}#code-viewer-many`);
+  await expect(page.locator(".code-line")).toHaveCount(150);
+
+  const fits = await page.evaluate(() => {
+    const limit = (window as unknown as Record<string, number>)
+      .__maxDecoratedLines;
+    const line = document.querySelector(".code-line")!;
+    const before = getComputedStyle(line, "::before");
+    const probe = document.createElement("span");
+    probe.style.font = getComputedStyle(line).font;
+    probe.style.whiteSpace = "pre";
+    // The widest number this viewer can ever draw, from the limit itself
+    // rather than from a figure written in the test.
+    probe.textContent = "8".repeat(String(limit).length);
+    document.body.appendChild(probe);
+    const widest = probe.getBoundingClientRect().width;
+    probe.remove();
+    return {
+      limit,
+      digits: String(limit).length,
+      column: parseFloat(before.width) - parseFloat(before.paddingRight),
+      widest,
+    };
+  });
+
+  expect(fits.limit).toBeGreaterThan(0);
+  expect(fits.column).toBeGreaterThanOrEqual(fits.widest);
+});
+
+test("the number is inset from the block's edge, as the text is", async ({
+  page,
+}) => {
+  await page.goto(`${FIXTURE}#code-viewer-many`);
+  await expect(page.locator(".code-line")).toHaveCount(150);
+
+  const inset = await page.evaluate(() => {
+    const pre = document.querySelector("pre.code-view")!;
+    const line = document.querySelectorAll(".code-line")[99];
+    const range = document.createRange();
+    range.selectNodeContents(line);
+    const row = [...range.getClientRects()][0];
+    const gutter = parseFloat(getComputedStyle(line, "::before").width);
+    const style = getComputedStyle(pre);
+    return {
+      numberLeft: row.left - gutter,
+      blockLeft: pre.getBoundingClientRect().left,
+      right: parseFloat(style.paddingRight),
+    };
+  });
+
+  // Not flush with the card: the other three sides keep the block's own
+  // padding, and a number touching the corner reads as an overflow.
+  expect(inset.numberLeft - inset.blockLeft).toBeGreaterThan(4);
+  expect(inset.numberLeft - inset.blockLeft).toBeLessThanOrEqual(inset.right);
+});
+
+test("a citation crossing a line boundary is marked on both lines", async ({
+  page,
+}) => {
+  await open(page);
+
+  const marked = await page.evaluate(() => {
+    const marks = [
+      ...document.querySelectorAll("mark.ask-citation-highlight"),
+    ];
+    return {
+      count: marks.length,
+      text: marks.map((m) => m.textContent).join(""),
+      lines: new Set(marks.map((m) => m.closest(".code-line"))).size,
+      anyOutsideALine: marks.some((m) => m.closest(".code-line") === null),
+    };
+  });
+
+  expect(marked.count).toBeGreaterThan(1);
+  expect(marked.lines).toBe(2);
+  expect(marked.anyOutsideALine).toBe(false);
+  expect(marked.text.replace(/\s+/g, " ")).toBe("message); }");
 });

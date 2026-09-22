@@ -276,6 +276,7 @@ describe("the component fixture's page", () => {
       "citation-seams",
       "citation-seams-prose",
       "code-viewer",
+      "code-viewer-many",
     ]);
   });
 });
