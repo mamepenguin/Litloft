@@ -283,7 +283,7 @@ def _resolve_path(
 
 
 def _basename_candidates(db: Session, drive: str, target: str) -> list[File]:
-    """Rule 4: basename match (``Path(filename).stem``)."""
+    """Rule 4: ``target`` is a ``.md`` file's basename, anywhere in the drive."""
     expected = f"{target}.md"
     rows = (
         db.query(File)
