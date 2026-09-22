@@ -44,6 +44,7 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   // subject, they are the product introducing itself.
   "frontend/src/app/setup/steps/WelcomeStep.tsx": "first-run wizard, brand surface",
   "frontend/src/app/setup/steps/LanguageStep.tsx": "first-run wizard, brand surface",
+  "frontend/src/app/setup/steps/UnlockStep.tsx": "first-run wizard, brand surface",
   "frontend/src/app/unlock/page.tsx": "unlock gate, outside the AppShell",
 
 
@@ -137,7 +138,7 @@ describe("page headings", () => {
     }
     // `OWNER` is excluded from the allowlist check above, never from this
     // count.
-    expect(perRoot.get("frontend/src")).toBe(5);
+    expect(perRoot.get("frontend/src")).toBe(6);
 
     const EXPECTED_ADDON_HEADINGS: Record<string, number> = {
       "addons/intelligence": 0,

@@ -1,12 +1,36 @@
 # First-run setup
 
-The first time you load Litloft in a browser, you are redirected to `/setup`, a wizard where you turn the mounted directories into named drives and decide how access is gated. `configure.py` already wired the containers and the backend seeded one stub drive per mounted directory; the wizard is where that becomes your real configuration (names, passwords, AI features). The wizard runs without authentication; until it completes, any LAN client can write the configuration. Run it from the same network you trust to admin from.
+The first time you load Litloft in a browser, you are redirected to `/setup`, a wizard where you turn the mounted directories into named drives and decide how access is gated. `configure.py` already wired the containers and the backend seeded one stub drive per mounted directory; the wizard is where that becomes your real configuration (names, passwords, AI features).
+
+No admin password exists yet at that point, so the wizard cannot ask for one. It asks for a **setup token** instead, and until setup completes that token is the only thing that can write the configuration.
 
 > **Image needed:** screenshot of the wizard's overall stepper. See [`IMAGES-NEEDED.md`](../IMAGES-NEEDED.md).
 
 ## When the wizard runs
 
-The setup wizard is shown when the file `data/setup_completed` does **not** exist. The first successful run creates this sentinel file. To re-run setup later, delete the sentinel and reload `/setup`.
+The setup wizard is shown when the file `data/setup_completed` does **not** exist. The first successful run creates this sentinel file. To re-run setup later, delete the sentinel, restart the backend, and open the new token's URL from the log.
+
+## Step 0 — Setup token
+
+`configure.py` prints the address to open when it finishes, and that address already carries the token:
+
+```
+→  http://localhost:3000/setup?token=6f2a…
+```
+
+Open it and the wizard goes straight to the language choice. Nothing is typed.
+
+If you started the containers another way, the backend prints the token at startup instead:
+
+```
+docker compose logs backend | grep "setup token"
+```
+
+Paste it into the field and press →. The token gates every write the wizard makes, including the last one that marks setup complete, so nobody else on the network can configure the install or finish it out from under you.
+
+A restart mints a new token. If you restart mid-setup, read the log again.
+
+Set `LITLOFT_SETUP_TOKEN` in `.env` to choose the value yourself; `configure.py` writes it there and reuses whatever it finds, so re-running it does not invalidate a setup already in progress.
 
 ## Step 1 — Language
 

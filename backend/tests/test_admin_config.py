@@ -85,11 +85,18 @@ def _reset_setup_sentinel(admin_setup):
 
 @pytest.fixture()
 def admin_client(admin_setup):
-    """TestClient unlocked with the master password."""
+    """TestClient unlocked with the master password.
+
+    The sentinel is removed, so config writes take the first-run branch and
+    need the setup token; the fixture carries it so tests of the validators
+    are not also tests of the gate.
+    """
+    import app.setup_token as setup_token
     from app.main import app
 
     with TestClient(app) as c:
         _reset_setup_sentinel(admin_setup)
+        c.headers[setup_token.HEADER] = setup_token.setup_token()
         resp = c.post("/api/auth/unlock", json={"password": admin_setup["master_pw"]})
         assert resp.status_code == 200, resp.text
         yield c, admin_setup
@@ -838,9 +845,15 @@ def test_put_drives_no_bak_when_no_existing(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(auth, "_passwords_cache", None)
 
+    import app.setup_token as setup_token
+
     with TestClient(app) as c:
         new_drives = [{"name": "fresh", "path": str(drive_dir)}]
-        resp = c.put("/api/admin/config/drives", json=new_drives)
+        resp = c.put(
+            "/api/admin/config/drives",
+            json=new_drives,
+            headers={setup_token.HEADER: setup_token.setup_token()},
+        )
         assert resp.status_code == 200, resp.text
 
     bak = drives_json.with_suffix(".json.bak")
@@ -999,15 +1012,24 @@ def test_post_complete_setup_409_when_already_completed(admin_client):
     assert resp.status_code == 409
 
 
-def test_post_complete_setup_no_auth_required(anonymous_client):
-    """First-run wizard must be callable BEFORE admin exists."""
+def test_post_complete_setup_takes_the_token_before_admin_exists(anonymous_client):
+    """The wizard must be able to finish before any admin password exists,
+    and nobody else must be able to finish it for them."""
+    import app.setup_token as setup_token
+
     c, ctx = anonymous_client
     sentinel = ctx["data_dir"] / "setup_completed"
     if sentinel.exists():
         sentinel.unlink()
-    resp = c.post("/api/admin/config/complete-setup")
-    assert resp.status_code != 403
-    assert resp.status_code in (200, 409)
+
+    assert c.post("/api/admin/config/complete-setup").status_code == 403
+    assert not sentinel.exists()
+
+    resp = c.post(
+        "/api/admin/config/complete-setup",
+        headers={setup_token.HEADER: setup_token.setup_token()},
+    )
+    assert resp.status_code in (200, 409), resp.text
 
 
 def test_startup_migration_fires_when_drives_exists_and_passwords_exists(
@@ -1054,13 +1076,14 @@ def test_startup_migration_fires_when_drives_exists_and_passwords_exists(
     )
 
 
-def test_put_drives_no_auth_required_during_first_run(tmp_path, monkeypatch):
-    """When sentinel is absent, PUT /drives works without unlock.
+def test_put_drives_takes_the_token_during_first_run(tmp_path, monkeypatch):
+    """When the sentinel is absent, PUT /drives takes the setup token
+    instead of an unlock.
 
     The wizard's first PUT establishes drive access_groups. After that
     point a strict require_admin would lock the user out before they
-    can supply a password; the bypass closes only when the wizard
-    touches the sentinel.
+    can supply a password, so the admin gate cannot apply here; the token
+    stands in for it until the wizard touches the sentinel.
     """
     import app.config as config
     import app.auth as auth
@@ -1089,12 +1112,21 @@ def test_put_drives_no_auth_required_during_first_run(tmp_path, monkeypatch):
     sentinel = data_dir / "setup_completed"
     assert not sentinel.exists()
 
+    import app.setup_token as setup_token
+
     with TestClient(app) as c:
         # Anonymous client. No /unlock call.
         new_drives = [
             {"name": "d", "path": str(drive_dir), "access_group": "g1"}
         ]
-        resp = c.put("/api/admin/config/drives", json=new_drives)
+        assert c.put(
+            "/api/admin/config/drives", json=new_drives
+        ).status_code == 403
+        resp = c.put(
+            "/api/admin/config/drives",
+            json=new_drives,
+            headers={setup_token.HEADER: setup_token.setup_token()},
+        )
         assert resp.status_code == 200, resp.text
 
 
@@ -1121,11 +1153,11 @@ def test_put_drives_requires_admin_after_setup_completed(
         assert resp.status_code == 403
 
 
-def test_put_passwords_no_auth_required_during_first_run(tmp_path, monkeypatch):
-    """When sentinel is absent, PUT /passwords works without unlock.
+def test_put_passwords_takes_the_token_during_first_run(tmp_path, monkeypatch):
+    """When the sentinel is absent, PUT /passwords takes the setup token.
 
     This is the second wizard step — drives.json was just written with
-    access_groups, so require_admin would fail without this bypass.
+    access_groups, so require_admin would fail here.
     """
     import app.config as config
     import app.auth as auth
@@ -1158,6 +1190,17 @@ def test_put_passwords_no_auth_required_during_first_run(tmp_path, monkeypatch):
         if sentinel.exists():
             sentinel.unlink()
 
-        bad_pwds = [{"password": "p1", "groups": ["g1"]}]
-        resp = c.put("/api/admin/config/passwords", json=bad_pwds)
+        import app.setup_token as setup_token
+
+        pwds = [{"password": "p1", "groups": ["g1"]}]
+        assert c.put(
+            "/api/admin/config/passwords", json=pwds
+        ).status_code == 403
+        assert not passwords_json.exists()
+
+        resp = c.put(
+            "/api/admin/config/passwords",
+            json=pwds,
+            headers={setup_token.HEADER: setup_token.setup_token()},
+        )
         assert resp.status_code == 200, resp.text

@@ -100,6 +100,13 @@ async function parseError(res: Response): Promise<AdminConfigError> {
   return new AdminConfigError(res.status, detail);
 }
 
+export const SETUP_TOKEN_HEADER = "X-Litloft-Setup-Token";
+
+/** The token is only ever sent by the first-run wizard. */
+function setupTokenHeader(token?: string): Record<string, string> {
+  return token ? { [SETUP_TOKEN_HEADER]: token } : {};
+}
+
 async function requestJson<T>(
   url: string,
   init?: RequestInit,
@@ -118,16 +125,27 @@ async function requestJson<T>(
   return (await res.json()) as T;
 }
 
+export async function verifySetupToken(token: string): Promise<void> {
+  await requestJson<unknown>("/api/admin/config/setup-token/verify", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
 export async function getDrives(): Promise<DriveEntry[]> {
   return requestJson<DriveEntry[]>("/api/admin/config/drives", {
     method: "GET",
   });
 }
 
-export async function putDrives(drives: DriveEntry[]): Promise<void> {
+export async function putDrives(
+  drives: DriveEntry[],
+  setupToken?: string,
+): Promise<void> {
   await requestJson<unknown>("/api/admin/config/drives", {
     method: "PUT",
     body: JSON.stringify(drives),
+    headers: setupTokenHeader(setupToken),
   });
 }
 
@@ -137,10 +155,14 @@ export async function getPasswords(): Promise<PasswordEntry[]> {
   });
 }
 
-export async function putPasswords(entries: PasswordEntry[]): Promise<void> {
+export async function putPasswords(
+  entries: PasswordEntry[],
+  setupToken?: string,
+): Promise<void> {
   await requestJson<unknown>("/api/admin/config/passwords", {
     method: "PUT",
     body: JSON.stringify(entries),
+    headers: setupTokenHeader(setupToken),
   });
 }
 
@@ -163,10 +185,14 @@ export async function getAddonPolicy(): Promise<AddonPolicy> {
   });
 }
 
-export async function putAddonPolicy(policy: AddonPolicy): Promise<void> {
+export async function putAddonPolicy(
+  policy: AddonPolicy,
+  setupToken?: string,
+): Promise<void> {
   await requestJson<unknown>("/api/admin/config/addon-policy", {
     method: "PUT",
     body: JSON.stringify(policy),
+    headers: setupTokenHeader(setupToken),
   });
 }
 
@@ -182,9 +208,10 @@ export async function getSetupStatus(): Promise<SetupStatus> {
   });
 }
 
-export async function postCompleteSetup(): Promise<void> {
+export async function postCompleteSetup(setupToken?: string): Promise<void> {
   await requestJson<unknown>("/api/admin/config/complete-setup", {
     method: "POST",
+    headers: setupTokenHeader(setupToken),
   });
 }
 

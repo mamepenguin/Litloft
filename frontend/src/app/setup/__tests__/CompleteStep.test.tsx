@@ -41,7 +41,7 @@ function jsonResponse(data: unknown, status = 200) {
 describe("CompleteStep", () => {
   it("clicking 完了 POSTs complete-setup and pushes to /admin on success", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ ok: true }));
-    render(<CompleteStep onBack={vi.fn()} summary={DEFAULT_SUMMARY} />);
+    render(<CompleteStep onBack={vi.fn()} setupToken="t" summary={DEFAULT_SUMMARY} />);
     fireEvent.click(screen.getByRole("button", { name: /完了|finish|complete/i }));
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith(
@@ -55,7 +55,7 @@ describe("CompleteStep", () => {
   });
 
   it("submit button shows a resolved label, not a raw i18n key", async () => {
-    render(<CompleteStep onBack={vi.fn()} summary={DEFAULT_SUMMARY} />);
+    render(<CompleteStep onBack={vi.fn()} setupToken="t" summary={DEFAULT_SUMMARY} />);
     const buttons = screen.getAllByRole("button");
     const submit = buttons[buttons.length - 1];
     expect(submit.textContent?.trim()).toBe("Save and finish");
@@ -64,7 +64,7 @@ describe("CompleteStep", () => {
 
   it("does not redirect on failure", async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ detail: "error" }, 500));
-    render(<CompleteStep onBack={vi.fn()} summary={DEFAULT_SUMMARY} />);
+    render(<CompleteStep onBack={vi.fn()} setupToken="t" summary={DEFAULT_SUMMARY} />);
     fireEvent.click(screen.getByRole("button", { name: /完了|finish|complete/i }));
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalled();
@@ -78,6 +78,7 @@ describe("CompleteStep summary card", () => {
     render(
       <CompleteStep
         onBack={vi.fn()}
+        setupToken="t"
         summary={{ driveCount: 3, accessMode: "public", addonOnCount: 0 }}
       />,
     );
@@ -88,6 +89,7 @@ describe("CompleteStep summary card", () => {
     render(
       <CompleteStep
         onBack={vi.fn()}
+        setupToken="t"
         summary={{ driveCount: 1, accessMode: "public", addonOnCount: 0 }}
       />,
     );
@@ -98,6 +100,7 @@ describe("CompleteStep summary card", () => {
     render(
       <CompleteStep
         onBack={vi.fn()}
+        setupToken="t"
         summary={{ driveCount: 1, accessMode: "protected", addonOnCount: 0 }}
       />,
     );
@@ -108,6 +111,7 @@ describe("CompleteStep summary card", () => {
     render(
       <CompleteStep
         onBack={vi.fn()}
+        setupToken="t"
         summary={{ driveCount: 1, accessMode: "public", addonOnCount: 2 }}
       />,
     );
@@ -119,6 +123,7 @@ describe("CompleteStep summary card", () => {
     const { container } = render(
       <CompleteStep
         onBack={vi.fn()}
+        setupToken="t"
         summary={{ driveCount: 1, accessMode: "public", addonOnCount: 0 }}
       />,
     );

@@ -7,6 +7,7 @@ import enMessages from "@/messages/en.json";
 import jaMessages from "@/messages/ja.json";
 import { defaultLocale } from "@/i18n/config";
 
+import { UnlockStep } from "./steps/UnlockStep";
 import { LanguageStep } from "./steps/LanguageStep";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import { DriveStep, type DriveDraft } from "./steps/DriveStep";
@@ -27,11 +28,13 @@ import {
   getAddonsStatus,
   isAddonOn,
   putAddonPolicy,
+  SETUP_TOKEN_HEADER,
   type AddonPolicy,
   type AddonStatusEntry,
 } from "@/lib/adminConfig";
 
 type StepId =
+  | "unlock"
   | "language"
   | "welcome"
   | "drive"
@@ -41,6 +44,7 @@ type StepId =
   | "complete";
 
 const ORDER_PROTECTED: StepId[] = [
+  "unlock",
   "language",
   "welcome",
   "drive",
@@ -51,6 +55,7 @@ const ORDER_PROTECTED: StepId[] = [
 ];
 
 const ORDER_PUBLIC: StepId[] = [
+  "unlock",
   "language",
   "welcome",
   "drive",
@@ -59,7 +64,7 @@ const ORDER_PUBLIC: StepId[] = [
   "complete",
 ];
 
-const STEPPER_PROTECTED: Exclude<StepId, "language" | "welcome">[] = [
+const STEPPER_PROTECTED: Exclude<StepId, "unlock" | "language" | "welcome">[] = [
   "drive",
   "accessMode",
   "password",
@@ -67,7 +72,7 @@ const STEPPER_PROTECTED: Exclude<StepId, "language" | "welcome">[] = [
   "complete",
 ];
 
-const STEPPER_PUBLIC: Exclude<StepId, "language" | "welcome">[] = [
+const STEPPER_PUBLIC: Exclude<StepId, "unlock" | "language" | "welcome">[] = [
   "drive",
   "accessMode",
   "addonPolicy",
@@ -83,6 +88,10 @@ function SetupWizardInner({
 }): React.ReactElement {
   const tStepper = useTranslations("setup.stepper");
   const [internalStepIndex, setInternalStepIndex] = useState(0);
+  const [setupToken, setSetupToken] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("token") ?? "";
+  });
   // The backend seeds drives.json from the container mounts on startup,
   // so /setup begins with N detected stubs, read from the unauthenticated
   // setup-status endpoint that covers the first-run path GET /drives does not.
@@ -248,7 +257,10 @@ function SetupWizardInner({
     await fetch("/api/admin/config/drives", {
       method: "PUT",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        [SETUP_TOKEN_HEADER]: setupToken,
+      },
       body: JSON.stringify(drivesForSubmit),
     });
 
@@ -261,14 +273,17 @@ function SetupWizardInner({
       await fetch("/api/admin/config/passwords", {
         method: "PUT",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          [SETUP_TOKEN_HEADER]: setupToken,
+        },
         body: JSON.stringify([
           { password: password.password, groups: groupsWithAdmin },
         ]),
       });
     }
 
-    await putAddonPolicy(addonPolicy);
+    await putAddonPolicy(addonPolicy, setupToken);
 
     if (accessMode === "protected" && password.password) {
       await fetch("/api/auth/unlock", {
@@ -278,7 +293,14 @@ function SetupWizardInner({
         body: JSON.stringify({ password: password.password, remember: false }),
       });
     }
-  }, [accessMode, addonPolicy, drivesForSubmit, password, passwordValue.groups]);
+  }, [
+    accessMode,
+    addonPolicy,
+    drivesForSubmit,
+    password,
+    passwordValue.groups,
+    setupToken,
+  ]);
 
   const stepperSteps = useMemo(
     () =>
@@ -290,15 +312,17 @@ function SetupWizardInner({
   );
 
   const stepperIndex = useMemo(() => {
-    if (current === "language" || current === "welcome") return -1;
+    if (current === "unlock" || current === "language" || current === "welcome") {
+      return -1;
+    }
     const idx = stepperOrder.indexOf(
-      current as Exclude<StepId, "language" | "welcome">,
+      current as Exclude<StepId, "unlock" | "language" | "welcome">,
     );
     return idx >= 0 ? idx : 0;
   }, [current, stepperOrder]);
 
   const showStepper = stepperIndex >= 0;
-  const showHeaderSubtitle = current !== "language";
+  const showHeaderSubtitle = current !== "unlock" && current !== "language";
 
   return (
     <SetupShell showHeaderSubtitle={showHeaderSubtitle}>
@@ -306,6 +330,13 @@ function SetupWizardInner({
         <div className="mt-2">
           <Stepper steps={stepperSteps} currentIndex={stepperIndex} />
         </div>
+      )}
+      {current === "unlock" && (
+        <UnlockStep
+          value={setupToken}
+          onChange={setSetupToken}
+          onUnlocked={goNext}
+        />
       )}
       {current === "language" && (
         <LanguageStep
@@ -366,6 +397,7 @@ function SetupWizardInner({
       {current === "complete" && (
         <div className="mt-6 rounded-2xl border border-bg-border bg-bg-card p-6 sm:p-8">
           <CompleteStep
+            setupToken={setupToken}
             onBack={goBack}
             onBeforeSubmit={handleBeforeSubmit}
             summary={summary}

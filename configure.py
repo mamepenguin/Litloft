@@ -202,6 +202,7 @@ class ExistingConfig:
         self.knowledge_webhook_secret = ''
         self.search_webhook_secret = ''
         self.core_internal_secret = ''
+        self.setup_token = ''
         self._load(base)
 
     def _load(self, base: Path):
@@ -260,6 +261,8 @@ class ExistingConfig:
                     self.search_webhook_secret = line.split('=', 1)[1].strip()
                 elif line.startswith('CORE_INTERNAL_SECRET='):
                     self.core_internal_secret = line.split('=', 1)[1].strip()
+                elif line.startswith('LITLOFT_SETUP_TOKEN='):
+                    self.setup_token = line.split('=', 1)[1].strip()
                 elif line.startswith('LLM_API_KEY=') and line.split('=', 1)[1].strip():
                     self.has_llm_api_key = True
 
@@ -319,6 +322,9 @@ def main():
     port = ask("Port", ex.port)
     if not port.isdigit():
         port = '3000'
+
+    # Gates the config writes /setup makes before a password exists.
+    setup_token = ex.setup_token or gen_secret()[:32]
 
     has_intelligence = False
     llm_api_key      = ''
@@ -426,7 +432,7 @@ def main():
         if _cs_cfg.exists():
             lines.append("      - ./addons/cloud-sync/sync-config.json:/app/addons/cloud-sync/sync-config.json:ro")
 
-        backend_env = []
+        backend_env = ["- LITLOFT_SETUP_TOKEN=${LITLOFT_SETUP_TOKEN:-}"]
         if has_intelligence: backend_env.append("- INTELLIGENCE_SERVICE_URL=http://intelligence:8100")
         # Core builds X-Webhook-Secret in *this* container, from its own
         # environment — passing the value only to the addon would leave core
@@ -559,6 +565,7 @@ def main():
 
     env_file = base / '.env'
     wrote_env = False
+    write_env_key('LITLOFT_SETUP_TOKEN', setup_token, env_file); wrote_env = True
     if port != '3000':       write_env_key('LITLOFT_PORT', port, env_file);                          wrote_env = True
     if has_intelligence and search_webhook_secret:
         write_env_key('SEARCH_WEBHOOK_SECRET', search_webhook_secret, env_file); wrote_env = True
@@ -574,11 +581,15 @@ def main():
     print(f"\n{BOLD}{GREEN}All files generated.{RESET}")
 
     url = f"http://localhost:{port}"
+    # The wizard is only reachable while the sentinel is absent, so an install
+    # that has already been through it is sent to the app instead.
+    first_run = not (base / 'data' / 'setup_completed').exists()
+    open_url = f"{url}/setup?token={setup_token}" if first_run else url
 
     if not shutil.which('docker'):
         print("\n  docker command not found. Start manually:")
         print("    docker compose up -d --build")
-        print(f"  Then open: {BOLD}{url}{RESET}")
+        print(f"  Then open: {BOLD}{open_url}{RESET}")
         if has_intelligence and not llm_api_key and not ex.has_llm_api_key:
             print()
             info("AI features require LLM_API_KEY in .env before starting.")
@@ -600,18 +611,18 @@ def main():
         print()
         if result.returncode == 0:
             print(f"{BOLD}{GREEN}Litloft is running!{RESET}")
-            print(f"\n  {BOLD}{BLUE}→  {url}{RESET}")
+            print(f"\n  {BOLD}{BLUE}→  {open_url}{RESET}")
             print("\n  The /setup wizard will run on first launch.")
             print("  Use it to name drives, set passwords, and enable AI features.")
         else:
             warn("docker compose up failed. Check the output above.")
             print()
             info("To retry:  docker compose up -d --build")
-            info(f"Then open: {url}")
+            info(f"Then open: {open_url}")
     else:
         print()
         info("When ready, run:  docker compose up -d --build")
-        info(f"Then open:        {url}")
+        info(f"Then open:        {open_url}")
 
     print()
 

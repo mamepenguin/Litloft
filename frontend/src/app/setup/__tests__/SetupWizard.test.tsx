@@ -40,12 +40,23 @@ function defaultMockImpl(url: string) {
   return Promise.resolve(jsonResponse({ ok: true }));
 }
 
+const SETUP_TOKEN = "a-valid-setup-token";
+
 beforeEach(() => {
   pushMock.mockReset();
   mockFetch.mockReset();
   mockFetch.mockImplementation(defaultMockImpl);
   vi.stubGlobal("fetch", mockFetch);
+  window.history.replaceState(null, "", `/setup?token=${SETUP_TOKEN}`);
 });
+
+/** The unlock step verifies the URL's token on mount and steps past it. */
+async function renderPastUnlock() {
+  render(<SetupWizard />);
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: /日本語/ })).toBeInTheDocument();
+  });
+}
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -77,7 +88,7 @@ async function reachDriveStep() {
 describe("SetupWizard (detected drives)", () => {
   it("writes NEXT_LOCALE cookie when locale is selected", async () => {
     document.cookie = "NEXT_LOCALE=; path=/; max-age=0";
-    render(<SetupWizard />);
+    await renderPastUnlock();
     await waitFor(() => {
       expect(
         screen.getByRole("button", { name: /english|en/i }),
@@ -88,7 +99,7 @@ describe("SetupWizard (detected drives)", () => {
   });
 
   it("fetches setup-status on mount and seeds detected drives", async () => {
-    render(<SetupWizard />);
+    await renderPastUnlock();
     await waitFor(() => {
       const urls = mockFetch.mock.calls.map((c) => c[0] as string);
       expect(urls).toContain("/api/admin/config/setup-status");
@@ -99,7 +110,7 @@ describe("SetupWizard (detected drives)", () => {
   });
 
   it("skips PasswordStep when 全公開 is selected", async () => {
-    render(<SetupWizard />);
+    await renderPastUnlock();
     await reachDriveStep();
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
@@ -112,7 +123,7 @@ describe("SetupWizard (detected drives)", () => {
   });
 
   it("preserves edited display name across Next/Back navigation", async () => {
-    render(<SetupWizard />);
+    await renderPastUnlock();
     await reachDriveStep();
 
     const firstName = screen.getByDisplayValue("media") as HTMLInputElement;
@@ -127,7 +138,7 @@ describe("SetupWizard (detected drives)", () => {
   });
 
   it("final submit PUTs the full drive array, then completes and redirects", async () => {
-    render(<SetupWizard />);
+    await renderPastUnlock();
     await reachDriveStep();
 
     fireEvent.change(screen.getByDisplayValue("media"), {
@@ -206,7 +217,7 @@ describe("SetupWizard (detected drives)", () => {
       return Promise.resolve(jsonResponse({ ok: true }));
     });
 
-    render(<SetupWizard />);
+    await renderPastUnlock();
     fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
     await waitFor(() => {
@@ -246,7 +257,7 @@ describe("SetupWizard with WelcomeStep", () => {
   }
 
   it("shows Welcome right after Language (before Drive) in public mode", async () => {
-    render(<SetupWizard />);
+    await renderPastUnlock();
     fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
@@ -257,7 +268,7 @@ describe("SetupWizard with WelcomeStep", () => {
   });
 
   it('clicking "Get started" on Welcome advances to the Drive step', async () => {
-    render(<SetupWizard />);
+    await renderPastUnlock();
     fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
@@ -272,7 +283,7 @@ describe("SetupWizard with WelcomeStep", () => {
   });
 
   it('clicking "Back" on Welcome returns to the Language step', async () => {
-    render(<SetupWizard />);
+    await renderPastUnlock();
     fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
@@ -293,7 +304,7 @@ describe("SetupWizard with WelcomeStep", () => {
   });
 
   it("Welcome appears between Language and Drive in protected flow too", async () => {
-    render(<SetupWizard />);
+    await renderPastUnlock();
     fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
 
@@ -333,7 +344,7 @@ describe("SetupWizard with addons installed", () => {
   });
 
   async function reachCompleteStep(onAddonStep?: () => void) {
-    render(<SetupWizard />);
+    await renderPastUnlock();
     await reachDriveStep();
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
     fireEvent.click(screen.getByLabelText(/public/i));
@@ -433,7 +444,7 @@ describe("SetupWizard addon choices across drive edits", () => {
 
   it("keeps a switch turned off with its drive when the drive is renamed afterwards", async () => {
     withAddons();
-    render(<SetupWizard />);
+    await renderPastUnlock();
     await reachDriveStep();
     await goToAddonStep();
     await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
@@ -470,7 +481,7 @@ describe("SetupWizard addon choices across drive edits", () => {
         );
       },
     });
-    render(<SetupWizard />);
+    await renderPastUnlock();
     await reachDriveStep();
     await goToAddonStep();
     await waitFor(() => expect(screen.getAllByRole("checkbox")).toHaveLength(4));
@@ -496,7 +507,7 @@ describe("SetupWizard when the addon list does not load", () => {
       }
       return defaultMockImpl(url);
     });
-    render(<SetupWizard />);
+    await renderPastUnlock();
     await reachDriveStep();
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
     fireEvent.click(screen.getByLabelText(/public/i));
@@ -529,7 +540,7 @@ describe("SetupWizard when the addon list does not load", () => {
       }
       return defaultMockImpl(url);
     });
-    render(<SetupWizard />);
+    await renderPastUnlock();
     await reachDriveStep();
     fireEvent.click(screen.getByRole("button", { name: /next/i }));
     fireEvent.click(screen.getByLabelText(/public/i));
@@ -550,5 +561,124 @@ describe("SetupWizard when the addon list does not load", () => {
     fireEvent.click(screen.getByRole("button", { name: /skip/i }));
     await screen.findByRole("button", { name: /finish|complete/i });
     expect(screen.getByText(/^2\s*addon/)).toBeInTheDocument();
+  });
+});
+
+describe("SetupWizard unlock step", () => {
+  function urlsCalledGlobal() {
+    return mockFetch.mock.calls.map((c) => c[0] as string);
+  }
+
+  it("verifies the URL's token and steps past without a press", async () => {
+    render(<SetupWizard />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /日本語/ })).toBeInTheDocument();
+    });
+    const verify = mockFetch.mock.calls.find(
+      ([url]) => url === "/api/admin/config/setup-token/verify",
+    );
+    expect(JSON.parse((verify![1] as RequestInit).body as string)).toEqual({
+      token: SETUP_TOKEN,
+    });
+  });
+
+  it("stays on the token field and says so when the token is rejected", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/admin/config/setup-token/verify") {
+        return Promise.resolve(
+          jsonResponse({ detail: { code: "setup_token_invalid" } }, 403),
+        );
+      }
+      return defaultMockImpl(url);
+    });
+    render(<SetupWizard />);
+
+    expect(await screen.findByText("Invalid token")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /日本語/ })).toBeNull();
+    expect(urlsCalledGlobal()).not.toContain("/api/admin/config/drives");
+  });
+
+  it("accepts a token typed in when the URL carries none", async () => {
+    window.history.replaceState(null, "", "/setup");
+    render(<SetupWizard />);
+
+    const field = await screen.findByLabelText(/setup token/i);
+    expect(mockFetch.mock.calls.map((c) => c[0] as string)).not.toContain(
+      "/api/admin/config/setup-token/verify",
+    );
+
+    fireEvent.change(field, { target: { value: "typed-token" } });
+    fireEvent.click(screen.getByRole("button", { name: /unlock setup/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /日本語/ })).toBeInTheDocument();
+    });
+    const verify = mockFetch.mock.calls.find(
+      ([url]) => url === "/api/admin/config/setup-token/verify",
+    );
+    expect(JSON.parse((verify![1] as RequestInit).body as string)).toEqual({
+      token: "typed-token",
+    });
+  });
+
+  it("does not submit on the Enter that confirms an IME conversion", async () => {
+    window.history.replaceState(null, "", "/setup");
+    render(<SetupWizard />);
+    const field = await screen.findByLabelText(/setup token/i);
+
+    fireEvent.change(field, { target: { value: "とーくん" } });
+    fireEvent.compositionEnd(field);
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    expect(mockFetch.mock.calls.map((c) => c[0] as string)).not.toContain(
+      "/api/admin/config/setup-token/verify",
+    );
+
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => {
+      expect(mockFetch.mock.calls.map((c) => c[0] as string)).toContain(
+        "/api/admin/config/setup-token/verify",
+      );
+    });
+  });
+
+  it("sends the token on every config write and on complete-setup", async () => {
+    await renderPastUnlock();
+    fireEvent.click(screen.getByRole("button", { name: /日本語/ }));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /get started|start|begin|setup\.welcome\.startButton/i,
+      }),
+    );
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("media")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/public/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(
+      screen.queryByRole("button", { name: /skip/i }) ??
+        screen.getByRole("button", { name: /next/i }),
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+
+    const gated = [
+      "/api/admin/config/drives",
+      "/api/admin/config/addon-policy",
+      "/api/admin/config/complete-setup",
+    ];
+    for (const url of gated) {
+      const call = mockFetch.mock.calls.find(
+        ([u, opts]) =>
+          u === url && (opts as RequestInit)?.method !== "GET",
+      );
+      expect(call, url).toBeDefined();
+      const headers = (call![1] as RequestInit).headers as Record<string, string>;
+      expect(headers["X-Litloft-Setup-Token"], url).toBe(SETUP_TOKEN);
+    }
   });
 });

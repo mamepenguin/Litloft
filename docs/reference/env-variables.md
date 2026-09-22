@@ -54,6 +54,14 @@ container starts, so every change needs `docker compose up -d` to take effect.
 - **When to set**: To rotate (invalidates every issued token), or to share an identity across multiple instances.
 - **How**: `openssl rand -hex 32`. Restart the backend for the new secret to take effect.
 
+### `LITLOFT_SETUP_TOKEN`
+- **Default**: generated at startup while `${DATA_DIR}/setup_completed` is absent, and printed to the backend log. Never written to disk.
+- **Read by**: `backend/app/setup_token.py` `setup_token()`, through `_admin_or_first_run` in `backend/app/routers/admin_config.py`.
+- **What it does**: Gates every config write `/setup` makes — drives, passwords, addon policy and `complete-setup` — for as long as setup is unfinished. No admin password exists then, so the admin gate cannot apply and this stands in for it.
+- **Without it**: a token is minted per boot. Restarting the backend mid-setup replaces it; read the log again.
+- **When to set**: `configure.py` sets it in `.env` and puts it in the URL it prints, so the operator never types it. Set it yourself to keep one value across restarts.
+- **How**: `openssl rand -hex 16`. It has no effect once `setup_completed` exists.
+
 ### `CORE_INTERNAL_SECRET`
 - **Default**: empty
 - **Read by**: `backend/app/routers/internal.py` (`verify_internal_secret`, `verify_internal_write_secret`) and `backend/app/main.py` at startup.
