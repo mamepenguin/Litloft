@@ -235,6 +235,17 @@ keeps only the last event, so when another live update arrives at almost the sam
 moment the ready or failed toast is sometimes not shown. The clip is still created
 and appears on the Notes page.
 
+**A YouTube feed whose entries carry no recognised video id reports "no new
+videos" rather than failing.** `_list_channel_via_rss` guards against a document
+that is not an Atom feed, but inside a real `<feed>` it skips any `<entry>`
+without a `{http://www.youtube.com/xml/schemas/2015}videoId`. If YouTube bumps
+that schema namespace or moves the id, every channel returns an empty listing,
+the fallback to yt-dlp is never reached because nothing failed, and each sync
+advances `last_synced_at` and clears the backoff. Every subscription then reads
+as healthy while importing nothing. Distinguishing it needs the listing to treat
+"entries present, none readable" as no listing at all, which no code or test
+does today.
+
 **A Media Import subscription that has never synced successfully retries every
 hour forever, ahead of every healthy one.** `_next_backoff_minutes` infers the
 ladder rung from the gap between `cooldown_until` and `last_synced_at`, so a row
