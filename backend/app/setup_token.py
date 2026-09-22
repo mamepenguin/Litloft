@@ -43,6 +43,13 @@ def setup_token() -> str:
 
 
 def matches(candidate: str | None) -> bool:
+    """Whether ``candidate`` is the token.
+
+    Compared as bytes: ``compare_digest`` raises on a non-ASCII ``str``, and
+    the candidate is whatever was typed into a field or sent in a header.
+    """
     if not candidate:
         return False
-    return secrets.compare_digest(candidate, setup_token())
+    return secrets.compare_digest(
+        candidate.encode("utf-8"), setup_token().encode("utf-8")
+    )

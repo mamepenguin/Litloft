@@ -153,6 +153,12 @@ class TestVerify:
         )
         assert resp.status_code == 403, resp.text
 
+    def test_a_non_ascii_token_is_refused_not_a_server_error(self, first_run):
+        resp = first_run["client"].post(
+            "/api/admin/config/setup-token/verify", json={"token": "あいうえお"}
+        )
+        assert resp.status_code == 403, resp.text
+
     def test_a_missing_token_is_a_validation_error(self, first_run):
         resp = first_run["client"].post(
             "/api/admin/config/setup-token/verify", json={}
@@ -179,3 +185,15 @@ class TestWhereTheTokenComesFrom:
         assert setup_token.matches("abcdef") is True
         for near in ("abcde", "abcdefg", "ABCDEF", " abcdef", "abcdef ", "", None):
             assert setup_token.matches(near) is False, near
+
+    def test_a_non_ascii_candidate_is_refused_rather_than_raising(self, monkeypatch):
+        monkeypatch.setattr(setup_token, "_token", None)
+        monkeypatch.setenv(setup_token.ENV_VAR, "abcdef")
+        for pasted in ("あいうえお", "tokén", "🔑"):
+            assert setup_token.matches(pasted) is False, pasted
+
+    def test_a_non_ascii_token_can_be_configured(self, monkeypatch):
+        monkeypatch.setattr(setup_token, "_token", None)
+        monkeypatch.setenv(setup_token.ENV_VAR, "あいうえお")
+        assert setup_token.matches("あいうえお") is True
+        assert setup_token.matches("あいうえ") is False
