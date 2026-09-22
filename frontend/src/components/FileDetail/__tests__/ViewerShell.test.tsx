@@ -101,16 +101,6 @@ vi.mock("../../SidebarProvider", async () => {
 const PDF = { mime_type: "application/pdf", file_type: "document" as const };
 const ARCHIVE = { mime_type: "application/x-zip-compressed", file_type: "archive" as const };
 const IMAGE = { mime_type: "image/jpeg", file_type: "image" as const };
-const SPREADSHEET = {
-  mime_type:
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  file_type: "document" as const,
-};
-const WORD = {
-  mime_type:
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  file_type: "document" as const,
-};
 const TEXT = { mime_type: "text/plain", file_type: "document" as const };
 const UNKNOWN = {
   mime_type: "application/octet-stream",
@@ -123,16 +113,17 @@ const KINDS: [string, Partial<FileItem>][] = [
   ["a PDF", PDF],
   ["an archive", ARCHIVE],
   ["an image", IMAGE],
-  ["a spreadsheet", SPREADSHEET],
-  ["a Word document", WORD],
-  ["a plain text file", TEXT],
   ["a subtitle track", SUBTITLE],
   ["a file nothing can preview", UNKNOWN],
 ];
 
-const KIND_COUNT = 8;
+const KIND_COUNT = 5;
 
 /**
+ * One row per `file_type`, not per mime: the shell reads `file_type`, and
+ * `FilePreview` — the one part that reads the mime — is stubbed here, so a
+ * second document mime runs the same code as the first.
+ *
  * Not all seven: `video` and `audio` ride the shell through
  * `MediaShell.test.tsx`. Written out rather than derived from `FileType` so
  * the split between the two suites is a statement someone has to change

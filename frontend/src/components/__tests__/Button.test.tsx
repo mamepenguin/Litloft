@@ -343,37 +343,21 @@ describe("Button", () => {
       expect(tokens).not.toContain("bg-warm-light");
     });
 
-    it.each(CASES)("a labelled Button takes it (%s, %s)", (variant, size) => {
-      render(
-        <Button variant={variant} size={size}>
-          Save
-        </Button>,
-      );
+    // Per size, not per case: the slot the floor occupies is chosen by
+    // `iconOnly` alone, and every variant's class text is pinned whole by
+    // "a link's class list is the whole recipe" above.
+    it.each(SIZES)("a labelled Button takes it (%s)", (size) => {
+      render(<Button size={size}>Save</Button>);
       expect(screen.getByRole("button").classList.contains(FLOOR)).toBe(true);
-    });
-
-    it.each(CASES)("a link on buttonClass takes it (%s, %s)", (variant, size) => {
-      expect(buttonClass({ variant, size }).split(" ")).toContain(FLOOR);
     });
 
     // An ungated `min-h-11` would raise the box on a mouse too, and would still
     // satisfy a substring search for the floor's name.
-    it.each(CASES)("emits no ungated min-h-* or h-* on a Button (%s, %s)", (variant, size) => {
-      render(
-        <Button variant={variant} size={size}>
-          Save
-        </Button>,
-      );
+    it.each(SIZES)("emits no ungated min-h-* or h-* on a Button (%s)", (size) => {
+      render(<Button size={size}>Save</Button>);
       const ungated = [...screen.getByRole("button").classList].filter(
         (c) => /^min-h-/.test(c) || /^h-\d/.test(c),
       );
-      expect(ungated).toEqual([]);
-    });
-
-    it.each(CASES)("emits no ungated min-h-* or h-* on a link (%s, %s)", (variant, size) => {
-      const ungated = buttonClass({ variant, size })
-        .split(" ")
-        .filter((c) => /^min-h-/.test(c) || /^h-\d/.test(c));
       expect(ungated).toEqual([]);
     });
 

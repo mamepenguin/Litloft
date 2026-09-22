@@ -423,10 +423,12 @@ describe("the recogniser", () => {
     return tokens.some(isLineClamp) && tokens.some(isDisplayUtility);
   };
 
-  const matrix = <T extends readonly unknown[]>(rows: readonly T[]) =>
-    rows.flatMap((row) =>
-      SPELLINGS.map(([name, spell]) => [name, ...row, spell] as const),
-    );
+  /**
+   * One spelling. The four are proved interchangeable by "writes shapes that
+   * a quote-only reader gets wrong" below, which runs every one of them
+   * through `classTokens`; crossing them with the cases re-answers that.
+   */
+  const [, plain] = SPELLINGS[0];
 
   it("writes the source shapes it says it writes", () => {
     expect(Object.fromEntries(SPELLINGS.map(([n, f]) => [n, f("X Y")]))).toEqual(
@@ -474,20 +476,14 @@ describe("the recogniser", () => {
     }
   });
 
-  it.each(matrix(DISPLAY_UTILITIES.map((u) => [u] as const)))(
-    "as %s, catches `%s` beside a clamp",
-    (_spelling, utility, spell) => {
-      expect(flags(`${utility} line-clamp-2`, spell)).toBe(true);
-      expect(flags(`sm:${utility} line-clamp-2`, spell)).toBe(true);
-    },
-  );
+  it.each(DISPLAY_UTILITIES)("catches `%s` beside a clamp", (utility) => {
+    expect(flags(`${utility} line-clamp-2`, plain)).toBe(true);
+    expect(flags(`sm:${utility} line-clamp-2`, plain)).toBe(true);
+  });
 
-  it.each(matrix(RECOGNISER_CASES))(
-    "as %s, reads `%s` as %s",
-    (_spelling, value, expected, spell) => {
-      expect(flags(value, spell)).toBe(expected);
-    },
-  );
+  it.each(RECOGNISER_CASES)("reads `%s` as %s", (value, expected) => {
+    expect(flags(value, plain)).toBe(expected);
+  });
 
   it("still carries the sentinel the stylesheet guard looks for", () => {
     expect(RECOGNISER_CASES.map(([value]) => value)).toContain(
