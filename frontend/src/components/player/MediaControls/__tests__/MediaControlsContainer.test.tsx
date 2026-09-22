@@ -24,6 +24,18 @@ function makeMc(overrides: Partial<MediaController> = {}): MediaController {
   };
 }
 
+function stubCoarsePointerMatchMedia() {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: query.includes("pointer: coarse"),
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
+
 let frame: HTMLDivElement;
 
 // Several tests swap in a matchMedia to choose a layout. Left in place
@@ -213,15 +225,7 @@ describe("MediaControlsContainer", () => {
     });
 
     it("persists a new choice and applies it", async () => {
-      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-        matches: query.includes("pointer: coarse"),
-        media: query,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      }));
+      stubCoarsePointerMatchMedia();
       const mc = makeCaptionMc();
       renderControls(mc);
       await act(async () => {
@@ -232,6 +236,29 @@ describe("MediaControlsContainer", () => {
       });
       expect(window.localStorage.getItem("video-share-captions")).toBe("true");
       expect(mc.setCaptions).toHaveBeenLastCalledWith(true);
+    });
+
+    it("turns captions off when the player shows them and the stored preference is already off", async () => {
+      window.localStorage.setItem("video-share-captions", "false");
+      stubCoarsePointerMatchMedia();
+      const mc = makeMc({
+        getCaptions: vi.fn().mockReturnValue("on"),
+        setCaptions: vi.fn(),
+      });
+      renderControls(mc);
+      await act(async () => {});
+      (mc.setCaptions as ReturnType<typeof vi.fn>).mockClear();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+      });
+      const toggle = screen.getByRole("switch", { name: "Subtitles" });
+      expect(toggle).toBeChecked();
+      await act(async () => {
+        fireEvent.click(toggle);
+      });
+
+      expect(mc.setCaptions).toHaveBeenCalledWith(false);
     });
   });
 

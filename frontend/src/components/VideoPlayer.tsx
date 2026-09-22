@@ -25,6 +25,7 @@ import { usePlaybackProgress } from "@/lib/playbackProgress";
 import { useNativePlayerUiPreference } from "@/lib/nativePlayerUi";
 import MediaControls from "./player/MediaControls";
 import { useFullscreen } from "./player/hooks/useFullscreen";
+import { useReassertCaptions } from "./player/hooks/useReassertCaptions";
 import { useVideoShortcuts } from "./player/hooks/useVideoShortcuts";
 import { ShellVideoPlayer } from "./player/ShellVideoPlayer";
 import { isNativeShell } from "@/lib/nativeBridge";
@@ -68,6 +69,7 @@ function LitloftVideoControls({
   onUseBrowserControls,
 }: LitloftVideoControlsProps) {
   const [boosting, setBoosting] = useState(false);
+  useReassertCaptions(video, mc);
   const fullscreen = useFullscreen({
     frameRef,
     autoRotateEnabled: playing,

@@ -54,8 +54,8 @@ export function useFileDetailData(fileId: string): FileDetailData {
   const [failed, setFailed] = useState(false);
   /**
    * Held apart from ``file`` on purpose: the mutation endpoints answer with
-   * the plain ``FileResponse`` and every one does ``setFile(updated)``, so
-   * keeping the flag on the file object would make chapters disappear.
+   * the plain ``FileResponse``, so keeping the flag on the file object would
+   * make chapters disappear.
    */
   const [chaptersPresent, setChaptersPresent] = useState(false);
   const [chaptersVersion, setChaptersVersion] = useState(0);
@@ -141,7 +141,11 @@ export function useFileDetailData(fileId: string): FileDetailData {
         title: editTitle,
         description: editDesc,
       });
-      setFile(updated);
+      // Only the detail endpoint looks for subtitle files, so the answer
+      // to a metadata edit reports none. Taking it at its word would pull
+      // the player's tracks out from under a video being watched, and a
+      // title cannot change which files sit beside it.
+      setFile((prev) => ({ ...updated, subtitles: prev?.subtitles ?? [] }));
       setEditing(false);
     } catch (err) {
       console.error("Failed to save file metadata:", err);

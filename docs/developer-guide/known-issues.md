@@ -277,3 +277,26 @@ with `file_tags.c.file_id.is_(None)` to keep unattached tags visible. The tag
 appears in the sidebar list and in the typed suggestions, and selecting it finds
 nothing. The chips in the tag field exclude it by dropping any tag with a count
 of zero; the other two surfaces do not.
+
+**Renaming a video detaches its sidecar subtitles.** `detect_subtitles` matches
+subtitle files against the video's current basename, and `rename_file` renames
+only the video, so `movie.ja.srt` stops being found the moment `movie.mp4`
+becomes anything else. The detail page then offers the generated track, or no
+track at all. Renaming the subtitle files to match by hand attaches them again.
+
+**A second press of the player's subtitle switch inside one clock tick does
+nothing.** The switch draws from what the player reports, which is polled every
+250 ms while playing and every 1000 ms while paused, and it sends the opposite
+of what it drew. Pressed twice quickly it therefore sends the same value twice
+and the second press changes nothing. The scrub bar and the volume slider hold
+the requested value until the poll confirms it (`pendingSeek`,
+`pendingVolume`); captions have no equivalent.
+
+**The player's subtitle switch is obeyed only while Litloft draws the
+controls.** Turn captions off, hand the frame to the browser's own controls,
+and a subtitle track arriving with the file's detail answer turns itself on.
+Going back to Litloft's controls turns it off again. Where the browser-controls
+choice is already stored when the file opens, the saved "off" is not applied at
+all and the track set's own default stands. The browser's captions menu never
+writes `captionsPreferred`, so nothing on that surface records the viewer's
+choice, and asserting a stored one there would undo what they just chose.

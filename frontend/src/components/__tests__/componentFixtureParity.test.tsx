@@ -270,6 +270,7 @@ describe("the component fixture's page", () => {
       "scoped-search-en",
       "player-seek-bar",
       "player-hairline",
+      "player-captions",
       "folder-push",
       "open-ghost",
     ]);

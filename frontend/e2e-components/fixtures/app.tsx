@@ -26,6 +26,8 @@ import { EditableTitle } from "@/components/markdown/EditableTitle";
 import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
 import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
+import { VideoPlayer } from "@/components/VideoPlayer";
+import type { SubtitleInfo } from "@/types";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import enMessages from "@/messages-core/en.json";
 import jaMessages from "@/messages-core/ja.json";
@@ -1236,6 +1238,34 @@ function PlayerFrame({ visible }: { visible: boolean }): ReactElement {
 const PlayerSeekBar = (): ReactElement => <PlayerFrame visible />;
 const PlayerHairline = (): ReactElement => <PlayerFrame visible={false} />;
 
+/**
+ * The real player, because what this arrangement is for is the browser's
+ * own handling of `<track default>`: jsdom has none of it.
+ *
+ * A file opened from a list is drawn from the seed first, which carries no
+ * subtitles, and its tracks are replaced when the detail answer arrives.
+ * The button is that arrival.
+ */
+function PlayerCaptions(): ReactElement {
+  const [subtitles, setSubtitles] = useState<SubtitleInfo[]>([]);
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <VideoPlayer videoId="vid" subtitles={subtitles} />
+      <button
+        type="button"
+        id="subtitles-arrive"
+        onClick={() =>
+          setSubtitles([
+            { index: 0, language: "ja", label: "Japanese", format: "srt" },
+          ])
+        }
+      >
+        subtitles arrive
+      </button>
+    </NextIntlClientProvider>
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,
@@ -1284,6 +1314,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "scoped-search-en": ScopedSearchEn,
   "player-seek-bar": PlayerSeekBar,
   "player-hairline": PlayerHairline,
+  "player-captions": PlayerCaptions,
   "folder-push": FolderPushArrangement,
   "open-ghost": OpenGhostArrangement,
 };
