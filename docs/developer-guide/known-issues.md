@@ -235,6 +235,20 @@ keeps only the last event, so when another live update arrives at almost the sam
 moment the ready or failed toast is sometimes not shown. The clip is still created
 and appears on the Notes page.
 
+**A Media Import subscription that has never synced successfully retries every
+hour forever, ahead of every healthy one.** `_next_backoff_minutes` infers the
+ladder rung from the gap between `cooldown_until` and `last_synced_at`, so a row
+whose first sync has never succeeded — a deleted channel, or one whose listing
+cannot be fetched from either source — stays on the first rung however many
+times it has failed, while a previously-synced subscription escalates to 24
+hours on its second failure. The cron sweep serves never-synced rows first, so
+these sit permanently at the head of a capped queue. Harmless at the current
+scale (demand well under the 180 enqueues per hour the cap allows), and the
+state itself is usually unrecoverable rather than transient, so retrying is not
+wrong. What is missing is telling the operator: the card shows the ordinary
+*Backoff active*, with nothing to distinguish "waiting out a blip" from "this
+channel has never worked and probably never will".
+
 **Clip web page from Add is silent when closed before the duplicate lookup answers.**
 Pressing Clip and closing the dialog before `GET /clips?url=` returns clips nothing
 and reports nothing.
