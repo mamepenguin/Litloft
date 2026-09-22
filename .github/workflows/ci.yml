@@ -75,11 +75,20 @@ jobs:
       # passed on its retry as flaky, which is the one thing the history could
       # not distinguish (every failed run to date sits at attempt 1, so nobody
       # ever learned whether a red was a catch or a coin flip).
+      #
+      # The thresholds are zeroed here and applied once in `frontend-coverage`.
+      # They live in `vitest.config.ts` and are checked at the end of every
+      # `--coverage` run, so a shard would measure the quarter of the tree it
+      # touched against the whole tree's floor and fail at ~42%.
       - name: Test
         run: >-
           pnpm exec vitest run --coverage --retry=1
           --reporter=blob --reporter=default
           --shard=${{ matrix.shard }}/${{ env.SHARDS }}
+          --coverage.thresholds.statements=0
+          --coverage.thresholds.branches=0
+          --coverage.thresholds.functions=0
+          --coverage.thresholds.lines=0
         working-directory: frontend
 
       - name: Keep this shard's blob report
