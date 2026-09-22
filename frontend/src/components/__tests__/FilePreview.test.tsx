@@ -214,16 +214,19 @@ describe("FilePreview", () => {
     expect(screen.getByTestId("text-preview")).toBeInTheDocument();
   });
 
-  it.each([
-    ["main.rs", "application/octet-stream"],
-    ["main.go", "application/octet-stream"],
-    ["Makefile", "application/octet-stream"],
-    ["LICENSE", "application/octet-stream"],
-  ])("renders TextPreview for %s, which has no text mime", (filename, mime) => {
-    const file = makeFile({ file_type: "other", mime_type: mime, filename });
-    render(<FilePreview file={file} />);
-    expect(screen.getByTestId("text-preview")).toBeInTheDocument();
-  });
+  // None of these four has a mime that says text; the name is all there is.
+  it.each([["main.rs"], ["main.go"], ["Makefile"], ["LICENSE"]])(
+    "renders TextPreview for %s",
+    (filename) => {
+      const file = makeFile({
+        file_type: "other",
+        mime_type: "application/octet-stream",
+        filename,
+      });
+      render(<FilePreview file={file} />);
+      expect(screen.getByTestId("text-preview")).toBeInTheDocument();
+    },
+  );
 
   it.each([["a.out"], ["photo.raw"], ["app.bin"]])(
     "offers no text viewer for %s",

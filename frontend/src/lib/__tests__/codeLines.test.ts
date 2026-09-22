@@ -36,7 +36,13 @@ describe("splitHighlightedLines", () => {
       language: "javascript",
       ignoreIllegals: true,
     }).value;
-    expect(splitHighlightedLines(html)).toHaveLength(2);
+    const lines = splitHighlightedLines(html);
+    expect(lines).toHaveLength(2);
+    const host = document.createElement("div");
+    host.innerHTML = lines[0];
+    expect(host.textContent).toBe("const a = 1;");
+    host.innerHTML = lines[1];
+    expect(host.textContent).toBe("const b = 2;");
   });
 
   it("reopens a span that straddles a break", () => {
@@ -79,7 +85,7 @@ describe("splitHighlightedLines", () => {
     expect(rendered(lines)).toBe(source);
   });
 
-  it("numbers a file with no trailing newline to its last line", () => {
+  it("keeps the last line of a file that does not end in a break", () => {
     const html = hljs.highlight("a = 1\nb = 2", {
       language: "python",
       ignoreIllegals: true,

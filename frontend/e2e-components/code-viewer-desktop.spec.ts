@@ -110,15 +110,15 @@ test("a wrapped line resumes under the code, not under its number", async ({
     // An inline box's own rect does not grow to cover a child pulled out of
     // it by a negative margin, so the number's position is read by hit
     // testing the gutter beside the first row instead.
-    const inGutter = document.elementFromPoint(
+    const gutterElement = document.elementFromPoint(
       rowLefts[0] - 6,
       firstRow.top + firstRow.height / 2,
     );
 
     return {
       rowLefts,
-      gutterHit: inGutter?.className ?? null,
-      lineIsGutterHit: inGutter === long,
+      gutterHit: gutterElement?.className ?? null,
+      lineIsGutterHit: gutterElement === long,
     };
   });
 

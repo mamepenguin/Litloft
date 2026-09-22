@@ -64,7 +64,7 @@ describe("codeLanguageFor", () => {
     expect(codeLanguageFor(filename)).toBeNull();
   });
 
-  it("names only languages the bundle carries", () => {
+  it("maps every entry to a language the bundle carries", () => {
     // The tables themselves, not a list of names written here: a typo in an
     // entry nobody thought to spell out is exactly what this has to catch.
     const entries = [
@@ -77,7 +77,7 @@ describe("codeLanguageFor", () => {
     }
   });
 
-  it("offers a language only for names the viewer agrees to render", () => {
+  it("maps only names the viewer agrees to render", () => {
     // Colour without content is the one combination that cannot happen. Both
     // tables are checked, because a key added to either one is a key this
     // function will answer for.
