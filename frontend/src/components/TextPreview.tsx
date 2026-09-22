@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { getStreamUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
+import { fileNameParts } from "@/lib/fileNameParts";
 import { useDocumentCapturePublisher } from "@/hooks/useDocumentCapturePublisher";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 
@@ -37,6 +38,7 @@ const TEXT_SUFFIXES = new Set([
   "dart", "rs", "go", "kt", "kts", "swift", "rb", "php", "lua", "r",
   "c", "h", "cc", "cpp", "hpp", "cs", "java", "scala", "ex", "exs",
   "vue", "svelte", "ts", "tsx", "jsx", "mjs", "cjs", "mts", "cts",
+  "js", "json", "css", "html", "xml",
   "toml", "ini", "cfg", "conf", "env", "properties", "yml", "yaml",
   "gradle", "cmake", "mk", "dockerfile", "gitignore", "editorconfig",
   "gitattributes", "gitmodules", "gitconfig", "dockerignore",
@@ -65,23 +67,11 @@ export function isTextPreviewable(mimeType: string, filename?: string): boolean 
   if (TEXT_MIME_EXACT.has(mimeType)) return true;
   if (filename === undefined) return false;
 
-  const base = filename.slice(filename.lastIndexOf("/") + 1).toLowerCase();
+  const { base, token, fromDot } = fileNameParts(filename);
   if (TEXT_FILENAMES.has(base)) return true;
-
-  if (base.startsWith(".")) {
-    // A dotfile's *leading* segment names its type, not its trailing one:
-    // `.gitignore`, and `.env.local` as much as `.env`. Reading the last
-    // segment instead would ask whether `local` is a language.
-    const lead = base.slice(1).split(".")[0];
-    return TEXT_SUFFIXES.has(lead) || TEXT_FILENAMES.has(lead);
-  }
-
-  const dot = base.lastIndexOf(".");
-  // Matching an extensionless name against the *extension* list is how
-  // `bin/go`, `usr/bin/env` and `bin/patch` — ELF binaries — would be
-  // rendered as text.
-  if (dot < 0) return false;
-  return TEXT_SUFFIXES.has(base.slice(dot + 1));
+  if (token === null) return false;
+  if (fromDot) return TEXT_SUFFIXES.has(token) || TEXT_FILENAMES.has(token);
+  return TEXT_SUFFIXES.has(token);
 }
 
 export function TextPreview({
