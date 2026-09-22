@@ -159,8 +159,6 @@ export function ArchivePreview({
     [imageEntries, imageViewer, textViewer],
   );
 
-  const isClickable = canOpenArchiveEntry;
-
   // The inspector's index reaches into levels the canvas is not on, so
   // opening one of its leaves is two steps: move the level, then open.
   // `handleFileClick` reads `imageEntries`, which is the *current*
@@ -339,7 +337,7 @@ export function ArchivePreview({
           fileId={fileId}
           handleDirClick={openDir}
           handleFileClick={handleFileClick}
-          isClickable={isClickable}
+          isClickable={canOpenArchiveEntry}
         />
       ) : (
         <ArchiveFileListing
@@ -347,7 +345,7 @@ export function ArchivePreview({
           fileId={fileId}
           handleDirClick={openDir}
           handleFileClick={handleFileClick}
-          isClickable={isClickable}
+          isClickable={canOpenArchiveEntry}
         />
       )}
 

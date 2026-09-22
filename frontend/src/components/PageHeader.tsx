@@ -39,9 +39,9 @@ export function PageHeader({
   const scopeOnTrail = !hasTitle && given(scope);
   const actionsOnTrail = !hasTitle && given(actions);
 
-  // `leading` is deliberately *not* a reason to open this row. Search mode has
-  // a tree toggle and a title but no breadcrumb, and counting `leading` here
-  // gives it a row holding nothing but that button.
+  // `leading` opens this row only where there is no title. Search mode has a
+  // tree toggle and a title but no breadcrumb, and counting `leading` there
+  // would give it a row holding nothing but that button.
   const hasTrailRow =
     given(breadcrumb) ||
     scopeOnTrail ||

@@ -444,8 +444,8 @@ class TestBatchCopy:
 
         Only video thumbnails follow a move, so an image moved out of a folder
         still points at the thumbnail it left behind. Copying it back names
-        that one file as both source and destination, which `copy2` refuses —
-        and the copy did not happen, with nothing said.
+        that one file as both source and destination, which `copy2` refuses,
+        so the copy is made with no thumbnail of its own.
         """
         c, db, drive_dir, data_dir = client
         f = _seed_with_thumbnail(db, drive_dir, data_dir, "photo.png", folder="dest")
@@ -502,7 +502,7 @@ class TestBatchCopy:
 
         from sqlalchemy.exc import SQLAlchemyError
 
-        real = fileops.remove_empty_folder_if_has_files
+        real = fileops.untrack_empty_folder
         calls = {"n": 0}
 
         def fail_first(*args, **kwargs):
@@ -511,7 +511,7 @@ class TestBatchCopy:
                 raise SQLAlchemyError("database is locked")
             return real(*args, **kwargs)
 
-        monkeypatch.setattr(fileops, "remove_empty_folder_if_has_files", fail_first)
+        monkeypatch.setattr(fileops, "untrack_empty_folder", fail_first)
 
         res = c.post(
             "/api/files/batch/copy",
@@ -790,7 +790,7 @@ class TestBatchCopy:
         def fail(*args, **kwargs):
             raise SQLAlchemyError("database is locked")
 
-        monkeypatch.setattr(fileops, "remove_empty_folder_if_has_files", fail)
+        monkeypatch.setattr(fileops, "untrack_empty_folder", fail)
 
         res = c.post(
             "/api/files/batch/copy",
@@ -1003,7 +1003,7 @@ class TestBatchCopy:
         def fail(*args, **kwargs):
             raise SQLAlchemyError("database is locked")
 
-        monkeypatch.setattr(fileops, "remove_empty_folder_if_has_files", fail)
+        monkeypatch.setattr(fileops, "untrack_empty_folder", fail)
         res = c.post(
             "/api/files/batch/copy",
             json={"ids": [row.id], "target_folder_path": "dest"},

@@ -58,7 +58,7 @@ export function TouchControlsPresenter({
   // under the viewer's finger would toggle playback on the tap that
   // was only meant to bring the controls back. Keyboard focus still
   // reaches them, which pointer-events does not affect.
-  const takesInput = visible ? "pointer-events-auto" : "pointer-events-none";
+  const pointerEvents = visible ? "pointer-events-auto" : "pointer-events-none";
 
   return (
     <>
@@ -94,7 +94,7 @@ export function TouchControlsPresenter({
         >
           <ControlButton
             size="hero"
-            className={takesInput}
+            className={pointerEvents}
             label={paused ? t("play") : t("pause")}
             onClick={onTogglePlay}
           >
@@ -113,7 +113,7 @@ export function TouchControlsPresenter({
                 }
               : undefined
           }
-          className={`absolute right-0 top-0 flex items-center gap-0.5 p-2 ${takesInput}`}
+          className={`absolute right-0 top-0 flex items-center gap-0.5 p-2 ${pointerEvents}`}
         >
           {/* No volume slider: iOS silently ignores writes to volume,
               so it would look broken rather than absent. The mute
@@ -156,7 +156,7 @@ export function TouchControlsPresenter({
             // is what keeps a finger-sized target there.
             "absolute inset-x-0 bottom-0 flex flex-col pt-8",
             "bg-gradient-to-t from-black/80 via-black/50 to-transparent",
-            takesInput,
+            pointerEvents,
           ].join(" ")}
         >
           {/* The padding lives on the status row, not the block, so the

@@ -283,12 +283,7 @@ def _resolve_path(
 
 
 def _basename_candidates(db: Session, drive: str, target: str) -> list[File]:
-    """Rule 4: basename match (``Path(filename).stem``).
-
-    Done in Python because the stem comparison is case-sensitive and
-    SQLite cannot index the substring efficiently. The drive scope
-    keeps the working set bounded.
-    """
+    """Rule 4: basename match (``Path(filename).stem``)."""
     expected = f"{target}.md"
     rows = (
         db.query(File)

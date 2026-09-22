@@ -1,8 +1,7 @@
 /**
- * A browser configured to block site data throws a `SecurityError` from
- * the *call* — `getItem` and `setItem`, not the property access — and in
- * a component that means the error leaves `render()` and reaches the
- * error boundary.
+ * A browser configured to block site data throws a `SecurityError` from the
+ * *call* — `getItem` and `setItem`, not the property access — so the try has
+ * to be around the call and not around a feature test.
  */
 export function readStored(key: string): string | null {
   try {

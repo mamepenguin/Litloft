@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -146,8 +146,6 @@ export function DrivesSection(): React.ReactElement {
     );
   }, []);
 
-  const sortedDrives = useMemo(() => drives, [drives]);
-
   return (
     <section className="rounded-xl border border-bg-border bg-bg-card p-6">
       {/* The prose gives, the button does not. Without `min-w-0` on the
@@ -187,7 +185,7 @@ export function DrivesSection(): React.ReactElement {
       {loadError && <p className="mb-3 text-xs text-danger">{loadError}</p>}
 
       <ul className="divide-y divide-bg-border">
-        {sortedDrives.map((drive, index) => (
+        {drives.map((drive, index) => (
           <li
             key={`${drive.name}-${index}`}
             className="flex items-center justify-between gap-2 py-3"

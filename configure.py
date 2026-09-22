@@ -187,9 +187,10 @@ def write_env_key(key, value, env_path):
 class ExistingConfig:
     """Minimal reuse of the previous *physical* wiring.
 
-    Only host_path + slug per drive and the port are reused. Logical
-    settings (names / groups / passwords / AI) are no longer owned here, so
-    they are not read back.
+    Per drive, only slug + host_path; beyond that the port, the generated
+    secrets and which addon services and keys are already wired. Logical
+    settings (drive names / groups / passwords / addon policy) are no longer
+    owned here, so they are not read back.
     """
 
     def __init__(self, base: Path):
