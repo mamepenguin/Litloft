@@ -45,6 +45,14 @@ error from the policy save, or not at all.
 
 ## Files
 
+**A file moved to another drive keeps the tags of the drive it came from.**
+`move_file` reassigns `File.drive` and leaves `file_tags` pointing at the source
+drive's `Tag` rows, so the source drive's tag list counts a file that is no
+longer in it, and the destination drive's list does not show the tag at all.
+Purging the file afterwards sweeps the destination drive, so the source row is
+left attached to nothing. This crosses the drive boundary rather than only
+reading wrong. Reached by moving a tagged file between drives.
+
 **A `.ts` file is classified as video and handed to the player.** Python's
 built-in type table reads that extension as `video/mp2t`, which an MPEG
 transport stream legitimately is, so `classify` files every TypeScript source

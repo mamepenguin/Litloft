@@ -21,4 +21,9 @@ Declared before the first review round (R-0).
    them one word each. `PUT /api/files/{id}/tags`, the markdown frontmatter
    projection and `POST /api/internal/files/{id}/tags` all still sweep.
 
-TOTAL: 6 invariants
+7. **Added after round 2 (finding 3).** The sweep is six call sites, not one.
+   They are `physical_delete`, `resolve_db_path_conflict`, `complete_upload`,
+   and the three tag-write endpoints. A seventh site inherits the defect
+   silently; nothing detects one.
+
+TOTAL: 7 invariants

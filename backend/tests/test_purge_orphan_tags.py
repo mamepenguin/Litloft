@@ -176,3 +176,36 @@ def test_a_ghost_purged_by_a_re_upload_takes_its_tags(client):
     db.expire_all()
     assert db.query(File).filter(File.id == ghost_id).first() is None
     assert _tag_names(db) == []
+
+
+def test_a_tag_write_leaves_another_drive_alone(client):
+    """The three tag-write endpoints sweep the edited file's drive only.
+
+    A single-drive fixture cannot tell "swept my drive" from "swept every
+    drive", so the other drive's orphan is what this measures.
+    """
+    c, db, drive_dir, _ = client
+    db.add(Tag(name="stranded", drive="other-drive"))
+    db.commit()
+    file = _seed(db, drive_dir, "note.mp4", ["before"])
+
+    resp = c.put(f"/api/files/{file.id}/tags", json={"tags": ["after"]})
+    assert resp.status_code == 200, resp.text
+
+    assert _tag_names(db) == ["after"]
+    assert _tag_names(db, drive="other-drive") == ["stranded"]
+
+
+def test_an_internal_tag_write_leaves_another_drive_alone(client):
+    c, db, drive_dir, _ = client
+    db.add(Tag(name="stranded", drive="other-drive"))
+    db.commit()
+    file = _seed(db, drive_dir, "note.mp4", ["before"])
+
+    resp = c.post(
+        f"/api/internal/files/{file.id}/tags", json={"tags": ["after"]}
+    )
+    assert resp.status_code == 204, resp.text
+
+    assert _tag_names(db) == ["after"]
+    assert _tag_names(db, drive="other-drive") == ["stranded"]
