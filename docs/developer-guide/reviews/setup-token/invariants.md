@@ -27,9 +27,12 @@ Declared before the first review round (R-0).
 9. `configure.py` writes a token that the backend container actually receives,
    and the URL it prints carries that same token.
 
-10. **Added after round 2 (finding 1).** Whether setup is complete is asked
-    through `config.setup_completed_sentinel()` and nowhere else. Round 1's
-    finding 1 was a call site that invented its own check and forgot to make
-    one; round 2's was a detector that could not see call sites at all.
+**Withdrawn after round 3 (finding 4).** An invariant added after round 2 said
+the sentinel is asked about through `config.setup_completed_sentinel()` and
+nowhere else. That is a rule about the shape of the code rather than an
+observable sentence a mutation can violate, it was already false —
+`configure.py` runs on the host and cannot import `app.config` — and what it
+was reaching for is held by 1 and 7. The collapsing of the duplicated checks
+stays; the claim about it does not.
 
-TOTAL: 10 invariants
+TOTAL: 9 invariants

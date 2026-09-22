@@ -135,7 +135,7 @@ export async function verifySetupToken(token: string): Promise<void> {
       body: JSON.stringify({ token }),
     });
   } catch (err) {
-    if (err instanceof AdminConfigError && err.status === 404) {
+    if (err instanceof AdminConfigError && err.code === "setup_completed") {
       throw new SetupAlreadyCompletedError();
     }
     throw err;

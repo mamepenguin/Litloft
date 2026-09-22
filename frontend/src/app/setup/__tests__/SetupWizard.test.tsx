@@ -654,8 +654,70 @@ describe("SetupWizard unlock step", () => {
     });
     render(<SetupWizard />);
 
-    expect(await screen.findByText("Setup is complete")).toBeInTheDocument();
+    expect(await screen.findByText(/setup is complete/i)).toBeInTheDocument();
     expect(screen.queryByText("Invalid token")).toBeNull();
+    expect(screen.getByRole("link", { name: /open litloft/i })).toHaveAttribute(
+      "href",
+      "/",
+    );
+    expect(screen.getByRole("button", { name: /unlock setup/i })).toBeDisabled();
+  });
+
+  it("cannot be re-submitted while it says setup is complete", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/admin/config/setup-token/verify") {
+        return Promise.resolve(
+          jsonResponse({ detail: { code: "setup_completed" } }, 404),
+        );
+      }
+      return defaultMockImpl(url);
+    });
+    render(<SetupWizard />);
+    await screen.findByText(/setup is complete/i);
+    const before = mockFetch.mock.calls.length;
+
+    fireEvent.keyDown(screen.getByLabelText(/setup token/i), { key: "Enter" });
+
+    expect(mockFetch.mock.calls).toHaveLength(before);
+    expect(screen.queryByText("Invalid token")).toBeNull();
+  });
+
+  it("stops saying setup is complete once the field is used again", async () => {
+    let completed = true;
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/admin/config/setup-token/verify") {
+        return Promise.resolve(
+          completed
+            ? jsonResponse({ detail: { code: "setup_completed" } }, 404)
+            : jsonResponse({ detail: { code: "setup_token_invalid" } }, 403),
+        );
+      }
+      return defaultMockImpl(url);
+    });
+    render(<SetupWizard />);
+    await screen.findByText(/setup is complete/i);
+
+    completed = false;
+    fireEvent.change(screen.getByLabelText(/setup token/i), {
+      target: { value: "another" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /unlock setup/i }));
+
+    expect(await screen.findByText("Invalid token")).toBeInTheDocument();
+    expect(screen.queryByText(/setup is complete/i)).toBeNull();
+  });
+
+  it("does not mistake another 404 for a finished setup", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/admin/config/setup-token/verify") {
+        return Promise.resolve(jsonResponse({ detail: "Not Found" }, 404));
+      }
+      return defaultMockImpl(url);
+    });
+    render(<SetupWizard />);
+
+    expect(await screen.findByText("Invalid token")).toBeInTheDocument();
+    expect(screen.queryByText(/setup is complete/i)).toBeNull();
   });
 
   it("sends the token on the protected flow's password write too", async () => {

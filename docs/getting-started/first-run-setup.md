@@ -30,6 +30,10 @@ Paste it into the field and press →. The token gates every write the wizard ma
 
 A restart mints a new token. If you restart mid-setup, read the log again.
 
+Opening `/setup` on an install that has already been through it says so and
+offers a link back to Litloft; there is no token that reopens the wizard. To
+re-run it, delete the sentinel as above.
+
 Set `LITLOFT_SETUP_TOKEN` in `.env` to choose the value yourself; `configure.py` writes it there and reuses whatever it finds, so re-running it does not invalidate a setup already in progress.
 
 ## Step 1 — Language

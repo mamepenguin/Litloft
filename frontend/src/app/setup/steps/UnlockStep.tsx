@@ -78,7 +78,7 @@ export function UnlockStep({
             onCompositionEnd={ime.onCompositionEnd}
             onKeyDown={(e) => {
               if (ime.isImeKeystroke(e)) return;
-              if (e.key === "Enter" && value) void submit(value);
+              if (e.key === "Enter" && value && !completed) void submit(value);
             }}
             autoComplete="off"
             spellCheck={false}
@@ -88,7 +88,12 @@ export function UnlockStep({
             <p className="mt-1 text-xs text-danger">Invalid token</p>
           )}
           {completed && (
-            <p className="mt-1 text-xs text-text-muted">Setup is complete</p>
+            <p className="mt-1 text-xs text-text-muted">
+              Setup is complete.{" "}
+              <a href="/" className="underline">
+                Open Litloft
+              </a>
+            </p>
           )}
         </label>
 
@@ -96,7 +101,7 @@ export function UnlockStep({
           <button
             type="button"
             onClick={() => void submit(value)}
-            disabled={checking || !value}
+            disabled={checking || completed || !value}
             aria-label="Unlock setup"
             className="rounded-2xl bg-accent px-5 py-2.5 text-base font-medium text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-sand disabled:text-warm-silver"
           >
