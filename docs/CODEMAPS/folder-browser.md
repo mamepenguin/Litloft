@@ -165,13 +165,6 @@ Out of scope: auto-expand on drag-over hover, external OS file drop on tree rows
 | `backend/app/routers/drives.py` (`_next_unique_path` helper) | Computes the next unused suffixed name by checking the DB for both active and trashed entries. Trashed entries are deliberately included so users do not see "trash exists" via name conflicts. |
 | `backend/tests/test_drives_create_text_file.py` | Covers non-allowlisted extensions (`.json`, `.py`, `.html`, `.yaml`, no extension), suffix numbering on collision, missing-state UPSERT, 1 MB cap, traversal rejection. |
 
-## E2E
-
-| Path | Purpose |
-|---|---|
-| `frontend/e2e/folder-filter.spec.ts` | Right-pane filter: text match, type dropdown, navigation clears state, empty-state and *Clear filters* button. |
-| `frontend/e2e/tree-filter.spec.ts` | Tree filter: text match, type dropdown, ancestor dimming, reload preserves the type filter and clears the text, full-tree fetch on filter ON. |
-
 ## Persistence summary
 
 | State | Storage | Lifetime |
