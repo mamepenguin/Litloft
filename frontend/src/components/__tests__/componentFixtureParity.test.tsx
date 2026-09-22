@@ -275,6 +275,7 @@ describe("the component fixture's page", () => {
       "open-ghost",
       "citation-seams",
       "citation-seams-prose",
+      "code-viewer",
     ]);
   });
 });
