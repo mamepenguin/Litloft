@@ -60,6 +60,15 @@ prompt defaults to no.
 
 ## Files
 
+**Prose written in reStructuredText or Org is a Document but not Text.**
+`.rst` and `.org` are prose in minimal markup, the same job Markdown does, and
+the Text filter holds only `.md`, `.markdown` and `.txt`. Widening it means
+editing `_KIND_SUFFIXES`, which `file-kind-parity.test.ts` compares against the
+intelligence addon's copy by design — so the two repositories move together and
+whichever goes first has a red parity job. Deferred for that reason, not
+because the boundary is in doubt. `.adoc` is Other rather than Document for the
+same reason.
+
 **A source file's card shows no excerpt.** A card draws the first lines of a
 file in place of a thumbnail only when the file is a Document, so the source
 files that are now Other lost it — `.c`, `.h`, `.py`, `.pl`, `.css`, `.js` and
@@ -112,15 +121,6 @@ it.
 overwrite the old one, so the card draws the stale video frame. Reached by a row
 first written on a host whose mime table called the file video — a `.ts` scanned
 on macOS, then scanned again in the container.
-
-**A `.ts` file is handed to the video player, but only where a mime table is
-installed.** That extension names both an MPEG transport stream and a TypeScript
-source, and a table that has it answers `video/mp2t`, so the listing counts the
-file as a video and the file page gives it a `<video>` that cannot load it. The
-text viewer's allowlist names `ts`, but the player branch is reached first. The
-shipped container has no such table, so there it is Other and opens as text;
-this is reached by running the backend outside Docker, on macOS. The extension
-alone cannot settle it.
 
 **A file of long unbroken runs freezes the page for about twenty seconds
 while it is coloured.** Several highlight.js grammars are quadratic in an
