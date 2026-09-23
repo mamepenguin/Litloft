@@ -337,6 +337,15 @@ describe("useViewerZoom interruptions", () => {
     expect(calls.prev).toHaveBeenCalledTimes(1);
   });
 
+  it("does not page when a finger that was down across a change of picture lifts", () => {
+    const { rerender } = render(<Harness resetKey={0} />);
+    press(1, 300, 400);
+    rerender(<Harness resetKey={1} />);
+    lift(1, 100, 400);
+    expect(calls.prev).not.toHaveBeenCalled();
+    expect(calls.next).not.toHaveBeenCalled();
+  });
+
   it("forgets a finger that was down when the picture changed", () => {
     const { rerender } = render(<Harness resetKey={0} />);
     press(1, 150, 400);
