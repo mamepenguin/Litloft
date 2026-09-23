@@ -1,6 +1,15 @@
 "use client";
 
-import { useId, useRef, useState, type ComponentType, type ReactNode } from "react";
+import {
+  useCallback,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ComponentType,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 
 import { DismissScrim } from "@/components/DismissScrim";
@@ -21,13 +30,13 @@ export type BarScope = "wide" | "roomy";
  * back — it is inside a `sticky` bar and travels with it.
  */
 const MENU_SURFACE_BASE =
-  "fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl border " +
+  "fixed inset-x-2 bottom-[calc(1rem+var(--resting-strip,0px))] z-40 max-h-[60vh] overflow-y-auto rounded-2xl border " +
   "border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale " +
   "sm:absolute sm:inset-x-auto sm:max-h-[70vh] sm:min-w-[200px]";
 
 /**
  * `bottom-auto` / `bottom-full` are what cancel the
- * sheet's own `bottom-4` above the breakpoint.
+ * sheet's own `bottom` above the breakpoint.
  */
 const MENU_DIRECTION = {
   down: " sm:bottom-auto sm:top-full sm:mt-1",
@@ -51,6 +60,25 @@ const MENU_ORIGIN = {
 
 const PREFERRED_SIDE = { end: "right", start: "left" } as const;
 
+/** Tailwind's `sm` is `min-width: 640px`; below it the surface is a bottom sheet. */
+const SHEET_QUERY = "(max-width: 639.98px)";
+
+function useIsMenuSheet(): boolean {
+  const subscribe = useCallback((onChange: () => void) => {
+    if (typeof window.matchMedia !== "function") return () => {};
+    const mql = window.matchMedia(SHEET_QUERY);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return useSyncExternalStore(
+    subscribe,
+    () =>
+      typeof window.matchMedia === "function" &&
+      window.matchMedia(SHEET_QUERY).matches,
+    () => false,
+  );
+}
+
 /**
  * Both refs are the hook's because the decision needs both boxes, and a caller
  * that wired only one would measure the panel against itself.
@@ -65,6 +93,14 @@ export function useMenuSurface(
    * happens to emit them in.
    */
   base: string = MENU_SURFACE_BASE,
+  /**
+   * For a menu whose trigger sits inside the file page's player box, which is
+   * a sticky stacking context on a phone: drawn in place, its bottom sheet
+   * ranks under the resting strip and a raised inspector sheet. Opt-in,
+   * because a portalled panel leaves its container, and container-query
+   * classes on its rows stop applying.
+   */
+  { portalOnPhone = false }: { portalOnPhone?: boolean } = {},
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -75,9 +111,13 @@ export function useMenuSurface(
     gapPx: MENU_SURFACE_GAP_PX,
     preferSide: PREFERRED_SIDE[align],
   });
+  const sheet = useIsMenuSheet();
   return {
     wrapperRef,
     panelRef,
+    /** Wraps the scrim and the panel. */
+    layer: (node: ReactNode): ReactNode =>
+      portalOnPhone && sheet ? createPortal(node, document.body) : node,
     className:
       base +
       MENU_DIRECTION[openUp ? "up" : "down"] +
@@ -93,6 +133,7 @@ interface ToolbarMenuProps {
   className?: string;
   "data-bar"?: BarScope;
   align?: keyof typeof PREFERRED_SIDE;
+  portalOnPhone?: boolean;
   children: (close: () => void) => ReactNode;
 }
 
@@ -107,11 +148,12 @@ export function ToolbarMenu({
   className = "",
   "data-bar": bar,
   align = "end",
+  portalOnPhone = false,
   children,
 }: ToolbarMenuProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const surface = useMenuSurface(open, align);
+  const surface = useMenuSurface(open, align, undefined, { portalOnPhone });
 
   const close = () => {
     setOpen(false);
@@ -152,13 +194,14 @@ export function ToolbarMenu({
         <Icon size={16} />
         <span>{value}</span>
       </button>
-      {open && (
-        <DismissScrim onDismiss={close}>
-          <div ref={surface.panelRef} role="menu" className={surface.className}>
-            {children(close)}
-          </div>
-        </DismissScrim>
-      )}
+      {open &&
+        surface.layer(
+          <DismissScrim onDismiss={close}>
+            <div ref={surface.panelRef} role="menu" className={surface.className}>
+              {children(close)}
+            </div>
+          </DismissScrim>,
+        )}
     </div>
   );
 }

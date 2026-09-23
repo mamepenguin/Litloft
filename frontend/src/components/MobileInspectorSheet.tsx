@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -51,6 +52,8 @@ export const SHEET_VISIBLE_HEIGHT =
 
 /** The resting strip, and the room the page keeps free for it. */
 export const SHEET_PEEK_HEIGHT = `calc(${SHEET_PEEK_PX}px + env(safe-area-inset-bottom, 0px))`;
+
+export const RESTING_STRIP_VAR = "--resting-strip";
 
 export const SHEET_SCROLLER_PADDING_BOTTOM =
   "calc(env(safe-area-inset-bottom, 0px) + 16px)";
@@ -104,6 +107,17 @@ export function MobileInspectorSheet({
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const expanded = isSheetExpanded(state);
+
+  // Read by the toolbar menus' bottom sheets, which are portalled and so
+  // cannot see this component from where they sit.
+  useLayoutEffect(() => {
+    if (expanded) return;
+    const root = document.documentElement;
+    root.style.setProperty(RESTING_STRIP_VAR, SHEET_PEEK_HEIGHT);
+    return () => {
+      root.style.removeProperty(RESTING_STRIP_VAR);
+    };
+  }, [expanded]);
   const { dismiss, isDismissing } = useSheetDismissMotion({
     surfaceRef,
     expanded,

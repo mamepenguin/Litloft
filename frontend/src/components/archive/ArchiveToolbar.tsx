@@ -131,7 +131,9 @@ export function ArchiveToolbar({
   const tToolbar = useTranslations("toolbar");
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLButtonElement>(null);
-  const moreSurface = useMenuSurface(moreOpen);
+  const moreSurface = useMenuSurface(moreOpen, "end", undefined, {
+    portalOnPhone: true,
+  });
 
   // Without restoring focus the menu unmounts with focus on `<body>`.
   const closeMore = () => {
@@ -304,37 +306,42 @@ export function ArchiveToolbar({
           >
             <MoreHorizontal size={16} />
           </button>
-          {moreOpen && (
-            <DismissScrim onDismiss={closeMore}>
-              <div
-                ref={moreSurface.panelRef}
-                role="menu"
-                className={moreSurface.className}
-              >
-                <ArchiveSortGroup
-                  sort={sort}
-                  order={order}
-                  onSelect={(v) => {
-                    onSortChange(v.sort);
-                    onOrderChange(v.order);
-                    closeMore();
-                  }}
-                />
-                <MenuSeparator />
-                <ArchiveTypeGroup
-                  typeFilter={typeFilter}
-                  onSelect={(value) => {
-                    onTypeFilterChange(value);
-                    closeMore();
-                  }}
-                />
-              </div>
-            </DismissScrim>
-          )}
+          {moreOpen &&
+            moreSurface.layer(
+              <DismissScrim onDismiss={closeMore}>
+                <div
+                  ref={moreSurface.panelRef}
+                  role="menu"
+                  className={moreSurface.className}
+                >
+                  <ArchiveSortGroup
+                    sort={sort}
+                    order={order}
+                    onSelect={(v) => {
+                      onSortChange(v.sort);
+                      onOrderChange(v.order);
+                      closeMore();
+                    }}
+                  />
+                  <MenuSeparator />
+                  <ArchiveTypeGroup
+                    typeFilter={typeFilter}
+                    onSelect={(value) => {
+                      onTypeFilterChange(value);
+                      closeMore();
+                    }}
+                  />
+                </div>
+              </DismissScrim>,
+            )}
         </div>
 
         <div className="ml-auto">
-          <ViewMenu mode={viewMode} onSelect={onViewModeChange} />
+          <ViewMenu
+            mode={viewMode}
+            onSelect={onViewModeChange}
+            portalOnPhone
+          />
         </div>
       </div>
     </div>

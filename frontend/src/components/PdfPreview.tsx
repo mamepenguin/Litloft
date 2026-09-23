@@ -487,6 +487,7 @@ export function PdfPreview({
           value={t(MODE_LABEL_KEY[zoomMode])}
           icon={Maximize2}
           align="start"
+          portalOnPhone
         >
           {(close) => (
             <MenuRadioGroup

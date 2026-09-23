@@ -129,7 +129,7 @@ describe("ToolbarMenu", () => {
     expect(
       (screen.getByRole("menu").getAttribute("class") ?? "").split(/\s+/),
     ).toEqual([
-      "fixed", "inset-x-2", "bottom-4", "z-40", "max-h-[60vh]",
+      "fixed", "inset-x-2", "bottom-[calc(1rem+var(--resting-strip,0px))]", "z-40", "max-h-[60vh]",
       "overflow-y-auto", "rounded-2xl", "border", "border-bg-border",
       "bg-bg-primary", "py-1", "shadow-lg", "animate-fade-in-scale",
       "sm:absolute", "sm:inset-x-auto", "sm:max-h-[70vh]",
@@ -140,7 +140,7 @@ describe("ToolbarMenu", () => {
   });
 
   it("spells the upward form as the mirror of the downward one", () => {
-    // The sheet form below 640 is `bottom-4`, and above it exactly one of
+    // The sheet form below 640 sets `bottom`, and above it exactly one of
     // `sm:bottom-auto` (down) and `sm:bottom-full` (up) has to override it.
     stubMenuBoxes({ top: 700, bottom: 740 }, { height: 300, width: 200 });
     render(

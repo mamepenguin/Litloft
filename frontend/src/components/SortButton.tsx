@@ -17,7 +17,7 @@ import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
  * rather than by anything readable in this file.
  */
 const SORT_MENU_SURFACE_BASE =
-  "fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl " +
+  "fixed inset-x-2 bottom-[calc(1rem+var(--resting-strip,0px))] z-40 max-h-[60vh] overflow-y-auto rounded-2xl " +
   "border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale " +
   "sm:absolute sm:inset-x-auto sm:max-h-none sm:min-w-[180px] " +
   "sm:overflow-visible";
