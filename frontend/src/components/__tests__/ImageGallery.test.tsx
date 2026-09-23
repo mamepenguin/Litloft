@@ -222,6 +222,51 @@ describe("ImageGallery", () => {
     expect(content().style.transform).toBe("");
   });
 
+  it("opens at fit after being closed while zoomed", async () => {
+    const { rerender } = renderWithShortcuts(<ImageGallery {...defaultProps} />);
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    const content = () =>
+      screen.getAllByRole("img")[0].closest("[data-face]")!.parentElement as HTMLElement;
+    fireEvent.keyDown(document, { key: "=" });
+    expect(content().style.transform).toContain("scale(1.25)");
+    rerender(
+      <ShortcutsProvider>
+        <ImageGallery {...defaultProps} open={false} />
+      </ShortcutsProvider>,
+    );
+    rerender(
+      <ShortcutsProvider>
+        <ImageGallery {...defaultProps} />
+      </ShortcutsProvider>,
+    );
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(content().style.transform).toBe("");
+  });
+
+  it("takes a ctrl wheel when opened after it was mounted closed", async () => {
+    const { rerender } = renderWithShortcuts(
+      <ImageGallery {...defaultProps} open={false} />,
+    );
+    rerender(
+      <ShortcutsProvider>
+        <ImageGallery {...defaultProps} />
+      </ShortcutsProvider>,
+    );
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    const frame = screen.getAllByRole("img")[0].closest(".touch-none")!;
+    const event = new WheelEvent("wheel", { deltaY: -100, ctrlKey: true, cancelable: true });
+    act(() => {
+      frame.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it("toggles slideshow with space key", async () => {
     renderWithShortcuts(<ImageGallery {...defaultProps} />);
 

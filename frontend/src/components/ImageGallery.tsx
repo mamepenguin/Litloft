@@ -289,7 +289,7 @@ export function ImageGallery({
   );
 
   const zoom = useViewerZoom({
-    resetKey: `${currentIndex}:${showRightHalf}`,
+    resetKey: `${open}:${face.kind}:${currentIndex}:${showRightHalf}`,
     readingDirection,
     navigatePrev,
     navigateNext,

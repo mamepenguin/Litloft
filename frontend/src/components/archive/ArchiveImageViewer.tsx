@@ -90,7 +90,7 @@ export function ArchiveImageViewer({
   const activeSplit = face.kind === "half";
 
   const zoom = useViewerZoom({
-    resetKey: `${imageIndex}:${showRightHalf}`,
+    resetKey: `${face.kind}:${imageIndex}:${showRightHalf}`,
     readingDirection,
     navigatePrev,
     navigateNext,

@@ -75,7 +75,14 @@ export function useViewerZoom({
   navigateNext,
   toggleControls,
 }: Options) {
-  const frameRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  // State as well as a ref: a viewer can mount closed, and the listeners below
+  // have to be attached when its frame appears, not when the hook first runs.
+  const [frameEl, setFrameEl] = useState<HTMLDivElement | null>(null);
+  const attachFrame = useCallback((el: HTMLDivElement | null) => {
+    frameRef.current = el;
+    setFrameEl(el);
+  }, []);
   const contentRef = useRef<HTMLDivElement>(null);
   const [view, setViewState] = useState<View>(FIT);
   const [settledScale, setSettledScale] = useState(1);
@@ -164,7 +171,6 @@ export function useViewerZoom({
   }, [resetKey, settle]);
 
   useEffect(() => {
-    const frameEl = frameRef.current;
     if (!frameEl) return;
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
@@ -203,7 +209,46 @@ export function useViewerZoom({
       frameEl.removeEventListener("wheel", onWheel);
       clearTimeout(wheelTimer.current);
     };
-  }, [measure, localPoint, setView]);
+  }, [frameEl, measure, localPoint, setView]);
+
+  // Desktop Safari reports a trackpad pinch as WebKit gesture events, not as
+  // a ctrl wheel. iOS Safari sends them too, alongside the touches the
+  // pointer handlers already pinch with, so they are ignored while a pointer
+  // is down.
+  useEffect(() => {
+    if (!frameEl) return;
+    let start: { view: View; origin: Point } | null = null;
+    const onStart = (e: Event) => {
+      e.preventDefault();
+      if (pointers.current.size > 0) return;
+      const g = e as Event & { clientX: number; clientY: number };
+      start = { view: viewRef.current, origin: localPoint(g.clientX, g.clientY) };
+    };
+    const onChange = (e: Event) => {
+      e.preventDefault();
+      if (!start || pointers.current.size > 0) return;
+      const m = measure();
+      if (!m) return;
+      const scale = (e as Event & { scale: number }).scale;
+      const next = zoomAbout(start.view, scale, start.origin);
+      setView(isZoomed(next) ? clampView(next, m.frame, m.content) : next);
+    };
+    const onEnd = (e: Event) => {
+      e.preventDefault();
+      if (!start) return;
+      start = null;
+      const m = measure();
+      settle(m ? settleView(viewRef.current, m.frame, m.content) : FIT);
+    };
+    frameEl.addEventListener("gesturestart", onStart);
+    frameEl.addEventListener("gesturechange", onChange);
+    frameEl.addEventListener("gestureend", onEnd);
+    return () => {
+      frameEl.removeEventListener("gesturestart", onStart);
+      frameEl.removeEventListener("gesturechange", onChange);
+      frameEl.removeEventListener("gestureend", onEnd);
+    };
+  }, [frameEl, measure, localPoint, setView, settle]);
 
   const onPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -359,7 +404,7 @@ export function useViewerZoom({
         };
 
   return {
-    frameRef,
+    frameRef: attachFrame,
     contentRef,
     view,
     zoomed,

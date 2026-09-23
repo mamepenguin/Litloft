@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ArchiveImageViewer } from "../ArchiveImageViewer";
+import type { ReactElement } from "react";
 import type { ArchiveEntry } from "@/types";
 import { installPointerEvent } from "@/test/pointerEvent";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
@@ -259,4 +260,56 @@ describe("ArchiveImageViewer backdrop", () => {
     fireEvent.keyDown(document, { key: "0" });
     expect(content.style.transform).toBe("");
   });
+
+  describe("goes back to fit when what is shown changes", () => {
+    const content = () =>
+      document.querySelector("[data-face]")!.parentElement as HTMLElement;
+
+    function zoomed(ui: ReactElement) {
+      const r = render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
+      fireEvent.keyDown(document, { key: "=" });
+      expect(content().style.transform).toContain("scale(1.25)");
+      return (next: ReactElement) =>
+        r.rerender(<ShortcutsProvider>{next}</ShortcutsProvider>);
+    }
+
+    it("on another image", () => {
+      const rerender = zoomed(<ArchiveImageViewer {...defaultProps} />);
+      rerender(
+        <ArchiveImageViewer
+          {...defaultProps}
+          imageIndex={2}
+          currentImage={images[2]}
+          face={{ kind: "single", index: 2, indices: [2], showRightHalf: false }}
+        />,
+      );
+      expect(content().style.transform).toBe("");
+    });
+
+    it("on the other half of a split page", () => {
+      const half = { kind: "half" as const, index: 1, indices: [1], showRightHalf: false };
+      const rerender = zoomed(<ArchiveImageViewer {...defaultProps} face={half} />);
+      rerender(
+        <ArchiveImageViewer
+          {...defaultProps}
+          face={{ ...half, showRightHalf: true }}
+          showRightHalf
+        />,
+      );
+      expect(content().style.transform).toBe("");
+    });
+
+    it("when the same page becomes part of a pair", () => {
+      const rerender = zoomed(<ArchiveImageViewer {...defaultProps} />);
+      rerender(
+        <ArchiveImageViewer
+          {...defaultProps}
+          spreadMode
+          face={{ kind: "pair", index: 1, indices: [1, 2], showRightHalf: false }}
+        />,
+      );
+      expect(content().style.transform).toBe("");
+    });
+  });
 });
+
