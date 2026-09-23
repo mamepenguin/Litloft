@@ -200,6 +200,12 @@ and cannot be seen: the arrow keys stop turning pages, and the first `Esc`
 closes the hidden search rather than the viewer. Reached by pressing ⌘K with
 any full-screen viewer open.
 
+**A double-click that drifts under a full-screen viewer's hidden bar can
+press a bar control.** The first click leaves the bar hidden, but moving the
+mouse even a couple of pixels brings it back, and the second click lands on
+whatever control is there — ✕ closes the viewer. Reached by double-clicking
+near the top of the picture or page while the bar is hidden.
+
 ## Navigation
 
 **`Paste here` and `Add` are both accent-filled at once.** With a non-empty

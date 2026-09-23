@@ -88,6 +88,10 @@ describe("chrome that withdraws when the frame is left alone", () => {
       expect(result.current.visible).toBe(false);
       move("mouse");
       expect(result.current.visible).toBe(true);
+      idle(2000);
+      // A hovering pen is a pointer the reader is moving, as a mouse is.
+      move("pen");
+      expect(result.current.visible).toBe(true);
       unmount();
     }
   });

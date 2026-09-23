@@ -362,6 +362,19 @@ describe("PdfFullscreenViewer", () => {
     expect(screen.getByText(/^A$/)).toBeInTheDocument();
   });
 
+  it("enters a page from its right half when reading right to left", async () => {
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    localStorage.setItem("image-viewer:reading-direction", "rtl");
+    await open(fakePdf(8, () => LANDSCAPE), { initialPage: 4 });
+    const face = () => document.querySelector<HTMLElement>("[data-face]")!;
+    const box = screen.getByLabelText("Page number");
+    fireEvent.change(box, { target: { value: "6" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await act(async () => {});
+    expect(shownPages()).toEqual([6]);
+    expect(face().style.transform).toBe("translateX(-50%)");
+  });
+
   it("keeps the bar up while text is selected", async () => {
     vi.useFakeTimers();
     try {

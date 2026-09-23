@@ -17,9 +17,9 @@ export interface AutoHidingChrome {
     "aria-hidden": boolean | undefined;
     style: { opacity: number; pointerEvents: "auto" | "none" };
     /**
-     * On a coarse pointer the document listeners hear nothing a reader
-     * does: `pointermove` is unbound there and iOS does not focus a
-     * `<button>` on tap. Bound on the bar, where no toggle handler competes.
+     * A finger is heard by none of the document listeners: its moves are
+     * ignored and iOS does not focus a `<button>` on tap. Bound on the bar,
+     * where no toggle handler competes.
      */
     onPointerDown: () => void;
   };
