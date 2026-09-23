@@ -289,129 +289,128 @@ export function FolderToolbar({
             >
               <MoreHorizontal size={16} />
             </button>
-            {moreOpen &&
-              moreSurface.layer(
-                <DismissScrim onDismiss={() => setMoreOpen(false)} disabled={moreDialogOpen}>
-                  <div
-                    ref={moreSurface.panelRef}
-                    role="menu"
-                    className={moreSurface.className}
-                  >
-                  {/* `md:hidden` and `BAR_WIDE` are the two halves of one
-                      decision: a control that leaves the bar has to arrive
-                      here. */}
-                  {showPlayAll && (
-                    <div className="md:hidden" role="presentation">
-                      <ActionMenuItem
-                        icon={Play}
-                        label={tc("play")}
-                        onClick={() => {
-                          onPlayAll();
-                          closeMore();
-                        }}
-                      />
-                      <MenuSeparator />
-                    </div>
-                  )}
-                  {!hideArrangingControls && (
-                    <div className="md:hidden" role="presentation">
-                      <ViewGroup
-                        mode={view.mode}
-                        onSelect={(next) => {
-                          view.select(next);
-                          closeMore();
-                        }}
-                      />
-                      <MenuSeparator />
-                      <SortGroup
-                        sort={sort}
-                        order={order}
-                        allowRelevance={isSearch}
-                        onChange={(nextSort, nextOrder) => {
-                          onSortChange(nextSort, nextOrder);
-                          closeMore();
-                        }}
-                        onReshuffle={
-                          sort === "random" && onReshuffle
-                            ? () => {
-                                onReshuffle();
-                                closeMore();
-                              }
-                            : undefined
-                        }
-                      />
-                      <MenuSeparator />
-                    </div>
-                  )}
-                  <ActionMenuItem
-                    icon={CheckSquare}
-                    label={ts("selectMode")}
-                    active={selectable}
+            {moreOpen && (
+              <DismissScrim onDismiss={() => setMoreOpen(false)} disabled={moreDialogOpen}>
+                <div
+                  ref={moreSurface.panelRef}
+                  role="menu"
+                  className={moreSurface.className}
+                >
+                {/* `md:hidden` and `BAR_WIDE` are the two halves of one
+                    decision: a control that leaves the bar has to arrive
+                    here. */}
+                {showPlayAll && (
+                  <div className="md:hidden" role="presentation">
+                    <ActionMenuItem
+                      icon={Play}
+                      label={tc("play")}
+                      onClick={() => {
+                        onPlayAll();
+                        closeMore();
+                      }}
+                    />
+                    <MenuSeparator />
+                  </div>
+                )}
+                {!hideArrangingControls && (
+                  <div className="md:hidden" role="presentation">
+                    <ViewGroup
+                      mode={view.mode}
+                      onSelect={(next) => {
+                        view.select(next);
+                        closeMore();
+                      }}
+                    />
+                    <MenuSeparator />
+                    <SortGroup
+                      sort={sort}
+                      order={order}
+                      allowRelevance={isSearch}
+                      onChange={(nextSort, nextOrder) => {
+                        onSortChange(nextSort, nextOrder);
+                        closeMore();
+                      }}
+                      onReshuffle={
+                        sort === "random" && onReshuffle
+                          ? () => {
+                              onReshuffle();
+                              closeMore();
+                            }
+                          : undefined
+                      }
+                    />
+                    <MenuSeparator />
+                  </div>
+                )}
+                <ActionMenuItem
+                  icon={CheckSquare}
+                  label={ts("selectMode")}
+                  active={selectable}
+                  onClick={() => {
+                    onToggleSelectable();
+                    closeMore();
+                  }}
+                />
+                {!isSearch && (
+                  <button
+                    role="menuitem"
                     onClick={() => {
-                      onToggleSelectable();
+                      if (!scanning) onScan();
                       closeMore();
                     }}
-                  />
-                  {!isSearch && (
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        if (!scanning) onScan();
-                        closeMore();
+                    disabled={scanning}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated disabled:opacity-50"
+                  >
+                    <RefreshCw
+                      size={16}
+                      className={`flex-shrink-0 ${scanning ? "animate-spin" : ""}`}
+                    />
+                    <span className="flex-1">{t("rescan")}</span>
+                  </button>
+                )}
+                {pinnablePath && (
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      onTogglePin!(pinnablePath);
+                      closeMore();
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
+                  >
+                    {isPinned ? (
+                      <PinOff size={16} className="flex-shrink-0" />
+                    ) : (
+                      <Pin size={16} className="flex-shrink-0" />
+                    )}
+                    <span className="flex-1">
+                      {isPinned ? t("unpinFolder") : t("pinFolder")}
+                    </span>
+                  </button>
+                )}
+                {showBulkRows && (
+                  /* The rule is this element's own border so `empty:hidden`
+                     removes it with the rows when every entry draws nothing. */
+                  <div
+                    role="none"
+                    className="mt-1 border-t border-bg-border pt-1 empty:hidden"
+                  >
+                    <AddonSlot
+                      id={BULK_ACTIONS_MENU_SLOT}
+                      layout="stack"
+                      props={{
+                        drive,
+                        path: folderPath ?? "",
+                        fileIds,
+                        surface: "library",
+                        onRequestClose: closeMore,
+                        onDialogOpenChange: setMoreDialogOpen,
                       }}
-                      disabled={scanning}
-                      className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated disabled:opacity-50"
-                    >
-                      <RefreshCw
-                        size={16}
-                        className={`flex-shrink-0 ${scanning ? "animate-spin" : ""}`}
-                      />
-                      <span className="flex-1">{t("rescan")}</span>
-                    </button>
-                  )}
-                  {pinnablePath && (
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        onTogglePin!(pinnablePath);
-                        closeMore();
-                      }}
-                      className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated"
-                    >
-                      {isPinned ? (
-                        <PinOff size={16} className="flex-shrink-0" />
-                      ) : (
-                        <Pin size={16} className="flex-shrink-0" />
-                      )}
-                      <span className="flex-1">
-                        {isPinned ? t("unpinFolder") : t("pinFolder")}
-                      </span>
-                    </button>
-                  )}
-                  {showBulkRows && (
-                    /* The rule is this element's own border so `empty:hidden`
-                       removes it with the rows when every entry draws nothing. */
-                    <div
-                      role="none"
-                      className="mt-1 border-t border-bg-border pt-1 empty:hidden"
-                    >
-                      <AddonSlot
-                        id={BULK_ACTIONS_MENU_SLOT}
-                        layout="stack"
-                        props={{
-                          drive,
-                          path: folderPath ?? "",
-                          fileIds,
-                          surface: "library",
-                          onRequestClose: closeMore,
-                          onDialogOpenChange: setMoreDialogOpen,
-                        }}
-                      />
-                    </div>
-                  )}
+                    />
                   </div>
-                </DismissScrim>,
-              )}
+                )}
+                </div>
+              </DismissScrim>
+            )}
         </div>
 
         {createFolderRow}

@@ -93,6 +93,14 @@ export function useMenuSurface(
    * happens to emit them in.
    */
   base: string = MENU_SURFACE_BASE,
+  /**
+   * For a menu whose trigger sits inside the file page's player box, which is
+   * a sticky stacking context on a phone: drawn in place, its bottom sheet
+   * ranks under the resting strip and a raised inspector sheet. Opt-in,
+   * because a portalled panel leaves its container, and container-query
+   * classes on its rows stop applying.
+   */
+  { portalOnPhone = false }: { portalOnPhone?: boolean } = {},
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -107,15 +115,9 @@ export function useMenuSurface(
   return {
     wrapperRef,
     panelRef,
-    /**
-     * Wraps the scrim and the panel. A bottom sheet is portalled: a toolbar
-     * inside the file page's player box would otherwise rank it inside that
-     * box's sticky stacking context, under the resting strip and the raised
-     * inspector sheet. Above `sm` the panel is anchored to the wrapper, so it
-     * stays where it is.
-     */
+    /** Wraps the scrim and the panel. */
     layer: (node: ReactNode): ReactNode =>
-      sheet ? createPortal(node, document.body) : node,
+      portalOnPhone && sheet ? createPortal(node, document.body) : node,
     className:
       base +
       MENU_DIRECTION[openUp ? "up" : "down"] +
@@ -131,6 +133,7 @@ interface ToolbarMenuProps {
   className?: string;
   "data-bar"?: BarScope;
   align?: keyof typeof PREFERRED_SIDE;
+  portalOnPhone?: boolean;
   children: (close: () => void) => ReactNode;
 }
 
@@ -145,11 +148,12 @@ export function ToolbarMenu({
   className = "",
   "data-bar": bar,
   align = "end",
+  portalOnPhone = false,
   children,
 }: ToolbarMenuProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const surface = useMenuSurface(open, align);
+  const surface = useMenuSurface(open, align, undefined, { portalOnPhone });
 
   const close = () => {
     setOpen(false);

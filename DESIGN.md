@@ -760,11 +760,12 @@ higher than whatever it currently sits under.
   in that box.
 - **The resting strip owns the bottom edge of a file page, home indicator
   included.** Anything anchoring to the bottom goes above it.
-- **A toolbar menu's bottom sheet is portalled to `<body>` below 640px** and
-  lifted by `--resting-strip`, which the strip publishes while it is shown. A
-  toolbar can live inside the player box, which is a sticky stacking context
-  on a phone; drawn in place, the sheet would rank under the strip and under a
-  raised inspector sheet.
+- **A toolbar menu's bottom sheet is lifted by `--resting-strip`**, which the
+  strip publishes while it is shown. A menu whose trigger is inside the player
+  box — a sticky stacking context on a phone — also passes `portalOnPhone`, or
+  its sheet ranks under the strip and under a raised inspector sheet. It is
+  opt-in because a portalled panel leaves its container, and container-query
+  classes on its rows stop applying.
 
 ### Over-video chrome (player controls, mini-player buttons, full-screen viewers)
 

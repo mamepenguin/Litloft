@@ -43,7 +43,12 @@ export function ViewMenu({
   onSelect,
   className,
   "data-bar": bar,
-}: ViewProps & { className?: string; "data-bar"?: "wide" }) {
+  portalOnPhone,
+}: ViewProps & {
+  className?: string;
+  "data-bar"?: "wide";
+  portalOnPhone?: boolean;
+}) {
   const t = useTranslations("view");
   return (
     <ToolbarMenu
@@ -52,6 +57,7 @@ export function ViewMenu({
       icon={VIEW_ICONS[mode]}
       className={className}
       data-bar={bar}
+      portalOnPhone={portalOnPhone}
     >
       {(close) => (
         <ViewGroup

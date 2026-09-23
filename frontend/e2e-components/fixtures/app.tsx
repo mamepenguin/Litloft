@@ -19,6 +19,7 @@ import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { ArchiveToolbar } from "@/components/archive/ArchiveToolbar";
+import { ToolbarMenu } from "@/components/ToolbarMenu";
 import { ArchiveImageViewer } from "@/components/archive/ArchiveImageViewer";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
@@ -766,6 +767,49 @@ function ArchiveToolbarInPlayer(): ReactElement {
         onViewModeChange={noop}
       />
     </div>
+  );
+}
+
+/** Two menus in one bar, only one of them opted in to the phone portal. */
+function MenuPortalChoice(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="flex gap-2 p-4">
+        <ToolbarMenu label="Plain" value="Plain" icon={FolderTree}>
+          {() => <div className="px-3 py-2">plain row</div>}
+        </ToolbarMenu>
+        <ToolbarMenu label="Portalled" value="Portalled" icon={FolderTree} portalOnPhone>
+          {() => <div className="px-3 py-2">portalled row</div>}
+        </ToolbarMenu>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+/** The strip under test's control: shown, raised, or gone. */
+function RestingStripStates(): ReactElement {
+  const [state, setState] = useState<SheetState | "gone">(SHEET_STATE_PEEK);
+  return (
+    <NextIntlClientProvider
+      locale="en"
+      messages={{ inspector: { title: "Details", sheetDescription: "Sheet" } }}
+    >
+      <div className="flex gap-2 p-4">
+        <button id="to-peek" onClick={() => setState(SHEET_STATE_PEEK)}>peek</button>
+        <button id="to-half" onClick={() => setState(SHEET_STATE_HALF)}>half</button>
+        <button id="to-gone" onClick={() => setState("gone")}>gone</button>
+      </div>
+      {state !== "gone" && (
+        <MobileInspectorSheet
+          state={state}
+          onStateChange={() => {}}
+          halfSnap={0.4}
+          peek={<div>peek</div>}
+        >
+          <div style={{ height: "600px" }}>the inspector</div>
+        </MobileInspectorSheet>
+      )}
+    </NextIntlClientProvider>
   );
 }
 
@@ -1547,6 +1591,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "sheet-over-page-full": SheetOverPageFull,
   "player-menu-peek": PlayerMenuPeek,
   "player-menu-half": PlayerMenuHalf,
+  "menu-portal-choice": MenuPortalChoice,
+  "resting-strip-states": RestingStripStates,
   "measured-sheet-peek": MeasuredSheetPeek,
   "measured-sheet-half": MeasuredSheetHalf,
   "measured-sheet-full": MeasuredSheetFull,

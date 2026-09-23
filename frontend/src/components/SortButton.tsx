@@ -83,42 +83,41 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
         <ArrowDownUp size={16} />
       </button>
 
-      {open &&
-        surface.layer(
-          <DismissScrim onDismiss={() => setOpen(false)}>
-            <div
-              ref={surface.panelRef}
-              role="menu"
-              aria-label={t("label")}
-              className={surface.className}
-            >
-            {sortOptions.map((opt) => {
-              const selected = opt.sort === sort && opt.order === order;
-              return (
-                <button
-                  key={`${opt.sort}-${opt.order}`}
-                  role="menuitemradio"
-                  aria-checked={selected}
-                  onClick={() => {
-                    onChange(opt.sort, opt.order);
-                    setOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                    selected
-                      ? "bg-bg-elevated text-text-primary font-medium"
-                      : "text-text-primary hover:bg-bg-elevated"
-                  }`}
-                >
-                  <span className="w-4 flex-shrink-0">
-                    {selected && <Check size={14} />}
-                  </span>
-                  {t(opt.labelKey)}
-                </button>
-              );
-            })}
-            </div>
-          </DismissScrim>,
-        )}
+      {open && (
+        <DismissScrim onDismiss={() => setOpen(false)}>
+          <div
+            ref={surface.panelRef}
+            role="menu"
+            aria-label={t("label")}
+            className={surface.className}
+          >
+          {sortOptions.map((opt) => {
+            const selected = opt.sort === sort && opt.order === order;
+            return (
+              <button
+                key={`${opt.sort}-${opt.order}`}
+                role="menuitemradio"
+                aria-checked={selected}
+                onClick={() => {
+                  onChange(opt.sort, opt.order);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                  selected
+                    ? "bg-bg-elevated text-text-primary font-medium"
+                    : "text-text-primary hover:bg-bg-elevated"
+                }`}
+              >
+                <span className="w-4 flex-shrink-0">
+                  {selected && <Check size={14} />}
+                </span>
+                {t(opt.labelKey)}
+              </button>
+            );
+          })}
+          </div>
+        </DismissScrim>
+      )}
     </div>
   );
 }

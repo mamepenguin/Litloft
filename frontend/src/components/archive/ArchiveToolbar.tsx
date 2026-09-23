@@ -131,7 +131,9 @@ export function ArchiveToolbar({
   const tToolbar = useTranslations("toolbar");
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLButtonElement>(null);
-  const moreSurface = useMenuSurface(moreOpen);
+  const moreSurface = useMenuSurface(moreOpen, "end", undefined, {
+    portalOnPhone: true,
+  });
 
   // Without restoring focus the menu unmounts with focus on `<body>`.
   const closeMore = () => {
@@ -335,7 +337,11 @@ export function ArchiveToolbar({
         </div>
 
         <div className="ml-auto">
-          <ViewMenu mode={viewMode} onSelect={onViewModeChange} />
+          <ViewMenu
+            mode={viewMode}
+            onSelect={onViewModeChange}
+            portalOnPhone
+          />
         </div>
       </div>
     </div>
