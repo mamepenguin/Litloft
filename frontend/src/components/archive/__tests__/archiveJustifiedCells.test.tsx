@@ -244,12 +244,9 @@ describe("the canvas viewer's floor", () => {
   it("establishes no containment context on the canvas", () => {
     // `container-type: size` implies
     // `contain: layout`, which makes the canvas the containing block for
-    // every `position: fixed` descendant — and the archive canvas holds
-    // two that are not portalled: `ArchiveImageViewer`'s full-screen
-    // page-turner and the toolbar's overflow backdrop. Under containment
-    // the page-turner covers the column instead of the viewport, cannot
-    // rise above the header, and scrolls away, while `useInertBackdrop`
-    // has already made everything behind it unclickable.
+    // every `position: fixed` descendant — and the toolbar's overflow
+    // backdrop is one that is not portalled. Under containment it covers
+    // the column instead of the viewport.
     const floorRules = [
       ...css.matchAll(/main\[data-canvas-floor="true"\][^{]*\{([^}]*)\}/g),
     ];
@@ -260,22 +257,16 @@ describe("the canvas viewer's floor", () => {
     }
   });
 
-  it("keeps the unportalled fixed overlays that the containment would have caught", () => {
-    // If either of these is ever portalled or stops being `fixed`, the
-    // containment answer becomes available again.
-    const viewer = readFileSync(
-      join(__dirname, "..", "ArchiveImageViewer.tsx"),
-      "utf8",
-    );
+  it("keeps the unportalled fixed overlay that the containment would have caught", () => {
+    // If this is ever portalled or stops being `fixed`, the containment
+    // answer becomes available again.
     const toolbar = readFileSync(join(__dirname, "..", "ArchiveToolbar.tsx"), "utf8");
     const scrim = readFileSync(
       join(__dirname, "..", "..", "DismissScrim.tsx"),
       "utf8",
     );
-    expect(viewer).toMatch(/fixed inset-0/);
     expect(MENU_SCRIM).toMatch(/\bfixed inset-0\b/);
     expect(toolbar).toMatch(/<DismissScrim onDismiss=\{closeMore\}>/);
-    expect(viewer).not.toMatch(/createPortal/);
     // The scrim is written where it is used for exactly this reason: a
     // portal would leave the canvas and the rule above would stop
     // protecting anything.

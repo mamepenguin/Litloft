@@ -232,6 +232,7 @@ describe("the component fixture's page", () => {
       "file-detail-chrome-collection",
       "file-detail-chrome-note-deep",
       "archive-toolbar-deep",
+      "archive-viewer-in-player",
       "page-frame-full",
       "page-frame-wide",
       "page-frame-list",

@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useImageAreaGestures } from "@/hooks/useImageAreaGestures";
 import { useInertBackdrop } from "@/hooks/useInertBackdrop";
@@ -96,7 +97,10 @@ export function ArchiveImageViewer({
 
   const backdropRef = useInertBackdrop<HTMLDivElement>(true);
 
-  return (
+  // Portalled: opened from inside the file page's player box, which is a
+  // sticky stacking context on a phone, so an in-place z-[60] ranks below
+  // the page header.
+  return createPortal(
     <div
       ref={backdropRef}
       role="dialog"
@@ -260,6 +264,7 @@ export function ArchiveImageViewer({
           <ChevronRight size={32} />
         </button>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
