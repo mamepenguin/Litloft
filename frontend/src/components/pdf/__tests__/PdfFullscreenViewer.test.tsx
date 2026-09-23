@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+import { useShortcuts } from "@/hooks/useShortcuts";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import { SPREAD_MODE_KEY } from "@/lib/spreadPreference";
 import { installPointerEvent } from "@/test/pointerEvent";
@@ -16,9 +17,20 @@ installPointerEvent();
 
 const pageProps: { pageNumber: number; width: number; devicePixelRatio?: number }[] = [];
 
+/** A page the browser refuses to raster. */
+let failingPage: number | null = null;
+
 vi.mock("react-pdf", () => ({
-  Page: (props: { pageNumber: number; width: number; devicePixelRatio?: number }) => {
+  Page: (props: {
+    pageNumber: number;
+    width: number;
+    devicePixelRatio?: number;
+    onRenderError?: () => void;
+  }) => {
     pageProps.push(props);
+    useEffect(() => {
+      if (props.pageNumber === failingPage) props.onRenderError?.();
+    });
     return (
       <div>
         <span>Text of page {props.pageNumber}</span>
@@ -121,6 +133,7 @@ const faceKind = () => document.querySelector("[data-face]")!.getAttribute("data
 
 beforeEach(() => {
   pageProps.length = 0;
+  failingPage = null;
   vi.stubGlobal("ResizeObserver", ImmediateResizeObserver);
   localStorage.removeItem(SPREAD_MODE_KEY);
   localStorage.removeItem("image-viewer:reading-direction");
@@ -238,4 +251,124 @@ describe("PdfFullscreenViewer", () => {
     expect(after.width).toBe(before.width);
     expect(after.devicePixelRatio!).toBeCloseTo(before.devicePixelRatio! * 1.25);
   });
+
+  it("leaves the mouse to select: a click at the edge does not turn the page", async () => {
+    await open(fakePdf(8), { initialPage: 3 });
+    const page = screen.getByText("Text of page 3");
+    fireEvent.pointerDown(page, { pointerId: 1, pointerType: "mouse", clientX: 2, clientY: 400 });
+    fireEvent.pointerUp(page, { pointerId: 1, pointerType: "mouse", clientX: 2, clientY: 400 });
+    expect(shownPages()).toEqual([3]);
+  });
+
+  it("takes the page out of reach while it is open", async () => {
+    const outside = document.createElement("div");
+    document.body.appendChild(outside);
+    try {
+      await open(fakePdf(8));
+      expect(outside.hasAttribute("inert")).toBe(true);
+      expect(screen.getByRole("dialog").className).toContain("z-[60]");
+    } finally {
+      outside.remove();
+    }
+  });
+
+  it("draws a split page at twice the frame and slides to its other half", async () => {
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    await open(fakePdf(8, () => LANDSCAPE), { initialPage: 4 });
+    const face = () => document.querySelector<HTMLElement>("[data-face]")!;
+    expect(face().style.width).toBe("200%");
+    expect(face().style.transform).toBe("");
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(face().style.transform).toBe("translateX(-50%)");
+  });
+
+  it("says so when a page cannot be drawn", async () => {
+    failingPage = 2;
+    await open(fakePdf(8), { initialPage: 2 });
+    expect(screen.getByText(/could not be drawn/)).toBeInTheDocument();
+  });
+
+  it("names a pair by its first page, to quote and to hand back", async () => {
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    const { onClose } = await open(fakePdf(8), { initialPage: 3 });
+    expect(shownPages()).toEqual([2, 3]);
+    expect(JSON.parse(screen.getByTestId("capture").textContent!).capture).toEqual({
+      kind: "page",
+      locator: { page: 2 },
+    });
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledWith(2);
+  });
+
+  it("clears a selection when the face turns, even to the other half of the same page", async () => {
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    await open(fakePdf(8, () => LANDSCAPE), { initialPage: 4 });
+    const range = document.createRange();
+    range.selectNodeContents(screen.getByText("Text of page 4"));
+    act(() => {
+      window.getSelection()!.addRange(range);
+    });
+    expect(window.getSelection()!.toString()).toBe("Text of page 4");
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(window.getSelection()!.toString()).toBe("");
+  });
+
+  it("draws the next page at fit after a zoom", async () => {
+    await open(fakePdf(8), { initialPage: 3 });
+    const base = pageProps[pageProps.length - 1].devicePixelRatio!;
+    fireEvent.keyDown(document, { key: "=" });
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(pageProps[pageProps.length - 1].devicePixelRatio).toBeCloseTo(base);
+  });
+
+  it("keeps its keys when something below binds the same one after it opened", async () => {
+    function LateArrows() {
+      useShortcuts("late", "late", [{ key: "arrowright", label: "late", handler: () => {} }]);
+      return null;
+    }
+    const pdf = fakePdf(8);
+    const { rerender } = render(
+      <Wrap>
+        <PdfFullscreenViewer pdf={pdf} title="Paper" initialPage={3} onClose={vi.fn()} />
+      </Wrap>,
+    );
+    await act(async () => {});
+    rerender(
+      <Wrap>
+        <PdfFullscreenViewer pdf={pdf} title="Paper" initialPage={3} onClose={vi.fn()} />
+        <LateArrows />
+      </Wrap>,
+    );
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(shownPages()).toEqual([4]);
+  });
+
+  it("goes to a page a link inside the document names", async () => {
+    function WithRef({ onReady }: { onReady: (go: (n: number) => void) => void }) {
+      const ref = useRef<((page: number) => void) | null>(null);
+      useEffect(() => {
+        if (ref.current) onReady(ref.current);
+      });
+      return (
+        <PdfFullscreenViewer
+          pdf={fakePdf(8)}
+          title="Paper"
+          initialPage={1}
+          goToPageRef={ref}
+          onClose={vi.fn()}
+        />
+      );
+    }
+    let go: ((n: number) => void) | null = null;
+    render(
+      <Wrap>
+        <WithRef onReady={(g) => (go = g)} />
+      </Wrap>,
+    );
+    await act(async () => {});
+    act(() => go!(6));
+    await act(async () => {});
+    expect(shownPages()).toEqual([6]);
+  });
 });
+

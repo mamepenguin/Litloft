@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -30,6 +31,7 @@ import {
 } from "@/lib/documentCapture";
 import { faceWidths } from "@/lib/pdfFace";
 import { rasterPixelRatio } from "@/lib/pdfZoomMode";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { readSpreadMode, writeSpreadMode } from "@/lib/spreadPreference";
 import type { Orientation } from "@/lib/spreadPaging";
 
@@ -55,12 +57,15 @@ export function PdfFullscreenViewer({
   title,
   initialPage,
   slotProps,
+  goToPageRef,
   onClose,
 }: {
   pdf: PDFDocumentProxy;
   title: string;
   initialPage: number;
   slotProps?: DocumentSlotProps;
+  /** Set while open, for a link inside the document that names a page. */
+  goToPageRef?: MutableRefObject<((page: number) => void) | null>;
   /** Called with the page the reader was on, 1-based. */
   onClose: (page: number) => void;
 }) {
@@ -135,7 +140,7 @@ export function PdfFullscreenViewer({
     navigatePrev,
     navigateNext,
     toggleControls: chrome.toggle,
-    mouseDragPans: false,
+    mouseSelectsText: true,
   });
   useViewerZoomShortcuts(zoom, true);
 
@@ -180,7 +185,22 @@ export function PdfFullscreenViewer({
       { key: "escape", label: tc("close"), handler: close },
     ],
     true,
+    // Above the file arrows, which can register after this opens.
+    OVERLAY_PRIORITY,
   );
+
+  useEffect(() => {
+    if (!goToPageRef) return;
+    goToPageRef.current = (page) => {
+      setIndex(Math.min(Math.max(0, page - 1), numPages - 1));
+      setShowRightHalf(directionRef.current === "rtl");
+    };
+    return () => {
+      goToPageRef.current = null;
+    };
+  }, [goToPageRef, numPages]);
+
+  const [renderFailed, setRenderFailed] = useState(false);
 
   const backdropRef = useInertBackdrop<HTMLDivElement>(true);
 
@@ -304,7 +324,11 @@ export function PdfFullscreenViewer({
             <AddonSlot
               id="document-viewer-actions"
               layout="stack"
-              props={{ ...slotProps, documentCaptureController: store }}
+              props={{
+                ...slotProps,
+                documentCaptureController: store,
+                tone: "on-dark",
+              }}
             />
           )}
           {spreadMode && (
@@ -377,6 +401,8 @@ export function PdfFullscreenViewer({
                     renderTextLayer
                     renderAnnotationLayer
                     loading={null}
+                    onRenderError={() => setRenderFailed(true)}
+                    onRenderSuccess={() => setRenderFailed(false)}
                   />
                 </section>
               ) : null,
@@ -385,6 +411,14 @@ export function PdfFullscreenViewer({
         </div>
       </div>
 
+      {renderFailed && (
+        <p
+          role="status"
+          className="absolute inset-x-0 bottom-8 text-center text-sm text-white/70"
+        >
+          {t("pdfRenderTooLarge")}
+        </p>
+      )}
       {chrome.visible &&
         (readingDirection === "ltr" ? canGoPrev : canGoNext) && (
           <button

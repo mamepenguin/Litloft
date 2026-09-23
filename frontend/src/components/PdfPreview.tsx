@@ -118,6 +118,7 @@ export function PdfPreview({
   const [renderFailed, setRenderFailed] = useState(false);
   const [loadedPdf, setLoadedPdf] = useState<PDFDocumentProxy | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const fullscreenGoToRef = useRef<((page: number) => void) | null>(null);
 
   // Read after mount, not in the initialiser: the server render has no
   // storage, and a value read during it would be hydrated over.
@@ -533,6 +534,12 @@ export function PdfPreview({
         <Document
           file={src}
           onLoadSuccess={handleLoad}
+          // Without this react-pdf scrolls to the target page, which is not
+          // mounted: only the page in view is drawn.
+          onItemClick={({ pageNumber }) => {
+            if (fullscreenGoToRef.current) fullscreenGoToRef.current(pageNumber);
+            else setPage(pageNumber);
+          }}
           loading={
             <p className="py-16 text-sm text-text-muted">{t("pdfLoading")}</p>
           }
@@ -557,6 +564,7 @@ export function PdfPreview({
               title={title}
               initialPage={page}
               slotProps={documentSlotProps}
+              goToPageRef={fullscreenGoToRef}
               onClose={(last) => {
                 setFullscreen(false);
                 setPage(last);

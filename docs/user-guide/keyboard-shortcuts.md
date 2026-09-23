@@ -152,9 +152,10 @@ In the full-screen viewer:
 | `0` | Back to the whole page |
 | `f` / `Esc` | Close |
 
-The gestures are the image viewer's (below), except that a mouse drag selects
-text instead of moving a zoomed page, and a press on a link in the document
-follows the link rather than turning the page.
+The touch gestures are the image viewer's (below). The mouse is left for
+selecting text: a drag, click or double-click never turns or moves the page.
+A press on a link in the document follows the link rather than turning the
+page.
 
 ## Image gallery and archive page-turner
 
