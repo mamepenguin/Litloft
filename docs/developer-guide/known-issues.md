@@ -60,6 +60,38 @@ prompt defaults to no.
 
 ## Files
 
+**Prose written in reStructuredText or Org is a Document but not Text.**
+`.rst` and `.org` are prose in minimal markup, the same job Markdown does, and
+the Text filter holds only `.md`, `.markdown` and `.txt`. Widening it means
+editing `_KIND_SUFFIXES`, which `file-kind-parity.test.ts` compares against the
+intelligence addon's copy by design — so the two repositories move together and
+whichever goes first has a red parity job. Deferred for that reason, not
+because the boundary is in doubt. `.adoc` is Other rather than Document for the
+same reason.
+
+**A source file's card shows no excerpt.** A card draws the first lines of a
+file in place of a thumbnail only when the file is a Document, so the source
+files that are now Other lost it — `.c`, `.h`, `.py`, `.pl`, `.css`, `.js` and
+`.bat` had one and no longer do. The file still opens as text; only the card is
+blank. The gate is `file_type === "document"` in `FileCard`, `FileListRow` and
+`JustifiedFileCell`, and it is a bucket test where a name test would serve.
+
+**A `.loft` file's mime is compared in two places and written in one.**
+`is_probeable_media` keeps ffprobe away from a `.loft` by comparing against
+`LOFT_MIME_TYPE`, and the classification table names the same constant. Nothing
+stops a later edit inlining the literal back into the table: the two would then
+drift silently, and the scanner and the upload path would hand a JSON pointer to
+ffprobe. Reached only by that edit; recorded because a test cannot see it
+without scanning source text.
+
+**Some extensions are filed as something they are not.** `.ass` is a subtitle
+format and is filed as audio; `.3gp`, `.3g2`, `.3gpp` and `.3gpp2` are video
+containers and are filed as audio; `.mpa` is MPEG audio and is filed as video.
+Each was inherited from the host mime table and is now written down as a
+decision this project made, which it never did. Reached by putting one on a
+drive: the wrong player, the wrong bucket in the type filter, and for `.ass` a
+subtitle listed as a media file of its own.
+
 **A file moved to another drive keeps the tags of the drive it came from.**
 `move_file` reassigns `File.drive` and leaves `file_tags` pointing at the source
 drive's `Tag` rows, so the source drive's tag list counts a file that is no
@@ -77,13 +109,11 @@ the 1003 extensions of a full mime table, 193 change bucket depending on whether
 it is present. What a source file should count as has never been decided; the
 current split is not that decision.
 
-**`.webp`, `.mts` and `.m2ts` are filed under Other.** The container carries no
-mime table and Python's built-in one names none of them, so `classify` answers
-`application/octet-stream`: a drive of `.webp` pictures gets no image bucket, no
-image thumbnail and no page-turner, and AVCHD camcorder footage gets no player,
-no thumbnail and no duration. `_EXTRA_MIMES` already covers `.mkv`, `.webm` and
-`.m4a` the same way and is where these belong. Reached by putting any of the
-three on a drive.
+**AVCHD footage named `.mts` has no player.** That extension names both an
+AVCHD stream and a TypeScript ESM module, and it is settled as the module so
+its family answers one way. `.m2ts`, which is only ever AVCHD, plays. Reached by
+copying `.mts` files off a camcorder; renaming them to `.m2ts` is the way round
+it.
 
 **A file reclassified out of video keeps the frame it had.** The scanner rewrites
 `file_type` and `mime_type` on an existing row but clears neither
@@ -91,15 +121,6 @@ three on a drive.
 overwrite the old one, so the card draws the stale video frame. Reached by a row
 first written on a host whose mime table called the file video — a `.ts` scanned
 on macOS, then scanned again in the container.
-
-**A `.ts` file is handed to the video player, but only where a mime table is
-installed.** That extension names both an MPEG transport stream and a TypeScript
-source, and a table that has it answers `video/mp2t`, so the listing counts the
-file as a video and the file page gives it a `<video>` that cannot load it. The
-text viewer's allowlist names `ts`, but the player branch is reached first. The
-shipped container has no such table, so there it is Other and opens as text;
-this is reached by running the backend outside Docker, on macOS. The extension
-alone cannot settle it.
 
 **A file of long unbroken runs freezes the page for about twenty seconds
 while it is coloured.** Several highlight.js grammars are quadratic in an

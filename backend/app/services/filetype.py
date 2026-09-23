@@ -1,71 +1,256 @@
 import logging
-import mimetypes
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_CATEGORY_MAP = {
-    "video": "video",
-    "image": "image",
-    "audio": "audio",
-    "application/pdf": "document",
-    "text": "document",
-}
-
 _SUBTITLE_EXTENSIONS = frozenset({".srt", ".vtt"})
 
-_ARCHIVE_MIMES = frozenset({
-    "application/zip",
-    "application/x-zip-compressed",
-})
-
-_DOCUMENT_MIMES = frozenset({
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-})
+DEFAULT_CLASSIFICATION = ("other", "application/octet-stream")
 
 LOFT_MIME_TYPE = "application/vnd.litloft.loft+json"
 
-# Mime → file_type override for vendor wrapper formats whose major
-# component (``application``) doesn't reflect what the file actually
-# contains. ``.loft`` is the media_import addon's link wrapper for
-# media that can't be downloaded; today every registered provider
-# (youtube / vimeo / soundcloud) wraps a video, so .loft is treated
-# as ``video`` for search-time file_type filtering. If a future
-# provider wraps audio / image, add the per-provider dispatch here
-# (peek into the .loft JSON for ``provider`` and look it up).
-_MIME_TYPE_OVERRIDES = {
-    LOFT_MIME_TYPE: "video",
+# What Litloft does with a file, and what its bytes are, for every extension
+# this project has decided about. An extension absent from it is
+# ``DEFAULT_CLASSIFICATION``.
+#
+# This table is consulted first and last. ``mimetypes`` is not: it reads a
+# table the host may or may not carry, so the same file was filed differently
+# on a developer's machine and in the container — 889 of 1003 extensions gave a
+# different answer and 193 changed bucket, measured in one image with and
+# without ``/etc/mime.types``.
+#
+# The pair is two separate facts. ``file_type`` is what the listing, the
+# filters and the viewers branch on; the mime is what the bytes are, and what
+# the text-write and addon-read allowlists read. They are allowed to disagree:
+# a source file is text that is not a document.
+_EXTENSION_TABLE: dict[str, tuple[str, str]] = {
+    # --- video (13) ---
+    # The media_import addon's wrapper for media it cannot download. Its bytes
+    # are a small JSON pointer, and it is filed as video because the player and
+    # the listing branch on that — `is_probeable_media` is what keeps ffprobe
+    # away from it. A future provider wrapping audio or an image needs a
+    # per-provider lookup here, not a second table.
+    ".loft": ("video", LOFT_MIME_TYPE),
+    ".avi": ("video", "video/x-msvideo"),
+    ".m1v": ("video", "video/mpeg"),
+    ".mkv": ("video", "video/x-matroska"),
+    ".mov": ("video", "video/quicktime"),
+    ".movie": ("video", "video/x-sgi-movie"),
+    ".mp4": ("video", "video/mp4"),
+    ".mpa": ("video", "video/mpeg"),
+    ".mpe": ("video", "video/mpeg"),
+    ".mpeg": ("video", "video/mpeg"),
+    ".mpg": ("video", "video/mpeg"),
+    ".qt": ("video", "video/quicktime"),
+    ".webm": ("video", "video/webm"),
+    ".m2ts": ("video", "video/mp2t"),
+
+    # --- image (23) ---
+    ".avif": ("image", "image/avif"),
+    ".bmp": ("image", "image/bmp"),
+    ".gif": ("image", "image/gif"),
+    ".heic": ("image", "image/heic"),
+    ".heif": ("image", "image/heif"),
+    ".ico": ("image", "image/vnd.microsoft.icon"),
+    ".ief": ("image", "image/ief"),
+    ".jpe": ("image", "image/jpeg"),
+    ".jpeg": ("image", "image/jpeg"),
+    ".jpg": ("image", "image/jpeg"),
+    ".pbm": ("image", "image/x-portable-bitmap"),
+    ".pgm": ("image", "image/x-portable-graymap"),
+    ".webp": ("image", "image/webp"),
+    ".png": ("image", "image/png"),
+    ".pnm": ("image", "image/x-portable-anymap"),
+    ".ppm": ("image", "image/x-portable-pixmap"),
+    ".ras": ("image", "image/x-cmu-raster"),
+    ".rgb": ("image", "image/x-rgb"),
+    ".svg": ("image", "image/svg+xml"),
+    ".tif": ("image", "image/tiff"),
+    ".tiff": ("image", "image/tiff"),
+    ".xbm": ("image", "image/x-xbitmap"),
+    ".xpm": ("image", "image/x-xpixmap"),
+    ".xwd": ("image", "image/x-xwindowdump"),
+
+    # --- audio (21) ---
+    ".3g2": ("audio", "audio/3gpp2"),
+    ".3gp": ("audio", "audio/3gpp"),
+    ".3gpp": ("audio", "audio/3gpp"),
+    ".3gpp2": ("audio", "audio/3gpp2"),
+    ".aac": ("audio", "audio/aac"),
+    ".adts": ("audio", "audio/aac"),
+    ".aif": ("audio", "audio/x-aiff"),
+    ".aifc": ("audio", "audio/x-aiff"),
+    ".aiff": ("audio", "audio/x-aiff"),
+    ".ass": ("audio", "audio/aac"),
+    ".au": ("audio", "audio/basic"),
+    ".flac": ("audio", "audio/flac"),
+    ".loas": ("audio", "audio/aac"),
+    ".m4a": ("audio", "audio/mp4"),
+    ".mp2": ("audio", "audio/mpeg"),
+    ".mp3": ("audio", "audio/mpeg"),
+    ".ogg": ("audio", "audio/ogg"),
+    ".opus": ("audio", "audio/opus"),
+    ".ra": ("audio", "audio/x-pn-realaudio"),
+    ".snd": ("audio", "audio/basic"),
+    ".wav": ("audio", "audio/x-wav"),
+
+    # Prose in minimal markup. `.rst` was a document of its own; `.adoc` and
+    # `.org` had no row at all.
+    ".org": ("document", "application/octet-stream"),
+    ".rst": ("document", "text/x-rst"),
+
+    # --- document (38) ---
+    ".csv": ("document", "text/csv"),
+    ".doc": ("document", "application/msword"),
+    ".docx": ("document", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+    ".dot": ("document", "application/msword"),
+    ".etx": ("document", "text/x-setext"),
+    ".htm": ("document", "text/html"),
+    ".html": ("document", "text/html"),
+    ".markdown": ("document", "text/markdown"),
+    ".md": ("document", "text/markdown"),
+    ".pdf": ("document", "application/pdf"),
+    ".pot": ("document", "application/vnd.ms-powerpoint"),
+    ".ppa": ("document", "application/vnd.ms-powerpoint"),
+    ".pps": ("document", "application/vnd.ms-powerpoint"),
+    ".ppt": ("document", "application/vnd.ms-powerpoint"),
+    ".pptx": ("document", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+    ".pwz": ("document", "application/vnd.ms-powerpoint"),
+    ".rtx": ("document", "text/richtext"),
+    ".tsv": ("document", "text/tab-separated-values"),
+    ".txt": ("document", "text/plain"),
+    ".wiz": ("document", "application/msword"),
+    ".xlb": ("document", "application/vnd.ms-excel"),
+    ".xls": ("document", "application/vnd.ms-excel"),
+    ".xlsx": ("document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+
+    # Source, configuration and shell: text a machine reads.
+    #
+    # The mime each row carries is the one it carried before, including the
+    # rows that had none. The content-write allowlist and the addon read
+    # allowlist are keyed on the mime, and the second of those serves a
+    # protected drive without a drive-unlock check, so widening it is a
+    # security decision and not a side effect of naming a bucket.
+    ".adoc": ("other", "application/octet-stream"),
+    ".bat": ("other", "text/plain"),
+    ".c": ("other", "text/plain"),
+    ".cc": ("other", "application/octet-stream"),
+    ".cfg": ("other", "application/octet-stream"),
+    ".conf": ("other", "application/octet-stream"),
+    ".cpp": ("other", "application/octet-stream"),
+    ".cs": ("other", "application/octet-stream"),
+    ".css": ("other", "text/css"),
+    ".cts": ("other", "application/octet-stream"),
+    ".cxx": ("other", "application/octet-stream"),
+    ".dart": ("other", "application/octet-stream"),
+    ".ex": ("other", "application/octet-stream"),
+    ".exs": ("other", "application/octet-stream"),
+    ".go": ("other", "application/octet-stream"),
+    ".gradle": ("other", "application/octet-stream"),
+    ".graphql": ("other", "application/octet-stream"),
+    ".h": ("other", "text/plain"),
+    ".hpp": ("other", "application/octet-stream"),
+    ".ini": ("other", "application/octet-stream"),
+    ".java": ("other", "application/octet-stream"),
+    ".js": ("other", "text/javascript"),
+    ".json": ("other", "application/json"),
+    ".jsx": ("other", "application/octet-stream"),
+    ".kt": ("other", "application/octet-stream"),
+    ".kts": ("other", "application/octet-stream"),
+    ".ksh": ("other", "text/plain"),
+    ".lua": ("other", "application/octet-stream"),
+    ".mjs": ("other", "text/javascript"),
+    # Also names an AVCHD stream; settled as the TypeScript module it
+    # shares a family with. `.m2ts` is only ever AVCHD.
+    ".mts": ("other", "application/octet-stream"),
+    ".n3": ("other", "text/n3"),
+    ".php": ("other", "application/octet-stream"),
+    ".pl": ("other", "text/plain"),
+    ".proto": ("other", "application/octet-stream"),
+    ".py": ("other", "text/x-python"),
+    ".r": ("other", "application/octet-stream"),
+    ".rb": ("other", "application/octet-stream"),
+    ".rs": ("other", "application/octet-stream"),
+    ".scala": ("other", "application/octet-stream"),
+    ".sgm": ("other", "text/x-sgml"),
+    ".sgml": ("other", "text/x-sgml"),
+    ".sql": ("other", "application/octet-stream"),
+    ".svelte": ("other", "application/octet-stream"),
+    ".swift": ("other", "application/octet-stream"),
+    ".tf": ("other", "application/octet-stream"),
+    ".tfvars": ("other", "application/octet-stream"),
+    ".toml": ("other", "application/octet-stream"),
+    ".ts": ("other", "application/octet-stream"),
+    ".tsx": ("other", "application/octet-stream"),
+    ".vcf": ("other", "text/x-vcard"),
+    ".vue": ("other", "application/octet-stream"),
+    ".xml": ("other", "text/xml"),
+    ".yaml": ("other", "application/octet-stream"),
+    ".yml": ("other", "application/octet-stream"),
+    ".zsh": ("other", "application/octet-stream"),
+
+    # --- archive (1) ---
+    ".zip": ("archive", "application/zip"),
+
+    # --- other (55) ---
+    ".ai": ("other", "application/postscript"),
+    ".bcpio": ("other", "application/x-bcpio"),
+    ".cdf": ("other", "application/x-netcdf"),
+    ".cpio": ("other", "application/x-cpio"),
+    ".csh": ("other", "application/x-csh"),
+    ".dvi": ("other", "application/x-dvi"),
+    ".eml": ("other", "message/rfc822"),
+    ".eps": ("other", "application/postscript"),
+    ".gtar": ("other", "application/x-gtar"),
+    ".h5": ("other", "application/x-hdf5"),
+    ".hdf": ("other", "application/x-hdf"),
+    ".latex": ("other", "application/x-latex"),
+    ".m3u": ("other", "application/vnd.apple.mpegurl"),
+    ".m3u8": ("other", "application/vnd.apple.mpegurl"),
+    ".man": ("other", "application/x-troff-man"),
+    ".me": ("other", "application/x-troff-me"),
+    ".mht": ("other", "message/rfc822"),
+    ".mhtml": ("other", "message/rfc822"),
+    ".mif": ("other", "application/x-mif"),
+    ".ms": ("other", "application/x-troff-ms"),
+    ".nc": ("other", "application/x-netcdf"),
+    ".nq": ("other", "application/n-quads"),
+    ".nt": ("other", "application/n-triples"),
+    ".nws": ("other", "message/rfc822"),
+    ".oda": ("other", "application/oda"),
+    ".p12": ("other", "application/x-pkcs12"),
+    ".p7c": ("other", "application/pkcs7-mime"),
+    ".pfx": ("other", "application/x-pkcs12"),
+    ".ps": ("other", "application/postscript"),
+    ".pyc": ("other", "application/x-python-code"),
+    ".pyo": ("other", "application/x-python-code"),
+    ".ram": ("other", "application/x-pn-realaudio"),
+    ".rdf": ("other", "application/xml"),
+    ".roff": ("other", "application/x-troff"),
+    ".sh": ("other", "application/x-sh"),
+    ".shar": ("other", "application/x-shar"),
+    ".src": ("other", "application/x-wais-source"),
+    ".sv4cpio": ("other", "application/x-sv4cpio"),
+    ".sv4crc": ("other", "application/x-sv4crc"),
+    ".swf": ("other", "application/x-shockwave-flash"),
+    ".t": ("other", "application/x-troff"),
+    ".tar": ("other", "application/x-tar"),
+    ".tcl": ("other", "application/x-tcl"),
+    ".tex": ("other", "application/x-tex"),
+    ".texi": ("other", "application/x-texinfo"),
+    ".texinfo": ("other", "application/x-texinfo"),
+    ".tr": ("other", "application/x-troff"),
+    ".trig": ("other", "application/trig"),
+    ".ustar": ("other", "application/x-ustar"),
+    ".wasm": ("other", "application/wasm"),
+    ".webmanifest": ("other", "application/manifest+json"),
+    ".wsdl": ("other", "application/xml"),
+    ".xpdl": ("other", "application/xml"),
+    ".xsl": ("other", "application/xml"),
 }
 
-_EXTRA_MIMES = {
-    ".mkv": "video/x-matroska",
-    ".avi": "video/x-msvideo",
-    ".flac": "audio/flac",
-    ".aac": "audio/aac",
-    ".ogg": "audio/ogg",
-    ".webm": "video/webm",
-    # Linux Docker's mimetypes DB lacks .m4a / .opus entries.
-    # ``audio/mp4`` is the IANA-registered MIME for AAC-in-MP4 audio
-    # — choosing it over Apple's ``audio/m4a`` / ``audio/x-m4a``
-    # de-facto values keeps macOS and Linux registrations identical
-    # (macOS ``mimetypes.guess_type`` already returns ``audio/mp4``).
-    ".m4a": "audio/mp4",
-    ".opus": "audio/opus",
-    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    ".doc": "application/msword",
-    ".xls": "application/vnd.ms-excel",
-    ".ppt": "application/vnd.ms-powerpoint",
-    ".zip": "application/zip",
-    ".loft": LOFT_MIME_TYPE,
-}
+
+
 
 
 def classify(filename: str) -> tuple[str, str]:
@@ -75,23 +260,7 @@ def classify(filename: str) -> tuple[str, str]:
         mime = "text/vtt" if ext == ".vtt" else "application/x-subrip"
         return ("subtitle", mime)
 
-    mime, _ = mimetypes.guess_type(filename)
-    if mime is None:
-        mime = _EXTRA_MIMES.get(ext, "application/octet-stream")
-
-    if mime in _ARCHIVE_MIMES:
-        return ("archive", mime)
-
-    if mime in _DOCUMENT_MIMES:
-        return ("document", mime)
-
-    if mime in _MIME_TYPE_OVERRIDES:
-        return (_MIME_TYPE_OVERRIDES[mime], mime)
-
-    major = mime.split("/")[0]
-    file_type = _CATEGORY_MAP.get(major, "other")
-
-    return (file_type, mime)
+    return _EXTENSION_TABLE.get(ext, DEFAULT_CLASSIFICATION)
 
 
 def is_probeable_media(file_type: str, mime_type: str) -> bool:

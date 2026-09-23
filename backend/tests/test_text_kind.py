@@ -15,9 +15,9 @@ SELECTED = [
     ("old.markdown", "document", None),
 ]
 NOT_SELECTED = [
-    ("main.c", "document", "text/plain"),
-    ("head.h", "document", "text/plain"),
-    ("script.pl", "document", "text/plain"),
+    ("main.c", "other", "text/plain"),
+    ("head.h", "other", "text/plain"),
+    ("script.pl", "other", "text/plain"),
     ("guide.rst", "document", "text/x-rst"),
     ("table.csv", "document", "text/csv"),
     ("draft.mdown", "other", "application/octet-stream"),
@@ -100,7 +100,7 @@ def test_the_old_name_answers_as_text_on_every_surface(library, kind):
 def test_document_still_holds_every_text_row(library):
     c, _, _ = library
     assert _listing(c, "document") == EXPECTED | {
-        "main.c", "head.h", "script.pl", "guide.rst", "table.csv",
+        "guide.rst", "table.csv",
     }
 
 
@@ -152,3 +152,17 @@ def test_an_unknown_kind_is_still_rejected(client):
     assert c.get(f"/api/drives/{TEST_DRIVE}/files?type=notes").status_code == 422
     assert c.get(f"/api/drives/{TEST_DRIVE}/folder-tree?type_filter=notes").status_code == 422
     assert c.get(f"/api/drives/{TEST_DRIVE}/watch-history?type=notes").status_code == 422
+
+
+
+def test_the_declared_triples_are_the_ones_classify_records():
+    """The table above says it holds what `classify()` answers. Nothing checked
+    that, so a boundary change moved four of these rows and the file stayed
+    green: `_add` writes the triple straight into the row and never calls the
+    classifier."""
+    from app.services.filetype import classify
+
+    for filename, file_type, mime_type in SELECTED + NOT_SELECTED:
+        if mime_type is None:
+            continue  # rows written before a mime was recorded
+        assert classify(filename) == (file_type, mime_type), filename

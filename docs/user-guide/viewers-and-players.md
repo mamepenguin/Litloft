@@ -213,7 +213,6 @@ What Litloft does read is a short text excerpt — up to 400 characters extracte
 - **Lines are numbered**, and the numbers are not part of the text: selecting the file, copying it, or capturing a quote from it gives you the code alone. A line too long for the column wraps under the code rather than under its own number.
 - **Source code is coloured** where the name says which language it is. Where it does not — a `.vue` file, a `.log`, a file with no extension — the text is shown without colour rather than guessed at, because a wrong guess colours the code as something it is not and nothing on screen would say so.
 - **A very large file keeps neither.** Above 512K characters or 5000 lines the viewer says so and shows the text plainly, so a big log still opens and still reads.
-- **`.ts` is the exception, and it opens as a video.** The type table shipped with Python reads that extension as an MPEG transport stream, which it also legitimately is, so a TypeScript file is classified as video across Litloft and handed to the player. [Known issue](../developer-guide/known-issues.md).
 
 Writing text content back is possible through the API (`PUT /api/files/{id}/content`), restricted to `text/markdown` and `text/plain`:
 
