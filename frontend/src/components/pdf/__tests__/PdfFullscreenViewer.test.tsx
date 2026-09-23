@@ -514,6 +514,22 @@ describe("PdfFullscreenViewer", () => {
       expect(localStorage.getItem(DIRECTION_KEY)).toBe("ltr");
     });
 
+    it("opens left to right when the document says so, over a stored right to left", async () => {
+      localStorage.setItem(SPREAD_MODE_KEY, "true");
+      localStorage.setItem(DIRECTION_KEY, "rtl");
+      await open(fakePdf(8), { initialPage: 2, declaredDirection: "ltr" });
+      expect(document.querySelector<HTMLElement>("[data-face]")!.style.flexDirection).toBe("row");
+    });
+
+    it("starts a split page on its right half when the document reads right to left", async () => {
+      localStorage.setItem(SPREAD_MODE_KEY, "true");
+      localStorage.setItem(DIRECTION_KEY, "ltr");
+      await open(fakePdf(8, () => LANDSCAPE), { initialPage: 4, declaredDirection: "rtl" });
+      expect(document.querySelector<HTMLElement>("[data-face]")!.style.transform).toBe(
+        "translateX(-50%)",
+      );
+    });
+
     it("leaves the stored direction in charge of a document that declares none", async () => {
       localStorage.setItem(SPREAD_MODE_KEY, "true");
       localStorage.setItem(DIRECTION_KEY, "rtl");

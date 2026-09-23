@@ -982,5 +982,37 @@ describe("PdfPreview full screen", () => {
     await act(async () => answer(null));
     expect(screen.getByRole("button", { name: "Full screen" })).toBeDisabled();
   });
+
+  it("waits for the document's preferences before it can open", async () => {
+    let answer!: (prefs: unknown) => void;
+    pdfDoc.getViewerPreferences = () =>
+      new Promise((resolve) => {
+        answer = resolve;
+      });
+    renderViewer();
+    await screen.findByText("Selectable page 3");
+    expect(screen.getByRole("button", { name: "Full screen" })).toBeDisabled();
+    fireEvent.keyDown(document, { key: "f" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await act(async () => answer({ Direction: "R2L" }));
+    expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled();
+  });
+
+  it("still opens a document whose preferences cannot be read", async () => {
+    for (const failing of [
+      () => Promise.reject(new Error("broken")),
+      () => {
+        throw new Error("broken");
+      },
+    ]) {
+      pdfDoc.getViewerPreferences = failing as () => Promise<unknown>;
+      const { unmount } = renderViewer();
+      await screen.findByText("Selectable page 3");
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+      );
+      unmount();
+    }
+  });
 });
 
