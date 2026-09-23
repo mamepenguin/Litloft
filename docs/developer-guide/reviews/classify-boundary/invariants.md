@@ -14,9 +14,19 @@ here touches `_KIND_MIMES` or `_KIND_SUFFIXES`.
 1. A source file is `other`: `.bat .c .h .ksh .pl .py .css .js .mjs` leave
    `document`, and the source extensions the table never held arrive as
    `other` rather than as nothing.
-2. A source file keeps a `text/*` mime. `PUT /api/files/{id}/content`,
-   `GET /api/internal/files/{id}/content` and the intelligence indexer read the
-   mime, not the bucket, so what each of them accepts does not change.
+2. **No row's mime changes, except where the bucket is media.** `.webp` and
+   `.m2ts` gain one; every other row keeps what it had, including the rows that
+   had none. `PUT /api/files/{id}/content`,
+   `GET /api/internal/files/{id}/content` and the intelligence indexer are keyed
+   on the mime, so what each accepts is byte-identical before and after.
+   **Revised after round 1 (finding A-1).** It was written as "a source file
+   keeps a `text/*` mime", which held for the fourteen rows that moved and not
+   for the forty-three that arrived: those went from `application/octet-stream`
+   to `text/plain`, which turned `.tfvars`, `.conf`, `.ini`, `.toml` and
+   `.yaml` from refused into served — on an endpoint that skips the
+   drive-unlock check by design, with the secret an optional gate. Widening
+   that allowlist is a security decision, and naming a bucket is not the place
+   to take it.
 3. Machine-read markup and data are `other`: `.xml .sgm .sgml .n3 .vcf`.
 4. `.csv` and `.tsv` stay in `document`. `.rst` and `.org` are `document`
    here; they become the nested `text` kind in 2b.
@@ -32,4 +42,9 @@ here touches `_KIND_MIMES` or `_KIND_SUFFIXES`.
 9. A drive listing, the folder card's counts, `folder-tree` and watch history
    all report the same kind for the same file. No surface keeps the old one.
 
-TOTAL: 9 invariants
+10. A card shows no excerpt for a file that is not a Document, so the source
+    files that moved lose theirs. The file page is unchanged. Recorded rather
+    than fixed: the gate is a bucket test where a name test would serve, in
+    three frontend components.
+
+TOTAL: 10 invariants

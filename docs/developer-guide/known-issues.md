@@ -60,6 +60,13 @@ prompt defaults to no.
 
 ## Files
 
+**A source file's card shows no excerpt.** A card draws the first lines of a
+file in place of a thumbnail only when the file is a Document, so the source
+files that are now Other lost it — `.c`, `.h`, `.py`, `.pl`, `.css`, `.js` and
+`.bat` had one and no longer do. The file still opens as text; only the card is
+blank. The gate is `file_type === "document"` in `FileCard`, `FileListRow` and
+`JustifiedFileCell`, and it is a bucket test where a name test would serve.
+
 **A `.loft` file's mime is compared in two places and written in one.**
 `is_probeable_media` keeps ffprobe away from a `.loft` by comparing against
 `LOFT_MIME_TYPE`, and the classification table names the same constant. Nothing

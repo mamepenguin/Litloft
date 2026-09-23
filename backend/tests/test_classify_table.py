@@ -149,6 +149,15 @@ def test_no_extension_is_written_twice():
             keys = [k.value for k in node.value.keys]
             repeated = [k for k, n in collections.Counter(keys).items() if n > 1]
             assert repeated == []
-            assert len(keys) == len(filetype._EXTENSION_TABLE)
+            # Not just the count: a write after the literal would replace a
+            # key without changing how many there are.
+            assert set(keys) == set(filetype._EXTENSION_TABLE)
             return
     raise AssertionError("_EXTENSION_TABLE is not a literal any more")
+
+
+
+def test_the_table_holds_the_number_of_rows_it_is_declared_to():
+    """A row removed from the table and from its declaration in the same edit
+    is invisible to every comparison between the two."""
+    assert len(_EXTENSION_TABLE) == 194

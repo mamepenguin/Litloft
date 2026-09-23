@@ -55,47 +55,47 @@ MOVED_OUT_OF_DOCUMENT = {
 ADDED = {
     ".webp": ("image", "image/webp"),
     ".m2ts": ("video", "video/mp2t"),
-    ".org": ("document", "text/plain"),
-    ".adoc": ("other", "text/plain"),
-    ".cc": ("other", "text/plain"),
-    ".cfg": ("other", "text/plain"),
-    ".conf": ("other", "text/plain"),
-    ".cpp": ("other", "text/plain"),
-    ".cs": ("other", "text/plain"),
-    ".cts": ("other", "text/plain"),
-    ".cxx": ("other", "text/plain"),
-    ".dart": ("other", "text/plain"),
-    ".ex": ("other", "text/plain"),
-    ".exs": ("other", "text/plain"),
-    ".go": ("other", "text/plain"),
-    ".gradle": ("other", "text/plain"),
-    ".graphql": ("other", "text/plain"),
-    ".hpp": ("other", "text/plain"),
-    ".ini": ("other", "text/plain"),
-    ".java": ("other", "text/plain"),
-    ".jsx": ("other", "text/plain"),
-    ".kt": ("other", "text/plain"),
-    ".kts": ("other", "text/plain"),
-    ".lua": ("other", "text/plain"),
-    ".mts": ("other", "text/plain"),
-    ".php": ("other", "text/plain"),
-    ".proto": ("other", "text/plain"),
-    ".r": ("other", "text/plain"),
-    ".rb": ("other", "text/plain"),
-    ".rs": ("other", "text/plain"),
-    ".scala": ("other", "text/plain"),
-    ".sql": ("other", "text/plain"),
-    ".svelte": ("other", "text/plain"),
-    ".swift": ("other", "text/plain"),
-    ".tf": ("other", "text/plain"),
-    ".tfvars": ("other", "text/plain"),
-    ".toml": ("other", "text/plain"),
-    ".ts": ("other", "text/plain"),
-    ".tsx": ("other", "text/plain"),
-    ".vue": ("other", "text/plain"),
-    ".yaml": ("other", "text/plain"),
-    ".yml": ("other", "text/plain"),
-    ".zsh": ("other", "text/plain"),
+    ".org": ("document", "application/octet-stream"),
+    ".adoc": ("other", "application/octet-stream"),
+    ".cc": ("other", "application/octet-stream"),
+    ".cfg": ("other", "application/octet-stream"),
+    ".conf": ("other", "application/octet-stream"),
+    ".cpp": ("other", "application/octet-stream"),
+    ".cs": ("other", "application/octet-stream"),
+    ".cts": ("other", "application/octet-stream"),
+    ".cxx": ("other", "application/octet-stream"),
+    ".dart": ("other", "application/octet-stream"),
+    ".ex": ("other", "application/octet-stream"),
+    ".exs": ("other", "application/octet-stream"),
+    ".go": ("other", "application/octet-stream"),
+    ".gradle": ("other", "application/octet-stream"),
+    ".graphql": ("other", "application/octet-stream"),
+    ".hpp": ("other", "application/octet-stream"),
+    ".ini": ("other", "application/octet-stream"),
+    ".java": ("other", "application/octet-stream"),
+    ".jsx": ("other", "application/octet-stream"),
+    ".kt": ("other", "application/octet-stream"),
+    ".kts": ("other", "application/octet-stream"),
+    ".lua": ("other", "application/octet-stream"),
+    ".mts": ("other", "application/octet-stream"),
+    ".php": ("other", "application/octet-stream"),
+    ".proto": ("other", "application/octet-stream"),
+    ".r": ("other", "application/octet-stream"),
+    ".rb": ("other", "application/octet-stream"),
+    ".rs": ("other", "application/octet-stream"),
+    ".scala": ("other", "application/octet-stream"),
+    ".sql": ("other", "application/octet-stream"),
+    ".svelte": ("other", "application/octet-stream"),
+    ".swift": ("other", "application/octet-stream"),
+    ".tf": ("other", "application/octet-stream"),
+    ".tfvars": ("other", "application/octet-stream"),
+    ".toml": ("other", "application/octet-stream"),
+    ".ts": ("other", "application/octet-stream"),
+    ".tsx": ("other", "application/octet-stream"),
+    ".vue": ("other", "application/octet-stream"),
+    ".yaml": ("other", "application/octet-stream"),
+    ".yml": ("other", "application/octet-stream"),
+    ".zsh": ("other", "application/octet-stream"),
 }
 
 
@@ -125,13 +125,25 @@ def test_the_table_moved_nothing_that_is_not_declared():
     assert undeclared == {}
 
 
-def test_a_source_file_is_still_text_to_everything_that_reads_the_mime():
-    """The bucket is what Litloft does with the file; the mime is what its
-    bytes are. Only the first moved."""
-    for extension in list(MOVED_OUT_OF_DOCUMENT) + [".ts", ".rs", ".go"]:
-        file_type, mime = classify("x" + extension)
-        assert file_type == "other"
-        assert mime.startswith("text/"), extension
+def test_no_row_changes_what_an_allowlist_accepts():
+    """`PUT /api/files/{id}/content` and `GET /api/internal/files/{id}/content`
+    are keyed on the mime, and the second serves a protected drive without a
+    drive-unlock check. Naming a bucket must not open either one: a row that
+    answered `application/octet-stream` still does.
+
+    Reached once. Forty-three rows were given `text/plain` because a source
+    file is text, which turned `.tfvars`, `.conf` and `.ini` from refused into
+    served."""
+    from app.routers.files import _TEXT_WRITE_ALLOWED_MIMES as WRITE
+    from app.routers.internal import _CONTENT_READ_ALLOWED_MIMES as READ
+
+    for extension, expected in ADDED.items():
+        mime = expected[1]
+        assert mime not in READ, f"{extension} would be readable by an addon"
+        assert mime not in WRITE, f"{extension} would be writable"
+
+    for extension, mime in MOVED_OUT_OF_DOCUMENT.items():
+        assert classify("x" + extension)[1] == mime, extension
 
 
 def test_the_two_families_the_ledger_recorded_are_reachable_now():
@@ -143,7 +155,7 @@ def test_the_ambiguous_family_answers_one_way():
     """`.mts` names an AVCHD stream and a TypeScript ESM module. One answer,
     the same as the rest of its family."""
     assert classify("a.ts") == classify("a.cts") == classify("a.mts")
-    assert classify("a.mts") == ("other", "text/plain")
+    assert classify("a.mts") == ("other", "application/octet-stream")
 
 
 def test_prose_markup_is_a_document_and_source_is_not():
