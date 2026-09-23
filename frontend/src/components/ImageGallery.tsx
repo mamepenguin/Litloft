@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
-import { useImageAreaGestures } from "@/hooks/useImageAreaGestures";
+import { useViewerZoom } from "@/hooks/useViewerZoom";
+import { useViewerZoomShortcuts } from "@/hooks/useViewerZoomShortcuts";
 import { useInertBackdrop } from "@/hooks/useInertBackdrop";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { useAutoHidingChrome } from "@/hooks/useAutoHidingChrome";
@@ -287,12 +288,14 @@ export function ImageGallery({
     open,
   );
 
-  const gestureHandlers = useImageAreaGestures({
+  const zoom = useViewerZoom({
+    resetKey: `${currentIndex}:${showRightHalf}`,
     readingDirection,
     navigatePrev,
     navigateNext,
     toggleControls: chrome.toggle,
   });
+  useViewerZoomShortcuts(zoom, open);
 
   const backdropRef = useInertBackdrop<HTMLDivElement>(open);
 
@@ -380,8 +383,9 @@ export function ImageGallery({
       </div>
 
       <div
-        className="flex flex-1 cursor-pointer items-center overflow-hidden touch-none"
-        {...gestureHandlers}
+        ref={zoom.frameRef}
+        className={`flex flex-1 items-center overflow-hidden touch-none ${zoom.zoomed ? "cursor-grab" : "cursor-pointer"}`}
+        {...zoom.frameHandlers}
       >
         {loading ? (
           <div className="flex w-full items-center justify-center">
@@ -393,55 +397,63 @@ export function ImageGallery({
               <div className="absolute h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
             )}
             <div
-              data-face={face.kind}
-              className="flex h-full items-center justify-center"
-              style={{
-                // Splitting draws one page at twice the frame's width and
-                // slides it; pairing draws two inside one frame's width.
-                // Same word, opposite arithmetic.
-                width: activeSplit ? "200%" : "100%",
-                flexShrink: activeSplit ? 0 : undefined,
-                transform:
-                  activeSplit && showRightHalf ? "translateX(-50%)" : undefined,
-                // Right-to-left reading puts the first page of a pair on
-                // the right. Done with `flex-direction`, so the two
-                // `<img>` elements stay in reading order in the DOM.
-                flexDirection:
-                  face.kind === "pair" && readingDirection === "rtl"
-                    ? "row-reverse"
-                    : "row",
-              }}
+              ref={zoom.contentRef}
+              className="flex h-full w-full items-center"
+              style={zoom.contentStyle}
             >
-              {face.indices.map((i, slot) => {
-                const item = images[i];
-                if (!item) return null;
-                return (
-                  <img
-                    key={item.id}
-                    src={getStreamUrl(item.id)}
-                    alt={item.title}
-                    className="max-h-full select-none object-contain"
-                    style={{
-                      maxWidth: face.kind === "pair" ? "50%" : "100%",
-                    }}
-                    onLoad={(e) => {
-                      setImageLoading(false);
-                      // Only the page the position is named by decides
-                      // whether this face is a split one; the second page
-                      // of a pair reporting its shape here would flip the
-                      // face out from under itself.
-                      if (slot === 0 && i === currentIndex) {
-                        const img = e.currentTarget;
-                        setIsCurrentLandscape(
-                          img.naturalWidth > img.naturalHeight,
-                        );
-                      }
-                    }}
-                    onLoadStart={() => setImageLoading(true)}
-                    draggable={false}
-                  />
-                );
-              })}
+              <div
+                data-face={face.kind}
+                className="flex h-full items-center justify-center"
+                style={{
+                  // Splitting draws one page at twice the frame's width and
+                  // slides it; pairing draws two inside one frame's width.
+                  // Same word, opposite arithmetic.
+                  width: activeSplit ? "200%" : "100%",
+                  flexShrink: activeSplit ? 0 : undefined,
+                  transform:
+                    activeSplit && showRightHalf
+                      ? "translateX(-50%)"
+                      : undefined,
+                  // Right-to-left reading puts the first page of a pair on
+                  // the right. Done with `flex-direction`, so the two
+                  // `<img>` elements stay in reading order in the DOM.
+                  flexDirection:
+                    face.kind === "pair" && readingDirection === "rtl"
+                      ? "row-reverse"
+                      : "row",
+                }}
+              >
+                {face.indices.map((i, slot) => {
+                  const item = images[i];
+                  if (!item) return null;
+                  return (
+                    <img
+                      key={item.id}
+                      src={getStreamUrl(item.id)}
+                      alt={item.title}
+                      className="max-h-full select-none object-contain"
+                      style={{
+                        maxWidth: face.kind === "pair" ? "50%" : "100%",
+                      }}
+                      onLoad={(e) => {
+                        setImageLoading(false);
+                        // Only the page the position is named by decides
+                        // whether this face is a split one; the second page
+                        // of a pair reporting its shape here would flip the
+                        // face out from under itself.
+                        if (slot === 0 && i === currentIndex) {
+                          const img = e.currentTarget;
+                          setIsCurrentLandscape(
+                            img.naturalWidth > img.naturalHeight,
+                          );
+                        }
+                      }}
+                      onLoadStart={() => setImageLoading(true)}
+                      draggable={false}
+                    />
+                  );
+                })}
+              </div>
             </div>
           </>
         )}

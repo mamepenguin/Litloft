@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ArchiveImageViewer } from "../ArchiveImageViewer";
 import type { ArchiveEntry } from "@/types";
+import { installPointerEvent } from "@/test/pointerEvent";
+import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+
+installPointerEvent();
 
 vi.mock("@/lib/api", () => ({
   getArchiveEntryUrl: (fileId: string, path: string) =>
@@ -231,5 +235,28 @@ describe("ArchiveImageViewer backdrop", () => {
     expect(outsideTheViewer()).toHaveLength(1);
     expect(document.body.style.overflow).toBe("");
     expect(document.querySelectorAll("[inert]")).toHaveLength(0);
+  });
+
+  it("pages on a swipe across the picture", () => {
+    const navigatePrev = vi.fn();
+    render(<ArchiveImageViewer {...defaultProps} navigatePrev={navigatePrev} />);
+    const frame = screen.getByAltText("img2.jpg").closest(".touch-none")!;
+    fireEvent.pointerDown(frame, { pointerId: 1, pointerType: "touch", clientX: 300, clientY: 400 });
+    fireEvent.pointerUp(frame, { pointerId: 1, pointerType: "touch", clientX: 100, clientY: 400 });
+    expect(navigatePrev).toHaveBeenCalledTimes(1);
+  });
+
+  it("zooms the picture with the = key and back with 0", () => {
+    render(
+      <ShortcutsProvider>
+        <ArchiveImageViewer {...defaultProps} />
+      </ShortcutsProvider>,
+    );
+    const content = screen.getByAltText("img2.jpg").closest("[data-face]")!
+      .parentElement as HTMLElement;
+    fireEvent.keyDown(document, { key: "=" });
+    expect(content.style.transform).toContain("scale(1.25)");
+    fireEvent.keyDown(document, { key: "0" });
+    expect(content.style.transform).toBe("");
   });
 });

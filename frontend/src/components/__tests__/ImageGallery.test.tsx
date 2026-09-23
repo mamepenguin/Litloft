@@ -4,6 +4,9 @@ import type { ReactNode } from "react";
 import { ImageGallery } from "../ImageGallery";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 import type { FileItem } from "@/types";
+import { installPointerEvent } from "@/test/pointerEvent";
+
+installPointerEvent();
 
 function renderWithShortcuts(ui: ReactNode) {
   return render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
@@ -193,6 +196,30 @@ describe("ImageGallery", () => {
 
     fireEvent.keyDown(document, { key: "ArrowLeft" });
     expect(screen.getByText("1 / 3")).toBeInTheDocument();
+  });
+
+  it("pages on a swipe across the picture", async () => {
+    renderWithShortcuts(<ImageGallery {...defaultProps} />);
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    const frame = screen.getByAltText("Photo 1").closest(".touch-none")!;
+    fireEvent.pointerDown(frame, { pointerId: 1, pointerType: "touch", clientX: 100, clientY: 400 });
+    fireEvent.pointerUp(frame, { pointerId: 1, pointerType: "touch", clientX: 300, clientY: 400 });
+    expect(screen.getByText("2 / 3")).toBeInTheDocument();
+  });
+
+  it("zooms the picture with the = key, and pages back to fit", async () => {
+    renderWithShortcuts(<ImageGallery {...defaultProps} />);
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    const content = () =>
+      screen.getAllByRole("img")[0].closest("[data-face]")!.parentElement as HTMLElement;
+    fireEvent.keyDown(document, { key: "=" });
+    expect(content().style.transform).toContain("scale(1.25)");
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(content().style.transform).toBe("");
   });
 
   it("toggles slideshow with space key", async () => {

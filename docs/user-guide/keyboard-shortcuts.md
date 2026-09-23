@@ -144,6 +144,8 @@ remember.
 |---|---|
 | `←` / `→` | Previous / next **face** (reading-direction aware) |
 | `Space` | Start / stop the slideshow |
+| `=` / `-` | Zoom in / out |
+| `0` | Back to the whole picture |
 | `Esc` | Close the viewer |
 
 A press moves to the next **face** — what is on the screen at once — rather
@@ -158,8 +160,11 @@ side by side are turned together and the count moves by two (`7–8 / 190` to
 | Swipe right / left | Next / previous page (50 px threshold) |
 | Tap left edge / right edge | Previous / next page |
 | Tap centre | Toggle the controls overlay |
+| Pinch / Ctrl or ⌘ + scroll | Zoom, up to 4x |
+| Drag / scroll while zoomed | Move around the picture |
 
-There is no pinch-zoom and no panning in either image viewer.
+While zoomed, swipes and edge taps do not turn the page. A mouse drag never
+does.
 
 RTL (right-to-left) mirroring is partial, and deliberately so: the **arrow keys
 and the edge taps** mirror, following the reading direction. The **swipe does
