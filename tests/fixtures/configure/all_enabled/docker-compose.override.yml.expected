@@ -9,6 +9,7 @@ services:
       - ./passwords.json:/app/passwords.json
       - ./event-hooks.json:/app/event-hooks.json:ro
     environment:
+      - LITLOFT_SETUP_TOKEN=${LITLOFT_SETUP_TOKEN:-}
       - INTELLIGENCE_SERVICE_URL=http://intelligence:8100
       - KNOWLEDGE_SERVICE_URL=http://knowledge:8200
       - KNOWLEDGE_WEBHOOK_SECRET=${KNOWLEDGE_WEBHOOK_SECRET:-}

@@ -48,8 +48,10 @@ def build_tree(base: Path, scenario: str) -> Path:
         for bundled in ("media_import", "cloud-sync"):
             (base / "addons" / bundled / "backend").mkdir(parents=True)
             (base / "addons" / bundled / "backend" / "router.py").write_text("")
+    env = "LITLOFT_SETUP_TOKEN=fixed-setup-token\n"
     if scenario == "all_enabled":
-        (base / ".env").write_text("KNOWLEDGE_WEBHOOK_SECRET=k-secret\nCORE_INTERNAL_SECRET=c-secret\n")
+        env += "KNOWLEDGE_WEBHOOK_SECRET=k-secret\nCORE_INTERNAL_SECRET=c-secret\n"
+    (base / ".env").write_text(env)
     return host
 
 
