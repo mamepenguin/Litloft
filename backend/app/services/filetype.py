@@ -7,6 +7,8 @@ _SUBTITLE_EXTENSIONS = frozenset({".srt", ".vtt"})
 
 DEFAULT_CLASSIFICATION = ("other", "application/octet-stream")
 
+LOFT_MIME_TYPE = "application/vnd.litloft.loft+json"
+
 # What Litloft does with a file, and what its bytes are, for every extension
 # this project has decided about. An extension absent from it is
 # ``DEFAULT_CLASSIFICATION``.
@@ -28,7 +30,7 @@ _EXTENSION_TABLE: dict[str, tuple[str, str]] = {
     # the listing branch on that — `is_probeable_media` is what keeps ffprobe
     # away from it. A future provider wrapping audio or an image needs a
     # per-provider lookup here, not a second table.
-    ".loft": ("video", "application/vnd.litloft.loft+json"),
+    ".loft": ("video", LOFT_MIME_TYPE),
     ".avi": ("video", "video/x-msvideo"),
     ".m1v": ("video", "video/mpeg"),
     ".mkv": ("video", "video/x-matroska"),
@@ -61,6 +63,10 @@ _EXTENSION_TABLE: dict[str, tuple[str, str]] = {
     ".ras": ("image", "image/x-cmu-raster"),
     ".rgb": ("image", "image/x-rgb"),
     ".svg": ("image", "image/svg+xml"),
+    # The gzipped SVG browsers render natively. ffmpeg reads it and produces
+    # the same thumbnail as the plain file; every other compressed name is
+    # `other`, because a gzipped MP4 is not something the player can open.
+    ".svgz": ("image", "image/svg+xml"),
     ".tif": ("image", "image/tiff"),
     ".tiff": ("image", "image/tiff"),
     ".xbm": ("image", "image/x-xbitmap"),
@@ -191,7 +197,6 @@ _EXTENSION_TABLE: dict[str, tuple[str, str]] = {
     ".xsl": ("other", "application/xml"),
 }
 
-LOFT_MIME_TYPE = "application/vnd.litloft.loft+json"
 
 
 

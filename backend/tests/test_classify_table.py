@@ -18,21 +18,55 @@ GOLDEN = Path(__file__).parent / "fixtures" / "classify_golden.json"
 def _golden() -> dict[str, tuple[str, str]]:
     """What the classifier answered before it was rewritten.
 
-    Recorded by running the previous implementation — which derived its answer
-    from `mimetypes` — in the shipped image. It is the other side of a parity
-    check, not a copy of the table under test.
+    Regenerate it with ``backend/scripts/record_classify_golden.py`` against
+    the revision being compared with; it is the other side of a parity check,
+    not a copy of the table under test.
     """
     return {e: tuple(v) for e, v in json.loads(GOLDEN.read_text()).items()}
 
 
-@pytest.mark.parametrize("extension", sorted(_golden()))
-def test_every_answer_is_the_one_the_container_gave(extension):
-    assert classify("sample" + extension) == _golden()[extension]
+# The parent asked `mimetypes.guess_type` for the whole filename, which peels
+# one compression suffix and resolves the type inside. Litloft cannot open what
+# is inside: a gzipped MP4 has no player, no duration and no thumbnail, and the
+# parent handed it to all three. `.svgz` is the exception, measured — ffmpeg
+# produces the same thumbnail from it as from the plain SVG.
+COMPRESSED_SUFFIXES = (".gz", ".bz2", ".xz", ".Z", ".br")
+# `mimetypes.suffix_map`: one extension standing for two, e.g. `.tgz` for
+# `.tar.gz`. The parent expanded them, so they belong to the same dimension.
+COMPRESSED_ALIASES = (".tgz", ".taz", ".tz", ".tbz2", ".txz")
+
+COMPRESSED_NOW_OTHER = {
+    name for name in _golden()
+    if name.endswith(COMPRESSED_SUFFIXES + COMPRESSED_ALIASES)
+    and not name.endswith(".svgz")
+}
+
+
+@pytest.mark.parametrize(
+    "name", sorted(set(_golden()) - COMPRESSED_NOW_OTHER)
+)
+def test_every_other_answer_is_the_one_the_container_gave(name):
+    assert classify(name) == _golden()[name]
+
+
+@pytest.mark.parametrize("name", sorted(COMPRESSED_NOW_OTHER))
+def test_a_compressed_name_is_other_whatever_it_wraps(name):
+    """Declared, not inherited: these are the answers this change moves."""
+    assert _golden()[name] != DEFAULT_CLASSIFICATION, (
+        f"{name} was already other at the parent; it does not belong here"
+    )
+    assert classify(name) == DEFAULT_CLASSIFICATION
+
+
+def test_the_one_compressed_form_the_image_path_can_read_is_kept():
+    assert classify("page.svgz") == ("image", "image/svg+xml")
+    assert classify("page.svgz") == _golden()["sample.svgz"]
 
 
 def test_the_golden_covers_every_row_of_the_table():
     """A row nothing compares against is a row nothing holds."""
-    assert set(_EXTENSION_TABLE) - set(_golden()) == set()
+    named = {n[len("sample"):] for n in _golden() if n.startswith("sample")}
+    assert set(_EXTENSION_TABLE) - named == set()
 
 
 class TestTheHostCannotChangeTheAnswer:
@@ -51,9 +85,9 @@ class TestTheHostCannotChangeTheAnswer:
         ],
     )
     def test_no_answer_moves(self, guess):
-        before = {e: classify("sample" + e) for e in _golden()}
+        before = {n: classify(n) for n in _golden()}
         with patch("mimetypes.guess_type", side_effect=guess):
-            after = {e: classify("sample" + e) for e in _golden()}
+            after = {n: classify(n) for n in _golden()}
         assert after == before
 
     def test_an_unnamed_extension_is_other_whatever_the_host_says(self):
@@ -63,8 +97,8 @@ class TestTheHostCannotChangeTheAnswer:
 
 
 def test_the_extension_is_matched_without_regard_to_case():
-    for extension, expected in _golden().items():
-        assert classify("SAMPLE" + extension.upper()) == expected
+    for extension in _EXTENSION_TABLE:
+        assert classify("SAMPLE" + extension.upper()) == _EXTENSION_TABLE[extension]
 
 
 def test_a_subtitle_is_decided_before_the_table():

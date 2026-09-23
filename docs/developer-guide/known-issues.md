@@ -60,6 +60,14 @@ prompt defaults to no.
 
 ## Files
 
+**Some extensions are filed as something they are not.** `.ass` is a subtitle
+format and is filed as audio; `.3gp`, `.3g2`, `.3gpp` and `.3gpp2` are video
+containers and are filed as audio; `.mpa` is MPEG audio and is filed as video.
+Each was inherited from the host mime table and is now written down as a
+decision this project made, which it never did. Reached by putting one on a
+drive: the wrong player, the wrong bucket in the type filter, and for `.ass` a
+subtitle listed as a media file of its own.
+
 **A file moved to another drive keeps the tags of the drive it came from.**
 `move_file` reassigns `File.drive` and leaves `file_tags` pointing at the source
 drive's `Tag` rows, so the source drive's tag list counts a file that is no
@@ -81,9 +89,7 @@ current split is not that decision.
 mime table and Python's built-in one names none of them, so `classify` answers
 `application/octet-stream`: a drive of `.webp` pictures gets no image bucket, no
 image thumbnail and no page-turner, and AVCHD camcorder footage gets no player,
-no thumbnail and no duration. `_EXTRA_MIMES` already covers `.mkv`, `.webm` and
-`.m4a` the same way and is where these belong. Reached by putting any of the
-three on a drive.
+no thumbnail and no duration. Reached by putting any of the three on a drive.
 
 **A file reclassified out of video keeps the frame it had.** The scanner rewrites
 `file_type` and `mime_type` on an existing row but clears neither

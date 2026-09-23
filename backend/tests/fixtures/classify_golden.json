@@ -1,674 +1,818 @@
 {
- ".3g2": [
-  "audio",
-  "audio/3gpp2"
- ],
- ".3gp": [
-  "audio",
-  "audio/3gpp"
- ],
- ".3gpp": [
-  "audio",
-  "audio/3gpp"
- ],
- ".3gpp2": [
-  "audio",
-  "audio/3gpp2"
- ],
- ".a": [
+ ".gitignore": [
   "other",
   "application/octet-stream"
  ],
- ".aac": [
-  "audio",
-  "audio/aac"
- ],
- ".adts": [
-  "audio",
-  "audio/aac"
- ],
- ".ai": [
-  "other",
-  "application/postscript"
- ],
- ".aif": [
-  "audio",
-  "audio/x-aiff"
- ],
- ".aifc": [
-  "audio",
-  "audio/x-aiff"
- ],
- ".aiff": [
-  "audio",
-  "audio/x-aiff"
- ],
- ".ass": [
-  "audio",
-  "audio/aac"
- ],
- ".au": [
-  "audio",
-  "audio/basic"
- ],
- ".avi": [
-  "video",
-  "video/x-msvideo"
- ],
- ".avif": [
-  "image",
-  "image/avif"
- ],
- ".bat": [
-  "document",
-  "text/plain"
- ],
- ".bcpio": [
-  "other",
-  "application/x-bcpio"
- ],
- ".bin": [
-  "other",
-  "application/octet-stream"
- ],
- ".bmp": [
-  "image",
-  "image/bmp"
- ],
- ".c": [
-  "document",
-  "text/plain"
- ],
- ".cdf": [
-  "other",
-  "application/x-netcdf"
- ],
- ".cpio": [
-  "other",
-  "application/x-cpio"
- ],
- ".csh": [
-  "other",
-  "application/x-csh"
- ],
- ".css": [
-  "document",
-  "text/css"
- ],
- ".csv": [
-  "document",
-  "text/csv"
- ],
- ".dll": [
-  "other",
-  "application/octet-stream"
- ],
- ".doc": [
-  "document",
-  "application/msword"
- ],
- ".docx": [
-  "document",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
- ],
- ".dot": [
-  "document",
-  "application/msword"
- ],
- ".dvi": [
-  "other",
-  "application/x-dvi"
- ],
- ".eml": [
-  "other",
-  "message/rfc822"
- ],
- ".eps": [
-  "other",
-  "application/postscript"
- ],
- ".etx": [
-  "document",
-  "text/x-setext"
- ],
- ".exe": [
-  "other",
-  "application/octet-stream"
- ],
- ".flac": [
-  "audio",
-  "audio/flac"
- ],
- ".gif": [
-  "image",
-  "image/gif"
- ],
- ".gtar": [
-  "other",
-  "application/x-gtar"
- ],
- ".h": [
-  "document",
-  "text/plain"
- ],
- ".h5": [
-  "other",
-  "application/x-hdf5"
- ],
- ".hdf": [
-  "other",
-  "application/x-hdf"
- ],
- ".heic": [
-  "image",
-  "image/heic"
- ],
- ".heif": [
-  "image",
-  "image/heif"
- ],
- ".htm": [
-  "document",
-  "text/html"
- ],
- ".html": [
-  "document",
-  "text/html"
- ],
- ".ico": [
-  "image",
-  "image/vnd.microsoft.icon"
- ],
- ".ief": [
-  "image",
-  "image/ief"
- ],
- ".jpe": [
-  "image",
-  "image/jpeg"
- ],
- ".jpeg": [
-  "image",
-  "image/jpeg"
- ],
- ".jpg": [
-  "image",
-  "image/jpeg"
- ],
- ".js": [
-  "document",
-  "text/javascript"
- ],
- ".json": [
-  "other",
-  "application/json"
- ],
- ".ksh": [
-  "document",
-  "text/plain"
- ],
- ".latex": [
-  "other",
-  "application/x-latex"
- ],
- ".loas": [
-  "audio",
-  "audio/aac"
- ],
- ".loft": [
-  "video",
-  "application/vnd.litloft.loft+json"
- ],
- ".m1v": [
-  "video",
-  "video/mpeg"
- ],
- ".m3u": [
-  "other",
-  "application/vnd.apple.mpegurl"
- ],
- ".m3u8": [
-  "other",
-  "application/vnd.apple.mpegurl"
- ],
- ".m4a": [
-  "audio",
-  "audio/mp4"
- ],
- ".man": [
-  "other",
-  "application/x-troff-man"
- ],
- ".markdown": [
-  "document",
-  "text/markdown"
- ],
- ".md": [
-  "document",
-  "text/markdown"
- ],
- ".me": [
-  "other",
-  "application/x-troff-me"
- ],
- ".mht": [
-  "other",
-  "message/rfc822"
- ],
- ".mhtml": [
-  "other",
-  "message/rfc822"
- ],
- ".mid": [
-  "other",
-  "application/octet-stream"
- ],
- ".midi": [
-  "other",
-  "application/octet-stream"
- ],
- ".mif": [
-  "other",
-  "application/x-mif"
- ],
- ".mjs": [
-  "document",
-  "text/javascript"
- ],
- ".mkv": [
-  "video",
-  "video/x-matroska"
- ],
- ".mov": [
-  "video",
-  "video/quicktime"
- ],
- ".movie": [
-  "video",
-  "video/x-sgi-movie"
- ],
- ".mp2": [
-  "audio",
-  "audio/mpeg"
- ],
- ".mp3": [
-  "audio",
-  "audio/mpeg"
- ],
- ".mp4": [
+ "UPPER.MP4": [
   "video",
   "video/mp4"
  ],
- ".mpa": [
-  "video",
-  "video/mpeg"
- ],
- ".mpe": [
-  "video",
-  "video/mpeg"
- ],
- ".mpeg": [
-  "video",
-  "video/mpeg"
- ],
- ".mpg": [
-  "video",
-  "video/mpeg"
- ],
- ".ms": [
-  "other",
-  "application/x-troff-ms"
- ],
- ".n3": [
-  "document",
-  "text/n3"
- ],
- ".nc": [
-  "other",
-  "application/x-netcdf"
- ],
- ".nq": [
-  "other",
-  "application/n-quads"
- ],
- ".nt": [
-  "other",
-  "application/n-triples"
- ],
- ".nws": [
-  "other",
-  "message/rfc822"
- ],
- ".o": [
-  "other",
-  "application/octet-stream"
- ],
- ".obj": [
-  "other",
-  "application/octet-stream"
- ],
- ".oda": [
-  "other",
-  "application/oda"
- ],
- ".ogg": [
-  "audio",
-  "audio/ogg"
- ],
- ".opus": [
-  "audio",
-  "audio/opus"
- ],
- ".p12": [
-  "other",
-  "application/x-pkcs12"
- ],
- ".p7c": [
-  "other",
-  "application/pkcs7-mime"
- ],
- ".pbm": [
-  "image",
-  "image/x-portable-bitmap"
- ],
- ".pct": [
-  "other",
-  "application/octet-stream"
- ],
- ".pdf": [
-  "document",
-  "application/pdf"
- ],
- ".pfx": [
-  "other",
-  "application/x-pkcs12"
- ],
- ".pgm": [
-  "image",
-  "image/x-portable-graymap"
- ],
- ".pic": [
-  "other",
-  "application/octet-stream"
- ],
- ".pict": [
-  "other",
-  "application/octet-stream"
- ],
- ".pl": [
-  "document",
-  "text/plain"
- ],
- ".png": [
-  "image",
-  "image/png"
- ],
- ".pnm": [
-  "image",
-  "image/x-portable-anymap"
- ],
- ".pot": [
-  "document",
-  "application/vnd.ms-powerpoint"
- ],
- ".ppa": [
-  "document",
-  "application/vnd.ms-powerpoint"
- ],
- ".ppm": [
-  "image",
-  "image/x-portable-pixmap"
- ],
- ".pps": [
-  "document",
-  "application/vnd.ms-powerpoint"
- ],
- ".ppt": [
-  "document",
-  "application/vnd.ms-powerpoint"
- ],
- ".pptx": [
-  "document",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation"
- ],
- ".ps": [
-  "other",
-  "application/postscript"
- ],
- ".pwz": [
-  "document",
-  "application/vnd.ms-powerpoint"
- ],
- ".py": [
-  "document",
-  "text/x-python"
- ],
- ".pyc": [
-  "other",
-  "application/x-python-code"
- ],
- ".pyo": [
-  "other",
-  "application/x-python-code"
- ],
- ".qt": [
-  "video",
-  "video/quicktime"
- ],
- ".ra": [
-  "audio",
-  "audio/x-pn-realaudio"
- ],
- ".ram": [
-  "other",
-  "application/x-pn-realaudio"
- ],
- ".ras": [
-  "image",
-  "image/x-cmu-raster"
- ],
- ".rdf": [
-  "other",
-  "application/xml"
- ],
- ".rgb": [
-  "image",
-  "image/x-rgb"
- ],
- ".roff": [
-  "other",
-  "application/x-troff"
- ],
- ".rst": [
-  "document",
-  "text/x-rst"
- ],
- ".rtf": [
-  "other",
-  "application/octet-stream"
- ],
- ".rtx": [
-  "document",
-  "text/richtext"
- ],
- ".sgm": [
-  "document",
-  "text/x-sgml"
- ],
- ".sgml": [
-  "document",
-  "text/x-sgml"
- ],
- ".sh": [
-  "other",
-  "application/x-sh"
- ],
- ".shar": [
-  "other",
-  "application/x-shar"
- ],
- ".snd": [
-  "audio",
-  "audio/basic"
- ],
- ".so": [
-  "other",
-  "application/octet-stream"
- ],
- ".src": [
-  "other",
-  "application/x-wais-source"
- ],
- ".srt": [
-  "subtitle",
-  "application/x-subrip"
- ],
- ".sv4cpio": [
-  "other",
-  "application/x-sv4cpio"
- ],
- ".sv4crc": [
-  "other",
-  "application/x-sv4crc"
- ],
- ".svg": [
-  "image",
-  "image/svg+xml"
- ],
- ".swf": [
-  "other",
-  "application/x-shockwave-flash"
- ],
- ".t": [
-  "other",
-  "application/x-troff"
- ],
- ".tar": [
+ "backup.tar.Z": [
   "other",
   "application/x-tar"
  ],
- ".tcl": [
+ "backup.tar.br": [
   "other",
-  "application/x-tcl"
+  "application/x-tar"
  ],
- ".tex": [
+ "backup.tar.bz2": [
   "other",
-  "application/x-tex"
+  "application/x-tar"
  ],
- ".texi": [
+ "backup.tar.gz": [
   "other",
-  "application/x-texinfo"
+  "application/x-tar"
  ],
- ".texinfo": [
+ "backup.tar.xz": [
   "other",
-  "application/x-texinfo"
+  "application/x-tar"
  ],
- ".tif": [
-  "image",
-  "image/tiff"
+ "clip.mp4.Z": [
+  "video",
+  "video/mp4"
  ],
- ".tiff": [
-  "image",
-  "image/tiff"
+ "clip.mp4.br": [
+  "video",
+  "video/mp4"
  ],
- ".tr": [
+ "clip.mp4.bz2": [
+  "video",
+  "video/mp4"
+ ],
+ "clip.mp4.gz": [
+  "video",
+  "video/mp4"
+ ],
+ "clip.mp4.xz": [
+  "video",
+  "video/mp4"
+ ],
+ "no-extension": [
   "other",
-  "application/x-troff"
+  "application/octet-stream"
  ],
- ".trig": [
-  "other",
-  "application/trig"
- ],
- ".tsv": [
-  "document",
-  "text/tab-separated-values"
- ],
- ".txt": [
+ "notes.txt.Z": [
   "document",
   "text/plain"
  ],
- ".ustar": [
-  "other",
-  "application/x-ustar"
- ],
- ".vcf": [
+ "notes.txt.br": [
   "document",
-  "text/x-vcard"
+  "text/plain"
  ],
- ".vtt": [
-  "subtitle",
-  "text/vtt"
+ "notes.txt.bz2": [
+  "document",
+  "text/plain"
  ],
- ".wasm": [
-  "other",
-  "application/wasm"
+ "notes.txt.gz": [
+  "document",
+  "text/plain"
  ],
- ".wav": [
+ "notes.txt.xz": [
+  "document",
+  "text/plain"
+ ],
+ "page.svg.Z": [
+  "image",
+  "image/svg+xml"
+ ],
+ "page.svg.br": [
+  "image",
+  "image/svg+xml"
+ ],
+ "page.svg.bz2": [
+  "image",
+  "image/svg+xml"
+ ],
+ "page.svg.gz": [
+  "image",
+  "image/svg+xml"
+ ],
+ "page.svg.xz": [
+  "image",
+  "image/svg+xml"
+ ],
+ "sample.3g2": [
   "audio",
-  "audio/x-wav"
+  "audio/3gpp2"
  ],
- ".webm": [
-  "video",
-  "video/webm"
+ "sample.3gp": [
+  "audio",
+  "audio/3gpp"
  ],
- ".webmanifest": [
-  "other",
-  "application/manifest+json"
+ "sample.3gpp": [
+  "audio",
+  "audio/3gpp"
  ],
- ".webp": [
+ "sample.3gpp2": [
+  "audio",
+  "audio/3gpp2"
+ ],
+ "sample.a": [
   "other",
   "application/octet-stream"
  ],
- ".wiz": [
+ "sample.aac": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.adts": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.ai": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.aif": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aifc": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aiff": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.ass": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.au": [
+  "audio",
+  "audio/basic"
+ ],
+ "sample.avi": [
+  "video",
+  "video/x-msvideo"
+ ],
+ "sample.avif": [
+  "image",
+  "image/avif"
+ ],
+ "sample.bat": [
+  "document",
+  "text/plain"
+ ],
+ "sample.bcpio": [
+  "other",
+  "application/x-bcpio"
+ ],
+ "sample.bin": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.bmp": [
+  "image",
+  "image/bmp"
+ ],
+ "sample.c": [
+  "document",
+  "text/plain"
+ ],
+ "sample.cdf": [
+  "other",
+  "application/x-netcdf"
+ ],
+ "sample.cpio": [
+  "other",
+  "application/x-cpio"
+ ],
+ "sample.csh": [
+  "other",
+  "application/x-csh"
+ ],
+ "sample.css": [
+  "document",
+  "text/css"
+ ],
+ "sample.csv": [
+  "document",
+  "text/csv"
+ ],
+ "sample.dll": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.doc": [
   "document",
   "application/msword"
  ],
- ".wsdl": [
+ "sample.docx": [
+  "document",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+ ],
+ "sample.dot": [
+  "document",
+  "application/msword"
+ ],
+ "sample.dvi": [
   "other",
-  "application/xml"
+  "application/x-dvi"
  ],
- ".xbm": [
-  "image",
-  "image/x-xbitmap"
- ],
- ".xlb": [
-  "document",
-  "application/vnd.ms-excel"
- ],
- ".xls": [
-  "document",
-  "application/vnd.ms-excel"
- ],
- ".xlsx": [
-  "document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
- ],
- ".xml": [
-  "document",
-  "text/xml"
- ],
- ".xpdl": [
+ "sample.eml": [
   "other",
-  "application/xml"
+  "message/rfc822"
  ],
- ".xpm": [
-  "image",
-  "image/x-xpixmap"
- ],
- ".xsl": [
+ "sample.eps": [
   "other",
-  "application/xml"
+  "application/postscript"
  ],
- ".xul": [
+ "sample.etx": [
+  "document",
+  "text/x-setext"
+ ],
+ "sample.exe": [
   "other",
   "application/octet-stream"
  ],
- ".xwd": [
+ "sample.flac": [
+  "audio",
+  "audio/flac"
+ ],
+ "sample.gif": [
+  "image",
+  "image/gif"
+ ],
+ "sample.gtar": [
+  "other",
+  "application/x-gtar"
+ ],
+ "sample.h": [
+  "document",
+  "text/plain"
+ ],
+ "sample.h5": [
+  "other",
+  "application/x-hdf5"
+ ],
+ "sample.hdf": [
+  "other",
+  "application/x-hdf"
+ ],
+ "sample.heic": [
+  "image",
+  "image/heic"
+ ],
+ "sample.heif": [
+  "image",
+  "image/heif"
+ ],
+ "sample.htm": [
+  "document",
+  "text/html"
+ ],
+ "sample.html": [
+  "document",
+  "text/html"
+ ],
+ "sample.ico": [
+  "image",
+  "image/vnd.microsoft.icon"
+ ],
+ "sample.ief": [
+  "image",
+  "image/ief"
+ ],
+ "sample.jpe": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpeg": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpg": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.js": [
+  "document",
+  "text/javascript"
+ ],
+ "sample.json": [
+  "other",
+  "application/json"
+ ],
+ "sample.ksh": [
+  "document",
+  "text/plain"
+ ],
+ "sample.latex": [
+  "other",
+  "application/x-latex"
+ ],
+ "sample.loas": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.loft": [
+  "video",
+  "application/vnd.litloft.loft+json"
+ ],
+ "sample.m1v": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.m3u": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
+ "sample.m3u8": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
+ "sample.m4a": [
+  "audio",
+  "audio/mp4"
+ ],
+ "sample.man": [
+  "other",
+  "application/x-troff-man"
+ ],
+ "sample.markdown": [
+  "document",
+  "text/markdown"
+ ],
+ "sample.md": [
+  "document",
+  "text/markdown"
+ ],
+ "sample.me": [
+  "other",
+  "application/x-troff-me"
+ ],
+ "sample.mht": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.mhtml": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.mid": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.midi": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.mif": [
+  "other",
+  "application/x-mif"
+ ],
+ "sample.mjs": [
+  "document",
+  "text/javascript"
+ ],
+ "sample.mkv": [
+  "video",
+  "video/x-matroska"
+ ],
+ "sample.mov": [
+  "video",
+  "video/quicktime"
+ ],
+ "sample.movie": [
+  "video",
+  "video/x-sgi-movie"
+ ],
+ "sample.mp2": [
+  "audio",
+  "audio/mpeg"
+ ],
+ "sample.mp3": [
+  "audio",
+  "audio/mpeg"
+ ],
+ "sample.mp4": [
+  "video",
+  "video/mp4"
+ ],
+ "sample.mpa": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpe": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpeg": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpg": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.ms": [
+  "other",
+  "application/x-troff-ms"
+ ],
+ "sample.n3": [
+  "document",
+  "text/n3"
+ ],
+ "sample.nc": [
+  "other",
+  "application/x-netcdf"
+ ],
+ "sample.nq": [
+  "other",
+  "application/n-quads"
+ ],
+ "sample.nt": [
+  "other",
+  "application/n-triples"
+ ],
+ "sample.nws": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.o": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.obj": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.oda": [
+  "other",
+  "application/oda"
+ ],
+ "sample.ogg": [
+  "audio",
+  "audio/ogg"
+ ],
+ "sample.opus": [
+  "audio",
+  "audio/opus"
+ ],
+ "sample.p12": [
+  "other",
+  "application/x-pkcs12"
+ ],
+ "sample.p7c": [
+  "other",
+  "application/pkcs7-mime"
+ ],
+ "sample.pbm": [
+  "image",
+  "image/x-portable-bitmap"
+ ],
+ "sample.pct": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pdf": [
+  "document",
+  "application/pdf"
+ ],
+ "sample.pfx": [
+  "other",
+  "application/x-pkcs12"
+ ],
+ "sample.pgm": [
+  "image",
+  "image/x-portable-graymap"
+ ],
+ "sample.pic": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pict": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pl": [
+  "document",
+  "text/plain"
+ ],
+ "sample.png": [
+  "image",
+  "image/png"
+ ],
+ "sample.pnm": [
+  "image",
+  "image/x-portable-anymap"
+ ],
+ "sample.pot": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppa": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppm": [
+  "image",
+  "image/x-portable-pixmap"
+ ],
+ "sample.pps": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppt": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pptx": [
+  "document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+ ],
+ "sample.ps": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.pwz": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.py": [
+  "document",
+  "text/x-python"
+ ],
+ "sample.pyc": [
+  "other",
+  "application/x-python-code"
+ ],
+ "sample.pyo": [
+  "other",
+  "application/x-python-code"
+ ],
+ "sample.qt": [
+  "video",
+  "video/quicktime"
+ ],
+ "sample.ra": [
+  "audio",
+  "audio/x-pn-realaudio"
+ ],
+ "sample.ram": [
+  "other",
+  "application/x-pn-realaudio"
+ ],
+ "sample.ras": [
+  "image",
+  "image/x-cmu-raster"
+ ],
+ "sample.rdf": [
+  "other",
+  "application/xml"
+ ],
+ "sample.rgb": [
+  "image",
+  "image/x-rgb"
+ ],
+ "sample.roff": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.rst": [
+  "document",
+  "text/x-rst"
+ ],
+ "sample.rtf": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.rtx": [
+  "document",
+  "text/richtext"
+ ],
+ "sample.sgm": [
+  "document",
+  "text/x-sgml"
+ ],
+ "sample.sgml": [
+  "document",
+  "text/x-sgml"
+ ],
+ "sample.sh": [
+  "other",
+  "application/x-sh"
+ ],
+ "sample.shar": [
+  "other",
+  "application/x-shar"
+ ],
+ "sample.snd": [
+  "audio",
+  "audio/basic"
+ ],
+ "sample.so": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.src": [
+  "other",
+  "application/x-wais-source"
+ ],
+ "sample.srt": [
+  "subtitle",
+  "application/x-subrip"
+ ],
+ "sample.sv4cpio": [
+  "other",
+  "application/x-sv4cpio"
+ ],
+ "sample.sv4crc": [
+  "other",
+  "application/x-sv4crc"
+ ],
+ "sample.svg": [
+  "image",
+  "image/svg+xml"
+ ],
+ "sample.svgz": [
+  "image",
+  "image/svg+xml"
+ ],
+ "sample.swf": [
+  "other",
+  "application/x-shockwave-flash"
+ ],
+ "sample.t": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.tar": [
+  "other",
+  "application/x-tar"
+ ],
+ "sample.taz": [
+  "other",
+  "application/x-tar"
+ ],
+ "sample.tbz2": [
+  "other",
+  "application/x-tar"
+ ],
+ "sample.tcl": [
+  "other",
+  "application/x-tcl"
+ ],
+ "sample.tex": [
+  "other",
+  "application/x-tex"
+ ],
+ "sample.texi": [
+  "other",
+  "application/x-texinfo"
+ ],
+ "sample.texinfo": [
+  "other",
+  "application/x-texinfo"
+ ],
+ "sample.tgz": [
+  "other",
+  "application/x-tar"
+ ],
+ "sample.tif": [
+  "image",
+  "image/tiff"
+ ],
+ "sample.tiff": [
+  "image",
+  "image/tiff"
+ ],
+ "sample.tr": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.trig": [
+  "other",
+  "application/trig"
+ ],
+ "sample.tsv": [
+  "document",
+  "text/tab-separated-values"
+ ],
+ "sample.txt": [
+  "document",
+  "text/plain"
+ ],
+ "sample.txz": [
+  "other",
+  "application/x-tar"
+ ],
+ "sample.tz": [
+  "other",
+  "application/x-tar"
+ ],
+ "sample.ustar": [
+  "other",
+  "application/x-ustar"
+ ],
+ "sample.vcf": [
+  "document",
+  "text/x-vcard"
+ ],
+ "sample.vtt": [
+  "subtitle",
+  "text/vtt"
+ ],
+ "sample.wasm": [
+  "other",
+  "application/wasm"
+ ],
+ "sample.wav": [
+  "audio",
+  "audio/x-wav"
+ ],
+ "sample.webm": [
+  "video",
+  "video/webm"
+ ],
+ "sample.webmanifest": [
+  "other",
+  "application/manifest+json"
+ ],
+ "sample.webp": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.wiz": [
+  "document",
+  "application/msword"
+ ],
+ "sample.wsdl": [
+  "other",
+  "application/xml"
+ ],
+ "sample.xbm": [
+  "image",
+  "image/x-xbitmap"
+ ],
+ "sample.xlb": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
+ "sample.xls": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
+ "sample.xlsx": [
+  "document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+ ],
+ "sample.xml": [
+  "document",
+  "text/xml"
+ ],
+ "sample.xpdl": [
+  "other",
+  "application/xml"
+ ],
+ "sample.xpm": [
+  "image",
+  "image/x-xpixmap"
+ ],
+ "sample.xsl": [
+  "other",
+  "application/xml"
+ ],
+ "sample.xul": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.xwd": [
   "image",
   "image/x-xwindowdump"
  ],
- ".zip": [
+ "sample.zip": [
   "archive",
   "application/zip"
+ ],
+ "sheet.csv.Z": [
+  "document",
+  "text/csv"
+ ],
+ "sheet.csv.br": [
+  "document",
+  "text/csv"
+ ],
+ "sheet.csv.bz2": [
+  "document",
+  "text/csv"
+ ],
+ "sheet.csv.gz": [
+  "document",
+  "text/csv"
+ ],
+ "sheet.csv.xz": [
+  "document",
+  "text/csv"
+ ],
+ "trailing. ": [
+  "other",
+  "application/octet-stream"
+ ],
+ "\u65e2\u5b9a.md": [
+  "document",
+  "text/markdown"
  ]
 }
