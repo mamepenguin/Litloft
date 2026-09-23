@@ -28,7 +28,6 @@ from app.models import (
     FileRelation,
     Tag,
     active_file_filter,
-    file_tags,
 )
 from app.schemas import (
     ArchiveContentsResponse,
@@ -89,6 +88,7 @@ from app.services.content_write import (
 )
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
 from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
+from app.services.tagops import cleanup_orphan_tags
 
 logger = logging.getLogger(__name__)
 
@@ -204,31 +204,6 @@ def merge_file_tags(db: Session, file: File, tag_names: list[str]) -> None:
             db.flush()
         file.tags.append(tag)
         existing_lower.add(tag_name.lower())
-
-
-def cleanup_orphan_tags(db: Session) -> int:
-    """Remove Tag rows no longer referenced by any file. Returns count deleted.
-
-    Transactional contract: caller commits. Symmetric with
-    ``replace_file_tags`` so the two helpers always compose inside a
-    single transaction.
-
-    ``db.flush()`` first so pending ``file.tags = [...]`` reassignments
-    from ``replace_file_tags`` are written to the ``file_tags`` table
-    before the OUTER JOIN query runs. Without the flush, SQLAlchemy
-    keeps the association change in the session and the orphan query
-    reads a stale snapshot.
-    """
-    db.flush()
-    orphans = (
-        db.query(Tag)
-        .outerjoin(file_tags)
-        .filter(file_tags.c.file_id.is_(None))
-        .all()
-    )
-    for orphan in orphans:
-        db.delete(orphan)
-    return len(orphans)
 
 
 
@@ -778,7 +753,7 @@ def update_file_tags(
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
     replace_file_tags(db, file, update.tags)
-    cleanup_orphan_tags(db)
+    cleanup_orphan_tags(db, file.drive)
     db.commit()
     db.refresh(file)
     event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
@@ -1600,7 +1575,7 @@ async def put_file_content(
                 parsed = parse_frontmatter(body.decode("utf-8"))
                 tags = extract_valid_tags(parsed.metadata)
                 replace_file_tags(db, file, tags)
-                cleanup_orphan_tags(db)
+                cleanup_orphan_tags(db, file.drive)
                 db.commit()
             except UnicodeDecodeError:
                 db.rollback()

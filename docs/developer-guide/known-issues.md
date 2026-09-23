@@ -45,6 +45,14 @@ error from the policy save, or not at all.
 
 ## Files
 
+**A file moved to another drive keeps the tags of the drive it came from.**
+`move_file` reassigns `File.drive` and leaves `file_tags` pointing at the source
+drive's `Tag` rows, so the source drive's tag list counts a file that is no
+longer in it, and the destination drive's list does not show the tag at all.
+Purging the file afterwards sweeps the destination drive, so the source row is
+left attached to nothing. This crosses the drive boundary rather than only
+reading wrong. Reached by moving a tagged file between drives.
+
 **A `.ts` file is classified as video and handed to the player.** Python's
 built-in type table reads that extension as `video/mp2t`, which an MPEG
 transport stream legitimately is, so `classify` files every TypeScript source
@@ -327,15 +335,6 @@ new drive's catalogue arrives, so an addon turned off on the new drive (Home's
 Pickup, for example) can draw for a frame or more there, and may call its API
 for that drive. The proxy's `pre_check` should answer those calls with 404; that
 has not been measured. The sidebar's addon rows do not do this.
-
-**A hard-deleted file's tags stay in the drive's tag list, and in every folder's.**
-Nothing calls `cleanup_orphan_tags` from a purge path, so a `Tag` row whose last
-file was deleted for good survives with no files attached. `list_drive_tags`
-then returns it whatever folder is asked for, because its folder filter starts
-with `file_tags.c.file_id.is_(None)` to keep unattached tags visible. The tag
-appears in the sidebar list and in the typed suggestions, and selecting it finds
-nothing. The chips in the tag field exclude it by dropping any tag with a count
-of zero; the other two surfaces do not.
 
 **Renaming a video detaches its sidecar subtitles.** `detect_subtitles` matches
 subtitle files against the video's current basename, and `rename_file` renames

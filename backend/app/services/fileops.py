@@ -17,6 +17,7 @@ from app.nanoid import generate_nanoid
 from app.services.atomic_write import generating_file
 from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
+from app.services.tagops import cleanup_orphan_tags
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +191,7 @@ def resolve_db_path_conflict(db: Session, new_rel: str, drive: str) -> str | Non
     if conflict.deleted_at is not None:
         db.delete(conflict)
         db.flush()
+        cleanup_orphan_tags(db, drive)
         return None
     conflict.file_path = f"__missing_{conflict.id}_{new_rel}"
     db.flush()
@@ -695,6 +697,7 @@ def physical_delete(db: Session, file: File) -> None:
     folder_path = file.folder_path
     db.delete(file)
     db.flush()
+    cleanup_orphan_tags(db, drive)
     _ensure_empty_folder_tracked(db, drive, folder_path)
 
 

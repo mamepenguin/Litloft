@@ -23,7 +23,8 @@ from app.models import (
     WatchHistory,
     active_file_filter,
 )
-from app.routers.files import cleanup_orphan_tags, replace_file_tags
+from app.routers.files import replace_file_tags
+from app.services.tagops import cleanup_orphan_tags
 from app.schemas import (
     ChapterPromotionRequest,
     TagUpdate,
@@ -162,7 +163,7 @@ def replace_file_tags_internal(
         raise HTTPException(status_code=404, detail="File not found")
 
     replace_file_tags(db, file, update.tags)
-    cleanup_orphan_tags(db)
+    cleanup_orphan_tags(db, file.drive)
     db.commit()
     return Response(status_code=204)
 
