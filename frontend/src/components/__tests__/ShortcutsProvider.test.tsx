@@ -267,6 +267,9 @@ describe("ShortcutsProvider editingOnly partition", () => {
       useShortcuts("global", "Global", [
         { key: "ctrl+k", label: "Open search", handler: () => {} },
       ]);
+      useShortcuts("quick-note", "Quick note", [
+        { key: "n", label: "New quick note", handler: () => {} },
+      ]);
       useShortcuts(
         "viewer",
         "Viewer",
@@ -286,6 +289,28 @@ describe("ShortcutsProvider editingOnly partition", () => {
     const sheet = document.querySelector('[role="dialog"]')!;
     expect(sheet.textContent).toContain("Next page");
     expect(sheet.textContent).not.toContain("Open search");
+    expect(sheet.textContent).not.toContain("New quick note");
+  });
+
+  it("lists the page's own keys when nothing takes the keyboard", () => {
+    function Page() {
+      useShortcuts("global", "Global", [
+        { key: "ctrl+k", label: "Open search", handler: () => {} },
+      ]);
+      useShortcuts("quick-note", "Quick note", [
+        { key: "n", label: "New quick note", handler: () => {} },
+      ]);
+      return null;
+    }
+    render(
+      <ShortcutsProvider>
+        <Page />
+      </ShortcutsProvider>,
+    );
+    fireEvent.keyDown(document, { key: "?", shiftKey: true });
+    const sheet = document.querySelector('[role="dialog"]')!;
+    expect(sheet.textContent).toContain("Open search");
+    expect(sheet.textContent).toContain("New quick note");
   });
 });
 

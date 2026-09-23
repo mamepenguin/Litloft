@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { DismissScrim } from "@/components/DismissScrim";
 import { useShortcuts } from "@/hooks/useShortcuts";
-import { NESTED_OVERLAY_PRIORITY } from "@/lib/shortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 export type OverFramePlacement = "sheet" | "popover";
 
@@ -46,7 +46,7 @@ export function OverFrameSettingsPanel({
     closeLabel,
     [{ key: "escape", label: closeLabel, handler: onClose }],
     true,
-    NESTED_OVERLAY_PRIORITY,
+    OVERLAY_PRIORITY,
   );
   // The sheet always rises from the bottom edge, wherever its trigger
   // is: a thumb reaches the bottom of a phone and not the top of it.
