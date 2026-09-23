@@ -41,8 +41,18 @@ COMPRESSED_NOW_OTHER = {
 }
 
 
+def _moved_since() -> set[str]:
+    """Names the boundary change moved, each declared in
+    `test_classify_boundary.py`. Everything else still answers as the parent
+    did, which is what phase 1 bought."""
+    from tests.test_classify_boundary import ADDED, MOVED_OUT_OF_DOCUMENT
+
+    moved = set(MOVED_OUT_OF_DOCUMENT) | set(ADDED)
+    return {"sample" + e for e in moved}
+
+
 @pytest.mark.parametrize(
-    "name", sorted(set(_golden()) - COMPRESSED_NOW_OTHER)
+    "name", sorted(set(_golden()) - COMPRESSED_NOW_OTHER - _moved_since())
 )
 def test_every_other_answer_is_the_one_the_container_gave(name):
     assert classify(name) == _golden()[name]
@@ -71,10 +81,13 @@ def test_what_the_rule_moved(name):
     assert classify(name) == DEFAULT_CLASSIFICATION
 
 
-def test_the_golden_covers_every_row_of_the_table():
+def test_every_row_is_held_by_the_golden_or_by_a_declaration():
     """A row nothing compares against is a row nothing holds."""
+    from tests.test_classify_boundary import ADDED, MOVED_OUT_OF_DOCUMENT
+
     named = {n[len("sample"):] for n in _golden() if n.startswith("sample")}
-    assert set(_EXTENSION_TABLE) - named == set()
+    declared = named | set(ADDED) | set(MOVED_OUT_OF_DOCUMENT)
+    assert set(_EXTENSION_TABLE) - declared == set()
 
 
 class TestTheHostCannotChangeTheAnswer:
@@ -108,6 +121,8 @@ def test_the_extension_is_matched_without_regard_to_case():
     for name, expected in _golden().items():
         if name in COMPRESSED_NOW_OTHER:
             expected = DEFAULT_CLASSIFICATION
+        elif name in _moved_since():
+            expected = classify(name)
         assert classify(name.upper()) == expected
 
 
@@ -116,3 +131,24 @@ def test_a_subtitle_is_decided_before_the_table():
     assert classify("movie.srt") == ("subtitle", "application/x-subrip")
     assert ".srt" not in _EXTENSION_TABLE
     assert ".vtt" not in _EXTENSION_TABLE
+
+
+
+def test_no_extension_is_written_twice():
+    """A dict literal keeps the last of a repeated key and says nothing. Two
+    of them went in while this table was being moved, one of them a family
+    whose two meanings disagree."""
+    import ast
+    import collections
+    from app.services import filetype
+
+    tree = ast.parse(Path(filetype.__file__).read_text())
+    for node in ast.walk(tree):
+        target = getattr(node, "target", None)
+        if getattr(target, "id", "") == "_EXTENSION_TABLE":
+            keys = [k.value for k in node.value.keys]
+            repeated = [k for k, n in collections.Counter(keys).items() if n > 1]
+            assert repeated == []
+            assert len(keys) == len(filetype._EXTENSION_TABLE)
+            return
+    raise AssertionError("_EXTENSION_TABLE is not a literal any more")

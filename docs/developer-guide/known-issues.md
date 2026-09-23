@@ -93,11 +93,11 @@ the 1003 extensions of a full mime table, 193 change bucket depending on whether
 it is present. What a source file should count as has never been decided; the
 current split is not that decision.
 
-**`.webp`, `.mts` and `.m2ts` are filed under Other.** The container carries no
-mime table and Python's built-in one names none of them, so `classify` answers
-`application/octet-stream`: a drive of `.webp` pictures gets no image bucket, no
-image thumbnail and no page-turner, and AVCHD camcorder footage gets no player,
-no thumbnail and no duration. Reached by putting any of the three on a drive.
+**AVCHD footage named `.mts` has no player.** That extension names both an
+AVCHD stream and a TypeScript ESM module, and it is settled as the module so
+its family answers one way. `.m2ts`, which is only ever AVCHD, plays. Reached by
+copying `.mts` files off a camcorder; renaming them to `.m2ts` is the way round
+it.
 
 **A file reclassified out of video keeps the frame it had.** The scanner rewrites
 `file_type` and `mime_type` on an existing row but clears neither
