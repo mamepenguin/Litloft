@@ -594,6 +594,26 @@ describe("PdfPreview zoom modes", () => {
     screen.getByRole("menuitemradio", { name: new RegExp(name, "i") });
   const lastWidth = () => pageWidths[pageWidths.length - 1];
 
+  it("opens the mode menu outside the player box on a phone", async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query === "(max-width: 639.98px)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+    try {
+      const { container } = renderViewer();
+      await screen.findByText("Selectable page 1");
+      fireEvent.click(menu());
+      const panel = screen.getByRole("menu");
+      expect(panel.parentElement).toBe(document.body);
+      expect(container.contains(panel)).toBe(false);
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
   it("offers exactly three modes, with fit width on", async () => {
     renderViewer();
     await screen.findByText("Selectable page 1");

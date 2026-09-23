@@ -81,21 +81,35 @@ test("an opted-in menu is portalled at 639px", async ({ page }) => {
 test("crossing 640px with a menu open leaves one menu, in the right place", async ({ page }) => {
   await arrange(page, "menu-portal-choice");
   expect(await openedMenuInBody(page, "Portalled")).toBe(true);
+  const inBody = () =>
+    page.getByRole("menu").evaluate((el) => el.parentElement === document.body);
   await page.setViewportSize({ width: 1024, height: 800 });
+  await expect.poll(inBody).toBe(false);
   await expect(page.getByRole("menu")).toHaveCount(1);
-  expect(await page.getByRole("menu").evaluate((el) => el.parentElement === document.body)).toBe(false);
   await page.setViewportSize({ width: 393, height: 727 });
+  await expect.poll(inBody).toBe(true);
   await expect(page.getByRole("menu")).toHaveCount(1);
-  expect(await page.getByRole("menu").evaluate((el) => el.parentElement === document.body)).toBe(true);
-  expect(await page.locator("[data-dismiss-scrim]").count()).toBe(1);
+  await expect(page.locator("[data-dismiss-scrim]")).toHaveCount(1);
 });
+
+// Polled: the sheet scales in from its corner, so its box grows to the
+// resting inset rather than starting there.
+async function bottomInset(page: Page): Promise<number> {
+  const box = (await page.getByRole("menu").boundingBox())!;
+  return Math.round(page.viewportSize()!.height - (box.y + box.height));
+}
 
 test("with no resting strip the sheet keeps its 16px from the bottom", async ({ page }) => {
   await arrange(page, "menu-portal-choice");
   await openedMenuInBody(page, "Portalled");
-  await page.waitForTimeout(250);
-  const box = (await page.getByRole("menu").boundingBox())!;
-  expect(Math.round(page.viewportSize()!.height - (box.y + box.height))).toBe(16);
+  await expect.poll(() => bottomInset(page)).toBe(16);
+});
+
+test("with no resting strip the sort sheet keeps its 16px from the bottom", async ({ page }) => {
+  await arrange(page, "menu-portal-choice");
+  await page.getByRole("button", { name: "Sort", exact: true }).click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect.poll(() => bottomInset(page)).toBe(16);
 });
 
 const stripVar = (page: Page) =>

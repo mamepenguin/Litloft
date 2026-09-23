@@ -20,6 +20,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { ArchiveToolbar } from "@/components/archive/ArchiveToolbar";
 import { ToolbarMenu } from "@/components/ToolbarMenu";
+import { SortButton } from "@/components/SortButton";
 import { ArchiveImageViewer } from "@/components/archive/ArchiveImageViewer";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
@@ -781,6 +782,9 @@ function MenuPortalChoice(): ReactElement {
         <ToolbarMenu label="Portalled" value="Portalled" icon={FolderTree} portalOnPhone>
           {() => <div className="px-3 py-2">portalled row</div>}
         </ToolbarMenu>
+        <ShortcutsProvider>
+          <SortButton sort="title" order="asc" onChange={() => {}} />
+        </ShortcutsProvider>
       </div>
     </NextIntlClientProvider>
   );
