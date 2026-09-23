@@ -24,6 +24,22 @@ Remove the row when it is fixed.
 
 ## Setup
 
+**An install can be returned to "everyone is admin" with no way back.**
+Creating a password that carries `__admin__` needs one already, but deleting
+the last such entry does not, and neither does clearing the drives' access
+groups. A viewer who is admin by holding every declared group can do both, and
+afterwards nobody — including the owner — can create another, because creating
+one needs the entry that was just deleted. Recovery is editing `passwords.json`
+on the host. Reached from `/admin/settings` on an install that has both an
+admin password and group-protected drives.
+
+**A drive renamed in the wizard is empty until the backend restarts.** The
+scanner enumerates drives once, from the startup lifespan, and `PUT /drives`
+rewrites `drives.json` without touching the database, so every row still names
+the drive as the backend seeded it. Reached on the first run that renames a
+drive, which is what the drive step is for. The *Requires restart* banner says
+so; the restart, or the folder toolbar's Scan, fixes it.
+
 **Choosing Public while a drive still carries an access group locks everyone
 out.** The wizard saves the drive rows unchanged in both modes and Public writes
 no password, so the drive is 404, `GET /api/admin/config/drives` is 403 and
@@ -41,15 +57,6 @@ files. Answering yes to the `drives.json` and `passwords.json` prompts resets
 them to `[]`, losing the names, passwords and addon policy set in the browser,
 and yes to the `search-config.yml` prompt restores the `.example` contents. Every
 prompt defaults to no.
-
-**Choosing Protected in `/setup` saves no password.** The wizard adds `__admin__`
-to the password's groups and the settings API rejects `__admin__` as an unknown
-group; the wizard ignores the rejection and finishes, so every drive stays public
-and `/admin` stays open. Reached on every first run that picks Protected.
-
-**`/setup` finishes when saving drives or passwords fails.** Only the addon
-policy save is checked, so a rejected drives save shows up as an unknown drive
-error from the policy save, or not at all.
 
 ## Files
 

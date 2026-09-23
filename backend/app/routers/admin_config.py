@@ -101,6 +101,22 @@ def _validate_drives_payload(payload: Any) -> list[dict[str, Any]]:
     return payload
 
 
+def _known_groups(drives_for_groups: list[dict[str, Any]]) -> set[str]:
+    """The group names a password entry may name.
+
+    Every drive's ``access_group``, plus the admin sentinel, which names no
+    drive: it is what makes a password grant ``/admin``. Who may write one is
+    a separate question, answered by ``_require_admin_to_grant_admin``.
+    """
+    groups = {
+        d.get("access_group")
+        for d in drives_for_groups
+        if d.get("access_group")
+    }
+    groups.add(auth.ADMIN_SENTINEL_GROUP)
+    return groups
+
+
 def _validate_passwords_payload(
     payload: Any,
     drives_for_groups: list[dict[str, Any]],
@@ -109,11 +125,7 @@ def _validate_passwords_payload(
     if not isinstance(payload, list):
         raise _validation_error("json_syntax", "passwords must be a JSON array")
 
-    known_groups = {
-        d.get("access_group")
-        for d in drives_for_groups
-        if d.get("access_group")
-    }
+    known_groups = _known_groups(drives_for_groups)
 
     seen_passwords: set[str] = set()
     for entry in payload:
@@ -368,9 +380,54 @@ def get_passwords() -> list[dict[str, Any]]:
     ]
 
 
+def _grants_admin(entries: Any) -> bool:
+    """Whether a payload would leave an entry carrying the admin sentinel."""
+    if isinstance(entries, dict):
+        entries = [entries]
+    if not isinstance(entries, list):
+        return False
+    return any(
+        isinstance(e, dict)
+        and isinstance(e.get("groups"), list)
+        and auth.ADMIN_SENTINEL_GROUP in e["groups"]
+        for e in entries
+    )
+
+
+def _require_admin_to_grant_admin(request: Request, payload: Any) -> None:
+    """Writing a password that grants ``/admin`` needs the sentinel already.
+
+    Not "needs admin": ``require_admin`` passes for everyone on an install
+    where no drive is protected and no admin password exists, and it also
+    passes for a viewer holding every declared group. Only holding the sentinel
+    is tested, which is the narrower rule — a viewer admin by either of the
+    other two routes is refused.
+
+    The wizard is exempt: while the sentinel file is absent the setup token has
+    already answered for the caller.
+    """
+    if not _grants_admin(payload):
+        return
+    if not config.setup_completed_sentinel().exists():
+        return
+    if auth.ADMIN_SENTINEL_GROUP in auth.get_unlocked_groups(request):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "code": "admin_grant_forbidden",
+            "message": (
+                "Only a viewer holding the admin password may write another "
+                "one. Unlock with it first, or re-run /setup."
+            ),
+        },
+    )
+
+
 @router.put("/passwords", dependencies=[Depends(_admin_or_first_run)])
-def put_passwords(payload: Any = Body(...)) -> dict[str, Any]:
+def put_passwords(request: Request, payload: Any = Body(...)) -> dict[str, Any]:
     """Atomically rewrite passwords.json after validation."""
+    _require_admin_to_grant_admin(request, payload)
     drives = _read_drives_from_disk()
     validated = _validate_passwords_payload(payload, drives)
     try:
@@ -413,11 +470,7 @@ def _validate_password_entry(
     if not isinstance(groups, list) or not groups:
         raise _validation_error("missing_field", "groups is required", field="groups")
 
-    known_groups = {
-        d.get("access_group")
-        for d in drives_for_groups
-        if d.get("access_group")
-    }
+    known_groups = _known_groups(drives_for_groups)
 
     for g in groups:
         if not isinstance(g, str) or not g:
@@ -443,13 +496,16 @@ def _validate_password_entry(
 
 
 @router.post("/passwords/append", dependencies=[Depends(_admin_or_first_run)])
-def post_passwords_append(payload: Any = Body(...)) -> dict[str, Any]:
+def post_passwords_append(
+    request: Request, payload: Any = Body(...)
+) -> dict[str, Any]:
     """Append a single new password entry without touching existing entries.
 
     Used by the admin settings GUI for incremental edits — the GET masks
     real password values, so a full PUT round-trip cannot preserve the
     untouched entries. POST /append takes only the new entry.
     """
+    _require_admin_to_grant_admin(request, payload)
     drives = _read_drives_from_disk()
     existing = _read_passwords_from_disk()
     validated_entry = _validate_password_entry(payload, drives, existing)

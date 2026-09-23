@@ -24,14 +24,19 @@ import { CompleteStep } from "./steps/CompleteStep";
 import { SetupShell } from "./components/SetupShell";
 import { Stepper } from "./components/Stepper";
 import type { Locale } from "@/i18n/config";
+import { unlock } from "@/lib/api";
 import {
   getAddonsStatus,
   isAddonOn,
   putAddonPolicy,
-  SETUP_TOKEN_HEADER,
+  putDrives,
+  putPasswords,
   type AddonPolicy,
   type AddonStatusEntry,
 } from "@/lib/adminConfig";
+
+// Mirrors `auth.ADMIN_SENTINEL_GROUP`: a password carrying it grants /admin.
+const ADMIN_SENTINEL_GROUP = "__admin__";
 
 type StepId =
   | "unlock"
@@ -254,44 +259,35 @@ function SetupWizardInner({
     // Re-PUT drives to make sure the on-disk state matches the wizard
     // state even if the user changed something between DriveStep
     // validation and here.
-    await fetch("/api/admin/config/drives", {
-      method: "PUT",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        [SETUP_TOKEN_HEADER]: setupToken,
-      },
-      body: JSON.stringify(drivesForSubmit),
-    });
+    //
+    // Each config write throws on a rejection, so the wizard stops rather
+    // than reporting a setup it did not perform.
+    await putDrives(drivesForSubmit, setupToken);
 
     if (accessMode === "protected" && password.password) {
       // Append the __admin__ sentinel so this password grants admin access
       // even after JWT expiry (user re-unlocks with this password → admin restored).
-      const groupsWithAdmin = passwordValue.groups.includes("__admin__")
+      const groupsWithAdmin = passwordValue.groups.includes(ADMIN_SENTINEL_GROUP)
         ? passwordValue.groups
-        : [...passwordValue.groups, "__admin__"];
-      await fetch("/api/admin/config/passwords", {
-        method: "PUT",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          [SETUP_TOKEN_HEADER]: setupToken,
-        },
-        body: JSON.stringify([
-          { password: password.password, groups: groupsWithAdmin },
-        ]),
-      });
+        : [...passwordValue.groups, ADMIN_SENTINEL_GROUP];
+      await putPasswords(
+        [{ password: password.password, groups: groupsWithAdmin }],
+        setupToken,
+      );
     }
 
     await putAddonPolicy(addonPolicy, setupToken);
 
     if (accessMode === "protected" && password.password) {
-      await fetch("/api/auth/unlock", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: password.password, remember: false }),
-      });
+      // The session this grants is a convenience: the password is already
+      // on disk, and a viewer who lands on /unlock instead can still reach
+      // /admin. Failing the wizard here would leave setup unfinished over
+      // something the user can redo in one step.
+      try {
+        await unlock(password.password, false);
+      } catch {
+        // fall through to complete-setup
+      }
     }
   }, [
     accessMode,

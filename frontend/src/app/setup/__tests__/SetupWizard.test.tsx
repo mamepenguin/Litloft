@@ -844,3 +844,114 @@ describe("SetupWizard unlock step", () => {
     }
   });
 });
+
+describe("SetupWizard in protected mode", () => {
+  async function reachCompleteStepProtected(password = "correct horse battery") {
+    await renderPastUnlock();
+    await reachDriveStep();
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(screen.getByLabelText(/password protected/i));
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.change(await screen.findByLabelText(/^password/i), {
+      target: { value: password },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    fireEvent.click(
+      screen.queryByRole("button", { name: /skip/i }) ??
+        screen.getByRole("button", { name: /next/i }),
+    );
+    return screen.findByRole("button", { name: /finish|complete/i });
+  }
+
+  function callsTo(url: string, method = "PUT") {
+    return mockFetch.mock.calls.filter(
+      ([u, opts]) => u === url && (opts as RequestInit)?.method === method,
+    );
+  }
+
+  it("saves the password with the admin sentinel and finishes", async () => {
+    fireEvent.click(await reachCompleteStepProtected());
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+
+    const [passwordPut] = callsTo("/api/admin/config/passwords");
+    expect(passwordPut).toBeDefined();
+    const body = JSON.parse((passwordPut[1] as RequestInit).body as string);
+    expect(body).toEqual([
+      { password: "correct horse battery", groups: ["__admin__"] },
+    ]);
+    expect(
+      mockFetch.mock.calls.map((c) => c[0] as string),
+    ).toContain("/api/auth/unlock");
+  });
+
+  it("shows the rejection and does not finish when the password is not saved", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/admin/config/passwords") {
+        return Promise.resolve(
+          jsonResponse(
+            {
+              detail: {
+                code: "unknown_group",
+                message: "group '__admin__' is not declared by any drive's access_group",
+              },
+            },
+            422,
+          ),
+        );
+      }
+      return defaultMockImpl(url);
+    });
+
+    fireEvent.click(await reachCompleteStepProtected());
+
+    expect(
+      await screen.findByText(
+        "group '__admin__' is not declared by any drive's access_group",
+      ),
+    ).toBeInTheDocument();
+    const urls = mockFetch.mock.calls.map((c) => c[0] as string);
+    expect(urls).not.toContain("/api/admin/config/complete-setup");
+    expect(urls).not.toContain("/api/auth/unlock");
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("stops before the password when the drives are not saved", async () => {
+    mockFetch.mockImplementation((url: string, init?: RequestInit) => {
+      if (url === "/api/admin/config/drives" && init?.method === "PUT") {
+        return Promise.resolve(
+          jsonResponse(
+            { detail: { code: "path_not_found", message: "Path not found in container." } },
+            422,
+          ),
+        );
+      }
+      return defaultMockImpl(url);
+    });
+
+    fireEvent.click(await reachCompleteStepProtected());
+
+    expect(
+      await screen.findByText("Path not found in container."),
+    ).toBeInTheDocument();
+    const urls = mockFetch.mock.calls.map((c) => c[0] as string);
+    expect(urls).not.toContain("/api/admin/config/passwords");
+    expect(urls).not.toContain("/api/admin/config/addon-policy");
+    expect(urls).not.toContain("/api/admin/config/complete-setup");
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("finishes when only the unlock fails, since the password is already stored", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/auth/unlock") {
+        return Promise.resolve(jsonResponse({ detail: "wrong" }, 401));
+      }
+      return defaultMockImpl(url);
+    });
+
+    fireEvent.click(await reachCompleteStepProtected());
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    expect(callsTo("/api/admin/config/passwords")).toHaveLength(1);
+  });
+});
