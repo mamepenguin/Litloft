@@ -24,6 +24,15 @@ Remove the row when it is fixed.
 
 ## Setup
 
+**An install can be returned to "everyone is admin" with no way back.**
+Creating a password that carries `__admin__` needs one already, but deleting
+the last such entry does not, and neither does clearing the drives' access
+groups. A viewer who is admin by holding every declared group can do both, and
+afterwards nobody — including the owner — can create another, because creating
+one needs the entry that was just deleted. Recovery is editing `passwords.json`
+on the host. Reached from `/admin/settings` on an install that has both an
+admin password and group-protected drives.
+
 **A drive renamed in the wizard is empty until the backend restarts.** The
 scanner enumerates drives once, from the startup lifespan, and `PUT /drives`
 rewrites `drives.json` without touching the database, so every row still names

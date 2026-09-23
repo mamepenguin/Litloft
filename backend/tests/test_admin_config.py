@@ -1412,3 +1412,75 @@ def test_a_write_carrying_no_sentinel_is_left_to_the_validators(
         assert resp.status_code == 422, resp.text
         assert "unknown_group" in resp.text
         assert "admin_grant_forbidden" not in resp.text
+
+
+
+def test_a_drive_group_holder_cannot_grant_admin(tmp_path, monkeypatch):
+    """The third caller: admin by holding every declared group, which
+    `require_admin` accepts and this guard does not. Without one, a guard that
+    asked "is anything unlocked?" would pass every test."""
+    import app.auth as auth
+    from app.main import app
+
+    drive_dir = tmp_path / "d"
+    drive_dir.mkdir()
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    drives_json = tmp_path / "drives.json"
+    drives_json.write_text(
+        json.dumps([{"name": "d", "path": str(drive_dir), "access_group": "g1"}])
+    )
+    passwords_json = tmp_path / "passwords.json"
+    passwords_json.write_text(
+        json.dumps([{"password": "group-pw", "groups": ["g1"]}])
+    )
+
+    import app.config as config
+
+    monkeypatch.setattr(config, "DRIVES_CONFIG", drives_json)
+    monkeypatch.setattr(config, "DATA_DIR", data_dir)
+    monkeypatch.setattr(config, "THUMBNAILS_DIR", data_dir / "thumbnails")
+    monkeypatch.setattr(config, "CONVERTED_DIR", data_dir / "converted")
+    monkeypatch.setattr(config, "_drives_cache", None)
+    monkeypatch.setattr(auth, "PASSWORDS_CONFIG", passwords_json)
+    monkeypatch.setattr(auth, "_passwords_cache", None)
+
+    with TestClient(app) as c:
+        (data_dir / "setup_completed").touch()
+        assert c.post(
+            "/api/auth/unlock", json={"password": "group-pw"}
+        ).status_code == 200
+        # Holding every declared group is admin, so the gate on the route opens.
+        assert c.get("/api/admin/config/drives").status_code == 200
+
+        # Alone, and alongside a real group — the shape the wizard sends when
+        # a drive declares one, and the one an exact-match check would miss.
+        bundled = [{"password": "planted", "groups": ["g1", "__admin__"]}]
+        for method, url, body in (
+            ("PUT", "/api/admin/config/passwords", ADMIN_GRANT),
+            ("POST", "/api/admin/config/passwords/append", ADMIN_GRANT[0]),
+            ("PUT", "/api/admin/config/passwords", bundled),
+            ("POST", "/api/admin/config/passwords/append", bundled[0]),
+        ):
+            resp = c.request(method, url, json=body)
+            assert resp.status_code == 403, f"{method} {url}: {resp.text}"
+            assert "admin_grant_forbidden" in resp.text
+        assert json.loads(passwords_json.read_text()) == [
+            {"password": "group-pw", "groups": ["g1"]}
+        ]
+
+
+def test_an_entry_without_groups_is_refused_not_a_server_error(
+    tmp_path, monkeypatch
+):
+    """The guard reads `groups` off whatever arrived; a body without one
+    reaches the validators rather than a KeyError."""
+    from app.main import app
+
+    _, _, data_dir, _ = _public_install(tmp_path, monkeypatch)
+
+    with TestClient(app) as c:
+        (data_dir / "setup_completed").touch()
+        resp = c.put("/api/admin/config/passwords", json=[{"password": "p"}])
+        assert resp.status_code == 422, resp.text
+        assert "missing_field" in resp.text

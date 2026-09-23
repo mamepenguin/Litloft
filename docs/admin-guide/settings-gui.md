@@ -40,8 +40,8 @@ On an install where nothing is protected everyone counts as an admin — the
 graceful degradation the auth layer is built on — and the sentinel is the group
 that ends that state, so it cannot be handed out from there. `/setup` is the
 exception while it runs, because the setup token has already answered for the
-caller. To add the first admin password to a public install, re-run the wizard
-(delete `data/setup_completed`, restart, open the token's URL).
+caller. To add the first admin password to an install that has already finished
+setup, write the entry into `passwords.json` by hand (below) and restart.
 
 Adding a password is a separate workflow: enter the password value, choose groups, save. The backend writes to `passwords.json` atomically.
 

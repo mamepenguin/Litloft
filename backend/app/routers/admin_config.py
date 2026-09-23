@@ -395,13 +395,13 @@ def _grants_admin(entries: Any) -> bool:
 
 
 def _require_admin_to_grant_admin(request: Request, payload: Any) -> None:
-    """Writing a password that grants ``/admin`` needs admin that was earned.
+    """Writing a password that grants ``/admin`` needs the sentinel already.
 
-    ``require_admin`` passes for everyone on an install where no drive is
-    protected and no admin password exists — the graceful degradation the auth
-    layer is built on. The sentinel is the one group whose arrival *ends* that
-    state, so accepting it from a caller who is admin only by degradation hands
-    the install to whoever asks first.
+    Not "needs admin": ``require_admin`` passes for everyone on an install
+    where no drive is protected and no admin password exists, and it also
+    passes for a viewer holding every declared group. Only holding the sentinel
+    is tested, which is the narrower rule — a viewer admin by either of the
+    other two routes is refused.
 
     The wizard is exempt: while the sentinel file is absent the setup token has
     already answered for the caller.
