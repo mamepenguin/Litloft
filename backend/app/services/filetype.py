@@ -63,10 +63,6 @@ _EXTENSION_TABLE: dict[str, tuple[str, str]] = {
     ".ras": ("image", "image/x-cmu-raster"),
     ".rgb": ("image", "image/x-rgb"),
     ".svg": ("image", "image/svg+xml"),
-    # The gzipped SVG browsers render natively. ffmpeg reads it and produces
-    # the same thumbnail as the plain file; every other compressed name is
-    # `other`, because a gzipped MP4 is not something the player can open.
-    ".svgz": ("image", "image/svg+xml"),
     ".tif": ("image", "image/tiff"),
     ".tiff": ("image", "image/tiff"),
     ".xbm": ("image", "image/x-xbitmap"),

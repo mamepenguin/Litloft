@@ -60,6 +60,14 @@ prompt defaults to no.
 
 ## Files
 
+**A `.loft` file's mime is compared in two places and written in one.**
+`is_probeable_media` keeps ffprobe away from a `.loft` by comparing against
+`LOFT_MIME_TYPE`, and the classification table names the same constant. Nothing
+stops a later edit inlining the literal back into the table: the two would then
+drift silently, and the scanner and the upload path would hand a JSON pointer to
+ffprobe. Reached only by that edit; recorded because a test cannot see it
+without scanning source text.
+
 **Some extensions are filed as something they are not.** `.ass` is a subtitle
 format and is filed as audio; `.3gp`, `.3g2`, `.3gpp` and `.3gpp2` are video
 containers and are filed as audio; `.mpa` is MPEG audio and is filed as video.

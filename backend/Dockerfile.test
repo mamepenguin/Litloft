@@ -14,6 +14,11 @@ COPY backend/app/ ./app/
 COPY backend/tests/ ./tests/
 COPY backend/pytest.ini ./
 
+# The recording script the classifier fixture is regenerated with. It runs
+# against a revision's `filetype.py`, so it has to be reachable from inside
+# the image the comparison is made in.
+COPY backend/scripts/ ./scripts/
+
 # Repo-root files under test. `_repo/` mirrors their real layout so a test
 # can point `configure.py` at a tree shaped like the project.
 COPY configure.py ./_repo/configure.py

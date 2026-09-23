@@ -7,91 +7,31 @@
   "video",
   "video/mp4"
  ],
- "backup.tar.Z": [
-  "other",
-  "application/x-tar"
- ],
- "backup.tar.br": [
-  "other",
-  "application/x-tar"
- ],
- "backup.tar.bz2": [
-  "other",
-  "application/x-tar"
- ],
- "backup.tar.gz": [
-  "other",
-  "application/x-tar"
- ],
- "backup.tar.xz": [
-  "other",
-  "application/x-tar"
- ],
- "clip.mp4.Z": [
-  "video",
-  "video/mp4"
- ],
- "clip.mp4.br": [
-  "video",
-  "video/mp4"
- ],
- "clip.mp4.bz2": [
-  "video",
-  "video/mp4"
- ],
- "clip.mp4.gz": [
-  "video",
-  "video/mp4"
- ],
- "clip.mp4.xz": [
-  "video",
-  "video/mp4"
- ],
  "no-extension": [
   "other",
   "application/octet-stream"
  ],
- "notes.txt.Z": [
-  "document",
-  "text/plain"
- ],
- "notes.txt.br": [
-  "document",
-  "text/plain"
- ],
- "notes.txt.bz2": [
-  "document",
-  "text/plain"
- ],
- "notes.txt.gz": [
-  "document",
-  "text/plain"
- ],
- "notes.txt.xz": [
-  "document",
-  "text/plain"
- ],
- "page.svg.Z": [
-  "image",
-  "image/svg+xml"
- ],
- "page.svg.br": [
-  "image",
-  "image/svg+xml"
- ],
- "page.svg.bz2": [
-  "image",
-  "image/svg+xml"
- ],
- "page.svg.gz": [
-  "image",
-  "image/svg+xml"
- ],
- "page.svg.xz": [
-  "image",
-  "image/svg+xml"
- ],
  "sample.3g2": [
+  "audio",
+  "audio/3gpp2"
+ ],
+ "sample.3g2.Z": [
+  "audio",
+  "audio/3gpp2"
+ ],
+ "sample.3g2.br": [
+  "audio",
+  "audio/3gpp2"
+ ],
+ "sample.3g2.bz2": [
+  "audio",
+  "audio/3gpp2"
+ ],
+ "sample.3g2.gz": [
+  "audio",
+  "audio/3gpp2"
+ ],
+ "sample.3g2.xz": [
   "audio",
   "audio/3gpp2"
  ],
@@ -99,7 +39,47 @@
   "audio",
   "audio/3gpp"
  ],
+ "sample.3gp.Z": [
+  "audio",
+  "audio/3gpp"
+ ],
+ "sample.3gp.br": [
+  "audio",
+  "audio/3gpp"
+ ],
+ "sample.3gp.bz2": [
+  "audio",
+  "audio/3gpp"
+ ],
+ "sample.3gp.gz": [
+  "audio",
+  "audio/3gpp"
+ ],
+ "sample.3gp.xz": [
+  "audio",
+  "audio/3gpp"
+ ],
  "sample.3gpp": [
+  "audio",
+  "audio/3gpp"
+ ],
+ "sample.3gpp.Z": [
+  "audio",
+  "audio/3gpp"
+ ],
+ "sample.3gpp.br": [
+  "audio",
+  "audio/3gpp"
+ ],
+ "sample.3gpp.bz2": [
+  "audio",
+  "audio/3gpp"
+ ],
+ "sample.3gpp.gz": [
+  "audio",
+  "audio/3gpp"
+ ],
+ "sample.3gpp.xz": [
   "audio",
   "audio/3gpp"
  ],
@@ -107,7 +87,47 @@
   "audio",
   "audio/3gpp2"
  ],
+ "sample.3gpp2.Z": [
+  "audio",
+  "audio/3gpp2"
+ ],
+ "sample.3gpp2.br": [
+  "audio",
+  "audio/3gpp2"
+ ],
+ "sample.3gpp2.bz2": [
+  "audio",
+  "audio/3gpp2"
+ ],
+ "sample.3gpp2.gz": [
+  "audio",
+  "audio/3gpp2"
+ ],
+ "sample.3gpp2.xz": [
+  "audio",
+  "audio/3gpp2"
+ ],
  "sample.a": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.a.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.a.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.a.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.a.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.a.xz": [
   "other",
   "application/octet-stream"
  ],
@@ -115,7 +135,47 @@
   "audio",
   "audio/aac"
  ],
+ "sample.aac.Z": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.aac.br": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.aac.bz2": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.aac.gz": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.aac.xz": [
+  "audio",
+  "audio/aac"
+ ],
  "sample.adts": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.adts.Z": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.adts.br": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.adts.bz2": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.adts.gz": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.adts.xz": [
   "audio",
   "audio/aac"
  ],
@@ -123,7 +183,47 @@
   "other",
   "application/postscript"
  ],
+ "sample.ai.Z": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.ai.br": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.ai.bz2": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.ai.gz": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.ai.xz": [
+  "other",
+  "application/postscript"
+ ],
  "sample.aif": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aif.Z": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aif.br": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aif.bz2": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aif.gz": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aif.xz": [
   "audio",
   "audio/x-aiff"
  ],
@@ -131,7 +231,47 @@
   "audio",
   "audio/x-aiff"
  ],
+ "sample.aifc.Z": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aifc.br": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aifc.bz2": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aifc.gz": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aifc.xz": [
+  "audio",
+  "audio/x-aiff"
+ ],
  "sample.aiff": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aiff.Z": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aiff.br": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aiff.bz2": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aiff.gz": [
+  "audio",
+  "audio/x-aiff"
+ ],
+ "sample.aiff.xz": [
   "audio",
   "audio/x-aiff"
  ],
@@ -139,7 +279,47 @@
   "audio",
   "audio/aac"
  ],
+ "sample.ass.Z": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.ass.br": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.ass.bz2": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.ass.gz": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.ass.xz": [
+  "audio",
+  "audio/aac"
+ ],
  "sample.au": [
+  "audio",
+  "audio/basic"
+ ],
+ "sample.au.Z": [
+  "audio",
+  "audio/basic"
+ ],
+ "sample.au.br": [
+  "audio",
+  "audio/basic"
+ ],
+ "sample.au.bz2": [
+  "audio",
+  "audio/basic"
+ ],
+ "sample.au.gz": [
+  "audio",
+  "audio/basic"
+ ],
+ "sample.au.xz": [
   "audio",
   "audio/basic"
  ],
@@ -147,7 +327,47 @@
   "video",
   "video/x-msvideo"
  ],
+ "sample.avi.Z": [
+  "video",
+  "video/x-msvideo"
+ ],
+ "sample.avi.br": [
+  "video",
+  "video/x-msvideo"
+ ],
+ "sample.avi.bz2": [
+  "video",
+  "video/x-msvideo"
+ ],
+ "sample.avi.gz": [
+  "video",
+  "video/x-msvideo"
+ ],
+ "sample.avi.xz": [
+  "video",
+  "video/x-msvideo"
+ ],
  "sample.avif": [
+  "image",
+  "image/avif"
+ ],
+ "sample.avif.Z": [
+  "image",
+  "image/avif"
+ ],
+ "sample.avif.br": [
+  "image",
+  "image/avif"
+ ],
+ "sample.avif.bz2": [
+  "image",
+  "image/avif"
+ ],
+ "sample.avif.gz": [
+  "image",
+  "image/avif"
+ ],
+ "sample.avif.xz": [
   "image",
   "image/avif"
  ],
@@ -155,7 +375,47 @@
   "document",
   "text/plain"
  ],
+ "sample.bat.Z": [
+  "document",
+  "text/plain"
+ ],
+ "sample.bat.br": [
+  "document",
+  "text/plain"
+ ],
+ "sample.bat.bz2": [
+  "document",
+  "text/plain"
+ ],
+ "sample.bat.gz": [
+  "document",
+  "text/plain"
+ ],
+ "sample.bat.xz": [
+  "document",
+  "text/plain"
+ ],
  "sample.bcpio": [
+  "other",
+  "application/x-bcpio"
+ ],
+ "sample.bcpio.Z": [
+  "other",
+  "application/x-bcpio"
+ ],
+ "sample.bcpio.br": [
+  "other",
+  "application/x-bcpio"
+ ],
+ "sample.bcpio.bz2": [
+  "other",
+  "application/x-bcpio"
+ ],
+ "sample.bcpio.gz": [
+  "other",
+  "application/x-bcpio"
+ ],
+ "sample.bcpio.xz": [
   "other",
   "application/x-bcpio"
  ],
@@ -163,7 +423,47 @@
   "other",
   "application/octet-stream"
  ],
+ "sample.bin.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.bin.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.bin.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.bin.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.bin.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.bmp": [
+  "image",
+  "image/bmp"
+ ],
+ "sample.bmp.Z": [
+  "image",
+  "image/bmp"
+ ],
+ "sample.bmp.br": [
+  "image",
+  "image/bmp"
+ ],
+ "sample.bmp.bz2": [
+  "image",
+  "image/bmp"
+ ],
+ "sample.bmp.gz": [
+  "image",
+  "image/bmp"
+ ],
+ "sample.bmp.xz": [
   "image",
   "image/bmp"
  ],
@@ -171,7 +471,47 @@
   "document",
   "text/plain"
  ],
+ "sample.c.Z": [
+  "document",
+  "text/plain"
+ ],
+ "sample.c.br": [
+  "document",
+  "text/plain"
+ ],
+ "sample.c.bz2": [
+  "document",
+  "text/plain"
+ ],
+ "sample.c.gz": [
+  "document",
+  "text/plain"
+ ],
+ "sample.c.xz": [
+  "document",
+  "text/plain"
+ ],
  "sample.cdf": [
+  "other",
+  "application/x-netcdf"
+ ],
+ "sample.cdf.Z": [
+  "other",
+  "application/x-netcdf"
+ ],
+ "sample.cdf.br": [
+  "other",
+  "application/x-netcdf"
+ ],
+ "sample.cdf.bz2": [
+  "other",
+  "application/x-netcdf"
+ ],
+ "sample.cdf.gz": [
+  "other",
+  "application/x-netcdf"
+ ],
+ "sample.cdf.xz": [
   "other",
   "application/x-netcdf"
  ],
@@ -179,7 +519,47 @@
   "other",
   "application/x-cpio"
  ],
+ "sample.cpio.Z": [
+  "other",
+  "application/x-cpio"
+ ],
+ "sample.cpio.br": [
+  "other",
+  "application/x-cpio"
+ ],
+ "sample.cpio.bz2": [
+  "other",
+  "application/x-cpio"
+ ],
+ "sample.cpio.gz": [
+  "other",
+  "application/x-cpio"
+ ],
+ "sample.cpio.xz": [
+  "other",
+  "application/x-cpio"
+ ],
  "sample.csh": [
+  "other",
+  "application/x-csh"
+ ],
+ "sample.csh.Z": [
+  "other",
+  "application/x-csh"
+ ],
+ "sample.csh.br": [
+  "other",
+  "application/x-csh"
+ ],
+ "sample.csh.bz2": [
+  "other",
+  "application/x-csh"
+ ],
+ "sample.csh.gz": [
+  "other",
+  "application/x-csh"
+ ],
+ "sample.csh.xz": [
   "other",
   "application/x-csh"
  ],
@@ -187,7 +567,47 @@
   "document",
   "text/css"
  ],
+ "sample.css.Z": [
+  "document",
+  "text/css"
+ ],
+ "sample.css.br": [
+  "document",
+  "text/css"
+ ],
+ "sample.css.bz2": [
+  "document",
+  "text/css"
+ ],
+ "sample.css.gz": [
+  "document",
+  "text/css"
+ ],
+ "sample.css.xz": [
+  "document",
+  "text/css"
+ ],
  "sample.csv": [
+  "document",
+  "text/csv"
+ ],
+ "sample.csv.Z": [
+  "document",
+  "text/csv"
+ ],
+ "sample.csv.br": [
+  "document",
+  "text/csv"
+ ],
+ "sample.csv.bz2": [
+  "document",
+  "text/csv"
+ ],
+ "sample.csv.gz": [
+  "document",
+  "text/csv"
+ ],
+ "sample.csv.xz": [
   "document",
   "text/csv"
  ],
@@ -195,7 +615,47 @@
   "other",
   "application/octet-stream"
  ],
+ "sample.dll.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.dll.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.dll.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.dll.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.dll.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.doc": [
+  "document",
+  "application/msword"
+ ],
+ "sample.doc.Z": [
+  "document",
+  "application/msword"
+ ],
+ "sample.doc.br": [
+  "document",
+  "application/msword"
+ ],
+ "sample.doc.bz2": [
+  "document",
+  "application/msword"
+ ],
+ "sample.doc.gz": [
+  "document",
+  "application/msword"
+ ],
+ "sample.doc.xz": [
   "document",
   "application/msword"
  ],
@@ -203,7 +663,47 @@
   "document",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
  ],
+ "sample.docx.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.docx.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.docx.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.docx.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.docx.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.dot": [
+  "document",
+  "application/msword"
+ ],
+ "sample.dot.Z": [
+  "document",
+  "application/msword"
+ ],
+ "sample.dot.br": [
+  "document",
+  "application/msword"
+ ],
+ "sample.dot.bz2": [
+  "document",
+  "application/msword"
+ ],
+ "sample.dot.gz": [
+  "document",
+  "application/msword"
+ ],
+ "sample.dot.xz": [
   "document",
   "application/msword"
  ],
@@ -211,7 +711,47 @@
   "other",
   "application/x-dvi"
  ],
+ "sample.dvi.Z": [
+  "other",
+  "application/x-dvi"
+ ],
+ "sample.dvi.br": [
+  "other",
+  "application/x-dvi"
+ ],
+ "sample.dvi.bz2": [
+  "other",
+  "application/x-dvi"
+ ],
+ "sample.dvi.gz": [
+  "other",
+  "application/x-dvi"
+ ],
+ "sample.dvi.xz": [
+  "other",
+  "application/x-dvi"
+ ],
  "sample.eml": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.eml.Z": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.eml.br": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.eml.bz2": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.eml.gz": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.eml.xz": [
   "other",
   "message/rfc822"
  ],
@@ -219,7 +759,47 @@
   "other",
   "application/postscript"
  ],
+ "sample.eps.Z": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.eps.br": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.eps.bz2": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.eps.gz": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.eps.xz": [
+  "other",
+  "application/postscript"
+ ],
  "sample.etx": [
+  "document",
+  "text/x-setext"
+ ],
+ "sample.etx.Z": [
+  "document",
+  "text/x-setext"
+ ],
+ "sample.etx.br": [
+  "document",
+  "text/x-setext"
+ ],
+ "sample.etx.bz2": [
+  "document",
+  "text/x-setext"
+ ],
+ "sample.etx.gz": [
+  "document",
+  "text/x-setext"
+ ],
+ "sample.etx.xz": [
   "document",
   "text/x-setext"
  ],
@@ -227,11 +807,71 @@
   "other",
   "application/octet-stream"
  ],
+ "sample.exe.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.exe.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.exe.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.exe.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.exe.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.flac": [
   "audio",
   "audio/flac"
  ],
+ "sample.flac.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.flac.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.flac.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.flac.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.flac.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.gif": [
+  "image",
+  "image/gif"
+ ],
+ "sample.gif.Z": [
+  "image",
+  "image/gif"
+ ],
+ "sample.gif.br": [
+  "image",
+  "image/gif"
+ ],
+ "sample.gif.bz2": [
+  "image",
+  "image/gif"
+ ],
+ "sample.gif.gz": [
+  "image",
+  "image/gif"
+ ],
+ "sample.gif.xz": [
   "image",
   "image/gif"
  ],
@@ -239,7 +879,47 @@
   "other",
   "application/x-gtar"
  ],
+ "sample.gtar.Z": [
+  "other",
+  "application/x-gtar"
+ ],
+ "sample.gtar.br": [
+  "other",
+  "application/x-gtar"
+ ],
+ "sample.gtar.bz2": [
+  "other",
+  "application/x-gtar"
+ ],
+ "sample.gtar.gz": [
+  "other",
+  "application/x-gtar"
+ ],
+ "sample.gtar.xz": [
+  "other",
+  "application/x-gtar"
+ ],
  "sample.h": [
+  "document",
+  "text/plain"
+ ],
+ "sample.h.Z": [
+  "document",
+  "text/plain"
+ ],
+ "sample.h.br": [
+  "document",
+  "text/plain"
+ ],
+ "sample.h.bz2": [
+  "document",
+  "text/plain"
+ ],
+ "sample.h.gz": [
+  "document",
+  "text/plain"
+ ],
+ "sample.h.xz": [
   "document",
   "text/plain"
  ],
@@ -247,7 +927,47 @@
   "other",
   "application/x-hdf5"
  ],
+ "sample.h5.Z": [
+  "other",
+  "application/x-hdf5"
+ ],
+ "sample.h5.br": [
+  "other",
+  "application/x-hdf5"
+ ],
+ "sample.h5.bz2": [
+  "other",
+  "application/x-hdf5"
+ ],
+ "sample.h5.gz": [
+  "other",
+  "application/x-hdf5"
+ ],
+ "sample.h5.xz": [
+  "other",
+  "application/x-hdf5"
+ ],
  "sample.hdf": [
+  "other",
+  "application/x-hdf"
+ ],
+ "sample.hdf.Z": [
+  "other",
+  "application/x-hdf"
+ ],
+ "sample.hdf.br": [
+  "other",
+  "application/x-hdf"
+ ],
+ "sample.hdf.bz2": [
+  "other",
+  "application/x-hdf"
+ ],
+ "sample.hdf.gz": [
+  "other",
+  "application/x-hdf"
+ ],
+ "sample.hdf.xz": [
   "other",
   "application/x-hdf"
  ],
@@ -255,7 +975,47 @@
   "image",
   "image/heic"
  ],
+ "sample.heic.Z": [
+  "image",
+  "image/heic"
+ ],
+ "sample.heic.br": [
+  "image",
+  "image/heic"
+ ],
+ "sample.heic.bz2": [
+  "image",
+  "image/heic"
+ ],
+ "sample.heic.gz": [
+  "image",
+  "image/heic"
+ ],
+ "sample.heic.xz": [
+  "image",
+  "image/heic"
+ ],
  "sample.heif": [
+  "image",
+  "image/heif"
+ ],
+ "sample.heif.Z": [
+  "image",
+  "image/heif"
+ ],
+ "sample.heif.br": [
+  "image",
+  "image/heif"
+ ],
+ "sample.heif.bz2": [
+  "image",
+  "image/heif"
+ ],
+ "sample.heif.gz": [
+  "image",
+  "image/heif"
+ ],
+ "sample.heif.xz": [
   "image",
   "image/heif"
  ],
@@ -263,7 +1023,47 @@
   "document",
   "text/html"
  ],
+ "sample.htm.Z": [
+  "document",
+  "text/html"
+ ],
+ "sample.htm.br": [
+  "document",
+  "text/html"
+ ],
+ "sample.htm.bz2": [
+  "document",
+  "text/html"
+ ],
+ "sample.htm.gz": [
+  "document",
+  "text/html"
+ ],
+ "sample.htm.xz": [
+  "document",
+  "text/html"
+ ],
  "sample.html": [
+  "document",
+  "text/html"
+ ],
+ "sample.html.Z": [
+  "document",
+  "text/html"
+ ],
+ "sample.html.br": [
+  "document",
+  "text/html"
+ ],
+ "sample.html.bz2": [
+  "document",
+  "text/html"
+ ],
+ "sample.html.gz": [
+  "document",
+  "text/html"
+ ],
+ "sample.html.xz": [
   "document",
   "text/html"
  ],
@@ -271,7 +1071,47 @@
   "image",
   "image/vnd.microsoft.icon"
  ],
+ "sample.ico.Z": [
+  "image",
+  "image/vnd.microsoft.icon"
+ ],
+ "sample.ico.br": [
+  "image",
+  "image/vnd.microsoft.icon"
+ ],
+ "sample.ico.bz2": [
+  "image",
+  "image/vnd.microsoft.icon"
+ ],
+ "sample.ico.gz": [
+  "image",
+  "image/vnd.microsoft.icon"
+ ],
+ "sample.ico.xz": [
+  "image",
+  "image/vnd.microsoft.icon"
+ ],
  "sample.ief": [
+  "image",
+  "image/ief"
+ ],
+ "sample.ief.Z": [
+  "image",
+  "image/ief"
+ ],
+ "sample.ief.br": [
+  "image",
+  "image/ief"
+ ],
+ "sample.ief.bz2": [
+  "image",
+  "image/ief"
+ ],
+ "sample.ief.gz": [
+  "image",
+  "image/ief"
+ ],
+ "sample.ief.xz": [
   "image",
   "image/ief"
  ],
@@ -279,7 +1119,47 @@
   "image",
   "image/jpeg"
  ],
+ "sample.jpe.Z": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpe.br": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpe.bz2": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpe.gz": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpe.xz": [
+  "image",
+  "image/jpeg"
+ ],
  "sample.jpeg": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpeg.Z": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpeg.br": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpeg.bz2": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpeg.gz": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpeg.xz": [
   "image",
   "image/jpeg"
  ],
@@ -287,7 +1167,47 @@
   "image",
   "image/jpeg"
  ],
+ "sample.jpg.Z": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpg.br": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpg.bz2": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpg.gz": [
+  "image",
+  "image/jpeg"
+ ],
+ "sample.jpg.xz": [
+  "image",
+  "image/jpeg"
+ ],
  "sample.js": [
+  "document",
+  "text/javascript"
+ ],
+ "sample.js.Z": [
+  "document",
+  "text/javascript"
+ ],
+ "sample.js.br": [
+  "document",
+  "text/javascript"
+ ],
+ "sample.js.bz2": [
+  "document",
+  "text/javascript"
+ ],
+ "sample.js.gz": [
+  "document",
+  "text/javascript"
+ ],
+ "sample.js.xz": [
   "document",
   "text/javascript"
  ],
@@ -295,7 +1215,47 @@
   "other",
   "application/json"
  ],
+ "sample.json.Z": [
+  "other",
+  "application/json"
+ ],
+ "sample.json.br": [
+  "other",
+  "application/json"
+ ],
+ "sample.json.bz2": [
+  "other",
+  "application/json"
+ ],
+ "sample.json.gz": [
+  "other",
+  "application/json"
+ ],
+ "sample.json.xz": [
+  "other",
+  "application/json"
+ ],
  "sample.ksh": [
+  "document",
+  "text/plain"
+ ],
+ "sample.ksh.Z": [
+  "document",
+  "text/plain"
+ ],
+ "sample.ksh.br": [
+  "document",
+  "text/plain"
+ ],
+ "sample.ksh.bz2": [
+  "document",
+  "text/plain"
+ ],
+ "sample.ksh.gz": [
+  "document",
+  "text/plain"
+ ],
+ "sample.ksh.xz": [
   "document",
   "text/plain"
  ],
@@ -303,7 +1263,47 @@
   "other",
   "application/x-latex"
  ],
+ "sample.latex.Z": [
+  "other",
+  "application/x-latex"
+ ],
+ "sample.latex.br": [
+  "other",
+  "application/x-latex"
+ ],
+ "sample.latex.bz2": [
+  "other",
+  "application/x-latex"
+ ],
+ "sample.latex.gz": [
+  "other",
+  "application/x-latex"
+ ],
+ "sample.latex.xz": [
+  "other",
+  "application/x-latex"
+ ],
  "sample.loas": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.loas.Z": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.loas.br": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.loas.bz2": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.loas.gz": [
+  "audio",
+  "audio/aac"
+ ],
+ "sample.loas.xz": [
   "audio",
   "audio/aac"
  ],
@@ -311,7 +1311,47 @@
   "video",
   "application/vnd.litloft.loft+json"
  ],
+ "sample.loft.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.loft.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.loft.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.loft.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.loft.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.m1v": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.m1v.Z": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.m1v.br": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.m1v.bz2": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.m1v.gz": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.m1v.xz": [
   "video",
   "video/mpeg"
  ],
@@ -319,7 +1359,47 @@
   "other",
   "application/vnd.apple.mpegurl"
  ],
+ "sample.m3u.Z": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
+ "sample.m3u.br": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
+ "sample.m3u.bz2": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
+ "sample.m3u.gz": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
+ "sample.m3u.xz": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
  "sample.m3u8": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
+ "sample.m3u8.Z": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
+ "sample.m3u8.br": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
+ "sample.m3u8.bz2": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
+ "sample.m3u8.gz": [
+  "other",
+  "application/vnd.apple.mpegurl"
+ ],
+ "sample.m3u8.xz": [
   "other",
   "application/vnd.apple.mpegurl"
  ],
@@ -327,7 +1407,47 @@
   "audio",
   "audio/mp4"
  ],
+ "sample.m4a.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.m4a.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.m4a.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.m4a.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.m4a.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.man": [
+  "other",
+  "application/x-troff-man"
+ ],
+ "sample.man.Z": [
+  "other",
+  "application/x-troff-man"
+ ],
+ "sample.man.br": [
+  "other",
+  "application/x-troff-man"
+ ],
+ "sample.man.bz2": [
+  "other",
+  "application/x-troff-man"
+ ],
+ "sample.man.gz": [
+  "other",
+  "application/x-troff-man"
+ ],
+ "sample.man.xz": [
   "other",
   "application/x-troff-man"
  ],
@@ -335,7 +1455,47 @@
   "document",
   "text/markdown"
  ],
+ "sample.markdown.Z": [
+  "document",
+  "text/markdown"
+ ],
+ "sample.markdown.br": [
+  "document",
+  "text/markdown"
+ ],
+ "sample.markdown.bz2": [
+  "document",
+  "text/markdown"
+ ],
+ "sample.markdown.gz": [
+  "document",
+  "text/markdown"
+ ],
+ "sample.markdown.xz": [
+  "document",
+  "text/markdown"
+ ],
  "sample.md": [
+  "document",
+  "text/markdown"
+ ],
+ "sample.md.Z": [
+  "document",
+  "text/markdown"
+ ],
+ "sample.md.br": [
+  "document",
+  "text/markdown"
+ ],
+ "sample.md.bz2": [
+  "document",
+  "text/markdown"
+ ],
+ "sample.md.gz": [
+  "document",
+  "text/markdown"
+ ],
+ "sample.md.xz": [
   "document",
   "text/markdown"
  ],
@@ -343,7 +1503,47 @@
   "other",
   "application/x-troff-me"
  ],
+ "sample.me.Z": [
+  "other",
+  "application/x-troff-me"
+ ],
+ "sample.me.br": [
+  "other",
+  "application/x-troff-me"
+ ],
+ "sample.me.bz2": [
+  "other",
+  "application/x-troff-me"
+ ],
+ "sample.me.gz": [
+  "other",
+  "application/x-troff-me"
+ ],
+ "sample.me.xz": [
+  "other",
+  "application/x-troff-me"
+ ],
  "sample.mht": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.mht.Z": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.mht.br": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.mht.bz2": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.mht.gz": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.mht.xz": [
   "other",
   "message/rfc822"
  ],
@@ -351,7 +1551,47 @@
   "other",
   "message/rfc822"
  ],
+ "sample.mhtml.Z": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.mhtml.br": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.mhtml.bz2": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.mhtml.gz": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.mhtml.xz": [
+  "other",
+  "message/rfc822"
+ ],
  "sample.mid": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.mid.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.mid.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.mid.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.mid.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.mid.xz": [
   "other",
   "application/octet-stream"
  ],
@@ -359,7 +1599,47 @@
   "other",
   "application/octet-stream"
  ],
+ "sample.midi.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.midi.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.midi.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.midi.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.midi.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.mif": [
+  "other",
+  "application/x-mif"
+ ],
+ "sample.mif.Z": [
+  "other",
+  "application/x-mif"
+ ],
+ "sample.mif.br": [
+  "other",
+  "application/x-mif"
+ ],
+ "sample.mif.bz2": [
+  "other",
+  "application/x-mif"
+ ],
+ "sample.mif.gz": [
+  "other",
+  "application/x-mif"
+ ],
+ "sample.mif.xz": [
   "other",
   "application/x-mif"
  ],
@@ -367,11 +1647,71 @@
   "document",
   "text/javascript"
  ],
+ "sample.mjs.Z": [
+  "document",
+  "text/javascript"
+ ],
+ "sample.mjs.br": [
+  "document",
+  "text/javascript"
+ ],
+ "sample.mjs.bz2": [
+  "document",
+  "text/javascript"
+ ],
+ "sample.mjs.gz": [
+  "document",
+  "text/javascript"
+ ],
+ "sample.mjs.xz": [
+  "document",
+  "text/javascript"
+ ],
  "sample.mkv": [
   "video",
   "video/x-matroska"
  ],
+ "sample.mkv.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.mkv.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.mkv.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.mkv.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.mkv.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.mov": [
+  "video",
+  "video/quicktime"
+ ],
+ "sample.mov.Z": [
+  "video",
+  "video/quicktime"
+ ],
+ "sample.mov.br": [
+  "video",
+  "video/quicktime"
+ ],
+ "sample.mov.bz2": [
+  "video",
+  "video/quicktime"
+ ],
+ "sample.mov.gz": [
+  "video",
+  "video/quicktime"
+ ],
+ "sample.mov.xz": [
   "video",
   "video/quicktime"
  ],
@@ -379,7 +1719,47 @@
   "video",
   "video/x-sgi-movie"
  ],
+ "sample.movie.Z": [
+  "video",
+  "video/x-sgi-movie"
+ ],
+ "sample.movie.br": [
+  "video",
+  "video/x-sgi-movie"
+ ],
+ "sample.movie.bz2": [
+  "video",
+  "video/x-sgi-movie"
+ ],
+ "sample.movie.gz": [
+  "video",
+  "video/x-sgi-movie"
+ ],
+ "sample.movie.xz": [
+  "video",
+  "video/x-sgi-movie"
+ ],
  "sample.mp2": [
+  "audio",
+  "audio/mpeg"
+ ],
+ "sample.mp2.Z": [
+  "audio",
+  "audio/mpeg"
+ ],
+ "sample.mp2.br": [
+  "audio",
+  "audio/mpeg"
+ ],
+ "sample.mp2.bz2": [
+  "audio",
+  "audio/mpeg"
+ ],
+ "sample.mp2.gz": [
+  "audio",
+  "audio/mpeg"
+ ],
+ "sample.mp2.xz": [
   "audio",
   "audio/mpeg"
  ],
@@ -387,7 +1767,47 @@
   "audio",
   "audio/mpeg"
  ],
+ "sample.mp3.Z": [
+  "audio",
+  "audio/mpeg"
+ ],
+ "sample.mp3.br": [
+  "audio",
+  "audio/mpeg"
+ ],
+ "sample.mp3.bz2": [
+  "audio",
+  "audio/mpeg"
+ ],
+ "sample.mp3.gz": [
+  "audio",
+  "audio/mpeg"
+ ],
+ "sample.mp3.xz": [
+  "audio",
+  "audio/mpeg"
+ ],
  "sample.mp4": [
+  "video",
+  "video/mp4"
+ ],
+ "sample.mp4.Z": [
+  "video",
+  "video/mp4"
+ ],
+ "sample.mp4.br": [
+  "video",
+  "video/mp4"
+ ],
+ "sample.mp4.bz2": [
+  "video",
+  "video/mp4"
+ ],
+ "sample.mp4.gz": [
+  "video",
+  "video/mp4"
+ ],
+ "sample.mp4.xz": [
   "video",
   "video/mp4"
  ],
@@ -395,7 +1815,47 @@
   "video",
   "video/mpeg"
  ],
+ "sample.mpa.Z": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpa.br": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpa.bz2": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpa.gz": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpa.xz": [
+  "video",
+  "video/mpeg"
+ ],
  "sample.mpe": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpe.Z": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpe.br": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpe.bz2": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpe.gz": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpe.xz": [
   "video",
   "video/mpeg"
  ],
@@ -403,7 +1863,47 @@
   "video",
   "video/mpeg"
  ],
+ "sample.mpeg.Z": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpeg.br": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpeg.bz2": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpeg.gz": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpeg.xz": [
+  "video",
+  "video/mpeg"
+ ],
  "sample.mpg": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpg.Z": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpg.br": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpg.bz2": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpg.gz": [
+  "video",
+  "video/mpeg"
+ ],
+ "sample.mpg.xz": [
   "video",
   "video/mpeg"
  ],
@@ -411,7 +1911,47 @@
   "other",
   "application/x-troff-ms"
  ],
+ "sample.ms.Z": [
+  "other",
+  "application/x-troff-ms"
+ ],
+ "sample.ms.br": [
+  "other",
+  "application/x-troff-ms"
+ ],
+ "sample.ms.bz2": [
+  "other",
+  "application/x-troff-ms"
+ ],
+ "sample.ms.gz": [
+  "other",
+  "application/x-troff-ms"
+ ],
+ "sample.ms.xz": [
+  "other",
+  "application/x-troff-ms"
+ ],
  "sample.n3": [
+  "document",
+  "text/n3"
+ ],
+ "sample.n3.Z": [
+  "document",
+  "text/n3"
+ ],
+ "sample.n3.br": [
+  "document",
+  "text/n3"
+ ],
+ "sample.n3.bz2": [
+  "document",
+  "text/n3"
+ ],
+ "sample.n3.gz": [
+  "document",
+  "text/n3"
+ ],
+ "sample.n3.xz": [
   "document",
   "text/n3"
  ],
@@ -419,7 +1959,47 @@
   "other",
   "application/x-netcdf"
  ],
+ "sample.nc.Z": [
+  "other",
+  "application/x-netcdf"
+ ],
+ "sample.nc.br": [
+  "other",
+  "application/x-netcdf"
+ ],
+ "sample.nc.bz2": [
+  "other",
+  "application/x-netcdf"
+ ],
+ "sample.nc.gz": [
+  "other",
+  "application/x-netcdf"
+ ],
+ "sample.nc.xz": [
+  "other",
+  "application/x-netcdf"
+ ],
  "sample.nq": [
+  "other",
+  "application/n-quads"
+ ],
+ "sample.nq.Z": [
+  "other",
+  "application/n-quads"
+ ],
+ "sample.nq.br": [
+  "other",
+  "application/n-quads"
+ ],
+ "sample.nq.bz2": [
+  "other",
+  "application/n-quads"
+ ],
+ "sample.nq.gz": [
+  "other",
+  "application/n-quads"
+ ],
+ "sample.nq.xz": [
   "other",
   "application/n-quads"
  ],
@@ -427,7 +2007,47 @@
   "other",
   "application/n-triples"
  ],
+ "sample.nt.Z": [
+  "other",
+  "application/n-triples"
+ ],
+ "sample.nt.br": [
+  "other",
+  "application/n-triples"
+ ],
+ "sample.nt.bz2": [
+  "other",
+  "application/n-triples"
+ ],
+ "sample.nt.gz": [
+  "other",
+  "application/n-triples"
+ ],
+ "sample.nt.xz": [
+  "other",
+  "application/n-triples"
+ ],
  "sample.nws": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.nws.Z": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.nws.br": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.nws.bz2": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.nws.gz": [
+  "other",
+  "message/rfc822"
+ ],
+ "sample.nws.xz": [
   "other",
   "message/rfc822"
  ],
@@ -435,7 +2055,47 @@
   "other",
   "application/octet-stream"
  ],
+ "sample.o.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.o.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.o.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.o.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.o.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.obj": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.obj.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.obj.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.obj.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.obj.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.obj.xz": [
   "other",
   "application/octet-stream"
  ],
@@ -443,11 +2103,71 @@
   "other",
   "application/oda"
  ],
+ "sample.oda.Z": [
+  "other",
+  "application/oda"
+ ],
+ "sample.oda.br": [
+  "other",
+  "application/oda"
+ ],
+ "sample.oda.bz2": [
+  "other",
+  "application/oda"
+ ],
+ "sample.oda.gz": [
+  "other",
+  "application/oda"
+ ],
+ "sample.oda.xz": [
+  "other",
+  "application/oda"
+ ],
  "sample.ogg": [
   "audio",
   "audio/ogg"
  ],
+ "sample.ogg.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.ogg.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.ogg.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.ogg.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.ogg.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.opus": [
+  "audio",
+  "audio/opus"
+ ],
+ "sample.opus.Z": [
+  "audio",
+  "audio/opus"
+ ],
+ "sample.opus.br": [
+  "audio",
+  "audio/opus"
+ ],
+ "sample.opus.bz2": [
+  "audio",
+  "audio/opus"
+ ],
+ "sample.opus.gz": [
+  "audio",
+  "audio/opus"
+ ],
+ "sample.opus.xz": [
   "audio",
   "audio/opus"
  ],
@@ -455,7 +2175,47 @@
   "other",
   "application/x-pkcs12"
  ],
+ "sample.p12.Z": [
+  "other",
+  "application/x-pkcs12"
+ ],
+ "sample.p12.br": [
+  "other",
+  "application/x-pkcs12"
+ ],
+ "sample.p12.bz2": [
+  "other",
+  "application/x-pkcs12"
+ ],
+ "sample.p12.gz": [
+  "other",
+  "application/x-pkcs12"
+ ],
+ "sample.p12.xz": [
+  "other",
+  "application/x-pkcs12"
+ ],
  "sample.p7c": [
+  "other",
+  "application/pkcs7-mime"
+ ],
+ "sample.p7c.Z": [
+  "other",
+  "application/pkcs7-mime"
+ ],
+ "sample.p7c.br": [
+  "other",
+  "application/pkcs7-mime"
+ ],
+ "sample.p7c.bz2": [
+  "other",
+  "application/pkcs7-mime"
+ ],
+ "sample.p7c.gz": [
+  "other",
+  "application/pkcs7-mime"
+ ],
+ "sample.p7c.xz": [
   "other",
   "application/pkcs7-mime"
  ],
@@ -463,7 +2223,47 @@
   "image",
   "image/x-portable-bitmap"
  ],
+ "sample.pbm.Z": [
+  "image",
+  "image/x-portable-bitmap"
+ ],
+ "sample.pbm.br": [
+  "image",
+  "image/x-portable-bitmap"
+ ],
+ "sample.pbm.bz2": [
+  "image",
+  "image/x-portable-bitmap"
+ ],
+ "sample.pbm.gz": [
+  "image",
+  "image/x-portable-bitmap"
+ ],
+ "sample.pbm.xz": [
+  "image",
+  "image/x-portable-bitmap"
+ ],
  "sample.pct": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pct.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pct.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pct.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pct.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pct.xz": [
   "other",
   "application/octet-stream"
  ],
@@ -471,7 +2271,47 @@
   "document",
   "application/pdf"
  ],
+ "sample.pdf.Z": [
+  "document",
+  "application/pdf"
+ ],
+ "sample.pdf.br": [
+  "document",
+  "application/pdf"
+ ],
+ "sample.pdf.bz2": [
+  "document",
+  "application/pdf"
+ ],
+ "sample.pdf.gz": [
+  "document",
+  "application/pdf"
+ ],
+ "sample.pdf.xz": [
+  "document",
+  "application/pdf"
+ ],
  "sample.pfx": [
+  "other",
+  "application/x-pkcs12"
+ ],
+ "sample.pfx.Z": [
+  "other",
+  "application/x-pkcs12"
+ ],
+ "sample.pfx.br": [
+  "other",
+  "application/x-pkcs12"
+ ],
+ "sample.pfx.bz2": [
+  "other",
+  "application/x-pkcs12"
+ ],
+ "sample.pfx.gz": [
+  "other",
+  "application/x-pkcs12"
+ ],
+ "sample.pfx.xz": [
   "other",
   "application/x-pkcs12"
  ],
@@ -479,7 +2319,47 @@
   "image",
   "image/x-portable-graymap"
  ],
+ "sample.pgm.Z": [
+  "image",
+  "image/x-portable-graymap"
+ ],
+ "sample.pgm.br": [
+  "image",
+  "image/x-portable-graymap"
+ ],
+ "sample.pgm.bz2": [
+  "image",
+  "image/x-portable-graymap"
+ ],
+ "sample.pgm.gz": [
+  "image",
+  "image/x-portable-graymap"
+ ],
+ "sample.pgm.xz": [
+  "image",
+  "image/x-portable-graymap"
+ ],
  "sample.pic": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pic.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pic.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pic.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pic.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pic.xz": [
   "other",
   "application/octet-stream"
  ],
@@ -487,7 +2367,47 @@
   "other",
   "application/octet-stream"
  ],
+ "sample.pict.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pict.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pict.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pict.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pict.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.pl": [
+  "document",
+  "text/plain"
+ ],
+ "sample.pl.Z": [
+  "document",
+  "text/plain"
+ ],
+ "sample.pl.br": [
+  "document",
+  "text/plain"
+ ],
+ "sample.pl.bz2": [
+  "document",
+  "text/plain"
+ ],
+ "sample.pl.gz": [
+  "document",
+  "text/plain"
+ ],
+ "sample.pl.xz": [
   "document",
   "text/plain"
  ],
@@ -495,7 +2415,47 @@
   "image",
   "image/png"
  ],
+ "sample.png.Z": [
+  "image",
+  "image/png"
+ ],
+ "sample.png.br": [
+  "image",
+  "image/png"
+ ],
+ "sample.png.bz2": [
+  "image",
+  "image/png"
+ ],
+ "sample.png.gz": [
+  "image",
+  "image/png"
+ ],
+ "sample.png.xz": [
+  "image",
+  "image/png"
+ ],
  "sample.pnm": [
+  "image",
+  "image/x-portable-anymap"
+ ],
+ "sample.pnm.Z": [
+  "image",
+  "image/x-portable-anymap"
+ ],
+ "sample.pnm.br": [
+  "image",
+  "image/x-portable-anymap"
+ ],
+ "sample.pnm.bz2": [
+  "image",
+  "image/x-portable-anymap"
+ ],
+ "sample.pnm.gz": [
+  "image",
+  "image/x-portable-anymap"
+ ],
+ "sample.pnm.xz": [
   "image",
   "image/x-portable-anymap"
  ],
@@ -503,7 +2463,47 @@
   "document",
   "application/vnd.ms-powerpoint"
  ],
+ "sample.pot.Z": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pot.br": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pot.bz2": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pot.gz": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pot.xz": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
  "sample.ppa": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppa.Z": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppa.br": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppa.bz2": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppa.gz": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppa.xz": [
   "document",
   "application/vnd.ms-powerpoint"
  ],
@@ -511,7 +2511,47 @@
   "image",
   "image/x-portable-pixmap"
  ],
+ "sample.ppm.Z": [
+  "image",
+  "image/x-portable-pixmap"
+ ],
+ "sample.ppm.br": [
+  "image",
+  "image/x-portable-pixmap"
+ ],
+ "sample.ppm.bz2": [
+  "image",
+  "image/x-portable-pixmap"
+ ],
+ "sample.ppm.gz": [
+  "image",
+  "image/x-portable-pixmap"
+ ],
+ "sample.ppm.xz": [
+  "image",
+  "image/x-portable-pixmap"
+ ],
  "sample.pps": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pps.Z": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pps.br": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pps.bz2": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pps.gz": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pps.xz": [
   "document",
   "application/vnd.ms-powerpoint"
  ],
@@ -519,11 +2559,71 @@
   "document",
   "application/vnd.ms-powerpoint"
  ],
+ "sample.ppt.Z": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppt.br": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppt.bz2": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppt.gz": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.ppt.xz": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
  "sample.pptx": [
   "document",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation"
  ],
+ "sample.pptx.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pptx.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pptx.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pptx.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.pptx.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.ps": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.ps.Z": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.ps.br": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.ps.bz2": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.ps.gz": [
+  "other",
+  "application/postscript"
+ ],
+ "sample.ps.xz": [
   "other",
   "application/postscript"
  ],
@@ -531,7 +2631,47 @@
   "document",
   "application/vnd.ms-powerpoint"
  ],
+ "sample.pwz.Z": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pwz.br": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pwz.bz2": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pwz.gz": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
+ "sample.pwz.xz": [
+  "document",
+  "application/vnd.ms-powerpoint"
+ ],
  "sample.py": [
+  "document",
+  "text/x-python"
+ ],
+ "sample.py.Z": [
+  "document",
+  "text/x-python"
+ ],
+ "sample.py.br": [
+  "document",
+  "text/x-python"
+ ],
+ "sample.py.bz2": [
+  "document",
+  "text/x-python"
+ ],
+ "sample.py.gz": [
+  "document",
+  "text/x-python"
+ ],
+ "sample.py.xz": [
   "document",
   "text/x-python"
  ],
@@ -539,7 +2679,47 @@
   "other",
   "application/x-python-code"
  ],
+ "sample.pyc.Z": [
+  "other",
+  "application/x-python-code"
+ ],
+ "sample.pyc.br": [
+  "other",
+  "application/x-python-code"
+ ],
+ "sample.pyc.bz2": [
+  "other",
+  "application/x-python-code"
+ ],
+ "sample.pyc.gz": [
+  "other",
+  "application/x-python-code"
+ ],
+ "sample.pyc.xz": [
+  "other",
+  "application/x-python-code"
+ ],
  "sample.pyo": [
+  "other",
+  "application/x-python-code"
+ ],
+ "sample.pyo.Z": [
+  "other",
+  "application/x-python-code"
+ ],
+ "sample.pyo.br": [
+  "other",
+  "application/x-python-code"
+ ],
+ "sample.pyo.bz2": [
+  "other",
+  "application/x-python-code"
+ ],
+ "sample.pyo.gz": [
+  "other",
+  "application/x-python-code"
+ ],
+ "sample.pyo.xz": [
   "other",
   "application/x-python-code"
  ],
@@ -547,7 +2727,47 @@
   "video",
   "video/quicktime"
  ],
+ "sample.qt.Z": [
+  "video",
+  "video/quicktime"
+ ],
+ "sample.qt.br": [
+  "video",
+  "video/quicktime"
+ ],
+ "sample.qt.bz2": [
+  "video",
+  "video/quicktime"
+ ],
+ "sample.qt.gz": [
+  "video",
+  "video/quicktime"
+ ],
+ "sample.qt.xz": [
+  "video",
+  "video/quicktime"
+ ],
  "sample.ra": [
+  "audio",
+  "audio/x-pn-realaudio"
+ ],
+ "sample.ra.Z": [
+  "audio",
+  "audio/x-pn-realaudio"
+ ],
+ "sample.ra.br": [
+  "audio",
+  "audio/x-pn-realaudio"
+ ],
+ "sample.ra.bz2": [
+  "audio",
+  "audio/x-pn-realaudio"
+ ],
+ "sample.ra.gz": [
+  "audio",
+  "audio/x-pn-realaudio"
+ ],
+ "sample.ra.xz": [
   "audio",
   "audio/x-pn-realaudio"
  ],
@@ -555,7 +2775,47 @@
   "other",
   "application/x-pn-realaudio"
  ],
+ "sample.ram.Z": [
+  "other",
+  "application/x-pn-realaudio"
+ ],
+ "sample.ram.br": [
+  "other",
+  "application/x-pn-realaudio"
+ ],
+ "sample.ram.bz2": [
+  "other",
+  "application/x-pn-realaudio"
+ ],
+ "sample.ram.gz": [
+  "other",
+  "application/x-pn-realaudio"
+ ],
+ "sample.ram.xz": [
+  "other",
+  "application/x-pn-realaudio"
+ ],
  "sample.ras": [
+  "image",
+  "image/x-cmu-raster"
+ ],
+ "sample.ras.Z": [
+  "image",
+  "image/x-cmu-raster"
+ ],
+ "sample.ras.br": [
+  "image",
+  "image/x-cmu-raster"
+ ],
+ "sample.ras.bz2": [
+  "image",
+  "image/x-cmu-raster"
+ ],
+ "sample.ras.gz": [
+  "image",
+  "image/x-cmu-raster"
+ ],
+ "sample.ras.xz": [
   "image",
   "image/x-cmu-raster"
  ],
@@ -563,7 +2823,47 @@
   "other",
   "application/xml"
  ],
+ "sample.rdf.Z": [
+  "other",
+  "application/xml"
+ ],
+ "sample.rdf.br": [
+  "other",
+  "application/xml"
+ ],
+ "sample.rdf.bz2": [
+  "other",
+  "application/xml"
+ ],
+ "sample.rdf.gz": [
+  "other",
+  "application/xml"
+ ],
+ "sample.rdf.xz": [
+  "other",
+  "application/xml"
+ ],
  "sample.rgb": [
+  "image",
+  "image/x-rgb"
+ ],
+ "sample.rgb.Z": [
+  "image",
+  "image/x-rgb"
+ ],
+ "sample.rgb.br": [
+  "image",
+  "image/x-rgb"
+ ],
+ "sample.rgb.bz2": [
+  "image",
+  "image/x-rgb"
+ ],
+ "sample.rgb.gz": [
+  "image",
+  "image/x-rgb"
+ ],
+ "sample.rgb.xz": [
   "image",
   "image/x-rgb"
  ],
@@ -571,7 +2871,47 @@
   "other",
   "application/x-troff"
  ],
+ "sample.roff.Z": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.roff.br": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.roff.bz2": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.roff.gz": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.roff.xz": [
+  "other",
+  "application/x-troff"
+ ],
  "sample.rst": [
+  "document",
+  "text/x-rst"
+ ],
+ "sample.rst.Z": [
+  "document",
+  "text/x-rst"
+ ],
+ "sample.rst.br": [
+  "document",
+  "text/x-rst"
+ ],
+ "sample.rst.bz2": [
+  "document",
+  "text/x-rst"
+ ],
+ "sample.rst.gz": [
+  "document",
+  "text/x-rst"
+ ],
+ "sample.rst.xz": [
   "document",
   "text/x-rst"
  ],
@@ -579,7 +2919,47 @@
   "other",
   "application/octet-stream"
  ],
+ "sample.rtf.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.rtf.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.rtf.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.rtf.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.rtf.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.rtx": [
+  "document",
+  "text/richtext"
+ ],
+ "sample.rtx.Z": [
+  "document",
+  "text/richtext"
+ ],
+ "sample.rtx.br": [
+  "document",
+  "text/richtext"
+ ],
+ "sample.rtx.bz2": [
+  "document",
+  "text/richtext"
+ ],
+ "sample.rtx.gz": [
+  "document",
+  "text/richtext"
+ ],
+ "sample.rtx.xz": [
   "document",
   "text/richtext"
  ],
@@ -587,7 +2967,47 @@
   "document",
   "text/x-sgml"
  ],
+ "sample.sgm.Z": [
+  "document",
+  "text/x-sgml"
+ ],
+ "sample.sgm.br": [
+  "document",
+  "text/x-sgml"
+ ],
+ "sample.sgm.bz2": [
+  "document",
+  "text/x-sgml"
+ ],
+ "sample.sgm.gz": [
+  "document",
+  "text/x-sgml"
+ ],
+ "sample.sgm.xz": [
+  "document",
+  "text/x-sgml"
+ ],
  "sample.sgml": [
+  "document",
+  "text/x-sgml"
+ ],
+ "sample.sgml.Z": [
+  "document",
+  "text/x-sgml"
+ ],
+ "sample.sgml.br": [
+  "document",
+  "text/x-sgml"
+ ],
+ "sample.sgml.bz2": [
+  "document",
+  "text/x-sgml"
+ ],
+ "sample.sgml.gz": [
+  "document",
+  "text/x-sgml"
+ ],
+ "sample.sgml.xz": [
   "document",
   "text/x-sgml"
  ],
@@ -595,7 +3015,47 @@
   "other",
   "application/x-sh"
  ],
+ "sample.sh.Z": [
+  "other",
+  "application/x-sh"
+ ],
+ "sample.sh.br": [
+  "other",
+  "application/x-sh"
+ ],
+ "sample.sh.bz2": [
+  "other",
+  "application/x-sh"
+ ],
+ "sample.sh.gz": [
+  "other",
+  "application/x-sh"
+ ],
+ "sample.sh.xz": [
+  "other",
+  "application/x-sh"
+ ],
  "sample.shar": [
+  "other",
+  "application/x-shar"
+ ],
+ "sample.shar.Z": [
+  "other",
+  "application/x-shar"
+ ],
+ "sample.shar.br": [
+  "other",
+  "application/x-shar"
+ ],
+ "sample.shar.bz2": [
+  "other",
+  "application/x-shar"
+ ],
+ "sample.shar.gz": [
+  "other",
+  "application/x-shar"
+ ],
+ "sample.shar.xz": [
   "other",
   "application/x-shar"
  ],
@@ -603,7 +3063,47 @@
   "audio",
   "audio/basic"
  ],
+ "sample.snd.Z": [
+  "audio",
+  "audio/basic"
+ ],
+ "sample.snd.br": [
+  "audio",
+  "audio/basic"
+ ],
+ "sample.snd.bz2": [
+  "audio",
+  "audio/basic"
+ ],
+ "sample.snd.gz": [
+  "audio",
+  "audio/basic"
+ ],
+ "sample.snd.xz": [
+  "audio",
+  "audio/basic"
+ ],
  "sample.so": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.so.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.so.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.so.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.so.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.so.xz": [
   "other",
   "application/octet-stream"
  ],
@@ -611,11 +3111,71 @@
   "other",
   "application/x-wais-source"
  ],
+ "sample.src.Z": [
+  "other",
+  "application/x-wais-source"
+ ],
+ "sample.src.br": [
+  "other",
+  "application/x-wais-source"
+ ],
+ "sample.src.bz2": [
+  "other",
+  "application/x-wais-source"
+ ],
+ "sample.src.gz": [
+  "other",
+  "application/x-wais-source"
+ ],
+ "sample.src.xz": [
+  "other",
+  "application/x-wais-source"
+ ],
  "sample.srt": [
   "subtitle",
   "application/x-subrip"
  ],
+ "sample.srt.Z": [
+  "document",
+  "text/plain"
+ ],
+ "sample.srt.br": [
+  "document",
+  "text/plain"
+ ],
+ "sample.srt.bz2": [
+  "document",
+  "text/plain"
+ ],
+ "sample.srt.gz": [
+  "document",
+  "text/plain"
+ ],
+ "sample.srt.xz": [
+  "document",
+  "text/plain"
+ ],
  "sample.sv4cpio": [
+  "other",
+  "application/x-sv4cpio"
+ ],
+ "sample.sv4cpio.Z": [
+  "other",
+  "application/x-sv4cpio"
+ ],
+ "sample.sv4cpio.br": [
+  "other",
+  "application/x-sv4cpio"
+ ],
+ "sample.sv4cpio.bz2": [
+  "other",
+  "application/x-sv4cpio"
+ ],
+ "sample.sv4cpio.gz": [
+  "other",
+  "application/x-sv4cpio"
+ ],
+ "sample.sv4cpio.xz": [
   "other",
   "application/x-sv4cpio"
  ],
@@ -623,7 +3183,47 @@
   "other",
   "application/x-sv4crc"
  ],
+ "sample.sv4crc.Z": [
+  "other",
+  "application/x-sv4crc"
+ ],
+ "sample.sv4crc.br": [
+  "other",
+  "application/x-sv4crc"
+ ],
+ "sample.sv4crc.bz2": [
+  "other",
+  "application/x-sv4crc"
+ ],
+ "sample.sv4crc.gz": [
+  "other",
+  "application/x-sv4crc"
+ ],
+ "sample.sv4crc.xz": [
+  "other",
+  "application/x-sv4crc"
+ ],
  "sample.svg": [
+  "image",
+  "image/svg+xml"
+ ],
+ "sample.svg.Z": [
+  "image",
+  "image/svg+xml"
+ ],
+ "sample.svg.br": [
+  "image",
+  "image/svg+xml"
+ ],
+ "sample.svg.bz2": [
+  "image",
+  "image/svg+xml"
+ ],
+ "sample.svg.gz": [
+  "image",
+  "image/svg+xml"
+ ],
+ "sample.svg.xz": [
   "image",
   "image/svg+xml"
  ],
@@ -631,7 +3231,47 @@
   "image",
   "image/svg+xml"
  ],
+ "sample.svgz.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.svgz.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.svgz.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.svgz.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.svgz.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.swf": [
+  "other",
+  "application/x-shockwave-flash"
+ ],
+ "sample.swf.Z": [
+  "other",
+  "application/x-shockwave-flash"
+ ],
+ "sample.swf.br": [
+  "other",
+  "application/x-shockwave-flash"
+ ],
+ "sample.swf.bz2": [
+  "other",
+  "application/x-shockwave-flash"
+ ],
+ "sample.swf.gz": [
+  "other",
+  "application/x-shockwave-flash"
+ ],
+ "sample.swf.xz": [
   "other",
   "application/x-shockwave-flash"
  ],
@@ -639,7 +3279,47 @@
   "other",
   "application/x-troff"
  ],
+ "sample.t.Z": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.t.br": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.t.bz2": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.t.gz": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.t.xz": [
+  "other",
+  "application/x-troff"
+ ],
  "sample.tar": [
+  "other",
+  "application/x-tar"
+ ],
+ "sample.tar.Z": [
+  "other",
+  "application/x-tar"
+ ],
+ "sample.tar.br": [
+  "other",
+  "application/x-tar"
+ ],
+ "sample.tar.bz2": [
+  "other",
+  "application/x-tar"
+ ],
+ "sample.tar.gz": [
+  "other",
+  "application/x-tar"
+ ],
+ "sample.tar.xz": [
   "other",
   "application/x-tar"
  ],
@@ -647,11 +3327,71 @@
   "other",
   "application/x-tar"
  ],
+ "sample.taz.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.taz.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.taz.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.taz.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.taz.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.tbz2": [
   "other",
   "application/x-tar"
  ],
+ "sample.tbz2.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tbz2.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tbz2.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tbz2.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tbz2.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.tcl": [
+  "other",
+  "application/x-tcl"
+ ],
+ "sample.tcl.Z": [
+  "other",
+  "application/x-tcl"
+ ],
+ "sample.tcl.br": [
+  "other",
+  "application/x-tcl"
+ ],
+ "sample.tcl.bz2": [
+  "other",
+  "application/x-tcl"
+ ],
+ "sample.tcl.gz": [
+  "other",
+  "application/x-tcl"
+ ],
+ "sample.tcl.xz": [
   "other",
   "application/x-tcl"
  ],
@@ -659,7 +3399,47 @@
   "other",
   "application/x-tex"
  ],
+ "sample.tex.Z": [
+  "other",
+  "application/x-tex"
+ ],
+ "sample.tex.br": [
+  "other",
+  "application/x-tex"
+ ],
+ "sample.tex.bz2": [
+  "other",
+  "application/x-tex"
+ ],
+ "sample.tex.gz": [
+  "other",
+  "application/x-tex"
+ ],
+ "sample.tex.xz": [
+  "other",
+  "application/x-tex"
+ ],
  "sample.texi": [
+  "other",
+  "application/x-texinfo"
+ ],
+ "sample.texi.Z": [
+  "other",
+  "application/x-texinfo"
+ ],
+ "sample.texi.br": [
+  "other",
+  "application/x-texinfo"
+ ],
+ "sample.texi.bz2": [
+  "other",
+  "application/x-texinfo"
+ ],
+ "sample.texi.gz": [
+  "other",
+  "application/x-texinfo"
+ ],
+ "sample.texi.xz": [
   "other",
   "application/x-texinfo"
  ],
@@ -667,11 +3447,71 @@
   "other",
   "application/x-texinfo"
  ],
+ "sample.texinfo.Z": [
+  "other",
+  "application/x-texinfo"
+ ],
+ "sample.texinfo.br": [
+  "other",
+  "application/x-texinfo"
+ ],
+ "sample.texinfo.bz2": [
+  "other",
+  "application/x-texinfo"
+ ],
+ "sample.texinfo.gz": [
+  "other",
+  "application/x-texinfo"
+ ],
+ "sample.texinfo.xz": [
+  "other",
+  "application/x-texinfo"
+ ],
  "sample.tgz": [
   "other",
   "application/x-tar"
  ],
+ "sample.tgz.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tgz.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tgz.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tgz.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tgz.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.tif": [
+  "image",
+  "image/tiff"
+ ],
+ "sample.tif.Z": [
+  "image",
+  "image/tiff"
+ ],
+ "sample.tif.br": [
+  "image",
+  "image/tiff"
+ ],
+ "sample.tif.bz2": [
+  "image",
+  "image/tiff"
+ ],
+ "sample.tif.gz": [
+  "image",
+  "image/tiff"
+ ],
+ "sample.tif.xz": [
   "image",
   "image/tiff"
  ],
@@ -679,7 +3519,47 @@
   "image",
   "image/tiff"
  ],
+ "sample.tiff.Z": [
+  "image",
+  "image/tiff"
+ ],
+ "sample.tiff.br": [
+  "image",
+  "image/tiff"
+ ],
+ "sample.tiff.bz2": [
+  "image",
+  "image/tiff"
+ ],
+ "sample.tiff.gz": [
+  "image",
+  "image/tiff"
+ ],
+ "sample.tiff.xz": [
+  "image",
+  "image/tiff"
+ ],
  "sample.tr": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.tr.Z": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.tr.br": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.tr.bz2": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.tr.gz": [
+  "other",
+  "application/x-troff"
+ ],
+ "sample.tr.xz": [
   "other",
   "application/x-troff"
  ],
@@ -687,7 +3567,47 @@
   "other",
   "application/trig"
  ],
+ "sample.trig.Z": [
+  "other",
+  "application/trig"
+ ],
+ "sample.trig.br": [
+  "other",
+  "application/trig"
+ ],
+ "sample.trig.bz2": [
+  "other",
+  "application/trig"
+ ],
+ "sample.trig.gz": [
+  "other",
+  "application/trig"
+ ],
+ "sample.trig.xz": [
+  "other",
+  "application/trig"
+ ],
  "sample.tsv": [
+  "document",
+  "text/tab-separated-values"
+ ],
+ "sample.tsv.Z": [
+  "document",
+  "text/tab-separated-values"
+ ],
+ "sample.tsv.br": [
+  "document",
+  "text/tab-separated-values"
+ ],
+ "sample.tsv.bz2": [
+  "document",
+  "text/tab-separated-values"
+ ],
+ "sample.tsv.gz": [
+  "document",
+  "text/tab-separated-values"
+ ],
+ "sample.tsv.xz": [
   "document",
   "text/tab-separated-values"
  ],
@@ -695,15 +3615,95 @@
   "document",
   "text/plain"
  ],
+ "sample.txt.Z": [
+  "document",
+  "text/plain"
+ ],
+ "sample.txt.br": [
+  "document",
+  "text/plain"
+ ],
+ "sample.txt.bz2": [
+  "document",
+  "text/plain"
+ ],
+ "sample.txt.gz": [
+  "document",
+  "text/plain"
+ ],
+ "sample.txt.xz": [
+  "document",
+  "text/plain"
+ ],
  "sample.txz": [
   "other",
   "application/x-tar"
+ ],
+ "sample.txz.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.txz.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.txz.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.txz.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.txz.xz": [
+  "other",
+  "application/octet-stream"
  ],
  "sample.tz": [
   "other",
   "application/x-tar"
  ],
+ "sample.tz.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tz.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tz.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tz.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.tz.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.ustar": [
+  "other",
+  "application/x-ustar"
+ ],
+ "sample.ustar.Z": [
+  "other",
+  "application/x-ustar"
+ ],
+ "sample.ustar.br": [
+  "other",
+  "application/x-ustar"
+ ],
+ "sample.ustar.bz2": [
+  "other",
+  "application/x-ustar"
+ ],
+ "sample.ustar.gz": [
+  "other",
+  "application/x-ustar"
+ ],
+ "sample.ustar.xz": [
   "other",
   "application/x-ustar"
  ],
@@ -711,11 +3711,71 @@
   "document",
   "text/x-vcard"
  ],
+ "sample.vcf.Z": [
+  "document",
+  "text/x-vcard"
+ ],
+ "sample.vcf.br": [
+  "document",
+  "text/x-vcard"
+ ],
+ "sample.vcf.bz2": [
+  "document",
+  "text/x-vcard"
+ ],
+ "sample.vcf.gz": [
+  "document",
+  "text/x-vcard"
+ ],
+ "sample.vcf.xz": [
+  "document",
+  "text/x-vcard"
+ ],
  "sample.vtt": [
   "subtitle",
   "text/vtt"
  ],
+ "sample.vtt.Z": [
+  "document",
+  "text/vtt"
+ ],
+ "sample.vtt.br": [
+  "document",
+  "text/vtt"
+ ],
+ "sample.vtt.bz2": [
+  "document",
+  "text/vtt"
+ ],
+ "sample.vtt.gz": [
+  "document",
+  "text/vtt"
+ ],
+ "sample.vtt.xz": [
+  "document",
+  "text/vtt"
+ ],
  "sample.wasm": [
+  "other",
+  "application/wasm"
+ ],
+ "sample.wasm.Z": [
+  "other",
+  "application/wasm"
+ ],
+ "sample.wasm.br": [
+  "other",
+  "application/wasm"
+ ],
+ "sample.wasm.bz2": [
+  "other",
+  "application/wasm"
+ ],
+ "sample.wasm.gz": [
+  "other",
+  "application/wasm"
+ ],
+ "sample.wasm.xz": [
   "other",
   "application/wasm"
  ],
@@ -723,7 +3783,47 @@
   "audio",
   "audio/x-wav"
  ],
+ "sample.wav.Z": [
+  "audio",
+  "audio/x-wav"
+ ],
+ "sample.wav.br": [
+  "audio",
+  "audio/x-wav"
+ ],
+ "sample.wav.bz2": [
+  "audio",
+  "audio/x-wav"
+ ],
+ "sample.wav.gz": [
+  "audio",
+  "audio/x-wav"
+ ],
+ "sample.wav.xz": [
+  "audio",
+  "audio/x-wav"
+ ],
  "sample.webm": [
+  "video",
+  "video/webm"
+ ],
+ "sample.webm.Z": [
+  "video",
+  "video/webm"
+ ],
+ "sample.webm.br": [
+  "video",
+  "video/webm"
+ ],
+ "sample.webm.bz2": [
+  "video",
+  "video/webm"
+ ],
+ "sample.webm.gz": [
+  "video",
+  "video/webm"
+ ],
+ "sample.webm.xz": [
   "video",
   "video/webm"
  ],
@@ -731,7 +3831,47 @@
   "other",
   "application/manifest+json"
  ],
+ "sample.webmanifest.Z": [
+  "other",
+  "application/manifest+json"
+ ],
+ "sample.webmanifest.br": [
+  "other",
+  "application/manifest+json"
+ ],
+ "sample.webmanifest.bz2": [
+  "other",
+  "application/manifest+json"
+ ],
+ "sample.webmanifest.gz": [
+  "other",
+  "application/manifest+json"
+ ],
+ "sample.webmanifest.xz": [
+  "other",
+  "application/manifest+json"
+ ],
  "sample.webp": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.webp.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.webp.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.webp.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.webp.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.webp.xz": [
   "other",
   "application/octet-stream"
  ],
@@ -739,7 +3879,47 @@
   "document",
   "application/msword"
  ],
+ "sample.wiz.Z": [
+  "document",
+  "application/msword"
+ ],
+ "sample.wiz.br": [
+  "document",
+  "application/msword"
+ ],
+ "sample.wiz.bz2": [
+  "document",
+  "application/msword"
+ ],
+ "sample.wiz.gz": [
+  "document",
+  "application/msword"
+ ],
+ "sample.wiz.xz": [
+  "document",
+  "application/msword"
+ ],
  "sample.wsdl": [
+  "other",
+  "application/xml"
+ ],
+ "sample.wsdl.Z": [
+  "other",
+  "application/xml"
+ ],
+ "sample.wsdl.br": [
+  "other",
+  "application/xml"
+ ],
+ "sample.wsdl.bz2": [
+  "other",
+  "application/xml"
+ ],
+ "sample.wsdl.gz": [
+  "other",
+  "application/xml"
+ ],
+ "sample.wsdl.xz": [
   "other",
   "application/xml"
  ],
@@ -747,7 +3927,47 @@
   "image",
   "image/x-xbitmap"
  ],
+ "sample.xbm.Z": [
+  "image",
+  "image/x-xbitmap"
+ ],
+ "sample.xbm.br": [
+  "image",
+  "image/x-xbitmap"
+ ],
+ "sample.xbm.bz2": [
+  "image",
+  "image/x-xbitmap"
+ ],
+ "sample.xbm.gz": [
+  "image",
+  "image/x-xbitmap"
+ ],
+ "sample.xbm.xz": [
+  "image",
+  "image/x-xbitmap"
+ ],
  "sample.xlb": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
+ "sample.xlb.Z": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
+ "sample.xlb.br": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
+ "sample.xlb.bz2": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
+ "sample.xlb.gz": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
+ "sample.xlb.xz": [
   "document",
   "application/vnd.ms-excel"
  ],
@@ -755,11 +3975,71 @@
   "document",
   "application/vnd.ms-excel"
  ],
+ "sample.xls.Z": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
+ "sample.xls.br": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
+ "sample.xls.bz2": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
+ "sample.xls.gz": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
+ "sample.xls.xz": [
+  "document",
+  "application/vnd.ms-excel"
+ ],
  "sample.xlsx": [
   "document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
  ],
+ "sample.xlsx.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.xlsx.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.xlsx.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.xlsx.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.xlsx.xz": [
+  "other",
+  "application/octet-stream"
+ ],
  "sample.xml": [
+  "document",
+  "text/xml"
+ ],
+ "sample.xml.Z": [
+  "document",
+  "text/xml"
+ ],
+ "sample.xml.br": [
+  "document",
+  "text/xml"
+ ],
+ "sample.xml.bz2": [
+  "document",
+  "text/xml"
+ ],
+ "sample.xml.gz": [
+  "document",
+  "text/xml"
+ ],
+ "sample.xml.xz": [
   "document",
   "text/xml"
  ],
@@ -767,7 +4047,47 @@
   "other",
   "application/xml"
  ],
+ "sample.xpdl.Z": [
+  "other",
+  "application/xml"
+ ],
+ "sample.xpdl.br": [
+  "other",
+  "application/xml"
+ ],
+ "sample.xpdl.bz2": [
+  "other",
+  "application/xml"
+ ],
+ "sample.xpdl.gz": [
+  "other",
+  "application/xml"
+ ],
+ "sample.xpdl.xz": [
+  "other",
+  "application/xml"
+ ],
  "sample.xpm": [
+  "image",
+  "image/x-xpixmap"
+ ],
+ "sample.xpm.Z": [
+  "image",
+  "image/x-xpixmap"
+ ],
+ "sample.xpm.br": [
+  "image",
+  "image/x-xpixmap"
+ ],
+ "sample.xpm.bz2": [
+  "image",
+  "image/x-xpixmap"
+ ],
+ "sample.xpm.gz": [
+  "image",
+  "image/x-xpixmap"
+ ],
+ "sample.xpm.xz": [
   "image",
   "image/x-xpixmap"
  ],
@@ -775,7 +4095,47 @@
   "other",
   "application/xml"
  ],
+ "sample.xsl.Z": [
+  "other",
+  "application/xml"
+ ],
+ "sample.xsl.br": [
+  "other",
+  "application/xml"
+ ],
+ "sample.xsl.bz2": [
+  "other",
+  "application/xml"
+ ],
+ "sample.xsl.gz": [
+  "other",
+  "application/xml"
+ ],
+ "sample.xsl.xz": [
+  "other",
+  "application/xml"
+ ],
  "sample.xul": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.xul.Z": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.xul.br": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.xul.bz2": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.xul.gz": [
+  "other",
+  "application/octet-stream"
+ ],
+ "sample.xul.xz": [
   "other",
   "application/octet-stream"
  ],
@@ -783,29 +4143,49 @@
   "image",
   "image/x-xwindowdump"
  ],
+ "sample.xwd.Z": [
+  "image",
+  "image/x-xwindowdump"
+ ],
+ "sample.xwd.br": [
+  "image",
+  "image/x-xwindowdump"
+ ],
+ "sample.xwd.bz2": [
+  "image",
+  "image/x-xwindowdump"
+ ],
+ "sample.xwd.gz": [
+  "image",
+  "image/x-xwindowdump"
+ ],
+ "sample.xwd.xz": [
+  "image",
+  "image/x-xwindowdump"
+ ],
  "sample.zip": [
   "archive",
   "application/zip"
  ],
- "sheet.csv.Z": [
-  "document",
-  "text/csv"
+ "sample.zip.Z": [
+  "archive",
+  "application/zip"
  ],
- "sheet.csv.br": [
-  "document",
-  "text/csv"
+ "sample.zip.br": [
+  "archive",
+  "application/zip"
  ],
- "sheet.csv.bz2": [
-  "document",
-  "text/csv"
+ "sample.zip.bz2": [
+  "archive",
+  "application/zip"
  ],
- "sheet.csv.gz": [
-  "document",
-  "text/csv"
+ "sample.zip.gz": [
+  "archive",
+  "application/zip"
  ],
- "sheet.csv.xz": [
-  "document",
-  "text/csv"
+ "sample.zip.xz": [
+  "archive",
+  "application/zip"
  ],
  "trailing. ": [
   "other",

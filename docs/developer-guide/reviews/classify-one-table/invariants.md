@@ -12,8 +12,12 @@ comes from, not what the answer is.
    open none of them — no player, no duration, no thumbnail — so the new answer
    is kept and the old one is not restored.
 2. A name carrying `.gz`, `.bz2`, `.xz`, `.Z`, `.br`, or one of the aliases
-   `.tgz` `.taz` `.tz` `.tbz2` `.txz`, is `other`. `.svgz` is the exception:
-   ffmpeg produces the same thumbnail from it as from the plain SVG, measured.
+   `.tgz` `.taz` `.tz` `.tbz2` `.svgz` `.txz`, is `other`. **Revised after
+   round 2 (finding B-1): there is no exception.** `.svgz` was one on the
+   strength of ffmpeg producing a thumbnail from it, which does not generalise
+   — nothing in the serving path sets `Content-Encoding: gzip`, so the viewer
+   receives gzip magic bytes labelled `image/svg+xml` and renders nothing. A
+   bucket whose viewer cannot open the file is the wrong bucket.
 3. `classify` gives the same answer whatever `mimetypes.guess_type` would
    return. Nothing in the result depends on a table the host may or may not
    carry.

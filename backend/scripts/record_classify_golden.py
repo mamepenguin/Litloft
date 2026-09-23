@@ -24,7 +24,6 @@ import sys
 from pathlib import Path
 
 ENCODINGS = sorted(mimetypes.encodings_map)
-COMPOUND_STEMS = ("notes.txt", "clip.mp4", "page.svg", "backup.tar", "sheet.csv")
 
 
 def _load(path: str):
@@ -44,8 +43,16 @@ def names(module) -> list[str]:
     exts.add(".loft")
 
     out = ["sample" + e for e in sorted(exts)]
-    # The dimension a one-extension probe cannot see.
-    out += [stem + enc for stem in COMPOUND_STEMS for enc in ENCODINGS]
+    # The dimension a one-extension probe cannot see. Every extension against
+    # every encoding, not a handful of stems: a list would be a set chosen
+    # where the claim survives, and the first version of it never reached an
+    # audio or an archive name.
+    out += [
+        "sample" + e + enc
+        for e in sorted(exts)
+        for enc in ENCODINGS
+        if not e.endswith(enc)
+    ]
     # And the shapes an extension lookup can get wrong on its own.
     out += ["no-extension", ".gitignore", "trailing. ", "UPPER.MP4", "既定.md"]
     return out

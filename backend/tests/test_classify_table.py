@@ -37,8 +37,7 @@ COMPRESSED_ALIASES = (".tgz", ".taz", ".tz", ".tbz2", ".txz")
 
 COMPRESSED_NOW_OTHER = {
     name for name in _golden()
-    if name.endswith(COMPRESSED_SUFFIXES + COMPRESSED_ALIASES)
-    and not name.endswith(".svgz")
+    if name.endswith(COMPRESSED_SUFFIXES + COMPRESSED_ALIASES + (".svgz",))
 }
 
 
@@ -51,16 +50,25 @@ def test_every_other_answer_is_the_one_the_container_gave(name):
 
 @pytest.mark.parametrize("name", sorted(COMPRESSED_NOW_OTHER))
 def test_a_compressed_name_is_other_whatever_it_wraps(name):
-    """Declared, not inherited: these are the answers this change moves."""
-    assert _golden()[name] != DEFAULT_CLASSIFICATION, (
-        f"{name} was already other at the parent; it does not belong here"
-    )
     assert classify(name) == DEFAULT_CLASSIFICATION
 
 
-def test_the_one_compressed_form_the_image_path_can_read_is_kept():
-    assert classify("page.svgz") == ("image", "image/svg+xml")
-    assert classify("page.svgz") == _golden()["sample.svgz"]
+# What that rule costs, declared rather than derived. Each was something Litloft
+# offered a player, a viewer or a duration for, and could open none of them.
+MOVED_BY_THE_RULE = {
+    "sample.mp4.gz": ("video", "video/mp4"),
+    "sample.mp3.gz": ("audio", "audio/mpeg"),
+    "sample.zip.gz": ("archive", "application/zip"),
+    "sample.txt.gz": ("document", "text/plain"),
+    "sample.svgz": ("image", "image/svg+xml"),
+    "sample.tgz": ("other", "application/x-tar"),
+}
+
+
+@pytest.mark.parametrize("name", sorted(MOVED_BY_THE_RULE))
+def test_what_the_rule_moved(name):
+    assert _golden()[name] == MOVED_BY_THE_RULE[name]
+    assert classify(name) == DEFAULT_CLASSIFICATION
 
 
 def test_the_golden_covers_every_row_of_the_table():
@@ -97,8 +105,10 @@ class TestTheHostCannotChangeTheAnswer:
 
 
 def test_the_extension_is_matched_without_regard_to_case():
-    for extension in _EXTENSION_TABLE:
-        assert classify("SAMPLE" + extension.upper()) == _EXTENSION_TABLE[extension]
+    for name, expected in _golden().items():
+        if name in COMPRESSED_NOW_OTHER:
+            expected = DEFAULT_CLASSIFICATION
+        assert classify(name.upper()) == expected
 
 
 def test_a_subtitle_is_decided_before_the_table():
