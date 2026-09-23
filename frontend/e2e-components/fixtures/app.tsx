@@ -676,12 +676,21 @@ function SheetGestureShort(): ReactElement {
  * something at the header's tier and the sticky player, with the sheet over
  * it. The header is tall only so the raised sheet overlaps it.
  */
-function SheetOverPage({ state }: { state: SheetState }): ReactElement {
+function SheetOverPage({
+  state,
+  player,
+}: {
+  state: SheetState;
+  player?: ReactNode;
+}): ReactElement {
   const resting = state === SHEET_STATE_PEEK;
   return (
     <NextIntlClientProvider
       locale="en"
-      messages={{ inspector: { title: "Details", sheetDescription: "Sheet" } }}
+      messages={{
+        ...enMessages,
+        inspector: { title: "Details", sheetDescription: "Sheet" },
+      }}
     >
       <div
         data-sheet-snap={resting ? "peek" : "expanded"}
@@ -703,7 +712,7 @@ function SheetOverPage({ state }: { state: SheetState }): ReactElement {
           </div>
           <div className="media-detail-host shrink-0">
             <div id="player" className="media-detail-player">
-              <div style={{ height: "220px", background: "#000" }} />
+              {player ?? <div style={{ height: "220px", background: "#000" }} />}
             </div>
           </div>
           <div className="shrink-0" style={{ height: "2000px" }}>
@@ -736,6 +745,36 @@ function SheetOverPageHalf(): ReactElement {
 
 function SheetOverPageFull(): ReactElement {
   return <SheetOverPage state="full" />;
+}
+
+function ArchiveToolbarInPlayer(): ReactElement {
+  const noop = () => {};
+  return (
+    <div style={{ height: "220px" }} className="bg-bg-primary">
+      <ArchiveToolbar
+        fileId="abcdef123456"
+        archive={{ entries: [], total_entries: 12, total_size: 1024 }}
+        breadcrumbs={[{ label: "a.zip", path: "" }]}
+        handleBreadcrumbClick={noop}
+        sort="name"
+        order="asc"
+        typeFilter={null}
+        viewMode="list"
+        onSortChange={noop}
+        onOrderChange={noop}
+        onTypeFilterChange={noop}
+        onViewModeChange={noop}
+      />
+    </div>
+  );
+}
+
+function PlayerMenuPeek(): ReactElement {
+  return <SheetOverPage state={SHEET_STATE_PEEK} player={<ArchiveToolbarInPlayer />} />;
+}
+
+function PlayerMenuHalf(): ReactElement {
+  return <SheetOverPage state={SHEET_STATE_HALF} player={<ArchiveToolbarInPlayer />} />;
 }
 
 /** The overlay sidebar's backdrop and panel, opened over a raised sheet. */
@@ -1506,6 +1545,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "sheet-over-page-peek": SheetOverPagePeek,
   "sheet-over-page-half": SheetOverPageHalf,
   "sheet-over-page-full": SheetOverPageFull,
+  "player-menu-peek": PlayerMenuPeek,
+  "player-menu-half": PlayerMenuHalf,
   "measured-sheet-peek": MeasuredSheetPeek,
   "measured-sheet-half": MeasuredSheetHalf,
   "measured-sheet-full": MeasuredSheetFull,

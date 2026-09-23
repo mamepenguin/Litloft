@@ -510,10 +510,10 @@ describe("An outside press", () => {
 
 /**
  * Nothing drawn inside the Bottom Sheet or its resting strip may spell the
- * `fixed … bottom-4` form; a third file here is a decision to make.
+ * `fixed inset-x-2 bottom-…` form; a third file here is a decision to make.
  */
 describe("the pinned-to-the-screen menu form", () => {
-  const SHEET_FORM = /fixed inset-x-2 bottom-4/;
+  const SHEET_FORM = /fixed inset-x-2 bottom-/;
 
   function filesSpellingSheetForm(): string[] {
     const out: string[] = [];

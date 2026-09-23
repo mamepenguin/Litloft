@@ -257,6 +257,8 @@ describe("the component fixture's page", () => {
       "sheet-over-page-peek",
       "sheet-over-page-half",
       "sheet-over-page-full",
+      "player-menu-peek",
+      "player-menu-half",
       "measured-sheet-peek",
       "measured-sheet-half",
       "measured-sheet-full",

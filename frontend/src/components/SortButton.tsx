@@ -17,7 +17,7 @@ import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
  * rather than by anything readable in this file.
  */
 const SORT_MENU_SURFACE_BASE =
-  "fixed inset-x-2 bottom-4 z-40 max-h-[60vh] overflow-y-auto rounded-2xl " +
+  "fixed inset-x-2 bottom-[calc(1rem+var(--resting-strip,0px))] z-40 max-h-[60vh] overflow-y-auto rounded-2xl " +
   "border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale " +
   "sm:absolute sm:inset-x-auto sm:max-h-none sm:min-w-[180px] " +
   "sm:overflow-visible";
@@ -83,41 +83,42 @@ export function SortButton({ sort, order, onChange, allowRelevance }: SortButton
         <ArrowDownUp size={16} />
       </button>
 
-      {open && (
-        <DismissScrim onDismiss={() => setOpen(false)}>
-          <div
-            ref={surface.panelRef}
-            role="menu"
-            aria-label={t("label")}
-            className={surface.className}
-          >
-          {sortOptions.map((opt) => {
-            const selected = opt.sort === sort && opt.order === order;
-            return (
-              <button
-                key={`${opt.sort}-${opt.order}`}
-                role="menuitemradio"
-                aria-checked={selected}
-                onClick={() => {
-                  onChange(opt.sort, opt.order);
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                  selected
-                    ? "bg-bg-elevated text-text-primary font-medium"
-                    : "text-text-primary hover:bg-bg-elevated"
-                }`}
-              >
-                <span className="w-4 flex-shrink-0">
-                  {selected && <Check size={14} />}
-                </span>
-                {t(opt.labelKey)}
-              </button>
-            );
-          })}
-          </div>
-        </DismissScrim>
-      )}
+      {open &&
+        surface.layer(
+          <DismissScrim onDismiss={() => setOpen(false)}>
+            <div
+              ref={surface.panelRef}
+              role="menu"
+              aria-label={t("label")}
+              className={surface.className}
+            >
+            {sortOptions.map((opt) => {
+              const selected = opt.sort === sort && opt.order === order;
+              return (
+                <button
+                  key={`${opt.sort}-${opt.order}`}
+                  role="menuitemradio"
+                  aria-checked={selected}
+                  onClick={() => {
+                    onChange(opt.sort, opt.order);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                    selected
+                      ? "bg-bg-elevated text-text-primary font-medium"
+                      : "text-text-primary hover:bg-bg-elevated"
+                  }`}
+                >
+                  <span className="w-4 flex-shrink-0">
+                    {selected && <Check size={14} />}
+                  </span>
+                  {t(opt.labelKey)}
+                </button>
+              );
+            })}
+            </div>
+          </DismissScrim>,
+        )}
     </div>
   );
 }

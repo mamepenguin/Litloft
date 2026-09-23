@@ -760,6 +760,11 @@ higher than whatever it currently sits under.
   in that box.
 - **The resting strip owns the bottom edge of a file page, home indicator
   included.** Anything anchoring to the bottom goes above it.
+- **A toolbar menu's bottom sheet is portalled to `<body>` below 640px** and
+  lifted by `--resting-strip`, which the strip publishes while it is shown. A
+  toolbar can live inside the player box, which is a sticky stacking context
+  on a phone; drawn in place, the sheet would rank under the strip and under a
+  raised inspector sheet.
 
 ### Over-video chrome (player controls, mini-player buttons, full-screen viewers)
 

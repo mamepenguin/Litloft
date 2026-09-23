@@ -61,18 +61,19 @@ export function OverflowMenu({ label, children }: OverflowMenuProps) {
       >
         <MoreHorizontal size={16} />
       </button>
-      {open && (
-        <DismissScrim onDismiss={() => setOpen(false)}>
-          <div
-            ref={surface.panelRef}
-            role="menu"
-            aria-label={label}
-            className={surface.className}
-          >
-            {children(close)}
-          </div>
-        </DismissScrim>
-      )}
+      {open &&
+        surface.layer(
+          <DismissScrim onDismiss={() => setOpen(false)}>
+            <div
+              ref={surface.panelRef}
+              role="menu"
+              aria-label={label}
+              className={surface.className}
+            >
+              {children(close)}
+            </div>
+          </DismissScrim>,
+        )}
     </div>
   );
 }

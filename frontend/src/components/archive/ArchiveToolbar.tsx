@@ -304,33 +304,34 @@ export function ArchiveToolbar({
           >
             <MoreHorizontal size={16} />
           </button>
-          {moreOpen && (
-            <DismissScrim onDismiss={closeMore}>
-              <div
-                ref={moreSurface.panelRef}
-                role="menu"
-                className={moreSurface.className}
-              >
-                <ArchiveSortGroup
-                  sort={sort}
-                  order={order}
-                  onSelect={(v) => {
-                    onSortChange(v.sort);
-                    onOrderChange(v.order);
-                    closeMore();
-                  }}
-                />
-                <MenuSeparator />
-                <ArchiveTypeGroup
-                  typeFilter={typeFilter}
-                  onSelect={(value) => {
-                    onTypeFilterChange(value);
-                    closeMore();
-                  }}
-                />
-              </div>
-            </DismissScrim>
-          )}
+          {moreOpen &&
+            moreSurface.layer(
+              <DismissScrim onDismiss={closeMore}>
+                <div
+                  ref={moreSurface.panelRef}
+                  role="menu"
+                  className={moreSurface.className}
+                >
+                  <ArchiveSortGroup
+                    sort={sort}
+                    order={order}
+                    onSelect={(v) => {
+                      onSortChange(v.sort);
+                      onOrderChange(v.order);
+                      closeMore();
+                    }}
+                  />
+                  <MenuSeparator />
+                  <ArchiveTypeGroup
+                    typeFilter={typeFilter}
+                    onSelect={(value) => {
+                      onTypeFilterChange(value);
+                      closeMore();
+                    }}
+                  />
+                </div>
+              </DismissScrim>,
+            )}
         </div>
 
         <div className="ml-auto">

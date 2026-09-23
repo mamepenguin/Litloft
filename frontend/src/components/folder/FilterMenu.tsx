@@ -115,101 +115,102 @@ export function FilterMenu({
           {isFiltering ? activeLabels.join(" · ") : t("filter")}
         </span>
       </button>
-      {open && (
-        <DismissScrim onDismiss={close}>
-          <div
-            ref={surface.panelRef}
-            role="menu"
-            className={surface.className}
-          >
-            {/* A `role="menu"` publishes only menuitem / group / separator
-                children, so a bare <p> heading reaches assistive technology
-                as nothing at all. */}
-            <div role="group" aria-labelledby={`${headingId}-type`}>
-              <p
-                id={`${headingId}-type`}
-                // `aria-labelledby` resolves a hidden element, so the group
-                // keeps its name while the paragraph stops being announced
-                // after it.
-                aria-hidden="true"
-                className="px-3 py-1.5 text-xs font-semibold text-text-muted"
-              >
-                {t("fileType")}
-              </p>
-            {TYPE_OPTION_KEYS.map((opt) => (
-              <button
-                key={opt.labelKey}
-                role="menuitemradio"
-                aria-checked={typeFilter === opt.value}
-                onClick={() => {
-                  onTypeFilterChange(opt.value);
-                  close();
-                }}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                  typeFilter === opt.value
-                    ? "bg-bg-elevated text-text-primary font-medium"
-                    : "text-text-primary hover:bg-bg-elevated"
-                }`}
-              >
-                <span className="w-4 flex-shrink-0">
-                  {typeFilter === opt.value && <Check size={14} />}
-                </span>
-                {tFilter(opt.labelKey)}
-              </button>
-            ))}
-            </div>
-
-            {showTrust && (
-              <>
-                {/* Outside the group, not its first child: inside one the
-                    reader hears "verification group, separator" as though the
-                    group itself were being divided. */}
-                <div className="my-1 border-t border-bg-border" role="separator" />
-                <div role="group" aria-labelledby={`${headingId}-trust`}>
+      {open &&
+        surface.layer(
+          <DismissScrim onDismiss={close}>
+            <div
+              ref={surface.panelRef}
+              role="menu"
+              className={surface.className}
+            >
+              {/* A `role="menu"` publishes only menuitem / group / separator
+                  children, so a bare <p> heading reaches assistive technology
+                  as nothing at all. */}
+              <div role="group" aria-labelledby={`${headingId}-type`}>
                 <p
-                  id={`${headingId}-trust`}
+                  id={`${headingId}-type`}
+                  // `aria-labelledby` resolves a hidden element, so the group
+                  // keeps its name while the paragraph stops being announced
+                  // after it.
                   aria-hidden="true"
                   className="px-3 py-1.5 text-xs font-semibold text-text-muted"
                 >
-                  {tTrust("filterLabel")}
+                  {t("fileType")}
                 </p>
-                {TRUST_OPTION_KEYS.map((opt) => (
-                  <button
-                    key={opt.labelKey}
-                    role="menuitemradio"
-                    aria-checked={(trustFilter ?? null) === opt.value}
-                    onClick={() => {
-                      onTrustFilterChange!(opt.value);
-                      close();
-                    }}
-                    className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                      (trustFilter ?? null) === opt.value
-                        ? "bg-bg-elevated text-text-primary font-medium"
-                        : "text-text-primary hover:bg-bg-elevated"
-                    }`}
+              {TYPE_OPTION_KEYS.map((opt) => (
+                <button
+                  key={opt.labelKey}
+                  role="menuitemradio"
+                  aria-checked={typeFilter === opt.value}
+                  onClick={() => {
+                    onTypeFilterChange(opt.value);
+                    close();
+                  }}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                    typeFilter === opt.value
+                      ? "bg-bg-elevated text-text-primary font-medium"
+                      : "text-text-primary hover:bg-bg-elevated"
+                  }`}
+                >
+                  <span className="w-4 flex-shrink-0">
+                    {typeFilter === opt.value && <Check size={14} />}
+                  </span>
+                  {tFilter(opt.labelKey)}
+                </button>
+              ))}
+              </div>
+
+              {showTrust && (
+                <>
+                  {/* Outside the group, not its first child: inside one the
+                      reader hears "verification group, separator" as though the
+                      group itself were being divided. */}
+                  <div className="my-1 border-t border-bg-border" role="separator" />
+                  <div role="group" aria-labelledby={`${headingId}-trust`}>
+                  <p
+                    id={`${headingId}-trust`}
+                    aria-hidden="true"
+                    className="px-3 py-1.5 text-xs font-semibold text-text-muted"
                   >
-                    <span className="mt-0.5 w-4 flex-shrink-0">
-                      {(trustFilter ?? null) === opt.value && <Check size={14} />}
-                    </span>
-                    <span className="flex-1">
-                      {tTrust(opt.labelKey)}
-                      {/* "Unjudged" is not a tier — it selects files nobody
-                          has ruled on, which spans both tiers because the
-                          migrated backlog is verified and unjudged. */}
-                      {opt.value === "unreviewed" && (
-                        <span className="mt-0.5 block text-xs font-normal text-text-muted">
-                          {tTrust("filterUnreviewedHint")}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                ))}
-                </div>
-              </>
-            )}
-          </div>
-        </DismissScrim>
-      )}
+                    {tTrust("filterLabel")}
+                  </p>
+                  {TRUST_OPTION_KEYS.map((opt) => (
+                    <button
+                      key={opt.labelKey}
+                      role="menuitemradio"
+                      aria-checked={(trustFilter ?? null) === opt.value}
+                      onClick={() => {
+                        onTrustFilterChange!(opt.value);
+                        close();
+                      }}
+                      className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                        (trustFilter ?? null) === opt.value
+                          ? "bg-bg-elevated text-text-primary font-medium"
+                          : "text-text-primary hover:bg-bg-elevated"
+                      }`}
+                    >
+                      <span className="mt-0.5 w-4 flex-shrink-0">
+                        {(trustFilter ?? null) === opt.value && <Check size={14} />}
+                      </span>
+                      <span className="flex-1">
+                        {tTrust(opt.labelKey)}
+                        {/* "Unjudged" is not a tier — it selects files nobody
+                            has ruled on, which spans both tiers because the
+                            migrated backlog is verified and unjudged. */}
+                        {opt.value === "unreviewed" && (
+                          <span className="mt-0.5 block text-xs font-normal text-text-muted">
+                            {tTrust("filterUnreviewedHint")}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </DismissScrim>,
+        )}
     </div>
   );
 }
