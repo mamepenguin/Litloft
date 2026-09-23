@@ -36,7 +36,13 @@ function Harness({
   readingDirection = "ltr" as "ltr" | "rtl",
   open = true,
   pictures = LETTERBOXED,
-  mouseSelectsText = false,
+  mouseSelectsText,
+}: {
+  resetKey?: number;
+  readingDirection?: "ltr" | "rtl";
+  open?: boolean;
+  pictures?: PictureBox[];
+  mouseSelectsText?: boolean;
 }) {
   const zoom = useViewerZoom({
     resetKey,
@@ -44,7 +50,8 @@ function Harness({
     navigatePrev: calls.prev,
     navigateNext: calls.next,
     toggleControls: calls.toggle,
-    mouseSelectsText,
+    // Left out when not given, so the hook's own default is what is tested.
+    ...(mouseSelectsText === undefined ? {} : { mouseSelectsText }),
   });
   const { frameRef } = zoom;
   const attach = useCallback(

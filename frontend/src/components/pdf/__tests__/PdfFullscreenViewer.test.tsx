@@ -19,6 +19,8 @@ const pageProps: { pageNumber: number; width: number; devicePixelRatio?: number 
 
 /** A page the browser refuses to raster. */
 let failingPage: number | null = null;
+/** Pages refused only when drawn denser than this, as a zoom asks. */
+let failAboveRatio = Infinity;
 
 vi.mock("react-pdf", () => ({
   Page: (props: {
@@ -26,10 +28,18 @@ vi.mock("react-pdf", () => ({
     width: number;
     devicePixelRatio?: number;
     onRenderError?: () => void;
+    onRenderSuccess?: () => void;
   }) => {
     pageProps.push(props);
     useEffect(() => {
-      if (props.pageNumber === failingPage) props.onRenderError?.();
+      if (
+        props.pageNumber === failingPage ||
+        (props.devicePixelRatio ?? 1) > failAboveRatio
+      ) {
+        props.onRenderError?.();
+      } else {
+        props.onRenderSuccess?.();
+      }
     });
     return (
       <div>
@@ -46,15 +56,21 @@ vi.mock("react-pdf", () => ({
 function CaptureProbe({
   documentCaptureController,
   fileId,
+  tone,
 }: {
   documentCaptureController: DocumentCaptureController;
   fileId: string;
+  tone?: string;
 }) {
   const capture = useSyncExternalStore(
     documentCaptureController.subscribe,
     documentCaptureController.getSnapshot,
   );
-  return <output data-testid="capture">{JSON.stringify({ fileId, capture })}</output>;
+  return (
+    <output data-testid="capture" data-tone={tone}>
+      {JSON.stringify({ fileId, capture })}
+    </output>
+  );
 }
 
 vi.mock("@/components/AddonSlot", () => ({
@@ -63,6 +79,7 @@ vi.mock("@/components/AddonSlot", () => ({
       <CaptureProbe
         documentCaptureController={props.documentCaptureController as DocumentCaptureController}
         fileId={props.fileId as string}
+        tone={props.tone as string | undefined}
       />
     ) : null,
 }));
@@ -134,6 +151,7 @@ const faceKind = () => document.querySelector("[data-face]")!.getAttribute("data
 beforeEach(() => {
   pageProps.length = 0;
   failingPage = null;
+  failAboveRatio = Infinity;
   vi.stubGlobal("ResizeObserver", ImmediateResizeObserver);
   localStorage.removeItem(SPREAD_MODE_KEY);
   localStorage.removeItem("image-viewer:reading-direction");
@@ -141,6 +159,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   localStorage.removeItem(SPREAD_MODE_KEY);
   localStorage.removeItem("image-viewer:reading-direction");
 });
@@ -282,6 +301,46 @@ describe("PdfFullscreenViewer", () => {
     expect(face().style.transform).toBe("translateX(-50%)");
   });
 
+  it("keeps saying a page of a pair cannot be drawn when the other one draws after it", async () => {
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    failingPage = 2;
+    await open(fakePdf(8), { initialPage: 2 });
+    expect(shownPages()).toEqual([2, 3]);
+    expect(screen.getByText(/could not be drawn/)).toBeInTheDocument();
+  });
+
+  it("stops saying so once the page draws at a smaller zoom", async () => {
+    failAboveRatio = 1.1;
+    await open(fakePdf(8), { initialPage: 2 });
+    fireEvent.keyDown(document, { key: "=" });
+    expect(screen.getByText(/could not be drawn/)).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "0" });
+    expect(screen.queryByText(/could not be drawn/)).toBeNull();
+  });
+
+  it("tells the quote button it sits on a dark bar", async () => {
+    await open(fakePdf(8));
+    expect(screen.getByTestId("capture").dataset.tone).toBe("on-dark");
+  });
+
+  it("brings the bar back on a mouse click, which turns nothing", async () => {
+    vi.useFakeTimers();
+    try {
+      await open(fakePdf(8), { initialPage: 3 });
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
+      const page = screen.getByText("Text of page 3");
+      fireEvent.pointerDown(page, { pointerId: 1, pointerType: "mouse", clientX: 500, clientY: 400 });
+      fireEvent.pointerUp(page, { pointerId: 1, pointerType: "mouse", clientX: 500, clientY: 400 });
+      expect(screen.getByRole("button", { name: "Next page" })).toBeInTheDocument();
+      expect(shownPages()).toEqual([3]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("says so when a page cannot be drawn", async () => {
     failingPage = 2;
     await open(fakePdf(8), { initialPage: 2 });
@@ -290,6 +349,11 @@ describe("PdfFullscreenViewer", () => {
 
   it("names a pair by its first page, to quote and to hand back", async () => {
     localStorage.setItem(SPREAD_MODE_KEY, "true");
+    // No selection events: in a browser the page sizes arriving, which is
+    // what turns page 3 into the pair 2–3, fires none, and the quote has to
+    // follow the face on its own.
+    const noEvents = { removeAllRanges: () => {} } as unknown as Selection;
+    vi.spyOn(window, "getSelection").mockReturnValue(noEvents);
     const { onClose } = await open(fakePdf(8), { initialPage: 3 });
     expect(shownPages()).toEqual([2, 3]);
     expect(JSON.parse(screen.getByTestId("capture").textContent!).capture).toEqual({

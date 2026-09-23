@@ -189,18 +189,36 @@ export function PdfFullscreenViewer({
     OVERLAY_PRIORITY,
   );
 
-  useEffect(() => {
-    if (!goToPageRef) return;
-    goToPageRef.current = (page) => {
+  const enterPage = useCallback(
+    (page: number) => {
       setIndex(Math.min(Math.max(0, page - 1), numPages - 1));
       setShowRightHalf(directionRef.current === "rtl");
-    };
+    },
+    [numPages],
+  );
+
+  useEffect(() => {
+    if (!goToPageRef) return;
+    goToPageRef.current = enterPage;
     return () => {
       goToPageRef.current = null;
     };
-  }, [goToPageRef, numPages]);
+  }, [goToPageRef, enterPage]);
 
-  const [renderFailed, setRenderFailed] = useState(false);
+  // Per page: in a pair, the page that draws last must not clear the other
+  // page's failure.
+  const [failedPages, setFailedPages] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
+  const markRender = useCallback((page: number, failed: boolean) => {
+    setFailedPages((prev) => {
+      if (prev.has(page) === failed) return prev;
+      const next = new Set(prev);
+      if (failed) next.add(page);
+      else next.delete(page);
+      return next;
+    });
+  }, []);
 
   const backdropRef = useInertBackdrop<HTMLDivElement>(true);
 
@@ -281,8 +299,11 @@ export function PdfFullscreenViewer({
       zoom.settledScale,
   });
 
-  // A press on a link is the link's, not a page turn.
+  // A press on a link is the link's, not a page turn. A mouse click turns
+  // nothing, so it brings the bar back instead, where a mouse that does not
+  // hover — a trackpad on a tablet — has no other way to.
   const onFramePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "mouse") chrome.show();
     if ((e.target as Element).closest?.(".annotationLayer a")) return;
     zoom.frameHandlers.onPointerDown(e);
   };
@@ -307,10 +328,7 @@ export function PdfFullscreenViewer({
           <PdfPageInput
             page={face.index + 1}
             numPages={numPages}
-            onCommit={(n) => {
-              setIndex(n - 1);
-              setShowRightHalf(readingDirection === "rtl");
-            }}
+            onCommit={enterPage}
             label={t("pdfPageNumber")}
             className="rounded-2xl bg-white/10 px-1 py-0.5 text-center text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           />
@@ -401,8 +419,8 @@ export function PdfFullscreenViewer({
                     renderTextLayer
                     renderAnnotationLayer
                     loading={null}
-                    onRenderError={() => setRenderFailed(true)}
-                    onRenderSuccess={() => setRenderFailed(false)}
+                    onRenderError={() => markRender(n, true)}
+                    onRenderSuccess={() => markRender(n, false)}
                   />
                 </section>
               ) : null,
@@ -411,7 +429,7 @@ export function PdfFullscreenViewer({
         </div>
       </div>
 
-      {renderFailed && (
+      {pages.some((n) => failedPages.has(n)) && (
         <p
           role="status"
           className="absolute inset-x-0 bottom-8 text-center text-sm text-white/70"

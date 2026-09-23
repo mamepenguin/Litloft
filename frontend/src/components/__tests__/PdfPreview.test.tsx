@@ -905,8 +905,11 @@ describe("PdfPreview full screen", () => {
         <PdfPreview fileId="other1234567" title="Other" initialPage={1} />
       </ShortcutsProvider>,
     );
-    // The next file's document arrives after the switch, as it does over
-    // the network.
+    // Until the next file's document arrives there is nothing to open: the
+    // previous one is being torn down.
+    expect(screen.getByRole("button", { name: "Full screen" })).toBeDisabled();
+    fireEvent.keyDown(document, { key: "f" });
+    expect(screen.queryByRole("dialog")).toBeNull();
     act(() => lastOnLoad!(pdfDoc));
     await screen.findByText("Selectable page 1");
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -929,6 +932,17 @@ describe("PdfPreview full screen", () => {
     act(() => itemClick!({ pageNumber: 7 }));
     await act(async () => {});
     expect(within(dialog).getByText("Selectable page 7")).toBeInTheDocument();
+  });
+
+  it("follows a link inline again after the full-screen viewer has closed", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 3");
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    await screen.findByRole("dialog");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    act(() => itemClick!({ pageNumber: 6 }));
+    expect(pageBox().value).toBe("6");
   });
 });
 

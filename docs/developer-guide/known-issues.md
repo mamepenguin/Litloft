@@ -194,6 +194,12 @@ nothing after a mouse press was released outside the picture**, until the next
 click on the picture. Reached by starting a drag on the picture and letting go
 over the viewer's bar or outside the window.
 
+**⌘K / Ctrl+K inside a full-screen viewer opens search underneath it.** The
+search box is drawn below the image, archive or PDF viewer, takes the keyboard
+and cannot be seen: the arrow keys stop turning pages, and the first `Esc`
+closes the hidden search rather than the viewer. Reached by pressing ⌘K with
+any full-screen viewer open.
+
 ## Navigation
 
 **`Paste here` and `Add` are both accent-filled at once.** With a non-empty
