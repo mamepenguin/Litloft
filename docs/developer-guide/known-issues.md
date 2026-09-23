@@ -170,6 +170,12 @@ missing, and another of the same name is moved into its folder. Copying does not
 do this — `copy_file` takes the name away from the retired record once the JPEG
 is written.
 
+**On a phone, an archive's "More" and view menus are partly hidden by the
+resting strip.** Below 640px they open as bottom sheets from inside the player
+box, which is a sticky stacking context there, so their `z-40` ranks below the
+file page's resting strip and its bottom ~40px is covered. Reached by opening a
+ZIP file at phone width and pressing "…" or the view toggle in its toolbar.
+
 ## Navigation
 
 **`Paste here` and `Add` are both accent-filled at once.** With a non-empty

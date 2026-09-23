@@ -42,6 +42,7 @@ const AT_THE_PHONE_WIDTH = [
   "add-menu.spec.ts",
   "anchored-direction.spec.ts",
   "header-row-crowding.spec.ts",
+  "immersive-viewer-layer.spec.ts",
   "chrome-buttons.spec.ts",
   "page-frame.spec.ts",
   "player-captions.spec.ts",

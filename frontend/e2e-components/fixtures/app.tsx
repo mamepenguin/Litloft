@@ -19,6 +19,7 @@ import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { ArchiveToolbar } from "@/components/archive/ArchiveToolbar";
+import { ArchiveImageViewer } from "@/components/archive/ArchiveImageViewer";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
 import { MarkdownViewModeToggle } from "@/components/MarkdownViewModeToggle";
@@ -27,7 +28,7 @@ import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
 import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
 import { VideoPlayer } from "@/components/VideoPlayer";
-import type { SubtitleInfo } from "@/types";
+import type { ArchiveEntry, SubtitleInfo } from "@/types";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import {
@@ -1316,6 +1317,72 @@ function ArchiveToolbarArrangement(): ReactElement {
   );
 }
 
+/**
+ * The phone file page's layers around a viewer opened from inside the
+ * player box, which `[data-sheet-snap]` makes sticky.
+ */
+function ArchiveViewerInPlayer(): ReactElement {
+  const noop = () => {};
+  const entry: ArchiveEntry = {
+    path: "a.jpg",
+    filename: "a.jpg",
+    file_size: 1,
+    compressed_size: 1,
+    file_type: "image",
+    mime_type: "image/jpeg",
+    is_dir: false,
+  };
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div data-sheet-snap="" className="h-dvh overflow-auto bg-bg-primary">
+        <header id="page-header" className="sticky top-0 z-20 h-14 bg-bg-primary" />
+        <div className="media-detail-host">
+          <div className="media-detail-player h-64">
+            <ArchiveImageViewer
+              fileId="abcdef123456"
+              currentImage={entry}
+              imageEntries={[entry]}
+              imageIndex={0}
+              imageLoading={false}
+              setImageLoading={noop}
+              playing={false}
+              setPlaying={noop}
+              slideshowInterval={5}
+              setSlideshowInterval={noop}
+              showControls
+              chromeProps={{
+                inert: false,
+                "aria-hidden": undefined,
+                style: { opacity: 1, pointerEvents: "auto" },
+                onPointerDown: noop,
+              }}
+              onIntervalOpenChange={noop}
+              face={{ kind: "single", index: 0, indices: [0], showRightHalf: false }}
+              faceLabel="1"
+              subPageLabel={null}
+              canGoPrev={false}
+              canGoNext={false}
+              rememberOrientation={noop}
+              handleImageAreaClick={noop}
+              closeViewer={noop}
+              spreadMode={false}
+              setSpreadMode={noop}
+              readingDirection="ltr"
+              setReadingDirection={noop}
+              setIsCurrentLandscape={noop}
+              showRightHalf={false}
+              navigatePrev={noop}
+              navigateNext={noop}
+            />
+          </div>
+        </div>
+        <div id="resting-strip" className="fixed inset-x-0 bottom-0 z-40 h-14 bg-bg-primary" />
+      </div>
+      <div className="h-[200vh]" />
+    </NextIntlClientProvider>
+  );
+}
+
 const PageFrameFull = (): ReactElement => <PageFrameArrangement width="full" />;
 const PageFrameWide = (): ReactElement => <PageFrameArrangement width="wide" />;
 const PageFrameList = (): ReactElement => <PageFrameArrangement width="list" />;
@@ -1414,6 +1481,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "file-detail-chrome-collection": FileDetailChromeCollectionArrangement,
   "file-detail-chrome-note-deep": FileDetailChromeNoteDeepArrangement,
   "archive-toolbar-deep": ArchiveToolbarArrangement,
+  "archive-viewer-in-player": ArchiveViewerInPlayer,
   "page-frame-full": PageFrameFull,
   "page-frame-wide": PageFrameWide,
   "page-frame-list": PageFrameList,

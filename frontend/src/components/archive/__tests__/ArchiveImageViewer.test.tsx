@@ -183,10 +183,8 @@ describe("ArchiveImageViewer", () => {
   });
 
   it("shows loading spinner when imageLoading is true", () => {
-    const { container } = render(
-      <ArchiveImageViewer {...defaultProps} imageLoading={true} />,
-    );
-    expect(container.querySelector(".animate-spin")).toBeInTheDocument();
+    render(<ArchiveImageViewer {...defaultProps} imageLoading={true} />);
+    expect(document.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
   it("renders slideshow interval selector", () => {
