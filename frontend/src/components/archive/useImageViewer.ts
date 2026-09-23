@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { getArchiveEntryUrl } from "@/lib/api";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import type { ArchiveEntry } from "@/types";
 import {
   useAutoHidingChrome,
@@ -251,6 +252,9 @@ export function useImageViewer(
       },
     ],
     viewMode === "image",
+    // A viewer covers the page: nothing under it may take a key.
+    OVERLAY_PRIORITY,
+    true,
   );
 
   return {

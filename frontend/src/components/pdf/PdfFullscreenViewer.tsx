@@ -197,8 +197,10 @@ export function PdfFullscreenViewer({
       { key: "escape", label: tc("close"), handler: close },
     ],
     true,
-    // Above the file arrows, which can register after this opens.
+    // A viewer covers the page: nothing under it may take a key — the file
+    // arrows, which can register after this opens, included.
     OVERLAY_PRIORITY,
+    true,
   );
 
   const enterPage = useCallback(

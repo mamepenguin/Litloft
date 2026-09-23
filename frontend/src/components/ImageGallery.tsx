@@ -15,6 +15,7 @@ import { useViewerZoom } from "@/hooks/useViewerZoom";
 import { useViewerZoomShortcuts } from "@/hooks/useViewerZoomShortcuts";
 import { useInertBackdrop } from "@/hooks/useInertBackdrop";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { useAutoHidingChrome } from "@/hooks/useAutoHidingChrome";
 import { useSpreadPaging } from "@/hooks/useSpreadPaging";
 import { useSpreadFits } from "@/hooks/useSpreadFits";
@@ -286,6 +287,9 @@ export function ImageGallery({
       },
     ],
     open,
+    // A viewer covers the page: nothing under it may take a key.
+    OVERLAY_PRIORITY,
+    true,
   );
 
   const zoom = useViewerZoom({

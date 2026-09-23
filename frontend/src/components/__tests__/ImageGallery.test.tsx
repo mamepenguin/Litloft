@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ImageGallery } from "../ImageGallery";
 import { ShortcutsProvider } from "../ShortcutsProvider";
+import { useShortcuts } from "@/hooks/useShortcuts";
 import type { FileItem } from "@/types";
 import { installPointerEvent } from "@/test/pointerEvent";
 import { SPREAD_MODE_KEY } from "@/lib/spreadPreference";
@@ -455,6 +456,45 @@ describe("ImageGallery", () => {
       .find((r) => r.getAttribute("aria-checked") === "true");
     expect(chosen).toHaveTextContent("5s");
   });
+
+  it("leaves the page its keys while it is mounted closed", async () => {
+    const search = vi.fn();
+    function PageKeys() {
+      useShortcuts("global", "global", [{ key: "ctrl+k", label: "search", handler: search }]);
+      return null;
+    }
+    renderWithShortcuts(
+      <>
+        <PageKeys />
+        <ImageGallery {...defaultProps} open={false} />
+      </>,
+    );
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    expect(search).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the page's own keys from firing while it is open", async () => {
+    const search = vi.fn();
+    function PageKeys() {
+      useShortcuts("global", "global", [{ key: "ctrl+k", label: "search", handler: search }]);
+      return null;
+    }
+    renderWithShortcuts(
+      <>
+        <PageKeys />
+        <ImageGallery {...defaultProps} />
+      </>,
+    );
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    expect(search).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: "=" });
+    expect(
+      screen.getAllByRole("img")[0].closest("[data-face]")!.parentElement!.style.transform,
+    ).toContain("scale(1.25)");
+  });
 });
 
 describe("ImageGallery backdrop", () => {
@@ -497,4 +537,5 @@ describe("ImageGallery backdrop", () => {
     expect(document.body.style.overflow).toBe("");
     expect(document.querySelectorAll("[inert]")).toHaveLength(0);
   });
+
 });

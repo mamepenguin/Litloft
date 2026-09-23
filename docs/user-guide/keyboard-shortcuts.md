@@ -159,6 +159,11 @@ page.
 
 ## Image gallery and archive page-turner
 
+While a full-screen viewer (image, archive or PDF) is open, only its own keys
+work — the page's shortcuts, search (`Cmd/Ctrl+K`) and the quick note (`n`)
+included, wait until it closes. `?` still shows the list, which then holds
+only what the viewer answers.
+
 | Key | Action |
 |---|---|
 | `←` / `→` | Previous / next **face** (reading-direction aware) |

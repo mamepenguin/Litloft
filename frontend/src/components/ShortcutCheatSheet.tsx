@@ -56,8 +56,9 @@ export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetP
 
   if (!open) return null;
 
-  const globalCtx = stack.find((c) => c.id === "global");
-  const sections: ShortcutContextDef[] = orderContexts(stack).filter(
+  const reachable = orderContexts(stack);
+  const globalCtx = reachable.find((c) => c.id === "global");
+  const sections: ShortcutContextDef[] = reachable.filter(
     (ctx) => ctx.id !== "global",
   );
   if (globalCtx) sections.push(globalCtx);

@@ -19,6 +19,7 @@ export function useShortcuts(
   shortcuts: ShortcutDef[],
   enabled: boolean = true,
   priority: number = 0,
+  blocksLower: boolean = false,
 ): void {
   const { push, pop } = useShortcutsContext();
   const shortcutsRef = useRef<ShortcutDef[]>(shortcuts);
@@ -33,6 +34,7 @@ export function useShortcuts(
       id,
       label,
       priority,
+      blocksLower,
       // Proxy each handler through the ref so callers always invoke the
       // latest closure even after state updates.
       shortcuts: shortcuts.map((s) => ({
@@ -46,5 +48,5 @@ export function useShortcuts(
     push(ctx);
     return () => pop(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, label, push, pop, enabled, priority]);
+  }, [id, label, push, pop, enabled, priority, blocksLower]);
 }

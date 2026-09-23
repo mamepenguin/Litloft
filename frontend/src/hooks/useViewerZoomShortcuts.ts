@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { KEY_ZOOM_STEP } from "@/hooks/useViewerZoom";
+import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 export function useViewerZoomShortcuts(
   zoom: { zoomBy: (factor: number) => void; reset: () => void },
@@ -26,5 +27,7 @@ export function useViewerZoomShortcuts(
       { key: "0", label: t("zoomFit"), handler: zoom.reset },
     ],
     enabled,
+    // The viewer's own tier, which it keeps from everything below.
+    OVERLAY_PRIORITY,
   );
 }
