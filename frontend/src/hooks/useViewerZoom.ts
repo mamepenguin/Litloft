@@ -54,6 +54,22 @@ interface Pinch {
   view: View;
 }
 
+/**
+ * Everything a gesture in progress remembers, in one object, so that a change
+ * of picture discards all of it at once.
+ */
+interface Gesture {
+  pointers: Map<number, Point>;
+  press: Press | null;
+  pinch: Pinch | null;
+  /** A WebKit trackpad pinch. */
+  trackpad: { view: View; origin: Point } | null;
+}
+
+function newGesture(): Gesture {
+  return { pointers: new Map(), press: null, pinch: null, trackpad: null };
+}
+
 function distance(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
@@ -87,10 +103,7 @@ export function useViewerZoom({
   const [view, setViewState] = useState<View>(FIT);
   const [settledScale, setSettledScale] = useState(1);
   const viewRef = useRef<View>(FIT);
-  const pointers = useRef(new Map<number, Point>());
-  const press = useRef<Press | null>(null);
-  const pinch = useRef<Pinch | null>(null);
-  const trackpadPinch = useRef<{ view: View; origin: Point } | null>(null);
+  const gesture = useRef<Gesture>(newGesture());
   const wheelTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
@@ -165,10 +178,7 @@ export function useViewerZoom({
   const reset = useCallback(() => settle(FIT), [settle]);
 
   useEffect(() => {
-    pointers.current.clear();
-    press.current = null;
-    pinch.current = null;
-    trackpadPinch.current = null;
+    gesture.current = newGesture();
     settle(FIT);
   }, [resetKey, settle]);
 
@@ -221,17 +231,17 @@ export function useViewerZoom({
     if (!frameEl) return;
     const onStart = (e: Event) => {
       e.preventDefault();
-      if (pointers.current.size > 0) return;
+      if (gesture.current.pointers.size > 0) return;
       const g = e as Event & { clientX: number; clientY: number };
-      trackpadPinch.current = {
+      gesture.current.trackpad = {
         view: viewRef.current,
         origin: localPoint(g.clientX, g.clientY),
       };
     };
     const onChange = (e: Event) => {
       e.preventDefault();
-      const start = trackpadPinch.current;
-      if (!start || pointers.current.size > 0) return;
+      const start = gesture.current.trackpad;
+      if (!start || gesture.current.pointers.size > 0) return;
       const m = measure();
       if (!m) return;
       const scale = (e as Event & { scale: number }).scale;
@@ -240,8 +250,8 @@ export function useViewerZoom({
     };
     const onEnd = (e: Event) => {
       e.preventDefault();
-      if (!trackpadPinch.current) return;
-      trackpadPinch.current = null;
+      if (!gesture.current.trackpad) return;
+      gesture.current.trackpad = null;
       const m = measure();
       settle(m ? settleView(viewRef.current, m.frame, m.content) : FIT);
     };
@@ -258,9 +268,9 @@ export function useViewerZoom({
   const onPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       const p = localPoint(e.clientX, e.clientY);
-      pointers.current.set(e.pointerId, p);
-      if (pointers.current.size === 1) {
-        press.current = {
+      gesture.current.pointers.set(e.pointerId, p);
+      if (gesture.current.pointers.size === 1) {
+        gesture.current.press = {
           x: e.clientX,
           y: e.clientY,
           t: Date.now(),
@@ -268,14 +278,14 @@ export function useViewerZoom({
           zoomedAtStart: isZoomed(viewRef.current),
           pinched: false,
         };
-      } else if (pointers.current.size === 2) {
-        const [a, b] = [...pointers.current.values()];
-        pinch.current = {
+      } else if (gesture.current.pointers.size === 2) {
+        const [a, b] = [...gesture.current.pointers.values()];
+        gesture.current.pinch = {
           distance: distance(a, b),
           mid: midpoint(a, b),
           view: viewRef.current,
         };
-        if (press.current) press.current.pinched = true;
+        if (gesture.current.press) gesture.current.press.pinched = true;
       }
     },
     [localPoint],
@@ -283,14 +293,14 @@ export function useViewerZoom({
 
   const onPointerMove = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
-      const previous = pointers.current.get(e.pointerId);
+      const previous = gesture.current.pointers.get(e.pointerId);
       if (!previous) return;
       const p = localPoint(e.clientX, e.clientY);
-      pointers.current.set(e.pointerId, p);
+      gesture.current.pointers.set(e.pointerId, p);
 
-      const start = pinch.current;
-      if (start && pointers.current.size >= 2) {
-        const [a, b] = [...pointers.current.values()];
+      const start = gesture.current.pinch;
+      if (start && gesture.current.pointers.size >= 2) {
+        const [a, b] = [...gesture.current.pointers.values()];
         if (start.distance === 0) return;
         const mid = midpoint(a, b);
         const scaled = zoomAbout(start.view, distance(a, b) / start.distance, start.mid);
@@ -302,7 +312,7 @@ export function useViewerZoom({
         return;
       }
 
-      if (pointers.current.size !== 1 || !isZoomed(viewRef.current)) return;
+      if (gesture.current.pointers.size !== 1 || !isZoomed(viewRef.current)) return;
       // A hovering mouse moves with no button down.
       if (e.pointerType === "mouse" && e.buttons === 0) return;
       const m = measure();
@@ -325,16 +335,16 @@ export function useViewerZoom({
 
   const endPointer = useCallback(
     (pointerId: number) => {
-      pointers.current.delete(pointerId);
-      if (pointers.current.size === 1 && pinch.current) {
+      gesture.current.pointers.delete(pointerId);
+      if (gesture.current.pointers.size === 1 && gesture.current.pinch) {
         // One finger left of a pinch: it pans from here, not from where the
         // pinch began.
-        pinch.current = null;
+        gesture.current.pinch = null;
       }
-      if (pointers.current.size > 0) return false;
-      const wasPinch = press.current?.pinched ?? false;
-      if (wasPinch || pinch.current) {
-        pinch.current = null;
+      if (gesture.current.pointers.size > 0) return false;
+      const wasPinch = gesture.current.press?.pinched ?? false;
+      if (wasPinch || gesture.current.pinch) {
+        gesture.current.pinch = null;
         const m = measure();
         settle(m ? settleView(viewRef.current, m.frame, m.content) : FIT);
       } else if (isZoomed(viewRef.current)) {
@@ -347,10 +357,10 @@ export function useViewerZoom({
 
   const onPointerUp = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
-      const s = press.current;
+      const s = gesture.current.press;
       const single = endPointer(e.pointerId);
-      if (pointers.current.size > 0) return;
-      press.current = null;
+      if (gesture.current.pointers.size > 0) return;
+      gesture.current.press = null;
       if (!s || !single) return;
 
       const dx = e.clientX - s.x;
@@ -394,7 +404,7 @@ export function useViewerZoom({
   const onPointerCancel = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       endPointer(e.pointerId);
-      if (pointers.current.size === 0) press.current = null;
+      if (gesture.current.pointers.size === 0) gesture.current.press = null;
     },
     [endPointer],
   );

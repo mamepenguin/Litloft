@@ -5,6 +5,7 @@ import { ImageGallery } from "../ImageGallery";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 import type { FileItem } from "@/types";
 import { installPointerEvent } from "@/test/pointerEvent";
+import { SPREAD_MODE_KEY } from "@/lib/spreadPreference";
 
 installPointerEvent();
 
@@ -89,6 +90,9 @@ describe("ImageGallery", () => {
     vi.useFakeTimers();
     setupMock();
     defaultProps.onClose = vi.fn();
+    // The spread switch is remembered on the device, and a test that turns
+    // it on would otherwise open the next one in spreads.
+    localStorage.removeItem(SPREAD_MODE_KEY);
   });
 
   afterEach(() => {
@@ -97,6 +101,7 @@ describe("ImageGallery", () => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
     vi.restoreAllMocks();
+    localStorage.removeItem(SPREAD_MODE_KEY);
   });
 
   it("renders nothing when open is false", () => {

@@ -384,6 +384,15 @@ describe("useViewerZoom Safari trackpad pinch", () => {
     expect(scale()).toBe(2);
   });
 
+  it("zooms about the pointer, and keeps the page from zooming as it goes", () => {
+    render(<Harness />);
+    gesture("gesturestart", { scale: 1, clientX: 100, clientY: 400 });
+    const change = gesture("gesturechange", { scale: 2, clientX: 100, clientY: 400 });
+    expect(change.defaultPrevented).toBe(true);
+    // The picture point under x=100 stays there: 100 - 100 * 2.
+    expect(translate().x).toBe(-100);
+  });
+
   it("scales each change from where the pinch began", () => {
     render(<Harness />);
     gesture("gesturestart", { scale: 1, clientX: 200, clientY: 400 });
