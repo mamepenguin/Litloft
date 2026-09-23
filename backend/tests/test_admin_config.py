@@ -1259,14 +1259,23 @@ def test_a_sentinel_only_password_earns_admin_on_a_drive_without_groups(
     monkeypatch.setattr(auth, "PASSWORDS_CONFIG", passwords_json)
     monkeypatch.setattr(auth, "_passwords_cache", None)
 
+    import app.setup_token as setup_token
+
+    monkeypatch.setattr(setup_token, "_token", None)
+    monkeypatch.setenv(setup_token.ENV_VAR, "tok")
+
     with TestClient(app) as c:
+        sentinel = data_dir / "setup_completed"
+        if sentinel.exists():
+            sentinel.unlink()
         resp = c.put(
             "/api/admin/config/passwords",
             json=[{"password": "master key", "groups": ["__admin__"]}],
+            headers={setup_token.HEADER: "tok"},
         )
         assert resp.status_code == 200, resp.text
 
-        (data_dir / "setup_completed").touch()
+        sentinel.touch()
 
         locked = TestClient(app)
         assert locked.get("/api/admin/config/passwords").status_code == 403
@@ -1275,3 +1284,131 @@ def test_a_sentinel_only_password_earns_admin_on_a_drive_without_groups(
             "/api/auth/unlock", json={"password": "master key"}
         ).status_code == 200
         assert c.get("/api/admin/config/passwords").status_code == 200
+
+
+
+def _public_install(tmp_path, monkeypatch):
+    """What the wizard leaves behind when Public is chosen: no drive declares
+    a group and passwords.json is empty, so `is_admin` is True for everyone."""
+    import app.auth as auth
+    import app.config as config
+
+    drive_dir = tmp_path / "d"
+    drive_dir.mkdir()
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    drives_json = tmp_path / "drives.json"
+    drives_json.write_text(json.dumps([{"name": "d", "path": str(drive_dir)}]))
+    passwords_json = tmp_path / "passwords.json"
+    passwords_json.write_text(json.dumps([]))
+
+    monkeypatch.setattr(config, "DRIVES_CONFIG", drives_json)
+    monkeypatch.setattr(config, "DATA_DIR", data_dir)
+    monkeypatch.setattr(config, "THUMBNAILS_DIR", data_dir / "thumbnails")
+    monkeypatch.setattr(config, "CONVERTED_DIR", data_dir / "converted")
+    monkeypatch.setattr(config, "_drives_cache", None)
+    monkeypatch.setattr(auth, "PASSWORDS_CONFIG", passwords_json)
+    monkeypatch.setattr(auth, "_passwords_cache", None)
+    return drives_json, passwords_json, data_dir, str(drive_dir)
+
+
+ADMIN_GRANT = [{"password": "planted", "groups": ["__admin__"]}]
+
+
+def test_an_anonymous_caller_cannot_grant_itself_admin(tmp_path, monkeypatch):
+    """Everyone passes require_admin on a public install. The sentinel is the
+    group that ends that state, so writing one needs admin that was earned."""
+    from app.main import app
+
+    _, passwords_json, data_dir, drive_path = _public_install(tmp_path, monkeypatch)
+
+    with TestClient(app) as attacker:
+        (data_dir / "setup_completed").touch()
+
+        resp = attacker.put("/api/admin/config/passwords", json=ADMIN_GRANT)
+        assert resp.status_code == 403, resp.text
+        assert "admin_grant_forbidden" in resp.text
+        assert json.loads(passwords_json.read_text()) == []
+
+        resp = attacker.post(
+            "/api/admin/config/passwords/append", json=ADMIN_GRANT[0]
+        )
+        assert resp.status_code == 403, resp.text
+        assert json.loads(passwords_json.read_text()) == []
+
+        owner = TestClient(app)
+        assert owner.get("/api/admin/config/drives").status_code == 200
+        assert owner.put(
+            "/api/admin/config/drives",
+            json=[{"name": "d", "path": drive_path}],
+        ).status_code == 200
+
+
+def test_a_viewer_holding_the_admin_password_may_write_another(
+    tmp_path, monkeypatch
+):
+    import app.auth as auth
+    from app.main import app
+
+    _, passwords_json, data_dir, _ = _public_install(tmp_path, monkeypatch)
+    passwords_json.write_text(
+        json.dumps([{"password": "first-admin", "groups": ["__admin__"]}])
+    )
+    auth._passwords_cache = None
+
+    with TestClient(app) as c:
+        (data_dir / "setup_completed").touch()
+        assert c.put(
+            "/api/admin/config/passwords", json=ADMIN_GRANT
+        ).status_code == 403
+
+        assert c.post(
+            "/api/auth/unlock", json={"password": "first-admin"}
+        ).status_code == 200
+        assert c.put(
+            "/api/admin/config/passwords", json=ADMIN_GRANT
+        ).status_code == 200
+
+
+def test_the_wizard_may_still_write_the_first_admin_password(
+    tmp_path, monkeypatch
+):
+    """While the sentinel is absent the setup token has already answered."""
+    import app.setup_token as setup_token
+    from app.main import app
+
+    _, passwords_json, data_dir, _ = _public_install(tmp_path, monkeypatch)
+    monkeypatch.setattr(setup_token, "_token", None)
+    monkeypatch.setenv(setup_token.ENV_VAR, "tok")
+
+    with TestClient(app) as c:
+        sentinel = data_dir / "setup_completed"
+        if sentinel.exists():
+            sentinel.unlink()
+        resp = c.put(
+            "/api/admin/config/passwords",
+            json=ADMIN_GRANT,
+            headers={setup_token.HEADER: "tok"},
+        )
+        assert resp.status_code == 200, resp.text
+        assert json.loads(passwords_json.read_text())[0]["groups"] == ["__admin__"]
+
+
+def test_a_write_carrying_no_sentinel_is_left_to_the_validators(
+    tmp_path, monkeypatch
+):
+    """The guard answers for the sentinel and nothing else: an ordinary group
+    still fails where it always did, for the reason it always did."""
+    from app.main import app
+
+    _, _, data_dir, _ = _public_install(tmp_path, monkeypatch)
+
+    with TestClient(app) as c:
+        (data_dir / "setup_completed").touch()
+        resp = c.put(
+            "/api/admin/config/passwords",
+            json=[{"password": "ordinary", "groups": ["g1"]}],
+        )
+        assert resp.status_code == 422, resp.text
+        assert "unknown_group" in resp.text
+        assert "admin_grant_forbidden" not in resp.text

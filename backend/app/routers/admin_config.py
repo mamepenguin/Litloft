@@ -105,7 +105,8 @@ def _known_groups(drives_for_groups: list[dict[str, Any]]) -> set[str]:
     """The group names a password entry may name.
 
     Every drive's ``access_group``, plus the admin sentinel, which names no
-    drive: it is what makes a password grant ``/admin`` (``auth.is_admin_viewer``).
+    drive: it is what makes a password grant ``/admin``. Who may write one is
+    a separate question, answered by ``_require_admin_to_grant_admin``.
     """
     groups = {
         d.get("access_group")
@@ -379,9 +380,54 @@ def get_passwords() -> list[dict[str, Any]]:
     ]
 
 
+def _grants_admin(entries: Any) -> bool:
+    """Whether a payload would leave an entry carrying the admin sentinel."""
+    if isinstance(entries, dict):
+        entries = [entries]
+    if not isinstance(entries, list):
+        return False
+    return any(
+        isinstance(e, dict)
+        and isinstance(e.get("groups"), list)
+        and auth.ADMIN_SENTINEL_GROUP in e["groups"]
+        for e in entries
+    )
+
+
+def _require_admin_to_grant_admin(request: Request, payload: Any) -> None:
+    """Writing a password that grants ``/admin`` needs admin that was earned.
+
+    ``require_admin`` passes for everyone on an install where no drive is
+    protected and no admin password exists — the graceful degradation the auth
+    layer is built on. The sentinel is the one group whose arrival *ends* that
+    state, so accepting it from a caller who is admin only by degradation hands
+    the install to whoever asks first.
+
+    The wizard is exempt: while the sentinel file is absent the setup token has
+    already answered for the caller.
+    """
+    if not _grants_admin(payload):
+        return
+    if not config.setup_completed_sentinel().exists():
+        return
+    if auth.ADMIN_SENTINEL_GROUP in auth.get_unlocked_groups(request):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "code": "admin_grant_forbidden",
+            "message": (
+                "Only a viewer holding the admin password may write another "
+                "one. Unlock with it first, or re-run /setup."
+            ),
+        },
+    )
+
+
 @router.put("/passwords", dependencies=[Depends(_admin_or_first_run)])
-def put_passwords(payload: Any = Body(...)) -> dict[str, Any]:
+def put_passwords(request: Request, payload: Any = Body(...)) -> dict[str, Any]:
     """Atomically rewrite passwords.json after validation."""
+    _require_admin_to_grant_admin(request, payload)
     drives = _read_drives_from_disk()
     validated = _validate_passwords_payload(payload, drives)
     try:
@@ -450,13 +496,16 @@ def _validate_password_entry(
 
 
 @router.post("/passwords/append", dependencies=[Depends(_admin_or_first_run)])
-def post_passwords_append(payload: Any = Body(...)) -> dict[str, Any]:
+def post_passwords_append(
+    request: Request, payload: Any = Body(...)
+) -> dict[str, Any]:
     """Append a single new password entry without touching existing entries.
 
     Used by the admin settings GUI for incremental edits — the GET masks
     real password values, so a full PUT round-trip cannot preserve the
     untouched entries. POST /append takes only the new entry.
     """
+    _require_admin_to_grant_admin(request, payload)
     drives = _read_drives_from_disk()
     existing = _read_passwords_from_disk()
     validated_entry = _validate_password_entry(payload, drives, existing)

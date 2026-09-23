@@ -15,4 +15,10 @@ Declared before the first review round (R-0).
    password write, and does not stop setup from completing.
 6. Public mode writes no password entry at all.
 
-TOTAL: 6 invariants
+7. **Added after round 1 (finding 1).** A password carrying `__admin__` can be
+   written only by a caller already holding it, or through the wizard while the
+   setup token stands in for one. On an install where nothing is protected
+   `require_admin` passes for everyone, so without this the sentinel could be
+   handed to whoever asked first.
+
+TOTAL: 7 invariants

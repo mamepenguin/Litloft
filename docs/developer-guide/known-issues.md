@@ -24,6 +24,13 @@ Remove the row when it is fixed.
 
 ## Setup
 
+**A drive renamed in the wizard is empty until the backend restarts.** The
+scanner enumerates drives once, from the startup lifespan, and `PUT /drives`
+rewrites `drives.json` without touching the database, so every row still names
+the drive as the backend seeded it. Reached on the first run that renames a
+drive, which is what the drive step is for. The *Requires restart* banner says
+so; the restart, or the folder toolbar's Scan, fixes it.
+
 **Choosing Public while a drive still carries an access group locks everyone
 out.** The wizard saves the drive rows unchanged in both modes and Public writes
 no password, so the drive is 404, `GET /api/admin/config/drives` is 403 and

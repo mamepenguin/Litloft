@@ -202,7 +202,7 @@ Per-viewer state is reached through the endpoints already listed above: `POST` /
 | `GET` | `/api/admin/config/drives` | Read drives.json at full fidelity, including addon policy. |
 | `PUT` | `/api/admin/config/drives` | Replace drives.json (validated, atomic write). Returns `{ ok, count }`. |
 | `GET` | `/api/admin/config/passwords` | Entries with every password value masked as `***`. Real passwords never leave the server. |
-| `PUT` | `/api/admin/config/passwords` | Replace passwords.json (validated, atomic write). A masked value is rejected. |
+| `PUT` | `/api/admin/config/passwords` | Replace passwords.json (validated, atomic write). A masked value is rejected. A password's `groups` may name any drive's `access_group`, plus `__admin__`, which grants `/admin` without unlocking a drive. Writing one that carries `__admin__` needs a caller already holding it, or the setup token while `data/setup_completed` is absent; otherwise `403 admin_grant_forbidden`. |
 | `POST` | `/api/admin/config/passwords/append` | Append one entry without resending the masked others. Body is a single `{ password, groups }` object. |
 | `DELETE` | `/api/admin/config/passwords/{index}` | Remove the entry at that 0-based index (`404` when out of range). |
 | `GET` | `/api/admin/config/addon-policy` | Per-drive addon policy projected out of drives.json. Drives with no `addons` field appear with an empty object. |
