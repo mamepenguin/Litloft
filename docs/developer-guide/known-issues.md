@@ -24,6 +24,14 @@ Remove the row when it is fixed.
 
 ## Setup
 
+**Choosing Public while a drive still carries an access group locks everyone
+out.** The wizard saves the drive rows unchanged in both modes and Public writes
+no password, so the drive is 404, `GET /api/admin/config/drives` is 403 and
+`PUT` is 403 — nobody can unlock and nobody can write. Recovery is editing
+`drives.json` on the host. Reached by typing an access group in the drive step
+and then leaving the access mode at its Public default, and by re-running the
+wizard on an install that already has protected drives.
+
 **Re-running `configure.py` over a hand-edited override rewrites it.** Answering
 yes to "docker-compose.override.yml already exists. Overwrite?" regenerates the
 file from the recovered host paths and slugs: a drive mount's `:ro` is dropped,

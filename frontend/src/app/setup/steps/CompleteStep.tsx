@@ -4,6 +4,8 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { SETUP_TOKEN_HEADER } from "@/lib/adminConfig";
+
 export interface CompleteSummary {
   driveCount: number;
   accessMode: "public" | "protected";
@@ -13,12 +15,14 @@ export interface CompleteSummary {
 interface Props {
   onBack: () => void;
   onBeforeSubmit?: () => Promise<void>;
+  setupToken: string;
   summary: CompleteSummary;
 }
 
 export function CompleteStep({
   onBack,
   onBeforeSubmit,
+  setupToken,
   summary,
 }: Props): React.ReactElement {
   const t = useTranslations("setup");
@@ -35,7 +39,10 @@ export function CompleteStep({
       const res = await fetch("/api/admin/config/complete-setup", {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          [SETUP_TOKEN_HEADER]: setupToken,
+        },
       });
       if (!res.ok) {
         let message = tComplete("errorMessage");
@@ -54,7 +61,7 @@ export function CompleteStep({
     } finally {
       setSubmitting(false);
     }
-  }, [onBeforeSubmit, router, tComplete]);
+  }, [onBeforeSubmit, router, setupToken, tComplete]);
 
   const accessModeLabel =
     summary.accessMode === "public"

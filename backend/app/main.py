@@ -16,6 +16,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.database import SessionLocal, init_db
 from app.auth import check_drive_access, get_unlocked_groups, init_jwt_secret, load_passwords
+import app.setup_token as setup_token
 import app.config as config
 from app.models import File
 from app.routers import admin, admin_markdown_images, auth, collections, comments, drives, files, progress, uploads, ws
@@ -249,6 +250,10 @@ async def lifespan(app: FastAPI):
     load_passwords()
     init_jwt_secret()
     logger.info("Auth initialized")
+    # Minting here, not at the first write, is what puts the token in the log
+    # before the operator opens /setup and is asked for it.
+    if not config.setup_completed_sentinel().exists():
+        setup_token.setup_token()
     if not os.environ.get("CORE_INTERNAL_SECRET"):
         # Surface the unset secret at startup so the ops-time implication
         # is visible without grep. Docker network isolation is still the

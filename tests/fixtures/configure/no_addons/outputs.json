@@ -1,6 +1,6 @@
 {
   "docker-compose.override.yml": "docker-compose.override.yml.expected",
-  ".env": null,
+  ".env": ".env.expected",
   "event-hooks.json": null,
   "drives.json": "drives.json.expected",
   "passwords.json": "passwords.json.expected",

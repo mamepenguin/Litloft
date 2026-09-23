@@ -191,12 +191,13 @@ Per-viewer state is reached through the endpoints already listed above: `POST` /
 
 ## Admin
 
-`/api/admin/dashboard` and every `/api/admin/markdown-images/...` route require master-viewer authentication (`403` otherwise). Under `/api/admin/config`, `setup-status` and `complete-setup` are intentionally unauthenticated so the first-run wizard can run before any password exists; the `GET` routes require admin; and the writes accept an unauthenticated caller **only** while `data/setup_completed` is absent, then require admin like everything else.
+`/api/admin/dashboard` and every `/api/admin/markdown-images/...` route require master-viewer authentication (`403` otherwise). Under `/api/admin/config`, `setup-status` and `setup-token/verify` are unauthenticated so the first-run wizard can run before any password exists; the `GET` routes require admin; and the writes, along with `complete-setup`, require admin once `data/setup_completed` exists and the setup token (`X-Litloft-Setup-Token`) while it is absent.
 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/admin/dashboard` | Aggregated metrics. Per drive: file counts by type, last scan time, current scan state. Per **filesystem** (`system.filesystems`, one row per `st_dev` with `mount_label` / `total_bytes` / `used_bytes` / `free_bytes` / `drives`): disk usage, since `shutil.disk_usage` measures a mount rather than a directory and drives sharing a disk share its figures. A drive whose path cannot be read contributes no row. Plus DB / thumbnail / converted-cache sizes and uptime. |
 | `GET` | `/api/admin/config/setup-status` | `{ completed, drives }` (unauthenticated). `drives` (seeded `name`/`path`/`access_group`) is returned only while setup is incomplete; `[]` once `data/setup_completed` exists. |
+| `POST` | `/api/admin/config/setup-token/verify` | `{ token }` → `{ ok: true }`, or `403 setup_token_invalid`. Unauthenticated, and only while `data/setup_completed` is absent; `404` once it exists. Lets the wizard reject a wrong token before it collects anything. |
 | `POST` | `/api/admin/config/complete-setup` | Finalise the wizard; creates `data/setup_completed`. `409 already_completed` if it is already there. |
 | `GET` | `/api/admin/config/drives` | Read drives.json at full fidelity, including addon policy. |
 | `PUT` | `/api/admin/config/drives` | Replace drives.json (validated, atomic write). Returns `{ ok, count }`. |

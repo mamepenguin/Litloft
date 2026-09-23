@@ -11,6 +11,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 import app.auth as auth
 import app.config as config
+import app.setup_token as setup_token
 from app.services import addon_registry
 from app.services.config_writer import atomic_write_json
 
@@ -206,7 +207,7 @@ def _validate_addon_policy_payload(
 
 
 def _admin_or_first_run(request: Request) -> None:
-    """Allow unauthenticated writes while first-run setup is incomplete.
+    """Admin once setup is complete; the setup token until then.
 
     The wizard sequences three writes — PUT /drives, PUT /passwords,
     POST /complete-setup — and the first one establishes drive
@@ -215,14 +216,30 @@ def _admin_or_first_run(request: Request) -> None:
     the second write. The user is then locked out: drives.json now
     requires admin, but no password exists yet to unlock.
 
-    So config writes are exempt from the admin gate while the
-    ``setup_completed`` sentinel is absent: anyone on the LAN can write config
-    until the wizard completes, intentionally. GETs remain admin-gated.
+    So the admin gate cannot apply during first run. The setup token stands in
+    for it, which is what keeps the window from being open to the whole LAN.
+    GETs remain admin-gated.
     """
-    sentinel = config.DATA_DIR / "setup_completed"
+    sentinel = config.setup_completed_sentinel()
     if not sentinel.exists():
+        _require_setup_token(request)
         return
     auth.require_admin(request)
+
+
+def _require_setup_token(request: Request) -> None:
+    if setup_token.matches(request.headers.get(setup_token.HEADER)):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "code": "setup_token_invalid",
+            "message": (
+                "This request needs the setup token. It is printed in the "
+                "backend log, and configure.py puts it in the URL it shows."
+            ),
+        },
+    )
 
 
 def _setup_status_drives() -> list[dict[str, Any]]:
@@ -251,7 +268,7 @@ def get_setup_status() -> dict[str, Any]:
     to ``/setup`` before any password entry exists, and render the detected
     drives without going through the admin-gated ``GET /drives``.
     """
-    sentinel = config.DATA_DIR / "setup_completed"
+    sentinel = config.setup_completed_sentinel()
     completed = sentinel.exists()
     # Expose the detected drive list ONLY during first-run. This endpoint
     # is unauthenticated; once setup is complete the DriveStep never reads
@@ -270,7 +287,31 @@ def get_setup_status() -> dict[str, Any]:
     return {"completed": completed, "drives": drives}
 
 
-@router.post("/complete-setup")
+@router.post("/setup-token/verify")
+def post_verify_setup_token(payload: Any = Body(...)) -> dict[str, bool]:
+    """Answer whether a token would be accepted, before the wizard writes.
+
+    Separate from ``setup-status`` on purpose: that endpoint is unauthenticated
+    and its answer must stay the same for every caller.
+    """
+    # Answering at all would mint a token on an install that finished setup
+    # long ago, and log that setup is unfinished.
+    if (config.setup_completed_sentinel()).exists():
+        raise HTTPException(status_code=404, detail={"code": "setup_completed"})
+    if not isinstance(payload, dict):
+        raise _validation_error("json_syntax", "body must be an object")
+    token = payload.get("token")
+    if not isinstance(token, str):
+        raise _validation_error("missing_field", "token is required", field="token")
+    if not setup_token.matches(token):
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "setup_token_invalid", "message": "Invalid token"},
+        )
+    return {"ok": True}
+
+
+@router.post("/complete-setup", dependencies=[Depends(_admin_or_first_run)])
 def post_complete_setup() -> dict[str, bool]:
     """Mark first-run setup complete by touching the sentinel.
 
@@ -278,7 +319,7 @@ def post_complete_setup() -> dict[str, bool]:
     silently overwrite admin's intentional state changes. The frontend
     should send users to ``/admin/settings`` in that case.
     """
-    sentinel = config.DATA_DIR / "setup_completed"
+    sentinel = config.setup_completed_sentinel()
     if sentinel.exists():
         raise HTTPException(status_code=409, detail={"code": "already_completed"})
     sentinel.parent.mkdir(parents=True, exist_ok=True)

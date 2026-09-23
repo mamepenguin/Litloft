@@ -7,3 +7,5 @@ services:
     volumes:
       - {HOST}:/app/drives/media
       - ./passwords.json:/app/passwords.json
+    environment:
+      - LITLOFT_SETUP_TOKEN=${LITLOFT_SETUP_TOKEN:-}

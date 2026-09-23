@@ -120,6 +120,43 @@ def _services_with(text: str, variable: str) -> set[str]:
     return found
 
 
+class TestSetupToken:
+    """The token that gates the first-run config writes."""
+
+    def test_the_backend_receives_the_token_that_was_written(self, tmp_path):
+        repo = _make_repo(tmp_path, declares=True)
+        _run_configure(repo)
+
+        token = _env_values(repo).get("LITLOFT_SETUP_TOKEN")
+        assert token, "no LITLOFT_SETUP_TOKEN in .env"
+        override = (repo / "docker-compose.override.yml").read_text()
+        assert _services_with(override, "LITLOFT_SETUP_TOKEN") == {"backend"}
+
+    def test_the_url_it_prints_carries_that_token(self, tmp_path):
+        """A token the operator cannot reach is the same as no token."""
+        repo = _make_repo(tmp_path, declares=True)
+        proc = _run_configure(repo)
+
+        token = _env_values(repo)["LITLOFT_SETUP_TOKEN"]
+        assert f"/setup?token={token}" in proc.stdout
+
+    def test_a_second_run_keeps_a_setup_already_in_progress_working(self, tmp_path):
+        repo = _make_repo(tmp_path, declares=True)
+        _run_configure(repo)
+        first = _env_values(repo)["LITLOFT_SETUP_TOKEN"]
+
+        _run_configure(repo)
+        assert _env_values(repo)["LITLOFT_SETUP_TOKEN"] == first
+
+    def test_a_completed_install_is_pointed_at_the_app_not_the_wizard(self, tmp_path):
+        repo = _make_repo(tmp_path, declares=True)
+        (repo / "data").mkdir(exist_ok=True)
+        (repo / "data" / "setup_completed").touch()
+        proc = _run_configure(repo)
+
+        assert "/setup?token=" not in proc.stdout
+
+
 class TestGeneratedCompose:
     def test_both_sides_receive_the_secret(self, tmp_path):
         """Core builds the header in the backend container.
