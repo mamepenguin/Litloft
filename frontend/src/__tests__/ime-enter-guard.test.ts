@@ -28,7 +28,7 @@ const TEXT_FIELD_ENTER = [
   "app/setup/steps/UnlockStep.tsx",
   "components/GlobalSearch.tsx",
   "components/InlineNameEditor.tsx",
-  "components/PdfPreview.tsx",
+  "components/pdf/PdfPageInput.tsx",
   "components/SelectionBar.tsx",
   "components/SmartFolderSaveDialog.tsx",
   "components/folder/FolderToolbar.tsx",

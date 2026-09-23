@@ -1,5 +1,6 @@
 import {
   act,
+  within,
   fireEvent,
   render,
   screen,
@@ -18,6 +19,7 @@ const pdfDoc = {
   getOutline: async () => pdfDoc.outline,
   getDestination: async (name: string) => pdfDoc.destinations[name] ?? null,
   getPageIndex: async (ref: unknown) => (ref as { index: number }).index,
+  getPage: async () => ({ getViewport: () => ({ ...mockPageBox }) }),
   destinations: {} as Record<string, unknown>,
 };
 
@@ -839,3 +841,49 @@ describe("PdfPreview zoom modes", () => {
     expect(lastWidth()).toBe(settled);
   });
 });
+
+describe("PdfPreview full screen", () => {
+  const pageBox = () =>
+    screen.getAllByLabelText("Page number")[0] as HTMLInputElement;
+
+  function renderViewer() {
+    return render(
+      <ShortcutsProvider>
+        <PdfPreview fileId="pdf123456789" title="Paper" initialPage={3} />
+      </ShortcutsProvider>,
+    );
+  }
+
+  it("opens on the page in view and hands back the page it closed on", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 3");
+
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    const dialog = await screen.findByRole("dialog");
+    // The full-screen frame is the observer registered last.
+    act(() => {
+      resizeCallbacks[resizeCallbacks.length - 1](
+        [{ contentRect: { width: 1000, height: 800 } }] as unknown as ResizeObserverEntry[],
+        {} as ResizeObserver,
+      );
+    });
+    await act(async () => {});
+    expect(within(dialog).getByText("Selectable page 3")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(within(dialog).getByText("Selectable page 4")).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(pageBox().value).toBe("4");
+    expect(await screen.findByText("Selectable page 4")).toBeInTheDocument();
+  });
+
+  it("opens with f", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 3");
+    fireEvent.keyDown(document, { key: "f" });
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+});
+

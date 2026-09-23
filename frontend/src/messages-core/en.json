@@ -158,6 +158,8 @@
     "pdfLoading": "Loading PDF...",
     "pdfLoadFailed": "Could not load this PDF. Open it in a new tab instead.",
     "pdfPageNumber": "Page number",
+    "pdfFullscreen": "Full screen",
+    "pdfFullscreenViewer": "PDF viewer",
     "pdfShortcuts": "PDF viewer",
     "pdfOutline": "Contents",
     "pdfGoToPage": "Go to page {page}",

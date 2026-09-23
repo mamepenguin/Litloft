@@ -36,6 +36,7 @@ function Harness({
   readingDirection = "ltr" as "ltr" | "rtl",
   open = true,
   pictures = LETTERBOXED,
+  mouseDragPans = true,
 }) {
   const zoom = useViewerZoom({
     resetKey,
@@ -43,6 +44,7 @@ function Harness({
     navigatePrev: calls.prev,
     navigateNext: calls.next,
     toggleControls: calls.toggle,
+    mouseDragPans,
   });
   const { frameRef } = zoom;
   const attach = useCallback(
@@ -205,6 +207,22 @@ describe("useViewerZoom while zoomed", () => {
     expect(calls.prev).not.toHaveBeenCalled();
     expect(calls.next).not.toHaveBeenCalled();
     expect(screen.getByTestId("content").style.transform).not.toBe(before);
+  });
+
+  it("pans on a mouse drag, unless the viewer keeps mouse drags for selecting", () => {
+    const { rerender } = render(<Harness />);
+    pinchOpen();
+    const before = screen.getByTestId("content").style.transform;
+    press(1, 300, 400, "mouse");
+    move(1, 200, 400, "mouse");
+    lift(1, 200, 400, "mouse");
+    const panned = screen.getByTestId("content").style.transform;
+    expect(panned).not.toBe(before);
+    rerender(<Harness mouseDragPans={false} />);
+    press(1, 300, 400, "mouse");
+    move(1, 200, 400, "mouse");
+    lift(1, 200, 400, "mouse");
+    expect(screen.getByTestId("content").style.transform).toBe(panned);
   });
 
   it("does not page on an edge tap, only toggles the chrome", () => {

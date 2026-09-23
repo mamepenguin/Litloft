@@ -37,6 +37,8 @@ interface Options {
   navigatePrev: () => void;
   navigateNext: () => void;
   toggleControls: () => void;
+  /** Off where a mouse drag selects text instead. */
+  mouseDragPans?: boolean;
 }
 
 interface Press {
@@ -90,6 +92,7 @@ export function useViewerZoom({
   navigatePrev,
   navigateNext,
   toggleControls,
+  mouseDragPans = true,
 }: Options) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   // State as well as a ref: a viewer can mount closed, and the listeners below
@@ -314,7 +317,9 @@ export function useViewerZoom({
 
       if (gesture.current.pointers.size !== 1 || !isZoomed(viewRef.current)) return;
       // A hovering mouse moves with no button down.
-      if (e.pointerType === "mouse" && e.buttons === 0) return;
+      if (e.pointerType === "mouse" && (e.buttons === 0 || !mouseDragPans)) {
+        return;
+      }
       const m = measure();
       if (!m) return;
       const current = viewRef.current;
@@ -330,7 +335,7 @@ export function useViewerZoom({
         ),
       );
     },
-    [localPoint, measure, setView],
+    [localPoint, measure, setView, mouseDragPans],
   );
 
   const endPointer = useCallback(
