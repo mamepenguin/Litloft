@@ -1378,6 +1378,7 @@ function ArchiveViewerInPlayer(): ReactElement {
         </div>
         <div id="resting-strip" className="fixed inset-x-0 bottom-0 z-40 h-14 bg-bg-primary" />
       </div>
+      <div className="h-[200vh]" />
     </NextIntlClientProvider>
   );
 }

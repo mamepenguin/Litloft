@@ -56,3 +56,11 @@ test("an archive viewer opened in the player box paints over the resting strip",
     await brightnessAt(page, 2, strip!.y + strip!.height / 2),
   ).toBeLessThan(64);
 });
+
+test("an archive viewer covers the viewport after the document has scrolled", async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => window.scrollTo(0, 300));
+  const viewport = page.viewportSize()!;
+  const box = await page.getByRole("dialog").boundingBox();
+  expect(box).toEqual({ x: 0, y: 0, width: viewport.width, height: viewport.height });
+});
