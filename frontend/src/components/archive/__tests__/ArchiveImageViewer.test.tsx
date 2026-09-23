@@ -1,7 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ArchiveImageViewer } from "../ArchiveImageViewer";
+import type { ReactElement } from "react";
 import type { ArchiveEntry } from "@/types";
+import { installPointerEvent } from "@/test/pointerEvent";
+import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+
+installPointerEvent();
 
 vi.mock("@/lib/api", () => ({
   getArchiveEntryUrl: (fileId: string, path: string) =>
@@ -232,4 +237,79 @@ describe("ArchiveImageViewer backdrop", () => {
     expect(document.body.style.overflow).toBe("");
     expect(document.querySelectorAll("[inert]")).toHaveLength(0);
   });
+
+  it("pages on a swipe across the picture", () => {
+    const navigatePrev = vi.fn();
+    render(<ArchiveImageViewer {...defaultProps} navigatePrev={navigatePrev} />);
+    const frame = screen.getByAltText("img2.jpg").closest(".touch-none")!;
+    fireEvent.pointerDown(frame, { pointerId: 1, pointerType: "touch", clientX: 300, clientY: 400 });
+    fireEvent.pointerUp(frame, { pointerId: 1, pointerType: "touch", clientX: 100, clientY: 400 });
+    expect(navigatePrev).toHaveBeenCalledTimes(1);
+  });
+
+  it("zooms the picture with the = key and back with 0", () => {
+    render(
+      <ShortcutsProvider>
+        <ArchiveImageViewer {...defaultProps} />
+      </ShortcutsProvider>,
+    );
+    const content = screen.getByAltText("img2.jpg").closest("[data-face]")!
+      .parentElement as HTMLElement;
+    fireEvent.keyDown(document, { key: "=" });
+    expect(content.style.transform).toContain("scale(1.25)");
+    fireEvent.keyDown(document, { key: "0" });
+    expect(content.style.transform).toBe("");
+  });
+
+  describe("goes back to fit when what is shown changes", () => {
+    const content = () =>
+      document.querySelector("[data-face]")!.parentElement as HTMLElement;
+
+    function zoomed(ui: ReactElement) {
+      const r = render(<ShortcutsProvider>{ui}</ShortcutsProvider>);
+      fireEvent.keyDown(document, { key: "=" });
+      expect(content().style.transform).toContain("scale(1.25)");
+      return (next: ReactElement) =>
+        r.rerender(<ShortcutsProvider>{next}</ShortcutsProvider>);
+    }
+
+    it("on another image", () => {
+      const rerender = zoomed(<ArchiveImageViewer {...defaultProps} />);
+      rerender(
+        <ArchiveImageViewer
+          {...defaultProps}
+          imageIndex={2}
+          currentImage={images[2]}
+          face={{ kind: "single", index: 2, indices: [2], showRightHalf: false }}
+        />,
+      );
+      expect(content().style.transform).toBe("");
+    });
+
+    it("on the other half of a split page", () => {
+      const half = { kind: "half" as const, index: 1, indices: [1], showRightHalf: false };
+      const rerender = zoomed(<ArchiveImageViewer {...defaultProps} face={half} />);
+      rerender(
+        <ArchiveImageViewer
+          {...defaultProps}
+          face={{ ...half, showRightHalf: true }}
+          showRightHalf
+        />,
+      );
+      expect(content().style.transform).toBe("");
+    });
+
+    it("when the same page becomes part of a pair", () => {
+      const rerender = zoomed(<ArchiveImageViewer {...defaultProps} />);
+      rerender(
+        <ArchiveImageViewer
+          {...defaultProps}
+          spreadMode
+          face={{ kind: "pair", index: 1, indices: [1, 2], showRightHalf: false }}
+        />,
+      );
+      expect(content().style.transform).toBe("");
+    });
+  });
 });
+

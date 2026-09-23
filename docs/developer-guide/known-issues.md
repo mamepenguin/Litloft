@@ -183,6 +183,17 @@ three menus are drawn at the end of the page below 640px so they are not hidden
 under the file page's bottom strip. Reached with a keyboard at phone width, or by
 rotating a phone with a menu open.
 
+**A zoomed picture in the image or archive viewer is not re-fitted when the
+window changes size or the picture finishes loading.** Rotating a phone while
+zoomed can leave empty space beside the picture until the next drag or pinch,
+which puts it back against its edges. Reached by zooming, then rotating or
+resizing.
+
+**In desktop Safari, a trackpad pinch in the image or archive viewer does
+nothing after a mouse press was released outside the picture**, until the next
+click on the picture. Reached by starting a drag on the picture and letting go
+over the viewer's bar or outside the window.
+
 ## Navigation
 
 **`Paste here` and `Add` are both accent-filled at once.** With a non-empty

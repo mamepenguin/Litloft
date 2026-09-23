@@ -19,6 +19,7 @@ import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { ArchiveToolbar } from "@/components/archive/ArchiveToolbar";
+import { useViewerZoom } from "@/hooks/useViewerZoom";
 import { ToolbarMenu } from "@/components/ToolbarMenu";
 import { SortButton } from "@/components/SortButton";
 import { ArchiveImageViewer } from "@/components/archive/ArchiveImageViewer";
@@ -1470,6 +1471,62 @@ function ArchiveViewerInPlayer(): ReactElement {
   );
 }
 
+/** A 4:3 picture, drawn here so the page needs no file beside it. */
+function landscapePicture(): string {
+  const c = document.createElement("canvas");
+  c.width = 400;
+  c.height = 300;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#2a6";
+  g.fillRect(0, 0, 400, 300);
+  g.fillStyle = "#fff";
+  g.fillRect(190, 140, 20, 20);
+  return c.toDataURL();
+}
+
+/** The viewers' frame, content and face boxes around the zoom hook. */
+function ViewerZoomFrame(): ReactElement {
+  const [paged, setPaged] = useState(0);
+  const [toggled, setToggled] = useState(0);
+  const src = useMemo(() => landscapePicture(), []);
+  const zoom = useViewerZoom({
+    resetKey: paged,
+    readingDirection: "ltr",
+    navigatePrev: () => setPaged((n) => n - 1),
+    navigateNext: () => setPaged((n) => n + 1),
+    toggleControls: () => setToggled((n) => n + 1),
+  });
+  return (
+    <div className="fixed inset-0 flex flex-col bg-black">
+      <output id="paged">{paged}</output>
+      <output id="toggled">{toggled}</output>
+      <output id="settled">{zoom.settledScale}</output>
+      <div
+        id="zoom-frame"
+        ref={zoom.frameRef}
+        className="flex flex-1 items-center overflow-hidden touch-none"
+        {...zoom.frameHandlers}
+      >
+        <div
+          ref={zoom.contentRef}
+          className="flex h-full w-full items-center"
+          style={zoom.contentStyle}
+        >
+          <div className="flex h-full w-full items-center justify-center">
+            <img
+              id="zoom-picture"
+              src={src}
+              alt="picture"
+              className="max-h-full max-w-full select-none object-contain"
+              draggable={false}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const PageFrameFull = (): ReactElement => <PageFrameArrangement width="full" />;
 const PageFrameWide = (): ReactElement => <PageFrameArrangement width="wide" />;
 const PageFrameList = (): ReactElement => <PageFrameArrangement width="list" />;
@@ -1568,6 +1625,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "file-detail-chrome-collection": FileDetailChromeCollectionArrangement,
   "file-detail-chrome-note-deep": FileDetailChromeNoteDeepArrangement,
   "archive-toolbar-deep": ArchiveToolbarArrangement,
+  "viewer-zoom": ViewerZoomFrame,
   "archive-viewer-in-player": ArchiveViewerInPlayer,
   "page-frame-full": PageFrameFull,
   "page-frame-wide": PageFrameWide,

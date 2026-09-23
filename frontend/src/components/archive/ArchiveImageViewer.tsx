@@ -12,7 +12,8 @@ import {
 
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { useImageAreaGestures } from "@/hooks/useImageAreaGestures";
+import { useViewerZoom } from "@/hooks/useViewerZoom";
+import { useViewerZoomShortcuts } from "@/hooks/useViewerZoomShortcuts";
 import { useInertBackdrop } from "@/hooks/useInertBackdrop";
 import { getArchiveEntryUrl } from "@/lib/api";
 import type { ArchiveEntry } from "@/types";
@@ -88,12 +89,14 @@ export function ArchiveImageViewer({
 
   const activeSplit = face.kind === "half";
 
-  const gestureHandlers = useImageAreaGestures({
+  const zoom = useViewerZoom({
+    resetKey: `${face.kind}:${imageIndex}:${showRightHalf}`,
     readingDirection,
     navigatePrev,
     navigateNext,
     toggleControls: handleImageAreaClick,
   });
+  useViewerZoomShortcuts(zoom, true);
 
   const backdropRef = useInertBackdrop<HTMLDivElement>(true);
 
@@ -181,58 +184,68 @@ export function ArchiveImageViewer({
       </div>
 
       <div
-        className="flex flex-1 cursor-pointer items-center overflow-hidden touch-none"
-        {...gestureHandlers}
+        ref={zoom.frameRef}
+        className={`flex flex-1 items-center overflow-hidden touch-none ${zoom.zoomed ? "cursor-grab" : "cursor-pointer"}`}
+        {...zoom.frameHandlers}
       >
         {imageLoading && (
           <div className="absolute h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
         )}
         <div
-          data-face={face.kind}
-          className="flex h-full items-center justify-center"
-          style={{
-            width: activeSplit ? "200%" : "100%",
-            flexShrink: activeSplit ? 0 : undefined,
-            transform:
-              activeSplit && showRightHalf ? "translateX(-50%)" : undefined,
-            // The `flex-direction` does it, so the two `<img>` elements stay
-            // in reading order in the DOM for a screen reader.
-            flexDirection:
-              face.kind === "pair" && readingDirection === "rtl"
-                ? "row-reverse"
-                : "row",
-          }}
+          ref={zoom.contentRef}
+          className="flex h-full w-full items-center"
+          style={zoom.contentStyle}
         >
-          {face.indices.map((i, slot) => {
-            const entry = imageEntries[i];
-            if (!entry) return null;
-            return (
-              <img
-                key={entry.path}
-                src={getArchiveEntryUrl(fileId, entry.path)}
-                alt={entry.filename}
-                className="max-h-full select-none object-contain"
-                style={{
-                  maxWidth: face.kind === "pair" ? "50%" : "100%",
-                }}
-                onLoad={(e) => {
-                  setImageLoading(false);
-                  const img = e.currentTarget;
-                  const landscape = img.naturalWidth > img.naturalHeight;
-                  // Every drawn page, not only the one the face is named
-                  // by: the second page of a pair is exactly the index
-                  // the *next* face will ask about.
-                  rememberOrientation(i, landscape ? "landscape" : "portrait");
-                  // The second page of a pair reporting its own shape here
-                  // would flip the face out from under itself.
-                  if (slot === 0 && i === imageIndex) {
-                    setIsCurrentLandscape(landscape);
-                  }
-                }}
-                draggable={false}
-              />
-            );
-          })}
+          <div
+            data-face={face.kind}
+            className="flex h-full items-center justify-center"
+            style={{
+              width: activeSplit ? "200%" : "100%",
+              flexShrink: activeSplit ? 0 : undefined,
+              transform:
+                activeSplit && showRightHalf ? "translateX(-50%)" : undefined,
+              // The `flex-direction` does it, so the two `<img>` elements stay
+              // in reading order in the DOM for a screen reader.
+              flexDirection:
+                face.kind === "pair" && readingDirection === "rtl"
+                  ? "row-reverse"
+                  : "row",
+            }}
+          >
+            {face.indices.map((i, slot) => {
+              const entry = imageEntries[i];
+              if (!entry) return null;
+              return (
+                <img
+                  key={entry.path}
+                  src={getArchiveEntryUrl(fileId, entry.path)}
+                  alt={entry.filename}
+                  className="max-h-full select-none object-contain"
+                  style={{
+                    maxWidth: face.kind === "pair" ? "50%" : "100%",
+                  }}
+                  onLoad={(e) => {
+                    setImageLoading(false);
+                    const img = e.currentTarget;
+                    const landscape = img.naturalWidth > img.naturalHeight;
+                    // Every drawn page, not only the one the face is named
+                    // by: the second page of a pair is exactly the index
+                    // the *next* face will ask about.
+                    rememberOrientation(
+                      i,
+                      landscape ? "landscape" : "portrait",
+                    );
+                    // The second page of a pair reporting its own shape here
+                    // would flip the face out from under itself.
+                    if (slot === 0 && i === imageIndex) {
+                      setIsCurrentLandscape(landscape);
+                    }
+                  }}
+                  draggable={false}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
 
