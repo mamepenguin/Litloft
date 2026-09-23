@@ -267,6 +267,24 @@ describe("ImageGallery", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it("goes back to fit when turning on spreads splits the page in view", async () => {
+    // Wide pages: with spreads on, the same index becomes a half.
+    setupMock(
+      images.map((img) => ({ ...img, image_width: 1600, image_height: 1000 })),
+    );
+    renderWithShortcuts(<ImageGallery {...defaultProps} />);
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    const content = () =>
+      screen.getAllByRole("img")[0].closest("[data-face]")!.parentElement as HTMLElement;
+    fireEvent.keyDown(document, { key: "=" });
+    expect(content().style.transform).toContain("scale(1.25)");
+    fireEvent.click(screen.getByLabelText("Read as spread / Read single pages"));
+    expect(document.querySelector("[data-face]")!.getAttribute("data-face")).toBe("half");
+    expect(content().style.transform).toBe("");
+  });
+
   it("toggles slideshow with space key", async () => {
     renderWithShortcuts(<ImageGallery {...defaultProps} />);
 

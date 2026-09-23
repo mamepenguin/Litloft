@@ -384,6 +384,33 @@ describe("useViewerZoom Safari trackpad pinch", () => {
     expect(scale()).toBe(2);
   });
 
+  it("scales each change from where the pinch began", () => {
+    render(<Harness />);
+    gesture("gesturestart", { scale: 1, clientX: 200, clientY: 400 });
+    gesture("gesturechange", { scale: 2, clientX: 200, clientY: 400 });
+    gesture("gesturechange", { scale: 3, clientX: 200, clientY: 400 });
+    expect(scale()).toBe(3);
+  });
+
+  it("settles when the pinch ends, back to fit from below it", () => {
+    render(<Harness />);
+    gesture("gesturestart", { scale: 1, clientX: 200, clientY: 400 });
+    gesture("gesturechange", { scale: 0.6, clientX: 200, clientY: 400 });
+    expect(scale()).toBe(0.6);
+    gesture("gestureend", { scale: 0.6, clientX: 200, clientY: 400 });
+    expect(scale()).toBe(1);
+    expect(Number(screen.getByTestId("content").dataset.settled)).toBe(1);
+  });
+
+  it("does not carry a pinch across a change of picture", () => {
+    const { rerender } = render(<Harness resetKey={0} />);
+    gesture("gesturestart", { scale: 1, clientX: 200, clientY: 400 });
+    gesture("gesturechange", { scale: 2, clientX: 200, clientY: 400 });
+    rerender(<Harness resetKey={1} />);
+    gesture("gesturechange", { scale: 3, clientX: 200, clientY: 400 });
+    expect(scale()).toBe(1);
+  });
+
   it("leaves a touch pinch to the pointer handlers", () => {
     render(<Harness />);
     press(1, 150, 400);

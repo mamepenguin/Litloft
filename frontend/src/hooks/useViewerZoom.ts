@@ -90,6 +90,7 @@ export function useViewerZoom({
   const pointers = useRef(new Map<number, Point>());
   const press = useRef<Press | null>(null);
   const pinch = useRef<Pinch | null>(null);
+  const trackpadPinch = useRef<{ view: View; origin: Point } | null>(null);
   const wheelTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
@@ -167,6 +168,7 @@ export function useViewerZoom({
     pointers.current.clear();
     press.current = null;
     pinch.current = null;
+    trackpadPinch.current = null;
     settle(FIT);
   }, [resetKey, settle]);
 
@@ -217,15 +219,18 @@ export function useViewerZoom({
   // is down.
   useEffect(() => {
     if (!frameEl) return;
-    let start: { view: View; origin: Point } | null = null;
     const onStart = (e: Event) => {
       e.preventDefault();
       if (pointers.current.size > 0) return;
       const g = e as Event & { clientX: number; clientY: number };
-      start = { view: viewRef.current, origin: localPoint(g.clientX, g.clientY) };
+      trackpadPinch.current = {
+        view: viewRef.current,
+        origin: localPoint(g.clientX, g.clientY),
+      };
     };
     const onChange = (e: Event) => {
       e.preventDefault();
+      const start = trackpadPinch.current;
       if (!start || pointers.current.size > 0) return;
       const m = measure();
       if (!m) return;
@@ -235,8 +240,8 @@ export function useViewerZoom({
     };
     const onEnd = (e: Event) => {
       e.preventDefault();
-      if (!start) return;
-      start = null;
+      if (!trackpadPinch.current) return;
+      trackpadPinch.current = null;
       const m = measure();
       settle(m ? settleView(viewRef.current, m.frame, m.content) : FIT);
     };
