@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { usePointerMode } from "@/components/player/hooks/usePointerMode";
-
 export const CHROME_IDLE_MS = 2000;
 
 export interface AutoHidingChrome {
@@ -45,7 +43,6 @@ export function useAutoHidingChrome({
 }: AutoHidingChromeOptions = {}): AutoHidingChrome {
   const [visible, setVisible] = useState(true);
   const timerRef = useRef<number | null>(null);
-  const pointerMode = usePointerMode();
 
   const arm = useCallback(() => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -76,13 +73,17 @@ export function useAutoHidingChrome({
     // tap toggles the chrome, and a press that both restores here and
     // toggles there cancels itself.
     //
-    // Keys and focus count on every device: a tablet with a keyboard
-    // case has no pointer to move but a reader all the same.
-    const events: string[] =
-      pointerMode === "coarse"
-        ? ["keydown", "focusin"]
-        : ["pointermove", "keydown", "focusin"];
-    const onActivity = () => show();
+    // A moving mouse or pen counts on every device, a tablet's trackpad
+    // included; a moving finger never does, because it is mid-swipe. Keys
+    // and focus count everywhere: a tablet with a keyboard case has no
+    // pointer to move but a reader all the same.
+    const events = ["pointermove", "keydown", "focusin"];
+    const onActivity = (e: Event) => {
+      if (e.type === "pointermove" && (e as PointerEvent).pointerType === "touch") {
+        return;
+      }
+      show();
+    };
     for (const type of events) {
       document.addEventListener(type, onActivity, true);
     }
@@ -93,7 +94,7 @@ export function useAutoHidingChrome({
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
       timerRef.current = null;
     };
-  }, [enabled, held, pointerMode, arm, show]);
+  }, [enabled, held, arm, show]);
 
   return {
     visible,

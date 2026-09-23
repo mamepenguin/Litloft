@@ -299,11 +299,8 @@ export function PdfFullscreenViewer({
       zoom.settledScale,
   });
 
-  // A press on a link is the link's, not a page turn. A mouse click turns
-  // nothing, so it brings the bar back instead, where a mouse that does not
-  // hover — a trackpad on a tablet — has no other way to.
+  // A press on a link is the link's, not a page turn.
   const onFramePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === "mouse") chrome.show();
     if ((e.target as Element).closest?.(".annotationLayer a")) return;
     zoom.frameHandlers.onPointerDown(e);
   };
@@ -444,7 +441,7 @@ export function PdfFullscreenViewer({
               e.stopPropagation();
               readingDirection === "ltr" ? navigatePrev() : navigateNext();
             }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
+            className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
             aria-label={
               readingDirection === "ltr" ? t("pdfPreviousPage") : t("pdfNextPage")
             }
@@ -459,7 +456,7 @@ export function PdfFullscreenViewer({
               e.stopPropagation();
               readingDirection === "ltr" ? navigateNext() : navigatePrev();
             }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
+            className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white/70 transition-opacity hover:text-white"
             aria-label={
               readingDirection === "ltr" ? t("pdfNextPage") : t("pdfPreviousPage")
             }

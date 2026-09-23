@@ -323,7 +323,7 @@ describe("PdfFullscreenViewer", () => {
     expect(screen.getByTestId("capture").dataset.tone).toBe("on-dark");
   });
 
-  it("brings the bar back on a mouse click, which turns nothing", async () => {
+  it("leaves the bar hidden on a mouse click, so a double-click stays on the page", async () => {
     vi.useFakeTimers();
     try {
       await open(fakePdf(8), { initialPage: 3 });
@@ -334,8 +334,48 @@ describe("PdfFullscreenViewer", () => {
       const page = screen.getByText("Text of page 3");
       fireEvent.pointerDown(page, { pointerId: 1, pointerType: "mouse", clientX: 500, clientY: 400 });
       fireEvent.pointerUp(page, { pointerId: 1, pointerType: "mouse", clientX: 500, clientY: 400 });
-      expect(screen.getByRole("button", { name: "Next page" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
       expect(shownPages()).toEqual([3]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not carry one page's failure to the next page", async () => {
+    failingPage = 2;
+    await open(fakePdf(8), { initialPage: 2 });
+    expect(screen.getByText(/could not be drawn/)).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(screen.queryByText(/could not be drawn/)).toBeNull();
+  });
+
+  it("enters a page typed into the box from its first half", async () => {
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    await open(fakePdf(8, () => LANDSCAPE), { initialPage: 4 });
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(screen.getByText(/^B$/)).toBeInTheDocument();
+    const box = screen.getByLabelText("Page number");
+    fireEvent.change(box, { target: { value: "6" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await act(async () => {});
+    expect(shownPages()).toEqual([6]);
+    expect(screen.getByText(/^A$/)).toBeInTheDocument();
+  });
+
+  it("keeps the bar up while text is selected", async () => {
+    vi.useFakeTimers();
+    try {
+      await open(fakePdf(8), { initialPage: 3 });
+      const range = document.createRange();
+      range.selectNodeContents(screen.getByText("Text of page 3"));
+      act(() => {
+        window.getSelection()!.addRange(range);
+        document.dispatchEvent(new Event("selectionchange"));
+      });
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(screen.getByRole("button", { name: "Next page" })).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }

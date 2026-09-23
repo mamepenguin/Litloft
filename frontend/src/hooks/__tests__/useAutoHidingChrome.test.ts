@@ -1,7 +1,11 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
+import { installPointerEvent } from "@/test/pointerEvent";
+
 import { useAutoHidingChrome } from "../useAutoHidingChrome";
+
+installPointerEvent();
 
 function stubPointer(mode: "fine" | "coarse") {
   vi.stubGlobal("matchMedia", (query: string) => ({
@@ -67,16 +71,25 @@ describe("chrome that withdraws when the frame is left alone", () => {
     }
   });
 
-  it("reads no pointer movement on a coarse pointer", () => {
-    // There is none to read, and binding it would only add a way for the
-    // browser's synthesised move to fight the tap.
-    stubPointer("coarse");
-    const { result } = renderHook(() => useAutoHidingChrome());
-    idle(2000);
-    fire("pointermove");
-    expect(result.current.visible).toBe(false);
-    fire("keydown");
-    expect(result.current.visible).toBe(true);
+  it("comes back for a moving mouse on any device, never for a moving finger", () => {
+    // A trackpad on a tablet whose primary pointer is a finger is still a
+    // mouse, and has no other way to bring the bar back.
+    const move = (pointerType: string) =>
+      act(() => {
+        document.dispatchEvent(
+          new PointerEvent("pointermove", { bubbles: true, pointerType }),
+        );
+      });
+    for (const mode of ["fine", "coarse"] as const) {
+      stubPointer(mode);
+      const { result, unmount } = renderHook(() => useAutoHidingChrome());
+      idle(2000);
+      move("touch");
+      expect(result.current.visible).toBe(false);
+      move("mouse");
+      expect(result.current.visible).toBe(true);
+      unmount();
+    }
   });
 
   it("restarts the clock when a finger lands on the chrome itself", () => {
