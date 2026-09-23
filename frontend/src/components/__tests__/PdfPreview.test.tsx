@@ -1,5 +1,6 @@
 import {
   act,
+  within,
   fireEvent,
   render,
   screen,
@@ -18,6 +19,7 @@ const pdfDoc = {
   getOutline: async () => pdfDoc.outline,
   getDestination: async (name: string) => pdfDoc.destinations[name] ?? null,
   getPageIndex: async (ref: unknown) => (ref as { index: number }).index,
+  getPage: async () => ({ getViewport: () => ({ ...mockPageBox }) }),
   destinations: {} as Record<string, unknown>,
 };
 
@@ -30,15 +32,24 @@ let pageRatios: number[] = [];
 /** The page size the mocked document reports, in PDF points. */
 let mockPageBox = { width: 595, height: 842 };
 
+/** What react-pdf calls when a link inside the document names a page. */
+let itemClick: ((item: { pageNumber: number }) => void) | undefined;
+/** The document's load callback, for a load that lands after a render. */
+let lastOnLoad: ((pdf: unknown) => void) | undefined;
+
 vi.mock("react-pdf", () => ({
   pdfjs: { GlobalWorkerOptions: {} },
   Document: ({
     children,
     onLoadSuccess,
+    onItemClick,
   }: {
     children: ReactNode;
     onLoadSuccess: (pdf: unknown) => void;
+    onItemClick?: (item: { pageNumber: number }) => void;
   }) => {
+    itemClick = onItemClick;
+    lastOnLoad = onLoadSuccess;
     useEffect(() => {
       onLoadSuccess(pdfDoc);
     }, [onLoadSuccess]);
@@ -839,3 +850,99 @@ describe("PdfPreview zoom modes", () => {
     expect(lastWidth()).toBe(settled);
   });
 });
+
+describe("PdfPreview full screen", () => {
+  const pageBox = () =>
+    screen.getAllByLabelText("Page number")[0] as HTMLInputElement;
+
+  function renderViewer() {
+    return render(
+      <ShortcutsProvider>
+        <PdfPreview fileId="pdf123456789" title="Paper" initialPage={3} />
+      </ShortcutsProvider>,
+    );
+  }
+
+  it("opens on the page in view and hands back the page it closed on", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 3");
+
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    const dialog = await screen.findByRole("dialog");
+    // The full-screen frame is the observer registered last.
+    act(() => {
+      resizeCallbacks[resizeCallbacks.length - 1](
+        [{ contentRect: { width: 1000, height: 800 } }] as unknown as ResizeObserverEntry[],
+        {} as ResizeObserver,
+      );
+    });
+    await act(async () => {});
+    expect(within(dialog).getByText("Selectable page 3")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(within(dialog).getByText("Selectable page 4")).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(pageBox().value).toBe("4");
+    expect(await screen.findByText("Selectable page 4")).toBeInTheDocument();
+  });
+
+  it("opens with f", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 3");
+    fireEvent.keyDown(document, { key: "f" });
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("closes when the file changes, and stays closed on the next one", async () => {
+    const { rerender } = renderViewer();
+    await screen.findByText("Selectable page 3");
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    rerender(
+      <ShortcutsProvider>
+        <PdfPreview fileId="other1234567" title="Other" initialPage={1} />
+      </ShortcutsProvider>,
+    );
+    // Until the next file's document arrives there is nothing to open: the
+    // previous one is being torn down.
+    expect(screen.getByRole("button", { name: "Full screen" })).toBeDisabled();
+    fireEvent.keyDown(document, { key: "f" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    act(() => lastOnLoad!(pdfDoc));
+    await screen.findByText("Selectable page 1");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("follows a link inside the document to its page, inline and in full screen", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 3");
+    act(() => itemClick!({ pageNumber: 5 }));
+    expect(pageBox().value).toBe("5");
+
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    const dialog = await screen.findByRole("dialog");
+    act(() => {
+      resizeCallbacks[resizeCallbacks.length - 1](
+        [{ contentRect: { width: 1000, height: 800 } }] as unknown as ResizeObserverEntry[],
+        {} as ResizeObserver,
+      );
+    });
+    act(() => itemClick!({ pageNumber: 7 }));
+    await act(async () => {});
+    expect(within(dialog).getByText("Selectable page 7")).toBeInTheDocument();
+  });
+
+  it("follows a link inline again after the full-screen viewer has closed", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 3");
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    await screen.findByRole("dialog");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    act(() => itemClick!({ pageNumber: 6 }));
+    expect(pageBox().value).toBe("6");
+  });
+});
+

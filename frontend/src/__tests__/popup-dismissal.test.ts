@@ -218,6 +218,10 @@ const POPUPS: Record<string, PopupEntry> = {
     dismissedIn: null,
     why: "an immersive viewer — it replaces the page and marks the rest inert",
   },
+  "frontend/src/components/pdf/PdfFullscreenViewer.tsx": {
+    dismissedIn: null,
+    why: "an immersive viewer — it replaces the page and marks the rest inert",
+  },
   "frontend/src/components/quick-note/QuickNotePresenter.tsx": {
     dismissedIn: null,
     why: "a modal dialog; it hosts FolderPicker, which brings its own scrim",

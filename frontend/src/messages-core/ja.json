@@ -158,6 +158,8 @@
     "pdfLoading": "PDFを読み込み中...",
     "pdfLoadFailed": "PDFを読み込めませんでした。新しいタブで開いてください。",
     "pdfPageNumber": "ページ番号",
+    "pdfFullscreen": "全画面で表示",
+    "pdfFullscreenViewer": "PDF ビューア",
     "pdfShortcuts": "PDF ビューア",
     "pdfOutline": "目次",
     "pdfGoToPage": "{page}ページ目へ",

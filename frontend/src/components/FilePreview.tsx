@@ -190,6 +190,12 @@ export function FilePreview({
         initialPage={initialPage}
         onDocumentCaptureController={onDocumentCaptureController}
         onPdfController={onPdfController}
+        documentSlotProps={{
+          fileId: file.id,
+          drive: file.drive,
+          filename: file.filename,
+          fileType: file.file_type,
+        }}
       />
     );
   }

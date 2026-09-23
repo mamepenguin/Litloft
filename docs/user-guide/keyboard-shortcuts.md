@@ -138,6 +138,25 @@ remember.
 
 `PageUp` and `PageDown` do not fire while the page-number box has focus.
 
+| Key | Action |
+|---|---|
+| `f` | Open the full-screen viewer |
+
+In the full-screen viewer:
+
+| Key | Action |
+|---|---|
+| `←` / `→` | Previous / next face (reading-direction aware) |
+| `PageUp` / `PageDown` | Previous / next face |
+| `=` / `-` | Zoom in / out |
+| `0` | Back to the whole page |
+| `f` / `Esc` | Close |
+
+The touch gestures are the image viewer's (below). The mouse is left for
+selecting text: a drag, click or double-click never turns or moves the page.
+A press on a link in the document follows the link rather than turning the
+page.
+
 ## Image gallery and archive page-turner
 
 | Key | Action |

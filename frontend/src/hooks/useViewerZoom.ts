@@ -37,6 +37,12 @@ interface Options {
   navigatePrev: () => void;
   navigateNext: () => void;
   toggleControls: () => void;
+  /**
+   * For a picture with text in it: the mouse is left to select, so it
+   * neither pans nor pages — a double-click on a word near an edge would
+   * otherwise turn the page twice. Keys and buttons still page.
+   */
+  mouseSelectsText?: boolean;
 }
 
 interface Press {
@@ -90,6 +96,7 @@ export function useViewerZoom({
   navigatePrev,
   navigateNext,
   toggleControls,
+  mouseSelectsText = false,
 }: Options) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   // State as well as a ref: a viewer can mount closed, and the listeners below
@@ -314,7 +321,9 @@ export function useViewerZoom({
 
       if (gesture.current.pointers.size !== 1 || !isZoomed(viewRef.current)) return;
       // A hovering mouse moves with no button down.
-      if (e.pointerType === "mouse" && e.buttons === 0) return;
+      if (e.pointerType === "mouse" && (e.buttons === 0 || mouseSelectsText)) {
+        return;
+      }
       const m = measure();
       if (!m) return;
       const current = viewRef.current;
@@ -330,7 +339,7 @@ export function useViewerZoom({
         ),
       );
     },
-    [localPoint, measure, setView],
+    [localPoint, measure, setView, mouseSelectsText],
   );
 
   const endPointer = useCallback(
@@ -362,6 +371,7 @@ export function useViewerZoom({
       if (gesture.current.pointers.size > 0) return;
       gesture.current.press = null;
       if (!s || !single) return;
+      if (mouseSelectsText && s.pointerType === "mouse") return;
 
       const dx = e.clientX - s.x;
       const dy = e.clientY - s.y;
@@ -398,7 +408,14 @@ export function useViewerZoom({
         toggleControls();
       }
     },
-    [endPointer, readingDirection, navigatePrev, navigateNext, toggleControls],
+    [
+      endPointer,
+      readingDirection,
+      navigatePrev,
+      navigateNext,
+      toggleControls,
+      mouseSelectsText,
+    ],
   );
 
   const onPointerCancel = useCallback(

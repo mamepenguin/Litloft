@@ -36,6 +36,13 @@ function Harness({
   readingDirection = "ltr" as "ltr" | "rtl",
   open = true,
   pictures = LETTERBOXED,
+  mouseSelectsText,
+}: {
+  resetKey?: number;
+  readingDirection?: "ltr" | "rtl";
+  open?: boolean;
+  pictures?: PictureBox[];
+  mouseSelectsText?: boolean;
 }) {
   const zoom = useViewerZoom({
     resetKey,
@@ -43,6 +50,8 @@ function Harness({
     navigatePrev: calls.prev,
     navigateNext: calls.next,
     toggleControls: calls.toggle,
+    // Left out when not given, so the hook's own default is what is tested.
+    ...(mouseSelectsText === undefined ? {} : { mouseSelectsText }),
   });
   const { frameRef } = zoom;
   const attach = useCallback(
@@ -165,6 +174,25 @@ describe("useViewerZoom at fit", () => {
   });
 });
 
+describe("useViewerZoom with the mouse left to select text", () => {
+  it("does not page on a click at the edge, nor toggle on one in the middle", () => {
+    render(<Harness mouseSelectsText />);
+    press(1, 20, 400, "mouse");
+    lift(1, 20, 400, "mouse");
+    press(1, 200, 400, "mouse");
+    lift(1, 200, 400, "mouse");
+    expect(calls.prev).not.toHaveBeenCalled();
+    expect(calls.toggle).not.toHaveBeenCalled();
+  });
+
+  it("still pages on a touch at the edge", () => {
+    render(<Harness mouseSelectsText />);
+    press(1, 20, 400);
+    lift(1, 20, 400);
+    expect(calls.prev).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("useViewerZoom pinch", () => {
   it("zooms by the ratio the fingers spread", () => {
     render(<Harness />);
@@ -205,6 +233,22 @@ describe("useViewerZoom while zoomed", () => {
     expect(calls.prev).not.toHaveBeenCalled();
     expect(calls.next).not.toHaveBeenCalled();
     expect(screen.getByTestId("content").style.transform).not.toBe(before);
+  });
+
+  it("pans on a mouse drag, unless the mouse is left to select text", () => {
+    const { rerender } = render(<Harness />);
+    pinchOpen();
+    const before = screen.getByTestId("content").style.transform;
+    press(1, 300, 400, "mouse");
+    move(1, 200, 400, "mouse");
+    lift(1, 200, 400, "mouse");
+    const panned = screen.getByTestId("content").style.transform;
+    expect(panned).not.toBe(before);
+    rerender(<Harness mouseSelectsText />);
+    press(1, 300, 400, "mouse");
+    move(1, 200, 400, "mouse");
+    lift(1, 200, 400, "mouse");
+    expect(screen.getByTestId("content").style.transform).toBe(panned);
   });
 
   it("does not page on an edge tap, only toggles the chrome", () => {

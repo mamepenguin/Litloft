@@ -76,7 +76,7 @@ describe("spread paging", () => {
     expect(owners.map(rel)).toEqual([]);
   });
 
-  it("is reached by both viewers", () => {
+  it("is reached by every page-turning viewer", () => {
     const callers = sourceFiles()
       .filter(
         (f) =>
@@ -88,6 +88,7 @@ describe("spread paging", () => {
     expect(callers).toEqual([
       "components/ImageGallery.tsx",
       "components/archive/useImageViewer.ts",
+      "components/pdf/PdfFullscreenViewer.tsx",
     ]);
   });
 });

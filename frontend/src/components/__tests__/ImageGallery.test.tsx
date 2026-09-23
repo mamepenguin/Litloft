@@ -73,10 +73,6 @@ function setupMock(data: FileItem[] = images) {
  * `runAllTimersAsync` settles the image load, and it also runs the
  * chrome's 2s idle timer, so anything that asserts on the chrome has to
  * say that someone is still there.
- *
- * Both signals, because the viewer listens to different ones per pointer
- * mode: a coarse pointer produces no movement, so `pointermove` is not
- * bound there.
  */
 function wakeChrome() {
   act(() => {

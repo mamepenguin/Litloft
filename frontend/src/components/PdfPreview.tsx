@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Maximize,
   Maximize2,
   Minus,
   Plus,
@@ -28,11 +29,14 @@ import {
   type PdfZoomMode,
 } from "@/lib/pdfZoomMode";
 import { MenuRadioGroup, ToolbarMenu } from "@/components/ToolbarMenu";
-import { useImeKeyGuard } from "@/lib/ime";
+import { PdfPageInput } from "@/components/pdf/PdfPageInput";
+import {
+  PdfFullscreenViewer,
+  type DocumentSlotProps,
+} from "@/components/pdf/PdfFullscreenViewer";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import {
   flattenOutline,
-  parsePageInput,
   PdfDocumentStore,
   type PdfController,
 } from "@/lib/pdfController";
@@ -84,10 +88,13 @@ export function PdfPreview({
   initialPage,
   onDocumentCaptureController,
   onPdfController,
+  documentSlotProps,
 }: {
   fileId: string;
   title: string;
   initialPage?: number;
+  /** What a full-screen viewer hands to addons that act on the document. */
+  documentSlotProps?: DocumentSlotProps;
   onDocumentCaptureController?: (
     controller: DocumentCaptureController | null,
   ) => void;
@@ -109,6 +116,9 @@ export function PdfPreview({
   const [pageBox, setPageBox] = useState<PageBox | null>(null);
   const [zoomMode, setZoomMode] = useState<PdfZoomMode>(DEFAULT_PDF_ZOOM_MODE);
   const [renderFailed, setRenderFailed] = useState(false);
+  const [loadedPdf, setLoadedPdf] = useState<PDFDocumentProxy | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const fullscreenGoToRef = useRef<((page: number) => void) | null>(null);
 
   // Read after mount, not in the initialiser: the server render has no
   // storage, and a value read during it would be hydrated over.
@@ -141,7 +151,8 @@ export function PdfPreview({
     setZoom(1);
     setNumPages(0);
     setPageBox(null);
-    setPageDraft(null);
+    setLoadedPdf(null);
+    setFullscreen(false);
     // The store describes a document, and the document is changing. Left
     // alone, the page list would draw the previous file's table of contents
     // over this one, and `goToPage` would validate a jump against the
@@ -208,9 +219,6 @@ export function PdfPreview({
     return () => observer.disconnect();
   }, []);
 
-  const [pageDraft, setPageDraft] = useState<string | null>(null);
-  const pageInputRef = useRef<HTMLInputElement>(null);
-  const ime = useImeKeyGuard();
 
   useEffect(() => {
     pdfStore.onGoToPage = (next) => setPage(next);
@@ -225,14 +233,6 @@ export function PdfPreview({
     pdfStore.set({ page, numPages, src });
   }, [page, numPages, src, pdfStore]);
 
-  /**
-   * The page can move underneath a draft, and a box still reading `9`
-   * while the canvas is on 3 is a counter that lies about where the reader
-   * is.
-   */
-  useEffect(() => {
-    setPageDraft(null);
-  }, [page]);
 
   /**
    * `getOutline()` answers `null` for a PDF that has none, which is a
@@ -281,6 +281,7 @@ export function PdfPreview({
     (pdf: PDFDocumentProxy) => {
       const count = pdf.numPages;
       setNumPages(count);
+      setLoadedPdf(pdf);
       setPage((current) => Math.min(Math.max(1, current), count));
       void loadOutline(pdf);
     },
@@ -346,6 +347,19 @@ export function PdfPreview({
     numPages > 1 && inScope,
   );
 
+  useShortcuts(
+    "pdf-viewer-open",
+    t("pdfShortcuts"),
+    [
+      {
+        key: "f",
+        label: t("pdfFullscreen"),
+        handler: () => setFullscreen(true),
+      },
+    ],
+    loadedPdf !== null && inScope && !fullscreen,
+  );
+
   /**
    * Every keystroke in the page box is a state change, and a large PDF
    * cannot afford to re-render the canvas on each of them.
@@ -403,28 +417,6 @@ export function PdfPreview({
     [page, drawWidth, pageBox],
   );
 
-  /**
-   * `blur()` re-enters React's `onBlur` synchronously, and the handler there
-   * closes over the `pageDraft` from *before* `setPageDraft(null)`. A ref is
-   * read at the moment the blur runs, which a state update is not.
-   */
-  const abandoningRef = useRef(false);
-
-  const commitPageInput = () => {
-    if (abandoningRef.current) {
-      abandoningRef.current = false;
-      setPageDraft(null);
-      return;
-    }
-    if (pageDraft === null) return;
-    const parsed = parsePageInput(pageDraft, numPages);
-    // Out of range puts the box back rather than moving the page. A reader
-    // who typed `999` into a 225-page document and landed on 225 cannot tell
-    // that from the number having been accepted.
-    if (parsed !== null) setPage(parsed);
-    setPageDraft(null);
-  };
-
   return (
     <div ref={rootRef} className="w-full overflow-hidden rounded-xl bg-bg-card">
       <div className="sticky top-0 z-10 flex flex-wrap items-center justify-center gap-2 border-b border-bg-border bg-bg-card px-3 py-2">
@@ -438,36 +430,11 @@ export function PdfPreview({
           <ChevronLeft size={16} />
         </button>
         <span className="flex items-center gap-1 text-xs font-mono text-text-muted">
-          {/* `text`, not `number`: the spinner a browser draws does not fit a
-              box sized to the page count. `inputMode` still brings up the
-              numeric keypad. */}
-          <input
-            ref={pageInputRef}
-            type="text"
-            inputMode="numeric"
-            value={pageDraft ?? String(page)}
-            aria-label={t("pdfPageNumber")}
-            onChange={(e) => setPageDraft(e.target.value)}
-            onBlur={commitPageInput}
-            onCompositionEnd={ime.onCompositionEnd}
-            onKeyDown={(e) => {
-              if (ime.isImeKeystroke(e)) return;
-
-              if (e.key === "Enter") {
-                e.preventDefault();
-                commitPageInput();
-                pageInputRef.current?.blur();
-              } else if (e.key === "Escape") {
-                e.preventDefault();
-                // Both halves: the state update is what puts the box back,
-                // and the ref is what stops the blur this triggers from
-                // committing the draft it still closes over.
-                abandoningRef.current = true;
-                setPageDraft(null);
-                pageInputRef.current?.blur();
-              }
-            }}
-            style={{ width: `${String(numPages || 1).length + 2}ch` }}
+          <PdfPageInput
+            page={page}
+            numPages={numPages}
+            onCommit={setPage}
+            label={t("pdfPageNumber")}
             className="rounded-2xl border border-bg-border bg-bg-primary px-1 py-0.5 text-center text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           />
           <span>/ {numPages || "–"}</span>
@@ -529,12 +496,21 @@ export function PdfPreview({
         >
           <Plus size={16} />
         </button>
+        <button
+          type="button"
+          onClick={() => setFullscreen(true)}
+          disabled={loadedPdf === null}
+          aria-label={t("pdfFullscreen")}
+          className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated disabled:opacity-30"
+        >
+          <Maximize size={15} />
+        </button>
         <a
           href={`${src}#page=${page}`}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={t("openInNewTab")}
-          className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated"
         >
           <ExternalLink size={15} />
         </a>
@@ -558,6 +534,12 @@ export function PdfPreview({
         <Document
           file={src}
           onLoadSuccess={handleLoad}
+          // Without this react-pdf scrolls to the target page, which is not
+          // mounted: only the page in view is drawn.
+          onItemClick={({ pageNumber }) => {
+            if (fullscreenGoToRef.current) fullscreenGoToRef.current(pageNumber);
+            else setPage(pageNumber);
+          }}
           loading={
             <p className="py-16 text-sm text-text-muted">{t("pdfLoading")}</p>
           }
@@ -576,6 +558,19 @@ export function PdfPreview({
             )}
             {pageElement}
           </section>
+          {fullscreen && loadedPdf && (
+            <PdfFullscreenViewer
+              pdf={loadedPdf}
+              title={title}
+              initialPage={page}
+              slotProps={documentSlotProps}
+              goToPageRef={fullscreenGoToRef}
+              onClose={(last) => {
+                setFullscreen(false);
+                setPage(last);
+              }}
+            />
+          )}
         </Document>
       </div>
     </div>
