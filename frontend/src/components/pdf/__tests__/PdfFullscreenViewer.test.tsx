@@ -124,7 +124,11 @@ function Wrap({ children }: { children: ReactNode }) {
 
 async function open(
   pdf: PDFDocumentProxy,
-  { initialPage = 1, onClose = vi.fn() } = {},
+  {
+    initialPage = 1,
+    onClose = vi.fn(),
+    declaredDirection = null as "ltr" | "rtl" | null,
+  } = {},
 ) {
   const r = render(
     <Wrap>
@@ -132,6 +136,7 @@ async function open(
         pdf={pdf}
         title="Paper"
         initialPage={initialPage}
+        declaredDirection={declaredDirection}
         slotProps={{ fileId: "f1", drive: "d", filename: "p.pdf", fileType: "document" }}
         onClose={onClose}
       />
@@ -486,6 +491,53 @@ describe("PdfFullscreenViewer", () => {
     act(() => go!(6));
     await act(async () => {});
     expect(shownPages()).toEqual([6]);
+  });
+
+  describe("a document that declares its reading direction", () => {
+    const DIRECTION_KEY = "image-viewer:reading-direction";
+
+    it("opens in that direction over the reader's stored one", async () => {
+      localStorage.setItem(SPREAD_MODE_KEY, "true");
+      localStorage.setItem(DIRECTION_KEY, "ltr");
+      await open(fakePdf(8), { initialPage: 2, declaredDirection: "rtl" });
+      const face = document.querySelector<HTMLElement>("[data-face]")!;
+      expect(face.style.flexDirection).toBe("row-reverse");
+    });
+
+    it("keeps a switch made here to this document", async () => {
+      localStorage.setItem(SPREAD_MODE_KEY, "true");
+      localStorage.setItem(DIRECTION_KEY, "ltr");
+      await open(fakePdf(8), { initialPage: 2, declaredDirection: "rtl" });
+      expect(localStorage.getItem(DIRECTION_KEY)).toBe("ltr");
+      fireEvent.click(screen.getByRole("button", { name: "Reading direction" }));
+      expect(document.querySelector<HTMLElement>("[data-face]")!.style.flexDirection).toBe("row");
+      expect(localStorage.getItem(DIRECTION_KEY)).toBe("ltr");
+    });
+
+    it("opens left to right when the document says so, over a stored right to left", async () => {
+      localStorage.setItem(SPREAD_MODE_KEY, "true");
+      localStorage.setItem(DIRECTION_KEY, "rtl");
+      await open(fakePdf(8), { initialPage: 2, declaredDirection: "ltr" });
+      expect(document.querySelector<HTMLElement>("[data-face]")!.style.flexDirection).toBe("row");
+    });
+
+    it("starts a split page on its right half when the document reads right to left", async () => {
+      localStorage.setItem(SPREAD_MODE_KEY, "true");
+      localStorage.setItem(DIRECTION_KEY, "ltr");
+      await open(fakePdf(8, () => LANDSCAPE), { initialPage: 4, declaredDirection: "rtl" });
+      expect(document.querySelector<HTMLElement>("[data-face]")!.style.transform).toBe(
+        "translateX(-50%)",
+      );
+    });
+
+    it("leaves the stored direction in charge of a document that declares none", async () => {
+      localStorage.setItem(SPREAD_MODE_KEY, "true");
+      localStorage.setItem(DIRECTION_KEY, "rtl");
+      await open(fakePdf(8), { initialPage: 2 });
+      expect(document.querySelector<HTMLElement>("[data-face]")!.style.flexDirection).toBe("row-reverse");
+      fireEvent.click(screen.getByRole("button", { name: "Reading direction" }));
+      expect(localStorage.getItem(DIRECTION_KEY)).toBe("ltr");
+    });
   });
 });
 

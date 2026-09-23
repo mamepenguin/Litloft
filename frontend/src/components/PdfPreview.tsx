@@ -17,6 +17,7 @@ import "react-pdf/dist/Page/TextLayer.css";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 
 import { getStreamUrl } from "@/lib/api";
+import { declaredReadingDirection } from "@/lib/pdfReadingDirection";
 import { readStored, writeStored } from "@/lib/safeStorage";
 import {
   DEFAULT_PDF_ZOOM_MODE,
@@ -116,7 +117,16 @@ export function PdfPreview({
   const [pageBox, setPageBox] = useState<PageBox | null>(null);
   const [zoomMode, setZoomMode] = useState<PdfZoomMode>(DEFAULT_PDF_ZOOM_MODE);
   const [renderFailed, setRenderFailed] = useState(false);
-  const [loadedPdf, setLoadedPdf] = useState<PDFDocumentProxy | null>(null);
+  /**
+   * Set only once the document's own viewing preferences have been read, so
+   * a full-screen viewer never opens in one reading direction and turns to
+   * the other.
+   */
+  const [loaded, setLoaded] = useState<{
+    pdf: PDFDocumentProxy;
+    declaredDirection: "ltr" | "rtl" | null;
+  } | null>(null);
+  const latestPdfRef = useRef<PDFDocumentProxy | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const fullscreenGoToRef = useRef<((page: number) => void) | null>(null);
 
@@ -151,7 +161,8 @@ export function PdfPreview({
     setZoom(1);
     setNumPages(0);
     setPageBox(null);
-    setLoadedPdf(null);
+    setLoaded(null);
+    latestPdfRef.current = null;
     setFullscreen(false);
     // The store describes a document, and the document is changing. Left
     // alone, the page list would draw the previous file's table of contents
@@ -281,7 +292,19 @@ export function PdfPreview({
     (pdf: PDFDocumentProxy) => {
       const count = pdf.numPages;
       setNumPages(count);
-      setLoadedPdf(pdf);
+      latestPdfRef.current = pdf;
+      void Promise.resolve()
+        .then(() => pdf.getViewerPreferences())
+        .catch(() => null)
+        .then((preferences) => {
+          // A document replaced while this was being read is not the one
+          // on screen.
+          if (latestPdfRef.current !== pdf) return;
+          setLoaded({
+            pdf,
+            declaredDirection: declaredReadingDirection(preferences),
+          });
+        });
       setPage((current) => Math.min(Math.max(1, current), count));
       void loadOutline(pdf);
     },
@@ -357,7 +380,7 @@ export function PdfPreview({
         handler: () => setFullscreen(true),
       },
     ],
-    loadedPdf !== null && inScope && !fullscreen,
+    loaded !== null && inScope && !fullscreen,
   );
 
   /**
@@ -499,7 +522,7 @@ export function PdfPreview({
         <button
           type="button"
           onClick={() => setFullscreen(true)}
-          disabled={loadedPdf === null}
+          disabled={loaded === null}
           aria-label={t("pdfFullscreen")}
           className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated disabled:opacity-30"
         >
@@ -558,9 +581,10 @@ export function PdfPreview({
             )}
             {pageElement}
           </section>
-          {fullscreen && loadedPdf && (
+          {fullscreen && loaded && (
             <PdfFullscreenViewer
-              pdf={loadedPdf}
+              pdf={loaded.pdf}
+              declaredDirection={loaded.declaredDirection}
               title={title}
               initialPage={page}
               slotProps={documentSlotProps}

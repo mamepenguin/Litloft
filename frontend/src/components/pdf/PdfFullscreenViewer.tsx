@@ -58,9 +58,17 @@ export function PdfFullscreenViewer({
   initialPage,
   slotProps,
   goToPageRef,
+  declaredDirection = null,
   onClose,
 }: {
   pdf: PDFDocumentProxy;
+  /**
+   * The document's own `/Direction`. It opens the viewer in that direction,
+   * and a switch made here then lasts only as long as the viewer: a reader
+   * of one right-to-left manga has not asked for every picture to turn the
+   * other way.
+   */
+  declaredDirection?: "ltr" | "rtl" | null;
   title: string;
   initialPage: number;
   slotProps?: DocumentSlotProps;
@@ -78,9 +86,11 @@ export function PdfFullscreenViewer({
     Math.min(Math.max(0, initialPage - 1), numPages - 1),
   );
   const [spreadMode, setSpreadMode] = useState(() => readSpreadMode());
-  const [readingDirection, setReadingDirection] = useState(readReadingDirection);
+  const [readingDirection, setReadingDirection] = useState(
+    () => declaredDirection ?? readReadingDirection(),
+  );
   const [showRightHalf, setShowRightHalf] = useState(
-    () => readReadingDirection() === "rtl",
+    () => (declaredDirection ?? readReadingDirection()) === "rtl",
   );
 
   // A face is entered from its first half in reading order, whichever of
@@ -92,11 +102,13 @@ export function PdfFullscreenViewer({
   }, [spreadMode]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(READING_DIRECTION_KEY, readingDirection);
-    } catch {}
+    if (declaredDirection === null) {
+      try {
+        localStorage.setItem(READING_DIRECTION_KEY, readingDirection);
+      } catch {}
+    }
     setShowRightHalf(readingDirection === "rtl");
-  }, [readingDirection]);
+  }, [readingDirection, declaredDirection]);
 
   const boxes = usePdfPageBoxes(pdf, index + 1);
   const orientationAt = useCallback(

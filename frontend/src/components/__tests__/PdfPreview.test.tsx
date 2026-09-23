@@ -20,6 +20,8 @@ const pdfDoc = {
   getDestination: async (name: string) => pdfDoc.destinations[name] ?? null,
   getPageIndex: async (ref: unknown) => (ref as { index: number }).index,
   getPage: async () => ({ getViewport: () => ({ ...mockPageBox }) }),
+  viewerPreferences: null as unknown,
+  getViewerPreferences: async () => pdfDoc.viewerPreferences,
   destinations: {} as Record<string, unknown>,
 };
 
@@ -154,6 +156,8 @@ beforeEach(() => {
   pdfDoc.numPages = 8;
   pdfDoc.outline = null;
   pdfDoc.destinations = {};
+  pdfDoc.viewerPreferences = null;
+  pdfDoc.getViewerPreferences = async () => pdfDoc.viewerPreferences;
   pdfDoc.getOutline = async () => pdfDoc.outline;
   pageRenders = [];
   pageWidths = [];
@@ -891,6 +895,10 @@ describe("PdfPreview full screen", () => {
   it("opens with f", async () => {
     renderViewer();
     await screen.findByText("Selectable page 3");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    await act(async () => {});
     fireEvent.keyDown(document, { key: "f" });
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
@@ -943,6 +951,68 @@ describe("PdfPreview full screen", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     act(() => itemClick!({ pageNumber: 6 }));
     expect(pageBox().value).toBe("6");
+  });
+
+  it("opens a document that reads right to left the way it reads", async () => {
+    pdfDoc.viewerPreferences = { Direction: "R2L" };
+    window.localStorage.setItem("image-viewer:spread-mode", "true");
+    renderViewer();
+    await screen.findByText("Selectable page 3");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Reading direction" })).toHaveTextContent("RTL");
+  });
+
+  it("does not offer the previous file's document once its preferences arrive late", async () => {
+    let answer!: (prefs: unknown) => void;
+    pdfDoc.getViewerPreferences = () =>
+      new Promise((resolve) => {
+        answer = resolve;
+      });
+    const { rerender } = renderViewer();
+    await screen.findByText("Selectable page 3");
+    rerender(
+      <ShortcutsProvider>
+        <PdfPreview fileId="other1234567" title="Other" initialPage={1} />
+      </ShortcutsProvider>,
+    );
+    await act(async () => answer(null));
+    expect(screen.getByRole("button", { name: "Full screen" })).toBeDisabled();
+  });
+
+  it("waits for the document's preferences before it can open", async () => {
+    let answer!: (prefs: unknown) => void;
+    pdfDoc.getViewerPreferences = () =>
+      new Promise((resolve) => {
+        answer = resolve;
+      });
+    renderViewer();
+    await screen.findByText("Selectable page 3");
+    expect(screen.getByRole("button", { name: "Full screen" })).toBeDisabled();
+    fireEvent.keyDown(document, { key: "f" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await act(async () => answer({ Direction: "R2L" }));
+    expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled();
+  });
+
+  it("still opens a document whose preferences cannot be read", async () => {
+    for (const failing of [
+      () => Promise.reject(new Error("broken")),
+      () => {
+        throw new Error("broken");
+      },
+    ]) {
+      pdfDoc.getViewerPreferences = failing as () => Promise<unknown>;
+      const { unmount } = renderViewer();
+      await screen.findByText("Selectable page 3");
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+      );
+      unmount();
+    }
   });
 });
 
