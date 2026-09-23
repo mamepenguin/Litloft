@@ -261,4 +261,31 @@ describe("ShortcutsProvider editingOnly partition", () => {
     expect(document.querySelector('[role="dialog"]')).toBeFalsy();
     void container;
   });
+
+  it("lists only what a layer that takes the keyboard leaves reachable", () => {
+    function PageAndViewer() {
+      useShortcuts("global", "Global", [
+        { key: "ctrl+k", label: "Open search", handler: () => {} },
+      ]);
+      useShortcuts(
+        "viewer",
+        "Viewer",
+        [{ key: "arrowright", label: "Next page", handler: () => {} }],
+        true,
+        OVERLAY_PRIORITY,
+        true,
+      );
+      return null;
+    }
+    render(
+      <ShortcutsProvider>
+        <PageAndViewer />
+      </ShortcutsProvider>,
+    );
+    fireEvent.keyDown(document, { key: "?", shiftKey: true });
+    const sheet = document.querySelector('[role="dialog"]')!;
+    expect(sheet.textContent).toContain("Next page");
+    expect(sheet.textContent).not.toContain("Open search");
+  });
 });
+

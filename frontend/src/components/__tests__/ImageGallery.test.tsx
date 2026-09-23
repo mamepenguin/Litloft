@@ -457,6 +457,22 @@ describe("ImageGallery", () => {
     expect(chosen).toHaveTextContent("5s");
   });
 
+  it("leaves the page its keys while it is mounted closed", async () => {
+    const search = vi.fn();
+    function PageKeys() {
+      useShortcuts("global", "global", [{ key: "ctrl+k", label: "search", handler: search }]);
+      return null;
+    }
+    renderWithShortcuts(
+      <>
+        <PageKeys />
+        <ImageGallery {...defaultProps} open={false} />
+      </>,
+    );
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    expect(search).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps the page's own keys from firing while it is open", async () => {
     const search = vi.fn();
     function PageKeys() {
