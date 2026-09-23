@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { createElement } from "react";
 import { useImageViewer } from "../useImageViewer";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+import { useShortcuts } from "@/hooks/useShortcuts";
 import type { ArchiveEntry } from "@/types";
 
 const wrapper = ({ children }: { children: ReactNode }) =>
@@ -330,5 +331,31 @@ describe("useImageViewer", () => {
       );
     });
     expect(result.current.imageIndex).toBe(0);
+  });
+
+  it("keeps the page's own keys from firing while the viewer is open", () => {
+    const search = vi.fn();
+    const useBoth = () => {
+      useShortcuts("global", "global", [{ key: "ctrl+k", label: "search", handler: search }]);
+      return useImageViewer("image", imageEntries, "file-1", onClose);
+    };
+    renderHook(useBoth, { wrapper });
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    });
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it("gives the page its keys back once the viewer is closed", () => {
+    const search = vi.fn();
+    const useBoth = () => {
+      useShortcuts("global", "global", [{ key: "ctrl+k", label: "search", handler: search }]);
+      return useImageViewer("listing", imageEntries, "file-1", onClose);
+    };
+    renderHook(useBoth, { wrapper });
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    });
+    expect(search).toHaveBeenCalledTimes(1);
   });
 });

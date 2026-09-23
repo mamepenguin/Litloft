@@ -539,5 +539,21 @@ describe("PdfFullscreenViewer", () => {
       expect(localStorage.getItem(DIRECTION_KEY)).toBe("ltr");
     });
   });
-});
 
+  it("keeps the page's own keys from firing while it is open", async () => {
+    const search = vi.fn();
+    function PageKeys() {
+      useShortcuts("global", "global", [{ key: "ctrl+k", label: "search", handler: search }]);
+      return null;
+    }
+    render(
+      <Wrap>
+        <PageKeys />
+        <PdfFullscreenViewer pdf={fakePdf(8)} title="Paper" initialPage={1} onClose={vi.fn()} />
+      </Wrap>,
+    );
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+    expect(search).not.toHaveBeenCalled();
+  });
+});

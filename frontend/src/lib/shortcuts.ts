@@ -18,6 +18,12 @@ export interface ShortcutContextDef {
   // Push order alone is not enough for overlays: a context that enables later
   // lands on top of an already-open modal.
   priority?: number
+  /**
+   * For something that covers the page: every context of a lower priority is
+   * out of reach while this one is open, so a key never acts on what the
+   * reader cannot see.
+   */
+  blocksLower?: boolean
 }
 
 /** Tier for modals and other overlays that must win their chords outright. */
@@ -32,13 +38,17 @@ export const NESTED_OVERLAY_PRIORITY = 200
 export function orderContexts(
   stack: ShortcutContextDef[],
 ): ShortcutContextDef[] {
-  return stack
+  const ordered = stack
     .map((ctx, index) => ({ ctx, index }))
     .sort(
       (a, b) =>
         (b.ctx.priority ?? 0) - (a.ctx.priority ?? 0) || b.index - a.index,
     )
     .map((entry) => entry.ctx)
+  const blocker = ordered.find((ctx) => ctx.blocksLower)
+  if (!blocker) return ordered
+  const floor = blocker.priority ?? 0
+  return ordered.filter((ctx) => (ctx.priority ?? 0) >= floor)
 }
 
 function isMacPlatform(): boolean {

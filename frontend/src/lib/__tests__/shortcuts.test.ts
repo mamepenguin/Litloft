@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { formatShortcut, formatShortcutPart, normalizeKey } from "../shortcuts";
+import {
+  OVERLAY_PRIORITY,
+  formatShortcut,
+  formatShortcutPart,
+  normalizeKey,
+  orderContexts,
+  type ShortcutContextDef,
+} from "../shortcuts";
 
 const realPlatform = Object.getOwnPropertyDescriptor(
   window.navigator,
@@ -101,3 +108,42 @@ describe("formatShortcut — how a chord is written for the reader", () => {
     expect(["escape", "space", "arrowup"].map(formatShortcutPart)).toEqual(["Esc", "Space", "↑"]);
   });
 });
+
+describe("orderContexts — a context that takes the keyboard", () => {
+  const ctx = (
+    id: string,
+    priority = 0,
+    blocksLower = false,
+  ): ShortcutContextDef => ({ id, label: id, shortcuts: [], priority, blocksLower });
+
+  it("hides every context of a lower priority, wherever it was pushed", () => {
+    const ordered = orderContexts([
+      ctx("global-search"),
+      ctx("viewer", OVERLAY_PRIORITY, true),
+      ctx("file-nav"),
+    ]);
+    expect(ordered.map((c) => c.id)).toEqual(["viewer"]);
+  });
+
+  it("keeps what shares its priority, or sits above it", () => {
+    const ordered = orderContexts([
+      ctx("viewer", OVERLAY_PRIORITY, true),
+      ctx("viewer-zoom", OVERLAY_PRIORITY),
+      ctx("search-panel", OVERLAY_PRIORITY),
+      ctx("nested", OVERLAY_PRIORITY + 100),
+      ctx("global"),
+    ]);
+    expect(ordered.map((c) => c.id)).toEqual([
+      "nested",
+      "search-panel",
+      "viewer-zoom",
+      "viewer",
+    ]);
+  });
+
+  it("leaves the order alone when nothing takes the keyboard", () => {
+    const ordered = orderContexts([ctx("a"), ctx("b", OVERLAY_PRIORITY), ctx("c")]);
+    expect(ordered.map((c) => c.id)).toEqual(["b", "c", "a"]);
+  });
+});
+
