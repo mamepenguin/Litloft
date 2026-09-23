@@ -61,15 +61,38 @@ Purging the file afterwards sweeps the destination drive, so the source row is
 left attached to nothing. This crosses the drive boundary rather than only
 reading wrong. Reached by moving a tagged file between drives.
 
-**A `.ts` file is classified as video and handed to the player.** Python's
-built-in type table reads that extension as `video/mp2t`, which an MPEG
-transport stream legitimately is, so `classify` files every TypeScript source
-under video: the listing counts it as one, the type filter finds it there, and
-the file page gives it a `<video>` that cannot load it. The text viewer's
-allowlist names `ts`, but the player branch is reached first, so it never gets
-a chance. The extension alone cannot settle it; deciding it needs the same
-ffprobe sniff `refine_classification_with_probe` already does for audio-only
-`.mp4`.
+**Which bucket a source file lands in depends on the host's mime table.**
+`classify` asks `mimetypes`, which reads a table the image may or may not carry,
+so the answer is an accident of packaging rather than a decision: in the
+container `.c`, `.h`, `.py` and `.pl` are **Document** while `.ts`, `.cpp`,
+`.rs`, `.go`, `.java`, `.sh`, `.json` and `.yml` are **Other**. Measured across
+the 1003 extensions of a full mime table, 193 change bucket depending on whether
+it is present. What a source file should count as has never been decided; the
+current split is not that decision.
+
+**`.webp`, `.mts` and `.m2ts` are filed under Other.** The container carries no
+mime table and Python's built-in one names none of them, so `classify` answers
+`application/octet-stream`: a drive of `.webp` pictures gets no image bucket, no
+image thumbnail and no page-turner, and AVCHD camcorder footage gets no player,
+no thumbnail and no duration. `_EXTRA_MIMES` already covers `.mkv`, `.webm` and
+`.m4a` the same way and is where these belong. Reached by putting any of the
+three on a drive.
+
+**A file reclassified out of video keeps the frame it had.** The scanner rewrites
+`file_type` and `mime_type` on an existing row but clears neither
+`thumbnail_path` nor `duration`, and nothing generates a document thumbnail to
+overwrite the old one, so the card draws the stale video frame. Reached by a row
+first written on a host whose mime table called the file video — a `.ts` scanned
+on macOS, then scanned again in the container.
+
+**A `.ts` file is handed to the video player, but only where a mime table is
+installed.** That extension names both an MPEG transport stream and a TypeScript
+source, and a table that has it answers `video/mp2t`, so the listing counts the
+file as a video and the file page gives it a `<video>` that cannot load it. The
+text viewer's allowlist names `ts`, but the player branch is reached first. The
+shipped container has no such table, so there it is Other and opens as text;
+this is reached by running the backend outside Docker, on macOS. The extension
+alone cannot settle it.
 
 **A file of long unbroken runs freezes the page for about twenty seconds
 while it is coloured.** Several highlight.js grammars are quadratic in an
