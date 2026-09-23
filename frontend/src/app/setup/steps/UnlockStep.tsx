@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 import {
   SetupAlreadyCompletedError,
@@ -90,9 +91,9 @@ export function UnlockStep({
           {completed && (
             <p className="mt-1 text-xs text-text-muted">
               Setup is complete.{" "}
-              <a href="/" className="underline">
+              <Link href="/" className="underline">
                 Open Litloft
-              </a>
+              </Link>
             </p>
           )}
         </label>
