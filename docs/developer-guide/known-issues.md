@@ -177,6 +177,12 @@ missing, and another of the same name is moved into its folder. Copying does not
 do this — `copy_file` takes the name away from the retired record once the JPEG
 is written.
 
+**On a phone, Tab from an open archive or PDF toolbar menu's button does not
+enter the menu, and focus inside it is lost if the window crosses 640px.** Those
+three menus are drawn at the end of the page below 640px so they are not hidden
+under the file page's bottom strip. Reached with a keyboard at phone width, or by
+rotating a phone with a menu open.
+
 ## Navigation
 
 **`Paste here` and `Add` are both accent-filled at once.** With a non-empty
