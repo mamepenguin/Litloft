@@ -233,35 +233,32 @@ describe("PdfRasterCache", () => {
     expect(jobs.map((j) => j.pageNumber)).toEqual([5, 6]);
   });
 
-  it("stops a running prefetch for a page on screen and starts it again afterwards", async () => {
+  it("lets a running prefetch finish, then draws the page on screen before the next one", async () => {
     const { cache, jobs } = setup();
     cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 1 }] });
     cache.want("viewer", {
       visiblePages: [1],
-      prefetch: [{ pageNumber: 2, renderScale: 1 }],
+      prefetch: [
+        { pageNumber: 2, renderScale: 1 },
+        { pageNumber: 0, renderScale: 1 },
+      ],
     });
     await flush();
     jobs[0].resolve();
     await flush();
-    expect(jobs.map((j) => j.pageNumber)).toEqual([1, 2]);
 
     // The reader zooms while page 2 is being drawn ahead.
     cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 2 }] });
     await flush();
-    expect(jobs[1].cancel).toHaveBeenCalled();
-    expect(jobs.map((j) => `${j.pageNumber}@${j.renderScale}`)).toEqual([
-      "1@1",
-      "2@1",
-      "1@2",
-    ]);
+    expect(jobs[1].cancel).not.toHaveBeenCalled();
+    expect(jobs).toHaveLength(2);
 
-    jobs[2].resolve();
+    jobs[1].resolve();
     await flush();
     expect(jobs.map((j) => `${j.pageNumber}@${j.renderScale}`)).toEqual([
       "1@1",
       "2@1",
       "1@2",
-      "2@1",
     ]);
   });
 

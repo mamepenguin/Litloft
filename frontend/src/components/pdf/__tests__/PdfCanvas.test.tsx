@@ -255,6 +255,57 @@ describe("PdfCanvas", () => {
     expect(context2d!.drawImage).toHaveBeenCalledWith(jobs[0].canvas, 0, 0);
   });
 
+  it("lets go of its own canvas once its raster is drawn", async () => {
+    const created: HTMLCanvasElement[] = [];
+    const create = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation(((tag: string) => {
+      const el = create(tag);
+      if (tag === "canvas") created.push(el as HTMLCanvasElement);
+      return el;
+    }) as typeof document.createElement);
+
+    const inline = (
+      <OnPage value={pageContext(1, 1)}>
+        <section data-view="inline">
+          <PdfCanvas />
+        </section>
+      </OnPage>
+    );
+    const { container, rerender } = render(
+      <>
+        {inline}
+        {null}
+      </>,
+    );
+    await flush();
+    jobs[0].resolve();
+    await flush();
+
+    // Full screen opens on the same page: until its own size is drawn it
+    // shows the inline raster, which is already on screen.
+    rerender(
+      <>
+        {inline}
+        <OnPage value={pageContext(1, 2)}>
+          <section data-view="fullscreen">
+            <PdfCanvas />
+          </section>
+        </OnPage>
+      </>,
+    );
+    await flush();
+    const copy = created.find(
+      (c) => !jobs.some((j) => j.canvas === c) && c.width > 0,
+    )!;
+    expect(copy).toBeDefined();
+
+    jobs[1].resolve();
+    await flush();
+    const fullscreen = container.querySelector('[data-view="fullscreen"]')!;
+    expect(canvasIn(fullscreen)).toBe(jobs[1].canvas);
+    expect(copy.width).toBe(0);
+  });
+
   it("reports a failure when the browser refuses the canvas the page needs", async () => {
     const onRenderSuccess = vi.fn();
     const onRenderError = vi.fn();

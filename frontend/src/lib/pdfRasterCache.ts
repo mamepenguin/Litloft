@@ -38,7 +38,6 @@ interface Ready {
 interface Running {
   key: string;
   pageNumber: number;
-  prefetch: boolean;
   cancelled: boolean;
   cancel: (() => void) | null;
 }
@@ -233,25 +232,16 @@ export class PdfRasterCache {
   }
 
   private pump() {
+    if (this.running) return;
+
     const owners = [...this.owners.values()];
     const visibleRequests = owners.flatMap((w) => w.visible ?? []);
     const nextVisible = visibleRequests.find((r) => {
       const key = keyOf(r.pageNumber, r.renderScale);
-      return (
-        !this.ready.has(key) &&
-        !this.failed.has(key) &&
-        this.running?.key !== key
-      );
+      return !this.ready.has(key) && !this.failed.has(key);
     });
-
-    if (this.running) {
-      // A page on screen does not wait behind a prefetch; the prefetch is
-      // still wanted and is started again once the screen is drawn.
-      if (nextVisible && this.running.prefetch) this.cancelRunning();
-      return;
-    }
     if (nextVisible) {
-      this.start(nextVisible, false);
+      this.start(nextVisible);
       return;
     }
 
@@ -275,7 +265,7 @@ export class PdfRasterCache {
           !this.prefetchFailed.has(key)
         );
       });
-    if (nextPrefetch) this.start(nextPrefetch, true);
+    if (nextPrefetch) this.start(nextPrefetch);
   }
 
   private cancelRunning() {
@@ -285,15 +275,9 @@ export class PdfRasterCache {
     running.cancel?.();
   }
 
-  private start({ pageNumber, renderScale }: RasterRequest, prefetch: boolean) {
+  private start({ pageNumber, renderScale }: RasterRequest) {
     const key = keyOf(pageNumber, renderScale);
-    const running: Running = {
-      key,
-      pageNumber,
-      prefetch,
-      cancelled: false,
-      cancel: null,
-    };
+    const running: Running = { key, pageNumber, cancelled: false, cancel: null };
     this.running = running;
 
     void (async () => {
