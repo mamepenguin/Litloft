@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import type { FileItemWithMatch, MatchMeta } from "@/types";
 import { MatchOverlay } from "../MatchOverlay";
@@ -90,6 +90,22 @@ describe("MatchOverlay search snippet", () => {
       ["p.3", "/files/f1?page=3"],
       ["p.12", "/files/f1?page=12"],
     ]);
+  });
+
+  it("does not pass a page pill click on to the card around it", () => {
+    const onCardClick = vi.fn();
+    render(
+      <div onClick={onCardClick}>
+        <MatchOverlay
+          match={{ content: { score: 0.6 }, matched_pages: [3] }}
+          fileId="f1"
+        />
+      </div>,
+    );
+
+    fireEvent.click(screen.getByText("p.3"));
+
+    expect(onCardClick).not.toHaveBeenCalled();
   });
 
   it("renders nothing when the hit has no badge, pill, page, or snippet", () => {

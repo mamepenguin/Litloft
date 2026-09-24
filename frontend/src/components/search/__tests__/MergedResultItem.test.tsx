@@ -152,18 +152,37 @@ describe("MergedResultItem", () => {
     expect(onSelect).toHaveBeenCalledWith("/files/abc?page=7");
   });
 
-  it("Enter on a page pill fires onSelect with its page only", () => {
+  it.each(["Enter", " "])(
+    "%j on a page pill fires onSelect with that pill's page only",
+    (key) => {
+      const file = makeFile({
+        id: "abc",
+        match_meta: { content: { score: 0.6 }, matched_pages: [3, 7] },
+      });
+      const onSelect = vi.fn();
+      render(<MergedResultItem file={file} onSelect={onSelect} />);
+
+      const pill = screen.getByRole("button", { name: "p.7" });
+      expect(pill).toHaveAttribute("tabindex", "0");
+      fireEvent.keyDown(pill, { key });
+
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      expect(onSelect).toHaveBeenCalledWith("/files/abc?page=7");
+    },
+  );
+
+  it("clicking the row of a PDF hit opens the file without a page", () => {
     const file = makeFile({
       id: "abc",
-      match_meta: { content: { score: 0.6 }, matched_pages: [3] },
+      match_meta: { content: { score: 0.6 }, matched_pages: [3, 7] },
     });
     const onSelect = vi.fn();
     render(<MergedResultItem file={file} onSelect={onSelect} />);
 
-    fireEvent.keyDown(screen.getByText("p.3"), { key: "Enter" });
+    fireEvent.click(screen.getByTestId("merged-result-item"));
 
     expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(onSelect).toHaveBeenCalledWith("/files/abc?page=3");
+    expect(onSelect).toHaveBeenCalledWith("/files/abc");
   });
 
   it("does NOT render pills for placeholder time_range entries [-1, -1]", () => {
