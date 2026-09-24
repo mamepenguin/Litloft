@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Litloft — A self-hosted media library for your home network</title>
+  <title>Litloft: a self-hosted media library for your home network</title>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-2R74EW5DRV"></script>
   <script>
@@ -20,7 +20,7 @@
     })(window,document,'script','dataLayer','GTM-WL8DZDWF');</script>
   <!-- End Google Tag Manager -->
   <meta name="description" content="Litloft is a self-hosted library for videos, audio, PDFs, images and Markdown notes on your home LAN. Stream and read in the browser, search inside transcripts and documents, and optionally use a local LLM for cited answers.">
-  <meta property="og:title" content="Litloft — A self-hosted media library for your home network">
+  <meta property="og:title" content="Litloft: a self-hosted media library for your home network">
   <meta property="og:description" content="Stream videos, read PDFs, write Markdown notes, and search inside all of them. Runs on your own hardware with Docker.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mamepenguin.github.io/Litloft/">
@@ -30,7 +30,7 @@
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Litloft's Home screen, with Continue Watching and Pickup rows.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Litloft — A self-hosted media library for your home network">
+  <meta name="twitter:title" content="Litloft: a self-hosted media library for your home network">
   <meta name="twitter:description" content="Stream videos, read PDFs, write Markdown notes, and search inside all of them. Runs on your own hardware with Docker.">
   <meta name="twitter:image" content="https://mamepenguin.github.io/Litloft/og.png">
   <meta name="theme-color" content="#FBF7EF">
@@ -75,7 +75,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="hero-inner">
       <a href="#whats-new" class="release-pill reveal">
-        <span><b>New release</b> — a reorganised library, a PDF page-turner, and more</span>
+        <span><b>New release:</b> a reorganised library, a PDF page-turner and more</span>
         <span class="go">See what's new</span>
       </a>
       <h1 class="reveal">Your media library,<br><em>searchable to the second.</em></h1>
@@ -104,14 +104,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal">What's new</span>
-      <h2 class="reveal">A calmer library, and better tools for reading</h2>
+      <h2 class="reveal">A reorganised library, and better tools for reading</h2>
       <p class="reveal">This release reorganises how you move around Litloft and adds the viewers and note tools that were missing. The highlights:</p>
     </div>
     <div class="new-grid">
       <article class="new-card reveal">
         <span class="tag">Navigation</span>
         <h3>Home and Library, separated</h3>
-        <p>Home gathers what to open next: Continue Watching, Pickup, Recently Viewed, Recently Added, Favorites and Liked. Library is the folder hierarchy and nothing else.</p>
+        <p>Home gathers what to open next: Continue Watching, Pickup, Recently Viewed, Recently Added, Favorites and Liked. Library shows only the folder hierarchy.</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Files</span>
@@ -169,7 +169,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <ul class="points">
           <li>Streaming with resume, subtitles, chapters and scrubbing previews</li>
           <li>Transcripts from local Whisper, or from a cloud speech-to-text provider you choose</li>
-          <li>With an LLM, chapter candidates you approve or dismiss; nothing is applied on its own</li>
+          <li>With an LLM, Litloft proposes chapters, and they change nothing until you approve them</li>
           <li>YouTube and Vimeo videos kept as small <code>.loft</code> files that play embedded</li>
         </ul>
       </div>
@@ -212,13 +212,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="copy reveal">
         <span class="eyebrow">Search · Intelligence addon</span>
         <h2>Find the sentence, then check the source</h2>
-        <p><b>Find</b> searches names, tags, transcripts, document text and what pictures show, all at once. <b>Ask</b> passes the matching passages to an LLM and returns an answer with numbered citations, each pointing at the file and the second it came from.</p>
+        <p>Find searches names, tags, transcripts, document text and what pictures show, all at once. Ask passes the matching passages to an LLM and returns an answer with numbered citations, each pointing at the file and the second it came from.</p>
         <ul class="points">
-          <li>Keyword and meaning-based search together, stored in SQLite, with no separate vector database</li>
+          <li>Keyword and meaning-based search run together from SQLite, so you need no separate vector database</li>
           <li>Ask in one language and get citations from a transcript in another</li>
           <li>Save an answer and its citations as a Markdown note</li>
         </ul>
-        <p class="note"><b>Privacy:</b> Ask and summaries send passages to whichever LLM you configure. Point it at a local model such as Ollama to keep everything on your machine. Search and transcription work without an LLM.</p>
+        <p class="note">Ask and summaries send passages to whichever LLM you configure. Point it at a local model such as Ollama to keep everything on your machine. Search and transcription work without an LLM.</p>
       </div>
       <div class="visual reveal">
         <div class="shot-tabs" role="tablist" aria-label="Search screenshots">
@@ -286,7 +286,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="feature flip">
       <div class="copy reveal">
         <span class="eyebrow">On your phone</span>
-        <h2>The same library in your pocket</h2>
+        <h2>The same library on your phone</h2>
         <p>Every screen has a phone layout. Add Litloft to the home screen to open it in its own window, or build the iOS app to keep audio playing with the screen locked and send video to picture-in-picture.</p>
         <ul class="points">
           <li>Serve it over HTTPS for Safari on iPhone and iPad</li>
@@ -309,8 +309,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal">Under the hood</span>
-      <h2 class="reveal">Plain files, one database, your hardware</h2>
-      <p class="reveal">Litloft reads your folders where they are. What it learns about them goes into SQLite on your machine.</p>
+      <h2 class="reveal">Files stay on disk, the index lives in SQLite</h2>
+      <p class="reveal">Litloft reads your folders where they are and keeps what it learns about them in a SQLite database on your machine.</p>
     </div>
     <div class="hood-grid">
       <div class="hood-card reveal">
@@ -396,7 +396,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal">Setup</span>
-      <h2 class="reveal">Four steps, most of them in the browser</h2>
+      <h2 class="reveal">Install in four steps</h2>
       <p class="reveal">You need Git, Docker with Compose v2, Python 3, and about 5 GB of disk. Everything else runs inside the containers.</p>
     </div>
 
@@ -423,10 +423,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <div class="code" id="os-unix" role="tabpanel" aria-labelledby="tab-unix"><span class="p">$ </span>python3 configure.py</div>
 <div class="code" id="os-win" role="tabpanel" aria-labelledby="tab-win" hidden><span class="p">&gt; </span>py -3 configure.py</div>
           <ul class="asks">
-            <li><span>1</span><span><b>Drives</b>: the host folders to mount, each with a short slug. Display names come later.</span></li>
-            <li><span>2</span><span><b>Port</b>: 3000 unless you change it.</span></li>
-            <li><span>3</span><span><b>Intelligence</b>: on by default, with an optional <code class="ic">LLM_API_KEY</code>. Leave it blank for a local model.</span></li>
-            <li><span>4</span><span><b>Knowledge</b>: off by default. Media Import and Cloud Sync need no answer here; you turn them on per drive later.</span></li>
+            <li><span>1</span><span>The host folders to mount as drives, each with a short slug. You name the drives later.</span></li>
+            <li><span>2</span><span>The port, 3000 by default.</span></li>
+            <li><span>3</span><span>Whether to run Intelligence (yes by default), and an optional <code class="ic">LLM_API_KEY</code>, which you leave blank for a local model.</span></li>
+            <li><span>4</span><span>Whether to run Knowledge (no by default). Media Import and Cloud Sync are not asked about; you turn them on per drive later.</span></li>
           </ul>
           <p class="foot">It writes <code class="ic">docker-compose.override.yml</code> and <code class="ic">.env</code>, and asks before overwriting anything.</p>
         </div>
@@ -454,8 +454,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     <div class="llm-box reveal">
       <h3>Using an LLM</h3>
-      <p>Summaries, tag suggestions, chapter candidates and Ask need an LLM; search and transcription do not. Choose the provider and model in the browser after setup.</p>
-      <p><b>Local:</b> install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> on the host and pull a model. Your files stay on your machine. <b>Hosted:</b> any OpenAI-compatible API, with the key in <code class="ic">.env</code>. File text is then sent to that API when indexing and asking.</p>
+      <p>Summaries, tag suggestions, chapter candidates and Ask need an LLM. Search and transcription work without one. You choose the provider and model in the browser after setup.</p>
+      <p>For a local model, install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> on the host and pull a model, and your files stay on your machine. Litloft also works with any OpenAI-compatible API, with the key in <code class="ic">.env</code>; file text is then sent to that API when indexing and asking.</p>
       <p>The <a href="https://github.com/mamepenguin/Litloft/blob/main/docs/getting-started/installation.md" target="_blank" rel="noopener noreferrer">installation guide</a> has the details, including HTTPS for iPhone and iPad.</p>
     </div>
   </div>
@@ -470,10 +470,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <p class="reveal">A personal project, built first for one household's library. Issues and pull requests are welcome; support is best effort.</p>
     </div>
     <div class="not-grid reveal">
-      <p class="not-item"><b>Not for the public internet.</b> Authentication is minimal by design. Use it on your LAN, or through a VPN.</p>
-      <p class="not-item"><b>Not a multi-user service.</b> A profile is a nickname in the browser. There are no accounts.</p>
-      <p class="not-item"><b>Not a Plex replacement.</b> No transcoding, and no metadata from online databases.</p>
-      <p class="not-item"><b>Not offline.</b> Without a connection to the server, the browser and app show nothing.</p>
+      <p class="not-item">It is not meant for the public internet. Authentication is minimal by design, so use it on your LAN or through a VPN.</p>
+      <p class="not-item">It has no user accounts. A profile is a nickname you pick in the browser.</p>
+      <p class="not-item">It does not replace Plex. It neither transcodes video nor fetches metadata from online databases.</p>
+      <p class="not-item">It does not work offline. Without a connection to the server, the browser and the app show nothing.</p>
     </div>
   </div>
 </section>
