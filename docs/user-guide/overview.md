@@ -1,101 +1,72 @@
 # Overview of features
 
-Litloft is two things at once:
+Litloft is a media server and file manager for your home network. You open it in a browser, stream video and audio, read images, PDFs and Markdown, and upload, move, tag and delete files.
 
-1. **A personal media server** — stream video and audio with resume, browse images and Markdown, view PDFs, drop in ZIP archives and explore them in place.
-2. **A file manager for trusted home networks** — upload via drag-and-drop or chunked HTTP, rename in place, move, copy, tag, comment, organise into collections, capture a Markdown note from any screen, and recover from a 30-day soft-delete trash.
+## How it is organised
 
-Optional addons add AI search, summaries and Q&A over your library, the Markdown editor with live preview, scheduled cloud backups, and lightweight URL-based imports for online videos.
-
-## Mental model
-
-A Litloft installation has:
-
-- One or more **drives** — top-level content areas, each mapped to a host directory and optionally protected by a password group. A drive is a security boundary; cross-drive features (search, favourites, tags) are intentionally absent.
-- A **viewer identity** — a self-chosen nickname stored in a cookie, hashed to a 16-char ID. Used for comments and watch-history attribution. There are no accounts; identity is local to each device.
-- A **JWT** — issued when a viewer unlocks a password group. Drives become visible only when the viewer holds their `access_group`.
+- **Drives** — each drive is a separate library, such as *Movies* or *Photos*. Nothing crosses between drives: search, favourites and tags each belong to one drive. Some drives need a password. See [drives and access control](drives-and-access.md).
+- **Your profile** — a nickname you choose in **Settings**. It keeps your watch history and lets you post comments. There are no accounts or passwords for it. See [comments and watch history](comments-history.md).
 
 ## Closing a menu
 
-Menus, filter panels and folder pickers close as soon as you press anywhere
-outside them — and that press only closes them. Whatever sits under your finger
-is *not* activated: dismissing the file `⋮` menu by tapping a card does not open
-that card, and dismissing the sort menu by tapping a folder does not walk into
-it. Press a second time to reach what is underneath.
+Press anywhere outside a menu, filter panel or folder picker to close it. That first press only closes the menu; it does not also open the card or folder under your finger. Press again to reach it.
 
-A **right-click** is different, deliberately. Right-clicking a second row while
-a context menu is open moves the menu to that row, as one gesture. Only the
-ordinary press is held back.
+**Esc** also closes these menus.
 
-These menus also close on **Escape**. Most then return you to the control that
-opened them; the context menu you raise by right-clicking, the folder picker
-and the player's settings panel do not — the first has no button to return you
-to, and the other two leave focus where it was.
+Two exceptions:
 
-Renaming in place is the deliberate exception to all of it. Clicking away from
-a name you are editing **commits** the new name, and the click still does its
-own job — so clicking a second row saves the first and selects the second in
-one action.
+- Right-clicking another row while a right-click menu is open moves the menu to that row.
+- While you rename something in place, clicking elsewhere saves the new name, and the click also does its usual job.
 
 ## What you can do
 
 ### Browse and view
-- Root drive picker listing every drive you can see as a card with its file count. It heads itself **Litloft**; *Home* is the name of a drive's own landing page, one level in. Where there is more than one drive to choose between, the sidebar does not list them again there — it folds to a single *Drives (N)* row you can open, so the page gives one answer rather than two. With a single drive the fold would be the same one line either way, so that drive is simply listed. When drives you cannot see are still locked, the grid ends with an outlined card that leads to `/unlock` — it names nothing about what is behind it (see [drives and access control](drives-and-access.md)).
-- Folder browser with grid and list modes, lazy-loaded thumbnails.
-- Video and audio players with byte-range streaming, resume from last position, subtitles, sprite scrubbing previews.
-- Chapters on media files, plus playback-following panels (chapters, transcript) that sit either as tabs in the file's inspector or in a bounded box under the player, whichever you choose — see [viewers and players](viewers-and-players.md).
-- Image viewer with swipe, double-page spread, slideshow, EXIF panel.
-- Markdown renderer with Mermaid, syntax highlighting, frontmatter chips, internal `loft://` links.
-- PDF viewer, ZIP archive browsing. Office files (DOCX/XLSX/PPTX) have no
-  viewer; the detail page shows a short text excerpt. Searching their contents
-  needs the intelligence addon — core search matches names and folder paths.
+
+- The start page, **Litloft**, lists the drives you can open, with their file counts. If some drives are locked, the last card, **Enter password**, leads to the unlock page.
+- Folders in grid or list mode. See [browsing files](file-browsing.md).
+- Video and audio with resume, subtitles, chapters and scrubbing previews. Images with swipe, two-page spread and slideshow. Markdown, PDFs and ZIP archives open in place. See [viewers and players](viewers-and-players.md).
+- Office files (DOCX, XLSX, PPTX) have no viewer. The file page shows a short text excerpt.
 
 ### Organise
-- Tags (separate per drive). For Markdown files the YAML frontmatter is the canonical store.
-- Collections with arbitrary ordering.
-- Favourites (`is_favorite` flag) and likes (`liked_at` stamp), pinned folders.
-- Per-file comments (rate-limited).
-- File relations (`kind`-typed graph; for Markdown derived from `loft://` links).
 
-### Search and discovery
-- Drive-wide file switcher on `Cmd/Ctrl+K` from any page — jump straight to a recently opened file, or type to search (see [search](search.md)).
-- Keyword search over filename, title, description.
-- Tag and type filters.
-- Saved searches as Smart Folders.
-- Duplicate detection by content hash.
-- Continue-watching, recently added, favourites, and liked rows per drive.
+- Tags, collections, favourites, likes and pinned folders. See [tags and relations](tags-and-relations.md).
+- Comments on any file.
 
-### File operations
-- Drag-and-drop upload (folder upload supported, chunked with resume).
-- Rename in place — `F2` on a focused row in the folder tree or a folder card edits the name inline, no dialog (see [browsing files](file-browsing.md)).
-- Move, copy, batch operations.
-- Quick Note — press `N`, or use the header action, to write a Markdown note from any screen and file it without leaving the page (see [Quick Note](quick-note.md)).
-- Notes — with the Knowledge addon, find a drive's Markdown and text files by title or folder, and pick up recent ones (see [Notes](notes.md)).
-- Version history for text and Markdown files: the core snapshots every content write and serves the version list, past bodies, and diffs. The browse-and-restore panel is part of the [knowledge addon](../addons/knowledge.md).
-- Archive entry streaming (50 MB per entry cap).
-- Soft delete to trash (30-day auto-purge).
-- Missing-file detection and recovery when files reappear.
+### Find
 
-### System
-- First-run wizard at `/setup`.
-- Admin dashboard at `/admin` (per-drive metrics, system health, restart-pending banner).
-- Settings GUI at `/admin/settings` for drives, passwords, and per-drive addon policy.
-- WebSocket live updates (`/api/ws`) — scan progress and completion, upload completion, and file moves, so open folder views refresh themselves. Addons push their own events through the same channel. See [WebSocket events](../reference/websocket-events.md).
-- Installable as a PWA — "Add to Home Screen" / the browser's install action launches Litloft in a standalone window (custom icon, themed title bar, iOS safe-area handling). It is **not** offline-capable: there is no service worker, so the server must be reachable. On an iPhone or iPad, add it from an `https://` address: newer Safari runs plain-`http://` pages much slower (see [Serving over HTTPS](../getting-started/installation.md#serving-over-https-for-iphone-and-ipad)).
-- Dark / light / system theme, cookie-driven language preference with no URL prefix.
+- **`Cmd/Ctrl+K`** opens a quick switcher on any page: jump to a recent file, or type to search the drive. See [search](search.md).
+- Search matches file titles and folder paths. Searching inside documents needs the intelligence addon.
+- Save a search as a Smart Folder.
+- Home shows **Continue Watching**, **Recently Viewed**, **Recently Added**, **Favorites** and **Liked**.
 
-### Optional via addons
-- **intelligence** — semantic search, Ask (RAG), summaries, transcripts, vision descriptions.
-- **knowledge** — Vaults of Markdown notes, web clipping, frontmatter sync, the capture basket, and the in-browser Markdown editor: live preview, view-mode cycling, and the version history panel. The core renders Markdown and owns the editor chrome, but the editing surface itself arrives with this addon.
-- **cloud-sync** — scheduled rclone backups to any supported remote.
-- **media_import** — turn URLs into `.loft` reference files with embedded YouTube/Vimeo players.
+### Work with files
 
-## What Litloft is *not*
+- Drag and drop files or whole folders to upload them. See [upload and file operations](upload-and-fileops.md).
+- Rename, move and copy, one file or a selection.
+- **Quick note** — press **`N`** on any screen to write a Markdown note and file it. See [Quick Note](quick-note.md).
+- Deleted files go to **Trash** for 30 days. See [trash and missing files](trash-and-missing.md).
 
-- **Not a public website.** No HTTPS termination, no rate-limited public auth, no DDoS hardening. Always front it with a reverse proxy and VPN if remote access is needed.
-- **Not a multi-tenant SaaS.** There are no per-user accounts; identity is a cookie. Comments and watch history are per device unless you copy the cookie.
-- **Not cross-drive.** Drives are deliberate silos. Searches, favourites, and tags do not cross drive boundaries.
-- **Not a Plex replacement.** No transcoding, no client apps, no metadata scraping from external databases. It is a browser-only, file-shaped library.
-- **Not an offline app.** The PWA installs as a standalone window but has no service worker or local cache; with no connection to the server it shows nothing.
+### Install on a phone or computer
 
-Continue with [drives and access control](drives-and-access.md) to understand how content is gated.
+Use "Add to Home Screen" or the browser's install action to open Litloft in its own window. It does not work offline: the server must be reachable. On an iPhone or iPad, add it from an `https://` address, or Safari runs it much slower (see [Serving over HTTPS](../getting-started/installation.md#serving-over-https-for-iphone-and-ipad)).
+
+### Addons
+
+Some features need an addon installed by whoever runs Litloft:
+
+- **intelligence** — semantic search, Ask, summaries, transcripts, image descriptions.
+- **knowledge** — the Markdown editor with live preview, version history, Notes, web clipping.
+- **cloud-sync** — scheduled backups to cloud storage.
+- **media_import** — add YouTube or Vimeo videos by URL.
+
+See the [addon overview](../addons/overview.md).
+
+## What Litloft is not
+
+- **Not for the public internet.** Use it on your home network, or through a VPN.
+- **Not a multi-user service.** Your identity is your nickname in this browser. Use the same nickname on each device to share history.
+- **Not cross-drive.** Search, favourites and tags stay inside one drive.
+- **Not a Plex replacement.** No transcoding, no client apps, no metadata from online databases.
+- **Not offline.** Without a connection to the server it shows nothing.
+
+Continue with [drives and access control](drives-and-access.md).

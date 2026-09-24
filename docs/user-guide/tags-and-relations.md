@@ -1,142 +1,72 @@
 # Tags and file relations
 
-Litloft's tagging is structured but understated. There is no hierarchy and no global tag list — tags are per drive, applied flat. File relations are a separate, typed graph.
+Tags belong to one drive. There are no tag folders or nested tags. Relations link one file to another, and appear on a file's **Related** tab.
 
 ![File detail page showing frontmatter tag chips and related files](../images/user-guide/tags-related-files.png)
 
 ## Tags
 
-Open any file's detail page; a **chip editor** below the file information lets you add or remove tags. Tags auto-complete from the drive's existing tag set, and a tag you have just added becomes a suggestion immediately.
+On a file's page, add or remove tags in the **Tags** section. As you type, it suggests tags already used anywhere in the drive.
 
 What a tag may be:
 
-- At most **10 tags per file**.
-- At most **30 characters** per tag.
-- Letters, digits, underscores, and hyphens only — no spaces, no punctuation. Non-ASCII letters count as letters, so Japanese tags are fine.
-- Tags that differ only in case are treated as one; the first spelling wins.
+- Up to **10 tags per file**, and up to **30 characters** per tag.
+- Letters, digits, `_` and `-` only. No spaces. Letters in any language work, so Japanese tags are fine.
+- Tags that differ only in case count as one. The first spelling is kept.
 
-### Where tags live
+To tag several files at once, select them and choose **Tag** in the selection bar. See [selecting several files](file-browsing.md#selecting-several-files).
 
-The canonical store depends on the file extension:
+### Tags on Markdown files
 
-| File type | Canonical store | Notes |
-|---|---|---|
-| `.md` | YAML frontmatter (`tags: [...]`) | `File.tags` is a projection cache. |
-| Everything else | `Tag` table + `file_tags` junction in the DB | Edited via the chip editor. |
-
-For Markdown files, edits in the chip editor rewrite the YAML frontmatter via `PUT /api/files/{id}/content`; the backend's content handler then re-projects `File.tags` from the new frontmatter.
-
-The projection is committed **separately** from the content write, on purpose. If the projection fails (broken YAML, a DB error on the tag write), the bytes on disk are still correct and durable — only the cached projection is stale, and the next edit, or the knowledge addon's scanner pass, re-projects it.
-
-Chip edits are coalesced with a 500 ms debounce, so a quick add-remove-re-add sequence costs one write rather than three.
-
-The frontmatter parser is implemented twice — once in core (`backend/app/services/frontmatter.py`) and once in the knowledge addon (`addons/knowledge/app/services/frontmatter.py`) — because they live in different containers. Drift is caught in PR review.
-
-### Frontend always uses `saveFileTags`
-
-The frontend has a single helper, `saveFileTags(file, tags)`. It internally branches on MIME type / extension. The UI layer must not decide where to write — see `frontend/src/lib/tags.ts`.
-
-### Why split?
-
-The split optimises for the *primary* tool used to manage each file type:
-
-- For Markdown notes, your editor of choice (Obsidian, Helix, plain `vim`) typically stores tags in YAML frontmatter. Litloft following that convention means external editing stays in sync without extra orchestration.
-- For everything else (videos, images, PDFs), there is no equally universal in-file tagging convention, so a database table is the simplest source of truth.
+On a Markdown file, the tags are the `tags:` list in the file's frontmatter. Editing tags in Litloft rewrites that list. With the [Knowledge addon](../addons/knowledge.md), tags you add in another editor, such as Obsidian, appear in Litloft too. On every other kind of file, Litloft keeps the tags itself and the file is not changed.
 
 ### Tag filtering and scope
 
-The **Tags** section of the sidebar is the tag filter. It lists the tags in play with a count beside each one, and clicking one filters the listing.
+Click a tag in the **Tags** section of the sidebar to filter the listing by it. Click it again to go back.
 
-The section shows the eight most prominent tags — by count, or alphabetically if you have switched the sort. When there are more, **All tags (N)** sits below them and opens the rest in place; N is the number of tags in scope, not the number still hidden. The list folds back to eight when you move to another folder, because a different folder brings a different set of tags. The heading names the folder it is counting (*Tags — under {folder}*) whenever the scope is narrower than the drive.
+- The list shows only tags used in the folder you are in and its subfolders, with a count for that folder. The heading then reads **Tags — under** the folder name.
+- The filter shows matching files in the folder *and all its subfolders*, not only the files directly inside it. At the drive root it covers the whole drive.
+- **Search the whole drive**, in the toolbar and on an empty result, widens the filter to the entire drive.
+- You can filter by one tag at a time. Case does not matter.
+- The section shows the most used tags first. **All tags (N)** opens the rest. The sort button beside the heading switches between by count and by name.
 
-The tag you have applied is always shown, ranked or not — the fold is by count, so a rare tag would otherwise filter the listing from a row you could not see, and this section is the only place that shows an applied tag or takes it off.
+### Suggested tags (intelligence addon)
 
-Both the list and the click are **scoped to the folder you are in**:
+With the [intelligence addon](../addons/intelligence.md#auto-tags), a file's page can show **AI tag candidates**. Nothing is added until you choose:
 
-- The list shows only the tags used somewhere inside the current folder's subtree, with counts for that subtree — not for the whole drive.
-- Clicking a tag filters that same subtree. The count beside the tag and the number of results you get are the same number, for the same folder and the same tag.
-- At the drive root a tag filter covers the whole drive rather than the root folder's direct subtree. It is the one place where adding a tag widens what you are looking at instead of narrowing it.
+- Press the check on a tag to add it, or **Add all**.
+- **Close** discards the candidates. **Create again** asks for a new set.
 
-Note the deliberate asymmetry with plain browsing: browsing a folder shows its **direct children**, while a tag filter shows the folder's **whole subtree**. This is the same behaviour Finder has — you browse one level, but you search everything underneath. The browsing side of this is covered in [browsing files](file-browsing.md).
-
-Other things worth knowing:
-
-- **One tag at a time.** There is no multi-tag AND filter; the URL carries a single `?tag=`.
-- Matching is case-insensitive, so `Todo` and `todo` filter the same set.
-- Clicking the tag row again clears the filter and returns you to the plain folder listing.
-- **Widening back out**: while a folder-scoped tag filter is active, a *Search the whole drive* action appears in the toolbar. It also appears in the empty state, so "no matches in this folder" is never a dead end.
-- The filter applies to both Markdown frontmatter tags and database tags transparently — the projection makes them indistinguishable to the query layer.
-
-The autocomplete in the chip editor is drive-wide, not folder-scoped: you can always apply a tag that is only used elsewhere in the drive.
-
-### Auto-tags (intelligence addon)
-
-When the `intelligence` addon is enabled with `features.auto_tags = "manual"` or `"on_index"`, the LLM proposes tags for each file. Proposals are **not applied silently**:
-
-- The file detail page shows them in a **suggested tags** section, separate from the chip editor.
-- Accept a tag one at a time, or **Accept all**. **Dismiss** clears the whole set of suggestions, and **Regenerate** asks for a fresh set.
-- Accepting merges the tag into the file's existing tags through `saveFileTags` (retrying once if the file changed underneath), so a Markdown file's accepted tag lands in its frontmatter like any other edit.
-
-See [intelligence addon → auto-tags](../addons/intelligence.md#auto-tags).
-
-### Internal API write endpoint
-
-`POST /api/internal/files/{id}/tags` (gated by `CORE_INTERNAL_SECRET`, responds `204`) is reserved for the knowledge addon's note scanner, which needs to project frontmatter changes made by an external editor. **Frontends must not call this** — use the public `PUT /api/files/{id}/tags` instead.
+An administrator may need to turn the feature on, and it may only run when you press **Create AI tag candidates**.
 
 ## File relations
 
-A *file relation* is a typed link between two files in the same drive: `(file_a, file_b, kind)`.
+A relation links two files in the same drive. Litloft creates them from the links in your Markdown notes. Addons can add their own.
 
-- `kind` is an opaque lowercase slug (up to 32 characters), validated by shape rather than against a fixed list, so addons can introduce their own kinds without a core change. In practice everything shipped today writes `related`, through the core's Markdown link sync.
-- Relations are **bidirectional in queries**. Looking up relations of file X returns rows where X is in either column.
-- The same pair cannot carry the same `kind` twice, and a file cannot relate to itself.
-- Both ends of a relation must be in the same drive; cross-drive links return `400 Bad Request`.
-- The foreign key to `files.id` is `ON DELETE CASCADE` — purging a file removes its relations.
+### Links in Markdown notes
 
-### Markdown-derived relations
+When you save a Markdown note, Litloft reads its links and relates the note to each file they point to:
 
-For `.md` files, the backend extracts the links in the note and synchronises them into the relations table when the file is created and on every save, as `kind = related`, with the note as `file_a`. Three references count:
+- `loft://<file_id>` links to a file.
+- `[[wiki links]]` to other Markdown files in the drive.
+- `source_file_ids` in the frontmatter.
 
-- `loft://<file_id>` — a direct reference to a Litloft file.
-- `[[wiki links]]` — resolved against Markdown files in the same drive.
-- `source_file_ids` in the frontmatter — the files a note cites.
+Remove a link from the note and the relation goes away on the next save.
 
-The sync is a full reconciliation, not an append: links you remove from the note lose their relation too. So a Markdown note that links to other Litloft files automatically appears in the **Related** tab of both files: under *Links from this file* on the note, and under *Links to this file* on the file it links to.
+Renaming a Markdown file updates `[[links]]` to it in the other notes of the drive.
 
-A note reconciles only the relations its own links wrote. Saving the file on the receiving end of a link never removes it, and neither does the sync remove a relation an addon created through the Internal API. Two notes that link to each other keep one relation per direction.
+### The Related tab
 
-Like the tag projection, this runs in its own commit — a failure to resolve links never rolls back the content write.
+A file's inspector has a **Related** tab after **Info**. It appears when the file has relations, or when an addon adds something to it. It has up to three lists:
 
-### Where relations show up
+- **Links from this file** — files this note links to.
+- **Links to this file** — notes that link to this file.
+- **Related files** — relations made some other way, such as by an addon.
 
-The inspector on a file's page has a **Related** tab, after **Info**. It is there when the file has at least one relation, or when an addon adds something to it (for example Similar files from Intelligence, or the graph link from Knowledge). The Info tab does not list relations.
+Click a row to open that file. Files in the trash are left out. Missing files stay in the list, greyed out.
 
-The tab has up to three lists, newest first, each with a count and each left out when empty:
+Addons add more below the lists: **Similar files** from the intelligence addon, and on notes and text files **See connections as a graph** from the Knowledge addon.
 
-- **Links from this file** — files this Markdown note links to.
-- **Links to this file** — Markdown notes that link to this file.
-- **Related files** — every other relation, such as one an addon created, in either direction.
+While a collection is playing, the same lists appear under **Related** below the player.
 
-Two notes that link to each other each show the other under both *Links from* and *Links to*. A file appears at most once in each list.
-
-Each row opens the related file. It shows the file's title and its folder (or *Drive root*); videos, audio and images that have a thumbnail show it, with the length for video and audio. Trashed files drop out of the lists; missing files stay, greyed out and labelled, so the link is not silently forgotten while a drive is unmounted.
-
-Addon entries follow the lists: Intelligence's **Similar files**, collapsed until you open it, and on Markdown and text files Knowledge's **See connections as a graph** link, which opens the graph centred on this file.
-
-While a collection is playing there is no inspector, so the same lists appear under a **Related** heading below the player.
-
-**One row per line or two, decided by the space the list has** — not by the size of the window. In the inspector, a fixed 24rem column, there is always one. Under a playing collection, which is as wide as the page allows, two fit a line only where there is 45rem to put them in, because a second column that halves the width also halves the name.
-
-### API
-
-Reading relations for a file is a public endpoint:
-
-- `GET /api/files/{id}/relations?kind=` — both directions, drive access enforced on the source file.
-
-Writing them is Internal API only, for addons:
-
-- `POST /api/internal/file_relations` — create.
-- `GET /api/internal/file_relations?file_id=...` — list both directions.
-- `DELETE /api/internal/file_relations/{id}` — remove.
-
-See [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy) for the rules on what may live there.
+For scripts, see the [HTTP API reference](../reference/api.md).

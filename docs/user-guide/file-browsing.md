@@ -9,7 +9,7 @@ A drive has two starting points in the sidebar:
 
 The sidebar is the same on every screen of a drive.
 
-- **Top** — Home, Library, and five views of the whole drive: **Favourites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files** (every file in the drive, with no folders). Addons can add pages here, such as *Ask* or *Notes*.
+- **Top** — Home, Library, and five views of the whole drive: **Favorites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files** (every file in the drive, with no folders). Addons can add pages here, such as *Ask* or *Notes*.
 - **Middle** — what you build yourself: **Collections**, **Pins**, **Smart Folders** and **Tags**. You can collapse these sections and drag them into the order you like.
 - **Bottom** — **Trash**, **Missing Files** (only when the drive has some), and **Dashboard** for an administrator.
 
@@ -69,7 +69,7 @@ Turn on **Select mode** from `…`, or `Cmd/Ctrl+click` a card. `Shift+click` se
 
 Press **`Cmd/Ctrl+N`**, or right-click a folder in the tree and choose **New file here**. An empty Markdown file named `untitled-<date-time>.md` is created in the current folder and opens for editing. Rename it once it is open.
 
-You cannot create a file in a view that is not a folder, such as Favourites, search results, or a tag filter at the drive root.
+You cannot create a file in a view that is not a folder, such as Favorites, search results, or a tag filter at the drive root.
 
 ## Renaming in place
 
@@ -110,14 +110,14 @@ Files added by an addon, such as web clips, arrive unverified. With the intellig
 
 Home shows these rows, in order:
 
-- **Continue watching** — media you stopped before 90%.
+- **Continue Watching** — media you stopped before 90%.
 - Rows added by addons, if any.
 - **Recently Viewed**
-- **Recently added**
-- **Favourites**
+- **Recently Added**
+- **Favorites**
 - **Liked**
 
-Continue watching and Recently Viewed need a [profile](profile-preferences.md). Each row shows as many cards as fit, and **See all** opens the rest. Empty rows are hidden.
+Continue Watching and Recently Viewed need a [profile](profile-preferences.md). Each row shows as many cards as fit, and **See all** opens the rest. Empty rows are hidden.
 
 ## Pinned folders
 

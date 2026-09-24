@@ -1,107 +1,53 @@
 # iOS app
 
-The iOS app shows the same Litloft web app you use in a browser. It exists to
-do what a browser on the phone cannot: the app plays the audio and the video
-itself, so a file keeps going with the screen locked or another app in front,
-and a video moves into a picture-in-picture window by itself.
-
-The page stops below the status bar, as it does when Litloft is added to the
-home screen, and the app fills the status bar area with the page's background
-colour, following the theme.
+The iOS app shows the same Litloft you use in a browser, but plays audio and video itself. A file keeps playing with the screen locked or another app in front, and a video moves into a picture-in-picture window when you leave the app.
 
 It is not on the App Store. You build it from `ios/` in this repository.
 
 ## Building and installing
 
 1. Open `ios/Litloft.xcodeproj` in Xcode.
-2. To install on a phone, copy `ios/Config/Local.xcconfig.example` to
-   `ios/Config/Local.xcconfig` and fill in your Apple Developer team id and a
-   bundle id that team owns. The file is not tracked by git. The simulator
-   builds without it.
+2. To install on a phone, copy `ios/Config/Local.xcconfig.example` to `ios/Config/Local.xcconfig` and fill in your Apple Developer team id and a bundle id that team owns. The simulator builds without it.
 3. Select your phone and run.
 
 ## Connecting
 
-On first launch the app asks for the address of your Litloft server,
-including the port — for example `192.168.1.50:3000`. The phone has to be on
-the same network. A plain `http://` address works for local addresses.
+On first launch, enter your server's address with its port, for example `192.168.1.50:3000`, and press **Connect**. The phone must be on the same network. The app remembers the address.
 
-The app remembers the address. If the server cannot be reached, the app shows
-its own error screen with a **Retry** button.
+If the server cannot be reached, the app shows **Cannot reach Litloft** with **Try again** and **Change server**.
 
 ## Listening to audio
 
-When you open an audio file, the app plays it instead of the page, and the
-page shows Litloft's own controls in place of the browser's audio bar:
+An audio file gets Litloft's own controls: play / pause, a seek bar, and a speed button that steps from 1× to 2×. Playback continues when you leave the app or lock the phone, and the lock screen and Control Center show the file and control it. Choose AirPlay and other outputs from the system controls.
 
-- a play / pause button;
-- a seek bar with the position and length;
-- a speed button that steps through 1×, 1.25×, 1.5×, 1.75× and 2×.
-
-Playback continues when the app leaves the screen or the phone locks. The lock
-screen and Control Center show the file's title, its folder and its Litloft
-thumbnail, and their play, pause and position controls act on the file. Audio
-output such as AirPlay is chosen from the system controls.
-
-Resuming from where you stopped, the listening history and autoplay work as
-they do in a browser — see [Viewers and players](viewers-and-players.md#audio-player).
+Resume, history and autoplay work as in a browser — see [Viewers and players](viewers-and-players.md#audio-player).
 
 ## Watching video
 
-The app plays the video too, behind the page, where the player's frame is. The
-controls, the seek bar, the speed, the gestures and the chapters are Litloft's
-own, exactly as in a browser.
+The controls, gestures and chapters are the same as in a browser.
 
-- **Leaving the app moves the video into a small window.** Going to the home
-  screen, or to another app, opens iOS's picture-in-picture window and the
-  video keeps playing there. Coming back to Litloft puts it back in the page.
-- **The settings sheet has a Picture-in-Picture switch** for opening that
-  window without leaving the app.
-- **Locking the screen keeps the sound.** The picture stops, as it does for
-  any video on iOS; the lock screen controls the file as it does for audio.
-- **Subtitles** are drawn by the page, so they follow the file's own subtitle
-  tracks and the subtitle switch in the settings sheet. They are not shown in
-  the picture-in-picture window or in the system's full-screen player.
-- **The mini player is not used in the app.** In a browser, scrolling a playing
-  video off screen shrinks it into a corner; in the app, picture in picture
-  does that job and keeps playing outside Litloft as well.
+- **Leaving the app** moves the video into a picture-in-picture window, where it keeps playing. Coming back puts it back in the page.
+- **Picture-in-Picture** in the settings sheet opens that window without leaving the app.
+- **Locking the screen** keeps the sound but stops the picture.
+- The mini player is not used in the app; picture in picture takes its place.
 
-### What the messages under the controls mean
+### Messages under the controls
 
-- **Loading…** — the app is waiting for data. It shows for a moment every time
-  playback starts. If the server stops answering while you listen (the Mac
-  sleeps, the drive is unmounted), it stays, and playback continues by itself
-  once the server answers again. Pause still works while it shows.
-- **Could not load this file** — the file could not be opened. The controls
-  are disabled. Opening the file again later tries again.
+- **Loading…** — waiting for data. If the server stops answering (the Mac sleeps, a drive is unmounted), it stays, and playback resumes by itself when the server is back.
+- **Could not load this file** — open the file again later to retry.
 
 ### When playback stops
 
-- Leaving the file's page, or locking Litloft with the lock button, stops
-  playback.
-- If iOS ends the page while it is in the background, the audio keeps playing.
-  The page is loaded again when you return to the app, and playback stops then.
-  The listening position saved is the last one from before the page ended.
+Leaving the file's page, or pressing **Lock** in the sidebar, stops playback. If iOS closes the page while the app is in the background, the audio keeps playing, but it stops when you return and the page reloads.
 
 ## Links and downloads
 
-- **A link to another site opens in Safari.** Notes, file properties and the
-  YouTube frame all lead outside Litloft, and the app hands those addresses to
-  iOS rather than showing them itself. Playback carries on while you are away:
-  a video moves into the picture-in-picture window and audio keeps going.
-- **A `mailto:` or `tel:` link** goes to Mail or the phone, the same way.
-- **Litloft's own pages open in the app.** Where a browser would open a second
-  tab — Open in new tab in the folder tree — the app opens it where you are,
-  because it has no tabs.
-- **Download offers the file to iOS.** Choose Save to Files to keep it, or send
-  it to another app. The page you were on stays where it is.
+- Links to other sites, `mailto:` and `tel:` links open in Safari, Mail or Phone. Playback carries on meanwhile.
+- Litloft's own pages open in the app. **Open in new tab** opens the page where you are, because the app has no tabs.
+- **Download** hands the file to iOS: choose Save to Files, or send it to another app.
 
 ## Limitations
 
-- **YouTube and other web videos** (`.loft` reference files) still play in the
-  page, so they stop when the app leaves the screen. For a YouTube video, use
-  **Open in the iOS player** in the settings sheet: from iOS's full-screen
-  player, leaving the app moves the video into the picture-in-picture window
-  and it keeps playing. Subtitles and Litloft's controls are not shown there.
-- **Subtitles do not show in picture in picture.**
-- **A long press** on some text starts a text selection, as it does in Safari.
+- **YouTube and other web videos** (`.loft` files) play in the page and stop when you leave the app. For a YouTube video, use **Open in the iOS player** in the settings sheet: from there, leaving the app moves it into picture in picture. Litloft's controls and subtitles are not shown there.
+- **Subtitles** are not shown in picture in picture or in the iOS full-screen player.
+- **A long press** on text starts a text selection, as in Safari.

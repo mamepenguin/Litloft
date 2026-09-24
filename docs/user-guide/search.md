@@ -1,185 +1,80 @@
 # Search
 
-Litloft has search at three layers, increasing in capability:
+Search looks inside one drive at a time. It never shows files from another drive.
 
-1. **Built-in keyword search** — always available; matches the title and the folder path.
-2. **Filters** — type and sort; combine with a keyword. Tag filtering has its own entry point (the sidebar).
-3. **Semantic, Ask, and Find** — provided by the [intelligence addon](../addons/intelligence.md); embeddings over text, transcripts, and images, plus question answering.
-
-Search is **drive-scoped** — it never crosses drive boundaries. Everything below lives inside one drive.
+Without addons, search matches file titles and folder names. With the [intelligence addon](../addons/intelligence.md) it also finds files by meaning: what is said in a video, what a picture shows, and the text inside documents.
 
 ## The search modal
 
-The search button in the header opens a modal, and so do two keyboard chords: `Cmd/Ctrl+K` and `Cmd/Ctrl+Shift+F`. Both open the same modal — see [keyboard shortcuts](keyboard-shortcuts.md#global) for the full list.
+Press `Cmd/Ctrl+K` or `Cmd/Ctrl+Shift+F`, or the search button in the header. See [keyboard shortcuts](keyboard-shortcuts.md#global).
 
-Before you type anything, the modal is a **switcher**: it lists the files you most recently opened in this drive, then the search terms you have used before.
+Before you type, the modal lists **Recent files** — the files you opened lately in this drive, on any device where you use the same [profile](profile-preferences.md) — and then your **Recent searches** in this browser. Each recent search has one button that puts the term in the field without running it, and one that removes it.
 
-- **Recently opened files** come from your watch history on the server, so the list follows you between devices and browsers. Opening a file's detail page is enough to put it there — it is not limited to media you played.
-- **Recent searches** are stored per drive in your browser, up to 20 terms. Each row has two small buttons: one fills the input with that term instead of running it, the other drops it from the list.
-- Arrow keys walk both sections as one list, and Enter activates the highlighted row.
-- Results arrive in two stages, and the second one reorders the list. A row you have highlighted keeps its highlight through that — Enter opens the file you picked, wherever it has moved to. The highlight is dropped only if that file drops out of the list.
+Once you type, the modal shows the best matches and a **View all N results** row that opens the full search page. Use the arrow keys to pick a row and `Enter` to open it.
 
-The modal only ever shows the drive you are currently in — it never crosses a drive boundary, and outside a drive it just asks you to open one first.
-
-Once you type, the modal runs the same search the search page does (see below) and shows the top 8 hits, plus a row that takes you to the full result page.
-
-It arrives in two stages. Name matches come back in a single round trip and are drawn straight away, so typing a filename you already know gets you there without waiting. If the drive has semantic search, the footer says it is still looking by meaning; when those hits land the list is re-ranked with them mixed in, which can move rows. On a drive without the intelligence addon that second stage does not exist, and the footer says nothing — there is no result to wait for.
-
-Each hit shows its title, and under it a second line only when that line says something the title does not — the folder the file sits in, or a filename the title no longer derives from. A file called `kyoto.mp4` still titled "Kyoto" gets its folder or nothing at all; the same file retitled "Autumn in Kyoto" shows its filename again, because by then the filename is a fact the title has stopped carrying.
+With the intelligence addon, the footer says **Also searching by meaning…** while the second set of results is on its way. When it arrives the list can reorder. The row you picked stays picked.
 
 ### Narrowed to one kind
 
-Some screens narrow the modal to one kind of file while they are open. A note's
-page does this when the Knowledge addon is installed, and so does its **Go to
-note** button. The modal then opens with a chip before the query naming the
-scope (for example **Notes**), and:
+With the Knowledge addon installed, opening the modal from a note's page narrows it to notes. A **Notes** chip appears before the query. Then:
 
-- Only name matches of that kind are listed, each with its folder and the date it
-  last changed; the part of the title that matches is highlighted. There is no
-  second stage — the search by meaning is not narrowed by kind, so it is not run.
-- Before you type, only recently opened files of that kind are listed, and your
-  recent search terms are not.
-- `↑` / `↓` choose a row and `Enter` opens it. `Enter` with no row chosen goes to
-  the full list the screen offers for that kind (for notes, All notes with your
-  query), or to the search page when it offers none. The same list is linked at
-  the bottom right of the modal.
-- To search everything instead, press the chip's `×`, or `Backspace` in an empty
-  field. The query you typed stays and the modal searches again without the
-  scope. `Backspace` in a field with text in it only deletes text.
+- Only notes are listed, and only by name.
+- `Enter` with no row chosen opens the full list of notes matching your query, **All notes**. The same list is linked at the bottom right of the modal.
+- To search the whole drive instead, press the chip's `×`, or `Backspace` in an empty field. What you typed stays.
 
-Removing the scope lasts until the modal closes; the next opening on the same
-screen is narrowed again. If you leave the screen while the modal is open (for
-example with the back gesture), the scope goes with it and the modal searches
-everything in the drive you are now in. The scope never changes the drive.
+## The search page
 
-## Built-in keyword search
+The search page matches the **title** and the **folder path**, ignoring case. A title starts as the filename without its extension, so you can search by filename. If you change a file's title, search sees the new title. Descriptions are not searched.
 
-`/drive/<name>/search?q=<query>`
+Each result has a small badge saying where it matched, such as **Filename** or **Path**. **What the badges mean**, at the bottom of the search popup, explains them all.
 
-- Matches the **title** and the **folder path**. The title starts out as the filename with the extension dropped, so filename search works out of the box; renaming the title changes what a keyword search sees.
-- Case-insensitive, substring match. No fuzzy matching.
-- Each result carries a small badge saying where it matched — a filename hit, a folder-path hit, or both. The badges are one word each, and **What the badges mean** at the bottom of the search popup explains all of them, whether or not one is on screen at the time. Press Escape once to leave the list of meanings and go back to your results.
-- A folder-path match is deliberately ranked low, so searching `kyoto` surfaces the files under `travel/kyoto/` without burying a file actually named for Kyoto.
+Above the results:
 
-The description field is not searched.
+- **Filter** narrows by file type, as in a folder. **Document** includes text files and PDFs.
+- **Sort** offers **Relevance** (the default while searching) plus the usual folder orders.
 
-## Filters
-
-Above the result grid you find:
-
-- **Type filter** — all / video / image / audio / document (text, pdf) / archive / other. The same eight kinds the folder toolbar offers; Text and PDF sit *under* Document, so choosing Document returns them too. One at a time, not a multi-select.
-- **Sort** — relevance (the default while searching), newest, oldest, title A-Z, title Z-A, largest, smallest, most liked, least liked, random. Relevance is offered only while a query is active.
-
-Filters are reflected in the URL so a link is shareable.
-
-There is no tag filter on the search page. Tags are filtered from the sidebar instead — see [tag filtering](#tag-filtering) below.
+To filter by tag, use the sidebar instead. See [Tag filtering](#tag-filtering).
 
 ## Saving as a Smart Folder
 
-When you have a query and filter combination you want to keep:
+Click **Save as Smart Folder** beside the results heading and give it a name. It appears under **Smart Folders** in the sidebar, and the button becomes **Saved:** followed by the name, with **Update**, **Rename** and **Delete**.
 
-- Click **Save** beside the results heading, then name the Smart Folder.
-- Smart Folders appear in the sidebar. The chip beside the heading turns into **Saved: {name}**, with Update / Rename / Delete behind it.
-- A Smart Folder stores the query, the kind filter, and the sort — not a tag.
-- It can only hold four kinds: **Video**, **Image**, **Audio** and **Document**. Saving a search narrowed to Archive, Other, Markdown or PDF fails with an error and leaves the dialog open — nothing is silently dropped. Use **Document** to cover Markdown and PDFs.
-- They re-evaluate live: a Smart Folder defined as `invoice` + `document` always shows the current matching files.
-
-Smart Folders are drive-scoped and shared across viewers of that drive.
+- A Smart Folder keeps the query, the file type and the sort. It does not keep a tag.
+- It always shows the files that match now, not the ones that matched when you saved it.
+- Only the **Video**, **Image**, **Audio** and **Document** types can be saved. Use **Document** for Markdown and PDFs. Saving with another type shows an error.
+- Everyone who uses the drive sees the same Smart Folders.
 
 ## Tag filtering
 
-Tags are filtered from the **Tags** section of the sidebar, not from the search page. The list is scoped to the folder you are in, and clicking a tag filters that folder's whole subtree. See [tags and relations → tag filtering](tags-and-relations.md#tag-filtering-and-scope) for the details, including how to widen a tag filter back out to the whole drive.
+Click a tag in the **Tags** section of the sidebar. It filters the folder you are in and all its subfolders. See [tags and relations](tags-and-relations.md#tag-filtering-and-scope).
 
-Where the tags themselves live depends on the file type — frontmatter for Markdown, the database for everything else — but the filter treats both identically. That split is explained on the [tags and relations](tags-and-relations.md) page.
+## Searching by meaning (intelligence addon)
 
-## Semantic search (intelligence addon)
-
-When the [intelligence addon](../addons/intelligence.md) is enabled for a drive, semantic hits are folded into the **same result list** as the keyword hits. There is no separate mode to switch into: run a search and the list is already the merged one.
+With the intelligence addon enabled for the drive, results found by meaning are mixed into the same list. There is no separate mode.
 
 ![Search page with semantic search and scene search enabled, showing timestamped results](../images/user-guide/search-semantic-scene-results.png)
 
-- Embeddings cover text, transcripts, and a representative CLIP frame per video. Hybrid retrieval: BM25 + dense vectors blended with `search.alpha` (`0.7` in the shipped config).
-- Each card shows why it matched — filename, path, metadata, audio, content, scene, or thumbnail — using the same badge row as a keyword-only result.
-- Transcript and scene hits add clickable timestamps that jump the player straight to that moment. Up to three are shown, on the card and in the modal alike; if the hit names more moments than that, a quiet `+N` says how many were left out. Two hits that land in the same second — a spoken phrase and a scene, say — are one moment and get one timestamp, not two identical ones. The overflow count is not clickable: it knows how many moments were dropped, not which one you meant.
-- PDF hits list the pages they matched, one clickable `p.N` per page, on the card and in the modal alike. Clicking one opens the PDF at that page. Every matched page is listed; none are folded into a count.
+- The badges also show matches in **Transcript**, **Content**, **Visual**, **Thumbnail** and **Metadata**.
+- A match in speech or in a scene shows up to three timestamps. Click one to play from that moment. `+N` says how many more there were.
+- A match in a PDF lists the pages, as `p.N`. Click one to open the PDF at that page.
+- A match in text shows one quote from the file. With the [Knowledge addon](../addons/knowledge.md), a button beside it adds the quote to the capture basket for a note.
 
-Without the addon the list is keyword-only, and the badges simply say so.
+### Scene search
 
-### Result snippets
+To find a moment inside a video (*the part where the cat jumps off the table*), turn on **Scene search** above the results. It is off by default because it adds noise to ordinary searches.
 
-Every hit backed by text shows one **snippet** — the single strongest quotable excerpt behind the match, taken from a transcript segment or from the body of a Markdown, plain-text, or PDF file. Only one snippet is shown per hit, and only the strongest one; a scene match carries no words, so it gets timestamps instead.
+## Ask and Find (intelligence addon)
 
-The snippet itself is core, so it appears whatever addons you have installed. The small **capture** action beside it is contributed by the [knowledge addon](../addons/knowledge.md): it adds the verbatim quote, together with a locator (timestamp for audio and video, page for a PDF), to the capture basket for later use in a note. With Knowledge not installed, the snippet is still there — just without that button.
-
-### Scene-search toggle
-
-For "find a moment" queries (e.g., *the part where the cat jumps off the table*) flip the **Scene search** toggle above the results. The retriever then includes per-frame CLIP embeddings extracted by the indexer, returning timestamps within video files. Clicking one jumps the player to that timestamp.
-
-The toggle is off by default — scene frames add noise to ordinary "videos about X" queries — and its state is kept in the URL, so the browser back button restores it.
-
-Low-confidence frames are filtered out by `search.min_score_clip` (representative frames) and `search.min_score_clip_thumbnail` (per-second frames).
-
-## Ask (RAG)
-
-Ask lives on the intelligence addon's own page, `/drive/<name>/addons/intelligence`, reachable from the addon entry in the sidebar. It is question answering over your library:
+**Ask** is in the sidebar when the intelligence addon is installed and an administrator has set up a language model. Type a question and it answers from your files, with links to its sources and timestamps for videos. It warns you when it found no strong source. Ask answers only from [verified files](file-browsing.md#trusted-sources-and-the-review-queue).
 
 ![Ask answer pane with source citations and a no-strong-source warning](../images/user-guide/ask-answer-citations-warning.png)
 
-- Type a natural-language question.
-- The intelligence addon retrieves relevant chunks (BM25 + dense), packs them into an LLM prompt, and streams back the answer with **citations** linking to the source files (and timestamps for video).
-- A *no strong source* warning appears when retrieval did not find supporting context.
+**Find**, the tab beside Ask, returns a list of files for your question instead of a written answer. While you are searching, the **Find** chip in the search page header sends your query there.
 
-Ask requires `features.rag: true` in `addons/intelligence/search-config.yml` (also editable from the admin settings GUI) **and** a configured LLM provider. With either missing, the page and the Find chip stay hidden.
+Ask sends parts of your files to the language model. An administrator can use a local model, or turn Ask off for a drive. See the [intelligence addon](../addons/intelligence.md#ask-rag).
 
-Ask is **stateless** — it does not write to the core DB or to the addon DB. Each question is its own retrieval and generation.
+## Duplicate files
 
-### Find mode
+The admin dashboard has a **Duplicate Files** section. Pick a drive to see files with identical content. Choose the copy to keep, and the others go to the [trash](trash-and-missing.md).
 
-Find is the file-listing sibling of Ask, on the tab beside it (`/drive/<name>/addons/intelligence/find`). While a search is active, a **Find** chip in the search page header hands the current query over to it.
-
-The LLM decomposes your question into structured criteria and the retriever runs against them, but no answer is generated — Find returns files and the retriever's own verbatim excerpts, nothing written by a model. It is gated exactly like Ask.
-
-### Privacy of Ask
-
-When Ask is enabled, the LLM provider receives the contents of retrieved chunks. For sensitive drives:
-
-- Use a **local LLM** (e.g. ollama) so nothing leaves the machine.
-- Or **disable Ask per drive** via `drives.json`:
-
-  ```json
-  { "addons": { "intelligence": { "rag": false } } }
-  ```
-
-The intelligence addon enforces this both pre-call (in the host proxy) and inside the worker.
-
-### Hierarchical retrieval
-
-For drives with many files, the retriever runs in two stages:
-
-1. **Coarse**: rank files by their short summaries to find candidates.
-2. **Fine**: retrieve chunks within the top candidates.
-
-The threshold and shortlist size are tunable in `rag.hierarchical`; on small drives the shortlist is bypassed entirely. See the [intelligence addon docs](../addons/intelligence.md#configuration-reference).
-
-### Personal history scoping
-
-If `rag.personal_history.enabled` is on, Ask weights files the current viewer has watched recently — useful for queries like *what was the name of that thing in the talk I watched last week?*
-
-## Duplicate detection
-
-The admin dashboard has a **Duplicates** section: pick a drive and it lists files that share content.
-
-- Grouped by content hash **and** file size together, so two files that merely share their first megabyte are not reported as duplicates.
-- The hash is computed on first index and stored in `File.file_hash`.
-- Each group shows the space it wastes. Pick the copy to keep and the rest go to the [trash](trash-and-missing.md), recoverable like any other deletion.
-- Useful when consolidating after a bulk import.
-
-## API
-
-If you script Litloft, note that there is **no standalone search endpoint**. Keyword search is a parameter on the drive file listing:
-
-- `GET /api/drives/{drive}/files?search=<query>&type=...&sort=...&page=...&limit=...`
-- `GET /api/addons/intelligence/search?q=<query>` (semantic; requires the `X-HV-Drive` header)
-- `POST /api/addons/intelligence/ask` (question answering; streams as SSE)
-
-See the [HTTP API reference](../reference/api.md).
+For scripting search, see the [HTTP API reference](../reference/api.md).

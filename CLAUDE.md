@@ -156,7 +156,7 @@ ships it:
 
 | What changed | Page to update |
 |---|---|
-| Something a viewer sees or presses | `docs/user-guide/` |
+| Something a viewer has to know to use a feature | `docs/user-guide/` |
 | A key binding or gesture | `docs/user-guide/keyboard-shortcuts.md` |
 | A public HTTP endpoint | `docs/reference/api.md` |
 | A WebSocket event | `docs/reference/websocket-events.md` |
@@ -165,6 +165,14 @@ ships it:
 | An operator-facing screen or procedure | `docs/admin-guide/` |
 | An Internal API endpoint | `docs/ADDON-DEVELOPMENT.md` (also required by `.claude/rules/internal-api-policy.md`) |
 | An addon's own surface | `docs/addons/<name>.md` |
+
+`docs/user-guide/` is a manual, not a record of behaviour. It gets a sentence
+only when a viewer, without it, could not do what they came to do or would take
+the app for broken: how to reach a feature, a feature they would not find alone,
+behaviour that looks like a bug, a limit they plan around. Layout and spacing
+changes, breakpoints, storage and paging, design rationale and history do not
+go there, so a change that only adjusts how something looks needs no user-guide
+edit.
 
 Purely internal refactors that change no observable behaviour need no doc
 change. If a change is user-visible and no page fits it, add one rather than

@@ -1,273 +1,156 @@
 # Viewers and players
 
-Litloft picks a viewer based on the file's MIME type. The same file detail page hosts every viewer; only the central component changes. Its address is `/drive/<drive>/<folder>?file=<id>` — `/files/<id>` still works and redirects there, except in collection playback, which stays on `/files/<id>` so the collection list and the player can share one column.
-
-The page has three parts: a **page row** at the top, the **viewer** below it, and an **inspector** down the right-hand side. The viewer keeps the things that belong to it and nothing else — for a video that is the player, its description and its long AI summary. Everything that is true of any file, whatever kind it is — its title and its first facts, like and favourite, tags, relations, comments — is in the inspector, in the same place on every page.
-
-**The viewer gets the column to itself**, which matters most where the viewer is long: a 190-page comic used to open with about 100px of archive listing and everything else stacked below it, so the deeper the archive the less of it you could see, and going down a level moved every section under it. **Every kind of file reads this way**, including the ones with no viewer at all — a spreadsheet's page is the same page as a video's, with the *cannot be shown* panel where the player would be. The one page that keeps the older stacked form is the theatre a collection or a folder plays in, which has no inspector by design.
-
-Addon sections (AI summaries, tag candidates, visual descriptions) appear once they have something in them: a section that has not been generated yet is not shown, and the way to generate it is the **AI** menu in the inspector, beside the like and favourite buttons. Anything already generated keeps its own section, with its own regenerate control, and drops out of that menu. Two things are not sections: the **transcript** is a tab of its own, and **similar files** sits under the inspector's **Related** heading beside the file's stated relations.
+Opening a file shows its page. Every kind of file uses the same page: the path at the top, the viewer in the middle, and the **inspector** down the right-hand side. A file Litloft cannot show, such as a spreadsheet, gets the same page with a *cannot be shown* panel where the viewer would be.
 
 ## The page row
 
-Every file detail page starts with the same row, whichever viewer is below it and whichever
-address you arrived by.
+The row at the top shows the path from the drive down to the file. Every step above the file is a link, so this is how you go back up. On a phone the path shrinks to `‹ folder name`.
 
-- **The path**, from the drive down to the file, with every step above the file clickable. This
-  is how you go back up one folder, or three.
-- **On a narrow screen** the path collapses to its last step — `‹ folder name` — which is the
-  way back on a phone.
-- **Type-specific controls** sit to its right: a Markdown note puts its save indicator and its
-  Edit / Split / Preview switch there, and its file name in the path is click-to-edit.
-- **The inspector toggle** is last, on the pages that have an inspector.
+Controls for the kind of file sit to its right (a Markdown note puts its save indicator and **Edit / Split / Preview** switch there). The inspector toggle is last.
 
-During collection playback the back control means something the path cannot say — the
-collection you were playing, not the folder this track happens to live in — so there it
-stays on the row at every width, beside the path rather than instead of it.
+During collection playback the row also keeps a way back to the collection you were playing.
 
 ## The inspector
 
-A column down the right of the page, the same width and the same shape on every kind of file.
+The top of the inspector stays in place while the rest scrolls. It holds the title, one fact about the file (see [the table in *Browsing files*](file-browsing.md#file-grid-and-list-modes)), the like, favourite, **AI** and `⋮` buttons, and the tags.
 
-- **The top part does not move.** Title, the line of first facts under it (see [the table in *File browsing*](file-browsing.md#file-grid-and-list-modes) — a video's length, an image's dimensions, a document's size; nothing at all where none of those is known), the like / favourite / **AI** / `⋮` row, and tags. It stays put while the rest scrolls, so those controls are in the same place on every file whatever is below them.
-- **Below it, tabs** — but only when there is more than one. **Info** is always there: relations, comments, EXIF where a file has it, and whatever addon sections apply. A media file with chapters gets a chapter tab, and one on a drive with the transcript addon switched on gets a transcript tab. A file with nothing but Info gets no tab strip at all, which is what a Markdown note has always looked like.
-- **A tab appears when it has something in it.** A file with no chapters has no chapter tab, and a video that has never been transcribed has no transcript tab — the addon is asked whether it has anything for this file rather than merely whether it is switched on. A panel that is still loading may take a moment to claim its tab.
-- **Open and close it** with the toggle at the end of the page row, or with `Cmd/Ctrl+\`. It starts open on a wide screen. Closed, nothing of it is left behind on the page.
-- **Where there is not room for both**, it covers the right side of the page instead of squeezing what is under it — the same width either way, because a narrower inspector wraps Japanese at a dozen characters a line. This goes by the room the page actually has, not by the window: with the folder tree open, the tree has taken 280px of it before the page begins. (The sidebar is not also in that sum — opening the tree puts the sidebar away, so only one of the two is ever charging the page for its width.)
-- **On a phone** the inspector is a bottom sheet with the same contents, and it rests rather than closes. While it rests, a strip along the bottom carries the file's name and the buttons that act on it — like, favourite and the `⋮` menu — so those are in the same place on every file without opening anything. When Litloft runs full screen from the home screen, the strip sits above the home indicator. Raise the sheet and the strip goes: the same name and the same row are at the head of the sheet's own column, drawn in one place or the other and never in both. The column has room the strip does not, so there the row is not shed — the buttons carry their words, and the ones the strip leaves out come back: **AI** and the other buttons addons add, the file's trust state, and the Cast button a video gets or the gallery button an image gets. The rest of the file's details are in the sheet itself. The same toggle raises it, and **the handle is what drags it between its two heights** — a finger anywhere else in the sheet scrolls the sheet, and the two never happen at once. **The page stays usable while the sheet is up**: the video above it can be paused and sought, the page scrolls, and a tap outside the sheet goes to the page instead of moving the sheet. Pressing Escape sends it back to the strip rather than away, and so does pushing the sheet down: **a downward drag closes it only when there was no scrolling to do** — when the sheet does not scroll at all, when you are already at the top of it, or when you have scrolled to the top without lifting your finger and keep pushing. It goes once you have pulled it down about a third of what is showing, or flicked it down, and it slides off the bottom of the screen at the speed you threw it before the strip comes back. Dragging the handle down past the lower height works the same way: let go a third of the sheet below it and the sheet leaves instead of springing back. A hard flick that merely coasts to the top bounces there and leaves the sheet where it is, so reading quickly through a long transcript never throws it away.
-- **The sheet scrolls as one column**, unlike the column on a wide screen: the title, the facts under it and the tags scroll away with everything else, and scrolling back to the top of the sheet is how you reach them again — the strip along the bottom is not drawn while the sheet is up, so the buttons are on the sheet's own first screen rather than under it. Only the tab strip stays: once you have scrolled down to it, it stays at the top of the sheet, so you can switch tabs from anywhere in a long transcript. Raised part-way the sheet opens on the top of that column and you scroll to the tabs; raised to full it shows enough to read one.
+Below it are tabs, shown only when there is more than one:
 
-## The player on a phone
+- **Info** — EXIF where the file has it, comments, and addon sections such as AI summaries.
+- **Related** — the file's relations, and similar files with the intelligence addon.
+- **Chapters** — on media with chapters.
+- **Transcript** — on media that has one (intelligence addon).
+- **Pages** — the contents and page thumbnails of a PDF, or an index of an archive.
 
-It sticks to the top of the page as you scroll, so the video stays on screen while you read what is under it. There is no separate picture-in-picture window to manage — it is the same player throughout, so nothing restarts. Pulling the sheet all the way up covers it; a drag back down brings it into view again.
+A tab appears only when it has something in it, so a video that was never transcribed has no Transcript tab.
 
-**Raising the sheet stops at the bottom of the player.** The first stop the toggle opens is not a fixed half of the screen — it is whatever is left below the player, so the whole picture and the controls under it stay visible and the sheet takes the rest. A shorter player gives you more of the transcript, up to a point: the sheet never opens further than one row short of full, so an audio file, whose player is a control bar, still leaves a band of the page above it rather than covering everything. Turn the phone sideways and the picture fills the screen on its own — there is nothing left under it to give, so the first stop goes back to half the screen and takes in the bottom of the video, as it did before. On a page with no player — a note, a PDF, a photograph — it is half the screen for the same reason.
+AI sections (intelligence addon) appear once they have been generated. To generate one, use the **AI** menu in the inspector.
+
+Open and close the inspector with the toggle at the end of the page row, or `Cmd/Ctrl+\`. When the window is too narrow for both, it covers the right side of the page.
+
+### On a phone
+
+The inspector is a bottom sheet. While it rests, a strip along the bottom shows the file's name with like, favourite and `⋮`. Raise the sheet with the toggle or by dragging its handle; the full set of buttons is at the top of the sheet.
+
+- Dragging anywhere else in the sheet scrolls it. Once you are at the top of the sheet, pull down or press `Esc` to send it back to the strip.
+- The page above stays usable while the sheet is up: you can pause and seek the video.
+- On a video, the sheet first rises only to the bottom of the player, so the whole picture stays visible.
+- The tab strip sticks to the top of the sheet once you scroll down to it.
+- The video player sticks to the top of the page as you scroll.
 
 ## Chapters and the transcript, beside or below
 
-Video, audio and `.loft` files have panels that follow playback — chapters, and the Intelligence addon's transcript. A toggle in the page row decides where they go.
+On video, audio and `.loft` files, a button in the page row decides where the chapters and the transcript go:
 
-- **Beside** — each becomes a tab in the inspector, so it sits alongside the player and follows the clock while you scroll the page past it. This is the default. Choosing it opens the inspector if it was closed, and leaves it open for the drive, since that is where the panels now live.
-- Because beside is the default, a video opened on a window narrow enough for the inspector to start closed arrives with both panels behind it, without you having pressed anything. The inspector toggle at the end of the page row brings them back.
-- **Below** — they move into the page instead, directly under the description: the transcript in a single column at a comfortable reading width, with the chapter list beside it as its index. The box has its own scrollbar and a height limit, so playback moving the transcript along does not move the page under you.
-- The choice is saved in `localStorage`, per device, and a choice you have already made is kept. **On a phone it does not apply**: there is no beside, so both panels go into the bottom sheet and the toggle is not shown.
-- The toggle appears only when there is something to move — no chapters and nothing from an addon for **this file** means no control. An untranscribed video with no chapters is offered nothing, rather than a control that moves an empty panel between two empty places.
-- **During collection playback** (`/files/<id>`) the page keeps its older layout, without an inspector, and "beside" there means a column next to the player rather than a tab. That form needs room — at least 60 rem of page width — and falls back to the stacked one on a narrower window. Audio never takes it there: the player is a couple of hundred pixels tall and a column beside it would leave half the width empty.
+- **Beside** (the default) — as tabs in the inspector, next to the player. Choosing it opens the inspector. If the window starts with the inspector closed, the panels are in there; open it to see them.
+- **Below** — under the description, with the chapter list beside the transcript.
+
+The button appears only when the file has chapters or a transcript. On a phone both always go into the bottom sheet. The choice is remembered on the device.
 
 ## Chapters
 
-A chapter list, seekable by click, with the chapter the playhead is inside highlighted. It sits wherever the beside/below toggle puts it.
+Click a chapter to jump to it. The chapter you are in is highlighted, and collapsing the list leaves just its name.
 
-- **Where they come from** — three producers, all writing to the same core table:
-  - **Container metadata**, read with `ffprobe` when the file is first scanned or uploaded (`source: "extracted"`).
-  - **A `.loft` provider**, from the metadata captured at import time by the [media_import addon](../addons/media-import.md) (also `extracted`).
-  - **An LLM**, through the Intelligence addon's *Suggested Chapters* section on the file detail page. Like auto-tags this is a Suggest → Approve/Dismiss workflow; approving promotes the set into the core table as `curated`.
-- **Curated wins.** Once a person has approved a set, a later re-probe or a Media Import refresh leaves it alone.
-- **Collapsing** shrinks the panel to a single line naming the chapter the playhead is inside. Expanded, the header goes back to the plain label — the highlighted row already says where you are.
-- A chapter with no usable title is dropped rather than rendered blank, so the list may be shorter than the file's own marker count.
-- Chapter lists are read-only in the core UI: there is no chapter editor.
+Chapters come from the file itself, from a `.loft` import ([media_import addon](../addons/media-import.md)), or from **AI chapter candidates** in the intelligence addon, which you approve or dismiss. Once you approve a set, a rescan does not replace it. There is no chapter editor.
 
 ## Timestamps in a description
 
-On a video or audio file, timestamps written in the file's **description** — the text under the title, which you edit yourself — become buttons that jump the player to that position, the way a YouTube description's index does. Nothing is saved; the links are worked out from the text each time the page is drawn.
-
-- **Recognised forms** are `M:SS` and `H:MM:SS` — `0:00`, `12:34`, `1:02:03`. Seconds always take two digits, so `16:9` and `1:1` stay as text.
-- They are linked **wherever they appear**, whether the line is an index entry (`1:23 Method`) or a mention inside a sentence (`covered from 12:05`).
-- **A timestamp longer than the file is left as plain text.** This is what keeps a description like `starts at 21:00` from becoming a link on a short video. On a file longer than that, it cannot be told apart from a real position and will be linked.
-- The description is **your own text**. A `.loft` file's imported description is shown separately, below the player, and its timestamps arrive as [chapters](#chapters) instead.
-- These links never change a file's chapters, and a description with no timestamps looks exactly as it did before.
+On a video or audio file, timestamps in the description you wrote (`⋮` → **Edit**) become links that jump the player there. They can be `M:SS` or `H:MM:SS`, anywhere in the text. A time longer than the file stays plain text.
 
 ## Video player
 
 ![Video player with hover preview, subtitles menu, and autoplay controls](../images/user-guide/video-player-subtitles-preview.png)
 
-Litloft draws **its own control bar** over the video frame. The same bar, gestures and settings sheet serve both the native `<video>` element and the `.loft` player, so the two behave identically.
+Litloft draws its own control bar over the video. It looks different with a mouse and on a touch screen.
 
-In the [iOS app](ios-app.md) the app plays the file and draws the picture behind the page, in the same frame; this bar, the gestures and the settings sheet stay exactly as they are. Leaving the app moves the video into iOS's picture-in-picture window, subtitles are drawn by the page, and the mini player below is not used there.
+- **Gestures** — on touch, tap to show the controls, double-tap the left or right half to skip 10 s (keep tapping to skip further), press and hold to play at 2x, and swipe up or down or pinch for full screen. With a mouse, click to play or pause and double-click for full screen. See [keyboard shortcuts and gestures](keyboard-shortcuts.md).
+- **Settings** — subtitles and playback speed, plus **Picture-in-Picture**, **Autoplay** (off by default), a subtitle track picker when there is more than one, and **Browser controls**. On an iPhone there is also **Open in the iOS player**.
+- **Browser controls** hands the video to the browser's own bar, which is where AirPlay lives. **Use Litloft controls**, under the player, switches back.
+- **Subtitles** — put `movie.srt` or `movie.vtt` next to `movie.mp4`, or `movie.en.srt`, `movie.ja.vtt` and so on for several languages. They load automatically, for `.loft` files too, and do not appear in the file list. Without one, the intelligence addon's generated track is offered.
+- **Resume** — a video starts where you left off. A link with a time in it, such as an Ask citation, starts there instead.
+- **Mini player** — on a computer, scrolling the video out of view shrinks it into a small window at the bottom right. It has only play, time, mute and seeking; set speed and subtitles before you scroll away, or restore the full player.
+- **Lock screen and media keys** control playback, including next and previous in a collection.
+- **Cast** — a Chromecast button appears when one is found.
 
-- **Two layouts, picked by input device** — a pointer (`pointer: fine`) gets a compact bar that reveals on movement and a settings popover parked above the button; a finger (`pointer: coarse`) gets larger targets and a settings sheet rising from the bottom edge. A tablet paired with a keyboard case can switch mid-session.
-- **Gestures differ by input device, and do not overlap.** On touch: a single tap surfaces the bar, a double-tap on the left or right half skips 10 s that way (further taps within 1.3 s keep adding to the same hop, with the running total on screen), a long press boosts a *playing* file to 2x until you let go, and a vertical swipe or a pinch enters and leaves fullscreen. With a mouse: click plays and pauses, double-click toggles fullscreen — there is no tap-to-skip and no speed boost. See [keyboard shortcuts and gestures](keyboard-shortcuts.md).
-- **Settings sheet** — captions on/off and playback speed (0.5, 0.75, 1, 1.25, 1.5, 2) are core's own. The player's owner contributes rows of its own to the same sheet, which core keeps opaque: the native player adds Picture-in-Picture, autoplay, a hand-back-to-browser-controls switch, and a subtitle track picker when the file has more than one track. On an iPhone — in Safari or from the home screen — it also adds **Open in the iOS player**, which shows the video in iOS's own full-screen player; the page's controls pick up where that player left the video.
-- **Browser controls** — the settings switch hands the frame back to the browser's native bar, which is also where the platform's own fullscreen and AirPlay entries live. A *Use Litloft controls* link under the player takes it back. The choice is remembered per device.
-- **Fullscreen** — the browser's Fullscreen API where it exists. No Apple mobile browser implements element fullscreen, so there the player frame is pinned over the viewport with `position: fixed` instead. The frame is styled in place and never moved to a new parent, so an embedded player keeps its position and its API binding.
-- **Adaptive streaming** — the backend serves byte-range requests; the player seeks instantly without re-downloading.
-- **Resume from last position** — see [shared playback clock](#shared-playback-clock-and-watch-history) below.
-- **Subtitles** — sidecar `.srt` / `.vtt` files in the same folder are auto-attached, for `.loft` files as well as for real video. Name them after the video's basename: `movie.srt` (default track) or `movie.<lang>.srt` / `movie.<lang>.vtt` where `<lang>` is a 2–3 letter code (`en`, `ja`, `eng`, …) — each becomes an entry in the language picker, default track first. `.srt` is converted to WebVTT on the fly for the browser player. Subtitle files do not appear as their own entries in the file list. When no sidecar exists, the player offers the Intelligence addon's generated track instead.
-- **Picture-in-picture** — `autoPictureInPicture` is enabled where the browser supports it, plus an explicit toggle in the settings sheet.
-- **Mini player** — on desktop, scrolling the player out of view reflows it into a fixed 320x180 window at the bottom right. The element is never remounted, so nothing reloads. The window is too narrow for the full control row, so it gets a reduced one: play/pause, the elapsed time, mute, and a scrub bar along the bottom edge, plus the close and restore buttons at the top left. Speed, captions and fullscreen are not there — set them before you scroll away (both preferences carry over), or use restore to bring the full player back. The mini window is not a special case: with a mouse, any Litloft control bar in a frame narrower than 480px reduces the same way. On touch the mobile layout is used instead, at every width.
-- **Media session** — lock-screen and OS media-key controls (play/pause, next, previous within a collection).
-- **Cast** — Chromecast button when a compatible session is detected.
-- **Autoplay** — defaults **off** to respect attention. Toggled from the settings sheet; the choice is persisted in localStorage.
-- **Keyboard shortcuts** — see [keyboard shortcuts and gestures](keyboard-shortcuts.md).
+In the [iOS app](ios-app.md), leaving the app moves the video into picture-in-picture, and there is no mini player.
 
 ## Audio player
 
-Audio keeps the browser's own `<audio controls>` bar rather than Litloft's — there is no frame to draw over.
-
-- **The panel says the filename and nothing under it.** A name with a fact beneath it is governed by [the table in *File browsing*](file-browsing.md#file-grid-and-list-modes), and for audio that table's answer is *nothing*: the length is already on the transport bar directly below, and the size on a reference file is the pointer's — this panel used to read "83 B" under the name of a 23-minute track while the inspector correctly said "23:58".
-- Resume from last position and `last_played_at` updated on open.
-- Media session for OS controls. Title and subtitle come from Litloft's own metadata (file title, folder path); the artwork is the file's Litloft thumbnail, not embedded ID3 art.
-- Cast button and an autoplay toggle sit below the player.
-- In the [iOS app](ios-app.md) the app plays the audio itself, so it continues with the screen locked. The page then shows Litloft's own play, seek and speed controls instead of the browser's bar, and the lock screen takes the place of the media session and the cast button.
+Audio uses the browser's own player bar, with Cast and **Autoplay** below it. It resumes where you left off, and the lock screen shows the file's title and thumbnail. In the [iOS app](ios-app.md) audio keeps playing with the screen locked, and Litloft shows its own play, seek and speed controls.
 
 ## Image viewer
 
-On the detail page the image has the column to itself, with its EXIF, tags and comments in the inspector, and the full-screen entry point stays in the inspector's action row.
+An image's page has **previous / next** buttons in the page row, which walk the images in the folder in the order the listing used. When you came from the plain folder listing, the image's place (`12 / 995`) is shown between them.
 
-The page row above it carries a **previous / next pair with the image's place in the folder between them** (`12 / 995`). They walk the same sequence the `←` / `→` keys have always walked — the folder's files in the sort order the listing was using — and the button at either end of the folder is disabled rather than hidden, so being at the end is something you can see before you press.
-
-**The count appears only where it would be true.** The arrows walk the file's folder, in the order the listing you came from was using. When that listing was a plain folder view — the whole folder, no filter — the two are the same sequence and the count is drawn. Open the image out of a search, a tag, a smart folder, a collection, a cross-folder view like *Favourites* or *Liked*, or a folder narrowed by the type chip or the name box, and the arrows still walk the folder while the listing was showing something else; the two buttons stay and the number is simply absent. A wrong count would say a file is there that pressing next cannot reach.
-
-Sorting by *liked* has the same shape from the other side: a file you have never liked has no place in a like-ordered walk at all, so both arrows are disabled and nothing is counted.
-
-On a screen narrower than 640px the count is dropped and the two buttons stay.
-
-The full-screen image viewer is a page-turner for a folder of images. Archives get a separate viewer built from the same gesture handling, described under [ZIP archives](#zip-archives).
+The maximise button opens the full-screen viewer, which turns through the folder's images.
 
 ![Image viewer in two-page spread mode with right-to-left reading enabled](../images/user-guide/image-viewer-spread-rtl.png)
 
-- **Swipe navigation** — a horizontal finger swipe (50 px threshold) advances; swiping right goes to the next image in both reading directions. A mouse drag does not turn the page.
-- **Edge taps** — tapping or clicking the left or right 25% of the screen turns the page. These *are* reading-direction-aware: in *right-to-left* mode (manga, Arabic, Hebrew) they are mirrored, as are the on-screen arrows and the arrow keys.
-- **Centre tap** — toggles the controls bar.
-- **Zoom** — pinch with two fingers, Ctrl/⌘ + scroll (a trackpad pinch too), or `=` / `-`, up to 4x; `0` goes back to the whole picture, and so does pinching in past it. While zoomed, a one-finger drag, a mouse drag or the scroll wheel moves around the picture and stops at its edges, and swipes and edge taps no longer turn the page — the arrows, the on-screen buttons and the keys still do, and turning the page shows the next one whole.
-- **The controls withdraw when you leave the frame alone**, two seconds after the last thing you did, whether or not a slideshow is running — a bar sitting over a still image you are looking at is the case this is for. Moving the mouse brings it back, and so does a key or reaching it with Tab; on a touch screen a tap does, and touching the bar itself keeps it up while you reach for a control on it. While the interval panel is open the bar stays up, and `Esc` closes the panel rather than the viewer. While it is away it is out of reach as well as out of sight, so Tab does not land on buttons you cannot see. What withdraws is the bar, not the viewer: `Esc` still closes.
-- **Slideshow** — play/pause button with an interval of 3, 5 or 10 seconds. The interval is picked from a small panel rather than a drop-down: a sheet from the bottom edge on touch, a narrow popover above the button with a mouse.
-- **Spread** — one switch, two behaviours, and which one you get is decided by the pages rather than by you. A **wide** page is a spread that has already been scanned as one, so it is cut down the middle and turned a half at a time (`3 / 190 A`, then `B`). Two **tall** pages are two halves of a spread that was never scanned as one, so they are placed side by side and turned together (`7–8 / 190`). The first page is always alone, the way a book opens on its cover, and pairing runs 1-2, 3-4 from there.
-  - The switch used to be called *Spread mode* and did only the cutting — which is the opposite of what the name suggests, and it misled the person who wrote it as well as the person who reported it. It now means "read this as spreads", and the toggle says which reading it will give you rather than naming a state.
-  - **Two pages need a frame at least as wide as it is tall.** Narrow the window past that and the pages come apart into single ones; widen it and they pair again. The switch stays on throughout — it is the window that changed, not your choice.
-  - A page whose proportions have not been reported yet is shown alone until they arrive, and a page next to a wide one is shown alone because the wide one is a spread of its own. Nothing is ever drawn as half of an empty pair.
-- **Reading direction** — LTR (default) or RTL. The toggle appears while the spread switch is on, and it decides both which half of a cut page comes first and which side of a pair the earlier page sits on.
-- **HEIC support** — converted to JPEG on the fly using Pillow + pillow-heif, and cached. ffmpeg-based fallbacks are intentionally avoided because they produce black thumbnails for HEIC.
-
-The file detail page for a single image shows the image itself. The full-screen page-turner opens from the maximise button beside it, and walks the other images in the same folder from there.
+- **Turn the page** — swipe (right always means next), tap or click the left or right edge, or use the arrow keys. A mouse drag does not turn the page.
+- **Controls** — tap the centre. They hide themselves after two seconds; move the mouse or tap to bring them back.
+- **Zoom** — pinch, Ctrl/⌘ + scroll, or `=` / `-`, up to 4x. `0` shows the whole picture. While zoomed, drag to move around; swipes and edge taps no longer turn the page.
+- **Slideshow** — play button, with an interval of 3, 5 or 10 seconds.
+- **Spread** — reads the images as a book. A wide page is shown one half at a time (`3 / 190 A`, then `B`); two tall pages are shown side by side (`7–8 / 190`). The first page is always alone. Pages pair only when the window is at least as wide as it is tall.
+- **Reading direction** — **LTR** or **RTL**, shown while **Spread** is on. RTL mirrors the edge taps, arrows and keys, not the swipe.
+- **HEIC** photos from an iPhone are shown too.
 
 ## Markdown viewer
 
-Litloft renders Markdown with a curated set of extensions:
-
 ![Markdown viewer with frontmatter chips and a rendered Mermaid diagram](../images/user-guide/markdown-viewer-frontmatter-mermaid.png)
 
-- **Syntax highlighting** for fenced code blocks (`highlight.js`).
-- **Mermaid diagrams** — lazy-loaded; opt-in only, since Mermaid evaluates string input as code-like configuration. Untrusted sources such as LLM answers render with Mermaid off.
-- **GitHub-flavoured task lists** with rendered checkboxes.
-- **Frontmatter chips** — YAML frontmatter is parsed and the `tags`, `title`, `description`, and other recognised keys are surfaced as editable chips. Saving chips writes to the file (canonical store for `.md`) and the backend mirrors `tags` into the database.
-- **`loft://` internal links** — `loft://<file_id>` (12-char) opens the linked file. The same scheme works in image syntax, resolving to the file's stream URL. Two-way: such links are also synced to the `file_relations` table so the file detail "Related" section works.
-- **In-place editor** — where the [knowledge addon](../addons/knowledge.md) is installed and its editor is enabled for the drive, the page switches to a document layout with an edit / split / preview toggle and a side inspector. Saves use a 500 ms debounce to coalesce typing into one HTTP write. Without that addon the Markdown viewer is read-only apart from the frontmatter chips.
+Notes show highlighted code blocks, Mermaid diagrams, task lists, and the frontmatter (`title`, `tags` and so on) as chips you can edit. Editing the tag chips changes the file. A `loft://<file id>` link opens that file, and the linked file shows up under **Related**.
+
+With the [knowledge addon](../addons/knowledge.md) and its editor enabled for the drive, you can edit the note in the page with **Edit / Split / Preview**. Changes save as you type. Without it, notes are read-only apart from the chips.
 
 ## PDF viewer
 
-- The document has the page column to itself; its metadata, tags and comments are in the inspector.
-- Rendered page by page with PDF.js (`react-pdf`), inside the page rather than in a browser plugin frame — so text selection works and the Intelligence addon can quote the page you are looking at.
-- Page navigation and a zoom control (0.5x to 2x in 0.25 steps).
-- **A zoom-mode menu with three entries**, since a percentage on its own could not say "show me the whole page":
-  - **Fit width** (the default) — the page fills the column, up to a limit. The limit is there so a wide window does not stretch a page of prose into 200-character lines.
-  - **Whole page** — the page is sized so its full height fits, which is how an A4 page arrives complete rather than cut off at the bottom.
-  - **Actual size** — the page at the size it would print at (96 pixels to the inch against the PDF's own points). This one is not limited: a mode that claims to show the page at its own size and then shrinks it is saying something untrue.
-- Choosing a mode puts the zoom back to 100%, because "whole page" at 150% is not the whole page. Zooming afterwards leaves the mode where it is and just changes the magnification. The mode you picked is remembered on this device.
-- **The page number is a box you can type into.** Enter or leaving the box confirms it; `Esc` abandons what you typed. A number the document does not have — `0`, `999`, anything that is not a number — leaves the page where it was and puts the box back, rather than taking you to the first or last page.
-- `PageUp` / `PageDown` turn pages. `←` and `→` keep meaning the previous and next file in the folder, as they do for every other non-media file; they are not taken over here. Neither key turns a page while the page box has focus.
-- **A Pages tab in the inspector** holds the document's table of contents, if it has one, and a rail of page thumbnails. Pressing an entry or a thumbnail goes there, and the page you are on is marked. The tab appears only when there is something in it — a one-page PDF with no contents has no Pages tab, and with nothing else to show beside Info it has no tab strip at all.
-- The thumbnail rail draws a window, not the whole document: a 225-page PDF opens having rendered eight thumbnails, and scrolling the rail adds eight more at a time. Jumping somewhere far away — typing a page number, or following a contents entry — moves the window there rather than drawing everything in between.
-- The Pages tab does not open the document until you look at it, so a PDF you never inspect costs nothing extra.
-- **Full screen** — the button beside *Open in new tab*, or `f`, opens the document as a page-turner over the whole screen, on the page you were on; closing it (`f`, `Esc` or ✕) leaves the page column on the page you closed on. It works like the [image viewer](#image-viewer): swipe or tap the edges to turn pages, the arrow keys follow the reading direction, and the spread switch pairs tall pages (the first page alone, then 2–3, 4–5) and cuts wide ones in half. A document that states its own reading direction — a right-to-left comic, say — opens in that direction whatever the image viewers are set to; switching it in the viewer lasts until you close it and leaves your usual setting alone. Pinch, Ctrl/⌘ + scroll or `=` / `-` zoom up to 4x, and the page is redrawn sharp at the new size; `0` goes back to the whole page. The mouse is left for selecting text: a drag, click or double-click never turns or moves the page — use the arrow keys or the on-screen arrows to turn it, and scroll to move around a zoomed page. Where the knowledge addon is installed, its quote button is in the full-screen bar and quotes the selected text, or the page when nothing is selected.
-- A link inside the document that points at one of its own pages — a table of contents, a cross-reference — goes to that page, in the page column and in full screen.
-- The initial page can be set from the URL, which is how Ask citations land on the right page.
-- Pages stream from the backend as they are needed; the viewer does not rasterise the whole document up front.
-- On a wide screen the page column has a floor of 70% of its height, so a short document does not draw a band with empty space under it. On a phone it does not, because there the document already has the screen.
+- Select text as on any page. With the intelligence addon, Ask can quote the page you are on.
+- **Zoom mode** — **Fit width** (the default), **Whole page** or **Actual size**, plus zoom buttons. Choosing a mode resets the zoom to 100%.
+- **Page number** — type a page and press `Enter`. `PageUp` / `PageDown` turn pages; `←` / `→` go to the previous or next *file*.
+- **Pages** tab — the table of contents and page thumbnails. Click one to go there.
+- **Full screen** — the button beside **Open in new tab**, or `f`. It works like the [image viewer](#image-viewer), including **Spread** and zoom, but mouse clicks and drags select text instead of turning pages. A PDF that declares right-to-left reading opens that way. With the knowledge addon, the quote button is in the full-screen bar.
+- Links inside the PDF to its own pages work.
 
-## Office (DOCX / XLSX / PPTX) preview
+## Office files (DOCX / XLSX / PPTX)
 
-Office files have **no in-app viewer**. The detail page says so and offers the file itself: *Download*, and *Open in new tab* beside it. Both are links, so either can be middle-clicked or copied.
-
-That panel sits in the viewer column like any other viewer, so the page around it is the page every other kind has: one breadcrumb row with the inspector toggle in it, and the title, size, tags, relations and comments in the inspector rather than stacked down the middle of the screen. Until 2026-09 these files had no inspector and no way to open one — not as a decision about them, but because the layout was given out kind by kind and nobody had reached them.
-
-What Litloft does read is a short text excerpt — up to 400 characters extracted server-side with `python-docx` / `openpyxl` / `python-pptx` — which is used as the file's thumbnail in listings and makes the document findable by search.
-
-**The detail page shows the first lines of that excerpt**, under the download panel and behind a rule, so you can tell which of five similarly named spreadsheets this is without opening any of them. What it is *not*:
-
-- It is not a viewer. There is no scrolling, no page turning, and no way to read further — at most ten lines, and never more than the 400 characters the backend already extracts.
-- It does not appear when the extraction is empty, or fails. The page then looks exactly as it did before: the panel and the download.
-- It is not asked for at all on a file over 20 MB. Extraction opens the file every time, and a large workbook takes seconds.
-- `.doc`, `.xls` and `.ppt` — the older binary formats — have no extraction, so they have no excerpt either.
+There is no viewer for Office files. The page offers **Download** and **Open in new tab**, and shows the first lines of the document's text so you can tell similar files apart. Files over 20 MB and the old `.doc` / `.xls` / `.ppt` formats show no text. The text also makes the file findable in search.
 
 ## ZIP archives
 
-- The listing has the page column to itself, so its height is its own rather than what is left after the metadata — and going into a folder inside the archive no longer moves anything under it, because there is nothing under it. **It also has a floor on a wide screen**: an archive holding three entries still gets 70% of the column rather than shrinking to a band with empty space under it. A floor, not a ceiling — a level with hundreds of pages grows past it as before. On a phone there is no floor, because there the listing already has the screen to itself.
-- The archive is **not extracted on the server**; entries are streamed lazily.
-- The listing has grid and list view modes, sorting, a file-type filter, and a breadcrumb for folders inside the archive. That trail folds the same way the folder listing's does, and the archive's entry count steps out of the row on a phone-sized screen so the trail has the width.
-  **Sort** offers field and direction as one list of six — name, size or type, each way round — the same shape the folder toolbar uses.
-- **Which view a level opens in is read off the level itself**: a grid where most of the files there are images, a list otherwise, and a list for a level holding only folders. Choosing a view yourself ends the derivation for that archive — every level of it stays in the view you picked, and Litloft remembers that for the fifty archives you most recently chose a view in. Another archive starts from its own contents again.
-- Per-entry caps: 50 MB per entry, max 10 000 entries, max 3 concurrent extractions across all viewers.
-- **Grid cells are drawn at the pages' own proportions.** A scanned page is taller than it is wide, and square cells cropped the top and bottom off every one of them; the cells vary in width *and* the rows vary in height, so a cell is the shape of the page inside it rather than an approximation of it. Each cell starts at a page's usual shape and takes the picture's real one once it has loaded, so a level of scans settles as you scroll rather than all at once. Folders, text and files with no preview stay square. A page whose proportions are outside 3:1 and 1:2 — a panoramic scan, a spine strip — is drawn at the nearest of those and cropped, rather than flattening the row it is on. A row will not grow past two and a half times its usual height. How many cells fit on a row is decided by the width the listing actually has — with the inspector open that is 384px less than the window, which the old fixed column counts did not know.
-- Entry names are shown under the thumbnails, except where the level holds nothing but images — in a scanned comic every cell would otherwise repeat the same page-number pattern under identical thumbnails. A level that mixes images with anything else keeps the names, and folders always keep theirs.
-- Click an entry → an image page-turner takes over the page, or a text viewer opens under the listing. Both work in either view. **An entry that cannot be opened is not clickable**: the row says *No preview* and carries a labelled **Download** beside it, and a grid cell carries a download icon in its corner. Nothing happens on a press because there is nothing to press — the way out is the download.
-- **What counts as text is decided by the entry's name as well as its type.** A ZIP has no reliable type information for source files, so `main.dart`, `main.rs`, `Cargo.toml`, `Makefile`, `LICENSE` and the like open by extension or by whole filename against a fixed list. Anything not on that list — `app.bin`, `photo.raw`, `a.out` — stays a download. This list decides only what a viewer will render; it does not change how a file is classified anywhere else in Litloft. The file page's own text viewer reads the same list, so a source file opens whether it is inside an archive or sitting in a folder.
-- The archive's text viewer shows the entry plainly: the line numbers and colouring described under [Text files](#text-files) belong to the file page.
-- The text viewer carries a **download** for the entry it is showing, the way the page-turner does. A text entry over 1 MB still asks before it is fetched, and if the fetch fails the viewer says so and offers the download there too.
-- **A Pages tab in the inspector is a flat index of the whole archive**, with a filter. The listing shows the level you are on; this shows every entry at every depth, so typing `main` in a 2439-file source zip finds `lib/src/main.dart` without walking down to it. Pressing a row goes to that entry — into the folder, or straight into the page-turner or text viewer for an entry that can be opened. Matching is plain substring matching on the path, not the semantic search behind `Cmd+K`. The first two hundred entries are listed and the filter reaches the rest; an archive holding a single entry gets no tab, because the listing already shows it.
-- The archive page-turner shares the image viewer's gestures, spread mode, reading direction, slideshow interval panel and withdrawing controls, and adds a per-entry **download** button.
+An archive opens as a listing of its contents, without extracting it on the server. It has its own grid and list views, sorting, a type filter, and a path for folders inside it.
+
+- Click an image to open it in a page-turner that works like the [image viewer](#image-viewer), with a **Download** button. Click a text file to read it under the listing.
+- An entry that cannot be shown says **No preview** and offers **Download** instead.
+- Source files such as `main.rs`, `Cargo.toml` or `Makefile` open as text; unknown files like `app.bin` do not.
+- The **Pages** tab lists every entry at every depth, with a filter by path, so you can find a file without opening folders.
+- Entries over 50 MB cannot be opened, and only the first 10,000 entries are listed.
 
 ## Text files
 
-`.txt`, source code and similar text files are shown read-only, with the search term highlighted when you arrive from a search result. A file over 1 MB is not fetched until you confirm, so opening a huge log by accident costs nothing. The text has the viewer column to itself, with everything else in the inspector — the same page a video or a PDF gets.
+Text and source files are shown read-only, with line numbers. Copying the text leaves the numbers out. Source code is coloured when the file's extension names its language. Arriving from a search highlights the term you searched for.
 
-- **What counts as text is decided by the file's name as well as its type**, by the same list the archive viewer uses (above). `main.rs`, `main.go`, `Cargo.toml`, `build.gradle`, `Makefile` and `LICENSE` open even though no type information describes them; `app.bin`, `photo.raw` and `a.out` stay a download.
-- **Lines are numbered**, and the numbers are not part of the text: selecting the file, copying it, or capturing a quote from it gives you the code alone. A line too long for the column wraps under the code rather than under its own number.
-- **Source code is coloured** where the name says which language it is. Where it does not — a `.vue` file, a `.log`, a file with no extension — the text is shown without colour rather than guessed at, because a wrong guess colours the code as something it is not and nothing on screen would say so.
-- **A very large file keeps neither.** Above 512K characters or 5000 lines the viewer says so and shows the text plainly, so a big log still opens and still reads.
+A file over 1 MB asks before it loads. A very large file is shown without numbers or colour.
 
-Writing text content back is possible through the API (`PUT /api/files/{id}/content`), restricted to `text/markdown` and `text/plain`:
+Only Markdown notes can be edited in the app (see above).
 
-- 1 MB write cap (server-enforced).
-- `If-Match` required — a stale ETag is rejected with `412`, so two editors cannot silently overwrite each other.
-- Atomic write on the backend (`.tmp` + rename) so a crash mid-save never produces a half-written file.
-- For Markdown specifically, frontmatter changes are detected and `File.tags` is re-projected.
+## Imported videos (media_import addon)
 
-The only editor in the UI that uses this path is the Markdown editor described above.
+A `.loft` file from the [media_import addon](../addons/media-import.md) plays the original:
 
-## Adaptive player (media-import)
+- **YouTube** — in Litloft's own player, with the channel and caption details below it. The **Player** setting switches between **Litloft** and **YouTube** controls. During an ad, Litloft's controls step aside. If the owner does not allow embedding, you get **Watch on YouTube** instead.
+- **Vimeo** — in Vimeo's player.
+- **Other sites** — a link to the original.
 
-When a file is a `.loft` reference produced by the [media_import addon](../addons/media-import.md), the viewer dispatches to a provider-specific embed:
+## Watch progress
 
-- **YouTube** — embedded through the IFrame API and driven by Litloft's own control bar, gestures and settings sheet, exactly like a local video. A metadata panel (channel, caption status) renders below the player, in the page rather than inside the player's own box — so on a phone it scrolls away with the page and the sheet's first stop lands on the bottom of the video, the same as for a local file.
-- **Vimeo** — embedded Vimeo player.
-- **Anything else** — a link card to the original URL; no in-place player.
+Your position is saved every few seconds, and a video resumes where you left off unless you were within a few seconds of the start or end. Reaching the end keeps the record, so the file drops out of **Continue watching**. Live streams are not resumed. See [comments and watch history](comments-history.md).
 
-Two things are specific to the YouTube embed:
+## The `⋮` menu
 
-- **Player UI choice** — a row in the settings sheet swaps Litloft's controls for YouTube's own. It is off by default: Litloft's controls are the point of the embed, and switching trades away the gestures, the caption toggle and the speed sheet. On iOS the browser then refuses inline playback and opens its own full-screen player, which is the only place Picture-in-Picture can be reached from — a cross-origin iframe puts its `<video>` out of our reach.
-- **Ad awareness** — while the provider is drawing chrome of its own (a pre-roll, an end screen), Litloft's overlay stands down and file-scoped controls go quiet, so an ad's own controls are never covered.
-- **Embedding-restricted fallback** — when a video's owner disallows embedded playback (YouTube reports this regardless of which control skin was requested), Litloft gives up on the in-page player entirely and shows the file's thumbnail with a "Watch on YouTube" link that opens the video on youtube.com in a new tab. The player UI choice above has no effect in this state, since neither skin can play the video in an iframe.
+Every file page has a `⋮` menu with **Edit** (title and description), **Download**, **Add to collection**, **Copy**, **Cut**, **Rename**, **Move** and **Move to Trash**. Addons add entries below a line; the intelligence addon adds **Index details**, which shows what has been indexed for the file and lets you **Regenerate** it.
 
-## Shared playback clock and watch history
+To restore a file, use [Trash](trash-and-missing.md).
 
-Both playback backends run on one implementation, so resume, periodic saving and completion behave the same whatever is playing.
+## Missing files
 
-- **Periodic saves** every 5 seconds of playback, plus one on teardown if the position has drifted by more than a second since the last write.
-- **Resume** skips a 5-second dead zone at both ends of the timeline: below it there is nothing worth restoring, above it you would be dropped straight back at the end.
-- **An explicit `?t=` position wins** over stored progress. A citation click is a "land here" instruction, so snapping back to where you left off would be a bug.
-- **Reaching the end records the final position; it never deletes the record.** See [comments and watch history](comments-history.md).
-- **Media with no trustworthy duration** — a live stream, or media that never probed its length — never resumes and never records a completed state. There is no position to be at, and inventing one would be worse than saying nothing.
-- **Interruptions are not persisted.** While an ad owns the clock, nothing is written; YouTube's end-of-video event fires for pre-rolls too, and writing there unguarded would stamp the ad's length onto the video as a finished watch.
-
-## Per-file actions menu
-
-Every viewer page has a `…` menu with:
-
-- Edit title and description.
-- Download original.
-- Rename (in-place).
-- Move to another folder.
-- Move to trash.
-
-Restoring from trash is done from the [trash view](trash-and-missing.md), not from this menu.
-
-An installed addon may add its own entries below a separator. With the
-intelligence addon, *Index details* is there — it opens a dialog showing
-which indexing tasks have run for the file, with a *Regenerate* button on
-each. It lives in this menu rather than on the page because it answers a
-maintenance question, not a reading one.
-
-## What gets hidden
-
-A file in the **missing** state still has its viewer page but streams return `410 Gone` (the file is no longer on disk). Tags, comments, watch history, and AI artefacts persist for when the file reappears. See [trash and missing files](trash-and-missing.md).
+A file that is no longer on disk cannot be opened, but Litloft keeps its tags, comments and history. Everything comes back when the file does. See [trash and missing files](trash-and-missing.md).

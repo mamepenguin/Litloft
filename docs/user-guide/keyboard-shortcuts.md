@@ -1,131 +1,75 @@
 # Keyboard shortcuts and gestures
 
-Single-character shortcuts only fire when no input is focused. Chords that are
-meant to work while you type (the Markdown editor's formatting keys, the search
-modal's own close chord) are the documented exceptions.
+Press `?` on any page to see the shortcuts that work there. Single-key shortcuts do nothing while you are typing in a field.
 
 ![Shortcut cheat sheet modal opened over the current page](../images/user-guide/shortcut-cheatsheet-modal.png)
 
-## The primary modifier
-
-Shortcuts are written here as `Cmd/Ctrl`, and the hardware key depends on the
-platform:
-
-- **macOS** — the primary modifier is **Cmd**. Holding the literal Control key
-  does *not* fire these shortcuts; that is deliberate, so Litloft does not
-  shadow the emacs-style cursor chords macOS applications are expected to
-  leave alone.
-- **Windows / Linux** — the primary modifier is **Ctrl**. The Win/Super key is
-  reserved by the OS and does not fire them.
+`Cmd/Ctrl` means **Cmd** on a Mac and **Ctrl** on Windows and Linux. On a Mac the Control key does not work in its place.
 
 ## Global
 
-These are available on every page.
-
 | Key | Action |
 |---|---|
-| `?` | Open the shortcut cheat sheet for the current page |
-| `Esc` | Close the topmost modal / dialog |
-| `Cmd/Ctrl+K` | Open the drive-wide search modal |
-| `Cmd/Ctrl+Shift+F` | Open the drive-wide search modal |
-| `N` | Open Quick Note (see [Quick Note](quick-note.md)) |
+| `?` | Show the shortcuts for this page |
+| `Esc` | Close the topmost dialog |
+| `Cmd/Ctrl+K` | Open search (press again to close) |
+| `Cmd/Ctrl+Shift+F` | Open search (same as `Cmd/Ctrl+K`) |
+| `N` | Open [Quick Note](quick-note.md) |
 
-`Cmd/Ctrl+K` and `Cmd/Ctrl+Shift+F` open the same modal in the same state,
-with the cursor in the same input — the in-app cheat sheet (`?`) names them
-both the same way for that reason. They both exist because `Cmd/Ctrl+K` is a
-single chord you can reach one-handed, and `Cmd/Ctrl+Shift+F` is what many
-people's fingers already know. While the modal is open, either chord closes it
-again.
-
-What the modal is depends on whether you type, not on which chord opened it:
-before you type it lists what you recently opened, and typing turns it into a
-search. See [search](search.md#the-search-modal).
-
-On a screen that narrows the search to one kind of file — a note's page, with
-the Knowledge addon installed — both chords open the modal already narrowed,
-with the scope shown as a chip before the query. See
-[narrowed to one kind](search.md#narrowed-to-one-kind). The chords themselves do
-not change.
+The search window also has a **Keyboard Shortcuts** button along its bottom edge. See [search](search.md#the-search-modal).
 
 ### Quick Note panel
 
 | Key | Action |
 |---|---|
 | `Cmd/Ctrl+Enter` | Save the note |
-| `Esc` | Close the panel (asks first if the note has unsaved text) |
-
-Both fire while the note textarea has focus.
+| `Esc` | Close the panel (asks first if there is unsaved text) |
 
 ## File browsing
 
-These fire on the Library root (`/drive/<name>`) and on folder pages
-(`/drive/<name>/<path>`), not on Home.
+In the Library and in folders, not on Home.
 
 | Key | Action |
 |---|---|
 | `Cmd/Ctrl+C` | Copy the selected files |
 | `Cmd/Ctrl+X` | Cut the selected files |
 | `Cmd/Ctrl+V` | Paste into the current folder |
-| `Cmd/Ctrl+N` | Create an empty `untitled-{timestamp}.md` in the current folder and open it in the editor (see [Browsing files → Creating a new file](file-browsing.md#creating-a-new-file)) |
+| `Cmd/Ctrl+N` | Create a new Markdown file in the current folder (see [Creating a new file](file-browsing.md#creating-a-new-file)) |
 
-`Cmd/Ctrl+N` and `Cmd/Ctrl+V` both need a concrete destination folder, so both
-are no-ops in search results, in the flat virtual views (favourites, liked,
-recently viewed, recently added, all files) and under a tag applied at the drive
-root. Nothing is said when you press them there — the screen has nowhere to put
-anything, so nothing happens. A tag filter applied *inside* a folder does have a
-destination, and both work into that folder.
-
-Copy / cut / paste act on the current selection, which is empty until you turn
-selection on, so they are no-ops until then.
+Copy and cut need a selection. Paste and `Cmd/Ctrl+N` need a folder, so they do nothing in search results, in views like **Favourites** or **All Files**, or under a tag at the drive root.
 
 ## Renaming
 
 | Key | Action |
 |---|---|
-| `F2` | Rename the focused item, in place |
+| `F2` | Rename the focused folder card, or the focused folder or file in the folder tree |
 
-What `F2` reaches depends on where the focus is:
-
-| Focus | Renames |
-|---|---|
-| A row in the folder tree | That row — **folder or file** |
-| A folder card in the grid | That folder |
-| A file card in the grid | Nothing; use the context menu, which opens the rename dialog |
-
-`F2` only fires while a row or card actually holds focus. Renaming happens
-inline — no dialog — with the base name preselected so the extension is not
-overwritten. `Enter` commits, `Esc` cancels.
+`Enter` saves and `Esc` cancels. A file card in the grid is renamed from its right-click menu instead.
 
 ## Video and audio player
 
-The same bindings apply to Litloft's own player and to the `.loft` player
-supplied by the Media Import addon.
+Also works for YouTube videos imported with the media_import addon.
 
 | Key | Action |
 |---|---|
 | `Space` | Play / pause |
-| `←` | Seek −10 s |
-| `→` | Seek +10 s |
-| `↑` | Seek +60 s |
-| `↓` | Seek −60 s |
-| `M` | Toggle mute |
-| `F` | Toggle fullscreen |
+| `←` | Back 10 s |
+| `→` | Forward 10 s |
+| `↑` | Forward 60 s |
+| `↓` | Back 60 s |
+| `M` | Mute / unmute |
+| `F` | Full screen |
 
-OS media keys (play/pause, next, previous) are wired through the Media Session
-API.
+Media keys on your keyboard and the lock screen also control playback.
 
 ## File navigation (non-media files)
 
 | Key | Action |
 |---|---|
-| `←` | Previous file in the current folder |
-| `→` | Next file in the current folder |
+| `←` | Previous file in the folder |
+| `→` | Next file in the folder |
 
-These bindings are not active on video / audio pages — there `←` and `→` are
-seek controls. They **are** active on a PDF, which is why the PDF viewer uses
-`PageUp` / `PageDown` for its own pages rather than taking the arrows: one
-kind of file where `←` means something else is a thing you would have to
-remember.
+On video and audio pages the arrows seek instead.
 
 ## PDF viewer
 
@@ -133,91 +77,57 @@ remember.
 |---|---|
 | `PageUp` | Previous page |
 | `PageDown` | Next page |
-| `Enter` | Confirm the page number you typed |
-| `Esc` | Abandon the page number you typed |
+| `Enter` | Go to the page number you typed |
+| `Esc` | Cancel the page number you typed |
+| `f` | Open full screen |
 
-`PageUp` and `PageDown` do not fire while the page-number box has focus.
-
-| Key | Action |
-|---|---|
-| `f` | Open the full-screen viewer |
-
-In the full-screen viewer:
+`←` and `→` still go to the previous and next file. In full screen:
 
 | Key | Action |
 |---|---|
-| `←` / `→` | Previous / next face (reading-direction aware) |
-| `PageUp` / `PageDown` | Previous / next face |
+| `←` / `→` | Previous / next page (follows the reading direction) |
+| `PageUp` / `PageDown` | Previous / next page |
 | `=` / `-` | Zoom in / out |
 | `0` | Back to the whole page |
 | `f` / `Esc` | Close |
 
-The touch gestures are the image viewer's (below). The mouse is left for
-selecting text: a drag, click or double-click never turns or moves the page.
-A press on a link in the document follows the link rather than turning the
-page.
+Touch gestures are the same as in the image viewer below. A mouse selects text and never turns the page.
 
 ## Image gallery and archive page-turner
 
-While a full-screen viewer (image, archive or PDF) is open, only its own keys
-work — the page's shortcuts, search (`Cmd/Ctrl+K`) and the quick note (`n`)
-included, wait until it closes. `?` still shows the list, which then holds
-only what the viewer answers.
+While a full-screen viewer (image, archive or PDF) is open, only its own keys work. Search and Quick Note wait until you close it.
 
 | Key | Action |
 |---|---|
-| `←` / `→` | Previous / next **face** (reading-direction aware) |
+| `←` / `→` | Previous / next page (follows the reading direction) |
 | `Space` | Start / stop the slideshow |
 | `=` / `-` | Zoom in / out |
 | `0` | Back to the whole picture |
 | `Esc` | Close the viewer |
 
-A press moves to the next **face** — what is on the screen at once — rather
-than to the next file. With the spread switch off a face is one page, so the
-arrows behave as they always did. With it on, a wide page is turned a half at
-a time and the count stays put (`3 / 190 A`, then `B`), while two tall pages
-side by side are turned together and the count moves by two (`7–8 / 190` to
-`9–10 / 190`).
+With **Spread** on, a key turns what is on screen: half of a wide page, or two tall pages at once.
 
 | Gesture | Action |
 |---|---|
-| Swipe right / left | Next / previous page (50 px threshold) |
+| Swipe right / left | Next / previous page |
 | Tap left edge / right edge | Previous / next page |
-| Tap centre | Toggle the controls overlay |
-| Pinch / Ctrl or ⌘ + scroll | Zoom, up to 4x |
-| Drag / scroll while zoomed | Move around the picture |
+| Tap centre | Show / hide the controls |
+| Pinch, or Ctrl/⌘ + scroll | Zoom, up to 4x |
+| Drag or scroll while zoomed | Move around the picture |
 
-While zoomed, swipes and edge taps do not turn the page. A mouse drag never
-does.
-
-RTL (right-to-left) mirroring is partial, and deliberately so: the **arrow keys
-and the edge taps** mirror, following the reading direction. The **swipe does
-not** — a swipe to the right is always "next page", because the swipe follows
-the hand, not the text.
-
-A press moves to the next **face** — what is on the screen at once — not to
-the next file. With the spread switch off that is one page, so the arrows
-behave as they always did. With it on, a wide page is turned a half at a
-time and stays put in the count, while two tall pages side by side are turned
-together and the count moves by two (`7–8 / 190` to `9–10 / 190`).
+While zoomed, swipes and edge taps do not turn the page. In right-to-left mode the arrow keys and edge taps are mirrored; a swipe to the right is always next.
 
 ## File detail
 
 | Key | Action |
 |---|---|
-| `Cmd/Ctrl+\` | Show / hide the inspector panel |
+| `Cmd/Ctrl+\` | Show / hide the inspector |
 
-On every page that has an inspector: Markdown notes, HTML previews, media,
-PDFs, archives and images. A file whose type Litloft does not recognise — and
-plain text, subtitles and the Office formats, which have no viewer to give a
-column to — keeps the older stacked page and has no inspector. Desktop only: on
-a phone the inspector is a bottom sheet that rests rather than closes, and the
-toggle in the page row raises it. This chord fires even while a note's editor
-has focus.
+Works on every file page, even while you are editing a note. On a phone, use the toggle in the page row instead.
 
 ### Markdown editor (Knowledge addon)
 
-Available while editing a note. All of these fire with the editor focused.
+While editing a note:
 
 | Key | Action |
 |---|---|
@@ -227,81 +137,52 @@ Available while editing a note. All of these fire with the editor focused.
 | `Cmd/Ctrl+K` | Insert link |
 | `Cmd/Ctrl+E` | Inline code |
 | `Cmd/Ctrl+Shift+K` | Code block |
-| `Cmd/Ctrl+Shift+\` | Cycle edit / split / preview |
+| `Cmd/Ctrl+Shift+\` | Switch between Edit, Split and Preview |
 
-`Cmd/Ctrl+S` does not save in the usual sense — the note is already saved
-automatically. It marks the current text as a version worth keeping, so it
-survives the pruning that applies to automatic snapshots.
-
-`Cmd/Ctrl+K` is bound twice on purpose: with the editor focused it inserts a
-link, and everywhere else it opens the file switcher.
+Notes save automatically. `Cmd/Ctrl+S` marks the current text as a version to keep. In the editor `Cmd/Ctrl+K` inserts a link instead of opening search.
 
 ### Connections graph (Knowledge addon)
 
 | Key | Action |
 |---|---|
-| `+` / `=` / `-` | Zoom the graph in / in / out (ignored while typing in a field) |
+| `+` or `=` / `-` | Zoom in / out |
 
-## Modals
-
-Modal-specific shortcuts can be discovered with `?` while the modal is open.
-Common ones:
+## Dialogs
 
 | Key | Action |
 |---|---|
 | `Esc` | Cancel / close |
-| `Enter` | Confirm primary action |
-| `Tab` / `Shift+Tab` | Move focus |
+| `Enter` | Confirm |
+| `Tab` / `Shift+Tab` | Move between fields and buttons |
 
-## Mouse shortcuts
+## Mouse and touch in folders
 
 | Action | Result |
 |---|---|
-| Right-click on a file or folder | Context menu (rename, move, copy, delete, pin, etc.) |
+| Right-click a file or folder | Menu (rename, move, copy, delete, pin, and more) |
 | Long-press (touch) | Same as right-click |
-| Click + Shift on a file | Range selection in the grid |
-| Click + `Cmd`/`Ctrl` on a file | Toggle individual selection |
+| `Shift`+click a file | Select a range |
+| `Cmd/Ctrl`+click a file | Add or remove it from the selection |
 | Drag a file onto a folder | Move it there |
-| Hold a drag over a collapsed tree folder | Expands it after 600 ms, so you can drop into a folder you have not opened yet |
+| Hold a drag over a closed folder in the tree | Open it, so you can drop inside |
 
-## Player-specific gestures (video)
-
-Touch and mouse have separate, non-overlapping gesture sets — the player picks
-one from the pointer type, so neither can fire the other's actions.
+## Video player gestures
 
 **Touch**
 
 | Gesture | Action |
 |---|---|
 | Tap | Show / hide the controls |
-| Double-tap the left or right half | Skip back / forward 10 s |
-| Keep tapping the same side | The skip accumulates (10 s, 20 s, 30 s ...) while taps stay within 1.3 s of each other |
-| Press and hold | Boost a playing file to 2x until you let go (after 500 ms) |
-| Vertical swipe, or pinch | Enter / leave fullscreen |
+| Double-tap the left or right half | Back / forward 10 s |
+| Keep tapping the same side | Skip further (20 s, 30 s …) |
+| Press and hold | Play at 2x until you let go |
+| Swipe up or down, or pinch | Enter / leave full screen |
 
 **Mouse**
 
 | Gesture | Action |
 |---|---|
 | Click | Play / pause |
-| Double-click | Toggle fullscreen |
+| Double-click | Full screen |
 
-There is no tap-to-skip and no speed boost with a mouse. A drag that starts on
-the scrub bar always scrubs and is never taken as one of the gestures above.
-
-## Custom registration
-
-Pages register shortcuts via the `useShortcuts()` hook
-(`frontend/src/hooks/useShortcuts.ts`). Addons may register their own.
-
-## Discoverability
-
-If a key chord is not listed here, press `?` on the page in question. The cheat
-sheet is generated from the active hook registrations, so it always reflects
-what is actually wired.
-
-The search modal (`Cmd/Ctrl+K`) carries the same door along its bottom edge —
-**? Keyboard Shortcuts** — for readers who have not been told about `?`.
-Pressing it closes the search and opens the sheet, rather than stacking the
-two: while the sheet is up every other shortcut is ignored, so two layers
-would make Escape mean different things on consecutive presses.
+With a mouse there is no tap-to-skip or 2x hold. Dragging on the progress bar always seeks.
