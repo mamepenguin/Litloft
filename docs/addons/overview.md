@@ -1,157 +1,73 @@
 # Addon overview
 
-Litloft addons are optional capability modules. Each addon is a separate Git repository, tracked as a submodule under `addons/<name>/`, and is enabled per drive via `drives.json`. Four are shipped today; more are easy to add — see [addon development](../developer-guide/addon-dev.md).
+Addons are optional parts of Litloft. Each one is its own Git repository, checked out as a submodule under `addons/<name>/`. You choose which drives use each addon. To write your own, see [Addon development](../ADDON-DEVELOPMENT.md).
 
-## The four shipped addons
+## The four addons
 
-| Addon | Type | Scope | What it adds |
+| Addon | Runs as | Scope | What it adds |
 |---|---|---|---|
-| [intelligence](intelligence.md) | Independent service (port 8100) | drive | Semantic search, Ask (RAG), summaries, transcripts, vision descriptions |
-| [knowledge](knowledge.md) | Independent service (port 8200) | drive | Vaults of Markdown notes, web clips, frontmatter sync |
-| [cloud-sync](cloud-sync.md) | In-process | global | Scheduled rclone backups |
-| [media_import](media-import.md) | In-process | drive | URL → `.loft` reference files (YouTube, Vimeo, …) |
+| [intelligence](intelligence.md) | Its own container (port 8100) | drive | Semantic search, Ask, summaries, transcripts, image descriptions |
+| [knowledge](knowledge.md) | Its own container (port 8200) | drive | Markdown notes and editor, web clips, capture basket, connections graph |
+| [cloud-sync](cloud-sync.md) | Inside the backend | global | Scheduled rclone backups |
+| [media_import](media-import.md) | Inside the backend | drive | Video URLs as `.loft` files (YouTube, Vimeo), channel subscriptions |
 
-## Two flavours of addon
+## Two kinds of addon
 
-### In-process
+**Inside the backend.** The addon's code is copied into the backend image when it is built, and loads with the backend. There is no extra container. A fault in the addon can affect the backend. `cloud-sync` and `media_import` work this way.
 
-The addon code is loaded into the backend FastAPI app at startup via a symlink under `backend/addons/`. It shares the backend's event loop, database session, and websocket bridge.
+**Separate service.** The addon has its own `Dockerfile` and container. The browser reaches it through the backend at `/api/addons/<name>/...`, and it reads Litloft data through an internal API on the Docker network. It is isolated from the backend and can use heavy dependencies without enlarging the backend image. `intelligence` and `knowledge` work this way. Their containers should wait for the backend with `depends_on: condition: service_healthy`.
 
-- Pros: fast, no extra container, no network hop.
-- Cons: shares failure domain with the core (a bad addon can crash the backend).
+## Scope
 
-`cloud-sync` and `media_import` are in-process.
-
-### Independent service
-
-The addon ships its own `Dockerfile` and runs in its own container. It talks to the core through:
-
-- The **public addon proxy** on the frontend (`/api/addons/<name>/*`) for browser traffic.
-- The **internal API** (`/api/internal/*`) on the Docker network for core data lookups.
-
-- Pros: fault-isolated, can use heavyweight runtimes (PyTorch, ffmpeg-with-NVENC) without bloating the core image.
-- Cons: extra container, requires a `depends_on: condition: service_healthy` on cold start.
-
-`intelligence` and `knowledge` are independent services.
-
-## Two scopes
-
-A scope is declared at addon load time:
-
-- `scope: drive` — the addon operates on a specific drive at a time. Frontend pages are reached via `/drive/<drive>/addons/<name>/...` and the request includes the `X-HV-Drive` header. The core proxy validates the header against the viewer's accessible drives.
-- `scope: global` — the addon does not bind to a single drive. Frontend pages live at `/admin/<name>` (or wherever the addon declares). Cloud-sync is the canonical example: a single dashboard widget driving backups for all drives.
-
-Addons may also declare `scope: both` if they need both surfaces.
-
-An undeclared scope is a load error — the addon is skipped. There is no implicit default.
+- **drive**: the addon works on one drive at a time. Its page is under `/drive/<drive>/addons/<name>`.
+- **global**: the addon is not tied to a drive. cloud-sync is a card on the admin dashboard that covers every drive.
 
 ## Per-drive policy
 
-Each drive can opt into or out of each addon and its sub-features. The configuration lives in `drives.json`:
+Each drive can turn each addon, or one of its features, on or off. Edit this under **Addon policy** at `/admin/settings` (see [Settings GUI](../admin-guide/settings-gui.md#addon-policy)), or in `drives.json`:
 
 ```json
 {
   "name": "Photos",
   "path": "/app/drives/photos",
   "addons": {
-    "intelligence": {
-      "transcription_cloud": false
-    },
+    "intelligence": { "transcription_cloud": false },
     "knowledge": false
   }
 }
 ```
 
-Rules:
+- `true` turns every feature of the addon on, and `false` turns every feature off.
+- An object turns single features on or off.
+- Anything not listed is on.
 
-- Boolean shorthand: `true` enables every feature; `false` disables every feature.
-- Object form: each `feature: bool` overrides one sub-feature.
-- Unspecified keys default to *graceful degradation*: enabled if the addon's manifest says so, disabled otherwise.
+A change saved in the settings GUI applies to the backend at once. A change made by editing `drives.json` needs a backend restart. Addons that check the policy themselves may take a short time to notice; see each addon's page.
 
-The core treats this map as a **generic dictionary** — it does not interpret addon names or feature names. That is the addon's job.
+Turning an addon off for a drive hides its menus, panels and pages on that drive. Routes reached through the backend's addon proxy answer `404` for that drive. The routes of an addon that runs inside the backend keep answering.
 
-## Capability declaration
+What happens to data the addon already stored depends on the addon. The intelligence addon deletes its data for a turned-off drive the next time it starts. The knowledge addon keeps it, and the notes themselves are ordinary files on the drive.
 
-Each addon declares its capabilities to the core at load time:
+## Where addons appear
 
-- An in-process addon exposes `ADDON_META` from its Python entry point.
-- An independent service addon ships a `manifest.json` (read by the host proxy on start).
+Addons add entries to fixed places in the interface: search modes, sections in a file's **Info** tab, tabs beside the player, the **Related** tab, the file's action row and `...` menu, the **Add** menu, the header, the sidebar, and the admin dashboard. When no addon uses a place, nothing is shown there. The full list of places is in [Addon development](../ADDON-DEVELOPMENT.md#available-slots).
 
-Common fields:
+## File events
 
-- `name` — opaque identifier, must match the directory name.
-- `scope` — `drive | global | both`.
-- `slots` — UI injection points the addon contributes to (search-modes, file-detail-sections, player-side, file-relations, file-detail-actions, file-actions-menu, dashboard-widgets, dashboard-alerts, folder-actions).
-- `features` — the sub-feature flags exposed to the policy editor.
-- `pages` — frontend routes the addon adds.
-- `event_hooks` — webhook URLs invoked on lifecycle events.
+The backend tells separate-service addons when files are created, updated, moved, deleted, restored, purged, go missing or come back, when folders change, and when a scan finishes. `configure.py` builds the list of listeners, `event-hooks.json`, from each enabled addon's `manifest.json`, and mounts it into the backend. Each addon checks a shared secret on these calls, for example `KNOWLEDGE_WEBHOOK_SECRET`. Set the same value on the backend and the addon.
 
-## UI extension via slots
-
-Litloft's frontend has a small set of named slots:
-
-- `search-modes` — appended to the search page sidebar.
-- `file-detail-sections` — stacked sections in the file detail inspector's **Info** tab (AI summary, suggested tags, the Knowledge editor, …).
-- `player-side` — a tab beside a media file, for something that follows playback (a transcript). One entry is one tab, and an entry that says it has nothing for a file gets none.
-- `file-relations` — in the inspector's **Related** tab, for connections an addon derives rather than the user states (similar files), or a way into them (the connections graph).
-- `file-detail-actions` — the file's action row, beside like and favourite, for a per-file action worth one press.
-- `dashboard-widgets` — admin dashboard cards.
-- `dashboard-alerts` — a band above the drive cards, for something an operator should see before anything else. Absent when there is nothing to report.
-- `folder-actions-menu` — rows in the folder toolbar's Add menu, under a separator below the app's own.
-- `file-actions-menu` — entries in the `[...]` overflow menu on the file detail page, for per-file actions that are too infrequent to earn a section.
-
-When no addon contributes to a slot, the slot disappears entirely (no holes in the UI). Per-drive policy filters which addons populate each slot per request.
-
-## Event hooks
-
-The core emits lifecycle events that addons subscribe to:
-
-- `files.created`, `files.updated`, `files.deleted`, `files.restored`, `files.missing`, `files.recovered`, `files.moved`, `files.purged`
-- `scan.complete`
-
-Hooks are configured in `event-hooks.json` (in the core data dir). When a hook fires, the core POSTs the payload to the addon's webhook URL with an `X-Webhook-Secret` HMAC header signed with the addon's shared secret (e.g., `KNOWLEDGE_WEBHOOK_SECRET`). Hooks are *fail-open* on lookup error — events are forwarded without filtering when the per-drive policy cache is unreachable.
-
-## Internal API
-
-Addons that need to read core data go through the **internal API** on the Docker network:
-
-- `/api/internal/accessible-drives` — drive enumeration.
-- `/api/internal/files/<id>` — file metadata.
-- `/api/internal/files/<id>/content` — file body (text MIMEs only, gated by `CORE_INTERNAL_SECRET`, max 10 MB by default).
-- `/api/internal/files/<id>/tags` — write tags (idempotent, also gated).
-- `/api/internal/file_relations` — read/write the typed-link graph.
-- `/api/internal/filter-file-ids` — access-control filter.
-- `/api/internal/files/bulk-state` — lifecycle bulk read.
-- `/api/internal/addon-events` — bridge to the WebSocket broadcaster.
-
-The endpoints are deliberately small and generic; see [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
+Events for a drive where the addon's `index` feature is off are not sent to it.
 
 ## Enabling and disabling addons
 
-The four shipped addons are tracked as Git submodules under `addons/`. A `git clone --recurse-submodules` (or, after the fact, `git submodule update --init --recursive`) checks them out. From there:
+The addons are Git submodules. `git clone --recurse-submodules`, or later `git submodule update --init --recursive`, checks them out.
 
-- **Independent-service addons** (`intelligence`, `knowledge`) — `configure.py` writes the matching service block into `docker-compose.override.yml`. Re-run `python3 configure.py` to toggle the answer, then `docker compose up -d --build`.
-- **In-process addons** (`cloud-sync`, `media_import`) — the backend Dockerfile copies every addon's `backend/` directory into the image at build time, so they ship and auto-load as soon as the image is rebuilt; no host-side symlink is required for a Docker install. When you run the backend outside Docker (local development), use `./setup-addons.sh` once from the repo root to link each addon into the core tree. It links `backend/<name>` as a symlink to the addon's `backend/`, and builds `frontend/src/addons/<name>/` as a real directory holding one symlink per file — a directory, because tools that walk the tree do not descend a symlinked one.
-- **Remove an independent-service addon** — answer no in `configure.py` (or remove its service block from `docker-compose.override.yml`) and rebuild.
-- **Remove an in-process addon** — it loads whenever its directory is checked out, so only leaving the submodule uninitialised removes it. A per-drive policy of `false` hides its entrances but does not unload it: its own routes keep answering.
-- **Disable per drive** — toggle in the [settings GUI](../admin-guide/settings-gui.md) → AddonPolicy.
+- **Separate-service addons** (`intelligence`, `knowledge`): answer yes when `configure.py` asks, and it writes the service into `docker-compose.override.yml`. Then run `docker compose up -d --build`. To remove one, answer no (or delete its service block) and rebuild.
+- **Addons inside the backend** (`cloud-sync`, `media_import`): they are built in whenever their directory is checked out, so rebuild after checking one out. To remove one, leave its submodule uninitialised and rebuild. Turning it off in the per-drive policy does not unload it.
+- **Per drive**: use **Addon policy** in the [settings GUI](../admin-guide/settings-gui.md#addon-policy).
 
-When a drive policy flips an addon off, the addon is responsible for purging the data it had stored for that drive (best practice, with safety: skip the purge if the policy lookup fails to avoid accidental wipe).
+When you run the backend outside Docker for development, run `./setup-addons.sh` once from the repository root to link the addons into the core tree.
 
-## Order of evaluation
+## See also
 
-A request reaching `/api/addons/<name>/...` goes through several layers:
-
-1. **Frontend rewrite** — `/api/*` rewrites to `backend:8000/api/*`.
-2. **addon_proxy** in the core — checks `X-HV-Drive` (when scope=drive), validates against `accessible_drives`, looks up policy.
-3. **Policy gate** — pre-check: if disabled, return `404`.
-4. **Forward to addon** — independent service hit by HTTP, in-process invoked directly.
-5. **Addon worker** — `is_feature_enabled()` belt-and-braces check; turns into a no-op if the policy got missed.
-
-The policy lookup failure mode is *fail-closed* on writes (proxy returns 404) and *fail-open* on event hooks (forward and let the addon decide).
-
-## Where to learn more
-
-- [intelligence](intelligence.md) — by far the biggest addon, with its own configuration file.
-- [knowledge](knowledge.md), [cloud-sync](cloud-sync.md), [media_import](media-import.md) for the others.
-- [Addon development](../developer-guide/addon-dev.md) for writing your own.
+- [intelligence](intelligence.md), [knowledge](knowledge.md), [cloud-sync](cloud-sync.md), [media_import](media-import.md)
+- [Addon development](../ADDON-DEVELOPMENT.md) for manifests, slots, event hooks and the internal API.

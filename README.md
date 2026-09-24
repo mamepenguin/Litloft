@@ -4,7 +4,7 @@ A file-based media library.
 
 Litloft is a self-hosted library app that runs on your home LAN. It gives you a single web interface to manage and share your videos, documents, images, web videos, and Markdown notes.
 
-I originally started building it as a simple video server, but it has evolved to focus heavily on knowledge aggregation and search. By indexing your files in multiple ways, Litloft turns a scattered collection of media into a truly useful, searchable resource.
+Beyond playback, it indexes the contents of your files in several ways, so a scattered collection of media becomes something you can search.
 
 **[Landing page](https://mamepenguin.github.io/Litloft/)** ·
 **[Documentation](docs/README.md)** ·
@@ -84,11 +84,11 @@ python3 configure.py
 docker compose up -d --build
 ```
 
-Open `http://localhost:3000`.
+Open the address `configure.py` prints. On the first run it is `http://localhost:3000/setup?token=…`, which starts the setup wizard.
 
-From another device on the same LAN, open `http://<host-ip>:3000`.
+From another device on the same LAN, use `http://<host-ip>:3000`.
 
-`configure.py` generates your local Docker configuration, drive mounts, ports, and optional add-on services. On the first launch, a setup wizard will guide you through naming drives, access control, and add-on policies.
+`configure.py` generates your local Docker configuration: drive mounts, port, and optional add-on services. It prints the address of the setup wizard, where you name drives and set access control and add-on policies. See [Installation](docs/getting-started/installation.md) for details, including HTTPS for Safari on iPhone and iPad.
 
 To update:
 

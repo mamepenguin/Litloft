@@ -1,35 +1,40 @@
 # HTTP API reference
 
-A high-level catalogue of Litloft's HTTP API. The browser uses these endpoints; CLI scripts can too. All endpoints are served from `http://<host>:<port>/api/...` and are proxied to the backend through the Next.js custom server.
+The browser uses these endpoints, and scripts can too. Every endpoint is served at `http://<host>:<port>/api/...` through the Next.js custom server.
 
-> Conventions: all responses are JSON unless noted. Error responses are `{ "detail": "..." }` (a few newer endpoints put a machine-readable object there instead, e.g. `{ "detail": { "code": "job_not_found" } }`). Authentication is cookie-based (`access_token` JWT + optional `lit_viewer` identity cookie); non-browser clients may send the JWT as `Authorization: Bearer <token>` and the viewer nickname as `X-Lit-Viewer` instead. A Bearer credential takes priority over the cookie and never falls back to it. Cross-drive endpoints automatically filter to the viewer's accessible drives.
+Conventions:
+
+- Responses are JSON unless noted. Errors are `{ "detail": "..." }`; the admin config and Markdown image routes put an object there instead, e.g. `{ "detail": { "code": "job_not_found" } }`.
+- Authentication is the `access_token` JWT cookie. A non-browser client may send the JWT as `Authorization: Bearer <token>` instead. A Bearer credential takes priority over the cookie and never falls back to it.
+- Viewer identity is a nickname in the `lit_viewer` cookie or the `X-Lit-Viewer` header. See [Viewer identity](#viewer-identity-and-watch-progress).
+- Endpoints that take file ids from several drives filter them to the drives the caller can access.
 
 ---
 
 ## Status codes and pagination
 
-Common status codes across endpoints:
-
-| Code | Meaning in Litloft |
+| Code | Meaning |
 |---|---|
-| `200` / `201` | Success. `201` on resource creation (pin a folder, create a collection / smart folder / text file, post a comment). |
-| `202` | Accepted — the markdown-image import job was queued. |
-| `204` | Success, no body (unpin, delete a comment, delete a smart folder, delete a collection or item, internal tag / chapter writes, and progress writes made without a viewer cookie). |
-| `206` | Partial content — a satisfied `Range` request on `GET /api/files/{id}/stream`. |
-| `400` | Bad request — most often path traversal in a `path`/`folder` argument, a missing drive context on a `scope=drive` addon call, or a cross-drive collection item. |
-| `401` / `403` | Not authenticated / not permitted. `401` when a comment is posted without a viewer identity; `403` for non-admin callers of admin routes, for editing or deleting someone else's comment, and for an addon call naming a drive the caller cannot access. |
-| `404` | Not found — **also returned for a locked protected drive**, so its existence stays hidden, and for Missing/Trash files on GET or mutating endpoints. |
-| `409` | Conflict — scan already in progress, duplicate collection name, folder already pinned, `conflict_mode=error` collision on file create, collection reorder whose item set does not match, setup already completed, maintenance job already running. |
-| `410` | Gone — streaming, rendering, or extracting preview text from a Missing file. |
-| `412` / `428` | `PUT /api/files/{id}/content` optimistic locking: `428` when `If-Match` is absent, `412` when it does not match the current content ETag. |
-| `413` | Payload too large — body cap exceeded (1 MB content write / text-file create, 5 MB render, 5 MB subtitle, 50 MB archive entry). |
-| `415` | Unsupported media type — non-UTF-8 HTML for `/render`, a non-Markdown file for `/wiki-resolutions`, a mime outside the text allowlist for the content `PUT`. |
-| `416` | Range not satisfiable — malformed or out-of-bounds `Range` header on `/stream`. |
-| `422` | Validation error — FastAPI schema rejection, the 500-comments-per-file ceiling, or a chapter promotion whose entries are all invalid. |
-| `429` | Rate limit exceeded. Two in-memory per-IP limiters: `POST /api/auth/unlock` (5 / 60 s) and `POST /api/files/{id}/comments` (10 / 60 s). |
-| `503` | An addon's proxy target is not configured, or a write-gated Internal API endpoint was called while `CORE_INTERNAL_SECRET` is unset. |
+| `200` / `201` | Success. `201` when a pin, collection, Smart Folder, text file, comment or (Internal API) file relation is created. |
+| `202` | The Markdown image import job was queued. |
+| `204` | Success, no body: unpin, delete a comment, Smart Folder, collection or collection item, delete progress, the Internal API writes, and progress writes made without a viewer identity. |
+| `206` | A satisfied `Range` request on `/stream`. |
+| `400` | Bad request: path traversal in a `path` / `folder` argument, a missing drive context on a `scope=drive` addon call, a cross-drive collection item or relation. |
+| `401` | A comment posted without a viewer identity. |
+| `403` | A non-admin caller on an admin route, editing or deleting someone else's comment, an addon call naming a drive the caller cannot access, a wrong setup token, a wrong `X-Internal-Secret`. |
+| `404` | Not found. **Also returned for a locked protected drive**, so its existence stays hidden, and for Missing or Trash files on GET and mutating endpoints. `/stream`, `/render`, `/preview-text` and `/thumbnail` still serve trashed files. |
+| `409` | Conflict: scan already running, duplicate collection name, folder already pinned, `conflict_mode=error` collision, a collection reorder whose item set does not match, setup already completed, a maintenance job already running, a relation that already exists, an Internal API trust-tier write on a file a viewer already ruled on. |
+| `410` | Gone: `/stream`, `/render` or `/preview-text` on a Missing file. |
+| `412` / `428` | `PUT /api/files/{id}/content`: `428` when `If-Match` is absent, `412` when it does not match the current ETag. |
+| `413` | Body or file too large: 1 MB content write / text-file create, 5 MB render, 5 MB subtitle, 50 MB archive entry, `CORE_INTERNAL_CONTENT_MAX_BYTES` on the Internal API content read. |
+| `415` | Unsupported media type: non-UTF-8 HTML on `/render`, a non-Markdown file on `/wiki-resolutions`, a mime outside the text allowlist on the content `PUT` or the Internal API content read. |
+| `416` | A malformed or out-of-range `Range` header on `/stream`. |
+| `422` | Validation error: schema rejection, the 500-comments-per-file ceiling, a chapter promotion with no valid entry, an admin config payload that fails validation. |
+| `429` | Rate limit: `POST /api/auth/unlock` and `POST /api/files/{id}/comments`, per client IP. |
+| `502` | An external-service addon did not answer. |
+| `503` | An addon's proxy target is not configured, or a strict Internal API write was called while `CORE_INTERNAL_SECRET` is unset. |
 
-Pagination: list endpoints that paginate take `page` (1-based) and `limit` (default 30, max 500), and return `{ "data": [...], "meta": { "total", "page", "limit" } }`. `GET /api/drives/{drive}/files`, `/trash`, and `/missing` are the paginated surfaces; `GET /api/files/{id}/versions` uses `limit` (default 50, capped at 100) / `offset` instead and returns the total alongside. There is no cursor API — pagination is offset/page based, and an out-of-range `page` returns an empty list rather than an error.
+Pagination: `GET /api/drives/{drive}/files`, `/trash` and `/missing` take `page` (1-based) and `limit` (default 30, max 500) and return `{ "data": [...], "meta": { "total", "page", "limit" } }`. A `page` past the end returns an empty list. `GET /api/files/{id}/versions` takes `limit` (default 50, capped at 100) and `offset` instead.
 
 ---
 
@@ -37,37 +42,37 @@ Pagination: list endpoints that paginate take `page` (1-based) and `limit` (defa
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/health` | Liveness probe. Always `{ "status": "ok" }` with `200` once the app is up. No auth. This is what the Docker healthcheck polls (every 30s, 10s timeout, 3 retries, 10s start period). |
-| `GET` | `/api/addons/status?drive=` | Loaded-addon catalogue and UI slot map. Without `drive`: every loaded addon (admin/global view). With `drive`: addons whose per-drive `index` policy is off are dropped, along with their slots. External-service addons whose target env var is unset are omitted entirely. An unknown `drive`, or one the caller has not unlocked, yields the same empty maps (not `404`). |
+| `GET` | `/api/health` | `{ "status": "ok" }`. No auth. The Docker healthcheck polls it. |
+| `GET` | `/api/addons/status?drive=` | `{ addons, slots }`: loaded addons and their UI slots. External-service addons whose target env var is unset are left out. Without `drive`, every loaded addon. With `drive`, addons whose `index` policy is off for that drive are dropped with their slots; an unknown drive, or one the caller has not unlocked, gives empty maps rather than `404`. |
 
 ## Auth
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/auth/unlock` | Try a password, get a JWT cookie. Body: `{ "password": "...", "remember": bool }`. Responds `200` either way: `{ "success": true, "groups": [...], "token": "..." }` on match, `{ "success": false, "error": "Invalid password" }` on miss. `token` is echoed so non-browser clients can resend it as `Authorization: Bearer`. Rate-limited to 5 attempts per 60 s per client IP (`429` when exceeded). |
-| `POST` | `/api/auth/lock` | Clear the JWT cookie. |
-| `GET` | `/api/auth/status` | Inspect the current viewer: `{ unlocked_groups, has_protected_drives, is_admin }`. `is_admin` is true only when the caller can see every protected drive. |
+| `POST` | `/api/auth/unlock` | Body `{ "password": "...", "remember": bool }`. Always `200`: `{ "success": true, "groups": [...], "token": "..." }` on a match (and the `access_token` cookie is set), `{ "success": false, "error": "Invalid password" }` otherwise. `token` is for clients that send `Authorization: Bearer`. After 5 failed attempts from one IP within 60 s, further attempts get `429`. |
+| `POST` | `/api/auth/lock` | Clear the `access_token` cookie. |
+| `GET` | `/api/auth/status` | `{ unlocked_groups, has_protected_drives, is_admin }`. `is_admin` is true when the caller holds the `__admin__` group or has unlocked every protected drive. With no protected drive, it is true for everyone unless an `__admin__` password exists. |
 
 ## Drives
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/drives` | List drives accessible to the viewer: `{ name, protected, file_count }`. Counts are active files only (trash and missing excluded); a locked drive's count never leaves the server. |
+| `GET` | `/api/drives` | Drives the caller can access: `[{ name, protected, file_count }]`. `file_count` counts active files only. |
 | `GET` | `/api/drives/{drive}/summary` | `{ name, trash_count, missing_count }`. |
-| `GET` | `/api/drives/{drive}/folders?path=` | Direct subfolders under a path: `{ name, path, file_count, kind_counts, dominant_kind }`. `file_count` and `kind_counts` are both **recursive** — they cover the folder and its whole subtree. `kind_counts` maps each kind the folder holds to how many files of it there are, using the same classifier `?type=` selects with — `video`, `image`, `audio`, `document`, `archive`, `text`, `pdf`, `other`, recognising text and PDF by mime **or** by filename extension exactly as the filter does. The one divergence is `subtitle`: `?type=subtitle` selects those rows, and nothing in the UI offers that filter or a word for the kind, so they are counted as `other`. a kind the folder holds none of is absent rather than zero, and the values sum to `file_count`. `dominant_kind` is the largest of them, or `null` for an empty folder. The folder-mutation responses (`POST` / `PUT .../folders`) share this schema but leave `kind_counts` empty and report a non-recursive `file_count`; callers refetch the listing. |
-| `GET` | `/api/drives/{drive}/folder-tree?root=&type_filter=&depth=1&flat=&include_files=` | Lazy-expandable tree for the 2-pane browser. Default mode returns one level of **subfolders** under `root`, each carrying `file_count` and `has_children`. `include_files=true` adds the depth-1 files matching `type_filter` (same values as the listing's `type`); it defaults to `false`, matching the tree pane's own default, so reading this table and reading the screen give the same answer. `has_children` follows `include_files`, because it answers "will expanding this show anything" — with files hidden, a folder holding only files is a leaf. `file_count` does **not** follow it: that is the folder's size, which is the same whatever the tree draws. `flat=true` returns a flattened subtree, capped at 50,000 entries, and honours `include_files` too — the tree pane's filter searches that list, so with files hidden the filter matches folder names only. `depth` currently accepts only `1`. |
-| `GET` | `/api/drives/{drive}/files?path=&recursive=&search=&favorite=&liked=&tag=&type=&sort=&order=&page=&limit=` | List files with filters. `path` is an exact `folder_path` match (direct children); `recursive=true` widens it to the whole subtree, and a recursive query with an empty `path` covers the drive. `search` matches title **or** folder path (each item carries a `match_source` of `filename` / `path` / `both`). `liked=true` selects files carrying a like stamp (`liked=false` the rest). `sort` is one of `created_at`, `title`, `file_size`, `liked_at`, `updated_at`, `random`. `updated_at` is for API callers only (the Sort button does not offer it, and a folder URL carrying it falls back to the default order); it is the row's last-changed time, which moves on a content edit and also on tag, favourite or thumbnail updates. `type` is one of `video`, `image`, `audio`, `document`, `archive`, `other`, `text`, `pdf` — the same vocabulary the tree's `type_filter` and watch-history's `type` take, applied by the same classifier. `text` and `pdf` are refinements of `document`, so `document` returns them as well. `text` is mime `text/markdown` or a filename ending in `.md`, `.markdown` or `.txt`; it does not go by `text/plain`, which also lands on source files such as `.c`. `pdf` is `application/pdf` or `.pdf`. `markdown`, the former name of `text`, is still accepted and answered as `text`. Anything else is a 422. |
-| `GET` | `/api/drives/{drive}/files/by-path?path=...` | Resolve one active file by exact normalized drive-relative path. Returns 404 when no active row matches; unlike the paginated listing, this has no search ceiling. |
-| `POST` | `/api/drives/{drive}/files` | Create a file in the drive. Body `{ "path": "<rel>", "content": "<utf-8 text>", "conflict_mode": "rename" \| "error" }`. `conflict_mode` defaults to `rename`, preserving automatic suffixing (`foo.md` → `foo (1).md`). `error` returns 409 on any DB/filesystem collision and never creates a suffix. Any extension is accepted; 1 MB body cap; 400 on traversal. `201` on creation, `200` when the write revived a missing row at the same path (default `rename` mode only). A Markdown file's links are synced into `file_relations` as on `PUT /api/files/{id}/content`. |
-| `GET` | `/api/drives/{drive}/tags?folder_path=&path=&type=` | Tag names with usage counts. `folder_path` scopes the counts to that folder's subtree; `path` to files directly in that folder (`path=` is the drive root) and omits tags none of them carry. `type` (same values as the listing's `type`) counts only active files of that kind and omits tags none of them carry. |
-| `GET` | `/api/drives/{drive}/folder-counts?type=` | `[{ path, count }]`: active files per exact `folder_path` (not the subtree), optionally only of one kind, ordered by path. The drive root is `""`; folders with no such file are absent. |
-| `GET` | `/api/drives/{drive}/duplicates` | Files grouped by `(file_hash, file_size)`, plus `total_groups` and `total_wasted_bytes`. Not paginated. |
-| `GET` | `/api/drives/{drive}/watch-history?limit=&filter=&type=` | This viewer's recently opened files in the drive. `filter=unfinished` (default) applies the 90 %-completion gate; `filter=all` does not. A file that was only opened, never played (a note, say), is kept out by the gate, so ask for it with `filter=all`. `type` takes the listing's kind vocabulary and is applied before `limit`. `limit` defaults to 20, max 50. Returns `{ "data": [] }` when no viewer identity is present. |
-| `GET` | `/api/drives/{drive}/addon-policies` | Read-only per-drive addon policy snapshot for the browser: `{ "addons": { "<name>": { "default": bool, "features": { ... } } } }`. Malformed `drives.json` surfaces as `500`, never as "all enabled". |
-| `GET` | `/api/drives/{drive}/pins` | Pinned folders. |
-| `POST` | `/api/drives/{drive}/pins` | Pin a folder (`201`; `409` if already pinned). |
-| `DELETE` | `/api/drives/{drive}/pins?path=...` | Unpin (`204`). The path is a query parameter, not a path segment. |
-| `POST` | `/api/drives/{drive}/scan` | Force a rescan. Scans are globally serialised; returns `409 Scan already in progress` if any drive is currently scanning. |
+| `GET` | `/api/drives/{drive}/folders?path=` | Direct subfolders of `path`: `[{ name, path, file_count, kind_counts, dominant_kind }]`. `file_count` and `kind_counts` cover the whole subtree. `kind_counts` maps a kind (`video`, `image`, `audio`, `document`, `archive`, `text`, `pdf`, `other`) to its file count, classified as the listing's `type` filter does; kinds with no files are absent, and the values sum to `file_count`. `dominant_kind` is the largest kind, or `null` for an empty folder. |
+| `GET` | `/api/drives/{drive}/folder-tree?root=&type_filter=&depth=1&flat=&include_files=` | Tree nodes `{ kind: "folder" \| "file", name, path, ... }`, folders first. By default, one level of subfolders under `root`, each with `file_count` (subtree, after `type_filter`) and `has_children`. `include_files=true` (default `false`) also returns the files directly under `root` that match `type_filter`, each with `file_id`, `file_type`, `mime_type`. With files hidden, a folder that holds only files has `has_children: false`. `flat=true` returns the whole drive as one flat list, capped at 50,000 entries, and honours `include_files`. `depth` accepts only `1`. `type_filter` takes the listing's `type` values. |
+| `GET` | `/api/drives/{drive}/files?path=&recursive=&search=&favorite=&liked=&tag=&type=&trust=&sort=&order=&page=&limit=` | Active files, paginated. `path` matches `folder_path` exactly (direct children); `recursive=true` includes the subtree, and with an empty `path` the whole drive. `search` (max 200 chars) matches title or folder path; each item then carries `match_source`: `filename`, `path` or `both`. `favorite` and `liked` take `true` / `false`. `tag` matches a tag name, case-insensitive. `trust` is `verified`, `unverified`, or `unreviewed` (files no viewer has ruled on, in either tier). `sort` is `created_at` (default), `title`, `file_size`, `liked_at`, `updated_at` or `random`; `order` is `desc` (default) or `asc`. `updated_at` changes on any row update, including tags, favourite and thumbnail. `type` is `video`, `image`, `audio`, `document`, `archive`, `other`, `text`, `pdf` or `subtitle`; `markdown` is accepted as an alias of `text`; anything else is `422`. `document` includes `text` and `pdf`. `text` is mime `text/markdown` or a name ending `.md`, `.markdown` or `.txt`. `pdf` is `application/pdf` or `.pdf`. |
+| `GET` | `/api/drives/{drive}/files/by-path?path=...` | One active file by its exact drive-relative path. `404` when none matches. |
+| `POST` | `/api/drives/{drive}/files` | Create a file with text content. Body `{ "path": "<rel>", "content": "<utf-8 text>", "conflict_mode": "rename" \| "error" }`. `rename` (default) adds a suffix on collision (`foo.md` → `foo (1).md`); `error` returns `409` instead. Any extension; 1 MB cap; `400` on traversal. `201` on creation; `200` when, in `rename` mode, it revived a Missing row at the same path. A Markdown file's links are synced into relations as on the content `PUT`. |
+| `GET` | `/api/drives/{drive}/tags?folder_path=&path=&type=` | `[{ name, count }]`. `folder_path` counts only files in that folder's subtree; `path` only files directly in that folder (`path=` is the drive root) and omits tags none of them carry. `type` counts only files of that kind and omits tags none of them carry. |
+| `GET` | `/api/drives/{drive}/folder-counts?type=` | `[{ path, count }]`: active files per exact `folder_path`, optionally of one kind, ordered by path. The root is `""`. Folders with no matching file are absent. |
+| `GET` | `/api/drives/{drive}/duplicates` | `{ groups: [{ hash, total_size, files }], total_groups, total_wasted_bytes }`. Files are grouped by content hash and size. Not paginated. |
+| `GET` | `/api/drives/{drive}/watch-history?limit=&filter=&type=` | This viewer's recently opened files in the drive, newest first, each with `watch_progress: { position, duration }`. `filter=unfinished` (default) keeps files played to less than 90 %, which leaves out files that were only opened; `filter=all` keeps everything. `type` takes the listing's values and applies before `limit` (default 20, max 50). `{ "data": [] }` without a viewer identity. |
+| `GET` | `/api/drives/{drive}/addon-policies` | `{ "addons": { "<name>": { "default": bool, "features": { ... } } } }` for this drive. A malformed `drives.json` is `500`. |
+| `GET` | `/api/drives/{drive}/pins` | Pinned folders: `[{ path }]`. |
+| `POST` | `/api/drives/{drive}/pins` | Body `{ path }`. `201`; `409` if already pinned. |
+| `DELETE` | `/api/drives/{drive}/pins?path=...` | Unpin (`204`; `404` if not pinned). |
+| `POST` | `/api/drives/{drive}/scan` | Rescan the drive and return `{ added, missing, recovered, updated, total }`. Only one scan runs at a time across all drives; `409` while one is running. |
 
 ## Files
 
@@ -75,196 +80,205 @@ File ids are 12-character nanoids and are validated as such in the path.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/files/{id}` | File metadata, plus detected subtitle tracks and a `has_chapters` flag. |
+| `GET` | `/api/files/{id}` | File metadata, plus detected subtitle tracks and `has_chapters`. |
 | `PUT` | `/api/files/{id}` | Update `title` / `description`. |
-| `GET` | `/api/files/{id}/neighbors?sort=&order=` | Previous / next file id within the same folder under the given ordering, for player and viewer navigation. Also returns `position` (1-origin) and `total`. **`position` and `total` count exactly the rows `prev_id` / `next_id` can walk to** — the folder's active files that the sort column can order — so the readout and the arrows can never disagree about how many there are. Under `sort=liked_at` that excludes never-liked files, and for a file that is itself unliked both are `null`: it has no place in a like-ordered sequence, and the size of a sequence it is not in answers nothing. `sort` accepts `created_at` / `title` / `file_size` / `liked_at` only — `random` and `relevance` order a search result set and are not keysets, so they are rejected with `422`. The sequence is folder-scoped and ignores every listing filter (`liked`, `type`, `tag`, `search`) and `recursive=true`; callers are expected to decide for themselves whether that is the sequence their reader is looking at before rendering `n / N` from it. |
-| `GET` | `/api/files/{id}/stream?download=` | Range-requested media stream (`206` on a satisfied range, `416` on a bad one). Returns 410 for missing files. All responses carry `X-Content-Type-Options: nosniff`. HTML / SVG / XML mimes (`text/html`, `application/xhtml+xml`, `image/svg+xml`, `text/xml`, `application/xml`, `application/xslt+xml`) are forced to `Content-Disposition: attachment` to block top-level navigation XSS; `<img src>` SVG rendering is unaffected since browsers ignore the header on sub-resources. `download=true` forces attachment for any mime — this is the download path; there is no separate `/download` endpoint. HEIC/HEIF is transparently converted to JPEG. Text files inside the write allowlist and under 1 MB are returned whole with a strong content-hash `ETag`, which is the value to send back as `If-Match` on the content `PUT`. |
-| `GET` | `/api/files/{id}/render` | Inline HTML preview for AI artifacts. `text/html` only (404 otherwise). Returns a sandboxed document with `Content-Security-Policy: sandbox; default-src 'none'; ...` plus a small bootstrap script that reports `scrollHeight` to the parent via `postMessage`. UTF-8 only (415 for other encodings), 5 MB cap (413). Companion to `/stream`: `/stream` forces attachment for HTML; `/render` is the iframe path. |
-| `GET` | `/api/files/{id}/preview-text` | First ~400 characters of a `.docx` / `.xlsx` / `.pptx` file as `text/plain`, for card previews. `400` for any other mime. |
-| `GET` | `/api/files/{id}/thumbnail` | JPEG, at most 320px on the long edge. A picture keeps its own proportions, so the size varies; video and PDF are a fixed 320x180. Carries a strong `ETag` and `Cache-Control: no-cache`, because the bytes change while the URL does not — send the `ETag` back as `If-None-Match` and an unchanged thumbnail answers `304` with no body. Falls back to a placeholder image when the file has no generated thumbnail; the placeholder revalidates the same way. Served for trashed and missing files too. |
-| `GET` | `/api/files/{id}/exif` | EXIF data (images). `404` when the file is not an image or has no EXIF row. |
-| `PUT` | `/api/files/{id}/content` | Write text body. `text/markdown` and `text/plain` only (415 otherwise); raw UTF-8 request body, 1 MB cap. Requires `If-Match` with the current content ETag (`428` when absent, `412` on mismatch). Optional request header `X-Litloft-Save-Kind: explicit` marks the write as a user-initiated save; anything else is treated as `auto`. Responds `200` with the new `ETag` and, when a version row was touched, `X-Litloft-Version-Action: created \| collapsed \| promoted \| unchanged`. For Markdown it also injects a frontmatter `id:` when missing and syncs tags, aliases, wiki-link / `loft://` relations, and the derived thumbnail — each projection commits separately so a failure cannot roll back the durable content write. |
-| `GET` | `/api/files/{id}/versions?limit=&offset=` | Version history for a text/Markdown file: `{ versions: [{ id, created_at, nickname, kind, size_bytes, lines_added, lines_removed }], total, limit, offset }`. `kind` is `auto` or `explicit`. `limit` defaults to 50 and is capped at 100. `404` for a file outside the text allowlist. Responses are `Cache-Control: no-store`. |
-| `GET` | `/api/files/{id}/versions/{version_id}` | One stored version's full body: `{ id, content, etag }`. `404` for an unknown version, `500` when the stored blob cannot be read. |
-| `GET` | `/api/files/{id}/versions/{version_id}/diff` | Line diff of that version against its predecessor: `{ id, lines: [{ kind: "add" \| "del" \| "context", text }], lines_added, lines_removed }`. |
-| `GET` | `/api/files/{id}/wiki-resolutions` | Per-target resolver verdict for every `[[X]]` in a `.md` body. Markdown-only (415 otherwise). Shape: `{"resolutions": {"<target>": {"kind": "resolved" \| "unresolved" \| "ambiguous", ...}}}`; resolved entries also carry `file_id`, `filename`, and `basename`. |
-| `PUT` | `/api/files/{id}/tags` | Set tags (canonical store: frontmatter for `.md`, DB for others). Replaces the whole set. There is no `GET` counterpart — tags come back on the file response. |
-| `PUT` | `/api/files/{id}/trust-tier` | Vouch for a source or withdraw the vouch: `{tier}`, one of `verified` \| `unverified`. Returns the updated file. Stamps `trust_reviewed_at`, which is what separates a person's judgement from a bulk-migrated row. Unverified files stay searchable but stop grounding Ask answers. Demoting never changes anything distilled from the file — a note keeps its own standing. |
-| `GET` | `/api/files/{id}/relations?kind=` | Related files via `file_relations`, both directions, newest first: `{ relations: [{ relation_id, kind, direction, origin, created_at, created_by, file }] }`. `direction` is `outgoing` when this file is the relation's `file_a` and `incoming` otherwise; a counterpart related in both directions is listed once per `kind` and direction. `origin` is `markdown` (written by the link sync of `file_a`), `internal` (written through the Internal API) or `null` (written before origins were recorded); direction says who links to whom only for `markdown`. `file` carries `id`, `drive`, `filename`, `title`, `folder_path`, `file_type`, `mime_type`, `thumbnail_url`, `has_thumbnail`, `file_size`, `duration`, `missing_since`, `created_at`, `updated_at`. Trashed counterparts are dropped; missing ones are kept so the UI can grey them out. |
-| `GET` | `/api/files/{id}/chapters` | Ordered chapter set plus the `source` (`extracted` or `curated`) of the current set. |
-| `GET` | `/api/files/{id}/subtitles/{index}` | One detected sidecar subtitle track as WebVTT (SRT is converted on the fly). 5 MB cap (413). |
-| `GET` | `/api/files/{id}/archive` | List archive entries (zip). `404` when the file is not an archive. |
-| `GET` | `/api/files/{id}/archive/entry?path=...` | Stream one entry. Symlink entries are rejected (400) and both the declared and the decompressed size are capped at 50 MB (413). Only image and plain-text entries are served inline; everything else is an attachment. |
-| `GET` | `/api/files/{id}/comments` | Comments, oldest first, each flagged `is_mine`. |
-| `POST` | `/api/files/{id}/comments` | Add a comment (`201`). Requires a viewer identity (`401` without one). Rate-limited 10/60s/IP; `422` past 500 comments on one file. |
-| `PUT` | `/api/files/{id}/comments/{cid}` | Edit own (`403` otherwise). |
-| `DELETE` | `/api/files/{id}/comments/{cid}` | Delete own (`204`; `403` otherwise). |
-| `POST` | `/api/files/{id}/progress` | Update watch progress. Empty body = view-only. |
-| `GET` | `/api/files/{id}/progress` | Get viewer's progress. |
-| `DELETE` | `/api/files/{id}/progress` | Remove this viewer's history row for the file (`204`). An explicit user action only — playback completion must not call it. |
-| `POST` | `/api/files/{id}/like` | Toggle the per-file like stamp. Liking sets `liked_at` to now, so a file liked again returns to the top of the Liked view; liking a liked file clears it. |
-| `POST` | `/api/files/{id}/favorite` | Toggle the per-file favorite flag. |
+| `GET` | `/api/files/{id}/neighbors?sort=&order=` | `{ prev_id, next_id, position, total }` within the file's folder. `sort` is `created_at` (default), `title`, `file_size` or `liked_at`; anything else is `422`. The sequence is the folder's active files that have a value in the sort column; it ignores every listing filter and `recursive`. `position` (1-based) and `total` count that sequence. A file with no value in the sort column (an unliked file under `liked_at`) gets all four fields `null`. |
+| `GET` | `/api/files/{id}/stream?download=` | The file's bytes, with `Range` support (`206`, or `416` on a bad range). `410` for a Missing file. Every response carries `X-Content-Type-Options: nosniff`. `text/html`, `application/xhtml+xml`, `image/svg+xml`, `text/xml`, `application/xml` and `application/xslt+xml` are always sent as `Content-Disposition: attachment`; `download=true` does the same for any file, and is the download path. HEIC/HEIF is converted to JPEG. A `text/markdown` or `text/plain` file of 1 MB or less, requested without `Range`, comes back whole with an `ETag` to send as `If-Match` on the content `PUT`. |
+| `GET` | `/api/files/{id}/render` | A `text/html` file (`404` otherwise) as a sandboxed document for an iframe, with `Content-Security-Policy: sandbox allow-scripts allow-popups; default-src 'none'; ...` and an injected script that posts its `scrollHeight` to the parent. UTF-8 only (`415`), 5 MB cap (`413`). |
+| `GET` | `/api/files/{id}/preview-text` | The first 400 characters of a `.docx` / `.xlsx` / `.pptx` file as `text/plain`. `400` for any other mime. |
+| `GET` | `/api/files/{id}/thumbnail` | JPEG, at most 320 px on the long edge; video and PDF thumbnails are 320x180. Carries an `ETag` and `Cache-Control: no-cache`; send the `ETag` as `If-None-Match` to get `304` when unchanged. Falls back to a placeholder image. Served for trashed and Missing files too. |
+| `GET` | `/api/files/{id}/exif` | `{ datetime_original, make, model, f_number, exposure_time, iso_speed, focal_length, gps_lat, gps_lon }`. `404` when there is no EXIF data. |
+| `PUT` | `/api/files/{id}/content` | Replace a `text/markdown` or `text/plain` file's body (`415` for other mimes) with the raw UTF-8 request body, 1 MB cap. Requires `If-Match` with the current ETag (`428` when absent, `412` on mismatch). Send `X-Litloft-Save-Kind: explicit` for a user-initiated save; anything else is recorded as `auto`. Responds `200` with the new `ETag`, and `X-Litloft-Version-Action: created \| collapsed \| promoted \| unchanged` when the version history was touched. For Markdown it adds a frontmatter `id:` when missing and updates the file's tags, aliases, relations and thumbnail from the body. Those updates commit separately, so a failure in one does not undo the write. |
+| `GET` | `/api/files/{id}/versions?limit=&offset=` | Version history of a text file: `{ versions: [{ id, created_at, nickname, kind, size_bytes, lines_added, lines_removed }], total, limit, offset }`. `kind` is `auto` or `explicit`. `404` for a file outside the text allowlist. `Cache-Control: no-store`. |
+| `GET` | `/api/files/{id}/versions/{version_id}` | `{ id, content, etag }`. `404` for an unknown version, `500` when the stored body cannot be read. |
+| `GET` | `/api/files/{id}/versions/{version_id}/diff` | Line diff against the previous version: `{ id, lines: [{ kind: "add" \| "del" \| "context", text }], lines_added, lines_removed }`. |
+| `GET` | `/api/files/{id}/wiki-resolutions` | How each `[[X]]` in a Markdown file resolves (`415` for other files): `{ "resolutions": { "<target>": { "kind": "resolved" \| "unresolved" \| "ambiguous", ... } } }`. Resolved entries carry `file_id`, `filename` and `basename`; ambiguous entries carry `candidates`. |
+| `PUT` | `/api/files/{id}/tags` | Body `{ tags }`, at most 10. Replaces `File.tags`. It does not edit a Markdown file's frontmatter, where a `.md` file's tags are kept; change those through the content `PUT`. There is no `GET`; tags are on the file response. |
+| `PUT` | `/api/files/{id}/trust-tier` | Body `{ tier }`: `verified` or `unverified`. Returns the file. Also stamps `trust_reviewed_at`, which marks the tier as a viewer's decision. Unverified files stay searchable but are not used to ground Ask answers. |
+| `GET` | `/api/files/{id}/relations?kind=` | `{ relations: [{ relation_id, kind, direction, origin, created_at, created_by, file }] }`, newest first, both directions. `direction` is `outgoing` when this file is the relation's `file_a`, else `incoming`. `origin` is `markdown` (from a Markdown file's links), `internal` (from the Internal API) or `null`. `file` has `id`, `drive`, `filename`, `title`, `folder_path`, `file_type`, `mime_type`, `thumbnail_url`, `has_thumbnail`, `file_size`, `duration`, `missing_since`, `created_at`, `updated_at`. Trashed counterparts are left out; Missing ones are included. |
+| `GET` | `/api/files/{id}/chapters` | `{ chapters: [{ start_time, end_time, title, ordering }], source }`. `source` is `extracted`, `curated` or `null`. |
+| `GET` | `/api/files/{id}/subtitles/{index}` | One detected sidecar subtitle as WebVTT (SRT is converted). Video and `.loft` files only. 5 MB cap (`413`). |
+| `GET` | `/api/files/{id}/archive` | Entries of a zip file, up to 10,000. `404` when the file is not an archive. |
+| `GET` | `/api/files/{id}/archive/entry?path=...` | One entry's bytes. Symlink entries and traversal are `400`; entries over 50 MB (declared or decompressed) are `413`. Images and plain text are served inline, everything else as an attachment. |
+| `GET` | `/api/files/{id}/comments` | Comments, oldest first, each with `is_mine`. |
+| `POST` | `/api/files/{id}/comments` | Body `{ body }`, 1–1000 characters. `201`. Needs a viewer identity (`401`). 10 per 60 s per IP (`429`); `422` once a file has 500 comments. |
+| `PUT` | `/api/files/{id}/comments/{cid}` | Edit your own comment (`403` otherwise). |
+| `DELETE` | `/api/files/{id}/comments/{cid}` | Delete your own comment (`204`; `403` otherwise). |
+| `POST` | `/api/files/{id}/progress` | Body `{ position?, duration? }`. Always updates `last_played_at`; the playback position is updated only when both fields are sent. An empty body records a view. |
+| `GET` | `/api/files/{id}/progress` | `{ position, duration }`; zeros when there is no record or no viewer identity. |
+| `DELETE` | `/api/files/{id}/progress` | Remove this viewer's history row for the file (`204`). |
+| `POST` | `/api/files/{id}/like` | Toggle the like. Liking sets `liked_at` to now, so a re-liked file sorts first in the Liked view. |
+| `POST` | `/api/files/{id}/favorite` | Toggle the favourite flag. |
 | `POST` | `/api/files/{id}/restore` | Restore from trash. |
-| `DELETE` | `/api/files/{id}` | Soft delete (trash). |
-| `DELETE` | `/api/files/{id}/purge` | Hard delete (irreversible). Accepts a trashed or a missing file; there is no `?purge=true` variant on `DELETE /api/files/{id}`. |
-| `PUT` | `/api/files/{id}/rename` | Rename. Body `{ "new_filename": "..." }`. |
-| `PUT` | `/api/files/{id}/move` | Move to another folder (and optionally another drive). Body `{ "target_drive": null, "target_folder_path": "..." }`. A `target_drive` the caller cannot access is `404`, indistinguishable from one that does not exist. `null` **or an empty string** means "the drive it is already in". |
-| `POST` | `/api/files/{id}/copy` | Copy to another folder. Same body shape as move, and the same `404` on an inaccessible `target_drive`. |
+| `DELETE` | `/api/files/{id}` | Move to trash. |
+| `DELETE` | `/api/files/{id}/purge` | Delete permanently, from disk too. Accepts a trashed or Missing file. |
+| `PUT` | `/api/files/{id}/rename` | Body `{ "new_filename": "..." }`. |
+| `PUT` | `/api/files/{id}/move` | Body `{ "target_drive": null, "target_folder_path": "..." }`. `null` or `""` means the file's current drive. A `target_drive` the caller cannot access is `404`, the same as one that does not exist. |
+| `POST` | `/api/files/{id}/copy` | Same body and the same `404` as move. |
 
 ### Batch operations
 
-Batch endpoints take `{ "ids": [...] }` (plus operation-specific fields) and never fail the whole call for one bad id: each result carries a count and a per-id `errors` array.
+Batch endpoints take `{ "ids": [...] }`, 1 to 100 ids, plus the fields named below.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/files/batch/get` | Resolve many ids to file responses, filtered to accessible drives. |
-| `POST` | `/api/files/batch/delete` | Soft delete many files. |
-| `PUT` | `/api/files/batch/move` | Move many files. Body adds `target_drive` / `target_folder_path`. The destination is checked once for the whole request, so an inaccessible `target_drive` is a request-level `404` and nothing moves — it is not reported as per-file errors. |
-| `PUT` | `/api/files/batch/tags` | **Merge** tags into many files (unlike the single-file `PUT`, which replaces). |
-| `PUT` | `/api/files/batch/rename` | Pattern rename. Body adds `mode` plus the fields that mode needs. |
-| `POST` | `/api/files/batch/restore` | Restore many trashed files. |
-| `POST` | `/api/files/batch/purge` | Hard delete many trashed or missing files. |
-| `POST` | `/api/files/batch/copy` | Copy many files into one target folder. Same request-level `404` on an inaccessible `target_drive`. |
+| `POST` | `/api/files/batch/get` | The files the caller can access, as a list. |
+| `POST` | `/api/files/batch/delete` | Move to trash. `{ deleted, errors }`. |
+| `PUT` | `/api/files/batch/move` | Adds `target_drive` / `target_folder_path`. `{ moved, errors }`. An inaccessible `target_drive` fails the whole request with `404`. |
+| `PUT` | `/api/files/batch/tags` | **Adds** the given tags to each file (the single-file `PUT` replaces). `{ updated, errors }`. |
+| `PUT` | `/api/files/batch/rename` | Adds `mode` (`template`, `regex` or `prefix_suffix`) and that mode's fields: `template`, `start_number`, `zero_pad`; `pattern`, `replacement`; `action`, `value`. `{ renamed, results: [{ id, old_name, new_name }] }`. Unlike the others, one inaccessible id fails the whole request with `404`. |
+| `POST` | `/api/files/batch/restore` | Restore from trash. `{ restored, errors }`. |
+| `POST` | `/api/files/batch/purge` | Delete trashed or Missing files permanently. `{ purged, errors }`. |
+| `POST` | `/api/files/batch/copy` | Adds `target_drive` / `target_folder_path`. `{ copied, errors }`. An inaccessible `target_drive` fails the whole request with `404`. |
+
+`errors` lists the ids that failed and why; the rest of the batch still runs.
 
 ## Folder operations
 
-Folder mutations are drive-scoped and live under the drive's `/folders` path. Each one emits `folders.created` / `folders.moved` / `folders.deleted` (plus `files.moved` when file rows shifted) so the tree and the file pane refresh together.
-
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/drives/{drive}/folders` | Create a folder. Body `{ "path": "<parent>", "name": "..." }`. |
-| `PUT` | `/api/drives/{drive}/folders` | Rename in place. Body `{ "path": "...", "new_name": "..." }`. |
-| `PUT` | `/api/drives/{drive}/folders/move` | Move a folder. Body `{ "path": "...", "target_path": "..." }`. |
-| `DELETE` | `/api/drives/{drive}/folders?path=...` | Delete a folder (its files go to trash). |
+| `POST` | `/api/drives/{drive}/folders` | Body `{ "path": "<parent>", "name": "..." }`. |
+| `PUT` | `/api/drives/{drive}/folders` | Rename. Body `{ "path": "...", "new_name": "..." }`. |
+| `PUT` | `/api/drives/{drive}/folders/move` | Body `{ "path": "...", "target_path": "..." }`. |
+| `DELETE` | `/api/drives/{drive}/folders?path=...` | Move the folder's active files to trash. The drive root cannot be deleted (`400`). |
+
+These emit the `folders.*` events, plus `files.moved` when a rename or move changed file paths. See [WebSocket events](websocket-events.md).
 
 ## Search
 
-There is no standalone search endpoint. Keyword search is the `search` parameter on `GET /api/drives/{drive}/files` (matched against title and folder path, drive-scoped); semantic search is an addon surface reached through the addon proxy. Saved searches are Smart Folders:
+Keyword search is the `search` parameter of `GET /api/drives/{drive}/files`. Semantic search belongs to the intelligence addon. Saved searches are Smart Folders, shared by everyone who can open the drive:
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/drives/{drive}/smart-folders` | List the drive's Smart Folders, newest first. Shared within the drive — not filtered per viewer. |
-| `POST` | `/api/drives/{drive}/smart-folders` | Save a query as a Smart Folder (`201`). Body `{ name, query, file_type?, sort_by?, sort_order? }`. |
-| `PATCH` | `/api/drives/{drive}/smart-folders/{id}` | Update any subset of those fields. |
-| `DELETE` | `/api/drives/{drive}/smart-folders/{id}` | Remove (`204`). |
+| `GET` | `/api/drives/{drive}/smart-folders` | The drive's Smart Folders, newest first. |
+| `POST` | `/api/drives/{drive}/smart-folders` | Body `{ name, query, file_type?, sort_by?, sort_order? }`. `201`. |
+| `PATCH` | `/api/drives/{drive}/smart-folders/{id}` | Update any of those fields. |
+| `DELETE` | `/api/drives/{drive}/smart-folders/{id}` | `204`. |
 
 ## Trash and missing
 
-Both lists are drive-scoped and paginated; there is no cross-drive trash or missing view.
-
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/drives/{drive}/trash?sort=&order=&page=&limit=` | List trashed files. `sort` defaults to `deleted_at`. |
-| `POST` | `/api/drives/{drive}/trash/empty` | Purge the drive's trash. Returns `{ "purged": n }`. |
-| `GET` | `/api/drives/{drive}/missing?sort=&order=&page=&limit=` | List missing files. `sort` defaults to `missing_since`. |
-| `POST` | `/api/drives/{drive}/missing/purge-all` | Purge all missing files in the drive (in batches of 200). Returns `{ "purged": n }`. |
+| `GET` | `/api/drives/{drive}/trash?sort=&order=&page=&limit=` | Trashed files, paginated. `sort` is `deleted_at` (default), `created_at`, `title` or `file_size`. |
+| `POST` | `/api/drives/{drive}/trash/empty` | Delete the drive's trash permanently. `{ "purged": n }`. |
+| `GET` | `/api/drives/{drive}/missing?sort=&order=&page=&limit=` | Missing files, paginated. `sort` is `missing_since` (default), `created_at`, `title` or `file_size`. |
+| `POST` | `/api/drives/{drive}/missing/purge-all` | Delete every Missing record in the drive. `{ "purged": n }`. |
 
 ## Collections
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/drives/{drive}/collections` | List, most recently updated first. |
-| `POST` | `/api/drives/{drive}/collections` | Create (`201`; `409` on a duplicate name within the drive). |
-| `GET` | `/api/drives/{drive}/collections/{id}` | Detail with items. |
-| `PUT` | `/api/drives/{drive}/collections/{id}` | Rename / edit the description. |
-| `DELETE` | `/api/drives/{drive}/collections/{id}` | Remove (`204`). |
-| `POST` | `/api/drives/{drive}/collections/{id}/items` | Add files. Body `{ "file_ids": [...] }`, max 100 per call. Already-present ids are skipped; missing/trashed files are `404` and a file from another drive is `400`. Returns the updated detail. |
-| `DELETE` | `/api/drives/{drive}/collections/{id}/items/{item_id}` | Remove one item (`204`). |
-| `PUT` | `/api/drives/{drive}/collections/{id}/items/reorder` | Reorder. Body `{ "item_ids": [...] }` must be exactly the current item set (`409` otherwise). |
+| `GET` | `/api/drives/{drive}/collections` | Most recently updated first. |
+| `POST` | `/api/drives/{drive}/collections` | Body `{ name, description? }`. `201`; `409` on a duplicate name in the drive. |
+| `GET` | `/api/drives/{drive}/collections/{id}` | The collection with its items. |
+| `PUT` | `/api/drives/{drive}/collections/{id}` | Body `{ name?, description? }`. |
+| `DELETE` | `/api/drives/{drive}/collections/{id}` | `204`. |
+| `POST` | `/api/drives/{drive}/collections/{id}/items` | Body `{ "file_ids": [...] }`, 1 to 100. Ids already in the collection are skipped. A Missing or trashed file is `404`, a file from another drive `400`. Returns the collection with its items. |
+| `DELETE` | `/api/drives/{drive}/collections/{id}/items/{item_id}` | `204`. |
+| `PUT` | `/api/drives/{drive}/collections/{id}/items/reorder` | Body `{ "item_ids": [...] }`, exactly the current items in the new order (`409` otherwise). |
 
 ## Upload
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/drives/{drive}/upload/init` | Begin a chunked upload. Body: `{ filename, file_size, folder_path, relative_path, chunk_size }` (`chunk_size` defaults to 5 MiB). Returns `{ upload_id, chunk_size, total_chunks }`. |
-| `POST` | `/api/drives/{drive}/upload/{upload_id}/chunk` | Push a chunk as `multipart/form-data` with fields `chunk_index` and `chunk`. Returns the received/total chunk counts. |
-| `POST` | `/api/drives/{drive}/upload/{upload_id}/complete` | Finalise; revives missing files at the same path (emitting `files.recovered`) and returns the file record. |
-| `DELETE` | `/api/drives/{drive}/upload/{upload_id}` | Abort. |
+| `POST` | `/api/drives/{drive}/upload/init` | Body `{ filename, file_size, folder_path, relative_path, chunk_size }`; `chunk_size` defaults to 5 MiB. Returns `{ upload_id, chunk_size, total_chunks }`. |
+| `POST` | `/api/drives/{drive}/upload/{upload_id}/chunk` | `multipart/form-data` with `chunk_index` and `chunk`. Returns the received and total chunk counts. |
+| `POST` | `/api/drives/{drive}/upload/{upload_id}/complete` | Finish and return the file. An upload to the path of a Missing file revives that record. |
+| `DELETE` | `/api/drives/{drive}/upload/{upload_id}` | Cancel. |
 
-A session is bound to the drive it was opened for; using it under another drive's path is a `404`.
+An upload session belongs to the drive it was opened on; using it under another drive is `404`.
 
 ## Viewer identity and watch progress
 
-There is no profile API. Viewer identity is carried entirely by the `lit_viewer` cookie (or the `X-Lit-Viewer` header) holding a nickname, which the backend hashes to a `viewer_id`; nothing about the viewer is stored server-side beyond the rows keyed by that id. Preferences live in the browser. Requests without an identity are accepted — progress writes become a no-op `204` and history reads come back empty.
+There is no profile or account API. The nickname in the `lit_viewer` cookie or `X-Lit-Viewer` header is hashed into a `viewer_id`, and watch history and comment ownership are keyed by it. Requests without a nickname are accepted: progress writes do nothing and return `204`, and history reads come back empty.
 
-Per-viewer state is reached through the endpoints already listed above: `POST` / `GET` / `DELETE /api/files/{id}/progress` for a single file, and `GET /api/drives/{drive}/watch-history` for the drive's continue-watching list.
+Per-viewer endpoints: `POST` / `GET` / `DELETE /api/files/{id}/progress` and `GET /api/drives/{drive}/watch-history`.
 
 ## Admin
 
-`/api/admin/dashboard` and every `/api/admin/markdown-images/...` route require master-viewer authentication (`403` otherwise). Under `/api/admin/config`, `setup-status` and `setup-token/verify` are unauthenticated so the first-run wizard can run before any password exists; the `GET` routes require admin; and the writes, along with `complete-setup`, require admin once `data/setup_completed` exists and the setup token (`X-Litloft-Setup-Token`) while it is absent.
+`/api/admin/dashboard` and `/api/admin/markdown-images/...` require an admin caller (`403` otherwise; see `is_admin` under [Auth](#auth)). Under `/api/admin/config`:
+
+- `setup-status` and `setup-token/verify` need no auth.
+- The `GET` routes require an admin caller.
+- The writes and `complete-setup` require an admin caller once `data/setup_completed` exists, and the setup token in `X-Litloft-Setup-Token` until then.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/api/admin/dashboard` | Aggregated metrics. Per drive: file counts by type, last scan time, current scan state. Per **filesystem** (`system.filesystems`, one row per `st_dev` with `mount_label` / `total_bytes` / `used_bytes` / `free_bytes` / `drives`): disk usage, since `shutil.disk_usage` measures a mount rather than a directory and drives sharing a disk share its figures. A drive whose path cannot be read contributes no row. Plus DB / thumbnail / converted-cache sizes and uptime. |
-| `GET` | `/api/admin/config/setup-status` | `{ completed, drives }` (unauthenticated). `drives` (seeded `name`/`path`/`access_group`) is returned only while setup is incomplete; `[]` once `data/setup_completed` exists. |
-| `POST` | `/api/admin/config/setup-token/verify` | `{ token }` → `{ ok: true }`, or `403 setup_token_invalid`. Unauthenticated, and only while `data/setup_completed` is absent; `404` once it exists. Lets the wizard reject a wrong token before it collects anything. |
-| `POST` | `/api/admin/config/complete-setup` | Finalise the wizard; creates `data/setup_completed`. `409 already_completed` if it is already there. |
-| `GET` | `/api/admin/config/drives` | Read drives.json at full fidelity, including addon policy. |
-| `PUT` | `/api/admin/config/drives` | Replace drives.json (validated, atomic write). Returns `{ ok, count }`. |
-| `GET` | `/api/admin/config/passwords` | Entries with every password value masked as `***`. Real passwords never leave the server. |
-| `PUT` | `/api/admin/config/passwords` | Replace passwords.json (validated, atomic write). A masked value is rejected. A password's `groups` may name any drive's `access_group`, plus `__admin__`, which grants `/admin` without unlocking a drive. Writing one that carries `__admin__` needs a caller already holding it, or the setup token while `data/setup_completed` is absent; otherwise `403 admin_grant_forbidden`. |
-| `POST` | `/api/admin/config/passwords/append` | Append one entry without resending the masked others. Body is a single `{ password, groups }` object. |
+| `GET` | `/api/admin/dashboard` | `{ drives, system }`. Each drive: `name`, `file_count`, `file_types`, `last_scanned_at`, `is_scanning`. `system`: `filesystems` (one row per mounted filesystem, with `mount_label`, `total_bytes`, `used_bytes`, `free_bytes` and the `drives` on it), `db_size_bytes`, `thumbnail_cache_bytes`, `converted_cache_bytes`, `upload_temp_bytes`, `total_files`, `trash_count`, `missing_count`, `uptime_seconds`. |
+| `GET` | `/api/admin/config/setup-status` | `{ completed, drives }`. `drives` (`name`, `path`, `access_group`) is filled only while setup is incomplete. |
+| `POST` | `/api/admin/config/setup-token/verify` | Body `{ token }` → `{ ok: true }`, or `403 setup_token_invalid`. `404` once setup is complete. |
+| `POST` | `/api/admin/config/complete-setup` | Create `data/setup_completed`. `409 already_completed` if it exists. |
+| `GET` | `/api/admin/config/drives` | `drives.json` as stored, including addon policy. |
+| `PUT` | `/api/admin/config/drives` | Replace `drives.json`. Each entry needs a unique `name` and an absolute `path` that exists in the container. Returns `{ ok, count }`. |
+| `GET` | `/api/admin/config/passwords` | `[{ password: "***", groups }]`. Real passwords are never returned. |
+| `PUT` | `/api/admin/config/passwords` | Replace `passwords.json`. `***` is rejected as a value. Passwords must be unique. Each `groups` entry must be a drive's `access_group` or `__admin__`, which grants `/admin` without unlocking a drive. Once setup is complete, writing an entry with `__admin__` needs a caller holding `__admin__` (`403 admin_grant_forbidden`). Returns `{ ok, count }`. |
+| `POST` | `/api/admin/config/passwords/append` | Add one `{ password, groups }` entry, validated and gated the same way. Returns `{ ok, count }`. |
 | `DELETE` | `/api/admin/config/passwords/{index}` | Remove the entry at that 0-based index (`404` when out of range). |
-| `GET` | `/api/admin/config/addon-policy` | Per-drive addon policy projected out of drives.json. Drives with no `addons` field appear with an empty object. |
-| `PUT` | `/api/admin/config/addon-policy` | Merge submitted policy into drives.json. A drive's `addons` key is replaced wholesale; omitted drives and all non-addon fields are preserved. |
-| `GET` | `/api/admin/config/restart-status` | `data/restart_pending`: `{ pending, files }`. The flag is set by every successful write in this router and cleared on the next backend startup. |
+| `GET` | `/api/admin/config/addon-policy` | `{ "<drive>": { "<addon>": bool \| { feature: bool } } }`. Drives without an `addons` field appear with `{}`. |
+| `PUT` | `/api/admin/config/addon-policy` | Same shape. Each listed drive's `addons` is replaced; other drives and fields are kept. Unknown drives and addons are `422`. |
+| `GET` | `/api/admin/config/restart-status` | `{ pending, files }`. `pending` is true after any successful write to `drives.json` or `passwords.json` through these routes, until the backend restarts. |
+
+Validation errors from these routes are `422` with `{ "detail": { "code", "message", "field"? } }`.
 
 ### Markdown image import
 
-A maintenance flow that rewrites remote `<img>` / `![]()` sources in Markdown files into local drive files. Analyse first, then start an import against that analysis id.
+Copies the remote images a folder's Markdown files reference into the drive and points the files at the local copies. Create an analysis first, then start an import from it.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/admin/markdown-images/analyses` | Scan a folder for remote image references. Body `{ drive, folder_path, recursive }`. Returns `analysis_id`, an `expires_at` 30 minutes out, and per-host counts and samples. |
-| `POST` | `/api/admin/markdown-images/imports` | Start the import (`202`). Body `{ analysis_id, allowed_hosts }` — only references on listed hosts are fetched. `404 analysis_not_found` for a stale id, `409 maintenance_busy` when another maintenance job holds the lock. |
-| `GET` | `/api/admin/markdown-images/imports/current` | `{ "job": ... }` for the running job, or `{ "job": null }`. |
-| `GET` | `/api/admin/markdown-images/imports/{job_id}` | Job status by id (`404 job_not_found`). |
-| `POST` | `/api/admin/markdown-images/imports/{job_id}/cancel` | Request cancellation; returns the updated job. |
+| `POST` | `/api/admin/markdown-images/analyses` | Body `{ drive, folder_path, recursive }`. Returns `analysis_id`, `expires_at` (30 minutes later), `counts`, `host_counts` and `samples`. |
+| `POST` | `/api/admin/markdown-images/imports` | Body `{ analysis_id, allowed_hosts }`; only images on those hosts are fetched. `202`. `404 analysis_not_found` for an expired or unknown id, `409 maintenance_busy` while another job runs. |
+| `GET` | `/api/admin/markdown-images/imports/current` | `{ "job": ... }`, or `{ "job": null }`. |
+| `GET` | `/api/admin/markdown-images/imports/{job_id}` | The job (`404 job_not_found`). |
+| `POST` | `/api/admin/markdown-images/imports/{job_id}/cancel` | Request cancellation; returns the job. |
 
-## Addon proxy
+## Addons
 
-For addon-specific endpoints, prefix with `/api/addons/<name>/`. The proxy:
+Addon endpoints live under `/api/addons/<name>/`. An in-process addon (cloud-sync, media_import) serves them from its own router. An external-service addon (intelligence, knowledge) is reached through the core's proxy, which:
 
-- Validates the `X-Lit-Drive` header (percent-encoded, so non-ASCII drive names round-trip) for `scope=drive` addons; a route may opt out with `drive_optional` when it cannot send headers, in which case a stronger per-route gate applies. A drive the caller cannot access is `403`; a missing drive context on a `scope=drive` route is `400`.
-- Runs per-route pre-checks (file access, per-drive addon policy, admin) and filters drive-bearing arrays out of the response.
-- Forwards to the addon (in-process invocation or HTTP to the addon container). An unknown addon or unmatched route is `404`; an unconfigured target is `503`.
+- reads the drive from the `X-Lit-Drive` header (percent-encoded). A `scope=drive` route without it is `400`; a drive the caller cannot access is `403`. A route marked `drive_optional` is gated another way.
+- runs the route's pre-checks (file access, per-drive addon policy, admin). A route whose addon feature is off for the drive is `404`.
+- removes items from inaccessible drives from the response.
+- returns `404` for an unknown addon or route, `503` when the addon's target is not configured, `502` when the addon does not answer.
 
 Examples:
 
 - `GET /api/addons/intelligence/search?q=...`
 - `POST /api/addons/intelligence/ask`
-- `POST /api/addons/intelligence/files/{id}/refine`
-- `POST /api/addons/knowledge/clip`
-- `GET /api/addons/cloud-sync/mappings`
-- `POST /api/addons/media_import/import`
+- `POST /api/addons/intelligence/refine/files/{id}`
+- `POST /api/addons/knowledge/clips`
+- `GET /api/addons/cloud-sync/status`
+- `POST /api/addons/media_import/link`
 
-Each addon documents its surface in its addon page.
+Each addon's page under [`docs/addons/`](../addons/) documents its endpoints.
 
 ## Internal API
 
-Available only on the Docker network (frontend never proxies these). For addon use.
+For addons, on the Docker network only: the frontend server answers `/api/internal/*` with `404`.
+
+The Auth column: **none**, no secret; **secret**, `X-Internal-Secret` must equal `CORE_INTERNAL_SECRET` when that variable is set, and is not checked when it is unset; **strict**, the same header, but an unset `CORE_INTERNAL_SECRET` is `503`. A wrong secret is `403`.
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| `GET` | `/api/internal/accessible-drives` | none | All drive names. |
-| `GET` | `/api/internal/drive-policy?drive=&addon=` | none | Policy for one addon on one drive. Both parameters are required. |
-| `GET` | `/api/internal/files/{id}` | none | File metadata. |
-| `GET` | `/api/internal/files/{id}/content` | `CORE_INTERNAL_SECRET` | File body (text MIME allowlist + size cap). |
-| `POST` | `/api/internal/files/{id}/tags` | `CORE_INTERNAL_SECRET` | Replace tags (`204`). |
-| `PUT` | `/api/internal/files/{id}/chapters` | `CORE_INTERNAL_SECRET` (strict) | Replace the full chapter set with approved values (`204`). Core assigns dense ordering and `source=curated`; empty/fully invalid input is 422. Unset secret is 503. |
-| `GET` | `/api/internal/viewer-history?viewer_id=&kind=` | `CORE_INTERNAL_SECRET` | Watched/not-watched lookup. |
-| `PUT` | `/api/internal/files/{id}/trust-tier` | `CORE_INTERNAL_SECRET` (strict) | Declare a file's tier at ingest (`204`). Never stamps `trust_reviewed_at` — that is a person's judgement, made through the public endpoint. `409` when a viewer already ruled on the file (conditional update; the viewer wins). Unset secret is 503. |
-| `POST` | `/api/internal/filter-file-ids` | none | Filter a list to those the caller can see. Optional `trust_tier` narrows further to that tier; omitted, behaviour is unchanged. The response carries `trust_filtered` so a caller can tell an applied filter from an older core that ignored the field. |
-| `POST` | `/api/internal/files/bulk-state` | none | Lifecycle bulk read. |
-| `POST` | `/api/internal/files/bulk` | none | Full file metadata in bulk for a list of ids, so addons can enrich results without N+1 lookups. Trashed and missing ids come back under `not_found`. |
-| `POST` | `/api/internal/file_relations` | `CORE_INTERNAL_SECRET` | Create relation. |
-| `GET` | `/api/internal/file_relations?file_id=` | none | Read both directions. |
-| `DELETE` | `/api/internal/file_relations/{id}` | `CORE_INTERNAL_SECRET` | Remove. |
-| `POST` | `/api/internal/restart-pending` | `CORE_INTERNAL_SECRET` | Touch `data/restart_pending` on an addon's behalf so the core's RestartBanner prompts the user (`204`). Body carries a generic `source` and optional `reason`. |
-| `POST` | `/api/internal/addon-events` | `CORE_INTERNAL_SECRET` | Bridge an event onto the WS broadcaster. |
+| `GET` | `/api/internal/accessible-drives` | none | `{ drives: [...] }`: drive names the forwarded credential (cookie or Bearer) can access. With no credential, public drives only. |
+| `GET` | `/api/internal/drive-policy?drive=&addon=` | none | `{ default, features }` for one addon on one drive. Both parameters required; `404` for an unknown drive. |
+| `GET` | `/api/internal/files/{id}` | none | `{ id, drive, filename, file_type, folder_path, thumbnail_path, updated_at }` of an active file. |
+| `GET` | `/api/internal/files/{id}/content` | secret | The file's text. `text/markdown` and `text/plain` only (`415`), UTF-8 only (`415`), capped at `CORE_INTERNAL_CONTENT_MAX_BYTES` (default 10 MB, `413`). |
+| `POST` | `/api/internal/files/{id}/tags` | secret | Body `{ tags }`. Replaces `File.tags` (`204`). |
+| `PUT` | `/api/internal/files/{id}/chapters` | strict | Body `{ chapters: [{ start_time, end_time, title }] }`. Replaces the chapter set (`204`); core assigns the ordering and sets `source=curated`. `422` when no entry is valid. |
+| `PUT` | `/api/internal/files/{id}/trust-tier` | strict | Body `{ tier }`. Sets the tier at ingest (`204`) without stamping `trust_reviewed_at`. `409` when a viewer has already ruled on the file. |
+| `GET` | `/api/internal/viewer-history?viewer_id=&drive=&kind=&after=&before=` | secret | `{ file_ids }`: files in `drive` the viewer has (`kind=viewed`, default) or has not (`kind=not_viewed`) opened, optionally within an ISO-8601 `after` / `before` window. `viewer_id` is 16 hex characters. `404` for an unknown drive. |
+| `POST` | `/api/internal/filter-file-ids` | none | Body `{ file_ids, trust_tier? }` → `{ accessible, trust_filtered }`: the active ids on drives the forwarded credential can access, optionally only those of that tier. `trust_filtered` says whether the tier filter was applied. |
+| `POST` | `/api/internal/files/bulk-state` | none | Body `{ file_ids }` → `{ statuses: [{ id, drive, state }], not_found }`. `state` is `active`, `missing` or `trash`. |
+| `POST` | `/api/internal/files/bulk` | none | Body `{ file_ids }` → `{ files, not_found }`. Full file responses for active ids, with `subtitles` empty; trashed and Missing ids are in `not_found`. |
+| `POST` | `/api/internal/file_relations` | secret | Body `{ file_id_a, file_id_b, kind, viewer_id? }`. `201` with the relation. Both files must be in the same drive (`400`); `409` if it exists. |
+| `GET` | `/api/internal/file_relations?file_id=&drive=&kind=&limit=` | none | Relations touching `file_id` in either direction, or all relations in `drive`. One of the two is required (`400`). `limit` defaults to 5000, max 20000. |
+| `DELETE` | `/api/internal/file_relations/{id}` | secret | `204`. |
+| `POST` | `/api/internal/restart-pending` | secret | Body `{ source, reason? }`. Sets the restart-pending flag the admin banner reads (`204`). |
+| `POST` | `/api/internal/addon-events` | secret | Body `{ event, data, drive? }`. Broadcasts the event to browsers (`204`). See [WebSocket events](websocket-events.md#addon-events). |
 
-See [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy) for the rules new endpoints must satisfy.
+The rules a new endpoint must pass are in [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
 
 ## WebSocket
 
-Connect to `/api/ws`. The frontend Custom Server proxies it to the backend. The connection is accepted even without a valid JWT — an unauthenticated socket simply receives public-drive events only. See [websocket events](websocket-events.md).
+`/api/ws`. See [WebSocket events](websocket-events.md).

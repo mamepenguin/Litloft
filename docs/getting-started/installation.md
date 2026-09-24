@@ -1,15 +1,13 @@
 # Installation
 
-Litloft runs as a small Docker Compose stack: a FastAPI backend, a Next.js frontend, and any addon containers you choose to enable. Everything is driven from the project directory.
+Litloft runs as a Docker Compose stack: a backend, a frontend, and any addon containers you enable.
 
 ## Prerequisites
 
-- **Docker** (with Compose v2) — Linux, macOS, or Windows with WSL2.
-- **Git** — to clone the repo and pull updates.
-- **Free disk space** — the SQLite DB, thumbnails, and (if you enable AI) ML models can grow into the gigabytes. Plan for ~5 GB minimum.
-- **A LAN hostname or IP** — Litloft is intended for use over a trusted home network.
-
-You do **not** need Python, Node.js, ffmpeg, or any AI runtimes installed locally; everything runs inside containers.
+- **Docker** with Compose v2 (Linux, macOS, or Windows with WSL2).
+- **Git**, to clone the repository and pull updates.
+- **Python 3**, to run `configure.py`. Nothing else is installed on the host; ffmpeg, Node.js and the AI runtimes run inside the containers.
+- **Disk space** for the database, thumbnails and, if you enable AI, the models. Plan for at least 5 GB.
 
 ## Get the code
 
@@ -18,68 +16,75 @@ git clone --recurse-submodules https://github.com/mamepenguin/Litloft
 cd Litloft
 ```
 
-The four shipped addons (`intelligence`, `knowledge`, `cloud-sync`, `media_import`) are tracked as Git submodules under `addons/`. The `--recurse-submodules` flag checks them out at the same time. If you forget it, `configure.py` detects the empty submodule directories and runs `git submodule update --init --recursive` for you, without asking.
+The addons (`intelligence`, `knowledge`, `cloud-sync`, `media_import`) are Git submodules under `addons/`. If you cloned without `--recurse-submodules`, `configure.py` runs `git submodule update --init --recursive` for you.
 
 ## How setup is split
 
-Setup has two halves:
+- **`configure.py`** writes what Docker needs before the stack starts: which host directories to mount, the port, and which addon services to run.
+- **The `/setup` wizard**, in the browser, is where you name the drives, set passwords and choose which addons each drive uses.
 
-- **`configure.py`** wires the container so it can start: which host directories to mount, the port, and which addons to enable. This is the part Docker forces to be on disk before the stack boots.
-- **The `/setup` wizard** (in the browser, after the stack is up) is where you do the actual configuration: naming each drive, setting passwords, and choosing AI feature behaviour.
-
-A *drive* is a top-level content area in Litloft (e.g. *Movies*, *Photos*, *Knowledge*). Each drive is a host directory mounted into the backend container; you give it a real name and optional password protection in the wizard, not on the command line.
+A *drive* is a host directory mounted into the backend. It gets its name and optional password in the wizard, not on the command line.
 
 ## Run `configure.py`
 
 ```bash
 python3 configure.py   # macOS / Linux
-py -3 configure.py     # Windows (Python Launcher)
+py -3 configure.py     # Windows
 ```
 
-It asks, with sensible defaults:
+Press Enter to accept the default shown in brackets. It asks for:
 
-- One **host path** and a **slug** (a short path identifier, not a display name) per drive.
-- The **port** (default `3000`).
-- Whether to enable **intelligence**, the recommended foundation (Enter enables it on a fresh install; a re-run keeps your previous answer as the default), and **knowledge**, an optional service. Both are yes/no only — the AI features themselves are configured later in the browser, all off by default.
+1. **How many drives**, then a **host path** (absolute) and a **slug** for each. The slug is a path identifier, not the display name.
+2. The **port** (default `3000`).
+3. Whether to enable the **intelligence** addon (default yes on a fresh install), and an optional `LLM_API_KEY`. Leave the key blank if you will use a local model such as Ollama, or set it later in `.env`.
+4. Whether to enable the **knowledge** addon (default no).
 
-It then writes `docker-compose.override.yml` (mounts, addon services, env wiring), an empty `drives.json` and `passwords.json` (`[]`), `.env` (only if needed for the port or addon secrets), `event-hooks.json` (if an addon defines hooks), and — when intelligence is enabled — a verbatim copy of `search-config.yml.example`. It does **not** ask for drive names, passwords, access groups, or AI feature modes; those belong to the `/setup` wizard.
+`cloud-sync` and `media_import` are not asked about. They are part of the backend whenever their directory is checked out, and you choose which drives use them in the wizard. See the [addon overview](../addons/overview.md#enabling-and-disabling-addons).
 
-`configure.py` only prompts for the two independent-service addons (`intelligence`, `knowledge`); they each run as their own container and need their own `services:` block. The in-process addons (`cloud-sync`, `media_import`) are listed under **Bundled addons** without a question: they are built into the backend image whenever their directory is checked out, and you choose which drives show each one in the `/setup` wizard, or later at `/admin/settings`. If you decline both services, the summary says so. See [addon overview](../addons/overview.md#enabling-and-disabling-addons) for the policy-per-drive editor.
+It then writes:
 
-You do not need to copy `docker-compose.override.yml.example` by hand — `configure.py` generates the override file. If you would rather hand-write it, see [docker-compose customisation](../admin-guide/docker-compose.md).
+- `docker-compose.override.yml`: drive mounts, port, addon services.
+- `drives.json` and `passwords.json`, both empty (`[]`).
+- `.env`: the setup token, plus the port, addon secrets and `LLM_API_KEY` when they apply.
+- `event-hooks.json`, when an addon service is enabled.
+- `addons/intelligence/search-config.yml`, a copy of the example, when intelligence is enabled.
 
-> The empty `drives.json` and `passwords.json` are deliberate. The single-file bind-mounts need a real file on the host; an absent file makes Docker create a directory there that the backend cannot use. The backend seeds drive entries from the mounted directories on first startup, and the wizard owns logical configuration from then on.
+It asks before overwriting any of these files that already exist.
 
-## (Optional) Provide AI secrets
+Keep `drives.json` and `passwords.json` as files, even when empty. If either is missing, Docker creates a directory in its place and the backend cannot use it.
 
-If you enabled the intelligence addon and want to use the LLM-backed features, set `LLM_API_KEY` (and any provider keys) in `.env`, then re-run `python3 configure.py` so the wiring picks them up. AI features stay off by default until you enable them in the browser. See [environment variables](../reference/env-variables.md) for what each value does.
+To write the override file by hand instead, see [docker-compose customisation](../admin-guide/docker-compose.md).
 
 ## Build and start
 
-`configure.py` offers to start the containers automatically at the end of the setup prompts (defaults to yes). If you skipped that prompt or need to restart later:
+At the end, `configure.py` asks **Start Litloft now?** (default yes). To start it yourself:
 
 ```bash
 docker compose up -d --build
 ```
 
-The first build takes several minutes (frontend npm install, backend pip install, ffmpeg, etc.). Subsequent restarts reuse cached layers.
+The first build takes several minutes. Later builds reuse the cache.
 
-## Verify
+## Open the wizard
 
-Wait a few seconds for the backend healthcheck to flip green, then open the frontend:
+`configure.py` prints the address to open, for example:
 
 ```
-http://localhost:3000     # or http://<your-LAN-IP>:3000
+→  http://localhost:3000/setup?token=6f2a…
 ```
 
-You will be redirected to `/setup`, where you name the detected drives and set passwords and AI features — proceed to [first-run setup](first-run-setup.md).
+The token in the address lets you through the wizard's first step. From another device on the LAN, use `http://<host-ip>:3000/setup?token=…`. Continue with [first-run setup](first-run-setup.md).
 
-To watch live logs while you work:
+To follow the logs:
 
 ```bash
 docker compose logs -f backend
 docker compose logs -f frontend
 ```
+
+## Adding API keys later
+
+Provider keys (`LLM_API_KEY`, `DEEPGRAM_API_KEY`, `OPENAI_API_KEY` and so on) go in `.env`. After editing it, run `docker compose up -d` so the containers pick up the new values. AI features stay off until you turn them on in the browser. See [environment variables](../reference/env-variables.md).
 
 ## Network model
 
@@ -87,36 +92,36 @@ docker compose logs -f frontend
 Browser
   │
   ▼
-:3000 (Next.js custom server)         <─ public entry point
-  ├─ HTTP /api/*  ──rewrite──▶ backend:8000
-  └─ WS   /api/ws ──proxy────▶ backend:8000/api/ws
+:3000 (frontend)                       <─ the only entry point
+  ├─ HTTP /api/*  ──────▶ backend:8000
+  └─ WS   /api/ws ──────▶ backend:8000
 ```
 
-The backend is `expose:`-only and not reachable from outside the Docker network. All traffic enters through the frontend container. This is intentional — see the [architecture guide](../developer-guide/architecture.md).
+The backend is not reachable from outside the Docker network. All traffic goes through the frontend.
 
 ## Serving over HTTPS for iPhone and iPad
 
 Open Litloft over `https://` if anyone uses it from Safari on an iPhone or iPad, including from the home screen.
 
-Newer Safari (seen on iPadOS 27) runs a page loaded over plain `http://` with its JavaScript compiler switched off. Everything still works, but the JavaScript runs roughly ten times slower. PDFs make this easy to notice: on an iPad, turning a page can take several seconds instead of a fraction of one. Safari keeps the page in that mode while you follow links inside it, so switching to HTTPS is the only fix. Nothing in Litloft can change it.
+Newer Safari (seen on iPadOS 27) runs a page loaded over plain `http://` with its JavaScript compiler switched off. Everything still works, but roughly ten times slower. PDFs make it easy to notice: turning a page can take several seconds. Only HTTPS fixes it.
 
-The frontend serves plain HTTP, so HTTPS has to come from something in front of it. If your devices already reach the server over [Tailscale](https://tailscale.com), `tailscale serve` provides the certificate and renews it for you. First enable MagicDNS and HTTPS certificates in the Tailscale admin console. Then run this once on the server:
+The frontend serves plain HTTP, so HTTPS has to come from something in front of it. If your devices already reach the server over [Tailscale](https://tailscale.com), `tailscale serve` provides and renews the certificate. First enable MagicDNS and HTTPS certificates in the Tailscale admin console. Then run this once on the server:
 
 ```bash
 tailscale serve --bg --https=443 http://localhost:3000   # the port Litloft listens on
 ```
 
-Litloft is then at `https://<machine-name>.<tailnet>.ts.net`. `--bg` saves the setting, so it comes back by itself after a reboot. Use `tailscale serve status` to check it. On macOS the Tailscale app keeps the command inside the app bundle, at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`.
+Litloft is then at `https://<machine-name>.<tailnet>.ts.net`. `--bg` keeps the setting across reboots. `tailscale serve status` shows it. On macOS the command is inside the app bundle, at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`.
 
 A home-screen app belongs to the address it was added from. After switching to HTTPS, open the new address in Safari and add it to the home screen again.
 
 ## Common installation issues
 
-- **Port already in use.** Set `LITLOFT_PORT` in `.env` or change the `frontend.ports` mapping in your override file.
-- **Permission denied on a mounted drive.** The backend runs as the container's default user. Ensure the host directory is readable; for write-heavy features, also writable.
-- **Healthcheck never goes green.** Check `docker compose logs backend`; usually it is a mistyped volume in `docker-compose.override.yml` so a mounted directory does not actually exist inside the container.
-- **No drives in the wizard.** The backend seeds drives from the directories mounted under `/app/drives/`. If `/setup` shows none, your override file has no drive mounts (or they failed to mount); fix the volumes and run `docker compose up -d --build` again.
-- **Frontend says `502 Bad Gateway`.** The backend is not yet healthy. Wait, then refresh.
+- **Port already in use.** Set `LITLOFT_PORT` in `.env`, or re-run `configure.py` with another port.
+- **Permission denied on a drive.** The backend must be able to read the host directory, and to write to it for uploads and file operations.
+- **Backend never becomes healthy.** Run `docker compose logs backend`. The usual cause is a mistyped path in `docker-compose.override.yml`.
+- **No drives in the wizard.** No directory is mounted under `/app/drives/`. Fix the mounts in `docker-compose.override.yml` (or re-run `configure.py`), run `docker compose up -d --build`, and reload `/setup`.
+- **`502 Bad Gateway`.** The backend is not ready yet. Wait and reload.
 
 ## Updating
 
@@ -124,4 +129,13 @@ See [upgrading](upgrading.md).
 
 ## Uninstall
 
-`docker compose down` stops and removes the containers. Your data — `data/`, `drives.json`, `passwords.json` — is left on disk so you can reinstall later. To wipe configuration while keeping the stack runnable: `docker compose down -v && rm -rf data && echo '[]' > drives.json && echo '[]' > passwords.json`. If you want the directory truly empty, also remove `drives.json` and `passwords.json`, but re-run `python3 configure.py` before starting again (the single-file bind-mounts need those files to exist, otherwise Docker creates unusable directories in their place).
+`docker compose down` stops and removes the containers. `data/`, `drives.json` and `passwords.json` stay on disk, so you can start again later.
+
+To start over with a clean configuration, keep the two JSON files but empty them:
+
+```bash
+docker compose down
+rm -rf data
+echo '[]' > drives.json
+echo '[]' > passwords.json
+```

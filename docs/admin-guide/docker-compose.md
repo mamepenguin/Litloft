@@ -1,33 +1,31 @@
 # docker-compose customisation
 
-Litloft is run as a Docker Compose stack. The base file `docker-compose.yml` is shipped with the project and **must not be edited**. All operator-specific configuration lives in `docker-compose.override.yml`, which Compose merges in automatically.
+Litloft runs as a Docker Compose stack. **Do not edit `docker-compose.yml`.** Your settings go in `docker-compose.override.yml`, which Compose merges in automatically and Git ignores.
 
-`configure.py` generates `docker-compose.override.yml` for you from a short set of questions (mounts, port, which addons to enable). Run it instead of copying the example by hand:
+`configure.py` writes the override file for you:
 
 ```bash
 python3 configure.py
 ```
 
-If you prefer to write the override file yourself, start from the template:
+To write it by hand, start from the template:
 
 ```bash
 cp docker-compose.override.yml.example docker-compose.override.yml
 ```
 
-The override file is `.gitignored` so your customisation is private to your machine. The sections below describe what `configure.py` writes and how to adjust it afterwards.
-
 ## Services
 
-The base file defines two services:
+`docker-compose.yml` defines two services:
 
-- **backend** — FastAPI on port 8000, exposed only inside the Docker network (`expose:` not `ports:`).
-- **frontend** — Next.js custom server on port 3000, the only public entry point.
+- **backend**, on port 8000, reachable only inside the Docker network.
+- **frontend**, on port 3000, the only entry point.
 
-Addon containers (intelligence, knowledge, …) are introduced through your override file or by including their own compose fragments.
+Addon services (intelligence, knowledge) are defined in the override file.
 
 ## Drive mounts
 
-`configure.py` asks for one host path and a slug per drive and writes the mount lines for you. Each mount maps a host directory to `/app/drives/<slug>`:
+Each drive is a host directory mounted under `/app/drives/<slug>` in the backend:
 
 ```yaml
 services:
@@ -38,14 +36,14 @@ services:
       - /mnt/nas/photos:/app/drives/photos
 ```
 
-The slug here is a path identifier, not the display name. The backend seeds one logical drive entry per mounted directory on first startup, and you give each drive its real name (and optional password protection) later in the `/setup` wizard. To add a drive after the fact, append a mount line and run `docker compose up -d --build` again.
+The slug is a path identifier, not the display name. On a fresh install the backend creates one drive per mounted directory, and you name them in the `/setup` wizard. To add a drive later, add the mount, run `docker compose up -d --build`, then add the drive in [Settings](settings-gui.md#drives).
 
-- `:ro` is optional and only for drives you want Litloft to never write into (read-only library). It is not required and not the default.
-- Bind mounts work as expected on Linux; on macOS/Windows expect slower I/O for very large drives (Docker Desktop's filesystem is the bottleneck).
+- Add `:ro` to a mount to keep Litloft from writing to that drive. It is optional.
+- On macOS and Windows, bind mounts of very large directories are slower than on Linux.
 
 ## Passwords file
 
-`configure.py` always generates an empty `passwords.json` (`[]`) and mounts it **read-write**, regardless of whether you intend to use passwords yet:
+`configure.py` always creates `passwords.json` as `[]` and mounts it read-write:
 
 ```yaml
 services:
@@ -54,21 +52,17 @@ services:
       - ./passwords.json:/app/passwords.json
 ```
 
-Do **not** add `:ro` to this mount. Passwords are created and edited through the `/setup` wizard and `/admin/settings`, which write `passwords.json` from inside the backend container; a read-only mount makes those writes fail. The single-file bind-mount also needs a real host file to exist — an absent file makes Docker create a directory there, which the backend cannot read or write — which is why `configure.py` writes the empty `[]` up front.
-
-An empty `passwords.json` is semantically identical to having no passwords at all: every drive is public (graceful-degradation mode). It only stops being a no-op once you add an entry through the GUI.
+**Do not add `:ro`.** The wizard and Settings write this file from inside the container. The file must exist on the host before `docker compose up`; if it does not, Docker creates a directory there and the backend cannot use it. An empty `[]` means no passwords: every drive is public.
 
 ## Port
 
-The frontend listens on port 3000 inside the container. The default published port is also 3000.
-
-The simplest override is via `.env`:
+The default port is 3000. To change it, set it in `.env`:
 
 ```dotenv
 LITLOFT_PORT=8080
 ```
 
-If you need finer control (e.g. multiple instances), publish a different port from the override file:
+Or publish a port in the override file:
 
 ```yaml
 services:
@@ -77,52 +71,43 @@ services:
       - "8080:3000"
 ```
 
-Note that adding `ports:` in an override **adds** to the base file's `ports:` rather than replacing it. To replace, set `ports: !reset []` then add your own.
+A `ports:` list in the override is added to the one in `docker-compose.yml`, not swapped for it. To replace it, write `ports: !reset []` first.
 
 ## Environment variables
 
-The most common env vars to set are listed in [environment variables](../reference/env-variables.md). Inject them either:
+Secrets go in `.env`, which Git ignores, and the override file refers to them by name:
 
-- Via `.env` (for variables that the base file already references with `${VAR}` syntax, like `LITLOFT_PORT`).
-- Or explicitly in the override file:
+```yaml
+services:
+  backend:
+    environment:
+      - LITLOFT_SETUP_TOKEN=${LITLOFT_SETUP_TOKEN:-}
+      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
+```
 
-  ```yaml
-  services:
-    backend:
-      environment:
-        - JWT_SECRET=${JWT_SECRET}
-        - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET}
-  ```
-
-Sensitive values stay in `.env` (also `.gitignored`). The override file references them by `${NAME}`.
+See [environment variables](../reference/env-variables.md) for the full list.
 
 ## Adding addon containers
 
-Independent-service addons (intelligence, knowledge) ship their own Dockerfiles and pull in extra runtime dependencies (Whisper models, sentence-transformers, etc.). They are introduced through `docker-compose.override.yml`. Example for intelligence:
+`configure.py` writes the intelligence and knowledge services when you enable them; prefer it. A hand-written intelligence service looks like this:
 
 ```yaml
 services:
   backend:
     environment:
       - INTELLIGENCE_SERVICE_URL=http://intelligence:8100
-      # Core signs its webhooks to the addon in *this* container, so the
-      # same value has to be here and on the addon below.
       - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
+      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
 
   intelligence:
-    build:
-      context: ./addons/intelligence
+    build: ./addons/intelligence
     expose:
       - "8100"
     volumes:
       - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
       - ./data/addons/intelligence:/intelligence-data
-      # The whole data directory, read-only — never the DB file alone,
-      # with the core's JWT signing key masked out. See "Read-only
-      # mounts for addons" below for why both lines are needed.
       - ./data:/data:ro
       - /dev/null:/data/.jwt_secret:ro
-      # Read-only mounts of the drives the addon should index:
       - ./videos:/drives/default:ro
     environment:
       - DRIVE_MOUNTS=default=/drives/default
@@ -134,28 +119,22 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ASSEMBLYAI_API_KEY=${ASSEMBLYAI_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET}
+      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
       - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
     depends_on:
       backend:
         condition: service_healthy
+    restart: unless-stopped
 ```
 
-`SEARCH_WEBHOOK_SECRET` authenticates the core's lifecycle webhooks to the addon, and it belongs on **both** services or neither. The backend builds the `X-Webhook-Secret` header from its own environment; arming only the addon makes every webhook 403 and indexing stops with no other symptom, while setting it only on the backend leaves the addon's gate a no-op. It takes effect only when `addons/intelligence/manifest.json` declares `"secret_env": "SEARCH_WEBHOOK_SECRET"` on every listener — `configure.py` checks that before wiring either side, and a manual install should do the same. The knowledge addon's `KNOWLEDGE_WEBHOOK_SECRET` works identically.
-
-The `depends_on: condition: service_healthy` is recommended — when the intelligence addon talks to the backend's internal API on cold start, racing past the backend boot can produce `ConnectionRefused`. The addon already fails open during a 60-second grace period, but the healthy gate is the recommended fix and is mandatory when using cloud transcription providers (their job records depend on a synchronous policy lookup at enqueue time).
-
-The base `docker-compose.yml` does **not** include addon services so non-AI users have a smaller stack. The example file includes a commented-out template you can paste from.
+- **Mount every drive you want indexed**, read-only, and list it in `DRIVE_MOUNTS` with the same slug. Without `DRIVE_MOUNTS` the addon indexes nothing, and says nothing.
+- **`SEARCH_WEBHOOK_SECRET` goes on both services or neither.** On the addon alone, every webhook from the backend is rejected and indexing stops with no other sign. It only has an effect when `addons/intelligence/manifest.json` declares `"secret_env": "SEARCH_WEBHOOK_SECRET"`; `configure.py` checks that for you. `KNOWLEDGE_WEBHOOK_SECRET` works the same way for the knowledge addon.
+- **Set `CORE_INTERNAL_SECRET` to the same value on both services.** If the values differ, the addon cannot read file contents. If the backend has none, the addon cannot save chapters.
+- **Keep `depends_on: condition: service_healthy`.** The mounts below need it (see next section).
 
 ## Read-only mounts for addons
 
-Best practice: mount drives read-only into addons. The intelligence addon, for example, only ever reads file content; it has no business writing into your library:
-
-```yaml
-- ./videos:/drives/default:ro
-```
-
-When an addon needs to look up file metadata directly, give it the core's data **directory**, read-only, and point it at the database inside:
+Mount drives into addons read-only (`:ro`). An addon that needs the core database gets the whole data directory, read-only, and the path to the database inside it:
 
 ```yaml
 volumes:
@@ -165,44 +144,17 @@ environment:
   - HOMEVAULT_DB_PATH=/data/data.db
 ```
 
-That one mount also covers the generated thumbnails the intelligence addon reads at `/data/thumbnails` to build representative-video embeddings.
+Three rules:
 
-**The second line is not optional.** `data/.jwt_secret` is the key the core signs access tokens with, and it lives beside the database. An addon that can read it can mint a token carrying any drive group — or `__admin__` — and call the core's write and delete APIs, which makes the read-only drive mounts above meaningless. Overlaying `/dev/null` leaves the addon an empty file. `/dev/null` is the right mask precisely because it always exists on the host, so it can never become a Docker-created directory itself.
+1. **Always add the `/dev/null` line.** `data/.jwt_secret` is the key the backend signs unlocks with. An addon that can read it can give itself access to every drive and to the admin API. `/dev/null` hides it.
+2. **Keep the `service_healthy` gate.** On a first run, `data/.jwt_secret` is created when the backend starts. If the addon starts first, the container fails to start with `openat .jwt_secret: read-only file system`.
+3. **Never mount `data.db` on its own.** SQLite keeps `data.db-wal` and `data.db-shm` next to the database and deletes them on shutdown. A mount of a missing file makes Docker create a directory in its place, and the backend then fails with `unable to open database file`. To recover: `docker compose down`, `rmdir data/data.db-wal data/data.db-shm`, then `docker compose up -d`. A file mount also hides `/data/thumbnails` from the intelligence addon; nothing fails, but **Similar files** stops finding visual matches for videos.
 
-The mask makes `depends_on: backend: condition: service_healthy` **load-bearing for startup**, not merely a cold-start nicety. A bind mount needs its target to exist, and on a first run `data/.jwt_secret` is only created when the backend boots (`init_jwt_secret()` runs in the startup lifespan, before `/health` answers). Start the addon before the backend on a fresh install and container creation itself fails:
-
-```
-error mounting "/dev/null" to rootfs at "/data/.jwt_secret":
-  openat .jwt_secret: read-only file system
-```
-
-The healthy gate orders it correctly, so keep it on every addon that takes this mount.
-
-What this mount still exposes, read-only, is the rest of `data/`: other addons' databases under `data/addons/`, and `data/uploads`. That is a deliberate trade — the alternative that scopes it tighter is to give the database its own subdirectory, which cannot be done without breaking every existing `docker-compose.override.yml` on upgrade. It is acceptable under the personal-tool premise, where every addon is first-party. If you ever run a third-party addon, give it the Internal API instead of this mount.
-
-**Do not bind-mount the database file on its own.** The core runs SQLite in WAL mode, so a reader needs `data.db-wal` and `data.db-shm` next to `data.db`, and SQLite deletes both on a clean shutdown, recreating them on the next write. Naming them in a mount means that whenever they are absent at `docker compose up`, Docker creates a **directory** at each missing path — and the backend then fails to start with `unable to open database file`, because a directory occupies the spot where its WAL belongs. Recovery is `docker compose down`, `rmdir data/data.db-wal data/data.db-shm`, `docker compose up -d`. A directory mount cannot hit this: the directory always exists, and the sidecars are picked up as they come and go.
-
-A file mount has a second consequence, and unlike the WAL one it is
-silent. `/data/thumbnails` never appears inside the container, so every
-thumbnail the intelligence addon would embed is simply out of reach. The
-thumbnail route is best-effort by design — a missing JPEG skips that one
-file rather than failing the job — so nothing errors and nothing stops.
-The only symptom is that *Similar files* stops offering visual matches
-for videos, `.loft` refs and HEIC images, which reads as a weak model
-rather than a broken mount. Images are unaffected, because they embed
-their own file from the drive mount and never touch `/data/thumbnails`.
-
-If your `docker-compose.override.yml` predates this section, check it:
-an addon that mounts `./data/data.db` instead of `./data` is in exactly
-this state. Switching to the directory mount above is enough — the addon
-logs a warning at startup when the directory is unreadable, and reopens
-the thumbnail work for every affected file on the next reconcile.
-
-In practice, the Internal API is preferred over direct DB access; see [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
+The rest of `data/` (other addons' databases, uploads) stays readable to the addon. That is acceptable only for addons you trust. Addons from others should use the Internal API instead; see [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
 
 ## Healthcheck
 
-The backend ships with a Compose healthcheck that hits `GET /health`. The frontend uses `depends_on: condition: service_healthy` so the public surface is not exposed until the backend is ready. In production add the same on every addon container that talks to the backend.
+The backend healthcheck calls `GET /api/health`. The frontend starts only once the backend is healthy. Give the same `depends_on` to every addon service. See [monitoring](monitoring.md#health-check).
 
 ## Logs
 
@@ -212,11 +164,9 @@ docker compose logs -f frontend
 docker compose logs -f intelligence    # if running
 ```
 
-Set `LOG_LEVEL=debug` in the environment of any service for verbose logging.
-
 ## Resource limits
 
-Compose v2 resource limits go in the override file. Helpful for the intelligence addon under heavy indexing:
+Limits go in the override file. They help keep the intelligence addon in check during heavy indexing:
 
 ```yaml
 services:
@@ -230,11 +180,4 @@ services:
 
 ## Multiple instances
 
-You can run two Litlofts on the same host by:
-
-- Cloning into two directories.
-- Setting different `LITLOFT_PORT` for each.
-- Using separate `data/` directories.
-- Using separate Docker Compose project names: `docker compose -p litloft-a up -d`.
-
-Configuration files (`drives.json`, `passwords.json`, `.env`) are local to each directory.
+To run two Litlofts on one host, clone into two directories, give each its own `LITLOFT_PORT`, and start each with its own project name, for example `docker compose -p litloft-a up -d`. Each directory has its own `data/`, `drives.json`, `passwords.json` and `.env`.

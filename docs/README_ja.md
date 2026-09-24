@@ -3,7 +3,7 @@
 ファイルベースのメディアライブラリ
 
 Litloftは、自宅LANで動かすセルフホスト型のライブラリアプリです。動画、文書、画像、Web動画、Markdownノートをブラウザで共有できます。
-元々動画サーバーとして開発を始めましたが、知識の集約、検索にも重点を置いています。ファイル内容を複数の手法でインデックス化し、散らばったメディアを使える資料として活用することを目指したアプリです。
+再生だけでなく、ファイルの中身を複数の手法でインデックス化し、散らばったメディアを検索できる資料として扱えるようにします。
 
 **[Webサイト](https://mamepenguin.github.io/Litloft/)** ·
 **[英語README](../README.md)** ·
@@ -75,7 +75,7 @@ URLを貼り付けるだけでなく、チャンネルやプレイリストを�
 
 ## クイックスタート
 
-必要環境: Docker、Python 3
+必要環境: Git、Docker、Python 3
 
 ```bash
 git clone --recurse-submodules https://github.com/mamepenguin/Litloft
@@ -84,13 +84,14 @@ python3 configure.py
 docker compose up -d --build
 ```
 
-`http://localhost:3000` を開きます。
+`configure.py` が表示するアドレスを開きます。初回は `http://localhost:3000/setup?token=…` で、セットアップウィザードが始まります。
 
-同じLAN上の別デバイスからは `http://<host-ip>:3000` を開きます。
+同じLAN上の別デバイスからは `http://<host-ip>:3000` を使います。
 
-`configure.py` は、ローカルの Docker 設定、ドライブマウント、ポート、
-任意のアドオンサービスを生成します。初回起動時はセットアップウィザードで
-ドライブ名、アクセス制御、アドオンポリシーを設定します。
+`configure.py` は、ローカルの Docker 設定（ドライブマウント、ポート、
+任意のアドオンサービス）を生成し、セットアップウィザードのアドレスを表示します。
+ウィザードでドライブ名、アクセス制御、アドオンポリシーを設定します。
+詳しくは [インストール](getting-started/installation.md)（英語）を参照してください。
 
 アップデート:
 
