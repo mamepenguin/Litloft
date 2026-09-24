@@ -367,12 +367,6 @@ feature settings are gone when it is turned back on.
 page and `POST /api/addons/media_import/link` still import from URLs on that
 drive.
 
-**Media Import's drive-scoped routes tell a locked drive from an unknown one.**
-`_scoped_drive` answers a drive it cannot find with `404 "Drive not found"` and a
-locked drive with `404 "Drive not found: <name>"`, so a caller can confirm that a
-guessed drive name exists. Reached by sending any `/api/addons/media_import/`
-route that takes `X-Lit-Drive` a guessed drive name.
-
 **Media Import's manual STT route confirms a queued file on a locked drive.**
 `POST /api/addons/media_import/link/{id}/stt` answers `already_queued` (200) for
 a file already in the STT queue before it checks the drive, while an unknown id

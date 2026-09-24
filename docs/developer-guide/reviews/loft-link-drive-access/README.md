@@ -16,7 +16,7 @@ list the round was briefed with.
 Known and not addressed, from r1 (all pre-existing):
 
 - `_scoped_drive` answers a locked drive and an unknown drive with different
-  404 bodies (in `known-issues.md`).
+  404 bodies (fixed later, see `../uniform-drive-not-found/`).
 - `enqueue_stt` answers `already_queued` before it checks the drive (in
   `known-issues.md`).
 - The fetch worker writes to the file row by id without checking that it is
