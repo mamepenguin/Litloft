@@ -36,6 +36,7 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 RUN mv server.js server-next.js
 COPY --from=builder /app/server.js ./server.js
+COPY --from=builder /app/server-routes.js ./server-routes.js
 COPY --from=deps /deps/node_modules/http-proxy ./node_modules/http-proxy
 COPY --from=deps /deps/node_modules/eventemitter3 ./node_modules/eventemitter3
 COPY --from=deps /deps/node_modules/requires-port ./node_modules/requires-port
