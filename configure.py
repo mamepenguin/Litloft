@@ -363,14 +363,15 @@ def main():
         heading("Step 4: Optional service — Knowledge (Markdown vault)")
         if ask_yn("Enable knowledge addon?", 'y' if ex.has_knowledge else 'n'):
             has_knowledge = True
-            if ex.knowledge_webhook_secret and ex.core_internal_secret:
+            if ex.knowledge_webhook_secret:
                 knowledge_webhook_secret = ex.knowledge_webhook_secret
-                core_internal_secret     = ex.core_internal_secret
                 ok("Reusing existing secrets")
             else:
                 knowledge_webhook_secret = gen_secret()
-                core_internal_secret     = gen_secret()
                 ok("Generated secrets")
+
+    if has_intelligence or has_knowledge:
+        core_internal_secret = ex.core_internal_secret or gen_secret()
 
     bundled = bundled_addons(base)
     if bundled:
@@ -443,8 +444,9 @@ def main():
             backend_env += [
                 "- KNOWLEDGE_SERVICE_URL=http://knowledge:8200",
                 "- KNOWLEDGE_WEBHOOK_SECRET=${KNOWLEDGE_WEBHOOK_SECRET:-}",
-                "- CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}",
             ]
+        if core_internal_secret:
+            backend_env.append("- CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}")
         if backend_env:
             lines.append("    environment:")
             lines.extend(f"      {e}" for e in backend_env)
@@ -569,9 +571,10 @@ def main():
     if port != '3000':       write_env_key('LITLOFT_PORT', port, env_file);                          wrote_env = True
     if has_intelligence and search_webhook_secret:
         write_env_key('SEARCH_WEBHOOK_SECRET', search_webhook_secret, env_file); wrote_env = True
-    if has_knowledge:
-        if knowledge_webhook_secret: write_env_key('KNOWLEDGE_WEBHOOK_SECRET', knowledge_webhook_secret, env_file); wrote_env = True
-        if core_internal_secret:     write_env_key('CORE_INTERNAL_SECRET', core_internal_secret, env_file);        wrote_env = True
+    if has_knowledge and knowledge_webhook_secret:
+        write_env_key('KNOWLEDGE_WEBHOOK_SECRET', knowledge_webhook_secret, env_file); wrote_env = True
+    if core_internal_secret:
+        write_env_key('CORE_INTERNAL_SECRET', core_internal_secret, env_file); wrote_env = True
     if llm_api_key:
         write_env_key('LLM_API_KEY', llm_api_key, env_file)
         wrote_env = True

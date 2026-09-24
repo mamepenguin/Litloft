@@ -393,6 +393,53 @@ def test_published_recipes_mask_the_jwt_key_wherever_data_is_mounted(relpath):
     )
 
 
+def _service_block(override: str, name: str) -> str:
+    match = re.search(rf"^  {name}:\n(.*?)(?=^  \S|\Z)", override, re.MULTILINE | re.DOTALL)
+    assert match, f"no {name} service in override"
+    return match.group(1)
+
+
+def _env_value(env_text: str, key: str) -> str | None:
+    for line in env_text.splitlines():
+        if line.startswith(f"{key}="):
+            return line.split("=", 1)[1].strip()
+    return None
+
+
+def _configure_intelligence_only(base: Path, tmp_path: Path) -> None:
+    intel = base / "addons" / "intelligence"
+    intel.mkdir(parents=True, exist_ok=True)
+    (intel / "search-config.yml.example").write_text("features:\n  rag: false\n")
+    host = tmp_path / "media"
+    host.mkdir(exist_ok=True)
+    answers = ["1", str(host), "media", "3000", "y", "y"]
+    proc = _run_configure(base, answers)
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+
+
+def test_intelligence_alone_gets_the_core_internal_secret_on_both_sides(base, tmp_path):
+    _configure_intelligence_only(base, tmp_path)
+
+    secret = _env_value((base / ".env").read_text(), "CORE_INTERNAL_SECRET")
+    assert secret
+
+    override = (base / "docker-compose.override.yml").read_text()
+    wiring = "- CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}"
+    assert wiring in _service_block(override, "backend")
+    assert wiring in _service_block(override, "intelligence")
+
+
+def test_rerunning_configure_keeps_the_core_internal_secret(base, tmp_path):
+    _configure_intelligence_only(base, tmp_path)
+    first = _env_value((base / ".env").read_text(), "CORE_INTERNAL_SECRET")
+    assert first
+
+    _configure_intelligence_only(base, tmp_path)
+    second = _env_value((base / ".env").read_text(), "CORE_INTERNAL_SECRET")
+
+    assert second == first
+
+
 def test_intelligence_disabled_still_no_search_config_rewrite(base, tmp_path):
     intel = base / "addons" / "intelligence"
     intel.mkdir(parents=True)
