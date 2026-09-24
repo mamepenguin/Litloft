@@ -240,15 +240,19 @@ describe("PdfRasterCache", () => {
       visiblePages: [1],
       prefetch: [
         { pageNumber: 2, renderScale: 1 },
-        { pageNumber: 0, renderScale: 1 },
+        { pageNumber: 3, renderScale: 1 },
       ],
     });
     await flush();
     jobs[0].resolve();
     await flush();
 
-    // The reader zooms while page 2 is being drawn ahead.
-    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 2 }] });
+    // The reader zooms while page 2 is being drawn ahead; the canvas keeps
+    // the old size on show meanwhile.
+    cache.want("canvas", {
+      visible: [{ pageNumber: 1, renderScale: 2 }],
+      hold: [{ pageNumber: 1, renderScale: 1 }],
+    });
     await flush();
     expect(jobs[1].cancel).not.toHaveBeenCalled();
     expect(jobs).toHaveLength(2);
