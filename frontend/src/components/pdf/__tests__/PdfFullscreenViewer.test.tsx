@@ -573,10 +573,6 @@ describe("PdfFullscreenViewer raster cache", () => {
     const calls = spy.mock.calls.filter(([owner]) => owner === "fullscreen");
     return calls[calls.length - 1][1] as Wants;
   }
-  /** The pixels per point a page is drawn at, as react-pdf derives it. */
-  const drawnScale = (p: (typeof pageProps)[number]) =>
-    (p.width / PORTRAIT.width) * (p.devicePixelRatio ?? 1);
-
   beforeEach(() => {
     vi.stubGlobal("devicePixelRatio", 2);
   });
@@ -588,6 +584,14 @@ describe("PdfFullscreenViewer raster cache", () => {
     expect(last.customRenderer).toBe(PdfCanvas);
   });
 
+  /** The first draw of `page` at or after `since`. */
+  const firstDrawn = (page: number, since: number) =>
+    pageProps.slice(since).find((p) => p.pageNumber === page)!;
+  const scaleOf = (
+    p: (typeof pageProps)[number],
+    box: { width: number } = PORTRAIT,
+  ) => (p.width / box.width) * (p.devicePixelRatio ?? 1);
+
   it("keeps the face on screen and prefetches the next then the previous page at the size a turn draws them", async () => {
     const want = vi.spyOn(PdfRasterCache.prototype, "want");
     await open(fakePdf(8), { initialPage: 3 });
@@ -595,11 +599,12 @@ describe("PdfFullscreenViewer raster cache", () => {
     expect(wants.visiblePages).toEqual([3]);
     expect(wants.prefetch!.map((r) => r.pageNumber)).toEqual([4, 2]);
 
+    const since = pageProps.length;
     fireEvent.keyDown(document, { key: "ArrowRight" });
     await act(async () => {});
-    const drawn = pageProps.filter((p) => p.pageNumber === 4).pop()!;
+    const drawn = firstDrawn(4, since);
     expect(drawn.renderMode).toBe("custom");
-    expect(wants.prefetch![0].renderScale).toBeCloseTo(drawnScale(drawn), 4);
+    expect(wants.prefetch![0].renderScale).toBeCloseTo(scaleOf(drawn), 4);
   });
 
   it("prefetches both pages of the next pair", async () => {
@@ -610,15 +615,61 @@ describe("PdfFullscreenViewer raster cache", () => {
     expect(wants.visiblePages).toEqual([1]);
     expect(wants.prefetch!.map((r) => r.pageNumber)).toEqual([2, 3]);
 
+    const since = pageProps.length;
     fireEvent.keyDown(document, { key: "ArrowRight" });
     await act(async () => {});
     for (const [n, request] of [
       [2, wants.prefetch![0]],
       [3, wants.prefetch![1]],
     ] as const) {
-      const drawn = pageProps.filter((p) => p.pageNumber === n).pop()!;
-      expect(request.renderScale).toBeCloseTo(drawnScale(drawn), 4);
+      expect(request.renderScale).toBeCloseTo(scaleOf(firstDrawn(n, since)), 4);
     }
+  });
+
+  it("prefetches a pair too large for the pixel budget at the budgeted size", async () => {
+    vi.stubGlobal("devicePixelRatio", 8);
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    const want = vi.spyOn(PdfRasterCache.prototype, "want");
+    await open(fakePdf(8), { initialPage: 1 });
+    const wants = wantsOf(want);
+
+    const since = pageProps.length;
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    await act(async () => {});
+    const drawn = firstDrawn(2, since);
+    expect(drawn.devicePixelRatio).toBeLessThan(8);
+    expect(wants.prefetch![0].renderScale).toBeCloseTo(scaleOf(drawn), 4);
+  });
+
+  it("prefetches a page of another size at that page's own size", async () => {
+    const want = vi.spyOn(PdfRasterCache.prototype, "want");
+    await open(
+      fakePdf(8, (n) => (n === 4 ? LANDSCAPE : PORTRAIT)),
+      { initialPage: 3 },
+    );
+    await act(async () => {});
+    const wants = wantsOf(want);
+
+    const since = pageProps.length;
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    await act(async () => {});
+    expect(wants.prefetch![0].renderScale).toBeCloseTo(
+      scaleOf(firstDrawn(4, since), LANDSCAPE),
+      4,
+    );
+  });
+
+  it("keeps prefetching at the fit size while the page on screen is zoomed", async () => {
+    const want = vi.spyOn(PdfRasterCache.prototype, "want");
+    await open(fakePdf(8), { initialPage: 3 });
+    const before = wantsOf(want).prefetch;
+
+    fireEvent.keyDown(document, { key: "=" });
+    fireEvent.keyDown(document, { key: "=" });
+    await act(async () => {});
+    const zoomed = pageProps[pageProps.length - 1];
+    expect(zoomed.devicePixelRatio).toBeGreaterThan(2);
+    expect(wantsOf(want).prefetch).toEqual(before);
   });
 
   it("gives its pages up when it closes", async () => {

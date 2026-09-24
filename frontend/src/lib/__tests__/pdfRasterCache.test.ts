@@ -82,22 +82,63 @@ describe("PdfRasterCache", () => {
     expect(pageOf(1).cleanup).not.toHaveBeenCalled();
   });
 
-  it("keeps the previous raster of a page on show until the new scale is drawn", async () => {
+  it("keeps a raster that is on show until the owner lets go of it", async () => {
     const { cache, jobs } = setup();
     cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 1 }] });
     await flush();
     jobs[0].resolve();
     await flush();
 
-    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 2 }] });
+    cache.want("canvas", {
+      visible: [{ pageNumber: 1, renderScale: 2 }],
+      hold: [{ pageNumber: 1, renderScale: 1 }],
+    });
     await flush();
     expect(cache.get(1, 2)).toBeUndefined();
-    expect(cache.best(1)).toBe(jobs[0].raster);
+    expect(cache.get(1, 1)).toBe(jobs[0].raster);
+    expect(jobs[0].raster.canvas.width).toBe(100);
 
     jobs[1].resolve();
     await flush();
+    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 2 }] });
+    await flush();
     expect(cache.best(1)).toBe(jobs[1].raster);
     expect(jobs[0].raster.canvas.width).toBe(0);
+  });
+
+  it("keeps one raster per page on screen once it is drawn", async () => {
+    const { cache, jobs } = setup();
+    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 1 }] });
+    await flush();
+    jobs[0].resolve();
+    await flush();
+    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 2 }] });
+    await flush();
+    jobs[1].resolve();
+    await flush();
+
+    const live = jobs.filter((j) => j.raster.canvas.width > 0);
+    expect(live.map((j) => j.renderScale)).toEqual([2]);
+  });
+
+  it("does not take a raster another viewer is showing when this one redraws", async () => {
+    const { cache, jobs } = setup();
+    cache.want("inline", { visible: [{ pageNumber: 3, renderScale: 1 }] });
+    cache.want("fullscreen", { visible: [{ pageNumber: 3, renderScale: 2 }] });
+    await flush();
+    jobs[0].resolve();
+    await flush();
+    jobs[1].resolve();
+    await flush();
+
+    cache.want("fullscreen", {
+      visible: [{ pageNumber: 3, renderScale: 4 }],
+      hold: [{ pageNumber: 3, renderScale: 2 }],
+    });
+    await flush();
+
+    expect(cache.get(3, 2)).toBe(jobs[1].raster);
+    expect(jobs[1].raster.canvas.width).toBe(100);
   });
 
   it("releases a page no viewer keeps and cleans it up once", async () => {
@@ -124,7 +165,10 @@ describe("PdfRasterCache", () => {
     await flush();
 
     cache.release("a");
-    cache.want("b", { visible: [{ pageNumber: 1, renderScale: 1.5 }] });
+    cache.want("b", {
+      visible: [{ pageNumber: 1, renderScale: 1.5 }],
+      hold: [{ pageNumber: 1, renderScale: 1 }],
+    });
     await flush();
 
     expect(pageOf(1).cleanup).not.toHaveBeenCalled();
@@ -189,7 +233,7 @@ describe("PdfRasterCache", () => {
     expect(jobs.map((j) => j.pageNumber)).toEqual([5, 6]);
   });
 
-  it("draws a page on screen before a queued prefetch", async () => {
+  it("stops a running prefetch for a page on screen and starts it again afterwards", async () => {
     const { cache, jobs } = setup();
     cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 1 }] });
     cache.want("viewer", {
@@ -199,17 +243,26 @@ describe("PdfRasterCache", () => {
     await flush();
     jobs[0].resolve();
     await flush();
-    // prefetch of 2 is running; the reader turns to 3
-    cache.want("viewer", {
-      visiblePages: [3],
-      prefetch: [{ pageNumber: 2, renderScale: 1 }],
-    });
-    cache.want("canvas", { visible: [{ pageNumber: 3, renderScale: 1 }] });
-    await flush();
-    jobs[1].resolve();
-    await flush();
+    expect(jobs.map((j) => j.pageNumber)).toEqual([1, 2]);
 
-    expect(jobs.map((j) => j.pageNumber)).toEqual([1, 2, 3]);
+    // The reader zooms while page 2 is being drawn ahead.
+    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 2 }] });
+    await flush();
+    expect(jobs[1].cancel).toHaveBeenCalled();
+    expect(jobs.map((j) => `${j.pageNumber}@${j.renderScale}`)).toEqual([
+      "1@1",
+      "2@1",
+      "1@2",
+    ]);
+
+    jobs[2].resolve();
+    await flush();
+    expect(jobs.map((j) => `${j.pageNumber}@${j.renderScale}`)).toEqual([
+      "1@1",
+      "2@1",
+      "1@2",
+      "2@1",
+    ]);
   });
 
   it("cancels a prefetch that no viewer wants any more", async () => {
@@ -269,6 +322,49 @@ describe("PdfRasterCache", () => {
     cache.want("canvas", { visible: [{ pageNumber: 2, renderScale: 1 }] });
     await flush();
     expect(jobs.map((j) => j.pageNumber)).toEqual([1, 2, 2]);
+  });
+
+  it("tells apart two sizes of a page that differ by a fraction", async () => {
+    const { cache, jobs } = setup();
+    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 2.6 }] });
+    await flush();
+    jobs[0].resolve();
+    await flush();
+    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 3.25 }] });
+    await flush();
+
+    expect(cache.get(1, 3.25)).toBeUndefined();
+    expect(jobs.map((j) => j.renderScale)).toEqual([2.6, 3.25]);
+  });
+
+  it("tries a failed size again once the page has left it and come back", async () => {
+    const { cache, jobs } = setup();
+    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 9 }] });
+    await flush();
+    jobs[0].reject(new Error("too large"));
+    await flush();
+    expect(cache.error(1, 9)).toBeInstanceOf(Error);
+
+    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 1 }] });
+    await flush();
+    jobs[1].resolve();
+    await flush();
+    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 9 }] });
+    await flush();
+
+    expect(cache.error(1, 9)).toBeUndefined();
+    expect(jobs.map((j) => j.renderScale)).toEqual([9, 1, 9]);
+  });
+
+  it("stops a render in flight on clear and never keeps its raster", async () => {
+    const { cache, jobs } = setup();
+    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 1 }] });
+    await flush();
+
+    cache.clear();
+    expect(jobs[0].cancel).toHaveBeenCalled();
+    await flush();
+    expect(cache.best(1)).toBeUndefined();
   });
 
   it("releases every raster on clear and keeps working afterwards", async () => {

@@ -19,12 +19,14 @@ export type Rasterize = (
 /**
  * What one owner needs kept. `visiblePages` names pages that are on screen
  * before their canvas has asked for a size — react-pdf loads a page before it
- * mounts the renderer — so prefetch cannot jump ahead of them.
+ * mounts the renderer — so prefetch cannot jump ahead of them. `hold` keeps a
+ * raster that is on show without asking for it to be drawn.
  */
 export interface Wants {
   visible?: RasterRequest[];
   visiblePages?: number[];
   prefetch?: RasterRequest[];
+  hold?: RasterRequest[];
 }
 
 interface Ready {
@@ -36,6 +38,7 @@ interface Ready {
 interface Running {
   key: string;
   pageNumber: number;
+  prefetch: boolean;
   cancelled: boolean;
   cancel: (() => void) | null;
 }
@@ -178,6 +181,7 @@ export class PdfRasterCache {
   private collect() {
     const visible = new Set<string>();
     const prefetch = new Set<string>();
+    const held = new Set<string>();
     const keptPages = new Set<number>();
     for (const wants of this.owners.values()) {
       for (const r of wants.visible ?? []) {
@@ -189,12 +193,16 @@ export class PdfRasterCache {
         prefetch.add(keyOf(r.pageNumber, r.renderScale));
         keptPages.add(r.pageNumber);
       }
+      for (const r of wants.hold ?? []) {
+        held.add(keyOf(r.pageNumber, r.renderScale));
+        keptPages.add(r.pageNumber);
+      }
     }
-    return { visible, prefetch, keptPages };
+    return { visible, prefetch, held, keptPages };
   }
 
   private sweep() {
-    const { visible, prefetch, keptPages } = this.collect();
+    const { visible, prefetch, held, keptPages } = this.collect();
     const wanted = (key: string) => visible.has(key) || prefetch.has(key);
     let changed = false;
 
@@ -208,7 +216,7 @@ export class PdfRasterCache {
     }
 
     for (const [key, entry] of this.ready) {
-      if (wanted(key) || this.isFallback(key, entry, keptPages, wanted)) continue;
+      if (wanted(key) || held.has(key)) continue;
       releaseCanvas(entry.raster.canvas);
       this.ready.delete(key);
       changed = true;
@@ -224,36 +232,26 @@ export class PdfRasterCache {
     if (changed) this.notify();
   }
 
-  /**
-   * An unwanted raster stays only as the picture shown while its page is
-   * redrawn at a new size: the page is still kept, nothing wanted of it is
-   * ready yet, and it is the newest raster of the page.
-   */
-  private isFallback(
-    key: string,
-    entry: Ready,
-    keptPages: Set<number>,
-    wanted: (key: string) => boolean,
-  ) {
-    if (!keptPages.has(entry.pageNumber)) return false;
-    for (const [other, e] of this.ready) {
-      if (e.pageNumber !== entry.pageNumber || other === key) continue;
-      if (wanted(other) || e.seq > entry.seq) return false;
-    }
-    return true;
-  }
-
   private pump() {
-    if (this.running) return;
-
     const owners = [...this.owners.values()];
     const visibleRequests = owners.flatMap((w) => w.visible ?? []);
     const nextVisible = visibleRequests.find((r) => {
       const key = keyOf(r.pageNumber, r.renderScale);
-      return !this.ready.has(key) && !this.failed.has(key);
+      return (
+        !this.ready.has(key) &&
+        !this.failed.has(key) &&
+        this.running?.key !== key
+      );
     });
+
+    if (this.running) {
+      // A page on screen does not wait behind a prefetch; the prefetch is
+      // still wanted and is started again once the screen is drawn.
+      if (nextVisible && this.running.prefetch) this.cancelRunning();
+      return;
+    }
     if (nextVisible) {
-      this.start(nextVisible);
+      this.start(nextVisible, false);
       return;
     }
 
@@ -277,7 +275,7 @@ export class PdfRasterCache {
           !this.prefetchFailed.has(key)
         );
       });
-    if (nextPrefetch) this.start(nextPrefetch);
+    if (nextPrefetch) this.start(nextPrefetch, true);
   }
 
   private cancelRunning() {
@@ -287,9 +285,15 @@ export class PdfRasterCache {
     running.cancel?.();
   }
 
-  private start({ pageNumber, renderScale }: RasterRequest) {
+  private start({ pageNumber, renderScale }: RasterRequest, prefetch: boolean) {
     const key = keyOf(pageNumber, renderScale);
-    const running: Running = { key, pageNumber, cancelled: false, cancel: null };
+    const running: Running = {
+      key,
+      pageNumber,
+      prefetch,
+      cancelled: false,
+      cancel: null,
+    };
     this.running = running;
 
     void (async () => {
