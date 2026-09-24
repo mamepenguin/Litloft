@@ -91,3 +91,16 @@ export function rasterPixelRatio({
   const budgeted = Math.sqrt(MAX_RASTER_PIXELS / area);
   return Math.min(dpr, budgeted);
 }
+
+/** `rasterPixelRatio` for one page drawn `cssWidth` wide. */
+export function pageRasterRatio(
+  pageBox: PageBox | null | undefined,
+  cssWidth: number,
+  devicePixelRatio: number,
+): number {
+  return rasterPixelRatio({
+    cssWidth,
+    cssHeight: pageBox ? cssWidth * (pageBox.height / pageBox.width) : cssWidth,
+    devicePixelRatio,
+  });
+}

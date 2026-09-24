@@ -271,16 +271,21 @@ describe("PdfRasterCache", () => {
     expect(jobs.map((j) => j.pageNumber)).toEqual([1, 2, 2]);
   });
 
-  it("releases every raster on dispose", async () => {
+  it("releases every raster on clear and keeps working afterwards", async () => {
     const { cache, jobs, pageOf } = setup();
     cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 1 }] });
     await flush();
     jobs[0].resolve();
     await flush();
 
-    cache.dispose();
+    cache.clear();
 
     expect(jobs[0].raster.canvas.width).toBe(0);
     expect(pageOf(1).cleanup).toHaveBeenCalledTimes(1);
+    expect(cache.best(1)).toBeUndefined();
+
+    cache.want("canvas", { visible: [{ pageNumber: 1, renderScale: 1 }] });
+    await flush();
+    expect(jobs).toHaveLength(2);
   });
 });

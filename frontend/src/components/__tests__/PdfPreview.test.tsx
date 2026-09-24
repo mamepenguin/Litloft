@@ -7,10 +7,12 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { useEffect, type ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PdfPreview } from "../PdfPreview";
 import { MAX_RASTER_PIXELS, rasterPixelRatio } from "@/lib/pdfZoomMode";
+import { PdfRasterCache, type Wants } from "@/lib/pdfRasterCache";
+import { PdfCanvas } from "../pdf/PdfCanvas";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 
 const pdfDoc = {
@@ -30,6 +32,8 @@ let pageRenders: number[] = [];
 let pageWidths: number[] = [];
 
 let pageRatios: number[] = [];
+
+let pageRenderers: { renderMode?: string; customRenderer?: unknown }[] = [];
 
 /** The page size the mocked document reports, in PDF points. */
 let mockPageBox = { width: 595, height: 842 };
@@ -61,11 +65,15 @@ vi.mock("react-pdf", () => ({
     pageNumber,
     width,
     devicePixelRatio,
+    renderMode,
+    customRenderer,
     onLoadSuccess,
   }: {
     pageNumber: number;
     width: number;
     devicePixelRatio?: number;
+    renderMode?: string;
+    customRenderer?: unknown;
     onLoadSuccess?: (page: {
       getViewport: (o: { scale: number }) => { width: number; height: number };
     }) => void;
@@ -73,6 +81,7 @@ vi.mock("react-pdf", () => ({
     pageRenders.push(pageNumber);
     pageWidths.push(width);
     pageRatios.push(devicePixelRatio ?? 1);
+    pageRenderers.push({ renderMode, customRenderer });
     useEffect(() => {
       onLoadSuccess?.({
         getViewport: () => ({ ...mockPageBox }),
@@ -162,6 +171,7 @@ beforeEach(() => {
   pageRenders = [];
   pageWidths = [];
   pageRatios = [];
+  pageRenderers = [];
   mockPageBox = { width: 595, height: 842 };
   window.localStorage.clear();
 });
@@ -1016,3 +1026,80 @@ describe("PdfPreview full screen", () => {
   });
 });
 
+describe("PdfPreview raster cache", () => {
+  function renderViewer(
+    props: Partial<React.ComponentProps<typeof PdfPreview>> = {},
+  ) {
+    return render(
+      <ShortcutsProvider>
+        <PdfPreview fileId="pdf123456789" title="Paper" {...props} />
+      </ShortcutsProvider>,
+    );
+  }
+  function inlineWants(spy: ReturnType<typeof vi.spyOn>): Wants {
+    const calls = spy.mock.calls.filter(([owner]) => owner === "inline");
+    return calls[calls.length - 1][1] as Wants;
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("devicePixelRatio", 2);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("draws the page through the cache's renderer", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    expect(pageRenderers[pageRenderers.length - 1]).toEqual({
+      renderMode: "custom",
+      customRenderer: PdfCanvas,
+    });
+  });
+
+  it("prefetches the next then the previous page at the size a turn draws them", async () => {
+    const want = vi.spyOn(PdfRasterCache.prototype, "want");
+    renderViewer({ initialPage: 3 });
+    await screen.findByText("Selectable page 3");
+    reportSize({ width: 800, height: 600 });
+    await act(async () => {});
+
+    const wants = inlineWants(want);
+    expect(wants.visiblePages).toEqual([3]);
+    expect(wants.prefetch!.map((r) => r.pageNumber)).toEqual([4, 2]);
+
+    fireEvent.keyDown(document, { key: "PageDown" });
+    await screen.findByText("Selectable page 4");
+    const at = pageRenders.lastIndexOf(4);
+    const drawn = (pageWidths[at] / mockPageBox.width) * pageRatios[at];
+    expect(wants.prefetch![0].renderScale).toBeCloseTo(drawn, 4);
+  });
+
+  it("keeps only the page it shows while full screen is open", async () => {
+    const want = vi.spyOn(PdfRasterCache.prototype, "want");
+    renderViewer({ initialPage: 3 });
+    await screen.findByText("Selectable page 3");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    await screen.findByRole("dialog");
+    await act(async () => {});
+
+    expect(inlineWants(want)).toEqual({ visiblePages: [3], prefetch: [] });
+  });
+
+  it("drops the document's rasters when the viewer goes", async () => {
+    const clear = vi.spyOn(PdfRasterCache.prototype, "clear");
+    const { unmount } = renderViewer();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    unmount();
+    expect(clear).toHaveBeenCalled();
+  });
+});

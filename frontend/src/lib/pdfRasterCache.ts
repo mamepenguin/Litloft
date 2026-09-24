@@ -91,7 +91,6 @@ export class PdfRasterCache {
   private running: Running | null = null;
   private listeners = new Set<() => void>();
   private scheduled = false;
-  private disposed = false;
   private seq = 0;
   private version = 0;
 
@@ -138,17 +137,22 @@ export class PdfRasterCache {
 
   getVersion = () => this.version;
 
-  dispose() {
-    this.disposed = true;
-    if (caches.get(this.pdf) === this) caches.delete(this.pdf);
+  /**
+   * Drops every raster and cleans every page up, and stays usable: React's
+   * development double-invoke runs an effect's cleanup and then its setup
+   * again, and the setup has to land in a working cache.
+   */
+  clear() {
     this.cancelRunning();
+    this.running = null;
     for (const entry of this.ready.values()) releaseCanvas(entry.raster.canvas);
     this.ready.clear();
     for (const page of this.pages.values()) page.cleanup();
     this.pages.clear();
     this.owners.clear();
     this.failed.clear();
-    this.listeners.clear();
+    this.prefetchFailed.clear();
+    this.notify();
   }
 
   private notify() {
@@ -162,11 +166,10 @@ export class PdfRasterCache {
    * never look like the page leaving.
    */
   private schedule() {
-    if (this.scheduled || this.disposed) return;
+    if (this.scheduled) return;
     this.scheduled = true;
     queueMicrotask(() => {
       this.scheduled = false;
-      if (this.disposed) return;
       this.sweep();
       this.pump();
     });
@@ -241,7 +244,7 @@ export class PdfRasterCache {
   }
 
   private pump() {
-    if (this.running || this.disposed) return;
+    if (this.running) return;
 
     const owners = [...this.owners.values()];
     const visibleRequests = owners.flatMap((w) => w.visible ?? []);
@@ -292,23 +295,23 @@ export class PdfRasterCache {
     void (async () => {
       try {
         const page = await this.pdf.getPage(pageNumber);
-        if (running.cancelled || this.disposed) return;
+        if (running.cancelled) return;
         this.pages.set(pageNumber, page);
         const task = this.rasterize(page, renderScale);
         running.cancel = task.cancel;
         const raster = await task.promise;
-        if (running.cancelled || this.disposed) {
+        if (running.cancelled) {
           releaseCanvas(raster.canvas);
           return;
         }
         this.ready.set(key, { raster, pageNumber, seq: ++this.seq });
       } catch (error) {
-        if (running.cancelled || this.disposed) return;
+        if (running.cancelled) return;
         if (this.collect().visible.has(key)) this.failed.set(key, error);
         else this.prefetchFailed.add(key);
       } finally {
-        if (this.running === running) this.running = null;
-        if (!this.disposed) {
+        if (this.running === running) {
+          this.running = null;
           this.notify();
           this.schedule();
         }

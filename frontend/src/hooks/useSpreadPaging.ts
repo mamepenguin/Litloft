@@ -29,6 +29,9 @@ export interface SpreadPaging {
   navigatePrev: () => void;
   navigateNext: () => void;
   face: SpreadFace;
+  /** Where a turn forward or back would land, for drawing it ahead. */
+  nextFace: SpreadFace | null;
+  prevFace: SpreadFace | null;
   faceLabel: string;
 }
 
@@ -105,8 +108,13 @@ export function useSpreadPaging({
     ],
   );
 
+  const forward = pageForward(state);
+  const back = pageBack(state);
+
   return {
     face: faceAt(state),
+    nextFace: forward ? faceAt({ ...state, ...forward }) : null,
+    prevFace: back ? faceAt({ ...state, ...back }) : null,
     faceLabel: faceLabel(state),
     activeSplit: isSpreadActive(state),
     subPageLabel: halfLabel(state),
