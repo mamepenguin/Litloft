@@ -1,495 +1,137 @@
 # Browsing files
 
-Files and folders are browsed on the Library screen, which opens at the drive root (`/drive/<name>`) and walks down from there; subfolders open at `/drive/<name>/<path>`. The drive home page (`/drive/<name>?view=home`) is what the drive opens on when you pick it from the drive picker or the sidebar's drive switcher, and it answers a different question — what is worth continuing or returning to. Its header names the page — **Home**, with the drive underneath — and carries the **Add** button on the right; below it are *content rows* (Continue watching, Recently Viewed, Recently added, Favourites, Liked). It draws no folder cards, and the files it draws are the ones those rows surfaced — the folders and files that *sit at the drive root* are in Library. Every surface reads the same backend, and a change you make on one of them refreshes the others (see [real-time updates](#real-time-updates) for what does and does not propagate between separate tabs).
+A drive has two starting points in the sidebar:
 
-## Drive home layout
-
-![Drive home page as it was before this layout: the sidebar down the left, and beside it a breadcrumb row, a Folders heading with folder cards under it, then the Continue Watching, Recently Viewed and Pickup rows](../images/user-guide/drive-home-overview.png)
-
-The screenshot predates both the layout below and the sidebar described in the next section. On the home page itself: it draws no folder cards now — those are Library's — the header says **Home** instead of retracing the drive, **Add** sits at its right-hand end, the content rows wrap instead of scrolling sideways, and folder cards carry a glyph and a breakdown rather than a borrowed thumbnail. In its sidebar: there is no **Library** row and no **Views** heading, and Trash and Dashboard sit inside the top group rather than below.
+- **Home** — what is worth coming back to: rows of files you were watching, opened recently, added recently, favourited or liked. A drive opens here.
+- **Library** — the drive's own folders and files, starting at the drive root.
 
 ## The sidebar
 
-The column on the left is the same on every screen of a drive, and it is in three parts.
+The sidebar is the same on every screen of a drive.
 
-At the top are the places you go on purpose: **Home**, then **Library**. Home is what is worth continuing or returning to; Library is the drive's own folders and files, opening at the drive root. Under a **Views** heading below them are five pages that each show the whole drive through one question — **Favourites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files**. They are pages in their own right, not tabs inside Library. An addon can add a destination of its own in one of three places: right after **Library** (for example *Ask* or *Notes*), under a **Sources** heading after the views (for example *YouTube & Feeds*), or at the bottom just before **Trash**. The **Sources** heading only appears when there is something under it, and an addon turned off for the drive has no row there.
-
-In the middle are the sections you build yourself: Collections, Pins, Smart Folders and Tags. These are the only ones you can collapse and reorder. How you arrange the four is remembered once for the app, not per drive — which section you want first is a habit rather than something about a particular drive. What is remembered per drive is narrower: the order you drag Collections, Pins and Smart Folders into, and how the tag list is sorted — tags have no order of their own to drag.
-
-At the bottom are the rows about the drive rather than about what is in it: **Trash**, **Missing Files** when the drive has any, and, for an administrator, **Dashboard** under an **Administration** heading. They sit apart because they are reached rarely, and a row pressed once a month costs the same glance as one pressed every day when the two sit together.
-
-At most one row is highlighted at a time — none, on a URL that is no row's subject. Standing in a folder highlights **Library** — including in a folder reached from the tree — except where a row of yours names that exact place: a pinned folder highlights its **Pin**, and a tag you have applied highlights that **tag**. Search results, a collection and an addon page highlight their own entry, or none, and never Library.
+- **Top** — Home, Library, and five views of the whole drive: **Favourites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files** (every file in the drive, with no folders). Addons can add pages here, such as *Ask* or *Notes*.
+- **Middle** — what you build yourself: **Collections**, **Pins**, **Smart Folders** and **Tags**. You can collapse these sections and drag them into the order you like.
+- **Bottom** — **Trash**, **Missing Files** (only when the drive has some), and **Dashboard** for an administrator.
 
 ## The breadcrumb trail
 
-The row above a listing says where you are: the home icon, the drive, the
-folders you came through, and the folder you are in, each of them a link back
-to that place.
+The row above a listing shows where you are. Every part of it is a link back to that folder. On a deep path the middle folders fold into **…**; press it to go to the deepest hidden folder.
 
-- **A deep path folds.** Beyond a few levels the trail keeps the drive, the
-  folder above you and the folder you are in, and replaces what is between
-  them with a **…** — a link to the deepest folder it hid, from where the
-  trail is short enough to draw whole. Hovering it names what is behind it.
-- **When the row is still too narrow, the ancestors give way first.** The
-  folder you are in keeps its name for as long as there is room, because that
-  is the one the screen is about; the names before it shorten to an ellipsis,
-  and they stay wide enough to press.
-- The same trail appears inside a zip in the archive viewer, and at the top of
-  a file's page above the tablet breakpoint. On a narrower screen a file's
-  page shows a back link to its folder instead.
+## Folders
 
-## Folder grid
-
-- Folders show a file count and what that count is made of: *138 items · Video 135 · Document 3*. Both the count and the breakdown are **recursive** — they cover every active file in the folder *and* its subfolders. When everything in a folder is one kind, that kind is named without repeating the number: *12 items · Document*. At most the two largest kinds are named; the rest is the difference from the total.
-- Folder cards and folder rows carry the folder glyph, never a picture borrowed from inside the folder. What a folder holds is said in words, where it can be read; a photograph of one file in it could not be, and only some folders had one.
-- In list mode a folder is a single short line rather than a row the height of a file's thumbnail: the glyph sits where a file's thumbnail would, so folder names and file titles start on the same edge. The line says the folder's name and its count; the breakdown of kinds is on the grid's cards.
-- Clicking opens that folder. On a phone-sized screen the list slides: the folder you open arrives from the trailing edge while the one you left retreats and dims, and going back up mirrors it. Moving between two folders side by side has no direction, so those cross-fade instead. Above the tablet breakpoint the list cross-fades in place — a wide column crossing a large screen reads as slow. Nothing moves at all when the system asks for reduced motion.
-- Right-click (or long-press on touch) opens the **folder menu**: Open, New file here, New folder here, Pin / Unpin, Rename, Move, Delete. Which entries appear depends on the surface — the tree pane offers the create actions, the grid in Library does not.
-- Addon actions appear in this menu too, below a separator under the app's own rows — *intelligence* offers its batch AI actions there, for the files the listing is showing.
-- The folder list is derived from the paths of the files in the drive, so a folder holding no files at all would otherwise vanish. Those are recorded in the `empty_folders` table and merged back into the listing with a count of 0.
-- Library draws the folders of the location you are standing in, all of them, above that location's files. The sidebar's **All Files** is a different thing: a flat listing of every file in the drive, with no folders in it.
+- A folder card shows how many files it holds, counting its subfolders too, and the main kinds: *138 items · Video 135 · Document 3*.
+- Click a folder to open it.
+- Right-click it, or long-press it on a touch screen, for **Open**, **Pin / Unpin**, **Rename**, **Move** and **Delete**. In the folder tree the same menu also offers **New file here** and **New folder here**.
+- Empty folders are listed too, with a count of 0.
 
 ## File grid and list modes
 
-Opening a file answers the press where you made it: a copy of the card's own
-picture swells a fifth and fades out over the file as it opens. It is a
-flourish on the card, not a picture travelling into the file — what the file
-shows is the original at its own shape, and a card is a crop of a thumbnail.
-Nothing appears when the system asks for reduced motion.
+The toolbar above a listing has:
 
-A toolbar above the grid lets you:
+- **Add** — upload files, upload a folder, or create a folder. Addons add entries here, such as **New note** and **Clip web page** (knowledge) or **Import from URL** (media_import).
+- **Filter** — narrow the listing by **file type** and **verification**. The file types are Video, Image, Audio, Document, Text, PDF, Archive and Other. Document includes Text and PDF. Source code and configuration files count as Other.
+- **View** — grid or list.
+- **Sort** — newest / oldest, title A-Z / Z-A, largest / smallest, or random. While the order is random, **Reshuffle** deals a new one.
+- **Play** — play everything playable in the folder.
+- `…` — **Select mode**, **Rescan**, **Pin this folder**, and any addon actions for the listed files.
 
-- Choose **grid** or **list** from the **View** menu. The button reads the layout that is on. In a real folder the choice is remembered per folder (localStorage, under `folderPrefs:{drive}`); on the drive root, in the flat views, and in search it falls back to a single global preference. Before you have ever chosen, the mode follows from what the folder mostly holds, and the question is whether a card of that kind can show you anything:
+On a phone, **Play**, **View** and **Sort** move into `…`.
 
-  | Mostly | Opens as | Because |
-  |---|---|---|
-  | Video, Image | grid | the card carries a generated thumbnail |
-  | PDF | grid | the card carries its first page |
-  | Document | grid | the card carries the shape of the text |
-  | Markdown | list | it could show a preview, but a note is found by its title |
-  | Audio, Archive, Other | list | the card can only draw the same icon, once per file |
+Each folder remembers its own view and sort. Until you choose, a folder of mostly videos, images, PDFs or documents opens as a grid, and a folder of mostly Markdown, audio or other files opens as a list.
 
-  "Mostly" means **more than half** — a folder with no such majority falls back to your global preference, and anything you have already chosen for a folder keeps winning over all of it.
+When you open a file and come back, you return to where you had scrolled.
 
-  Five of the eight kinds changed here. Audio, Archive and Other used to open as a grid, which turned a fifty-track album into fifty copies of the same headphone icon. PDF and Document used to fall through to your global preference and now do not, so if that preference is **list** those two will open as grids from now on; switching one folder to a list is remembered for that folder as before.
-- Put the listing in order from the **Sort** menu: **newest / oldest** (indexed date), **title A-Z / Z-A**, **largest / smallest**, or **random** — seven orders. Sorting by when you liked something is not among them; that order belongs to the Liked view, which chooses it for you, because inside an ordinary folder most rows have no like date at all. The button reads the order that is on. Search results add a **relevance** option, which is their default. Sort is remembered per folder in the same place as the view mode. While the order is random, the same menu offers **Reshuffle** below the orders.
-- Narrow the listing from the **Filter** menu, which holds both axes. **File type** (All / Video / Image / Audio / Document / Text / PDF / Archive / Other) — Text and PDF sit *under* Document, so choosing Document returns them too and choosing one of them narrows further. Text is Markdown (`.md`, `.markdown`) and plain `.txt` files. **Source code, configuration and shell scripts are Other, not Document** — a document is something made to be read, and those are made to be read by a machine. They still open in the text viewer, and the file page is unchanged; what goes with the bucket is the excerpt a card shows in place of a thumbnail. Spreadsheet-style data (`.csv`, `.tsv`) and prose markup (`.rst`) stay under Document. A compressed name is **Other**, whatever it wraps: `holiday.mp4.gz` is not a Video, because nothing in Litloft can play it without unpacking it first. **Verification** (All / Verified only / Unjudged only) sits beside it, except in search results, where a ranked and truncated result set cannot be narrowed after the fact without quietly losing hits. The button carries the word *Filter* until something is on, then the names of what is on.
+### What a file card shows
 
-  The server applies both and narrows the query itself, so they are right about files you have not scrolled to yet, and the count beside the folder name is the server's. Two things sit outside that: *Recently Viewed* fetches the last fifty and sifts verification over those rows in the browser, so its count is how many of the fifty are left; and a search count is the server's filename total plus the semantic hits the browser found on top of it.
-- Turn on **Select mode** from the overflow (`…`) menu, then click cards to select them. `Cmd/Ctrl+click` turns selection on and toggles a card in one gesture, and `Shift+click` extends the selection to a range. A selection bar appears at the bottom with tag, rename, add-to-collection, copy, cut, move, and move-to-trash. On a narrow screen it keeps **Tag** and **Move** and puts the other five behind `…`, with their names — it does not scroll sideways, so nothing is off the edge.
-- **Rescan** the drive, also from the overflow menu.
-- **Pin this folder** to the sidebar, also from the overflow menu — the same pin the folder's own right-click menu offers, for the folder you are standing in. It is not offered on the drive root, which has no folder to pin.
-- **Act on the listed files** from the overflow menu, where addons add rows below a separator — with *intelligence* installed, **Create AI tag candidates…**, **Create AI summaries…** and **Create image descriptions…**. They appear on a folder or the drive root, not on search results, a tag-filtered drive root or a special view.
-- **Add** anything to the folder, from the one **Add** button: upload files, upload a folder, create a folder. It is the only filled button on the bar. Addons contribute further rows below a separator at the bottom of the menu — with *knowledge* installed, **New note** and **Clip web page**; with *media_import*, **Import from URL**.
+- A thumbnail. A video shows its length on the thumbnail. Other files show their extension, unless every file in the folder has the same one.
+- The title. It comes from the filename, so it can differ from the name on disk.
+- One fact, then the date the file was added and up to two tags. The fact depends on the kind of file:
 
-  On the drive home this button is in the page header instead, because that page draws no folder toolbar to carry it. There it offers the two upload rows, and what they upload goes to the drive root — so **Upload a folder** does put a new folder there, by uploading one. What is missing is **New Folder**: it acts on a folder you are standing in, and this page is not standing in one. Addon rows can appear here below a separator, and what they add also goes to the drive root.
-- **Play** everything playable in the folder, on folders that hold something playable.
+  | Kind | Fact shown |
+  |---|---|
+  | Video, Audio | none (the length is on the thumbnail) |
+  | Image | its dimensions, e.g. *1920 × 1080* |
+  | Everything else | its size |
 
-**Folders follow the mode too.** In grid mode they are cards above the file
-cards; in list mode they are rows above the file rows, the same height and
-reading the same way. A grid of cards sitting above a column of
-rows would be two answers to "what am I looking at" on one screen. A folder row
-does everything a folder card does — it takes a drop, renames in place, and
-right-clicks to the same folder menu, and carries the same `⋮` button as a file row for reaching those actions from the keyboard.
+  The file page, Trash, Missing Files and the duplicates list describe files the same way.
+- A progress bar on media you stopped partway through.
+- A star when the file is a favourite. Hover a card to add one.
 
-On a wide screen a row's **contents** stop at 960px, so the name and the
-columns beside it stay near enough each other to read as one row rather than as
-two things at opposite ends of the window. The row itself still spans the full width, so the
-whole strip stays clickable and lights up on hover.
+### Photo folders
 
-Below 768px the bar is one row: **Add**, **Filter** and `…`. **Play**,
-**View** and **Sort** move inside `…` — View and Sort as sections of it, with
-the same rows in the same order.
+A folder that is almost all images lays out each picture at its own shape, in rows that fill the width, instead of in equal cards. There is no switch for this. The filename appears when you hover over a picture, and it is always shown on a touch screen.
 
-Nothing loses its label. The Filter button naming an active filter (below
-640px) or both of its axes, and the "Search the whole drive" link on a folder
-reached through a tag, are the two whose labels can outgrow the space; both
-are shortened with an ellipsis
-rather than dropped, and the full text stays in the control's accessible
-name. Every control the app itself draws on the bar is at least 44px for
-touch — a button contributed by an addon is that addon's to size.
+### Selecting several files
 
-The bar is a single row at every width, with one exception: between 768px
-and about 785px, with an addon button on the bar, both filter axes narrowed
-at once, and the listing sorted by title or by size, it takes a second row.
-Any one of those four conditions missing and it does not.
-
-The **New Folder** name field takes a line of its own while it is open,
-under the bar's controls at 768px and up and above them on a narrow
-screen, so it never displaces anything.
-
-On a listing with nothing in it at all — no files and no subfolders —
-the toolbar drops the controls for arranging things: View, Sort and the
-Filter menu. They go from the overflow too, so they are put away rather
-than merely moved. What stays is everything that puts
-something in the folder (the Add menu and Rescan) and the count. A
-listing emptied by a filter keeps them all, because the filter that
-produced the empty result is also the way back out of it. The same
-applies to an empty trash.
-
-The file list is paged: 30 files per request, fetched as you scroll. When you open a file and come back, the list is restored from a snapshot in `sessionStorage` — the pages you had already loaded and your scroll position both come back, so a deep scroll survives the round trip. The snapshot is skipped for random sort and for search results, and it expires after two hours.
-
-Each file card shows:
-
-- Thumbnail (lazy-generated on first access). A photograph is stored at its own proportions, at most 320px on its longest side, and the card shows the middle of it — a tall photograph fills the card rather than sitting in black bars. Video and PDF thumbnails are a fixed 320x180 frame.
-- The file's **title**, not its filename. The title is derived from the filename and is cosmetic — this is why renaming in place is not offered on the cards (see below). A title too long to fit stops after two lines, so a row of cards stays a row of cards; the whole title is on the file's own page.
-- The date the file was indexed, plus up to two tags — and, before the date, the one fact the file has not already told you:
-
-  | Kind | First shows | Because |
-  |---|---|---|
-  | Video, Audio | nothing — the date leads | the length is already on the thumbnail badge, and for a reference file the size is the pointer's, not the media's |
-  | Image | its dimensions, e.g. *1920 × 1080* | the one fact that tells two photographs apart at card size |
-  | Everything else | its size | |
-
-  An image whose dimensions were never read — a broken file, or one in a format the scanner could not measure — shows the date alone rather than falling back to its size, so two image cards side by side never describe themselves in different terms.
-
-  **The same table governs every surface that puts a fact under a file's name**: the cards and rows here, the file page, the audio player's panel, the Trash and Missing views, and the duplicates list in the admin dashboard. A file is described in the same terms wherever you meet it.
-
-  What differs between them is only where the length goes. A card or a row with a thumbnail badge puts it there, and the audio panel has the player's own transport bar right below it, so for those the table's *nothing* for video and audio leaves the length already said. A surface with nowhere else to put it — the file page, the Trash and Missing cards, whose badge corner is taken by the deadline and the *missing* mark, and the duplicates row — draws the length itself at the head of the same line: a video reads *23:58* rather than *23:58 · 83 B*. Where there is neither a length nor anything the table would add, the line is not drawn at all rather than left standing empty.
-- A duration badge for video and audio. Everything else gets an extension badge, but only where it distinguishes something: in a folder whose files all share one extension the badge is dropped, and the list view drops its type label the same way when every row is the same kind. Both come back the moment the listing is mixed — including when a later page brings in a different kind.
-- A thin *progress bar* along the bottom for partially-watched media.
-- A favourite star, shown on hover and always shown once the file is a favourite.
-
-### Photo folders pack instead
-
-A folder that is almost entirely images lays its thumbnails out at the
-pictures' own proportions rather than in equal cards: variable widths,
-a height per row rather than one for the whole grid, and each row
-filled to the edge. A tall photograph is drawn tall and a panorama is
-drawn wide, at the shape of the picture and not an approximation of it,
-so the black bars that a 16:9 card puts around them are gone.
-
-One row can be much taller than its neighbours — a single narrow
-picture ends up on a line of its own, takes most of the width, and its
-height follows. That is capped at two and a half times the row's usual
-height, and a picture that runs into the cap is cropped to fit. On a
-folder of a thousand photographs, a handful of pictures on a phone reach
-it, and at most one on a wide screen.
-
-*Almost* to the edge, in one case: a lone picture taller than it is
-wide stops a little short of the right-hand side, and the narrower it is
-the larger the gap.
-
-The last row is also the only one that changes when the next page of
-thirty arrives: it stops being last, fills out to the edge like every
-row above it, and its pictures grow. They travel to their new size
-rather than snapping to it, and the pictures that have just arrived fade
-in. Nothing above that row moves — rows are filled from the left as far
-as they go, so a picture loaded later can never land on an earlier row.
-
-The same travel happens whenever pictures that are already on screen
-stay on screen and simply re-flow — narrowing the in-folder filter does
-it too. What redraws instead is anything that clears the listing and
-reloads it from the top, such as changing the sort: there is nothing
-left on screen for the new pictures to have travelled from. Dragging the
-window to a new width does not animate either, and neither does the
-first page that arrives after the drag — one page later it is back. And
-none of it plays if your system asks for reduced motion.
-
-There is no switch for this. The grid packs when at least nine of every
-ten files in view are images whose dimensions are known, which is what
-a photo folder looks like and what a video folder does not — video
-thumbnails really are 16:9, and their cards keep the meta line, which
-in a folder of videos is the part that tells one row from another. A
-packed cell shows nothing but the picture; its filename appears when
-you hover or tab to it, and is always shown on a touch screen. Search
-results are never packed, because the match line under each result is
-saying something.
-
-Very wide and very tall pictures are cropped to fit between 3:1 and
-1:2. A picture whose dimensions were never recorded is drawn square.
-
-For the keys these actions are bound to, see [keyboard shortcuts](keyboard-shortcuts.md).
+Turn on **Select mode** from `…`, or `Cmd/Ctrl+click` a card. `Shift+click` selects a range. The bar at the bottom offers tag, rename, add to collection, copy, cut, move, and move to trash. Dragging any selected file moves the whole selection.
 
 ## Creating a new file
 
-From any folder view you can create a blank Markdown file in one step:
+Press **`Cmd/Ctrl+N`**, or right-click a folder in the tree and choose **New file here**. An empty Markdown file named `untitled-<date-time>.md` is created in the current folder and opens for editing. Rename it once it is open.
 
-- Press **`Cmd+N`** (macOS) / **`Ctrl+N`** (Windows / Linux) anywhere on the page, or
-- Right-click a folder in the tree and choose **New file here**.
-
-With *knowledge* installed, **Add → New note** also creates a note, after asking for its folder and name.
-
-Behaviour:
-
-- The file is created at `untitled-{YYYYMMDD-HHMMSS}.md` (local time) inside the **current folder**. No name dialog is shown — the timestamp guarantees uniqueness, and if it ever does collide the backend automatically suffixes the name (`untitled-… (1).md`, `(2)`, …).
-- After creation you are navigated straight to the file in edit mode. Start typing.
-- To use a different extension or rename the file, use the rename action on the file once it is open.
-- The button and the shortcut are **disabled where there is no folder to write into**: favourites (`?view=favorites`), the other flat views, search results, a tag filter applied at the drive root, and the global search popup. A tag filter applied *inside* a folder does have a folder, and creates into it.
-- If creation fails the browser shows an alert with the reason. Locked drives are not a special case here — they are invisible until you unlock them.
+You cannot create a file in a view that is not a folder, such as Favourites, search results, or a tag filter at the drive root.
 
 ## Renaming in place
 
-Renaming happens inline, in the row or card you are looking at — there is no dialog:
+Press **`F2`** on a folder, or on a file in the folder tree, or choose **Rename** from its right-click menu. The name becomes editable with the extension left out of the selection. **`Enter`** saves and **`Esc`** cancels. Clicking elsewhere also saves.
 
-- Press **`F2`** while a **tree row** or a **folder card** has focus, or pick **Rename** from that item's right-click menu.
-- The name becomes an editable field with the base name preselected, so the first keystroke replaces the name and leaves the extension intact.
-- **`Enter`** (or `Tab`) commits, **`Esc`** cancels. Clicking elsewhere also commits; if that commit is refused the edit is let go and the reason is shown briefly at the top of the pane.
-- Names are checked before the request goes out, with the same rules the server applies: not empty, no `< > : " / \ | ? *`, no leading dot, at most 255 characters. A rejected name keeps the field open with the reason underneath it.
-- After a successful rename focus returns to the row under its new name, so you can keep working from the keyboard.
+File cards in the grid and list rename through a dialog instead, because a card shows the title, not the filename.
 
-Where this applies:
+## Moving by drag and drop
 
-- **Folders** — in the tree pane, and on the folder cards in Library and in a folder.
-- **Files** — in the **tree pane only**. The tree shows real filenames, so what you edit is exactly the string on screen.
-- **File cards in the grid and list** still rename through the old dialog, because a card shows the title rather than the filename and editing there would show one string and save another.
+- **From your computer** — drop files or a folder onto a listing to upload them into it. A drop on Home uploads to the drive root. See [upload and file operations](upload-and-fileops.md).
+- **Inside the drive** — drag a file or folder onto a folder card, a folder in the tree, a folder in the breadcrumb trail, or the band at the top of the tree that stands for the drive root. Hold a drag over a closed folder in the tree to open it.
 
-While a name is being edited, that row stops being a drag source.
+## Filtering
 
-## Spring-loaded folders during a drag
+There are three ways to narrow what you see:
 
-Holding a drag still over a collapsed folder row in the tree **opens it after 600 ms**, so you can carry on down and drop into a folder you never opened by hand.
+- **Filter in this folder…**, below the toolbar, matches filenames in the current folder only, without looking into subfolders. It clears when you leave the folder.
+- **Tags** — click a tag in the sidebar while inside a folder to show the matching files in that folder *and all its subfolders*. Click the tag again to clear it. **Search the whole drive** widens the search to the entire drive. See [tags and relations](tags-and-relations.md).
+- **The folder tree's filter** searches folder names across the whole drive.
 
-- Only folders that actually have children and are not already open spring open. Sweeping a drag across the tree opens nothing, because the dwell timer restarts every time the hovered row changes.
-- Branches opened this way **close again when the drag ends** — passing over a folder is not an instruction to reshape the tree. The exception is the folder you actually dropped into and its ancestors, which stay open so you can see where the items landed.
-- Branches **you** had already opened are never touched.
-- Spring-loading is off while a tree filter is active, since the filtered tree is built from matches rather than from the expansion state.
+For drive-wide search, see [Search](search.md).
 
-## In-folder filter
+## The folder tree
 
-Below the toolbar there is an always-visible **filter row**: a free-text
-field (placeholder *Filter in this folder…*) that does a case-insensitive
-substring match against the filename, including the extension.
+The tree button at the top left opens a folder tree beside the listing. It lists folders only; turn on **Show files too** at the bottom of the tree to include files. That setting is remembered per drive.
 
-Text only. It used to carry a kind dropdown as well, but that one sifted
-the rows already loaded while the toolbar's asks the server — so on a
-folder past its first page of thirty, the same choice gave two different
-answers. The toolbar's is the one that can be right, and it is the one
-that remains.
-
-Scope and behaviour:
-
-- Filters only the **direct entries of the current folder**. Subfolder contents are not searched.
-- Applies to folder cards as well as files, so typing narrows both lists.
-- **No persistence.** Navigating to another folder, reloading, or re-opening the pane clears the filter (this is intentional — to avoid "I am secretly being filtered" surprises).
-- When nothing matches, an empty-state with a **Clear filters** button appears.
-- The text input is debounced ~300 ms, so it stays responsive on folders with thousands of files.
-
-This is the lightest of three search layers. For drive-wide search use the global search popup; for natural-language questions use intelligence Ask. See [Search](search.md).
-
-### What the tree lists
-
-The tree shows **folders only**. It is a map of the drive's shape, and the pane
-beside it already lists the files in the folder you are standing in — drawing
-them in both places spends the tree's height saying the same thing twice, and
-on a drive of any size the folders get pushed off the bottom by the files under
-the first one.
-
-**Show files too**, at the foot of the pane, brings them back. The setting is
-remembered per drive, so a drive of notes — where the file *is* the destination
-— can keep them on while a video drive keeps them off. Turning it on also gives
-a caret to folders that hold only files: with files hidden those are leaves,
-because expanding them would show nothing. A folder's file count is shown
-either way; that is the folder's size, not a count of what the tree draws.
-
-### The tree and the sidebar take turns
-
-Opening the folder tree **puts the sidebar away**. Both of them tell you where
-you are, and one surface answering that at a time is enough — with both open on
-a 1512px screen they take 520px between them before any of your files appear.
-
-The sidebar is put away, not shut: the hamburger still opens it over the top
-whenever you want it, and closing the tree brings it back exactly as you had
-it. If you keep the sidebar open, it is open again the moment the tree goes;
-if you keep it closed, it stays closed. Nothing about your setting is changed
-by the tree borrowing the space. Below 1200px the sidebar already opens over
-the content rather than beside it, so there is nothing to lend and nothing
-changes.
-
-The tree toggle sits at the top-left beside the hamburger, and stays there
-whether the sidebar is open, over the page or beside it, on every screen that
-has the tree, including an open file (on a narrow window an open file hides it). Both buttons show which one is holding the
-job: each looks pressed while its surface is the one on.
-
-The path above the file list is always there, whichever of the two is showing.
-
-**On a narrow window the tree stays closed** even if you left it open on a
-bigger screen — below 768px it would fill the viewport and leave no room for
-the folder you came to look at. Your setting is untouched, so widening the
-window brings the tree straight back. You can still open it deliberately down
-there; it fills the screen and the ✕ in its header closes it again.
-
-### Tree pane filter
-
-When the folder tree pane is open, it has its own filter row at the top — text plus a kind dropdown offering the same nine choices as the toolbar — but different in scope:
-
-- Matches against **folder names** across the whole tree of the current drive — and against **file names** as well when *Show files too* is on. The filter searches what the tree lists, so its reach follows that setting rather than diverging from it, and the "nothing found" line names the same thing the field asked for.
-- The **kind** dropdown beside it filters files, so with *Show files too* off it changes only the counts shown against each folder, not which rows appear. Turn *Show files too* on to narrow the rows by kind.
-- Tree structure is preserved: matched items are highlighted, ancestors are shown in a dimmed style as path context, non-matching siblings are hidden.
-- The **type filter** is persisted per drive in localStorage (so a photo drive can default to *Image*); the **text filter** is not — it clears when the tree pane is closed, when the drive changes, or when the page is reloaded.
-- Switching the tree filter on triggers a one-shot full-tree fetch (the tree is normally lazy-expanded), so the first keystroke on a very large drive may take a moment.
-- While a filter is active, rows cannot be dragged out of the tree — the list mixes matches with ancestor context, so the intent would be ambiguous. Rows can still receive drops.
+While the tree is open, the sidebar steps aside. Close the tree and the sidebar returns.
 
 ## Trusted sources and the review queue
 
-Every file carries a **trust tier**: either it can be used as evidence, or it
-cannot. It is shown on the file page next to the favourite star, as a single
-button that toggles it.
+Each file is either **Verified** or **Unverified**. The shield button on the file page switches between them. Files already in your drive start as verified.
 
-Almost everything is trusted — files the scanner finds are trusted from the
-moment they appear, and so was everything that existed before this feature.
-The button names the state either way: **Verified** or **Unverified**, beside a
-shield. Hover it to see what pressing it does — it toggles, so the label is
-the state, not the action.
+This matters only for [Ask](../addons/intelligence.md): Ask answers only from verified files. Unverified files still appear in every search. Changing this setting never changes the file itself.
 
-One word throughout: the state is **verified**, and *trust* is only ever the
-verb on the action. The toolbar's filter reads the same way — *Verified only*,
-or **Unjudged only**, which is not a third state but a different question:
-nobody has ruled on those, and the files migrated in when the feature landed
-are verified and unjudged at once.
+Files added by an addon, such as web clips, arrive unverified. With the intelligence addon installed, opening one asks **Do you trust this source?**, with **Trust as a source** and **Leave it unverified**. To work through the files nobody has decided on yet, set the **Verification** filter to **Unjudged only**.
 
-Why it exists: an answer from Ask is only as good as what it was built from.
-A book you bought and a page you clipped at 2 a.m. after reading the headline
-are not the same kind of evidence, but once the text is indexed they look
-identical. The tier keeps that difference.
+## Home
 
-What the tier changes:
+Home shows these rows, in order:
 
-- **Unverified files still appear in search.** Filename search, tag filters,
-  and semantic search all return them exactly as before. Nothing is hidden
-  and nothing is deleted.
-- **Unverified files do not ground Ask answers.** They are excluded from the
-  set Ask draws citations from, so they cannot be quoted back at you as
-  evidence.
+- **Continue watching** — media you stopped before 90%.
+- Rows added by addons, if any.
+- **Recently Viewed**
+- **Recently added**
+- **Favourites**
+- **Liked**
 
-Put plainly: clips are for *finding things again*; trusted sources are for
-*answering questions*.
-
-**Withdrawing trust is safe and reversible.** It changes nothing on disk, and
-it does not touch notes you wrote from that file — a note holds your own
-words and keeps its own standing whatever happens to the page that prompted
-it. There is no confirmation dialog because there is nothing to lose.
-
-When you open a file nobody has ruled on, the page asks the question
-directly, with **Trust as a source** and **Not now** buttons. The panel is
-just the question. Material for answering it sits below in *Similar
-files*, which runs on every file and stays there after you have decided.
-
-The toolbar has a matching filter chip:
-
-| Choice | Shows |
-|---|---|
-| All | everything (default) |
-| Verified only | just the sources you have vouched for |
-| Not reviewed only | files nobody has ruled on yet — the review queue |
-
-*Not reviewed* is not the opposite of *verified* — it is a separate axis, and
-it lives only in this filter. Files that existed before this feature were all
-marked verified so that nothing you relied on stopped working, but nobody has
-actually judged them, and neither has anyone judged the files the scanner
-picks up. This filter is how you work through that backlog at your own pace
-if you ever want to. Files added by an addon — Web Clips especially — arrive
-unverified *and* unreviewed, so they appear here too.
-
-The per-file button deliberately ignores this axis. Marking every untouched
-file as "not reviewed" on its own page would put a warning on your whole
-library and tell you nothing.
-
-The filter is not persisted: it clears when you navigate away, for the same
-reason the in-folder filter does. It is also **not offered while searching** —
-search blends filename matches with semantic hits, and the semantic side ranks
-and trims its results before the page sees them, so a filter applied afterwards
-could quietly hide matches that do qualify. Rather than show a control that
-under-reports, it is withheld there.
-
-## Filtering a folder by tag
-
-Clicking a tag in the sidebar while you are inside a folder filters *that folder* by the tag (clicking the same tag again clears it). Two things about the file list change:
-
-- The listing switches from the folder's **direct children** to its **whole subtree**. Plain browsing is a directory listing; a tag filter is a search, and a search that stopped at the first level would miss most of what you meant. Finder behaves the same way.
-- Folder cards disappear while the filter is on — the result is a flat list of matching files. A **Search the whole drive** link appears in the toolbar, and again in the empty state when nothing in this folder matches, to widen the same tag to the whole drive.
-
-Tags themselves — how they are stored, edited, and searched — are covered in [tags and relations](tags-and-relations.md).
-
-## Content rows
-
-The drive home page surfaces several content rows, in this order:
-
-- **Continue watching** — files whose playback position is below 90% of their duration, newest first. Finished items fall out at that gate, and so do view-only opens of text, Markdown, and images (they carry no duration), so you only see media you actually paused mid-way.
-- Any rows an addon contributes come next, between the two watch rows. They are suggestions — things to pick up — so they sit beside what you were in the middle of rather than after the record of what you have already opened. With no addon installed nothing is drawn there and the two watch rows meet.
-- **Recently Viewed** — the same history without the 90% gate.
-- **Recently added** — files most recently indexed.
-- **Favourites** — `is_favorite = true`.
-- **Liked** — files you marked as good, most recently liked first.
-
-Continue watching and Recently Viewed need a profile; without one, no history is recorded and the two rows do not appear. See [profile and preferences](profile-preferences.md).
-
-A row that comes back empty takes its heading and its **See all** away
-with it, so a drive with nothing in it yet shows **Nothing here yet** and
-a link to Library in place of the rows. A row whose request failed keeps
-whatever it was already showing; a refresh that fails changes nothing on
-screen.
-
-If none of the drive's requests could be answered at all, the page says
-so and offers **Try again** rather than telling you the drive is empty.
-Pressing it asks for everything again, history included. A row an addon
-contributes is not part of that judgement — the page reports on its own
-rows only, so an addon that cannot load does not make the drive look
-unreachable.
-
-A row shows as many cards as fit its width and no more — it does not
-scroll sideways, so nothing is hidden off the right-hand edge. The width
-that counts is the row's own, not the window's: a row about 790px wide
-or narrower — any phone, and any window with the tree pane open beside
-it — shows two columns over two rows, and a wider one shows a single row
-of as many columns as fit.
-
-Every row therefore has a **See all**, because that link is the only way
-to the cards the row did not draw. Where the count is known it is on the
-link: *See all (619)*. Continue watching and Recently Viewed carry no
-count, because the watch-history API returns the page rather than the
-total, and both send you to the same place — Recently Viewed is the
-whole history, so it holds everything Continue watching was showing you
-and more.
-
-The files and folders that sit at the drive root are in Library, reached at `/drive/<name>`. (`?view=library` still works and shows the same screen; it is the older spelling of the same address.) It is the same listing a folder gets, with the same toolbar and the same filters. The root differs in two ways. It names itself: there is no trail above it, and the header reads **Library** with the drive and the item count underneath, while inside a folder the trail's last segment is the name and the header adds none. The title sits at the same height as Home's, so switching between the two does not move it. And where a folder's *path* is what a feature needs, the root has none — view mode falls back to your global preference and sort to newest-first, neither being remembered for the root the way they are for a folder, and **Pin this folder** is not offered.
+Continue watching and Recently Viewed need a [profile](profile-preferences.md). Each row shows as many cards as fit, and **See all** opens the rest. Empty rows are hidden.
 
 ## Pinned folders
 
-Pin a folder to keep it one click away from anywhere in the drive.
-
-- Right-click a folder → **Pin**, or, for the folder you are already inside, the toolbar's `…` → **Pin this folder**. Pinned folders appear in the **Pins** section of the sidebar, not on the drive home page.
-- Pins are per-drive and shared across viewers (they live in the drive DB, not the cookie). If you want viewer-private pins, that is a feature request.
+Right-click a folder and choose **Pin**, or use `…` → **Pin this folder** inside it. Pins appear in the sidebar and are shared by everyone who uses the drive.
 
 ## Smart folders (saved searches)
 
-When you find yourself running the same search often, save it as a Smart Folder.
-
-- From the search page, run the query and click **Save**.
-- Smart Folders appear in their own sidebar section, which you can collapse and reorder alongside Pins, Collections, and Tags.
-- They are drive-scoped, shared across viewers, editable from the same menu.
+Run a search and click **Save** to keep it as a Smart Folder in the sidebar. Smart folders are shared by everyone who uses the drive.
 
 ## Real-time updates
 
-The browser holds a WebSocket to `/api/ws`, and reconnects on its own if the connection drops (e.g., laptop sleep). **A change made anywhere shows up everywhere it should** — another tab, another device, the scanner, or an addon — without a reload.
+Uploads, moves, renames and deletions made in another tab, on another device, or by a rescan appear without reloading. When you come back to a tab, it refreshes itself. For the event payloads, see [WebSocket events](../reference/websocket-events.md).
 
-What travels over it is coarse on purpose. The core sends two signals:
+## What is not shown
 
-- `drive.structure_changed` — the set of files or folders in a drive changed: something was created, deleted, moved, renamed, restored, purged, went missing, or a rescan finished. The file list, the folder tree, and the drive home page all refetch.
-- `drive.file_updated` — a file's contents were written. The file list refetches, because a write can change a title or a thumbnail. The folder tree ignores it, so editing a note does not make the tree flicker while you type.
-
-Neither carries the ids of what changed. Subscribers refetch the listing they are showing rather than patching it, so the event only has to say *which drive*, and a screen showing a different drive stays still.
-
-Two older signals remain for the rescan progress UI: `scan:progress` and `scan:complete`, which the sidebar and the admin dashboard use for their counts.
-
-Access control applies here as it does everywhere: a notification about a locked drive is never sent to a browser that has not unlocked it.
-
-**A hidden tab stops listening.** To save a connection, the browser closes the WebSocket when you switch away and opens it again when you come back. Nothing is replayed, so anything that happened while the tab was in the background was never delivered to it. Litloft handles this by refetching once on reconnect: when you return to a tab, what you see is fetched fresh rather than reconstructed from events it missed.
-
-Addons can also push their own events through the core's relay, which is how, for example, an intelligence job reports progress into the page.
-
-The payload of each event is in [WebSocket events](../reference/websocket-events.md).
-
-## Drag-and-drop
-
-Two different things travel by drag:
-
-- **Files from your computer.** Drop one or more files (or a whole folder, in browsers that support it) onto the file grid to upload them. The drive home takes a drop too, even though it is not a listing of the drive root: what lands there goes to the drive root, which is what its **Add** button acts on. See [upload and file operations](upload-and-fileops.md) for chunking and limits.
-- **Files and folders already in the drive.** Dragging a card or a tree row and dropping it on a folder **moves** it. Valid drop targets are folder cards, folder rows in the tree, the folders the breadcrumb is currently drawing, and the drop band at the top of the tree that stands for the drive root. A deep path folds, and the folders behind the `…` are not targets while they are folded — neither is the `…` itself, since the row does not say where a drop on it would land. Open one of them, or use the folder menu's **Move**. The Library root has no breadcrumb, so moving something to the drive root from there goes through that band. Dropping a **folder** onto itself, or into its own descendants, is refused. Dropping a **file** where it already is — onto the tree's root band while it is already at the drive root, say — is not: the target lights up, the drop is taken, and nothing happens and nothing is said. That is a known gap rather than a design. Drags work across panes — pick a card up in the file list and drop it on a tree row.
-
-If several files are selected, dragging any one of them moves the whole selection.
-
-## What is *not* shown
-
-- **Trashed and missing files** are hidden from default queries via `active_file_filter()`. Trashed items show in the *Trash* view; missing files show in the *Missing* view. See [trash and missing files](trash-and-missing.md).
-- **Files in locked drives** are hidden entirely; the drives themselves do not appear in the drive picker.
+- Files in the trash or missing from disk are listed only under **Trash** and **Missing Files**. See [trash and missing files](trash-and-missing.md).
+- A locked drive and everything in it stay hidden until you unlock it. See [drives and access control](drives-and-access.md).
