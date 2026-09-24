@@ -126,6 +126,46 @@ describe("MergedResultItem", () => {
     expect(onSelect).toHaveBeenCalledWith("/files/abc?t=120");
   });
 
+  it("renders one page pill per matched page", () => {
+    const file = makeFile({
+      id: "abc",
+      match_meta: { content: { score: 0.6 }, matched_pages: [3, 7, 12, 15] },
+    });
+    render(<MergedResultItem file={file} onSelect={vi.fn()} />);
+
+    expect(
+      screen.getAllByTestId("match-page-pill").map((p) => p.textContent),
+    ).toEqual(["p.3", "p.7", "p.12", "p.15"]);
+  });
+
+  it("clicking a page pill fires onSelect with ?page=7 and stops row propagation", () => {
+    const file = makeFile({
+      id: "abc",
+      match_meta: { content: { score: 0.6 }, matched_pages: [3, 7] },
+    });
+    const onSelect = vi.fn();
+    render(<MergedResultItem file={file} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByText("p.7"));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith("/files/abc?page=7");
+  });
+
+  it("Enter on a page pill fires onSelect with its page only", () => {
+    const file = makeFile({
+      id: "abc",
+      match_meta: { content: { score: 0.6 }, matched_pages: [3] },
+    });
+    const onSelect = vi.fn();
+    render(<MergedResultItem file={file} onSelect={onSelect} />);
+
+    fireEvent.keyDown(screen.getByText("p.3"), { key: "Enter" });
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith("/files/abc?page=3");
+  });
+
   it("does NOT render pills for placeholder time_range entries [-1, -1]", () => {
     // buildMatchMeta uses [-1, -1] as a synthetic time_range when it
     // wants the audio badge to render but has no real timestamp.

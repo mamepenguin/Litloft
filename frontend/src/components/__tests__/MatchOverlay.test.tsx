@@ -74,6 +74,24 @@ describe("MatchOverlay search snippet", () => {
     expect(screen.queryByText("quotable")).not.toBeInTheDocument();
   });
 
+  it("links each matched page to the file opened at that page", () => {
+    render(
+      <MatchOverlay
+        match={{ content: { score: 0.6 }, matched_pages: [3, 12] }}
+        fileId="f1"
+      />,
+    );
+
+    expect(
+      screen
+        .getAllByTestId("match-page-pill")
+        .map((p) => [p.textContent, p.getAttribute("href")]),
+    ).toEqual([
+      ["p.3", "/files/f1?page=3"],
+      ["p.12", "/files/f1?page=12"],
+    ]);
+  });
+
   it("renders nothing when the hit has no badge, pill, page, or snippet", () => {
     const { container } = render(<MatchOverlay match={{}} fileId="f1" />);
     expect(container).toBeEmptyDOMElement();

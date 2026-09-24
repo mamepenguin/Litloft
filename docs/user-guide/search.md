@@ -101,7 +101,7 @@ When the [intelligence addon](../addons/intelligence.md) is enabled for a drive,
 - Embeddings cover text, transcripts, and a representative CLIP frame per video. Hybrid retrieval: BM25 + dense vectors blended with `search.alpha` (`0.7` in the shipped config).
 - Each card shows why it matched — filename, path, metadata, audio, content, scene, or thumbnail — using the same badge row as a keyword-only result.
 - Transcript and scene hits add clickable timestamps that jump the player straight to that moment. Up to three are shown, on the card and in the modal alike; if the hit names more moments than that, a quiet `+N` says how many were left out. Two hits that land in the same second — a spoken phrase and a scene, say — are one moment and get one timestamp, not two identical ones. The overflow count is not clickable: it knows how many moments were dropped, not which one you meant.
-- PDF hits list the pages they matched.
+- PDF hits list the pages they matched, one clickable `p.N` per page, on the card and in the modal alike. Clicking one opens the PDF at that page. Every matched page is listed; none are folded into a count.
 
 Without the addon the list is keyword-only, and the badges simply say so.
 

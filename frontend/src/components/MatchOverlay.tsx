@@ -112,9 +112,21 @@ export function MatchOverlay({
         </div>
       )}
       {matchedPages.length > 0 && (
-        <p className="text-[11px] text-text-muted">
-          {t("matchedPages", { pages: matchedPages.join(", ") })}
-        </p>
+        <div className="flex flex-wrap gap-0.5">
+          {matchedPages.map((page) => (
+            <Link
+              key={page}
+              href={`/files/${fileId}?page=${page}`}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              data-testid="match-page-pill"
+              className="rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
+            >
+              {t("matchedPages", { pages: page })}
+            </Link>
+          ))}
+        </div>
       )}
       {snippet && (
         <div className="group/snippet flex items-start gap-1.5 border-l-2 border-bg-border pl-2">
