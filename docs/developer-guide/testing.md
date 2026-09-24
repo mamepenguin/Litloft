@@ -32,7 +32,7 @@ docker build -f backend/Dockerfile.test -t litloft-test .
 docker run --rm litloft-test
 ```
 
-The build context is the **repository root**, not `backend/`: the tests read
+The build context is the repository root, not `backend/`, because the tests read
 `configure.py` and the compose files, which sit above it.
 
 To pass arguments to pytest, give the whole command. Anything after the image
@@ -152,18 +152,18 @@ frontends get.
 
 `frontend/src/test/setup.ts` does three things every test relies on:
 
-- **Web Storage is replaced by a class-based shim** (`globalThis.Storage` is the
+- Web Storage is replaced by a class-based shim (`globalThis.Storage` is the
   class). Both `vi.spyOn(localStorage, "setItem")` and patches on
   `Storage.prototype` work against it. Do not turn it into an object literal:
   tests that make storage throw patch `Storage.prototype`.
   `src/test/__tests__/storage-shim.test.ts` guards it.
-- **Every test ends with a `pointercancel` dispatched at `document`**, which
+- Every test ends with a `pointercancel` dispatched at `document`, which
   clears the press-in-flight and click-swallow state `DismissScrim` keeps at
   module scope. It runs before Testing Library's `cleanup()`, so a component
   that ends a drag on a document-level `pointercancel` runs that handler during
   teardown, outside `act()`. It does not bubble, so a `window`-level listener
   never sees it. `src/test/__tests__/press-lift.test.tsx` guards it.
-- **Testing Library's async timeout is 3000 ms.** Do not raise it to hide a
+- Testing Library's async timeout is 3000 ms. Do not raise it to hide a
   wait on the wrong thing.
 
 ### What to test
@@ -230,8 +230,8 @@ verify a layout (see
 
 Its fixtures hand-write the markup they measure, so a fixture can drift from the
 component. `justified-grid` is held to its components by
-`src/components/__tests__/justifiedGridFixtureParity.test.tsx`: **a new cell
-shape inside `.justified-grid` needs a row in the fixture's table**, or the
+`src/components/__tests__/justifiedGridFixtureParity.test.tsx`. A new cell
+shape inside `.justified-grid` needs a row in the fixture's table, or the
 parity test will not know about it.
 
 Each suite has its own config (`playwright-components.config.ts`,
@@ -286,14 +286,14 @@ collector measured with an independent walk of the tree:
 
 Rules for setting one:
 
-- **A Python floor never goes in `addopts`.** `--cov-fail-under` there fails
+- A Python floor never goes in `addopts`. `--cov-fail-under` there fails
   every partial run. It goes in the CI step as `PYTEST_ADDOPTS`.
-- **A Python floor is the measured total truncated, not rounded**, with
+- A Python floor is the measured total truncated, not rounded, with
   `--cov-precision=2`. coverage.py computes its exit code from the rounded
   total, so a rounded-up floor can print `FAIL` and still exit 0.
-- **A vitest floor is the displayed value.** vitest compares the same truncated
+- A vitest floor is the displayed value. vitest compares the same truncated
   figure it prints.
-- **The frontend floors are CI's numbers.** Coverage varies slightly between
+- The frontend floors are CI's numbers. Coverage varies slightly between
   runs and between machines on an unchanged tree (the numerators move; the
   population does not), and CI reports slightly less than a developer machine.
   A higher local number is not headroom. Each threshold sits at the lowest value
@@ -339,7 +339,7 @@ and `main`. Each addon repository has its own workflow.
 | `addon backend (cloud-sync)`, `addon backend (media_import)` | builds and runs that addon's test image from the repository root |
 | `production images` | builds `frontend/Dockerfile` and `backend/Dockerfile` |
 
-The frontend jobs check out submodules recursively, so they test the **pinned**
+The frontend jobs check out submodules recursively, so they test the pinned
 addon commits, the pairing a fresh clone gets. They fail if pinned addon code
 conflicts with core (for example a removed design token or a clashing message
 namespace), or if a submodule did not check out. They do not catch a pointer
@@ -353,7 +353,7 @@ copies the addon trees in as real files first.
 
 `ruff` and `mypy` are not run; the repository configures neither.
 
-**Read the exit code, never the pass count.** No step pipes a test command
+Read the exit code, never the pass count. No step pipes a test command
 through another program, sets `continue-on-error`, or uses vitest's JSON
 reporter. If you need more output from a job, make the command louder; do not
 wrap it.
@@ -362,10 +362,10 @@ wrap it.
 
 Each addon workflow has a backend job and a frontend job.
 
-- **Backend:** `intelligence` and `knowledge` build their own test image from
+- Backend: `intelligence` and `knowledge` build their own test image from
   their own checkout. `cloud-sync` and `media_import` check out core `develop`
   and build against it; core's CI also runs these two.
-- **Frontend:** checks out core `develop` with submodules, puts the commit under
+- Frontend: checks out core `develop` with submodules, puts the commit under
   test at `addons/<name>`, checks vitest collected that addon, and runs core's
   whole suite and `tsc`.
 
@@ -385,7 +385,7 @@ When `frontend (shuffled order)` goes red, take the seed from its log, reproduce
 it (see [Order dependence](#order-dependence)), and fix the cause. Do not re-run
 until green.
 
-**A required check is matched by the job's `name:` string.** Renaming a job
+A required check is matched by the job's `name:` string. Renaming a job
 leaves the old name required and never reported, so every pull request waits on
 it. Rename a job and update the protection together.
 
@@ -411,8 +411,8 @@ Pull requests that change behaviour without touching tests are rejected.
 
 ## Flake hygiene
 
-Before opening a PR, run the full suite and **read the exit code, not the pass
-count.** Vitest reports an unhandled rejection as `Errors 1 error` and exits 1
+Before opening a PR, run the full suite and read the exit code, not the pass
+count. Vitest reports an unhandled rejection as `Errors 1 error` and exits 1
 while printing every test as passed. The JSON reporter does not include those
 errors; they appear only on the default reporter's stderr.
 

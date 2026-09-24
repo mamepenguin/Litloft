@@ -20,21 +20,21 @@ If the server cannot be reached, the app shows **Cannot reach Litloft** with **T
 
 An audio file gets Litloft's own controls: play / pause, a seek bar, and a speed button that steps from 1× to 2×. Playback continues when you leave the app or lock the phone, and the lock screen and Control Center show the file and control it. Choose AirPlay and other outputs from the system controls.
 
-Resume, history and autoplay work as in a browser — see [Viewers and players](viewers-and-players.md#audio-player).
+Resume, history and autoplay work as in a browser. See [Viewers and players](viewers-and-players.md#audio-player).
 
 ## Watching video
 
 The controls, gestures and chapters are the same as in a browser.
 
-- **Leaving the app** moves the video into a picture-in-picture window, where it keeps playing. Coming back puts it back in the page.
+- Leaving the app moves the video into a picture-in-picture window, where it keeps playing. Coming back puts it back in the page.
 - **Picture-in-Picture** in the settings sheet opens that window without leaving the app.
-- **Locking the screen** keeps the sound but stops the picture.
+- Locking the screen keeps the sound but stops the picture.
 - The mini player is not used in the app; picture in picture takes its place.
 
 ### Messages under the controls
 
-- **Loading…** — waiting for data. If the server stops answering (the Mac sleeps, a drive is unmounted), it stays, and playback resumes by itself when the server is back.
-- **Could not load this file** — open the file again later to retry.
+- **Loading…**: waiting for data. If the server stops answering (the Mac sleeps, a drive is unmounted), it stays, and playback resumes by itself when the server is back.
+- **Could not load this file**: open the file again later to retry.
 
 ### When playback stops
 
@@ -48,6 +48,6 @@ Leaving the file's page, or pressing **Lock** in the sidebar, stops playback. If
 
 ## Limitations
 
-- **YouTube and other web videos** (`.loft` files) play in the page and stop when you leave the app. For a YouTube video, use **Open in the iOS player** in the settings sheet: from there, leaving the app moves it into picture in picture. Litloft's controls and subtitles are not shown there.
-- **Subtitles** are not shown in picture in picture or in the iOS full-screen player.
-- **A long press** on text starts a text selection, as in Safari.
+- YouTube and other web videos (`.loft` files) play in the page and stop when you leave the app. For a YouTube video, use **Open in the iOS player** in the settings sheet: from there, leaving the app moves it into picture in picture. Litloft's controls and subtitles are not shown there.
+- Subtitles are not shown in picture in picture or in the iOS full-screen player.
+- A long press on text starts a text selection, as in Safari.

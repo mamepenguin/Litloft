@@ -47,8 +47,8 @@ A variable only reaches the containers whose `environment` lists it. Compose set
 ### `CORE_INTERNAL_SECRET`
 - **Default**: empty
 - Shared secret for `/api/internal/*`, sent by addons as `X-Internal-Secret`.
-- **Unset**: the backend logs a warning at startup, and every internal endpoint accepts requests without it, except `PUT /api/internal/files/{id}/chapters`, which returns `503`.
-- **Set but different on the addon**: `403`.
+- Unset: the backend logs a warning at startup, and every internal endpoint accepts requests without it, except `PUT /api/internal/files/{id}/chapters`, which returns `503`.
+- Set, but to a different value on the addon: `403`.
 - Set the same value on the backend and on every addon that calls the core. `configure.py` generates it only when the knowledge addon is enabled; with intelligence alone, add it to both the backend and intelligence yourself.
 
 ### `CORE_INTERNAL_CONTENT_MAX_BYTES`
@@ -61,7 +61,7 @@ A variable only reaches the containers whose `environment` lists it. Compose set
 
 ### `INTELLIGENCE_SERVICE_URL`
 - **Default**: `http://intelligence:8100`
-- Where the core proxies `/api/addons/intelligence/*`. **When unset, the addon is hidden** from `/setup` and `/admin/settings`. `configure.py` sets it when you enable intelligence.
+- Where the core proxies `/api/addons/intelligence/*`. When unset, the addon is hidden from `/setup` and `/admin/settings`. `configure.py` sets it when you enable intelligence.
 
 ### `KNOWLEDGE_SERVICE_URL`
 - **Default**: `http://knowledge:8200`
@@ -78,7 +78,7 @@ A variable only reaches the containers whose `environment` lists it. Compose set
 ### `LITLOFT_MAX_UPLOAD_SIZE_GB`
 - **Default**: `50`
 - Largest file a single upload may be. Decimals are accepted.
-- **A value that is not a positive number stops the backend from starting.**
+- A value that is not a positive number stops the backend from starting.
 - An upload is also refused with `507` unless `DATA_DIR` and the target drive each have 1.1 times the file size free.
 
 ---
@@ -184,7 +184,7 @@ A normal deployment needs none of these. The `/api/*` rewrite always targets `ht
 ### `SEARCH_WEBHOOK_SECRET`
 - **Default**: empty
 - Checked on the addon's webhooks (`scan.complete`, `files.deleted`, `files.restored`, `files.missing`, `files.recovered`, `files.moved`, `files.purged`). Unset, the addon accepts webhooks without it.
-- **Set it on the backend and here, or on neither.** The backend sends the header from its own environment. Set only here, every webhook gets `403` and indexing stops without any other sign. Set only on the backend, nothing is checked.
+- Set it on the backend and here, or on neither. The backend sends the header from its own environment. Set only here, every webhook gets `403` and indexing stops without any other sign. Set only on the backend, nothing is checked.
 - `configure.py` generates it and sets both sides when you enable intelligence.
 
 ### `KNOWLEDGE_SERVICE_URL`

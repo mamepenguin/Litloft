@@ -22,7 +22,7 @@ Conventions:
 | `400` | Bad request: path traversal in a `path` / `folder` argument, a missing drive context on a `scope=drive` addon call, a cross-drive collection item or relation. |
 | `401` | A comment posted without a viewer identity. |
 | `403` | A non-admin caller on an admin route, editing or deleting someone else's comment, an addon call naming a drive the caller cannot access, a wrong setup token, a wrong `X-Internal-Secret`. |
-| `404` | Not found. **Also returned for a locked protected drive**, so its existence stays hidden, and for Missing or Trash files on GET and mutating endpoints. `/stream`, `/render`, `/preview-text` and `/thumbnail` still serve trashed files. |
+| `404` | Not found. Also returned for a locked protected drive, so its existence stays hidden, and for Missing or Trash files on GET and mutating endpoints. `/stream`, `/render`, `/preview-text` and `/thumbnail` still serve trashed files. |
 | `409` | Conflict: scan already running, duplicate collection name, folder already pinned, `conflict_mode=error` collision, a collection reorder whose item set does not match, setup already completed, a maintenance job already running, a relation that already exists, an Internal API trust-tier write on a file a viewer already ruled on. |
 | `410` | Gone: `/stream`, `/render` or `/preview-text` on a Missing file. |
 | `412` / `428` | `PUT /api/files/{id}/content`: `428` when `If-Match` is absent, `412` when it does not match the current ETag. |
@@ -101,7 +101,7 @@ File ids are 12-character nanoids and are validated as such in the path.
 | `GET` | `/api/files/{id}/archive` | Entries of a zip file, up to 10,000. `404` when the file is not an archive. |
 | `GET` | `/api/files/{id}/archive/entry?path=...` | One entry's bytes. Symlink entries and traversal are `400`; entries over 50 MB (declared or decompressed) are `413`. Images and plain text are served inline, everything else as an attachment. |
 | `GET` | `/api/files/{id}/comments` | Comments, oldest first, each with `is_mine`. |
-| `POST` | `/api/files/{id}/comments` | Body `{ body }`, 1–1000 characters. `201`. Needs a viewer identity (`401`). 10 per 60 s per IP (`429`); `422` once a file has 500 comments. |
+| `POST` | `/api/files/{id}/comments` | Body `{ body }`, 1 to 1000 characters. `201`. Needs a viewer identity (`401`). 10 per 60 s per IP (`429`); `422` once a file has 500 comments. |
 | `PUT` | `/api/files/{id}/comments/{cid}` | Edit your own comment (`403` otherwise). |
 | `DELETE` | `/api/files/{id}/comments/{cid}` | Delete your own comment (`204`; `403` otherwise). |
 | `POST` | `/api/files/{id}/progress` | Body `{ position?, duration? }`. Always updates `last_played_at`; the playback position is updated only when both fields are sent. An empty body records a view. |
@@ -125,7 +125,7 @@ Batch endpoints take `{ "ids": [...] }`, 1 to 100 ids, plus the fields named bel
 | `POST` | `/api/files/batch/get` | The files the caller can access, as a list. |
 | `POST` | `/api/files/batch/delete` | Move to trash. `{ deleted, errors }`. |
 | `PUT` | `/api/files/batch/move` | Adds `target_drive` / `target_folder_path`. `{ moved, errors }`. An inaccessible `target_drive` fails the whole request with `404`. |
-| `PUT` | `/api/files/batch/tags` | **Adds** the given tags to each file (the single-file `PUT` replaces). `{ updated, errors }`. |
+| `PUT` | `/api/files/batch/tags` | Adds the given tags to each file. The single-file `PUT` replaces them instead. `{ updated, errors }`. |
 | `PUT` | `/api/files/batch/rename` | Adds `mode` (`template`, `regex` or `prefix_suffix`) and that mode's fields: `template`, `start_number`, `zero_pad`; `pattern`, `replacement`; `action`, `value`. `{ renamed, results: [{ id, old_name, new_name }] }`. Unlike the others, one inaccessible id fails the whole request with `404`. |
 | `POST` | `/api/files/batch/restore` | Restore from trash. `{ restored, errors }`. |
 | `POST` | `/api/files/batch/purge` | Delete trashed or Missing files permanently. `{ purged, errors }`. |
@@ -256,7 +256,7 @@ Each addon's page under [`docs/addons/`](../addons/) documents its endpoints.
 
 For addons, on the Docker network only: the frontend server answers `/api/internal/*` with `404`.
 
-The Auth column: **none**, no secret; **secret**, `X-Internal-Secret` must equal `CORE_INTERNAL_SECRET` when that variable is set, and is not checked when it is unset; **strict**, the same header, but an unset `CORE_INTERNAL_SECRET` is `503`. A wrong secret is `403`.
+In the Auth column, none means no secret. With secret, `X-Internal-Secret` must equal `CORE_INTERNAL_SECRET` when that variable is set, and is not checked when it is unset. Strict uses the same header, but an unset `CORE_INTERNAL_SECRET` is `503`. A wrong secret is `403`.
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|

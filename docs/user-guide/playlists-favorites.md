@@ -4,8 +4,8 @@
 
 Both mark a file, and each has its own list in the sidebar and on the drive's Home.
 
-- **Favorite** (star) — *open this again*. Press the star on a file's page, or hover over a card in the grid. Taking files off again is expected.
-- **Like** (thumb) — *this was good*. Press it on a file's page. **Liked** lists files in the order you liked them; pressing it again clears the mark, and liking it later puts the file back at the top.
+- **Favorite** (star) means *open this again*. Press the star on a file's page, or hover over a card in the grid. Taking files off again is expected.
+- **Like** (thumb) means *this was good*. Press it on a file's page. **Liked** lists files in the order you liked them; pressing it again clears the mark, and liking it later puts the file back at the top.
 
 Both belong to the drive, not to you: everyone who uses the drive sees the same favorites and likes. Neither changes search results.
 

@@ -2,9 +2,9 @@
 
 Litloft runs as two containers, plus one container for each independent-service addon:
 
-- A **Next.js custom server** that serves the app and proxies HTTP and WebSocket traffic to the backend.
-- A **FastAPI backend** that owns the SQLite database, the scanner, and the Internal API used by addons.
-- A **slot system** in the frontend that lets addons add UI without changes to core.
+- A Next.js custom server that serves the app and proxies HTTP and WebSocket traffic to the backend.
+- A FastAPI backend that owns the SQLite database, the scanner, and the Internal API used by addons.
+- A slot system in the frontend that lets addons add UI without changes to core.
 
 ## Topology
 
@@ -81,8 +81,8 @@ Frontmatter `id:` and `aliases:` follow the same split (`File.md_id`, `File.md_a
 
 Two kinds:
 
-- **In-process**: a Python package loaded into the backend at startup. Used by `cloud-sync` and `media_import`.
-- **Independent service**: its own container, reached through the core's addon proxy, calling back through the Internal API. Used by `intelligence` and `knowledge`.
+- In-process: a Python package loaded into the backend at startup. Used by `cloud-sync` and `media_import`.
+- Independent service: its own container, reached through the core's addon proxy, calling back through the Internal API. Used by `intelligence` and `knowledge`.
 
 Three scopes, declared by the addon:
 
@@ -98,9 +98,9 @@ See [addon development](addon-dev.md).
 
 ## Concurrency
 
-- **Scanner**: `asyncio.Lock`; a second concurrent run returns `409 Conflict`.
-- **ZIP extraction**: `asyncio.Semaphore(3)`.
-- **Atomic file writes**: write a temporary file, then `os.replace()`.
+- Scanner: `asyncio.Lock`. A second concurrent run returns `409 Conflict`.
+- ZIP extraction: `asyncio.Semaphore(3)`.
+- Atomic file writes: write a temporary file, then `os.replace()`.
 
 ## Migrations
 

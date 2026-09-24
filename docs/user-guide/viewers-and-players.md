@@ -16,11 +16,11 @@ The top of the inspector stays in place while the rest scrolls. It holds the tit
 
 Below it are tabs, shown only when there is more than one:
 
-- **Info** — EXIF where the file has it, comments, and addon sections such as AI summaries.
-- **Related** — the file's relations, and similar files with the intelligence addon.
-- **Chapters** — on media with chapters.
-- **Transcript** — on media that has one (intelligence addon).
-- **Pages** — the contents and page thumbnails of a PDF, or an index of an archive.
+- **Info**: EXIF where the file has it, comments, and addon sections such as AI summaries.
+- **Related**: the file's relations, and similar files with the intelligence addon.
+- **Chapters**: on media with chapters.
+- **Transcript**: on media that has one (intelligence addon).
+- **Pages**: the contents and page thumbnails of a PDF, or an index of an archive.
 
 A tab appears only when it has something in it, so a video that was never transcribed has no Transcript tab.
 
@@ -42,8 +42,8 @@ The inspector is a bottom sheet. While it rests, a strip along the bottom shows 
 
 On video, audio and `.loft` files, a button in the page row decides where the chapters and the transcript go:
 
-- **Beside** (the default) — as tabs in the inspector, next to the player. Choosing it opens the inspector. If the window starts with the inspector closed, the panels are in there; open it to see them.
-- **Below** — under the description, with the chapter list beside the transcript.
+- **Beside** (the default): as tabs in the inspector, next to the player. Choosing it opens the inspector. If the window starts with the inspector closed, the panels are in there; open it to see them.
+- **Below**: under the description, with the chapter list beside the transcript.
 
 The button appears only when the file has chapters or a transcript. On a phone both always go into the bottom sheet. The choice is remembered on the device.
 
@@ -63,14 +63,14 @@ On a video or audio file, timestamps in the description you wrote (`⋮` → **E
 
 Litloft draws its own control bar over the video. It looks different with a mouse and on a touch screen.
 
-- **Gestures** — on touch, tap to show the controls, double-tap the left or right half to skip 10 s (keep tapping to skip further), press and hold to play at 2x, and swipe up or down or pinch for full screen. With a mouse, click to play or pause and double-click for full screen. See [keyboard shortcuts and gestures](keyboard-shortcuts.md).
-- **Settings** — subtitles and playback speed, plus **Picture-in-Picture**, **Autoplay** (off by default), a subtitle track picker when there is more than one, and **Browser controls**. On an iPhone there is also **Open in the iOS player**.
+- Gestures: on touch, tap to show the controls, double-tap the left or right half to skip 10 s (keep tapping to skip further), press and hold to play at 2x, and swipe up or down or pinch for full screen. With a mouse, click to play or pause and double-click for full screen. See [keyboard shortcuts and gestures](keyboard-shortcuts.md).
+- **Settings**: subtitles and playback speed, plus **Picture-in-Picture**, **Autoplay** (off by default), a subtitle track picker when there is more than one, and **Browser controls**. On an iPhone there is also **Open in the iOS player**.
 - **Browser controls** hands the video to the browser's own bar, which is where AirPlay lives. **Use Litloft controls**, under the player, switches back.
-- **Subtitles** — put `movie.srt` or `movie.vtt` next to `movie.mp4`, or `movie.en.srt`, `movie.ja.vtt` and so on for several languages. They load automatically, for `.loft` files too, and do not appear in the file list. Without one, the intelligence addon's generated track is offered.
-- **Resume** — a video starts where you left off. A link with a time in it, such as an Ask citation, starts there instead.
-- **Mini player** — on a computer, scrolling the video out of view shrinks it into a small window at the bottom right. It has only play, time, mute and seeking; set speed and subtitles before you scroll away, or restore the full player.
-- **Lock screen and media keys** control playback, including next and previous in a collection.
-- **Cast** — a Chromecast button appears when one is found.
+- **Subtitles**: put `movie.srt` or `movie.vtt` next to `movie.mp4`, or `movie.en.srt`, `movie.ja.vtt` and so on for several languages. They load automatically, for `.loft` files too, and do not appear in the file list. Without one, the intelligence addon's generated track is offered.
+- Resume: a video starts where you left off. A link with a time in it, such as an Ask citation, starts there instead.
+- Mini player: on a computer, scrolling the video out of view shrinks it into a small window at the bottom right. It has only play, time, mute and seeking; set speed and subtitles before you scroll away, or restore the full player.
+- The lock screen and media keys control playback, including next and previous in a collection.
+- **Cast**: a Chromecast button appears when one is found.
 
 In the [iOS app](ios-app.md), leaving the app moves the video into picture-in-picture, and there is no mini player.
 
@@ -86,13 +86,13 @@ The maximise button opens the full-screen viewer, which turns through the folder
 
 ![Image viewer in two-page spread mode with right-to-left reading enabled](../images/user-guide/image-viewer-spread-rtl.png)
 
-- **Turn the page** — swipe (right always means next), tap or click the left or right edge, or use the arrow keys. A mouse drag does not turn the page.
-- **Controls** — tap the centre. They hide themselves after two seconds; move the mouse or tap to bring them back.
-- **Zoom** — pinch, Ctrl/⌘ + scroll, or `=` / `-`, up to 4x. `0` shows the whole picture. While zoomed, drag to move around; swipes and edge taps no longer turn the page.
-- **Slideshow** — play button, with an interval of 3, 5 or 10 seconds.
-- **Spread** — reads the images as a book. A wide page is shown one half at a time (`3 / 190 A`, then `B`); two tall pages are shown side by side (`7–8 / 190`). The first page is always alone. Pages pair only when the window is at least as wide as it is tall.
-- **Reading direction** — **LTR** or **RTL**, shown while **Spread** is on. RTL mirrors the edge taps, arrows and keys, not the swipe.
-- **HEIC** photos from an iPhone are shown too.
+- Turn the page: swipe (right always means next), tap or click the left or right edge, or use the arrow keys. A mouse drag does not turn the page.
+- Controls: tap the centre. They hide themselves after two seconds; move the mouse or tap to bring them back.
+- Zoom: pinch, Ctrl/⌘ + scroll, or `=` / `-`, up to 4x. `0` shows the whole picture. While zoomed, drag to move around; swipes and edge taps no longer turn the page.
+- **Slideshow**: the play button, with an interval of 3, 5 or 10 seconds.
+- **Spread**: reads the images as a book. A wide page is shown one half at a time (`3 / 190 A`, then `B`); two tall pages are shown side by side (`7–8 / 190`). The first page is always alone. Pages pair only when the window is at least as wide as it is tall.
+- **Reading direction**: **LTR** or **RTL**, shown while **Spread** is on. RTL mirrors the edge taps, arrows and keys, not the swipe.
+- HEIC photos from an iPhone are shown too.
 
 ## Markdown viewer
 
@@ -105,10 +105,10 @@ With the [knowledge addon](../addons/knowledge.md) and its editor enabled for th
 ## PDF viewer
 
 - Select text as on any page. With the intelligence addon, Ask can quote the page you are on.
-- **Zoom mode** — **Fit width** (the default), **Whole page** or **Actual size**, plus zoom buttons. Choosing a mode resets the zoom to 100%.
-- **Page number** — type a page and press `Enter`. `PageUp` / `PageDown` turn pages; `←` / `→` go to the previous or next *file*.
-- **Pages** tab — the table of contents and page thumbnails. Click one to go there.
-- **Full screen** — the button beside **Open in new tab**, or `f`. It works like the [image viewer](#image-viewer), including **Spread** and zoom, but mouse clicks and drags select text instead of turning pages. A PDF that declares right-to-left reading opens that way. With the knowledge addon, the quote button is in the full-screen bar.
+- **Zoom mode**: **Fit width** (the default), **Whole page** or **Actual size**, plus zoom buttons. Choosing a mode resets the zoom to 100%.
+- **Page number**: type a page and press `Enter`. `PageUp` / `PageDown` turn pages; `←` / `→` go to the previous or next *file*.
+- **Pages** tab: the table of contents and page thumbnails. Click one to go there.
+- **Full screen**: the button beside **Open in new tab**, or `f`. It works like the [image viewer](#image-viewer), including **Spread** and zoom, but mouse clicks and drags select text instead of turning pages. A PDF that declares right-to-left reading opens that way. With the knowledge addon, the quote button is in the full-screen bar.
 - Links inside the PDF to its own pages work.
 
 ## Office files (DOCX / XLSX / PPTX)
@@ -137,9 +137,9 @@ Only Markdown notes can be edited in the app (see above).
 
 A `.loft` file from the [media_import addon](../addons/media-import.md) plays the original:
 
-- **YouTube** — in Litloft's own player, with the channel and caption details below it. The **Player** setting switches between **Litloft** and **YouTube** controls. During an ad, Litloft's controls step aside. If the owner does not allow embedding, you get **Watch on YouTube** instead.
-- **Vimeo** — in Vimeo's player.
-- **Other sites** — a link to the original.
+- **YouTube**: in Litloft's own player, with the channel and caption details below it. The **Player** setting switches between **Litloft** and **YouTube** controls. During an ad, Litloft's controls step aside. If the owner does not allow embedding, you get **Watch on YouTube** instead.
+- **Vimeo**: in Vimeo's player.
+- **Other sites**: a link to the original.
 
 ## Watch progress
 

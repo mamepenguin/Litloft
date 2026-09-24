@@ -4,8 +4,8 @@ Litloft is a media server and file manager for your home network. You open it in
 
 ## How it is organised
 
-- **Drives** — each drive is a separate library, such as *Movies* or *Photos*. Nothing crosses between drives: search, favourites and tags each belong to one drive. Some drives need a password. See [drives and access control](drives-and-access.md).
-- **Your profile** — a nickname you choose in **Settings**. It keeps your watch history and lets you post comments. There are no accounts or passwords for it. See [comments and watch history](comments-history.md).
+- Each drive is a separate library, such as *Movies* or *Photos*. Nothing crosses between drives: search, favourites and tags each belong to one drive. Some drives need a password. See [drives and access control](drives-and-access.md).
+- Your profile is a nickname you choose in **Settings**. It keeps your watch history and lets you post comments. There are no accounts or passwords for it. See [comments and watch history](comments-history.md).
 
 ## Closing a menu
 
@@ -43,7 +43,7 @@ Two exceptions:
 
 - Drag and drop files or whole folders to upload them. See [upload and file operations](upload-and-fileops.md).
 - Rename, move and copy, one file or a selection.
-- **Quick note** — press **`N`** on any screen to write a Markdown note and file it. See [Quick Note](quick-note.md).
+- **Quick note**: press **`N`** on any screen to write a Markdown note and file it. See [Quick Note](quick-note.md).
 - Deleted files go to **Trash** for 30 days. See [trash and missing files](trash-and-missing.md).
 
 ### Install on a phone or computer
@@ -54,19 +54,19 @@ Use "Add to Home Screen" or the browser's install action to open Litloft in its 
 
 Some features need an addon installed by whoever runs Litloft:
 
-- **intelligence** — semantic search, Ask, summaries, transcripts, image descriptions.
-- **knowledge** — the Markdown editor with live preview, version history, Notes, web clipping.
-- **cloud-sync** — scheduled backups to cloud storage.
-- **media_import** — add YouTube or Vimeo videos by URL.
+- **intelligence**: semantic search, Ask, summaries, transcripts, image descriptions.
+- **knowledge**: the Markdown editor with live preview, version history, Notes, web clipping.
+- **cloud-sync**: scheduled backups to cloud storage.
+- **media_import**: add YouTube or Vimeo videos by URL.
 
 See the [addon overview](../addons/overview.md).
 
 ## What Litloft is not
 
-- **Not for the public internet.** Use it on your home network, or through a VPN.
-- **Not a multi-user service.** Your identity is your nickname in this browser. Use the same nickname on each device to share history.
-- **Not cross-drive.** Search, favourites and tags stay inside one drive.
-- **Not a Plex replacement.** No transcoding, no client apps, no metadata from online databases.
-- **Not offline.** Without a connection to the server it shows nothing.
+- Not for the public internet. Use it on your home network, or through a VPN.
+- Not a multi-user service. Your identity is your nickname in this browser. Use the same nickname on each device to share history.
+- Not cross-drive. Search, favourites and tags stay inside one drive.
+- Not a Plex replacement. No transcoding, no client apps, no metadata from online databases.
+- Not offline. Without a connection to the server it shows nothing.
 
 Continue with [drives and access control](drives-and-access.md).

@@ -6,16 +6,16 @@ Litloft has no accounts. Your profile is just a nickname, and there is no email 
 
 Press the round button at the top right of the header: your initial once you have a nickname, or a person icon before that. The **Settings** page has:
 
-- **Profile** — set your nickname. **Switch to a different name** changes it; **Clear profile** removes it from this device.
-- **What is a profile?** — what the nickname is for.
+- **Profile**: set your nickname. **Switch to a different name** changes it; **Clear profile** removes it from this device.
+- **What is a profile?**: what the nickname is for.
 - **Display and behaviour**:
-  - **Appearance** — **Light**, **Dark** or **System**. It applies at once.
-  - **Language** — the page reloads in the new language.
-  - **Sidebar order** — **Reset order** puts the sidebar's sections and items back in their default order.
+  - **Appearance**: **Light**, **Dark** or **System**. It applies at once.
+  - **Language**: the page reloads in the new language.
+  - **Sidebar order**: **Reset order** puts the sidebar's sections and items back in their default order.
 
 ## What a nickname gives you
 
-- Resuming media where you stopped, and a watch history — **Continue watching** and **Recently Viewed** on Home.
+- Resuming media where you stopped, and a watch history (**Continue watching** and **Recently Viewed** on Home).
 - Posting comments, and editing or deleting your own.
 - The same history on every device where you enter the same nickname.
 

@@ -12,8 +12,8 @@
 
 **All notes** lists every note in the drive and lets you narrow it:
 
-- **Folders** — choose a folder to see the notes directly in it, not in its subfolders. **All** shows every note.
-- **Tags** — choose a tag. With a folder chosen, only the tags in that folder are listed. Choose the tag again, or press × on it, to clear it.
+- **Folders**: choose a folder to see the notes directly in it, not in its subfolders. **All** shows every note.
+- **Tags**: choose a tag. With a folder chosen, only the tags in that folder are listed. Choose the tag again, or press × on it, to clear it.
 - **Search this list** and **Sort** (**Updated**, **Title**, **Created**) work within what you have chosen.
 
 On a phone, folders, tags and sort are menus above the list. Going back from a note returns you to the same list. To move or rename folders, use the Library.

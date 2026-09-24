@@ -4,21 +4,21 @@ The `knowledge` addon adds Markdown notes to Litloft: an editor, version history
 
 ## What it provides
 
-- **Notes page**: **Notes** in the sidebar lists and searches the drive's Markdown and text files. See [Notes](../user-guide/notes.md).
-- **Markdown editor**: live preview, autosave, `[[wiki links]]`, and image upload by drag and drop or paste.
-- **Version history**: browse and restore earlier versions of a note.
-- **Capture basket**: collect quotes and timestamps from anywhere in Litloft, then add them to a note.
-- **Web clipping**: save a web page as a Markdown note.
-- **Create note**: start a note that cites the file you are looking at.
-- **Summary note**: a file can show a note chosen as its summary.
-- **Connections graph**: how notes and files refer to each other.
-- **Add menu**: **New note** and **Clip web page** in the **Add** menu on Home and in Library folders.
+- **Notes** in the sidebar lists and searches the drive's Markdown and text files. See [Notes](../user-guide/notes.md).
+- A Markdown editor with live preview, autosave, `[[wiki links]]`, and image upload by drag and drop or paste.
+- A version history where you browse and restore earlier versions of a note.
+- A capture basket that collects quotes and timestamps from anywhere in Litloft so you can add them to a note.
+- Web clipping, which saves a web page as a Markdown note.
+- **Create note**, which starts a note that cites the file you are looking at.
+- A file can show a note chosen as its summary note.
+- A connections graph of how notes and files refer to each other.
+- **New note** and **Clip web page** in the **Add** menu on Home and in Library folders.
 
 Clipping, committing the capture basket, and **Create note** need a [profile](../user-guide/profile-preferences.md). Without one, they fail.
 
 ## Installation
 
-The addon runs as its own container on port 8200. Answer **yes** when `configure.py` asks to enable the knowledge addon. It writes the service into `docker-compose.override.yml`, writes `KNOWLEDGE_WEBHOOK_SECRET` and `CORE_INTERNAL_SECRET` into `.env`, and builds `event-hooks.json`. Then:
+The addon runs as its own container on port 8200. Answer yes when `configure.py` asks to enable the knowledge addon. It writes the service into `docker-compose.override.yml`, writes `KNOWLEDGE_WEBHOOK_SECRET` and `CORE_INTERNAL_SECRET` into `.env`, and builds `event-hooks.json`. Then:
 
 ```bash
 docker compose up -d --build
@@ -66,7 +66,7 @@ Environment variables of the `knowledge` container:
 | `HOMEVAULT_INTERNAL_URL` | `http://backend:8000` | The backend's address on the Docker network. |
 | `KNOWLEDGE_USER_AGENT` | a desktop Chrome user agent | User agent for fetching web pages to clip. |
 | `KNOWLEDGE_WEBHOOK_SECRET` | *(empty)* | Shared secret the backend sends in the `X-Webhook-Secret` header on file events. The addon rejects a call with the wrong value (`403`). Also required by the intelligence addon to clear a summary note. |
-| `CORE_INTERNAL_SECRET` | *(empty)* | Shared secret for the addon's calls to the backend's internal API. **Web clipping fails without it**; see [Clips are unverified](#clips-are-unverified). |
+| `CORE_INTERNAL_SECRET` | *(empty)* | Shared secret for the addon's calls to the backend's internal API. Web clipping fails without it; see [Clips are unverified](#clips-are-unverified). |
 | `NOTE_SCANNER_INTERVAL_SECONDS` | `3600` | How often to check for notes edited outside Litloft. |
 
 With a secret empty, that check is skipped. Set both on a real installation.
@@ -105,10 +105,10 @@ The editor has three views: **Edit**, **Split** (editor and preview side by side
 
 The formatting toolbar never wraps. Controls that do not fit move into the **More formatting and versions** menu at its end, which also holds **Keep this version** and **Version history**.
 
-- **Autosave.** Your changes are saved two seconds after you stop typing. There is no save button.
-- **Conflicts.** If the file changed somewhere else, for example in Obsidian or on another device, the editor says so and lets you reload the saved copy or keep yours.
-- **Images and files.** Drop or paste a file into the editor to upload it into the note's folder. An image is inserted as `![name](loft://<file_id>)`; other files as a link.
-- **Wiki links.** Type `[[` to pick another note in the drive. A link to a note that does not exist offers to create it.
+- Your changes are saved two seconds after you stop typing. There is no save button.
+- If the file changed somewhere else, for example in Obsidian or on another device, the editor says so and lets you reload the saved copy or keep yours.
+- Drop or paste a file into the editor to upload it into the note's folder. An image is inserted as `![name](loft://<file_id>)`; other files as a link.
+- Type `[[` to pick another note in the drive for a wiki link. A link to a note that does not exist offers to create it.
 
 Images linked as `loft://<file_id>` keep working when the image is moved or renamed. The first such image in a note becomes its thumbnail. Two or more images on consecutive lines are shown side by side in one row; put a blank line between them to stack them.
 
@@ -159,7 +159,7 @@ Litloft creates the note at once and fetches the page in the background. It keep
 
 Every clip is saved as an **unverified** source. It can be searched at once, but Ask does not use it as evidence until you press **Trust as a source** on its file page. See [Trusted sources](../user-guide/file-browsing.md#trusted-sources-and-the-review-queue).
 
-Because of this, **`CORE_INTERNAL_SECRET` must be set on both containers**. Without it, the clip cannot be marked unverified, so clipping fails (`502`) rather than saving the page as a trusted source. The empty placeholder note is left in the folder.
+Because of this, `CORE_INTERNAL_SECRET` must be set on both containers. Without it, the clip cannot be marked unverified, so clipping fails (`502`) rather than saving the page as a trusted source. The empty placeholder note is left in the folder.
 
 ### Pages that are refused
 

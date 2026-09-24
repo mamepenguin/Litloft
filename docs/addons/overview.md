@@ -13,14 +13,14 @@ Addons are optional parts of Litloft. Each one is its own Git repository, checke
 
 ## Two kinds of addon
 
-**Inside the backend.** The addon's code is copied into the backend image when it is built, and loads with the backend. There is no extra container. A fault in the addon can affect the backend. `cloud-sync` and `media_import` work this way.
+An addon that runs inside the backend has its code copied into the backend image when the image is built, and it loads with the backend. There is no extra container, and a fault in the addon can affect the backend. `cloud-sync` and `media_import` work this way.
 
-**Separate service.** The addon has its own `Dockerfile` and container. The browser reaches it through the backend at `/api/addons/<name>/...`, and it reads Litloft data through an internal API on the Docker network. It is isolated from the backend and can use heavy dependencies without enlarging the backend image. `intelligence` and `knowledge` work this way. Their containers should wait for the backend with `depends_on: condition: service_healthy`.
+An addon that runs as a separate service has its own `Dockerfile` and container. The browser reaches it through the backend at `/api/addons/<name>/...`, and it reads Litloft data through an internal API on the Docker network. It is isolated from the backend and can use heavy dependencies without enlarging the backend image. `intelligence` and `knowledge` work this way. Their containers should wait for the backend with `depends_on: condition: service_healthy`.
 
 ## Scope
 
-- **drive**: the addon works on one drive at a time. Its page is under `/drive/<drive>/addons/<name>`.
-- **global**: the addon is not tied to a drive. cloud-sync is a card on the admin dashboard that covers every drive.
+- drive: the addon works on one drive at a time. Its page is under `/drive/<drive>/addons/<name>`.
+- global: the addon is not tied to a drive. cloud-sync is a card on the admin dashboard that covers every drive.
 
 ## Per-drive policy
 
@@ -61,9 +61,9 @@ Events for a drive where the addon's `index` feature is off are not sent to it.
 
 The addons are Git submodules. `git clone --recurse-submodules`, or later `git submodule update --init --recursive`, checks them out.
 
-- **Separate-service addons** (`intelligence`, `knowledge`): answer yes when `configure.py` asks, and it writes the service into `docker-compose.override.yml`. Then run `docker compose up -d --build`. To remove one, answer no (or delete its service block) and rebuild.
-- **Addons inside the backend** (`cloud-sync`, `media_import`): they are built in whenever their directory is checked out, so rebuild after checking one out. To remove one, leave its submodule uninitialised and rebuild. Turning it off in the per-drive policy does not unload it.
-- **Per drive**: use **Addon policy** in the [settings GUI](../admin-guide/settings-gui.md#addon-policy).
+- For a separate-service addon (`intelligence`, `knowledge`), answer yes when `configure.py` asks, and it writes the service into `docker-compose.override.yml`. Then run `docker compose up -d --build`. To remove one, answer no (or delete its service block) and rebuild.
+- An addon inside the backend (`cloud-sync`, `media_import`) is built in whenever its directory is checked out, so rebuild after checking one out. To remove one, leave its submodule uninitialised and rebuild. Turning it off in the per-drive policy does not unload it.
+- To turn an addon on or off per drive, use **Addon policy** in the [settings GUI](../admin-guide/settings-gui.md#addon-policy).
 
 When you run the backend outside Docker for development, run `./setup-addons.sh` once from the repository root to link the addons into the core tree.
 

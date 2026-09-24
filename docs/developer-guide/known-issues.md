@@ -1,20 +1,20 @@
 # Known issues
 
-Defects that are known, deliberately open, and **reachable by a user or an
-addon**.
+Defects that are known, deliberately open, and reachable by a user or an
+addon.
 
-**What goes here** — bucket B and C findings from `.claude/rules/review-workflow.md`
+What goes here: bucket B and C findings from `.claude/rules/review-workflow.md`
 R-4 that somebody can actually hit: something that breaks no declared invariant
 but is wrong on screen or in the data, and any pre-existing defect a change
 surfaced but did not introduce.
 
-**What does not** — anything that breaks a declared invariant, which is fixed
+What does not go here: anything that breaks a declared invariant, which is fixed
 before the change merges; and anything nobody can reach, such as a gap in test
 coverage over correct behaviour. Those stay in the findings files under
 `docs/developer-guide/reviews/<pr>/`, which are the record. A ledger that
 collects every closed finding stops being read.
 
-**One line each, plus how it is reached.** A reader must be able to decide
+One line each, plus how it is reached. A reader must be able to decide
 whether they have hit it. No investigation notes: those belong to a spec under
 `docs/superpowers/specs/` or to the commit that eventually fixes it.
 
@@ -28,7 +28,7 @@ Remove the row when it is fixed.
 Creating a password that carries `__admin__` needs one already, but deleting
 the last such entry does not, and neither does clearing the drives' access
 groups. A viewer who is admin by holding every declared group can do both, and
-afterwards nobody — including the owner — can create another, because creating
+afterwards nobody, including the owner, can create another, because creating
 one needs the entry that was just deleted. Recovery is editing `passwords.json`
 on the host. Reached from `/admin/settings` on an install that has both an
 admin password and group-protected drives.
@@ -43,7 +43,7 @@ so; the restart, or the folder toolbar's Scan, fixes it.
 **Choosing Public while a drive still carries an access group locks everyone
 out.** The wizard saves the drive rows unchanged in both modes and Public writes
 no password, so the drive is 404, `GET /api/admin/config/drives` is 403 and
-`PUT` is 403 — nobody can unlock and nobody can write. Recovery is editing
+`PUT` is 403, so nobody can unlock and nobody can write. Recovery is editing
 `drives.json` on the host. Reached by typing an access group in the drive step
 and then leaving the access mode at its Public default, and by re-running the
 wizard on an install that already has protected drives.
@@ -64,7 +64,7 @@ prompt defaults to no.
 `.rst` and `.org` are prose in minimal markup, the same job Markdown does, and
 the Text filter holds only `.md`, `.markdown` and `.txt`. Widening it means
 editing `_KIND_SUFFIXES`, which `file-kind-parity.test.ts` compares against the
-intelligence addon's copy by design — so the two repositories move together and
+intelligence addon's copy by design, so the two repositories move together and
 whichever goes first has a red parity job. Deferred for that reason, not
 because the boundary is in doubt. `.adoc` is Other rather than Document for the
 same reason.
@@ -84,7 +84,7 @@ blank. (PR #368 r2 N5.)
 
 **A source file's card shows no excerpt.** A card draws the first lines of a
 file in place of a thumbnail only when the file is a Document, so the source
-files that are now Other lost it — `.c`, `.h`, `.py`, `.pl`, `.css`, `.js` and
+files that are now Other lost it: `.c`, `.h`, `.py`, `.pl`, `.css`, `.js` and
 `.bat` had one and no longer do. The file still opens as text; only the card is
 blank. The gate is `file_type === "document"` in `FileCard`, `FileListRow` and
 `JustifiedFileCell`, and it is a bucket test where a name test would serve.
@@ -132,8 +132,8 @@ it.
 `file_type` and `mime_type` on an existing row but clears neither
 `thumbnail_path` nor `duration`, and nothing generates a document thumbnail to
 overwrite the old one, so the card draws the stale video frame. Reached by a row
-first written on a host whose mime table called the file video — a `.ts` scanned
-on macOS, then scanned again in the container.
+first written on a host whose mime table called the file video, such as a `.ts` scanned
+on macOS and then scanned again in the container.
 
 **A file of long unbroken runs freezes the page for about twenty seconds
 while it is coloured.** Several highlight.js grammars are quadratic in an
@@ -142,7 +142,7 @@ file at 512K, which together bring the worst case down from twelve minutes to
 about twenty seconds, but do not bound it: measured at 104 lines of 4999
 characters each, `csharp` took 20.5s, `c` 18.3s and `ini` 13.7s, all on the
 main thread. Reached by a file whose name says `.cs`, `.c`, `.conf` or `.toml`
-and whose content is separator-free blocks — a base64 dump saved under the
+and whose content is separator-free blocks, such as a base64 dump saved under the
 wrong extension. One separator anywhere in a line makes that line linear, so
 ordinary files of any size are unaffected.
 
@@ -192,8 +192,8 @@ leaves `a.png` blank. The right fix is a lookup, not a `stat`. Written up in
 
 **A thumbnail failure rolls back the file operation it belongs to.** In
 `rename_file`, `move_file` and batch rename, the thumbnail rename sits inside
-the transaction, so an `OSError` there undoes a completed rename or move — and
-for batch rename, the whole batch. A thumbnail is a cache and should not be able
+the transaction, so an `OSError` there undoes a completed rename or move (for
+batch rename, the whole batch). A thumbnail is a cache and should not be able
 to do this. Same spec.
 
 **A non-video file keeps its thumbnail at the old path after a move or rename.**
@@ -208,7 +208,7 @@ thumbnail.** `_move_thumbnail` renames the mover's JPEG onto the destination
 slot, which the retired record still points at, so purging that record deletes
 the picture the live file is showing. Reachable with no error: a file goes
 missing, and another of the same name is moved into its folder. Copying does not
-do this — `copy_file` takes the name away from the retired record once the JPEG
+do this: `copy_file` takes the name away from the retired record once the JPEG
 is written.
 
 **On a phone, Tab from an open archive or PDF toolbar menu's button does not
@@ -231,7 +231,7 @@ over the viewer's bar or outside the window.
 **A double-click that drifts under a full-screen viewer's hidden bar can
 press a bar control.** The first click leaves the bar hidden, but moving the
 mouse even a couple of pixels brings it back, and the second click lands on
-whatever control is there — ✕ closes the viewer. Reached by double-clicking
+whatever control is there. If that is ✕, the viewer closes. Reached by double-clicking
 near the top of the picture or page while the bar is hidden.
 
 ## Navigation
@@ -240,7 +240,7 @@ near the top of the picture or page while the bar is hidden.
 clipboard, a folder screen carries two resting accent fills, against the one-per-
 screen rule in `DESIGN.md`. Present since the clipboard feature landed. Pinned
 in `frontend/src/__tests__/accent-budget.test.tsx` as the current state, not as
-the wanted one — fixing it turns that test red on purpose.
+the wanted one, so fixing it turns that test red on purpose.
 
 **Dropping a file onto the folder it already lives in does nothing, silently.**
 The drive chip in the trail and the root band in the tree both offer themselves
@@ -268,15 +268,15 @@ current size in `frontend/e2e-components/header-row-crowding.spec.ts`, so
 widening it is a deliberate edit to that line.
 
 **A deep path's remaining trail segments hold about two characters on a
-phone.** Once the trail folds, the drive and the parent narrow to a 48px box —
-enough to press, not enough to read — before the folder you are in gives any
+phone.** Once the trail folds, the drive and the parent narrow to a 48px box
+(enough to press, not enough to read) before the folder you are in gives any
 width. Reached with a deep path on a phone; the fold is what keeps the current
 folder readable at all. Seen and accepted 2026-09-21.
 
 **One Escape can close two popups on a folder screen.** With the toolbar's `…`
 or `Add` menu open, moving by keyboard into another popup or field that handles
-Escape itself — the tree pane's type filter, the selection bar's tag input, a
-sidebar collection name — and pressing Escape closes that and the menu together.
+Escape itself (the tree pane's type filter, the selection bar's tag input, a
+sidebar collection name) and pressing Escape closes that and the menu together.
 Reached only by keyboard.
 
 ## iOS shell
@@ -312,7 +312,7 @@ The restored page still believes it holds the file, and its commands are
 ignored. The restore was measured on `/`, not on a file page.
 
 **A long press starts a text selection instead of reaching the card underneath.**
-Blue highlight with selection handles, on some presses and not others — wherever
+Blue highlight with selection handles, on some presses and not others, wherever
 selectable text sits under the finger. Measured in the shell and in mobile
 Safari: identical, so it is the web app's behaviour and not the shell's.
 `body { -webkit-touch-callout: none }` in `globals.css` governs the link and
@@ -325,7 +325,7 @@ which must stay selectable.
 **A note opened from a search result is never highlighted while the knowledge
 editor is installed.** `Editor.tsx` renders `MarkdownPreview` without the
 `highlight` prop, and a `.md` file always opens in that editor when the addon is
-present, so `?highlight=` on a note does nothing — no mark, no scroll to the
+present, so `?highlight=` on a note does nothing: no mark and no scroll to the
 passage. Reached by searching for a phrase inside a note and pressing the
 result. Core's own `MarkdownPreview` path is wired; the addon drops it.
 
@@ -338,7 +338,7 @@ result. Core's own `MarkdownPreview` path is wired; the addon drops it.
 **`configure.py` checks out every empty addon submodule without asking.**
 `ensure_submodules_initialized` runs `git submodule update --init --recursive`
 whenever an addon directory under `addons/` is empty, so leaving an in-process
-addon's submodule uninitialised — the only way to remove it — is undone by the
+addon's submodule uninitialised (the only way to remove it) is undone by the
 next run.
 
 **An addon whose container is down is still listed.** The catalogue checks only
@@ -386,8 +386,8 @@ does today.
 **A Media Import subscription that has never synced successfully retries every
 hour forever, ahead of every healthy one.** `_next_backoff_minutes` infers the
 ladder rung from the gap between `cooldown_until` and `last_synced_at`, so a row
-whose first sync has never succeeded — a deleted channel, or one whose listing
-cannot be fetched from either source — stays on the first rung however many
+whose first sync has never succeeded (a deleted channel, or one whose listing
+cannot be fetched from either source) stays on the first rung however many
 times it has failed, while a previously-synced subscription escalates to 24
 hours on its second failure. The cron sweep serves never-synced rows first, so
 these sit permanently at the head of a capped queue. Harmless at the current

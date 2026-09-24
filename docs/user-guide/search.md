@@ -8,7 +8,7 @@ Without addons, search matches file titles and folder names. With the [intellige
 
 Press `Cmd/Ctrl+K` or `Cmd/Ctrl+Shift+F`, or the search button in the header. See [keyboard shortcuts](keyboard-shortcuts.md#global).
 
-Before you type, the modal lists **Recent files** — the files you opened lately in this drive, on any device where you use the same [profile](profile-preferences.md) — and then your **Recent searches** in this browser. Each recent search has one button that puts the term in the field without running it, and one that removes it.
+Before you type, the modal lists **Recent files** (the files you opened lately in this drive, on any device where you use the same [profile](profile-preferences.md)), and then your **Recent searches** in this browser. Each recent search has one button that puts the term in the field without running it, and one that removes it.
 
 Once you type, the modal shows the best matches and a **View all N results** row that opens the full search page. Use the arrow keys to pick a row and `Enter` to open it.
 
@@ -24,7 +24,7 @@ With the Knowledge addon installed, opening the modal from a note's page narrows
 
 ## The search page
 
-The search page matches the **title** and the **folder path**, ignoring case. A title starts as the filename without its extension, so you can search by filename. If you change a file's title, search sees the new title. Descriptions are not searched.
+The search page matches the title and the folder path, ignoring case. A title starts as the filename without its extension, so you can search by filename. If you change a file's title, search sees the new title. Descriptions are not searched.
 
 Each result has a small badge saying where it matched, such as **Filename** or **Path**. **What the badges mean**, at the bottom of the search popup, explains them all.
 

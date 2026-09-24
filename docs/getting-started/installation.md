@@ -4,10 +4,10 @@ Litloft runs as a Docker Compose stack: a backend, a frontend, and any addon con
 
 ## Prerequisites
 
-- **Docker** with Compose v2 (Linux, macOS, or Windows with WSL2).
-- **Git**, to clone the repository and pull updates.
-- **Python 3**, to run `configure.py`. Nothing else is installed on the host; ffmpeg, Node.js and the AI runtimes run inside the containers.
-- **Disk space** for the database, thumbnails and, if you enable AI, the models. Plan for at least 5 GB.
+- Docker with Compose v2 (Linux, macOS, or Windows with WSL2).
+- Git, to clone the repository and pull updates.
+- Python 3, to run `configure.py`. Nothing else is installed on the host. ffmpeg, Node.js and the AI runtimes run inside the containers.
+- At least 5 GB of disk space for the database, thumbnails and, if you enable AI, the models.
 
 ## Get the code
 
@@ -20,10 +20,10 @@ The addons (`intelligence`, `knowledge`, `cloud-sync`, `media_import`) are Git s
 
 ## How setup is split
 
-- **`configure.py`** writes what Docker needs before the stack starts: which host directories to mount, the port, and which addon services to run.
-- **The `/setup` wizard**, in the browser, is where you name the drives, set passwords and choose which addons each drive uses.
+- `configure.py` writes what Docker needs before the stack starts: which host directories to mount, the port, and which addon services to run.
+- The `/setup` wizard, in the browser, is where you name the drives, set passwords and choose which addons each drive uses.
 
-A *drive* is a host directory mounted into the backend. It gets its name and optional password in the wizard, not on the command line.
+A drive is a host directory mounted into the backend. It gets its name and optional password in the wizard, not on the command line.
 
 ## Run `configure.py`
 

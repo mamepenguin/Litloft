@@ -1,20 +1,20 @@
-# Addon Development Guide
+# Addon development guide
 
 The contract between Litloft's core and its addons: how addons are loaded,
 the manifest and proxy fields, event hooks, the Internal API, and the UI
 slots. For the decisions to make before writing an addon, start with
 [developer-guide/addon-dev.md](developer-guide/addon-dev.md).
 
-## Addon Types
+## Addon types
 
 | Type | How it runs | Examples |
 |------|-------------|----------|
-| **In-process** | Inside the backend Python process, sharing the FastAPI app and the database session | `cloud-sync`, `media_import` |
-| **External service** | Its own Docker container, reached through the core's addon proxy | `intelligence`, `knowledge` |
+| In-process | Inside the backend Python process, sharing the FastAPI app and the database session | `cloud-sync`, `media_import` |
+| External service | Its own Docker container, reached through the core's addon proxy | `intelligence`, `knowledge` |
 
 ---
 
-## Clean Separation Principle
+## Clean separation principle
 
 Core code must not depend on a specific addon.
 
@@ -33,9 +33,9 @@ discipline*.
 
 ---
 
-## How Addons Are Loaded
+## How addons are loaded
 
-### File Layout
+### File layout
 
 ```
 addons/my-addon/                 # the addon's own repository
@@ -65,7 +65,7 @@ to it, installs `requirements.txt` and runs `install.sh`. The frontend image
 copies each addon's `frontend/` to `src/addons/{name}/` and merges the addon
 translation files into the core catalogue.
 
-### Backend Discovery at Startup
+### Backend discovery at startup
 
 1. `_load_addons()` in `main.py` walks `backend/addons/` with
    `pkgutil.iter_modules`. For each package it imports `addons.{name}.router`,
@@ -87,7 +87,7 @@ translation files into the core catalogue.
      left out with their slot entries. A drive that does not exist or is not
      unlocked returns an empty catalogue, not 404.
 
-### Frontend Discovery at Runtime
+### Frontend discovery at runtime
 
 `AddonSlotsProvider` (in the root layout) fetches
 `/api/addons/status?drive=<current drive>` whenever the current drive
@@ -96,9 +96,9 @@ the catalogue through `useAddonSlots()` and render `<AddonSlot>`.
 
 ---
 
-## In-Process Addon
+## In-process addon
 
-### Minimum Required Files
+### Minimum required files
 
 ```
 addons/{name}/
@@ -150,7 +150,7 @@ async def list_items(db: Session = Depends(get_db)):
 The `ADDON_META` keys are the same as the manifest's top-level fields
 (see [Top-level Manifest Fields](#top-level-manifest-fields)), without `proxy`.
 
-**An in-process router is not behind the addon proxy.** Its routes are
+An in-process router is not behind the addon proxy. Its routes are
 served directly, so none of the proxy's checks apply to them: validate
 `X-Lit-Drive` against the caller's unlocked drives yourself
 (`check_drive_access(drive, get_unlocked_groups(request))` raises 404
@@ -158,7 +158,7 @@ when it fails), and check per-drive policy with `config.is_addon_feature_enabled
 A policy that turns the addon off hides it in the UI but does not stop its
 routes answering.
 
-### Frontend Files (Optional)
+### Frontend files (optional)
 
 ```
 addons/{name}/
@@ -193,13 +193,13 @@ drive-scoped call to `/api/addons/{name}/...`.
 
 ---
 
-## External Service Addon
+## External service addon
 
 An external service runs in its own container. Browser traffic reaches it
-through the **Generic Addon Proxy** at `/api/addons/{name}/{path}`, and it
+through the generic addon proxy at `/api/addons/{name}/{path}`, and it
 calls back into the core through the [Internal API](#internal-api).
 
-### What Goes Where
+### What goes where
 
 | What | Where |
 |------|-------|
@@ -209,7 +209,7 @@ calls back into the core through the [Internal API](#internal-api).
 | Event hook declarations | `event_hooks` in the manifest; `configure.py` writes `event-hooks.json` |
 | Container definition | `docker-compose.override.yml` (not tracked) |
 
-### Manifest File
+### Manifest file
 
 ```json
 {
@@ -242,7 +242,7 @@ calls back into the core through the [Internal API](#internal-api).
 }
 ```
 
-#### Top-level Manifest Fields
+#### Top-level manifest fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -315,7 +315,7 @@ addon itself (its `index` feature) is on for that drive.
 | `i18n_key` | Translation prefix. The GUI reads `<i18n_key>.label`, `<i18n_key>.help` and `<i18n_key>.warning` from the addon's messages |
 | `default` | Not read by the core. A feature missing from `drives.json` is always enabled |
 
-### Proxy Route Configuration
+### Proxy route configuration
 
 The proxy serves `/api/addons/{name}/{path}` for `GET`, `POST`, `PUT`,
 `PATCH` and `DELETE`, and forwards only requests that match a declared route.
@@ -346,44 +346,44 @@ A route with `"path": "/search"` is `GET /api/addons/my-service/search`.
 
 What the proxy does with a request:
 
-- **`X-Lit-Drive`** is percent-decoded. A drive the caller has not unlocked is
+- `X-Lit-Drive` is percent-decoded. A drive the caller has not unlocked is
   403. On a `scope=drive` addon, a missing header is 400 unless the route is
   `drive_optional`. The validated header is forwarded.
-- **`X-Lit-Viewer-Id`** is set by the proxy (see
+- `X-Lit-Viewer-Id` is set by the proxy (see
   [Viewer Identity Header](#viewer-identity-header-x-lit-viewer-id)).
-- **Upstream 4xx** is returned with the upstream `detail`. A 5xx, a timeout
+- An upstream 4xx is returned with the upstream `detail`. A 5xx, a timeout
   or an unreachable service is 502.
-- **JSON object responses** get `"available": true` added when absent.
+- JSON object responses get `"available": true` added when absent.
   Non-JSON responses (for example `text/vtt`) pass through unfiltered.
 
-### Response Filters
+### Response filters
 
 The proxy filters the response after the upstream answers. Your service can
 return rows from every drive; the proxy removes the ones the caller may not
 see. Each filtered array's parent also gets a `total` field with the new count.
 
-**`drive_access`**: keep items whose drive the caller has unlocked.
+`drive_access`: keep items whose drive the caller has unlocked.
 
 ```json
 {"type": "drive_access", "array_path": "results", "drive_field": "drive"}
 ```
 
-**`drive_access_nested`**: the same for several arrays, keyed by dotted path.
+`drive_access_nested`: the same for several arrays, keyed by dotted path.
 
 ```json
 {"type": "drive_access_nested", "paths": {"section_a.results": "drive", "section_b.results": "drive"}}
 ```
 
-**`current_drive_only`** / **`current_drive_only_nested`**: the same shapes,
+`current_drive_only` / `current_drive_only_nested`: the same shapes,
 but keep only items in the request's `X-Lit-Drive` drive. With no header,
 nothing is kept. Use these on `scope=drive` addons so one drive's data never
 shows in another, even when the caller has unlocked both.
 
-**`null`**: no filtering.
+`null`: no filtering.
 
-### Pre-Check Hooks
+### Pre-check hooks
 
-**`file_access`**: the file must be active and in a drive the caller has
+`file_access`: the file must be active and in a drive the caller has
 unlocked, otherwise 404. `param` names the path parameter (default
 `file_id`); a `param` that is not in the route's path makes the route 404.
 
@@ -391,7 +391,7 @@ unlocked, otherwise 404. `param` names the path parameter (default
 {"type": "file_access", "param": "file_id"}
 ```
 
-**`addon_feature`**: 404 when there is no `X-Lit-Drive`, or when
+`addon_feature`: 404 when there is no `X-Lit-Drive`, or when
 `drives.json` turns the feature off for that drive (by name or through the
 boolean shorthand `"addons": {"my-service": false}`). `feature` defaults to
 `index`. A drive with no entry is enabled. This gate replaces
@@ -402,7 +402,7 @@ route-level `addon_feature` field.
 {"type": "addon_feature", "feature": "rag"}
 ```
 
-**`admin`**: 403 unless the caller is an admin: they hold the admin
+`admin`: 403 unless the caller is an admin: they hold the admin
 password's group, or have unlocked every protected `access_group` in
 `drives.json`. It is the same test as `/api/admin` (`app.auth.is_admin`).
 
@@ -441,7 +441,7 @@ Mount the data directory, never `data.db` alone; mask `.jwt_secret`; keep the
 `service_healthy` dependency. Why each one matters is in
 `.claude/rules/design-decisions.md` → *Addons: implementation discipline*.
 
-### Event Hooks
+### Event hooks
 
 The core POSTs lifecycle events (scan finished, file trashed, purged, moved…)
 to webhook URLs. Declare the ones your addon needs in `manifest.json`;
@@ -473,7 +473,7 @@ The event names, when each fires, their payloads, and the file format are in
 | `url` | Yes | Webhook URL reachable from the backend container |
 | `addon` | No | Addon name, for per-drive policy filtering. Without it, every event is delivered |
 | `feature` | No | Feature key checked with `addon`. Default `index` |
-| `secret_env` | No | Name of an environment variable in the **backend** container; its value is sent as `X-Webhook-Secret` when non-empty |
+| `secret_env` | No | Name of an environment variable in the backend container; its value is sent as `X-Webhook-Secret` when non-empty |
 
 `configure.py` keeps the first entry for each URL and drops later ones, even
 for a different event. Give each event its own URL.
@@ -493,21 +493,21 @@ unchanged, so a handler that must not act on a disabled drive checks
 External services call the core at `http://backend:8000/api/internal` on the
 Docker network. The backend is not exposed outside it. Before proposing a new
 endpoint, read [`.claude/rules/internal-api-policy.md`](../.claude/rules/internal-api-policy.md):
-an endpoint must pass R1–R5, needs the two-layer contract tests described
+an endpoint must pass R1 to R5, needs the two-layer contract tests described
 there, and is documented here in the same PR.
 
 Auth, per endpoint:
 
-- **Caller credential**: the endpoint evaluates the caller's unlocked drive
+- Caller credential: the endpoint evaluates the caller's unlocked drive
   groups. Forward the original request's `Cookie` header (the JWT cookie is
   `access_token`) or its `Authorization: Bearer` token. Without either, only
   public drives count.
-- **Optional secret**: `X-Internal-Secret` must equal `CORE_INTERNAL_SECRET`
+- Optional secret: `X-Internal-Secret` must equal `CORE_INTERNAL_SECRET`
   when that variable is set on the backend (403 otherwise). When it is unset,
   the check is skipped. Set it on both sides in production.
-- **Strict secret**: `CORE_INTERNAL_SECRET` must be set (503 when it is unset
+- Strict secret: `CORE_INTERNAL_SECRET` must be set (503 when it is unset
   or blank) and `X-Internal-Secret` must equal it (403 otherwise).
-- **None**: no check beyond the Docker network.
+- None: no check beyond the Docker network.
 
 Secrets are compared in constant time.
 
@@ -586,8 +586,8 @@ Success returns 204. `tier` must be `verified` or `unverified`; another
 value, a missing `tier` or any extra field is 422. 404 when the file is not
 active.
 
-**409 when a viewer has already ruled on the file** (`trust_reviewed_at` is
-set); the file is left untouched. The check and the write are one
+409 when a viewer has already ruled on the file (`trust_reviewed_at` is
+set). The file is left untouched. The check and the write are one
 conditional update, so a viewer acting at the same time wins. Treat 409 as
 done.
 
@@ -640,7 +640,7 @@ that fails open is safe.
 
 ---
 
-## Addon Scope
+## Addon scope
 
 Every addon declares `scope` in `ADDON_META` or `manifest.json`. It says
 whether the addon works inside a drive. The operator cannot change it.
@@ -651,7 +651,7 @@ whether the addon works inside a drive. The operator cannot change it.
 | `global` | Drive-independent | `/addons/{name}` | Always |
 | `both` | Works in either context | Both | Drive URL when a drive is selected, global URL otherwise |
 
-### Choosing a Scope
+### Choosing a scope
 
 - `drive`: the addon's data belongs to one drive, such as an importer that
   writes into a drive or an index of a drive's files.
@@ -668,7 +668,7 @@ An addon without a valid `scope` is logged and left out of the registry: it
 is not in `/api/addons/status` and no UI shows it. An in-process addon's
 router is still mounted.
 
-### Drive Context Header (`X-Lit-Drive`)
+### Drive context header (`X-Lit-Drive`)
 
 The addon frontend sends `X-Lit-Drive: encodeURIComponent(drive)` on calls
 to `/api/addons/{name}/...` made from a drive. For an external service, the
@@ -677,7 +677,7 @@ and forwards it, so the service reads the header without re-checking access;
 `addons/intelligence/app/drive_context.py` is a reference reader. An
 in-process addon validates it itself (see [In-Process Addon](#in-process-addon)).
 
-### Viewer Identity Header (`X-Lit-Viewer-Id`)
+### Viewer identity header (`X-Lit-Viewer-Id`)
 
 For features that depend on who is asking, the proxy sends `X-Lit-Viewer-Id`
 to the upstream service:
@@ -690,7 +690,7 @@ to the upstream service:
 The nickname itself never reaches the addon. When no header arrives, there is
 no profile; do not substitute a value.
 
-### Per-Drive Policy
+### Per-drive policy
 
 Operators turn addon features off per drive in `drives.json` (written by
 **Settings**):
@@ -713,10 +713,10 @@ slot entries for that drive.
 
 Enforce the policy in two places:
 
-1. **Proxy**: gate routes with an `addon_feature` pre-check or route field
+1. Proxy: gate routes with an `addon_feature` pre-check or route field
    (404 when off). For an in-process addon, check
    `config.is_addon_feature_enabled()` in the route.
-2. **Worker**: ask `GET /api/internal/drive-policy` and do nothing when the
+2. Worker: ask `GET /api/internal/drive-policy` and do nothing when the
    feature is off. At startup, purge the data you hold for drives whose
    `index` is off; if the policy lookup fails, skip the purge.
 
@@ -724,12 +724,12 @@ A policy change takes effect after a restart.
 
 ---
 
-## UI Slot System
+## UI slot system
 
-Addons render components into named **slots** in the core UI. A slot with no
+Addons render components into named slots in the core UI. A slot with no
 entries renders nothing.
 
-### Available Slots
+### Available slots
 
 Every file-page slot (`file-detail-sections`, `file-detail-actions`,
 `file-actions-menu`, `file-relations`, `player-side`, `file-preview-actions`)
@@ -789,7 +789,7 @@ One entry is one tab. Besides the file props it receives:
 Treat `labelledByHost` and `onAvailability` as optional: some placements do
 not pass them.
 
-**Scrolling and pinning.** In the one-column inspector your list grows to
+In the one-column inspector your list grows to
 full length and the host scrolls it; a `scrollTo` on your list does nothing.
 The host marks that scroller with `data-inspector-scroller` and sets
 `--inspector-sticky-top` on the inspector root to the height of its pinned
@@ -805,7 +805,7 @@ tab strip.
 - Pin your own headers with `position: sticky; top: var(--inspector-sticky-top, 0px)`
   and a `z-index` below `10`, so they sit under the tab strip.
 
-**`onAvailability`** keeps a tab off files it has nothing for.
+`onAvailability` keeps a tab off files it has nothing for.
 
 - Call it with `false` when you mount, before your fetch settles, and with
   `true` when you find something. Never calling it means available.
@@ -819,8 +819,8 @@ tab strip.
 
 ### Contributing to the Related tab
 
-- **Move, do not copy**: an entry left in `file-detail-sections` as well
-  renders in both places.
+- Move an entry here from `file-detail-sections`. An entry left in both
+  slots renders in both places.
 - The **Related** tab is listed whenever any addon has a `file-relations`
   entry, whether or not your entry has anything for this file. A section that
   is only ever a placeholder does not belong here; a collapsed control that
@@ -836,14 +836,14 @@ tab strip.
 controls, before the `[...]` menu. The row wraps, and it is also drawn in the
 narrow Markdown inspector and on a phone. An entry must:
 
-- **Bring its own trigger.** The host draws no wrapper, label or separator.
-- **Take no fixed width or height.**
-- **Keep a 44px tap target on a coarse pointer, on the control itself.** The
+- Bring its own trigger. The host draws no wrapper, label or separator.
+- Take no fixed width or height.
+- Keep a 44px tap target on a coarse pointer, on the control itself. The
   host grows only the row's direct children on a coarse pointer, so a trigger
   wrapped in your own element (for a popover, say) stays small. Give the
   control its own `pointer-coarse:h-11 pointer-coarse:w-11` and, if it has no
   `display`, `inline-flex items-center justify-center`.
-- **Render nothing when it has nothing for this file.**
+- Render nothing when it has nothing for this file.
 
 ### Contributing to the file actions menu
 
@@ -857,7 +857,7 @@ override them.
 | `onDialogOpenChange` | `(open: boolean) => void` | Tell the host a dialog of yours is open. While it is, the menu does not close on an outside click or Escape. |
 | `onRequestClose` | `() => void` | Ask the host to close the menu. |
 
-**Do not close the menu when you open a dialog**: closing it unmounts your
+Do not close the menu when you open a dialog: closing it unmounts your
 entry and the dialog with it.
 
 1. On click: open your dialog and call `onDialogOpenChange(true)`.
@@ -866,11 +866,11 @@ entry and the dialog with it.
 The host clears the flag whenever the menu closes, so a missed step 2 does
 not leave the menu stuck.
 
-- **Render `ActionMenuItem` rows directly** (a fragment for several), from
+- Render `ActionMenuItem` rows directly (a fragment for several), from
   `@/components/ActionMenuItem`: `{ icon, label, onClick, disabled?, danger?, active? }`.
   Wrapping them in your own element breaks the `menu` → `menuitem`
   relationship.
-- **Portal dialogs out of the menu at `z-50`** (the modal tier in
+- Portal dialogs out of the menu at `z-50` (the modal tier in
   `DESIGN.md` → *Layering*), into `useDialogPortalTarget()`, not
   `document.body`:
 
@@ -926,7 +926,7 @@ The slot is shown only on a folder or the drive root, not on search results,
 a tag filter or a special view. Return `null` when there is nothing to act on;
 the separator goes with it.
 
-### Declaring Slots
+### Declaring slots
 
 In `ADDON_META` or the manifest:
 
@@ -942,7 +942,7 @@ In `ADDON_META` or the manifest:
 - `label`: fallback display name. `i18n_key`: see above.
 - `priority`: lower comes first (default 100).
 
-### How the Frontend Renders Slots
+### How the frontend renders slots
 
 ```tsx
 import { AddonSlot } from "@/components/AddonSlot";
@@ -956,7 +956,7 @@ narrow the entries by id. `AddonSlot` loads `slots.ts` from
 under each entry's `id`. A new slot needs a row in
 [Available Slots](#available-slots).
 
-### Frontend Slot Components
+### Frontend slot components
 
 ```typescript
 // addons/{name}/frontend/slots.ts
@@ -1052,11 +1052,11 @@ useGlobalSearch().open();                    // open it now, in that scope
 
 ---
 
-## Core API Surface for In-Process Addons
+## Core API surface for in-process addons
 
 In-process addons share the Python process and import core modules.
 
-### Allowed Imports
+### Allowed imports
 
 | Module | What to use | Purpose |
 |--------|-------------|---------|
@@ -1084,7 +1084,7 @@ Always `import app.config as config`, never `from app.config import X`
 | Do not change core model schemas | Core migrations must keep working |
 | Create addon tables in `on_startup()` with `checkfirst=True` | Idempotent startup |
 
-### Example: Custom Table
+### Example: custom table
 
 ```python
 # service.py
@@ -1107,7 +1107,7 @@ async def on_startup() -> None:
     init_table()
 ```
 
-### WebSocket Event Naming
+### WebSocket event naming
 
 Name addon events `{addon_name}.{domain}.{verb}`, for example
 `intelligence.detailed_summary.updated` with `{file_id, edited_at}`.
@@ -1121,7 +1121,7 @@ An in-process addon emits core-owned names (`files.*`) through
 `event_hooks.emit()`, not `manager.broadcast()`; see
 [reference/websocket-events.md](reference/websocket-events.md).
 
-### Per-Drive Policy Gating for State-Mutating Routes
+### Per-drive policy gating for state-mutating routes
 
 Gate a route that changes addon state (generate, edit, revert) on its
 feature, so turning the feature off stops writes with 404 before they reach
@@ -1140,9 +1140,9 @@ after the feature is turned off; the startup purge removes it eventually.
 
 ---
 
-## Quick Start
+## Quick start
 
-### In-Process Addon
+### In-process addon
 
 ```bash
 # 1. Create the addon repository
@@ -1159,7 +1159,7 @@ touch addons/my-addon/backend/__init__.py
 docker compose up -d --build
 ```
 
-### External Service Addon
+### External service addon
 
 ```bash
 # 1. Create the addon repository
@@ -1182,7 +1182,7 @@ docker compose up -d --build
 Nothing in the main repository changes except the submodule pointer when the
 addon is added as a submodule.
 
-### Verifying Clean Absence
+### Verifying clean absence
 
 Before shipping, check that removing the addon leaves nothing behind:
 
@@ -1200,7 +1200,7 @@ code into the addon.
 
 ---
 
-## Existing Addons
+## Existing addons
 
 | Addon | Type | Scope | Page | Guide |
 |-------|------|-------|------|-------|
@@ -1212,7 +1212,7 @@ code into the addon.
 Installation, configuration and memory requirements are in each addon's
 guide.
 
-### UI Slots Provided
+### UI slots provided
 
 Slot entries each addon declares, for reference when designing your own.
 

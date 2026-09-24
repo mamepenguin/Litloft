@@ -6,12 +6,12 @@ It runs inside the backend, is scoped to a drive, and appears in the sidebar as 
 
 ## What it provides
 
-- **Import from URL**: a video URL becomes a `.loft` file in the folder you choose.
-- **Metadata**: yt-dlp fetches the title, channel, description, publication date, duration, thumbnail and chapters.
-- **Captions**: when the video has captions, one `.vtt` file in the video's language is saved next to the `.loft`.
-- **Speech-to-text**: with the [intelligence addon](intelligence.md), a video without captions can be transcribed.
-- **Embedded players**: YouTube and Vimeo play inside Litloft. Other sites show a link card.
-- **Subscriptions**: follow a YouTube channel or playlist, and new videos are imported on a schedule.
+- **Import from URL** turns a video URL into a `.loft` file in the folder you choose.
+- yt-dlp fetches the title, channel, description, publication date, duration, thumbnail and chapters.
+- When the video has captions, one `.vtt` file in the video's language is saved next to the `.loft`.
+- With the [intelligence addon](intelligence.md), a video without captions can be transcribed with speech-to-text.
+- YouTube and Vimeo play in embedded players inside Litloft. Other sites show a link card.
+- You can subscribe to a YouTube channel or playlist, and its new videos are imported on a schedule.
 
 ## Installation
 
@@ -130,10 +130,10 @@ A subscription's details show its schedule, destination and imported items, with
 
 ## Limits
 
-- **No downloads.** The addon never saves the video file. Only the speech-to-text audio is downloaded, temporarily, for transcription.
-- **Rate limits.** yt-dlp reads public web pages. Many imports in a short time can be throttled by the provider. Throttled caption downloads are retried later.
-- **No DRM.** Encrypted streams are not supported.
-- **Embedding rules.** Some videos cannot be embedded outside the provider's site.
+- The addon never saves the video file. Only the speech-to-text audio is downloaded, temporarily, for transcription.
+- yt-dlp reads public web pages, and the provider may throttle many imports made in a short time. Throttled caption downloads are retried later.
+- Encrypted (DRM) streams are not supported.
+- Some videos cannot be embedded outside the provider's site.
 
 ## Troubleshooting
 

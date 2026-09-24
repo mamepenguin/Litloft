@@ -1,6 +1,6 @@
 # Monitoring and troubleshooting
 
-Day-to-day checks for a running Litloft. For recovering data see [backup and restore](backup-restore.md); for upgrades and rollback see [upgrading](../getting-started/upgrading.md).
+Day-to-day checks for a running Litloft. For recovering data, see [backup and restore](backup-restore.md). For upgrades and rollback, see [upgrading](../getting-started/upgrading.md).
 
 ## Health check
 
@@ -60,7 +60,7 @@ docker compose restart backend               # if it is really stuck
    ```bash
    python3 -c "import json; json.load(open('drives.json'))"
    ```
-2. Check that each drive's directory is mounted into the **backend** in `docker-compose.override.yml`.
+2. Check that each drive's directory is mounted into the backend service in `docker-compose.override.yml`.
 3. Check the logs: `docker compose logs backend | grep -i drive`.
 4. Restart after changing `drives.json`: `docker compose restart backend`.
 
@@ -70,7 +70,7 @@ docker compose restart backend               # if it is really stuck
 2. Check that `passwords.json` is mounted read-write (`./passwords.json:/app/passwords.json`, without `:ro`).
 3. Check that the browser accepts cookies. The unlock is stored in the `access_token` cookie.
 
-A locked drive answers `404`, not `403`, so that its existence stays hidden. That is expected.
+A locked drive answers `404`, not `403`, so that its existence stays hidden. This is expected.
 
 ### Thumbnails not showing
 
@@ -122,8 +122,8 @@ Do not clear missing files while a mount is offline. See [Trash and missing file
 
 Litloft does this on its own:
 
-- **Trash**: files trashed more than 30 days ago are deleted at startup and every 24 hours.
-- **Uploads**: unfinished uploads are removed at startup.
+- Trash: files trashed more than 30 days ago are deleted at startup and every 24 hours.
+- Uploads: unfinished uploads are removed at startup.
 
 On the host:
 

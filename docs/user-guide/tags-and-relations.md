@@ -10,7 +10,7 @@ On a file's page, add or remove tags in the **Tags** section. As you type, it su
 
 What a tag may be:
 
-- Up to **10 tags per file**, and up to **30 characters** per tag.
+- Up to 10 tags per file, and up to 30 characters per tag.
 - Letters, digits, `_` and `-` only. No spaces. Letters in any language work, so Japanese tags are fine.
 - Tags that differ only in case count as one. The first spelling is kept.
 
@@ -24,8 +24,8 @@ On a Markdown file, the tags are the `tags:` list in the file's frontmatter. Edi
 
 Click a tag in the **Tags** section of the sidebar to filter the listing by it. Click it again to go back.
 
-- The list shows only tags used in the folder you are in and its subfolders, with a count for that folder. The heading then reads **Tags — under** the folder name.
-- The filter shows matching files in the folder *and all its subfolders*, not only the files directly inside it. At the drive root it covers the whole drive.
+- The list shows only tags used in the folder you are in and its subfolders, with a count for that folder. The heading then reads **Tags — under** followed by the folder name.
+- The filter shows matching files in the folder and all its subfolders, not only the files directly inside it. At the drive root it covers the whole drive.
 - **Search the whole drive**, in the toolbar and on an empty result, widens the filter to the entire drive.
 - You can filter by one tag at a time. Case does not matter.
 - The section shows the most used tags first. **All tags (N)** opens the rest. The sort button beside the heading switches between by count and by name.
@@ -59,9 +59,9 @@ Renaming a Markdown file updates `[[links]]` to it in the other notes of the dri
 
 A file's inspector has a **Related** tab after **Info**. It appears when the file has relations, or when an addon adds something to it. It has up to three lists:
 
-- **Links from this file** — files this note links to.
-- **Links to this file** — notes that link to this file.
-- **Related files** — relations made some other way, such as by an addon.
+- **Links from this file**: files this note links to.
+- **Links to this file**: notes that link to this file.
+- **Related files**: relations made some other way, such as by an addon.
 
 Click a row to open that file. Files in the trash are left out. Missing files stay in the list, greyed out.
 

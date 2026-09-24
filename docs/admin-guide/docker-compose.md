@@ -1,6 +1,6 @@
 # docker-compose customisation
 
-Litloft runs as a Docker Compose stack. **Do not edit `docker-compose.yml`.** Your settings go in `docker-compose.override.yml`, which Compose merges in automatically and Git ignores.
+Litloft runs as a Docker Compose stack. Do not edit `docker-compose.yml`. Your settings go in `docker-compose.override.yml`, which Compose merges in automatically and Git ignores.
 
 `configure.py` writes the override file for you:
 
@@ -18,8 +18,8 @@ cp docker-compose.override.yml.example docker-compose.override.yml
 
 `docker-compose.yml` defines two services:
 
-- **backend**, on port 8000, reachable only inside the Docker network.
-- **frontend**, on port 3000, the only entry point.
+- `backend`, on port 8000, reachable only inside the Docker network.
+- `frontend`, on port 3000, the only entry point.
 
 Addon services (intelligence, knowledge) are defined in the override file.
 
@@ -52,7 +52,7 @@ services:
       - ./passwords.json:/app/passwords.json
 ```
 
-**Do not add `:ro`.** The wizard and Settings write this file from inside the container. The file must exist on the host before `docker compose up`; if it does not, Docker creates a directory there and the backend cannot use it. An empty `[]` means no passwords: every drive is public.
+Do not add `:ro`. The wizard and Settings write this file from inside the container. The file must exist on the host before `docker compose up`; if it does not, Docker creates a directory there and the backend cannot use it. An empty `[]` means no passwords: every drive is public.
 
 ## Port
 
@@ -127,10 +127,10 @@ services:
     restart: unless-stopped
 ```
 
-- **Mount every drive you want indexed**, read-only, and list it in `DRIVE_MOUNTS` with the same slug. Without `DRIVE_MOUNTS` the addon indexes nothing, and says nothing.
-- **`SEARCH_WEBHOOK_SECRET` goes on both services or neither.** On the addon alone, every webhook from the backend is rejected and indexing stops with no other sign. It only has an effect when `addons/intelligence/manifest.json` declares `"secret_env": "SEARCH_WEBHOOK_SECRET"`; `configure.py` checks that for you. `KNOWLEDGE_WEBHOOK_SECRET` works the same way for the knowledge addon.
-- **Set `CORE_INTERNAL_SECRET` to the same value on both services.** If the values differ, the addon cannot read file contents. If the backend has none, the addon cannot save chapters.
-- **Keep `depends_on: condition: service_healthy`.** The mounts below need it (see next section).
+- Mount every drive you want indexed, read-only, and list it in `DRIVE_MOUNTS` with the same slug. Without `DRIVE_MOUNTS` the addon silently indexes nothing.
+- Set `SEARCH_WEBHOOK_SECRET` on both services or on neither. On the addon alone, every webhook from the backend is rejected and indexing stops with no other sign. It only has an effect when `addons/intelligence/manifest.json` declares `"secret_env": "SEARCH_WEBHOOK_SECRET"`; `configure.py` checks that for you. `KNOWLEDGE_WEBHOOK_SECRET` works the same way for the knowledge addon.
+- Set `CORE_INTERNAL_SECRET` to the same value on both services. If the values differ, the addon cannot read file contents. If the backend has none, the addon cannot save chapters.
+- Keep `depends_on: condition: service_healthy`. The mounts in the next section need it.
 
 ## Read-only mounts for addons
 
@@ -146,11 +146,11 @@ environment:
 
 Three rules:
 
-1. **Always add the `/dev/null` line.** `data/.jwt_secret` is the key the backend signs unlocks with. An addon that can read it can give itself access to every drive and to the admin API. `/dev/null` hides it.
-2. **Keep the `service_healthy` gate.** On a first run, `data/.jwt_secret` is created when the backend starts. If the addon starts first, the container fails to start with `openat .jwt_secret: read-only file system`.
-3. **Never mount `data.db` on its own.** SQLite keeps `data.db-wal` and `data.db-shm` next to the database and deletes them on shutdown. A mount of a missing file makes Docker create a directory in its place, and the backend then fails with `unable to open database file`. To recover: `docker compose down`, `rmdir data/data.db-wal data/data.db-shm`, then `docker compose up -d`. A file mount also hides `/data/thumbnails` from the intelligence addon; nothing fails, but **Similar files** stops finding visual matches for videos.
+1. Always add the `/dev/null` line. `data/.jwt_secret` is the key the backend signs unlocks with. An addon that can read it can give itself access to every drive and to the admin API. `/dev/null` hides it.
+2. Keep the `service_healthy` condition. On a first run, `data/.jwt_secret` is created when the backend starts. If the addon starts first, the container fails to start with `openat .jwt_secret: read-only file system`.
+3. Never mount `data.db` on its own. SQLite keeps `data.db-wal` and `data.db-shm` next to the database and deletes them on shutdown. A mount of a missing file makes Docker create a directory in its place, and the backend then fails with `unable to open database file`. To recover: `docker compose down`, `rmdir data/data.db-wal data/data.db-shm`, then `docker compose up -d`. A file mount also hides `/data/thumbnails` from the intelligence addon. Nothing fails, but **Similar files** stops finding visual matches for videos.
 
-The rest of `data/` (other addons' databases, uploads) stays readable to the addon. That is acceptable only for addons you trust. Addons from others should use the Internal API instead; see [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
+The rest of `data/` (other addons' databases, uploads) stays readable to the addon. That is acceptable only for addons you trust. Addons from others should use the Internal API instead. See [Internal API policy](../developer-guide/addon-dev.md#internal-api-policy).
 
 ## Healthcheck
 

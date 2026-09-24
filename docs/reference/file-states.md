@@ -20,14 +20,14 @@ The file is on disk and the row is current.
 
 The scanner did not find the file at its recorded path.
 
-- **Set** on the first scan pass that does not find the file. There is no grace period; only the mount check and move detection below hold it back. Trashed rows are never marked Missing.
-- **Cleared** when a scan finds the file at the same path again, an upload or a new text file lands on that path (the existing row is reused), or the file is detected as moved.
-- **Effects**:
+- Set on the first scan pass that does not find the file. There is no grace period; only the mount check and move detection below hold it back. Trashed rows are never marked Missing.
+- Cleared when a scan finds the file at the same path again, an upload or a new text file lands on that path (the existing row is reused), or the file is detected as moved.
+- Effects:
   - `GET /api/files/{id}` and every write endpoint: `404`.
   - `GET /api/files/{id}/stream`, `/render`, `/preview-text`: `410 Gone`.
   - `GET /api/files/{id}/thumbnail`: still served. If the thumbnail file is gone too, a placeholder image is returned.
   - Events: `files.missing` on entry, `files.recovered` on exit.
-- **Listed** at `GET /api/drives/{drive}/missing`.
+- Listed at `GET /api/drives/{drive}/missing`.
 
 Missing files are never purged automatically. Remove them with `DELETE /api/files/{id}/purge`, `POST /api/files/batch/purge`, or `POST /api/drives/{drive}/missing/purge-all`. Purge-all commits every 200 files and emits one `files.purged` with every id at the end; if it fails partway, the files already committed stay purged and no event is sent.
 
@@ -37,7 +37,7 @@ If a drive's root path does not exist, the scan of that drive stops before marki
 
 ### Move detection
 
-A file that disappears from one path and appears at another **in the same scan pass** is treated as a move:
+A file that disappears from one path and appears at another in the same scan pass is treated as a move:
 
 - Matched by `(file_hash, file_size)`. Only rows that were Active before the pass and have a stored hash can match. When two or more files share the same key, on either the old or the new side, none of them match; they become Missing and new rows.
 - The existing row is updated in place (path, folder, filename, title, type, thumbnail), so all linked data stays attached.
@@ -46,8 +46,8 @@ A file that disappears from one path and appears at another **in the same scan p
 
 ### When the scanner runs
 
-- **Backend startup**: every drive, one after another. If `drives.json` is missing or invalid, the scan is skipped.
-- **Manual**: `POST /api/drives/{drive}/scan`.
+- At backend startup: every drive, one after another. If `drives.json` is missing or invalid, the scan is skipped.
+- Manually: `POST /api/drives/{drive}/scan`.
 
 There is no periodic scan. Uploads and file operations update their own rows directly, but a file deleted on disk outside Litloft stays Active until the next startup or manual scan.
 
@@ -57,13 +57,13 @@ Scans share one lock with other maintenance jobs (such as the Markdown image imp
 
 A viewer deletes a file.
 
-- **Set** only on an Active file. Trashing a Missing file returns `404`; purge it instead.
-- **Cleared** by `POST /api/files/{id}/restore` or `POST /api/files/batch/restore`, which clear both `deleted_at` and `missing_since`. If the file is no longer on disk, restore returns `404 File no longer exists on disk`.
-- **Effects**:
+- Set only on an Active file. Trashing a Missing file returns `404`; purge it instead.
+- Cleared by `POST /api/files/{id}/restore` or `POST /api/files/batch/restore`, which clear both `deleted_at` and `missing_since`. If the file is no longer on disk, restore returns `404 File no longer exists on disk`.
+- Effects:
   - The file on disk is not moved or changed.
   - Playlists keep the entry and show it as unavailable. Adding a trashed or Missing file to a playlist returns `404`.
   - Events: `files.deleted` (payload includes `"type": "soft_delete"`) on entry, `files.restored` on exit.
-- **Listed** at `GET /api/drives/{drive}/trash`.
+- Listed at `GET /api/drives/{drive}/trash`.
 
 ### Auto-purge
 
@@ -99,5 +99,5 @@ Text and Markdown files keep an edit history, written on every content save.
 
 ## See also
 
-- [Trash and missing files](../user-guide/trash-and-missing.md) — what viewers see.
-- [WebSocket events](websocket-events.md) — event names and payloads.
+- [Trash and missing files](../user-guide/trash-and-missing.md): what viewers see.
+- [WebSocket events](websocket-events.md): event names and payloads.

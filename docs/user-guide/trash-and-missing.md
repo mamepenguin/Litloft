@@ -21,8 +21,8 @@ A file in the trash still shows in any collection it was already in, dimmed and 
 
 ### When something stays in Trash
 
-- **Restore does nothing** — the file is no longer on disk, so there is nothing to restore.
-- **An item is older than 30 days** — Litloft could not delete it, for example because its drive was removed or the file's permissions block it. It is tried again every day and clears once the cause is fixed.
+- If **Restore** does nothing, the file is no longer on disk, so there is nothing to restore.
+- If an item is older than 30 days, Litloft could not delete it, for example because its drive was removed or the file's permissions block it. It is tried again every day and clears once the cause is fixed.
 
 ## Missing files
 

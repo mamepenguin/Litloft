@@ -83,9 +83,9 @@ If step 4 fails, the backup is incomplete.
 
 ## Not worth backing up
 
-- **Unfinished uploads** under `data/uploads/`. They are removed on the next start anyway.
-- **Container images.** `docker compose up --build` rebuilds them.
-- **Downloaded models.** The intelligence addon downloads them again, which only takes time.
+- Unfinished uploads under `data/uploads/`. They are removed on the next start anyway.
+- Container images. `docker compose up --build` rebuilds them.
+- Downloaded models. The intelligence addon downloads them again, which only takes time.
 
 ## Drive contents off-site
 

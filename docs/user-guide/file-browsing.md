@@ -2,16 +2,16 @@
 
 A drive has two starting points in the sidebar:
 
-- **Home** — what is worth coming back to: rows of files you were watching, opened recently, added recently, favourited or liked. A drive opens here.
-- **Library** — the drive's own folders and files, starting at the drive root.
+- **Home**: rows of files you were watching, opened recently, added recently, favourited or liked. A drive opens here.
+- **Library**: the drive's own folders and files, starting at the drive root.
 
 ## The sidebar
 
 The sidebar is the same on every screen of a drive.
 
-- **Top** — Home, Library, and five views of the whole drive: **Favorites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files** (every file in the drive, with no folders). Addons can add pages here, such as *Ask* or *Notes*.
-- **Middle** — what you build yourself: **Collections**, **Pins**, **Smart Folders** and **Tags**. You can collapse these sections and drag them into the order you like.
-- **Bottom** — **Trash**, **Missing Files** (only when the drive has some), and **Dashboard** for an administrator.
+- At the top: Home, Library, and five views of the whole drive: **Favorites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files** (every file in the drive, with no folders). Addons can add pages here, such as *Ask* or *Notes*.
+- In the middle, the sections you build yourself: **Collections**, **Pins**, **Smart Folders** and **Tags**. You can collapse these sections and drag them into the order you like.
+- At the bottom: **Trash**, **Missing Files** (only when the drive has some), and **Dashboard** for an administrator.
 
 ## The breadcrumb trail
 
@@ -28,12 +28,12 @@ The row above a listing shows where you are. Every part of it is a link back to 
 
 The toolbar above a listing has:
 
-- **Add** — upload files, upload a folder, or create a folder. Addons add entries here, such as **New note** and **Clip web page** (knowledge) or **Import from URL** (media_import).
-- **Filter** — narrow the listing by **file type** and **verification**. The file types are Video, Image, Audio, Document, Text, PDF, Archive and Other. Document includes Text and PDF. Source code and configuration files count as Other.
-- **View** — grid or list.
-- **Sort** — newest / oldest, title A-Z / Z-A, largest / smallest, or random. While the order is random, **Reshuffle** deals a new one.
-- **Play** — play everything playable in the folder.
-- `…` — **Select mode**, **Rescan**, **Pin this folder**, and any addon actions for the listed files.
+- **Add**: upload files, upload a folder, or create a folder. Addons add entries here, such as **New note** and **Clip web page** (knowledge) or **Import from URL** (media_import).
+- **Filter**: narrow the listing by **file type** and **verification**. The file types are Video, Image, Audio, Document, Text, PDF, Archive and Other. Document includes Text and PDF. Source code and configuration files count as Other.
+- **View**: grid or list.
+- **Sort**: newest / oldest, title A-Z / Z-A, largest / smallest, or random. While the order is random, **Reshuffle** deals a new one.
+- **Play**: play everything playable in the folder.
+- `…`: **Select mode**, **Rescan**, **Pin this folder**, and any addon actions for the listed files.
 
 On a phone, **Play**, **View** and **Sort** move into `…`.
 
@@ -79,16 +79,16 @@ File cards in the grid and list rename through a dialog instead, because a card 
 
 ## Moving by drag and drop
 
-- **From your computer** — drop files or a folder onto a listing to upload them into it. A drop on Home uploads to the drive root. See [upload and file operations](upload-and-fileops.md).
-- **Inside the drive** — drag a file or folder onto a folder card, a folder in the tree, a folder in the breadcrumb trail, or the band at the top of the tree that stands for the drive root. Hold a drag over a closed folder in the tree to open it.
+- From your computer, drop files or a folder onto a listing to upload them into it. A drop on Home uploads to the drive root. See [upload and file operations](upload-and-fileops.md).
+- Inside the drive, drag a file or folder onto a folder card, a folder in the tree, a folder in the breadcrumb trail, or the band at the top of the tree that stands for the drive root. Hold a drag over a closed folder in the tree to open it.
 
 ## Filtering
 
 There are three ways to narrow what you see:
 
 - **Filter in this folder…**, below the toolbar, matches filenames in the current folder only, without looking into subfolders. It clears when you leave the folder.
-- **Tags** — click a tag in the sidebar while inside a folder to show the matching files in that folder *and all its subfolders*. Click the tag again to clear it. **Search the whole drive** widens the search to the entire drive. See [tags and relations](tags-and-relations.md).
-- **The folder tree's filter** searches folder names across the whole drive.
+- **Tags**: click a tag in the sidebar while inside a folder to show the matching files in that folder and all its subfolders. Click the tag again to clear it. **Search the whole drive** widens the search to the entire drive. See [tags and relations](tags-and-relations.md).
+- The folder tree's filter searches folder names across the whole drive.
 
 For drive-wide search, see [Search](search.md).
 
@@ -110,7 +110,7 @@ Files added by an addon, such as web clips, arrive unverified. With the intellig
 
 Home shows these rows, in order:
 
-- **Continue Watching** — media you stopped before 90%.
+- **Continue Watching**: media you stopped before 90%.
 - Rows added by addons, if any.
 - **Recently Viewed**
 - **Recently Added**

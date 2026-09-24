@@ -4,11 +4,11 @@ The `cloud-sync` addon copies your drives to any storage that [rclone](https://r
 
 ## What it provides
 
-- **Scheduled sync**: a cron expression starts a sync of every configured drive.
-- **Manual control**: **Sync Now**, **Cancel** and **Retry** per drive.
-- **Live progress**: percentage, files, bytes, speed and ETA while a sync runs.
-- **Expired credentials**: when rclone reports an expired or rejected credential, the card says **Re-authentication Required** and shows the command to run.
-- **Logs**: **Log** shows the output of the drive's last sync.
+- A sync of every configured drive on a cron schedule.
+- **Sync Now**, **Cancel** and **Retry** for each drive.
+- Live progress while a sync runs: percentage, files, bytes, speed and ETA.
+- When rclone reports an expired or rejected credential, the card says **Re-authentication Required** and shows the command to run.
+- **Log**, which shows the output of the drive's last sync.
 
 cloud-sync copies the files on your drives. It does not back up Litloft's database or addon data; see [Backup and restore](../admin-guide/backup-restore.md) for those.
 
@@ -68,7 +68,7 @@ The schedule is read when the backend starts, so restart the backend after chang
 
 For each mapping the addon runs `rclone sync <drive folder> <remote>`.
 
-- **One way only.** Litloft is copied to the remote. A file you delete in Litloft is deleted from the remote on the next sync. Nothing is copied back.
+- Sync is one way: Litloft is copied to the remote. A file you delete in Litloft is deleted from the remote on the next sync. Nothing is copied back.
 - Drives sync in parallel, one rclone process each. A drive that is already syncing is skipped by the schedule, and **Sync Now** on it is refused.
 - **Cancel** stops rclone. The card then shows an error for that run.
 - The last result is kept in memory, so the card forgets it when the backend restarts.

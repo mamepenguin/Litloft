@@ -61,9 +61,9 @@ On startup, if `drives.json` is exactly `[]`, the backend writes one entry per s
 
 Each entry under `addons` is either a `bool` for the whole addon or an object of `feature: bool` overrides:
 
-- `"knowledge": false` — every feature of that addon is off for this drive.
-- `"intelligence": {"rag": false}` — `rag` is off; every other feature is on.
-- Key absent — everything is on.
+- `"knowledge": false`: every feature of that addon is off for this drive.
+- `"intelligence": {"rag": false}`: `rag` is off; every other feature is on.
+- Key absent: everything is on.
 
 Unlisted addons and features are on. The core does not interpret addon or feature names. `GET /api/drives/{name}/addon-policies` returns the normalised `{default, features}` view to the frontend, and `GET /api/internal/drive-policy` returns the same to addons. The settings API rejects a policy that names an unknown drive or an addon that is not installed.
 
@@ -108,10 +108,10 @@ See [environment variables](env-variables.md).
 
 The user-editable Compose file, always used together with the base `docker-compose.yml` (which you do not edit).
 
-- `services.backend.volumes` — drive mounts and `passwords.json`. The `passwords.json` mount must be read-write.
-- `services.backend.environment` — secrets and addon URLs; see [environment variables](env-variables.md).
-- `services.frontend.ports` — adds a port mapping; it does not replace the base one. To change the port, set `LITLOFT_PORT` in `.env` instead.
-- `services.intelligence`, `services.knowledge` — the addon containers.
+- `services.backend.volumes`: drive mounts and `passwords.json`. The `passwords.json` mount must be read-write.
+- `services.backend.environment`: secrets and addon URLs; see [environment variables](env-variables.md).
+- `services.frontend.ports`: adds a port mapping; it does not replace the base one. To change the port, set `LITLOFT_PORT` in `.env` instead.
+- `services.intelligence`, `services.knowledge`: the addon containers.
 
 `drives.json` and `data/` are mounted by the base file and need not be repeated.
 

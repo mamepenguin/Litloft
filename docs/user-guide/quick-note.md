@@ -23,8 +23,8 @@ The unsaved text lives only in the panel. Reloading the page loses it.
 
 The **Destination** line shows the drive and folder. Press it to change them.
 
-- **Drive** — the drive you opened the panel from, else the one you last saved to, else your only drive. If none of these applies, choose one; nothing is picked for you.
-- **Folder** — each drive remembers the last folder you saved to on this device, starting with `Inbox`. You can also choose the drive root. A folder that does not exist yet is created when you save.
+- **Drive**: the drive you opened the panel from, else the one you last saved to, else your only drive. If none of these applies, choose one; nothing is picked for you.
+- **Folder**: each drive remembers the last folder you saved to on this device, starting with `Inbox`. You can also choose the drive root. A folder that does not exist yet is created when you save.
 
 ## The filename
 
