@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Litloft：自宅LANで動かすセルフホスト型メディアライブラリ</title>
+  <title>Litloft | 自宅LANで使えるセルフホスト型メディアライブラリ</title>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-2R74EW5DRV"></script>
   <script>
@@ -19,9 +19,9 @@
     'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
     })(window,document,'script','dataLayer','GTM-WL8DZDWF');</script>
   <!-- End Google Tag Manager -->
-  <meta name="description" content="Litloftは、自宅LANにある動画・音声・PDF・画像・Markdownノートをまとめて扱うセルフホスト型のライブラリです。ブラウザで再生・閲覧し、文字起こしや文書の中身まで検索できます。ローカルLLMを使った引用付きの回答にも対応しています。">
-  <meta property="og:title" content="Litloft：自宅LANで動かすセルフホスト型メディアライブラリ">
-  <meta property="og:description" content="動画の再生、PDFの閲覧、Markdownノートの作成、そのすべての中身の検索。Dockerで自分のマシンに立てて使います。">
+  <meta name="description" content="Litloftは、動画・音声・PDF・画像・Markdownノートを自宅LANで管理できる、セルフホスト型のメディアライブラリです。ブラウザでの再生・閲覧に加え、文字起こしや文書の本文も検索できます。ローカルLLMによる出典付きの回答にも対応しています。">
+  <meta property="og:title" content="Litloft | 自宅LANで使えるセルフホスト型メディアライブラリ">
+  <meta property="og:description" content="動画やPDFの閲覧から、ノートの作成、ファイルの内容の検索まで。Dockerで自宅のPCやサーバーに導入できます。">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mamepenguin.github.io/Litloft/ja/">
   <meta property="og:site_name" content="Litloft">
@@ -29,10 +29,10 @@
   <meta property="og:image" content="https://mamepenguin.github.io/Litloft/og-ja.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Litloftのホーム画面。「続きを見る」と「ピックアップ」の行が並んでいる。">
+  <meta property="og:image:alt" content="Litloftのホーム画面。「続きを見る」と「ピックアップ」を表示。">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Litloft：自宅LANで動かすセルフホスト型メディアライブラリ">
-  <meta name="twitter:description" content="動画の再生、PDFの閲覧、Markdownノートの作成、そのすべての中身の検索。Dockerで自分のマシンに立てて使います。">
+  <meta name="twitter:title" content="Litloft | 自宅LANで使えるセルフホスト型メディアライブラリ">
+  <meta name="twitter:description" content="動画やPDFの閲覧から、ノートの作成、ファイルの内容の検索まで。Dockerで自宅のPCやサーバーに導入できます。">
   <meta name="twitter:image" content="https://mamepenguin.github.io/Litloft/og-ja.png">
   <meta name="theme-color" content="#FBF7EF">
   <link rel="alternate" hreflang="en" href="https://mamepenguin.github.io/Litloft/">
@@ -64,7 +64,7 @@
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
 
-<nav class="topnav" aria-label="メイン">
+<nav class="topnav" aria-label="メインナビゲーション">
   <div class="container nav-inner">
     <a href="#" class="logo" aria-label="Litloft">
       <img src="../icon.svg" alt="" width="30" height="30">
@@ -87,25 +87,25 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="hero-inner">
       <a href="#whats-new" class="release-pill reveal">
-        <span><b>新しいリリース：</b>ライブラリの再構成、PDFのページめくり表示など</span>
+        <span><b>アップデート：</b>ライブラリ画面の見直し、PDFのページめくり表示など</span>
         <span class="go">新機能を見る</span>
       </a>
-      <h1 class="reveal">自宅のメディアライブラリを、<br><em>秒単位で探せるように。</em></h1>
+      <h1 class="reveal">動画・音声・資料を、<br><em>まとめて管理・検索。</em></h1>
       <p class="hero-sub reveal">
-        Litloftは、自宅LANにある動画・音声・PDF・画像・Markdownノートをまとめて扱うセルフホスト型のライブラリです。ブラウザで再生・閲覧し、文字起こしや文書の中身まで検索でき、メモは元のファイルのすぐ隣に置いておけます。
+        Litloftは、動画・音声・PDF・画像・Markdownノートを自宅LANで管理できる、セルフホスト型のメディアライブラリです。ブラウザでの再生・閲覧に加え、文字起こしや文書の本文も検索できます。資料に関するメモも、同じフォルダに保存できます。
       </p>
       <div class="hero-ctas reveal">
         <a href="#setup" class="btn btn-primary btn-lg">Dockerで導入する</a>
-        <a href="https://github.com/mamepenguin/Litloft" class="btn btn-outline btn-lg" target="_blank" rel="noopener noreferrer">GitHubで見る</a>
+        <a href="https://github.com/mamepenguin/Litloft" class="btn btn-outline btn-lg" target="_blank" rel="noopener noreferrer">GitHubで詳細を見る</a>
       </div>
       <p class="facts reveal">
-        <span>Docker Compose</span><span>自宅LAN専用</span><span>LLMは任意・ローカル推奨</span><span>AGPL-3.0</span>
+        <span>Docker Compose</span><span>自宅LAN専用</span><span>LLM連携は任意・ローカル推奨</span><span>AGPL-3.0</span>
       </p>
     </div>
     <div class="hero-shot reveal">
       <div class="frame">
         <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Home</span></div>
-        <img src="../img/home.webp" width="2200" height="1375" alt="Litloftのホーム画面。「続きを見る」と「ピックアップ」に動画や写真が並び、左にドライブのサイドバーがある。">
+        <img src="../img/home.webp" width="2200" height="1375" alt="Litloftのホーム画面。「続きを見る」と「ピックアップ」に動画や写真を表示。左側にはドライブ一覧。">
       </div>
     </div>
   </div>
@@ -116,54 +116,54 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal">新機能</span>
-      <h2 class="reveal">整理し直したライブラリと、読むための道具</h2>
-      <p class="reveal">今回のリリースでは画面の行き来を整理し、足りなかったビューアとノートの機能を加えました。主な変更は次のとおりです。</p>
+      <h2 class="reveal">ライブラリの使いやすさと閲覧・編集機能を改善</h2>
+      <p class="reveal">画面構成を見直し、ビューアとノートの機能を拡充しました。主な変更点をご紹介します。</p>
     </div>
     <div class="new-grid">
       <article class="new-card reveal">
         <span class="tag">ナビゲーション</span>
-        <h3>ホームとライブラリを分けました</h3>
-        <p>ホームには「続きを見る」「ピックアップ」「最近見た」「最近追加」「お気に入り」「Liked」など、次に開くものを集めました。ライブラリのほうはフォルダ階層だけです。</p>
+        <h3>ホームとライブラリを別画面に</h3>
+        <p>ホームには「続きを見る」「ピックアップ」「最近見た」「最近追加」「お気に入り」「Liked」などをまとめました。ライブラリでは、フォルダ階層に沿ってファイルを探せます。</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">ファイル</span>
-        <h3>すべての種類で共通のファイルページ</h3>
-        <p>動画・音声・PDF・画像・書庫・Markdownが同じレイアウトになりました。左にファイル、右にインスペクタ。タブは「情報」「関連」のほか、種類によって「文字起こし」や「ページ」が出ます。</p>
+        <h3>ファイルの表示レイアウトを統一</h3>
+        <p>動画・音声・PDF・画像・書庫・Markdownを共通のレイアウトで表示します。左側にファイル、右側に詳細パネルを配置。「情報」「関連」に加え、ファイルの種類に応じて「文字起こし」「ページ」タブを表示します。</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">PDF</span>
-        <h3>全画面のページめくり表示</h3>
-        <p>PDFはファイルが指定する綴じ方向で開き、全画面でページをめくれます。検索でヒットした場合は、該当したページが直接開きます。</p>
+        <h3>PDFの全画面・ページめくり表示</h3>
+        <p>PDFに設定された綴じ方向に合わせて、全画面でページをめくれます。検索結果からは、該当するページを直接開けます。</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">写真</span>
-        <h3>写真を本来の縦横比で並べます</h3>
-        <p>写真フォルダは正方形に切り抜かず、写真ごとの縦横比のまま行に詰めて並べます。画像・書庫ビューアはピンチ、ホイール、キーで拡大し、ドラッグで移動できます。</p>
+        <h3>写真の縦横比を保って一覧表示</h3>
+        <p>写真フォルダでは、各写真の縦横比を保ちながら、画面の幅に合わせて並べます。画像・書庫ビューアは、ピンチ操作、マウスホイール、キーボードでの拡大と、ドラッグでの移動に対応しています。</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Knowledgeアドオン</span>
-        <h3>ライブプレビューと版の履歴</h3>
-        <p>Markdownエディタは入力しながら見た目を整え、左右分割表示もできます。保存した版は差分付きで残り、古い版に戻す操作もあとから取り消せます。</p>
+        <h3>ライブプレビューと変更履歴</h3>
+        <p>Markdownエディタは、入力内容をその場で確認できるライブプレビューと、左右の分割表示に対応しています。保存時の変更履歴から差分を確認でき、以前の版への復元や、復元操作の取り消しも可能です。</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Knowledgeアドオン</span>
         <h3>引用バスケット</h3>
-        <p>検索結果の抜粋、動画の再生位置、PDFのページ、Askの引用を集めておき、まとめてノートに保存できます。各項目には元の時刻やページへのリンクが付きます。</p>
+        <p>検索結果の抜粋、動画の再生位置、PDFのページ、Askの引用を一時的にまとめ、ノートに保存できます。各項目には、元の再生位置やページへのリンクが付きます。</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">検索</span>
-        <h3>二段階になった <kbd>⌘K</kbd></h3>
-        <p>クイックスイッチャーはまずファイル名の一致をすぐに表示します。Intelligenceアドオンがあれば、意味での検索結果が少し遅れて加わります。ファイルへの移動がモデルの応答を待つことはありません。</p>
+        <h3><kbd>⌘K</kbd> でファイルをすばやく検索</h3>
+        <p>クイックスイッチャーでは、まずファイル名の検索結果を表示します。Intelligenceアドオンを有効にすると、続けて意味に基づく検索結果を追加します。モデルの処理中でも、ファイル名の検索結果からすぐに移動できます。</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">出典</span>
-        <h3>検証済みと未検証の出典</h3>
-        <p>Webクリップなどアドオンが取り込んだファイルは、未検証の状態で追加されます。検索には出ますが、Askは検証済みのファイルだけを根拠に回答します。</p>
+        <h3>検証状況に応じた出典の扱い</h3>
+        <p>Webクリップなど、アドオンで取り込んだファイルは未検証として登録されます。検索の対象には含まれますが、Askの回答には検証済みのファイルのみを使用します。</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">クライアント</span>
         <h3>iOSアプリとMCPサーバー</h3>
-        <p>ソースからビルドするiOSアプリは、バックグラウンドで音声を再生し、動画をピクチャ・イン・ピクチャで表示します。MCPサーバーを使うと、MCPクライアントからアクセス制限を守ったままライブラリを操作できます。</p>
+        <p>ソースコードからビルドできるiOSアプリは、音声のバックグラウンド再生と動画のピクチャ・イン・ピクチャに対応しています。MCPサーバー経由では、ドライブのアクセス制限に従って、MCPクライアントからライブラリを操作できます。</p>
       </article>
     </div>
   </div>
@@ -176,19 +176,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="feature">
       <div class="copy reveal">
         <span class="eyebrow">見る・聴く</span>
-        <h2>文字起こしまで持っているメディアサーバー</h2>
-        <p>フォルダを指定すれば、LAN内のスマホ・タブレット・PCのブラウザから開けます。動画は前回止めたところから再生でき、プレーヤーの横にはチャプターと、時刻付きの文字起こしが並びます。</p>
+        <h2>動画・音声の再生と文字起こし</h2>
+        <p>登録したフォルダのファイルを、同じLAN内のスマートフォン・タブレット・PCからブラウザで再生できます。動画は前回の続きから再生でき、プレーヤーの横でチャプターやタイムスタンプ付きの文字起こしを確認できます。</p>
         <ul class="points">
-          <li>レジューム再生、字幕、チャプター、シークバーのプレビューに対応</li>
-          <li>文字起こしはローカルのWhisper、または自分で選んだクラウドの音声認識サービスで作成</li>
-          <li>LLMを設定すればチャプター候補も作れます。反映は承認したときだけ</li>
-          <li>YouTubeやVimeoの動画は小さな <code>.loft</code> ファイルとして保存し、埋め込みで再生</li>
+          <li>続きからの再生、字幕、チャプター、シークバーのプレビューに対応</li>
+          <li>文字起こしには、ローカルで動作するWhisper、または指定したクラウド音声認識サービスを使用</li>
+          <li>LLMによるチャプター候補の作成に対応。内容を確認し、承認した候補を反映</li>
+          <li>YouTubeやVimeoの動画情報を <code>.loft</code> ファイルに保存し、埋め込みプレーヤーで再生</li>
         </ul>
       </div>
       <div class="visual reveal">
         <div class="frame">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · file page</span></div>
-          <img src="../img/transcript.webp" width="2200" height="1375" loading="lazy" alt="動画のファイルページ。左にプレーヤー、右のインスペクタに時刻付きの文字起こしが表示されている。">
+          <img src="../img/transcript.webp" width="2200" height="1375" loading="lazy" alt="動画の詳細画面。左側にプレーヤー、右側の詳細パネルにタイムスタンプ付きの文字起こしを表示。">
         </div>
       </div>
     </div>
@@ -196,11 +196,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="feature flip">
       <div class="copy reveal">
         <span class="eyebrow">読む</span>
-        <h2>PDFも写真も書庫も、その場で開く</h2>
-        <p>文書も動画と同じレイアウトのページで開きます。「ページ」タブにはPDFのサムネイルが並び、全画面にするとページめくり表示になります。写真フォルダは本来の縦横比で並びます。</p>
+        <h2>PDF・写真・書庫をブラウザで閲覧</h2>
+        <p>文書も動画と共通のレイアウトで閲覧できます。PDFは「ページ」タブでサムネイルを確認でき、全画面ではページめくり表示で読めます。写真フォルダでは、各写真の縦横比を保って一覧表示します。</p>
         <ul class="points">
-          <li>PDFの拡大縮小、幅に合わせる表示、ページのサムネイル、綴じ方向</li>
-          <li>画像はスワイプ、見開き、スライドショーに対応。ZIP書庫は展開せずに中を見られます</li>
+          <li>PDFの拡大・縮小、画面幅に合わせた表示、ページのサムネイル表示、綴じ方向に対応</li>
+          <li>画像のスワイプ操作、見開き表示、スライドショーに対応。ZIP書庫も展開せずに閲覧可能</li>
           <li>MarkdownはMermaid図とシンタックスハイライトに対応。Officeファイルは本文の抜粋を表示</li>
         </ul>
       </div>
@@ -211,11 +211,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="frame" id="shot-pdf" role="tabpanel" aria-labelledby="tab-pdf">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Litloft User Guide.pdf</span></div>
-          <img src="../img/pdf.webp" width="2200" height="1375" loading="lazy" alt="48ページ中3ページ目を開いたPDF。「ページ」タブにサムネイルが並んでいる。">
+          <img src="../img/pdf.webp" width="2200" height="1375" loading="lazy" alt="全48ページのPDFの3ページ目を表示。「ページ」タブには各ページのサムネイル。">
         </div>
         <div class="frame" id="shot-photos" role="tabpanel" aria-labelledby="tab-photos" hidden>
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Library</span></div>
-          <img src="../img/photos.webp" width="2200" height="1375" loading="lazy" alt="写真フォルダ。写真がそれぞれの縦横比のまま行に詰めて並んでいる。">
+          <img src="../img/photos.webp" width="2200" height="1375" loading="lazy" alt="写真フォルダの一覧。各写真の縦横比を保ち、画面の幅に合わせて配置。">
         </div>
       </div>
     </div>
@@ -223,14 +223,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="feature">
       <div class="copy reveal">
         <span class="eyebrow">検索 · Intelligenceアドオン</span>
-        <h2>該当の一文を探し、出典で確かめる</h2>
-        <p>Findはファイル名、タグ、文字起こし、文書の本文、画像に写っているものをまとめて検索します。Askは該当する箇所をLLMに渡し、番号付きの引用とともに回答します。引用はそれぞれ、元のファイルと再生位置を指しています。</p>
+        <h2>ファイルの内容を検索し、出典を確認</h2>
+        <p>Findでは、ファイル名やタグに加え、文字起こし、文書の本文、画像の内容をまとめて検索できます。Askは関連する箇所をLLMで処理し、出典番号付きで回答します。引用から元のファイルや該当する再生位置を確認できます。</p>
         <ul class="points">
-          <li>キーワード検索と意味での検索を組み合わせ、どちらもSQLiteで動くので、ベクトルデータベースを別に用意する必要はありません</li>
-          <li>日本語で質問し、英語の文字起こしを引用した回答を受け取れます</li>
-          <li>回答と引用をMarkdownノートとして保存できます</li>
+          <li>キーワード検索と意味に基づく検索をSQLite上で実行。専用のベクトルデータベースは不要</li>
+          <li>日本語の質問に対し、英語の文字起こしを引用して回答</li>
+          <li>回答と引用をMarkdownノートとして保存</li>
         </ul>
-        <p class="note">Askと要約は、設定したLLMに該当箇所を送ります。Ollamaなどのローカルモデルを使えば、すべて手元のマシンで完結します。検索と文字起こしはLLMなしで動きます。</p>
+        <p class="note">Askと要約では、設定したLLMに該当箇所を送信します。Ollamaなどでローカルモデルを使う場合、この処理は手元のPCやサーバー内で完結します。検索と文字起こしは、LLMを設定せずに利用できます。</p>
       </div>
       <div class="visual reveal">
         <div class="shot-tabs" role="tablist" aria-label="検索のスクリーンショット">
@@ -239,11 +239,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="frame" id="shot-ask" role="tabpanel" aria-labelledby="tab-ask">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Ask</span></div>
-          <img src="../img/ask-ja.webp" width="2200" height="1375" loading="lazy" alt="Ask。日本語の質問に日本語で回答し、WWDCのSwiftDataセッションの英語の文字起こし25:43を引用している。">
+          <img src="../img/ask-ja.webp" width="2200" height="1375" loading="lazy" alt="Askの回答画面。日本語の質問に対し、WWDCのSwiftDataセッションの英語の文字起こし（25分43秒）を引用して日本語で回答。">
         </div>
         <div class="frame" id="shot-find" role="tabpanel" aria-labelledby="tab-find" hidden>
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Find</span></div>
-          <img src="../img/find.webp" width="2200" height="1375" loading="lazy" alt="Find。「glass effect on toolbar buttons」の検索結果として、該当する文字起こし付きの動画が並んでいる。">
+          <img src="../img/find.webp" width="2200" height="1375" loading="lazy" alt="Findの検索画面。「glass effect on toolbar buttons」に該当する動画と文字起こしを表示。">
         </div>
       </div>
     </div>
@@ -251,13 +251,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="feature flip">
       <div class="copy reveal">
         <span class="eyebrow">書く · Knowledgeアドオン</span>
-        <h2>元の資料のすぐ隣にあるノート</h2>
-        <p>ノートはドライブのフォルダに置かれる普通のMarkdownファイルなので、Obsidianなど他のエディタでも開けます。Litloftでは <code>[[wikiリンク]]</code> で他のノートとつなぎ、引用した動画や文書へのリンクも持たせられます。</p>
+        <h2>資料と一緒に管理できるMarkdownノート</h2>
+        <p>ノートはドライブ内にMarkdownファイルとして保存され、Obsidianなどのエディタでも開けます。Litloftでは <code>[[wikiリンク]]</code> でノート同士を関連付けたり、引用した動画や文書へのリンクを追加したりできます。</p>
         <ul class="points">
-          <li>編集・分割・プレビューの3つの表示、自動保存、frontmatterはプロパティカードとして表示</li>
-          <li>「関連」タブに、つながっているファイルと似たファイルが並びます</li>
-          <li>WebページをMarkdownとしてクリップでき、ノートとファイルのつながりをグラフで見られます</li>
-          <li>生成された要約は、自分で保存したときだけノートになります</li>
+          <li>編集・分割・プレビューの3つの表示モードと自動保存に対応。frontmatterはプロパティカードで表示</li>
+          <li>「関連」タブに、リンク先のファイルや内容が似ているファイルを表示</li>
+          <li>WebページをMarkdown形式で保存。ノートとファイルの関連をグラフで確認可能</li>
+          <li>生成した要約は、内容を確認してからノートとして保存可能</li>
         </ul>
       </div>
       <div class="visual reveal">
@@ -267,11 +267,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="frame" id="shot-edit" role="tabpanel" aria-labelledby="tab-edit">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Photography Hub.md</span></div>
-          <img src="../img/note-edit.webp" width="2200" height="1375" loading="lazy" alt="分割表示のMarkdownエディタ。左にfrontmatter付きのソース、右にMermaidのマインドマップを含む表示結果。">
+          <img src="../img/note-edit.webp" width="2200" height="1375" loading="lazy" alt="Markdownエディタの分割表示。左側にfrontmatter付きのソース、右側にMermaidのマインドマップを含むプレビュー。">
         </div>
         <div class="frame" id="shot-related" role="tabpanel" aria-labelledby="tab-related" hidden>
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Photography Hub.md</span></div>
-          <img src="../img/note.webp" width="2200" height="1375" loading="lazy" alt="マインドマップを含むノートと、リンクしている4つのノートを表示した「関連」タブ。">
+          <img src="../img/note.webp" width="2200" height="1375" loading="lazy" alt="マインドマップを含むノートと「関連」タブ。リンクされた4つのノートを表示。">
         </div>
       </div>
     </div>
@@ -279,36 +279,36 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="feature">
       <div class="copy reveal">
         <span class="eyebrow">取り込む · Media Importアドオン</span>
-        <h2>ダウンロードせずにチャンネルを追いかける</h2>
-        <p>YouTubeやVimeoのURLを貼り付けるか、チャンネルやプレイリストを購読します。Litloftはタイトル、サムネイル、字幕を保存し、動画は元のサイトから埋め込みで再生します。字幕はローカルファイルと同じように検索やAskの対象になります。</p>
+        <h2>動画をダウンロードせずに新着を確認</h2>
+        <p>YouTubeやVimeoのURLを登録すると、タイトル・サムネイル・字幕を保存できます。チャンネルやプレイリストの購読にも対応しています。動画は元のサイトの埋め込みプレーヤーで再生し、字幕はローカルファイルと同様に検索やAskに利用できます。</p>
         <ul class="points">
-          <li>チャンネルとプレイリストの購読を定期的に同期</li>
-          <li>購読したソースの新着を見る「見る」タブと、再試行できる取り込み履歴</li>
-          <li>ドライブごとにオン・オフを切り替え</li>
+          <li>購読したチャンネル・プレイリストを定期的に同期</li>
+          <li>「見る」タブで購読先の新着を確認。取り込み履歴から再試行も可能</li>
+          <li>ドライブごとに有効・無効を設定</li>
         </ul>
       </div>
       <div class="visual reveal">
         <div class="frame">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · YouTube &amp; Feeds</span></div>
-          <img src="../img/feeds.webp" width="2200" height="1375" loading="lazy" alt="YouTubeとフィードの画面。ソースを追加する入力欄、チャンネルの購読1件、日付ごとの最近の取り込み。">
+          <img src="../img/feeds.webp" width="2200" height="1375" loading="lazy" alt="YouTubeとフィードの管理画面。購読先の追加欄、購読中のチャンネル1件、日付別の取り込み履歴を表示。">
         </div>
       </div>
     </div>
 
     <div class="feature flip">
       <div class="copy reveal">
-        <span class="eyebrow">スマホで</span>
-        <h2>同じライブラリをポケットに</h2>
-        <p>すべての画面にスマホ向けのレイアウトがあります。ホーム画面に追加すれば独立したウィンドウで開けます。iOSアプリをビルドすれば、画面をロックしても音声が再生され続け、動画はピクチャ・イン・ピクチャで表示できます。</p>
+        <span class="eyebrow">スマートフォン</span>
+        <h2>スマートフォンからも閲覧・再生</h2>
+        <p>すべての画面がスマートフォンでの表示に対応しています。ホーム画面に追加すると、独立したウィンドウで利用できます。ソースコードからビルドできるiOSアプリでは、画面ロック中の音声再生や、動画のピクチャ・イン・ピクチャも利用できます。</p>
         <ul class="points">
-          <li>iPhoneやiPadのSafariで使うときはHTTPSで配信してください</li>
-          <li>外出先からは、TailscaleなどのVPN経由でアクセスします</li>
+          <li>iPhone・iPadのSafariで利用する場合は、HTTPSでの配信が必要</li>
+          <li>外出先からは、TailscaleなどのVPN経由でアクセス可能</li>
         </ul>
       </div>
       <div class="visual reveal">
         <div class="phones">
-          <div class="phone"><img src="../img/mobile-home.webp" width="780" height="1688" loading="lazy" alt="スマホのホーム画面。「続きを見る」が2列で並んでいる。"></div>
-          <div class="phone"><img src="../img/mobile-note.webp" width="780" height="1688" loading="lazy" alt="スマホで開いたMarkdownノート。プロパティカードとマインドマップ。"></div>
+          <div class="phone"><img src="../img/mobile-home.webp" width="780" height="1688" loading="lazy" alt="スマートフォンのホーム画面。「続きを見る」を2列で表示。"></div>
+          <div class="phone"><img src="../img/mobile-note.webp" width="780" height="1688" loading="lazy" alt="スマートフォンで開いたMarkdownノート。プロパティカードとマインドマップを表示。"></div>
         </div>
       </div>
     </div>
@@ -321,34 +321,34 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal">しくみ</span>
-      <h2 class="reveal">ファイルはディスクに、索引はSQLiteに</h2>
-      <p class="reveal">フォルダは置いた場所のまま読み込み、ファイルについて分かったことは手元のSQLiteに残します。</p>
+      <h2 class="reveal">ファイルの保存と検索のしくみ</h2>
+      <p class="reveal">ファイルを移動せずに既存のフォルダから読み込み、検索に必要な情報はローカルのSQLiteに保存します。</p>
     </div>
     <div class="hood-grid">
       <div class="hood-card reveal">
-        <h3>ファイルはファイルのまま</h3>
+        <h3>ファイルをそのまま利用</h3>
         <ul>
-          <li>ドライブは、Dockerにマウントしたホストのフォルダです</li>
-          <li>ノートは <code>.md</code> ファイル、取り込んだ動画は小さな <code>.loft</code> ファイルです</li>
-          <li>削除したファイルは30日間ゴミ箱に残ります。ディスクから消えたファイルも、戻ってくるまで履歴を保持します</li>
+          <li>Dockerにマウントしたホスト側のフォルダを、ドライブとして利用</li>
+          <li>ノートは <code>.md</code> 形式、外部サイトから取り込んだ動画情報は <code>.loft</code> 形式で保存</li>
+          <li>削除したファイルは30日間ゴミ箱に保管。ディスク上で見つからなくなったファイルも、再検出されるまで履歴を保持</li>
         </ul>
       </div>
       <div class="hood-card reveal">
-        <h3>インデックスは必要なら追加</h3>
+        <h3>用途に応じて検索インデックスを作成</h3>
         <ul>
-          <li>音声と動画はfaster-Whisper、または選んだクラウドサービスで文字起こし</li>
+          <li>音声・動画は、faster-Whisperまたは指定したクラウドサービスで文字起こし</li>
           <li>字幕・PDF・テキストは段落に分けて埋め込みベクトル化</li>
           <li>画像と動画のフレームはSigLIP2またはCLIPモデルで埋め込みベクトル化</li>
-          <li>全文検索はSQLite FTS5、ベクトルは <code>sqlite-vec</code> に保存</li>
+          <li>全文検索にはSQLite FTS5を使用し、ベクトルは <code>sqlite-vec</code> に保存</li>
         </ul>
       </div>
       <div class="hood-card reveal">
-        <h3>ドライブが境界</h3>
+        <h3>ドライブ単位でアクセスを管理</h3>
         <ul>
-          <li>ドライブごとにパスワードとアクセスグループを設定できます</li>
-          <li>検索、タグ、お気に入り、Askはドライブをまたぎません</li>
-          <li>アドオンやその一部の機能を、ドライブごとにオン・オフできます</li>
-          <li>ロックされたドライブは、解除するまで名前も表示されません</li>
+          <li>ドライブごとにパスワードとアクセスグループを設定可能</li>
+          <li>検索・タグ・お気に入り・Askの対象は、ドライブ内に限定</li>
+          <li>アドオンや個別の機能を、ドライブごとに有効・無効に設定可能</li>
+          <li>ロック中のドライブは、解除するまで名前を非表示</li>
         </ul>
       </div>
     </div>
@@ -365,39 +365,39 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal">アドオン</span>
-      <h2 class="reveal">まずはメディアサーバーとして。残りは必要になってから</h2>
-      <p class="reveal">本体はファイルブラウザとプレーヤーです。アドオンはそれぞれ独立したリポジトリで、どれを使うかはドライブごとに決めます。</p>
+      <h2 class="reveal">必要な機能をアドオンで追加</h2>
+      <p class="reveal">基本機能としてファイルの閲覧・再生とファイル名での検索に対応し、ファイルの内容の検索やノートなどの機能をアドオンで追加できます。各アドオンは独立したリポジトリで管理され、ドライブごとに利用を設定できます。</p>
     </div>
     <div class="addon-grid">
       <div class="addon reveal">
         <span class="kind">推奨</span>
         <h3>Intelligence</h3>
-        <p>文字起こし、意味での検索、シーン・画像検索、引用付きのAsk、要約、タグの提案、チャプター候補。LLMはOllamaかOpenAI互換のエンドポイントを使います。</p>
+        <p>文字起こし、意味に基づく検索、シーン・画像検索、出典付きのAsk、要約、タグ・チャプター候補の提案に対応。LLMにはOllama、またはOpenAI互換APIを利用できます。</p>
       </div>
       <div class="addon reveal">
         <span class="kind">ノート</span>
         <h3>Knowledge</h3>
-        <p>ライブプレビュー付きのMarkdownエディタ、版の履歴、ノートページ、Webクリップ、引用バスケット、つながりのグラフ。</p>
+        <p>Markdownのライブプレビュー編集、変更履歴、ノートの閲覧、Webクリップ、引用バスケットに対応。ノートやファイルの関連をグラフで確認できます。</p>
       </div>
       <div class="addon reveal">
         <span class="kind">取り込み</span>
         <h3>Media Import</h3>
-        <p>YouTubeとVimeoのURLを <code>.loft</code> ファイルとして保存。チャンネル・プレイリストの購読、字幕の取り込み、取り込み履歴。</p>
+        <p>YouTubeやVimeoのURLを <code>.loft</code> ファイルとして保存。チャンネル・プレイリストの購読、字幕の取り込み、取り込み履歴の確認に対応しています。</p>
       </div>
       <div class="addon reveal">
         <span class="kind">バックアップ</span>
         <h3>Cloud Sync</h3>
-        <p>rcloneでドライブを定期バックアップ。S3、Backblaze B2、Googleドライブなど、rcloneが対応する保存先に送れます。</p>
+        <p>rcloneを利用してドライブを定期的にバックアップします。保存先はS3、Backblaze B2、Googleドライブなど、rcloneが対応するサービスから選べます。</p>
       </div>
     </div>
     <div class="extras">
       <div class="extra reveal">
         <h3>iOSアプリ</h3>
-        <p>Webアプリを包むネイティブアプリで、<code>ios/</code> をXcodeでビルドします。ロック画面から操作できるバックグラウンド再生、ピクチャ・イン・ピクチャ、AirPlayに対応。App Storeでは配布していません。</p>
+        <p>Webアプリをベースに、iOSの再生機能を利用できるアプリです。<code>ios/</code> をXcodeでビルドして利用します。バックグラウンド再生、ロック画面からの操作、ピクチャ・イン・ピクチャ、AirPlayに対応しています。App Storeでの配布は行っていません。</p>
       </div>
       <div class="extra reveal">
         <h3>MCPサーバー</h3>
-        <p>Claude DesktopなどのMCPクライアントから、Litloft自身のAPIを通してファイルの検索・閲覧・タグ付け・名前変更・編集ができます。ドライブのアクセス制限はブラウザと同じです。</p>
+        <p>Claude DesktopなどのMCPクライアントから、LitloftのAPIを通じてファイルの検索・閲覧・タグ付け・名前の変更・編集ができます。ブラウザでの利用時と同じアクセス制限が適用されます。</p>
       </div>
     </div>
   </div>
@@ -408,8 +408,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal">導入</span>
-      <h2 class="reveal">4ステップで導入</h2>
-      <p class="reveal">必要なのはGit、Docker（Compose v2）、Python 3と、5GBほどの空き容量です。それ以外はすべてコンテナの中で動きます。</p>
+      <h2 class="reveal">導入手順</h2>
+      <p class="reveal">Git、Docker（Compose v2）、Python 3と、約5GBの空き容量が必要です。その他の実行環境はコンテナ内に用意されます。</p>
     </div>
 
     <div class="steps">
@@ -417,7 +417,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="step-rail"><span class="step-num"></span></div>
         <div class="step-body">
           <h3>リポジトリをクローンする</h3>
-          <p>アドオンはGitのサブモジュールなので、本体と一緒にクローンします。</p>
+          <p>アドオンはGitのサブモジュールとして管理されています。以下のコマンドで、本体とあわせて取得します。</p>
 <div class="code"><span class="p">$ </span>git clone --recurse-submodules https://github.com/mamepenguin/Litloft
 <span class="p">$ </span>cd Litloft</div>
         </div>
@@ -427,7 +427,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="step-rail"><span class="step-num"></span></div>
         <div class="step-body">
           <h3><code>configure.py</code> を実行する</h3>
-          <p>Dockerの起動に必要なことだけを書き出す短いスクリプトです。各質問はEnterで既定値を選べます。</p>
+          <p>画面の案内に沿って、Dockerの起動に必要な設定を行います。各項目でEnterキーを押すと、既定値が選択されます。</p>
           <div class="os-tabs" role="tablist" aria-label="OS">
             <button class="os-tab" role="tab" aria-selected="true" aria-controls="os-unix" id="tab-unix">macOS / Linux</button>
             <button class="os-tab" role="tab" aria-selected="false" aria-controls="os-win" id="tab-win" tabindex="-1">Windows</button>
@@ -435,12 +435,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <div class="code" id="os-unix" role="tabpanel" aria-labelledby="tab-unix"><span class="p">$ </span>python3 configure.py</div>
 <div class="code" id="os-win" role="tabpanel" aria-labelledby="tab-win" hidden><span class="p">&gt; </span>py -3 configure.py</div>
           <ul class="asks">
-            <li><span>1</span><span>ドライブとしてマウントするホストのフォルダと、それぞれの短いスラッグ。表示名はあとで決めます。</span></li>
-            <li><span>2</span><span>ポート番号。変えなければ3000。</span></li>
-            <li><span>3</span><span>Intelligenceを動かすか（既定は「はい」）と、任意の <code class="ic">LLM_API_KEY</code>。ローカルモデルを使うなら空欄で構いません。</span></li>
-            <li><span>4</span><span>Knowledgeを動かすか（既定は「いいえ」）。Media ImportとCloud Syncはここでは聞かれず、あとからドライブごとに有効にします。</span></li>
+            <li><span>1</span><span>ドライブとしてマウントするホスト側のフォルダと、各ドライブの識別名（スラッグ）を指定します。表示名は後で設定できます。</span></li>
+            <li><span>2</span><span>ポート番号を指定します。既定値は3000です。</span></li>
+            <li><span>3</span><span>Intelligenceを有効にするかを選択します（既定は「はい」）。<code class="ic">LLM_API_KEY</code> の入力は任意です。ローカルモデルを使用する場合は空欄にできます。</span></li>
+            <li><span>4</span><span>Knowledgeを有効にするかを選択します（既定は「いいえ」）。Media ImportとCloud Syncは、後でドライブごとに有効にします。</span></li>
           </ul>
-          <p class="foot"><code class="ic">docker-compose.override.yml</code> と <code class="ic">.env</code> を書き出します。既存のファイルを上書きする前には確認があります。</p>
+          <p class="foot"><code class="ic">docker-compose.override.yml</code> と <code class="ic">.env</code> を作成します。既存のファイルがある場合は、上書きするかどうかを確認します。</p>
         </div>
       </div>
 
@@ -448,9 +448,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="step-rail"><span class="step-num"></span></div>
         <div class="step-body">
           <h3>コンテナを起動する</h3>
-          <p><code class="ic">configure.py</code> の最後に、そのまま起動するか聞かれます。初回のビルドには数分かかります。</p>
+          <p><code class="ic">configure.py</code> の設定完了後に、そのままコンテナを起動できます。初回のビルドには数分かかります。</p>
 <div class="code"><span class="p">$ </span>docker compose up -d --build
-<span class="c"># 更新するとき:</span>
+<span class="c"># 更新時:</span>
 <span class="p">$ </span>git pull --recurse-submodules &amp;&amp; docker compose up -d --build</div>
         </div>
       </div>
@@ -458,17 +458,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="step reveal">
         <div class="step-rail"><span class="step-num"></span></div>
         <div class="step-body">
-          <h3>セットアップウィザードで仕上げる</h3>
-          <p><code class="ic">configure.py</code> が表示したアドレス（<code class="ic">http://localhost:3000/setup?token=…</code> など）を開きます。ウィザードでドライブの名前、パスワードとアクセスグループ、ドライブごとに使うアドオンを決めます。どれもあとから <code class="ic">/admin/settings</code> で変更できます。</p>
+          <h3>ブラウザで初期設定を行う</h3>
+          <p><code class="ic">configure.py</code> に表示されたアドレス（<code class="ic">http://localhost:3000/setup?token=…</code> など）を開きます。画面の案内に沿って、ドライブの表示名、パスワード、アクセスグループ、利用するアドオンを設定します。設定内容は後から <code class="ic">/admin/settings</code> で変更できます。</p>
         </div>
       </div>
     </div>
 
     <div class="llm-box reveal">
       <h3>LLMを使う場合</h3>
-      <p>要約、タグの提案、チャプター候補、AskにはLLMが要ります。検索と文字起こしだけならLLMなしで使えます。プロバイダとモデルは、セットアップのあとにブラウザで選びます。</p>
-      <p>ローカルで動かすなら、ホストに<a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a>を入れてモデルを取得します。これならファイルは手元のマシンから出ません。OpenAI互換のAPIも使えて、その場合はキーを <code class="ic">.env</code> に書きます。インデックス作成と質問のたびに、ファイルの本文がそのAPIへ送られる点には注意してください。</p>
-      <p>iPhone・iPad向けのHTTPS配信を含む詳しい手順は、<a href="https://github.com/mamepenguin/Litloft/blob/main/docs/getting-started/installation.md" target="_blank" rel="noopener noreferrer">インストールガイド</a>（英語）にあります。</p>
+      <p>要約、タグ・チャプター候補の提案、Askを利用するには、LLMの設定が必要です。検索と文字起こしは、LLMを設定せずに利用できます。プロバイダとモデルは、初期設定後にブラウザから選択します。</p>
+      <p>ローカルモデルを利用する場合は、ホスト側に<a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a>をインストールし、モデルをダウンロードします。LLMによる処理は、手元のPCやサーバー内で完結します。OpenAI互換APIを利用する場合は、APIキーを <code class="ic">.env</code> に設定します。この場合、インデックス作成時や質問時に、ファイルの本文が設定先のAPIへ送信されます。</p>
+      <p>iPhone・iPadで利用するためのHTTPS設定など、詳しい手順は<a href="https://github.com/mamepenguin/Litloft/blob/main/docs/getting-started/installation.md" target="_blank" rel="noopener noreferrer">インストールガイド</a>（英語）をご覧ください。</p>
     </div>
   </div>
 </section>
@@ -478,14 +478,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal">導入の前に</span>
-      <h2 class="reveal">Litloftが向いていないこと</h2>
-      <p class="reveal">もともと自分の家のライブラリのために作っている個人プロジェクトです。IssueやPRは歓迎しますが、サポートはベストエフォートです。</p>
+      <h2 class="reveal">利用環境と対応範囲</h2>
+      <p class="reveal">Litloftは、自宅での利用を目的に開発している個人プロジェクトです。不具合の報告や改善の提案は、GitHubのIssue・プルリクエストで受け付けています。サポートは対応可能な範囲で行います。</p>
     </div>
     <div class="not-grid reveal">
-      <p class="not-item">インターネットへの公開には向きません。認証はあえて最小限にしているので、LAN内かVPN経由で使ってください。</p>
-      <p class="not-item">アカウントの仕組みはありません。プロフィールはブラウザで決めるニックネームだけです。</p>
-      <p class="not-item">Plexの代わりにはなりません。トランスコードも、オンラインのデータベースからのメタデータ取得もしないためです。</p>
-      <p class="not-item">オフラインでは使えません。サーバーにつながらなければ、ブラウザでもアプリでも何も表示されません。</p>
+      <p class="not-item">自宅LAN内、またはVPN経由での利用を想定しています。認証機能は最小限のため、インターネットへの直接公開は推奨していません。</p>
+      <p class="not-item">ユーザーアカウント機能はありません。プロフィールには、ブラウザで設定したニックネームを使用します。</p>
+      <p class="not-item">Plexのようなトランスコード機能や、オンラインデータベースからのメタデータ取得には対応していません。</p>
+      <p class="not-item">ブラウザ・アプリともに、利用にはサーバーへの接続が必要です。オフラインでの閲覧・再生には対応していません。</p>
     </div>
   </div>
 </section>
@@ -495,8 +495,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <section class="cta">
   <div class="container">
     <img src="../icon.svg" alt="" width="64" height="64">
-    <h2>ライブラリは、家に置いておく。</h2>
-    <p>AGPL-3.0のオープンソースです。クローンしてフォルダを指定すれば、ブラウザで開けます。</p>
+    <h2>Litloftを導入する</h2>
+    <p>LitloftはAGPL-3.0ライセンスのオープンソースソフトウェアです。ソースコードと導入手順をGitHubで公開しています。</p>
     <div class="cta-btns">
       <a href="https://github.com/mamepenguin/Litloft" class="btn btn-light btn-lg" target="_blank" rel="noopener noreferrer">GitHubから入手</a>
       <a href="https://github.com/mamepenguin/Litloft/blob/main/docs/README_ja.md" class="btn btn-ghost btn-lg" target="_blank" rel="noopener noreferrer">日本語READMEを読む</a>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Litloft: a self-hosted media library for your home network</title>
+  <title>Litloft | A self-hosted media library for your home network</title>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-2R74EW5DRV"></script>
   <script>
@@ -19,19 +19,19 @@
     'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
     })(window,document,'script','dataLayer','GTM-WL8DZDWF');</script>
   <!-- End Google Tag Manager -->
-  <meta name="description" content="Litloft is a self-hosted library for videos, audio, PDFs, images and Markdown notes on your home LAN. Stream and read in the browser, search inside transcripts and documents, and optionally use a local LLM for cited answers.">
-  <meta property="og:title" content="Litloft: a self-hosted media library for your home network">
-  <meta property="og:description" content="Stream videos, read PDFs, write Markdown notes, and search inside all of them. Runs on your own hardware with Docker.">
+  <meta name="description" content="Litloft is a self-hosted media library for your home network. Play videos and audio, read documents, manage Markdown notes and search file contents. Connect a local LLM for answers with source citations.">
+  <meta property="og:title" content="Litloft | A self-hosted media library for your home network">
+  <meta property="og:description" content="Play videos, read PDFs, write Markdown notes and search file contents. Install Litloft on your own computer or server with Docker.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mamepenguin.github.io/Litloft/">
   <meta property="og:site_name" content="Litloft">
   <meta property="og:image" content="https://mamepenguin.github.io/Litloft/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Litloft's Home screen, with Continue Watching and Pickup rows.">
+  <meta property="og:image:alt" content="Litloft Home screen showing Continue Watching and Pickup.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Litloft: a self-hosted media library for your home network">
-  <meta name="twitter:description" content="Stream videos, read PDFs, write Markdown notes, and search inside all of them. Runs on your own hardware with Docker.">
+  <meta name="twitter:title" content="Litloft | A self-hosted media library for your home network">
+  <meta name="twitter:description" content="Play videos, read PDFs, write Markdown notes and search file contents. Install Litloft on your own computer or server with Docker.">
   <meta name="twitter:image" content="https://mamepenguin.github.io/Litloft/og.png">
   <meta name="theme-color" content="#FBF7EF">
   <link rel="alternate" hreflang="en" href="https://mamepenguin.github.io/Litloft/">
@@ -52,7 +52,7 @@
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
 
-<nav class="topnav" aria-label="Main">
+<nav class="topnav" aria-label="Main navigation">
   <div class="container nav-inner">
     <a href="#" class="logo" aria-label="Litloft">
       <img src="icon.svg" alt="" width="30" height="30">
@@ -75,25 +75,25 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="hero-inner">
       <a href="#whats-new" class="release-pill reveal">
-        <span><b>New release:</b> a reorganised library, a PDF page-turner and more</span>
+        <span><b>Latest update:</b> revised library navigation, full-screen PDF reading and more</span>
         <span class="go">See what's new</span>
       </a>
-      <h1 class="reveal">Your media library,<br><em>searchable to the second.</em></h1>
+      <h1 class="reveal">Manage and search<br><em>your media library.</em></h1>
       <p class="hero-sub reveal">
-        Litloft is a self-hosted library for the videos, audio, PDFs, images and Markdown notes on your home network. Watch and read them in a browser, search inside transcripts and documents, and keep your notes next to the files they are about.
+        Litloft is a self-hosted media library for videos, audio, PDFs, images and Markdown notes on your home network. Play and browse files in your browser, search transcripts and document text, and save notes alongside your source files.
       </p>
       <div class="hero-ctas reveal">
         <a href="#setup" class="btn btn-primary btn-lg">Install with Docker</a>
         <a href="https://github.com/mamepenguin/Litloft" class="btn btn-outline btn-lg" target="_blank" rel="noopener noreferrer">View on GitHub</a>
       </div>
       <p class="facts reveal">
-        <span>Docker Compose</span><span>Home LAN only</span><span>LLM optional, local recommended</span><span>AGPL-3.0</span>
+        <span>Docker Compose</span><span>Home LAN only</span><span>Optional LLM · Local recommended</span><span>AGPL-3.0</span>
       </p>
     </div>
     <div class="hero-shot reveal">
       <div class="frame">
         <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Home</span></div>
-        <img src="img/home.webp" width="2200" height="1375" alt="Litloft Home: Continue Watching and Pickup rows of videos and photos, with the drive's sidebar on the left.">
+        <img src="img/home.webp" width="2200" height="1375" alt="Litloft Home screen with videos and photos in Continue Watching and Pickup, and drive navigation on the left.">
       </div>
     </div>
   </div>
@@ -104,54 +104,54 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal">What's new</span>
-      <h2 class="reveal">A reorganised library, and better tools for reading</h2>
-      <p class="reveal">This release reorganises how you move around Litloft and adds the viewers and note tools that were missing. The highlights:</p>
+      <h2 class="reveal">Updated navigation, viewers and editing tools</h2>
+      <p class="reveal">This release updates the library layout and adds features for viewing files and editing notes. Here are the main changes.</p>
     </div>
     <div class="new-grid">
       <article class="new-card reveal">
         <span class="tag">Navigation</span>
-        <h3>Home and Library, separated</h3>
-        <p>Home gathers what to open next: Continue Watching, Pickup, Recently Viewed, Recently Added, Favorites and Liked. Library shows only the folder hierarchy.</p>
+        <h3>Separate Home and Library views</h3>
+        <p>Home brings together Continue Watching, Pickup, Recently Viewed, Recently Added, Favorites and Liked. Library provides a dedicated view of your folder hierarchy.</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Files</span>
-        <h3>One file page for every kind</h3>
-        <p>Video, audio, PDF, image, archive and Markdown share one layout: the file on the left, and an inspector on the right with Info and Related, plus Transcript or Pages where they apply.</p>
+        <h3>A consistent file layout</h3>
+        <p>Videos, audio, PDFs, images, archives and Markdown files use the same layout. The file appears on the left, with an inspector on the right. Info and Related tabs are available for all files, with Transcript and Pages tabs where relevant.</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">PDF</span>
-        <h3>A full-screen page-turner</h3>
-        <p>PDFs open in the reading direction they declare, turn pages full screen, and a search hit opens the exact page it matched.</p>
+        <h3>Full-screen PDF reading</h3>
+        <p>Browse PDFs in a full-screen page-turning view that follows the reading direction set in the file. Search results open directly to the matching page.</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Photos</span>
-        <h3>Photos at their real proportions</h3>
-        <p>Photo folders are packed into rows at each picture's own shape instead of cropped tiles. The image and archive viewers zoom by pinch, wheel or keys, and pan.</p>
+        <h3>Photo grids with original aspect ratios</h3>
+        <p>Photo folders display images in rows while preserving their original aspect ratios. In image and archive viewers, use pinch gestures, the mouse wheel or keyboard controls to zoom, and drag to pan.</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Knowledge addon</span>
         <h3>Live preview and version history</h3>
-        <p>The Markdown editor styles text as you type, has a split view, and keeps saved versions with a diff of each. Restoring an old version can itself be undone.</p>
+        <p>The Markdown editor supports live formatting and split view. Version history records changes when you save, with diffs for each version. You can restore an earlier version or undo a restore.</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Knowledge addon</span>
         <h3>Capture basket</h3>
-        <p>Collect a search snippet, a video timestamp, a PDF page or an Ask citation, then save them into a note with links back to the exact moment or page.</p>
+        <p>Collect search snippets, video timestamps, PDF pages and Ask citations, then save them together in a note. Each item links back to its source timestamp or page.</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Search</span>
-        <h3>A two-step <kbd>⌘K</kbd></h3>
-        <p>The quick switcher lists name matches right away. With the Intelligence addon, results by meaning follow a moment later, so jumping to a file never waits on a model.</p>
+        <h3>Quick file search with <kbd>⌘K</kbd></h3>
+        <p>The quick switcher displays filename matches first. With the Intelligence addon enabled, semantic search results follow as they become available. You can open filename matches while the model is still processing.</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Sources</span>
         <h3>Verified and unverified sources</h3>
-        <p>Web clips and other files an addon brings in arrive unverified. They show up in search, but Ask answers only from files you have verified.</p>
+        <p>Web clips and other files imported by addons are marked as unverified. They appear in search results, but Ask uses only verified files as sources for its answers.</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Clients</span>
         <h3>iOS app and MCP server</h3>
-        <p>An iOS app you build from source keeps audio playing in the background and moves video to picture-in-picture. An MCP server lets an MCP client work with the library under your access rules.</p>
+        <p>The iOS app, available to build from source, supports background audio and picture-in-picture video. The MCP server gives MCP clients access to your library using the same drive permissions.</p>
       </article>
     </div>
   </div>
@@ -164,19 +164,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="feature">
       <div class="copy reveal">
         <span class="eyebrow">Watch and listen</span>
-        <h2>A media server that also keeps the transcript</h2>
-        <p>Point Litloft at a folder and open it from a phone, tablet or computer on your LAN. Videos resume where you stopped, and the chapters and transcript sit beside the player, every line with its timestamp.</p>
+        <h2>Media playback with transcripts</h2>
+        <p>Add a folder to Litloft and access its files in a browser from a phone, tablet or computer on your LAN. Videos resume from your last position, with chapters and timestamped transcripts displayed beside the player.</p>
         <ul class="points">
-          <li>Streaming with resume, subtitles, chapters and scrubbing previews</li>
-          <li>Transcripts from local Whisper, or from a cloud speech-to-text provider you choose</li>
-          <li>With an LLM, Litloft proposes chapters, and they change nothing until you approve them</li>
-          <li>YouTube and Vimeo videos kept as small <code>.loft</code> files that play embedded</li>
+          <li>Resume playback, subtitles, chapters and seek-bar previews</li>
+          <li>Transcription using local Whisper or your chosen cloud speech-to-text service</li>
+          <li>LLM-generated chapter suggestions, applied only after you approve them</li>
+          <li>YouTube and Vimeo video references stored as <code>.loft</code> files for embedded playback</li>
         </ul>
       </div>
       <div class="visual reveal">
         <div class="frame">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · file page</span></div>
-          <img src="img/transcript.webp" width="2200" height="1375" loading="lazy" alt="A video file page: the player on the left, and the inspector's Transcript tab on the right listing timestamped lines.">
+          <img src="img/transcript.webp" width="2200" height="1375" loading="lazy" alt="Video file page with the player on the left and a timestamped transcript in the inspector on the right.">
         </div>
       </div>
     </div>
@@ -184,12 +184,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="feature flip">
       <div class="copy reveal">
         <span class="eyebrow">Read</span>
-        <h2>PDFs, photos and archives, in place</h2>
-        <p>Documents open on the same page layout as video. The Pages tab shows a PDF as thumbnails, and full screen turns it into a page-turner. Photo folders lay out at their real proportions.</p>
+        <h2>Browse PDFs, photos and archives</h2>
+        <p>Documents use the same layout as videos. Browse PDF thumbnails in the Pages tab or read in a full-screen page-turning view. Photo folders preserve the original aspect ratio of each image.</p>
         <ul class="points">
-          <li>PDF zoom, fit to width, page thumbnails and reading direction</li>
-          <li>Images with swipe, two-page spread and slideshow; ZIP archives browsed without extracting</li>
-          <li>Markdown with Mermaid diagrams and syntax highlighting; Office files show a text excerpt</li>
+          <li>PDF zoom, fit-to-width display, page thumbnails and support for reading direction</li>
+          <li>Swipe navigation, two-page spreads and slideshows for images; ZIP browsing without extraction</li>
+          <li>Mermaid diagrams and syntax highlighting in Markdown; text excerpts for Office files</li>
         </ul>
       </div>
       <div class="visual reveal">
@@ -199,11 +199,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="frame" id="shot-pdf" role="tabpanel" aria-labelledby="tab-pdf">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Litloft User Guide.pdf</span></div>
-          <img src="img/pdf.webp" width="2200" height="1375" loading="lazy" alt="A PDF open at page 3 of 48, with the Pages tab showing page thumbnails.">
+          <img src="img/pdf.webp" width="2200" height="1375" loading="lazy" alt="PDF viewer on page 3 of 48, with page thumbnails in the Pages tab.">
         </div>
         <div class="frame" id="shot-photos" role="tabpanel" aria-labelledby="tab-photos" hidden>
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Library</span></div>
-          <img src="img/photos.webp" width="2200" height="1375" loading="lazy" alt="A photo folder laid out in justified rows, each picture at its own aspect ratio.">
+          <img src="img/photos.webp" width="2200" height="1375" loading="lazy" alt="Photo folder with images arranged in rows, preserving their original aspect ratios.">
         </div>
       </div>
     </div>
@@ -211,14 +211,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="feature">
       <div class="copy reveal">
         <span class="eyebrow">Search · Intelligence addon</span>
-        <h2>Find the sentence, then check the source</h2>
-        <p>Find searches names, tags, transcripts, document text and what pictures show, all at once. Ask passes the matching passages to an LLM and returns an answer with numbered citations, each pointing at the file and the second it came from.</p>
+        <h2>Search file contents and check sources</h2>
+        <p>Find searches filenames, tags, transcripts, document text and image content. Ask sends relevant passages to an LLM and returns an answer with numbered citations. Each citation links to the source file and, where applicable, the relevant timestamp.</p>
         <ul class="points">
-          <li>Keyword and meaning-based search run together from SQLite, so you need no separate vector database</li>
-          <li>Ask in one language and get citations from a transcript in another</li>
+          <li>Combined keyword and semantic search in SQLite, with no separate vector database required</li>
+          <li>Ask in one language and receive answers citing transcripts in another</li>
           <li>Save an answer and its citations as a Markdown note</li>
         </ul>
-        <p class="note">Ask and summaries send passages to whichever LLM you configure. Point it at a local model such as Ollama to keep everything on your machine. Search and transcription work without an LLM.</p>
+        <p class="note">Ask and summaries send relevant passages to your configured LLM. Use a local model through Ollama to process them on your own computer or server. Search and transcription do not require an LLM.</p>
       </div>
       <div class="visual reveal">
         <div class="shot-tabs" role="tablist" aria-label="Search screenshots">
@@ -227,11 +227,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="frame" id="shot-ask" role="tabpanel" aria-labelledby="tab-ask">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Ask</span></div>
-          <img src="img/ask.webp" width="2200" height="1375" loading="lazy" alt="Ask: a question about schema migrations, answered with one citation to 6:37 of a WWDC SwiftData session transcript.">
+          <img src="img/ask.webp" width="2200" height="1375" loading="lazy" alt="Ask response about schema migrations, citing the transcript at 6:37 in a WWDC SwiftData session.">
         </div>
         <div class="frame" id="shot-find" role="tabpanel" aria-labelledby="tab-find" hidden>
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Find</span></div>
-          <img src="img/find.webp" width="2200" height="1375" loading="lazy" alt="Find: results for 'glass effect on toolbar buttons', each a video with the matching transcript passage.">
+          <img src="img/find.webp" width="2200" height="1375" loading="lazy" alt="Find results for 'glass effect on toolbar buttons', showing videos with matching transcript passages.">
         </div>
       </div>
     </div>
@@ -239,12 +239,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="feature flip">
       <div class="copy reveal">
         <span class="eyebrow">Write · Knowledge addon</span>
-        <h2>Notes that live next to their sources</h2>
-        <p>Notes are ordinary Markdown files in your drive folders, so Obsidian or any other editor can open them too. In Litloft a note links to other notes with <code>[[wiki links]]</code>, and to the videos and documents it cites.</p>
+        <h2>Markdown notes alongside your files</h2>
+        <p>Notes are stored as Markdown files in your drive folders and can be opened in Obsidian or other editors. In Litloft, use <code>[[wiki links]]</code> to connect notes and add links to the videos and documents you cite.</p>
         <ul class="points">
-          <li>Edit, Split and Preview views, autosave, and frontmatter shown as a properties card</li>
-          <li>The Related tab lists the files a note is connected to, and similar files</li>
-          <li>Web clipping to Markdown, and a graph of how notes and files connect</li>
+          <li>Edit, Split and Preview modes, autosave, and a properties card for frontmatter</li>
+          <li>A Related tab showing linked files and files with similar content</li>
+          <li>Web clipping to Markdown and a graph of connections between notes and files</li>
           <li>Generated summaries become notes only when you save them</li>
         </ul>
       </div>
@@ -255,11 +255,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="frame" id="shot-edit" role="tabpanel" aria-labelledby="tab-edit">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Photography Hub.md</span></div>
-          <img src="img/note-edit.webp" width="2200" height="1375" loading="lazy" alt="The Markdown editor in Split view: source with frontmatter on the left, the rendered note with a Mermaid mind map on the right.">
+          <img src="img/note-edit.webp" width="2200" height="1375" loading="lazy" alt="Markdown editor in Split view, with source text and frontmatter on the left and a preview with a Mermaid mind map on the right.">
         </div>
         <div class="frame" id="shot-related" role="tabpanel" aria-labelledby="tab-related" hidden>
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Photography Hub.md</span></div>
-          <img src="img/note.webp" width="2200" height="1375" loading="lazy" alt="A rendered note with a mind map, and the Related tab listing four linked notes.">
+          <img src="img/note.webp" width="2200" height="1375" loading="lazy" alt="Note with a mind map and four linked notes listed in the Related tab.">
         </div>
       </div>
     </div>
@@ -267,18 +267,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="feature">
       <div class="copy reveal">
         <span class="eyebrow">Import · Media Import addon</span>
-        <h2>Follow channels without downloading them</h2>
-        <p>Paste a YouTube or Vimeo URL, or subscribe to a channel or playlist. Litloft saves the title, thumbnail and any captions, and the video plays embedded from its source. The captions then join search and Ask like any local file.</p>
+        <h2>Follow channels without downloading videos</h2>
+        <p>Add a YouTube or Vimeo URL, or subscribe to a channel or playlist. Litloft saves the title, thumbnail and available captions, then plays the video using the source site's embedded player. Captions can be searched and used by Ask, just like local file content.</p>
         <ul class="points">
-          <li>Channel and playlist subscriptions that sync on a schedule</li>
-          <li>A Watch tab for the sources you follow, and an activity log with retry</li>
-          <li>Turned on or off per drive</li>
+          <li>Scheduled syncing for channel and playlist subscriptions</li>
+          <li>A Watch tab for new videos from your subscriptions, plus an import log with retry options</li>
+          <li>Enable or disable imports for each drive</li>
         </ul>
       </div>
       <div class="visual reveal">
         <div class="frame">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · YouTube &amp; Feeds</span></div>
-          <img src="img/feeds.webp" width="2200" height="1375" loading="lazy" alt="YouTube and Feeds: an Add a source field, one channel subscription, and recent imports by date.">
+          <img src="img/feeds.webp" width="2200" height="1375" loading="lazy" alt="YouTube and Feeds screen with an Add a source field, one channel subscription and recent imports grouped by date.">
         </div>
       </div>
     </div>
@@ -287,16 +287,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="copy reveal">
         <span class="eyebrow">On your phone</span>
         <h2>The same library on your phone</h2>
-        <p>Every screen has a phone layout. Add Litloft to the home screen to open it in its own window, or build the iOS app to keep audio playing with the screen locked and send video to picture-in-picture.</p>
+        <p>All screens adapt to mobile devices. Add Litloft to your home screen to use it in a standalone window. The iOS app, available to build from source, also supports audio playback while the screen is locked and picture-in-picture video.</p>
         <ul class="points">
-          <li>Serve it over HTTPS for Safari on iPhone and iPad</li>
-          <li>Away from home, reach it through a VPN such as Tailscale</li>
+          <li>Use HTTPS when accessing Litloft in Safari on iPhone or iPad</li>
+          <li>Connect through a VPN such as Tailscale when away from home</li>
         </ul>
       </div>
       <div class="visual reveal">
         <div class="phones">
-          <div class="phone"><img src="img/mobile-home.webp" width="780" height="1688" loading="lazy" alt="Home on a phone: Continue Watching in two columns."></div>
-          <div class="phone"><img src="img/mobile-note.webp" width="780" height="1688" loading="lazy" alt="A Markdown note on a phone, with its properties card and mind map."></div>
+          <div class="phone"><img src="img/mobile-home.webp" width="780" height="1688" loading="lazy" alt="Mobile Home screen with Continue Watching displayed in two columns."></div>
+          <div class="phone"><img src="img/mobile-note.webp" width="780" height="1688" loading="lazy" alt="Markdown note on a phone, showing its properties card and mind map."></div>
         </div>
       </div>
     </div>
@@ -308,35 +308,35 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <section id="internals" class="section hood">
   <div class="container">
     <div class="section-head">
-      <span class="eyebrow reveal">Under the hood</span>
-      <h2 class="reveal">Files stay on disk, the index lives in SQLite</h2>
-      <p class="reveal">Litloft reads your folders where they are and keeps what it learns about them in a SQLite database on your machine.</p>
+      <span class="eyebrow reveal">How it works</span>
+      <h2 class="reveal">File storage and search indexing</h2>
+      <p class="reveal">Litloft reads files from your existing folders without moving them. Search indexes are stored in a local SQLite database.</p>
     </div>
     <div class="hood-grid">
       <div class="hood-card reveal">
-        <h3>Your files stay files</h3>
+        <h3>Use your existing folders</h3>
         <ul>
-          <li>Drives are host folders mounted into Docker</li>
-          <li>Notes are <code>.md</code> files; imported videos are small <code>.loft</code> files</li>
-          <li>Deleted files wait 30 days in Trash; a file that disappears from disk keeps its history until it comes back</li>
+          <li>Host folders mounted into Docker serve as drives</li>
+          <li>Notes are stored as <code>.md</code> files; imported video references use <code>.loft</code> files</li>
+          <li>Deleted files stay in Trash for 30 days; history is retained for missing files until they are detected again</li>
         </ul>
       </div>
       <div class="hood-card reveal">
-        <h3>Indexing, if you add it</h3>
+        <h3>Optional search indexing</h3>
         <ul>
-          <li>Audio and video transcribed by faster-Whisper, or a cloud provider you pick</li>
-          <li>Subtitles, PDFs and text split into passages and embedded</li>
-          <li>Images and video frames embedded with a SigLIP2 or CLIP model</li>
-          <li>Full-text search in SQLite FTS5, vectors in <code>sqlite-vec</code></li>
+          <li>Audio and video transcription with faster-Whisper or your chosen cloud provider</li>
+          <li>Text embeddings for passages from subtitles, PDFs and text files</li>
+          <li>Image and video frame embeddings using SigLIP2 or CLIP</li>
+          <li>Full-text search with SQLite FTS5 and vector storage with <code>sqlite-vec</code></li>
         </ul>
       </div>
       <div class="hood-card reveal">
-        <h3>Drives are boundaries</h3>
+        <h3>Access control for each drive</h3>
         <ul>
           <li>Each drive can have its own password and access group</li>
-          <li>Search, tags, favourites and Ask never cross drives</li>
-          <li>Each addon, or one feature of it, is switched on or off per drive</li>
-          <li>A locked drive is not listed by name until it is unlocked</li>
+          <li>Search, tags, favorites and Ask are limited to the current drive</li>
+          <li>Addons and individual features can be enabled or disabled for each drive</li>
+          <li>Locked drive names remain hidden until the drive is unlocked</li>
         </ul>
       </div>
     </div>
@@ -353,39 +353,39 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal">Addons</span>
-      <h2 class="reveal">Start with a media server, add the rest when you need it</h2>
-      <p class="reveal">The core is a file browser and player. Each addon is its own repository, and each drive decides which ones it uses.</p>
+      <h2 class="reveal">Add the features you need</h2>
+      <p class="reveal">Litloft includes file browsing, playback and filename search. Addons provide content search, notes and other features. Each addon has its own repository and can be enabled separately for each drive.</p>
     </div>
     <div class="addon-grid">
       <div class="addon reveal">
         <span class="kind">Recommended</span>
         <h3>Intelligence</h3>
-        <p>Transcripts, search by meaning, scene and image search, Ask with citations, summaries, tag suggestions and chapter candidates. LLM features use Ollama or any OpenAI-compatible endpoint.</p>
+        <p>Adds transcription, semantic search, scene and image search, Ask with citations, summaries, and tag and chapter suggestions. LLM features connect to Ollama or an OpenAI-compatible API.</p>
       </div>
       <div class="addon reveal">
         <span class="kind">Notes</span>
         <h3>Knowledge</h3>
-        <p>The Markdown editor with live preview, version history, the Notes page, web clipping, the capture basket and the connections graph.</p>
+        <p>Adds a Markdown editor with live preview, version history, a Notes page, web clipping and the capture basket. A graph shows connections between notes and files.</p>
       </div>
       <div class="addon reveal">
         <span class="kind">Sources</span>
         <h3>Media Import</h3>
-        <p>YouTube and Vimeo URLs as <code>.loft</code> files, channel and playlist subscriptions, caption import and an import log.</p>
+        <p>Saves YouTube and Vimeo URLs as <code>.loft</code> files. Supports channel and playlist subscriptions, caption imports and an import log.</p>
       </div>
       <div class="addon reveal">
         <span class="kind">Backup</span>
         <h3>Cloud Sync</h3>
-        <p>Scheduled backups of your drives through rclone, to S3, Backblaze B2, Google Drive and the other providers rclone supports.</p>
+        <p>Schedules drive backups using rclone. Destinations include S3, Backblaze B2, Google Drive and other services supported by rclone.</p>
       </div>
     </div>
     <div class="extras">
       <div class="extra reveal">
         <h3>iOS app</h3>
-        <p>A native shell around the web app, built from <code>ios/</code> in Xcode. Background audio with lock-screen controls, picture-in-picture video and AirPlay. Not on the App Store.</p>
+        <p>An iOS wrapper for the web app, built from <code>ios/</code> in Xcode. Supports background audio, lock-screen controls, picture-in-picture video and AirPlay. The app is not distributed through the App Store.</p>
       </div>
       <div class="extra reveal">
         <h3>MCP server</h3>
-        <p>Lets an MCP client such as Claude Desktop search, read, tag, rename and edit files through Litloft's own API, with the same drive access rules as the browser.</p>
+        <p>Allows MCP clients such as Claude Desktop to search, read, tag, rename and edit files through the Litloft API. The same drive permissions apply as in the browser.</p>
       </div>
     </div>
   </div>
@@ -397,7 +397,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="section-head">
       <span class="eyebrow reveal">Setup</span>
       <h2 class="reveal">Install in four steps</h2>
-      <p class="reveal">You need Git, Docker with Compose v2, Python 3, and about 5 GB of disk. Everything else runs inside the containers.</p>
+      <p class="reveal">Installation requires Git, Docker with Compose v2, Python 3 and approximately 5 GB of free disk space. All other dependencies run inside the containers.</p>
     </div>
 
     <div class="steps">
@@ -405,7 +405,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="step-rail"><span class="step-num"></span></div>
         <div class="step-body">
           <h3>Clone the repository</h3>
-          <p>The addons are Git submodules, so clone them along with the core.</p>
+          <p>Addons are managed as Git submodules. Use the following command to clone them with the main repository.</p>
 <div class="code"><span class="p">$ </span>git clone --recurse-submodules https://github.com/mamepenguin/Litloft
 <span class="p">$ </span>cd Litloft</div>
         </div>
@@ -415,7 +415,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="step-rail"><span class="step-num"></span></div>
         <div class="step-body">
           <h3>Run <code>configure.py</code></h3>
-          <p>A short script that writes only what Docker needs to start. Press Enter to accept each default.</p>
+          <p>Follow the prompts to configure the Docker environment. Press Enter at any prompt to accept the default value.</p>
           <div class="os-tabs" role="tablist" aria-label="Operating system">
             <button class="os-tab" role="tab" aria-selected="true" aria-controls="os-unix" id="tab-unix">macOS / Linux</button>
             <button class="os-tab" role="tab" aria-selected="false" aria-controls="os-win" id="tab-win" tabindex="-1">Windows</button>
@@ -423,12 +423,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <div class="code" id="os-unix" role="tabpanel" aria-labelledby="tab-unix"><span class="p">$ </span>python3 configure.py</div>
 <div class="code" id="os-win" role="tabpanel" aria-labelledby="tab-win" hidden><span class="p">&gt; </span>py -3 configure.py</div>
           <ul class="asks">
-            <li><span>1</span><span>The host folders to mount as drives, each with a short slug. You name the drives later.</span></li>
-            <li><span>2</span><span>The port, 3000 by default.</span></li>
-            <li><span>3</span><span>Whether to run Intelligence (yes by default), and an optional <code class="ic">LLM_API_KEY</code>, which you leave blank for a local model.</span></li>
-            <li><span>4</span><span>Whether to run Knowledge (no by default). Media Import and Cloud Sync are not asked about; you turn them on per drive later.</span></li>
+            <li><span>1</span><span>Specify the host folders to mount as drives and a short identifier (slug) for each. Display names are set later.</span></li>
+            <li><span>2</span><span>Choose a port. The default is 3000.</span></li>
+            <li><span>3</span><span>Choose whether to enable Intelligence (default: yes). The <code class="ic">LLM_API_KEY</code> is optional and can be left blank when using a local model.</span></li>
+            <li><span>4</span><span>Choose whether to enable Knowledge (default: no). Media Import and Cloud Sync are enabled separately for each drive after setup.</span></li>
           </ul>
-          <p class="foot">It writes <code class="ic">docker-compose.override.yml</code> and <code class="ic">.env</code>, and asks before overwriting anything.</p>
+          <p class="foot">The script creates <code class="ic">docker-compose.override.yml</code> and <code class="ic">.env</code>. It asks for confirmation before overwriting existing files.</p>
         </div>
       </div>
 
@@ -436,9 +436,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="step-rail"><span class="step-num"></span></div>
         <div class="step-body">
           <h3>Start the containers</h3>
-          <p><code class="ic">configure.py</code> offers to start Litloft when it finishes. The first build takes several minutes.</p>
+          <p><code class="ic">configure.py</code> can start Litloft after configuration is complete. The initial build takes several minutes.</p>
 <div class="code"><span class="p">$ </span>docker compose up -d --build
-<span class="c"># later, to update:</span>
+<span class="c"># To update:</span>
 <span class="p">$ </span>git pull --recurse-submodules &amp;&amp; docker compose up -d --build</div>
         </div>
       </div>
@@ -446,17 +446,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="step reveal">
         <div class="step-rail"><span class="step-num"></span></div>
         <div class="step-body">
-          <h3>Finish in the setup wizard</h3>
-          <p>Open the address <code class="ic">configure.py</code> printed, such as <code class="ic">http://localhost:3000/setup?token=…</code>. The wizard names your drives, sets passwords and access groups, and chooses which addons each drive uses. All of it can be changed later at <code class="ic">/admin/settings</code>.</p>
+          <h3>Complete setup in your browser</h3>
+          <p>Open the address shown by <code class="ic">configure.py</code>, such as <code class="ic">http://localhost:3000/setup?token=…</code>. Follow the setup wizard to name your drives, set passwords and access groups, and select addons for each drive. You can change these settings later at <code class="ic">/admin/settings</code>.</p>
         </div>
       </div>
     </div>
 
     <div class="llm-box reveal">
       <h3>Using an LLM</h3>
-      <p>Summaries, tag suggestions, chapter candidates and Ask need an LLM. Search and transcription work without one. You choose the provider and model in the browser after setup.</p>
-      <p>For a local model, install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> on the host and pull a model, and your files stay on your machine. Litloft also works with any OpenAI-compatible API, with the key in <code class="ic">.env</code>; file text is then sent to that API when indexing and asking.</p>
-      <p>The <a href="https://github.com/mamepenguin/Litloft/blob/main/docs/getting-started/installation.md" target="_blank" rel="noopener noreferrer">installation guide</a> has the details, including HTTPS for iPhone and iPad.</p>
+      <p>Summaries, tag and chapter suggestions, and Ask require an LLM. Search and transcription work without one. Select your provider and model in the browser after completing setup.</p>
+      <p>To run a model locally, install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> on the host and download a model. LLM processing then takes place on your own computer or server. To use an OpenAI-compatible API, set its key in <code class="ic">.env</code>. In this case, file text is sent to the configured API during indexing and when you ask questions.</p>
+      <p>See the <a href="https://github.com/mamepenguin/Litloft/blob/main/docs/getting-started/installation.md" target="_blank" rel="noopener noreferrer">installation guide</a> for detailed instructions, including HTTPS configuration for iPhone and iPad.</p>
     </div>
   </div>
 </section>
@@ -466,14 +466,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal">Before you install</span>
-      <h2 class="reveal">What Litloft is not</h2>
-      <p class="reveal">A personal project, built first for one household's library. Issues and pull requests are welcome; support is best effort.</p>
+      <h2 class="reveal">Supported use and limitations</h2>
+      <p class="reveal">Litloft is a personal project developed for home use. Bug reports and contributions are welcome through GitHub issues and pull requests. Support is provided as time permits.</p>
     </div>
     <div class="not-grid reveal">
-      <p class="not-item">It is not meant for the public internet. Authentication is minimal by design, so use it on your LAN or through a VPN.</p>
-      <p class="not-item">It has no user accounts. A profile is a nickname you pick in the browser.</p>
-      <p class="not-item">It does not replace Plex. It neither transcodes video nor fetches metadata from online databases.</p>
-      <p class="not-item">It does not work offline. Without a connection to the server, the browser and the app show nothing.</p>
+      <p class="not-item">Litloft is intended for use on your LAN or through a VPN. Authentication is minimal, so direct exposure to the public internet is not recommended.</p>
+      <p class="not-item">User accounts are not supported. Profiles use nicknames set in the browser.</p>
+      <p class="not-item">Video transcoding and metadata retrieval from online databases, as offered by Plex, are not supported.</p>
+      <p class="not-item">Both the browser and the app require a connection to the server. Offline browsing and playback are not supported.</p>
     </div>
   </div>
 </section>
@@ -483,11 +483,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <section class="cta">
   <div class="container">
     <img src="icon.svg" alt="" width="64" height="64">
-    <h2>Keep the library at home.</h2>
-    <p>Free and open source under AGPL-3.0. Clone it, point it at a folder, and open it in a browser.</p>
+    <h2>Get started with Litloft</h2>
+    <p>Litloft is free and open source under the AGPL-3.0 license. Source code and installation instructions are available on GitHub.</p>
     <div class="cta-btns">
-      <a href="https://github.com/mamepenguin/Litloft" class="btn btn-light btn-lg" target="_blank" rel="noopener noreferrer">Get it on GitHub</a>
-      <a href="https://github.com/mamepenguin/Litloft/blob/main/docs/README.md" class="btn btn-ghost btn-lg" target="_blank" rel="noopener noreferrer">Read the docs</a>
+      <a href="https://github.com/mamepenguin/Litloft" class="btn btn-light btn-lg" target="_blank" rel="noopener noreferrer">Get Litloft on GitHub</a>
+      <a href="https://github.com/mamepenguin/Litloft/blob/main/docs/README.md" class="btn btn-ghost btn-lg" target="_blank" rel="noopener noreferrer">Read the documentation</a>
     </div>
   </div>
 </section>
