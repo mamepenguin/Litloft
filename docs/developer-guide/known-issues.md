@@ -69,6 +69,19 @@ whichever goes first has a red parity job. Deferred for that reason, not
 because the boundary is in doubt. `.adoc` is Other rather than Document for the
 same reason.
 
+**A zoomed PDF page can stay blurred for one prefetch.** After the page on
+screen is drawn, the viewer draws the next and previous page ahead, one at a
+time, and a running prefetch is never interrupted. A zoom made while one runs
+shows the old size stretched until that prefetch finishes. Reached by zooming
+right after opening a page or turning to it; longest on a slow device and an
+image-heavy PDF. (PR #368 r1 F3; interrupting it was tried and removed in r2.)
+
+**A full-screen PDF zoom can briefly show the inline page's picture.** While
+the zoomed size is drawn, the viewer shows the newest picture it has of that
+page, which is the inline one when the inline page redrew last (after a window
+resize with full screen open). The page goes sharp, blurred, sharp; it is never
+blank. (PR #368 r2 N5.)
+
 **A source file's card shows no excerpt.** A card draws the first lines of a
 file in place of a thumbnail only when the file is a Document, so the source
 files that are now Other lost it — `.c`, `.h`, `.py`, `.pl`, `.css`, `.js` and
