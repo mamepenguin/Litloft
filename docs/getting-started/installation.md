@@ -94,6 +94,22 @@ Browser
 
 The backend is `expose:`-only and not reachable from outside the Docker network. All traffic enters through the frontend container. This is intentional — see the [architecture guide](../developer-guide/architecture.md).
 
+## Serving over HTTPS for iPhone and iPad
+
+Open Litloft over `https://` if anyone uses it from Safari on an iPhone or iPad, including from the home screen.
+
+Newer Safari (seen on iPadOS 27) runs a page loaded over plain `http://` with its JavaScript compiler switched off. Everything still works, but the JavaScript runs roughly ten times slower. PDFs make this easy to notice: on an iPad, turning a page can take several seconds instead of a fraction of one. Safari keeps the page in that mode while you follow links inside it, so switching to HTTPS is the only fix. Nothing in Litloft can change it.
+
+The frontend serves plain HTTP, so HTTPS has to come from something in front of it. If your devices already reach the server over [Tailscale](https://tailscale.com), `tailscale serve` provides the certificate and renews it for you. First enable MagicDNS and HTTPS certificates in the Tailscale admin console. Then run this once on the server:
+
+```bash
+tailscale serve --bg --https=443 http://localhost:3000   # the port Litloft listens on
+```
+
+Litloft is then at `https://<machine-name>.<tailnet>.ts.net`. `--bg` saves the setting, so it comes back by itself after a reboot. Use `tailscale serve status` to check it. On macOS the Tailscale app keeps the command inside the app bundle, at `/Applications/Tailscale.app/Contents/MacOS/Tailscale`.
+
+A home-screen app belongs to the address it was added from. After switching to HTTPS, open the new address in Safari and add it to the home screen again.
+
 ## Common installation issues
 
 - **Port already in use.** Set `LITLOFT_PORT` in `.env` or change the `frontend.ports` mapping in your override file.

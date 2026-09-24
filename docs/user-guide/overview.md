@@ -81,7 +81,7 @@ one action.
 - Admin dashboard at `/admin` (per-drive metrics, system health, restart-pending banner).
 - Settings GUI at `/admin/settings` for drives, passwords, and per-drive addon policy.
 - WebSocket live updates (`/api/ws`) — scan progress and completion, upload completion, and file moves, so open folder views refresh themselves. Addons push their own events through the same channel. See [WebSocket events](../reference/websocket-events.md).
-- Installable as a PWA — "Add to Home Screen" / the browser's install action launches Litloft in a standalone window (custom icon, themed title bar, iOS safe-area handling). It is **not** offline-capable: there is no service worker, so the server must be reachable.
+- Installable as a PWA — "Add to Home Screen" / the browser's install action launches Litloft in a standalone window (custom icon, themed title bar, iOS safe-area handling). It is **not** offline-capable: there is no service worker, so the server must be reachable. On an iPhone or iPad, add it from an `https://` address: newer Safari runs plain-`http://` pages much slower (see [Serving over HTTPS](../getting-started/installation.md#serving-over-https-for-iphone-and-ipad)).
 - Dark / light / system theme, cookie-driven language preference with no URL prefix.
 
 ### Optional via addons
