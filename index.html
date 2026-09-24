@@ -3,15 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Litloft — Self-hosted research library for media and notes</title>
+  <title>Litloft — A self-hosted media library for your home network</title>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-2R74EW5DRV"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    
-      gtag('config', 'G-2R74EW5DRV');
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-2R74EW5DRV');
   </script>
   <!-- Google Tag Manager -->
   <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -19,49 +18,49 @@
     j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
     })(window,document,'script','dataLayer','GTM-WL8DZDWF');</script>
-<!-- End Google Tag Manager -->
-  <meta name="description" content="Index videos, PDFs, web media, and Markdown notes on your own hardware. Search with citations, stream locally, and optionally use an LLM for summaries and Q&amp;A.">
-  <meta property="og:title" content="Litloft — Self-hosted research library for media and notes">
-  <meta property="og:description" content="A local research library for videos, documents, web media, and notes. Search with citations and keep generated content under your control.">
+  <!-- End Google Tag Manager -->
+  <meta name="description" content="Litloft is a self-hosted library for videos, audio, PDFs, images and Markdown notes on your home LAN. Stream and read in the browser, search inside transcripts and documents, and optionally use a local LLM for cited answers.">
+  <meta property="og:title" content="Litloft — A self-hosted media library for your home network">
+  <meta property="og:description" content="Stream videos, read PDFs, write Markdown notes, and search inside all of them. Runs on your own hardware with Docker.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://mamepenguin.github.io/Litloft/">
   <meta property="og:site_name" content="Litloft">
   <meta property="og:image" content="https://mamepenguin.github.io/Litloft/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Litloft — a self-hosted research library, showing its media home screen.">
+  <meta property="og:image:alt" content="Litloft's Home screen, with Continue Watching and Pickup rows.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Litloft — Self-hosted research library for media and notes">
-  <meta name="twitter:description" content="A local research library for videos, documents, web media, and notes. Search with citations and keep generated content under your control.">
+  <meta name="twitter:title" content="Litloft — A self-hosted media library for your home network">
+  <meta name="twitter:description" content="Stream videos, read PDFs, write Markdown notes, and search inside all of them. Runs on your own hardware with Docker.">
   <meta name="twitter:image" content="https://mamepenguin.github.io/Litloft/og.png">
-  <meta name="theme-color" content="#E53935">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23E53935' fill-opacity='.1'/%3E%3Cpath d='M16 6L6 13v12h6v-6h8v6h6V13L16 6z' stroke='%23E53935' stroke-width='2' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#FBF7EF">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --red: #E53935;
-      --red-hover: #C62828;
-      --red-subtle: #FFF5F5;
-      --text: #0F172A;
-      --text-2: #475569;
-      --text-3: #94A3B8;
-      --bg: #FFFFFF;
-      --bg-2: #F8FAFC;
-      --bg-3: #F1F5F9;
-      --border: #E2E8F0;
-      --border-2: #CBD5E1;
-      --shadow: 0 4px 16px rgba(15,23,42,.07), 0 2px 6px rgba(15,23,42,.04);
-      --shadow-lg: 0 20px 48px rgba(15,23,42,.10), 0 8px 16px rgba(15,23,42,.06);
-      --shadow-xl: 0 40px 80px rgba(15,23,42,.12), 0 16px 32px rgba(15,23,42,.06);
+      --red: #D93A32;
+      --red-hover: #B92E27;
+      --red-soft: #FCEBE8;
+      --ink: #2A1A13;
+      --ink-2: #5B4A40;
+      --ink-3: #8E7E73;
+      --cream: #FBF7EF;
+      --cream-2: #F4EDE0;
+      --paper: #FFFFFF;
+      --line: #E8DECF;
+      --line-2: #D8CAB5;
+      --night: #26140D;
+      --night-2: #331D15;
+      --shadow-lg: 0 2px 4px rgba(42,26,19,.05), 0 24px 60px rgba(42,26,19,.14);
       --r: 14px;
       --r-sm: 8px;
-      --r-lg: 20px;
       --ease: cubic-bezier(0.4, 0, 0.2, 1);
     }
 
@@ -69,1478 +68,287 @@
 
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      color: var(--text);
-      background: var(--bg);
+      color: var(--ink);
+      background: var(--cream);
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
     }
 
-    h1, h2, h3, h4 {
-      font-family: 'Poppins', sans-serif;
-      line-height: 1.15;
-      letter-spacing: -0.025em;
-    }
+    h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; }
+    h1, h2 { font-family: 'Fraunces', Georgia, serif; font-weight: 700; }
+    h3 { font-weight: 600; }
+    a { color: inherit; }
+    code { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .9em; }
+    img { display: block; max-width: 100%; height: auto; }
 
     .container { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
 
     /* ─── NAV ─── */
-    nav {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: rgba(255,255,255,0.90);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
+    .topnav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(251,247,239,.88);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--line);
     }
-
-    .nav-inner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 62px;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-      color: var(--text);
-    }
-
-    .logo-text {
-      font-family: 'Poppins', sans-serif;
-      font-weight: 700;
-      font-size: 19px;
-      letter-spacing: -0.03em;
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 62px; gap: 16px; }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .logo img { width: 30px; height: 30px; }
+    .logo span { font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+    .nav-links { display: flex; align-items: center; gap: 2px; }
     .nav-link {
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-2);
-      text-decoration: none;
-      padding: 6px 14px;
-      border-radius: var(--r-sm);
-      transition: color 180ms var(--ease), background 180ms var(--ease);
+      font-size: 14px; font-weight: 500; color: var(--ink-2); text-decoration: none;
+      padding: 6px 12px; border-radius: var(--r-sm);
+      transition: color 160ms var(--ease), background 160ms var(--ease);
     }
-
-    .nav-link:hover { color: var(--text); background: var(--bg-3); }
+    .nav-link:hover { color: var(--ink); background: var(--cream-2); }
 
     /* ─── BUTTONS ─── */
     .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 9px 18px;
-      border-radius: var(--r-sm);
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-      border: 1.5px solid transparent;
-      transition: all 180ms var(--ease);
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 9px 18px; border-radius: var(--r-sm);
+      font: 600 14px 'Inter', sans-serif; text-decoration: none; cursor: pointer;
+      border: 1.5px solid transparent; transition: all 160ms var(--ease);
     }
+    .btn-primary { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn-primary:hover { background: var(--red-hover); border-color: var(--red-hover); }
+    .btn-outline { background: var(--paper); color: var(--ink); border-color: var(--line-2); }
+    .btn-outline:hover { background: var(--cream-2); }
+    .btn-lg { padding: 13px 24px; font-size: 15px; border-radius: 10px; }
+    .btn-light { background: var(--cream); color: var(--ink); border-color: var(--cream); }
+    .btn-light:hover { background: #fff; }
+    .btn-ghost { background: transparent; color: var(--cream); border-color: rgba(251,247,239,.3); }
+    .btn-ghost:hover { background: rgba(251,247,239,.08); }
 
-    .btn-primary { background: var(--red); color: white; border-color: var(--red); }
-    .btn-primary:hover {
-      background: var(--red-hover);
-      border-color: var(--red-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 14px rgba(229,57,53,.30);
-    }
-
-    .btn-outline { background: transparent; color: var(--text); border-color: var(--border-2); }
-    .btn-outline:hover { background: var(--bg-3); border-color: var(--border-2); }
-
-    .btn-lg { padding: 13px 26px; font-size: 15px; border-radius: 10px; }
-
-    .btn-ghost { background: rgba(255,255,255,.10); color: white; border-color: rgba(255,255,255,.20); }
-    .btn-ghost:hover { background: rgba(255,255,255,.18); }
-
-    /* ─── BADGE ─── */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 4px 12px;
-      border-radius: 100px;
-      font-size: 11.5px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .badge-red {
-      background: var(--red-subtle);
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
       color: var(--red);
-      border: 1px solid rgba(229,57,53,.15);
     }
-
-    .badge-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: currentColor;
-    }
+    .eyebrow::before { content: ''; width: 18px; height: 2px; background: currentColor; border-radius: 1px; }
 
     /* ─── HERO ─── */
-    .hero {
-      padding: 88px 0 72px;
-      background: linear-gradient(180deg, #fff 0%, #F8FAFC 100%);
-      text-align: center;
+    .hero { padding: 80px 0 0; text-align: center; overflow: hidden; }
+    .hero-inner { display: flex; flex-direction: column; align-items: center; gap: 20px; max-width: 800px; margin: 0 auto; }
+    .release-pill {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 5px 6px 5px 14px; border-radius: 100px;
+      background: var(--paper); border: 1px solid var(--line);
+      font-size: 13px; color: var(--ink-2); text-decoration: none;
+      box-shadow: 0 1px 2px rgba(42,26,19,.05);
     }
+    .release-pill b { color: var(--ink); font-weight: 600; }
+    .release-pill .go { background: var(--red-soft); color: var(--red); font-weight: 600; padding: 2px 10px; border-radius: 100px; font-size: 12px; white-space: nowrap; }
+    .hero h1 { font-size: clamp(38px, 6vw, 68px); letter-spacing: -0.03em; line-height: 1.04; }
+    .hero h1 em { font-style: italic; color: var(--red); }
+    .hero-sub { font-size: clamp(16px, 2vw, 19px); color: var(--ink-2); max-width: 620px; line-height: 1.65; }
+    .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+    .facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; font-size: 13px; color: var(--ink-3); }
+    .facts span { display: inline-flex; align-items: center; gap: 7px; }
+    .facts span::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--line-2); }
+    .hero-shot { margin: 56px auto 0; max-width: 1080px; }
+    .hero-shot .frame { border-radius: 14px 14px 0 0; border-bottom: 0; }
 
-    .hero-inner {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-      max-width: 780px;
-      margin: 0 auto;
-    }
-
-    .hero h1 {
-      font-size: clamp(36px, 5.5vw, 64px);
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      line-height: 1.08;
-    }
-
-    .hero h1 em { font-style: normal; color: var(--red); }
-
-    .hero-sub {
-      font-size: clamp(16px, 2vw, 19px);
-      color: var(--text-2);
-      max-width: 580px;
-      line-height: 1.65;
-    }
-
-    .hero-ctas {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-top: 4px;
-    }
-
-    .hero-note {
-      font-size: 13px;
-      color: var(--text-3);
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .hero-note-sep { width: 1px; height: 12px; background: var(--border); }
-
-    .hero-mockup-wrap {
-      margin-top: 64px;
-      width: 100%;
-      max-width: 1040px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    /* ─── RESEARCH POSITIONING ─── */
-    .research {
-      padding: 92px 0 70px;
-      background: var(--bg);
-      border-top: 1px solid var(--border);
-    }
-
-    .research-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 18px;
-    }
-
-    .research-card {
-      background: white;
-      border: 1px solid var(--border);
+    /* ─── SCREENSHOT FRAME ─── */
+    .frame {
+      background: var(--paper);
+      border: 1px solid var(--line);
       border-radius: var(--r);
-      padding: 24px;
-    }
-
-    .research-label {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--red);
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      margin-bottom: 14px;
-    }
-
-    .research-card h3 {
-      font-size: 18px;
-      font-weight: 600;
-      letter-spacing: 0;
-      margin-bottom: 9px;
-    }
-
-    .research-card p {
-      font-size: 14px;
-      color: var(--text-2);
-      line-height: 1.68;
-    }
-
-    /* ─── SCREENSHOT IMAGE ─── */
-    .screenshot-img {
-      display: block;
-      width: 100%;
-      height: auto;
-      border-radius: 0 0 var(--r-lg) var(--r-lg);
-    }
-
-    /* ─── BROWSER CHROME ─── */
-    .browser {
-      background: white;
-      border-radius: var(--r-lg);
-      box-shadow: var(--shadow-xl);
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-
-    .browser-bar {
-      display: flex;
-      align-items: center;
-      padding: 10px 14px;
-      background: var(--bg-3);
-      border-bottom: 1px solid var(--border);
-      gap: 8px;
-    }
-
-    .dot-red   { width: 10px; height: 10px; border-radius: 50%; background: #FF5F57; flex-shrink: 0; }
-    .dot-yellow{ width: 10px; height: 10px; border-radius: 50%; background: #FFBD2E; flex-shrink: 0; }
-    .dot-green { width: 10px; height: 10px; border-radius: 50%; background: #28C840; flex-shrink: 0; }
-
-    .browser-url {
-      flex: 1;
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 3px 10px;
-      font-size: 11px;
-      color: var(--text-3);
-      font-family: 'Inter', sans-serif;
-      margin: 0 12px;
-      text-align: left;
-    }
-
-    /* ─── APP MOCKUP (HERO) ─── */
-    .app-window {
-      display: flex;
-      min-height: 400px;
-      background: var(--bg-2);
-    }
-
-    .app-sidebar {
-      width: 196px;
-      min-width: 196px;
-      background: white;
-      border-right: 1px solid var(--border);
-      padding: 14px 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .app-sidebar-logo {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 4px 8px 12px;
-      font-family: 'Poppins', sans-serif;
-      font-weight: 700;
-      font-size: 13px;
-      color: var(--text);
-    }
-
-    .sidebar-section {
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-3);
-      padding: 8px 8px 3px;
-    }
-
-    .sidebar-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 5px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      color: var(--text-2);
-    }
-
-    .sidebar-item.active {
-      background: #FFEBEE;
-      color: var(--red);
-      font-weight: 600;
-    }
-
-    .si-dot {
-      width: 13px;
-      height: 13px;
-      border-radius: 3px;
-      background: var(--bg-3);
-      flex-shrink: 0;
-    }
-
-    .sidebar-item.active .si-dot { background: var(--red); opacity: 0.25; }
-
-    .app-main {
-      flex: 1;
-      padding: 18px 20px;
+      box-shadow: var(--shadow-lg);
       overflow: hidden;
     }
-
-    .app-section-header {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 11px;
+    .frame-bar {
+      display: flex; align-items: center; gap: 7px;
+      padding: 9px 14px; background: var(--cream-2); border-bottom: 1px solid var(--line);
+    }
+    .frame-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line-2); }
+    .frame-bar .url {
+      flex: 1; margin: 0 10px; padding: 2px 10px; border-radius: 6px;
+      background: var(--paper); border: 1px solid var(--line);
+      font-size: 11px; color: var(--ink-3); text-align: left;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
-    .app-section-icon {
-      width: 15px;
-      height: 15px;
-      border-radius: 4px;
-      background: var(--red);
-      opacity: 0.2;
+    /* ─── SECTIONS ─── */
+    section { scroll-margin-top: 70px; }
+    .section { padding: 104px 0; }
+    .section-head { max-width: 680px; margin: 0 auto 56px; text-align: center; }
+    .section-head h2 { font-size: clamp(28px, 3.8vw, 44px); margin: 14px 0; }
+    .section-head p { font-size: 17px; color: var(--ink-2); }
+    .paper { background: var(--paper); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+
+    /* ─── WHAT'S NEW ─── */
+    .new-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .new-card { background: var(--cream); border: 1px solid var(--line); border-radius: var(--r); padding: 22px 22px 24px; }
+    .new-card .tag {
+      display: inline-block; font-size: 11px; font-weight: 600; color: var(--ink-3);
+      border: 1px solid var(--line-2); border-radius: 100px; padding: 1px 9px; margin-bottom: 14px;
+    }
+    .new-card h3 { font-size: 17px; margin-bottom: 8px; }
+    .new-card p { font-size: 14px; color: var(--ink-2); line-height: 1.65; }
+    kbd {
+      font: 500 .85em 'JetBrains Mono', monospace; background: var(--paper);
+      border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px;
     }
 
-    .thumb-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 22px;
+    /* ─── FEATURE BLOCKS ─── */
+    .feature {
+      display: grid; grid-template-columns: 5fr 7fr; gap: 64px; align-items: center;
+      padding: 72px 0; border-top: 1px solid var(--line);
+    }
+    .feature:first-child { border-top: 0; padding-top: 0; }
+    .feature.flip { grid-template-columns: 7fr 5fr; }
+    .feature.flip .copy { order: 2; }
+    .feature.flip .visual { order: 1; }
+    .copy h2 { font-size: clamp(26px, 3vw, 38px); margin: 14px 0 16px; }
+    .copy > p { font-size: 16px; color: var(--ink-2); line-height: 1.72; margin-bottom: 22px; }
+    .copy > p b { color: var(--ink); }
+    .points { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .points li { position: relative; padding-left: 26px; font-size: 14.5px; color: var(--ink-2); line-height: 1.6; }
+    .points li::before {
+      content: ''; position: absolute; left: 0; top: 4px; width: 16px; height: 16px; border-radius: 50%;
+      background: var(--red-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.2l2.3 2.3 4.7-4.9' fill='none' stroke='%23D93A32' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat;
+    }
+    .note {
+      margin-top: 20px; padding: 12px 14px; border-radius: var(--r-sm);
+      background: var(--cream-2); border: 1px solid var(--line);
+      font-size: 13.5px !important; color: var(--ink-2); line-height: 1.6 !important; margin-bottom: 0 !important;
     }
 
-    .thumb {
-      flex: 1;
-      aspect-ratio: 16/9;
-      border-radius: 7px;
-      position: relative;
-      overflow: hidden;
+    .shot-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+    .shot-tab, .os-tab {
+      font: 600 13px 'Inter', sans-serif; color: var(--ink-2); background: transparent;
+      border: 1px solid var(--line-2); border-radius: 100px; padding: 5px 14px; cursor: pointer;
+      transition: all 160ms var(--ease);
     }
-
-    .thumb::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(0deg, rgba(0,0,0,.45) 0%, transparent 55%);
-    }
-
-    .thumb-bar {
-      position: absolute;
-      bottom: 5px;
-      left: 5px;
-      right: 5px;
-      height: 3px;
-      background: rgba(255,255,255,.25);
-      border-radius: 2px;
-      z-index: 1;
-    }
-
-    .thumb-bar-fill {
-      height: 100%;
-      background: var(--red);
-      border-radius: 2px;
-    }
-
-    .thumb-c { background: linear-gradient(135deg, #667eea, #764ba2); }
-    .thumb-d { background: linear-gradient(135deg, #f093fb, #f5576c); }
-    .thumb-e { background: linear-gradient(135deg, #4facfe, #00f2fe); }
-    .thumb-f { background: linear-gradient(135deg, #43e97b, #38f9d7); }
-    .thumb-g { background: linear-gradient(135deg, #fa709a, #fee140); }
-    .thumb-a { background: linear-gradient(135deg, #a18cd1, #fbc2eb); }
-    .thumb-b { background: linear-gradient(135deg, #fda085, #f6d365); }
-    .thumb-h { background: linear-gradient(135deg, #89f7fe, #66a6ff); }
-    .thumb-i { background: linear-gradient(135deg, #96fbc4, #f9f586); }
-    .thumb-j { background: linear-gradient(135deg, #fccb90, #d57eeb); }
-
-    .thumb-time {
-      position: absolute;
-      bottom: 6px;
-      right: 6px;
-      background: rgba(0,0,0,.65);
-      color: white;
-      font-size: 8px;
-      font-weight: 600;
-      padding: 1px 4px;
-      border-radius: 3px;
-      z-index: 1;
-    }
-
-    /* ─── FEATURE SECTIONS ─── */
-    .features { padding: 80px 0 40px; }
-
-    .feature-block {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 72px;
-      align-items: center;
-      padding: 72px 0;
-      border-top: 1px solid var(--border);
-    }
-
-    .feature-block.reverse .feat-text  { order: 2; }
-    .feature-block.reverse .feat-visual { order: 1; }
-
-    .feat-tag {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--red);
-      margin-bottom: 14px;
-    }
-
-    .feat-tag-line { width: 22px; height: 2px; background: var(--red); border-radius: 1px; }
-
-    .feat-text h2 {
-      font-size: clamp(24px, 2.8vw, 36px);
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      margin-bottom: 14px;
-      line-height: 1.18;
-    }
-
-    .feat-text p {
-      font-size: 16px;
-      color: var(--text-2);
-      line-height: 1.72;
-      margin-bottom: 22px;
-    }
-
-    .feat-points { list-style: none; display: flex; flex-direction: column; gap: 9px; }
-
-    .feat-points li {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      font-size: 14px;
-      color: var(--text-2);
-    }
-
-    .check-icon {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: var(--red-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      margin-top: 1px;
-      border: 1px solid rgba(229,57,53,.15);
-    }
-
-    .feat-visual { position: relative; }
-
-    .feat-visual .browser { position: relative; }
-
-    /* ─── FEATURE 1: CITED Q&A MOCKUP ─── */
-    .mock-ai .app-window {
-      flex-direction: column;
-      min-height: 340px;
-      padding: 18px;
-      gap: 12px;
-    }
-
-    .mock-search {
-      background: white;
-      border: 1.5px solid var(--border-2);
-      border-radius: 10px;
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .mock-search-icon {
-      width: 20px;
-      height: 20px;
-      border-radius: 5px;
-      background: var(--red);
-      opacity: 0.18;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .mock-search-text {
-      font-size: 12px;
-      color: var(--text-2);
-      flex: 1;
-    }
-
-    .mock-ai-badge {
-      background: var(--red);
-      color: white;
-      font-size: 10px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 100px;
-    }
-
-    .mock-response {
-      background: white;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      padding: 14px;
-      flex: 1;
-    }
-
-    .mock-response-label {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--red);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .mock-pulse {
-      width: 7px;
-      height: 7px;
-      background: var(--red);
-      border-radius: 50%;
-      animation: blink 1.4s ease-in-out infinite;
-    }
-
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-    .mock-text-lines { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
-
-    .ml { height: 8px; background: var(--bg-3); border-radius: 4px; }
-    .ml-full { width: 100%; }
-    .ml-90  { width: 90%; }
-    .ml-80  { width: 80%; }
-    .ml-70  { width: 70%; }
-    .ml-60  { width: 60%; }
-
-    .mock-citations {
-      border-top: 1px solid var(--border);
-      padding-top: 10px;
-    }
-
-    .mock-citations-label {
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--text-3);
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .mock-cit-row { display: flex; gap: 8px; }
-
-    .mock-cit {
-      flex: 1;
-      background: var(--bg-2);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-      padding: 8px;
-    }
-
-    .mock-cit-thumb {
-      width: 100%;
-      aspect-ratio: 16/9;
-      border-radius: 4px;
-      margin-bottom: 5px;
-    }
-
-    .mock-cit-line {
-      height: 7px;
-      background: var(--border);
-      border-radius: 3px;
-      margin-bottom: 4px;
-    }
-
-    /* ─── FEATURE 2: YOUTUBE SUMMARY MOCKUP ─── */
-    .mock-yt .app-window {
-      flex-direction: column;
-      min-height: 360px;
-      padding: 0;
-    }
-
-    .mock-player {
-      height: 148px;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-
-    .mock-play {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,.5);
-      background: rgba(255,255,255,.1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .mock-yt-badge {
-      position: absolute;
-      bottom: 8px;
-      right: 10px;
-      background: #FF0000;
-      color: white;
-      font-size: 9px;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 3px;
-      letter-spacing: 0.02em;
-    }
-
-    .mock-player-time {
-      position: absolute;
-      bottom: 8px;
-      left: 10px;
-      color: rgba(255,255,255,.7);
-      font-size: 9px;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .mock-detail {
-      padding: 14px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .mock-title-area { display: flex; flex-direction: column; gap: 5px; }
-
-    .mock-detail-title {
-      height: 10px;
-      background: var(--text);
-      border-radius: 5px;
-      opacity: 0.12;
-    }
-
-    .mock-tags-row { display: flex; gap: 6px; flex-wrap: wrap; }
-
-    .mock-tag {
-      padding: 2px 9px;
-      border-radius: 100px;
-      font-size: 10px;
-      font-weight: 500;
-    }
-
-    .mt-normal { background: var(--bg-3); border: 1px solid var(--border); color: var(--text-2); }
-    .mt-ai { background: #FFEBEE; border: 1px solid rgba(229,57,53,.2); color: var(--red); font-weight: 600; }
-
-    .mock-summary-box {
-      background: var(--bg-2);
-      border-radius: 8px;
-      padding: 10px 12px;
-    }
-
-    .mock-summary-header {
-      font-size: 10px;
-      font-weight: 700;
-      color: var(--red);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 7px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .mock-summary-icon {
-      width: 10px;
-      height: 10px;
-      background: var(--red);
-      border-radius: 2px;
-      opacity: 0.5;
-    }
-
-    /* ─── FEATURE 3: STREAMING MOCKUP ─── */
-    .mock-stream .app-window { min-height: 340px; }
-
-    /* ─── HOW IT WORKS ─── */
-    .how { background: var(--bg-2); padding: 100px 0; }
-
-    .section-head {
-      text-align: center;
-      margin-bottom: 60px;
-    }
-
-    .section-head .badge { margin-bottom: 14px; }
-
-    .section-head h2 {
-      font-size: clamp(26px, 3.5vw, 42px);
-      font-weight: 700;
-      letter-spacing: -0.028em;
-      margin-bottom: 14px;
-    }
-
-    .section-head p {
-      font-size: 17px;
-      color: var(--text-2);
-      max-width: 500px;
-      margin: 0 auto;
-      line-height: 1.65;
-    }
-
-    .steps-grid {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr auto 1fr;
-      gap: 0;
-      align-items: start;
-    }
-
-    .step { padding: 0 24px; }
-
-    .step-arrow {
-      display: flex;
-      align-items: flex-start;
-      padding-top: 40px;
-      color: var(--border-2);
-    }
-
-    .step-num {
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
-      background: var(--red);
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Poppins', sans-serif;
-      font-weight: 700;
-      font-size: 18px;
-      margin-bottom: 18px;
-      box-shadow: 0 4px 12px rgba(229,57,53,.25);
-    }
-
-    .step h3 {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 8px;
-      letter-spacing: -0.02em;
-    }
-
-    .step p {
-      font-size: 14px;
-      color: var(--text-2);
-      line-height: 1.65;
-      margin-bottom: 16px;
-    }
-
-    .code-block {
-      background: #0F172A;
-      color: #E2E8F0;
-      border-radius: var(--r-sm);
-      padding: 12px 14px;
-      font-family: 'JetBrains Mono', 'Fira Code', monospace;
-      font-size: 11.5px;
-      line-height: 1.7;
-      overflow-x: auto;
-    }
-
-    .c-comment { color: #94A3B8; }
-    .c-cmd     { color: #E2E8F0; }
-    .c-key     { color: #BAE6FD; }
-    .c-val     { color: #BBF7D0; }
-    .c-str     { color: #FECACA; }
-    .c-sym     { color: #F8FAFC; }
-
-    /* ─── ADDONS ─── */
-    .addons { padding: 100px 0; }
-
-    .addon-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 18px;
-      margin-top: 48px;
-    }
-
-    .addon-card {
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      padding: 24px;
-      transition: all 200ms var(--ease);
-    }
-
-    .addon-card:hover {
-      border-color: var(--border-2);
-      box-shadow: var(--shadow);
-      transform: translateY(-2px);
-    }
-
-    .addon-icon {
-      width: 46px;
-      height: 46px;
-      border-radius: 13px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 16px;
-    }
-
-    .addon-card h3 {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 7px;
-      letter-spacing: -0.02em;
-    }
-
-    .addon-card p {
-      font-size: 13px;
-      color: var(--text-2);
-      line-height: 1.65;
-    }
-
-    /* ─── CTA SECTION ─── */
-    .cta-section {
-      background: #0F172A;
-      padding: 104px 0;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .cta-section::before {
-      content: '';
-      position: absolute;
-      top: -200px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 600px;
-      height: 600px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(229,57,53,.12) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .cta-inner { position: relative; z-index: 1; }
-
-    .cta-section h2 {
-      font-size: clamp(28px, 4vw, 52px);
-      font-weight: 700;
-      color: white;
-      letter-spacing: -0.03em;
-      margin-bottom: 14px;
-    }
-
-    .cta-section p {
-      font-size: 18px;
-      color: #64748B;
-      margin-bottom: 40px;
-      max-width: 440px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .cta-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-
-    .cta-tagline {
-      margin-top: 40px;
-      font-size: 13px;
-      color: #64748B;
-      letter-spacing: 0.06em;
-    }
-
-    /* ─── FOOTER ─── */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 28px 0;
-    }
-
-    .footer-inner {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 14px;
-    }
-
-    .footer-copy { font-size: 13px; color: var(--text-3); }
-
-    .footer-links { display: flex; gap: 20px; }
-
-    .footer-link {
-      font-size: 13px;
-      color: var(--text-2);
-      text-decoration: none;
-      transition: color 150ms;
-    }
-
-    .footer-link:hover { color: var(--text); }
+    .shot-tab[aria-selected="true"], .os-tab[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--cream); }
+    .shot-tab:focus-visible, .os-tab:focus-visible, .btn:focus-visible, .nav-link:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+
+    /* ─── PHONE ─── */
+    .phones { display: flex; justify-content: center; gap: 22px; align-items: flex-start; }
+    .phone { width: 250px; border-radius: 34px; padding: 9px; background: var(--night); box-shadow: var(--shadow-lg); }
+    .phone img { border-radius: 26px; }
+    .phone:nth-child(2) { margin-top: 48px; }
 
     /* ─── UNDER THE HOOD ─── */
-    .hood { padding: 100px 0; background: #0F172A; }
-
-    .hood .section-head h2 { color: white; }
-    .hood .section-head p  { color: #94A3B8; }
-    .hood .badge-red { background: rgba(229,57,53,.15); border-color: rgba(229,57,53,.3); }
-
-    /* Pipeline */
-    .pipe-wrap {
-      background: #1E293B;
-      border: 1px solid #334155;
-      border-radius: var(--r);
-      padding: 24px;
-      margin-bottom: 24px;
-      overflow-x: auto;
+    .hood { background: var(--night); color: var(--cream); }
+    .hood .section-head p { color: #C9B8A8; }
+    .hood .eyebrow { color: #F0907F; }
+    .hood-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .hood-card { background: var(--night-2); border: 1px solid #4A3024; border-radius: var(--r); padding: 22px; }
+    .hood-card h3 { font-size: 16px; margin-bottom: 12px; color: #fff; }
+    .hood-card ul { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+    .hood-card li { font-size: 13.5px; color: #C9B8A8; line-height: 1.65; padding-left: 14px; position: relative; }
+    .hood-card li::before { content: ''; position: absolute; left: 0; top: 9px; width: 5px; height: 5px; border-radius: 50%; background: #8A6A58; }
+    .hood-card code { color: #F6D9C9; }
+    .arch {
+      margin-top: 16px; background: var(--night-2); border: 1px solid #4A3024; border-radius: var(--r);
+      padding: 18px 22px; font: 13px/1.8 'JetBrains Mono', monospace; color: #E9DCCF; overflow-x: auto; white-space: pre;
     }
+    .arch .dim { color: #9C8574; }
 
-    .pipe-label {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #64748B;
-      margin-bottom: 16px;
+    /* ─── ADDONS ─── */
+    .addon-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .addon { background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); padding: 22px; display: flex; flex-direction: column; gap: 8px; }
+    .addon .kind { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+    .addon h3 { font-size: 17px; }
+    .addon p { font-size: 13.5px; color: var(--ink-2); line-height: 1.65; }
+    .extras { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    .extra { background: transparent; border: 1px dashed var(--line-2); border-radius: var(--r); padding: 22px; }
+    .extra h3 { font-size: 16px; margin-bottom: 6px; }
+    .extra p { font-size: 13.5px; color: var(--ink-2); line-height: 1.65; }
+
+    /* ─── SETUP ─── */
+    .steps { max-width: 820px; margin: 0 auto; counter-reset: step; }
+    .step { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 0 22px; }
+    .step-rail { display: flex; flex-direction: column; align-items: center; }
+    .step-num {
+      counter-increment: step; width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+      background: var(--ink); color: var(--cream); display: grid; place-items: center;
+      font: 700 17px 'Inter', sans-serif;
     }
-
-    .pipe-table { display: flex; flex-direction: column; gap: 10px; min-width: 640px; }
-
-    .pipe-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
+    .step-num::before { content: counter(step); }
+    .step-rail::after { content: ''; flex: 1; width: 2px; background: var(--line); margin: 8px 0; min-height: 24px; }
+    .step:last-child .step-rail::after { display: none; }
+    .step-body { padding: 6px 0 40px; }
+    .step-body h3 { font-size: 19px; margin-bottom: 8px; }
+    .step-body > p { font-size: 15px; color: var(--ink-2); margin-bottom: 14px; }
+    .ic { background: var(--cream-2); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--ink); font-size: 12.5px; }
+    .code {
+      background: var(--night); color: #F3E9DE; border-radius: 10px; padding: 14px 16px;
+      font: 13px/1.75 'JetBrains Mono', monospace; overflow-x: auto; white-space: pre;
     }
+    .code .c { color: #A48E7E; }
+    .code .p { color: #F0907F; user-select: none; }
+    .os-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+    .os-tab { font: 500 12px 'JetBrains Mono', monospace; padding: 3px 11px; }
+    .asks { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 14px 0; padding: 14px 16px; background: var(--cream); border: 1px solid var(--line); border-radius: 10px; }
+    .asks li { font-size: 14px; color: var(--ink-2); display: grid; grid-template-columns: 22px 1fr; }
+    .asks li b { color: var(--ink); font-weight: 600; }
+    .asks li > span:first-child { color: var(--red); font-weight: 700; }
+    .step-body > p.foot { font-size: 13.5px; color: var(--ink-3); margin: 0; }
 
-    .pipe-src {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 5px 10px;
-      border-radius: 6px;
-      white-space: nowrap;
-      min-width: 148px;
-      text-align: center;
+    .llm-box {
+      max-width: 820px; margin: 8px auto 0; background: var(--cream); border: 1px solid var(--line);
+      border-left: 3px solid var(--red); border-radius: var(--r); padding: 22px 24px;
     }
+    .llm-box h3 { font-size: 16px; margin-bottom: 10px; }
+    .llm-box p { font-size: 14px; color: var(--ink-2); margin-bottom: 10px; }
+    .llm-box p:last-child { margin-bottom: 0; }
+    .llm-box b { color: var(--ink); }
+    .llm-box a { color: var(--red); }
 
-    .src-av  { background: rgba(99,102,241,.2);  color: #a5b4fc; border: 1px solid rgba(99,102,241,.3); }
-    .src-img { background: rgba(34,197,94,.15);  color: #86efac; border: 1px solid rgba(34,197,94,.25); }
-    .src-vid { background: rgba(234,179,8,.15);  color: #fde047; border: 1px solid rgba(234,179,8,.25); }
-    .src-txt { background: rgba(251,146,60,.15); color: #fdba74; border: 1px solid rgba(251,146,60,.25); }
+    /* ─── NOT ─── */
+    .not-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 40px; max-width: 900px; margin: 0 auto; }
+    .not-item { font-size: 15px; color: var(--ink-2); padding: 16px 0; border-top: 1px solid var(--line); }
+    .not-item b { color: var(--ink); }
 
-    .pipe-arr {
-      color: #64748B;
-      font-size: 16px;
-      flex-shrink: 0;
-      padding: 0 2px;
-    }
+    /* ─── CTA / FOOTER ─── */
+    .cta { background: var(--night); color: var(--cream); text-align: center; padding: 96px 0; }
+    .cta img { width: 64px; height: 64px; margin: 0 auto 24px; border-radius: 12px; box-shadow: 0 0 0 1px rgba(251,247,239,.22); }
+    .cta h2 { font-size: clamp(30px, 4vw, 48px); margin-bottom: 14px; }
+    .cta p { font-size: 17px; color: #C9B8A8; max-width: 520px; margin: 0 auto 34px; }
+    .cta-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    footer { background: var(--night); border-top: 1px solid #4A3024; padding: 24px 0; }
+    .footer-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 13px; color: #9C8574; }
+    .footer-links { display: flex; gap: 18px; }
+    .footer-links a { color: #C9B8A8; text-decoration: none; }
+    .footer-links a:hover { color: #fff; }
 
-    .pipe-node {
-      font-size: 11px;
-      font-weight: 600;
-      color: #CBD5E1;
-      background: #293548;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      padding: 5px 10px;
-      white-space: nowrap;
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-
-    .pipe-node.dim { color: #94A3B8; }
-
-    .pipe-embed { border-color: rgba(139,92,246,.4); background: rgba(139,92,246,.1); color: #c4b5fd; }
-
-    .pipe-sub {
-      font-size: 9px;
-      font-weight: 400;
-      color: #64748B;
-    }
-
-    .pipe-embed .pipe-sub { color: #a78bfa; }
-
-    .pipe-db {
-      font-size: 11px;
-      font-weight: 700;
-      color: #38bdf8;
-      background: rgba(56,189,248,.1);
-      border: 1px solid rgba(56,189,248,.25);
-      border-radius: 6px;
-      padding: 5px 10px;
-      white-space: nowrap;
-      text-align: center;
-    }
-
-    .pipe-db-note {
-      font-size: 12px;
-      color: #94A3B8;
-      margin-top: 14px;
-      text-align: right;
-    }
-
-    .pipe-db-note strong { color: #CBD5E1; }
-
-    /* Search + Ask grid */
-    .search-ask-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-
-    .sa-card {
-      background: #1E293B;
-      border: 1px solid #334155;
-      border-radius: var(--r);
-      padding: 20px;
-    }
-
-    .sa-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      font-weight: 700;
-      color: #E2E8F0;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #293548;
-    }
-
-    .channel-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-
-    .ch {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 12px;
-      font-weight: 600;
-      padding: 5px 10px;
-      border-radius: 6px;
-    }
-
-    .ch span { font-size: 10px; font-weight: 400; color: #94A3B8; }
-
-    .ch-vec { background: rgba(139,92,246,.12); color: #c4b5fd; border: 1px solid rgba(139,92,246,.2); }
-    .ch-fts { background: rgba(34,197,94,.08);  color: #86efac; border: 1px solid rgba(34,197,94,.15); }
-
-    .fusion-row {
-      font-size: 11.5px;
-      color: #94A3B8;
-      line-height: 1.7;
-      border-top: 1px solid #293548;
-      padding-top: 10px;
-    }
-
-    .fusion-badge {
-      display: inline-block;
-      font-size: 10px;
-      font-weight: 700;
-      background: rgba(229,57,53,.15);
-      color: #fca5a5;
-      border-radius: 4px;
-      padding: 1px 6px;
-      margin-right: 4px;
-    }
-
-    /* Ask flow */
-    .ask-flow { display: flex; flex-direction: column; gap: 4px; }
-
-    .ask-step {
-      font-size: 12px;
-      color: #94A3B8;
-      padding: 4px 0;
-      padding-left: 16px;
-      border-left: 2px solid #3D4F65;
-      position: relative;
-    }
-
-    .ask-step::before {
-      content: '';
-      position: absolute;
-      left: -5px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #334155;
-    }
-
-    .ask-step.ask-safe {
-      color: #86efac;
-      border-color: rgba(34,197,94,.3);
-    }
-
-    .ask-step.ask-safe::before { background: rgba(34,197,94,.4); }
-
-    @media (max-width: 900px) {
-      .search-ask-grid { grid-template-columns: 1fr; }
-    }
-
-    /* ─── STEPS LINEAR (How it works) ─── */
-    .steps-linear {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-    }
-
-    .step-linear {
-      display: grid;
-      grid-template-columns: 60px 1fr;
-      gap: 0 24px;
-    }
-
-    .step-left {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .step-connector-v {
-      width: 2px;
-      flex: 1;
-      background: var(--border);
-      margin: 8px 0;
-      min-height: 32px;
-    }
-
-    .step-body {
-      padding-bottom: 48px;
-    }
-
-    .step-body h3 {
-      font-size: 20px;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      margin-bottom: 8px;
-      margin-top: 8px;
-    }
-
-    .step-body > p {
-      font-size: 15px;
-      color: var(--text-2);
-      line-height: 1.68;
-      margin-bottom: 16px;
-    }
-
-    .step-body .code-block { margin-bottom: 20px; }
-
-    .inline-code {
-      font-family: 'JetBrains Mono', 'Fira Code', monospace;
-      font-size: 12px;
-      background: var(--bg-3);
-      border: 1px solid var(--border);
-      padding: 1px 6px;
-      border-radius: 4px;
-      color: var(--text);
-    }
-
-    .step-note {
-      font-size: 13px !important;
-      color: var(--text-3) !important;
-      margin-top: 12px !important;
-      margin-bottom: 0 !important;
-    }
-
-    /* Wizard sub-steps */
-    .wizard-steps {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 16px;
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: var(--r);
-      padding: 16px;
-    }
-
-    .wizard-step {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-    }
-
-    .wz-num {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--red);
-      flex-shrink: 0;
-      line-height: 1.6;
-    }
-
-    .wizard-step strong {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 2px;
-    }
-
-    .wizard-step span {
-      font-size: 13px;
-      color: var(--text-2);
-      line-height: 1.6;
-    }
-
-    .opt-label {
-      display: inline-block;
-      font-size: 10px !important;
-      font-weight: 600 !important;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      background: var(--bg-3);
-      color: var(--text-3) !important;
-      border: 1px solid var(--border);
-      padding: 1px 6px;
-      border-radius: 4px;
-      margin-left: 6px;
-      vertical-align: middle;
-      line-height: 1.6 !important;
-    }
-
-    /* LLM note box */
-    .llm-note {
-      display: flex;
-      gap: 16px;
-      background: white;
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--red);
-      border-radius: var(--r);
-      padding: 20px 24px;
-      margin-top: 8px;
-    }
-
-    .llm-note-icon {
-      flex-shrink: 0;
-      width: 36px;
-      height: 36px;
-      background: var(--red-subtle);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .llm-note strong {
-      display: block;
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .llm-note > div > p {
-      font-size: 14px;
-      color: var(--text-2);
-      margin-bottom: 12px;
-      line-height: 1.65;
-    }
-
-    .llm-note > div > p:last-child { margin-bottom: 0; }
-
-    .llm-options {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .llm-options li {
-      font-size: 14px;
-      color: var(--text-2);
-      line-height: 1.65;
-      padding-left: 12px;
-      border-left: 2px solid var(--border);
-    }
-
-    .llm-label {
-      display: block;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 3px;
-    }
-
-    .llm-note a { color: var(--red); text-decoration: none; }
-    .llm-note a:hover { text-decoration: underline; }
-
-    /* Hardware note (Feature 1) */
-    .hw-note {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      margin-top: 16px;
-      padding: 10px 14px;
-      background: var(--bg-3);
-      border: 1px solid var(--border);
-      border-radius: var(--r-sm);
-      font-size: 13px;
-      color: var(--text-2);
-      line-height: 1.6;
-    }
-
-    .hw-note svg { flex-shrink: 0; margin-top: 2px; color: var(--text-3); }
-    .hw-note strong { color: var(--text); }
-
-    /* Hardware note inside wizard */
-    .wz-hw {
-      display: block;
-      margin-top: 5px;
-      font-size: 11.5px !important;
-      color: var(--text-3) !important;
-      font-family: 'JetBrains Mono', monospace;
-      line-height: 1.5 !important;
-    }
-
-    @media (max-width: 768px) {
-      .step-linear { grid-template-columns: 48px 1fr; }
-      .llm-note { flex-direction: column; }
-    }
-
-    /* ─── SCROLL REVEAL ─── */
-    .reveal {
-      opacity: 0;
-      transform: translateY(22px);
-      transition: opacity .55s var(--ease), transform .55s var(--ease);
-    }
-
-    .reveal.visible { opacity: 1; transform: translateY(0); }
-
-    .reveal-delay-1 { transition-delay: .08s; }
-    .reveal-delay-2 { transition-delay: .16s; }
-    .reveal-delay-3 { transition-delay: .24s; }
-    .reveal-delay-4 { transition-delay: .32s; }
-
+    /* ─── REVEAL ─── */
+    .reveal { opacity: 0; transform: translateY(18px); transition: opacity .5s var(--ease), transform .5s var(--ease); }
+    .reveal.visible { opacity: 1; transform: none; }
     @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
       .reveal { opacity: 1; transform: none; transition: none; }
     }
 
     /* ─── RESPONSIVE ─── */
     @media (max-width: 1024px) {
-      .feature-block {
-        grid-template-columns: 1fr;
-        gap: 40px;
-      }
-      .feature-block.reverse .feat-text  { order: 1; }
-      .feature-block.reverse .feat-visual { order: 2; }
-
-      .steps-grid {
-        grid-template-columns: 1fr;
-        gap: 0;
-      }
-
-      .step-arrow { display: none; }
-      .step { padding: 32px 0; border-bottom: 1px solid var(--border); }
-      .step:last-child { border-bottom: none; }
-
-      .research-grid { grid-template-columns: 1fr; }
-
-      .addon-grid { grid-template-columns: repeat(2, 1fr); }
+      .feature, .feature.flip { grid-template-columns: minmax(0, 1fr); gap: 36px; }
+      .feature.flip .copy { order: 1; }
+      .feature.flip .visual { order: 2; }
+      .new-grid, .hood-grid, .addon-grid { grid-template-columns: repeat(2, 1fr); }
     }
-
-    @media (max-width: 768px) {
-      .nav-inner { gap: 12px; }
-      .nav-links { gap: 0; }
+    @media (max-width: 720px) {
+      .section { padding: 72px 0; }
+      .nav-link.opt { display: none; }
+      .hero { padding-top: 44px; }
+      .hero-shot { margin-top: 40px; }
+      .release-pill { flex-direction: column; gap: 6px; padding: 8px 14px; border-radius: 16px; }
+      .new-grid, .hood-grid, .addon-grid, .extras, .not-grid { grid-template-columns: 1fr; }
+      .phone { width: 46%; border-radius: 24px; padding: 6px; }
+      .phone img { border-radius: 19px; }
+      .phones { gap: 12px; }
+      .step { grid-template-columns: 36px minmax(0, 1fr); gap: 0 14px; }
+      .step-num { width: 34px; height: 34px; font-size: 15px; border-radius: 10px; }
+      .frame-bar .url { display: none; }
+    }
+    @media (max-width: 420px) {
+      .container { padding: 0 16px; }
       .nav-links .btn { display: none; }
-      .nav-link { padding: 6px 9px; font-size: 13px; }
-      .hero { padding: 56px 0 48px; }
-      .hero h1 {
-        font-size: 32px;
-        line-height: 1.12;
-        overflow-wrap: anywhere;
-      }
-      .hero-sub {
-        font-size: 16px;
-        max-width: 100%;
-      }
-      .hero-note {
-        flex-wrap: wrap;
-        justify-content: center;
-        row-gap: 6px;
-      }
-      .hero-mockup-wrap { margin-top: 40px; }
-      .app-sidebar { display: none; }
-      .thumb-row .thumb:nth-child(n+4) { display: none; }
-      .mock-cit:nth-child(3) { display: none; }
+      .hero-ctas { flex-direction: column; align-self: stretch; }
     }
-
-    @media (max-width: 540px) {
-      .container { padding: 0 20px; }
-      .nav-link { padding: 6px 7px; }
-      .nav-link[href="#use-cases"] { display: none; }
-      .nav-link[href="#features"] { display: none; }
-      .hero h1 {
-        font-size: 28px;
-        max-width: 320px;
-        margin-left: auto;
-        margin-right: auto;
-      }
-      .hero-sub {
-        max-width: 320px;
-        margin-left: auto;
-        margin-right: auto;
-      }
-      .hero-ctas { flex-direction: column; align-items: stretch; }
-      .hero-ctas .btn { justify-content: center; }
-      .hero-mockup-wrap {
-        width: calc(100vw - 40px);
-        max-width: calc(100vw - 40px);
-        overflow: hidden;
-      }
-      .addon-grid { grid-template-columns: 1fr; }
-      .mock-tags-row .mock-tag:nth-child(n+5) { display: none; }
-    }
-
-    /* OS tab switcher */
-    .os-tabs {
-      display: flex;
-      gap: 0;
-      margin-bottom: 8px;
-      border-bottom: 1px solid rgba(255,255,255,0.12);
-    }
-    .os-tab {
-      padding: 5px 14px;
-      font-size: 12px;
-      font-weight: 500;
-      font-family: 'JetBrains Mono', monospace;
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      color: rgba(255,255,255,0.68);
-      cursor: pointer;
-      transition: color 0.15s, border-color 0.15s;
-      margin-bottom: -1px;
-    }
-    .os-tab.active {
-      color: #fff;
-      border-bottom-color: #E53935;
-    }
-    .os-tab:hover:not(.active) { color: rgba(255,255,255,0.88); }
-    .os-panel { display: none; }
-    .os-panel.active { display: block; }
   </style>
 </head>
 <body>
@@ -1548,241 +356,251 @@
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WL8DZDWF"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
-<!-- ═══ NAVIGATION ═══ -->
-<nav>
-  <div class="container">
-    <div class="nav-inner">
-      <a href="/" class="logo" aria-label="Litloft home">
-        <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
-          <rect width="30" height="30" rx="8" fill="#E53935" fill-opacity="0.10"/>
-          <path d="M15 6L5 13v12h6v-6h8v6h6V13L15 6z" fill="#E53935" opacity="0.20"/>
-          <path d="M15 6L5 13v12h6v-6h8v6h6V13L15 6z" stroke="#E53935" stroke-width="1.8" stroke-linejoin="round" fill="none"/>
-          <path d="M5 13L15 6l10 7" stroke="#E53935" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        </svg>
-        <span class="logo-text">Litloft</span>
-      </a>
-      <div class="nav-links">
-        <a href="#use-cases" class="nav-link">Use cases</a>
-        <a href="#features" class="nav-link">Features</a>
-        <a href="#how-it-works" class="nav-link">Setup</a>
-        <a href="https://github.com/mamepenguin/Litloft" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
-          Get Started
-        </a>
-      </div>
+
+<nav class="topnav" aria-label="Main">
+  <div class="container nav-inner">
+    <a href="#" class="logo" aria-label="Litloft">
+      <img src="icon.svg" alt="" width="30" height="30">
+      <span>Litloft</span>
+    </a>
+    <div class="nav-links">
+      <a href="#whats-new" class="nav-link opt">What's new</a>
+      <a href="#features" class="nav-link opt">Features</a>
+      <a href="#addons" class="nav-link opt">Addons</a>
+      <a href="#setup" class="nav-link">Setup</a>
+      <a href="https://github.com/mamepenguin/Litloft" class="btn btn-primary" target="_blank" rel="noopener noreferrer">GitHub</a>
     </div>
   </div>
 </nav>
 
+<main>
 <!-- ═══ HERO ═══ -->
-<section class="hero">
+<header class="hero">
   <div class="container">
     <div class="hero-inner">
-      <div class="badge badge-red reveal">
-        <span class="badge-dot"></span>
-        Self-hosted research library
-      </div>
-
-      <h1 class="reveal reveal-delay-1">
-        Search your media.<br>
-        <em>Build from your sources.</em>
-      </h1>
-
-      <p class="hero-sub reveal reveal-delay-2">
-        Litloft indexes videos, PDFs, web media, and Markdown notes on your own hardware. Stream the original files, search them with citations, and turn useful findings into notes you control.
+      <a href="#whats-new" class="release-pill reveal">
+        <span><b>New release</b> — a reorganised library, a PDF page-turner, and more</span>
+        <span class="go">See what's new</span>
+      </a>
+      <h1 class="reveal">Your media library,<br><em>searchable to the second.</em></h1>
+      <p class="hero-sub reveal">
+        Litloft is a self-hosted library for the videos, audio, PDFs, images and Markdown notes on your home network. Watch and read them in a browser, search inside transcripts and documents, and keep your notes next to the files they are about.
       </p>
-
-      <div class="hero-ctas reveal reveal-delay-3">
-        <a href="https://github.com/mamepenguin/Litloft" class="btn btn-primary btn-lg" target="_blank" rel="noopener noreferrer">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
-          Get Started
-        </a>
-        <a href="#how-it-works" class="btn btn-outline btn-lg">View setup guide</a>
+      <div class="hero-ctas reveal">
+        <a href="#setup" class="btn btn-primary btn-lg">Install with Docker</a>
+        <a href="https://github.com/mamepenguin/Litloft" class="btn btn-outline btn-lg" target="_blank" rel="noopener noreferrer">View on GitHub</a>
       </div>
-
-      <p class="hero-note reveal reveal-delay-4">
-        <span>Docker-based</span>
-        <span class="hero-note-sep"></span>
-        <span>Local-first</span>
-        <span class="hero-note-sep"></span>
-        <span>Optional LLMs</span>
+      <p class="facts reveal">
+        <span>Docker Compose</span><span>Home LAN only</span><span>LLM optional, local recommended</span><span>AGPL-3.0</span>
       </p>
     </div>
-
-    <!-- Hero app mockup -->
-    <div class="hero-mockup-wrap reveal">
-      <div class="browser">
-          <div class="browser-bar">
-            <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
-            <span class="browser-url">localhost:3000</span>
-          </div>
-          <img src="screenshot_home.png" alt="Litloft home screen showing Continue Watching and Recently Added" class="screenshot-img" loading="lazy">
-        </div>
+    <div class="hero-shot reveal">
+      <div class="frame">
+        <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Home</span></div>
+        <img src="img/home.webp" width="2200" height="1375" alt="Litloft Home: Continue Watching and Pickup rows of videos and photos, with the drive's sidebar on the left.">
+      </div>
     </div>
   </div>
-</section>
+</header>
 
-<!-- ═══ POSITIONING ═══ -->
-<section class="research" id="use-cases">
+<!-- ═══ WHAT'S NEW ═══ -->
+<section id="whats-new" class="section paper">
   <div class="container">
     <div class="section-head">
-      <div class="badge badge-red reveal"><span class="badge-dot"></span>Use cases</div>
-      <h2 class="reveal reveal-delay-1">For media-heavy knowledge work</h2>
-      <p class="reveal reveal-delay-2">Litloft is not trying to replace a movie server or a cloud notebook. It is a local workspace for source material you need to search, cite, and connect.</p>
+      <span class="eyebrow reveal">What's new</span>
+      <h2 class="reveal">A calmer library, and better tools for reading</h2>
+      <p class="reveal">This release reorganises how you move around Litloft and adds the viewers and note tools that were missing. The highlights:</p>
     </div>
-
-    <div class="research-grid">
-      <div class="research-card reveal">
-        <div class="research-label">Conference videos</div>
-        <h3>Find the few seconds that matter</h3>
-        <p>Transcribe long talks, search across transcripts, and jump back to the cited timestamp instead of rewatching an entire session.</p>
-      </div>
-
-      <div class="research-card reveal reveal-delay-1">
-        <div class="research-label">Documents and books</div>
-        <h3>Keep PDFs beside your notes</h3>
-        <p>Index documents and scanned-book archives alongside video and audio, then connect findings to Markdown notes with shared tags.</p>
-      </div>
-
-      <div class="research-card reveal reveal-delay-2">
-        <div class="research-label">Web media</div>
-        <h3>Track sources without filling storage</h3>
-        <p>Add videos from YouTube, SoundCloud, or Vimeo by URL. Use embedded playback while captions and transcripts join your searchable library.</p>
-      </div>
+    <div class="new-grid">
+      <article class="new-card reveal">
+        <span class="tag">Navigation</span>
+        <h3>Home and Library, separated</h3>
+        <p>Home gathers what to open next: Continue Watching, Pickup, Recently Viewed, Recently Added, Favorites and Liked. Library is the folder hierarchy and nothing else.</p>
+      </article>
+      <article class="new-card reveal">
+        <span class="tag">Files</span>
+        <h3>One file page for every kind</h3>
+        <p>Video, audio, PDF, image, archive and Markdown share one layout: the file on the left, and an inspector on the right with Info and Related, plus Transcript or Pages where they apply.</p>
+      </article>
+      <article class="new-card reveal">
+        <span class="tag">PDF</span>
+        <h3>A full-screen page-turner</h3>
+        <p>PDFs open in the reading direction they declare, turn pages full screen, and a search hit opens the exact page it matched.</p>
+      </article>
+      <article class="new-card reveal">
+        <span class="tag">Photos</span>
+        <h3>Photos at their real proportions</h3>
+        <p>Photo folders are packed into rows at each picture's own shape instead of cropped tiles. The image and archive viewers zoom by pinch, wheel or keys, and pan.</p>
+      </article>
+      <article class="new-card reveal">
+        <span class="tag">Knowledge addon</span>
+        <h3>Live preview and version history</h3>
+        <p>The Markdown editor styles text as you type, has a split view, and keeps saved versions with a diff of each. Restoring an old version can itself be undone.</p>
+      </article>
+      <article class="new-card reveal">
+        <span class="tag">Knowledge addon</span>
+        <h3>Capture basket</h3>
+        <p>Collect a search snippet, a video timestamp, a PDF page or an Ask citation, then save them into a note with links back to the exact moment or page.</p>
+      </article>
+      <article class="new-card reveal">
+        <span class="tag">Search</span>
+        <h3>A two-step <kbd>⌘K</kbd></h3>
+        <p>The quick switcher lists name matches right away. With the Intelligence addon, results by meaning follow a moment later, so jumping to a file never waits on a model.</p>
+      </article>
+      <article class="new-card reveal">
+        <span class="tag">Sources</span>
+        <h3>Verified and unverified sources</h3>
+        <p>Web clips and other files an addon brings in arrive unverified. They show up in search, but Ask answers only from files you have verified.</p>
+      </article>
+      <article class="new-card reveal">
+        <span class="tag">Clients</span>
+        <h3>iOS app and MCP server</h3>
+        <p>An iOS app you build from source keeps audio playing in the background and moves video to picture-in-picture. An MCP server lets an MCP client work with the library under your access rules.</p>
+      </article>
     </div>
   </div>
 </section>
 
 <!-- ═══ FEATURES ═══ -->
-<section class="features" id="features">
+<section id="features" class="section">
   <div class="container">
 
-    <!-- Feature 1: Cited Search -->
-    <div class="feature-block">
-      <div class="feat-text reveal">
-        <div class="feat-tag"><span class="feat-tag-line"></span>Cited Search</div>
-        <h2>Ask questions, then inspect the sources</h2>
-        <p>
-          The optional Intelligence addon searches transcripts, document text, metadata, and embeddings together. When an LLM is used for Q&amp;A, answers are linked back to the retrieved clip, page, or note.
-        </p>
-        <ul class="feat-points">
-          <li>
-            <span class="check-icon" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Search across video transcripts, PDFs, text files, subtitles, tags, and filenames
-          </li>
-          <li>
-            <span class="check-icon" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Answers include citations to the retrieved sources; unknown file IDs are dropped
-          </li>
-          <li>
-            <span class="check-icon" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Works with local or remote OpenAI-compatible LLM endpoints; local models are recommended for private libraries
-          </li>
+    <div class="feature">
+      <div class="copy reveal">
+        <span class="eyebrow">Watch and listen</span>
+        <h2>A media server that also keeps the transcript</h2>
+        <p>Point Litloft at a folder and open it from a phone, tablet or computer on your LAN. Videos resume where you stopped, and the chapters and transcript sit beside the player, every line with its timestamp.</p>
+        <ul class="points">
+          <li>Streaming with resume, subtitles, chapters and scrubbing previews</li>
+          <li>Transcripts from local Whisper, or from a cloud speech-to-text provider you choose</li>
+          <li>With an LLM, chapter candidates you approve or dismiss; nothing is applied on its own</li>
+          <li>YouTube and Vimeo videos kept as small <code>.loft</code> files that play embedded</li>
         </ul>
-        <div class="hw-note">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-          <span><strong>Hardware note:</strong> Indexing is CPU-intensive. Whisper transcription requires 0.5-3 GB RAM depending on the model you choose. Plan for at least 2 GB free RAM when running the Intelligence addon.</span>
-        </div>
       </div>
-      <div class="feat-visual reveal reveal-delay-1">
-        <div class="browser">
-          <div class="browser-bar">
-            <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
-            <span class="browser-url">localhost:3000 › Ask</span>
-          </div>
-          <video src="intelligence.mp4" autoplay loop muted playsinline class="screenshot-img" style="display:block;width:100%;"></video>
+      <div class="visual reveal">
+        <div class="frame">
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · file page</span></div>
+          <img src="img/transcript.webp" width="2200" height="1375" loading="lazy" alt="A video file page: the player on the left, and the inspector's Transcript tab on the right listing timestamped lines.">
         </div>
       </div>
     </div>
 
-    <!-- Feature 2: Knowledge -->
-    <div class="feature-block reverse">
-      <div class="feat-text reveal">
-        <div class="feat-tag"><span class="feat-tag-line"></span>Connected Notes</div>
-        <h2>Turn findings into Markdown notes</h2>
-        <p>
-          The optional Knowledge addon adds Markdown notes inside Litloft. Create a note from a file detail page, link back with <code>[[file:...]]</code>, and keep notes searchable beside the media and documents they came from.
-        </p>
-        <ul class="feat-points">
-          <li>
-            <span class="check-icon" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Tags are shared with core file tags, so notes and files use one vocabulary
-          </li>
-          <li>
-            <span class="check-icon" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Ask can cite both source media and saved Markdown notes
-          </li>
-          <li>
-            <span class="check-icon" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Built-in web clipper saves articles as Markdown notes
-          </li>
-          <li>
-            <span class="check-icon" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Generated summaries become notes only after you review and save them; Litloft never writes AI output to disk on its own
-          </li>
+    <div class="feature flip">
+      <div class="copy reveal">
+        <span class="eyebrow">Read</span>
+        <h2>PDFs, photos and archives, in place</h2>
+        <p>Documents open on the same page layout as video. The Pages tab shows a PDF as thumbnails, and full screen turns it into a page-turner. Photo folders lay out at their real proportions.</p>
+        <ul class="points">
+          <li>PDF zoom, fit to width, page thumbnails and reading direction</li>
+          <li>Images with swipe, two-page spread and slideshow; ZIP archives browsed without extracting</li>
+          <li>Markdown with Mermaid diagrams and syntax highlighting; Office files show a text excerpt</li>
         </ul>
       </div>
-      <div class="feat-visual reveal reveal-delay-1">
-        <div class="browser">
-          <div class="browser-bar">
-            <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
-            <span class="browser-url">localhost:3000 › Knowledge</span>
-          </div>
-          <img src="screenshot_knowledge.png" alt="A Litloft note linked to a media file, with tags shared between them" class="screenshot-img" loading="lazy">
+      <div class="visual reveal">
+        <div class="shot-tabs" role="tablist" aria-label="Viewer screenshots">
+          <button class="shot-tab" role="tab" aria-selected="true" aria-controls="shot-pdf" id="tab-pdf">PDF</button>
+          <button class="shot-tab" role="tab" aria-selected="false" aria-controls="shot-photos" id="tab-photos" tabindex="-1">Photos</button>
+        </div>
+        <div class="frame" id="shot-pdf" role="tabpanel" aria-labelledby="tab-pdf">
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Litloft User Guide.pdf</span></div>
+          <img src="img/pdf.webp" width="2200" height="1375" loading="lazy" alt="A PDF open at page 3 of 48, with the Pages tab showing page thumbnails.">
+        </div>
+        <div class="frame" id="shot-photos" role="tabpanel" aria-labelledby="tab-photos" hidden>
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Library</span></div>
+          <img src="img/photos.webp" width="2200" height="1375" loading="lazy" alt="A photo folder laid out in justified rows, each picture at its own aspect ratio.">
         </div>
       </div>
     </div>
 
-    <!-- Feature 3: Media Import -->
-    <div class="feature-block">
-      <div class="feat-text reveal">
-        <div class="feat-tag"><span class="feat-tag-line"></span>Media Import</div>
-        <h2>Bring web videos into the same library</h2>
-        <p>
-          Add videos from YouTube, SoundCloud, or Vimeo by URL. Litloft keeps playback embedded when possible, while captions and transcripts can be indexed with the rest of your local library.
-        </p>
-        <ul class="feat-points">
-          <li>
-            <span class="check-icon" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Add individual videos by URL without manually downloading media files first
-          </li>
-          <li>
-            <span class="check-icon" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            YouTube captions can be reused by the Intelligence addon for search and Q&amp;A
-          </li>
-          <li>
-            <span class="check-icon" aria-hidden="true">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#E53935" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </span>
-            Imported media lives beside local videos, PDFs, images, and notes in the same browser UI
-          </li>
+    <div class="feature">
+      <div class="copy reveal">
+        <span class="eyebrow">Search · Intelligence addon</span>
+        <h2>Find the sentence, then check the source</h2>
+        <p><b>Find</b> searches names, tags, transcripts, document text and what pictures show, all at once. <b>Ask</b> passes the matching passages to an LLM and returns an answer with numbered citations, each pointing at the file and the second it came from.</p>
+        <ul class="points">
+          <li>Keyword and meaning-based search together, stored in SQLite, with no separate vector database</li>
+          <li>Ask in one language and get citations from a transcript in another</li>
+          <li>Save an answer and its citations as a Markdown note</li>
+        </ul>
+        <p class="note"><b>Privacy:</b> Ask and summaries send passages to whichever LLM you configure. Point it at a local model such as Ollama to keep everything on your machine. Search and transcription work without an LLM.</p>
+      </div>
+      <div class="visual reveal">
+        <div class="shot-tabs" role="tablist" aria-label="Search screenshots">
+          <button class="shot-tab" role="tab" aria-selected="true" aria-controls="shot-ask" id="tab-ask">Ask</button>
+          <button class="shot-tab" role="tab" aria-selected="false" aria-controls="shot-find" id="tab-find" tabindex="-1">Find</button>
+        </div>
+        <div class="frame" id="shot-ask" role="tabpanel" aria-labelledby="tab-ask">
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Ask</span></div>
+          <img src="img/ask.webp" width="2200" height="1375" loading="lazy" alt="Ask: a question in Japanese, answered in Japanese, citing an English transcript line at 25:43 of a WWDC SwiftData session.">
+        </div>
+        <div class="frame" id="shot-find" role="tabpanel" aria-labelledby="tab-find" hidden>
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Find</span></div>
+          <img src="img/find.webp" width="2200" height="1375" loading="lazy" alt="Find: results for 'glass effect on toolbar buttons', each a video with the matching transcript passage.">
+        </div>
+      </div>
+    </div>
+
+    <div class="feature flip">
+      <div class="copy reveal">
+        <span class="eyebrow">Write · Knowledge addon</span>
+        <h2>Notes that live next to their sources</h2>
+        <p>Notes are ordinary Markdown files in your drive folders, so Obsidian or any other editor can open them too. In Litloft a note links to other notes with <code>[[wiki links]]</code>, and to the videos and documents it cites.</p>
+        <ul class="points">
+          <li>Edit, Split and Preview views, autosave, and frontmatter shown as a properties card</li>
+          <li>The Related tab lists the files a note is connected to, and similar files</li>
+          <li>Web clipping to Markdown, and a graph of how notes and files connect</li>
+          <li>Generated summaries become notes only when you save them</li>
         </ul>
       </div>
-      <div class="feat-visual reveal reveal-delay-1">
-        <div class="browser">
-          <div class="browser-bar">
-            <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
-            <span class="browser-url">localhost:3000 › Media Import</span>
-          </div>
-          <img src="screenshot_summary.png" alt="Litloft file detail showing transcript-backed summaries and citations" class="screenshot-img" loading="lazy">
+      <div class="visual reveal">
+        <div class="shot-tabs" role="tablist" aria-label="Notes screenshots">
+          <button class="shot-tab" role="tab" aria-selected="true" aria-controls="shot-edit" id="tab-edit">Editor</button>
+          <button class="shot-tab" role="tab" aria-selected="false" aria-controls="shot-related" id="tab-related" tabindex="-1">Related</button>
+        </div>
+        <div class="frame" id="shot-edit" role="tabpanel" aria-labelledby="tab-edit">
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Photography Hub.md</span></div>
+          <img src="img/note-edit.webp" width="2200" height="1375" loading="lazy" alt="The Markdown editor in Split view: source with frontmatter on the left, the rendered note with a Mermaid mind map on the right.">
+        </div>
+        <div class="frame" id="shot-related" role="tabpanel" aria-labelledby="tab-related" hidden>
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Photography Hub.md</span></div>
+          <img src="img/note.webp" width="2200" height="1375" loading="lazy" alt="A rendered note with a mind map, and the Related tab listing four linked notes.">
+        </div>
+      </div>
+    </div>
+
+    <div class="feature">
+      <div class="copy reveal">
+        <span class="eyebrow">Import · Media Import addon</span>
+        <h2>Follow channels without downloading them</h2>
+        <p>Paste a YouTube or Vimeo URL, or subscribe to a channel or playlist. Litloft saves the title, thumbnail and any captions, and the video plays embedded from its source. The captions then join search and Ask like any local file.</p>
+        <ul class="points">
+          <li>Channel and playlist subscriptions that sync on a schedule</li>
+          <li>A Watch tab for the sources you follow, and an activity log with retry</li>
+          <li>Turned on or off per drive</li>
+        </ul>
+      </div>
+      <div class="visual reveal">
+        <div class="frame">
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · YouTube &amp; Feeds</span></div>
+          <img src="img/feeds.webp" width="2200" height="1375" loading="lazy" alt="YouTube and Feeds: an Add a source field, one channel subscription, and recent imports by date.">
+        </div>
+      </div>
+    </div>
+
+    <div class="feature flip">
+      <div class="copy reveal">
+        <span class="eyebrow">On your phone</span>
+        <h2>The same library in your pocket</h2>
+        <p>Every screen has a phone layout. Add Litloft to the home screen to open it in its own window, or build the iOS app to keep audio playing with the screen locked and send video to picture-in-picture.</p>
+        <ul class="points">
+          <li>Serve it over HTTPS for Safari on iPhone and iPad</li>
+          <li>Away from home, reach it through a VPN such as Tailscale</li>
+        </ul>
+      </div>
+      <div class="visual reveal">
+        <div class="phones">
+          <div class="phone"><img src="img/mobile-home.webp" width="780" height="1688" loading="lazy" alt="Home on a phone: Continue Watching in two columns."></div>
+          <div class="phone"><img src="img/mobile-note.webp" width="780" height="1688" loading="lazy" alt="A Markdown note on a phone, with its properties card and mind map."></div>
         </div>
       </div>
     </div>
@@ -1791,345 +609,229 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 </section>
 
 <!-- ═══ UNDER THE HOOD ═══ -->
-<section class="hood">
+<section id="internals" class="section hood">
   <div class="container">
     <div class="section-head">
-      <div class="badge badge-red reveal"><span class="badge-dot"></span>Internals</div>
-      <h2 class="reveal reveal-delay-1">How Litloft makes sources searchable</h2>
-      <p class="reveal reveal-delay-2">Files are processed through a multi-channel pipeline and stored in local SQLite-backed indexes. No external vector database is required.</p>
+      <span class="eyebrow reveal">Under the hood</span>
+      <h2 class="reveal">Plain files, one database, your hardware</h2>
+      <p class="reveal">Litloft reads your folders where they are. What it learns about them goes into SQLite on your machine.</p>
     </div>
-
-    <!-- Indexing pipeline -->
-    <div class="pipe-wrap reveal">
-      <div class="pipe-label">Indexing</div>
-      <div class="pipe-table">
-        <div class="pipe-row">
-          <div class="pipe-src src-av">Video / Audio</div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-node">faster-Whisper<span class="pipe-sub">CTranslate2</span></div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-node">transcript chunks<span class="pipe-sub">timestamped</span></div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-node pipe-embed">text embedding<span class="pipe-sub">multilingual-e5 / Ruri</span></div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-db">vec_text<br><span class="pipe-sub">+ FTS5</span></div>
-        </div>
-        <div class="pipe-row">
-          <div class="pipe-src src-img">Images</div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-node">SigLIP2 / CLIP<span class="pipe-sub">waon-siglip2 / llm-jp</span></div>
-          <div class="pipe-arr" style="flex:1;text-align:center;letter-spacing:3px">· · ·</div>
-          <div class="pipe-db">vec_clip</div>
-        </div>
-        <div class="pipe-row">
-          <div class="pipe-src src-vid">Video frames</div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-node">ffmpeg<br>+ scenedetect<span class="pipe-sub">key frames</span></div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-node">CLIP ViT<span class="pipe-sub">+ BLIP caption</span></div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-node pipe-embed dim">image embedding</div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-db">vec_clip<br><span class="pipe-sub">+ FTS5</span></div>
-        </div>
-        <div class="pipe-row">
-          <div class="pipe-src src-txt">PDF / Text / Subtitles</div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-node">text extraction<span class="pipe-sub">pdfminer etc.</span></div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-node">segments</div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-node pipe-embed dim">text embedding</div>
-          <div class="pipe-arr">→</div>
-          <div class="pipe-db">vec_text<br><span class="pipe-sub">+ FTS5</span></div>
-        </div>
-      </div>
-      <div class="pipe-db-note">All vectors stored in <strong>sqlite-vec</strong> (L2 distance) — no external database</div>
-    </div>
-
-    <!-- Search + Ask -->
-    <div class="search-ask-grid">
-      <div class="sa-card reveal">
-        <div class="sa-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="#E53935" stroke-width="1.8"/><path d="M21 21l-4.35-4.35" stroke="#E53935" stroke-width="1.8" stroke-linecap="round"/></svg>
-          Search — 5 channels, parallel
-        </div>
-        <div class="channel-list">
-          <div class="ch ch-vec">vec_text <span>text embedding L2</span></div>
-          <div class="ch ch-vec">vec_clip <span>SigLIP2 / CLIP embedding L2</span></div>
-          <div class="ch ch-fts">FTS5 metadata <span>title / filename / tags</span></div>
-          <div class="ch ch-fts">FTS5 transcript <span>Whisper / subtitle text</span></div>
-          <div class="ch ch-fts">FTS5 text_content <span>PDF / text body</span></div>
-        </div>
-        <div class="fusion-row">
-          <span class="fusion-badge">precision mode</span> weighted cosine merge + strict cutoff
-          <br>
-          <span class="fusion-badge">recall mode</span> Weighted RRF — transcript ×1.5, clip ×0.2
-        </div>
-      </div>
-
-      <div class="sa-card reveal reveal-delay-1">
-        <div class="sa-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 10h8M8 14h5M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.6.376 3.112 1.043 4.453L2 22l5.547-1.043A9.953 9.953 0 0012 22z" stroke="#E53935" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Ask — cited answers
-        </div>
-        <div class="ask-flow">
-          <div class="ask-step">Query → keyword extraction (LLM)</div>
-          <div class="ask-step">5-channel recall search</div>
-          <div class="ask-step">access control filter (Internal API)</div>
-          <div class="ask-step">context assembly (transcript ±30 s / BLIP captions)</div>
-          <div class="ask-step">LLM stream (OpenAI-compatible)</div>
-          <div class="ask-step ask-safe">citation whitelist validation — unknown file IDs dropped</div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<!-- ═══ HOW IT WORKS ═══ -->
-<section class="how" id="how-it-works">
-  <div class="container">
-    <div class="section-head">
-      <div class="badge badge-red reveal">
-        <span class="badge-dot"></span>
-        Setup
-      </div>
-      <h2 class="reveal reveal-delay-1">Up and running in minutes</h2>
-      <p class="reveal reveal-delay-2">Git, Docker, and Python 3 are the only prerequisites. Everything else runs inside containers.</p>
-    </div>
-
-    <div class="steps-linear">
-
-      <!-- Step 1 -->
-      <div class="step-linear reveal">
-        <div class="step-left">
-          <div class="step-num">1</div>
-          <div class="step-connector-v" aria-hidden="true"></div>
-        </div>
-        <div class="step-body">
-          <h3>Clone the repository</h3>
-          <p>Use <code class="inline-code">--recurse-submodules</code> to include the bundled addons (Intelligence, Knowledge, Cloud Sync) in one go.</p>
-          <div class="code-block" role="region" aria-label="Clone command">
-            <div><span class="c-cmd">git clone</span> <span class="c-key">--recurse-submodules</span> <span class="c-str">https://github.com/mamepenguin/Litloft</span></div>
-            <div><span class="c-cmd">cd</span> <span class="c-val">Litloft</span></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 2 -->
-      <div class="step-linear reveal reveal-delay-1">
-        <div class="step-left">
-          <div class="step-num">2</div>
-          <div class="step-connector-v" aria-hidden="true"></div>
-        </div>
-        <div class="step-body">
-          <h3>Wire the containers</h3>
-          <p><code class="inline-code">configure.py</code> is a short bootstrap script. It asks only what the containers need in order to start — which host directories to mount, the port, and which addons to run. Re-run it any time you change mounts or the port.</p>
-          <div class="code-block" role="region" aria-label="Configure command">
-            <div class="os-tabs" role="tablist" aria-label="Operating system">
-              <button class="os-tab active" role="tab" aria-selected="true" data-os="unix">macOS / Linux</button>
-              <button class="os-tab" role="tab" aria-selected="false" data-os="win">Windows</button>
-            </div>
-            <div class="os-panel active" data-os-panel="unix">
-              <div><span class="c-cmd">python3 configure.py</span></div>
-            </div>
-            <div class="os-panel" data-os-panel="win">
-              <div><span class="c-cmd">py -3 configure.py</span></div>
-            </div>
-          </div>
-          <div class="wizard-steps">
-            <div class="wizard-step">
-              <span class="wz-num">①</span>
-              <div>
-                <strong>Drive mounts</strong>
-                <span>For each drive, the host directory to mount and a short slug (a path identifier, not a display name). You give drives their names and access groups later, in the browser.</span>
-              </div>
-            </div>
-            <div class="wizard-step">
-              <span class="wz-num">②</span>
-              <div>
-                <strong>Port</strong>
-                <span>The default port is 3000. Change it if you need to run multiple instances or avoid a conflict.</span>
-              </div>
-            </div>
-            <div class="wizard-step">
-              <span class="wz-num">③</span>
-              <div>
-                <strong>Addons</strong> <span class="opt-label">optional</span>
-                <span>Enable the Intelligence and/or Knowledge services (yes/no). Their features — Whisper model, embeddings, LLM provider, notes — are configured later in the browser.</span>
-              </div>
-            </div>
-          </div>
-          <p class="step-note"><code class="inline-code">configure.py</code> writes <code class="inline-code">docker-compose.override.yml</code> and <code class="inline-code">.env</code>, and creates empty <code class="inline-code">drives.json</code> / <code class="inline-code">passwords.json</code> that the app fills in. It does not ask for drive names, passwords, or LLM settings — those are set in the browser on first launch. At the end it offers to start the containers immediately (defaults to yes).</p>
-        </div>
-      </div>
-
-      <!-- Step 3 -->
-      <div class="step-linear reveal reveal-delay-2">
-        <div class="step-left">
-          <div class="step-num">3</div>
-          <div class="step-connector-v" aria-hidden="true"></div>
-        </div>
-        <div class="step-body">
-          <h3>Start Litloft</h3>
-          <p><code class="inline-code">configure.py</code> starts the containers automatically at the end (the first build takes a few minutes). If you skipped that prompt or need to restart later:</p>
-          <div class="code-block" role="region" aria-label="Docker start command">
-            <div><span class="c-cmd">docker compose up</span> <span class="c-key">-d</span> <span class="c-key">--build</span></div>
-            <div style="margin-top:6px"><span class="c-comment"># Open http://localhost:3000 when ready</span></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 4 -->
-      <div class="step-linear reveal reveal-delay-2">
-        <div class="step-left">
-          <div class="step-num">4</div>
-        </div>
-        <div class="step-body">
-          <h3>Set up in your browser</h3>
-          <p>Open <code class="inline-code">http://localhost:3000</code>. On first launch Litloft shows the <code class="inline-code">/setup</code> wizard: it lists the drives it detected from your mounts so you can name them, set passwords and access groups, and choose which optional Intelligence features to enable. Everything here can be changed later at <code class="inline-code">/admin/settings</code>.</p>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- LLM note -->
-    <div class="llm-note reveal">
-      <div class="llm-note-icon" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E53935" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <div>
-        <strong>Using LLM features (Intelligence addon)</strong>
-        <p>Tag suggestions, generated summaries, and Ask answers require an LLM. Set it up after launch; search and transcription can still run without one.</p>
-        <ul class="llm-options">
-          <li>
-            <span class="llm-label">Local (recommended)</span>
-            Install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> on your host and pull a model. Point Litloft at it with the API key / base URL in <code class="inline-code">.env</code>; the provider and model are chosen in the browser. Your source material stays on your machine.
-          </li>
-          <li>
-            <span class="llm-label">API</span>
-            Use OpenAI, DeepSeek, or any OpenAI-compatible endpoint. Put the API key (and base URL) in <code class="inline-code">.env</code> and pick the model in the browser. File content is sent to the API during indexing and Ask queries.
-          </li>
+    <div class="hood-grid">
+      <div class="hood-card reveal">
+        <h3>Your files stay files</h3>
+        <ul>
+          <li>Drives are host folders mounted into Docker</li>
+          <li>Notes are <code>.md</code> files; imported videos are small <code>.loft</code> files</li>
+          <li>Deleted files wait 30 days in Trash; a file that disappears from disk keeps its history until it comes back</li>
         </ul>
-        <p>Semantic search and transcription work without an LLM. Only text generation features are gated behind it, and generated summaries require an explicit review/save step before they become notes.</p>
+      </div>
+      <div class="hood-card reveal">
+        <h3>Indexing, if you add it</h3>
+        <ul>
+          <li>Audio and video transcribed by faster-Whisper, or a cloud provider you pick</li>
+          <li>Subtitles, PDFs and text split into passages and embedded</li>
+          <li>Images and video frames embedded with a SigLIP2 or CLIP model</li>
+          <li>Full-text search in SQLite FTS5, vectors in <code>sqlite-vec</code></li>
+        </ul>
+      </div>
+      <div class="hood-card reveal">
+        <h3>Drives are boundaries</h3>
+        <ul>
+          <li>Each drive can have its own password and access group</li>
+          <li>Search, tags, favourites and Ask never cross drives</li>
+          <li>Each addon, or one feature of it, is switched on or off per drive</li>
+          <li>A locked drive is not listed by name until it is unlocked</li>
+        </ul>
       </div>
     </div>
-
+<pre class="arch reveal">Browser ──▶ :3000 Next.js ──/api/*──▶ :8000 FastAPI + SQLite + ffmpeg
+                                        ├─ intelligence  <span class="dim">search, Ask, transcripts   (own container)</span>
+                                        ├─ knowledge     <span class="dim">notes, clips, versions     (own container)</span>
+                                        ├─ media_import  <span class="dim">YouTube &amp; feeds           (in the backend)</span>
+                                        └─ cloud-sync    <span class="dim">rclone backups            (in the backend)</span></pre>
   </div>
 </section>
 
 <!-- ═══ ADDONS ═══ -->
-<section class="addons">
+<section id="addons" class="section">
   <div class="container">
     <div class="section-head">
-      <div class="badge badge-red reveal">
-        <span class="badge-dot"></span>
-        Extensible
-      </div>
-      <h2 class="reveal reveal-delay-1">Install only the services you need</h2>
-      <p class="reveal reveal-delay-2">Each addon is an independent service you enable via Docker Compose. Keep a simple media library, or add indexing, notes, import, and backups as needed.</p>
+      <span class="eyebrow reveal">Addons</span>
+      <h2 class="reveal">Start with a media server, add the rest when you need it</h2>
+      <p class="reveal">The core is a file browser and player. Each addon is its own repository, and each drive decides which ones it uses.</p>
     </div>
-
     <div class="addon-grid">
-      <div class="addon-card reveal">
-        <div class="addon-icon" style="background:#FFF0F0;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#E53935" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
+      <div class="addon reveal">
+        <span class="kind">Recommended</span>
         <h3>Intelligence</h3>
-        <p>Transcript indexing, semantic search, Q&amp;A, tag suggestions, and summaries. LLM features work with OpenAI-compatible endpoints; local models are recommended.</p>
+        <p>Transcripts, search by meaning, scene and image search, Ask with citations, summaries, tag suggestions and chapter candidates. LLM features use Ollama or any OpenAI-compatible endpoint.</p>
       </div>
-
-      <div class="addon-card reveal reveal-delay-1">
-        <div class="addon-icon" style="background:#F0F4FF;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 6h16M4 10h16M4 14h10M4 18h6" stroke="#4A6CF7" stroke-width="1.8" stroke-linecap="round"/>
-          </svg>
-        </div>
+      <div class="addon reveal">
+        <span class="kind">Notes</span>
         <h3>Knowledge</h3>
-        <p>Markdown notes linked to videos, podcasts, documents, and images, with shared tags and citations from notes and source media.</p>
+        <p>The Markdown editor with live preview, version history, the Notes page, web clipping, the capture basket and the connections graph.</p>
       </div>
-
-      <div class="addon-card reveal reveal-delay-2">
-        <div class="addon-icon" style="background:#F0FFF4;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 12v5M9.5 14.5L12 17l2.5-2.5" stroke="#22C55E" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
+      <div class="addon reveal">
+        <span class="kind">Sources</span>
+        <h3>Media Import</h3>
+        <p>YouTube and Vimeo URLs as <code>.loft</code> files, channel and playlist subscriptions, caption import and an import log.</p>
+      </div>
+      <div class="addon reveal">
+        <span class="kind">Backup</span>
         <h3>Cloud Sync</h3>
-        <p>Back up your drives to any cloud storage provider via rclone — S3, Backblaze, Google Drive, and more.</p>
+        <p>Scheduled backups of your drives through rclone, to S3, Backblaze B2, Google Drive and the other providers rclone supports.</p>
       </div>
-
-      <div class="addon-card reveal reveal-delay-3">
-  <div class="addon-icon" style="background:#F0F4FF;">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke="#4A6CF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="#4A6CF7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  </div>
-  <h3>Media Import</h3>
-  <p>Add videos from YouTube, SoundCloud, or Vimeo by URL. Keep playback embedded when possible, and let captions join search and Q&amp;A.</p>
-</div>
+    </div>
+    <div class="extras">
+      <div class="extra reveal">
+        <h3>iOS app</h3>
+        <p>A native shell around the web app, built from <code>ios/</code> in Xcode. Background audio with lock-screen controls, picture-in-picture video and AirPlay. Not on the App Store.</p>
+      </div>
+      <div class="extra reveal">
+        <h3>MCP server</h3>
+        <p>Lets an MCP client such as Claude Desktop search, read, tag, rename and edit files through Litloft's own API, with the same drive access rules as the browser.</p>
+      </div>
     </div>
   </div>
 </section>
+
+<!-- ═══ SETUP ═══ -->
+<section id="setup" class="section paper">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow reveal">Setup</span>
+      <h2 class="reveal">Four steps, most of them in the browser</h2>
+      <p class="reveal">You need Git, Docker with Compose v2, Python 3, and about 5 GB of disk. Everything else runs inside the containers.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-rail"><span class="step-num"></span></div>
+        <div class="step-body">
+          <h3>Clone the repository</h3>
+          <p>The addons are Git submodules, so clone them along with the core.</p>
+<div class="code"><span class="p">$ </span>git clone --recurse-submodules https://github.com/mamepenguin/Litloft
+<span class="p">$ </span>cd Litloft</div>
+        </div>
+      </div>
+
+      <div class="step reveal">
+        <div class="step-rail"><span class="step-num"></span></div>
+        <div class="step-body">
+          <h3>Run <code>configure.py</code></h3>
+          <p>A short script that writes only what Docker needs to start. Press Enter to accept each default.</p>
+          <div class="os-tabs" role="tablist" aria-label="Operating system">
+            <button class="os-tab" role="tab" aria-selected="true" aria-controls="os-unix" id="tab-unix">macOS / Linux</button>
+            <button class="os-tab" role="tab" aria-selected="false" aria-controls="os-win" id="tab-win" tabindex="-1">Windows</button>
+          </div>
+<div class="code" id="os-unix" role="tabpanel" aria-labelledby="tab-unix"><span class="p">$ </span>python3 configure.py</div>
+<div class="code" id="os-win" role="tabpanel" aria-labelledby="tab-win" hidden><span class="p">&gt; </span>py -3 configure.py</div>
+          <ul class="asks">
+            <li><span>1</span><span><b>Drives</b>: the host folders to mount, each with a short slug. Display names come later.</span></li>
+            <li><span>2</span><span><b>Port</b>: 3000 unless you change it.</span></li>
+            <li><span>3</span><span><b>Intelligence</b>: on by default, with an optional <code class="ic">LLM_API_KEY</code>. Leave it blank for a local model.</span></li>
+            <li><span>4</span><span><b>Knowledge</b>: off by default. Media Import and Cloud Sync need no answer here; you turn them on per drive later.</span></li>
+          </ul>
+          <p class="foot">It writes <code class="ic">docker-compose.override.yml</code> and <code class="ic">.env</code>, and asks before overwriting anything.</p>
+        </div>
+      </div>
+
+      <div class="step reveal">
+        <div class="step-rail"><span class="step-num"></span></div>
+        <div class="step-body">
+          <h3>Start the containers</h3>
+          <p><code class="ic">configure.py</code> offers to start Litloft when it finishes. The first build takes several minutes.</p>
+<div class="code"><span class="p">$ </span>docker compose up -d --build
+<span class="c"># later, to update:</span>
+<span class="p">$ </span>git pull --recurse-submodules &amp;&amp; docker compose up -d --build</div>
+        </div>
+      </div>
+
+      <div class="step reveal">
+        <div class="step-rail"><span class="step-num"></span></div>
+        <div class="step-body">
+          <h3>Finish in the setup wizard</h3>
+          <p>Open the address <code class="ic">configure.py</code> printed, such as <code class="ic">http://localhost:3000/setup?token=…</code>. The wizard names your drives, sets passwords and access groups, and chooses which addons each drive uses. All of it can be changed later at <code class="ic">/admin/settings</code>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="llm-box reveal">
+      <h3>Using an LLM</h3>
+      <p>Summaries, tag suggestions, chapter candidates and Ask need an LLM; search and transcription do not. Choose the provider and model in the browser after setup.</p>
+      <p><b>Local:</b> install <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a> on the host and pull a model. Your files stay on your machine. <b>Hosted:</b> any OpenAI-compatible API, with the key in <code class="ic">.env</code>. File text is then sent to that API when indexing and asking.</p>
+      <p>The <a href="https://github.com/mamepenguin/Litloft/blob/main/docs/getting-started/installation.md" target="_blank" rel="noopener noreferrer">installation guide</a> has the details, including HTTPS for iPhone and iPad.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ WHAT IT IS NOT ═══ -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow reveal">Before you install</span>
+      <h2 class="reveal">What Litloft is not</h2>
+      <p class="reveal">A personal project, built first for one household's library. Issues and pull requests are welcome; support is best effort.</p>
+    </div>
+    <div class="not-grid reveal">
+      <p class="not-item"><b>Not for the public internet.</b> Authentication is minimal by design. Use it on your LAN, or through a VPN.</p>
+      <p class="not-item"><b>Not a multi-user service.</b> A profile is a nickname in the browser. There are no accounts.</p>
+      <p class="not-item"><b>Not a Plex replacement.</b> No transcoding, and no metadata from online databases.</p>
+      <p class="not-item"><b>Not offline.</b> Without a connection to the server, the browser and app show nothing.</p>
+    </div>
+  </div>
+</section>
+</main>
 
 <!-- ═══ CTA ═══ -->
-<section class="cta-section">
+<section class="cta">
   <div class="container">
-    <div class="cta-inner">
-      <h2 class="reveal">Keep the library close<br>to the sources.</h2>
-      <p class="reveal reveal-delay-1">Self-hosted, citation-oriented, and built for local knowledge work.</p>
-      <div class="cta-btns reveal reveal-delay-2">
-        <a href="https://github.com/mamepenguin/Litloft" class="btn btn-primary btn-lg" target="_blank" rel="noopener noreferrer">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
-          Get Started
-        </a>
-        <a href="#how-it-works" class="btn btn-ghost btn-lg">View setup guide</a>
-      </div>
-      <p class="cta-tagline reveal reveal-delay-3">Self-hosted. Source-backed. Free and open source.</p>
+    <img src="icon.svg" alt="" width="64" height="64">
+    <h2>Keep the library at home.</h2>
+    <p>Free and open source under AGPL-3.0. Clone it, point it at a folder, and open it in a browser.</p>
+    <div class="cta-btns">
+      <a href="https://github.com/mamepenguin/Litloft" class="btn btn-light btn-lg" target="_blank" rel="noopener noreferrer">Get it on GitHub</a>
+      <a href="https://github.com/mamepenguin/Litloft/blob/main/docs/README.md" class="btn btn-ghost btn-lg" target="_blank" rel="noopener noreferrer">Read the docs</a>
     </div>
   </div>
 </section>
 
-<!-- ═══ FOOTER ═══ -->
 <footer>
-  <div class="container">
-    <div class="footer-inner">
-      <span class="footer-copy">© 2026 Litloft. AGPL-3.0 License.</span>
-      <nav class="footer-links" aria-label="Footer links">
-        <a href="https://github.com/mamepenguin/Litloft" class="footer-link" target="_blank" rel="noopener noreferrer">GitHub</a>
-      </nav>
-    </div>
+  <div class="container footer-inner">
+    <span>© 2026 Litloft · AGPL-3.0</span>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="https://github.com/mamepenguin/Litloft" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://github.com/mamepenguin/Litloft/blob/main/docs/README.md" target="_blank" rel="noopener noreferrer">Documentation</a>
+      <a href="https://github.com/mamepenguin/Litloft/blob/main/docs/README_ja.md" target="_blank" rel="noopener noreferrer" lang="ja">日本語</a>
+    </nav>
   </div>
 </footer>
 
 <script>
-  // Scroll reveal
   const observer = new IntersectionObserver(
     (entries) => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } }),
-    { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
   );
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-  // OS tab switcher
-  document.querySelectorAll('.os-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      const os = tab.dataset.os;
-      const block = tab.closest('.code-block');
-      block.querySelectorAll('.os-tab').forEach(t => {
-        t.classList.toggle('active', t.dataset.os === os);
-        t.setAttribute('aria-selected', t.dataset.os === os ? 'true' : 'false');
-      });
-      block.querySelectorAll('.os-panel').forEach(p => {
-        p.classList.toggle('active', p.dataset.osPanel === os);
+  document.querySelectorAll('[role="tablist"]').forEach(list => {
+    const tabs = [...list.querySelectorAll('[role="tab"]')];
+    const select = (tab) => tabs.forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => select(tab));
+      tab.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+        next.focus();
+        select(next);
       });
     });
   });
 </script>
-
 </body>
 </html>
