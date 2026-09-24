@@ -17,6 +17,7 @@ import "react-pdf/dist/Page/TextLayer.css";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 
 import { getStreamUrl } from "@/lib/api";
+import { rasterCacheFor, type RasterRequest } from "@/lib/pdfRasterCache";
 import { declaredReadingDirection } from "@/lib/pdfReadingDirection";
 import { readStored, writeStored } from "@/lib/safeStorage";
 import {
@@ -26,11 +27,13 @@ import {
   parsePdfZoomMode,
   pdfPageWidth,
   type PageBox,
-  rasterPixelRatio,
+  pageRasterRatio,
   type PdfZoomMode,
 } from "@/lib/pdfZoomMode";
 import { MenuRadioGroup, ToolbarMenu } from "@/components/ToolbarMenu";
+import { PdfCanvas } from "@/components/pdf/PdfCanvas";
 import { PdfPageInput } from "@/components/pdf/PdfPageInput";
+import { usePdfPageBoxes } from "@/components/pdf/usePdfPageBoxes";
 import {
   PdfFullscreenViewer,
   type DocumentSlotProps,
@@ -78,6 +81,8 @@ function pageBoxPaddingY(box: Element): number {
     ? top + bottom
     : PAGE_BOX_PADDING_Y;
 }
+
+const RASTER_OWNER = "inline";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
@@ -387,14 +392,66 @@ export function PdfPreview({
    * Every keystroke in the page box is a state change, and a large PDF
    * cannot afford to re-render the canvas on each of them.
    */
+  const boxes = usePdfPageBoxes(loaded?.pdf ?? null, page);
+  // The fetched box of the page being turned to is known before react-pdf
+  // reports it, so the first draw is already at the size a prefetch used.
+  const currentBox = boxes.get(page) ?? pageBox;
+  const deviceRatio =
+    typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
   const baseWidth = pdfPageWidth({
     mode: zoomMode,
     available: availableWidth,
     availableHeight,
-    pageBox,
+    pageBox: currentBox,
   });
 
   const drawWidth = baseWidth * zoom;
+
+  useEffect(() => {
+    const pdf = loaded?.pdf;
+    if (!pdf) return;
+    const prefetch: RasterRequest[] = [];
+    // The full-screen viewer does its own; the inline page underneath it
+    // keeps only what it shows.
+    if (!fullscreen) {
+      for (const n of [page + 1, page - 1]) {
+        const box = boxes.get(n);
+        if (n < 1 || n > numPages || !box) continue;
+        const width =
+          pdfPageWidth({
+            mode: zoomMode,
+            available: availableWidth,
+            availableHeight,
+            pageBox: box,
+          }) * zoom;
+        if (width <= 0) continue;
+        prefetch.push({
+          pageNumber: n,
+          renderScale:
+            (width / box.width) * pageRasterRatio(box, width, deviceRatio),
+        });
+      }
+    }
+    rasterCacheFor(pdf).want(RASTER_OWNER, { visiblePages: [page], prefetch });
+  }, [
+    loaded?.pdf,
+    fullscreen,
+    page,
+    numPages,
+    boxes,
+    zoomMode,
+    availableWidth,
+    availableHeight,
+    zoom,
+    deviceRatio,
+  ]);
+
+  useEffect(() => {
+    const pdf = loaded?.pdf;
+    if (!pdf) return;
+    const cache = rasterCacheFor(pdf);
+    return () => cache.clear();
+  }, [loaded?.pdf]);
 
   const pageElement = useMemo(
     () => (
@@ -405,14 +462,7 @@ export function PdfPreview({
         // the mode promises; only the raster behind it gets coarser, and
         // only where the browser would otherwise refuse the allocation
         // and paint nothing.
-        devicePixelRatio={rasterPixelRatio({
-          cssWidth: drawWidth,
-          cssHeight: pageBox
-            ? drawWidth * (pageBox.height / pageBox.width)
-            : drawWidth,
-          devicePixelRatio:
-            typeof window === "undefined" ? 1 : window.devicePixelRatio || 1,
-        })}
+        devicePixelRatio={pageRasterRatio(currentBox, drawWidth, deviceRatio)}
         onLoadSuccess={(loaded) => {
           // The page's own size, in points. Read from the viewport at
           // scale 1 rather than from react-pdf's derived `width`, which
@@ -433,11 +483,13 @@ export function PdfPreview({
         // reader has no way to know that zooming out is the way back.
         onRenderError={() => setRenderFailed(true)}
         onRenderSuccess={() => setRenderFailed(false)}
+        renderMode="custom"
+        customRenderer={PdfCanvas}
         renderTextLayer
         renderAnnotationLayer
       />
     ),
-    [page, drawWidth, pageBox],
+    [page, drawWidth, currentBox, deviceRatio],
   );
 
   return (

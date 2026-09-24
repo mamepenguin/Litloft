@@ -16,6 +16,7 @@ import { Page } from "react-pdf";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
 import { AddonSlot } from "@/components/AddonSlot";
+import { PdfCanvas } from "@/components/pdf/PdfCanvas";
 import { PdfPageInput } from "@/components/pdf/PdfPageInput";
 import { usePdfPageBoxes } from "@/components/pdf/usePdfPageBoxes";
 import { useAutoHidingChrome } from "@/hooks/useAutoHidingChrome";
@@ -29,13 +30,14 @@ import {
   DocumentCaptureStore,
   readDocumentSelection,
 } from "@/lib/documentCapture";
-import { faceWidths } from "@/lib/pdfFace";
-import { rasterPixelRatio } from "@/lib/pdfZoomMode";
+import { faceRaster } from "@/lib/pdfFace";
+import { rasterCacheFor, type RasterRequest } from "@/lib/pdfRasterCache";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { readSpreadMode, writeSpreadMode } from "@/lib/spreadPreference";
 import type { Orientation } from "@/lib/spreadPaging";
 
 const READING_DIRECTION_KEY = "image-viewer:reading-direction";
+const RASTER_OWNER = "fullscreen";
 
 function readReadingDirection(): "ltr" | "rtl" {
   try {
@@ -123,6 +125,8 @@ export function PdfFullscreenViewer({
   const canPair = useSpreadFits();
   const {
     face,
+    nextFace,
+    prevFace,
     subPageLabel,
     canGoPrev,
     canGoNext,
@@ -290,28 +294,44 @@ export function PdfFullscreenViewer({
   }, []);
 
   const pages = face.indices.map((i) => i + 1);
-  const widths = faceWidths(
+  const deviceRatio =
+    typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+  // Drawn at the settled zoom, so a zoomed page is sharp.
+  const { widths, ratio } = faceRaster(
     face.kind,
     pages.map((n) => boxes.get(n)),
     frame,
+    deviceRatio * zoom.settledScale,
   );
-  const faceWidth = widths.reduce((a, b) => a + b, 0);
-  const faceHeight = Math.max(
-    ...pages.map((n, slot) => {
-      const box = boxes.get(n);
-      return box ? widths[slot] * (box.height / box.width) : widths[slot];
-    }),
-    0,
-  );
-  // Sized for the whole face, so a pair shares one budget rather than taking
-  // two, and for the settled zoom, so a zoomed page is drawn sharp.
-  const ratio = rasterPixelRatio({
-    cssWidth: faceWidth,
-    cssHeight: faceHeight,
-    devicePixelRatio:
-      (typeof window === "undefined" ? 1 : window.devicePixelRatio || 1) *
-      zoom.settledScale,
-  });
+
+  // Neighbouring faces at the size a turn lands on: fit, zoom 1.
+  const prefetch: RasterRequest[] = [];
+  for (const next of [nextFace, prevFace]) {
+    if (!next) continue;
+    const nextPages = next.indices.map((i) => i + 1);
+    const nextBoxes = nextPages.map((n) => boxes.get(n));
+    const raster = faceRaster(next.kind, nextBoxes, frame, deviceRatio);
+    nextPages.forEach((n, slot) => {
+      const box = nextBoxes[slot];
+      const width = raster.widths[slot];
+      if (!box || width <= 0) return;
+      prefetch.push({
+        pageNumber: n,
+        renderScale: (width / box.width) * raster.ratio,
+      });
+    });
+  }
+
+  // By content: the faces are new objects on every render, and the chrome
+  // re-renders on every mouse move.
+  const wantsKey = JSON.stringify({ visiblePages: pages, prefetch });
+  useEffect(() => {
+    rasterCacheFor(pdf).want(RASTER_OWNER, JSON.parse(wantsKey));
+  }, [pdf, wantsKey]);
+  useEffect(() => {
+    const cache = rasterCacheFor(pdf);
+    return () => cache.release(RASTER_OWNER);
+  }, [pdf]);
 
   // A press on a link is the link's, not a page turn.
   const onFramePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -427,6 +447,8 @@ export function PdfFullscreenViewer({
                     pageNumber={n}
                     width={widths[slot]}
                     devicePixelRatio={ratio}
+                    renderMode="custom"
+                    customRenderer={PdfCanvas}
                     renderTextLayer
                     renderAnnotationLayer
                     loading={null}

@@ -1,4 +1,4 @@
-import type { PageBox } from "@/lib/pdfZoomMode";
+import { rasterPixelRatio, type PageBox } from "@/lib/pdfZoomMode";
 
 export type FaceKind = "single" | "pair" | "half";
 
@@ -29,4 +29,34 @@ export function faceWidths(
   }
   const room = kind === "half" ? frame.width * 2 : frame.width;
   return [Math.min(room, frame.height * aspect(boxes[0]))];
+}
+
+/**
+ * Each page's CSS width in a face, and the one pixel ratio the face is drawn
+ * at: sized for the whole face, so a pair shares one budget rather than
+ * taking two.
+ */
+export function faceRaster(
+  kind: FaceKind,
+  boxes: (PageBox | undefined)[],
+  frame: { width: number; height: number },
+  devicePixelRatio: number,
+): { widths: number[]; ratio: number } {
+  const widths = faceWidths(kind, boxes, frame);
+  const faceWidth = widths.reduce((a, b) => a + b, 0);
+  const faceHeight = Math.max(
+    ...widths.map((width, slot) => {
+      const box = boxes[slot];
+      return box ? width * (box.height / box.width) : width;
+    }),
+    0,
+  );
+  return {
+    widths,
+    ratio: rasterPixelRatio({
+      cssWidth: faceWidth,
+      cssHeight: faceHeight,
+      devicePixelRatio,
+    }),
+  };
 }

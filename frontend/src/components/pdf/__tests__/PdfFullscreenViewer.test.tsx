@@ -7,15 +7,23 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
+import { PdfRasterCache, type Wants } from "@/lib/pdfRasterCache";
 import { SPREAD_MODE_KEY } from "@/lib/spreadPreference";
 import { installPointerEvent } from "@/test/pointerEvent";
 import enMessages from "@/messages-core/en.json";
 
+import { PdfCanvas } from "../PdfCanvas";
 import { PdfFullscreenViewer } from "../PdfFullscreenViewer";
 
 installPointerEvent();
 
-const pageProps: { pageNumber: number; width: number; devicePixelRatio?: number }[] = [];
+const pageProps: {
+  pageNumber: number;
+  width: number;
+  devicePixelRatio?: number;
+  renderMode?: string;
+  customRenderer?: unknown;
+}[] = [];
 
 /** A page the browser refuses to raster. */
 let failingPage: number | null = null;
@@ -27,6 +35,8 @@ vi.mock("react-pdf", () => ({
     pageNumber: number;
     width: number;
     devicePixelRatio?: number;
+    renderMode?: string;
+    customRenderer?: unknown;
     onRenderError?: () => void;
     onRenderSuccess?: () => void;
   }) => {
@@ -555,5 +565,117 @@ describe("PdfFullscreenViewer", () => {
     await act(async () => {});
     fireEvent.keyDown(document, { key: "k", ctrlKey: true });
     expect(search).not.toHaveBeenCalled();
+  });
+});
+
+describe("PdfFullscreenViewer raster cache", () => {
+  function wantsOf(spy: ReturnType<typeof vi.spyOn>): Wants {
+    const calls = spy.mock.calls.filter(([owner]) => owner === "fullscreen");
+    return calls[calls.length - 1][1] as Wants;
+  }
+  beforeEach(() => {
+    vi.stubGlobal("devicePixelRatio", 2);
+  });
+
+  it("draws its pages through the cache's renderer", async () => {
+    await open(fakePdf(8), { initialPage: 3 });
+    const last = pageProps[pageProps.length - 1];
+    expect(last.renderMode).toBe("custom");
+    expect(last.customRenderer).toBe(PdfCanvas);
+  });
+
+  /** The first draw of `page` at or after `since`. */
+  const firstDrawn = (page: number, since: number) =>
+    pageProps.slice(since).find((p) => p.pageNumber === page)!;
+  const scaleOf = (
+    p: (typeof pageProps)[number],
+    box: { width: number } = PORTRAIT,
+  ) => (p.width / box.width) * (p.devicePixelRatio ?? 1);
+
+  it("keeps the face on screen and prefetches the next then the previous page at the size a turn draws them", async () => {
+    const want = vi.spyOn(PdfRasterCache.prototype, "want");
+    await open(fakePdf(8), { initialPage: 3 });
+    const wants = wantsOf(want);
+    expect(wants.visiblePages).toEqual([3]);
+    expect(wants.prefetch!.map((r) => r.pageNumber)).toEqual([4, 2]);
+
+    const since = pageProps.length;
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    await act(async () => {});
+    const drawn = firstDrawn(4, since);
+    expect(drawn.renderMode).toBe("custom");
+    expect(wants.prefetch![0].renderScale).toBeCloseTo(scaleOf(drawn), 4);
+  });
+
+  it("prefetches both pages of the next pair", async () => {
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    const want = vi.spyOn(PdfRasterCache.prototype, "want");
+    await open(fakePdf(8), { initialPage: 1 });
+    const wants = wantsOf(want);
+    expect(wants.visiblePages).toEqual([1]);
+    expect(wants.prefetch!.map((r) => r.pageNumber)).toEqual([2, 3]);
+
+    const since = pageProps.length;
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    await act(async () => {});
+    for (const [n, request] of [
+      [2, wants.prefetch![0]],
+      [3, wants.prefetch![1]],
+    ] as const) {
+      expect(request.renderScale).toBeCloseTo(scaleOf(firstDrawn(n, since)), 4);
+    }
+  });
+
+  it("prefetches a pair too large for the pixel budget at the budgeted size", async () => {
+    vi.stubGlobal("devicePixelRatio", 8);
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    const want = vi.spyOn(PdfRasterCache.prototype, "want");
+    await open(fakePdf(8), { initialPage: 1 });
+    const wants = wantsOf(want);
+
+    const since = pageProps.length;
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    await act(async () => {});
+    const drawn = firstDrawn(2, since);
+    expect(drawn.devicePixelRatio).toBeLessThan(8);
+    expect(wants.prefetch![0].renderScale).toBeCloseTo(scaleOf(drawn), 4);
+  });
+
+  it("prefetches a page of another size at that page's own size", async () => {
+    const want = vi.spyOn(PdfRasterCache.prototype, "want");
+    await open(
+      fakePdf(8, (n) => (n === 4 ? LANDSCAPE : PORTRAIT)),
+      { initialPage: 3 },
+    );
+    await act(async () => {});
+    const wants = wantsOf(want);
+
+    const since = pageProps.length;
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    await act(async () => {});
+    expect(wants.prefetch![0].renderScale).toBeCloseTo(
+      scaleOf(firstDrawn(4, since), LANDSCAPE),
+      4,
+    );
+  });
+
+  it("keeps prefetching at the fit size while the page on screen is zoomed", async () => {
+    const want = vi.spyOn(PdfRasterCache.prototype, "want");
+    await open(fakePdf(8), { initialPage: 3 });
+    const before = wantsOf(want).prefetch;
+
+    fireEvent.keyDown(document, { key: "=" });
+    fireEvent.keyDown(document, { key: "=" });
+    await act(async () => {});
+    const zoomed = pageProps[pageProps.length - 1];
+    expect(zoomed.devicePixelRatio).toBeGreaterThan(2);
+    expect(wantsOf(want).prefetch).toEqual(before);
+  });
+
+  it("gives its pages up when it closes", async () => {
+    const release = vi.spyOn(PdfRasterCache.prototype, "release");
+    const { unmount } = await open(fakePdf(8), { initialPage: 3 });
+    unmount();
+    expect(release).toHaveBeenCalledWith("fullscreen");
   });
 });
