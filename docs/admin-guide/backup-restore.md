@@ -1,24 +1,36 @@
 # Backup and restore
 
-Litloft does not provide a built-in backup command. Backups are file-system level and trivial because every piece of state lives outside the containers.
+Litloft has no backup command. All of its state is in files on the host, so you back it up with the tools you already use.
 
 ## What to back up
 
-| Source | What it contains | Lose it and you lose… |
+| Path | Contains | Without it you lose |
 |---|---|---|
-| `data/` | SQLite DB, thumbnails, uploads, addon DBs, sentinels, JWT secret | All metadata: tags, comments, watch history, AI artefacts |
-| `drives.json` | Drive layout, addon policy | Drive configuration |
-| `passwords.json` | Access groups, passwords | Authentication |
-| `.env` | Secrets (LLM key, JWT secret, internal secrets) | Auth and addon access |
-| `docker-compose.override.yml` | Mount layout | Recovery roadmap |
-| `addons/<name>/<config>.yml` | Per-addon settings (`search-config.yml`, `sync-config.json`) | Addon configuration |
-| Drive directories themselves | The actual content | Your content |
+| `data/` | Database, thumbnails, uploads, addon databases (`data/addons/`), the setup marker, the token signing key | Tags, comments, watch history, collections, transcripts and other AI results |
+| `drives.json` | Drives and addon policy | Drive configuration |
+| `passwords.json` | Passwords and groups | Access control |
+| `.env` | Setup token, API keys, addon secrets | Addon access to the backend and to providers |
+| `docker-compose.override.yml` | Mounts, port, addon services | A record of how the stack was wired |
+| `addons/intelligence/search-config.yml`, `addons/cloud-sync/sync-config.json` | Addon settings | Addon configuration |
+| Drive directories | Your files | Your files |
 
-You can back up everything together (`tar`, `rsync`, `restic`, `borg`) or separate the configuration from the bulk drive directories — useful if your drives are on a NAS that already has its own snapshots.
+Drive directories are wherever `docker-compose.override.yml` mounts them, not under `data/`. If they live on a NAS with its own snapshots, you may only need to back up the rest.
 
 ## Quick local backup
 
-While the stack is running:
+Take a consistent copy of the database first, because it may be written while you copy:
+
+```bash
+docker compose exec backend python -c "
+import sqlite3
+src = sqlite3.connect('/app/data/data.db')
+dst = sqlite3.connect('/app/data/data.db.bak')
+src.backup(dst)
+dst.close()
+"
+```
+
+Then archive everything:
 
 ```bash
 tar -czf litloft-backup-$(date +%Y%m%d).tar.gz \
@@ -27,77 +39,58 @@ tar -czf litloft-backup-$(date +%Y%m%d).tar.gz \
   addons/cloud-sync/sync-config.json
 ```
 
-SQLite handles the live snapshot fine for short reads; for very busy installations, use the SQLite online backup API:
+Leave out the config files you do not have. When you restore, use `data.db.bak` as `data.db`.
 
-```bash
-docker compose exec backend sqlite3 /app/data/data.db ".backup /app/data/data.db.bak"
-```
-
-…and back up the `.bak` instead of the live file.
+For a simpler exact copy, stop the stack first with `docker compose down` and copy the files as they are.
 
 ## Restore
 
-1. Stop the stack:
-   ```bash
-   docker compose down
-   ```
-2. Replace the backed-up files in their original locations.
-3. Start:
-   ```bash
-   docker compose up -d --build
-   ```
+1. `docker compose down`
+2. Put the backed-up files back in their places.
+3. `docker compose up -d --build`
 
-The backend will pick up exactly where it left off. If `addons/intelligence/data/` (the addon's DB and indices) is part of your backup, it will too.
-
-## Drive content
-
-Drive directories live wherever your `docker-compose.override.yml` mounts them. They are not under `data/`. Back them up using the same tool you would use for any other large directory tree — `rsync`, `borg`, or a NAS snapshot.
-
-If a drive lives on shared network storage with its own backup, you typically only need to back up the metadata (`data/`, JSON config) from the Litloft host.
-
-## Backup with the cloud-sync addon
-
-The [cloud-sync addon](../addons/cloud-sync.md) automates pushing drive contents to any rclone remote. It is **not a metadata backup tool**: it only copies the on-disk drive directories. Combine it with a separate metadata snapshot for a full backup story.
+Everything in `data/` comes back, including the addon databases under `data/addons/`.
 
 ## Disaster recovery
 
-Suppose the host disk dies and you only have the backup tarball plus your drive content:
+If the host is lost and you have the backup archive and your drive directories:
 
-1. Reinstall Docker on a new host.
-2. `git clone` Litloft into a fresh directory.
-3. Untar the backup into the same directory.
-4. Re-mount the drive directories at the same host paths (or update `docker-compose.override.yml` if the new host uses different paths).
-5. `docker compose up -d --build`.
+1. Install Docker, Git and Python 3 on the new host.
+2. `git clone --recurse-submodules` Litloft into a new directory.
+3. Extract the backup into that directory.
+4. Mount the drive directories. If their host paths changed, update `docker-compose.override.yml` so the container paths stay the same as in `drives.json`.
+5. `docker compose up -d --build`
 
-If JWT secrets and `data/` survived intact, viewers do not even need to re-unlock.
+With `data/` intact, including `data/.jwt_secret`, devices stay unlocked.
 
-If only drive content survived, you lose all metadata (tags, comments, AI artefacts). The next scanner pass will re-index files from scratch.
+If only the drive directories survived, Litloft scans them as new. Tags, comments, history and AI results are gone.
 
-## Migration to a new host
+## Moving to a new host
 
-1. On old host: `tar` everything (above), copy to new host.
-2. On new host: install Docker, place files, mount drive directories, `docker compose up -d --build`.
+Follow the disaster recovery steps with a fresh backup from the old host.
 
-If the drive directory paths differ on the new host, update `docker-compose.override.yml` so the **container** paths still match `drives.json`.
+## Testing a backup
 
-## Testing your backup
+Do this once, before you need it:
 
-Best practice — at least once before you need to:
+1. `docker compose down`
+2. `mv data data.before-test`
+3. Extract the backup's `data/`.
+4. Start the stack and check that everything works.
+5. `docker compose down`, then `rm -rf data && mv data.before-test data`.
 
-1. Stop the stack.
-2. `mv data data.before-test`.
-3. Untar your backup into `data/`.
-4. Start the stack and confirm everything still works.
-5. `rm -rf data && mv data.before-test data` to revert.
+If step 4 fails, the backup is incomplete.
 
-If step 4 fails, your backup was incomplete or corrupted. Better to find out now.
+## Not worth backing up
 
-## What you cannot back up
+- Unfinished uploads under `data/uploads/`. They are removed on the next start anyway.
+- Container images. `docker compose up --build` rebuilds them.
+- Downloaded models. The intelligence addon downloads them again, which only takes time.
 
-- **In-flight uploads.** Chunks under `data/uploads/` for partially-completed sessions are usable but not portable; restored to a different host they are likely orphans.
-- **Running ML models.** The intelligence addon caches downloaded weights under its own data dir. Backing this up saves you a long re-download on first start in a new host, but it is not strictly necessary — they will be re-fetched.
-- **Container images.** Always rebuilt by `docker compose up --build`, so no need to back them up.
+## Drive contents off-site
 
-## Encrypted backups
+The [cloud-sync addon](../addons/cloud-sync.md) copies drive directories to an rclone remote on a schedule. It does not copy `data/` or the config files, so combine it with the backup above.
 
-Litloft ships nothing for encryption. Layer your tool of choice — `borg`, `restic`, `gpg` on the tarball, or rclone's `crypt` remote when using cloud-sync.
+## Encryption
+
+Litloft does not encrypt backups. Use `borg`, `restic`, `gpg` on the archive, or rclone's `crypt` remote with cloud-sync.

@@ -1,10 +1,10 @@
 # Architecture
 
-Litloft is two containers and zero or more addon containers, glued together by:
+Litloft runs as two containers, plus one container for each independent-service addon:
 
-- A **Next.js custom server** that proxies HTTP and WebSocket to the backend and serves the SPA.
-- A **FastAPI backend** that owns the SQLite database, the filesystem-walking scanner, and the Internal API used by addons.
-- A **lightweight slot system** in the frontend that lets addons inject UI without forking core.
+- A Next.js custom server that serves the app and proxies HTTP and WebSocket traffic to the backend.
+- A FastAPI backend that owns the SQLite database, the scanner, and the Internal API used by addons.
+- A slot system in the frontend that lets addons add UI without changes to core.
 
 ## Topology
 
@@ -25,147 +25,102 @@ Litloft is two containers and zero or more addon containers, glued together by:
                                                 └───────────────────┘
 ```
 
-Backend never has `ports:` exposed externally. The frontend is the only public entry point.
+The backend has no `ports:` entry. The frontend is the only entry point, and it answers `/api/internal/*` with 404 so the Internal API cannot be reached from outside. See [custom server](frontend-dev.md#custom-server).
 
-## Layered responsibilities
+## Layers
 
 | Layer | Responsibility |
 |---|---|
-| **Browser (SPA)** | Render UI, handle interaction, hold the WebSocket. Uses `app/` Server Components for auth-sensitive shells. |
-| **Next.js custom server** | Proxy HTTP and WS, terminate TLS (when fronted by a reverse proxy). Performs no business logic. |
-| **FastAPI routers** (`backend/app/routers/`) | HTTP boundary: validate input, call services, return JSON. |
-| **Services** (`backend/app/services/`) | Business logic: scanner, fileops, thumbnail, upload, heic, subtitle, preview, hash, ws, addon_registry, config_writer. |
-| **Models** (`backend/app/models.py`) | SQLAlchemy ORM. Use `active_file_filter()` for default queries. |
-| **Schemas** (`backend/app/schemas.py`) | Pydantic request / response shapes. |
+| **Next.js custom server** (`frontend/server.js`) | Proxy HTTP and WebSocket. No business logic. |
+| **Routers** (`backend/app/routers/`) | HTTP boundary: validate input, call services, return JSON. |
+| **Services** (`backend/app/services/`) | Business logic: scanner, file operations, thumbnails, uploads, event hooks, and so on. |
+| **Models** (`backend/app/models.py`) | SQLAlchemy ORM. File listings go through `active_file_filter()`. |
+| **Schemas** (`backend/app/schemas.py`) | Pydantic request and response shapes. |
 
 ## Data on disk
 
 | Path | What |
 |---|---|
-| `data/data.db` | The core SQLite DB. |
-| `data/thumbnails/` | Lazy-generated JPEGs, at most 320px on the long edge. Video and PDF are letterboxed onto a fixed 320x180 frame; a picture keeps its own proportions. |
+| `data/data.db` | The core SQLite database (WAL mode). |
+| `data/thumbnails/` | Generated JPEG thumbnails. |
+| `data/converted/` | HEIC → JPEG conversion cache. |
 | `data/uploads/` | In-flight chunked upload state. |
-| `data/snapshots/` | Periodic SQLite snapshots (admin-triggered). |
-| `data/converted/` | ffmpeg conversion cache (e.g. HEIC → JPEG). |
-| `data/previews/` | Sprite preview sheets. |
-| `data/addons/<name>/` | Per-addon state (DB, models, logs). |
-| `data/setup_completed` | Sentinel — wizard skipped iff present. |
-| `data/restart_pending` | Flag — admin banner shown iff present. |
+| `data/addons/<name>/` | Addon state, where the compose examples mount it (for example `./data/addons/intelligence:/intelligence-data`). |
+| `data/setup_completed` | Sentinel: the first-run wizard is skipped when present. |
+| `data/restart_pending` | Flag: the admin "pending changes" banner is shown when present. |
 | `data/.jwt_secret` | Auto-generated JWT signing key. |
 
 ## Auth model
 
-- `lit_viewer` cookie — nickname → SHA256 → 16-char `viewer_id`. The identity, no server session table.
-- `access_token` cookie (httponly) — JWT carrying the unlocked `groups`.
-- A drive is visible iff its `access_group` is in the JWT's `groups`, or it has no `access_group`.
-- A *master viewer* is one whose `groups` cover every protected drive — they get admin access.
-- When `passwords.json` is absent, every viewer is implicitly admin.
+- `lit_viewer` cookie (or the `X-Lit-Viewer` header): nickname → SHA-256 → 16-character `viewer_id`. There is no server-side session table.
+- `access_token` cookie (httponly): a JWT carrying the unlocked `groups`.
+- A drive is visible when it has no `access_group`, or its `access_group` is in the JWT's `groups`.
+- A viewer is admin when they hold every protected drive's group, or the `__admin__` group. When no drive is protected and no `__admin__` password exists (including when `passwords.json` is absent or empty), everyone is admin. See `is_admin()` in `backend/app/auth.py`.
 
 See [drives and access](../user-guide/drives-and-access.md).
 
-## File-state finite machine
+## File states
 
-```
-            (scanner discovers)
-               ┌─────────┐
-              ─▶│ Active  │
-              │ └─┬───┬───┘
-   (re-upload │   │   │ (user delete)
-   to same    │   │   ▼
-   path)      │   │ ┌────────┐
-              │   │ │ Trash  │── 30d ──▶ Purged (row gone, file gone)
-              │   │ └────┬───┘
-              │   │      │ (user restore: clears both flags)
-              │   │      └──────────┐
-              │   ▼                 ▼
-   (recovered)│ ┌──────────┐    ┌──────┐
-              └─┤ Missing  │ ◀──┤ Active│
-                └────┬─────┘    └──────┘
-                     │  (scanner observes file gone)
-                     │
-                     └─ kept indefinitely, manually purged
-```
+| State | `deleted_at` | `missing_since` | How it is entered | How it leaves |
+|---|---|---|---|---|
+| Active | NULL | NULL | Scanner discovers the file, or an upload | — |
+| Missing | NULL | set | Scanner no longer finds the file | Returns to Active when the path reappears; removed only by an explicit purge |
+| Trash | set | NULL | User deletes the file | Restore returns it to Active; purged after 30 days |
 
-See [file states](../reference/file-states.md).
+See [file states](../reference/file-states.md) and the File state section of [`.claude/rules/design-decisions.md`](../../.claude/rules/design-decisions.md).
 
-## Tag canonical store split
+## Tags and Markdown frontmatter
 
-Markdown files use frontmatter as the canonical store; everything else uses the DB.
+- `.md`: frontmatter `tags:` is canonical and `File.tags` is a projection. `PUT /api/files/{id}/content` writes the file, then projects tags in a separate transaction, so a projection failure never undoes the content write.
+- Other files: `File.tags` is canonical, written by `PUT /api/files/{id}/tags`.
+- The frontend always calls `saveFileTags(file, tags)`, which picks the path.
 
-- `.md`: `PUT /api/files/{id}/content` is the only write path. The handler re-projects `tags` into `File.tags` inside the same transaction. Projection failure is non-fatal — content write must remain durable.
-- non-`.md`: chip editor → `PUT /api/files/{id}/tags` → `Tag` table.
-- Frontend always calls `saveFileTags(file, tags)`; the helper branches by extension. UI layer must not branch.
-
-The frontmatter parser is implemented twice (core + knowledge) because they live in separate containers. Drift caught in PR review.
-
-The same canonical / projection split applies to the Markdown link 3-form feature (spec `2026-05-12-markdown-link-three-forms.md`):
-
-- **Phase A** — frontmatter `id:` canonical, `File.md_id` is the projection cache. Injection sites: `PUT /api/files/{id}/content`, `services/scanner.py` first-detect, and the knowledge `note_scanner` reconcile loop. Shared helper: `ensure_id` (duplicated in core and knowledge).
-- **Phase B** — frontmatter `aliases:` canonical, `File.md_aliases` (JSON-encoded `list[str]`, no index) is the projection cache; resolver consumes both columns. Same isolation discipline: each projection is its own commit so a failure cannot roll back the content write. The wiki-link extractor / resolver live in `services/markdown_relations.py`, and `GET /api/files/{id}/wiki-resolutions` exposes the per-target verdict for the renderer.
-- **Phase C** — frontend renderer + editor. `MarkdownPreview.tsx` adds a `markdown-it` inline rule that turns `[[X]]` into one of three DOM shapes (`wiki-link wiki-resolved` / `wiki-unresolved` / `wiki-ambiguous`, CSS tokens in `DESIGN.md` §2.3). `MarkdownFileViewer.tsx` fetches the body and the resolutions map in parallel and pipes the map through the `wikiResolution` prop. The Knowledge editor adds a `[[` autocomplete (`WikiLinkAutocomplete`) and an unresolved-link new-note dialog (`UnresolvedLinkDialog`). Details and open follow-ups: [docs/CODEMAPS/markdown-id.md](../CODEMAPS/markdown-id.md).
+Frontmatter `id:` and `aliases:` follow the same split (`File.md_id`, `File.md_aliases`), and `[[wiki links]]` are resolved per drive. The frontmatter parser exists twice, in core and in the knowledge addon, because they run in different containers. See [backend development](backend-dev.md#markdown).
 
 ## Addon model
 
-Two flavours:
+Two kinds:
 
-- **In-process** — Python module symlinked into `backend/addons/<name>`. Loaded at startup; shares the FastAPI app. Used by `cloud-sync`, `media_import`.
-- **Independent service** — separate container, talks to core via the public addon proxy and the internal API. Used by `intelligence`, `knowledge`.
+- In-process: a Python package loaded into the backend at startup. Used by `cloud-sync` and `media_import`.
+- Independent service: its own container, reached through the core's addon proxy, calling back through the Internal API. Used by `intelligence` and `knowledge`.
 
-Two scopes:
+Three scopes, declared by the addon:
 
-- `drive` — bound to a specific drive per request. URL pattern `/drive/{drive}/addons/{name}/...`. Required `X-HV-Drive` header on internal calls.
-- `global` — no drive binding. URL pattern `/admin/...`.
+- `drive`: URL `/drive/{drive}/addons/{name}`. The frontend sends an `X-Lit-Drive` header on `/api/addons/{name}/...` calls.
+- `global`: URL `/addons/{name}`.
+- `both`: either URL.
 
-See [addon overview](../addons/overview.md) and [addon development](addon-dev.md).
+See [addon development](addon-dev.md).
 
 ## Internal API
 
-`/api/internal/*` is on the Docker network only. It is small by design — only data the core owns and renders gets exposed:
+`/api/internal/*` is reachable only on the Docker network. It exposes only data the core owns and renders. The full endpoint list is in [ADDON-DEVELOPMENT.md → Internal API](../ADDON-DEVELOPMENT.md#internal-api); the rules for adding one are in [Internal API policy](addon-dev.md#internal-api-policy).
 
-- Drive enumeration, drive policy.
-- File metadata, file content (text MIMEs, gated, size-capped).
-- Tag write (gated).
-- File relations (read/write).
-- Filter-file-ids (access control).
-- Bulk lifecycle.
-- Addon-events bridge (post → WebSocket).
+## Concurrency
 
-See [Internal API policy](addon-dev.md#internal-api-policy) for the rules.
-
-## Concurrency primitives
-
-- **Scanner** — guarded by `asyncio.Lock`; second concurrent run returns `409 Conflict`.
-- **Sprite generation** — `asyncio.Semaphore(2)` plus an in-progress set to dedup.
-- **ZIP extraction** — `asyncio.Semaphore(3)`.
-- **Atomic file writes** — write to `.tmp`, then `os.replace()`.
+- Scanner: `asyncio.Lock`. A second concurrent run returns `409 Conflict`.
+- ZIP extraction: `asyncio.Semaphore(3)`.
+- Atomic file writes: write a temporary file, then `os.replace()`.
 
 ## Migrations
 
-Schema migrations live next to the model and run on backend boot. Forward-only — rolling back over a migration is unsafe without a DB backup.
+Schema migrations are in `_migrate()` in `backend/app/database.py` and run on backend start. They are forward-only: rolling back needs a database backup.
 
 ## i18n
 
-- `next-intl` with cookie-only routing (`NEXT_LOCALE`); no URL prefix.
-- Core strings in `frontend/src/messages-core/{ja,en}.json` (tracked).
-- Addon strings in `addons/<name>/frontend/messages/{ja,en}.json` (tracked in addon repo).
-- A merge script (`scripts/merge-addon-messages.mjs`) deep-merges them into `frontend/src/messages/` (gitignored, generated) at build time.
+Core strings are in `frontend/src/messages-core/`, addon strings in each addon's `frontend/messages/`. A merge script combines them at build time. See [frontend development → i18n](frontend-dev.md#i18n).
 
-Core keys must only live in `messages-core/`; addon keys must only live in addon dirs.
+## Build
 
-## Build pipeline
+`docker compose up -d --build` builds:
 
-`docker compose up -d --build`:
+1. The backend image (`backend/Dockerfile`): Python dependencies, ffmpeg, and each addon's `backend/` copied in as a real directory.
+2. The frontend image (`frontend/Dockerfile`): `pnpm install`, addon frontends copied in, the translation merge, then `pnpm build`.
+3. One image per independent-service addon (`addons/<name>/Dockerfile`).
 
-1. Backend image — `backend/Dockerfile` installs Python deps, ffmpeg.
-2. Frontend image — `frontend/Dockerfile` runs `pnpm install`, runs the merge script, `pnpm build`.
-3. Each addon image — `addons/<name>/Dockerfile`.
-
-The frontend build does not embed any drive content — drives are mounted at runtime.
+Drives are mounted at runtime; no drive content is built into an image.
 
 ## Testing
-
-- Backend: `pytest` inside Docker (`backend/Dockerfile.test`). Pydantic does not work cleanly with local Python 3.14, so always run inside the container.
-- Frontend: `vitest 3.x` (do not upgrade to 4 — rolldown native bindings issue), `jsdom 25.x` (do not upgrade to 29 — ESM compat).
 
 See [testing](testing.md).
 

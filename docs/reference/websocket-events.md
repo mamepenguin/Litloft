@@ -1,171 +1,108 @@
 # WebSocket events
 
-Litloft has a single WebSocket endpoint for live browser updates. The frontend Custom Server proxies it; the backend serves the actual connection.
+Litloft pushes live updates to browsers over one WebSocket. It also POSTs lifecycle events to addon services as webhooks. This page covers both.
 
 ## Connection
 
 `ws://<host>:<port>/api/ws`
 
-- Authentication: cookie-based. The endpoint reads the `access_token` JWT cookie to derive the connection's unlocked access groups. Connections without it are accepted with an empty group list (so a fully-public mode works); only events scoped to protected drives are filtered out for them.
-- Connection cap: the backend accepts at most 100 concurrent WebSocket connections. Beyond that the socket is closed immediately with close code `1008` ("Too many connections"). This is a global cap, not per-viewer.
-- Message envelope: every message is `{ "event": "<name>", "data": { ... } }`. Clients filter on `event` client-side.
-- The server never reads inbound frames for anything: it reads and discards them purely to detect disconnects. There is no subscribe/unsubscribe protocol — every eligible connection gets every eligible event.
+- Authentication: the `access_token` JWT cookie decides which protected drives' events the connection receives. A connection without it is accepted and receives events for public drives only. The socket does not read an `Authorization` header.
+- The backend accepts at most 100 connections in total. Beyond that, the socket is closed with code `1008` ("Too many connections").
+- Every message is `{ "event": "<name>", "data": { ... } }`.
+- Every connection receives every event it is allowed to see. There is no subscribe protocol; the server ignores anything the client sends.
 
-## Two delivery systems (read this first)
+## Browser events
 
-Litloft dispatches notifications through **two independent systems**. Confusing them is the most common source of integration bugs.
+The core broadcasts these five events.
 
-| | WebSocket broadcast | Event-hook webhook |
-|---|---|---|
-| Target | The **browser** (this endpoint) | **Addon services** (HTTP POST) |
-| Mechanism | `ws_manager.broadcast` | `event-hooks.json` → `httpx`/`urllib` POST |
-| Configured by | Nothing — always on | `event-hooks.json` (no file → no-op) |
+`drive.structure_changed`
+- When: files or folders in a drive were created, trashed, moved, renamed, restored, recovered, found missing or purged, or a scan or upload finished.
+- Payload: `{ "drive": "..." }`.
 
-The two carry **different granularity on purpose**. Addon listeners receive the fine-grained lifecycle event with the ids it concerns (`files.created`, `folders.moved`, and so on). Browsers receive one of two coarse events saying only which drive changed, because every browser subscriber refetches its listing rather than patching it from the payload — the name is the whole signal, and leaving the ids out means a protected drive's item count and timing are not broadcast either.
+`drive.file_updated`
+- When: a file's content, title, description, tags, favourite, like or trust tier changed.
+- Payload: `{ "drive": "..." }`.
 
-An event-hook webhook still does not reach the browser as itself; an addon that wants its own event there relays it via `POST /api/internal/addon-events`.
-
-Names are not a reliable way to tell the two apart. A colon means browser-only, but the reverse does not hold: most addon events reaching the browser use dots as well.
-
-## Browser WebSocket events
-
-These are the events the core broadcasts directly to connected browsers. This list is exhaustive for the core: no other core code path calls the broadcaster.
+Both are derived from the [webhook events](#event-hook-webhooks) below: `files.updated` becomes `drive.file_updated`, and every other webhook event becomes `drive.structure_changed`. They are sent once per affected drive, with no file ids. When the drive cannot be determined, nothing is sent.
 
 `scan:progress`
-- When: during a scan, every 50 files or at most once per second.
-- Payload: `{ "drive": "...", "added": N, "total": M }` — `total` is items processed so far, not the final count.
-- Drive-scoped (access-filtered).
+- When: during a scan, every 50 files or at least once per second.
+- Payload: `{ "drive", "added", "total" }`. `total` is the number of files processed so far.
 
 `scan:complete`
 - When: a drive scan finished.
-- Payload: `{ "drive": "...", "added": N, "missing": N, "recovered": N, "moved": N, "updated": N, "total": N }` — `missing` counts files that flipped to Missing *on this pass*, not the drive's total Missing count. `total` is the active file count for the drive after the pass.
-- Drive-scoped (access-filtered).
+- Payload: `{ "drive", "added", "missing", "recovered", "moved", "updated", "total" }`. `missing` counts files that became Missing in this scan. `total` is the drive's active file count afterwards.
 
 `upload:complete`
-- When: a chunked upload finalised (including when it revived a Missing-state file at the same path).
-- Payload: `{ "drive": "...", "file_id": "...", "filename": "..." }`.
-- Drive-scoped (access-filtered).
+- When: a chunked upload finished, including one that revived a Missing file at the same path.
+- Payload: `{ "drive", "file_id", "filename" }`.
 
-`drive.structure_changed`
-- When: the set of files or folders in a drive changed — a create, soft delete, move, rename, restore, recovery, a file going missing, a purge, a folder created / moved / deleted, or a scan finishing. Emitted from the same place as the corresponding webhook, so every producer is covered: routes, the scanner, uploads, and the startup auto-purge.
-- Payload: `{ "drive": "..." }`. No ids.
-- Drive-scoped (access-filtered). One broadcast per affected drive, so a batch spanning drives produces one event each rather than a single unscoped one.
-
-`drive.file_updated`
-- When: a file's contents were written, or a per-file mark that a listing reads changed (favourite, like, tags, trust tier).
-- Payload: `{ "drive": "..." }`.
-- Drive-scoped (access-filtered).
-- Separate from `drive.structure_changed` so a subscriber can ignore content writes. The folder tree does exactly that: the Markdown editor autosaves on a 2-second debounce, and refetching the tree on each one would make it flicker while the user types.
-
-Both are best effort. When the drive behind an event cannot be determined, nothing is broadcast rather than something unscoped — the drive filter *is* the recipient set here, so failing open would mean sending to every connection.
-
-Nothing in the core broadcasts for chapters or for file version history. Both are read back by ordinary HTTP requests; there is no live event for either.
+The core sends no event for chapters or version history.
 
 ### Addon events
 
-Addons reach the browser two different ways, depending on how they are deployed.
+An in-process addon calls the core broadcaster directly. An external-service addon sends `POST /api/internal/addon-events` with `{ event, data, drive? }`, and the core broadcasts `data` unchanged. `event` must match `^[a-z][a-z0-9_.]*$` and be at most 128 characters, so colons and hyphens are rejected with `422`. Send `X-Internal-Secret` when `CORE_INTERNAL_SECRET` is set.
 
-**In-process addons** (`addons/<name>/backend/`, loaded into the core process) import `app.services.ws` and call the broadcaster directly. No bridge, no name constraints:
+To tell browsers that core-owned data changed, an in-process addon emits the core's webhook event (for example `files.updated`) instead of broadcasting, so the core sends `drive.file_updated`.
 
-- cloud-sync — `sync:progress` (`{drive, bytes_transferred, total_bytes, speed, eta, percent, transfers, total_transfers}`), `sync:complete` (`{drive, transferred_files, transferred_bytes, errors, elapsed_seconds}`), `sync:error` (`{drive, message, kind}` — `kind` is `"auth_expired"` or `null` when the failure could not be classified; the card offers a recovery step only for the former)
-- media_import — `media_import.subscription.sync_started`, `media_import.subscription.sync_completed` (both `{subscription_id, drive, ...}`). It also broadcasts `files.updated` (`{file_id, drive}`) after an import, reusing a core webhook name on the browser channel; see the note under the webhook table.
+Events in use (each addon's page describes its payloads):
 
-**Independent-service addons** run in their own containers and cannot reach the broadcaster, so they `POST /api/internal/addon-events` with `{event, data, drive?}` and the core relays the payload verbatim. When `drive` is set the relay is access-filtered like any other broadcast; without it the event reaches every connection.
+- cloud-sync: `sync:progress` (`{ drive, bytes_transferred, total_bytes, speed, eta, percent, transfers, total_transfers }`), `sync:complete` (`{ drive, transferred_files, transferred_bytes, errors, elapsed_seconds }`), `sync:error` (`{ drive, message, kind }`, where `kind` is `"auth_expired"` or `null`). These are broadcast without a drive scope, so every connection receives them.
+- media_import: `media_import.subscription.sync_started`, `media_import.subscription.sync_completed` (both `{ subscription_id, drive, ... }`).
+- intelligence: `intelligence.transcription.completed` / `.failed`; `intelligence.refine.started` / `.progress` / `.completed` / `.failed`; `intelligence.vision_describe.started` / `.succeeded` / `.failed` / `.unsupported`; `intelligence.video_visual.started` / `.progress` / `.partial` / `.succeeded` / `.failed`; `intelligence.chapter_suggestions.ready` / `.failed`; `intelligence.detailed_summary.updated` / `.citations_ready`. `intelligence.vision_describe.failed` carries a `reason`: `load`, `decode`, `model_missing`, `image_rejected`, `vision_rejected`, `token_budget`, `malformed`, `empty` or `request_failed`. See [Vision describe](../addons/intelligence.md#vision-describe).
+- knowledge: `knowledge.active_summary.changed`, `knowledge.note.created`, `knowledge.distilled.created`, `knowledge.clip.ready` / `.failed`.
 
-That endpoint validates `event` against `^[a-z][a-z0-9_.]*$`, max 128 characters — **colons and hyphens are rejected with 422**, which is why only in-process addons can use a colon name. Send the `X-Internal-Secret` header whenever `CORE_INTERNAL_SECRET` is configured.
+## Event-hook webhooks
 
-Names in use today (the addons own these; check each addon's docs before relying on a payload shape):
-
-- intelligence — `intelligence.transcription.completed`, `intelligence.transcription.failed`, `intelligence.refine.started` / `.progress` / `.completed` / `.failed`, `intelligence.vision_describe.started` / `.succeeded` / `.failed` / `.unsupported`, `intelligence.video_visual.started` / `.progress` / `.partial` / `.succeeded` / `.failed`, `intelligence.chapter_suggestions.ready` / `.failed`, `intelligence.detailed_summary.updated` / `.citations_ready`
-
-`intelligence.vision_describe.failed` carries a `reason` naming the
-cause — `model_missing`, `image_rejected`, `token_budget`,
-`request_failed`, `empty`, or the pre-LLM stages `load` / `decode`. Its
-`.unsupported` sibling now means the model was measured not to accept
-image content, rather than inferred to be so from a single provider
-rejection; see [the intelligence addon docs](../addons/intelligence.md#vision-describe).
-- knowledge — `knowledge.active_summary.changed`, `knowledge.note.created`, `knowledge.distilled.created`, `knowledge.clip.ready` / `.failed`
-
-## Event-hook webhooks (addon-facing)
-
-These fire as HTTP POSTs to URLs registered in `event-hooks.json`. They are the contract addons subscribe to, **not** browser WebSocket events.
+These are HTTP POSTs to addon services, not browser events. Listeners are registered in `event-hooks.json`.
 
 | Event | Payload | When |
 |---|---|---|
-| `files.created` | `{file_ids}` | A new file row was created (copy, text-file create, batch copy). |
-| `files.updated` | `{file_ids}` | A file row's metadata or content changed (`PUT /api/files/{id}` field edit, favorite toggle, tag edit, batch tag edit, content `PUT`, markdown image import). |
-| `files.deleted` | `{file_ids, type: "soft_delete"}` | Soft delete (move to trash). |
-| `files.restored` | `{file_ids}` | A trashed file was restored. |
-| `files.missing` | `{file_ids}` | Scanner found an Active file gone from disk (first pass, no grace period). |
-| `files.recovered` | `{file_ids}` | A Missing file came back — scanner saw it again, an upload landed at its path, or a text-file create reused its row. |
-| `files.moved` | `{file_ids}` | Rename / move / batch move / folder rename / folder move, or scanner move-detection. (Also WebSocket-broadcast for the file-level rename and move paths — see above.) |
-| `files.purged` | `{file_ids}` | Hard delete, empty-trash, purge-all-missing, or the 30-day trash auto-purge. One event carrying every purged id, not one per DB batch. |
+| `files.created` | `{file_ids}` | A file was copied (single or batch) or created with `POST /api/drives/{drive}/files`. |
+| `files.updated` | `{file_ids}` | A file's title or description, like, favourite, tags (single or batch), trust tier or content changed, or the Markdown image import rewrote it. |
+| `files.deleted` | `{file_ids, type: "soft_delete"}` | Files were moved to trash (single or batch). |
+| `files.restored` | `{file_ids}` | Files were restored from trash. |
+| `files.missing` | `{file_ids}` | A scan found active files gone from disk. |
+| `files.recovered` | `{file_ids}` | A Missing file came back: a scan found it again, an upload landed at its path, or a text-file create reused its row. |
+| `files.moved` | `{file_ids}` | Files were renamed or moved (single, batch or pattern rename), a folder was renamed or moved, or a scan detected a move. |
+| `files.purged` | `{file_ids}` | Files were deleted permanently: purge, batch purge, empty trash, purge all Missing, or the 30-day trash auto-purge. One event per operation. |
 | `folders.created` | `{drive, path}` | A folder was created. |
-| `folders.moved` | `{drive, old_path, new_path}` | A folder was renamed or moved. Emitted even when the folder held no files, so empty-folder renames stay observable. |
+| `folders.moved` | `{drive, old_path, new_path}` | A folder was renamed or moved, including an empty one. |
 | `folders.deleted` | `{drive, path}` | A folder was deleted. |
-| `scan.complete` | `{drive, added, missing, recovered, moved}` | A drive scan finished. Two other paths reuse this event with reduced payloads to nudge index subscribers without waiting for a scan: a chunked upload emits `{drive, added: 1, removed: 0}`, and media_import emits `{drive}` alone. Subscribers must not assume the counter keys are present. |
+| `scan.complete` | `{drive, added, missing, recovered, moved}` | A drive scan finished. An upload also sends `{drive, added: 1, removed: 0}`, and media_import sends `{drive}` alone, so do not rely on the counter keys. |
 
-Note the asymmetry: `files.*` payloads carry no `drive` key, only ids. `folders.*` and `scan.complete` carry `drive` and no ids.
+`files.*` payloads carry ids and no `drive`. `folders.*` and `scan.complete` carry `drive` and no ids.
 
-One divergence to watch: media_import's direct browser broadcast reuses the name `files.updated` but sends `{file_id, drive}` — singular `file_id`, plus a `drive` — where the core's webhook sends `{file_ids}`. Anything reading the payload of a `files.updated` has to handle both. The core's own subscribers sidestep this by ignoring payloads entirely and refetching.
+`event-hooks.json` is not shipped. `configure.py` builds it from the `event_hooks` array in each enabled addon's `manifest.json` (a URL is registered once) and mounts it read-only at `/app/event-hooks.json`; `EVENT_HOOKS_PATH` overrides the path. `backend/event-hooks.json.example` shows every option. Without the file, no webhook is sent.
 
-`event-hooks.json` is not shipped. `configure.py` generates it from the `event_hooks` array in each enabled addon's `manifest.json` (deduplicated by URL) and mounts it read-only at `/app/event-hooks.json`. A hand-written template with the full option list lives at `backend/event-hooks.json.example`. If the file is absent, every `emit` is a silent no-op.
+A listener with a `secret_env` key receives the value of that environment variable in an `X-Webhook-Secret` header.
 
-Per-listener `addon`/`feature` keys apply per-drive policy filtering before dispatch: an event whose payload names a `drive` is dropped when that addon feature is off for the drive, and an event carrying `file_ids` has its ids filtered per owning drive (dropped entirely if none remain). Listeners with no `addon` key pass through unfiltered.
+A listener with an `addon` key (and optional `feature`, default `index`) only receives events for drives where that addon feature is on. An event with a `drive` is dropped for a drive where it is off. An event with `file_ids` keeps only the ids on drives where it is on, and is dropped if none remain. Listeners without `addon` receive everything.
 
-See [file states](file-states.md) for the lifecycle semantics behind these events.
-
-## What the browser client subscribes to
-
-| Subscriber | Events | Notes |
-|---|---|---|
-| File list (`useFolderFiles`) | `drive.structure_changed`, `drive.file_updated` | a content write can change a title or a thumbnail, so it watches both |
-| Folder tree (`FolderTreePane`) | `drive.structure_changed` | ignores content writes on purpose — the Markdown editor autosaves on a 2 s debounce |
-| Drive home (`DriveHome`) | `drive.structure_changed`, `drive.file_updated` | refetches the Recently added / Favourites / Liked rows, and tells the folder tree the drive changed shape; favouriting and liking both count as content updates |
-| Sidebar, admin dashboard | `scan:complete` | scan counts |
-| File-detail summary panel | `knowledge.active_summary.changed` | addon event |
-
-Subscribers ignore the payload apart from `drive`, and refetch rather than patch.
-
-An in-process addon must emit core-owned names through `event_hooks` rather than calling the broadcaster directly, or core derives no browser event from them and no subscriber refreshes. Addon-owned names (`media_import.subscription.*`) are the opposite case: core has nothing to derive, so those broadcast directly.
-
-`scan:progress` and `upload:complete` are broadcast by the core but currently have no subscriber.
-
-### Delivery is lossy, and the client compensates
-
-Two things to know before relying on an event arriving:
-
-- **The socket is closed while the tab is hidden.** `WebSocketProvider` closes it on `visibilitychange` and reconnects when the tab is shown again. Nothing is replayed, so every event during that window is simply gone.
-- **The provider holds one event at a time.** `lastEvent` is a single state slot, so two events arriving in the same React batch leave only the second observable.
-
-`useWebSocketRefresh` therefore **refetches once on every reconnect**, which is what makes a hidden tab correct again when the user returns. The first connection is skipped, since consumers already fetch on mount. Bursts inside one microtask are coalesced into a single callback.
-
-The coarse events are designed around this: because a subscriber refetches instead of applying a delta, a dropped event costs at most a delayed refresh, never a wrong list.
+See [File states](file-states.md) for what Active, Missing and Trash mean.
 
 ## Filtering
 
-The backend applies access-group filtering before sending. A viewer with no unlocked groups never receives events for protected drives. Drive scoping requires the broadcast to pass a `drive`; events broadcast without one (e.g. batch `files.moved`) are not access-filtered. A broadcast naming a drive that is not in `drives.json` is logged and dropped rather than sent unscoped.
+An event broadcast with a drive reaches only connections that can access that drive. An event broadcast without a drive, such as the cloud-sync events or an `addon-events` call without `drive`, reaches every connection. An event naming a drive that is not in `drives.json` is dropped.
 
-For unauthenticated connections (no `access_token` cookie), public-drive events still arrive.
+## Missed events
 
-## Reconnection
+Delivery is not guaranteed, and nothing is replayed:
 
-The frontend reconnects on disconnect with exponential backoff (base 1 s, capped at 30 s) and closes the socket while the tab is hidden, reconnecting on refocus. There is no resume-from-event-id mechanism; on reconnect the client refetches state for the visible page rather than replaying missed events.
+- The browser closes the socket while the tab is hidden and reconnects when it is shown again.
+- After a disconnect, the browser reconnects with exponential backoff, starting at 1 s and capped at 30 s.
+
+The web app's file listings and folder tree refetch after every reconnect. A client of your own should do the same.
 
 ## Custom Server proxy
 
-The proxy lives in `frontend/server.js`, the Docker production entry point (`pnpm dev` runs plain `next dev` with HTTP rewrites and no WebSocket proxy). It listens on the public port, starts Next.js on an internal port, and routes:
+`frontend/server.js` is the production entry point. It listens on the public port and:
 
-- `/api/ws` upgrades → `backend:8000/api/ws`, cookies preserved. Any other upgrade request has its socket destroyed.
-- `/api/files/{id}/stream` → straight to the backend, bypassing Next.js (the two-hop chain stalls large downloads near completion).
-- `/api/internal/*` → `404` at the edge, so the Internal API stays reachable only from the Docker network.
-- everything else → Next.js.
+- proxies WebSocket upgrades on `/api/ws` to the backend, with cookies, and drops any other upgrade;
+- answers `/api/internal/*` with `404`;
+- sends everything else to Next.js, which forwards `/api/*` to the backend.
 
-The backend is not otherwise exposed; this proxy is the only path to it.
-
-## Threading note
-
-The scanner and the upload finaliser run in worker threads. Their broadcasts go through `broadcast_from_thread`, which schedules the coroutine on the stored event loop with `call_soon_threadsafe`. If no loop is available the broadcast is logged and dropped rather than raising into the worker.
+`pnpm dev` runs plain `next dev`, which has no WebSocket proxy.
 
 ## Use in scripts
 
@@ -183,7 +120,7 @@ async def main():
 asyncio.run(main())
 ```
 
-For protected drives, attach the `access_token` cookie:
+For protected drives, send the `access_token` cookie:
 
 ```python
 import http.cookies

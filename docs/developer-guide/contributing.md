@@ -1,142 +1,98 @@
 # Contributing
 
-Litloft is developed primarily for personal use, but pull requests are welcome. The maintainer reviews on a best-effort basis. If you are unsure whether a feature fits, open an issue first.
+Litloft is developed mainly for personal use, but pull requests are welcome. Reviews are best-effort. If you are unsure whether a feature fits, open an issue first.
 
 ## Before you start
 
-- Read the [architecture](architecture.md) and the [Internal API policy](addon-dev.md#internal-api-policy). Most "no, not in core" decisions trace back to those rules.
-- Skim the design rules in `.claude/rules/design-decisions.md` (in the repo root). They capture invariants — "drives are a security boundary", "tag canonical store split", "missing files are not auto-purged" — that pre-empt large redesigns.
-- Check the existing issues and recent commit history for context on past decisions.
+- Read the [architecture](architecture.md) and the [Internal API policy](addon-dev.md#internal-api-policy). Most "not in core" decisions come from them.
+- Read the rules in `.claude/rules/`, starting with `design-decisions.md`. `CLAUDE.md` at the repo root says which rule file applies to which part of the code.
 
-## Branch and commit conventions
+## Branches and commits
 
-- Branch off `main`. Descriptive name (`feat/scene-search-toggle`, `fix/upload-resume-race`).
-- Conventional Commits message format:
+- Branch off `develop` with a descriptive name (`feat/scene-search-toggle`, `fix/upload-resume-race`), and open the pull request against `develop`.
+- Use Conventional Commits:
 
   ```
   <type>: <short summary>
 
-  <body — what changed and why, not how>
+  <body: what changed and why>
   ```
 
-  Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`. `BREAKING:` prefix in the body for breaking changes.
+  Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`.
+- Write commit messages, PR descriptions and issues in English.
+- A change to an addon is committed in the addon's own repository first; see the Git section of `CLAUDE.md`.
 
-- Small, focused commits. Squashing on merge is fine; *during review* prefer separate commits per concern so reviewers can read the diff.
+## Pull requests
 
-## Pull request
+The description says what changed and why, links the issue if there is one, and says how it was verified. Keep it short (see `.claude/rules/comments.md`).
 
-Open a PR against `main`. The PR description should:
+## Checks
 
-- State what the PR changes and why.
-- Link the issue (if any).
-- Note any test plan items the reviewer should verify.
+CI runs on every pull request. Run the same checks locally before opening one:
 
-The maintainer may ask for changes; small tightening (rename a function, add a test) is normal. For larger redirection, expect a discussion before more code.
+```bash
+# Backend tests (inside Docker)
+docker build -f backend/Dockerfile.test -t litloft-test .
+docker run --rm litloft-test
 
-## Code style
+# Frontend
+cd frontend
+node scripts/merge-addon-messages.mjs
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm test:e2e:layout
+pnpm test:e2e:components
+```
 
-- **Backend**: `ruff` + `black` formatting. PEP 8. Type hints on public functions.
-- **Frontend**: `eslint` + `prettier`. Tailwind utility classes; new tokens go in `DESIGN.md` first.
-- Prefer many small files over a few large ones. 200–400 lines per file is typical, 800 is the soft cap.
-- Immutable patterns: never mutate inputs; return new objects.
+Read the exit code, not the pass count; see [Flake hygiene](testing.md#flake-hygiene). CI also enforces coverage floors; see [testing](testing.md).
 
-See `.claude/rules/coding-style.md` for the full style guide.
+## Tests
 
-### Prose-truth lint
+Every pull request includes tests for the behaviour it changes:
 
-`eslint`, `ruff` and `tsc` read the code and never the sentence above it, so a
-comment, a docstring, a variable name or a test title can drift until it says
-the opposite of what runs. `scripts/jev-lint.sh` asks a model that question over
-the lines your branch changed:
+- Bug fix: a regression test that fails before the fix and passes after it.
+- New feature: unit and integration tests, and a browser test if it is user-visible.
+- Refactor: existing tests still pass.
+
+## Comments
+
+Follow `.claude/rules/comments.md`: comment only what a reader could get wrong after reading the code. `scripts/jev-lint.sh` asks a model whether the comments, names and test titles on your branch still match the code:
 
 ```bash
 scripts/jev-lint.sh                                # diff against origin/develop
-scripts/jev-lint.sh check frontend/src             # a whole tree
-scripts/jev-lint.sh check frontend/src --dry-run   # the plan and the price, no requests
+scripts/jev-lint.sh check frontend/src --dry-run   # show the plan and cost only
 ```
 
-It needs a `TYPESAFE_API_KEY` from [typesafe.ai](https://typesafe.ai), and it
-costs a few cents per branch. Its answers come from a model and move between
-runs, so no CI job runs it and no merge waits on it — read each finding against
-the code and decide. When the prose turns out to be wrong, delete it rather than
-rewording it.
-
-`.jev-lint.yaml` holds the enabled rules, the paths, and the reasoning for the
-ones left off.
-
-## Testing requirements
-
-Every PR includes tests for the behaviour it changes:
-
-- Bug fix → a regression test that fails on `main` and passes on the branch.
-- New feature → unit + integration tests; e2e if user-visible.
-- Refactor → existing tests must still pass. Coverage cannot drop.
-
-Run the full suite locally before opening the PR. CI will run it again, and
-`develop` requires it to pass before merge.
-
-When you run it locally, **read the exit code, not the pass count** — see
-[Flake hygiene](testing.md#flake-hygiene) for why the two disagree.
+It needs `TYPESAFE_API_KEY` and is not run by CI. Treat each finding as a claim to check against the code; if the prose is wrong, delete it. `.jev-lint.yaml` lists the enabled rules.
 
 ## Documentation
 
-Docs are part of the deliverable, not an afterthought.
-
-- New endpoint → add it to [HTTP API reference](../reference/api.md).
-- New environment variable → [environment variables](../reference/env-variables.md).
-- New configuration field → [configuration reference](../reference/configuration.md) and the relevant addon page.
-- New user-facing feature → user guide page.
-- Behaviour change → update the page that describes it; do not bolt new behaviour onto a stale doc.
+A change that users, operators or addon developers can observe updates the matching page under `docs/` in the same pull request. `CLAUDE.md` has the table of which change goes on which page. Internal refactors need no doc change.
 
 ## Translations
 
-Litloft's primary locale is English. To improve or add localization:
+- Edit core strings only in `frontend/src/messages-core/<locale>.json`. `frontend/src/messages/` is generated and gitignored.
+- Addon strings live in the addon's own `frontend/messages/<locale>.json`.
+- To add a locale, add it to `locales` in `frontend/src/i18n/config.ts` and create `messages-core/<locale>.json`.
 
-- Edit core strings only in `frontend/src/messages-core/<locale>.json` (git-tracked). Never edit `frontend/src/messages/` — it is generated by the merge script and gitignored.
-- Addon strings live in that addon's own `frontend/messages/<locale>.json`, not in core.
-- To add a brand-new locale, add its code to `frontend/src/i18n/config.ts` (`locales`) and create the matching `messages-core/<locale>.json`. Routing is cookie-only (`NEXT_LOCALE`); there is no URL locale prefix.
+See [frontend development → i18n](frontend-dev.md#i18n).
 
-See [frontend development → i18n](frontend-dev.md#i18n) for the runtime mechanism.
+## New addons
 
-## Addon contributions
+Follow [addon development](addon-dev.md). A new addon:
 
-If you are adding a new addon, follow [addon development](addon-dev.md). Each addon is its own Git repo under `addons/`; PRs that add a new addon should:
-
-- Land the addon in its own repo first, with its own README and tests.
-- Open a PR to the core repo adding the symlink (in-process) or the example compose block.
-- Document the addon in the addons section of the docs.
+- lives in its own repository, with its own README and tests;
+- is added to core as a submodule under `addons/` (plus an example service block, for an independent service);
+- gets a page under `docs/addons/`.
 
 ## Security
 
-If you find a security issue, do **not** open a public issue. Email or DM the maintainer. Reasonable disclosure timeframes apply.
+Do not report a security issue in a public issue. Contact the maintainer privately.
 
 ## License
 
-By contributing, you agree your changes are licensed under the project's existing license. See `LICENSE` at the repo root.
-
-## Useful commands
-
-```bash
-# Format
-ruff format backend/
-prettier --write 'frontend/**/*.{ts,tsx,json,css}'
-
-# Lint
-ruff check backend/
-eslint frontend/src
-
-# Prose-truth lint (needs TYPESAFE_API_KEY)
-./scripts/jev-lint.sh
-
-# Type-check
-mypy backend/app
-cd frontend && tsc --noEmit
-
-# Tests
-docker run --rm litloft-test
-cd frontend && pnpm test
-cd frontend && pnpm e2e
-```
+By contributing, you agree that your changes are licensed under the project's license (`LICENSE` at the repo root).
 
 ## See also
 

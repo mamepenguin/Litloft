@@ -20,7 +20,7 @@
 
 | ID | 貼る場所 | 撮影シーン |
 |---|---|---|
-| UG-01 | `user-guide/file-browsing.md` の「Drive home layout」セクション（`images/user-guide/drive-home-overview.png` を差し替え） | ドライブの Home。サイドバー（Home / Library / Views / 自分のセクション）と、見出し「Home」と右端の Add、Continue Watching・Recently Viewed・Recently Added などの行が見える俯瞰ショット。フォルダカードは出ない（フォルダは Library）。各領域に番号付き吹き出しで注釈を入れる。 |
+| UG-01 | `user-guide/file-browsing.md` の「Home」セクション（`images/user-guide/drive-home-overview.png` を差し替え） | ドライブの Home。サイドバー（Home / Library / Views / 自分のセクション）と、見出し「Home」と右端の Add、Continue Watching・Recently Viewed・Recently Added などの行が見える俯瞰ショット。フォルダカードは出ない（フォルダは Library）。各領域に番号付き吹き出しで注釈を入れる。 |
 | UG-02 | `user-guide/viewers-and-players.md` の「Video」セクション | 動画プレイヤー再生中の画面。シークバー上にスプライトプレビューがホバー表示され、字幕ピッカーが開いていて、autoplay トグルが見える状態。 |
 | UG-03 | `user-guide/viewers-and-players.md` の「Image」セクション | 画像ビューアの見開きモード。RTL トグルが ON で、2 枚並びの画像が表示されている状態。 |
 | UG-04 | `user-guide/viewers-and-players.md` の「Markdown」セクション | Markdown ビュー。上部に frontmatter のチップ（tags / title / description）が表示され、本文中に Mermaid 図が描画されている状態。 |

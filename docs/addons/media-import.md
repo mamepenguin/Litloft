@@ -1,200 +1,151 @@
 # media_import addon
 
-The `media_import` addon turns URLs into lightweight `.loft` reference files. The reference holds metadata and player hints; playback uses an embedded provider player (YouTube, Vimeo) rather than a downloaded copy of the file.
+The `media_import` addon turns a video URL into a small `.loft` file in your library. The video itself is not downloaded: a `.loft` plays through the provider's embedded player. The addon can also follow YouTube channels and playlists and import their new videos.
+
+It runs inside the backend, is scoped to a drive, and appears in the sidebar as **YouTube & Feeds**, under **Sources**.
 
 ## What it provides
 
-- **URL → `.loft`** — paste a URL, get a tiny JSON file in the chosen folder with provider, ID, title, channel, description, thumbnail, and captions.
-- **Metadata fetch** — yt-dlp extracts metadata for any of the 1000+ platforms it supports.
-- **Caption import** — `.vtt` subtitles (auto and manual, multiple languages) are downloaded and stored alongside the `.loft`.
-- **Provider embeds** — YouTube and Vimeo files render as native embedded players in the file viewer; SoundCloud falls back to a generic link card (Phase 1).
-- **Avatar caching** — channel avatars are cached locally for use in the metadata sidebar.
-
-It is in-process, drive-scoped, and adds a *Loft Metadata* file-detail section.
-
-> **Image needed:** file detail page of a `.loft` file showing the embedded YouTube player and the metadata sidebar.
+- **Import from URL** turns a video URL into a `.loft` file in the folder you choose.
+- yt-dlp fetches the title, channel, description, publication date, duration, thumbnail and chapters.
+- When the video has captions, one `.vtt` file in the video's language is saved next to the `.loft`.
+- With the [intelligence addon](intelligence.md), a video without captions can be transcribed with speech-to-text.
+- YouTube and Vimeo play in embedded players inside Litloft. Other sites show a link card.
+- You can subscribe to a YouTube channel or playlist, and its new videos are imported on a schedule.
 
 ## Installation
 
-media_import is in-process. The repository ships it as a submodule under `addons/media_import/`; the backend Dockerfile copies every addon's `backend/` directory into the image at build time, so a plain rebuild is enough to pick it up:
+media_import is built into the backend image whenever `addons/media_import/` is checked out. Rebuild after checking it out:
 
 ```bash
 docker compose up -d --build
 ```
 
-`yt-dlp` is declared in the addon's own `requirements.txt`, which the backend Dockerfile installs alongside its own dependencies during the image build.
-
-For local development (running the backend outside Docker) symlink the addon into the core tree with `./setup-addons.sh`.
+The image build installs yt-dlp from the addon's `requirements.txt`. To stop the addon loading, leave the submodule uninitialised; see [Enabling and disabling addons](overview.md#enabling-and-disabling-addons).
 
 ## Per-drive policy
 
-`drives.json`:
+In `drives.json`, or in **Addon policy** at `/admin/settings`:
 
 ```json
 {
   "name": "YouTube",
   "addons": {
-    "media_import": {
-      "url_import": true
-    }
+    "media_import": { "url_import": true }
   }
 }
 ```
 
-| Flag | Default | What it does |
+| Feature | Default | Effect when `false` |
 |---|---|---|
-| `url_import` | `true` | Hides **Import from URL** in the Add menu for this drive. Imports from the YouTube & Feeds page and the API are not blocked by this flag. |
+| `url_import` | `true` | Hides **Import from URL** in the **Add** menu for this drive. The **YouTube & Feeds** page and the API still import. |
 
-If absent, graceful-degradation kicks in (`true`).
+## Importing a video
 
-## Importing a URL
+There are two ways in:
 
-Two paths:
+- **Add** menu: on Home or in a Library folder, open **Add** and choose **Import from URL**. The dialog starts at the current folder (the drive root on Home) and imports one video. If the import fails, the URL and folder stay filled in so you can try again. A channel, playlist or feed URL is not imported here; the dialog offers **Open Media Import**, which opens the **YouTube & Feeds** page.
+- **YouTube & Feeds** page: open **Manage** and paste the URL into **Add a source**. For a single video you can also choose **Speech-to-text**: **Use captions**, **If no captions**, or **Always**. The choice is remembered.
 
-- **From the UI** — open **Add** on Home or in a Library folder and choose **Import from URL**. The dialog starts at that folder (the drive root on Home), imports a single video as a `.loft`, and keeps the URL and folder if the import fails so you can try again. Channel, playlist and feed URLs are not imported here; subscribe to them from the **Manage** view of the YouTube & Feeds page.
-- **From the API** — `POST /api/addons/media_import/link` with `{ "drive": "...", "folder_path": "...", "url": "...", "stt_mode": "manual" }` and the `X-Lit-Drive` header.
+The `.loft` file is created at once, named after the video title. If a file with that name exists, a number is added, for example `Title (1).loft`. The metadata, thumbnail and captions are then fetched in the background, so they appear a moment later.
 
-The pipeline:
+Caption downloads that failed for a temporary reason, such as rate limiting, are tried again when the backend starts.
 
-1. **Provider detection** — URL pattern match (YouTube, Vimeo, SoundCloud).
-2. **Metadata fetch** — yt-dlp `--dump-json --no-download`.
-3. **Caption fetch** — yt-dlp `--write-subs --write-auto-subs --sub-langs all` (deduplicated across platform variants).
-4. **Avatar fetch** — channel thumbnail downloaded to `data/media_import_avatars/<provider>/<channel_id>.jpg`.
-5. **Write `.loft`** — JSON file with the structured metadata.
-6. **Index** — the core scanner picks up the new `.loft` file on its next pass (startup or a manual rescan), reflected by the `scan.complete` event.
+## The `.loft` file
 
-## The `.loft` format
-
-A `.loft` file is JSON. Schema:
+A `.loft` file is JSON and holds only the provider and the URL:
 
 ```json
 {
-  "version": 1,
   "provider": "youtube",
-  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-  "external_id": "dQw4w9WgXcQ",
-  "title": "Never Gonna Give You Up",
-  "channel": {
-    "id": "UCuAXFkgsw1L7xaCfnd5JJOw",
-    "name": "Rick Astley",
-    "avatar": "media_import/avatars/youtube/UCuAXFkgsw1L7xaCfnd5JJOw.jpg"
-  },
-  "description": "...",
-  "published_at": "2009-10-25T06:57:33Z",
-  "duration_s": 213,
-  "thumbnail": "https://...",
-  "captions": [
-    { "lang": "en", "auto": false, "path": "captions/en.vtt" },
-    { "lang": "ja", "auto": true, "path": "captions/ja.vtt" }
-  ]
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 }
 ```
 
-Caption files live in a sibling directory inside the same drive (path relative to the `.loft`).
+The fetched metadata is stored in Litloft's database, not in the file. The captions are a separate file with the same name and a `.vtt` extension, in the same folder.
 
-## Player embedding
+The provider is `youtube`, `vimeo` or `soundcloud` when the URL matches one of those sites, and `generic` otherwise.
 
-The file viewer routes `.loft` files through an *adaptive player* dispatcher:
+## Watching
 
-| Provider | Player | Notes |
-|---|---|---|
-| YouTube | Embedded YouTube IFrame Player | Honours channel restrictions, adds optional language picker for captions. |
-| Vimeo | Embedded Vimeo Player | Privacy-respecting embed where the source allows it. |
-| SoundCloud (Phase 1) | Link card | A native player is on the roadmap. |
-| Other | Link card | Fallback when no provider integration exists. |
+| Provider | Player |
+|---|---|
+| YouTube | Embedded YouTube player. **Player** switches between the **Litloft** and **YouTube** controls. |
+| Vimeo | Embedded Vimeo player. |
+| SoundCloud and others | A link card that opens the original page. |
 
-In the [iOS app](../user-guide/ios-app.md), the YouTube player's settings sheet has **Open in the iOS player**, which shows the video in iOS's own full-screen player. Leaving the app from there moves it into the picture-in-picture window, where it keeps playing. The button is not shown in a browser, where the embed has no way into that player.
+Your position in a YouTube video is saved like a local video's, so it appears under **Continue Watching** on Home. The Vimeo player does not report its position.
 
-Resume positions for `.loft` files are tracked in the same `WatchHistory` table as native files (the embedded player posts progress through a postMessage bridge).
+If the owner has disabled embedding, the page says **Embedded playback is disabled for this video** and offers **Watch on YouTube**.
 
-## Loft Metadata file-detail section
+In the [iOS app](../user-guide/ios-app.md), the YouTube player's settings have **Open in the iOS player**, which plays the video in iOS's own full-screen player. From there the video can continue in picture-in-picture when you leave the app. A browser does not show this button.
 
-Below the embedded player, and **in the page rather than inside the player's own box** — so on a phone it scrolls
-away with the page instead of staying pinned above it, and the file detail's bottom sheet opens onto the bottom of
-the video the same way it does for a local file. One consequence worth naming: the card sits inside the page's own
-16px gutter rather than running to both screen edges, which it did while it was inside the player's full-bleed
-wrapper. The addon contributes a *Loft Metadata* card:
+## Below the player
 
-- Channel thumbnail and name (linkable to the channel page on the provider).
-- Description (collapsed; expand to full).
-- Publication date.
-- Caption list with language picker.
-- *Refresh metadata* button — re-runs yt-dlp.
+The addon adds a panel under the player with:
 
-## Search integration
+- the channel name, publication date and the start of the description;
+- **Refresh metadata**, which fetches the metadata and captions again;
+- **Generate captions with speech-to-text**, which downloads the audio for the intelligence addon to transcribe;
+- the caption status, for example **YouTube has no captions for this video**. When a download failed, click the status to try again.
 
-`.loft` files participate in core search like any other file:
+## Search and Ask
 
-- Filename (typically the imported title), title, and description are indexed.
-- When the [intelligence addon](intelligence.md) is enabled, captions become transcript chunks and feed semantic search and Ask. This is the most useful integration: ask *"what was the video where they explained X?"* and Ask retrieves the relevant `.loft` with a timestamp citation.
+Core search finds a `.loft` by its filename, which is the video title. With the [intelligence addon](intelligence.md), the captions and speech-to-text transcripts are indexed too, so semantic search and Ask can find a video by what is said in it.
+
+## YouTube & Feeds
+
+The page is at `/drive/{drive}/addons/media_import` and has two views.
+
+**Manage** has the **Add a source** form, your subscriptions, and **Recent activity**. In the form, a single video URL becomes a `.loft`, and a YouTube channel or playlist URL becomes a subscription.
+
+**Watch** shows videos from subscriptions you chose to show, in two lanes:
+
+- **Regular sources**: subscriptions set to **Regular source**. At most two of the newest videos from each, and at most 12 in total. This lane has no **Show more**.
+- **Recent videos**: subscriptions set to **Show in recent videos**, newest first, 12 at a time with **Show more**.
+
+Each subscription has a **Show in Watch** setting, chosen when you add it and changeable in its details in Manage:
+
+- **Library only**: videos are imported and searchable, including by Ask, but are not shown in Watch.
+- **Show in recent videos**
+- **Regular source**
+
+A video that two subscriptions share appears once. A card shows how far you have watched, and **Watched** when you have finished. It offers **Add to collection** and **Open the source page**.
+
+The page opens on Watch when any subscription on the drive is set to something other than **Library only**, and on Manage otherwise. Videos you are part-way through are listed on Home under **Continue Watching**, not here.
 
 ## Subscriptions
 
-Subscriptions let the addon track YouTube channels and playlists, then poll
-periodically for new videos.
+Paste a YouTube channel or playlist URL into **Add a source** and choose **Subscribe**. Under **Advanced** you can set how many existing videos to import first (**Backfill (initial import count)**).
 
-- Channel / playlist registration: paste a YouTube channel or playlist URL in
-  the YouTube & Feeds page, or call `POST /api/addons/media_import/subscriptions`.
-- Manual sync is available from the UI and via
-  `POST /api/addons/media_import/subscriptions/{id}/sync`.
-- Periodic polling discovers new uploads and creates `.loft` files in the
-  configured folder.
-- The subscription list in **Manage** shows each follow with its status, recent
-  imports, failures, and retry / conflict-resolution actions.
+Litloft checks each subscription for new videos about once an hour. The interval is the subscription's **Cooldown (min)**, 60 by default. New videos are saved as `.loft` files in the subscription's destination folder.
 
-## YouTube & Feeds: Watch and Manage
+A subscription's details show its schedule, destination and imported items, with:
 
-The addon's page is **YouTube & Feeds** in the sidebar, under **Sources**
-(`/drive/{drive}/addons/media_import`). Its header carries the same name and icon
-and names the drive, with no source count. It has two views.
+- **Pause** / **Resume**, and **Sync now** to check immediately;
+- **Fetch more** to import older videos;
+- **Retry** and **Ignore** for failed items;
+- **Resolve…** for an item whose filename is already taken;
+- **Delete subscription**, which stops tracking new videos. Files already imported stay.
 
-**Watch** shows videos from subscriptions you chose to surface, in two lanes:
+## Limits
 
-- **Regular sources** — subscriptions set to *Regular source*, at most two of the
-  newest videos from each, and no more than 12 in all. The lane does not page.
-- **Recent videos** — subscriptions set to *Show in recent videos*, newest first,
-  12 at a time with **Show more**.
-
-Each subscription picks where its videos go with **Show in Watch**, set when the
-source is added and changeable from its details in Manage: *Library only*
-(imported and searchable, including Ask, but not in Watch), *Show in recent
-videos*, or *Regular source*. A video reached through two subscriptions appears
-once. A card shows how far you watched and **Watched** once finished, and offers
-**Add to collection** and **Open the source page**. Watch shows no count of
-unwatched videos.
-
-**Manage** holds the **Add a source** form (paste a URL: a single video becomes a
-`.loft`, a channel, playlist or feed becomes a subscription), the subscription
-list, and recent activity.
-
-The page opens on Watch when any subscription on the drive is set to something
-other than *Library only*, and on Manage otherwise. Part-watched videos are not a
-lane here; they appear on Home under **Continue Watching**.
-
-## Limits and caveats
-
-- **No automatic file download.** The addon never downloads media. If you want the actual MP4, pair it with a separate downloader addon (planned).
-- **Rate limits.** yt-dlp scrapes web pages; aggressive bulk imports can trigger captchas. Throttle by inserting delays between imports.
-- **Provider terms.** Some platforms forbid embedding outside their site. Honour their terms; cloud-sync replicating cached `.loft` files is fine but the **content** is hosted by the provider.
-- **No DRM.** Encrypted streams (Netflix, Apple TV+, Spotify) are out of scope for yt-dlp.
-
-## Privacy
-
-- yt-dlp uses public scraping for most providers; nothing is sent to third parties beyond fetching the metadata.
-- Channel avatars are cached locally — they are not re-fetched on every render.
-- Captions and descriptions live in the drive directory; respect privacy of personal notes you may add.
+- The addon never saves the video file. Only the speech-to-text audio is downloaded, temporarily, for transcription.
+- yt-dlp reads public web pages, and the provider may throttle many imports made in a short time. Throttled caption downloads are retried later.
+- Encrypted (DRM) streams are not supported.
+- Some videos cannot be embedded outside the provider's site.
 
 ## Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
-| Import says *Unable to extract video data* | yt-dlp is out of date; rebuild the backend image (`docker compose up -d --build`). |
-| Captions panel is empty | The provider does not expose subtitles for this video. Try *auto-generated* if available. |
-| Embedded player blanked out | Provider-side embed restriction. Open the original URL in a tab. |
-| `Refresh metadata` does nothing | Network blocked, or provider changed their HTML. Check `docker compose logs backend`. |
-| A subscription stays on *Backoff active* | Listing the channel's videos is failing. Check `docker compose logs backend` for the cause; if the provider is down, wait for it to recover. |
+| Import fails for a URL that used to work | yt-dlp is out of date. Rebuild the backend image (`docker compose up -d --build`). |
+| No captions | The video has none, or they could not be downloaded. The caption status under the player says which. |
+| **Embedded playback is disabled for this video** | The owner does not allow embedding. Use **Watch on YouTube**. |
+| **Refresh metadata** changes nothing | The fetch failed. Check `docker compose logs backend`. |
+| A subscription shows **Backoff active** | Listing the channel's videos is failing. Check `docker compose logs backend`; if the provider is down, wait. |
 
 ## See also
 
-- [yt-dlp documentation](https://github.com/yt-dlp/yt-dlp) for supported providers.
-- [Addon overview](overview.md) for the policy model.
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) for supported sites.
+- [Addon overview](overview.md) for per-drive policy.

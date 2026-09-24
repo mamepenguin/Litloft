@@ -1,8 +1,8 @@
-# Litloft Documentation
+# Litloft documentation
 
-Welcome to the Litloft docs. Litloft is a self-hosted file and media app for trusted home networks. It can optionally use an LLM for tag suggestions, summaries, and natural-language Q&A over your files. Runs on Docker and is accessed through a browser (PWA).
+Litloft is a self-hosted file and media library for a trusted home network. It runs on Docker and is used from a browser, or installed as a web app. With an LLM configured, it can also suggest tags, write summaries and answer questions about your files.
 
-> **LAN only.** Litloft is designed for trusted networks. Do not expose it to the public internet without an HTTPS reverse proxy plus a VPN, or per-drive password protection at minimum.
+> Litloft is for trusted networks only. To reach it from outside your LAN, use a VPN such as Tailscale, and do not expose it to the public internet.
 
 ---
 
@@ -12,68 +12,68 @@ Welcome to the Litloft docs. Litloft is a self-hosted file and media app for tru
 
 Start here.
 
-- [Installation](getting-started/installation.md) — `configure.py` bootstrap, Docker setup, prerequisites, first boot.
-- [First-run setup](getting-started/first-run-setup.md) — Name the detected drives and set passwords / AI features in the `/setup` wizard.
-- [Upgrading](getting-started/upgrading.md) — `git pull` flow, breaking changes, data migration.
+- [Installation](getting-started/installation.md): prerequisites, `configure.py`, first start, HTTPS for iPhone and iPad.
+- [First-run setup](getting-started/first-run-setup.md): the `/setup` wizard: drive names, access control, addons per drive.
+- [Upgrading](getting-started/upgrading.md): pull and rebuild, database migrations, rolling back.
 
 ### Using Litloft (User Guide)
 
-For everyday users: viewers, players, search, organisation.
+For viewers: browsing, players, search, organising.
 
 - [Overview of features](user-guide/overview.md)
 - [Drives and access control](user-guide/drives-and-access.md)
 - [Browsing files](user-guide/file-browsing.md)
-- [Quick Note](user-guide/quick-note.md) — capture a Markdown note from any screen.
-- [Notes](user-guide/notes.md) — find a drive's Markdown and text files (Knowledge addon).
-- [Viewers and players](user-guide/viewers-and-players.md) — video, audio, image, Markdown, PDF, Office, ZIP.
-- [Search](user-guide/search.md) — keyword, tag filter, semantic, scene search.
+- [Quick Note](user-guide/quick-note.md): capture a Markdown note from any screen.
+- [Notes](user-guide/notes.md): find a drive's Markdown and text files (Knowledge addon).
+- [Viewers and players](user-guide/viewers-and-players.md): video, audio, image, Markdown, PDF, Office, ZIP.
+- [Search](user-guide/search.md): keyword, tag filter, semantic, scene search.
 - [Upload and file operations](user-guide/upload-and-fileops.md)
-- [Collections and favourites](user-guide/playlists-favorites.md)
+- [Collections, favorites and likes](user-guide/playlists-favorites.md)
 - [Tags and file relations](user-guide/tags-and-relations.md)
 - [Trash and missing files](user-guide/trash-and-missing.md)
 - [Comments and watch history](user-guide/comments-history.md)
 - [Profile and preferences](user-guide/profile-preferences.md)
 - [Keyboard shortcuts and gestures](user-guide/keyboard-shortcuts.md)
-- [iOS app](user-guide/ios-app.md) — build and connect the app; background audio.
+- [iOS app](user-guide/ios-app.md): build and connect the app; background audio.
 
 ### Administration (Admin Guide)
 
-For operators running Litloft for one or many users.
+For the person running the server.
 
 - [Admin dashboard](admin-guide/admin-dashboard.md)
-- [Settings GUI](admin-guide/settings-gui.md) — drives, passwords, addon policy.
-- [docker-compose customisation](admin-guide/docker-compose.md)
-- [Monitoring and troubleshooting](admin-guide/monitoring.md) — health check, logs, common issues.
+- [Settings](admin-guide/settings-gui.md): drives, passwords, addon policy.
+- [docker-compose customisation](admin-guide/docker-compose.md): mounts, port, addon services.
+- [Monitoring and troubleshooting](admin-guide/monitoring.md): health check, logs, common issues.
 - [Backup and restore](admin-guide/backup-restore.md)
 
 ### Addons
 
 Optional capability modules. Each addon is a separate Git repository under `addons/`.
 
-- [Addon overview](addons/overview.md) — scopes, policy, in-process vs independent service.
-- [intelligence](addons/intelligence.md) — AI search, Ask (RAG), summaries, transcripts, vision.
-- [knowledge](addons/knowledge.md) — Vaults, web clips, frontmatter notes.
-- [cloud-sync](addons/cloud-sync.md) — scheduled rclone backups.
-- [media_import](addons/media-import.md) — URL → `.loft` reference files (YouTube/Vimeo).
+- [Addon overview](addons/overview.md): scopes, policy, in-process vs independent service.
+- [intelligence](addons/intelligence.md): AI search, Ask (RAG), summaries, transcripts, vision.
+- [knowledge](addons/knowledge.md): Vaults, web clips, frontmatter notes.
+- [cloud-sync](addons/cloud-sync.md): scheduled rclone backups.
+- [media_import](addons/media-import.md): turns a URL into a `.loft` reference file (YouTube/Vimeo).
 
 ### Integrations
 
 Ways to reach a Litloft library from outside the browser.
 
-- [MCP server](../mcp-server/README.md) — browse and edit a library from an MCP
-  client such as Claude Desktop. A thin wrapper over the same public `/api/*`
-  endpoints the web frontend uses; it adds no backend endpoints and no bypass of
-  drive access control.
+- [MCP server](../mcp-server/README.md): browse and edit a library from an MCP
+  client such as Claude Desktop. It is a thin wrapper over the same public `/api/*`
+  endpoints the web frontend uses. It adds no backend endpoints and does not
+  bypass drive access control.
 
 ### Reference
 
 Lookup material.
 
-- [Configuration reference](reference/configuration.md) — every setting in one place.
+- [Configuration reference](reference/configuration.md): every setting in one place.
 - [Environment variables](reference/env-variables.md)
 - [HTTP API](reference/api.md)
 - [WebSocket events](reference/websocket-events.md)
-- [File states](reference/file-states.md) — Active / Missing / Trash semantics.
+- [File states](reference/file-states.md): Active / Missing / Trash semantics.
 
 ### Developer guide
 
@@ -92,14 +92,13 @@ For contributors and addon authors.
 
 ## At a glance
 
-- **Stack** — FastAPI (Python 3.12) + SQLite, Next.js 16 (App Router, TypeScript) + Tailwind v4, Docker Compose, ffmpeg.
-- **Default URL** — `http://localhost:3000` (override with `LITLOFT_PORT`).
-- **Storage** — SQLite (`data/data.db`), thumbnails (`data/thumbnails/`), uploads (`data/uploads/`), addon DBs under `data/addons/`.
-- **Setup split** — `configure.py` is bootstrap-only: it wires the containers (`docker-compose.override.yml` mounts/ports/addons, `.env`, empty `drives.json`/`passwords.json`). Logical configuration (drive names, passwords, access groups, AI features) is owned by the `/setup` wizard on first run and `/admin/settings` afterward.
-- **Configuration files** — `drives.json` (drives + per-drive addon policy; seeded from mounts, then GUI-owned), `passwords.json` (access groups; empty = all public, GUI-owned), `.env` (secrets), `docker-compose.override.yml` (mounts, ports, addon services — generated by `configure.py`), `addons/intelligence/search-config.yml` (AI features).
-- **Language preference** — Cookie-driven, no URL prefix.
-- **Browser support** — Modern Chromium, Firefox, Safari (latest two majors).
+- Stack: FastAPI (Python 3.12) + SQLite, Next.js 16 (App Router, TypeScript) + Tailwind v4, Docker Compose, ffmpeg.
+- Default URL: `http://localhost:3000` (override with `LITLOFT_PORT`).
+- Storage: SQLite (`data/data.db`), thumbnails (`data/thumbnails/`), uploads (`data/uploads/`), addon DBs under `data/addons/`.
+- Setup split: `configure.py` wires the containers (mounts, port, addon services). Drive names, passwords and addon policy are set in the `/setup` wizard, and later at `/admin/settings`.
+- Configuration files: `drives.json` (drives and addon policy), `passwords.json` (passwords; empty means all public), `.env` (secrets), `docker-compose.override.yml` (mounts, port, addon services), `addons/intelligence/search-config.yml` (intelligence settings).
+- Languages: English and Japanese.
 
 ## Image assets
 
-Diagrams and screenshots referenced in these docs are tracked in [`IMAGES-NEEDED.md`](IMAGES-NEEDED.md). Contributions welcome.
+Diagrams and screenshots referenced in these docs are tracked in [`IMAGES-NEEDED.md`](IMAGES-NEEDED.md). Contributions are welcome.

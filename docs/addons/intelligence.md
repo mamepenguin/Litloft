@@ -1,39 +1,39 @@
 # intelligence addon
 
-The `intelligence` addon adds LLM-backed search, Q&A, summarization, and tag suggestions to Litloft. It is by far the largest addon: it runs in its own container (port 8100), maintains its own SQLite database under `data/addons/intelligence/`, and ships with ~500 MB of ML models.
+The `intelligence` addon adds meaning-based search, Ask (question answering over your files), transcripts, summaries, tag and chapter candidates, and image descriptions. It runs as its own container (port 8100) and keeps its data under `data/addons/intelligence/`.
 
 ## What it provides
 
-| Feature | What | Default |
-|---|---|---|
-| **Indexing** | Scans drives, extracts text/frames/audio, builds embeddings | on |
-| **Semantic search** | BM25 + dense vector hybrid retrieval over text, transcripts, image frames | on |
-| **Auto-tags** | LLM proposes tags; Suggest → Approve workflow | manual |
-| **AI summaries** | Short (1 sentence) + long (paragraph) summaries per file | manual |
-| **AI chapter candidates** | LLM proposes timestamped media chapters; Suggest → Approve workflow | false |
-| **Detailed summaries** | Long-form Markdown with citations | false |
-| **Ask (RAG)** | Question answering over your library with cited sources | on |
-| **Retrieval keywords** | LLM-generated synonyms and alternate names indexed for file search | false |
-| **Transcript refine** | LLM correction of ASR output, with revert | false |
-| **Vision describe** | LLM image descriptions, photo-by-photo | manual |
-| **Transcription** | faster-Whisper (local) or cloud providers | local |
-| **CLIP frame analysis** | Scene-aware video frame embeddings for "find a moment" | on |
-| **Pickup** | A feed of files you have never opened, drawn from your whole watch history | on |
+| Feature | What | Default | Needs an LLM |
+|---|---|---|---|
+| **Indexing** | Extracts text, transcripts and video frames, and builds embeddings | on | no |
+| **Semantic search** | Mixes meaning-based results into the search page | on | no |
+| **Auto-tags** | Tag candidates you approve one by one | manual | no (better with one) |
+| **AI summaries** | A one-sentence and a one-paragraph summary per file | manual | yes |
+| **Detailed summaries** | Long Markdown summary with source citations | off | yes |
+| **AI chapter candidates** | Timestamped chapters for audio and video, applied only when you approve | off | yes |
+| **Ask** | Answers questions from your files, with citations | on | yes |
+| **Retrieval keywords** | Synonyms and alternate names added to the search index | off | yes |
+| **Transcript refine** | Corrects transcripts with an LLM | off | yes |
+| **Vision describe** | Image descriptions | manual | yes, with `llm.vision_model` |
+| **Visual index** | A list of described scenes in a video, each one seekable | off | yes, with `llm.vision_model` |
+| **Transcription** | Local faster-Whisper or a cloud provider | local | no |
+| **Pickup** | A feed of files you have never opened, ranked by your watch history | always | no |
 
-Shipped defaults are conservative — most LLM-driven features start at `"false"` or `"manual"` so an unconfigured install never makes outbound LLM calls until you turn a feature on (in the browser or in `search-config.yml`). All features are opt-out per drive via the [settings GUI](../admin-guide/settings-gui.md).
-
-> **Image needed:** screenshot of the Ask page with a citation-linked answer. See [`IMAGES-NEEDED.md`](../IMAGES-NEEDED.md).
+The LLM itself ships disabled (`llm.provider: "disabled"`), so a new install makes no LLM calls until you configure a provider. Features marked "manual" run only when you press a button.
 
 ## Privacy at a glance
 
-The intelligence addon can send your file content to an LLM API. Whether anything leaves your machine depends on:
+The addon can send your file content to outside services. Whether it does depends on:
 
-- **`llm.provider`** — `"ollama"` or a local LLM means nothing leaves the host. `"openai_compatible"` pointed at a remote API means content does.
-- **`features.rag`** — when on, file text/transcripts go to the LLM on every Ask.
-- **`features.vision_describe`** — image bytes go to the vision model.
-- **`transcription.provider`** — `"whisper_local"` keeps audio local; `"deepgram"`, `"elevenlabs_scribe"`, `"openai_compatible"` send audio to the cloud.
+- `llm.provider`: `"ollama"` or another model on your own network keeps content at home. `"openai_compatible"` pointed at a remote API sends it out.
+- **Ask** (`features.rag`) sends transcripts and text of the files it retrieves on every question.
+- Vision describe and the visual index send image bytes (and, for the visual index, nearby transcript text) to the vision model.
+- `transcription.provider`: `"whisper_local"` keeps audio local; every other provider sends audio to the cloud.
 
-**Per-drive overrides** in `drives.json` let you keep specific drives strictly local:
+### Per-drive policy
+
+Each drive can switch features off in its `addons.intelligence` entry in `drives.json`. `"intelligence": false` turns off everything for that drive. Otherwise, set a key to `false`:
 
 ```json
 {
@@ -47,17 +47,30 @@ The intelligence addon can send your file content to an LLM API. Whether anythin
 }
 ```
 
-Defence in depth: the host proxy enforces the policy *before* dispatching, and the addon worker re-checks `is_feature_enabled()` so a missed gate becomes a no-op rather than a leak.
+| Key | Off means |
+|---|---|
+| `index` | The drive is not indexed, and has no Pickup |
+| `search` | No meaning-based search |
+| `rag` | No Ask or Find |
+| `auto_tags`, `summaries`, `detailed_summaries` | The generate buttons for that feature are closed |
+| `chapter_suggestions` | No chapter candidates |
+| `transcript_refine` | No transcript refine |
+| `retrieval_keywords` | No retrieval keywords |
+| `vision_describe` | No image descriptions; existing ones are deleted at the next addon start |
+| `video_visual_index` | No visual index; existing ones are deleted at the next addon start |
+| `transcription_cloud` | The drive uses `whisper_local` even when a cloud provider is configured |
+
+A missing key means on. The [settings GUI](../admin-guide/settings-gui.md#addon-policy) shows only `transcription_cloud` and `chapter_suggestions`; set the others by editing `drives.json`. A change saved in the GUI reaches this addon within about 30 seconds; a hand edit of `drives.json` needs a backend restart.
 
 ## Installation
 
-The addon lives under `addons/intelligence/` and is tracked as a Git submodule. The recommended path is to answer **yes** when `configure.py` prompts to enable the intelligence addon — it writes the matching service block into `docker-compose.override.yml`, mounts the configured drives read-only, seeds `search-config.yml` from the example, and generates `SEARCH_WEBHOOK_SECRET` into `.env` for both containers. Then:
+The addon is a Git submodule under `addons/intelligence/`. Answer yes when `configure.py` asks to enable it. It writes the service into `docker-compose.override.yml`, mounts your drives read-only, copies `search-config.yml.example` to `search-config.yml`, and generates `SEARCH_WEBHOOK_SECRET` in `.env`. Then:
 
 ```bash
 docker compose up -d --build
 ```
 
-For a manual install (no `configure.py`), add the blocks below to `docker-compose.override.yml`, set `SEARCH_WEBHOOK_SECRET` in `.env` (`openssl rand -hex 32`), copy `search-config.yml.example` to `search-config.yml`, and rebuild.
+For a manual install, add the blocks below to `docker-compose.override.yml`, set `SEARCH_WEBHOOK_SECRET` in `.env` (`openssl rand -hex 32`), copy `addons/intelligence/search-config.yml.example` to `addons/intelligence/search-config.yml`, and rebuild.
 
 ```yaml
 services:
@@ -65,6 +78,7 @@ services:
     environment:
       - INTELLIGENCE_SERVICE_URL=http://intelligence:8100
       - SEARCH_WEBHOOK_SECRET=${SEARCH_WEBHOOK_SECRET:-}
+      - CORE_INTERNAL_SECRET=${CORE_INTERNAL_SECRET:-}
 
   intelligence:
     build: ./addons/intelligence
@@ -72,7 +86,6 @@ services:
       - "8100"
     environment:
       - DRIVE_MOUNTS=default=/drives/default
-      # The DB keeps its host filename under the directory mount below.
       - HOMEVAULT_DB_PATH=/data/data.db
       - HOMEVAULT_INTERNAL_URL=http://backend:8000
       - LLM_API_KEY=${LLM_API_KEY:-}
@@ -86,375 +99,225 @@ services:
     volumes:
       - ./addons/intelligence/search-config.yml:/app/search-config.yml:ro
       - ./data/addons/intelligence:/intelligence-data
-      # The data directory, not the DB file: SQLite needs data.db-wal and
-      # data.db-shm beside data.db, and a per-file mount of a path SQLite
-      # has checkpointed away becomes a Docker-created directory. The
-      # second line masks the core's token signing key. See
-      # docs/admin-guide/docker-compose.md#read-only-mounts-for-addons.
+      # Mount the data directory, never data.db on its own.
       - ./data:/data:ro
+      # Hides the core's token signing key from the addon.
       - /dev/null:/data/.jwt_secret:ro
       - ./videos:/drives/default:ro
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 ```
 
-`INTELLIGENCE_SERVICE_URL` on the **backend** is what lets the core's addon proxy find the service; without it the routes 404.
+Why the data directory is mounted this way: [read-only mounts for addons](../admin-guide/docker-compose.md#read-only-mounts-for-addons).
 
-`SEARCH_WEBHOOK_SECRET` has to be on **both** containers or neither. The core builds the `X-Webhook-Secret` header inside the backend container from its own environment, and the addon compares it in its own — set it on the addon alone and every lifecycle webhook 403s, so indexing quietly stops with no other symptom. Set it on the backend alone and the addon's gate simply stays a no-op. It also only does anything when `addons/intelligence/manifest.json` declares `"secret_env": "SEARCH_WEBHOOK_SECRET"` on every listener, which is what makes core attach the header at all; a submodule pinned to an older commit does not, and the secret should then be left out of both blocks.
+- `INTELLIGENCE_SERVICE_URL` on the backend lets the core find the addon. Without it every addon route returns 404.
+- `SEARCH_WEBHOOK_SECRET` must be on both containers or on neither. Set on the addon alone, every file-change notification from the core is rejected and indexing silently stops.
+- `CORE_INTERNAL_SECRET` must be the same non-empty value on both containers for **Approve all** on chapter candidates to work. `configure.py` generates it only when the Knowledge addon is also enabled; otherwise add it to `.env` yourself (`openssl rand -hex 32`).
 
-The first boot downloads ML models (Whisper, CLIP, embeddings, optionally BLIP). Expect 1–3 GB of weights cached under `data/addons/intelligence/models/`.
+The first start downloads the ML models (Whisper, CLIP, text embeddings, BLIP) into `data/addons/intelligence/models/`. Expect 1 to 3 GB.
 
----
+## Settings in the browser
+
+An administrator can change most settings at **Settings** → **Intelligence** (`/admin/settings`):
+
+- **Feature toggles**: every `features.*` flag. The three-way flags read **Off**, **Manual only** and **Auto (on index)**.
+- **LLM provider**: provider, base URL, text model, vision model and output language. The API key comes only from the `LLM_API_KEY` environment variable.
+- **Text embedding model**: see [re-generating indexes](#re-generating-indexes).
+- **Transcription provider**: provider, language hint and hotwords. Cloud providers need their API key in the environment.
+- **Ask (question answering) behaviour**: **Use viewing history** and **Expand semantic categories**.
+
+Settings saved here are stored in `data/addons/intelligence/*-overrides.json` and take priority over `search-config.yml`. **Reset screen settings** removes them, so the file applies again. Every change needs a container restart.
 
 ## Features in detail
 
 ### Indexing
 
-The addon's reconciler (default every 60 minutes — `indexing.reconciliation_interval`) walks the core DB, finds files that have not yet been indexed, and runs a per-MIME pipeline:
+Every hour (`indexing.reconciliation_interval`) the addon looks for files it has not indexed yet. Changes the core reports (new, moved, deleted files, a finished scan) are picked up without waiting.
 
-- **Text/Markdown/PDF/Office** — extract text, split into chunks (`indexing.text_chunking`), embed each chunk.
-- **Audio/Video** — transcribe (faster-Whisper or cloud), align word timestamps, chunk transcript, embed. After transcription, extract top keywords (Janome + TF-IDF) and store a single keyword-bag embedding (`embedding_type="tfidf_keywords"`) for the *Similar Files* feature.
-- **Video** — additionally extract frames (scene-detect with `indexing.frame_extraction`), embed each frame with CLIP.
-- **Image** — embed with CLIP; optionally caption with BLIP for auto-tags.
+- Text, Markdown, HTML, PDF and Office files: the text is extracted, split into chunks (`indexing.text_chunking`) and embedded.
+- Audio and video are transcribed, split into chunks and embedded. Keywords from the transcript are stored for **Similar files**.
+- For video, frames are picked at scene changes (`indexing.frame_extraction`) and embedded with CLIP.
+- Images are embedded with CLIP, and captioned with BLIP when `models.blip` is set.
 
-The pipeline is idempotent: re-indexing a file replaces its old embeddings.
+Re-indexing a file replaces its old index.
 
 ### Semantic search
 
-`GET /api/addons/intelligence/search` runs:
+Meaning-based results are mixed into the ordinary search results. What a viewer sees is described in [searching by meaning](../user-guide/search.md#searching-by-meaning-intelligence-addon).
 
-1. Encode the query with the text-embedding model (`models.text_embedding`).
-2. KNN over file-chunk embeddings, BM25 over the FTS5 mirrors.
-3. Blend with `search.alpha` (default 0.7 — vector-heavy).
-4. Filter by `search.min_score_clip` for visual hits.
-5. Return up to `search.default_limit` results, capped at `search.max_limit`.
+The query is embedded with `models.text_embedding`, matched against the vectors and against keyword indexes, and the two are blended with `search.alpha` (0 = keywords only, 1 = vectors only). Results are capped by `search.default_limit` and `search.max_limit`.
 
-The frontend renders this as **Semantic Search** mode in the search page. **Find mode** is the same retriever, tuned for "I know roughly what" queries.
+### Scene search
 
-### CLIP frame search ("scene search")
-
-A toggle in the search page enables matching against per-second video frame embeddings. Useful for *"find the part where they go to the lake"* style queries. Score floors:
-
-- `min_score_clip` — for the representative frame stored per file (always indexed).
-- `min_score_clip_thumbnail` — for individual scene-detected frames.
-
-Both default to 0.05 because SigLIP2 produces lower absolute cosine values than older CLIP models.
+**Scene search** above the search results matches your words against the stored video frames. `search.min_score_clip` and `search.min_score_clip_thumbnail` are the score floors. Both default to 0.05, which suits the default SigLIP2 model; use 0.20 with CLIP-family models.
 
 ### Auto-tags
 
-When `features.auto_tags = "on_index"`, every newly indexed file gets a set of LLM-proposed tags. They are stored as **suggestions** — never auto-applied. The shipped default is `"manual"`, so suggestions are generated only when you click *Regenerate* on a file.
+A file's page can show **AI tag candidates**. Nothing is applied until someone adds a tag. How viewers use them: [suggested tags](../user-guide/tags-and-relations.md#suggested-tags-intelligence-addon).
 
-In the file detail page, the chip editor shows them under *Suggested*. Per chip:
+Candidates come from three sources inside the file's own drive: CLIP scores against a built-in vocabulary and the drive's existing tags, tags on visually similar files that are already tagged, and keywords from the transcript and filename. With an LLM configured, it picks the final candidates from these. Without one, these are the candidates.
 
-- **Approve** — writes through `saveFileTags`. Retried once on `ConflictError`.
-- **Dismiss** — drops the suggestion without writing.
-- **Regenerate** — re-runs the LLM for this file.
+Modes (`features.auto_tags`):
 
-Modes:
-
-- `"false"` — disabled.
-- `"manual"` — generated only when the user clicks *Regenerate*.
-- `"on_index"` — generated automatically after each indexing pass.
-
-For images, captions from BLIP (when configured) seed the LLM tag prompt.
-
-Before the LLM runs, local pipelines assemble grounding candidates: CLIP
-zero-shot scoring against a curated vocabulary plus the drive's own tag names,
-tags voted for by visually similar already-tagged files, and TF-IDF keywords
-from the transcript and filename. All three stay inside the file's drive — a
-drive is a security boundary, so nothing another drive contains can shape the
-suggestions you see. With no LLM configured, these candidates are the
-suggestions.
+- `"false"`: off.
+- `"manual"`: created when someone presses **Create AI tag candidates**. Default.
+- `"on_index"`: created for every newly indexed file.
 
 ### AI summaries
 
-Two layers:
+- **AI summary**: one sentence and one paragraph. Shown on the file's page only; never written into the file or the core database. Skipped when the file has less usable text than `summaries.min_context_chars`.
+- **AI detailed summary**: long Markdown. Each point carries a citation to the passage it came from. You can edit it (**Edit**), go back to the generated version (**Restore created version**), download it (**Download as Markdown**), or with the Knowledge addon save it as a note (**Save as file**). Citations are recomputed after every save.
 
-- **Short / long summary** (one sentence + one paragraph) — display-only, never written to the core DB. Generated via sliding windows over the transcript / text. Skipped when usable content is below `summaries.min_context_chars`.
-- **Detailed summary** — long-form Markdown with embedded **citations** linking each bullet to a chunk in the source. Editable in place; the citation index re-runs after every save.
+A point gets a citation only when the best matching passage scores at least `summaries.citation_threshold` (default 0.55). A citation with a weaker match is marked **Needs review - weaker source match**. The other `summaries.citation_*` keys tune how the passage is found; the comments in `search-config.yml.example` explain them.
 
-Citation accuracy is tuned by a dozen knobs in `summaries.*`:
-
-- `citation_threshold` — cosine floor for *has_citation = true*. Below this, the UI renders *no strong source* (⚠), which doubles as a hallucination signal.
-- `citation_top_k`, `citation_top_k_internal`, `citation_rrf_k` — pool sizes for hybrid retrieval.
-- `citation_section_anchor_enabled` and friends — heading-aware narrowing so citations stay within the right Markdown section.
-- `citation_margin_gate`, `citation_margin_bypass_score` — drop low-confidence top-1 picks when the runner-up is close.
-- `citation_multi_anchor_enabled` — split compound bullets on punctuation, retrieve per fragment, union results.
-
-Sensible defaults work for most libraries; tune up if you see ⚠ on obviously-grounded bullets, tune down if hallucinations slip through.
+`features.summaries` and `features.detailed_summaries` take the same three modes as auto-tags. `summaries` defaults to `"manual"`, `detailed_summaries` to `"false"`.
 
 ### AI chapter candidates
 
-For audio and video with timestamped transcripts, `features.chapter_suggestions`
-can ask the configured LLM to propose a complete chapter set. Long transcripts
-are processed in bounded, time-ordered windows and consolidated hierarchically,
-so generation covers the full transcript instead of truncating it to an opening
-excerpt.
+For audio and video with a transcript, the LLM proposes a full set of chapters. Long transcripts are processed in parts and merged, so the chapters cover the whole file.
 
-Granularity is semantic rather than numeric: a boundary represents a distinct
-destination in a table of contents, while examples, clarifications, speaker
-changes, repetitions, and brief digressions stay with their central subject.
-Every result, including a single-window transcript, receives a candidate-only
-editorial pass. Candidate lists are merged rather than cut to a fixed count, so
-the ending cannot disappear behind a head-only cap. The provider's token setting
-remains a safety ceiling, not a chapter-count or output-length control.
+The set waits under **AI chapter candidates** on the file's page:
 
-Malformed/empty model output is retried once with a broader-outline repair
-instruction. A second failure emits a drive-scoped failure event, stops the UI's
-progress state, and leaves the previous staged proposal and core chapters intact.
+- **Approve all** replaces the file's chapters with the candidates.
+- **Dismiss** discards the candidates and leaves the chapters as they were.
+- **Create again** replaces the candidates, but only once the new set has been created.
 
-The file detail panel distinguishes two failures, because their remedies differ.
-An output budget exhausted before the model wrote anything — the model was
-thinking, or the answer outran `max_tokens` — is reported as such and points at
-`llm.reasoning` and `llm.max_tokens`; anything else advises a retry. A window
-that fails takes the whole file with it rather than being skipped, because
-dropping one would leave a gap in the middle of the timeline.
+If generation fails, the previous candidates and chapters stay. When the model ran out of output tokens before writing anything, the page says so: raise `llm.max_tokens`, or check `llm.reasoning`.
 
-Candidates remain staged in the Intelligence database until a user reviews the
-whole set in the file detail page:
+Modes (`features.chapter_suggestions`): `"false"` (default), `"manual"`, `"on_index"` (after transcription).
 
-- **Approve all** replaces the file's active core chapter set. Core assigns
-  dense ordering and records the promoted rows as `curated`; the addon cannot
-  spoof provenance or ordering.
-- **Dismiss** keeps the core chapter set unchanged and marks the staged proposal
-  dismissed.
-- **Create again** replaces the staged proposal only after the new generation
-  succeeds.
-
-Modes (`features.chapter_suggestions`):
-
-- `"false"` — disabled. Default.
-- `"manual"` — generated from the file detail page.
-- `"on_index"` — generated after transcription; files missed while the worker
-  was offline are picked up by the startup sweep.
-
-Approval requires the same non-empty `CORE_INTERNAL_SECRET` in core and the
-Intelligence container. Missing configuration fails closed and leaves the
-candidate pending; generation and dismissal do not write core chapters.
+**Approve all** needs `CORE_INTERNAL_SECRET` on both containers (see [installation](#installation)). Without it approval fails and the candidates stay.
 
 ### Ask (RAG)
 
-The page offers an example question rather than echoing the `?q=` it was
-opened with. Its header names the drive and how many files it holds — the same
-header *Find* carries, because a drive is a boundary and "found nothing" and
-"looked in the wrong place" read alike without it. That count is the size of the
-**drive**, not of the index: it is every active file there, while Ask retrieves
-from the subset carrying a transcript, a caption or an embedding. When the call
-behind it fails the header names the drive alone, never a number, because a
-wrong number would be read as the size of the index and believed. Under the box
-it says that answers take a few seconds and that transcripts and text are sent
-to the LLM API, before anything is sent.
+**Ask** is the sidebar entry that opens `/drive/<name>/addons/intelligence`. Its header names the drive and how many files the drive holds. That count is every file in the drive, not only the indexed ones. The **Find** tab beside **Ask** returns a list of files instead of a written answer. How viewers use them: [Ask and Find](../user-guide/search.md#ask-and-find-intelligence-addon).
 
-`POST /api/addons/intelligence/ask` is question answering over your library:
+How an answer is built (keys under `rag.*`):
 
-- **Stage 1 (hierarchical, optional)** — coarse shortlist of files based on per-file summary embeddings. Bypassed for tiny drives (`min_drive_files_for_shortlist`) and when the top cosine is too low (`coarse_score_threshold`).
-- **Stage 2** — chunk-level retrieval scoped to the shortlist; multi-query expansion via `clue_count` clues.
-- **Personal-history scoping** — when enabled, weight files the calling viewer has actually opened, scoped by `max_lookback_days`. Requires a `lit_viewer` cookie; without one, falls back to the legacy viewer-agnostic path.
-- **Category expansion** — opt-in: an LLM rewrite of vague terms (*SF っぽい*, *ホラー系*) into a small bag of surface forms before retrieval. Capped by `max_terms`.
-- Pack `top_k` files into a context window (`max_context_chars_per_file` × `top_k`, capped by `max_total_context_chars`).
-- Generate the answer with `max_tokens`. Citations are matched against the retriever's result set; anything outside is dropped (anti-hallucination).
+1. Shortlist (`rag.hierarchical`): picks up to `coarse_top_k` likely files first. Skipped on drives with fewer than `min_drive_files_for_shortlist` files, or when no file scores above `coarse_score_threshold`.
+2. Retrieval: finds matching passages, searching with up to `clue_count` rewrites of the question.
+3. Viewing history (`rag.personal_history`): questions like *"what I watched last week"* are limited to files the viewer opened, up to `max_lookback_days` back. Needs a [profile](../user-guide/profile-preferences.md).
+4. Category expansion (`rag.category_expansion`, off by default): the LLM turns vague words like *"sci-fi-ish"* into up to `max_terms` search terms.
+5. Answer: the top `top_k` files are passed to the LLM within `max_context_chars_per_file` each and `max_total_context_chars` in total. Citations to files outside the retrieved set are dropped.
 
-Access control is applied **twice**: once on the internal filter (Internal API `filter-file-ids`) and once via `drive_access_nested` on the addon side.
+Ask cites only files that are verified. See [unverified sources](#unverified-sources).
+
+Ask can also run as a multi-step loop with a tool-calling model: set `llm.agentic_mode: "auto"`, use `provider: "openai_compatible"`, and list the model in `llm.agentic_models` with its `context_window`. Any other model uses the single-step path. Default `"off"`.
 
 ### Pickup
 
-A feed of files in this drive that **you have never opened**, ranked by
-how well they match the interests your watch history describes. It sits
-on the drive home as a content row, with the full feed on its own page.
+A row on the drive home of files you have never opened, ranked by how well they match your watch history in that drive. **See all** opens the full feed at `/drive/<name>/addons/intelligence/pickup`.
 
-Nothing is sent anywhere — this feature makes no LLM calls. It reads the
-embeddings indexing has already produced.
+- It needs a [profile](../user-guide/profile-preferences.md) and some watch history. It appears after the next rebuild once you have watched something.
+- It makes no LLM calls. It uses the embeddings indexing already made.
+- The last year of history is grouped into interests. An interest loses half its weight for each week you do not touch it, but never drops below a quarter of the strongest one's share.
+- The row shows a different twelve files each day. The full feed keeps a stable order.
+- A file you have opened, ever, is never in the feed. Nothing from another drive is used.
+- It is rebuilt when a scan finishes and every hour, for viewers whose history changed.
 
-**How the ranking works**
-
-- Your last year of watch history in this drive is clustered into a
-  handful of *interests*, per embedding channel (video and image
-  thumbnails, transcript keyword bags, document text). Clustering sees
-  every entry in the window; recency is a weight on an interest, never a
-  filter on which interests exist.
-- Each interest gets a weight from its decayed mass, log-compressed so
-  forty episodes do not count as eight times a five-file interest, then
-  scaled so **the quietest interest keeps at least a quarter of the
-  turns the loudest one gets**. An interest you have not touched for
-  months stays visible instead of vanishing.
-- Every interest is scored against the drive's candidates in one pass,
-  and the results are woven together so each interest's share of the
-  feed matches its weight.
-- A file you have opened — ever, not just recently — is never a
-  candidate.
-
-**What it does not do**
-
-Watching a lot of one series does bias the feed toward that series. The
-profile reports what your history looks like, and a long-running series
-splits into several interests because it genuinely contains several —
-different eras, formats and openings. Telling "more of the same subject"
-apart from "a related but different subject" needs a judgement the
-embeddings do not carry, so the feature does not pretend to make it.
-
-**Per drive.** A drive is a security boundary: the feed never draws on
-another drive, and a locked drive contributes nothing.
-
-**When it appears.** The row needs a viewer profile (a nickname) —
-without one there is no watch history to read. It stays hidden until the
-first sweep after you have watched something. The row shows as many of
-the day's twelve as fit its width, and **See all** carries the size of
-the whole feed — that link is the only way to what the row could not
-draw, so it is there whenever there is a feed.
-
-**How fast it forgets.** An interest halves in weight every week you do
-not touch it. Stop watching something you had been watching heavily and
-its share of the feed roughly halves within a fortnight; it clears
-entirely once the last of it falls out of the year-long window. Keep
-watching it a little and it keeps a proportional share indefinitely.
-
-Interests you have not touched for months do not disappear — they hold a
-floor share whatever their age. What decays is how much *more* than that
-floor a current interest gets.
-
-**Freshness.** The feed is rebuilt when a scan completes and on an
-hourly sweep, and only for viewers whose history has actually changed.
-The row draws a different twelve each day from the top of the feed and
-shows as many of them as fit its width; the page itself keeps a stable order so paging through it does
-not repeat or skip.
+Watching many episodes of one series pulls the feed toward that series, which is expected.
 
 ### Retrieval keywords
 
-When enabled, the LLM reads each indexed file and predicts synonyms, abbreviations, and alternate names that users might search for. The results go into a dedicated FTS index (`fts_retrieval_keywords`) that file search and Ask UNION into their keyword channel, producing a **キーワード** chip on matching results.
+The LLM reads each indexed file and writes up to 20 words people might search for instead: synonyms, abbreviations, alternate names, and the correct spelling of names a transcript got wrong. They go into their own search index. A result found this way carries the **Keyword** badge. They are never used as Ask citations.
 
-**Why this matters for transcribed content.** ASR models (Whisper) frequently misrecognise proper nouns — people's names, brand names, product titles. The embeddings and FTS indexes are built from that imperfect text, so a user searching the canonical name finds nothing. Retrieval keywords close this gap: the LLM has world knowledge and infers the correct proper noun from context even when the transcript text is wrong.
-
-The generated keywords are **tier-3 data** (LLM-generated, not human-verified). They shape retrieval scoring but are never used as citation sources. A file appearing in both the keyword and body channels gets a natural RRF boost in ranking; a keyword-only hit ranks slightly below body hits by design.
-
-Practical notes:
-
-- Search queries shorter than 3 characters do not match due to the trigram FTS minimum. Semantic search and body text fill in for these.
-- The LLM prompt instructs it to generate words *not already in the document*, but small models occasionally echo the filename or body text. A corpus-frequency rarity filter drops statistically common tokens before storage.
-- Document files (PDF, text) benefit less than transcript files because the semantic embedding already handles most vocabulary variation; the main value is for audio and video.
+- The first 8,000 characters of the transcript or text are sent to the LLM.
+- Search terms shorter than 3 characters do not match these keywords.
+- Transcribed audio and video gain the most.
 
 Modes (`features.retrieval_keywords`):
 
-- `"false"` — disabled. Default.
-- `"manual"` — regenerated only when called via the API (no regenerate UI yet).
-- `"on_index"` — one LLM call per newly indexed file; the startup sweep enqueues files that have no row yet.
-
-Per-drive opt-out:
-
-```json
-{
-  "name": "Private",
-  "addons": {
-    "intelligence": {
-      "retrieval_keywords": false
-    }
-  }
-}
-```
-
-**Privacy:** file content (transcript text or extracted document text, up to 8 000 chars) is sent to the LLM. Use a local LLM (`llm.provider: "ollama"`) for privacy-sensitive drives.
+- `"false"`: off. Default.
+- `"manual"`: nothing in the app starts it. Use `"on_index"` to create keywords.
+- `"on_index"`: created for each newly indexed file. At startup, indexed files without keywords are queued.
 
 ### Transcript refine
 
-When ASR is wrong (homophones, proper nouns, technical terms), the LLM can rewrite each chunk:
+**Clean up with AI** in the transcript asks the LLM to fix punctuation, homophones and names, chunk by chunk. The words are then re-timed against the audio and the embeddings rebuilt. If re-timing fails (audio missing, language not supported, out of memory), the old word timings stay.
 
-- The original text is preserved in `TranscriptChunk.text_original` so you can revert.
-- Per-chunk LLM rewrite → re-aligned by WhisperX forced alignment → words rebuilt → embeddings recomputed from the refined text.
-- If the aligner fails (missing audio, unsupported language, OOM), the old word rows stay (no time-proportional fallback).
+Refine replaces the transcript text, and there is no undo. To get the original back, transcribe the file again: **Index details** → **Regenerate** on the `whisper` task.
 
-Modes (`features.transcript_refine`): `"false"`, `"manual"`, `"on_index"`. Default `"false"` — the LLM never rewrites transcripts unless you explicitly enable it.
+Modes (`features.transcript_refine`): `"false"` (default), `"manual"`, `"on_index"`.
 
 ### Vision describe
 
-Vision-LLM image descriptions for `image/*` and HEIC. The description is stored alongside the file and used for tag generation.
+The vision model describes each image (including HEIC). The description is shown under **AI image description**, used for search, and fed to tag candidates.
 
-- Modes: `"false"`, `"manual"`, `"on_index"`. Default `"manual"`.
-- Requires `llm.vision_model` **and a usable LLM client**. With either
-  missing the feature is unavailable regardless of mode (graceful
-  degradation): a `vision_model` set against `provider: disabled`, or an
-  empty `base_url`, counts as missing.
-- **`"on_index"` scales linearly with new image count** — enable carefully on large photo libraries.
+- Modes (`features.vision_describe`): `"false"`, `"manual"` (default), `"on_index"`.
+- It needs `llm.vision_model` and a working LLM provider. With either missing, the feature is unavailable.
+- `"on_index"` sends every new image, so the cost grows with your photo library.
 
 #### What a file's state means
 
-`GET /api/addons/intelligence/files/{id}/visual_description` returns
-`status` and, since a failure's cause is worth acting on, a `reason`.
+`GET /api/addons/intelligence/files/{id}/visual_description` returns `status` and `reason`:
 
-| `status` | `reason` | Meaning | Recoverable by retrying? |
+| `status` | `reason` | Meaning | Worth retrying? |
 |---|---|---|---|
-| `null` | `null` | Never attempted | — (offer generate) |
-| `pending` | `null` | Queued or in flight | — |
+| `null` | `null` | Never attempted | — |
+| `pending` | `null` | Queued or running | — |
 | `success` | `null` | Description stored | — |
-| `unsupported` | `not_configured` | No usable vision LLM at all | No — fix the configuration |
-| `unsupported` | `vision_unsupported` | The configured model was measured not to accept images | Only after changing the model |
-| `unsupported` | `null` | A verdict recorded before reasons were kept, by an inference that has since been removed | **Yes — these are the ones worth re-running** |
+| `unsupported` | `not_configured` | No usable vision model is configured | No. Fix the configuration |
+| `unsupported` | `vision_unsupported` | The configured model does not accept images | Only after changing the model |
+| `unsupported` | `null` | Marked unsupported without a recorded cause | Yes |
 | `failed` | `model_missing` | The model is not installed on the provider | Yes, once it is pulled |
-| `failed` | `image_rejected` | The provider could not read this particular image | Yes, though the same image may fail again |
-| `failed` | `token_budget` | The answer was cut off by `llm.vision_max_tokens` | Yes, after raising it |
-| `failed` | `load` / `decode` / other | Read or decode failure before the LLM was reached | Yes |
+| `failed` | `image_rejected` | The provider could not read this image | Yes, though it may fail again |
+| `failed` | `token_budget` | The description hit `llm.vision_max_tokens` | Yes, after raising it |
+| `failed` | `load` / `decode` / other | The image could not be read before the model was called | Yes |
 
-A rejection from the provider is never read as a verdict on its own. A
-400 means the same thing whether the model cannot see, the image could
-not be read, or the request carried a field the provider does not know;
-a 404 means the model was never pulled. To tell them apart the addon
-sends a fixed reference image to the same model and reads the response
-status, once per model, only after a real call has already failed.
+When the provider rejects a request, the addon sends a fixed test image to the same model, once per model, to tell "this model cannot see" apart from "this image could not be read".
 
-#### Recovering files stuck on `unsupported`
+#### Retrying
 
-Both trigger points are explicit user actions and both override the
-"already settled, do not re-run" guard that protects background sweeps:
+- **Retry** on a file's page, for one file.
+- **Create image descriptions…** in a folder's **AI** menu, for the images the folder has loaded (up to 500). It describes them again even when they already have a description.
 
-- The **Retry** button on the file page, for one file.
-- The **folder** button, for the images among the files the folder has
-  loaded. Because it overrides that guard, it re-describes images that
-  already have a description, and its confirmation says how many files it
-  is about. It is capped at 500 files per request.
-
-Automatic paths (`on_index`, the startup sweep) never override it, so
-turning the feature on does not re-spend on work that is already done.
+Automatic runs never redo an image that already has a result.
 
 #### Endpoints
 
 | Endpoint | Notes |
 |---|---|
-| `GET /files/{id}/visual_description` | `status` + `reason` as above |
-| `POST /files/{id}/visual_description/generate` | `202`-style `{"status": "accepted"}`, or `{"status": "already_queued"}` when the file is already on its way. `409` with `{"detail": {"error": "not_queued", "reason": ...}}` when the worker declines it. `404` when the feature is unavailable |
-| `DELETE /files/{id}/visual_description` | Clears the description, its embeddings, and its reason |
-| `POST /folders/visual_description/generate` | `413` with `{"error": "too_many_files", "max", "requested"}` above the cap |
+| `GET /files/{id}/visual_description` | `status` and `reason` as above |
+| `POST /files/{id}/visual_description/generate` | `{"status": "accepted"}`, or `{"status": "already_queued"}`. `409` with `{"detail": {"error": "not_queued", "reason": ...}}` when the worker declines it. `404` when the feature is unavailable |
+| `DELETE /files/{id}/visual_description` | Removes the description, its embeddings and its reason |
+| `POST /folders/visual_description/generate` | `413` with `{"error": "too_many_files", "max", "requested"}` above 500 files |
+
+### Visual index
+
+For video, the vision model describes representative scenes. The **Visual index** section lists them with their timestamps; click one to play from there. **Generate** starts it, **Retry failed scenes** redoes the scenes that failed. It waits until the video's frames have been indexed.
+
+Modes (`features.video_visual_index`): `"false"` (default), `"manual"`, `"on_index"`. It needs `llm.vision_model`. Frame images and nearby transcript text are sent to the vision model.
 
 ### Transcription providers
 
 `transcription.provider` chooses the engine:
 
-- **`whisper_local`** — faster-Whisper (CT2). Default. Local, private, slow on CPU.
-- **`openai_compatible`** — any OpenAI Whisper API or compatible (Groq, Fireworks, self-hosted). Requires `OPENAI_API_KEY`. The official `api.openai.com` endpoint enforces 25 MB file limits — for long audio, use the others.
-- **`deepgram`** — Nova-3, best WER + diarisation. Requires `DEEPGRAM_API_KEY`.
-- **`elevenlabs_scribe`** — Scribe v1, long-form + diarisation. Requires `ELEVENLABS_API_KEY`.
-- **`assemblyai`** — Universal-2 (or `nano` for cost). Best multi-language WER + speaker diarisation + true word-level timestamps. Requires `ASSEMBLYAI_API_KEY`. 5 GB upload cap per file.
-- **`gemini`** — Google Gemini 2.5 (`flash` / `pro`) via the File API + `generate_content`. Requires `GEMINI_API_KEY`. 2 GB upload cap. **Word-level timestamps are synthetic** (uniform split of segment text); **diarisation is not supported**. Pick AssemblyAI / Deepgram / ElevenLabs Scribe if you need either.
+| Provider | API key | Speakers | Word timestamps | Hotwords |
+|---|---|---|---|---|
+| `whisper_local` (default) | — | no | yes | no |
+| `openai_compatible` (OpenAI, Groq, Fireworks, self-hosted) | `OPENAI_API_KEY` | no | yes | no |
+| `deepgram` | `DEEPGRAM_API_KEY` | yes | yes | no |
+| `elevenlabs_scribe` | `ELEVENLABS_API_KEY` | yes | yes | yes |
+| `assemblyai` | `ASSEMBLYAI_API_KEY` | yes | yes | yes |
+| `gemini` | `GEMINI_API_KEY` | no | evenly spaced, not measured | yes, through the prompt |
 
-Per-drive override: `addons.intelligence.transcription_cloud: false` forces `whisper_local` for that drive even when the global provider is cloud.
-
-`language_hint` is an ISO code (`"ja"`, `"en"`) passed to the provider. `hotwords` is a list of proper nouns honoured by providers that support hotwords — Deepgram, ElevenLabs Scribe, and AssemblyAI (mapped to `word_boost`); silently ignored elsewhere (Gemini, OpenAI Whisper API).
-
-#### Capability matrix
-
-| Provider | Diarisation | Word timestamps | Hotwords | File cap | Auto-detect language |
-|---|---|---|---|---|---|
-| `whisper_local` | ❌ | ✅ (true) | initial_prompt | host disk | ✅ |
-| `openai_compatible` | ❌ | ✅ (true) | ❌ | 25 MB (OpenAI), provider-specific | ✅ |
-| `deepgram` | ✅ | ✅ (true) | ✅ | provider-specific | ✅ |
-| `elevenlabs_scribe` | ✅ | ✅ (true) | ❌ | provider-specific | ✅ |
-| `assemblyai` | ✅ | ✅ (true) | ✅ (`word_boost`) | 5 GB | ✅ |
-| `gemini` | ❌ | ⚠ synthetic | ❌ | 2 GB | ✅ (model-driven) |
-
----
+- `whisper_local` runs on your machine. Everything else sends audio to the cloud.
+- Large files are converted and split at silences before they are sent, so no provider's upload limit applies. The split size is the provider's limit or 64 MB, whichever is smaller. Change the 64 MB with the `TRANSCRIPTION_MAX_INPUT_MEMORY_BYTES` environment variable on the intelligence container.
+- `transcription.hotwords` is a list of names and terms for providers that support it.
+- `transcription.language_hint` is a language code (`"ja"`, `"en"`) passed to cloud providers. Empty means detect. `whisper_local` always detects.
+- A drive with `transcription_cloud: false` uses `whisper_local` whatever the provider.
 
 ## Configuration reference
 
-Everything lives in `addons/intelligence/search-config.yml`. Defaults are reproduced below; comments in the example file have additional context.
+All settings live in `addons/intelligence/search-config.yml`. The blocks below are the shipped defaults. Settings saved in the browser override the file (see [settings in the browser](#settings-in-the-browser)). Every field of the dataclasses in `addons/intelligence/app/config.py` is also accepted; the ones not listed here are tuning values.
 
 ### Feature flags
 
@@ -464,81 +327,59 @@ features:
   search: true
   auto_tags: "manual"                 # false | manual | on_index
   summaries: "manual"                 # false | manual | on_index
-  chapter_suggestions: "false"        # false | manual | on_index
   detailed_summaries: "false"         # false | manual | on_index
-  rag: true                           # bool
+  rag: true                           # Ask and Find
   transcript_refine: "false"          # false | manual | on_index
   vision_describe: "manual"           # false | manual | on_index
   retrieval_keywords: "false"         # false | manual | on_index
+  chapter_suggestions: "false"        # false | manual | on_index
+  video_visual_index: "false"         # false | manual | on_index
 ```
 
-`auto_tags`, `summaries`, `chapter_suggestions`, `detailed_summaries`, `transcript_refine`, `vision_describe`, and `retrieval_keywords` all require `llm.provider != "disabled"`.
+Every flag except `indexing`, `search` and `auto_tags` does nothing while `llm.provider` is `"disabled"`.
 
 ### LLM
 
 ```yaml
 llm:
-  provider: "disabled"                                  # ollama | openai_compatible | disabled
-  base_url: ""                                          # provider-specific
-  api_key: ""                                           # or env LLM_API_KEY (ignored for ollama)
-  model: ""                                             # e.g. "gemma4:e4b", "gpt-4o-mini"
-  max_tokens: 8192                                      # ceiling, not an allocation
+  provider: "disabled"                # ollama | openai_compatible | disabled
+  base_url: ""                        # ollama: "http://host.docker.internal:11434"
+  api_key: ""                         # or env LLM_API_KEY (ignored for ollama)
+  model: ""                           # e.g. "gemma4:e4b", "gpt-4o-mini"
+  max_tokens: 8192
   temperature: 0.3
-  output_language: "auto"                               # auto | ja | en
-  reasoning: "disabled"                                 # disabled | auto
+  output_language: "auto"             # "auto" or a language tag such as "ja", "en"
   retry_attempts: 3
   retry_base_delay: 1.0
   retry_max_delay: 30.0
-  min_request_interval_ms: 0                            # rate limit; 500-1000 for paid APIs
+  min_request_interval_ms: 0          # 500-1000 for paid APIs
   request_timeout_seconds: 90.0
   request_connect_timeout_seconds: 10.0
-  vision_model: ""                                      # e.g. "gemma4:e4b" or a hosted vision model
+  reasoning: "disabled"               # disabled | auto
+  vision_model: ""                    # e.g. "llava:13b", "gpt-4o-mini"
   vision_max_tokens: 1024
   vision_temperature: 0.1
+  agentic_mode: "off"                 # off | auto
+  agentic_models: []                  # - name: "gpt-4o"
+                                      #   context_window: 128000
 ```
 
-Shipped defaults disable the LLM entirely (`provider: "disabled"`); set this in the browser at `/admin/intelligence` (or edit the file and restart) before turning on any LLM-driven feature.
+- `"ollama"`: uses ollama's own API and always asks the model not to reason (`think: false`).
+- `"openai_compatible"`: OpenAI, DeepSeek, vLLM, LM Studio, or ollama's `/v1` endpoint.
+- `"disabled"`: no LLM features. Indexing, search and local tag candidates still work.
 
-**`max_tokens`** is a ceiling, not an allocation — providers bill the tokens the
-model actually writes, so headroom costs nothing, while a ceiling that merely
-fits the typical answer turns a legitimately long one into a body cut
-mid-structure and unparseable. Chapter consolidation on a feature-length
-transcript is the case that outgrew the old 2048 default. Lower it only for a
-model whose context window cannot hold that many output tokens. Note that an
-install created before this default changed carries the old value in its own
-`search-config.yml`, where it wins over the default: raise it there to pick the
-change up.
+`max_tokens` is an upper limit, not a reservation. Providers bill only the tokens the model writes, so a high value costs nothing, and a low one cuts long answers off. Chapter candidates for a long video need the room. An existing `search-config.yml` keeps the value it was created with; raise it there if it is lower.
 
-**Provider semantics:**
+About `reasoning`: a reasoning model spends `max_tokens` on thinking before it answers, and can come back empty. `"disabled"` asks the provider to skip the thinking. A provider that rejects the request field gets it once, and the addon stops sending it for the rest of the run. `"auto"` never sends the field. Some providers reason anyway; the log says so.
 
-- `"ollama"` — uses ollama's `/api/chat`. Sends `think: false` so reasoning models (Gemma 4, DeepSeek-R1, QwQ) skip chain-of-thought. Use this for any ollama instance.
-- `"openai_compatible"` — OpenAI SDK. Works with OpenAI, DeepSeek, vLLM, LM Studio. Also works with ollama, whose `/v1` layer ignores `think: false`.
-- `"disabled"` — no LLM features. Indexing and search still work; summaries/auto-tags/etc. become no-ops.
-
-**`reasoning`** controls whether the provider is asked to skip chain-of-thought,
-and defaults to `"disabled"` because none of these features are better for the
-thinking. It matters more than it sounds: a reasoning model spends `max_tokens`
-on its thinking before writing any answer, so a budget that comfortably fits the
-answer can come back empty with `finish_reason="length"`. Long inputs hit this
-first — chapter generation on a full-length transcript is the usual casualty.
-
-The request field is an OpenRouter extension. A provider that does not recognise
-it answers 400; the client reads the first such rejection as "this provider does
-not speak this field", re-sends the request without it, and remembers that for
-the rest of the run, so the default costs such a provider one request rather
-than breaking it. Set `"auto"` to never send the field. Suppression is a request
-and not a guarantee — an upstream that ignores it still reasons, and the log
-says so. The `"ollama"` provider is unaffected either way; its requests always
-carry `think: false`.
-
-### Summaries (citation tuning)
+### Summaries
 
 ```yaml
 summaries:
   min_context_chars: 50
   max_context_chars: 8000
   window_chars: 2500
-  window_count: 3                       # odd numbers; first/middle/last
+  window_count: 3
   detailed_max_context_chars: 24000
   detailed_window_count: 5
 
@@ -562,8 +403,6 @@ summaries:
   citation_multi_anchor_min_len: 4
 ```
 
-The dozen citation_* knobs implement section anchoring, hybrid retrieval, and compound-bullet handling. See the inline comments in `search-config.yml.example` for tuning advice.
-
 ### RAG
 
 ```yaml
@@ -580,7 +419,7 @@ rag:
     coarse_score_threshold: 0.3
     min_drive_files_for_shortlist: 50
     fallback_full_search: true
-    clue_count: 3                       # 1 = legacy single-keyword
+    clue_count: 3
 
   personal_history:
     enabled: true
@@ -596,40 +435,34 @@ rag:
 
 ```yaml
 models:
-  whisper: "openai/whisper-large-v3-turbo"   # faster-whisper or HF CT2 repo
-  text_embedding: "cl-nagoya/ruri-v3-30m"    # 256d JP-optimised
+  whisper: "openai/whisper-large-v3-turbo"
+  text_embedding: "ibm-granite/granite-embedding-97m-multilingual-r2"
   clip: "llm-jp/waon-siglip2-base-patch16-256"
-  blip: "Salesforce/blip-image-captioning-base"   # leave empty to disable image captions
+  blip: "Salesforce/blip-image-captioning-base"   # empty = no image captions
 ```
 
-Whisper alternatives (multilingual, CT2 int8):
+`text_embedding` accepts only these models:
 
-- `openai/whisper-small` — 244 M, ~500 MB int8 RAM.
-- `openai/whisper-large-v3-turbo` — 809 M, ~1.0–1.2 GB. Best accuracy/speed balance.
-- `openai/whisper-large-v3` — 1550 M, ~2–3 GB. Highest accuracy.
+| Model | Size | Notes |
+|---|---|---|
+| `ibm-granite/granite-embedding-97m-multilingual-r2` | 384d, ~190 MB | Multilingual. Default |
+| `ibm-granite/granite-embedding-311m-multilingual-r2` | 768d, ~620 MB | Multilingual, higher quality |
+| `cl-nagoya/ruri-v3-30m` | 256d, ~150 MB | Japanese |
+| `cl-nagoya/ruri-v3-130m` | 768d, ~520 MB | Japanese |
+| `cl-nagoya/ruri-v3-310m` | 1024d, ~1.2 GB | Japanese, most accurate |
 
-Text-embedding alternatives (re-index required on change):
+Other CLIP models: `llm-jp/llm-jp-clip-vit-base-patch16` (Japanese) and `openai/clip-vit-b-32` (English). With either, raise `search.min_score_clip` to 0.20.
 
-- `ibm-granite/granite-embedding-97m-multilingual-r2` — 384d, ~190 MB. Multilingual default (Apache 2.0, prefix-free).
-- `ibm-granite/granite-embedding-311m-multilingual-r2` — 768d, ~620 MB. Higher-quality multilingual.
-- `cl-nagoya/ruri-v3-30m` — 256d, ~150 MB. Lightweight ruri model.
-- `cl-nagoya/ruri-v3-130m` — 768d, ~520 MB. Higher-quality ruri model.
-- `cl-nagoya/ruri-v3-310m` — 1024d, ~1.2 GB. Largest ruri option.
-
-CLIP alternatives:
-
-- `llm-jp/waon-siglip2-base-patch16-256` — 768d, multilingual SigLIP2 (default).
-- `llm-jp/llm-jp-clip-vit-base-patch16` — 512d, llm-jp CLIP.
-- `openai/clip-vit-b-32` — 512d, English. With CLIP-family models raise `min_score_clip` to 0.20.
+Other Whisper models: `openai/whisper-small` (smaller, less accurate), `openai/whisper-large-v3` (most accurate, 2 to 3 GB of memory), or any faster-whisper size or CTranslate2 repository on Hugging Face.
 
 ### Search
 
 ```yaml
 search:
-  alpha: 0.7                              # 0=keyword only, 1=vector only
+  alpha: 0.7                              # 0 = keywords only, 1 = vectors only
   default_limit: 20
   max_limit: 100
-  min_score_clip: 0.05                    # SigLIP2 default; raise to 0.20 for CLIP
+  min_score_clip: 0.05                    # 0.20 for CLIP-family models
   min_score_clip_thumbnail: 0.05
 ```
 
@@ -637,15 +470,15 @@ search:
 
 ```yaml
 transcription:
-  provider: whisper_local                 # whisper_local | openai_compatible | deepgram | elevenlabs_scribe | assemblyai | gemini
-  language_hint: ""                       # ISO code; empty = auto-detect
-  hotwords: []                            # list of proper nouns
+  provider: whisper_local   # whisper_local | openai_compatible | deepgram | elevenlabs_scribe | assemblyai | gemini
+  language_hint: ""         # empty = detect
+  hotwords: []
 
   whisper_local:
     model: openai/whisper-large-v3-turbo
     initial_prompt: ""
     beam_size: 1
-    batch_size: 0                         # sequential = recommended
+    batch_size: 0
     condition_on_previous_text: true
     compression_ratio_threshold: 2.0
     no_speech_threshold: 0.45
@@ -664,31 +497,32 @@ transcription:
     timeout_s: 600
 
   elevenlabs_scribe:
-    model_id: scribe_v1
+    model_id: scribe_v2                    # scribe_v1 | scribe_v2
     diarize: true
+    no_verbatim: false                     # drop filler words; scribe_v2 only
     timeout_s: 600
 
   assemblyai:
-    model: best                            # "best" (Universal-2) or "nano"
+    model: best                            # best | nano
     language_detection: true
-    speaker_labels: true                   # diarisation
+    speaker_labels: true
     timeout_s: 1800
-    poll_interval_s: 3                     # status-poll cadence
+    poll_interval_s: 3
 
   gemini:
-    model: gemini-2.5-flash                # "gemini-2.5-flash" or "gemini-2.5-pro"
-    output_language: ja                    # the prompt language steering the model
-    upload_wait_sec: 300                   # File API processing wait
+    model: gemini-2.5-flash                # gemini-2.5-flash | gemini-2.5-pro
+    output_language: ja
+    upload_wait_sec: 300
     timeout_s: 1800
 ```
 
-**`initial_prompt`** caveats: leave blank in normal use. The addon ships per-language defaults under `app/workers/whisper_prompts.py` (ja/en/zh/ko/es/fr/de/pt/it/ru). Setting `initial_prompt` overrides the default for **all** languages. Never include filenames or proper-noun lists — Whisper latches onto them and hallucinates them into the transcript. Use a curated glossary layer for vocabulary hints.
+Leave `initial_prompt` empty. The addon has a built-in prompt per language, and a value here replaces it for every language. Never put filenames or lists of names in it: Whisper then writes them into the transcript where nobody said them.
 
 ### Indexing
 
 ```yaml
 indexing:
-  reconciliation_interval: 3600           # seconds between core DB reconciles
+  reconciliation_interval: 3600           # seconds
 
   frame_extraction:
     scene_threshold: 0.3                  # higher = fewer frames
@@ -696,11 +530,11 @@ indexing:
     max_frames: 500
 
   text_chunking:
-    max_chunk_size: 400                   # ~256 tokens for 384d multilingual embedders
-    overlap: 80                           # ≈20% of max_chunk_size
+    max_chunk_size: 400
+    overlap: 80
 ```
 
-`indexing.whisper.*` is **deprecated**; use `transcription.whisper_local.*`. Old keys are read via shim until the cutover date in the comments.
+`indexing.whisper.*` is the old place for the `whisper_local` settings. It is still read, but `transcription.whisper_local.*` wins where both are set.
 
 ### Workers and memory
 
@@ -714,139 +548,75 @@ workers:
 memory:
   whisper_idle_unload: 300                # seconds; 0 = never
   blip_idle_unload: 300
+  clip_concepts_idle_unload: 600
 ```
 
-Whisper and BLIP are only used during indexing, so they can be unloaded after a period of inactivity to free RAM (~500 MB each). CLIP and text_embedding stay resident because they are used by the search query path.
-
----
+Whisper, BLIP and the tag vocabulary model are unloaded after this many idle seconds. CLIP and the text embedding model stay loaded because search uses them.
 
 ## UI surface
 
-When enabled, the intelligence addon contributes:
+- **Search**: meaning-based results in the ordinary search, and the **Scene search** switch.
+- **Ask** in the sidebar, with the **Ask** and **Find** tabs.
+- Sections on the file page, each shown once it has something in it: **Do you trust this source?**, **AI tag candidates**, **AI chapter candidates**, **AI summary**, **AI detailed summary**, **AI image description**, **Visual index**, **CLIP Frames**.
+- **AI** button in the file's action row. It lists what the file does not have yet (tag candidates, a summary, a detailed summary, chapter candidates, an image description). It is hidden when there is nothing left to create.
+- **Transcript** tab in the inspector, for files that have a transcript. It has **Clean up with AI**, a switch between **Text chunks**, **Words** and **External** when there is more than one source, and a button on each line that adds it to the capture basket. Where it sits: [chapters and the transcript](../user-guide/viewers-and-players.md#chapters-and-the-transcript-beside-or-below).
+- **Similar files** under the inspector's **Related** tab. It searches only when you expand it, and each result shows keywords it shares with the current file.
+- **Pickup** on the drive home.
+- **Index details** in the file's `…` menu (see below).
+- **AI** in the folder's `…` menu: **Create AI tag candidates…**, **Create AI summaries…** and **Create image descriptions…**. Each asks first and says how many files. That count is the files the folder has loaded so far, which may not be the whole folder.
+- On the admin dashboard, the **Index Status** widget (queues, models, **Pause** / **Resume**) and, when something failed, a **N failed jobs** band whose **View** opens the **Failed jobs** list, with **Retry** and **Exclude** per row.
 
-- **Search modes** — *Semantic Search* and *Find* (sidebar of `/drive/<name>/search`), plus *Scene search* toggle and *Ask* input.
-- **Ask page** — the sidebar's *Ask* row opens `/drive/<name>/addons/intelligence`. Its header is titled *Ask* with the sidebar row's icon, names the drive and how many files it holds (the drive alone when that count cannot be fetched), and carries the *Ask* / *Find* tabs; both tabs share that header, so switching between them moves nothing.
-- **File detail sections** — a section appears once it has something in it. Until then
-  there is no heading; the way to make one is the **AI** menu below.
-  - *Unverified Source* (shown only on a file you have not yet ruled on — see below)
-  - *Suggested Tags* (with Approve / Dismiss / Regenerate)
-  - *AI Summary* (short)
-  - *Detailed Summary* (long-form Markdown with citation chips)
-  - *Visual Description* (vision LLM)
-  - *CLIP Frames* (per-second thumbnails; collapsed by default)
-  - *Visual index* (collapsed by default)
-- **The transcript** is not one of them: it is a **tab in the inspector**, or a box under
-  the description if you have moved it there, so it can be as tall as the panel it is in
-  and follow playback without pushing anything. A file that has never been transcribed
-  grows no tab — the addon tells the page whether it has anything for that file, so
-  there is no empty tab to press. It carries a *Refine* button and, when there is more
-  than one source, a chunks / words / external switch. Each line has a quote button that
-  adds it to the capture basket; it appears when you hover or focus the line and stays
-  visible on a touch screen, so several hundred of them do not read as a rule down the
-  edge of the text. Its name carries the line's timestamp, so a screen reader can tell
-  them apart. Where you left off is remembered across collapsing and reopening the
-  sheet on a phone, including whether you had scrolled away from the playhead.
-- **Similar files** sits under the inspector's **Related** heading, beside the file's own
-  stated relations rather than in a section of its own. Collapsed by default, and
-  **expanding it is the request** — the search is heavy, so it runs for the files you ask
-  about and no others. Placeholder cards hold the height while it works, and a failure
-  says so and offers another go. Each result names the keywords it shares with the file
-  you are on, taken from the keyword bag both files were indexed with, and names none
-  when it shares none.
-- **File action row** — **AI**, beside the like and favourite buttons. It lists what this
-  file does not have yet: tag candidates, a summary, a detailed summary, chapter
-  candidates, an image description. Generating one makes its section appear and removes
-  it from the menu, which is where its regenerate control lives from then on. On a file
-  with nothing left to generate — or nothing applicable — the button is not shown.
-- **Drive home** — *Pickup*, a row of files you have never opened, with a link through to the full feed at `/drive/{drive}/addons/intelligence/pickup`, carrying the feed's size
-- **File `[...]` menu** — *Index details*, a dialog showing per-task state with a *Regenerate* button for each task (`metadata`, `clip`, `whisper`, `text`) plus recent provider stats for failure context. It sits in the overflow menu rather than in the inspector because it answers an operator's question, not a reader's.
-- **Folder actions** — inside the folder toolbar's `…` menu: *Create AI tag candidates…*,
-  *Create AI summaries…*, and *Create image descriptions…*.
-  Each one asks before it starts, and the question says how many files it is about.
-  That number is the rows the folder has loaded, which part-way down a long folder is not the
-  whole folder — which is why it is in the question rather than in the label, where it would
-  change as you scroll. Declining sends nothing and leaves the row usable.
-- **Dashboard widget** — *Index Status* (queue depth and model memory). The eleven per-task queues are listed only while they are moving; the idle ones sit behind a *Show N idle queues* disclosure, since the running/waiting total above already says how much work there is.
-- **Dashboard alert** — a *Failed jobs* band above the drive cards, which opens the *Failed jobs* modal (per-file × per-task retry). It is absent entirely when nothing has failed.
-
-Each section is a slot contribution; if a feature is disabled (per-drive policy), its section disappears.
+A section disappears on drives where its feature is off.
 
 ### Unverified sources
 
-Ask draws its citations only from files you have vouched for. An unverified
-file — a Web Clip, or anything else that arrived from outside — stays fully
-searchable but never grounds an answer. See
-[trusted sources](../user-guide/file-browsing.md#trusted-sources-and-the-review-queue).
+Ask cites only files you have verified. An unverified file (a web clip, or anything else from outside) is still found by search but is never used to answer. See [trusted sources](../user-guide/file-browsing.md#trusted-sources-and-the-review-queue).
 
-When you open such a file, this section asks you to rule on it, and offers
-whatever context it can:
+On such a file, **Do you trust this source?** asks you to decide:
 
-- Up to three of the **file's own paragraphs**, reproduced verbatim, each
-  paired with a note of yours that it echoes. Only files you have already
-  vouched for count as "a note of yours" — ordinary search returns unverified
-  files too, and a clip is a `.md` like any note, so the extension alone
-  proves nothing.
-- **Trust as a source** promotes it; **Leave it unverified** records that you
-  looked and decided against it, so you are not asked again. Both stamp the
-  review, which is why neither wording promises a decision deferred.
+- Up to three of the file's own paragraphs are shown, each next to a verified note of yours that it resembles. No LLM is called.
+- **Trust as a source** verifies it. **Leave it unverified** records that you looked, so you are not asked again.
 
-What it deliberately does *not* do is summarise. The paragraphs shown are the
-exact strings used as the search queries, and the matches are embedding
-neighbours — **no LLM is called on this path at all**. Approving generated
-text would place it in the verified tier, whose definition is content you
-wrote or vouched for; a summary you waved through is neither.
-
-To keep one passage rather than trust the whole page, select it in the
-document and add it to Knowledge's quotation basket. That affordance belongs
-to Knowledge and is not duplicated here.
-
-**Retrieval note.** Because the trust filter narrows results after ranking,
-grounding draws a wider candidate pool than it needs and widens it again
-until the budget is filled or the index is exhausted. Without that, unverified
-files that outrank verified ones would spend the budget and then be discarded,
-leaving Ask with fewer sources than exist. Ordinary search is unaffected, and
-so is *Find*, which presents files rather than grounding an answer.
+To keep one passage rather than the whole file, select it and add it to the Knowledge addon's quotation basket.
 
 ### Re-generating indexes
 
-There is **no global "Reindex all" button**. The addon offers two scoped paths instead (spec [`2026-05-24-intelligence-reindex-controls.md`](../superpowers/specs/2026-05-24-intelligence-reindex-controls.md)):
+There is no "reindex everything" button. Instead:
 
-- **Per-file × per-task.** Open the `[...]` menu on a file's detail page, choose *Index details*, and click *Regenerate* on a specific task (`metadata`, `clip`, `whisper`, or `text`). The corresponding `*_indexed` flag is reset to `False` and the reconciler picks the file up on its next pass.
-- **Failed-job retry.** A *Failed jobs* band sits above the drive cards on the admin dashboard whenever something has failed. Opening the modal lists the most recent failures (file, drive, task, provider, error class, attempt count, timestamp), with a *Retry* button per row that calls the same per-file × per-task path. Rows with `status='skipped'` (e.g. `UnsupportedMimeType`) are intentionally excluded — retrying would only re-skip.
+- For one task on one file, choose **Index details** in the file's `…` menu, then **Regenerate** on a task (`metadata`, `clip`, `whisper` or `text`). The file is indexed again on the next pass.
+- For failed jobs, on the admin dashboard press **View** on the **N failed jobs** band and **Retry** a row. Files skipped because their type is not supported are not listed.
 
-Embedding-model switches are a different flow: editing `models.text_embedding` from the intelligence admin page sets a `reindex_pending` flag and the actual rebuild happens on container restart (see [text embedding model](#text-embedding-model-gui-managed) in the developer-guide reference). The reindex-pending flow and the per-file regeneration UI are independent.
+Changing the text embedding model in the browser (or `models.text_embedding` in the file) rebuilds the whole text index at the next restart. Ask and text search are unavailable until it finishes. Detailed-summary citations are not rebuilt; run `backfill_detailed_citations --force` for that.
 
----
+Changing `models.clip` rebuilds CLIP embeddings at restart only if the new model's vector size differs. Changing the Whisper model does not re-transcribe anything; use **Regenerate** on the `whisper` task.
 
 ## Operational notes
 
-- **First-run cost.** Indexing a populated drive can take hours, dominated by ASR and frame extraction. Expect 1–10× real-time on CPU, 5–20× on GPU.
-- **Re-index on model change.** Switching `text_embedding` or `clip` invalidates existing embeddings; the next reconcile pass re-indexes. Switching Whisper does not re-transcribe automatically — re-run transcription manually.
-- **One-time document re-index on upgrade.** The upgrade that adds `embeddings.chunk_index` discards existing document embeddings so the next reconcile pass rebuilds them with the key that maps an embedding back to the text it was built from. Only text extraction and embedding re-run: transcripts are untouched, and keyword search keeps working throughout because the FTS tables are replaced per file as it comes back around.
-- **DB layout.** The addon's data lives under `data/addons/intelligence/`. The core DB is **not** modified; the addon mirrors what it needs and queries the rest through the Internal API.
-- **Observability.** `docker compose logs -f intelligence`. Queue depth and model memory are on the admin dashboard's *Index Status* widget; recent failures are the *Failed jobs* band above the drive cards, whose modal supports per-row retry.
-- **Cold-start grace.** The addon fails open on policy lookups for the first 60 seconds; after that, missing core means the addon refuses to enqueue work.
-- **Liveness.** The addon serves every endpoint from a single event loop, so a blocked loop takes them all down at once while the container still looks perfectly healthy — process up, memory flat, CPU at zero. Two things make that state visible: the `healthcheck` block `configure.py` writes into `docker-compose.override.yml` (an HTTP probe of `/health`, so `docker compose ps` reports `unhealthy`), and a watchdog inside the addon that logs every thread's stack once the loop has gone 120 seconds without running a callback. Neither restarts anything — Docker leaves an unhealthy container running, and the watchdog deliberately does not kill a process that might be mid-index. Recovery is `docker compose restart intelligence`.
+- The first indexing of a full drive can take hours. Transcription and frame extraction take most of it.
+- Everything the addon stores is in `data/addons/intelligence/` (its database `search.db`, the models, the settings saved in the browser). It never writes to the core database.
+- The addon's log: `docker compose logs -f intelligence`.
+- In the first 60 seconds after the addon starts, a job that cannot reach the core is retried instead of recorded as failed.
+- If the addon hangs (stops responding while its container still runs), `docker compose ps` shows it `unhealthy` (from the healthcheck), and the log contains a stack dump of every thread once it has been stuck for 120 seconds (`INTELLIGENCE_WATCHDOG_THRESHOLD`). Nothing restarts it automatically: run `docker compose restart intelligence`.
 
 ## Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
-| Search returns nothing on a freshly-added drive | Reconciler has not run yet; wait for the next reconcile (`indexing.reconciliation_interval`, default 1 hour) or open a file's `[...]` menu → *Index details* and click *Regenerate* on the relevant task |
-| A handful of files consistently fail to index | Open the admin dashboard, press the *Failed jobs* band above the drive cards, and *Retry* the affected files — or jump to the file detail and regenerate the specific task that failed |
-| Ask answer says *no strong source* on grounded questions | Lower `summaries.citation_threshold`, or improve transcript quality |
-| Whisper transcripts drift to nonsense | Lower `compression_ratio_threshold`; never put filenames in `initial_prompt` |
-| Cloud transcription returns 413 | Switch from `openai_compatible` to `deepgram`, `elevenlabs_scribe`, or `assemblyai` for files > 25 MB |
-| Gemini transcript words have evenly-spaced timestamps | Expected — Gemini's word timestamps are synthetic. Switch to `assemblyai` / `deepgram` / `elevenlabs_scribe` if precise word timing matters (subtitles, citation jumps) |
-| AssemblyAI upload fails on a multi-hour file | 5 GB cap per file. Phase 2B will add ffmpeg-based splitting; for now, transcode to a lower bitrate or use Deepgram |
-| Gemini upload stalls then times out | Raise `transcription.gemini.upload_wait_sec`; the File API is slow on very large files |
-| Tags suggest nothing | Vision describe disabled and BLIP missing for image-heavy drives; enable one |
-| An image keeps saying the model does not accept images, but `llm.vision_model` is set | Open the file and press **Retry**. Verdicts recorded before the addon measured capability were inferred from a single provider rejection and are often wrong; the retry re-measures. For a whole folder, use the folder button |
-| Descriptions stay *Creating description…* forever | The row was accepted by a process that then stopped. A restart re-queues them automatically; the file page also offers **Retry**. If it recurs, check that `llm.provider` is not `disabled` while `llm.vision_model` is set |
-| Vision fails with `token_budget` | Raise `llm.vision_max_tokens`. A truncated description is discarded rather than stored, so nothing is left half-written |
-| Every intelligence endpoint returns 502, core logs `SLOW REQUEST 15.0s` | The addon's event loop is blocked. Confirm with `docker compose ps` (`unhealthy`), read the thread dump the watchdog wrote to `docker compose logs intelligence`, then `docker compose restart intelligence` |
-| Container OOM during indexing | Raise host RAM, or set `whisper_idle_unload: 60` and `blip_idle_unload: 60` |
-| LLM 429s | Set `llm.min_request_interval_ms: 1000` or increase `llm.retry_max_delay` |
+| A new drive finds nothing by meaning | It has not been indexed yet. Wait for the next pass (hourly), or use **Index details** → **Regenerate** on one file |
+| Indexing never happens | `SEARCH_WEBHOOK_SECRET` is set on the addon but not on the backend |
+| Some files keep failing | Admin dashboard → **View** on the failed-jobs band → **Retry**, or **Regenerate** the failed task from the file's **Index details** |
+| Detailed-summary points have no citation although the source says it | Lower `summaries.citation_threshold` |
+| Whisper transcripts drift into nonsense | Lower `compression_ratio_threshold`; never put filenames in `initial_prompt` |
+| Gemini word timestamps are evenly spaced | Expected. Use `assemblyai`, `deepgram` or `elevenlabs_scribe` when word timing matters |
+| Gemini upload times out | Raise `transcription.gemini.upload_wait_sec` |
+| **Approve all** on chapter candidates fails | `CORE_INTERNAL_SECRET` is missing or differs between the backend and the addon |
+| Chapter candidates fail with an output-budget message | Raise `llm.max_tokens`, or keep `llm.reasoning: "disabled"` |
+| An image says the model does not accept images, but `llm.vision_model` is set | Press **Retry** on the file, or **Create image descriptions…** for a folder. A state without a recorded cause is re-checked |
+| Descriptions stay at *Creating description…* | The addon stopped while working. A restart queues them again; the file also offers **Retry**. Check that `llm.provider` is not `"disabled"` |
+| Vision fails with `token_budget` | Raise `llm.vision_max_tokens`. Cut-off descriptions are not stored |
+| Every intelligence request fails and the core logs `SLOW REQUEST` | The addon is hung. See [Operational notes](#operational-notes) |
+| Container runs out of memory while indexing | Add memory, lower `whisper_idle_unload` and `blip_idle_unload` (e.g. 60), or lower `TRANSCRIPTION_MAX_INPUT_MEMORY_BYTES` |
+| The LLM returns 429 | Set `llm.min_request_interval_ms: 1000` or raise `llm.retry_max_delay` |
 
 ## See also
 

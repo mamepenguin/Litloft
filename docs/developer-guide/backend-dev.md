@@ -1,19 +1,18 @@
 # Backend development
 
-The backend is FastAPI + SQLite + SQLAlchemy + ffmpeg. Code lives under `backend/app/`. Tests under `backend/tests/`.
+The backend is FastAPI + SQLite (SQLAlchemy) + ffmpeg. Code is under `backend/app/`, tests under `backend/tests/`.
+
+The rules for this code are in [`.claude/rules/backend-conventions.md`](../../.claude/rules/backend-conventions.md) and [`.claude/rules/design-decisions.md`](../../.claude/rules/design-decisions.md). Read them before changing the backend; this page does not repeat them.
 
 ## Running locally
 
-The Pydantic version Litloft pins is incompatible with local Python 3.14, so always run the backend inside the container:
+Run the backend and its tests inside Docker. The pinned Pydantic does not work with a local Python 3.14.
 
 ```bash
 docker compose up -d --build backend
 docker compose exec backend bash    # interactive shell
-```
 
-For tests:
-
-```bash
+# Tests (build context is the repo root)
 docker build -f backend/Dockerfile.test -t litloft-test .
 docker run --rm litloft-test
 ```
@@ -22,187 +21,77 @@ docker run --rm litloft-test
 
 ```
 backend/app/
-├── main.py            # entry point; startup scan, sentinel migration, restart_pending clear
-├── config.py          # drives.json/passwords.json reader, DATA_DIR, sentinel paths
-├── database.py        # SQLAlchemy engine, sessionmaker, migrations
+├── main.py            # entry point: startup scan, sentinel migration, restart_pending clear, addon loading
+├── config.py          # drives.json reader, DATA_DIR, sentinel and flag paths
+├── database.py        # engine, sessions, _migrate()
 ├── models.py          # ORM models, active_file_filter()
 ├── schemas.py         # Pydantic schemas
-├── auth.py            # JWT, viewer_id, is_admin_viewer
-├── routers/
-│   ├── files.py       # streaming, metadata, tags, content, progress
-│   ├── drives.py      # drive listing, folder traversal, dashboard
-│   ├── playlists.py
-│   ├── auth.py
-│   ├── uploads.py
-│   ├── progress.py
-│   ├── ws.py
-│   ├── admin.py
-│   ├── admin_config.py
-│   ├── comments.py
-│   ├── addon_proxy.py
-│   └── internal.py    # /api/internal/*
-└── services/
-    ├── scanner.py
-    ├── fileops.py
-    ├── thumbnail.py
-    ├── upload.py
-    ├── heic.py
-    ├── subtitle.py
-    ├── preview.py
-    ├── hash.py
-    ├── ws.py
-    ├── addon_registry.py
-    └── config_writer.py
+├── auth.py            # JWT, viewer_id, is_admin / require_admin
+├── routers/           # admin, admin_config, admin_markdown_images, auth, collections, comments,
+│                      # drive_policies, drives, files, progress, smart_folders, uploads, ws,
+│                      # addon_proxy, internal (/api/internal/*)
+└── services/          # scanner, fileops, thumbnail, upload, heic, subtitle, hash, ws, event_hooks,
+                       # frontmatter, markdown_relations, safepath, atomic_write, config_writer, …
 ```
 
-## Conventions
+## Helpers to use
 
-### `config` import
-
-Use `app.config` as a module reference. Direct imports break test-time path patching:
-
-```python
-# CORRECT
-import app.config as config
-config.DATA_DIR
-
-# WRONG — patches don't take effect
-from app.config import DATA_DIR
-```
-
-### Path traversal defence
-
-Always look up `file_path` from the DB by ID → normalise with `os.path.realpath()` → verify it lives under `base_dir`. Never trust a user-supplied path.
-
-### Active file filter
-
-Default file queries go through `app.models.active_file_filter()`. Do **not** write `deleted_at.is_(None)` by hand — you will miss the missing-files exclusion and accidentally serve stale data.
-
-```python
-from app.models import File, active_file_filter
-
-q = session.query(File).filter(active_file_filter())
-```
-
-### Restore semantics
-
-`restore_file()` clears **both** `deleted_at` and `missing_since` as a defensive safety net, even though only one is supposed to be set at a time. This protects against future bugs and out-of-band edits.
-
-### Concurrency
-
-- Scanner uses `asyncio.Lock`. Second concurrent invocation returns 409.
-- Sprite generation: `asyncio.Semaphore(2)` plus an in-progress dict to dedup the same file.
-- ZIP extraction: `asyncio.Semaphore(3)` global.
-- Atomic writes: `.tmp` then `os.replace()`. Use `app.services.config_writer.atomic_write_json()` for JSON.
-
-### Thumbnails
-
-- Video thumbnails: ffmpeg's `thumbnail=300` filter picks a representative frame after skipping the first 10%.
-- Image thumbnails: ffmpeg, fitted inside a 320x320 box at the picture's own proportions. No padding, and never scaled up into the box — a picture smaller than 320px is stored at its own size.
-- HEIC: **Pillow with pillow-heif**, never ffmpeg (ffmpeg lacks libheif and produces black thumbnails). Same box.
-- PDF thumbnails: the first page letterboxed onto a 320x180 white frame, which is kept — a portrait page cropped to 16:9 is a band of body text.
-- Video thumbnails stay letterboxed onto a 320x180 black frame.
-- All thumbnails: JPEG, at most 320px on the long edge.
-- Thumbnails written before the picture box are replaced as each drive is scanned, one file at a time (`_is_letterboxed_image_thumbnail`). Both shapes render, so a part-migrated drive is not a broken one — though wherever a justified cell is not drawn at the picture's own ratio, the older thumbnail still shows some of its bars. A picture whose dimensions could not be read is never migrated: the predicate needs them to say what the size should be. A file that is missing from disk keeps its old thumbnail until it comes back — there is no source to regenerate from.
-- `GET /api/files/{id}/thumbnail` sends `Cache-Control: no-cache`, because the bytes behind that URL change when a thumbnail is regenerated and the URL does not — **and answers `If-None-Match` itself, because `FileResponse` does not**. The two go together on both branches of the handler: `no-cache` without the conditional turns every cache hit into a full body. A browser that cached a thumbnail *before* the header existed will keep painting the old one until its own heuristic freshness runs out; one hard reload clears it.
-
-### Markdown frontmatter helpers
-
-`app.services.frontmatter` exposes `parse`, `compose`, `ensure_id`, `extract_valid_tags`, and `extract_valid_aliases`. They are all pure / immutable — never mutate the `metadata` dict in place; use the returned dict.
-
-For `.md` writes, run `ensure_id(metadata, existing_id=file.md_id, now=...)` **before** writing bytes to disk so the `File.md_id` projection and the on-disk frontmatter agree. Same-second collision disambiguation (3-digit ms suffix → 17 chars) is the caller's job; `ensure_id` itself stays pure. The canonical example is `_inject_md_id` in `routers/files.py`.
-
-`extract_valid_aliases(metadata) -> list[str]` projects frontmatter `aliases:` to the new `File.md_aliases` column (Phase B). Caps: 20 entries × 100 chars, case-sensitive dedup, no character regex (aliases may contain CJK / spaces / punctuation), drops non-string entries (no YAML-bool coercion). Returns `[]` on missing / malformed keys; the caller decides whether to store `NULL` or a JSON-encoded empty list (current policy is `NULL`).
-
-A sibling implementation lives at `addons/knowledge/app/services/frontmatter.py` (cross-container duplication, drift caught in PR review). Change them together. See spec `2026-05-12-markdown-link-three-forms.md` §3.1 / §3.6 and the "Markdown frontmatter `id:`" / "Tag editing" sections of `.claude/rules/design-decisions.md`.
-
-### Markdown wiki-link extractor + resolver
-
-`app.services.markdown_relations` (Phase B of spec `2026-05-12-markdown-link-three-forms.md`) is the single source of truth for parsing `[[X]]` wiki-links and `loft://<id>` direct references inside `.md` bodies.
-
-- `extract_links(content) -> ExtractedLinks(loft_ids, wiki_targets)` — pure regex pass. Honours CommonMark `\[` escapes so `\[\[X\]\]` is *not* captured. The wiki regex captures the target portion only; `[[X|disp]]` and `[[X#head]]` collapse to `X`.
-- `resolve_wiki_targets(db, drive, self_dir, targets) -> (resolved_ids, diagnostics)` — used by `_sync_md_file_relations` to compute `file_relations` diffs.
-- `resolve_wiki_targets_with_map(db, drive, self_dir, targets) -> (target_to_id, diagnostics)` — used by `GET /api/files/{id}/wiki-resolutions` to build the renderer's per-target lookup.
-
-Precedence is **strict and intra-rule** — the first rule with hits stops the chain; basename hits do not fall through to alias hits even when both would have matched. See spec §3.3 for the full ordering. Resolution is always drive-scoped (drive = security boundary); cross-drive targets stay `unresolved`.
-
-The resolver runs **pure read** against the ORM session — it does not commit. Callers (`_sync_md_file_relations`, `get_wiki_resolutions`) own their own transaction boundary, and each Phase B projection is isolated in its own try/commit block so a parse / sync / projection failure cannot roll back the durable content write. This is the same isolation pattern as the existing tag projection.
-
-### Rename-time wiki-link rewrite
-
-`app.services.markdown_relations.rewrite_basename_in_drive(db, drive, old_basename, new_basename, *, exclude_file_id=None) -> RewriteResult` (Phase D of spec `2026-05-12-markdown-link-three-forms.md` §3.7) cascades a `.md` basename rename into other `.md` bodies in the same drive. When a note is renamed from `old.md` to `new.md`, any sibling `.md` referencing it via `[[old]]` / `[[old|disp]]` / `[[old#heading]]` is rewritten to point at the new basename.
-
-- `RewriteResult` (frozen dataclass) returns `files_scanned`, `files_changed`, `occurrences` — useful for logging and tests but not part of any HTTP response.
-- The pass is **escape-aware** (CommonMark `\[\[old\]\]` is masked with sentinels before the regex, so escaped occurrences survive verbatim) and **word-bounded** (`[[oldsuffix]]` does not match — the regex requires the next character to be `]`, `|`, or `#`).
-- The frontmatter block is split off byte-for-byte (`_split_frontmatter_prefix`) and concatenated back unchanged. There is **no YAML re-serialisation**, so comments, ordering, quoting, and BOMs survive. Critically, `aliases:` entries that happen to equal `old_basename` are **not** rewritten — they live in the prefix, which the rewrite never touches. This is intentional (spec §7.6): aliases are user-managed.
-- Writes are atomic (`.tmp` + `os.replace`). `File.file_size` is updated to the new byte count so the projection matches disk.
-- Per-file read / write failures are logged and skipped. The function does not raise for a single bad file; one corrupt note never aborts the batch.
-- No-op when `old_basename == new_basename` (returns zero counters).
-- Intrinsic self-skip: any row whose `Path(filename).stem == old_basename` is skipped even without `exclude_file_id`. The renamed file is therefore safe in both code paths regardless of which hook fires first.
-
-Hook points (both in this repo):
-
-- **Explicit rename** — `app.services.fileops.rename_file`, after the FS rename and the DB commit of the new filename / file_path / title. Gate: both old and new filenames end in `.md` (case-insensitive) and stems differ. Wrapped in its own try / except — on failure, the rewrite transaction is rolled back but the user-visible rename stays durable. Passes `exclude_file_id=file.id`.
-- **Out-of-band move** — `app.services.scanner._scan_and_register`, in the hash-based move-detection branch right after `moved_ids.append(...)`. Same `.md` + stem-changed gate. Called without `exclude_file_id`; the moved file is filtered by the intrinsic self-skip because its `filename` column has already advanced to `new_basename` by the time the hook fires.
-
-Cross-drive rewrites are explicitly **not** supported — drive is a security boundary. Non-`.md` renames are no-ops here (loft-scheme references and `[[id]]` numeric references are unaffected by basename changes).
-
-## Adding an endpoint
-
-1. Add the route to the appropriate router under `backend/app/routers/`.
-2. Define request/response schemas in `backend/app/schemas.py`.
-3. Move business logic into `backend/app/services/<name>.py`.
-4. Add tests under `backend/tests/`.
-5. If the endpoint is public, document it in [HTTP API reference](../reference/api.md).
-6. If the endpoint is internal (addon-facing), it must satisfy [Internal API policy](addon-dev.md#internal-api-policy). New internal endpoints require a contract test in `tests/test_internal_api_contract.py` (see hako entry `VHE7K0KWjIzV3M1CyfDAN` for the pattern).
-
-## Database changes
-
-- Edit `models.py` for the schema change.
-- Add a migration in `database.py` (forward-only).
-- Run tests; the migration must be idempotent and safe on a populated DB.
-- Document any backfill expectations.
-
-If you add a new lifecycle column with NOT NULL, provide a default and backfill in the migration. Never assume an upgrade has zero existing rows.
+| Need | Use |
+|---|---|
+| Resolve a user-supplied path inside a drive | `app.services.safepath.resolve_safe_path(drive, rel_path)` |
+| List files | `.filter(active_file_filter())` from `app.models`. Never write `deleted_at.is_(None)` by hand. |
+| Restore a file | `app.services.fileops.restore_file()`. It clears both `deleted_at` and `missing_since`. |
+| Replace a file in a drive | `app.services.atomic_write.replace_file_contents()` / `replacing_file()` (keeps the file's mode) |
+| Write a generated file under `DATA_DIR` | `app.services.atomic_write.write_generated_file()` / `generating_file()` |
+| Rewrite `drives.json` / `passwords.json` | `app.services.config_writer.atomic_write_json()`. It keeps a `.bak` and touches `restart_pending` unless told not to. |
+| Emit a lifecycle event (`files.*`, `scan.complete`) | `app.services.event_hooks.emit()` from async code, `emit_from_thread()` from a sync handler, `emit_sync()` from the scanner thread. These notify addon webhooks and connected browsers. |
+| Send a browser-only WebSocket event from a thread | `app.services.ws.broadcast_from_thread(event, data, drive=...)` |
 
 ## Authentication helpers
 
-`app.auth`:
+In `app.auth`:
 
-- `decode_jwt(request)` — read and validate the cookie; returns `JWTPayload` or `None`.
-- `require_admin(request)` — FastAPI dependency that 403s non-admins.
-- `is_admin_viewer(payload)` — predicate on a payload.
-- `viewer_id_from_request(request)` — derive the 16-char ID from the `lit_viewer` cookie.
+- `get_unlocked_groups(request)`: the groups in the caller's JWT, read from an `Authorization: Bearer` header if present, otherwise from the `access_token` cookie; `[]` when there is none.
+- `check_drive_access(drive, groups)`: raises 404 when the drive is locked for the caller.
+- `is_admin(groups)` / `require_admin(request)`: the admin check. Use `Depends(require_admin)` on admin routes.
+- `get_viewer_id(request)`: the 16-character `viewer_id` from the `lit_viewer` cookie or `X-Lit-Viewer` header, or `None`.
 
-Always prefer the dependency style (`Depends(require_admin)`) over inline checks; tests then mock the dependency.
+## Markdown
 
-## WebSocket emits
+- `app.services.frontmatter`: `parse`, `compose`, `ensure_id`, `extract_valid_tags`, `extract_valid_aliases`. They are pure: use the returned dict, do not mutate `metadata`. For a `.md` write, run `ensure_id` before writing the bytes so `File.md_id` and the file agree (see `_inject_md_id` in `routers/files.py`).
+- A second copy of the parser is in `addons/knowledge/app/services/frontmatter.py`. Change both together.
+- `app.services.markdown_relations`: extracts `[[wiki links]]` and `loft://` references, resolves wiki targets within one drive, syncs `file_relations`, and rewrites `[[old]]` links in other notes of the same drive when a `.md` file is renamed or moved (`rewrite_basename_in_drive`). The rewrite does not touch frontmatter.
+- In `PUT /api/files/{id}/content`, each projection (`md_id`, tags, aliases, relations, thumbnail) commits in its own `try` block after the content write, so a failed projection never undoes the write.
 
-Background threads (the scanner) cannot directly call `await ws.broadcast()`. Use the bridge:
+## Thumbnails
 
-```python
-loop.run_in_executor(None, lambda: loop.call_soon_threadsafe(ws.broadcast, event))
-```
+Shapes and sizes are specified in `backend-conventions.md`. `GET /api/files/{id}/thumbnail` sends `Cache-Control: no-cache` and answers `If-None-Match` itself, because the URL stays the same when a thumbnail is regenerated. Keep both if you change the handler.
 
-…or use the helper in `app.services.ws`. This keeps event ordering consistent with HTTP responses.
+## Adding an endpoint
 
-## Prohibitions
+1. Add the route to a router under `backend/app/routers/`.
+2. Add request and response schemas to `backend/app/schemas.py`.
+3. Put the logic in `backend/app/services/`.
+4. Add tests under `backend/tests/`.
+5. Document a public endpoint in the [HTTP API reference](../reference/api.md).
+6. An Internal API endpoint must pass the [Internal API policy](addon-dev.md#internal-api-policy), needs the two-layer contract tests described in [`.claude/rules/internal-api-policy.md`](../../.claude/rules/internal-api-policy.md), and is documented in [ADDON-DEVELOPMENT.md](../ADDON-DEVELOPMENT.md#internal-api).
 
-- Do **not** embed language-dependent rules into LLM or string-processing logic. Searching for the literal string `"タイトル"` to detect a Markdown title is a maintenance trap; rely on structural cues (frontmatter, H1) instead.
-- Do **not** add addon-specific code paths to core. The dependency is unidirectional: addons may import core, never the other way.
-- Do **not** read `passwords.json` content fields back to the client; use `***` masking.
+## Database changes
+
+- Change the model in `models.py`.
+- Add the migration to `_migrate()` in `database.py`. It must be idempotent and safe on a database that already has rows.
+- A new NOT NULL column needs a default and a backfill in the migration.
 
 ## Logging
 
-- `logging.getLogger("litloft.<module>")`.
-- Default level is INFO; set `LOG_LEVEL=debug` in env to lower.
-- Avoid logging file paths from request bodies before the path-traversal check.
+Use `logging.getLogger(__name__)`. The level is INFO, set in `main.py`. Do not log a path from a request body before it has passed the path check.
 
-## Performance
+## Prohibitions
 
-- Use SQLAlchemy 2.x select() style for new code.
-- For hot paths (search, dashboard), index columns explicitly in `models.py`.
-- Sprite and HEIC conversions are CPU-bound; never block the event loop — push to `asyncio.to_thread()`.
+- No addon-specific code in core. Addons may import core; core never imports addons.
+- Never return password values from `passwords.json` to the client; the admin API masks them as `***`.
+- No language-dependent rules in LLM or string-processing code (see `backend-conventions.md`).
+- Do not block the event loop with CPU-bound work; run it with `asyncio.to_thread()` or an executor.
 
 ## See also
 

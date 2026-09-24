@@ -1,89 +1,48 @@
 # Quick Note
 
-Quick Note captures a thought from wherever you already are — a video page, search results, the admin dashboard — and files it as a Markdown note without taking you off the screen you were on.
+Quick Note writes down a thought from any page and files it as a Markdown file, without taking you away from what you were doing. It is part of Litloft itself and needs no addon.
 
-It is part of the core, not an addon. It works with the Knowledge addon disabled.
+## Opening it
 
-## Opening the panel
+- Press `N` when you are not typing in a field.
+- Or press **Quick note** in the header. It works on every page, including the drive picker and the admin pages.
 
-Two ways in, both available on every page:
+**New note** on the Notes page opens the same panel with that drive, and on **All notes** the chosen folder, already set as the destination.
 
-- Press `N`. Like the other single-character shortcuts, this fires only when no input has focus, which is what keeps it out of the Markdown editor, the search box, and comment fields.
-- Use the **Quick note** action in the header. The button works everywhere, including while you are typing in a text field, and on screens that have no active drive at all (the root drive picker, `/admin`, `/admin/settings`).
+## Writing and saving
 
-Some screens open the same panel for you — **New note** on the Notes page does, with that page's drive (and, on All notes, the folder you have chosen) already selected as the destination. That preselection is for that one note: it is not remembered unless the save succeeds, and the next time you open Quick Note from the header the usual order below applies again.
+Type the note. Nothing is created until you save.
 
-The panel opens as a dialog over the current page with the cursor already in the note text — you can start typing immediately. `Tab` stays inside the dialog while it is open.
+- **Save** (or `Cmd/Ctrl+Enter`) files the note and closes the panel. You stay where you were, and a message shows where the file went.
+- **Save and open** files the note and then opens it, in the editor if one is installed (the [Knowledge addon](../addons/knowledge.md)).
+- **Cancel**, `Esc` or a click outside the panel closes it. If you have written something, it asks **Discard this note?** first. A discarded note cannot be recovered.
 
-## Nothing is created until you save
+The unsaved text lives only in the panel. Reloading the page loses it.
 
-The note text lives only in the panel, in browser memory. It is never written to a draft file, to the server, or to browser storage on the way, so:
+## Where the note goes
 
-- **Cancel**, `Esc`, and clicking the backdrop all close the panel and leave nothing behind. No empty file, no stub, no entry in the folder.
-- If the note already has text in it, closing asks first — **Discard this note?**, with **Keep editing** and **Discard**. There is no undo after **Discard**.
-- Reloading the page loses an unsaved note by design.
+The **Destination** line shows the drive and folder. Press it to change them.
 
-The panel has two ways to save:
+- **Drive**: the drive you opened the panel from, else the one you last saved to, else your only drive. If none of these applies, choose one; nothing is picked for you.
+- **Folder**: each drive remembers the last folder you saved to on this device, starting with `Inbox`. You can also choose the drive root. A folder that does not exist yet is created when you save.
 
-- **Save** does not navigate. The panel closes, a toast confirms where the file landed (`drive/folder/name.md`), and you are still on the page you started from, at the same scroll position, with the same video still playing.
-- **Save and open**, at the left of the footer, saves exactly the same file and then takes you to it, opened for editing when an editor is installed (the Knowledge addon's). It does nothing different from **Save** until the save has succeeded: if the save fails, you stay where you are and the panel keeps your text and shows the error.
+## The filename
 
-## Choosing where the note goes
+The name comes from the first line of the note and is shown under **Saves as** while you type. A leading `#`, `>` or list marker is left out of the name, and characters a filename cannot hold are replaced. The first line stays in the note as you wrote it.
 
-The panel shows the destination as one collapsed line — **Destination: `drive` / `folder`** — and expands to a drive selector plus a folder picker when you want to change it.
+If the first line gives no usable name, the file is named `note-<date>-<time>.md`. If the name is already taken in that folder, ` (1)`, ` (2)` and so on is added; the message after saving shows the name actually used.
 
-### The drive
+The result is an ordinary Markdown file. You can find, tag, edit and trash it like any other.
 
-The drive is resolved fresh every time the panel opens, in this order:
+## When saving fails
 
-1. The drive a screen asked for when it opened the panel (such as **New note** on the Notes page), if you can currently reach it.
-2. The drive of the screen you opened the panel from, if you can currently reach it.
-3. The drive of your last successful Quick Note save, if you can currently reach it.
-4. The only accessible drive, if you have exactly one.
-5. Otherwise **nothing is preselected**. The destination section opens itself and waits for you to choose.
-
-There is deliberately no alphabetical fallback for step 5. A drive is a security boundary, so filing a note into the wrong one is worse than asking for one click. The list of drives comes from the server on every open, so a drive you no longer have unlocked is never offered and never quietly reused.
-
-### The folder
-
-Each drive remembers its own Quick Note folder, defaulting to **`Inbox`**. The folder picker also lets you choose the drive root.
-
-- The preference is stored in the browser, per drive, so it is per device and not shared between browsers or viewers.
-- It is written **only after a save succeeds**, so a destination the server rejected never becomes your next default.
-- Switching drives in the panel switches to that drive's own remembered folder, never leaving the previous drive's path selected.
-- If the folder does not exist yet, the server creates it (including intermediate levels) as part of the save. You do not have to create `Inbox` first.
-
-## How the file is named
-
-The filename is derived from the **first non-empty line** of the note and shown live as **Saves as** while you type. That line is not consumed — it stays in the file exactly as you typed it, and no frontmatter or heading is added.
-
-Deriving the name:
-
-- One leading Markdown marker is stripped: an ATX heading (`#` to `######`), a blockquote `>`, or a list marker (`-`, `*`, `+`, `1.`, `1)`) — including a task checkbox directly after a list marker.
-- A trailing `.md` is removed, so the extension is not doubled.
-- `/`, `\`, and control characters become `-`; runs of whitespace and runs of hyphens are collapsed; leading dots and trailing dots or spaces are dropped.
-- The result is capped at 80 characters and 240 bytes of UTF-8, whichever is hit first, without splitting a character.
-- `.md` is appended.
-
-If nothing usable survives — the note starts with `###`, or with only punctuation — the file is named `note-YYYYMMDD-HHmmss.md` using your device's local time.
-
-**Name collisions are resolved for you.** If the derived name is already taken in that folder, the server appends ` (1)`, ` (2)`, and so on before the extension; the toast reports the name that was actually used, not the predicted one. A save fails only if 99 numbered variants are all taken.
-
-## What you end up with
-
-An ordinary Markdown file in an ordinary folder. There is no separate notes store, no hidden index, no special record type. The note is immediately visible in the folder browser, and it is searchable, taggable, editable, versioned, and recoverable from trash exactly like any other Markdown file.
-
-## When Save is unavailable
-
-**Save** and **Save and open** stay disabled until there is non-whitespace text and a confirmed destination, and both are disabled while a save is in progress, so pressing twice never creates two files. It also refuses in these cases:
-
-| Situation | What the panel does |
+| Message | What to do |
 |---|---|
-| Drive list could not be loaded | Shows **Could not load drives** with a **Retry** action; Save stays disabled until the list is confirmed |
-| No drive selected yet | Opens the destination section so you can pick one |
-| Note over 1 MB of UTF-8 | Reports the limit; the server enforces the same cap |
-| The chosen drive became unreachable | Reports it, re-checks your access, and reopens the destination section so you can pick another |
+| **Could not load drives.** | Press **Retry**. |
+| **The note is over the 1 MB limit.** | Shorten the note. |
+| **That drive is no longer available. Choose another destination.** | Pick another drive. |
+| **That destination was rejected. Change the first line or the folder and try again.** | Change the first line or the folder. |
 
-## Keys
+When saving fails, the panel stays open with your text.
 
-`Cmd/Ctrl+Enter` saves (like **Save**, it does not navigate) and `Esc` closes — both work with the cursor still in the note text. See [keyboard shortcuts](keyboard-shortcuts.md) for the full set.
+See [keyboard shortcuts](keyboard-shortcuts.md) for the other keys.
