@@ -49,7 +49,7 @@ A variable only reaches the containers whose `environment` lists it. Compose set
 - Shared secret for `/api/internal/*`, sent by addons as `X-Internal-Secret`.
 - Unset: the backend logs a warning at startup, and every internal endpoint accepts requests without it, except `PUT /api/internal/files/{id}/chapters`, which returns `503`.
 - Set, but to a different value on the addon: `403`.
-- Set the same value on the backend and on every addon that calls the core. `configure.py` generates it only when the knowledge addon is enabled; with intelligence alone, add it to both the backend and intelligence yourself.
+- Set the same value on the backend and on every addon that calls the core. `configure.py` generates it whenever the intelligence or knowledge addon is enabled.
 
 ### `CORE_INTERNAL_CONTENT_MAX_BYTES`
 - **Default**: `10485760` (10 MiB)

@@ -120,7 +120,7 @@ Why the data directory is mounted this way: [read-only mounts for addons](../adm
 
 - `INTELLIGENCE_SERVICE_URL` on the backend lets the core find the addon. Without it every addon route returns 404.
 - `SEARCH_WEBHOOK_SECRET` must be on both containers or on neither. Set on the addon alone, every file-change notification from the core is rejected and indexing silently stops.
-- `CORE_INTERNAL_SECRET` must be the same non-empty value on both containers for **Approve all** on chapter candidates to work. `configure.py` generates it only when the Knowledge addon is also enabled; otherwise add it to `.env` yourself (`openssl rand -hex 32`).
+- `CORE_INTERNAL_SECRET` must be the same non-empty value on both containers for **Approve all** on chapter candidates to work. `configure.py` generates it and wires it into both services. An override written by an older `configure.py` may lack it on the backend; run `configure.py` again to add it.
 
 The first start downloads the ML models (Whisper, CLIP, text embeddings, BLIP) into `data/addons/intelligence/models/`. Expect 1 to 3 GB.
 
