@@ -126,6 +126,65 @@ describe("MergedResultItem", () => {
     expect(onSelect).toHaveBeenCalledWith("/files/abc?t=120");
   });
 
+  it("renders one page pill per matched page", () => {
+    const file = makeFile({
+      id: "abc",
+      match_meta: { content: { score: 0.6 }, matched_pages: [3, 7, 12, 15] },
+    });
+    render(<MergedResultItem file={file} onSelect={vi.fn()} />);
+
+    expect(
+      screen.getAllByTestId("match-page-pill").map((p) => p.textContent),
+    ).toEqual(["p.3", "p.7", "p.12", "p.15"]);
+  });
+
+  it("clicking a page pill fires onSelect with ?page=7 and stops row propagation", () => {
+    const file = makeFile({
+      id: "abc",
+      match_meta: { content: { score: 0.6 }, matched_pages: [3, 7] },
+    });
+    const onSelect = vi.fn();
+    render(<MergedResultItem file={file} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByText("p.7"));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith("/files/abc?page=7");
+  });
+
+  it.each(["Enter", " "])(
+    "%j on a page pill fires onSelect with that pill's page only",
+    (key) => {
+      const file = makeFile({
+        id: "abc",
+        match_meta: { content: { score: 0.6 }, matched_pages: [3, 7] },
+      });
+      const onSelect = vi.fn();
+      render(<MergedResultItem file={file} onSelect={onSelect} />);
+
+      const pill = screen.getByRole("button", { name: "p.7" });
+      expect(pill).toHaveAttribute("tabindex", "0");
+      fireEvent.keyDown(pill, { key });
+
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      expect(onSelect).toHaveBeenCalledWith("/files/abc?page=7");
+    },
+  );
+
+  it("clicking the row of a PDF hit opens the file without a page", () => {
+    const file = makeFile({
+      id: "abc",
+      match_meta: { content: { score: 0.6 }, matched_pages: [3, 7] },
+    });
+    const onSelect = vi.fn();
+    render(<MergedResultItem file={file} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByTestId("merged-result-item"));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith("/files/abc");
+  });
+
   it("does NOT render pills for placeholder time_range entries [-1, -1]", () => {
     // buildMatchMeta uses [-1, -1] as a synthetic time_range when it
     // wants the audio badge to render but has no real timestamp.

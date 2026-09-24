@@ -118,9 +118,30 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
           </div>
         )}
         {matchedPages.length > 0 && (
-          <p className="mt-1 text-[11px] text-text-muted">
-            {t("matchedPages", { pages: matchedPages.join(", ") })}
-          </p>
+          <div className="mt-1 flex flex-wrap gap-0.5">
+            {matchedPages.map((page) => (
+              <span
+                key={page}
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(`/files/${file.id}?page=${page}`);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onSelect(`/files/${file.id}?page=${page}`);
+                  }
+                }}
+                data-testid="match-page-pill"
+                className="cursor-pointer rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
+              >
+                {t("matchedPages", { pages: page })}
+              </span>
+            ))}
+          </div>
         )}
       </div>
     </button>
