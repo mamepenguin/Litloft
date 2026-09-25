@@ -1104,6 +1104,29 @@ pre mark.ask-citation-highlight {
   z-index: 60;
 }
 
+/* Holds the pinned frame's slot open so the page under it does not move.
+   Keyed on `.fixed` as well as the marks: the players switch their pin
+   classes a commit apart from the hook's marks, and the slot has to open
+   and close in the same layout as the frame leaves and rejoins the flow.
+   The percentage resolves against the same width the 16:9 frame had. */
+div:has(> .fixed[data-pseudo-fullscreen]),
+div:has(> .fixed[data-fullscreen-moving]) {
+  padding-top: 56.25%;
+}
+
+/* While the frame is carried between its slot and the viewport only the
+   picture is drawn, and a shield over it takes every tap. */
+[data-fullscreen-moving] [data-player-chrome] {
+  opacity: 0;
+}
+
+[data-fullscreen-moving]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+}
+
 /* The wrapper is the host's first child, so a top padding puts it that
    far below the scrollport and `top: 0` only catches it once the reader
    has scrolled past it. Zero here rather than a smaller value: any

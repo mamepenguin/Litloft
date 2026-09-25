@@ -54,6 +54,7 @@ export function OverFrameSettingsPanel({
 
   return (
     <div
+      data-player-chrome=""
       className={[
         "absolute inset-0 z-20 flex flex-col",
         fromTop ? "justify-start" : "justify-end",

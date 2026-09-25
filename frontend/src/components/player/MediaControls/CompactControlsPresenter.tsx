@@ -43,6 +43,7 @@ export function CompactControlsPresenter({
     <>
       <div
         data-testid="compact-controls-root"
+        data-player-chrome=""
         className={[
           // No horizontal or bottom padding on the block: the scrub bar
           // is meant to run the full width of the frame and sit on its

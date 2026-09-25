@@ -320,3 +320,12 @@ describe("TouchControlsPresenter", () => {
     });
   });
 });
+
+describe("TouchControlsPresenter — chrome marker", () => {
+  it("marks everything it draws into the frame: the controls, the settings sheet and the hairline", () => {
+    const { container } = renderControls({ visible: false, settingsOpen: true });
+    const drawn = Array.from(container.children);
+    expect(drawn).toHaveLength(3);
+    for (const node of drawn) expect(node).toHaveAttribute("data-player-chrome");
+  });
+});

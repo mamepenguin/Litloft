@@ -101,7 +101,14 @@ function Controls({
 }) {
   const [boosting, setBoosting] = useState(false);
   const { paused } = useMediaClock(mc);
-  const fullscreen = useFullscreen({ frameRef, autoRotateEnabled: !paused, suppressSwipe: boosting });
+  const fullscreen = useFullscreen({
+    frameRef,
+    autoRotateEnabled: !paused,
+    suppressSwipe: boosting,
+    // The picture is a native layer over the page: it would trail the frame
+    // and ignore its clip, over a page the shell has hidden.
+    animate: false,
+  });
 
   useEffect(() => {
     fullscreenToggleRef.current = fullscreen.toggle;
