@@ -590,6 +590,38 @@ describe("useFullscreen — carrying the frame", () => {
     expect(requestFullscreen).toHaveBeenCalledTimes(1);
   });
 
+  it("pushes the history entry again when a shrink is turned around, so Back still closes it", async () => {
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const push = vi.spyOn(window.history, "pushState");
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    finishAll();
+    act(() => result.current.exit());
+    window.history.replaceState(null, "");
+    await act(async () => result.current.toggle());
+    expect(push).toHaveBeenCalledTimes(2);
+    expect(window.history.state).toMatchObject({ litloftFullscreen: true });
+    window.history.replaceState(null, "");
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    });
+    expect(result.current.isFullscreen).toBe(false);
+  });
+
+  it("shrinks from where the frame is drawn when an entry is cut short", async () => {
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    // Mid-entry: what the running animation draws, as the computed style reports it.
+    frame.style.transform = "matrix(0.95, 0, 0, 0.95, 4, 20)";
+    frame.style.clipPath = "inset(100px 0px 100px 0px round 0px)";
+    act(() => result.current.exit());
+    const [transform, clip] = animations.slice(-2);
+    expect(transform.keyframes[0].transform).toBe("matrix(0.95, 0, 0, 0.95, 4, 20)");
+    expect(clip.keyframes[0].clipPath).toBe("inset(100px 0px 100px 0px round 0px)");
+  });
+
   it("does nothing on Escape while shrinking", async () => {
     const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
     const { result } = renderCarried();
