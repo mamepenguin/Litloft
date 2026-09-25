@@ -92,7 +92,6 @@ export function usePdfPageProgress({
     return () => {
       flush();
       loadedRef.current = null;
-      lastWrittenRef.current = null;
     };
   }, [fileId, flush]);
 
