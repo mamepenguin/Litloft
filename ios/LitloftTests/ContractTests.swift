@@ -64,6 +64,8 @@ struct ContractTests {
             red: 0x1A / 255, green: 0x0E / 255, blue: 0x10 / 255
         )))
         #expect(try route("embedFullscreen") == .embedFullscreen(videoId: "dQw4w9WgXcQ"))
+        #expect(try route("immersiveOn") == .pageImmersive(true))
+        #expect(try route("immersiveOff") == .pageImmersive(false))
     }
 
     @MainActor
@@ -83,7 +85,7 @@ struct ContractTests {
         #expect(Set(names) == [
             "load", "play", "pause", "seek", "unload", "setRate", "setVolume",
             "surfaceDocument", "surfaceSticky", "surfaceFixed", "surfaceGone", "pip", "pageBackground",
-            "embedFullscreen"
+            "embedFullscreen", "immersiveOn", "immersiveOff"
         ])
     }
 
@@ -94,6 +96,23 @@ struct ContractTests {
             "loading", "readyWhilePaused", "seekLanded", "failed", "waitingWhilePlaying",
             "inPictureInPicture", "nothingLoaded"
         ])
+    }
+
+    @Test("every other report in the shared sample is checked here")
+    func everyReportIsCovered() throws {
+        let names = try #require(try SharedContract.load()["reports"]).keys
+        #expect(Set(names) == ["immersiveApplied"])
+    }
+
+    @Test("the immersive acknowledgement is spelled as the web side reads it")
+    func immersiveApplied() throws {
+        let sample = try #require(try SharedContract.load()["reports"]?["immersiveApplied"])
+        let report = ImmersiveApplied(active: true, size: CGSize(width: 402, height: 874))
+        let encoded = try #require(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as? [String: Any]
+        )
+
+        #expect(NSDictionary(dictionary: encoded).isEqual(to: sample), "\(encoded) vs \(sample)")
     }
 
     @Test("every report the shell sends is spelled as the web side reads it", arguments: [

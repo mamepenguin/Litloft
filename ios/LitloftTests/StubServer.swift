@@ -1,8 +1,7 @@
 import Foundation
 import Network
 
-/// Answers every request the same way: the two shapes a first load can take
-/// without ever putting a page on screen.
+/// Answers every request the same way.
 final class StubServer: @unchecked Sendable {
     enum Answer {
         /// Sends the visitor somewhere else, the way a server that hands them
@@ -10,6 +9,7 @@ final class StubServer: @unchecked Sendable {
         case redirect(destination: String)
         /// Answers with a file rather than a page.
         case attachment(named: String)
+        case page(html: String)
     }
 
     private let listener: NWListener
@@ -55,6 +55,14 @@ final class StubServer: @unchecked Sendable {
                 "Content-Length: 4",
                 "Connection: close",
                 "", "data"
+            ].joined(separator: "\r\n")
+        case .page(let html):
+            return [
+                "HTTP/1.1 200 OK",
+                "Content-Type: text/html; charset=utf-8",
+                "Content-Length: \(Data(html.utf8).count)",
+                "Connection: close",
+                "", html
             ].joined(separator: "\r\n")
         }
     }

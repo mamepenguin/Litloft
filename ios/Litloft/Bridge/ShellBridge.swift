@@ -12,7 +12,7 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     /// page refuses a shell below the version it needs and plays the file
     /// itself. A shell ahead of the page keeps answering it, and says so when
     /// a command is one it cannot read.
-    static let contractVersion = 3
+    static let contractVersion = 4
 
     private let server: URL
     private weak var webView: WKWebView?
@@ -22,6 +22,7 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     /// arrives early is dropped rather than queued.
     var onMediaCommand: ((MediaCommand, String?) -> Void)?
     var onPageBackground: ((PageColor) -> Void)?
+    var onPageImmersive: ((Bool) -> Void)?
 
     init(server: URL, embeds: EmbedFrames = EmbedFrames()) {
         self.server = server
@@ -62,6 +63,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
             onPageBackground?(color)
         case .embedFullscreen(let videoId):
             embeds.enterFullscreen(videoId: videoId)
+        case .pageImmersive(let active):
+            onPageImmersive?(active)
         case .unreadable(let loadId):
             log.error("a command about \(loadId, privacy: .public) was not readable")
             deliver(MediaState.unreadable(loadId: loadId))
@@ -90,6 +93,9 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         if type == "embed.fullscreen" {
             return (body["videoId"] as? String)
                 .flatMap { EmbedFrames.isVideoId($0) ? ShellAction.embedFullscreen(videoId: $0) : nil }
+        }
+        if type == "page.immersive" {
+            return boolean(body["active"]).map(ShellAction.pageImmersive)
         }
         return mediaAction(type, body, server: server)
     }
@@ -167,6 +173,12 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
         guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
         let double = number.doubleValue
         return double.isFinite ? double : nil
+    }
+
+    /// Any JSON number arrives as an NSNumber, and `as? Bool` accepts 0 and 1.
+    private nonisolated static func boolean(_ value: Any?) -> Bool? {
+        guard let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else { return nil }
+        return number.boolValue
     }
 
     private nonisolated static func geometry(_ body: [String: Any]) -> SurfaceGeometry? {
@@ -251,6 +263,10 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
 
     func deliver(_ state: MediaState) {
         send(state, describedAs: "media.state")
+    }
+
+    func deliver(_ report: ImmersiveApplied) {
+        send(report, describedAs: "page.immersive.applied")
     }
 
     private func deliver(_ message: ShellMessage) {
