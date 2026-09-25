@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getWatchProgress, saveWatchProgress } from "./api";
 import { getSavedProgress, saveProgress } from "./recentlyPlayed";
 import { useProfile } from "@/components/ProfileProvider";
@@ -60,7 +60,10 @@ export function usePdfPageProgress({
   goToRef.current = goTo;
 
   const loadedRef = useRef<{ fileId: string; numPages: number } | null>(null);
-  const restoringRef = useRef(false);
+  // State, not a ref: a turn made while the read is pending is saved when
+  // it ends.
+  const [restoringFile, setRestoringFile] = useState<string | null>(null);
+  const restoring = restoringFile === fileId;
   const lastWrittenRef = useRef<number | null>(null);
   const pendingRef = useRef<PendingSave | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,7 +91,7 @@ export function usePdfPageProgress({
   useEffect(() => {
     return () => {
       flush();
-      restoringRef.current = false;
+      loadedRef.current = null;
       lastWrittenRef.current = null;
     };
   }, [fileId, flush]);
@@ -100,10 +103,12 @@ export function usePdfPageProgress({
       return;
     }
     loadedRef.current = { fileId: id, numPages };
+    // The page the document opens on is not a turn, even once clamped.
+    const openedOn = Math.min(Math.max(1, pageRef.current), numPages);
+    lastWrittenRef.current = openedOn;
     if (isPage(requestedPageRef.current)) return;
 
-    const openedOn = pageRef.current;
-    restoringRef.current = true;
+    setRestoringFile(id);
     const read = hasProfileRef.current
       ? getWatchProgress(id).then((p) => p.position)
       : Promise.resolve(getSavedProgress(id));
@@ -120,14 +125,14 @@ export function usePdfPageProgress({
         // A page we cannot read leaves the reader where the document opened.
       })
       .finally(() => {
-        if (fileIdRef.current === id) restoringRef.current = false;
+        setRestoringFile((current) => (current === id ? null : current));
       });
   }, []);
 
   useEffect(() => {
     const loaded = loadedRef.current;
     if (!loaded || loaded.fileId !== fileId) return;
-    if (restoringRef.current) return;
+    if (restoring) return;
     if (page < 2 || page > loaded.numPages) return;
     if (page === lastWrittenRef.current) return;
     lastWrittenRef.current = page;
@@ -139,7 +144,7 @@ export function usePdfPageProgress({
       pendingRef.current = null;
       if (pending) write(pending);
     }, PDF_PAGE_SAVE_DELAY_MS);
-  }, [fileId, page, write]);
+  }, [fileId, page, restoring, write]);
 
   return { documentLoaded };
 }

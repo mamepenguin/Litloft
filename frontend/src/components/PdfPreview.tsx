@@ -133,14 +133,20 @@ export function PdfPreview({
     declaredDirection: "ltr" | "rtl" | null;
   } | null>(null);
   const latestPdfRef = useRef<PDFDocumentProxy | null>(null);
-  const [fullscreen, setFullscreen] = useState(false);
+  /** The page the full-screen viewer shows, or null while it is closed. */
+  const [fullscreenPage, setFullscreenPage] = useState<number | null>(null);
+  const fullscreen = fullscreenPage !== null;
+  const fullscreenGoToRef = useRef<((page: number) => void) | null>(null);
+  const goToReadingPage = useCallback((next: number) => {
+    if (fullscreenGoToRef.current) fullscreenGoToRef.current(next);
+    else setPage(next);
+  }, []);
   const { documentLoaded } = usePdfPageProgress({
     fileId,
-    page,
+    page: fullscreenPage ?? page,
     requestedPage: initialPage,
-    goTo: setPage,
+    goTo: goToReadingPage,
   });
-  const fullscreenGoToRef = useRef<((page: number) => void) | null>(null);
 
   // Read after mount, not in the initialiser: the server render has no
   // storage, and a value read during it would be hydrated over.
@@ -175,7 +181,7 @@ export function PdfPreview({
     setPageBox(null);
     setLoaded(null);
     latestPdfRef.current = null;
-    setFullscreen(false);
+    setFullscreenPage(null);
     // The store describes a document, and the document is changing. Left
     // alone, the page list would draw the previous file's table of contents
     // over this one, and `goToPage` would validate a jump against the
@@ -390,7 +396,7 @@ export function PdfPreview({
       {
         key: "f",
         label: t("pdfFullscreen"),
-        handler: () => setFullscreen(true),
+        handler: () => setFullscreenPage(page),
       },
     ],
     loaded !== null && inScope && !fullscreen,
@@ -581,7 +587,7 @@ export function PdfPreview({
         </button>
         <button
           type="button"
-          onClick={() => setFullscreen(true)}
+          onClick={() => setFullscreenPage(page)}
           disabled={loaded === null}
           aria-label={t("pdfFullscreen")}
           className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated disabled:opacity-30"
@@ -649,9 +655,9 @@ export function PdfPreview({
               initialPage={page}
               slotProps={documentSlotProps}
               goToPageRef={fullscreenGoToRef}
-              onPageChange={setPage}
+              onPageChange={setFullscreenPage}
               onClose={(last) => {
-                setFullscreen(false);
+                setFullscreenPage(null);
                 setPage(last);
               }}
             />

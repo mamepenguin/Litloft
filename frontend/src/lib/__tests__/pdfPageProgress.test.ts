@@ -204,6 +204,21 @@ describe("usePdfPageProgress restore", () => {
     expect(goTo).toHaveBeenLastCalledWith(4);
   });
 
+  it("restores again on coming back to a file whose neighbour never loaded", async () => {
+    stored(7);
+    const { result, rerender, goTo } = setup({ fileId: "file-aaaaaaa", page: 1 });
+    act(() => result.current.documentLoaded(20));
+    await flushPromises();
+
+    rerender({ fileId: "file-bbbbbbb", page: 1 });
+    rerender({ fileId: "file-aaaaaaa", page: 1 });
+    act(() => result.current.documentLoaded(20));
+    await flushPromises();
+
+    expect(goTo).toHaveBeenCalledTimes(2);
+    expect(goTo).toHaveBeenLastCalledWith(7);
+  });
+
   it("reads this device's record without a profile", async () => {
     withoutProfile();
     mockGetSavedProgress.mockReturnValue(6);
@@ -334,6 +349,85 @@ describe("usePdfPageProgress save", () => {
     waitSaveDelay();
 
     expect(mockSaveWatchProgress).not.toHaveBeenCalled();
+  });
+
+  it("saves a page turned while the stored page was being read", async () => {
+    const read = deferredStored();
+    const { result, rerender } = setup({ fileId: "file-aaaaaaa", page: 1 });
+    act(() => result.current.documentLoaded(20));
+
+    rerender({ fileId: "file-aaaaaaa", page: 2 });
+    read.resolve({ position: 0, duration: 0 });
+    await flushPromises();
+    waitSaveDelay();
+
+    expect(mockSaveWatchProgress).toHaveBeenCalledWith("file-aaaaaaa", 2, 20);
+  });
+
+  it("writes nothing for a requested page, even one past the end", async () => {
+    const { result, rerender } = setup({
+      fileId: "file-aaaaaaa",
+      page: 20,
+      requestedPage: 20,
+    });
+    act(() => result.current.documentLoaded(8));
+    rerender({ fileId: "file-aaaaaaa", page: 8, requestedPage: 20 });
+    waitSaveDelay();
+
+    expect(mockSaveWatchProgress).not.toHaveBeenCalled();
+
+    rerender({ fileId: "file-aaaaaaa", page: 7, requestedPage: 20 });
+    waitSaveDelay();
+    expect(mockSaveWatchProgress).toHaveBeenCalledWith("file-aaaaaaa", 7, 8);
+  });
+
+  it("does not let the previous file's read hold back the next file's saves", async () => {
+    const readA = deferredStored();
+    const { result, rerender } = setup({ fileId: "file-aaaaaaa", page: 1 });
+    act(() => result.current.documentLoaded(20));
+
+    rerender({ fileId: "file-bbbbbbb", page: 3, requestedPage: 3 });
+    act(() => result.current.documentLoaded(10));
+    readA.resolve({ position: 9, duration: 20 });
+    await flushPromises();
+    rerender({ fileId: "file-bbbbbbb", page: 4, requestedPage: 3 });
+    waitSaveDelay();
+
+    expect(mockSaveWatchProgress).toHaveBeenCalledWith("file-bbbbbbb", 4, 10);
+  });
+
+  it("does not let the previous file's read end the next file's read", async () => {
+    const readA = deferredStored();
+    const { result, rerender } = setup({ fileId: "file-aaaaaaa", page: 1 });
+    act(() => result.current.documentLoaded(20));
+
+    rerender({ fileId: "file-bbbbbbb", page: 1 });
+    const readB = deferredStored();
+    act(() => result.current.documentLoaded(10));
+    readA.resolve({ position: 0, duration: 0 });
+    await flushPromises();
+    rerender({ fileId: "file-bbbbbbb", page: 4 });
+    waitSaveDelay();
+
+    expect(mockSaveWatchProgress).not.toHaveBeenCalled();
+    readB.resolve({ position: 0, duration: 0 });
+    await flushPromises();
+    waitSaveDelay();
+    expect(mockSaveWatchProgress).toHaveBeenCalledWith("file-bbbbbbb", 4, 10);
+  });
+
+  it("saves the next file's page even when it matches the previous file's", async () => {
+    const { result, rerender } = await loaded();
+    rerender({ fileId: "file-aaaaaaa", page: 5 });
+    waitSaveDelay();
+
+    rerender({ fileId: "file-bbbbbbb", page: 1 });
+    act(() => result.current.documentLoaded(10));
+    await flushPromises();
+    rerender({ fileId: "file-bbbbbbb", page: 5 });
+    waitSaveDelay();
+
+    expect(mockSaveWatchProgress).toHaveBeenLastCalledWith("file-bbbbbbb", 5, 10);
   });
 
   it("flushes a pending save on unmount", async () => {

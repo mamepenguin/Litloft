@@ -18,6 +18,16 @@ import {
 import { PdfRasterCache, type Wants } from "@/lib/pdfRasterCache";
 import { PdfCanvas } from "../pdf/PdfCanvas";
 import { ShortcutsProvider } from "../ShortcutsProvider";
+import { useProfile } from "../ProfileProvider";
+import { getWatchProgress } from "@/lib/api";
+
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api")>()),
+  getWatchProgress: vi.fn(),
+  saveWatchProgress: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../ProfileProvider", () => ({ useProfile: vi.fn() }));
 
 const pdfDoc = {
   numPages: 8,
@@ -181,6 +191,11 @@ beforeEach(() => {
   boxOf = () => mockPageBox;
   mockPageBox = { width: 595, height: 842 };
   window.localStorage.clear();
+  vi.mocked(useProfile).mockReturnValue({
+    nickname: null,
+    setNickname: vi.fn(),
+    clearNickname: vi.fn(),
+  });
 });
 
 describe("PdfPreview", () => {
@@ -1201,19 +1216,33 @@ describe("PdfPreview resume", () => {
 
   it("opens a finished document at page 1", async () => {
     seed(8);
-    renderPreview();
+    const { unmount } = renderPreview();
     await screen.findByText("Selectable page 1");
     await act(async () => {});
     expect(pageBox().value).toBe("1");
+    unmount();
     expect(storedPage()).toBe(8);
   });
 
   it("opens on a requested page over the page read last", async () => {
     seed(5);
-    renderPreview(3);
+    const { unmount } = renderPreview(3);
     await screen.findByText("Selectable page 3");
     await act(async () => {});
     expect(pageBox().value).toBe("3");
+    unmount();
+    expect(storedPage()).toBe(5);
+  });
+
+  it("records nothing for a requested page past the end", async () => {
+    seed(5);
+    const { unmount } = renderPreview(20);
+    await act(async () => {});
+    // In a browser the document arrives after mount, and is clamped then.
+    act(() => lastOnLoad!(pdfDoc));
+    await screen.findByText("Selectable page 8");
+    await act(async () => {});
+    unmount();
     expect(storedPage()).toBe(5);
   });
 
@@ -1250,5 +1279,70 @@ describe("PdfPreview resume", () => {
     expect(within(dialog).getByText("Selectable page 3")).toBeInTheDocument();
     unmount();
     expect(storedPage()).toBe(3);
+  });
+
+  function openFullscreen() {
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    const dialog = screen.getByRole("dialog");
+    act(() => {
+      resizeCallbacks[resizeCallbacks.length - 1](
+        [{ contentRect: { width: 1000, height: 800 } }] as unknown as ResizeObserverEntry[],
+        {} as ResizeObserver,
+      );
+    });
+    return dialog;
+  }
+
+  const inlinePages = () =>
+    screen
+      .getAllByText(/^Selectable page \d+$/)
+      .filter((el) => !el.closest("[role=dialog]"))
+      .map((el) => el.textContent);
+
+  it("leaves the inline page where it was while full screen turns", async () => {
+    seed();
+    renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    const dialog = openFullscreen();
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(within(dialog).getByText("Selectable page 3")).toBeInTheDocument();
+    await act(async () => {});
+    expect(inlinePages()).toEqual(["Selectable page 1"]);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(await screen.findByText("Selectable page 3")).toBeInTheDocument();
+  });
+
+  it("takes the page read last into full screen when it arrives after opening", async () => {
+    vi.mocked(useProfile).mockReturnValue({
+      nickname: "kaori",
+      setNickname: vi.fn(),
+      clearNickname: vi.fn(),
+    });
+    let resolve!: (value: { position: number; duration: number }) => void;
+    vi.mocked(getWatchProgress).mockReturnValue(
+      new Promise((res) => {
+        resolve = res;
+      }),
+    );
+    renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    const dialog = openFullscreen();
+    await act(async () => {});
+
+    await act(async () => resolve({ position: 5, duration: 8 }));
+    expect(within(dialog).getByText("Selectable page 5")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(await screen.findByText("Selectable page 5")).toBeInTheDocument();
+    expect(pageBox().value).toBe("5");
   });
 });
