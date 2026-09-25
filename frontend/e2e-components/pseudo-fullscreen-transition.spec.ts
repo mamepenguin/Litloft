@@ -341,10 +341,11 @@ for (const { id, sibling } of ARRANGEMENTS) {
             bottom: [vp.width / 2, vp.height - 4],
           } as const;
           return Object.fromEntries(
-            Object.entries(points).map(([name, [x, y]]) => [
-              name,
-              el.contains(document.elementFromPoint(x, y)),
-            ]),
+            Object.entries(points).map(([name, [x, y]]) => {
+              const hit = document.elementFromPoint(x, y);
+              // Named when it misses, so a failure says what took the point.
+              return [name, el.contains(hit) || `${hit?.tagName}#${hit?.id}.${hit?.className}`];
+            }),
           );
         }, orientation);
         expect(hits).toEqual({ header: true, centre: true, bottom: true });
