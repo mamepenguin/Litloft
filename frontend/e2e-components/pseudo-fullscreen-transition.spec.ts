@@ -29,6 +29,7 @@ declare global {
     __animations: Animation[];
     __holdAnimations: boolean;
     __samples: Sample[] | null;
+    __markAt: number;
   }
 }
 
@@ -236,6 +237,48 @@ async function settlesAt(page: Page, box: Box) {
   await expect(frame(page)).not.toHaveAttribute("data-fullscreen-moving", /.*/);
 }
 
+/**
+ * Freezes the carry halfway: the animations the frame is running are held
+ * at half their duration, and the ones started next run freely.
+ */
+async function freezeHalfway(page: Page) {
+  await page.evaluate(() => {
+    const frameEl = document.querySelector("#player [data-testid='player-frame']")!;
+    for (const a of frameEl.getAnimations()) {
+      a.pause();
+      a.currentTime = Number(a.effect?.getTiming().duration) / 2;
+    }
+    window.__holdAnimations = false;
+  });
+}
+
+/** How much of the viewport the drawn frame covers. */
+function area(s: Sample, viewport: { width: number; height: number }): number {
+  const f = s.frame;
+  const width = Math.min(f.left + f.width, viewport.width) - Math.max(f.left, 0);
+  const height = Math.min(f.top + f.height, viewport.height) - Math.max(f.top, 0);
+  return Math.max(width, 0) * Math.max(height, 0);
+}
+
+/** Marks the sample the next action starts from, then clicks the toggle past the shield. */
+async function markAnd(page: Page, action: "escape" | "toggle") {
+  await page.evaluate(() => {
+    window.__markAt = window.__samples!.length;
+  });
+  if (action === "escape") {
+    await page.keyboard.press("Escape");
+    return;
+  }
+  // The shield takes every tap while the frame moves; the toggle is reached
+  // the way a keyboard shortcut reaches it.
+  await frame(page).evaluate((el) => {
+    const button = Array.from(el.querySelectorAll("button")).find((b) =>
+      /full screen/i.test(b.getAttribute("aria-label") ?? b.textContent ?? ""),
+    );
+    button!.click();
+  });
+}
+
 for (const { id, sibling } of ARRANGEMENTS) {
   for (const orientation of ORIENTATIONS) {
     test.describe(`${id}, ${orientation.name}`, () => {
@@ -318,6 +361,78 @@ for (const { id, sibling } of ARRANGEMENTS) {
         if (sibling && row) expect((await rectOf(page, sibling)).top).toBeCloseTo(row.top, 0);
       });
 
+      test("an exit that cuts an entry short shrinks from where the frame is drawn", async ({
+        page,
+      }) => {
+        await arrange(page, id, orientation);
+        await reachButton(page);
+        await page.evaluate(() => {
+          window.__holdAnimations = true;
+        });
+        await enter(page);
+        await expect(frame(page)).toHaveAttribute("data-fullscreen-moving", "true");
+        await freezeHalfway(page);
+        await startSampling(page);
+        await expect.poll(() => page.evaluate(() => window.__samples!.length)).toBeGreaterThan(2);
+        await markAnd(page, "escape");
+        await expect(frame(page)).not.toHaveAttribute("data-fullscreen-moving", /.*/);
+        const samples = await stopSampling(page);
+        const from = await page.evaluate(() => window.__markAt);
+
+        const areas = samples.slice(Math.max(from - 1, 0)).map((x) => area(x, orientation));
+        for (let i = 1; i < areas.length; i++) {
+          expect(areas[i], `area ${i}: ${areas[i - 1]} -> ${areas[i]}`).toBeLessThanOrEqual(
+            areas[i - 1] + 1,
+          );
+        }
+      });
+
+      test("a second press during an exit grows back from where the frame is drawn", async ({
+        page,
+      }) => {
+        await arrange(page, id, orientation);
+        await enter(page);
+        await settlesAt(page, {
+          left: 0,
+          top: 0,
+          width: orientation.width,
+          height: orientation.height,
+        });
+        await page.evaluate(() => {
+          window.__holdAnimations = true;
+        });
+        await page.keyboard.press("Escape");
+        await expect(frame(page)).toHaveAttribute("data-fullscreen-moving", "true");
+        await freezeHalfway(page);
+        await startSampling(page);
+        await expect.poll(() => page.evaluate(() => window.__samples!.length)).toBeGreaterThan(2);
+        const halfway = area(
+          (await page.evaluate(() => window.__samples!.at(-1)!)) as Sample,
+          orientation,
+        );
+        await markAnd(page, "toggle");
+        await settlesAt(page, {
+          left: 0,
+          top: 0,
+          width: orientation.width,
+          height: orientation.height,
+        });
+        const samples = await stopSampling(page);
+        const from = await page.evaluate(() => window.__markAt);
+
+        const full = orientation.width * orientation.height;
+        const after = samples.slice(from).map((x) => area(x, orientation));
+        const firstMove = after.find((a) => Math.abs(a - halfway) > 1)!;
+        expect(halfway).toBeLessThan(full * 0.9);
+        // Carried on from the halfway frame, not restarted from the full viewport.
+        expect(firstMove).toBeLessThan(full * 0.99);
+        for (let i = 1; i < after.length; i++) {
+          expect(after[i], `area ${i}: ${after[i - 1]} -> ${after[i]}`).toBeGreaterThanOrEqual(
+            after[i - 1] - 1,
+          );
+        }
+      });
+
       test("reduced motion pins and unpins at once, never animates, and never moves the page", async ({
         page,
       }) => {
@@ -332,6 +447,8 @@ for (const { id, sibling } of ARRANGEMENTS) {
         await enter(page);
         await expect(frame(page)).toHaveAttribute("data-pseudo-fullscreen", "true");
         await settlesAt(page, viewport);
+        // Under the opaque frame the samples cannot see the slot; the layout can.
+        expect((await rectOf(page, "#after-player")).top).toBeCloseTo(after.top, 0);
         await page.keyboard.press("Escape");
         await expect(frame(page)).not.toHaveAttribute("data-pseudo-fullscreen", /.*/);
         await settlesAt(page, inline);
