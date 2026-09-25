@@ -166,11 +166,8 @@ export function useFullscreen({
       unwindHistoryEntry();
       if (phaseRef.current !== "on") return;
       moveTo("closing");
-      const settle = () => {
-        if (phaseRef.current === "closing") moveTo("off");
-      };
       if (!carry) transition.forget();
-      transition.shrink(settle);
+      transition.shrink(() => moveTo("off"));
     },
     [moveTo, transition, unwindHistoryEntry],
   );
@@ -292,7 +289,7 @@ export function useFullscreen({
     };
 
     const onTouchStart = (event: Event) => {
-      if (suppressSwipeRef.current || transition.isMoving()) {
+      if (suppressSwipeRef.current) {
         forget();
         return;
       }

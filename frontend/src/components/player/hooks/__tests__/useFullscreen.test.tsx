@@ -569,6 +569,7 @@ describe("useFullscreen — carrying the frame", () => {
 
   it("turns a shrink around on a second press without calling back() again", async () => {
     const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    setNativeSupport("reject");
     const { result } = renderCarried();
     await act(async () => result.current.toggle());
     reportPinned();
@@ -584,6 +585,9 @@ describe("useFullscreen — carrying the frame", () => {
     expect(result.current.isPseudo).toBe(true);
     expect(frame.dataset.pseudoFullscreen).toBe("true");
     expect(back).toHaveBeenCalledTimes(1);
+    // The frame is already pinned on its way out; asking the platform
+    // again would only fail again, a tick later.
+    expect(requestFullscreen).toHaveBeenCalledTimes(1);
   });
 
   it("does nothing on Escape while shrinking", async () => {
