@@ -12,3 +12,5 @@ Approved by the user 2026-09-25.
 8. The page behind a viewer does not move on screen across the widening and the narrowing, in portrait and landscape.
 9. The shell native video covers its frame after the widening and after the narrowing.
 10. After the last `page.immersive` request, the shell sends a `page.immersive.applied` for that final state carrying the web view's size after its layout — never a pre-layout size, and never nothing, in portrait and landscape. *(Added after Phase 1 r1, F1/F2.)*
+11. In the shell, a hold's `ready` resolves only on an answer for `active: true` whose size the page's viewport has reached, or on the timeout. *(Added after Phase 2 r1, F1/F2; narrower than "only on the answer to the current request", because F1 is accepted.)*
+12. Outside the shell, the viewers' layout is unchanged. *(Added after Phase 2 r1.)*

@@ -122,6 +122,19 @@ describe("holding the shell immersive", () => {
     expect(await settled(hold.ready)).toBe(true);
   });
 
+  it("is not ready on an answer about letting go, even at the size the viewport already has", async () => {
+    vi.useFakeTimers();
+    installShell(4);
+    setViewport(applied.width, 812);
+    const { holdImmersive } = await load();
+
+    const hold = holdImmersive();
+    deliver({ ...applied, active: false, height: 812 });
+    await vi.advanceTimersByTimeAsync(50);
+
+    expect(await settled(hold.ready)).toBe(false);
+  });
+
   it("is ready after a bounded wait when the shell never answers", async () => {
     vi.useFakeTimers();
     installShell(4);
