@@ -6,7 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PdfPreview } from "../PdfPreview";
@@ -71,7 +71,9 @@ vi.mock("react-pdf", () => ({
     onLoadSuccess: (pdf: unknown) => void;
     onItemClick?: (item: { pageNumber: number }) => void;
   }) => {
-    itemClick = onItemClick;
+    // react-pdf keeps the handler it was first given.
+    const firstItemClick = useRef(onItemClick);
+    itemClick = firstItemClick.current;
     lastOnLoad = onLoadSuccess;
     useEffect(() => {
       onLoadSuccess(pdfDoc);
@@ -1393,8 +1395,11 @@ describe("PdfPreview resume", () => {
         resolve = res;
       }),
     );
-    return (position: number) =>
+    const land = (position: number) =>
       act(async () => resolve({ position, duration: 8 }));
+    return Object.assign(land, {
+      now: (position: number) => resolve({ position, duration: 8 }),
+    });
   }
 
   it("records nothing when ?page= changes on the open file", async () => {
@@ -1447,5 +1452,74 @@ describe("PdfPreview resume", () => {
     unmount();
     expect(saveWatchProgress).toHaveBeenCalledWith(FILE, 2, 8);
     expect(saveWatchProgress).toHaveBeenCalledTimes(1);
+  });
+
+  it("records the last page", async () => {
+    seed();
+    const { unmount } = renderPreview(7);
+    await screen.findByText("Selectable page 7");
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "PageDown" });
+    await screen.findByText("Selectable page 8");
+    unmount();
+    expect(storedPage()).toBe(8);
+  });
+
+  it("records nothing for a key that moves past the last page", async () => {
+    seed(5);
+    const { unmount } = renderPreview(8);
+    await act(async () => {});
+    act(() => lastOnLoad!(pdfDoc));
+    await screen.findByText("Selectable page 8");
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "PageDown" });
+    await act(async () => {});
+    unmount();
+    expect(storedPage()).toBe(5);
+  });
+
+  it("records nothing for the page already shown typed into the box", async () => {
+    seed(5);
+    const { unmount } = renderPreview(3);
+    await screen.findByText("Selectable page 3");
+    await act(async () => {});
+    const box = pageBox();
+    fireEvent.change(box, { target: { value: "3" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await act(async () => {});
+    unmount();
+    expect(storedPage()).toBe(5);
+  });
+
+  it("still restores after a key that moves before the first page", async () => {
+    const resolveRead = withSlowRead();
+    renderPreview();
+    await screen.findByText("Selectable page 1");
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "PageUp" });
+    await resolveRead(5);
+    expect(await screen.findByText("Selectable page 5")).toBeInTheDocument();
+  });
+
+  it("turns from the restored page on a key pressed as soon as it is drawn", async () => {
+    const resolveRead = withSlowRead();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await act(async () => {});
+    // Pressed between the restore's commit and its passive effects, where
+    // the shortcut handlers are swapped in.
+    const observer = new MutationObserver(() => {
+      if (!screen.queryByText("Selectable page 5")) return;
+      observer.disconnect();
+      fireEvent.keyDown(document, { key: "PageDown" });
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    resolveRead.now(5);
+    await waitFor(() => expect(screen.queryByText("Selectable page 1")).toBeNull());
+    observer.disconnect();
+    await waitFor(() => expect(pageBox().value).not.toBe("5"));
+    expect(pageBox().value).toBe("6");
+    unmount();
+    expect(saveWatchProgress).toHaveBeenLastCalledWith(FILE, 6, 8);
   });
 });

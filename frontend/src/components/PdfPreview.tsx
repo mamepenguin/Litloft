@@ -144,12 +144,18 @@ export function PdfPreview({
     requestedPage: initialPage,
     goTo: goToReadingPage,
   });
+  // Read at call time: shortcut handlers are swapped in by an effect, so a
+  // key pressed right after a page change would otherwise see the old page.
+  const pageRef = useRef(page);
+  pageRef.current = page;
   const turnTo = useCallback(
     (next: number) => {
-      goToReadingPage(next);
+      if (fullscreenGoToRef.current) fullscreenGoToRef.current(next);
+      else if (next === pageRef.current) return;
+      else setPage(next);
       pageTurned(next);
     },
-    [goToReadingPage, pageTurned],
+    [pageTurned],
   );
 
   // Read after mount, not in the initialiser: the server render has no
@@ -336,9 +342,9 @@ export function PdfPreview({
 
   const movePage = useCallback(
     (delta: number) => {
-      turnTo(Math.min(numPages || 1, Math.max(1, page + delta)));
+      turnTo(Math.min(numPages || 1, Math.max(1, pageRef.current + delta)));
     },
-    [numPages, page, turnTo],
+    [numPages, turnTo],
   );
 
   /**

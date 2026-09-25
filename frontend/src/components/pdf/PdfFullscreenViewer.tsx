@@ -159,21 +159,31 @@ export function PdfFullscreenViewer({
   // Counted rather than flagged: the face a turn lands on is known only
   // after the render it causes.
   const [turns, setTurns] = useState(0);
+  const faceIndexRef = useRef(face.index);
+  faceIndexRef.current = face.index;
+  /** The face the first unreported turn started from. */
+  const turnFromRef = useRef<number | null>(null);
+  const countTurn = useCallback(() => {
+    turnFromRef.current ??= faceIndexRef.current;
+    setTurns((n) => n + 1);
+  }, []);
   const navigatePrev = useCallback(() => {
+    countTurn();
     pagePrev();
-    setTurns((n) => n + 1);
-  }, [pagePrev]);
+  }, [countTurn, pagePrev]);
   const navigateNext = useCallback(() => {
+    countTurn();
     pageNext();
-    setTurns((n) => n + 1);
-  }, [pageNext]);
+  }, [countTurn, pageNext]);
   const onPageTurnedRef = useRef(onPageTurned);
   onPageTurnedRef.current = onPageTurned;
   const reportedTurnsRef = useRef(0);
   useEffect(() => {
     if (reportedTurnsRef.current === turns) return;
     reportedTurnsRef.current = turns;
-    onPageTurnedRef.current?.(face.index + 1);
+    const from = turnFromRef.current;
+    turnFromRef.current = null;
+    if (face.index !== from) onPageTurnedRef.current?.(face.index + 1);
   }, [turns, face.index]);
 
   const zoom = useViewerZoom({
@@ -386,8 +396,8 @@ export function PdfFullscreenViewer({
             page={face.index + 1}
             numPages={numPages}
             onCommit={(page) => {
+              countTurn();
               enterPage(page);
-              setTurns((n) => n + 1);
             }}
             label={t("pdfPageNumber")}
             className="rounded-2xl bg-white/10 px-1 py-0.5 text-center text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"

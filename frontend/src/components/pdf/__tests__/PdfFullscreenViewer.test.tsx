@@ -252,6 +252,60 @@ describe("PdfFullscreenViewer", () => {
     expect(onPageTurned).toHaveBeenLastCalledWith(6);
   });
 
+  it.each([
+    [
+      "a swipe",
+      () => {
+        const page = screen.getByText("Text of page 3");
+        fireEvent.pointerDown(page, { pointerId: 1, pointerType: "touch", clientX: 300, clientY: 400 });
+        fireEvent.pointerUp(page, { pointerId: 1, pointerType: "touch", clientX: 100, clientY: 400 });
+      },
+    ],
+    [
+      "an edge tap",
+      () => {
+        const page = screen.getByText("Text of page 3");
+        fireEvent.pointerDown(page, { pointerId: 1, pointerType: "touch", clientX: 2, clientY: 400 });
+        fireEvent.pointerUp(page, { pointerId: 1, pointerType: "touch", clientX: 2, clientY: 400 });
+      },
+    ],
+    [
+      "the next-page button",
+      () => fireEvent.click(screen.getByRole("button", { name: "Next page" })),
+    ],
+    [
+      "the previous-page button",
+      () => fireEvent.click(screen.getByRole("button", { name: "Previous page" })),
+    ],
+  ])("reports a turn made with %s", async (_label, turn) => {
+    const { onPageTurned } = await open(fakePdf(8), { initialPage: 3 });
+    act(() => turn());
+    await act(async () => {});
+    const [shown] = shownPages();
+    expect(shown).not.toBe(3);
+    expect(onPageTurned).toHaveBeenLastCalledWith(shown);
+  });
+
+  it.each([
+    ["past the last page", 8, "ArrowRight"],
+    ["before the first page", 1, "ArrowLeft"],
+  ])("reports nothing for a key that moves %s", async (_label, initialPage, key) => {
+    const { onPageTurned } = await open(fakePdf(8), { initialPage });
+    fireEvent.keyDown(document, { key });
+    await act(async () => {});
+    expect(shownPages()).toEqual([initialPage]);
+    expect(onPageTurned).not.toHaveBeenCalled();
+  });
+
+  it("reports nothing for the page already shown typed into its box", async () => {
+    const { onPageTurned } = await open(fakePdf(8), { initialPage: 3 });
+    const box = screen.getByLabelText("Page number") as HTMLInputElement;
+    fireEvent.change(box, { target: { value: "3" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await act(async () => {});
+    expect(onPageTurned).not.toHaveBeenCalled();
+  });
+
   it("closes with f as well as the close button", async () => {
     const { onClose } = await open(fakePdf(8), { initialPage: 2 });
     fireEvent.keyDown(document, { key: "f" });
