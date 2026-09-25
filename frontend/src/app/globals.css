@@ -1116,8 +1116,11 @@ div:has(> .fixed[data-fullscreen-moving]) {
 
 /* While the frame is carried between its slot and the viewport only the
    picture is drawn, and a shield over it takes every tap. */
+/* Gone at once, and back through the chrome's own fade once the frame
+   settles: a fade out would leave controls drifting over the moving frame. */
 [data-fullscreen-moving] [data-player-chrome] {
   opacity: 0;
+  transition: none;
 }
 
 [data-fullscreen-moving]::after {
