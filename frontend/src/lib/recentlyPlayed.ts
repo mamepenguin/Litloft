@@ -46,9 +46,12 @@ function saveEntries(entries: RecentEntry[]): void {
 }
 
 export function addRecentlyPlayed(fileId: string): void {
-  const entries = getRecentlyPlayed().filter((e) => e.fileId !== fileId);
-  entries.unshift({ fileId, timestamp: Date.now() });
-  saveEntries(entries);
+  const all = getRecentlyPlayed();
+  const previous = all.find((e) => e.fileId === fileId);
+  saveEntries([
+    { ...previous, fileId, timestamp: Date.now() },
+    ...all.filter((e) => e.fileId !== fileId),
+  ]);
 }
 
 export function getRecentFileIds(): string[] {
