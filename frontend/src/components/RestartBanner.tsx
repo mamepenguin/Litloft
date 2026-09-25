@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, Copy, Check } from "lucide-react";
 
 import { getRestartStatus, type RestartStatus } from "@/lib/adminConfig";
+import { copyText } from "@/lib/copyText";
 
 const RESTART_COMMAND = "docker compose restart backend";
 
@@ -31,15 +32,11 @@ export function RestartBanner(): React.ReactElement | null {
     };
   }, []);
 
+  // A refused copy stays silent: the command is on screen beside the button.
   const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(RESTART_COMMAND);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard may be unavailable (no permission, no secure context).
-      // Fail silently — the command is also visible in the UI for manual copy.
-    }
+    if (!(await copyText(RESTART_COMMAND))) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }, []);
 
   if (error) return null;
