@@ -161,10 +161,9 @@ export function PdfFullscreenViewer({
   const [turns, setTurns] = useState(0);
   const faceIndexRef = useRef(face.index);
   faceIndexRef.current = face.index;
-  /** The face the first unreported turn started from. */
-  const turnFromRef = useRef<number | null>(null);
+  const turnFromRef = useRef(face.index);
   const countTurn = useCallback(() => {
-    turnFromRef.current ??= faceIndexRef.current;
+    turnFromRef.current = faceIndexRef.current;
     setTurns((n) => n + 1);
   }, []);
   const navigatePrev = useCallback(() => {
@@ -181,9 +180,7 @@ export function PdfFullscreenViewer({
   useEffect(() => {
     if (reportedTurnsRef.current === turns) return;
     reportedTurnsRef.current = turns;
-    const from = turnFromRef.current;
-    turnFromRef.current = null;
-    if (face.index !== from) onPageTurnedRef.current?.(face.index + 1);
+    if (face.index !== turnFromRef.current) onPageTurnedRef.current?.(face.index + 1);
   }, [turns, face.index]);
 
   const zoom = useViewerZoom({
