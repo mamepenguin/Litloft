@@ -907,11 +907,25 @@ describe("FileActions Copy ID", () => {
     const input = screen.getByRole("textbox") as HTMLInputElement;
     expect(dialog).toContainElement(input);
     expect(input.value).toBe("file-1");
+    expect(document.activeElement).toBe(input);
     expect([input.selectionStart, input.selectionEnd]).toEqual([0, 6]);
     expect(toastSuccessMock).not.toHaveBeenCalled();
     expect(clipboardSpies.copy).not.toHaveBeenCalled();
+  });
 
-    fireEvent.click(within(dialog).getByText("Close"));
+  it.each([
+    ["the Close button", (dialog: HTMLElement) => within(dialog).getByText("Close")],
+    ["the X button", (dialog: HTMLElement) => within(dialog).getByLabelText("Close")],
+    ["the backdrop", (dialog: HTMLElement) => dialog.previousElementSibling as HTMLElement],
+  ])("closes the dialog from %s", async (_name, target) => {
+    copyTextMock.mockResolvedValue(false);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy ID" }));
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.click(target(dialog));
+
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 

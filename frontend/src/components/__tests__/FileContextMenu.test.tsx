@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { act } from "react";
 import { FileContextMenu } from "../FileContextMenu";
+import { ShortcutsProvider } from "../ShortcutsProvider";
 import type { FileItem } from "@/types";
 
 vi.mock("@/lib/api", () => ({
@@ -358,8 +360,44 @@ describe("FileContextMenu", () => {
       await waitFor(() => {
         expect([input.selectionStart, input.selectionEnd]).toEqual([0, 12]);
       });
+      expect(document.activeElement).toBe(input);
       expect(toastSuccessMock).not.toHaveBeenCalled();
       expect(copyMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["the Close button", (dialog: HTMLElement) => within(dialog).getByText("Close")],
+      ["the X button", (dialog: HTMLElement) => within(dialog).getByLabelText("Close")],
+      ["the backdrop", (dialog: HTMLElement) => dialog.previousElementSibling as HTMLElement],
+    ])("closes the dialog from %s", async (_name, target) => {
+      copyTextMock.mockResolvedValue(false);
+      render(<FileContextMenu {...makeProps()} />);
+      fireEvent.click(screen.getByText("Copy ID"));
+      const dialog = await screen.findByRole("dialog");
+
+      fireEvent.click(target(dialog));
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("closes the dialog on Escape", async () => {
+      copyTextMock.mockResolvedValue(false);
+      render(
+        <ShortcutsProvider>
+          <FileContextMenu {...makeProps()} />
+        </ShortcutsProvider>,
+      );
+      fireEvent.click(screen.getByText("Copy ID"));
+      await screen.findByRole("dialog");
+      // The dialog registers its shortcut in an effect that commits after
+      // the dialog is in the DOM.
+      await act(async () => {});
+
+      fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
     });
 
     it("stays enabled for a missing file", () => {
