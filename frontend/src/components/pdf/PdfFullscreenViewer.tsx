@@ -62,6 +62,7 @@ export function PdfFullscreenViewer({
   goToPageRef,
   declaredDirection = null,
   onClose,
+  onPageChange,
 }: {
   pdf: PDFDocumentProxy;
   /**
@@ -78,6 +79,8 @@ export function PdfFullscreenViewer({
   goToPageRef?: MutableRefObject<((page: number) => void) | null>;
   /** Called with the page the reader was on, 1-based. */
   onClose: (page: number) => void;
+  /** Called on every turn with the page `onClose` would hand back. */
+  onPageChange?: (page: number) => void;
 }) {
   const t = useTranslations("file");
   const tg = useTranslations("gallery");
@@ -149,6 +152,15 @@ export function PdfFullscreenViewer({
   const chrome = useAutoHidingChrome({ enabled: true, held: selecting });
 
   const close = useCallback(() => onClose(face.index + 1), [onClose, face.index]);
+
+  const onPageChangeRef = useRef(onPageChange);
+  onPageChangeRef.current = onPageChange;
+  const reportedIndexRef = useRef(face.index);
+  useEffect(() => {
+    if (reportedIndexRef.current === face.index) return;
+    reportedIndexRef.current = face.index;
+    onPageChangeRef.current?.(face.index + 1);
+  }, [face.index]);
 
   const zoom = useViewerZoom({
     resetKey: `${face.kind}:${index}:${showRightHalf}`,

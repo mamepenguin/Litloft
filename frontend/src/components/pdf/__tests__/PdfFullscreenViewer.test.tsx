@@ -137,6 +137,7 @@ async function open(
   {
     initialPage = 1,
     onClose = vi.fn(),
+    onPageChange = vi.fn(),
     declaredDirection = null as "ltr" | "rtl" | null,
   } = {},
 ) {
@@ -149,12 +150,13 @@ async function open(
         declaredDirection={declaredDirection}
         slotProps={{ fileId: "f1", drive: "d", filename: "p.pdf", fileType: "document" }}
         onClose={onClose}
+        onPageChange={onPageChange}
       />
     </Wrap>,
   );
   // Let the page sizes arrive.
   await act(async () => {});
-  return { ...r, onClose };
+  return { ...r, onClose, onPageChange };
 }
 
 const shownPages = () =>
@@ -190,6 +192,29 @@ describe("PdfFullscreenViewer", () => {
     const { onClose } = await open(fakePdf(8), { initialPage: 3 });
     fireEvent.keyDown(document, { key: "ArrowRight" });
     expect(shownPages()).toEqual([4]);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledWith(4);
+  });
+
+  it("reports each page turned to, without closing", async () => {
+    const { onPageChange, onClose } = await open(fakePdf(8), { initialPage: 3 });
+    expect(onPageChange).not.toHaveBeenCalled();
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(onPageChange).toHaveBeenLastCalledWith(4);
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+    expect(onPageChange).toHaveBeenLastCalledWith(2);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("reports the first page of a pair, as it hands back on close", async () => {
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    localStorage.setItem("image-viewer:reading-direction", "rtl");
+    const { onPageChange, onClose } = await open(fakePdf(8), { initialPage: 2 });
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+    await act(async () => {});
+    expect(shownPages()).toEqual([4, 5]);
+    expect(onPageChange).toHaveBeenLastCalledWith(4);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledWith(4);
   });

@@ -19,6 +19,7 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import { getStreamUrl } from "@/lib/api";
 import { rasterCacheFor, type RasterRequest } from "@/lib/pdfRasterCache";
 import { declaredReadingDirection } from "@/lib/pdfReadingDirection";
+import { usePdfPageProgress } from "@/lib/pdfPageProgress";
 import { readStored, writeStored } from "@/lib/safeStorage";
 import {
   DEFAULT_PDF_ZOOM_MODE,
@@ -133,6 +134,12 @@ export function PdfPreview({
   } | null>(null);
   const latestPdfRef = useRef<PDFDocumentProxy | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const { documentLoaded } = usePdfPageProgress({
+    fileId,
+    page,
+    requestedPage: initialPage,
+    goTo: setPage,
+  });
   const fullscreenGoToRef = useRef<((page: number) => void) | null>(null);
 
   // Read after mount, not in the initialiser: the server render has no
@@ -311,9 +318,10 @@ export function PdfPreview({
           });
         });
       setPage((current) => Math.min(Math.max(1, current), count));
+      documentLoaded(count);
       void loadOutline(pdf);
     },
-    [loadOutline],
+    [loadOutline, documentLoaded],
   );
 
   const movePage = useCallback(
@@ -641,6 +649,7 @@ export function PdfPreview({
               initialPage={page}
               slotProps={documentSlotProps}
               goToPageRef={fullscreenGoToRef}
+              onPageChange={setPage}
               onClose={(last) => {
                 setFullscreen(false);
                 setPage(last);

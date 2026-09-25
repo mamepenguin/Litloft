@@ -1169,3 +1169,86 @@ describe("PdfPreview raster cache", () => {
     expect(clear).toHaveBeenCalled();
   });
 });
+
+describe("PdfPreview resume", () => {
+  const FILE = "pdf123456789";
+  const pageBox = () =>
+    screen.getAllByLabelText("Page number")[0] as HTMLInputElement;
+
+  function seed(progress?: number) {
+    window.localStorage.setItem(
+      "recently-played",
+      JSON.stringify([{ fileId: FILE, timestamp: 1, progress, duration: 8 }]),
+    );
+  }
+  const storedPage = () =>
+    JSON.parse(window.localStorage.getItem("recently-played")!)[0].progress;
+
+  function renderPreview(initialPage?: number) {
+    return render(
+      <ShortcutsProvider>
+        <PdfPreview fileId={FILE} title="Paper" initialPage={initialPage} />
+      </ShortcutsProvider>,
+    );
+  }
+
+  it("opens on the page read last", async () => {
+    seed(5);
+    renderPreview();
+    expect(await screen.findByText("Selectable page 5")).toBeInTheDocument();
+    expect(pageBox().value).toBe("5");
+  });
+
+  it("opens a finished document at page 1", async () => {
+    seed(8);
+    renderPreview();
+    await screen.findByText("Selectable page 1");
+    await act(async () => {});
+    expect(pageBox().value).toBe("1");
+    expect(storedPage()).toBe(8);
+  });
+
+  it("opens on a requested page over the page read last", async () => {
+    seed(5);
+    renderPreview(3);
+    await screen.findByText("Selectable page 3");
+    await act(async () => {});
+    expect(pageBox().value).toBe("3");
+    expect(storedPage()).toBe(5);
+  });
+
+  it("records the page turned to", async () => {
+    seed();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "PageDown" });
+    fireEvent.keyDown(document, { key: "PageDown" });
+    await screen.findByText("Selectable page 3");
+    unmount();
+    expect(storedPage()).toBe(3);
+  });
+
+  it("records a page turned in full screen without closing it", async () => {
+    seed();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    const dialog = await screen.findByRole("dialog");
+    act(() => {
+      resizeCallbacks[resizeCallbacks.length - 1](
+        [{ contentRect: { width: 1000, height: 800 } }] as unknown as ResizeObserverEntry[],
+        {} as ResizeObserver,
+      );
+    });
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(within(dialog).getByText("Selectable page 3")).toBeInTheDocument();
+    unmount();
+    expect(storedPage()).toBe(3);
+  });
+});
