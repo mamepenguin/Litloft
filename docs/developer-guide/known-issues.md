@@ -329,6 +329,8 @@ present, so `?highlight=` on a note does nothing: no mark and no scroll to the
 passage. Reached by searching for a phrase inside a note and pressing the
 result. Core's own `MarkdownPreview` path is wired; the addon drops it.
 
+**Switching a note to edit during a version restore scrolls to the caret.** Focus cannot enter the editor while it is read-only, but the scroll still runs, so the page may jump to where the caret was.
+
 **A search scope passed as a new object on every render re-renders without end.** `useSearchScope` updates provider state, so a component that also reads the active scope and builds its scope inline loops. Keep the scope object stable (`useMemo`).
 
 **A tag with a non-ASCII capital lists nothing when chosen.** The rail counts `Übung` but the list filter lowercases with SQLite's ASCII-only `lower()`, so choosing it shows no notes.
