@@ -170,3 +170,12 @@ describe("CompactControlsPresenter", () => {
     });
   });
 });
+
+describe("CompactControlsPresenter — chrome marker", () => {
+  it("marks everything it draws into the frame: the controls and the hairline", () => {
+    const { container } = renderControls({ visible: false, settingsOpen: true });
+    const drawn = Array.from(container.children);
+    expect(drawn).toHaveLength(2);
+    for (const node of drawn) expect(node).toHaveAttribute("data-player-chrome");
+  });
+});

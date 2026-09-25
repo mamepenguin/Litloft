@@ -277,6 +277,8 @@ describe("the component fixture's page", () => {
       "player-seek-bar",
       "player-hairline",
       "player-captions",
+      "player-transition",
+      "player-transition-same-render",
       "folder-push",
       "open-ghost",
       "citation-seams",

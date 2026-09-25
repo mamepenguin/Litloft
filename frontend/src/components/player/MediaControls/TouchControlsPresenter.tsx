@@ -64,6 +64,7 @@ export function TouchControlsPresenter({
     <>
       <div
         data-testid="touch-controls-root"
+        data-player-chrome=""
         className={[
           "absolute inset-0 z-10 transition-opacity duration-200 ease-out motion-reduce:transition-none",
           // This box covers the whole frame purely to position its

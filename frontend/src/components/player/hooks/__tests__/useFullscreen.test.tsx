@@ -404,3 +404,382 @@ describe("useFullscreen — document side effects", () => {
     expect(document.body.style.position).toBe("");
   });
 });
+
+describe("useFullscreen — carrying the frame", () => {
+  class FakeAnimation {
+    onfinish: (() => void) | null = null;
+    cancelled = false;
+    finished = false;
+    constructor(
+      readonly keyframes: Keyframe[],
+      readonly options: KeyframeAnimationOptions,
+    ) {}
+    cancel() {
+      this.cancelled = true;
+    }
+    finish() {
+      if (this.finished || this.cancelled) return;
+      this.finished = true;
+      this.onfinish?.();
+    }
+  }
+
+  let animations: FakeAnimation[];
+  let animate: ReturnType<typeof vi.fn>;
+  let observers: Array<{ cb: ResizeObserverCallback; target: Element | null }>;
+  const VIEWPORT = { width: 402, height: 714 };
+  const INLINE = { left: 16, top: 56, width: 370, height: 208 };
+
+  /** Lays the frame out as a caller's pin classes would, then lets the observer see it. */
+  function reportSize(pinned: boolean, width: number, height: number) {
+    frame.style.position = pinned ? "fixed" : "relative";
+    Object.defineProperty(frame, "offsetWidth", { configurable: true, value: width });
+    Object.defineProperty(frame, "offsetHeight", { configurable: true, value: height });
+    act(() => {
+      for (const o of [...observers]) {
+        if (!o.target) continue;
+        o.cb(
+          [
+            {
+              target: o.target,
+              borderBoxSize: [{ inlineSize: width, blockSize: height }],
+              contentRect: { width, height },
+            } as unknown as ResizeObserverEntry,
+          ],
+          {} as ResizeObserver,
+        );
+      }
+    });
+  }
+  const reportPinned = () => reportSize(true, VIEWPORT.width, VIEWPORT.height);
+  const reportInline = () => reportSize(false, INLINE.width, INLINE.height);
+
+  function finishAll() {
+    act(() => {
+      for (const a of [...animations]) a.finish();
+    });
+  }
+
+  function renderCarried(options: { animate?: boolean } = {}) {
+    return renderHook(
+      () =>
+        useFullscreen({
+          frameRef: { current: frame },
+          autoRotateEnabled: true,
+          animate: options.animate,
+        }),
+      { wrapper: ShortcutsProvider },
+    );
+  }
+
+  beforeEach(() => {
+    animations = [];
+    observers = [];
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: VIEWPORT.width });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: VIEWPORT.height });
+    animate = vi.fn((keyframes: Keyframe[], options: KeyframeAnimationOptions) => {
+      const a = new FakeAnimation(keyframes, options);
+      animations.push(a);
+      return a;
+    });
+    Object.defineProperty(frame, "animate", { configurable: true, value: animate });
+    frame.getBoundingClientRect = () =>
+      ({ ...INLINE, right: INLINE.left + INLINE.width, bottom: INLINE.top + INLINE.height }) as DOMRect;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        entry: { cb: ResizeObserverCallback; target: Element | null };
+        constructor(cb: ResizeObserverCallback) {
+          this.entry = { cb, target: null };
+          observers.push(this.entry);
+        }
+        observe(target: Element) {
+          this.entry.target = target;
+        }
+        disconnect() {
+          observers = observers.filter((o) => o !== this.entry);
+        }
+      },
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("starts growing only once the frame is seen pinned", async () => {
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    expect(result.current.isPseudo).toBe(true);
+    expect(animate).not.toHaveBeenCalled();
+    reportInline();
+    expect(animate).not.toHaveBeenCalled();
+    reportPinned();
+    expect(animate).toHaveBeenCalledTimes(2);
+    const [transform] = animations;
+    expect(transform.keyframes[0].transform).toBe(
+      `translate(16px, ${56 - ((714 - 402 * (9 / 16)) / 2) * (370 / 402)}px) scale(${370 / 402})`,
+    );
+    expect(transform.keyframes[1].transform).toBe("translate(0px, 0px) scale(1)");
+    expect(transform.options).toMatchObject({ duration: 300 });
+  });
+
+  it("marks the frame as moving until the entry finishes", async () => {
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    expect(frame.dataset.fullscreenMoving).toBe("true");
+    finishAll();
+    expect(frame.dataset.fullscreenMoving).toBeUndefined();
+    expect(animations.every((a) => a.cancelled)).toBe(true);
+  });
+
+  it("reports out at once, but keeps the frame pinned until the shrink finishes", async () => {
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    finishAll();
+    animate.mockClear();
+    act(() => result.current.exit());
+    expect(result.current.isFullscreen).toBe(false);
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(result.current.isPseudo).toBe(true);
+    expect(frame.dataset.pseudoFullscreen).toBe("true");
+    expect(animate).toHaveBeenCalledTimes(2);
+    expect(animations[animations.length - 1].options).toMatchObject({
+      duration: 200,
+      fill: "forwards",
+    });
+    finishAll();
+    expect(result.current.isPseudo).toBe(false);
+    expect(frame.dataset.pseudoFullscreen).toBeUndefined();
+  });
+
+  it("holds the inline look until the frame is seen unpinned", async () => {
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    finishAll();
+    act(() => result.current.exit());
+    const shrink = animations.slice(-2);
+    finishAll();
+    expect(shrink.some((a) => a.cancelled)).toBe(false);
+    expect(frame.dataset.fullscreenMoving).toBe("true");
+    reportInline();
+    expect(shrink.every((a) => a.cancelled)).toBe(true);
+    expect(frame.dataset.fullscreenMoving).toBeUndefined();
+  });
+
+  it("turns a shrink around on a second press without calling back() again", async () => {
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    setNativeSupport("reject");
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    finishAll();
+    act(() => result.current.exit());
+    const shrink = animations.slice(-2);
+    await act(async () => result.current.toggle());
+    expect(result.current.isFullscreen).toBe(true);
+    expect(shrink.every((a) => a.cancelled)).toBe(true);
+    expect(shrink.some((a) => a.finished)).toBe(false);
+    expect(animations.slice(-2)[0].keyframes[1].transform).toBe("translate(0px, 0px) scale(1)");
+    finishAll();
+    expect(result.current.isPseudo).toBe(true);
+    expect(frame.dataset.pseudoFullscreen).toBe("true");
+    expect(back).toHaveBeenCalledTimes(1);
+    // The frame is already pinned on its way out; asking the platform
+    // again would only fail again, a tick later.
+    expect(requestFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it("pushes the history entry again when a shrink is turned around, so Back still closes it", async () => {
+    vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const push = vi.spyOn(window.history, "pushState");
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    finishAll();
+    act(() => result.current.exit());
+    window.history.replaceState(null, "");
+    await act(async () => result.current.toggle());
+    expect(push).toHaveBeenCalledTimes(2);
+    expect(window.history.state).toMatchObject({ litloftFullscreen: true });
+    window.history.replaceState(null, "");
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    });
+    expect(result.current.isFullscreen).toBe(false);
+  });
+
+  it("shrinks from where the frame is drawn when an entry is cut short", async () => {
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    // Mid-entry: what the running animation draws, as the computed style reports it.
+    frame.style.transform = "matrix(0.95, 0, 0, 0.95, 4, 20)";
+    frame.style.clipPath = "inset(100px 0px 100px 0px round 0px)";
+    act(() => result.current.exit());
+    const [transform, clip] = animations.slice(-2);
+    expect(transform.keyframes[0].transform).toBe("matrix(0.95, 0, 0, 0.95, 4, 20)");
+    expect(clip.keyframes[0].clipPath).toBe("inset(100px 0px 100px 0px round 0px)");
+  });
+
+  it("does nothing on Escape while shrinking", async () => {
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    finishAll();
+    act(() => result.current.exit());
+    const count = animations.length;
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(animations.length).toBe(count);
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it("measures the pinned frame itself, not innerWidth", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 201 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 357 });
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    expect(animate).toHaveBeenCalledTimes(2);
+    const entry = animations[0].keyframes[0].transform;
+    finishAll();
+    act(() => result.current.exit());
+    expect(animate).toHaveBeenCalledTimes(4);
+    const exit = animations[2];
+    expect(exit.keyframes[0].transform).toBe("translate(0px, 0px) scale(1)");
+    expect(exit.keyframes[1].transform).toBe(entry);
+    expect(entry).toBe(
+      `translate(16px, ${56 - ((714 - 402 * (9 / 16)) / 2) * (370 / 402)}px) scale(${370 / 402})`,
+    );
+  });
+
+  it("finishes a running animation when the viewport resizes", async () => {
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(animations.every((a) => a.cancelled)).toBe(true);
+    expect(frame.dataset.fullscreenMoving).toBeUndefined();
+  });
+
+  it("leaves at once when the pinned frame changed size while it was open", async () => {
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    finishAll();
+    animate.mockClear();
+    Object.defineProperty(frame, "offsetWidth", { configurable: true, value: 714 });
+    act(() => result.current.exit());
+    expect(animate).not.toHaveBeenCalled();
+    expect(result.current.isPseudo).toBe(false);
+  });
+
+  it("cancels and unpins when unmounted mid-shrink", async () => {
+    const { result, unmount } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    finishAll();
+    act(() => result.current.exit());
+    const shrink = animations.slice(-2);
+    unmount();
+    expect(shrink.every((a) => a.cancelled)).toBe(true);
+    expect(frame.dataset.fullscreenMoving).toBeUndefined();
+    expect(frame.dataset.pseudoFullscreen).toBeUndefined();
+    expect(document.documentElement.dataset.playerFullscreen).toBeUndefined();
+    expect(document.body.style.position).toBe("");
+  });
+
+  it("ignores a swipe while the frame is moving", async () => {
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    const touch = (type: string, y: number) => {
+      const event = new Event(type) as Event & {
+        touches: TouchPoint[];
+        changedTouches: TouchPoint[];
+      };
+      event.touches = type === "touchend" ? [] : [{ clientX: 100, clientY: y }];
+      event.changedTouches = [{ clientX: 100, clientY: y }];
+      frame.dispatchEvent(event);
+    };
+    act(() => {
+      touch("touchstart", 100);
+      touch("touchend", 300);
+    });
+    expect(result.current.isFullscreen).toBe(true);
+  });
+
+  describe("never carries", () => {
+    const cases: Array<[string, () => void, { animate?: boolean }]> = [
+      ["with reduced motion", () => setMedia("(prefers-reduced-motion: reduce)", true), {}],
+      ["when the caller turns it off", () => {}, { animate: false }],
+      [
+        "without ResizeObserver",
+        () => vi.stubGlobal("ResizeObserver", undefined),
+        {},
+      ],
+    ];
+    for (const [name, arrange, options] of cases) {
+      it(name, async () => {
+        installMatchMedia({
+          [COARSE]: true,
+          [LANDSCAPE]: false,
+          "(prefers-reduced-motion: reduce)": false,
+        });
+        arrange();
+        const { result } = renderCarried(options);
+        await act(async () => result.current.toggle());
+        reportPinned();
+        act(() => result.current.exit());
+        expect(animate).not.toHaveBeenCalled();
+        expect(result.current.isPseudo).toBe(false);
+      });
+    }
+
+    it("while the page is pinch-zoomed", async () => {
+      vi.stubGlobal("visualViewport", { scale: 2 });
+      const { result } = renderCarried();
+      await act(async () => result.current.toggle());
+      reportPinned();
+      act(() => result.current.exit());
+      expect(animate).not.toHaveBeenCalled();
+      expect(result.current.isPseudo).toBe(false);
+    });
+
+    it("into or out of a rotation", async () => {
+      const { result } = renderCarried();
+      await act(async () => {
+        setMedia(LANDSCAPE, true);
+      });
+      expect(result.current.isPseudo).toBe(true);
+      reportPinned();
+      await act(async () => {
+        setMedia(LANDSCAPE, false);
+      });
+      expect(animate).not.toHaveBeenCalled();
+      expect(result.current.isPseudo).toBe(false);
+    });
+
+    it("in native fullscreen", async () => {
+      setNativeSupport("ok");
+      const { result } = renderCarried();
+      await act(async () => result.current.toggle());
+      reportPinned();
+      expect(animate).not.toHaveBeenCalled();
+    });
+  });
+});
+
+interface TouchPoint {
+  clientX: number;
+  clientY: number;
+}

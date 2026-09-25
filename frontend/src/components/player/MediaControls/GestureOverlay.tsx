@@ -38,6 +38,7 @@ export function GestureOverlay({
       // Lets the frame's owner address the overlay without depending on
       // its classes.
       data-player-gestures=""
+      data-player-chrome=""
       className="absolute inset-0 z-0 touch-none select-none [-webkit-user-select:none] [-webkit-touch-callout:none]"
       style={{ pointerEvents: interactive ? "auto" : "none" }}
       {...handlers}

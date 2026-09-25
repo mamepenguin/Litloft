@@ -62,6 +62,7 @@ export function PointerControlsPresenter({
     <>
       <div
         data-testid="control-bar"
+        data-player-chrome=""
         style={
           isPseudoFullscreen
             ? {

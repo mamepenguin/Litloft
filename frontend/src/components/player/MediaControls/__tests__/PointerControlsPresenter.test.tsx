@@ -286,3 +286,12 @@ describe("PointerControlsPresenter", () => {
     });
   });
 });
+
+describe("PointerControlsPresenter — chrome marker", () => {
+  it("marks everything it draws into the frame: the bar and the settings sheet", () => {
+    const { container } = renderControls({ visible: false, settingsOpen: true });
+    const drawn = Array.from(container.children);
+    expect(drawn).toHaveLength(2);
+    for (const node of drawn) expect(node).toHaveAttribute("data-player-chrome");
+  });
+});

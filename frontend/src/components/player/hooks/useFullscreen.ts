@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { useFrameTransition } from "./useFrameTransition";
 
 /**
  * No Apple mobile browser implements `Element.requestFullscreen`, so the
@@ -40,6 +41,7 @@ interface TouchLikeEvent extends Event {
 }
 
 type EntryReason = "manual" | "rotate";
+type PseudoPhase = "off" | "on" | "closing";
 
 export interface UseFullscreenOptions {
   frameRef: RefObject<HTMLElement | null>;
@@ -56,6 +58,11 @@ export interface UseFullscreenOptions {
    * away" — dropping the viewer out of fullscreen mid-gesture.
    */
   suppressSwipe?: boolean;
+  /**
+   * Carry the frame between its slot and the viewport. Off where the
+   * picture is not drawn by the page and so cannot follow the frame.
+   */
+  animate?: boolean;
 }
 
 export interface FullscreenState {
@@ -95,9 +102,22 @@ export function useFullscreen({
   frameRef,
   autoRotateEnabled,
   suppressSwipe = false,
+  animate = true,
 }: UseFullscreenOptions): FullscreenState {
   const [nativeActive, setNativeActive] = useState(false);
-  const [pseudoActive, setPseudoActive] = useState(false);
+  // "closing" keeps the frame pinned while it is carried back to its slot;
+  // everything that asks "are we fullscreen?" already reads it as out.
+  const [phase, setPhase] = useState<PseudoPhase>("off");
+  const pseudoActive = phase !== "off";
+  const pseudoOpen = phase === "on";
+  // Decisions read the phase synchronously: a second press can arrive
+  // before the first one's render.
+  const phaseRef = useRef<PseudoPhase>("off");
+  const moveTo = useCallback((next: PseudoPhase) => {
+    phaseRef.current = next;
+    setPhase(next);
+  }, []);
+  const transition = useFrameTransition(frameRef, animate);
   const entryReasonRef = useRef<EntryReason | null>(null);
   const historyEntryLiveRef = useRef(false);
 
@@ -137,16 +157,24 @@ export function useFullscreen({
     }
   }, []);
 
-  const exit = useCallback(() => {
-    entryReasonRef.current = null;
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-    }
-    unwindHistoryEntry();
-    setPseudoActive(false);
-  }, [unwindHistoryEntry]);
+  const leave = useCallback(
+    (carry: boolean) => {
+      entryReasonRef.current = null;
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+      unwindHistoryEntry();
+      if (phaseRef.current !== "on") return;
+      moveTo("closing");
+      if (!carry) transition.forget();
+      transition.shrink(() => moveTo("off"));
+    },
+    [moveTo, transition, unwindHistoryEntry],
+  );
 
-  const isFullscreen = nativeActive || pseudoActive;
+  const exit = useCallback(() => leave(true), [leave]);
+
+  const isFullscreen = nativeActive || pseudoOpen;
 
   // Mirrored so `enter` can bail out without being rebuilt — and
   // resubscribing the rotation listener — every time it changes.
@@ -159,6 +187,13 @@ export function useFullscreen({
     (reason: EntryReason) => {
       const frame = frameRef.current;
       if (!frame) return;
+      if (phaseRef.current === "closing") {
+        // Still pinned on its way out: turn it around where it is.
+        entryReasonRef.current = reason;
+        moveTo("on");
+        transition.grow();
+        return;
+      }
       // Already open. Without this, rotating to landscape while
       // manually fullscreen would relabel the session as "rotate" and
       // then eject the viewer the moment they sat back up.
@@ -175,11 +210,17 @@ export function useFullscreen({
           // and a desktop browser without element fullscreen is a
           // non-case.
           if (!matches(COARSE_POINTER_QUERY)) return;
+          // Measured before the frame is pinned, which is the only moment
+          // it still sits in its slot. Rotation is never carried: the
+          // viewport itself is changing under it.
+          if (reason === "manual") transition.capture();
+          else transition.forget();
           entryReasonRef.current = reason;
-          setPseudoActive(true);
+          moveTo("on");
+          transition.grow();
         });
     },
-    [frameRef],
+    [frameRef, moveTo, transition],
   );
 
   const toggle = useCallback(() => {
@@ -203,11 +244,11 @@ export function useFullscreen({
       }
       // Only undo what rotation itself opened. Someone who asked for
       // fullscreen explicitly should keep it when they sit up.
-      if (entryReasonRef.current === "rotate") exit();
+      if (entryReasonRef.current === "rotate") leave(false);
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
-  }, [autoRotateEnabled, enter, exit]);
+  }, [autoRotateEnabled, enter, leave]);
 
   // Registered on the shortcut stack rather than on `window` so a dialog
   // opened over the player wins the press. Plain tier, deliberately: in the
@@ -227,7 +268,7 @@ export function useFullscreen({
         handler: exit,
       },
     ],
-    pseudoActive,
+    pseudoOpen,
   );
 
   useEffect(() => {
@@ -288,7 +329,7 @@ export function useFullscreen({
       // The decisive check: a long press only becomes a boost partway
       // through the touch, so the flag is usually still false at
       // touchstart and true by the time the finger lifts.
-      if (suppressSwipeRef.current) {
+      if (suppressSwipeRef.current || transition.isMoving()) {
         forget();
         return;
       }
@@ -333,9 +374,11 @@ export function useFullscreen({
     // Deliberately not keyed on whether we are currently fullscreen:
     // the same listeners serve both directions, and rebuilding them on
     // every transition would drop a gesture already in flight.
-  }, [frameRef, enter, exit]);
+  }, [frameRef, enter, exit, transition]);
 
-  useEffect(() => {
+  // A layout effect so the page is locked and released in the same paint
+  // as the caller's pin classes change, never a frame apart.
+  useLayoutEffect(() => {
     if (!pseudoActive) return;
     const root = document.documentElement;
     const body = document.body;
@@ -373,7 +416,7 @@ export function useFullscreen({
   }, [pseudoActive, frameRef]);
 
   useEffect(() => {
-    if (!pseudoActive) return;
+    if (!pseudoOpen) return;
     historyEntryLiveRef.current = true;
     window.history.pushState({ [HISTORY_MARKER]: true }, "");
 
@@ -397,7 +440,7 @@ export function useFullscreen({
       if (!mountedRef.current) return;
       unwindHistoryEntry();
     };
-  }, [pseudoActive, exit, unwindHistoryEntry]);
+  }, [pseudoOpen, exit, unwindHistoryEntry]);
 
   return { isFullscreen, isPseudo: pseudoActive, toggle, exit };
 }

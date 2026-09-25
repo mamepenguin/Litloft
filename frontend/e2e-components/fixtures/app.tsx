@@ -33,6 +33,7 @@ import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchC
 import { VideoPlayer } from "@/components/VideoPlayer";
 import type { ArchiveEntry, SubtitleInfo } from "@/types";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+import { useFullscreen } from "@/components/player/hooks/useFullscreen";
 import { useHighlightPassage } from "@/hooks/useHighlightPassage";
 import {
   TextPreview,
@@ -1615,6 +1616,91 @@ function PlayerCaptions(): ReactElement {
   );
 }
 
+/**
+ * A file page around a player, for carrying the frame into pseudo-fullscreen.
+ * The header is sticky and the player box is the app's own
+ * `.media-detail-player`, so the pinned frame meets the rules it meets in the
+ * app.
+ */
+function TransitionPage({ children }: { children: ReactNode }): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <ShortcutsProvider>
+        <div data-sheet-snap="peek" className="absolute inset-0 flex flex-col">
+          <main id="page" className="flex min-h-0 flex-1 flex-col overflow-auto">
+            <div
+              id="page-header"
+              className="sticky top-0 z-20 shrink-0 bg-bg-card"
+              style={{ height: "56px" }}
+            >
+              header
+            </div>
+            <div className="media-detail-host shrink-0">
+              <div id="player" className="media-detail-player">
+                {children}
+              </div>
+            </div>
+            <div id="after-player" className="shrink-0" style={{ height: "2000px" }}>
+              the description
+            </div>
+          </main>
+        </div>
+      </ShortcutsProvider>
+    </NextIntlClientProvider>
+  );
+}
+
+function PlayerTransition(): ReactElement {
+  return (
+    <TransitionPage>
+      <VideoPlayer videoId="vid" />
+    </TransitionPage>
+  );
+}
+
+/**
+ * A caller that pins the frame in the same render as the hook reports it,
+ * with a row beside the frame in the same wrapper — the shape of the
+ * YouTube embed, which this bundle does not include.
+ */
+function SameRenderPlayer(): ReactElement {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const fullscreen = useFullscreen({ frameRef, autoRotateEnabled: false });
+  return (
+    <div className="w-full">
+      <div
+        ref={frameRef}
+        data-testid="player-frame"
+        className={[
+          "overflow-hidden bg-black",
+          fullscreen.isPseudo ? "fixed inset-0 z-50 rounded-none" : "relative aspect-video w-full",
+        ].join(" ")}
+      >
+        <div data-player-chrome="" className="absolute inset-0">
+          <button
+            type="button"
+            className="absolute bottom-2 right-2 bg-white px-2"
+            onClick={fullscreen.toggle}
+          >
+            {fullscreen.isFullscreen ? "Exit full screen" : "Full screen"}
+          </button>
+        </div>
+      </div>
+      <div id="sibling-row" className="mt-2">
+        a row beside the frame
+      </div>
+    </div>
+  );
+}
+
+function PlayerTransitionSameRender(): ReactElement {
+  return (
+    <TransitionPage>
+      <SameRenderPlayer />
+    </TransitionPage>
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,
@@ -1670,6 +1756,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "player-seek-bar": PlayerSeekBar,
   "player-hairline": PlayerHairline,
   "player-captions": PlayerCaptions,
+  "player-transition": PlayerTransition,
+  "player-transition-same-render": PlayerTransitionSameRender,
   "folder-push": FolderPushArrangement,
   "open-ghost": OpenGhostArrangement,
   "citation-seams": CitationSeams,

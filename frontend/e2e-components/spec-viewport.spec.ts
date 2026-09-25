@@ -48,6 +48,7 @@ const AT_THE_PHONE_WIDTH = [
   "player-captions.spec.ts",
   "player-menu-layer.spec.ts",
   "player-seek-indicator.spec.ts",
+  "pseudo-fullscreen-transition.spec.ts",
   "open-ghost.spec.ts",
   "popup-dismiss.spec.ts",
   "quick-note-footer.spec.ts",

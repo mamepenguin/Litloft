@@ -91,3 +91,10 @@ describe("GestureOverlay", () => {
     expect(overlayEl(container).className).toContain("select-none");
   });
 });
+
+describe("GestureOverlay — chrome marker", () => {
+  it("marks itself as chrome", () => {
+    const { container } = renderOverlay();
+    expect(container.firstElementChild).toHaveAttribute("data-player-chrome");
+  });
+});
