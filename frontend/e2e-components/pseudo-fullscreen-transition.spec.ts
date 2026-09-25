@@ -228,6 +228,11 @@ async function enter(page: Page) {
 async function settlesAt(page: Page, box: Box) {
   await expect
     .poll(async () => {
+      // After a full rendering update, so a pin whose resize observer has not
+      // run yet is not read as settled a frame before its carry starts.
+      await page.evaluate(
+        () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))),
+      );
       const drawn = await visibleFrame(page);
       return (["left", "top", "width", "height"] as const).every(
         (key) => Math.abs(drawn[key] - box[key]) <= 1,
