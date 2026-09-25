@@ -430,7 +430,11 @@ describe("useFullscreen — carrying the frame", () => {
   const VIEWPORT = { width: 402, height: 714 };
   const INLINE = { left: 16, top: 56, width: 370, height: 208 };
 
-  function reportSize(width: number, height: number) {
+  /** Lays the frame out as a caller's pin classes would, then lets the observer see it. */
+  function reportSize(pinned: boolean, width: number, height: number) {
+    frame.style.position = pinned ? "fixed" : "relative";
+    Object.defineProperty(frame, "offsetWidth", { configurable: true, value: width });
+    Object.defineProperty(frame, "offsetHeight", { configurable: true, value: height });
     act(() => {
       for (const o of [...observers]) {
         if (!o.target) continue;
@@ -447,8 +451,8 @@ describe("useFullscreen — carrying the frame", () => {
       }
     });
   }
-  const reportPinned = () => reportSize(VIEWPORT.width, VIEWPORT.height);
-  const reportInline = () => reportSize(INLINE.width, INLINE.height);
+  const reportPinned = () => reportSize(true, VIEWPORT.width, VIEWPORT.height);
+  const reportInline = () => reportSize(false, INLINE.width, INLINE.height);
 
   function finishAll() {
     act(() => {
@@ -503,7 +507,7 @@ describe("useFullscreen — carrying the frame", () => {
     vi.unstubAllGlobals();
   });
 
-  it("starts growing only once the frame is seen at the viewport's size", async () => {
+  it("starts growing only once the frame is seen pinned", async () => {
     const { result } = renderCarried();
     await act(async () => result.current.toggle());
     expect(result.current.isPseudo).toBe(true);
@@ -552,7 +556,7 @@ describe("useFullscreen — carrying the frame", () => {
     expect(frame.dataset.pseudoFullscreen).toBeUndefined();
   });
 
-  it("holds the inline look until the frame is seen leaving the viewport's size", async () => {
+  it("holds the inline look until the frame is seen unpinned", async () => {
     const { result } = renderCarried();
     await act(async () => result.current.toggle());
     reportPinned();
@@ -637,6 +641,27 @@ describe("useFullscreen — carrying the frame", () => {
     expect(back).toHaveBeenCalledTimes(1);
   });
 
+  it("measures the pinned frame itself, not innerWidth, which a pinch-zoomed page shrinks", async () => {
+    // iOS reports the zoomed viewport in innerWidth/innerHeight while the
+    // pinned frame keeps the layout viewport's size.
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 201 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 357 });
+    const { result } = renderCarried();
+    await act(async () => result.current.toggle());
+    reportPinned();
+    expect(animate).toHaveBeenCalledTimes(2);
+    const entry = animations[0].keyframes[0].transform;
+    finishAll();
+    act(() => result.current.exit());
+    expect(animate).toHaveBeenCalledTimes(4);
+    const exit = animations[2];
+    expect(exit.keyframes[0].transform).toBe("translate(0px, 0px) scale(1)");
+    expect(exit.keyframes[1].transform).toBe(entry);
+    expect(entry).toBe(
+      `translate(16px, ${56 - ((714 - 402 * (9 / 16)) / 2) * (370 / 402)}px) scale(${370 / 402})`,
+    );
+  });
+
   it("finishes a running animation when the viewport resizes", async () => {
     const { result } = renderCarried();
     await act(async () => result.current.toggle());
@@ -648,13 +673,13 @@ describe("useFullscreen — carrying the frame", () => {
     expect(frame.dataset.fullscreenMoving).toBeUndefined();
   });
 
-  it("leaves at once when the viewport changed while it was open", async () => {
+  it("leaves at once when the pinned frame changed size while it was open", async () => {
     const { result } = renderCarried();
     await act(async () => result.current.toggle());
     reportPinned();
     finishAll();
     animate.mockClear();
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 714 });
+    Object.defineProperty(frame, "offsetWidth", { configurable: true, value: 714 });
     act(() => result.current.exit());
     expect(animate).not.toHaveBeenCalled();
     expect(result.current.isPseudo).toBe(false);

@@ -24,7 +24,8 @@ const SIZE_WAIT_MS = 500;
 interface Captured {
   rect: Box;
   radius: number;
-  viewport: Viewport;
+  /** The pinned frame's own box, recorded when the entry is carried. */
+  pinned: Viewport | null;
 }
 
 export interface FrameTransition {
@@ -42,10 +43,6 @@ export interface FrameTransition {
   isMoving: () => boolean;
 }
 
-function viewport(): Viewport {
-  return { width: window.innerWidth, height: window.innerHeight };
-}
-
 function reducedMotion(): boolean {
   return typeof window.matchMedia === "function" && window.matchMedia(REDUCED_MOTION_QUERY).matches;
 }
@@ -55,16 +52,17 @@ function supported(frame: HTMLElement): boolean {
 }
 
 /**
- * Pinned means the frame's own box is the viewport. Measured on the border
- * box the observer reports, which a transform does not change — the frame is
- * drawn at its inline size while it is still pinned, at the end of a shrink.
+ * Read from the frame rather than compared with `innerWidth`: on iOS a
+ * pinch-zoomed page reports the zoomed viewport there, while the pinned
+ * frame keeps the layout viewport's size.
  */
-function isPinnedSize(entry: ResizeObserverEntry): boolean {
-  const size = entry.borderBoxSize?.[0];
-  const width = size ? size.inlineSize : entry.contentRect.width;
-  const height = size ? size.blockSize : entry.contentRect.height;
-  const vp = viewport();
-  return Math.abs(width - vp.width) <= 1 && Math.abs(height - vp.height) <= 1;
+function isPinned(frame: HTMLElement): boolean {
+  return getComputedStyle(frame).position === "fixed";
+}
+
+/** The layout box, which the transform drawing it elsewhere does not change. */
+function boxOf(frame: HTMLElement): Viewport {
+  return { width: frame.offsetWidth, height: frame.offsetHeight };
 }
 
 function currentLook(frame: HTMLElement): FrameLook {
@@ -95,14 +93,13 @@ export function useFrameTransition(
 
   /**
    * Run `onMatch` in the observer callback — after layout, before paint —
-   * once the frame's size says `pinned`; `onTimeout` if that never comes.
+   * once the frame is or is no longer pinned; `onTimeout` if that never comes.
    */
-  const watchSize = useCallback(
+  const watchPin = useCallback(
     (frame: HTMLElement, pinned: boolean, onMatch: () => void, onTimeout: () => void) => {
       stopWatching();
-      const observer = new ResizeObserver((entries) => {
-        const entry = entries[entries.length - 1];
-        if (!entry || isPinnedSize(entry) !== pinned) return;
+      const observer = new ResizeObserver(() => {
+        if (isPinned(frame) !== pinned) return;
         stopWatching();
         onMatch();
       });
@@ -170,7 +167,7 @@ export function useFrameTransition(
     capturedRef.current = {
       rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
       radius: parseFloat(getComputedStyle(frame).borderTopLeftRadius) || 0,
-      viewport: viewport(),
+      pinned: null,
     };
   }, [frameOf]);
 
@@ -193,32 +190,35 @@ export function useFrameTransition(
       start(currentLook(frame));
       return;
     }
-    watchSize(
+    watchPin(
       frame,
       true,
-      () => start(inlineLook(captured.rect, captured.radius, captured.viewport)),
+      () => {
+        captured.pinned = boxOf(frame);
+        start(inlineLook(captured.rect, captured.radius, captured.pinned));
+      },
       () => {},
     );
-  }, [canCarry, clear, frameOf, run, stopWatching, watchSize]);
+  }, [canCarry, clear, frameOf, run, stopWatching, watchPin]);
 
   const shrink = useCallback(
     (settle: () => void) => {
       const frame = frameOf();
+      // `pinned` is recorded only once the entry has been carried, so an
+      // entry still waiting for its pin, or never carried, leaves at once.
+      const pinned = capturedRef.current?.pinned;
+      const box = frame ? boxOf(frame) : null;
       const captured = capturedRef.current;
-      const vp = viewport();
-      const sameViewport =
-        captured != null &&
-        captured.viewport.width === vp.width &&
-        captured.viewport.height === vp.height;
-      if (!frame || !captured || !canCarry() || !sameViewport) {
+      if (
+        !frame ||
+        !captured ||
+        !pinned ||
+        !canCarry() ||
+        pinned.width !== box?.width ||
+        pinned.height !== box?.height
+      ) {
         stopWatching();
         clear(frame);
-        settle();
-        return;
-      }
-      if (stopWatchingRef.current && animationsRef.current.length === 0) {
-        // Still waiting for the frame to be pinned: nothing has moved yet.
-        stopWatching();
         settle();
         return;
       }
@@ -226,18 +226,18 @@ export function useFrameTransition(
       const [transform] = run(
         frame,
         from,
-        inlineLook(captured.rect, captured.radius, captured.viewport),
+        inlineLook(captured.rect, captured.radius, pinned),
         EXIT_TIMING,
         "forwards",
       );
       transform.onfinish = () => {
         // The last keyframe is held so the frame keeps looking inline until
         // the caller has actually dropped its pin classes.
-        watchSize(frame, false, () => clear(frame), () => clear(frame));
+        watchPin(frame, false, () => clear(frame), () => clear(frame));
         settle();
       };
     },
-    [canCarry, clear, frameOf, run, stopWatching, watchSize],
+    [canCarry, clear, frameOf, run, stopWatching, watchPin],
   );
 
   useEffect(() => {
