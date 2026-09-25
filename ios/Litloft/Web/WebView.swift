@@ -114,34 +114,24 @@ struct WebView: UIViewRepresentable {
             bridge.onPageImmersive = { [weak self] active in
                 self?.pageAsked(immersive: active)
             }
-            model.onImmersiveLaidOut = { [weak self] immersive in
-                self?.answerAfterLayout(immersive: immersive)
-            }
+            model.onImmersiveLaidOut = { [weak webView] in webView?.setNeedsLayout() }
         }
 
-        private var pendingAnswer: Bool?
+        private var answerOwed = false
 
-        /// SwiftUI has laid the change out, but the web view's own frame is
-        /// set in a later pass; its next layout is the first to have it.
-        private func answerAfterLayout(immersive: Bool) {
-            pendingAnswer = immersive
+        /// Requests that arrive before a layout are answered together, for the
+        /// last one. SwiftUI lays a change out before it sets the web view's
+        /// frame, so the answer waits for the web view's own layout after that.
+        private func pageAsked(immersive: Bool) {
+            answerOwed = true
+            model.setImmersive(immersive)
             webView?.setNeedsLayout()
         }
 
         func webViewDidLayout() {
-            guard let immersive = pendingAnswer else { return }
-            pendingAnswer = nil
-            answer(immersive: immersive)
-        }
-
-        /// A change is answered once SwiftUI has laid the web view out for it;
-        /// asking for what already holds moves nothing, so it is answered now.
-        private func pageAsked(immersive: Bool) {
-            guard model.immersive != immersive else {
-                answer(immersive: immersive)
-                return
-            }
-            model.setImmersive(immersive)
+            guard answerOwed, model.laidOutImmersive == model.immersive else { return }
+            answerOwed = false
+            answer(immersive: model.immersive)
         }
 
         private func answer(immersive: Bool) {

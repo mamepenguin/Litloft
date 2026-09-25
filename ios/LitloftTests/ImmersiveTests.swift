@@ -126,9 +126,24 @@ struct ImmersiveTests {
         return (try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]) ?? []
     }
 
+    /// Waits for `count` answers, lays the web view out again and waits long
+    /// enough for a stray extra one, so a shell that answers more often than
+    /// asked fails.
     private func acknowledged(_ count: Int, in webView: WKWebView) async -> [String: Any]? {
         guard await waitUntil({ await acknowledgements(in: webView).count >= count }) else { return nil }
-        return await acknowledgements(in: webView).last
+        webView.setNeedsLayout()
+        webView.layoutIfNeeded()
+        try? await Task.sleep(for: .milliseconds(500))
+        let all = await acknowledgements(in: webView)
+        #expect(all.count == count)
+        return all.last
+    }
+
+    private func post(_ actives: [Bool], to webView: WKWebView) async throws {
+        let posts = actives
+            .map { "webkit.messageHandlers.litloft.postMessage({type: 'page.immersive', active: \($0)});" }
+            .joined()
+        _ = try await webView.evaluateJavaScript(posts + " 0")
     }
 
     @Test("going immersive hides the status bar and reaches the top edge, and going back undoes both")
@@ -162,6 +177,71 @@ struct ImmersiveTests {
         #expect(webViews(in: window).count == 1)
         #expect(webViews(in: window).first === webView)
         #expect(try await webView.evaluateJavaScript("window.kept") as? String == "yes")
+    }
+
+    @Test("two requests before a layout are answered once, for the last, at its laid-out size")
+    func requestsBeforeALayout() async throws {
+        let hosted = try await host()
+        defer { hosted.restore() }
+        let webView = hosted.webView
+        let narrowHeight = Double(webView.bounds.height)
+
+        try await post([true, false], to: webView)
+        let settledNarrow = try #require(await acknowledged(1, in: webView))
+        #expect(settledNarrow["active"] as? Bool == false)
+        #expect(settledNarrow["height"] as? Double == narrowHeight)
+
+        try await post([true, true], to: webView)
+        let settledWide = try #require(await acknowledged(2, in: webView))
+        #expect(settledWide["active"] as? Bool == true)
+        #expect(settledWide["height"] as? Double == Double(hosted.window.bounds.height))
+    }
+
+    /// The status bar is already gone in landscape: the web view keeps its
+    /// width, stays clear of the sensor housing, and the request is still answered.
+    @Test("in landscape going immersive moves nothing sideways and is still answered")
+    func landscape() async throws {
+        let hosted = try await host()
+        let (window, webView) = (hosted.window, hosted.webView)
+        let scene = try #require(window.windowScene)
+        defer {
+            scene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+            hosted.restore()
+        }
+        scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight))
+        #expect(await waitUntil { scene.interfaceOrientation.isLandscape && window.safeAreaInsets.left + window.safeAreaInsets.right > 0 })
+        #expect(await waitUntil { webView.bounds.width < window.bounds.width })
+        let before = webView.convert(webView.bounds, to: window)
+
+        try await ask(true, of: webView)
+        let wide = try #require(await acknowledged(1, in: webView))
+        let during = webView.convert(webView.bounds, to: window)
+        #expect(during.minX == before.minX)
+        #expect(during.width == before.width)
+        #expect(wide["width"] as? Double == Double(during.width))
+        #expect(wide["height"] as? Double == Double(during.height))
+
+        try await ask(false, of: webView)
+        let narrow = try #require(await acknowledged(2, in: webView))
+        #expect(narrow["active"] as? Bool == false)
+        #expect(webView.convert(webView.bounds, to: window) == before)
+    }
+
+    @Test("moving between the app's own pages keeps the shell immersive")
+    func spaNavigationKeepsImmersive() async throws {
+        let hosted = try await host()
+        defer { hosted.restore() }
+        let webView = hosted.webView
+        try await ask(true, of: webView)
+        _ = try #require(await acknowledged(1, in: webView))
+        let before = webView.url
+
+        _ = try await webView.evaluateJavaScript("history.pushState({}, '', '/drive/a/file'); 0")
+        #expect(await waitUntil { webView.url != before })
+        try? await Task.sleep(for: .milliseconds(300))
+
+        #expect(hosted.model.immersive)
+        #expect(webView.convert(webView.bounds, to: hosted.window).minY == 0)
     }
 
     @Test("asking for what already holds is still answered")

@@ -11,3 +11,4 @@ Approved by the user 2026-09-25.
 7. While immersive, no viewer control overlaps the status-bar area.
 8. The page behind a viewer does not move on screen across the widening and the narrowing, in portrait and landscape.
 9. The shell native video covers its frame after the widening and after the narrowing.
+10. After the last `page.immersive` request, the shell sends a `page.immersive.applied` for that final state carrying the web view's size after its layout — never a pre-layout size, and never nothing, in portrait and landscape. *(Added after Phase 1 r1, F1/F2.)*

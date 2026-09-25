@@ -15,8 +15,10 @@ final class WebViewModel {
     /// The page has something full screen: no status bar, and the web view
     /// reaches the top edge.
     private(set) var immersive = false
-    @ObservationIgnored var onImmersiveLaidOut: ((Bool) -> Void)?
-    @ObservationIgnored private var laidOutImmersive: Bool?
+    /// What SwiftUI has most recently laid the web view out for, which trails
+    /// `immersive` by at least one update.
+    @ObservationIgnored private(set) var laidOutImmersive = false
+    @ObservationIgnored var onImmersiveLaidOut: (() -> Void)?
 
     let serverURL: URL
 
@@ -32,12 +34,10 @@ final class WebViewModel {
         self.immersive = immersive
     }
 
-    /// Called after every layout of the web view. The first one only records
-    /// where it starts: nothing has asked for it yet.
     func laidOut(immersive: Bool) {
-        defer { laidOutImmersive = immersive }
-        guard let previous = laidOutImmersive, previous != immersive else { return }
-        onImmersiveLaidOut?(immersive)
+        guard laidOutImmersive != immersive else { return }
+        laidOutImmersive = immersive
+        onImmersiveLaidOut?()
     }
 
     func markLoading() {
