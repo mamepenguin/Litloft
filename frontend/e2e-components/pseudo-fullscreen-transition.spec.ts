@@ -169,8 +169,9 @@ function expectCarried(
   inline: Box,
   viewport: { width: number; height: number },
   after: number,
+  minSamples = 6,
 ) {
-  expect(samples.length).toBeGreaterThan(5);
+  expect(samples.length).toBeGreaterThanOrEqual(minSamples);
   const areas: number[] = [];
   const between = (value: number, a: number, b: number) =>
     value >= Math.min(a, b) - 1 && value <= Math.max(a, b) + 1;
@@ -200,7 +201,10 @@ function expectCarried(
           Math.min(inline.top + inline.height, viewport.height),
           viewport.height,
         ),
-        page: Math.abs(a - after) <= 1,
+        // Where the opaque frame covers the whole viewport, no page is drawn.
+        page:
+          Math.abs(a - after) <= 1 ||
+          (f.left <= 0 && f.top <= 0 && f.width >= viewport.width && f.height >= viewport.height),
       },
       `sample ${i} of ${samples.length}: ${JSON.stringify({ f, a })}`,
     ).toEqual({ left: true, top: true, right: true, bottom: true, page: true });
@@ -314,17 +318,26 @@ for (const { id, sibling } of ARRANGEMENTS) {
         if (sibling && row) expect((await rectOf(page, sibling)).top).toBeCloseTo(row.top, 0);
       });
 
-      test("reduced motion pins the frame at once and never animates", async ({ page }) => {
+      test("reduced motion pins and unpins at once, never animates, and never moves the page", async ({
+        page,
+      }) => {
         await page.emulateMedia({ reducedMotion: "reduce" });
         await arrange(page, id, orientation);
+        await reachButton(page);
+        const inline = await rectOf(page, "#player [data-testid='player-frame']");
+        const after = await rectOf(page, "#after-player");
+        const viewport = { left: 0, top: 0, width: orientation.width, height: orientation.height };
+
+        await startSampling(page);
         await enter(page);
         await expect(frame(page)).toHaveAttribute("data-pseudo-fullscreen", "true");
-        expectSameBox(await rectOf(page, "#player [data-testid='player-frame']"), {
-          left: 0,
-          top: 0,
-          width: orientation.width,
-          height: orientation.height,
-        });
+        await settlesAt(page, viewport);
+        await page.keyboard.press("Escape");
+        await expect(frame(page)).not.toHaveAttribute("data-pseudo-fullscreen", /.*/);
+        await settlesAt(page, inline);
+
+        // An instant switch settles within a couple of frames.
+        expectCarried(await stopSampling(page), inline, orientation, after.top, 2);
         expect(await page.evaluate(() => window.__animations.length)).toBe(0);
       });
     });

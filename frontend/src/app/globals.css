@@ -1108,9 +1108,14 @@ pre mark.ask-citation-highlight {
    Keyed on `.fixed` as well as the marks: the players switch their pin
    classes a commit apart from the hook's marks, and the slot has to open
    and close in the same layout as the frame leaves and rejoins the flow.
-   The percentage resolves against the same width the 16:9 frame had. */
-div:has(> .fixed[data-pseudo-fullscreen]),
-div:has(> .fixed[data-fullscreen-moving]) {
+   A generated box rather than the wrapper's own padding: reduced motion
+   gives every property a transition, and a box that comes and goes has
+   nothing to transition from. The percentage resolves against the same
+   width the 16:9 frame had. */
+div:has(> .fixed[data-pseudo-fullscreen])::before,
+div:has(> .fixed[data-fullscreen-moving])::before {
+  content: "";
+  display: block;
   padding-top: 56.25%;
 }
 
