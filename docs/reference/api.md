@@ -104,7 +104,7 @@ File ids are 12-character nanoids and are validated as such in the path.
 | `POST` | `/api/files/{id}/comments` | Body `{ body }`, 1 to 1000 characters. `201`. Needs a viewer identity (`401`). 10 per 60 s per IP (`429`); `422` once a file has 500 comments. |
 | `PUT` | `/api/files/{id}/comments/{cid}` | Edit your own comment (`403` otherwise). |
 | `DELETE` | `/api/files/{id}/comments/{cid}` | Delete your own comment (`204`; `403` otherwise). |
-| `POST` | `/api/files/{id}/progress` | Body `{ position?, duration? }`. Always updates `last_played_at`; the playback position is updated only when both fields are sent. An empty body records a view. |
+| `POST` | `/api/files/{id}/progress` | Body `{ position?, duration? }`. Always updates `last_played_at`; the playback position is updated only when both fields are sent. An empty body records a view. For a PDF, `position` is the page (1-based) and `duration` the page count. |
 | `GET` | `/api/files/{id}/progress` | `{ position, duration }`; zeros when there is no record or no viewer identity. |
 | `DELETE` | `/api/files/{id}/progress` | Remove this viewer's history row for the file (`204`). |
 | `POST` | `/api/files/{id}/like` | Toggle the like. Liking sets `liked_at` to now, so a re-liked file sorts first in the Liked view. |

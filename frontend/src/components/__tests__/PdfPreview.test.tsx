@@ -6,7 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PdfPreview } from "../PdfPreview";
@@ -18,6 +18,17 @@ import {
 import { PdfRasterCache, type Wants } from "@/lib/pdfRasterCache";
 import { PdfCanvas } from "../pdf/PdfCanvas";
 import { ShortcutsProvider } from "../ShortcutsProvider";
+import { useProfile } from "../ProfileProvider";
+import { getWatchProgress, saveWatchProgress } from "@/lib/api";
+import { SPREAD_MODE_KEY } from "@/lib/spreadPreference";
+
+vi.mock("@/lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api")>()),
+  getWatchProgress: vi.fn(),
+  saveWatchProgress: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../ProfileProvider", () => ({ useProfile: vi.fn() }));
 
 const pdfDoc = {
   numPages: 8,
@@ -60,7 +71,9 @@ vi.mock("react-pdf", () => ({
     onLoadSuccess: (pdf: unknown) => void;
     onItemClick?: (item: { pageNumber: number }) => void;
   }) => {
-    itemClick = onItemClick;
+    // react-pdf keeps the handler it was first given.
+    const firstItemClick = useRef(onItemClick);
+    itemClick = firstItemClick.current;
     lastOnLoad = onLoadSuccess;
     useEffect(() => {
       onLoadSuccess(pdfDoc);
@@ -181,6 +194,11 @@ beforeEach(() => {
   boxOf = () => mockPageBox;
   mockPageBox = { width: 595, height: 842 };
   window.localStorage.clear();
+  vi.mocked(useProfile).mockReturnValue({
+    nickname: null,
+    setNickname: vi.fn(),
+    clearNickname: vi.fn(),
+  });
 });
 
 describe("PdfPreview", () => {
@@ -1167,5 +1185,390 @@ describe("PdfPreview raster cache", () => {
     );
     unmount();
     expect(clear).toHaveBeenCalled();
+  });
+});
+
+describe("PdfPreview resume", () => {
+  const FILE = "pdf123456789";
+  const onPdfController = vi.fn();
+  const pageBox = () =>
+    screen.getAllByLabelText("Page number")[0] as HTMLInputElement;
+
+  function seed(progress?: number) {
+    window.localStorage.setItem(
+      "recently-played",
+      JSON.stringify([{ fileId: FILE, timestamp: 1, progress, duration: 8 }]),
+    );
+  }
+  const storedPage = () =>
+    JSON.parse(window.localStorage.getItem("recently-played")!)[0].progress;
+
+  function renderPreview(initialPage?: number) {
+    return render(
+      <ShortcutsProvider>
+        <PdfPreview fileId={FILE} title="Paper" initialPage={initialPage} />
+      </ShortcutsProvider>,
+    );
+  }
+
+  it("opens on the page read last", async () => {
+    seed(5);
+    renderPreview();
+    expect(await screen.findByText("Selectable page 5")).toBeInTheDocument();
+    expect(pageBox().value).toBe("5");
+  });
+
+  it("opens a finished document at page 1", async () => {
+    seed(8);
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await act(async () => {});
+    expect(pageBox().value).toBe("1");
+    unmount();
+    expect(storedPage()).toBe(8);
+  });
+
+  it("opens on a requested page over the page read last", async () => {
+    seed(5);
+    const { unmount } = renderPreview(3);
+    await screen.findByText("Selectable page 3");
+    await act(async () => {});
+    expect(pageBox().value).toBe("3");
+    unmount();
+    expect(storedPage()).toBe(5);
+  });
+
+  it("records nothing for a requested page past the end", async () => {
+    seed(5);
+    const { unmount } = renderPreview(20);
+    await act(async () => {});
+    // In a browser the document arrives after mount, and is clamped then.
+    act(() => lastOnLoad!(pdfDoc));
+    await screen.findByText("Selectable page 8");
+    await act(async () => {});
+    unmount();
+    expect(storedPage()).toBe(5);
+  });
+
+  it("records the page turned to", async () => {
+    seed();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "PageDown" });
+    fireEvent.keyDown(document, { key: "PageDown" });
+    await screen.findByText("Selectable page 3");
+    unmount();
+    expect(storedPage()).toBe(3);
+  });
+
+  it.each([
+    [
+      "typed into the page box",
+      () => {
+        const box = pageBox();
+        fireEvent.change(box, { target: { value: "4" } });
+        fireEvent.keyDown(box, { key: "Enter" });
+      },
+    ],
+    ["followed from a link", () => act(() => itemClick!({ pageNumber: 4 }))],
+    [
+      "asked for by the controller",
+      () => {
+        const controller = onPdfController.mock.calls.at(-1)?.[0];
+        act(() => controller.goToPage(4));
+      },
+    ],
+  ])("records a page %s", async (_label, move) => {
+    seed();
+    const { unmount } = render(
+      <ShortcutsProvider>
+        <PdfPreview fileId={FILE} title="Paper" onPdfController={onPdfController} />
+      </ShortcutsProvider>,
+    );
+    await screen.findByText("Selectable page 1");
+    await act(async () => {});
+    move();
+    await screen.findByText("Selectable page 4");
+    unmount();
+    expect(storedPage()).toBe(4);
+  });
+
+  it("records a page turned in full screen without closing it", async () => {
+    seed();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    const dialog = await screen.findByRole("dialog");
+    act(() => {
+      resizeCallbacks[resizeCallbacks.length - 1](
+        [{ contentRect: { width: 1000, height: 800 } }] as unknown as ResizeObserverEntry[],
+        {} as ResizeObserver,
+      );
+    });
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(within(dialog).getByText("Selectable page 3")).toBeInTheDocument();
+    unmount();
+    expect(storedPage()).toBe(3);
+  });
+
+  function openFullscreen() {
+    fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
+    const dialog = screen.getByRole("dialog");
+    act(() => {
+      resizeCallbacks[resizeCallbacks.length - 1](
+        [{ contentRect: { width: 1000, height: 800 } }] as unknown as ResizeObserverEntry[],
+        {} as ResizeObserver,
+      );
+    });
+    return dialog;
+  }
+
+  const inlinePages = () =>
+    screen
+      .getAllByText(/^Selectable page \d+$/)
+      .filter((el) => !el.closest("[role=dialog]"))
+      .map((el) => el.textContent);
+
+  it("leaves the inline page where it was while full screen turns", async () => {
+    seed();
+    renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    const dialog = openFullscreen();
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(within(dialog).getByText("Selectable page 3")).toBeInTheDocument();
+    await act(async () => {});
+    expect(inlinePages()).toEqual(["Selectable page 1"]);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(await screen.findByText("Selectable page 3")).toBeInTheDocument();
+  });
+
+  it("takes the page read last into full screen when it arrives after opening", async () => {
+    vi.mocked(useProfile).mockReturnValue({
+      nickname: "kaori",
+      setNickname: vi.fn(),
+      clearNickname: vi.fn(),
+    });
+    let resolve!: (value: { position: number; duration: number }) => void;
+    vi.mocked(getWatchProgress).mockReturnValue(
+      new Promise((res) => {
+        resolve = res;
+      }),
+    );
+    renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    const dialog = openFullscreen();
+    await act(async () => {});
+
+    await act(async () => resolve({ position: 5, duration: 8 }));
+    expect(within(dialog).getByText("Selectable page 5")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(await screen.findByText("Selectable page 5")).toBeInTheDocument();
+    expect(pageBox().value).toBe("5");
+  });
+
+  function withSlowRead() {
+    vi.mocked(useProfile).mockReturnValue({
+      nickname: "kaori",
+      setNickname: vi.fn(),
+      clearNickname: vi.fn(),
+    });
+    vi.mocked(saveWatchProgress).mockReset().mockResolvedValue(undefined);
+    let resolve!: (value: { position: number; duration: number }) => void;
+    vi.mocked(getWatchProgress).mockReturnValue(
+      new Promise((res) => {
+        resolve = res;
+      }),
+    );
+    const land = (position: number) =>
+      act(async () => resolve({ position, duration: 8 }));
+    return Object.assign(land, {
+      now: (position: number) => resolve({ position, duration: 8 }),
+    });
+  }
+
+  it("records nothing when ?page= changes on the open file", async () => {
+    seed(5);
+    const { rerender, unmount } = renderPreview(2);
+    await screen.findByText("Selectable page 2");
+    rerender(
+      <ShortcutsProvider>
+        <PdfPreview fileId={FILE} title="Paper" initialPage={6} />
+      </ShortcutsProvider>,
+    );
+    await screen.findByText("Selectable page 6");
+    unmount();
+    expect(storedPage()).toBe(5);
+  });
+
+  it("records nothing when a restore in full screen lands on a pair", async () => {
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    const resolveRead = withSlowRead();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    const dialog = openFullscreen();
+    await act(async () => {});
+
+    await resolveRead(5);
+    await act(async () => {});
+    expect(within(dialog).getByText("Selectable page 4")).toBeInTheDocument();
+    expect(within(dialog).getByText("Selectable page 5")).toBeInTheDocument();
+    unmount();
+    expect(saveWatchProgress).not.toHaveBeenCalled();
+  });
+
+  it("keeps a page turned before full screen opened over a late restore", async () => {
+    const resolveRead = withSlowRead();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    fireEvent.keyDown(document, { key: "PageDown" });
+    await screen.findByText("Selectable page 2");
+    const dialog = openFullscreen();
+    await act(async () => {});
+
+    await resolveRead(5);
+    expect(within(dialog).getByText("Selectable page 2")).toBeInTheDocument();
+    unmount();
+    expect(saveWatchProgress).toHaveBeenCalledWith(FILE, 2, 8);
+    expect(saveWatchProgress).toHaveBeenCalledTimes(1);
+  });
+
+  it("records the last page", async () => {
+    seed();
+    const { unmount } = renderPreview(7);
+    await screen.findByText("Selectable page 7");
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "PageDown" });
+    await screen.findByText("Selectable page 8");
+    unmount();
+    expect(storedPage()).toBe(8);
+  });
+
+  it("records nothing for a key that moves past the last page", async () => {
+    seed(5);
+    const { unmount } = renderPreview(8);
+    await act(async () => {});
+    act(() => lastOnLoad!(pdfDoc));
+    await screen.findByText("Selectable page 8");
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "PageDown" });
+    await act(async () => {});
+    unmount();
+    expect(storedPage()).toBe(5);
+  });
+
+  it("records nothing for the page already shown typed into the box", async () => {
+    seed(5);
+    const { unmount } = renderPreview(3);
+    await screen.findByText("Selectable page 3");
+    await act(async () => {});
+    const box = pageBox();
+    fireEvent.change(box, { target: { value: "3" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await act(async () => {});
+    unmount();
+    expect(storedPage()).toBe(5);
+  });
+
+  it("still restores after a key that moves before the first page", async () => {
+    const resolveRead = withSlowRead();
+    renderPreview();
+    await screen.findByText("Selectable page 1");
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "PageUp" });
+    await resolveRead(5);
+    expect(await screen.findByText("Selectable page 5")).toBeInTheDocument();
+  });
+
+  it("turns from the restored page on a key pressed as soon as it is drawn", async () => {
+    const resolveRead = withSlowRead();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await act(async () => {});
+    // Pressed between the restore's commit and its passive effects, where
+    // the shortcut handlers are swapped in.
+    const observer = new MutationObserver(() => {
+      if (!screen.queryByText("Selectable page 5")) return;
+      observer.disconnect();
+      fireEvent.keyDown(document, { key: "PageDown" });
+    });
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    resolveRead.now(5);
+    await waitFor(() => expect(screen.queryByText("Selectable page 1")).toBeNull());
+    observer.disconnect();
+    await waitFor(() => expect(pageBox().value).not.toBe("5"));
+    expect(pageBox().value).toBe("6");
+    unmount();
+    expect(saveWatchProgress).toHaveBeenLastCalledWith(FILE, 6, 8);
+  });
+
+  it("records a link followed in full screen", async () => {
+    seed();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    const dialog = openFullscreen();
+    await act(async () => {});
+    act(() => itemClick!({ pageNumber: 6 }));
+    await act(async () => {});
+    expect(within(dialog).getByText("Selectable page 6")).toBeInTheDocument();
+    expect(inlinePages()).toEqual(["Selectable page 1"]);
+    unmount();
+    expect(storedPage()).toBe(6);
+  });
+
+  it("still restores after a link in full screen to the page already shown", async () => {
+    const resolveRead = withSlowRead();
+    renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    const dialog = openFullscreen();
+    await act(async () => {});
+    act(() => itemClick!({ pageNumber: 1 }));
+    await act(async () => {});
+    await resolveRead(5);
+    expect(within(dialog).getByText("Selectable page 5")).toBeInTheDocument();
+  });
+
+  it("restores inline once full screen has been opened and closed", async () => {
+    const resolveRead = withSlowRead();
+    renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    openFullscreen();
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await resolveRead(5);
+    expect(await screen.findByText("Selectable page 5")).toBeInTheDocument();
+    expect(pageBox().value).toBe("5");
   });
 });

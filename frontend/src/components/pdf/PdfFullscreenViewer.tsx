@@ -60,8 +60,10 @@ export function PdfFullscreenViewer({
   initialPage,
   slotProps,
   goToPageRef,
+  turnToPageRef,
   declaredDirection = null,
   onClose,
+  onPageTurned,
 }: {
   pdf: PDFDocumentProxy;
   /**
@@ -74,10 +76,16 @@ export function PdfFullscreenViewer({
   title: string;
   initialPage: number;
   slotProps?: DocumentSlotProps;
-  /** Set while open, for a link inside the document that names a page. */
   goToPageRef?: MutableRefObject<((page: number) => void) | null>;
+  /** Set while open, for a move the reader made outside the viewer. */
+  turnToPageRef?: MutableRefObject<((page: number) => void) | null>;
   /** Called with the page the reader was on, 1-based. */
   onClose: (page: number) => void;
+  /**
+   * Called after the reader turns the page here, with the page `onClose`
+   * would hand back. A move made through `goToPageRef` is not reported.
+   */
+  onPageTurned?: (page: number) => void;
 }) {
   const t = useTranslations("file");
   const tg = useTranslations("gallery");
@@ -130,8 +138,8 @@ export function PdfFullscreenViewer({
     subPageLabel,
     canGoPrev,
     canGoNext,
-    navigatePrev,
-    navigateNext,
+    navigatePrev: pagePrev,
+    navigateNext: pageNext,
   } = useSpreadPaging({
     index,
     setIndex,
@@ -149,6 +157,33 @@ export function PdfFullscreenViewer({
   const chrome = useAutoHidingChrome({ enabled: true, held: selecting });
 
   const close = useCallback(() => onClose(face.index + 1), [onClose, face.index]);
+
+  // Counted rather than flagged: the face a turn lands on is known only
+  // after the render it causes.
+  const [turns, setTurns] = useState(0);
+  const faceIndexRef = useRef(face.index);
+  faceIndexRef.current = face.index;
+  const turnFromRef = useRef(face.index);
+  const countTurn = useCallback(() => {
+    turnFromRef.current = faceIndexRef.current;
+    setTurns((n) => n + 1);
+  }, []);
+  const navigatePrev = useCallback(() => {
+    countTurn();
+    pagePrev();
+  }, [countTurn, pagePrev]);
+  const navigateNext = useCallback(() => {
+    countTurn();
+    pageNext();
+  }, [countTurn, pageNext]);
+  const onPageTurnedRef = useRef(onPageTurned);
+  onPageTurnedRef.current = onPageTurned;
+  const reportedTurnsRef = useRef(0);
+  useEffect(() => {
+    if (reportedTurnsRef.current === turns) return;
+    reportedTurnsRef.current = turns;
+    if (face.index !== turnFromRef.current) onPageTurnedRef.current?.(face.index + 1);
+  }, [turns, face.index]);
 
   const zoom = useViewerZoom({
     resetKey: `${face.kind}:${index}:${showRightHalf}`,
@@ -222,6 +257,22 @@ export function PdfFullscreenViewer({
       goToPageRef.current = null;
     };
   }, [goToPageRef, enterPage]);
+
+  const turnToPage = useCallback(
+    (page: number) => {
+      countTurn();
+      enterPage(page);
+    },
+    [countTurn, enterPage],
+  );
+
+  useEffect(() => {
+    if (!turnToPageRef) return;
+    turnToPageRef.current = turnToPage;
+    return () => {
+      turnToPageRef.current = null;
+    };
+  }, [turnToPageRef, turnToPage]);
 
   // Per page: in a pair, the page that draws last must not clear the other
   // page's failure.
@@ -359,7 +410,7 @@ export function PdfFullscreenViewer({
           <PdfPageInput
             page={face.index + 1}
             numPages={numPages}
-            onCommit={enterPage}
+            onCommit={turnToPage}
             label={t("pdfPageNumber")}
             className="rounded-2xl bg-white/10 px-1 py-0.5 text-center text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           />

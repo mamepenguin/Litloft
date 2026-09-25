@@ -19,6 +19,7 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import { getStreamUrl } from "@/lib/api";
 import { rasterCacheFor, type RasterRequest } from "@/lib/pdfRasterCache";
 import { declaredReadingDirection } from "@/lib/pdfReadingDirection";
+import { usePdfPageProgress } from "@/lib/pdfPageProgress";
 import { readStored, writeStored } from "@/lib/safeStorage";
 import {
   DEFAULT_PDF_ZOOM_MODE,
@@ -134,6 +135,32 @@ export function PdfPreview({
   const latestPdfRef = useRef<PDFDocumentProxy | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const fullscreenGoToRef = useRef<((page: number) => void) | null>(null);
+  const fullscreenTurnToRef = useRef<((page: number) => void) | null>(null);
+  const goToReadingPage = useCallback((next: number) => {
+    if (fullscreenGoToRef.current) fullscreenGoToRef.current(next);
+    else setPage(next);
+  }, []);
+  const { documentLoaded, pageTurned } = usePdfPageProgress({
+    fileId,
+    requestedPage: initialPage,
+    goTo: goToReadingPage,
+  });
+  // Read at call time: shortcut handlers are swapped in by an effect, so a
+  // key pressed right after a page change would otherwise see the old page.
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  const turnTo = useCallback(
+    (next: number) => {
+      if (fullscreenTurnToRef.current) {
+        fullscreenTurnToRef.current(next);
+        return;
+      }
+      if (next === pageRef.current) return;
+      setPage(next);
+      pageTurned(next);
+    },
+    [pageTurned],
+  );
 
   // Read after mount, not in the initialiser: the server render has no
   // storage, and a value read during it would be hydrated over.
@@ -237,13 +264,13 @@ export function PdfPreview({
 
 
   useEffect(() => {
-    pdfStore.onGoToPage = (next) => setPage(next);
+    pdfStore.onGoToPage = turnTo;
     onPdfController?.(pdfStore);
     return () => {
       pdfStore.onGoToPage = null;
       onPdfController?.(null);
     };
-  }, [onPdfController, pdfStore]);
+  }, [onPdfController, pdfStore, turnTo]);
 
   useEffect(() => {
     pdfStore.set({ page, numPages, src });
@@ -311,18 +338,17 @@ export function PdfPreview({
           });
         });
       setPage((current) => Math.min(Math.max(1, current), count));
+      documentLoaded(count);
       void loadOutline(pdf);
     },
-    [loadOutline],
+    [loadOutline, documentLoaded],
   );
 
   const movePage = useCallback(
     (delta: number) => {
-      setPage((current) =>
-        Math.min(numPages || 1, Math.max(1, current + delta)),
-      );
+      turnTo(Math.min(numPages || 1, Math.max(1, pageRef.current + delta)));
     },
-    [numPages],
+    [numPages, turnTo],
   );
 
   /**
@@ -508,7 +534,7 @@ export function PdfPreview({
           <PdfPageInput
             page={page}
             numPages={numPages}
-            onCommit={setPage}
+            onCommit={turnTo}
             label={t("pdfPageNumber")}
             className="rounded-2xl border border-bg-border bg-bg-primary px-1 py-0.5 text-center text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           />
@@ -611,10 +637,7 @@ export function PdfPreview({
           onLoadSuccess={handleLoad}
           // Without this react-pdf scrolls to the target page, which is not
           // mounted: only the page in view is drawn.
-          onItemClick={({ pageNumber }) => {
-            if (fullscreenGoToRef.current) fullscreenGoToRef.current(pageNumber);
-            else setPage(pageNumber);
-          }}
+          onItemClick={({ pageNumber }) => turnTo(pageNumber)}
           loading={
             <p className="py-16 text-sm text-text-muted">{t("pdfLoading")}</p>
           }
@@ -641,6 +664,8 @@ export function PdfPreview({
               initialPage={page}
               slotProps={documentSlotProps}
               goToPageRef={fullscreenGoToRef}
+              turnToPageRef={fullscreenTurnToRef}
+              onPageTurned={pageTurned}
               onClose={(last) => {
                 setFullscreen(false);
                 setPage(last);
