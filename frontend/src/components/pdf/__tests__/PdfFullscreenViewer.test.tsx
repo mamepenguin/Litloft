@@ -306,6 +306,41 @@ describe("PdfFullscreenViewer", () => {
     expect(onPageTurned).not.toHaveBeenCalled();
   });
 
+  it("reports a turn back to the page it opened on", async () => {
+    const { onPageTurned } = await open(fakePdf(8), { initialPage: 3 });
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+    await act(async () => {});
+    expect(onPageTurned.mock.calls).toEqual([[4], [3]]);
+  });
+
+  it("reports a move handed in as a turn only when it changes the page", async () => {
+    const turnToPageRef: { current: ((page: number) => void) | null } = { current: null };
+    const onPageTurned = vi.fn();
+    render(
+      <Wrap>
+        <PdfFullscreenViewer
+          pdf={fakePdf(8)}
+          title="Paper"
+          initialPage={3}
+          turnToPageRef={turnToPageRef}
+          slotProps={{ fileId: "f1", drive: "d", filename: "p.pdf", fileType: "document" }}
+          onClose={vi.fn()}
+          onPageTurned={onPageTurned}
+        />
+      </Wrap>,
+    );
+    await act(async () => {});
+    act(() => turnToPageRef.current!(3));
+    await act(async () => {});
+    expect(onPageTurned).not.toHaveBeenCalled();
+    act(() => turnToPageRef.current!(6));
+    await act(async () => {});
+    expect(shownPages()).toEqual([6]);
+    expect(onPageTurned).toHaveBeenLastCalledWith(6);
+  });
+
   it("closes with f as well as the close button", async () => {
     const { onClose } = await open(fakePdf(8), { initialPage: 2 });
     fireEvent.keyDown(document, { key: "f" });

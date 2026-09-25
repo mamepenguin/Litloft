@@ -1522,4 +1522,35 @@ describe("PdfPreview resume", () => {
     unmount();
     expect(saveWatchProgress).toHaveBeenLastCalledWith(FILE, 6, 8);
   });
+
+  it("records a link followed in full screen", async () => {
+    seed();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    const dialog = openFullscreen();
+    await act(async () => {});
+    act(() => itemClick!({ pageNumber: 6 }));
+    await act(async () => {});
+    expect(within(dialog).getByText("Selectable page 6")).toBeInTheDocument();
+    unmount();
+    expect(storedPage()).toBe(6);
+  });
+
+  it("still restores after a link in full screen to the page already shown", async () => {
+    const resolveRead = withSlowRead();
+    renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    const dialog = openFullscreen();
+    await act(async () => {});
+    act(() => itemClick!({ pageNumber: 1 }));
+    await act(async () => {});
+    await resolveRead(5);
+    expect(within(dialog).getByText("Selectable page 5")).toBeInTheDocument();
+  });
 });

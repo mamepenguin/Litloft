@@ -135,6 +135,7 @@ export function PdfPreview({
   const latestPdfRef = useRef<PDFDocumentProxy | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const fullscreenGoToRef = useRef<((page: number) => void) | null>(null);
+  const fullscreenTurnToRef = useRef<((page: number) => void) | null>(null);
   const goToReadingPage = useCallback((next: number) => {
     if (fullscreenGoToRef.current) fullscreenGoToRef.current(next);
     else setPage(next);
@@ -150,9 +151,12 @@ export function PdfPreview({
   pageRef.current = page;
   const turnTo = useCallback(
     (next: number) => {
-      if (fullscreenGoToRef.current) fullscreenGoToRef.current(next);
-      else if (next === pageRef.current) return;
-      else setPage(next);
+      if (fullscreenTurnToRef.current) {
+        fullscreenTurnToRef.current(next);
+        return;
+      }
+      if (next === pageRef.current) return;
+      setPage(next);
       pageTurned(next);
     },
     [pageTurned],
@@ -660,6 +664,7 @@ export function PdfPreview({
               initialPage={page}
               slotProps={documentSlotProps}
               goToPageRef={fullscreenGoToRef}
+              turnToPageRef={fullscreenTurnToRef}
               onPageTurned={pageTurned}
               onClose={(last) => {
                 setFullscreen(false);

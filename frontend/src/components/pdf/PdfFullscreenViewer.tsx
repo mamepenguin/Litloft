@@ -60,6 +60,7 @@ export function PdfFullscreenViewer({
   initialPage,
   slotProps,
   goToPageRef,
+  turnToPageRef,
   declaredDirection = null,
   onClose,
   onPageTurned,
@@ -77,6 +78,8 @@ export function PdfFullscreenViewer({
   slotProps?: DocumentSlotProps;
   /** Set while open, for a link inside the document that names a page. */
   goToPageRef?: MutableRefObject<((page: number) => void) | null>;
+  /** Set while open, for a move the reader made outside the viewer. */
+  turnToPageRef?: MutableRefObject<((page: number) => void) | null>;
   /** Called with the page the reader was on, 1-based. */
   onClose: (page: number) => void;
   /**
@@ -256,6 +259,22 @@ export function PdfFullscreenViewer({
     };
   }, [goToPageRef, enterPage]);
 
+  const turnToPage = useCallback(
+    (page: number) => {
+      countTurn();
+      enterPage(page);
+    },
+    [countTurn, enterPage],
+  );
+
+  useEffect(() => {
+    if (!turnToPageRef) return;
+    turnToPageRef.current = turnToPage;
+    return () => {
+      turnToPageRef.current = null;
+    };
+  }, [turnToPageRef, turnToPage]);
+
   // Per page: in a pair, the page that draws last must not clear the other
   // page's failure.
   const [failedPages, setFailedPages] = useState<ReadonlySet<number>>(
@@ -392,10 +411,7 @@ export function PdfFullscreenViewer({
           <PdfPageInput
             page={face.index + 1}
             numPages={numPages}
-            onCommit={(page) => {
-              countTurn();
-              enterPage(page);
-            }}
+            onCommit={turnToPage}
             label={t("pdfPageNumber")}
             className="rounded-2xl bg-white/10 px-1 py-0.5 text-center text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           />
