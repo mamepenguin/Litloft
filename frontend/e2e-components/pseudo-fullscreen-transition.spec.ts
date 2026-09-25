@@ -343,8 +343,30 @@ for (const { id, sibling } of ARRANGEMENTS) {
           return Object.fromEntries(
             Object.entries(points).map(([name, [x, y]]) => {
               const hit = document.elementFromPoint(x, y);
-              // Named when it misses, so a failure says what took the point.
-              return [name, el.contains(hit) || `${hit?.tagName}#${hit?.id}.${hit?.className}`];
+              if (el.contains(hit)) return [name, true];
+              // Everything a miss needs to be diagnosed from a CI log alone.
+              const cs = getComputedStyle(el);
+              const r = el.getBoundingClientRect();
+              return [
+                name,
+                JSON.stringify({
+                  hit: `${hit?.tagName}#${hit?.id}.${hit?.className}`,
+                  connected: el.isConnected,
+                  same: el === document.querySelector("#player [data-testid='player-frame']"),
+                  cls: el.className,
+                  data: { ...(el as HTMLElement).dataset },
+                  position: cs.position,
+                  z: cs.zIndex,
+                  pe: cs.pointerEvents,
+                  vis: cs.visibility,
+                  transform: cs.transform,
+                  clip: cs.clipPath,
+                  rect: [r.left, r.top, r.width, r.height].map(Math.round),
+                  html: { ...document.documentElement.dataset },
+                  body: document.body.style.cssText,
+                  anims: el.getAnimations().map((a) => a.playState),
+                }),
+              ];
             }),
           );
         }, orientation);
