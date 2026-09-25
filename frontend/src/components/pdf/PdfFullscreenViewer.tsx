@@ -76,7 +76,6 @@ export function PdfFullscreenViewer({
   title: string;
   initialPage: number;
   slotProps?: DocumentSlotProps;
-  /** Set while open, for a link inside the document that names a page. */
   goToPageRef?: MutableRefObject<((page: number) => void) | null>;
   /** Set while open, for a move the reader made outside the viewer. */
   turnToPageRef?: MutableRefObject<((page: number) => void) | null>;

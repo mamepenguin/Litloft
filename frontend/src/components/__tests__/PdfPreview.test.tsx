@@ -1535,6 +1535,7 @@ describe("PdfPreview resume", () => {
     act(() => itemClick!({ pageNumber: 6 }));
     await act(async () => {});
     expect(within(dialog).getByText("Selectable page 6")).toBeInTheDocument();
+    expect(inlinePages()).toEqual(["Selectable page 1"]);
     unmount();
     expect(storedPage()).toBe(6);
   });
@@ -1552,5 +1553,22 @@ describe("PdfPreview resume", () => {
     await act(async () => {});
     await resolveRead(5);
     expect(within(dialog).getByText("Selectable page 5")).toBeInTheDocument();
+  });
+
+  it("restores inline once full screen has been opened and closed", async () => {
+    const resolveRead = withSlowRead();
+    renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    openFullscreen();
+    await act(async () => {});
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await resolveRead(5);
+    expect(await screen.findByText("Selectable page 5")).toBeInTheDocument();
+    expect(pageBox().value).toBe("5");
   });
 });
