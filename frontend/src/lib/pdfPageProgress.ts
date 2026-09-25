@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { getWatchProgress, saveWatchProgress } from "./api";
 import { getSavedProgress, saveProgress } from "./recentlyPlayed";
 import { useProfile } from "@/components/ProfileProvider";
@@ -9,19 +9,20 @@ export const PDF_PAGE_SAVE_DELAY_MS = 1000;
 
 export interface UsePdfPageProgressOptions {
   fileId: string;
-  /** 1-based. */
-  page: number;
   /** A page asked for in the URL (`?page=`). Outranks the stored page. */
   requestedPage?: number;
   goTo: (page: number) => void;
 }
 
 export interface UsePdfPageProgressResult {
-  /**
-   * Call from the document's load event. Until then `page` may still be the
-   * previous file's, so nothing is read or written.
-   */
+  /** Call from the document's load event. */
   documentLoaded: (numPages: number) => void;
+  /**
+   * Call only when the reader moves the page. Pages set any other way —
+   * a restore, a clamp, `?page=`, a spread regrouping — are not what the
+   * reader chose, and are never saved.
+   */
+  pageTurned: (page: number) => void;
 }
 
 interface PendingSave {
@@ -42,7 +43,6 @@ function isPage(value: number | undefined): value is number {
  */
 export function usePdfPageProgress({
   fileId,
-  page,
   requestedPage,
   goTo,
 }: UsePdfPageProgressOptions): UsePdfPageProgressResult {
@@ -52,19 +52,14 @@ export function usePdfPageProgress({
   hasProfileRef.current = nickname !== null;
   const fileIdRef = useRef(fileId);
   fileIdRef.current = fileId;
-  const pageRef = useRef(page);
-  pageRef.current = page;
   const requestedPageRef = useRef(requestedPage);
   requestedPageRef.current = requestedPage;
   const goToRef = useRef(goTo);
   goToRef.current = goTo;
 
   const loadedRef = useRef<{ fileId: string; numPages: number } | null>(null);
-  // State, not a ref: a turn made while the read is pending is saved when
-  // it ends.
-  const [restoringFile, setRestoringFile] = useState<string | null>(null);
-  const restoring = restoringFile === fileId;
-  const lastWrittenRef = useRef<number | null>(null);
+  /** The read in flight; replacing or clearing it abandons that read. */
+  const restoreRef = useRef<object | null>(null);
   const pendingRef = useRef<PendingSave | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -92,6 +87,7 @@ export function usePdfPageProgress({
     return () => {
       flush();
       loadedRef.current = null;
+      restoreRef.current = null;
     };
   }, [fileId, flush]);
 
@@ -102,48 +98,47 @@ export function usePdfPageProgress({
       return;
     }
     loadedRef.current = { fileId: id, numPages };
-    // The page the document opens on is not a turn, even once clamped.
-    const openedOn = Math.min(Math.max(1, pageRef.current), numPages);
-    lastWrittenRef.current = openedOn;
     if (isPage(requestedPageRef.current)) return;
 
-    setRestoringFile(id);
+    const restore = {};
+    restoreRef.current = restore;
     const read = hasProfileRef.current
       ? getWatchProgress(id).then((p) => p.position)
       : Promise.resolve(getSavedProgress(id));
     read
       .then((saved) => {
-        if (fileIdRef.current !== id) return;
+        if (restoreRef.current !== restore) return;
+        restoreRef.current = null;
         if (isPage(requestedPageRef.current)) return;
-        if (pageRef.current !== openedOn) return;
         if (!Number.isInteger(saved) || saved < 2 || saved >= numPages) return;
-        lastWrittenRef.current = saved;
         goToRef.current(saved);
       })
       .catch(() => {
-        // A page we cannot read leaves the reader where the document opened.
-      })
-      .finally(() => {
-        setRestoringFile((current) => (current === id ? null : current));
+        if (restoreRef.current === restore) restoreRef.current = null;
       });
   }, []);
 
-  useEffect(() => {
-    const loaded = loadedRef.current;
-    if (!loaded || loaded.fileId !== fileId) return;
-    if (restoring) return;
-    if (page < 2 || page > loaded.numPages) return;
-    if (page === lastWrittenRef.current) return;
-    lastWrittenRef.current = page;
-    pendingRef.current = { fileId, page, numPages: loaded.numPages };
-    if (timerRef.current !== null) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null;
-      const pending = pendingRef.current;
-      pendingRef.current = null;
-      if (pending) write(pending);
-    }, PDF_PAGE_SAVE_DELAY_MS);
-  }, [fileId, page, restoring, write]);
+  const pageTurned = useCallback(
+    (page: number) => {
+      const loaded = loadedRef.current;
+      if (!loaded) return;
+      restoreRef.current = null;
+      if (!Number.isInteger(page) || page < 2 || page > loaded.numPages) return;
+      pendingRef.current = {
+        fileId: loaded.fileId,
+        page,
+        numPages: loaded.numPages,
+      };
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        const pending = pendingRef.current;
+        pendingRef.current = null;
+        if (pending) write(pending);
+      }, PDF_PAGE_SAVE_DELAY_MS);
+    },
+    [write],
+  );
 
-  return { documentLoaded };
+  return { documentLoaded, pageTurned };
 }

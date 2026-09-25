@@ -133,20 +133,24 @@ export function PdfPreview({
     declaredDirection: "ltr" | "rtl" | null;
   } | null>(null);
   const latestPdfRef = useRef<PDFDocumentProxy | null>(null);
-  /** The page the full-screen viewer shows, or null while it is closed. */
-  const [fullscreenPage, setFullscreenPage] = useState<number | null>(null);
-  const fullscreen = fullscreenPage !== null;
+  const [fullscreen, setFullscreen] = useState(false);
   const fullscreenGoToRef = useRef<((page: number) => void) | null>(null);
   const goToReadingPage = useCallback((next: number) => {
     if (fullscreenGoToRef.current) fullscreenGoToRef.current(next);
     else setPage(next);
   }, []);
-  const { documentLoaded } = usePdfPageProgress({
+  const { documentLoaded, pageTurned } = usePdfPageProgress({
     fileId,
-    page: fullscreenPage ?? page,
     requestedPage: initialPage,
     goTo: goToReadingPage,
   });
+  const turnTo = useCallback(
+    (next: number) => {
+      goToReadingPage(next);
+      pageTurned(next);
+    },
+    [goToReadingPage, pageTurned],
+  );
 
   // Read after mount, not in the initialiser: the server render has no
   // storage, and a value read during it would be hydrated over.
@@ -181,7 +185,7 @@ export function PdfPreview({
     setPageBox(null);
     setLoaded(null);
     latestPdfRef.current = null;
-    setFullscreenPage(null);
+    setFullscreen(false);
     // The store describes a document, and the document is changing. Left
     // alone, the page list would draw the previous file's table of contents
     // over this one, and `goToPage` would validate a jump against the
@@ -250,13 +254,13 @@ export function PdfPreview({
 
 
   useEffect(() => {
-    pdfStore.onGoToPage = (next) => setPage(next);
+    pdfStore.onGoToPage = turnTo;
     onPdfController?.(pdfStore);
     return () => {
       pdfStore.onGoToPage = null;
       onPdfController?.(null);
     };
-  }, [onPdfController, pdfStore]);
+  }, [onPdfController, pdfStore, turnTo]);
 
   useEffect(() => {
     pdfStore.set({ page, numPages, src });
@@ -332,11 +336,9 @@ export function PdfPreview({
 
   const movePage = useCallback(
     (delta: number) => {
-      setPage((current) =>
-        Math.min(numPages || 1, Math.max(1, current + delta)),
-      );
+      turnTo(Math.min(numPages || 1, Math.max(1, page + delta)));
     },
-    [numPages],
+    [numPages, page, turnTo],
   );
 
   /**
@@ -396,7 +398,7 @@ export function PdfPreview({
       {
         key: "f",
         label: t("pdfFullscreen"),
-        handler: () => setFullscreenPage(page),
+        handler: () => setFullscreen(true),
       },
     ],
     loaded !== null && inScope && !fullscreen,
@@ -522,7 +524,7 @@ export function PdfPreview({
           <PdfPageInput
             page={page}
             numPages={numPages}
-            onCommit={setPage}
+            onCommit={turnTo}
             label={t("pdfPageNumber")}
             className="rounded-2xl border border-bg-border bg-bg-primary px-1 py-0.5 text-center text-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
           />
@@ -587,7 +589,7 @@ export function PdfPreview({
         </button>
         <button
           type="button"
-          onClick={() => setFullscreenPage(page)}
+          onClick={() => setFullscreen(true)}
           disabled={loaded === null}
           aria-label={t("pdfFullscreen")}
           className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated disabled:opacity-30"
@@ -625,10 +627,7 @@ export function PdfPreview({
           onLoadSuccess={handleLoad}
           // Without this react-pdf scrolls to the target page, which is not
           // mounted: only the page in view is drawn.
-          onItemClick={({ pageNumber }) => {
-            if (fullscreenGoToRef.current) fullscreenGoToRef.current(pageNumber);
-            else setPage(pageNumber);
-          }}
+          onItemClick={({ pageNumber }) => turnTo(pageNumber)}
           loading={
             <p className="py-16 text-sm text-text-muted">{t("pdfLoading")}</p>
           }
@@ -655,9 +654,9 @@ export function PdfPreview({
               initialPage={page}
               slotProps={documentSlotProps}
               goToPageRef={fullscreenGoToRef}
-              onPageChange={setFullscreenPage}
+              onPageTurned={pageTurned}
               onClose={(last) => {
-                setFullscreenPage(null);
+                setFullscreen(false);
                 setPage(last);
               }}
             />

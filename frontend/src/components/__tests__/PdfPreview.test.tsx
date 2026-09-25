@@ -19,7 +19,8 @@ import { PdfRasterCache, type Wants } from "@/lib/pdfRasterCache";
 import { PdfCanvas } from "../pdf/PdfCanvas";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 import { useProfile } from "../ProfileProvider";
-import { getWatchProgress } from "@/lib/api";
+import { getWatchProgress, saveWatchProgress } from "@/lib/api";
+import { SPREAD_MODE_KEY } from "@/lib/spreadPreference";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
@@ -1344,5 +1345,74 @@ describe("PdfPreview resume", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(await screen.findByText("Selectable page 5")).toBeInTheDocument();
     expect(pageBox().value).toBe("5");
+  });
+
+  function withSlowRead() {
+    vi.mocked(useProfile).mockReturnValue({
+      nickname: "kaori",
+      setNickname: vi.fn(),
+      clearNickname: vi.fn(),
+    });
+    vi.mocked(saveWatchProgress).mockReset().mockResolvedValue(undefined);
+    let resolve!: (value: { position: number; duration: number }) => void;
+    vi.mocked(getWatchProgress).mockReturnValue(
+      new Promise((res) => {
+        resolve = res;
+      }),
+    );
+    return (position: number) =>
+      act(async () => resolve({ position, duration: 8 }));
+  }
+
+  it("records nothing when ?page= changes on the open file", async () => {
+    seed(5);
+    const { rerender, unmount } = renderPreview(2);
+    await screen.findByText("Selectable page 2");
+    rerender(
+      <ShortcutsProvider>
+        <PdfPreview fileId={FILE} title="Paper" initialPage={6} />
+      </ShortcutsProvider>,
+    );
+    await screen.findByText("Selectable page 6");
+    unmount();
+    expect(storedPage()).toBe(5);
+  });
+
+  it("records nothing when a restore in full screen lands on a pair", async () => {
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    const resolveRead = withSlowRead();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    const dialog = openFullscreen();
+    await act(async () => {});
+
+    await resolveRead(5);
+    await act(async () => {});
+    expect(within(dialog).getByText("Selectable page 4")).toBeInTheDocument();
+    expect(within(dialog).getByText("Selectable page 5")).toBeInTheDocument();
+    unmount();
+    expect(saveWatchProgress).not.toHaveBeenCalled();
+  });
+
+  it("keeps a page turned before full screen opened over a late restore", async () => {
+    const resolveRead = withSlowRead();
+    const { unmount } = renderPreview();
+    await screen.findByText("Selectable page 1");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+    );
+    fireEvent.keyDown(document, { key: "PageDown" });
+    await screen.findByText("Selectable page 2");
+    const dialog = openFullscreen();
+    await act(async () => {});
+
+    await resolveRead(5);
+    expect(within(dialog).getByText("Selectable page 2")).toBeInTheDocument();
+    unmount();
+    expect(saveWatchProgress).toHaveBeenCalledWith(FILE, 2, 8);
+    expect(saveWatchProgress).toHaveBeenCalledTimes(1);
   });
 });

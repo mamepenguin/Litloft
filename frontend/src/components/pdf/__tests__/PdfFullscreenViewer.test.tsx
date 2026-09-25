@@ -137,7 +137,7 @@ async function open(
   {
     initialPage = 1,
     onClose = vi.fn(),
-    onPageChange = vi.fn(),
+    onPageTurned = vi.fn(),
     declaredDirection = null as "ltr" | "rtl" | null,
   } = {},
 ) {
@@ -150,13 +150,13 @@ async function open(
         declaredDirection={declaredDirection}
         slotProps={{ fileId: "f1", drive: "d", filename: "p.pdf", fileType: "document" }}
         onClose={onClose}
-        onPageChange={onPageChange}
+        onPageTurned={onPageTurned}
       />
     </Wrap>,
   );
   // Let the page sizes arrive.
   await act(async () => {});
-  return { ...r, onClose, onPageChange };
+  return { ...r, onClose, onPageTurned };
 }
 
 const shownPages = () =>
@@ -197,26 +197,59 @@ describe("PdfFullscreenViewer", () => {
   });
 
   it("reports each page turned to, without closing", async () => {
-    const { onPageChange, onClose } = await open(fakePdf(8), { initialPage: 3 });
-    expect(onPageChange).not.toHaveBeenCalled();
+    const { onPageTurned, onClose } = await open(fakePdf(8), { initialPage: 3 });
+    expect(onPageTurned).not.toHaveBeenCalled();
     fireEvent.keyDown(document, { key: "ArrowRight" });
-    expect(onPageChange).toHaveBeenLastCalledWith(4);
+    expect(onPageTurned).toHaveBeenLastCalledWith(4);
     fireEvent.keyDown(document, { key: "ArrowLeft" });
     fireEvent.keyDown(document, { key: "ArrowLeft" });
-    expect(onPageChange).toHaveBeenLastCalledWith(2);
+    expect(onPageTurned).toHaveBeenLastCalledWith(2);
     expect(onClose).not.toHaveBeenCalled();
   });
 
   it("reports the first page of a pair, as it hands back on close", async () => {
     localStorage.setItem(SPREAD_MODE_KEY, "true");
     localStorage.setItem("image-viewer:reading-direction", "rtl");
-    const { onPageChange, onClose } = await open(fakePdf(8), { initialPage: 2 });
+    const { onPageTurned, onClose } = await open(fakePdf(8), { initialPage: 2 });
     fireEvent.keyDown(document, { key: "ArrowLeft" });
     await act(async () => {});
     expect(shownPages()).toEqual([4, 5]);
-    expect(onPageChange).toHaveBeenLastCalledWith(4);
+    expect(onPageTurned).toHaveBeenLastCalledWith(4);
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledWith(4);
+  });
+
+  it("does not report a move made from outside, nor a pair forming", async () => {
+    localStorage.setItem(SPREAD_MODE_KEY, "true");
+    const goToPageRef: { current: ((page: number) => void) | null } = { current: null };
+    const onPageTurned = vi.fn();
+    render(
+      <Wrap>
+        <PdfFullscreenViewer
+          pdf={fakePdf(8)}
+          title="Paper"
+          initialPage={1}
+          goToPageRef={goToPageRef}
+          slotProps={{ fileId: "f1", drive: "d", filename: "p.pdf", fileType: "document" }}
+          onClose={vi.fn()}
+          onPageTurned={onPageTurned}
+        />
+      </Wrap>,
+    );
+    await act(async () => {});
+    act(() => goToPageRef.current!(5));
+    await act(async () => {});
+    expect(shownPages()).toEqual([4, 5]);
+    expect(onPageTurned).not.toHaveBeenCalled();
+  });
+
+  it("reports a page typed into its box", async () => {
+    const { onPageTurned } = await open(fakePdf(8), { initialPage: 1 });
+    const box = screen.getByLabelText("Page number") as HTMLInputElement;
+    fireEvent.change(box, { target: { value: "6" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await act(async () => {});
+    expect(onPageTurned).toHaveBeenLastCalledWith(6);
   });
 
   it("closes with f as well as the close button", async () => {
