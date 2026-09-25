@@ -5,6 +5,7 @@ import {
   ClipboardCopy,
   Download,
   ExternalLink,
+  Hash,
   ListMusic,
   Move,
   Pencil,
@@ -29,6 +30,7 @@ export interface FileMenuContext {
   onOpenInNewTab?: () => void;
   onEdit?: () => void;
   onAddToCollection: () => void;
+  onCopyId: () => void;
   onStartInlineRename?: () => void;
   onRename: () => void;
   onMove: () => void;
@@ -92,6 +94,8 @@ export function useFileMenuItems(
         onClick: () => clipboard.cut([file.id], file.drive, file.folder_path),
         disabled: gone,
       },
+      // Not greyed for a missing file: the id still names its row.
+      { icon: Hash, label: tf("copyId"), onClick: ctx.onCopyId },
       {
         icon: Pencil,
         label: tc("rename"),

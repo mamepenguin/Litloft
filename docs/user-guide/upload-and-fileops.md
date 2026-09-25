@@ -26,6 +26,7 @@ Folders, and files in the folder tree, rename in place. See [renaming in place](
 - **Rename**: a name that is already taken, starts with a dot, uses forbidden characters or is over 255 characters is refused. Renaming a Markdown file also updates `[[links]]` to it in the other notes of the drive.
 - **Move**: pick another folder in the same drive.
 - **Copy** / **Cut**, then **Paste**: go to the target folder and press **Paste here** in the banner above the list. The clipboard survives a reload.
+- **Copy ID** (files only): copies the file's ID, for the MCP tools' `file_id` or a `![](loft://ID)` embed in a note. When the browser will not copy, usually because Litloft was opened at a plain `http://` LAN address, the ID is shown selected so you can copy it yourself.
 
 Pasting in a different drive copies or moves the files to that drive.
 

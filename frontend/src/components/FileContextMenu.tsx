@@ -4,13 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { deleteFile, moveFile, renameFile } from "@/lib/api";
+import { copyText } from "@/lib/copyText";
 import { useFileMenuItems } from "@/hooks/useFileMenuItems";
 import type { FileItem } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ContextMenu } from "./ContextMenu";
+import { CopyIdDialog } from "./CopyIdDialog";
 import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
 import { RenameDialog } from "./RenameDialog";
+import { useToast } from "./ToastProvider";
 
 interface FileContextMenuProps {
   open: boolean;
@@ -34,10 +37,13 @@ export function FileContextMenu({
   onStartInlineRename,
 }: FileContextMenuProps) {
   const tt = useTranslations("trash");
+  const tf = useTranslations("file");
+  const toast = useToast();
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
+  const [copyIdOpen, setCopyIdOpen] = useState(false);
 
   useEffect(() => {
     if (!target) {
@@ -45,6 +51,7 @@ export function FileContextMenu({
       setMoveOpen(false);
       setDeleteOpen(false);
       setCollectionPickerOpen(false);
+      setCopyIdOpen(false);
     }
   }, [target]);
 
@@ -87,6 +94,15 @@ export function FileContextMenu({
     }
   }, [target, onUpdate]);
 
+  const handleCopyId = useCallback(async () => {
+    if (!target) return;
+    if (await copyText(target.id)) {
+      toast.success(tf("idCopied"));
+    } else {
+      setCopyIdOpen(true);
+    }
+  }, [target, toast, tf]);
+
   const handleRemoveFromHistory = useCallback(async () => {
     if (!onRemoveFromHistory) return;
     try {
@@ -101,6 +117,9 @@ export function FileContextMenu({
   const items = useFileMenuItems(target, {
     onOpenInNewTab,
     onAddToCollection: () => setCollectionPickerOpen(true),
+    onCopyId: () => {
+      void handleCopyId();
+    },
     onStartInlineRename,
     onRename: () => setRenameOpen(true),
     onMove: () => setMoveOpen(true),
@@ -140,6 +159,11 @@ export function FileContextMenu({
         drive={target.drive}
         fileIds={[target.id]}
         onClose={() => setCollectionPickerOpen(false)}
+      />
+      <CopyIdDialog
+        open={copyIdOpen}
+        fileId={target.id}
+        onClose={() => setCopyIdOpen(false)}
       />
       <ConfirmDialog
         open={deleteOpen}
