@@ -146,7 +146,7 @@ describe("usePdfPageProgress restore", () => {
     const { result, rerender, goTo } = setup({ fileId: "file-aaaaaaa", page: 1 });
 
     act(() => result.current.documentLoaded(20));
-    rerender({ fileId: "file-aaaaaaa", page: 4, requestedPage: 4 });
+    rerender({ fileId: "file-aaaaaaa", page: 1, requestedPage: 1 });
     read.resolve({ position: 7, duration: 20 });
     await flushPromises();
 
