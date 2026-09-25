@@ -244,6 +244,47 @@ struct ImmersiveTests {
         #expect(webView.convert(webView.bounds, to: hosted.window).minY == 0)
     }
 
+    /// Nothing in the app lays the web view out between a request and SwiftUI's
+    /// next update today; UIKit or WebKit could.
+    private func askWithAnEarlyLayout(_ active: Bool, of webView: WKWebView) throws {
+        let coordinator = try #require(webView.navigationDelegate as? Litloft.WebView.Coordinator)
+        coordinator.bridge.onPageImmersive?(active)
+        webView.setNeedsLayout()
+        webView.layoutIfNeeded()
+    }
+
+    @Test("a layout before SwiftUI has applied the request does not answer it at the old size")
+    func earlyLayoutInPortrait() async throws {
+        let hosted = try await host()
+        defer { hosted.restore() }
+        let webView = hosted.webView
+
+        try askWithAnEarlyLayout(true, of: webView)
+        let wide = try #require(await acknowledged(1, in: webView))
+
+        #expect(wide["active"] as? Bool == true)
+        #expect(wide["height"] as? Double == Double(hosted.window.bounds.height))
+    }
+
+    @Test("a layout before SwiftUI has applied the request still leaves it answered where nothing moves")
+    func earlyLayoutInLandscape() async throws {
+        let hosted = try await host()
+        let (window, webView) = (hosted.window, hosted.webView)
+        let scene = try #require(window.windowScene)
+        defer {
+            scene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+            hosted.restore()
+        }
+        scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight))
+        #expect(await waitUntil { scene.interfaceOrientation.isLandscape && window.safeAreaInsets.left + window.safeAreaInsets.right > 0 })
+        #expect(await waitUntil { webView.bounds.width < window.bounds.width })
+
+        try askWithAnEarlyLayout(true, of: webView)
+        let wide = try #require(await acknowledged(1, in: webView))
+
+        #expect(wide["active"] as? Bool == true)
+    }
+
     @Test("asking for what already holds is still answered")
     func repeatedAskIsAnswered() async throws {
         let hosted = try await host()
