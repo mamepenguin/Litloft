@@ -72,7 +72,9 @@ export type OutboundMessage =
   /** The page's background colour, which the shell paints around the video. */
   | { type: "page.background"; color: string }
   /** A YouTube embed's video, which only the shell can reach, into the system's fullscreen player. */
-  | { type: "embed.fullscreen"; videoId: string };
+  | { type: "embed.fullscreen"; videoId: string }
+  /** Something on the page is full screen: the shell hides the status bar and widens the web view. */
+  | { type: "page.immersive"; active: boolean };
 
 export type MediaStatus = "loading" | "ready" | "failed";
 
@@ -107,7 +109,15 @@ export function reportPageBackground(color: string): void {
   postToShell({ type: "page.background", color });
 }
 
-export type InboundMessage = { type: "pong"; seq: number } | MediaState;
+/** The web view's size once the shell has laid it out for `active`. */
+export interface ImmersiveApplied {
+  type: "page.immersive.applied";
+  active: boolean;
+  width: number;
+  height: number;
+}
+
+export type InboundMessage = { type: "pong"; seq: number } | MediaState | ImmersiveApplied;
 
 interface ShellMessageHandler {
   postMessage(body: unknown): void;
@@ -150,6 +160,13 @@ const SYSTEM_FULLSCREEN_SHELL_VERSION = 3;
 /** Whether the shell can open a video in the system's fullscreen player. */
 export function shellHasSystemFullscreen(): boolean {
   return handler() !== null && shellVersion() >= SYSTEM_FULLSCREEN_SHELL_VERSION;
+}
+
+const IMMERSIVE_SHELL_VERSION = 4;
+
+/** Whether the shell answers `page.immersive` once it has widened the web view. */
+export function shellAnswersImmersive(): boolean {
+  return handler() !== null && shellVersion() >= IMMERSIVE_SHELL_VERSION;
 }
 
 export function requestEmbedFullscreen(videoId: string): void {

@@ -14,6 +14,7 @@ import enMessages from "@/messages-core/en.json";
 
 import { PdfCanvas } from "../PdfCanvas";
 import { PdfFullscreenViewer } from "../PdfFullscreenViewer";
+import { immersive, installShellStub } from "@/test/shellStub";
 
 installPointerEvent();
 
@@ -824,5 +825,20 @@ describe("PdfFullscreenViewer raster cache", () => {
     const { unmount } = await open(fakePdf(8), { initialPage: 3 });
     unmount();
     expect(release).toHaveBeenCalledWith("fullscreen");
+  });
+});
+
+describe("PdfFullscreenViewer in the iOS shell", () => {
+  it("holds the shell immersive while shown", async () => {
+    const shell = installShellStub(4);
+    try {
+      const { unmount } = await open(fakePdf(2));
+      expect(shell.posted).toEqual([immersive(true)]);
+
+      unmount();
+      expect(shell.posted).toEqual([immersive(true), immersive(false)]);
+    } finally {
+      shell.remove();
+    }
   });
 });

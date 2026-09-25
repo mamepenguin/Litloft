@@ -5,6 +5,7 @@ import type { ReactElement } from "react";
 import type { ArchiveEntry } from "@/types";
 import { installPointerEvent } from "@/test/pointerEvent";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+import { immersive, installShellStub } from "@/test/shellStub";
 
 installPointerEvent();
 
@@ -313,3 +314,17 @@ describe("ArchiveImageViewer backdrop", () => {
   });
 });
 
+describe("ArchiveImageViewer in the iOS shell", () => {
+  it("holds the shell immersive while shown", () => {
+    const shell = installShellStub(4);
+    try {
+      const { unmount } = render(<ArchiveImageViewer {...defaultProps} />);
+      expect(shell.posted).toEqual([immersive(true)]);
+
+      unmount();
+      expect(shell.posted).toEqual([immersive(true), immersive(false)]);
+    } finally {
+      shell.remove();
+    }
+  });
+});
