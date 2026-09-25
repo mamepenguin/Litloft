@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { shellAnswersImmersive } from "@/lib/nativeBridge";
+import { holdImmersive, type ImmersiveHold } from "@/lib/shellImmersive";
 import { useFrameTransition } from "./useFrameTransition";
 
 /**
@@ -41,7 +43,11 @@ interface TouchLikeEvent extends Event {
 }
 
 type EntryReason = "manual" | "rotate";
-type PseudoPhase = "off" | "on" | "closing";
+/**
+ * "opening" waits for the iOS shell to widen the page before anything is
+ * pinned, so the entry is measured and carried in the viewport it ends in.
+ */
+type PseudoPhase = "off" | "opening" | "on" | "closing";
 
 export interface UseFullscreenOptions {
   frameRef: RefObject<HTMLElement | null>;
@@ -108,7 +114,7 @@ export function useFullscreen({
   // "closing" keeps the frame pinned while it is carried back to its slot;
   // everything that asks "are we fullscreen?" already reads it as out.
   const [phase, setPhase] = useState<PseudoPhase>("off");
-  const pseudoActive = phase !== "off";
+  const pseudoActive = phase === "on" || phase === "closing";
   const pseudoOpen = phase === "on";
   // Decisions read the phase synchronously: a second press can arrive
   // before the first one's render.
@@ -120,6 +126,16 @@ export function useFullscreen({
   const transition = useFrameTransition(frameRef, animate);
   const entryReasonRef = useRef<EntryReason | null>(null);
   const historyEntryLiveRef = useRef(false);
+  const immersiveRef = useRef<ImmersiveHold | null>(null);
+  const releaseImmersive = useCallback(() => {
+    immersiveRef.current?.release();
+    immersiveRef.current = null;
+  }, []);
+  const settleOff = useCallback(() => {
+    moveTo("off");
+    releaseImmersive();
+  }, [moveTo, releaseImmersive]);
+  useEffect(() => releaseImmersive, [releaseImmersive]);
 
   // Read through a ref rather than a dependency: rebuilding the touch
   // listeners mid-gesture would drop the in-flight start point.
@@ -164,12 +180,16 @@ export function useFullscreen({
         document.exitFullscreen().catch(() => {});
       }
       unwindHistoryEntry();
+      if (phaseRef.current === "opening") {
+        settleOff();
+        return;
+      }
       if (phaseRef.current !== "on") return;
       moveTo("closing");
       if (!carry) transition.forget();
-      transition.shrink(() => moveTo("off"));
+      transition.shrink(settleOff);
     },
-    [moveTo, transition, unwindHistoryEntry],
+    [moveTo, settleOff, transition, unwindHistoryEntry],
   );
 
   const exit = useCallback(() => leave(true), [leave]);
@@ -183,6 +203,19 @@ export function useFullscreen({
     isFullscreenRef.current = isFullscreen;
   }, [isFullscreen]);
 
+  const pin = useCallback(
+    (reason: EntryReason) => {
+      // Measured before the frame is pinned, which is the only moment
+      // it still sits in its slot. Rotation is never carried: the
+      // viewport itself is changing under it.
+      if (reason === "manual") transition.capture();
+      else transition.forget();
+      moveTo("on");
+      transition.grow();
+    },
+    [moveTo, transition],
+  );
+
   const enter = useCallback(
     (reason: EntryReason) => {
       const frame = frameRef.current;
@@ -194,6 +227,7 @@ export function useFullscreen({
         transition.grow();
         return;
       }
+      if (phaseRef.current === "opening") return;
       // Already open. Without this, rotating to landscape while
       // manually fullscreen would relabel the session as "rotate" and
       // then eject the viewer the moment they sat back up.
@@ -210,17 +244,25 @@ export function useFullscreen({
           // and a desktop browser without element fullscreen is a
           // non-case.
           if (!matches(COARSE_POINTER_QUERY)) return;
-          // Measured before the frame is pinned, which is the only moment
-          // it still sits in its slot. Rotation is never carried: the
-          // viewport itself is changing under it.
-          if (reason === "manual") transition.capture();
-          else transition.forget();
           entryReasonRef.current = reason;
-          moveTo("on");
-          transition.grow();
+          const hold = holdImmersive();
+          immersiveRef.current = hold;
+          if (!shellAnswersImmersive()) {
+            pin(reason);
+            return;
+          }
+          moveTo("opening");
+          void hold.ready.then(() => {
+            // A frame later, so the resize WebKit dispatches for the
+            // widening has run and cannot cut the carry short.
+            requestAnimationFrame(() => {
+              if (immersiveRef.current !== hold || phaseRef.current !== "opening") return;
+              pin(reason);
+            });
+          });
         });
     },
-    [frameRef, moveTo, transition],
+    [frameRef, moveTo, pin, transition],
   );
 
   const toggle = useCallback(() => {
