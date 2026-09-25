@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { dismissByPressingOutside } from "@/__tests__/helpers/dismissScrim";
 import {
   Ancestors,
@@ -10,15 +10,25 @@ import { FileActions } from "../FileActions";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 import type { FileItem } from "@/types";
 
+const clipboardSpies = vi.hoisted(() => ({ copy: vi.fn(), cut: vi.fn() }));
+
 vi.mock("@/components/ClipboardProvider", () => ({
   useClipboard: () => ({
     clipboard: null,
-    copy: vi.fn(),
-    cut: vi.fn(),
+    copy: clipboardSpies.copy,
+    cut: clipboardSpies.cut,
     paste: vi.fn(),
     clear: vi.fn(),
     isCut: () => false,
   }),
+}));
+
+const copyTextMock = vi.hoisted(() => vi.fn<(text: string) => Promise<boolean>>());
+vi.mock("@/lib/copyText", () => ({ copyText: copyTextMock }));
+
+const toastSuccessMock = vi.hoisted(() => vi.fn());
+vi.mock("../ToastProvider", () => ({
+  useToast: () => ({ success: toastSuccessMock, error: vi.fn(), info: vi.fn() }),
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -165,7 +175,18 @@ describe("FileActions", () => {
 
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("menu")).toBeInTheDocument();
-    expect(screen.getAllByRole("menuitem")).toHaveLength(7);
+    expect(
+      screen.getAllByRole("menuitem").map((item) => item.textContent),
+    ).toEqual([
+      "Download",
+      "Add to collection",
+      "Copy",
+      "Cut",
+      "Copy ID",
+      "Rename",
+      "Move",
+      "Move to Trash",
+    ]);
   });
 
   it("offers add-to-collection, like the card and list menus do", () => {
@@ -852,5 +873,87 @@ describe("FileActions file-actions-menu slot", () => {
     fireEvent.keyDown(document, { key: "Escape" });
 
     expect(screen.getByText("Download")).toBeInTheDocument();
+  });
+});
+
+describe("FileActions Copy ID", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("copies the file id, closes the menu and confirms with a toast", async () => {
+    copyTextMock.mockResolvedValue(true);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy ID" }));
+
+    await waitFor(() => {
+      expect(toastSuccessMock).toHaveBeenCalledWith("ID copied");
+    });
+    expect(copyTextMock).toHaveBeenCalledWith("file-1");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(clipboardSpies.copy).not.toHaveBeenCalled();
+    expect(clipboardSpies.cut).not.toHaveBeenCalled();
+  });
+
+  it("shows the id selected in a dialog when the browser will not copy", async () => {
+    copyTextMock.mockResolvedValue(false);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy ID" }));
+
+    const dialog = await screen.findByRole("dialog");
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(dialog).toContainElement(input);
+    expect(input.value).toBe("file-1");
+    expect(document.activeElement).toBe(input);
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 6]);
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+    expect(clipboardSpies.copy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the Close button", (dialog: HTMLElement) => within(dialog).getByText("Close")],
+    ["the X button", (dialog: HTMLElement) => within(dialog).getByLabelText("Close")],
+    ["the backdrop", (dialog: HTMLElement) => dialog.previousElementSibling as HTMLElement],
+  ])("closes the dialog from %s", async (_name, target) => {
+    copyTextMock.mockResolvedValue(false);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy ID" }));
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.click(target(dialog));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes the dialog on Escape", async () => {
+    copyTextMock.mockResolvedValue(false);
+    renderWithStack(<FileActions file={mockFile} />);
+    fireEvent.click(screen.getByLabelText("File actions"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy ID" }));
+    await screen.findByRole("dialog");
+    // The dialog registers its shortcut in an effect that commits after
+    // the dialog is in the DOM.
+    await act(async () => {});
+
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("stays enabled for a missing file", () => {
+    renderWithStack(
+      <FileActions
+        file={{ ...mockFile, missing_since: "2026-09-01T00:00:00Z" }}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText("File actions"));
+    expect(screen.getByRole("menuitem", { name: "Copy ID" })).toBeEnabled();
+    expect(screen.getByRole("menuitem", { name: "Copy" })).toBeDisabled();
   });
 });

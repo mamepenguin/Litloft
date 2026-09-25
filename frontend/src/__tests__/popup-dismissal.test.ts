@@ -202,6 +202,10 @@ const POPUPS: Record<string, PopupEntry> = {
     dismissedIn: null,
     why: "modal dialogs with their own backdrop",
   },
+  "frontend/src/components/CopyIdDialog.tsx": {
+    dismissedIn: null,
+    why: "a modal dialog with its own backdrop",
+  },
   "frontend/src/components/FileSaveDialog.tsx": {
     dismissedIn: null,
     why: "a modal dialog; it hosts FolderPicker, which brings its own scrim",

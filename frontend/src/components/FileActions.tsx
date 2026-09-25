@@ -9,6 +9,7 @@ import {
   moveFile,
   renameFile,
 } from "@/lib/api";
+import { copyText } from "@/lib/copyText";
 import {
   ANCHORED_VERTICAL,
   useAnchoredDirection,
@@ -22,9 +23,11 @@ import { DismissScrim } from "./DismissScrim";
 import { useDialogPortalTarget } from "./DialogPortal";
 import { AddonSlot } from "./AddonSlot";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { CopyIdDialog } from "./CopyIdDialog";
 import { RenameDialog } from "./RenameDialog";
 import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
+import { useToast } from "./ToastProvider";
 
 /**
  * The gap is part of the room the menu needs, so it belongs inside the
@@ -60,6 +63,8 @@ export function FileActions({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
   const [addonDialogOpen, setAddonDialogOpen] = useState(false);
+  const [copyIdOpen, setCopyIdOpen] = useState(false);
+  const toast = useToast();
   const dialogHost = useDialogPortalTarget();
   const [error, setError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -146,6 +151,14 @@ export function FileActions({
     }
   }, [file.id, onDelete, t]);
 
+  const handleCopyId = useCallback(async () => {
+    if (await copyText(file.id)) {
+      toast.success(t("idCopied"));
+    } else {
+      setCopyIdOpen(true);
+    }
+  }, [file.id, toast, t]);
+
   // Each handler closes the menu first: the dialogs portal out of this
   // subtree, and leaving it open would stack a menu over them.
   const menuItems = useFileMenuItems(file, {
@@ -158,6 +171,10 @@ export function FileActions({
     onAddToCollection: () => {
       setMenuOpen(false);
       setCollectionPickerOpen(true);
+    },
+    onCopyId: () => {
+      setMenuOpen(false);
+      void handleCopyId();
     },
     onRename: () => {
       setMenuOpen(false);
@@ -315,6 +332,16 @@ export function FileActions({
             drive={file.drive}
             fileIds={[file.id]}
             onClose={() => setCollectionPickerOpen(false)}
+          />,
+          dialogHost
+        )}
+
+      {copyIdOpen && dialogHost &&
+        createPortal(
+          <CopyIdDialog
+            open={copyIdOpen}
+            fileId={file.id}
+            onClose={() => setCopyIdOpen(false)}
           />,
           dialogHost
         )}

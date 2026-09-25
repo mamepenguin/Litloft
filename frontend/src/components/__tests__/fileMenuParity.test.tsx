@@ -129,6 +129,7 @@ describe("the file actions menu, across the three surfaces that draw it", () => 
       "Add to collection",
       "Copy",
       "Cut",
+      "Copy ID",
       "Rename",
       "Move",
       "Move to Trash",
