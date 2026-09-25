@@ -114,7 +114,7 @@ export function usePdfPageProgress({
         goToRef.current(saved);
       })
       .catch(() => {
-        if (restoreRef.current === restore) restoreRef.current = null;
+        // A page we cannot read leaves the reader where the document opened.
       });
   }, []);
 

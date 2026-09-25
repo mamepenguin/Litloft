@@ -1188,6 +1188,7 @@ describe("PdfPreview raster cache", () => {
 
 describe("PdfPreview resume", () => {
   const FILE = "pdf123456789";
+  const onPdfController = vi.fn();
   const pageBox = () =>
     screen.getAllByLabelText("Page number")[0] as HTMLInputElement;
 
@@ -1257,6 +1258,38 @@ describe("PdfPreview resume", () => {
     await screen.findByText("Selectable page 3");
     unmount();
     expect(storedPage()).toBe(3);
+  });
+
+  it.each([
+    [
+      "typed into the page box",
+      () => {
+        const box = pageBox();
+        fireEvent.change(box, { target: { value: "4" } });
+        fireEvent.keyDown(box, { key: "Enter" });
+      },
+    ],
+    ["followed from a link", () => act(() => itemClick!({ pageNumber: 4 }))],
+    [
+      "asked for by the controller",
+      () => {
+        const controller = onPdfController.mock.calls.at(-1)?.[0];
+        act(() => controller.goToPage(4));
+      },
+    ],
+  ])("records a page %s", async (_label, move) => {
+    seed();
+    const { unmount } = render(
+      <ShortcutsProvider>
+        <PdfPreview fileId={FILE} title="Paper" onPdfController={onPdfController} />
+      </ShortcutsProvider>,
+    );
+    await screen.findByText("Selectable page 1");
+    await act(async () => {});
+    move();
+    await screen.findByText("Selectable page 4");
+    unmount();
+    expect(storedPage()).toBe(4);
   });
 
   it("records a page turned in full screen without closing it", async () => {
