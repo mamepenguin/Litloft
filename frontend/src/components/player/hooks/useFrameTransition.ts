@@ -47,6 +47,14 @@ function reducedMotion(): boolean {
   return typeof window.matchMedia === "function" && window.matchMedia(REDUCED_MOTION_QUERY).matches;
 }
 
+/**
+ * On an iPhone, carrying the frame on a pinch-zoomed page sent it towards
+ * the top-left corner before it landed; a zoomed page switches instantly.
+ */
+function zoomed(): boolean {
+  return (window.visualViewport?.scale ?? 1) !== 1;
+}
+
 function supported(frame: HTMLElement): boolean {
   return typeof frame.animate === "function" && typeof ResizeObserver === "function";
 }
@@ -156,7 +164,8 @@ export function useFrameTransition(
       frame != null &&
       capturedRef.current != null &&
       supported(frame) &&
-      !reducedMotion()
+      !reducedMotion() &&
+      !zoomed()
     );
   }, [frameOf]);
 

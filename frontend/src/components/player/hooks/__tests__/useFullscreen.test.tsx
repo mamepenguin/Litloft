@@ -641,9 +641,7 @@ describe("useFullscreen — carrying the frame", () => {
     expect(back).toHaveBeenCalledTimes(1);
   });
 
-  it("measures the pinned frame itself, not innerWidth, which a pinch-zoomed page shrinks", async () => {
-    // iOS reports the zoomed viewport in innerWidth/innerHeight while the
-    // pinned frame keeps the layout viewport's size.
+  it("measures the pinned frame itself, not innerWidth", async () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 201 });
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 357 });
     const { result } = renderCarried();
@@ -746,6 +744,16 @@ describe("useFullscreen — carrying the frame", () => {
         expect(result.current.isPseudo).toBe(false);
       });
     }
+
+    it("while the page is pinch-zoomed", async () => {
+      vi.stubGlobal("visualViewport", { scale: 2 });
+      const { result } = renderCarried();
+      await act(async () => result.current.toggle());
+      reportPinned();
+      act(() => result.current.exit());
+      expect(animate).not.toHaveBeenCalled();
+      expect(result.current.isPseudo).toBe(false);
+    });
 
     it("into or out of a rotation", async () => {
       const { result } = renderCarried();
