@@ -3,13 +3,14 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 import { RestartBanner } from "@/components/RestartBanner";
 
+const copyTextMock = vi.hoisted(() => vi.fn<(text: string) => Promise<boolean>>());
+vi.mock("@/lib/copyText", () => ({ copyText: copyTextMock }));
+
 const mockFetch = vi.fn();
 
 beforeEach(() => {
   vi.stubGlobal("fetch", mockFetch);
-  Object.assign(navigator, {
-    clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
-  });
+  copyTextMock.mockReset();
 });
 
 afterEach(() => {
@@ -51,7 +52,7 @@ describe("RestartBanner", () => {
     expect(screen.getByText(/passwords\.json/)).toBeInTheDocument();
   });
 
-  it("copy button copies docker compose restart backend to clipboard", async () => {
+  async function renderPending() {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({ pending: true, files: [{ name: "drives.json", count: 1 }] }),
     );
@@ -59,12 +60,27 @@ describe("RestartBanner", () => {
     await waitFor(() => {
       expect(screen.getByText(/drives\.json/)).toBeInTheDocument();
     });
-    const button = screen.getByRole("button", { name: /コピー|copy/i });
-    fireEvent.click(button);
+  }
+
+  it("copies the restart command and says so", async () => {
+    copyTextMock.mockResolvedValue(true);
+    await renderPending();
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
     await waitFor(() => {
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        "docker compose restart backend",
-      );
+      expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
     });
+    expect(copyTextMock).toHaveBeenCalledWith("docker compose restart backend");
+  });
+
+  it("does not claim a copy the browser refused", async () => {
+    copyTextMock.mockResolvedValue(false);
+    await renderPending();
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    await waitFor(() => {
+      expect(copyTextMock).toHaveBeenCalledTimes(1);
+    });
+    await Promise.resolve();
+    expect(screen.getByRole("button", { name: "Copy" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copied" })).toBeNull();
   });
 });
