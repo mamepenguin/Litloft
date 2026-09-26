@@ -66,7 +66,7 @@ export function EpubPositionBar({
   };
 
   return (
-    <div className={`flex min-w-0 items-center gap-3 px-3 ${className}`}>
+    <div className={`flex min-w-0 flex-col justify-center gap-1 px-3 ${className}`}>
       <input
         type="range"
         data-player-scrub
@@ -86,11 +86,11 @@ export function EpubPositionBar({
         // A drag the system takes over ends without a pointerup.
         onPointerCancel={() => setDrag(null)}
         onBlur={() => commit(false)}
-        className="h-1 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-bg-border accent-accent disabled:cursor-not-allowed disabled:opacity-40"
+        className="h-1 w-full min-w-0 cursor-pointer appearance-none rounded-full bg-bg-border accent-accent disabled:cursor-not-allowed disabled:opacity-40"
       />
       <p
         data-testid="epub-position-line"
-        className="flex w-[45%] min-w-0 items-baseline gap-2 whitespace-nowrap text-xs text-text-muted"
+        className="flex min-w-0 items-baseline gap-2 whitespace-nowrap text-xs text-text-muted"
       >
         <span className="shrink-0 tabular-nums text-text-primary">{percent}%</span>
         {label && <span className="min-w-0 truncate">{label}</span>}

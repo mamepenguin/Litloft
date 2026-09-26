@@ -202,7 +202,7 @@ export function EpubPreview({ file }: EpubPreviewProps) {
               }}
             >
               <EpubPositionBar
-                className="h-12"
+                className="h-14"
                 fraction={location?.fraction ?? null}
                 chapter={chapter}
                 pagesLeft={location?.pagesLeft ?? null}
@@ -216,7 +216,7 @@ export function EpubPreview({ file }: EpubPreviewProps) {
           </>
         ) : (
           <EpubPositionBar
-            className="h-11 shrink-0 border-t border-bg-border"
+            className="h-14 shrink-0 border-t border-bg-border"
             fraction={location?.fraction ?? null}
             chapter={chapter}
             pagesLeft={location?.pagesLeft ?? null}
