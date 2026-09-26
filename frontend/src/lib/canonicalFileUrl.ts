@@ -10,6 +10,7 @@ import type { FileItem } from "@/types";
 export const CARRIED_QUERY_KEYS = [
   "t",
   "page",
+  "section",
   "highlight",
   "sort",
   "order",

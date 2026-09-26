@@ -114,7 +114,7 @@ describe("/files/[id] Server Component", () => {
     expect(url.searchParams.get("edit")).toBe("1");
   });
 
-  it("carries ?t / ?page / ?highlight / ?sort / ?order through the redirect", async () => {
+  it("carries ?t / ?page / ?section / ?highlight / ?sort / ?order through the redirect", async () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -130,6 +130,7 @@ describe("/files/[id] Server Component", () => {
         searchParams: Promise.resolve({
           t: "10",
           page: "5",
+          section: "3",
           highlight: "needle",
           sort: "name",
           order: "desc",
@@ -143,6 +144,7 @@ describe("/files/[id] Server Component", () => {
     expect(url.searchParams.get("file")).toBe("abc");
     expect(url.searchParams.get("t")).toBe("10");
     expect(url.searchParams.get("page")).toBe("5");
+    expect(url.searchParams.get("section")).toBe("3");
     expect(url.searchParams.get("highlight")).toBe("needle");
     expect(url.searchParams.get("sort")).toBe("name");
     expect(url.searchParams.get("order")).toBe("desc");
