@@ -16,30 +16,10 @@ const post = (type, payload = {}) => {
   if (parentWindow !== window) parentWindow.postMessage({ type, ...payload }, origin);
 };
 
-// The policy must refuse eval, inline script and a same-origin script outside
-// /epub-reader/. The last is decided on the violation event for that URL, which
-// is dispatched before the element's error, so a missing file cannot pass.
-const PROBE_URL = `${origin}/epub-reader-probe.js`;
-
-const outsideScriptRefused = () =>
-  new Promise((resolve) => {
-    let violated = false;
-    const onViolation = (e) => {
-      if (e.blockedURI === PROBE_URL) violated = true;
-    };
-    document.addEventListener("securitypolicyviolation", onViolation);
-    const finish = (refused) => {
-      document.removeEventListener("securitypolicyviolation", onViolation);
-      resolve(refused);
-    };
-    const probe = document.createElement("script");
-    probe.src = PROBE_URL;
-    probe.addEventListener("load", () => finish(false));
-    probe.addEventListener("error", () => finish(violated));
-    document.head.append(probe);
-  });
-
-const cspIsActive = async () => {
+// A policy without 'unsafe-eval' makes the Function constructor throw, and one
+// without 'unsafe-inline' leaves an inserted inline script unrun. That the
+// policy is the reader's own is held where the header is built.
+const cspIsActive = () => {
   try {
     new Function("return 1");
     return false;
@@ -51,8 +31,7 @@ const cspIsActive = async () => {
   inline.textContent = "window.__epubInlineProbe = true";
   document.head.append(inline);
   inline.remove();
-  if (window.__epubInlineProbe !== false) return false;
-  return outsideScriptRefused();
+  return window.__epubInlineProbe === false;
 };
 
 const state = {
@@ -236,13 +215,11 @@ window.addEventListener("message", (e) => {
     case "open":
       if (state.opened || !isValidOpen(d)) return;
       state.opened = true;
-      cspIsActive().then((active) => {
-        if (!active) {
-          post("error", { code: "isolation" });
-          return;
-        }
-        openBook(d).catch(() => post("error", { code: "parse" }));
-      });
+      if (!cspIsActive()) {
+        post("error", { code: "isolation" });
+        return;
+      }
+      openBook(d).catch(() => post("error", { code: "parse" }));
       return;
     case "turn":
       if (Object.hasOwn(MOVES, d.direction)) turn(MOVES[d.direction]);

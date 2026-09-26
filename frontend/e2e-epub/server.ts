@@ -8,7 +8,13 @@ import { extname, join } from "node:path";
 import type { AddressInfo } from "node:net";
 
 import { epubReaderCsp, isEpubReaderFile, isUnderEpubReader } from "../src/lib/epubReaderCsp";
-import { fixedLayoutBook, horizontalBook, hostileBook, verticalBook } from "./fixtures/books";
+import {
+  fixedLayoutBook,
+  flawedBook,
+  horizontalBook,
+  hostileBook,
+  verticalBook,
+} from "./fixtures/books";
 
 const PUBLIC_DIR = join(__dirname, "..", "public");
 const HOST_PAGE = join(__dirname, "fixtures", "host.html");
@@ -70,6 +76,7 @@ export async function startServer(): Promise<{ server: Server; origin: string }>
   books.set("horizontal.epub", horizontalBook());
   books.set("vertical.epub", verticalBook());
   books.set("fixed.epub", fixedLayoutBook());
+  books.set("flawed.epub", flawedBook());
   books.set("hostile.epub", hostileBook(origin));
   return { server, origin };
 }

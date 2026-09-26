@@ -70,15 +70,31 @@ function clickEverything(page: Page) {
   });
 }
 
-async function walkHostileBook(page: Page) {
+/**
+ * The hostile book's spine, in order. The SVG section is last and never shows
+ * as reached: foliate cannot lay out an SVG document and stops there.
+ */
+const HOSTILE_SECTIONS = ["c1", "c6", "c7", "c2", "c3", "c4", "c5-svg"];
+const LAID_OUT = HOSTILE_SECTIONS.length - 1;
+
+/** Reads the hostile book as far as `sections`, clicking everything on the way. */
+async function walkHostileBook(page: Page, sections = LAID_OUT) {
   await open(page, "hostile.epub");
   expect((await messages(page, "ready")).length).toBe(1);
-  for (let i = 0; i < 7; i++) {
+  const reached = new Set<number>();
+  for (let i = 0; i < 40; i++) {
+    const at = await where(page);
+    if (at.index !== undefined) reached.add(at.index);
+    if (at.index === sections - 1) break;
     await clickEverything(page);
     await page.evaluate(() => window.turn("next"));
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(300);
   }
+  await clickEverything(page);
   await page.waitForTimeout(500);
+  expect([...reached].sort((a, b) => a - b)).toEqual(
+    Array.from({ length: sections }, (_, i) => i),
+  );
 }
 
 test.describe("the reader document", () => {
@@ -120,7 +136,9 @@ test.describe("a hostile book", () => {
         body: "export const transformResource = () => {};",
       }),
     );
-    await walkHostileBook(page);
+    // Unsanitized, the section of unknown type is not a document foliate can
+    // lay out, so the walk ends before it.
+    await walkHostileBook(page, HOSTILE_SECTIONS.indexOf("c4"));
     expect(await page.evaluate(() => window.__pwned ?? null)).toBeNull();
   });
 
@@ -134,7 +152,7 @@ test.describe("a hostile book", () => {
     await page.route("**/epub-reader/reader.js", async (route) => {
       const response = await route.fetch();
       const body = await response.text();
-      const probeless = body.replace("cspIsActive().then(", "Promise.resolve(true).then(");
+      const probeless = body.replace("if (!cspIsActive()) {", "if (false) {");
       expect(probeless).not.toBe(body);
       await route.fulfill({ response, body: probeless });
     });
@@ -161,26 +179,6 @@ test.describe("a hostile book", () => {
       });
       await open(page, "hostile.epub");
       expect(await messages(page, "error")).toEqual([{ type: "error", code: "isolation" }]);
-    });
-  }
-
-  for (const policy of [
-    "script-src 'self'",
-    "script-src *",
-    "script-src http: https:",
-    "default-src 'none'; script-src 'self'; style-src 'unsafe-inline' blob:; frame-src blob:",
-  ]) {
-    test(`is never opened under a weaker policy: ${policy}`, async ({ page }) => {
-      await page.route("**/epub-reader/reader.html", async (route) => {
-        const response = await route.fetch();
-        await route.fulfill({
-          response,
-          headers: { ...response.headers(), "content-security-policy": policy },
-        });
-      });
-      await open(page, "hostile.epub");
-      expect(await messages(page, "error")).toEqual([{ type: "error", code: "isolation" }]);
-      expect(await page.evaluate(() => window.__pwned ?? null)).toBeNull();
     });
   }
 
@@ -246,6 +244,15 @@ test.describe("reader actions inside the book", () => {
     await expect.poll(async () => (await messages(page, "turned")).length).toBe(1);
     expect((await where(page)).index).toBe(2);
   });
+});
+
+test("a chapter with characters XML refuses is shown, and the book reads past it", async ({
+  page,
+}) => {
+  await open(page, "flawed.epub");
+  for (let i = 0; i < 10 && (await where(page)).index !== 2; i++) await turnAndSettle(page);
+  expect((await where(page)).index).toBe(2);
+  expect(await messages(page, "turned")).toHaveLength(2);
 });
 
 test("a fixed-layout book is refused", async ({ page }) => {

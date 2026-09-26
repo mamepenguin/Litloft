@@ -165,11 +165,11 @@ describe("attributes", () => {
 });
 
 describe("what the browser builds from the output", () => {
-  // Every attribute value in the tree an XHTML parser builds from the output.
-  function attributeValues(text: string, type: string): string[] {
+  // Every handler and every value in the tree the served type parses into.
+  function attributes(text: string, type: string) {
     const doc = parse(text, type);
     return Array.from(doc.getElementsByTagName("*")).flatMap((el) =>
-      Array.from(el.attributes, (a) => `${a.name}=${a.value}`),
+      Array.from(el.attributes, (a) => ({ localName: a.localName, value: a.value })),
     );
   }
 
@@ -195,10 +195,17 @@ describe("what the browser builds from the output", () => {
 
   it.each(vectors)("%s leaves no script URL or handler", (_name, body) => {
     const out = sanitizeMarkup(page(body), XHTML);
-    for (const value of attributeValues(out.text, out.type)) {
-      expect(value).not.toMatch(/javascript:/i);
-      expect(value).not.toMatch(/^([^=]*:)?on[a-z]+=/i);
+    for (const attr of attributes(out.text, out.type)) {
+      expect(attr.value).not.toMatch(/javascript:/i);
+      expect(attr.localName).not.toMatch(/^on/i);
     }
+  });
+
+  it("a refused section is still an empty document", () => {
+    const out = sanitizeMarkup('<book xmlns="urn:x-unknown"><p>x</p></book>', XHTML);
+    const doc = parse(out.text, out.type);
+    expect(doc.querySelector("parsererror")).toBeNull();
+    expect(doc.body?.textContent).toBe("");
   });
 
   it("sanitizing the output again changes nothing", () => {
@@ -245,14 +252,13 @@ describe("document shape", () => {
     expect(doc.getElementsByTagNameNS("http://www.idpf.org/2007/ops", "switch").length).toBe(0);
   });
 
-  it("malformed XHTML is parsed as HTML and served as well-formed XHTML", () => {
+  it("malformed XHTML is parsed as HTML and served as HTML", () => {
     const out = sanitizeMarkup(
       '<html><body><p id="m">m<br><img src=x onerror="x()"><script>x()</script></body></html>',
       XHTML,
     );
-    expect(out.type).toBe(XHTML);
-    const doc = parse(out.text, XHTML);
-    expect(doc.querySelector("parsererror")).toBeNull();
+    expect(out.type).toBe("text/html");
+    const doc = parse(out.text, out.type);
     expect(doc.getElementsByTagName("script").length).toBe(0);
     expect(doc.querySelector("img")!.hasAttribute("onerror")).toBe(false);
   });

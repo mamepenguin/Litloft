@@ -89,6 +89,18 @@ export function verticalBook(): Buffer {
   return book([NAV, ...items], items.map((i) => i.id), { lang: "ja", ppd: "rtl" });
 }
 
+/** Three short chapters; the middle one has mistakes common in converted books. */
+export function flawedBook(): Buffer {
+  const items = chapters(3, (n) => {
+    const flaw = n === 2 ? "<!-- a -- b --><p>line one\u000bline two</p>" : "";
+    return (
+      `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${n}</title></head>` +
+      `<body><h1>Chapter ${n}</h1>${flaw}<p>Short.</p></body></html>`
+    );
+  });
+  return book([NAV, ...items], items.map((i) => i.id));
+}
+
 export function fixedLayoutBook(): Buffer {
   const [item] = chapters(1, () =>
     '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>f</title></head><body><p>f</p></body></html>',

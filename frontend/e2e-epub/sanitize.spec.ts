@@ -81,6 +81,12 @@ const VECTORS: [string, string, string][] = [
     "application/xhtml+xml",
   ],
   [
+    "an SVG document with a script and a handler",
+    '<svg xmlns="http://www.w3.org/2000/svg" onload="x()"><script>x()</script>' +
+      '<a href="javascript:x()"><text y="20">t</text></a></svg>',
+    "image/svg+xml",
+  ],
+  [
     "a script hidden by a CDATA section",
     XHTML_PAGE('<svg xmlns="http://www.w3.org/2000/svg"><![CDATA[</svg><script>x()</script>]]></svg>'),
     "application/xhtml+xml",
@@ -88,7 +94,7 @@ const VECTORS: [string, string, string][] = [
 ];
 
 test("the declared set is the set tested", () => {
-  expect(VECTORS.length).toBe(7);
+  expect(VECTORS.length).toBe(8);
 });
 
 test.describe("the sanitizer alone, in the browser", () => {
@@ -99,6 +105,35 @@ test.describe("the sanitizer alone, in the browser", () => {
   for (const [name, text, type] of VECTORS) {
     test(name, async ({ page }) => {
       expect(await whatSurvives(page, text, type)).toEqual([]);
+    });
+  }
+});
+
+/** What a browser renders from the sanitizer's output, served with its type. */
+function renderedText(page: Page, text: string) {
+  return page.evaluate(async (text) => {
+    const moduleUrl = "/epub-reader/sanitize.js";
+    const { sanitizeMarkup } = await import(moduleUrl);
+    const out = sanitizeMarkup(text, "application/xhtml+xml");
+    const doc = new DOMParser().parseFromString(out.text, out.type);
+    return { type: out.type, text: doc.body?.textContent ?? "" };
+  }, text);
+}
+
+test.describe("a real book's mistakes are shown, not refused", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(`${origin()}/host.html?book=none`);
+  });
+
+  for (const [name, body] of [
+    ["a vertical tab used as a line break", "<p>line one\u000bline two</p>"],
+    ["a control character in an attribute", '<p title="a\u0001b">kept</p>'],
+    ["a double hyphen inside a comment", "<!-- a -- b --><p>kept</p>"],
+  ] as const) {
+    test(name, async ({ page }) => {
+      const out = await renderedText(page, XHTML_PAGE(body));
+      expect(out.type).toBe("text/html");
+      expect(out.text).toMatch(/kept|line one/);
     });
   }
 });
