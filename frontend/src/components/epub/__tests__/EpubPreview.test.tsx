@@ -220,6 +220,8 @@ describe("EpubPreview", () => {
     const view = renderPreview();
     await fromReader(view.readerWindow, { type: "boot" });
     await settle();
+    await fromReader(view.readerWindow, { type: "ready", dir: "ltr", vertical: false });
+    expect(screen.queryByRole("status")).toBeNull();
 
     const next = { ...FILE, id: "Zz9Zz9Zz9Zz9", filename: "c.epub" };
     view.rerender(
@@ -263,34 +265,25 @@ describe("EpubPreview", () => {
     expect(exit).toHaveBeenCalledTimes(1);
   });
 
-  it("entering full screen hands focus to the reader", async () => {
-    fullscreenState.isFullscreen = true;
-    fullscreenState.isPseudo = true;
-    const utils = render(
+  it("entering full screen hands focus to the reader, and leaving does not", async () => {
+    const tree = () => (
       <ShortcutsProvider>
         <EpubPreview file={FILE} />
-      </ShortcutsProvider>,
+      </ShortcutsProvider>
     );
+    const utils = render(tree());
     const readerWindow = utils.container.querySelector("iframe")!.contentWindow!;
     const focus = vi.spyOn(readerWindow, "focus").mockImplementation(() => {});
-    utils.rerender(
-      <ShortcutsProvider>
-        <EpubPreview file={FILE} />
-      </ShortcutsProvider>,
-    );
-    fullscreenState.isFullscreen = false;
-    utils.rerender(
-      <ShortcutsProvider>
-        <EpubPreview file={FILE} />
-      </ShortcutsProvider>,
-    );
+
     fullscreenState.isFullscreen = true;
-    utils.rerender(
-      <ShortcutsProvider>
-        <EpubPreview file={FILE} />
-      </ShortcutsProvider>,
-    );
-    expect(focus).toHaveBeenCalled();
+    fullscreenState.isPseudo = true;
+    utils.rerender(tree());
+    expect(focus).toHaveBeenCalledTimes(1);
+
+    fullscreenState.isFullscreen = false;
+    fullscreenState.isPseudo = false;
+    utils.rerender(tree());
+    expect(focus).toHaveBeenCalledTimes(1);
   });
 
   it("in full screen a key the reader does not use reaches nothing beneath it", async () => {

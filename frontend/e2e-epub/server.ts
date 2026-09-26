@@ -47,10 +47,6 @@ export async function startServer(): Promise<{ server: Server; origin: string }>
       res.end(readFileSync(join(PUBLIC_DIR, rawPath)));
       return;
     }
-    if (rawPath === "/epub-reader-probe.js") {
-      res.writeHead(200, { "Content-Type": TYPES[".js"] }).end(readFileSync(join(PUBLIC_DIR, rawPath)));
-      return;
-    }
     if (rawPath === "/host.html") {
       res.writeHead(200, { "Content-Type": TYPES[".html"] }).end(readFileSync(HOST_PAGE));
       return;

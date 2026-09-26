@@ -101,7 +101,20 @@ export function EpubPreview({ file }: EpubPreviewProps) {
             : "relative flex-1 rounded-xl",
         ].join(" ")}
       >
-        <div className="flex h-10 shrink-0 items-center justify-end border-b border-bg-border px-2">
+        <div
+          className="flex shrink-0 items-center justify-end border-b border-bg-border px-2"
+          style={
+            fullscreen.isPseudo
+              ? {
+                  // The pinned frame covers the whole screen, notch and
+                  // rounded corners included.
+                  minHeight: "calc(2.5rem + env(safe-area-inset-top, 0px))",
+                  paddingTop: "env(safe-area-inset-top, 0px)",
+                  paddingRight: "max(0.5rem, env(safe-area-inset-right, 0px))",
+                }
+              : { minHeight: "2.5rem" }
+          }
+        >
           {fullscreen.isFullscreen ? (
             <button
               type="button"

@@ -146,6 +146,12 @@ export function hostileBook(origin: string): Buffer {
     `<a id="pfx" foo:href="javascript:${PWN("prefixed-href")}" xmlns:foo="http://www.w3.org/1999/xlink">` +
     '<rect width="200" height="200"/></a>' +
     `<g foo:onload="${PWN("prefixed-onload")}" xmlns:foo="http://www.w3.org/2000/svg"/></svg></body></html>`;
+  // The same, with a character XML refuses after it: a browser renders the
+  // document up to that point, where an HTML parser would read all of it.
+  const fallbackCut = fallback
+    .replace("FALLBACK", "FALLBACK-CUT")
+    .replace("prefixed-href", "prefixed-href-cut")
+    .replace("</svg></body>", "</svg><p>x\u000cy</p></body>");
   const malformed =
     `<html><head><title>m</title></head><body><p>MALFORMED<br><script>${PWN("malformed")}</script>` +
     `<img src=x onerror="${PWN("malformed-onerror")}"></body></html>`;
@@ -160,10 +166,11 @@ export function hostileBook(origin: string): Buffer {
     { id: "c1", href: "c1.xhtml", type: "application/xhtml+xml", body: section1, properties: "scripted svg" },
     { id: "c2", href: "c2.xhtml", type: "application/xhtml+xml", body: malformed },
     { id: "c6", href: "c6.xhtml", type: "application/xhtml+xml", body: fallback },
+    { id: "c7", href: "c7.xhtml", type: "application/xhtml+xml", body: fallbackCut },
     { id: "c3", href: "c3.html", type: "text/html; charset=utf-8", body: mislabelled },
     { id: "c4", href: "c4.xhtml", type: "application/x-unknown", body: mislabelled },
     { id: "c5", href: "evil.svg", type: "image/svg+xml", body: svg },
     { id: "js", href: "evil.js", type: "application/javascript", body: PWN("manifest-js") },
   ];
-  return book(items, ["c1", "c6", "c2", "c3", "c4", "c5"]);
+  return book(items, ["c1", "c6", "c7", "c2", "c3", "c4", "c5"]);
 }

@@ -157,8 +157,9 @@ const parse = (text, type) => {
   return new DOMParser().parseFromString(text, "text/html");
 };
 
-const sanitizeOnce = (text, type) => {
-  const doc = parse(text, type);
+const EMPTY = { text: "", type: XHTML };
+
+const sanitizeDocument = (doc) => {
   sanitizeNode(doc);
   const root = doc.documentElement;
   if (!root) return EMPTY;
@@ -172,15 +173,15 @@ const sanitizeOnce = (text, type) => {
   };
 };
 
-const EMPTY = { text: "", type: XHTML };
-
-// The output is XML, and it is sanitized a second time as the browser will
-// parse it; a document that changes on that pass is refused rather than
-// trusted to have converged.
+// The output is sanitized a second time exactly as the browser will parse it:
+// as XML of the output's own type, with no HTML fallback. A document that
+// does not parse, or changes on that pass, is refused.
 export const sanitizeMarkup = (text, type) => {
-  const once = sanitizeOnce(text, type);
+  const once = sanitizeDocument(parse(text, type));
   if (!once.text) return EMPTY;
-  const twice = sanitizeOnce(once.text, once.type);
+  const strict = new DOMParser().parseFromString(once.text, once.type);
+  if (strict.querySelector("parsererror")) return EMPTY;
+  const twice = sanitizeDocument(strict);
   return twice.text === once.text && twice.type === once.type ? once : EMPTY;
 };
 

@@ -73,7 +73,7 @@ function clickEverything(page: Page) {
 async function walkHostileBook(page: Page) {
   await open(page, "hostile.epub");
   expect((await messages(page, "ready")).length).toBe(1);
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 7; i++) {
     await clickEverything(page);
     await page.evaluate(() => window.turn("next"));
     await page.waitForTimeout(400);
@@ -141,6 +141,28 @@ test.describe("a hostile book", () => {
     await walkHostileBook(page);
     expect(await page.evaluate(() => window.__pwned ?? null)).toBeNull();
   });
+
+  // The reader's own policy plus one weakening each: the probe's eval and
+  // inline checks are what refuse these.
+  for (const weakening of ["'unsafe-eval'", "'unsafe-inline'"]) {
+    test(`is never opened when the policy adds ${weakening}`, async ({ page }) => {
+      await page.route("**/epub-reader/reader.html", async (route) => {
+        const response = await route.fetch();
+        const host = new URL(route.request().url()).host;
+        const policy = epubReaderCsp(host).replace(
+          `script-src ${host}/epub-reader/`,
+          `script-src ${host}/epub-reader/ ${weakening}`,
+        );
+        expect(policy).toContain(weakening);
+        await route.fulfill({
+          response,
+          headers: { ...response.headers(), "content-security-policy": policy },
+        });
+      });
+      await open(page, "hostile.epub");
+      expect(await messages(page, "error")).toEqual([{ type: "error", code: "isolation" }]);
+    });
+  }
 
   for (const policy of [
     "script-src 'self'",

@@ -72,6 +72,15 @@ const VECTORS: [string, string, string][] = [
     "text/html",
   ],
   [
+    "a prefixed xlink href followed by a character XML refuses",
+    XHTML_PAGE(
+      '<parsererror/><svg xmlns="http://www.w3.org/2000/svg"><a foo:href="javascript:x()" ' +
+        'xmlns:foo="http://www.w3.org/1999/xlink"><rect width="9" height="9"/></a></svg>' +
+        "<p>x\u000cy</p>",
+    ),
+    "application/xhtml+xml",
+  ],
+  [
     "a script hidden by a CDATA section",
     XHTML_PAGE('<svg xmlns="http://www.w3.org/2000/svg"><![CDATA[</svg><script>x()</script>]]></svg>'),
     "application/xhtml+xml",
@@ -79,7 +88,7 @@ const VECTORS: [string, string, string][] = [
 ];
 
 test("the declared set is the set tested", () => {
-  expect(VECTORS.length).toBe(6);
+  expect(VECTORS.length).toBe(7);
 });
 
 test.describe("the sanitizer alone, in the browser", () => {

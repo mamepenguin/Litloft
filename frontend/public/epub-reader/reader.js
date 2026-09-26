@@ -16,16 +16,26 @@ const post = (type, payload = {}) => {
   if (parentWindow !== window) parentWindow.postMessage({ type, ...payload }, origin);
 };
 
-// The policy must refuse eval, inline script and a same-origin script
-// outside /epub-reader/. The probe script exists, so an error means refused.
-const PROBE_SCRIPT = "/epub-reader-probe.js";
+// The policy must refuse eval, inline script and a same-origin script outside
+// /epub-reader/. The last is decided on the violation event for that URL, which
+// is dispatched before the element's error, so a missing file cannot pass.
+const PROBE_URL = `${origin}/epub-reader-probe.js`;
 
 const outsideScriptRefused = () =>
   new Promise((resolve) => {
+    let violated = false;
+    const onViolation = (e) => {
+      if (e.blockedURI === PROBE_URL) violated = true;
+    };
+    document.addEventListener("securitypolicyviolation", onViolation);
+    const finish = (refused) => {
+      document.removeEventListener("securitypolicyviolation", onViolation);
+      resolve(refused);
+    };
     const probe = document.createElement("script");
-    probe.src = `${origin}${PROBE_SCRIPT}`;
-    probe.addEventListener("load", () => resolve(false));
-    probe.addEventListener("error", () => resolve(true));
+    probe.src = PROBE_URL;
+    probe.addEventListener("load", () => finish(false));
+    probe.addEventListener("error", () => finish(violated));
     document.head.append(probe);
   });
 
@@ -128,7 +138,7 @@ const installTouch = (win) => {
     const from = start;
     start = null;
     // Pinch zoom happens on the page that holds the reader, not in it.
-    const zoom = (window.top?.visualViewport ?? window.visualViewport)?.scale ?? 1;
+    const zoom = (parentWindow.visualViewport ?? window.visualViewport)?.scale ?? 1;
     if (!from || !t || zoom > 1) return;
     const dx = t.clientX - from.x;
     const dy = t.clientY - from.y;
