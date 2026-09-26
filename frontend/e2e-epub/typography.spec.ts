@@ -129,12 +129,12 @@ test.describe("a change", () => {
     expect(await messages(page, "turned")).toEqual([]);
   });
 
-  test("during a seek posts only the seek's turn, at the place the seek went to", async ({ page }) => {
+  for (const delay of [0, 5, 15, 40]) test(`${delay} ms into a seek posts only the seek's turn, at the place the seek went to`, async ({ page }) => {
     await open(page, "styled.epub");
-    await page.evaluate(() => {
+    await page.evaluate((ms) => {
       window.seek(0.7, 5);
-      window.setTypography({ fontSize: 5, lineHeight: "original", margin: "normal", fontFamily: "original" });
-    });
+      setTimeout(() => window.setTypography({ fontSize: 5, lineHeight: "original", margin: "normal", fontFamily: "original" }), ms);
+    }, delay);
     await expect.poll(async () => (await messages(page, "seeked")).length).toBe(1);
     await page.waitForTimeout(SETTLE_MS * 2);
     const turned = await messages(page, "turned");

@@ -312,7 +312,9 @@ const openBook = async ({ bytes, fraction, section, theme, typography }) => {
     // (a spread) and to a vertical book on a tall one, where it would stack
     // two pages on top of each other; only the first is wanted.
     const root = e.detail.doc.documentElement;
-    if (root && !root.hasAttribute(OWN_ROOT_ATTR)) {
+    if (root) {
+      // Read with the scaling rule off, so the size is always the book's own.
+      root.removeAttribute(OWN_ROOT_ATTR);
       root.style.setProperty(OWN_ROOT_VAR, win.getComputedStyle(root).fontSize);
       root.setAttribute(OWN_ROOT_ATTR, "");
     }
