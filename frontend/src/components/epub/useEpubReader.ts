@@ -32,8 +32,7 @@ async function fetchBook(fileId: string, signal: AbortSignal): Promise<ArrayBuff
 
 /**
  * Keys the reader hands back are replayed on this document, so the page's
- * own shortcut stack decides what they mean here — the previous or next
- * file inline, closing full screen.
+ * own shortcut stack decides what they mean here.
  */
 function replayKey(key: string): void {
   document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));

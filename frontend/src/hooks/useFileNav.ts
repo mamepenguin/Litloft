@@ -8,6 +8,15 @@ import { playerKind } from "@/lib/playerKind";
 import type { FileItem, Neighbors } from "@/types";
 import { useShortcuts } from "./useShortcuts";
 
+/**
+ * Readers whose arrows belong to their pages, the way a player's belong to
+ * seeking. The on-screen previous / next buttons still work for them.
+ */
+const PAGED_MIMES: ReadonlySet<string> = new Set([
+  "application/pdf",
+  "application/epub+zip",
+]);
+
 interface UseFileNavOpts {
   fileId: string | null;
   sort?: string;
@@ -65,12 +74,11 @@ export function useFileNav({
     };
   }, [fileId, sort, order, enabled]);
 
-  // video / audio / .loft own ArrowLeft / Right for seek; only non-media
-  // files claim them for prev/next navigation.
   const shortcutsEnabled =
     enabled &&
     !!neighbors &&
-    playerKind({ mime_type: mimeType, file_type: fileType }) === null;
+    playerKind({ mime_type: mimeType, file_type: fileType }) === null &&
+    !PAGED_MIMES.has(mimeType ?? "");
 
   const navigatePrev = useCallback(() => {
     if (neighbors?.prev_id) onNavigate(neighbors.prev_id);

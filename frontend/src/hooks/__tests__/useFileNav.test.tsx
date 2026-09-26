@@ -185,6 +185,46 @@ describe("useFileNav", () => {
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["PDF", "application/pdf"],
+    ["EPUB", "application/epub+zip"],
+  ])("does not bind arrow keys for %s files", async (_, mimeType) => {
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "document",
+          mimeType,
+          enabled: true,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.prevId).toBe("prev1"));
+    await dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowRight");
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it("binds arrow keys for image files", async () => {
+    const onNavigate = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "image",
+          mimeType: "image/jpeg",
+          enabled: true,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.nextId).toBe("next1"));
+    await dispatchKey("ArrowRight");
+    expect(onNavigate).toHaveBeenCalledWith("next1");
+  });
+
   it("does not call onNavigate when neighbor id is null", async () => {
     (api.getFileNeighbors as ReturnType<typeof vi.fn>).mockResolvedValue({
       prev_id: null,

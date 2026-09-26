@@ -64,8 +64,7 @@ export function EpubPreview({ file }: EpubPreviewProps) {
     ready && !fullscreen.isFullscreen,
   );
 
-  // Over everything beneath it while the book fills the screen: the arrows
-  // turn pages here instead of moving to another file.
+  // Over everything beneath it while the book fills the screen.
   useShortcuts(
     "epub-reader-fullscreen",
     t("epubShortcuts"),
