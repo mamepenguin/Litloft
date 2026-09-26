@@ -56,6 +56,7 @@ ADDED = {
     ".webp": ("image", "image/webp"),
     ".m2ts": ("video", "video/mp2t"),
     ".org": ("document", "application/octet-stream"),
+    ".epub": ("document", "application/epub+zip"),
     ".adoc": ("other", "application/octet-stream"),
     ".cc": ("other", "application/octet-stream"),
     ".cfg": ("other", "application/octet-stream"),

@@ -486,6 +486,55 @@ def generate_pdf_thumbnail(pdf_path: str, output_path: str) -> bool:
         return False
 
 
+_EPUB_COVER_FORMATS = ("JPEG", "PNG", "GIF", "WEBP")
+_EPUB_COVER_MAX_PIXELS = 40_000_000
+
+
+def generate_epub_thumbnail(epub_path: str, output_path: str) -> bool:
+    # The cover is bytes the book chose, so Pillow decodes it from memory and
+    # ffmpeg never sees it: its demuxers follow playlists and concat lists to
+    # other files and URLs.
+    import io
+    import zipfile
+
+    from PIL import Image
+
+    from app.services.epub_cover import EpubCoverError, read_cover_bytes
+
+    try:
+        cover = read_cover_bytes(epub_path)
+    except (EpubCoverError, zipfile.BadZipFile, OSError, RuntimeError, ValueError) as e:
+        logger.warning("EPUB cover unreadable for %s: %s", epub_path, e)
+        return False
+    if cover is None:
+        return False
+
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with Image.open(io.BytesIO(cover), formats=_EPUB_COVER_FORMATS) as img:
+            width, height = img.size
+            if width * height > _EPUB_COVER_MAX_PIXELS:
+                logger.warning(
+                    "EPUB cover too large for %s: %dx%d", epub_path, width, height
+                )
+                return False
+            img.thumbnail((320, 180))
+            picture = img.convert("RGBA")
+
+        canvas = Image.new("RGB", (320, 180), (255, 255, 255))
+        canvas.paste(
+            picture,
+            ((320 - picture.width) // 2, (180 - picture.height) // 2),
+            picture,
+        )
+        canvas.save(output_path, format="JPEG", quality=85)
+        return output.exists()
+    except Exception as e:
+        logger.warning("EPUB cover thumbnail failed for %s: %s", epub_path, e)
+        return False
+
+
 def _process_umask() -> int:
     """The umask, read the only way the platform offers: by setting it.
 
@@ -532,6 +581,8 @@ def get_thumbnail_generator(file_type: str, mime_type: str | None):
         return generate_image_thumbnail
     if file_type == "document" and mime_type == "application/pdf":
         return generate_pdf_thumbnail
+    if file_type == "document" and mime_type == "application/epub+zip":
+        return generate_epub_thumbnail
     return None
 
 
