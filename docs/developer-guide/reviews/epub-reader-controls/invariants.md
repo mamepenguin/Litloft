@@ -75,3 +75,13 @@ state, the prediction that every keyboard change ends in a keyup was removed:
 a keyboard or assistive change now seeks at once, and only a pointer drag
 keeps a value until release. r7 F2's test, which sent a blur no browser sends
 any more, was rewritten around that.
+
+## After r8 (decided by the user)
+
+r8 F1: once a keyboard change seeked at once, a held arrow stepped 1/1000,
+which is usually less than a page; each seek landed on the page shown and the
+thumb went back, so arrows never moved the place. The user chose to have the
+arrow keys on the slider turn pages, as they do over the book (Left/Right in
+the book's reading direction, Up next, Down previous); Home, End and
+PageUp/PageDown still move the slider. No state was added. r8 F2 (no rtl
+keyboard test) is covered by the arrow-key table.
