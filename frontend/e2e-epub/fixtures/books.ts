@@ -15,7 +15,12 @@ interface Item {
 function book(
   items: Item[],
   spine: string[],
-  { lang = "en", ppd, layout }: { lang?: string; ppd?: "rtl"; layout?: string } = {},
+  {
+    lang = "en",
+    ppd,
+    layout,
+    nonLinear = [],
+  }: { lang?: string; ppd?: "rtl"; layout?: string; nonLinear?: string[] } = {},
 ): Buffer {
   const manifest = items
     .map((i) => `<item id="${i.id}" href="${i.href}" media-type="${i.type}"${i.properties ? ` properties="${i.properties}"` : ""}/>`)
@@ -29,7 +34,9 @@ function book(
     (layout ? `<meta property="rendition:layout">${layout}</meta>` : "") +
     `</metadata><manifest>${manifest}</manifest>` +
     `<spine${ppd ? ` page-progression-direction="${ppd}"` : ""}>` +
-    spine.map((id) => `<itemref idref="${id}"/>`).join("") +
+    spine
+      .map((id) => `<itemref idref="${id}"${nonLinear.includes(id) ? ' linear="no"' : ""}/>`)
+      .join("") +
     "</spine></package>";
   return storedZip([
     ["mimetype", "application/epub+zip"],
@@ -122,6 +129,56 @@ export function mixedBook(): Buffer {
     `<body><h1>Chapter ${n}</h1><p>A horizontal chapter.</p></body></html>`;
   const items = chapters(3, (n) => (n === 2 ? horizontal(n) : vertical(n)));
   return book([NAV, ...items], items.map((i) => i.id), { lang: "ja", ppd: "rtl" });
+}
+
+/**
+ * A table of contents with the entries converted books get wrong: a picture
+ * with no title, a heading with no link, a link to a file not in the book.
+ */
+export function tocBook(): Buffer {
+  const items = chapters(4, (n) => {
+    const paras = Array.from(
+      { length: PARAGRAPHS },
+      (_, i) => `<p>Chapter ${n}, paragraph ${i}. This line exists so that the chapter spans several pages.</p>`,
+    ).join("");
+    return `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${n}</title></head><body><h1 id="s">Chapter ${n}</h1>${paras}</body></html>`;
+  });
+  const nav: Item = {
+    ...NAV,
+    body:
+      '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">' +
+      '<head><title>n</title></head><body><nav epub:type="toc"><ol>' +
+      '<li><a href="c1.xhtml"><img src="cover.png" alt=""/></a></li>' +
+      '<li><span>Part</span><ol><li><a href="c2.xhtml">Two</a></li><li><a href="c3.xhtml#s">Three</a></li></ol></li>' +
+      '<li><a href="missing.xhtml">Gone</a></li>' +
+      '<li><a href="c4.xhtml">Four &amp; <b>bold</b></a></li>' +
+      "</ol></nav></body></html>",
+  };
+  return book([nav, ...items], items.map((i) => i.id));
+}
+
+/** A cover and notes outside the reading order, around three chapters. */
+export function nonLinearBook(): Buffer {
+  const page = (id: string, text: string) => ({
+    id,
+    href: `${id}.xhtml`,
+    type: "application/xhtml+xml",
+    body: `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${id}</title></head><body><h1>${text}</h1></body></html>`,
+  });
+  const items = chapters(3, (n) => {
+    const paras = Array.from(
+      { length: PARAGRAPHS },
+      (_, i) => `<p>Chapter ${n}, paragraph ${i}. This line exists so that the chapter spans several pages.</p>`,
+    ).join("");
+    return `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${n}</title></head><body><h1>Chapter ${n}</h1>${paras}</body></html>`;
+  });
+  const cover = page("cover", "COVER");
+  const notes = page("notes", "NOTES");
+  return book(
+    [NAV, cover, ...items, notes],
+    ["cover", ...items.map((i) => i.id), "notes"],
+    { nonLinear: ["cover", "notes"] },
+  );
 }
 
 export function fixedLayoutBook(): Buffer {

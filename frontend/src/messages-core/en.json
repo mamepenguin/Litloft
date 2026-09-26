@@ -202,7 +202,9 @@
     "epubPageLeft": "Page to the left",
     "epubPageRight": "Page to the right",
     "epubFullscreen": "Read full screen",
-    "epubExitFullscreen": "Exit full screen"
+    "epubExitFullscreen": "Exit full screen",
+    "epubPosition": "Reading position",
+    "epubPagesLeft": "{count, plural, one {# page} other {# pages}} left in chapter"
   },
   "search": {
     "label": "Search",

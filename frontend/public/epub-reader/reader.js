@@ -1,8 +1,10 @@
 import { transformResource } from "./sanitize.js";
 import {
   edgeAction,
+  flattenToc,
   isHttpUrl,
   isValidOpen,
+  isValidSeek,
   keyAction,
   restoreAnchor,
   swipeAction,
@@ -11,6 +13,7 @@ import {
 const parentWindow = window.parent;
 const origin = location.origin;
 const TAP_SLOP_PX = 10;
+const POINTER_ACTIVITY_MS = 250;
 
 const post = (type, payload = {}) => {
   if (parentWindow !== window) parentWindow.postMessage({ type, ...payload }, origin);
@@ -41,6 +44,10 @@ const state = {
   fullscreen: false,
   turning: false,
   opened: false,
+  ready: false,
+  tocHrefs: [],
+  pendingSeek: null,
+  lastPointerActivity: 0,
 };
 
 const THEMES = {
@@ -70,6 +77,18 @@ const startFraction = () => {
   return state.progress.getProgress(loc.index, loc.fraction ?? 0, 0).fraction;
 };
 
+const postLocation = () => {
+  const fraction = startFraction();
+  if (!state.ready || fraction === null) return;
+  const { renderer } = state.view;
+  const id = state.view.lastLocation?.tocItem?.id;
+  post("location", {
+    fraction,
+    tocIndex: Number.isInteger(id) && id < state.tocHrefs.length ? id : null,
+    pagesLeft: renderer.pages > 2 ? Math.max(0, renderer.pages - 2 - renderer.page) : null,
+  });
+};
+
 // Every reader action goes through here; restore and reflow do not.
 const turn = async (move) => {
   if (!state.view || state.turning) return;
@@ -80,8 +99,9 @@ const turn = async (move) => {
   } finally {
     state.turning = false;
   }
-  if (locationKey(state.lastRelocate) === before) return;
-  post("turned", { fraction: startFraction(), atEnd: !!state.view.renderer.atEnd });
+  if (locationKey(state.lastRelocate) !== before)
+    post("turned", { fraction: startFraction(), atEnd: !!state.view.renderer.atEnd });
+  if (state.pendingSeek !== null) runPendingSeek();
 };
 
 const MOVES = {
@@ -92,6 +112,7 @@ const MOVES = {
 };
 
 const onKeyDown = (e) => {
+  if (state.fullscreen) post("activity", { kind: "key" });
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const action = keyAction(e.key, { shift: e.shiftKey, fullscreen: state.fullscreen });
   if (!action) return;
@@ -135,7 +156,18 @@ const installTouch = (win) => {
     const x = t.clientX + (win.frameElement?.getBoundingClientRect().left ?? 0);
     const edge = edgeAction(x, window.innerWidth);
     if (edge) turn(MOVES[edge]);
+    else post("activity", { kind: "tap" });
   }, { capture: true });
+};
+
+const installPointer = (win) => {
+  win.addEventListener("pointermove", (e) => {
+    if (!state.fullscreen || e.pointerType === "touch") return;
+    const now = performance.now();
+    if (now - state.lastPointerActivity < POINTER_ACTIVITY_MS) return;
+    state.lastPointerActivity = now;
+    post("activity", { kind: "pointer" });
+  }, { passive: true });
 };
 
 const firstLinearIndex = (book) => {
@@ -154,6 +186,44 @@ const restore = async (fraction) => {
     index,
     anchor: () => restoreAnchor(inSection, view.renderer.pages),
   });
+};
+
+const lastLinearIndex = (book) => {
+  for (let i = book.sections.length - 1; i >= 0; i--) if (book.sections[i].linear !== "no") return i;
+  return book.sections.length - 1;
+};
+
+// The same landing as a restore, so that a seek and reopening at the saved
+// fraction show the same page.
+const seekTarget = (fraction) => {
+  const { view, progress } = state;
+  if (fraction <= 0) return { index: firstLinearIndex(view.book), anchor: 0 };
+  if (fraction >= 1) return { index: lastLinearIndex(view.book), anchor: 1 };
+  const [index, inSection] = progress.getSection(fraction);
+  return { index, anchor: () => restoreAnchor(inSection, view.renderer.pages) };
+};
+
+// A seek that arrives mid-turn waits for it; only the latest one is kept.
+// Each seek that runs is answered, even when it lands on the page already
+// shown and so reports no turn.
+const runPendingSeek = () => {
+  if (state.turning || state.pendingSeek === null) return;
+  const { fraction, id } = state.pendingSeek;
+  state.pendingSeek = null;
+  turn((v) => v.renderer.goTo(seekTarget(fraction)))
+    .finally(() => post("seeked", { id }))
+    .catch(() => {});
+};
+
+// The fractions are the ones positions are reported in, so a chapter's
+// first page and the chapter's entry compare equal.
+const buildToc = (view) => {
+  try {
+    const resolveIndex = (href) => view.resolveNavigation(href)?.index ?? null;
+    return flattenToc(view.book.toc, resolveIndex, state.progress.sectionFractions);
+  } catch {
+    return { entries: [], hrefs: [] };
+  }
 };
 
 const openBook = async ({ bytes, fraction, theme }) => {
@@ -192,13 +262,17 @@ const openBook = async ({ bytes, fraction, theme }) => {
       view.renderer.setAttribute("max-column-count", columns);
     win.addEventListener("keydown", onKeyDown);
     installTouch(win);
+    installPointer(win);
   });
   document.body.append(view);
   await view.open(book);
   state.view = view;
   state.progress = new SectionProgress(book.sections, 1500, 1600);
+  // Registered after the view's own listener, so the view's tocItem is
+  // already this location's.
   view.renderer.addEventListener("relocate", (e) => {
     state.lastRelocate = e.detail;
+    postLocation();
   });
   view.renderer.setAttribute("margin", "32px");
   view.renderer.setAttribute("gap", "6%");
@@ -208,10 +282,15 @@ const openBook = async ({ bytes, fraction, theme }) => {
 
   const doc = view.renderer.getContents?.()[0]?.doc;
   const writingMode = doc?.body ? doc.defaultView.getComputedStyle(doc.body).writingMode : "";
+  const toc = buildToc(view);
+  state.tocHrefs = toc.hrefs;
   post("ready", {
     dir: book.dir === "rtl" ? "rtl" : "ltr",
     vertical: writingMode.startsWith("vertical"),
+    toc: toc.entries,
   });
+  state.ready = true;
+  postLocation();
 };
 
 window.addEventListener("message", (e) => {
@@ -231,6 +310,11 @@ window.addEventListener("message", (e) => {
     case "turn":
       if (Object.hasOwn(MOVES, d.direction)) turn(MOVES[d.direction]);
       return;
+    case "seek":
+      if (!state.ready || !isValidSeek(d)) return;
+      state.pendingSeek = { fraction: d.fraction, id: d.id };
+      runPendingSeek();
+      return;
     case "theme":
       if (d.theme === "light" || d.theme === "dark") applyTheme(d.theme);
       return;
@@ -242,4 +326,5 @@ window.addEventListener("message", (e) => {
 
 document.addEventListener("keydown", onKeyDown);
 installTouch(window);
+installPointer(window);
 post("boot");

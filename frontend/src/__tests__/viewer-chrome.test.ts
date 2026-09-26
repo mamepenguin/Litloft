@@ -34,6 +34,7 @@ describe("full-screen viewer chrome", () => {
     join(SRC, "components/ImageGallery.tsx"),
     join(SRC, "components/archive/ArchiveImageViewer.tsx"),
     join(SRC, "components/pdf/PdfFullscreenViewer.tsx"),
+    join(SRC, "components/epub/EpubPreview.tsx"),
   ];
 
   it("has no native select in any viewer", () => {
@@ -53,7 +54,7 @@ describe("full-screen viewer chrome", () => {
     ]);
   });
 
-  it("has exactly three callers of the auto-hiding chrome hook", () => {
+  it("has exactly four callers of the auto-hiding chrome hook", () => {
     const callers = sourceFiles().filter(
       (f) =>
         !f.endsWith(join("hooks", "useAutoHidingChrome.ts")) &&
@@ -62,6 +63,7 @@ describe("full-screen viewer chrome", () => {
     expect(callers.map((f) => f.slice(SRC.length + 1)).sort()).toEqual([
       "components/ImageGallery.tsx",
       "components/archive/useImageViewer.ts",
+      "components/epub/EpubPreview.tsx",
       "components/pdf/PdfFullscreenViewer.tsx",
     ]);
   });
