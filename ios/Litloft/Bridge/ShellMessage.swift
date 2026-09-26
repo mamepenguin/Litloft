@@ -141,10 +141,30 @@ enum ShellAction: Equatable {
     case media(MediaCommand, loadId: String?)
     case pageBackground(PageColor)
     case embedFullscreen(videoId: String)
+    case pageImmersive(Bool)
     /// A command about a file this shell cannot read, from a page built
     /// against another version of the contract. Reported rather than dropped,
     /// or the page waits for a load that will never happen.
     case unreadable(loadId: String)
+}
+
+/// Sent once the web view has been laid out for `active`, carrying its size so
+/// the page can wait until its own viewport has caught up.
+struct ImmersiveApplied: Encodable, Equatable {
+    let active: Bool
+    let size: CGSize
+
+    private enum CodingKeys: String, CodingKey {
+        case type, active, width, height
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode("page.immersive.applied", forKey: .type)
+        try container.encode(active, forKey: .active)
+        try container.encode(Double(size.width), forKey: .width)
+        try container.encode(Double(size.height), forKey: .height)
+    }
 }
 
 enum ShellMessageType {

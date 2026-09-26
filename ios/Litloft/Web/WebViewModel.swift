@@ -12,6 +12,13 @@ final class WebViewModel {
     private(set) var state: State = .loading
     private(set) var reloadToken = 0
     private(set) var pageColor: PageColor?
+    /// The page has something full screen: no status bar, and the web view
+    /// reaches the top edge.
+    private(set) var immersive = false
+    /// What SwiftUI has most recently laid the web view out for, which trails
+    /// `immersive` by at least one update.
+    @ObservationIgnored private(set) var laidOutImmersive = false
+    @ObservationIgnored var onImmersiveLaidOut: (() -> Void)?
 
     let serverURL: URL
 
@@ -21,6 +28,16 @@ final class WebViewModel {
 
     func setPageColor(_ color: PageColor) {
         pageColor = color
+    }
+
+    func setImmersive(_ immersive: Bool) {
+        self.immersive = immersive
+    }
+
+    func laidOut(immersive: Bool) {
+        guard laidOutImmersive != immersive else { return }
+        laidOutImmersive = immersive
+        onImmersiveLaidOut?()
     }
 
     func markLoading() {

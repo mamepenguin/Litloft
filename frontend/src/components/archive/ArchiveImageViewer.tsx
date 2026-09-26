@@ -20,6 +20,7 @@ import type { ArchiveEntry } from "@/types";
 import { SlideshowIntervalMenu } from "@/components/gallery/SlideshowIntervalMenu";
 import type { AutoHidingChrome } from "@/hooks/useAutoHidingChrome";
 import type { Orientation, SpreadFace } from "@/lib/spreadPaging";
+import { useShellImmersive } from "@/lib/shellImmersive";
 
 interface ArchiveImageViewerProps {
   fileId: string;
@@ -98,6 +99,7 @@ export function ArchiveImageViewer({
   });
   useViewerZoomShortcuts(zoom, true);
 
+  useShellImmersive(true);
   const backdropRef = useInertBackdrop<HTMLDivElement>(true);
 
   // Portalled: opened from inside the file page's player box, which is a
@@ -112,7 +114,7 @@ export function ArchiveImageViewer({
       className="fixed inset-0 z-[60] flex flex-col bg-black"
     >
       <div
-        className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300"
+        className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] transition-opacity duration-300"
         {...chromeProps}
       >
         <span className="max-w-[40%] truncate text-sm text-white/80">

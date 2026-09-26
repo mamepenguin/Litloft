@@ -24,6 +24,7 @@ import type { Orientation } from "@/lib/spreadPaging";
 import { SlideshowIntervalMenu } from "@/components/gallery/SlideshowIntervalMenu";
 import { getDriveFiles, getStreamUrl } from "@/lib/api";
 import type { FileItem, SortField, SortOrder } from "@/types";
+import { useShellImmersive } from "@/lib/shellImmersive";
 
 interface ImageGalleryProps {
   open: boolean;
@@ -301,6 +302,7 @@ export function ImageGallery({
   });
   useViewerZoomShortcuts(zoom, open);
 
+  useShellImmersive(open);
   const backdropRef = useInertBackdrop<HTMLDivElement>(open);
 
   useEffect(() => {
@@ -323,7 +325,7 @@ export function ImageGallery({
       className="fixed inset-0 z-[60] flex flex-col bg-black"
     >
       <div
-        className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300"
+        className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] transition-opacity duration-300"
         {...chrome.chromeProps}
       >
         <span className="max-w-[40%] truncate text-sm text-white/80">

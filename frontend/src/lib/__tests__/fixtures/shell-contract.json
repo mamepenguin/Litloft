@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "commands": {
     "load": {
       "type": "media.load",
@@ -61,7 +61,12 @@
     "surfaceGone": { "type": "media.surface", "loadId": "load-1", "geometry": null },
     "pip": { "type": "media.pip", "loadId": "load-1", "active": true },
     "pageBackground": { "type": "page.background", "color": "#1a0e10" },
-    "embedFullscreen": { "type": "embed.fullscreen", "videoId": "dQw4w9WgXcQ" }
+    "embedFullscreen": { "type": "embed.fullscreen", "videoId": "dQw4w9WgXcQ" },
+    "immersiveOn": { "type": "page.immersive", "active": true },
+    "immersiveOff": { "type": "page.immersive", "active": false }
+  },
+  "reports": {
+    "immersiveApplied": { "type": "page.immersive.applied", "active": true, "width": 402, "height": 874 }
   },
   "states": {
     "loading": {

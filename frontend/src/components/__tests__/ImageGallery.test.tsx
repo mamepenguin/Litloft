@@ -20,6 +20,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import { getDriveFiles } from "@/lib/api";
+import { immersive, installShellStub } from "@/test/shellStub";
 const mockGetDriveFiles = vi.mocked(getDriveFiles);
 
 function makeImage(id: string, title: string): FileItem {
@@ -538,4 +539,32 @@ describe("ImageGallery backdrop", () => {
     expect(document.querySelectorAll("[inert]")).toHaveLength(0);
   });
 
+});
+
+describe("ImageGallery in the iOS shell", () => {
+  it("holds the shell immersive only while open", () => {
+    setupMock();
+    const shell = installShellStub(4);
+    try {
+      const { rerender, unmount } = renderWithShortcuts(<ImageGallery {...defaultProps} open={false} />);
+      expect(shell.posted).toEqual([]);
+
+      rerender(
+        <ShortcutsProvider>
+          <ImageGallery {...defaultProps} open />
+        </ShortcutsProvider>,
+      );
+      expect(shell.posted).toEqual([immersive(true)]);
+
+      rerender(
+        <ShortcutsProvider>
+          <ImageGallery {...defaultProps} open={false} />
+        </ShortcutsProvider>,
+      );
+      expect(shell.posted).toEqual([immersive(true), immersive(false)]);
+      unmount();
+    } finally {
+      shell.remove();
+    }
+  });
 });

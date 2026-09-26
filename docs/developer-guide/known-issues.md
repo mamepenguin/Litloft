@@ -320,6 +320,18 @@ image callout, not text selection; `-webkit-user-select` does, and it is not set
 A fix belongs in core, on the chrome (cards, rows, toolbars) and not on prose,
 which must stay selectable.
 
+**Leaving full screen and opening it again at once can skip the animation.**
+In the app, a video waits for the app to widen the page before it grows, and
+the app's answers carry no request id. Opened again within about one layout of
+leaving, the video can take the answer to the earlier request, grow in the
+narrow page, and then switch to full screen without the animation once the
+page widens. It still ends in full screen.
+
+**On a `.loft` embed in full screen, YouTube's own title bar sits under the
+Dynamic Island.** The app hides the status bar and lets the page reach the top
+edge while something is full screen. Litloft's controls move below the island,
+but the title YouTube draws inside its iframe cannot be moved from the page.
+
 ## Addons
 
 **A note opened from a search result is never highlighted while the knowledge

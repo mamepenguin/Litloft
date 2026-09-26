@@ -35,6 +35,7 @@ import { rasterCacheFor, type RasterRequest } from "@/lib/pdfRasterCache";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { readSpreadMode, writeSpreadMode } from "@/lib/spreadPreference";
 import type { Orientation } from "@/lib/spreadPaging";
+import { useShellImmersive } from "@/lib/shellImmersive";
 
 const READING_DIRECTION_KEY = "image-viewer:reading-direction";
 const RASTER_OWNER = "fullscreen";
@@ -289,6 +290,7 @@ export function PdfFullscreenViewer({
     });
   }, []);
 
+  useShellImmersive(true);
   const backdropRef = useInertBackdrop<HTMLDivElement>(true);
 
   // What is quoted is what is on screen: the page in view, or the text
@@ -401,7 +403,7 @@ export function PdfFullscreenViewer({
       className="fixed inset-0 z-[60] flex flex-col bg-black"
     >
       <div
-        className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-2 bg-gradient-to-b from-black/80 to-transparent px-4 py-3 transition-opacity duration-300"
+        className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-2 bg-gradient-to-b from-black/80 to-transparent px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] transition-opacity duration-300"
         {...chrome.chromeProps}
       >
         <span className="max-w-[30%] truncate text-sm text-white/80">{title}</span>

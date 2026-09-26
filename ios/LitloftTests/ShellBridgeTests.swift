@@ -99,6 +99,19 @@ struct ShellBridgeTests {
         }
     }
 
+    @Test("a request to go immersive must say which way, as a boolean")
+    func immersiveNeedsABoolean() {
+        let bodies: [[String: Any]] = [
+            ["type": "page.immersive"],
+            ["type": "page.immersive", "active": NSNull()],
+            ["type": "page.immersive", "active": NSNumber(value: 1)],
+            ["type": "page.immersive", "active": "true"]
+        ]
+        for body in bodies {
+            #expect(route(body) == nil)
+        }
+    }
+
     @Test("an unknown message type asks for nothing")
     func unknownTypeIsIgnored() {
         for type in ["pong", "media.state", "media.tick", "seek", ""] {

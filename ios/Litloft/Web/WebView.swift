@@ -12,7 +12,8 @@ struct WebView: UIViewRepresentable {
 
         context.coordinator.bridge.install(in: configuration)
 
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        let webView = LayoutReportingWebView(frame: .zero, configuration: configuration)
+        webView.onLayout = { [weak coordinator = context.coordinator] in coordinator?.webViewDidLayout() }
         context.coordinator.attachBridge(to: webView)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
@@ -32,6 +33,15 @@ struct WebView: UIViewRepresentable {
         guard context.coordinator.lastReloadToken != model.reloadToken else { return }
         context.coordinator.lastReloadToken = model.reloadToken
         webView.load(URLRequest(url: model.serverURL))
+    }
+
+    final class LayoutReportingWebView: WKWebView {
+        var onLayout: (() -> Void)?
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            onLayout?()
+        }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -101,6 +111,32 @@ struct WebView: UIViewRepresentable {
                 model?.setPageColor(color)
                 player?.surface.setPageColor(color)
             }
+            bridge.onPageImmersive = { [weak self] active in
+                self?.pageAsked(immersive: active)
+            }
+            model.onImmersiveLaidOut = { [weak webView] in webView?.setNeedsLayout() }
+        }
+
+        private var answerOwed = false
+
+        /// Requests that arrive before a layout are answered together, for the
+        /// last one. SwiftUI lays a change out before it sets the web view's
+        /// frame, so the answer waits for the web view's own layout after that.
+        private func pageAsked(immersive: Bool) {
+            answerOwed = true
+            model.setImmersive(immersive)
+            webView?.setNeedsLayout()
+        }
+
+        func webViewDidLayout() {
+            guard answerOwed, model.laidOutImmersive == model.immersive else { return }
+            answerOwed = false
+            answer(immersive: model.immersive)
+        }
+
+        private func answer(immersive: Bool) {
+            guard let webView else { return }
+            bridge.deliver(ImmersiveApplied(active: immersive, size: webView.bounds.size))
         }
 
         func start(_ webView: WKWebView) {
@@ -127,6 +163,7 @@ struct WebView: UIViewRepresentable {
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
             pageOnScreen = false
+            model.setImmersive(false)
             let page = lastPage ?? model.serverURL
             if isActive() {
                 webView.load(URLRequest(url: page))
@@ -238,6 +275,7 @@ struct WebView: UIViewRepresentable {
         /// with whatever it is playing — stays.
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
             pageOnScreen = true
+            model.setImmersive(false)
             player?.stopForNavigation()
         }
 
