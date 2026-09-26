@@ -57,3 +57,13 @@ its spec review (16 findings). Approved by the user 2026-09-27.
    pages.
 9. A theme change keeps the typography, and a typography change keeps the
    theme. The font of `code`, `pre` and what is inside them is never changed.
+
+## Real-browser measurement (author, before round 1)
+
+Running app, Chromium at 375×667, 667×375 and 1280×800 and WebKit at 375×667,
+ja and en: the panel sits inside the frame at every size and scrolls on the
+landscape phone (frame 215 px, panel 159 px); opening, a step and Escape leave
+the iframe box unchanged (8); Escape closes it; Aa is 44 × 39 px. At 375 px the
+Japanese "オリジナル" was cut off by an 80 px label column; the column is now
+56 px and nothing is cut off. The three margins were compared in screenshots of
+a horizontal spread and a vertical book at 1000 × 800.
