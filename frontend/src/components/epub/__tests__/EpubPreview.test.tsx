@@ -1064,12 +1064,20 @@ describe("EpubPreview", () => {
     it.each([
       ["ArrowDown on the last entry", "End", "ArrowDown", 5],
       ["ArrowUp on the first entry", "Home", "ArrowUp", 0],
-    ])("%s stays there", async (_name, first, key, stays) => {
+    ])("%s stays there, without an error", async (_name, first, key, stays) => {
       await openWith(TOC);
       fireEvent.click(contents());
-      fireEvent.keyDown(document.activeElement!, { key: first });
-      fireEvent.keyDown(document.activeElement!, { key });
+      const errors: unknown[] = [];
+      const onError = (e: ErrorEvent) => errors.push(e.error);
+      window.addEventListener("error", onError);
+      try {
+        fireEvent.keyDown(document.activeElement!, { key: first });
+        fireEvent.keyDown(document.activeElement!, { key });
+      } finally {
+        window.removeEventListener("error", onError);
+      }
       expect(entry(stays)).toHaveFocus();
+      expect(errors).toEqual([]);
     });
 
     it("selecting an entry sends only its index, closes the panel and hands the keys back", async () => {
