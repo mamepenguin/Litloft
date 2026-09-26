@@ -227,7 +227,6 @@ export function useFullscreen({
         transition.grow();
         return;
       }
-      if (phaseRef.current === "opening") return;
       // Already open. Without this, rotating to landscape while
       // manually fullscreen would relabel the session as "rotate" and
       // then eject the viewer the moment they sat back up.
@@ -244,6 +243,9 @@ export function useFullscreen({
           // and a desktop browser without element fullscreen is a
           // non-case.
           if (!matches(COARSE_POINTER_QUERY)) return;
+          // Refused after unmount, or after another press already took
+          // the pseudo path while this refusal was on its way.
+          if (!mountedRef.current || phaseRef.current !== "off") return;
           entryReasonRef.current = reason;
           const hold = holdImmersive();
           immersiveRef.current = hold;
