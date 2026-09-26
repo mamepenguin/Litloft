@@ -73,6 +73,18 @@ export function horizontalBook(): Buffer {
   return book([NAV, ...items], items.map((i) => i.id));
 }
 
+function verticalChapter(n: number): string {
+  const paras = Array.from(
+    { length: 6 },
+    (_, i) => `<p>第${n}章の${i}段落目。縦に書かれた短い章。</p>`,
+  ).join("");
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja"><head><title>${n}</title>` +
+    "<style>html{writing-mode:vertical-rl;-epub-writing-mode:vertical-rl}</style>" +
+    `</head><body><h1>第${n}章</h1>${paras}</body></html>`
+  );
+}
+
 export function verticalBook(): Buffer {
   const items = chapters(5, (n) => {
     const paras = Array.from(
@@ -99,6 +111,17 @@ export function flawedBook(): Buffer {
     );
   });
   return book([NAV, ...items], items.map((i) => i.id));
+}
+
+/** Vertical, horizontal, vertical: the writing mode changes between sections. */
+export function mixedBook(): Buffer {
+  const vertical = (n: number) =>
+    verticalChapter(n);
+  const horizontal = (n: number) =>
+    `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${n}</title></head>` +
+    `<body><h1>Chapter ${n}</h1><p>A horizontal chapter.</p></body></html>`;
+  const items = chapters(3, (n) => (n === 2 ? horizontal(n) : vertical(n)));
+  return book([NAV, ...items], items.map((i) => i.id), { lang: "ja", ppd: "rtl" });
 }
 
 export function fixedLayoutBook(): Buffer {

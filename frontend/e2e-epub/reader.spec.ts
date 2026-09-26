@@ -294,6 +294,15 @@ test.describe("columns", () => {
     expect(await columnCount(page)).toBe(1);
   });
 
+  test("the count follows each section's writing mode, not the first one's", async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 800 });
+    await open(page, "mixed.epub");
+    await page.evaluate(() => window.setMode(true));
+    for (let i = 0; i < 10 && (await where(page)).index !== 1; i++) await turnAndSettle(page);
+    expect((await where(page)).index).toBe(1);
+    await expect.poll(() => columnCount(page)).toBe(2);
+  });
+
   test("a horizontal book on a wide screen is a spread", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 800 });
     await open(page, "horizontal.epub");

@@ -196,7 +196,8 @@ describe("ridesFileDetailShell", () => {
 describe("viewerTakesCanvasFloor", () => {
   it.each([
     ["document", "application/pdf", true],
-    ["document", "application/epub+zip", true],
+    // The EPUB reader measures its own height to fill the canvas.
+    ["document", "application/epub+zip", false],
     ["archive", "application/zip", true],
     ["document", "text/plain", false],
     ["document", "text/html", false],

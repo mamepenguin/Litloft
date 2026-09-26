@@ -13,6 +13,7 @@ import {
   flawedBook,
   horizontalBook,
   hostileBook,
+  mixedBook,
   verticalBook,
 } from "./fixtures/books";
 
@@ -77,6 +78,7 @@ export async function startServer(): Promise<{ server: Server; origin: string }>
   books.set("vertical.epub", verticalBook());
   books.set("fixed.epub", fixedLayoutBook());
   books.set("flawed.epub", flawedBook());
+  books.set("mixed.epub", mixedBook());
   books.set("hostile.epub", hostileBook(origin));
   return { server, origin };
 }

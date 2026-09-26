@@ -30,7 +30,12 @@ export function useFillHeight(ref: RefObject<HTMLElement | null>): number | null
       const others = contentEnd + padding - el.offsetHeight;
       const fit = canvas.clientHeight - others;
       const room = canvas.clientHeight - padding - top;
-      const next = Math.max(MIN_HEIGHT_PX, Math.floor(room * MIN_SHARE_OF_ROOM), Math.floor(fit));
+      // Never taller than the room, even when that is under the minimum
+      // (a phone on its side).
+      const next = Math.min(
+        Math.floor(room),
+        Math.max(MIN_HEIGHT_PX, Math.floor(room * MIN_SHARE_OF_ROOM), Math.floor(fit)),
+      );
       setHeight((current) => (current === next ? current : next));
     };
     measure();
