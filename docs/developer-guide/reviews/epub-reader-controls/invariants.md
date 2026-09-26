@@ -38,3 +38,10 @@ third exit, then a guessed `released` landing). The user assigned C and chose
 the reshape: the reader answers every seek by id (`seeked`), the hook holds the
 target until that answer and resets it with the book, and the bar keeps only
 its live drag and is remade per book. The invariants are unchanged.
+
+## After r4 (decided by the user)
+
+Bucket A empty; the loop converged (the reshape removed a state and a
+prediction). Finding 2 (a redundant test) was deleted. Finding 1 (no test sends
+a seek while another runs, so answering with the wrong id survives) and the
+noted unanswered-seek path are recorded here and closed.

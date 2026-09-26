@@ -538,15 +538,6 @@ describe("EpubPreview", () => {
       expect(slider()).toHaveValue("800");
     });
 
-    it("a drag while a seek is under way follows the finger", async () => {
-      const view = await openBook();
-      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
-      vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
-      await released(view, "700");
-      fireEvent.change(slider(), { target: { value: "200" } });
-      expect(slider()).toHaveValue("200");
-    });
-
     it.each([
       ["mid-seek", true],
       ["mid-drag", false],
