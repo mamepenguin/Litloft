@@ -14,6 +14,7 @@ import { formatFileSize } from "@/lib/format";
 import { chapterAt, chapterOf } from "@/lib/epubToc";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { EpubPositionBar } from "./EpubPositionBar";
+import { EpubTypographyPanel } from "./EpubTypographyPanel";
 import { useEpubReader, type ReaderActivity, type ReaderTheme } from "./useEpubReader";
 import { useFillHeight } from "./useFillHeight";
 
@@ -52,7 +53,12 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
     animate: false,
   });
   const [scrubbing, setScrubbing] = useState(false);
-  const chrome = useAutoHidingChrome({ enabled: fullscreen.isFullscreen, held: scrubbing });
+  const [typographyOpen, setTypographyOpen] = useState(false);
+  const typographyPanelRef = useRef<HTMLDivElement | null>(null);
+  const chrome = useAutoHidingChrome({
+    enabled: fullscreen.isFullscreen,
+    held: scrubbing || typographyOpen,
+  });
   const { show: showChrome, toggle: toggleChrome } = chrome;
   // Pointer and key activity inside the book never reaches this document.
   const onActivity = useCallback(
@@ -71,6 +77,25 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
     seeking !== null ? labelAt(seeking) : toc && location ? chapterOf(toc, location) : null;
   const pagesLeft = seeking !== null ? null : (location?.pagesLeft ?? null);
   const focusBook = useCallback(() => reader.frameRef.current?.contentWindow?.focus(), [reader.frameRef]);
+
+  const closeTypography = useCallback(() => {
+    setTypographyOpen(false);
+    focusBook();
+  }, [focusBook]);
+  const toggleTypography = useCallback(() => {
+    if (typographyOpen) closeTypography();
+    else setTypographyOpen(true);
+  }, [typographyOpen, closeTypography]);
+
+  useEffect(() => {
+    if (typographyOpen) typographyPanelRef.current?.focus();
+  }, [typographyOpen]);
+
+  // The panel belongs to one mode's bar; any way in or out of full screen
+  // closes it.
+  useEffect(() => {
+    setTypographyOpen(false);
+  }, [fullscreen.isFullscreen]);
 
   useEffect(() => {
     setFullscreen(fullscreen.isFullscreen);
@@ -120,6 +145,23 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
     fullscreen.isFullscreen,
     OVERLAY_PRIORITY,
     true,
+  );
+
+  // The full screen's tier, not a higher one: a search or a note opened over
+  // the panel keeps its own Escape. Enabled later, so it wins within the tier.
+  useShortcuts(
+    "epub-typography",
+    t("epubTypography"),
+    [
+      {
+        key: "escape",
+        label: t("epubCloseTypography"),
+        editingOnly: false,
+        handler: closeTypography,
+      },
+    ],
+    typographyOpen,
+    OVERLAY_PRIORITY,
   );
 
   if (reader.status.kind === "error") {
@@ -185,6 +227,32 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
                 {t("epubLoading")}
               </p>
             )}
+            {typographyOpen && (
+              <>
+                {/* The book is a frame whose presses never reach this page. */}
+                <button
+                  type="button"
+                  aria-label={t("epubCloseTypography")}
+                  tabIndex={-1}
+                  data-testid="epub-typography-cover"
+                  onClick={closeTypography}
+                  className="absolute inset-0 z-10 cursor-default"
+                />
+                <div
+                  data-swipe-exempt
+                  className="absolute inset-x-2 top-2 z-20 flex flex-col justify-end"
+                  style={{
+                    bottom: fullscreen.isFullscreen ? "calc(2.5rem + 0.5rem)" : "0.5rem",
+                  }}
+                >
+                  <EpubTypographyPanel
+                    ref={typographyPanelRef}
+                    typography={reader.typography}
+                    onChange={reader.setTypography}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
         {fullscreen.isFullscreen ? (
@@ -220,6 +288,8 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
                 onTurn={reader.turn}
                 onPointerCommit={focusBook}
                 onScrubbingChange={setScrubbing}
+                typographyOpen={typographyOpen}
+                onToggleTypography={toggleTypography}
               />
             </div>
           </>
@@ -236,6 +306,8 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
             onTurn={reader.turn}
             onPointerCommit={focusBook}
             onScrubbingChange={setScrubbing}
+            typographyOpen={typographyOpen}
+            onToggleTypography={toggleTypography}
           />
         )}
         <button

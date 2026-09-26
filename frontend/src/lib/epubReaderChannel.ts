@@ -1,3 +1,5 @@
+import type { Typography } from "./epubTypography";
+
 export type ReaderKey = "f" | "Escape";
 
 /** The reader truncates labels to this length and sends at most this many entries. */
@@ -30,7 +32,9 @@ export type ReaderCommand =
       /** foliate's 0-based section index; it outranks `fraction`. */
       section: number | null;
       theme: "light" | "dark";
+      typography: Typography;
     }
+  | { type: "typography"; typography: Typography }
   | { type: "turn"; direction: "next" | "prev" | "left" | "right" }
   | { type: "seek"; fraction: number; id: number }
   | { type: "theme"; theme: "light" | "dark" }

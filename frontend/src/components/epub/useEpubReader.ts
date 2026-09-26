@@ -4,6 +4,11 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import { getStreamUrl } from "@/lib/api";
 import { useEpubProgress } from "@/lib/epubProgress";
 import {
+  readStoredTypography,
+  writeStoredTypography,
+  type Typography,
+} from "@/lib/epubTypography";
+import {
   parseReaderMessage,
   postToReader,
   type ReaderCommand,
@@ -38,6 +43,8 @@ export interface EpubReader {
   seeking: number | null;
   turn: (direction: TurnDirection) => void;
   seek: (fraction: number) => void;
+  typography: Typography;
+  setTypography: (typography: Typography) => void;
   setFullscreen: (fullscreen: boolean) => void;
 }
 
@@ -74,6 +81,9 @@ export function useEpubReader(
   themeRef.current = theme;
   const initialSectionRef = useRef(initialSection);
   initialSectionRef.current = initialSection;
+  const [typography, setTypographyState] = useState<Typography>(readStoredTypography);
+  const typographyRef = useRef(typography);
+  typographyRef.current = typography;
   const bookRef = useRef<Promise<[ArrayBuffer, number | null]> | null>(null);
   const openedRef = useRef(false);
   const readyRef = useRef(false);
@@ -113,7 +123,14 @@ export function useEpubReader(
               const section = n !== null && Number.isInteger(n) && n >= 1 ? n - 1 : null;
               postToReader(
                 readerWindow,
-                { type: "open", bytes, fraction, section, theme: themeRef.current },
+                {
+                  type: "open",
+                  bytes,
+                  fraction,
+                  section,
+                  theme: themeRef.current,
+                  typography: typographyRef.current,
+                },
                 [bytes],
               );
             },
@@ -175,6 +192,13 @@ export function useEpubReader(
     postToReader(frameRef.current?.contentWindow ?? null, { type: "seek", fraction, id });
   }, []);
 
+  const setTypography = useCallback((next: Typography) => {
+    setTypographyState(next);
+    writeStoredTypography(next);
+    if (readyRef.current)
+      postToReader(frameRef.current?.contentWindow ?? null, { type: "typography", typography: next });
+  }, []);
+
   const setFullscreen = useCallback((fullscreen: boolean) => {
     const readerWindow = frameRef.current?.contentWindow ?? null;
     postToReader(readerWindow, { type: "mode", fullscreen });
@@ -189,6 +213,8 @@ export function useEpubReader(
     seeking: seeking?.fraction ?? null,
     turn,
     seek,
+    typography,
+    setTypography,
     setFullscreen,
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent, type Ref } from "react";
 import { useTranslations } from "next-intl";
 
 export const SLIDER_STEPS = 1000;
@@ -39,6 +39,10 @@ export interface EpubPositionBarProps {
   onPointerCommit?: () => void;
   /** Whether a drag is under way, so the bar is not withdrawn mid-drag. */
   onScrubbingChange?: (scrubbing: boolean) => void;
+  /** The text-settings button, beside the scrub row so a press on it never seeks. */
+  typographyOpen: boolean;
+  onToggleTypography: () => void;
+  typographyButtonRef?: Ref<HTMLButtonElement>;
   className?: string;
 }
 
@@ -52,6 +56,9 @@ export function EpubPositionBar({
   onTurn,
   onPointerCommit,
   onScrubbingChange,
+  typographyOpen,
+  onToggleTypography,
+  typographyButtonRef,
   className = "",
 }: EpubPositionBarProps) {
   const t = useTranslations("file");
@@ -92,7 +99,21 @@ export function EpubPositionBar({
   };
 
   return (
-    <div className={`flex min-w-0 flex-col justify-center px-3 ${className}`}>
+    <div className={`flex min-w-0 items-stretch pr-3 ${className}`}>
+      <button
+        ref={typographyButtonRef}
+        type="button"
+        onClick={onToggleTypography}
+        disabled={disabled}
+        aria-expanded={typographyOpen}
+        aria-label={t("epubTypographyButton")}
+        className={`flex w-11 shrink-0 items-center justify-center text-sm font-medium transition-colors disabled:opacity-30 ${
+          typographyOpen ? "text-accent" : "text-text-muted hover:text-text-primary"
+        }`}
+      >
+        Aa
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col justify-center">
       <div
         ref={rowRef}
         data-player-scrub
@@ -163,6 +184,7 @@ export function EpubPositionBar({
           </span>
         )}
       </p>
+      </div>
     </div>
   );
 }

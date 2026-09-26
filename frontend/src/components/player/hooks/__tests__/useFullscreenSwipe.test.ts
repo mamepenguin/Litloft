@@ -105,7 +105,10 @@ beforeEach(() => {
   const seekBar = document.createElement("div");
   seekBar.setAttribute("data-player-scrub", "");
   controlBar.appendChild(seekBar);
-  frame.append(videoArea, controlBar);
+  const panel = document.createElement("div");
+  panel.setAttribute("data-swipe-exempt", "");
+  panel.appendChild(document.createElement("button"));
+  frame.append(videoArea, controlBar, panel);
   document.body.appendChild(frame);
   window.history.replaceState(null, "");
 });
@@ -140,10 +143,12 @@ describe("useFullscreen — swipe to dismiss", () => {
     expect(result.current.isPseudo).toBe(true);
   });
 
-  it("ignores a gesture that starts on the scrub bar", async () => {
+  it.each([
+    ["the scrub bar", () => controlBar.firstElementChild!],
+    ["inside a scrolling panel", () => frame.querySelector("[data-swipe-exempt] button")!],
+  ])("ignores a gesture that starts on %s", async (_where, target) => {
     const { result } = await enterPseudo();
-    const seekBar = controlBar.firstElementChild!;
-    swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, seekBar);
+    swipe({ x: 100, y: 100 }, { x: 105, y: 260 }, target());
     expect(result.current.isPseudo).toBe(true);
   });
 
@@ -250,10 +255,12 @@ describe("useFullscreen — gestures into fullscreen", () => {
     expect(result.current.isFullscreen).toBe(false);
   });
 
-  it("ignores a gesture that starts on the scrub bar", async () => {
+  it.each([
+    ["the scrub bar", () => controlBar.firstElementChild!],
+    ["inside a scrolling panel", () => frame.querySelector("[data-swipe-exempt] button")!],
+  ])("ignores a gesture that starts on %s", async (_where, target) => {
     const { result } = renderInPage();
-    const seekBar = controlBar.firstElementChild!;
-    await swipeAsync({ x: 100, y: 300 }, { x: 105, y: 180 }, seekBar);
+    await swipeAsync({ x: 100, y: 300 }, { x: 105, y: 180 }, target());
     expect(result.current.isFullscreen).toBe(false);
   });
 

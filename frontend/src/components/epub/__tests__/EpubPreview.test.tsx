@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { EpubPreview } from "../EpubPreview";
@@ -828,6 +828,121 @@ describe("EpubPreview", () => {
       await fromReader(view.readerWindow, { type: "activity", kind: "tap" });
       expect(slider().closest("[inert]")).toBeNull();
       expect(screen.queryByTestId("epub-chrome-bottom")).toBeNull();
+    });
+  });
+
+  describe("text settings", () => {
+    const TOC = [{ label: "One", depth: 0, fraction: 0 }];
+
+    async function openReady() {
+      const view = renderPreview();
+      await fromReader(view.readerWindow, { type: "boot" });
+      await settle();
+      await fromReader(view.readerWindow, { type: "ready", dir: "ltr", vertical: false, toc: TOC });
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      const focus = vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+      return { ...view, focus };
+    }
+
+    const aa = () => screen.getByRole("button", { name: "Text settings" });
+    const panel = () => screen.queryByTestId("epub-typography-panel");
+
+    beforeEach(() => localStorage.clear());
+
+    it("opens the book with the setting stored on this device", async () => {
+      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontSize: 5, margin: "wide" }));
+      const view = renderPreview();
+      await fromReader(view.readerWindow, { type: "boot" });
+      await settle();
+      expect(sentOfType(view.posted, "open")[0]).toMatchObject({
+        typography: { fontSize: 5, lineHeight: "original", margin: "wide", fontFamily: "original" },
+      });
+    });
+
+    it("cannot be opened before the book reports its place", async () => {
+      const view = renderPreview();
+      await fromReader(view.readerWindow, { type: "boot" });
+      await settle();
+      expect(aa()).toBeDisabled();
+    });
+
+    it("opens with focus in the panel, and a change is sent and stored at once", async () => {
+      const view = await openReady();
+      fireEvent.click(aa());
+      expect(aa()).toHaveAttribute("aria-expanded", "true");
+      expect(panel()).toHaveFocus();
+      fireEvent.click(screen.getByRole("button", { name: "Larger text" }));
+      fireEvent.click(within(screen.getByRole("group", { name: "Font" })).getByRole("button", { name: "Serif" }));
+      const sent = sentOfType(view.posted, "typography") as unknown as { typography: unknown }[];
+      expect(sent.at(-1)!.typography).toEqual({ fontSize: 3, lineHeight: "original", margin: "normal", fontFamily: "serif" });
+      expect(JSON.parse(localStorage.getItem("epub-reader:typography")!)).toEqual(sent.at(-1)!.typography);
+      expect(sentOfType(view.posted, "turn")).toEqual([]);
+    });
+
+    it.each([
+      ["Aa again", () => fireEvent.click(aa())],
+      ["a press on the book", () => fireEvent.click(screen.getByTestId("epub-typography-cover"))],
+      ["Escape", () => fireEvent.keyDown(document, { key: "Escape" })],
+    ])("closes on %s, turns nothing, and hands the keys back to the book", async (_how, close) => {
+      const view = await openReady();
+      fireEvent.click(aa());
+      close();
+      expect(panel()).toBeNull();
+      expect(screen.queryByTestId("epub-typography-cover")).toBeNull();
+      expect(view.focus).toHaveBeenCalled();
+      expect(sentOfType(view.posted, "turn")).toEqual([]);
+    });
+
+    it("closes when full screen is entered or left", async () => {
+      const view = await openReady();
+      fireEvent.click(aa());
+      fullscreenState.isFullscreen = true;
+      fullscreenState.isPseudo = true;
+      view.rerender(
+        <ShortcutsProvider>
+          <FileNav onKey={view.onFileKey} />
+          <EpubPreview file={FILE} />
+        </ShortcutsProvider>,
+      );
+      expect(panel()).toBeNull();
+      fireEvent.click(aa());
+      expect(panel()).not.toBeNull();
+      fullscreenState.isFullscreen = false;
+      fullscreenState.isPseudo = false;
+      view.rerender(
+        <ShortcutsProvider>
+          <FileNav onKey={view.onFileKey} />
+          <EpubPreview file={FILE} />
+        </ShortcutsProvider>,
+      );
+      expect(panel()).toBeNull();
+    });
+
+    it("in pseudo full screen, Escape closes the panel and not full screen, and the bar stays up while it is open", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const view = await openReady();
+      fullscreenState.isFullscreen = true;
+      fullscreenState.isPseudo = true;
+      view.rerender(
+        <ShortcutsProvider>
+          <FileNav onKey={view.onFileKey} />
+          <EpubPreview file={FILE} />
+        </ShortcutsProvider>,
+      );
+      fireEvent.click(aa());
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByTestId("epub-chrome-bottom")).not.toHaveAttribute("inert");
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(panel()).toBeNull();
+      expect(exit).not.toHaveBeenCalled();
+    });
+
+    it("draws the panel where a swipe does not change full screen", async () => {
+      await openReady();
+      fireEvent.click(aa());
+      expect(panel()!.closest("[data-swipe-exempt]")).not.toBeNull();
     });
   });
 });
