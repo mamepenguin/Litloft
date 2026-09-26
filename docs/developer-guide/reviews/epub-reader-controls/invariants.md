@@ -85,3 +85,14 @@ arrow keys on the slider turn pages, as they do over the book (Left/Right in
 the book's reading direction, Up next, Down previous); Home, End and
 PageUp/PageDown still move the slider. No state was added. r8 F2 (no rtl
 keyboard test) is covered by the arrow-key table.
+
+## After r9 (decided by the user)
+
+Bucket A empty; the reviewer judged the bar converged and the user stopped the
+loop here. r9 F1's surviving mutations that break a promise of the change
+(full-screen arrows, Ctrl/Meta/Shift, key repeat, Home/End/PageUp/PageDown
+still seeking) got table rows. r9 F2 is recorded and closed: a change that
+reaches the range without a plain arrow keydown (a modified arrow, possibly a
+mobile screen reader's step) still steps 1/1000 and can land back on the page
+shown. Turning such a change into a page turn would be a prediction about
+which input moved the value, the shape r3 found, so it is left alone.
