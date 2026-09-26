@@ -1,21 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { useTranslations } from "next-intl";
 
 export const SLIDER_STEPS = 1000;
-
-/** Keys that move a range input; any other key must not commit a seek. */
-const VALUE_KEYS = new Set([
-  "ArrowLeft",
-  "ArrowRight",
-  "ArrowUp",
-  "ArrowDown",
-  "Home",
-  "End",
-  "PageUp",
-  "PageDown",
-]);
 
 /**
  * The input is kept for the keyboard and assistive tech only. A pointer never
@@ -81,11 +69,11 @@ export function EpubPositionBar({
   };
   const visual = (dir === "rtl" ? SLIDER_STEPS - shown : shown) / SLIDER_STEPS;
 
-  const commit = (byPointer: boolean) => {
+  const commit = () => {
     if (drag === null) return;
     setDrag(null);
     onSeek(drag / SLIDER_STEPS);
-    if (byPointer) onPointerCommit?.();
+    onPointerCommit?.();
   };
 
   return (
@@ -104,7 +92,7 @@ export function EpubPositionBar({
         onPointerMove={(e) => {
           if (drag !== null && e.buttons !== 0) dragTo(e);
         }}
-        onPointerUp={() => commit(true)}
+        onPointerUp={commit}
         // A drag the system takes over ends without a pointerup.
         onPointerCancel={() => setDrag(null)}
       >
@@ -118,10 +106,8 @@ export function EpubPositionBar({
           disabled={disabled}
           aria-label={t("epubPosition")}
           aria-valuetext={`${percent}%`}
-          onChange={(e) => setDrag(Number(e.target.value))}
-          onKeyUp={(e: KeyboardEvent) => {
-            if (VALUE_KEYS.has(e.key)) commit(false);
-          }}
+          // A key or a screen reader's step has no release to wait for.
+          onChange={(e) => onSeek(Number(e.target.value) / SLIDER_STEPS)}
           className={INPUT_CLASS}
         />
         <div

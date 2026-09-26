@@ -478,12 +478,13 @@ describe("EpubPreview", () => {
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
       const focus = vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
 
-      fireEvent.change(slider(), { target: { value: "700" } });
+      const row = pressRow(100);
+      fireEvent.pointerMove(row, { clientX: 700, pointerId: 1, buttons: 1 });
       expect(line()).toHaveTextContent("70%");
       expect(line()).toHaveTextContent("Two");
       expect(sentOfType(view.posted, "seek")).toEqual([]);
 
-      fireEvent.pointerUp(slider());
+      fireEvent.pointerUp(row, { clientX: 700, pointerId: 1 });
       expect(sentOfType(view.posted, "seek")).toEqual([{ type: "seek", fraction: 0.7, id: expect.any(Number) }]);
       expect(focus).toHaveBeenCalled();
     });
@@ -491,9 +492,17 @@ describe("EpubPreview", () => {
     const lastSeek = (posted: ReturnType<typeof vi.spyOn>) =>
       sentOfType(posted, "seek").at(-1) as unknown as { fraction: number; id: number };
 
+    /** Presses the row where the value would be `value` out of 1000. */
+    function pressRow(value: number) {
+      stubPointerEvent();
+      const row = rowAt(0, 1000);
+      fireEvent.pointerDown(row, { clientX: value, pointerId: 1, buttons: 1 });
+      return row;
+    }
+
     async function released(view: Awaited<ReturnType<typeof openBook>>, value: string) {
-      fireEvent.change(slider(), { target: { value } });
-      fireEvent.pointerUp(slider());
+      const row = pressRow(Number(value));
+      fireEvent.pointerUp(row, { clientX: Number(value), pointerId: 1 });
       return lastSeek(view.posted);
     }
 
@@ -519,7 +528,6 @@ describe("EpubPreview", () => {
       const view = await openBook();
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
       fireEvent.change(slider(), { target: { value: "101" } });
-      fireEvent.keyUp(slider(), { key: "ArrowRight" });
       expect(slider()).toHaveValue("101");
       await fromReader(view.readerWindow, { type: "seeked", id: lastSeek(view.posted).id });
       expect(slider()).toHaveValue("100");
@@ -546,7 +554,7 @@ describe("EpubPreview", () => {
       await fromReader(view.readerWindow, { type: "location", fraction: 0, tocIndex: 0, pagesLeft: 2 });
       vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
       if (release) await released(view, "700");
-      else fireEvent.change(slider(), { target: { value: "700" } });
+      else pressRow(700);
       view.rerender(
         <ShortcutsProvider>
           <FileNav onKey={view.onFileKey} />
@@ -605,8 +613,6 @@ describe("EpubPreview", () => {
       slider().focus();
       const row = rowAt(0, 100);
       fireEvent.pointerDown(row, { clientX: 80, pointerId: 1, buttons: 1 });
-      // What a browser does with focus on a press that is not prevented.
-      fireEvent.blur(slider());
       fireEvent.pointerMove(row, { clientX: 20, pointerId: 1, buttons: 1 });
       fireEvent.pointerUp(row, { clientX: 20, pointerId: 1 });
       expect(sentOfType(view.posted, "seek").map((m) => (m as unknown as { fraction: number }).fraction)).toEqual([0.2]);
@@ -641,16 +647,26 @@ describe("EpubPreview", () => {
       expect(slider()).toHaveValue("0");
     });
 
-    it("a key that does not move the thumb commits nothing, and a moving key commits without leaving", async () => {
+    it("a change from the keyboard or a screen reader seeks at once and keeps focus on the slider", async () => {
       const view = await openBook();
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
       const focus = vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
       fireEvent.change(slider(), { target: { value: "300" } });
-      fireEvent.keyUp(slider(), { key: "Tab" });
-      expect(sentOfType(view.posted, "seek")).toEqual([]);
-      fireEvent.keyUp(slider(), { key: "ArrowRight" });
       expect(sentOfType(view.posted, "seek")).toEqual([{ type: "seek", fraction: 0.3, id: expect.any(Number) }]);
+      expect(slider()).toHaveValue("300");
       expect(focus).not.toHaveBeenCalled();
+    });
+
+    it("in full screen, a change from the keyboard leaves nothing holding the bar up", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      rerenderFullscreen(view, true);
+      fireEvent.change(slider(), { target: { value: "300" } });
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByTestId("epub-chrome-bottom")).toHaveAttribute("inert");
     });
 
     it("runs right to left for a right-to-left book", async () => {
