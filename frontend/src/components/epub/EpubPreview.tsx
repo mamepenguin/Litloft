@@ -33,9 +33,11 @@ function readTheme(): ReaderTheme {
 
 export interface EpubPreviewProps {
   file: Pick<FileItem, "id" | "filename" | "title" | "file_size">;
+  /** 1-based section number from `?section=`; read when the reader opens. */
+  initialSection?: number | null;
 }
 
-export function EpubPreview({ file }: EpubPreviewProps) {
+export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
   const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "light" as const);
@@ -57,7 +59,7 @@ export function EpubPreview({ file }: EpubPreviewProps) {
     (kind: ReaderActivity) => (kind === "tap" ? toggleChrome() : showChrome()),
     [showChrome, toggleChrome],
   );
-  const reader = useEpubReader(file.id, theme, onActivity);
+  const reader = useEpubReader(file.id, theme, onActivity, initialSection);
   const ready = reader.status.kind === "ready";
   const { setFullscreen, book, location, seeking } = reader;
   const toc = book?.toc ?? null;
