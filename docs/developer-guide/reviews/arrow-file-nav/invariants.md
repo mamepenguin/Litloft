@@ -7,3 +7,4 @@
 5. The on-screen previous / next buttons (FileNavControls) still change file on PDF and EPUB pages, and still pass through the same navigate path (navigationGuard).
 6. In full screen, ← / → still turn pages in the PDF viewer and the EPUB reader, following reading direction; `f` and `Esc` from inside the EPUB iframe still reach the page (open / close full screen).
 7. The reader → page message channel accepts no key the page does not act on; a forged `{type:"key", key:"ArrowLeft"}` from the reader frame is dropped.
+8. Inline (not full screen), `f` pressed inside the EPUB reader iframe is still handed to the page and opens full screen. *(Added by the user after r1, on the reviewer's suggestion.)*
