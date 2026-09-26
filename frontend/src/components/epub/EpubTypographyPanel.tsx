@@ -18,7 +18,7 @@ const SAMPLE_FACE: Record<Typography["fontFamily"], string | undefined> = {
 };
 
 const SEGMENT =
-  "flex h-8 min-w-0 flex-1 items-center justify-center rounded-md px-2 text-xs transition-colors pointer-coarse:min-h-11";
+  "flex h-8 min-w-0 flex-1 items-center justify-center rounded-md px-1 text-xs transition-colors pointer-coarse:min-h-11";
 
 function Segments<T extends string>({
   label,
@@ -37,7 +37,7 @@ function Segments<T extends string>({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="w-20 shrink-0 text-xs text-text-muted">{label}</span>
+      <span className="w-14 shrink-0 text-xs leading-tight text-text-muted">{label}</span>
       <div role="group" aria-label={label} className="flex min-w-0 flex-1 gap-0.5 rounded-lg border border-bg-border p-0.5">
         {options.map((option) => (
           <button
@@ -81,7 +81,7 @@ export const EpubTypographyPanel = forwardRef<HTMLDivElement, EpubTypographyPane
         className="flex max-h-full flex-col gap-3 overflow-y-auto rounded-xl border border-bg-border bg-bg-card p-3 shadow-lg outline-none"
       >
         <div className="flex items-center gap-3">
-          <span className="w-20 shrink-0 text-xs text-text-muted">{t("epubTextSize")}</span>
+          <span className="w-14 shrink-0 text-xs leading-tight text-text-muted">{t("epubTextSize")}</span>
           <div className="flex flex-1 items-center justify-between gap-2">
             <button
               type="button"
