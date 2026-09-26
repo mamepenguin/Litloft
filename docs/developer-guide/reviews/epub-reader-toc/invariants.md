@@ -58,3 +58,12 @@ review (13 findings). Approved by the user 2026-09-27.
    focus is on it when it can be pressed, otherwise on the first entry that can.
 9. When no entry can be selected (an empty TOC, or no entry with a target) the
    contents button is disabled.
+
+## Real-browser measurement (author, before round 1)
+
+Running app, the VS Code guide (102 TOC entries) near its end; Chromium at 320
+and 375 px and WebKit at 375 px, inline and full screen, ja and en. Opening the
+contents left `window.scrollY`, the frame box's `scrollTop` and `main`'s
+`scrollTop` unchanged (4); the current entry was inside the list's box with
+focus on it (8). The bar with the contents button and Aa fits at 320 px; a long
+chapter label is cut with an ellipsis, as designed.
