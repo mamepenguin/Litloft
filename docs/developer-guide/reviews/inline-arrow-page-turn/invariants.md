@@ -13,3 +13,7 @@
 
 9. An arrow pressed with Shift, Alt, or the platform's primary modifier (Meta on macOS, Ctrl elsewhere) turns no page, on the page or inside the EPUB reader, inline or full screen.
 7 (amended). Full-screen PDF and EPUB key behaviour is unchanged, except that invariant 9 now also holds in the full-screen EPUB reader, where Shift+arrow used to turn the page.
+
+## Revised after r2 (by the user, prompted by r2 F1)
+
+9 (reworded). An arrow pressed with Shift, Alt, or the platform's primary modifier (Meta on macOS, Ctrl elsewhere) is not a reader turn, on the page or inside the EPUB reader, inline or full screen: no turn command is sent and the key's default is not cancelled. The book may still scroll while the browser extends a selection; that position is not saved.
