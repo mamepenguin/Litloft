@@ -76,14 +76,24 @@ In priority order:
    visual.
 5. **hako**, only when asking whether something is a deliberate past decision.
 
-## R-0: Declare what must not break, before the first review
+## R-0: Declare what must not break, before implementation
 
 The author writes, and the supervisor approves, the invariants this change must
-not break — before the first reviewer is launched.
+not break — while writing the spec, and reviewed with it. Everything the list
+is drawn from is known before any code is written.
 
-Sources, in order: the `design-decisions.md` rules the change touches; what the
-work is for; and the data that cannot be regenerated from the filesystem (watch
-history, tags, comments, transcripts).
+The invariants file has two lists:
+
+- **Touch points** — where the change is planned to reach: the tables it writes,
+  the `design-decisions.md` sections it passes through, the endpoints and the WS
+  events it adds or changes.
+- **Invariants** — what must not break at those points. Sources, in order: the
+  `design-decisions.md` rules at the touch points; what the work is for; and the
+  data that cannot be regenerated from the filesystem (watch history, tags,
+  comments, transcripts).
+
+The invariants file lives beside the findings files, not in the spec: the spec
+is not updated during implementation, and the reviewer is handed this file.
 
 Each item is written so that a mutation can violate it — an observable sentence,
 not an intention. *"A thumbnail failure leaves the file's row and bytes
@@ -92,8 +102,19 @@ means the change is doing more than one thing.
 
 The list is the reviewer's first perspective: *does any path break these?*
 
-**Revising the list.** Ask *"is anything missing from this list?"* in the first
-round only — asked every round, it grows without end. After that the list is
+**Finding what the spec could not see.** Omissions left after the spec review
+come from the implementation reaching somewhere it was not planned to — a shared
+function with another caller, a path that now fires an existing event. So the
+first code-review round does not ask *"is anything missing from this list?"*. It
+asks:
+
+> *Which places does the diff actually reach that are not in the touch-point
+> list?*
+
+Only those are candidates for a missing invariant. An empty answer means the
+spec-time list was complete. Ask it in the first round only.
+
+**Revising the list.** After the spec review, the list is
 revised only by **the supervisor or the user**, never by a reviewer and never by
 the author mid-loop. A B finding that the user can actually hit is grounds to
 raise a revision. A revision is written into the invariants file with the round
