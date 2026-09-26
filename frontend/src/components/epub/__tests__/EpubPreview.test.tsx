@@ -488,6 +488,21 @@ describe("EpubPreview", () => {
       expect(focus).toHaveBeenCalled();
     });
 
+    it("after the release the thumb stays where it was let go until the reader reports the new place", async () => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+      fireEvent.change(slider(), { target: { value: "700" } });
+      fireEvent.pointerUp(slider());
+      expect(slider()).toHaveValue("700");
+      expect(line()).toHaveTextContent("70%");
+      expect(line()).toHaveTextContent("Two");
+
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.68, tocIndex: 2, pagesLeft: 3 });
+      expect(slider()).toHaveValue("680");
+      expect(line()).toHaveTextContent("68%");
+    });
+
     it("a key that does not move the thumb commits nothing, and a moving key commits without leaving", async () => {
       const view = await openBook();
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });

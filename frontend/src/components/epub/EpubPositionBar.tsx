@@ -53,14 +53,19 @@ export function EpubPositionBar({
   onScrubbingChangeRef.current = onScrubbingChange;
   // Leaving full screen mid-drag unmounts the bar without a release.
   useEffect(() => () => onScrubbingChangeRef.current?.(false), []);
+  // Where the thumb was let go, shown until the reader reports any other place.
+  const [released, setReleased] = useState<{ from: number | null; to: number } | null>(null);
+  const landing = released && released.from === fraction ? released.to : null;
+  const pending = drag ?? landing;
   const disabled = fraction === null;
-  const shown = drag ?? (fraction === null ? 0 : Math.round(fraction * SLIDER_STEPS));
+  const shown = pending ?? (fraction === null ? 0 : Math.round(fraction * SLIDER_STEPS));
   const percent = Math.floor((shown / SLIDER_STEPS) * 100);
-  const label = drag === null ? chapter : chapterAt(drag / SLIDER_STEPS);
+  const label = pending === null ? chapter : chapterAt(pending / SLIDER_STEPS);
 
   const commit = (byPointer: boolean) => {
     if (drag === null) return;
     setDrag(null);
+    setReleased({ from: fraction, to: drag });
     onSeek(drag / SLIDER_STEPS);
     if (byPointer) onPointerCommit?.();
   };
@@ -94,7 +99,7 @@ export function EpubPositionBar({
       >
         <span className="shrink-0 tabular-nums text-text-primary">{percent}%</span>
         {label && <span className="min-w-0 truncate">{label}</span>}
-        {drag === null && pagesLeft !== null && (
+        {pending === null && pagesLeft !== null && (
           <span className="ml-auto shrink-0 tabular-nums">
             {t("epubPagesLeft", { count: pagesLeft })}
           </span>
