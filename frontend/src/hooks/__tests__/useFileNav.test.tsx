@@ -207,6 +207,28 @@ describe("useFileNav", () => {
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
+  it.each(["application/pdf", "application/epub+zip"])(
+    "still navigates from the buttons on %s pages",
+    async (mimeType) => {
+      const onNavigate = vi.fn();
+      const { result } = renderHook(
+        () =>
+          useFileNav({
+            fileId: "current",
+            fileType: "document",
+            mimeType,
+            enabled: true,
+            onNavigate,
+          }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.prevId).toBe("prev1"));
+      act(() => result.current.navigatePrev());
+      act(() => result.current.navigateNext());
+      expect(onNavigate.mock.calls).toEqual([["prev1"], ["next1"]]);
+    },
+  );
+
   it("binds arrow keys for image files", async () => {
     const onNavigate = vi.fn();
     const { result } = renderHook(
