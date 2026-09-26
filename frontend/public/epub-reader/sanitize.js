@@ -186,12 +186,16 @@ const sanitizeDocument = (doc, type) => {
   return serialize(doc, type);
 };
 
+// The text is already decoded; a charset on the blob keeps a stale
+// <meta charset> or XML encoding declaration from re-decoding it.
+const served = (type) => `${type}; charset=utf-8`;
+
 // A refused section still has to be a document: foliate stops paging at a
 // section it cannot lay out.
 const REFUSED = {
   text:
     '<html xmlns="http://www.w3.org/1999/xhtml"><head><title></title></head><body></body></html>',
-  type: XHTML,
+  type: served(XHTML),
 };
 
 // The output is parsed again with the type it is served as, which is how the
@@ -204,10 +208,7 @@ export const sanitizeMarkup = (text, type) => {
   const again = new DOMParser().parseFromString(once, first.type);
   if (first.type !== HTML && again.querySelector("parsererror")) return REFUSED;
   const twice = sanitizeDocument(again, first.type);
-  // The text is already decoded; a charset on the blob keeps a stale
-  // <meta charset> in the section from re-decoding it.
-  const served = first.type === HTML ? `${HTML}; charset=utf-8` : first.type;
-  return twice === once ? { text: once, type: served } : REFUSED;
+  return twice === once ? { text: once, type: served(first.type) } : REFUSED;
 };
 
 const readText = async (data) =>

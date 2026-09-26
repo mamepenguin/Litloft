@@ -34,7 +34,7 @@ function parse(text: string, type: string) {
 
 function sanitized(body: string, head = "") {
   const out = sanitizeMarkup(page(body, head), XHTML);
-  expect(out.type).toBe(XHTML);
+  expect(out.type).toBe(`${XHTML}; charset=utf-8`);
   const doc = parse(out.text, out.type);
   expect(doc.querySelector("parsererror")).toBeNull();
   return { doc, text: out.text };
@@ -268,7 +268,7 @@ describe("document shape", () => {
       '<svg xmlns="http://www.w3.org/2000/svg" onload="x()"><script>x()</script><text>t</text></svg>',
       "image/svg+xml",
     );
-    expect(out.type).toBe("image/svg+xml");
+    expect(out.type).toBe("image/svg+xml; charset=utf-8");
     expect(out.text).not.toContain("script");
     expect(out.text).not.toContain("onload");
   });
@@ -300,7 +300,7 @@ describe("transformResource", () => {
     const body = page('<p>ok</p><script>x()</script>');
     for (const data of [body, new Blob([body])]) {
       const out = await run(type, data);
-      expect(out.type === XHTML || out.type === "image/svg+xml").toBe(true);
+      expect([`${XHTML}; charset=utf-8`, "image/svg+xml; charset=utf-8"]).toContain(out.type);
       expect(String(out.data)).not.toContain("<script");
       expect(String(out.data)).toContain("ok");
     }

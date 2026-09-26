@@ -70,51 +70,35 @@ function clickEverything(page: Page) {
   });
 }
 
-/**
- * The hostile book's spine, in order. The SVG section is last: foliate loads
- * it, but its paginator cannot lay out a document without a body, so the walk
- * cannot page into it and the walk opens it directly instead.
- */
+/** The hostile book's spine, in order. */
 const HOSTILE_SECTIONS = ["c1", "c6", "c7", "c2", "c3", "c4", "c5-svg"];
-const LAID_OUT = HOSTILE_SECTIONS.length - 1;
 
-/** Reads the hostile book as far as `sections`, clicking everything on the way. */
-async function walkHostileBook(page: Page, sections = LAID_OUT) {
+/**
+ * Turns until a turn no longer moves, clicking everything on the way, and
+ * returns the sections it paged through. The turn after the last section it
+ * can page through still loads the next one.
+ */
+async function walkHostileBook(page: Page): Promise<number[]> {
   await open(page, "hostile.epub");
   expect((await messages(page, "ready")).length).toBe(1);
   const reached = new Set<number>();
-  for (let i = 0; i < 40; i++) {
-    const at = await where(page);
-    if (at.index !== undefined) reached.add(at.index);
-    if (at.index === sections - 1) break;
+  let still = 0;
+  for (let i = 0; i < 40 && still < 2; i++) {
+    const before = await where(page);
+    if (before.index !== undefined) reached.add(before.index);
     await clickEverything(page);
     await page.evaluate(() => window.turn("next"));
     await page.waitForTimeout(300);
+    const after = await where(page);
+    still = after.index === before.index && after.page === before.page ? still + 1 : 0;
   }
   await clickEverything(page);
   await page.waitForTimeout(500);
-  expect([...reached].sort((a, b) => a - b)).toEqual(
-    Array.from({ length: sections }, (_, i) => i),
-  );
-  if (sections === LAID_OUT) await openSvgSection(page);
+  return [...reached].sort((a, b) => a - b);
 }
 
-async function openSvgSection(page: Page) {
-  const loaded = await page.evaluate(async (index) => {
-    const doc = (document.getElementById("reader") as HTMLIFrameElement).contentDocument!;
-    const view = doc.querySelector("foliate-view") as unknown as {
-      book: { sections: { load(): Promise<string> }[] };
-    };
-    const url = await view.book.sections[index].load();
-    const frame = doc.createElement("iframe");
-    frame.src = url;
-    doc.body.append(frame);
-    await new Promise((resolve) => frame.addEventListener("load", resolve, { once: true }));
-    return frame.contentDocument?.documentElement?.localName ?? null;
-  }, HOSTILE_SECTIONS.indexOf("c5-svg"));
-  expect(loaded).toBe("svg");
-  await page.waitForTimeout(300);
-}
+const upTo = (section: string) =>
+  Array.from({ length: HOSTILE_SECTIONS.indexOf(section) + 1 }, (_, i) => i);
 
 test.describe("the reader document", () => {
   test("carries the policy for its host, and nothing outside the reader is served under it", async ({
@@ -140,7 +124,7 @@ test.describe("a hostile book", () => {
   test("runs no script and reaches no same-origin path", async ({ page, request }, info) => {
     const id = `${info.project.name}:${info.testId}`;
     await page.setExtraHTTPHeaders({ "x-e2e-test": id });
-    await walkHostileBook(page);
+    expect(await walkHostileBook(page)).toEqual(upTo("c4"));
     expect(await page.evaluate(() => window.__pwned ?? null)).toBeNull();
     const leaks = await request.get(`${origin()}/leaks?test=${encodeURIComponent(id)}`);
     expect(await leaks.json()).toEqual([]);
@@ -155,9 +139,10 @@ test.describe("a hostile book", () => {
         body: "export const transformResource = () => {};",
       }),
     );
-    // Unsanitized, the section of unknown type is not a document foliate can
-    // lay out, so the walk ends before it.
-    await walkHostileBook(page, HOSTILE_SECTIONS.indexOf("c4"));
+    // Unsanitized, whether the section of unknown type can be laid out
+    // depends on the engine, so only the sections before it are held.
+    const reached = await walkHostileBook(page);
+    expect(reached.slice(0, upTo("c3").length)).toEqual(upTo("c3"));
     expect(await page.evaluate(() => window.__pwned ?? null)).toBeNull();
   });
 
@@ -175,7 +160,7 @@ test.describe("a hostile book", () => {
       expect(probeless).not.toBe(body);
       await route.fulfill({ response, body: probeless });
     });
-    await walkHostileBook(page);
+    expect(await walkHostileBook(page)).toEqual(upTo("c4"));
     expect(await page.evaluate(() => window.__pwned ?? null)).toBeNull();
   });
 

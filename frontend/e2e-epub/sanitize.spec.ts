@@ -148,3 +148,17 @@ test.describe("a real book's mistakes are shown, not refused", () => {
     });
   }
 });
+
+test("a stale XML encoding declaration on a chapter that is really UTF-8 is ignored", async ({
+  page,
+}) => {
+  await page.goto(`${origin()}/host.html?book=none`);
+  const out = await renderedText(
+    page,
+    '<?xml version="1.0" encoding="Shift_JIS"?>' +
+      '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>t</title></head>' +
+      "<body><p>縦書き</p></body></html>",
+  );
+  expect(out.type).toBe("application/xhtml+xml; charset=utf-8");
+  expect(out.text).toContain("縦書き");
+});
