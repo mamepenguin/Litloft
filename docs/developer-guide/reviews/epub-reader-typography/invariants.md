@@ -78,3 +78,13 @@ change re-set an unchanged gap; now skipped), F7 (arrows and PageUp/PageDown act
 on the book while the panel is open — the user chose to keep it). Touch points
 the diff reached beyond the list: the theme path through `restyle()`, the page
 shortcut sets while the panel has focus, DismissScrim's sibling rule.
+
+## After r2 (decided by the user)
+
+Bucket A empty; the loop stops here. F1 (an assertion that could not fail) was
+deleted. F2 (no real-browser test of the panel's position) is closed on the
+author's measurement in the running app and r2's static replica in Chromium and
+WebKit. Trajectory: the round added one state and two branches
+(`typographyOpenRef` for the close on a full-screen change; the unchanged-gap
+guard); a further guard around the full-screen close would be the patching
+shape.

@@ -228,7 +228,6 @@ test("a theme change keeps the typography, a typography change keeps the theme, 
   at = await where(page);
   expect(at.pFamily).toMatch(/Georgia/);
   expect(at.bodyBg).toBe("rgb(22, 22, 22)");
-  expect(at.pLineHeight).not.toBe("");
   expect(at.codeFamily).toBe("monospace");
   expect(at.inlineCodeFamily).toBe("monospace");
 });
