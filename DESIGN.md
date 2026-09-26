@@ -852,6 +852,10 @@ written in it.
 - **`text-text-muted`** with `hover:bg-accent/10` — not `text-accent`: in a result
   row the timestamp is third-rank information under an unaccented title.
 - At most three per hit, one per second, with a quiet `+N` for the rest.
+- **A match in a book is a section pill** in the same style, labelled with the
+  chapter title and never with a page. The title is truncated at `max-w-[12rem]`,
+  the cap a tag chip stops at, with the full title in `title=`; a section with no
+  title shows its number.
 
 ### Match badges and their legend
 

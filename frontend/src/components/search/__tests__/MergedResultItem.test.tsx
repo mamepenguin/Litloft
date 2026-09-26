@@ -171,6 +171,40 @@ describe("MergedResultItem", () => {
     },
   );
 
+  const LONG_TITLE = "A chapter title long enough that a pill cannot hold all of it on one line";
+  const SECTIONS = {
+    content: { score: 0.6 },
+    matched_sections: [
+      { section: 3, title: "Chapter Two" },
+      { section: 5, title: null },
+      { section: 9, title: LONG_TITLE },
+    ],
+  };
+
+  it("labels a section pill with its title, else its number, and never p.N", () => {
+    render(<MergedResultItem file={makeFile({ id: "abc", match_meta: SECTIONS })} onSelect={vi.fn()} />);
+
+    const pills = screen.getAllByTestId("match-section-pill");
+    expect(pills.map((p) => p.textContent)).toEqual(["Chapter Two", "Section 5", LONG_TITLE]);
+    expect(pills.map((p) => p.getAttribute("title"))).toEqual(["Chapter Two", null, LONG_TITLE]);
+    expect(screen.queryByTestId("match-page-pill")).toBeNull();
+  });
+
+  it.each(["click", "Enter", " "])(
+    "%j on a section pill fires onSelect with ?section= for that pill only",
+    (how) => {
+      const onSelect = vi.fn();
+      render(<MergedResultItem file={makeFile({ id: "abc", match_meta: SECTIONS })} onSelect={onSelect} />);
+
+      const pill = screen.getByRole("button", { name: "Section 5" });
+      if (how === "click") fireEvent.click(pill);
+      else fireEvent.keyDown(pill, { key: how });
+
+      expect(onSelect).toHaveBeenCalledTimes(1);
+      expect(onSelect).toHaveBeenCalledWith("/files/abc?section=5");
+    },
+  );
+
   it("clicking the row of a PDF hit opens the file without a page", () => {
     const file = makeFile({
       id: "abc",

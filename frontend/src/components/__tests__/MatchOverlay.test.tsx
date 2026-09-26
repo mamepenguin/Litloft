@@ -92,18 +92,43 @@ describe("MatchOverlay search snippet", () => {
     ]);
   });
 
-  it("does not pass a page pill click on to the card around it", () => {
+  it("links each matched section to the book opened there, labelled with its title, else its number", () => {
+    render(
+      <MatchOverlay
+        match={{
+          content: { score: 0.6 },
+          matched_sections: [
+            { section: 2, title: "Prologue" },
+            { section: 7, title: null },
+          ],
+        }}
+        fileId="f1"
+      />,
+    );
+
+    expect(
+      screen
+        .getAllByTestId("match-section-pill")
+        .map((p) => [p.textContent, p.getAttribute("href"), p.getAttribute("title")]),
+    ).toEqual([
+      ["Prologue", "/files/f1?section=2", "Prologue"],
+      ["Section 7", "/files/f1?section=7", null],
+    ]);
+    expect(screen.queryByTestId("match-page-pill")).toBeNull();
+  });
+
+  it.each<[string, MatchMeta, string]>([
+    ["page", { matched_pages: [3] }, "p.3"],
+    ["section", { matched_sections: [{ section: 3, title: "Three" }] }, "Three"],
+  ])("does not pass a %s pill click on to the card around it", (_kind, pills, label) => {
     const onCardClick = vi.fn();
     render(
       <div onClick={onCardClick}>
-        <MatchOverlay
-          match={{ content: { score: 0.6 }, matched_pages: [3] }}
-          fileId="f1"
-        />
+        <MatchOverlay match={pills} fileId="f1" />
       </div>,
     );
 
-    fireEvent.click(screen.getByText("p.3"));
+    fireEvent.click(screen.getByText(label));
 
     expect(onCardClick).not.toHaveBeenCalled();
   });

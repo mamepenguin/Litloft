@@ -232,6 +232,7 @@
     "matchContent": "Content",
     "matchRetrievalKeywords": "Keyword",
     "matchedPages": "p.{pages}",
+    "matchedSectionNumber": "Section {section}",
     "matchFilenameHelp": "The file's own name contains what you typed.",
     "matchPathHelp": "A folder on the way to the file is named after what you typed.",
     "matchMetadataHelp": "Something recorded about the file — its title, description or tags — contains it.",
