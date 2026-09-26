@@ -6,6 +6,7 @@ import { BookX, Maximize, X } from "lucide-react";
 import type { FileItem } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { useFullscreen } from "@/components/player/hooks/useFullscreen";
+import { useFocusScope } from "@/hooks/useFocusScope";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { getDownloadUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
@@ -62,6 +63,19 @@ export function EpubPreview({ file }: EpubPreviewProps) {
       { key: "f", label: t("epubFullscreen"), handler: fullscreen.toggle },
     ],
     ready && !fullscreen.isFullscreen,
+  );
+
+  // Scoped, unlike the keys above: a focused tab strip owns the arrows, and
+  // the provider fires every match whether or not the strip handled the key.
+  const inScope = useFocusScope(rootRef);
+  useShortcuts(
+    "epub-reader-arrows",
+    t("epubShortcuts"),
+    [
+      { key: "arrowleft", label: t("epubPageLeft"), handler: () => reader.turn("left") },
+      { key: "arrowright", label: t("epubPageRight"), handler: () => reader.turn("right") },
+    ],
+    ready && !fullscreen.isFullscreen && inScope,
   );
 
   // Over everything beneath it while the book fills the screen.

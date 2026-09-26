@@ -244,17 +244,16 @@ test.describe("reader actions inside the book", () => {
     expect((await where(page)).page).toBe(before.page + 1);
   });
 
-  test("an arrow typed into the book inline is not handed to the page and turns nothing", async ({ page }) => {
+  test("an arrow typed into the book inline turns the page and is not handed to the page", async ({ page }) => {
     await open(page, "horizontal.epub");
     const win = await sectionWindow(page);
     await win.evaluate((w) => w.focus());
     const before = await where(page);
     await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowLeft");
+    await expect.poll(async () => (await messages(page, "turned")).length).toBe(1);
+    expect((await where(page)).page).toBe(before.page + 1);
     await page.keyboard.press("f");
     await expect.poll(() => messages(page, "key")).toEqual([{ type: "key", key: "f" }]);
-    expect(await messages(page, "turned")).toEqual([]);
-    expect(await where(page)).toEqual(before);
   });
 
   test("a link inside the book moves there and reports", async ({ page }) => {

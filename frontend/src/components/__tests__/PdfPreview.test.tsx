@@ -357,13 +357,26 @@ describe("PdfPreview page navigation", () => {
     expect(await screen.findByText("Selectable page 1")).toBeInTheDocument();
   });
 
-  it("leaves the arrows to the folder's previous and next file", async () => {
-    // `useFileNav` binds them whenever `playerKind` is null, which a PDF is.
+  it("turns pages with the arrows, right to the next and left to the previous", async () => {
     renderViewer();
     await screen.findByText("Selectable page 1");
 
-    fireEvent.keyDown(document, { key: "ArrowRight" });
     fireEvent.keyDown(document, { key: "ArrowLeft" });
+    expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "ArrowRight" });
+    expect(await screen.findByText("Selectable page 2")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "ArrowLeft" });
+    expect(await screen.findByText("Selectable page 1")).toBeInTheDocument();
+  });
+
+  it("leaves the arrows to the caret while the number box has focus", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+
+    pageBox().focus();
+    fireEvent.keyDown(pageBox(), { key: "ArrowRight" });
 
     expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
   });
@@ -585,6 +598,17 @@ describe("PdfPreview, the page keys' scope", () => {
       screen.getByRole("button", { name: "Elsewhere on the page" }).focus();
     });
     fireEvent.keyDown(document, { key: "PageDown" });
+
+    expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
+  });
+
+  it("leaves the arrows alone once focus is somewhere else", async () => {
+    renderViewer();
+    await screen.findByText("Selectable page 1");
+    act(() => {
+      screen.getByRole("button", { name: "Elsewhere on the page" }).focus();
+    });
+    fireEvent.keyDown(document, { key: "ArrowRight" });
 
     expect(screen.getByText("Selectable page 1")).toBeInTheDocument();
   });
@@ -1272,6 +1296,12 @@ describe("PdfPreview resume", () => {
       },
     ],
     ["followed from a link", () => act(() => itemClick!({ pageNumber: 4 }))],
+    [
+      "turned to with the arrow",
+      () => {
+        for (let i = 0; i < 3; i++) fireEvent.keyDown(document, { key: "ArrowRight" });
+      },
+    ],
     [
       "asked for by the controller",
       () => {

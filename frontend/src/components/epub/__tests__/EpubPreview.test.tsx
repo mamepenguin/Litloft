@@ -306,6 +306,41 @@ describe("EpubPreview", () => {
     expect(onFileKey).not.toHaveBeenCalled();
   });
 
+  it("inline, the arrows turn pages the way the book reads", async () => {
+    const { readerWindow, posted, onFileKey } = renderPreview();
+    await fromReader(readerWindow, { type: "ready", dir: "rtl", vertical: true });
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    });
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    });
+    expect(onFileKey).not.toHaveBeenCalled();
+    expect(sentOfType(posted, "turn")).toEqual([
+      { type: "turn", direction: "left" },
+      { type: "turn", direction: "right" },
+    ]);
+  });
+
+  it("inline, the arrows are left alone once focus is somewhere else", async () => {
+    const utils = render(
+      <ShortcutsProvider>
+        <EpubPreview file={FILE} />
+        <button type="button">Elsewhere on the page</button>
+      </ShortcutsProvider>,
+    );
+    const readerWindow = utils.container.querySelector("iframe")!.contentWindow!;
+    const posted = vi.spyOn(readerWindow, "postMessage").mockImplementation(() => {});
+    await fromReader(readerWindow, { type: "ready", dir: "ltr", vertical: false });
+    act(() => {
+      screen.getByRole("button", { name: "Elsewhere on the page" }).focus();
+    });
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    });
+    expect(sentOfType(posted, "turn")).toEqual([]);
+  });
+
   it("in full screen the arrows turn pages instead of changing file", async () => {
     fullscreenState.isFullscreen = true;
     fullscreenState.isPseudo = true;
