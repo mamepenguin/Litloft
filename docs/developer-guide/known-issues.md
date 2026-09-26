@@ -113,6 +113,12 @@ chapter in another encoding cannot be recovered there.
 foliate-js reads the section's `body`, which an SVG document does not have,
 and its paginator stays locked.
 
+**While the EPUB position bar is dragged, its label can name a cover or notes
+page.** A table-of-contents entry that points at a page outside the reading
+order (`linear="no"`) is placed at the start of the next chapter, so dragging
+into that chapter, or to the end of the book, shows the entry's title instead
+of the chapter's. The label is right again once the thumb is released.
+
 **A source file's card shows no excerpt.** A card draws the first lines of a
 file in place of a thumbnail only when the file is a Document, so the source
 files that are now Other lost it: `.c`, `.h`, `.py`, `.pl`, `.css`, `.js` and
