@@ -30,6 +30,8 @@ describe("isValidOpen", () => {
     [{ bytes, fraction: null, theme: "light" }, false],
     [{ bytes, fraction: null, section: 1.5, theme: "light" }, false],
     [{ bytes, fraction: null, section: "3", theme: "light" }, false],
+    [{ bytes, fraction: null, section: null, theme: "light", typography: { fontSize: 99 } }, true],
+    [{ bytes, fraction: null, section: null, theme: "light", typography: "garbage" }, true],
   ])("%o → %s", (message, expected) => {
     expect(isValidOpen(message)).toBe(expected);
   });
