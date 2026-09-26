@@ -45,3 +45,14 @@ Bucket A empty; the loop converged (the reshape removed a state and a
 prediction). Finding 2 (a redundant test) was deleted. Finding 1 (no test sends
 a seek while another runs, so answering with the wrong id survives) and the
 noted unanswered-seek path are recorded here and closed.
+
+## After r5 and the device check (approved by the user)
+
+11. A touch, click or drag on the slider while it is disabled sends nothing.
+
+r5 F1 prompted 11. On an iPhone, a drag that started away from the thumb
+snapped back on release: the native range kept its own value under the finger
+and sent it after the drag was committed. The fix removed that second writer:
+the row takes every pointer and the input is keyboard-only. That also removed
+r5 F2 (two seeks per release) and F4 (mouse and touch mapping apart). F3 and F5
+were test gaps and got tests.
