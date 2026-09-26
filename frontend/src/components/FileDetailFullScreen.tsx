@@ -42,6 +42,8 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
   const initialTime = tParam ? Number(tParam) : undefined;
   const pageParam = searchParams.get("page");
   const initialPage = pageParam ? Number(pageParam) : undefined;
+  const sectionParam = searchParams.get("section");
+  const initialSection = sectionParam ? Number(sectionParam) : undefined;
   const highlight = searchParams.get("highlight") || undefined;
 
   const [file, setFile] = useState<FileItem | null>(() => peekFileSeed(fileId));
@@ -173,6 +175,7 @@ export function FileDetailFullScreen({ fileId }: FileDetailFullScreenProps) {
             drive={file?.drive ?? ""}
             initialTime={initialTime}
             initialPage={initialPage}
+            initialSection={initialSection}
             highlight={highlight}
             onEnded={hasCollection ? handleMediaEnded : undefined}
             autoPlay={hasCollection}

@@ -412,6 +412,19 @@ describe("FileDetailContent", () => {
     expect(lastProps.miniPlayerRoot).toBe(root);
   });
 
+  it.each(["canonical", "collection"] as const)(
+    "forwards initialSection to FilePreview on the %s surface",
+    async (surface) => {
+      setApiResponses(makeFile());
+      const { FilePreview: MockedPreview } = await import("../../FilePreview");
+      render(<FileDetailContent fileId="f1" drive="main" initialSection={6} surface={surface} />);
+      await loaded();
+      const calls = (MockedPreview as ReturnType<typeof vi.fn>).mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      expect((calls[calls.length - 1][0] as { initialSection?: number }).initialSection).toBe(6);
+    },
+  );
+
   it("gives the player the shell's scroll container, not the host's", async () => {
     setApiResponses(makeFile());
     const { FilePreview: MockedPreview } = await import("../../FilePreview");

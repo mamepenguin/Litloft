@@ -29,6 +29,7 @@ export interface MediaPlayerBlockProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   initialTime?: number;
   initialPage?: number;
+  initialSection?: number;
   highlight?: string;
   onMediaController: (mc: MediaController | null) => void;
   onDocumentCaptureController: (c: DocumentCaptureController | null) => void;
@@ -55,6 +56,7 @@ export function MediaPlayerBlock({
   videoRef,
   initialTime,
   initialPage,
+  initialSection,
   highlight,
   onMediaController,
   onDocumentCaptureController,
@@ -89,6 +91,7 @@ export function MediaPlayerBlock({
           videoRef={videoRef}
           initialTime={initialTime}
           initialPage={initialPage}
+          initialSection={initialSection}
           highlight={highlight}
           onMediaController={onMediaController}
           onDocumentCaptureController={onDocumentCaptureController}

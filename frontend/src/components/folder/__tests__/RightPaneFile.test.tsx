@@ -252,9 +252,10 @@ describe("RightPaneFile", () => {
     ).toBeNull();
   });
 
-  it("forwards URL deep-link hints (?t=, ?page=, ?highlight=) to FileDetailContent", async () => {
+  it("forwards URL deep-link hints (?t=, ?page=, ?section=, ?highlight=) to FileDetailContent", async () => {
     mockSearchParams.set("t", "10");
     mockSearchParams.set("page", "5");
+    mockSearchParams.set("section", "4");
     mockSearchParams.set("highlight", "match");
     mockGetFile.mockResolvedValue(baseFile);
     render(<RightPaneFile fileId="abc123" drive="work" />);
@@ -264,6 +265,7 @@ describe("RightPaneFile", () => {
     const lastProps = fileDetailProps[fileDetailProps.length - 1];
     expect(lastProps.initialTime).toBe(10);
     expect(lastProps.initialPage).toBe(5);
+    expect(lastProps.initialSection).toBe(4);
     expect(lastProps.highlight).toBe("match");
   });
 

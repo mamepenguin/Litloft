@@ -29,6 +29,7 @@ export interface FileDetailContentProps {
   drive: string;
   initialTime?: number;
   initialPage?: number;
+  initialSection?: number;
   highlight?: string;
   onMediaController?: (mc: MediaController | null) => void;
   miniPlayerRoot?: Element | null;
@@ -45,6 +46,7 @@ export function FileDetailContainer({
   drive,
   initialTime,
   initialPage,
+  initialSection,
   highlight,
   onMediaController,
   miniPlayerRoot,
@@ -292,6 +294,7 @@ export function FileDetailContainer({
       videoRef={videoRef}
       initialTime={initialTime}
       initialPage={initialPage}
+      initialSection={initialSection}
       highlight={highlight}
       miniPlayerRoot={scrollRoot}
       onScrollRootChange={setShellScrollRoot}

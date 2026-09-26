@@ -62,6 +62,7 @@ export interface ShellLayoutProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   initialTime?: number;
   initialPage?: number;
+  initialSection?: number;
   highlight?: string;
   miniPlayerRoot?: Element | null;
   onScrollRootChange: (node: HTMLElement | null) => void;
@@ -100,6 +101,7 @@ export function ShellLayout({
   videoRef,
   initialTime,
   initialPage,
+  initialSection,
   highlight,
   miniPlayerRoot,
   onScrollRootChange,
@@ -375,6 +377,7 @@ export function ShellLayout({
           videoRef={videoRef}
           initialTime={initialTime}
           initialPage={initialPage}
+          initialSection={initialSection}
           highlight={highlight}
           onMediaController={onMediaController}
           onDocumentCaptureController={onDocumentCaptureController}

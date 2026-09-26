@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import type { AddressInfo } from "node:net";
 
+import { PREVIEW_OUT_DIR } from "./build-preview";
 import { epubReaderCsp, isEpubReaderFile, isUnderEpubReader } from "../src/lib/epubReaderCsp";
 import {
   danglingBook,
@@ -28,6 +29,20 @@ const TYPES: Record<string, string> = {
   ".js": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
 };
+
+function servePreview(rawPath: string, res: import("node:http").ServerResponse): void {
+  const rel = rawPath.slice("/preview/".length) || "index.html";
+  if (rel.split("/").includes("..")) {
+    res.writeHead(404).end();
+    return;
+  }
+  try {
+    const body = readFileSync(join(PREVIEW_OUT_DIR, rel));
+    res.writeHead(200, { "Content-Type": TYPES[extname(rel)] ?? "application/octet-stream" }).end(body);
+  } catch {
+    res.writeHead(404).end();
+  }
+}
 
 export async function startServer(): Promise<{ server: Server; origin: string }> {
   const books = new Map<string, Buffer>();
@@ -55,6 +70,17 @@ export async function startServer(): Promise<{ server: Server; origin: string }>
         "Content-Security-Policy": epubReaderCsp(req.headers.host ?? null),
       });
       res.end(readFileSync(join(PUBLIC_DIR, rawPath)));
+      return;
+    }
+    if (rawPath.startsWith("/preview/")) {
+      servePreview(rawPath, res);
+      return;
+    }
+    const stream = /^\/api\/files\/([^/]+)\/stream$/.exec(rawPath);
+    if (stream) {
+      const bytes = books.get(`${stream[1]}.epub`);
+      if (bytes) res.writeHead(200, { "Content-Type": "application/epub+zip" }).end(bytes);
+      else res.writeHead(404).end();
       return;
     }
     if (rawPath === "/host.html") {
