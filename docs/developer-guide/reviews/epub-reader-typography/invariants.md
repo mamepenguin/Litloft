@@ -67,3 +67,14 @@ the iframe box unchanged (8); Escape closes it; Aa is 44 × 39 px. At 375 px the
 Japanese "オリジナル" was cut off by an 80 px label column; the column is now
 56 px and nothing is cut off. The three margins were compared in screenshots of
 a horizontal spread and a vertical book at 1000 × 800.
+
+## After r1 (decided by the user)
+
+Invariants unchanged. A: F1 (the panel's positioning wrapper was DismissScrim's
+"popup", so a press over the book did not close it — the panel is now the
+cover's direct sibling), F2 (leaving full screen closed the panel without
+handing the keys back), F3–F5 (tests that let 3, 9, 5/6 through). B: F6 (a theme
+change re-set an unchanged gap; now skipped), F7 (arrows and PageUp/PageDown act
+on the book while the panel is open — the user chose to keep it). Touch points
+the diff reached beyond the list: the theme path through `restyle()`, the page
+shortcut sets while the panel has focus, DismissScrim's sibling rule.
