@@ -77,6 +77,7 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
   const chapter =
     seeking !== null ? labelAt(seeking) : toc && location ? chapterOf(toc, location) : null;
   const pagesLeft = seeking !== null ? null : (location?.pagesLeft ?? null);
+  const typographyPanelBottom = fullscreen.isFullscreen ? "calc(2.5rem + 0.5rem)" : "0.5rem";
   const focusBook = useCallback(() => reader.frameRef.current?.contentWindow?.focus(), [reader.frameRef]);
 
   const closeTypography = useCallback(() => {
@@ -93,10 +94,12 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
   }, [typographyOpen]);
 
   // The panel belongs to one mode's bar; any way in or out of full screen
-  // closes it.
+  // closes it, and the keys go back to the book as on any other close.
+  const typographyOpenRef = useRef(typographyOpen);
+  typographyOpenRef.current = typographyOpen;
   useEffect(() => {
-    setTypographyOpen(false);
-  }, [fullscreen.isFullscreen]);
+    if (typographyOpenRef.current) closeTypography();
+  }, [fullscreen.isFullscreen, closeTypography]);
 
   useEffect(() => {
     setFullscreen(fullscreen.isFullscreen);
@@ -237,19 +240,16 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
                 className="absolute inset-0 z-10 cursor-default"
                 data-testid="epub-typography-cover"
               >
-                <div
-                  data-swipe-exempt
-                  className="absolute inset-x-2 top-2 z-20 flex flex-col justify-end"
+                <EpubTypographyPanel
+                  ref={typographyPanelRef}
+                  typography={reader.typography}
+                  onChange={reader.setTypography}
+                  className="absolute inset-x-2 z-20"
                   style={{
-                    bottom: fullscreen.isFullscreen ? "calc(2.5rem + 0.5rem)" : "0.5rem",
+                    bottom: typographyPanelBottom,
+                    maxHeight: `calc(100% - 0.5rem - ${typographyPanelBottom})`,
                   }}
-                >
-                  <EpubTypographyPanel
-                    ref={typographyPanelRef}
-                    typography={reader.typography}
-                    onChange={reader.setTypography}
-                  />
-                </div>
+                />
               </DismissScrim>
             )}
           </div>

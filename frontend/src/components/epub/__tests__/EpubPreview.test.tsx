@@ -949,5 +949,50 @@ describe("EpubPreview", () => {
       fireEvent.click(aa());
       expect(panel()!.closest("[data-swipe-exempt]")).not.toBeNull();
     });
+
+    it("is the only thing a press does not close it on: everything else over the book is the cover", async () => {
+      await openReady();
+      fireEvent.click(aa());
+      // DismissScrim spares only the element right after the cover.
+      expect(screen.getByTestId("epub-typography-cover").nextElementSibling).toBe(panel());
+    });
+
+    it("hands the keys back to the book when leaving full screen closes it", async () => {
+      const view = await openReady();
+      fullscreenState.isFullscreen = true;
+      fullscreenState.isPseudo = true;
+      view.rerender(
+        <ShortcutsProvider>
+          <FileNav onKey={view.onFileKey} />
+          <EpubPreview file={FILE} />
+        </ShortcutsProvider>,
+      );
+      fireEvent.click(aa());
+      view.focus.mockClear();
+      fullscreenState.isFullscreen = false;
+      fullscreenState.isPseudo = false;
+      view.rerender(
+        <ShortcutsProvider>
+          <FileNav onKey={view.onFileKey} />
+          <EpubPreview file={FILE} />
+        </ShortcutsProvider>,
+      );
+      expect(panel()).toBeNull();
+      expect(view.focus).toHaveBeenCalled();
+    });
+
+    it("stops at the smallest and the largest size", async () => {
+      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontSize: 0 }));
+      const small = await openReady();
+      fireEvent.click(aa());
+      expect(screen.getByRole("button", { name: "Smaller text" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Larger text" })).toBeEnabled();
+      small.unmount();
+      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontSize: 6 }));
+      await openReady();
+      fireEvent.click(aa());
+      expect(screen.getByRole("button", { name: "Larger text" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Smaller text" })).toBeEnabled();
+    });
   });
 });

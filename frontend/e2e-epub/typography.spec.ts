@@ -54,6 +54,7 @@ function where(page: Page) {
       pFamily: css("p", "font-family"),
       pLineHeight: css("p", "line-height"),
       codeFamily: css("#codespan", "font-family"),
+      inlineCodeFamily: css("#inlinespan", "font-family"),
       bodyBg: css("body", "background-color"),
     };
   });
@@ -164,6 +165,23 @@ test.describe("a change", () => {
     });
   }
 
+  test("keeps the page's first text on screen when changes and relayouts alternate", async ({ page }) => {
+    await open(page, "styled.epub", { fraction: 0.2 });
+    await turnTimes(page, 2);
+    await keepStart(page);
+    const sizes = [
+      { width: 800, height: 700 },
+      { width: 1000, height: 800 },
+      { width: 700, height: 650 },
+    ];
+    for (const [i, size] of sizes.entries()) {
+      await page.setViewportSize(size);
+      await page.waitForTimeout(SETTLE_MS);
+      await setTypography(page, { fontSize: i % 2 === 0 ? 5 : 3 });
+      expect(await startStillShown(page)).toBe(true);
+    }
+  });
+
   test("and back to the setting before shows the page shown before", async ({ page }) => {
     await open(page, "styled.epub", { fraction: 0.2 });
     await turnTimes(page, 2);
@@ -215,5 +233,22 @@ test("a theme change keeps the typography, a typography change keeps the theme, 
   at = await where(page);
   expect(at.pFamily).toMatch(/Georgia/);
   expect(at.bodyBg).toBe("rgb(22, 22, 22)");
+  expect(at.pLineHeight).not.toBe("");
   expect(at.codeFamily).toBe("monospace");
+  expect(at.inlineCodeFamily).toBe("monospace");
+});
+
+test("line spacing wins over the book's own class rules", async ({ page }) => {
+  await open(page, "styled.epub", { typography: { ...ORIGINAL, lineHeight: "1.9" } });
+  const at = await where(page);
+  // 1.9 × the 16 px body text.
+  expect(at.pLineHeight).toBe("30.4px");
+});
+
+test("a theme change lays the book out no more than once", async ({ page }) => {
+  await open(page, "styled.epub", { fraction: 0.3 });
+  const before = (await messages(page, "location")).length;
+  await page.evaluate(() => window.setTheme("dark"));
+  await page.waitForTimeout(SETTLE_MS);
+  expect((await messages(page, "location")).length - before).toBeLessThanOrEqual(1);
 });

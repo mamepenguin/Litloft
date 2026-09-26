@@ -80,7 +80,9 @@ const restyle = () => {
   const renderer = state.view?.renderer;
   if (!renderer) return;
   renderer.setStyles?.(themeCss(state.theme) + typographyCss(state.typography));
-  renderer.setAttribute("gap", gapFor(state.typography.margin));
+  // foliate re-lays out on every set, even of the same value.
+  const gap = gapFor(state.typography.margin);
+  if (renderer.getAttribute("gap") !== gap) renderer.setAttribute("gap", gap);
 };
 
 const applyTheme = (name) => {

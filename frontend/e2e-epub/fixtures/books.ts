@@ -205,12 +205,13 @@ export function styledBook(): Buffer {
     ).join("");
     const code =
       n === 2
-        ? '<pre><code id="code"><span id="codespan">let x = 1;</span></code></pre>'
+        ? '<pre><code id="code"><span id="codespan">let x = 1;</span></code></pre>' +
+          '<p id="inline">Call <code><span id="inlinespan">run()</span></code> first.</p>'
         : "";
     return (
       `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${n}</title>` +
-      "<style>html { font-size: 62.5%; } body { font-size: 1.6rem; font-family: serif; } code { font-family: monospace; }</style>" +
-      `</head><body><h1>Chapter ${n}</h1>${code}${paras}</body></html>`
+      "<style>html { font-size: 62.5%; } body { font-size: 1.6rem; font-family: serif; } code { font-family: monospace; } .book p { line-height: 1.2; }</style>" +
+      `</head><body class="book"><h1>Chapter ${n}</h1>${code}${paras}</body></html>`
     );
   });
   return book([NAV, ...items], items.map((i) => i.id));

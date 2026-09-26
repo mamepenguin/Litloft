@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { forwardRef, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import {
   FONT_FAMILIES,
@@ -63,10 +63,12 @@ function Segments<T extends string>({
 export interface EpubTypographyPanelProps {
   typography: Typography;
   onChange: (typography: Typography) => void;
+  className?: string;
+  style?: CSSProperties;
 }
 
 export const EpubTypographyPanel = forwardRef<HTMLDivElement, EpubTypographyPanelProps>(
-  function EpubTypographyPanel({ typography, onChange }, ref) {
+  function EpubTypographyPanel({ typography, onChange, className = "", style }, ref) {
     const t = useTranslations("file");
     const set = (patch: Partial<Typography>) => onChange({ ...typography, ...patch });
     const step = typography.fontSize;
@@ -78,7 +80,9 @@ export const EpubTypographyPanel = forwardRef<HTMLDivElement, EpubTypographyPane
         aria-label={t("epubTypography")}
         tabIndex={-1}
         data-testid="epub-typography-panel"
-        className="flex max-h-full flex-col gap-3 overflow-y-auto rounded-xl border border-bg-border bg-bg-card p-3 shadow-lg outline-none"
+        data-swipe-exempt
+        style={style}
+        className={`flex flex-col gap-3 overflow-y-auto rounded-xl border border-bg-border bg-bg-card p-3 shadow-lg outline-none ${className}`}
       >
         <div className="flex items-center gap-3">
           <span className="w-14 shrink-0 text-xs leading-tight text-text-muted">{t("epubTextSize")}</span>
