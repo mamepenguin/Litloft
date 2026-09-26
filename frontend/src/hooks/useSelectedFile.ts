@@ -7,6 +7,9 @@ import { navigationGuard } from "@/lib/navigationGuard";
 
 const FILE_PARAM = "file";
 
+/** Places inside one file; they mean nothing in the next one. */
+const FILE_LOCATION_PARAMS = ["section", "page", "t"] as const;
+
 export interface SelectedFileApi {
   fileId: string | null;
   selectFile: (id: string) => void;
@@ -37,6 +40,9 @@ export function useSelectedFile(): SelectedFileApi {
       navigationGuard.request(() => {
         const wasFileSelected = searchParams.has(FILE_PARAM);
         const params = new URLSearchParams(searchParams.toString());
+        if (params.get(FILE_PARAM) !== id) {
+          for (const key of FILE_LOCATION_PARAMS) params.delete(key);
+        }
         params.set(FILE_PARAM, id);
         const href = buildHref(params);
         if (wasFileSelected) router.replace(href, { scroll: false });
