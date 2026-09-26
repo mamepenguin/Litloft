@@ -12,9 +12,10 @@ import { useFocusScope } from "@/hooks/useFocusScope";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { getDownloadUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
-import { chapterAt, chapterOf } from "@/lib/epubToc";
+import { chapterAt, chapterOf, currentEntryIndex, hasSelectable } from "@/lib/epubToc";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { EpubPositionBar } from "./EpubPositionBar";
+import { EpubTocPanel } from "./EpubTocPanel";
 import { EpubTypographyPanel } from "./EpubTypographyPanel";
 import { useEpubReader, type ReaderActivity, type ReaderTheme } from "./useEpubReader";
 import { useFillHeight } from "./useFillHeight";
@@ -32,6 +33,8 @@ function subscribeTheme(onChange: () => void): () => void {
 function readTheme(): ReaderTheme {
   return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
 }
+
+type Panel = "typography" | "toc" | null;
 
 export interface EpubPreviewProps {
   file: Pick<FileItem, "id" | "filename" | "title" | "file_size">;
@@ -54,11 +57,11 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
     animate: false,
   });
   const [scrubbing, setScrubbing] = useState(false);
-  const [typographyOpen, setTypographyOpen] = useState(false);
+  const [openPanel, setOpenPanel] = useState<Panel>(null);
   const typographyPanelRef = useRef<HTMLDivElement | null>(null);
   const chrome = useAutoHidingChrome({
     enabled: fullscreen.isFullscreen,
-    held: scrubbing || typographyOpen,
+    held: scrubbing || openPanel !== null,
   });
   const { show: showChrome, toggle: toggleChrome } = chrome;
   // Pointer and key activity inside the book never reaches this document.
@@ -77,29 +80,43 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
   const chapter =
     seeking !== null ? labelAt(seeking) : toc && location ? chapterOf(toc, location) : null;
   const pagesLeft = seeking !== null ? null : (location?.pagesLeft ?? null);
-  const typographyPanelBottom = fullscreen.isFullscreen ? "calc(2.5rem + 0.5rem)" : "0.5rem";
+  const panelBottom = fullscreen.isFullscreen ? "calc(2.5rem + 0.5rem)" : "0.5rem";
+  const panelStyle = { bottom: panelBottom, maxHeight: `calc(100% - 0.5rem - ${panelBottom})` };
+  const tocUsable = !!toc && hasSelectable(toc);
   const focusBook = useCallback(() => reader.frameRef.current?.contentWindow?.focus(), [reader.frameRef]);
 
-  const closeTypography = useCallback(() => {
-    setTypographyOpen(false);
+  // Stable on purpose: the full-screen close below runs whenever this
+  // changes, and must never run because a panel opened.
+  const closePanel = useCallback(() => {
+    setOpenPanel(null);
     focusBook();
   }, [focusBook]);
-  const toggleTypography = useCallback(() => {
-    if (typographyOpen) closeTypography();
-    else setTypographyOpen(true);
-  }, [typographyOpen, closeTypography]);
+  const togglePanel = useCallback(
+    (panel: Exclude<Panel, null>) => {
+      if (openPanel === panel) closePanel();
+      else setOpenPanel(panel);
+    },
+    [openPanel, closePanel],
+  );
+  const selectTocEntry = useCallback(
+    (index: number) => {
+      reader.goToToc(index);
+      closePanel();
+    },
+    [reader, closePanel],
+  );
 
   useEffect(() => {
-    if (typographyOpen) typographyPanelRef.current?.focus();
-  }, [typographyOpen]);
+    if (openPanel === "typography") typographyPanelRef.current?.focus();
+  }, [openPanel]);
 
-  // The panel belongs to one mode's bar; any way in or out of full screen
+  // A panel belongs to one mode's bar; any way in or out of full screen
   // closes it, and the keys go back to the book as on any other close.
-  const typographyOpenRef = useRef(typographyOpen);
-  typographyOpenRef.current = typographyOpen;
+  const openPanelRef = useRef(openPanel);
+  openPanelRef.current = openPanel;
   useEffect(() => {
-    if (typographyOpenRef.current) closeTypography();
-  }, [fullscreen.isFullscreen, closeTypography]);
+    if (openPanelRef.current !== null) closePanel();
+  }, [fullscreen.isFullscreen, closePanel]);
 
   useEffect(() => {
     setFullscreen(fullscreen.isFullscreen);
@@ -154,17 +171,17 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
   // The full screen's tier, not a higher one: a search or a note opened over
   // the panel keeps its own Escape. Enabled later, so it wins within the tier.
   useShortcuts(
-    "epub-typography",
-    t("epubTypography"),
+    "epub-panel",
+    openPanel === "toc" ? t("epubContents") : t("epubTypography"),
     [
       {
         key: "escape",
-        label: t("epubCloseTypography"),
+        label: openPanel === "toc" ? t("epubCloseContents") : t("epubCloseTypography"),
         editingOnly: false,
-        handler: closeTypography,
+        handler: closePanel,
       },
     ],
-    typographyOpen,
+    openPanel !== null,
     OVERLAY_PRIORITY,
   );
 
@@ -231,25 +248,33 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
                 {t("epubLoading")}
               </p>
             )}
-            {typographyOpen && (
+            {openPanel !== null && (
               // Over the book too: the book is a frame whose presses never
-              // reach this page.
+              // reach this page. The open panel must be the cover's next
+              // sibling, the one element DismissScrim spares.
               <DismissScrim
-                onDismiss={closeTypography}
-                label={t("epubCloseTypography")}
+                onDismiss={closePanel}
+                label={openPanel === "toc" ? t("epubCloseContents") : t("epubCloseTypography")}
                 className="absolute inset-0 z-10 cursor-default"
-                data-testid="epub-typography-cover"
+                data-testid="epub-panel-cover"
               >
-                <EpubTypographyPanel
-                  ref={typographyPanelRef}
-                  typography={reader.typography}
-                  onChange={reader.setTypography}
-                  className="absolute inset-x-2 z-20"
-                  style={{
-                    bottom: typographyPanelBottom,
-                    maxHeight: `calc(100% - 0.5rem - ${typographyPanelBottom})`,
-                  }}
-                />
+                {openPanel === "toc" ? (
+                  <EpubTocPanel
+                    toc={toc ?? []}
+                    currentIndex={toc && location ? currentEntryIndex(toc, location) : null}
+                    onSelect={selectTocEntry}
+                    className="absolute inset-x-2 z-20"
+                    style={panelStyle}
+                  />
+                ) : (
+                  <EpubTypographyPanel
+                    ref={typographyPanelRef}
+                    typography={reader.typography}
+                    onChange={reader.setTypography}
+                    className="absolute inset-x-2 z-20"
+                    style={panelStyle}
+                  />
+                )}
               </DismissScrim>
             )}
           </div>
@@ -287,8 +312,9 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
                 onTurn={reader.turn}
                 onPointerCommit={focusBook}
                 onScrubbingChange={setScrubbing}
-                typographyOpen={typographyOpen}
-                onToggleTypography={toggleTypography}
+                openPanel={openPanel}
+                onTogglePanel={togglePanel}
+                tocDisabled={!tocUsable}
               />
             </div>
           </>
@@ -305,8 +331,9 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
             onTurn={reader.turn}
             onPointerCommit={focusBook}
             onScrubbingChange={setScrubbing}
-            typographyOpen={typographyOpen}
-            onToggleTypography={toggleTypography}
+            openPanel={openPanel}
+            onTogglePanel={togglePanel}
+            tocDisabled={!tocUsable}
           />
         )}
         <button

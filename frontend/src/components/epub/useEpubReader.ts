@@ -43,6 +43,7 @@ export interface EpubReader {
   seeking: number | null;
   turn: (direction: TurnDirection) => void;
   seek: (fraction: number) => void;
+  goToToc: (index: number) => void;
   typography: Typography;
   setTypography: (typography: Typography) => void;
   setFullscreen: (fullscreen: boolean) => void;
@@ -192,6 +193,10 @@ export function useEpubReader(
     postToReader(frameRef.current?.contentWindow ?? null, { type: "seek", fraction, id });
   }, []);
 
+  const goToToc = useCallback((index: number) => {
+    postToReader(frameRef.current?.contentWindow ?? null, { type: "goToToc", index });
+  }, []);
+
   const setTypography = useCallback((next: Typography) => {
     setTypographyState(next);
     writeStoredTypography(next);
@@ -213,6 +218,7 @@ export function useEpubReader(
     seeking: seeking?.fraction ?? null,
     turn,
     seek,
+    goToToc,
     typography,
     setTypography,
     setFullscreen,

@@ -219,7 +219,10 @@
     "epubMargin_wide": "広い",
     "epubFont_serif": "明朝",
     "epubFont_sans": "ゴシック",
-    "epubCloseTypography": "文字の設定を閉じる"
+    "epubCloseTypography": "文字の設定を閉じる",
+    "epubContents": "目次",
+    "epubCloseContents": "目次を閉じる",
+    "epubUntitled": "（無題）"
   },
   "search": {
     "label": "検索",
