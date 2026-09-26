@@ -143,6 +143,10 @@ Settings saved here are stored in `data/addons/intelligence/*-overrides.json` an
 Every hour (`indexing.reconciliation_interval`) the addon looks for files it has not indexed yet. Changes the core reports (new, moved, deleted files, a finished scan) are picked up without waiting.
 
 - Text, Markdown, HTML, PDF and Office files: the text is extracted, split into chunks (`indexing.text_chunking`) and embedded.
+- EPUB books: the text of each chapter file in the reading order is indexed, and a match names its chapter. Ruby readings (furigana) are left out and the text they annotate is kept.
+  - A book protected by DRM, or made only of page images, is indexed with no text. So is any chapter listed in the book's `META-INF/encryption.xml`.
+  - Limits per book: the first 2,000 chapter files, 2,000,000 characters of text and 20 MB of unpacked data. A chapter file over 5 MB, or a package, navigation or table-of-contents file over 1 MB, is skipped and the rest of the book is still indexed.
+  - A book whose zip is corrupt is not indexed at all.
 - Audio and video are transcribed, split into chunks and embedded. Keywords from the transcript are stored for **Similar files**.
 - For video, frames are picked at scene changes (`indexing.frame_extraction`) and embedded with CLIP.
 - Images are embedded with CLIP, and captioned with BLIP when `models.blip` is set.
