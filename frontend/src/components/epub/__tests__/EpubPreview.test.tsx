@@ -309,6 +309,13 @@ describe("EpubPreview", () => {
   it("inline, the arrows turn pages the way the book reads", async () => {
     const { readerWindow, posted, onFileKey } = renderPreview();
     await fromReader(readerWindow, { type: "ready", dir: "rtl", vertical: true });
+    for (const mod of ["shiftKey", "altKey", "ctrlKey"]) {
+      act(() => {
+        document.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, [mod]: true }),
+        );
+      });
+    }
     act(() => {
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
     });

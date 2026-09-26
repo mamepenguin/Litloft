@@ -8,3 +8,8 @@
 6. Arrows never change file on PDF / EPUB pages; other non-media files keep arrow file navigation; video / audio / .loft keep seek.
 7. Full-screen PDF and EPUB key behaviour is unchanged (arrows follow reading direction; `f` / `Esc` close).
 8. PageUp / PageDown / Space / `f` scoping in both inline viewers is unchanged.
+
+## Revised after r1 (by the user, prompted by F4)
+
+9. An arrow pressed with Shift, Alt, or the platform's primary modifier (Meta on macOS, Ctrl elsewhere) turns no page, on the page or inside the EPUB reader, inline or full screen.
+7 (amended). Full-screen PDF and EPUB key behaviour is unchanged, except that invariant 9 now also holds in the full-screen EPUB reader, where Shift+arrow used to turn the page.

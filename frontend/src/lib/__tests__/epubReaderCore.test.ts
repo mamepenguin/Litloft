@@ -73,6 +73,8 @@ describe("keyAction", () => {
     ["ArrowRight", inline, { turn: "right" }],
     ["f", inline, { forward: "f" }],
     ["Escape", inline, null],
+    ["ArrowRight", inlineShift, null],
+    ["ArrowLeft", { shift: true, fullscreen: true }, null],
     ["ArrowLeft", full, { turn: "left" }],
     ["ArrowRight", full, { turn: "right" }],
     ["PageDown", full, { turn: "next" }],
