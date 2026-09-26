@@ -15,14 +15,8 @@ export const BOOST_RATE = 2;
 /** Travel that hands the gesture over to a scroll or a swipe. */
 const MOVE_CANCEL_PX = 10;
 export const DOUBLE_TAP_MS = 400;
-/**
- * How long a skip stays open for further taps, and stays on screen.
- * Generous on purpose: this is the window someone taps within to reach
- * 30 or 40 seconds, and having the count reset under them because they
- * paused to look at the frame is worse than the occasional stray tap
- * being counted.
- */
-export const SKIP_ACCUMULATE_MS = 1300;
+/** How long a skip stays open for further taps, and stays on screen. */
+export const SKIP_ACCUMULATE_MS = 500;
 const SKIP_SECONDS = 10;
 /**
  * How long a single click waits to see whether it is really the first
