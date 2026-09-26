@@ -124,6 +124,32 @@ export function mixedBook(): Buffer {
   return book([NAV, ...items], items.map((i) => i.id), { lang: "ja", ppd: "rtl" });
 }
 
+/**
+ * A table of contents with the entries converted books get wrong: a picture
+ * with no title, a heading with no link, a link to a file not in the book.
+ */
+export function tocBook(): Buffer {
+  const items = chapters(4, (n) => {
+    const paras = Array.from(
+      { length: PARAGRAPHS },
+      (_, i) => `<p>Chapter ${n}, paragraph ${i}. This line exists so that the chapter spans several pages.</p>`,
+    ).join("");
+    return `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${n}</title></head><body><h1 id="s">Chapter ${n}</h1>${paras}</body></html>`;
+  });
+  const nav: Item = {
+    ...NAV,
+    body:
+      '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">' +
+      '<head><title>n</title></head><body><nav epub:type="toc"><ol>' +
+      '<li><a href="c1.xhtml"><img src="cover.png" alt=""/></a></li>' +
+      '<li><span>Part</span><ol><li><a href="c2.xhtml">Two</a></li><li><a href="c3.xhtml#s">Three</a></li></ol></li>' +
+      '<li><a href="missing.xhtml">Gone</a></li>' +
+      '<li><a href="c4.xhtml">Four &amp; <b>bold</b></a></li>' +
+      "</ol></nav></body></html>",
+  };
+  return book([nav, ...items], items.map((i) => i.id));
+}
+
 export function fixedLayoutBook(): Buffer {
   const [item] = chapters(1, () =>
     '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>f</title></head><body><p>f</p></body></html>',

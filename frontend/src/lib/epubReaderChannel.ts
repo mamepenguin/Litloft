@@ -1,8 +1,21 @@
 export type ReaderKey = "f" | "Escape";
 
+/** The reader truncates labels to this length and sends at most this many entries. */
+export const TOC_LABEL_MAX = 200;
+export const TOC_MAX = 1000;
+
+export interface TocEntry {
+  label: string;
+  depth: number;
+  /** Start of the section the entry opens; null when its target does not resolve. */
+  fraction: number | null;
+}
+
 export type ReaderMessage =
   | { type: "boot" }
-  | { type: "ready"; dir: "ltr" | "rtl"; vertical: boolean }
+  | { type: "ready"; dir: "ltr" | "rtl"; vertical: boolean; toc: TocEntry[] }
+  | { type: "location"; fraction: number; tocIndex: number | null; pagesLeft: number | null }
+  | { type: "activity"; kind: "tap" | "pointer" | "key" }
   | { type: "turned"; fraction: number; atEnd: boolean }
   | { type: "key"; key: ReaderKey }
   | { type: "link"; url: string }
@@ -11,11 +24,38 @@ export type ReaderMessage =
 export type ReaderCommand =
   | { type: "open"; bytes: ArrayBuffer; fraction: number | null; theme: "light" | "dark" }
   | { type: "turn"; direction: "next" | "prev" | "left" | "right" }
+  | { type: "seek"; fraction: number }
   | { type: "theme"; theme: "light" | "dark" }
   | { type: "mode"; fullscreen: boolean };
 
 const KEYS: ReadonlySet<string> = new Set<ReaderKey>(["f", "Escape"]);
 const ERRORS: ReadonlySet<string> = new Set(["unsupported", "parse", "isolation"]);
+
+function isFraction(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+function isCount(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+/**
+ * A bad table of contents costs the reader its entries, never the book: a
+ * dropped `ready` would leave the page loading for good.
+ */
+function parseToc(value: unknown): TocEntry[] {
+  if (!Array.isArray(value)) return [];
+  const entries: TocEntry[] = [];
+  for (const item of value.slice(0, TOC_MAX)) {
+    if (!item || typeof item !== "object") continue;
+    const { label, depth, fraction } = item as Record<string, unknown>;
+    if (typeof label !== "string" || label.length > TOC_LABEL_MAX) continue;
+    if (!isCount(depth)) continue;
+    if (fraction !== null && !isFraction(fraction)) continue;
+    entries.push({ label, depth, fraction });
+  }
+  return entries;
+}
 
 function isHttpUrl(value: unknown): value is string {
   if (typeof value !== "string") return false;
@@ -46,17 +86,17 @@ export function parseReaderMessage(
       return { type: "boot" };
     case "ready":
       if ((m.dir !== "ltr" && m.dir !== "rtl") || typeof m.vertical !== "boolean") return null;
-      return { type: "ready", dir: m.dir, vertical: m.vertical };
+      return { type: "ready", dir: m.dir, vertical: m.vertical, toc: parseToc(m.toc) };
+    case "location":
+      if (!isFraction(m.fraction)) return null;
+      if (m.tocIndex !== null && !isCount(m.tocIndex)) return null;
+      if (m.pagesLeft !== null && !isCount(m.pagesLeft)) return null;
+      return { type: "location", fraction: m.fraction, tocIndex: m.tocIndex, pagesLeft: m.pagesLeft };
+    case "activity":
+      if (m.kind !== "tap" && m.kind !== "pointer" && m.kind !== "key") return null;
+      return { type: "activity", kind: m.kind };
     case "turned":
-      if (
-        typeof m.fraction !== "number" ||
-        !Number.isFinite(m.fraction) ||
-        m.fraction < 0 ||
-        m.fraction > 1 ||
-        typeof m.atEnd !== "boolean"
-      ) {
-        return null;
-      }
+      if (!isFraction(m.fraction) || typeof m.atEnd !== "boolean") return null;
       return { type: "turned", fraction: m.fraction, atEnd: m.atEnd };
     case "key":
       if (typeof m.key !== "string" || !KEYS.has(m.key)) return null;

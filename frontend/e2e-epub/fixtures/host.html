@@ -20,6 +20,7 @@
   window.__loads = 0;
   reader.addEventListener("load", () => { window.__loads += 1; });
   window.turn = (direction) => send({ type: "turn", direction });
+  window.seek = (fraction) => send({ type: "seek", fraction });
   window.setTheme = (theme) => send({ type: "theme", theme });
   window.setMode = (fullscreen) => {
     document.getElementById("frame").classList.toggle("fs", fullscreen);

@@ -54,3 +54,36 @@ export const isHttpUrl = (href) => {
     return false;
   }
 };
+
+export const TOC_LABEL_MAX = 200;
+export const TOC_MAX = 1000;
+
+export const isValidSeek = (d) =>
+  typeof d.fraction === "number" && Number.isFinite(d.fraction) && d.fraction >= 0 && d.fraction <= 1;
+
+// Pre-order and unfiltered, so that an entry's position is the id foliate
+// gives the same item when it reports where the reader is.
+export const flattenToc = (toc, resolveIndex, sectionFractions) => {
+  const entries = [];
+  const hrefs = [];
+  const visit = (item, depth) => {
+    if (entries.length >= TOC_MAX) return;
+    const href = typeof item?.href === "string" ? item.href : null;
+    let index = null;
+    try {
+      index = href === null ? null : resolveIndex(href);
+    } catch {
+      index = null;
+    }
+    const fraction = Number.isInteger(index) ? sectionFractions[index] ?? null : null;
+    entries.push({
+      label: String(item?.label ?? "").trim().slice(0, TOC_LABEL_MAX),
+      depth,
+      fraction: typeof fraction === "number" && Number.isFinite(fraction) ? fraction : null,
+    });
+    hrefs.push(href);
+    if (Array.isArray(item?.subitems)) for (const sub of item.subitems) visit(sub, depth + 1);
+  };
+  if (Array.isArray(toc)) for (const item of toc) visit(item, 0);
+  return { entries, hrefs };
+};

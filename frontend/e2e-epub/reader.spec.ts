@@ -8,6 +8,7 @@ declare global {
     __loads: number;
     __pwned?: string[];
     turn: (direction: string) => void;
+    seek: (fraction: number) => void;
     setTheme: (theme: string) => void;
     setMode: (fullscreen: boolean) => void;
   }
@@ -441,6 +442,132 @@ for (const book of ["horizontal.epub", "vertical.epub"]) {
   });
 }
 
+test.describe("the table of contents", () => {
+  test("a book whose entries have no title, no link or a missing target opens, and lists every entry", async ({
+    page,
+  }) => {
+    await open(page, "toc.epub");
+    const [ready] = await messages(page, "ready");
+    expect(ready).toBeDefined();
+    const toc = ready.toc as { label: string; depth: number; fraction: number | null }[];
+    expect(toc.map((e) => [e.label, e.depth])).toEqual([
+      ["", 0],
+      ["Part", 0],
+      ["Two", 1],
+      ["Three", 1],
+      ["Gone", 0],
+      ["Four & bold", 0],
+    ]);
+    expect(toc.map((e) => e.fraction === null)).toEqual([false, true, false, false, true, false]);
+    const starts = toc.filter((e) => e.fraction !== null).map((e) => e.fraction as number);
+    expect([...starts].sort((a, b) => a - b)).toEqual(starts);
+  });
+
+  test("the book's own markup never reaches the page", async ({ page }) => {
+    await open(page, "toc.epub");
+    const [ready] = await messages(page, "ready");
+    expect(JSON.stringify(ready)).not.toMatch(/<|xhtml|href/);
+  });
+});
+
+test.describe("location", () => {
+  test("follows each page after ready, with the chapter the page is in", async ({ page }) => {
+    await open(page, "toc.epub");
+    await expect.poll(async () => (await messages(page, "location")).length).toBeGreaterThan(0);
+    const order = await page.evaluate(() => window.__msgs.map((m) => m.type));
+    expect(order.indexOf("location")).toBeGreaterThan(order.indexOf("ready"));
+    expect((await messages(page, "location")).at(-1)).toMatchObject({ fraction: 0, tocIndex: 0 });
+
+    let chapter = 0;
+    for (let i = 0; i < 40 && chapter < 1; i++) {
+      await turnAndSettle(page);
+      chapter = (await where(page)).index ?? 0;
+    }
+    const location = (await messages(page, "location")).at(-1)!;
+    const turned = (await messages(page, "turned")).at(-1)!;
+    expect(location.tocIndex).toBe(2);
+    expect(location.fraction).toBe(turned.fraction);
+    const at = await where(page);
+    expect(location.pagesLeft).toBe(at.pages - 2 - at.page);
+  });
+
+  test("a relayout reports where the reader is, and no turn", async ({ page }) => {
+    await open(page, "horizontal.epub", 0.3);
+    const before = (await messages(page, "location")).length;
+    await page.setViewportSize({ width: 600, height: 600 });
+    await expect.poll(async () => (await messages(page, "location")).length).toBeGreaterThan(before);
+    expect(await messages(page, "turned")).toEqual([]);
+  });
+});
+
+for (const book of ["horizontal.epub", "vertical.epub"]) {
+  test.describe(`seek in ${book}`, () => {
+    test("reports one turn, and lands where reopening at that place lands", async ({ page }) => {
+      await open(page, book);
+      await page.evaluate(() => window.seek(0.55));
+      await expect.poll(async () => (await messages(page, "turned")).length).toBe(1);
+      const landed = await where(page);
+      const [turned] = await messages(page, "turned");
+      expect(turned.fraction as number).toBeGreaterThan(0.4);
+      expect(turned.fraction as number).toBeLessThan(0.7);
+
+      await open(page, book, turned.fraction as number);
+      const back = await where(page);
+      expect({ index: back.index, page: back.page }).toEqual({ index: landed.index, page: landed.page });
+    });
+
+    test("to the end shows the last page", async ({ page }) => {
+      await open(page, book);
+      await page.evaluate(() => window.seek(1));
+      await expect.poll(async () => (await messages(page, "turned")).length).toBe(1);
+      expect((await messages(page, "turned"))[0].atEnd).toBe(true);
+    });
+
+    test("seeks sent together land on the last one", async ({ page }) => {
+      await open(page, book);
+      await page.evaluate(() => {
+        window.seek(0.2);
+        window.seek(0.4);
+        window.seek(0.8);
+      });
+      await expect
+        .poll(async () => ((await messages(page, "turned")).at(-1)?.fraction as number) ?? 0)
+        .toBeGreaterThan(0.7);
+      await page.waitForTimeout(500);
+      expect((await messages(page, "turned")).at(-1)!.fraction as number).toBeGreaterThan(0.7);
+    });
+  });
+}
+
+test("a seek outside 0..1 does nothing", async ({ page }) => {
+  await open(page, "horizontal.epub");
+  const before = await where(page);
+  await page.evaluate(() => {
+    window.seek(1.5);
+    window.seek(Number.NaN);
+    window.seek(-1);
+  });
+  await page.waitForTimeout(500);
+  expect(await where(page)).toEqual(before);
+  expect(await messages(page, "turned")).toEqual([]);
+});
+
+test.describe("activity", () => {
+  test("a mouse moving over the book is reported only in full screen", async ({ page }) => {
+    await open(page, "horizontal.epub");
+    await page.mouse.move(400, 300);
+    await page.mouse.move(420, 320);
+    await page.waitForTimeout(300);
+    expect(await messages(page, "activity")).toEqual([]);
+    await page.evaluate(() => window.setMode(true));
+    await page.waitForTimeout(300);
+    await page.mouse.move(500, 300);
+    await page.mouse.move(520, 320);
+    await expect.poll(async () => (await messages(page, "activity")).length).toBeGreaterThan(0);
+    expect((await messages(page, "activity"))[0]).toEqual({ type: "activity", kind: "pointer" });
+  });
+});
+
 test.describe("touch", () => {
   test.skip(({ browserName }) => browserName !== "chromium", "touch is driven through CDP");
   test.use({ hasTouch: true });
@@ -487,6 +614,19 @@ test.describe("touch", () => {
     await tap(page, 20);
     expect((await where(page)).page).toBe(pinned.page);
     expect(await messages(page, "turned")).toHaveLength(2);
+  });
+
+  test("a tap in the middle is reported in full screen and turns nothing", async ({ page }) => {
+    await open(page, "horizontal.epub");
+    await tap(page, 500);
+    expect(await messages(page, "activity")).toEqual([]);
+    await page.evaluate(() => window.setMode(true));
+    await page.waitForTimeout(400);
+    const pinned = await where(page);
+    await tap(page, 500);
+    expect(await messages(page, "activity")).toEqual([{ type: "activity", kind: "tap" }]);
+    expect(await where(page)).toEqual(pinned);
+    expect(await messages(page, "turned")).toEqual([]);
   });
 
   test("a sideways pan while the page is zoomed turns nothing", async ({ page }) => {

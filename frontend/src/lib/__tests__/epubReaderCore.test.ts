@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
+  TOC_LABEL_MAX,
+  TOC_MAX,
   edgeAction,
+  flattenToc,
+  isValidSeek,
   isHttpUrl,
   isValidOpen,
   keyAction,
@@ -127,5 +131,88 @@ describe("isHttpUrl", () => {
     ["not a url", false],
   ])("%s → %s", (href, expected) => {
     expect(isHttpUrl(href)).toBe(expected);
+  });
+});
+
+describe("flattenToc", () => {
+  const fractions = [0, 0.2, 0.5, 0.8];
+  const resolve = (href: string | null) => {
+    const i = ["c1.xhtml", "c2.xhtml", "c3.xhtml", "c4.xhtml"].indexOf(href?.split("#")[0] ?? "");
+    return i < 0 ? null : i;
+  };
+
+  it("walks the tree in pre-order, the order foliate numbers its items in", () => {
+    const toc = [
+      { label: "A", href: "c1.xhtml", subitems: [{ label: "A.1", href: "c2.xhtml#x" }] },
+      { label: "B", href: "c3.xhtml", subitems: [] },
+      { label: "C", href: "c4.xhtml" },
+    ];
+    const { entries, hrefs } = flattenToc(toc, resolve, fractions);
+    expect(entries).toEqual([
+      { label: "A", depth: 0, fraction: 0 },
+      { label: "A.1", depth: 1, fraction: 0.2 },
+      { label: "B", depth: 0, fraction: 0.5 },
+      { label: "C", depth: 0, fraction: 0.8 },
+    ]);
+    expect(hrefs).toEqual(["c1.xhtml", "c2.xhtml#x", "c3.xhtml", "c4.xhtml"]);
+  });
+
+  it("keeps an entry with no label or no target, so the numbering stays foliate's", () => {
+    const toc = [
+      { label: null, href: "c1.xhtml" },
+      { label: "  Heading  ", href: null, subitems: [{ label: "In", href: "missing.xhtml" }] },
+      { label: "Last", href: "c2.xhtml" },
+    ];
+    expect(flattenToc(toc, resolve, fractions).entries).toEqual([
+      { label: "", depth: 0, fraction: 0 },
+      { label: "Heading", depth: 0, fraction: null },
+      { label: "In", depth: 1, fraction: null },
+      { label: "Last", depth: 0, fraction: 0.2 },
+    ]);
+  });
+
+  it("gives null to an entry whose resolver throws", () => {
+    const throwing = () => {
+      throw new Error("bad");
+    };
+    expect(flattenToc([{ label: "a", href: "c1.xhtml" }], throwing, fractions).entries).toEqual([
+      { label: "a", depth: 0, fraction: null },
+    ]);
+  });
+
+  it("caps the label length and the entry count", () => {
+    const toc = Array.from({ length: TOC_MAX + 3 }, () => ({ label: "x".repeat(TOC_LABEL_MAX + 9), href: "c1.xhtml" }));
+    const { entries, hrefs } = flattenToc(toc, resolve, fractions);
+    expect(entries).toHaveLength(TOC_MAX);
+    expect(hrefs).toHaveLength(TOC_MAX);
+    expect(entries[0].label).toHaveLength(TOC_LABEL_MAX);
+  });
+
+  it("reads a missing or malformed table of contents as empty", () => {
+    expect(flattenToc(undefined, resolve, fractions).entries).toEqual([]);
+    expect(flattenToc([null, "x"], resolve, fractions).entries).toHaveLength(2);
+  });
+});
+
+describe("isValidSeek", () => {
+  it.each([
+    [0, true],
+    [0.5, true],
+    [1, true],
+    [-0.01, false],
+    [1.01, false],
+    [Number.NaN, false],
+    [Infinity, false],
+    ["0.5", false],
+    [null, false],
+  ])("%o → %s", (fraction, expected) => {
+    expect(isValidSeek({ fraction })).toBe(expected);
+  });
+});
+
+describe("the caps", () => {
+  it("are the ones the page accepts", async () => {
+    const channel = await import("@/lib/epubReaderChannel");
+    expect([TOC_LABEL_MAX, TOC_MAX]).toEqual([channel.TOC_LABEL_MAX, channel.TOC_MAX]);
   });
 });
