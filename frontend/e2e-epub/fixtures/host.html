@@ -34,7 +34,11 @@
     const res = await fetch("/books/" + params.get("book"));
     const bytes = await res.arrayBuffer();
     const f = params.get("f");
-    send({ type: "open", bytes, fraction: f === null ? null : Number(f), theme: "light" }, [bytes]);
+    const s = params.get("s");
+    send(
+      { type: "open", bytes, fraction: f === null ? null : Number(f), section: s === null ? null : Number(s), theme: "light" },
+      [bytes],
+    );
   });
 </script>
 </body>

@@ -181,6 +181,17 @@ export function nonLinearBook(): Buffer {
   );
 }
 
+/**
+ * The spine names an item the manifest does not have, before the second
+ * chapter. foliate drops it, so the chapters are sections 0, 1, 2.
+ */
+export function danglingBook(): Buffer {
+  const items = chapters(3, (n) =>
+    `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${n}</title></head><body><h1>Chapter ${n}</h1><p>Short.</p></body></html>`,
+  );
+  return book([NAV, ...items], ["c1", "ghost", "c2", "c3"]);
+}
+
 export function fixedLayoutBook(): Buffer {
   const [item] = chapters(1, () =>
     '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>f</title></head><body><p>f</p></body></html>',

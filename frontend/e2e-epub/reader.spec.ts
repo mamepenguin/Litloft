@@ -16,8 +16,9 @@ declare global {
 
 const origin = () => process.env.EPUB_E2E_ORIGIN!;
 
-async function open(page: Page, book: string, fraction?: number) {
-  const query = fraction === undefined ? "" : `&f=${fraction}`;
+async function open(page: Page, book: string, fraction?: number, section?: number) {
+  const query =
+    (fraction === undefined ? "" : `&f=${fraction}`) + (section === undefined ? "" : `&s=${section}`);
   await page.goto(`${origin()}/host.html?book=${book}${query}`);
   await page.waitForFunction(() =>
     window.__msgs.some((m) => m.type === "ready" || m.type === "error"),
@@ -55,6 +56,17 @@ async function turnAndSettle(page: Page, direction = "next") {
     })
     .toBe(true);
   await expect.poll(async () => (await messages(page, "turned")).length).toBe(before + 1);
+}
+
+/** The first heading of the section on screen. */
+function shownHeading(page: Page) {
+  return page.evaluate(() => {
+    const doc = (document.getElementById("reader") as HTMLIFrameElement).contentDocument!;
+    const view = doc.querySelector("foliate-view") as unknown as {
+      renderer: { getContents(): { doc: Document }[] };
+    };
+    return view.renderer.getContents()[0]?.doc.querySelector("h1")?.textContent ?? null;
+  });
 }
 
 /** Clicks everything clickable in the section on screen. */
@@ -441,6 +453,42 @@ for (const book of ["horizontal.epub", "vertical.epub"]) {
     });
   });
 }
+
+test.describe("opening at a section", () => {
+  test("a book opened at section N shows the chapter the index names", async ({ page }) => {
+    // The index counts the chapters 1, 2, 3, skipping the spine entry with no
+    // manifest item; section 2 is opened at index 1.
+    await open(page, "dangling.epub", undefined, 1);
+    expect(await shownHeading(page)).toBe("Chapter 2");
+    await open(page, "dangling.epub", undefined, 2);
+    expect(await shownHeading(page)).toBe("Chapter 3");
+  });
+
+  test("the section outranks the saved fraction", async ({ page }) => {
+    await open(page, "horizontal.epub", 0.9, 1);
+    const at = await where(page);
+    expect({ index: at.index, page: at.page }).toEqual({ index: 1, page: 1 });
+  });
+
+  for (const section of [5, -1]) {
+    test(`an out-of-range section ${section} is ignored`, async ({ page }) => {
+      await open(page, "horizontal.epub", 0.5);
+      const saved = await where(page);
+      await open(page, "horizontal.epub", 0.5, section);
+      const at = await where(page);
+      expect({ index: at.index, page: at.page }).toEqual({ index: saved.index, page: saved.page });
+    });
+  }
+
+  test("opening at a section reports no turn, and the next turn reports", async ({ page }) => {
+    await open(page, "horizontal.epub", 0.1, 3);
+    expect((await where(page)).index).toBe(3);
+    await page.waitForTimeout(400);
+    expect(await messages(page, "turned")).toEqual([]);
+    await turnAndSettle(page);
+    expect(await messages(page, "turned")).toHaveLength(1);
+  });
+});
 
 test.describe("the table of contents", () => {
   test("a book whose entries have no title, no link or a missing target opens, and lists every entry", async ({

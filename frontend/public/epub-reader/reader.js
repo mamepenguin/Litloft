@@ -175,8 +175,12 @@ const firstLinearIndex = (book) => {
   return i < 0 ? 0 : i;
 };
 
-const restore = async (fraction) => {
+const restore = async (fraction, section = null) => {
   const { view, progress } = state;
+  if (Number.isInteger(section) && section >= 0 && section < view.book.sections.length) {
+    await view.renderer.goTo({ index: section, anchor: 0 });
+    return;
+  }
   if (fraction === null || fraction <= 0 || fraction >= 1) {
     await view.renderer.goTo({ index: firstLinearIndex(view.book), anchor: 0 });
     return;
@@ -226,7 +230,7 @@ const buildToc = (view) => {
   }
 };
 
-const openBook = async ({ bytes, fraction, theme }) => {
+const openBook = async ({ bytes, fraction, section, theme }) => {
   const [{ makeBook }, { SectionProgress }] = await Promise.all([
     import("./vendor/view.js"),
     import("./vendor/progress.js"),
@@ -278,7 +282,7 @@ const openBook = async ({ bytes, fraction, theme }) => {
   view.renderer.setAttribute("gap", "6%");
   applyTheme(theme);
 
-  await restore(fraction);
+  await restore(fraction, section);
 
   const doc = view.renderer.getContents?.()[0]?.doc;
   const writingMode = doc?.body ? doc.defaultView.getComputedStyle(doc.body).writingMode : "";

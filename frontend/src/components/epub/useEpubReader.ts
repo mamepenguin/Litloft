@@ -108,7 +108,7 @@ export function useEpubReader(
               if (bookRef.current !== book) return;
               postToReader(
                 readerWindow,
-                { type: "open", bytes, fraction, theme: themeRef.current },
+                { type: "open", bytes, fraction, section: null, theme: themeRef.current },
                 [bytes],
               );
             },

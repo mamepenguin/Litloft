@@ -23,7 +23,14 @@ export type ReaderMessage =
   | { type: "error"; code: "unsupported" | "parse" | "isolation" };
 
 export type ReaderCommand =
-  | { type: "open"; bytes: ArrayBuffer; fraction: number | null; theme: "light" | "dark" }
+  | {
+      type: "open";
+      bytes: ArrayBuffer;
+      fraction: number | null;
+      /** foliate's 0-based section index; it outranks `fraction`. */
+      section: number | null;
+      theme: "light" | "dark";
+    }
   | { type: "turn"; direction: "next" | "prev" | "left" | "right" }
   | { type: "seek"; fraction: number; id: number }
   | { type: "theme"; theme: "light" | "dark" }

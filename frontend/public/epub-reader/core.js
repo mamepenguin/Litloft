@@ -4,6 +4,7 @@ const EDGE_RATIO = 0.25;
 export const isValidOpen = (d) =>
   d.bytes instanceof ArrayBuffer &&
   (d.fraction === null || (typeof d.fraction === "number" && Number.isFinite(d.fraction))) &&
+  (d.section === null || Number.isInteger(d.section)) &&
   (d.theme === "light" || d.theme === "dark");
 
 // foliate reports a page's start as (page - 1) / textPages but places a

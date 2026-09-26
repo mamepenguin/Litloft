@@ -9,6 +9,7 @@ import type { AddressInfo } from "node:net";
 
 import { epubReaderCsp, isEpubReaderFile, isUnderEpubReader } from "../src/lib/epubReaderCsp";
 import {
+  danglingBook,
   fixedLayoutBook,
   flawedBook,
   horizontalBook,
@@ -83,6 +84,7 @@ export async function startServer(): Promise<{ server: Server; origin: string }>
   books.set("mixed.epub", mixedBook());
   books.set("toc.epub", tocBook());
   books.set("nonlinear.epub", nonLinearBook());
+  books.set("dangling.epub", danglingBook());
   books.set("hostile.epub", hostileBook(origin));
   return { server, origin };
 }
