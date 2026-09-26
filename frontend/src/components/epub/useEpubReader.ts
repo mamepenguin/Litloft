@@ -34,6 +34,8 @@ export interface EpubReader {
   book: ReaderBook | null;
   /** Null until the book is open and has laid out its first page. */
   location: ReaderLocation | null;
+  /** Where the last seek is going, until the reader answers it. */
+  seeking: number | null;
   turn: (direction: TurnDirection) => void;
   seek: (fraction: number) => void;
   setFullscreen: (fullscreen: boolean) => void;
@@ -62,6 +64,8 @@ export function useEpubReader(
   const [status, setStatus] = useState<ReaderStatus>({ kind: "loading" });
   const [book, setBook] = useState<ReaderBook | null>(null);
   const [location, setLocation] = useState<ReaderLocation | null>(null);
+  const [seeking, setSeeking] = useState<{ id: number; fraction: number } | null>(null);
+  const seekIdRef = useRef(0);
   const onActivityRef = useRef(onActivity);
   onActivityRef.current = onActivity;
   const { readSaved, turned } = useEpubProgress(fileId);
@@ -82,6 +86,7 @@ export function useEpubReader(
     setStatus({ kind: "loading" });
     setBook(null);
     setLocation(null);
+    setSeeking(null);
     return () => {
       controller.abort();
       bookRef.current = null;
@@ -124,6 +129,11 @@ export function useEpubReader(
           setLocation({ fraction, tocIndex, pagesLeft });
           return;
         }
+        case "seeked": {
+          const { id } = message;
+          setSeeking((current) => (current?.id === id ? null : current));
+          return;
+        }
         case "activity":
           onActivityRef.current?.(message.kind);
           return;
@@ -155,7 +165,9 @@ export function useEpubReader(
   }, []);
 
   const seek = useCallback((fraction: number) => {
-    postToReader(frameRef.current?.contentWindow ?? null, { type: "seek", fraction });
+    const id = ++seekIdRef.current;
+    setSeeking({ id, fraction });
+    postToReader(frameRef.current?.contentWindow ?? null, { type: "seek", fraction, id });
   }, []);
 
   const setFullscreen = useCallback((fullscreen: boolean) => {
@@ -164,5 +176,14 @@ export function useEpubReader(
     if (fullscreen) readerWindow?.focus();
   }, []);
 
-  return { frameRef, status, book, location, turn, seek, setFullscreen };
+  return {
+    frameRef,
+    status,
+    book,
+    location,
+    seeking: seeking?.fraction ?? null,
+    turn,
+    seek,
+    setFullscreen,
+  };
 }

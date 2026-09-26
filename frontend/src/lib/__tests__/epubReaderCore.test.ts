@@ -206,8 +206,15 @@ describe("isValidSeek", () => {
     ["0.5", false],
     [null, false],
   ])("%o → %s", (fraction, expected) => {
-    expect(isValidSeek({ fraction })).toBe(expected);
+    expect(isValidSeek({ fraction, id: 1 })).toBe(expected);
   });
+
+  it.each([[0, true], [7, true], [-1, false], [1.5, false], ["1", false], [undefined, false]])(
+    "an id of %o → %s",
+    (id, expected) => {
+      expect(isValidSeek({ fraction: 0.5, id })).toBe(expected);
+    },
+  );
 });
 
 describe("the caps", () => {

@@ -26,6 +26,7 @@ describe("parseReaderMessage", () => {
     [{ type: "activity", kind: "tap" }, { type: "activity", kind: "tap" }],
     [{ type: "activity", kind: "pointer" }, { type: "activity", kind: "pointer" }],
     [{ type: "activity", kind: "key" }, { type: "activity", kind: "key" }],
+    [{ type: "seeked", id: 3 }, { type: "seeked", id: 3 }],
     [{ type: "turned", fraction: 0.25, atEnd: false }, { type: "turned", fraction: 0.25, atEnd: false }],
     [{ type: "turned", fraction: 0, atEnd: true }, { type: "turned", fraction: 0, atEnd: true }],
     [{ type: "key", key: "f" }, { type: "key", key: "f" }],
@@ -146,6 +147,9 @@ describe("parseReaderMessage", () => {
     { type: "location", fraction: 0.5, tocIndex: 0 },
     { type: "location", fraction: 0.5, pagesLeft: 0 },
     { type: "activity", kind: "click" },
+    { type: "seeked", id: -1 },
+    { type: "seeked", id: 1.5 },
+    { type: "seeked" },
     { type: "activity" },
   ])("drops %o", (data) => {
     expect(parseReaderMessage(event(data), frame)).toBeNull();

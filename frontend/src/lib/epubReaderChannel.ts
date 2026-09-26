@@ -16,6 +16,7 @@ export type ReaderMessage =
   | { type: "ready"; dir: "ltr" | "rtl"; vertical: boolean; toc: TocEntry[] }
   | { type: "location"; fraction: number; tocIndex: number | null; pagesLeft: number | null }
   | { type: "activity"; kind: "tap" | "pointer" | "key" }
+  | { type: "seeked"; id: number }
   | { type: "turned"; fraction: number; atEnd: boolean }
   | { type: "key"; key: ReaderKey }
   | { type: "link"; url: string }
@@ -24,7 +25,7 @@ export type ReaderMessage =
 export type ReaderCommand =
   | { type: "open"; bytes: ArrayBuffer; fraction: number | null; theme: "light" | "dark" }
   | { type: "turn"; direction: "next" | "prev" | "left" | "right" }
-  | { type: "seek"; fraction: number }
+  | { type: "seek"; fraction: number; id: number }
   | { type: "theme"; theme: "light" | "dark" }
   | { type: "mode"; fullscreen: boolean };
 
@@ -95,6 +96,9 @@ export function parseReaderMessage(
       if (m.tocIndex !== null && !isCount(m.tocIndex)) return null;
       if (m.pagesLeft !== null && !isCount(m.pagesLeft)) return null;
       return { type: "location", fraction: m.fraction, tocIndex: m.tocIndex, pagesLeft: m.pagesLeft };
+    case "seeked":
+      if (!isCount(m.id)) return null;
+      return { type: "seeked", id: m.id };
     case "activity":
       if (m.kind !== "tap" && m.kind !== "pointer" && m.kind !== "key") return null;
       return { type: "activity", kind: m.kind };

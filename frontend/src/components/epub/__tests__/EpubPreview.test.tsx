@@ -484,23 +484,86 @@ describe("EpubPreview", () => {
       expect(sentOfType(view.posted, "seek")).toEqual([]);
 
       fireEvent.pointerUp(slider());
-      expect(sentOfType(view.posted, "seek")).toEqual([{ type: "seek", fraction: 0.7 }]);
+      expect(sentOfType(view.posted, "seek")).toEqual([{ type: "seek", fraction: 0.7, id: expect.any(Number) }]);
       expect(focus).toHaveBeenCalled();
     });
 
-    it("after the release the thumb stays where it was let go until the reader reports the new place", async () => {
+    const lastSeek = (posted: ReturnType<typeof vi.spyOn>) =>
+      sentOfType(posted, "seek").at(-1) as unknown as { fraction: number; id: number };
+
+    async function released(view: Awaited<ReturnType<typeof openBook>>, value: string) {
+      fireEvent.change(slider(), { target: { value } });
+      fireEvent.pointerUp(slider());
+      return lastSeek(view.posted);
+    }
+
+    it("after the release the thumb stays where it was let go until the reader answers that seek", async () => {
       const view = await openBook();
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
       vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
-      fireEvent.change(slider(), { target: { value: "700" } });
-      fireEvent.pointerUp(slider());
+      const seek = await released(view, "700");
       expect(slider()).toHaveValue("700");
-      expect(line()).toHaveTextContent("70%");
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.4, tocIndex: 1, pagesLeft: 9 });
+      expect(slider()).toHaveValue("700");
       expect(line()).toHaveTextContent("Two");
+      expect(line()).not.toHaveTextContent("left in chapter");
 
       await fromReader(view.readerWindow, { type: "location", fraction: 0.68, tocIndex: 2, pagesLeft: 3 });
+      await fromReader(view.readerWindow, { type: "seeked", id: seek.id });
       expect(slider()).toHaveValue("680");
       expect(line()).toHaveTextContent("68%");
+      expect(line()).toHaveTextContent("left in chapter");
+    });
+
+    it("a seek that lands on the page already shown lets the thumb go back to it", async () => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      fireEvent.change(slider(), { target: { value: "101" } });
+      fireEvent.keyUp(slider(), { key: "ArrowRight" });
+      expect(slider()).toHaveValue("101");
+      await fromReader(view.readerWindow, { type: "seeked", id: lastSeek(view.posted).id });
+      expect(slider()).toHaveValue("100");
+      expect(line()).toHaveTextContent("left in chapter");
+    });
+
+    it("the answer to an earlier seek does not release a later one", async () => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+      const first = await released(view, "300");
+      const second = await released(view, "800");
+      expect(second.id).not.toBe(first.id);
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.3, tocIndex: 1, pagesLeft: 2 });
+      await fromReader(view.readerWindow, { type: "seeked", id: first.id });
+      expect(slider()).toHaveValue("800");
+    });
+
+    it("a drag while a seek is under way follows the finger", async () => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+      await released(view, "700");
+      fireEvent.change(slider(), { target: { value: "200" } });
+      expect(slider()).toHaveValue("200");
+    });
+
+    it.each([
+      ["mid-seek", true],
+      ["mid-drag", false],
+    ])("another book opened %s starts with no place", async (_when, release) => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0, tocIndex: 0, pagesLeft: 2 });
+      vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+      if (release) await released(view, "700");
+      else fireEvent.change(slider(), { target: { value: "700" } });
+      view.rerender(
+        <ShortcutsProvider>
+          <FileNav onKey={view.onFileKey} />
+          <EpubPreview file={{ ...FILE, id: "Other1234567" }} />
+        </ShortcutsProvider>,
+      );
+      expect(slider()).toBeDisabled();
+      expect(line()).toHaveTextContent("0%");
     });
 
     it("a key that does not move the thumb commits nothing, and a moving key commits without leaving", async () => {
@@ -511,7 +574,7 @@ describe("EpubPreview", () => {
       fireEvent.keyUp(slider(), { key: "Tab" });
       expect(sentOfType(view.posted, "seek")).toEqual([]);
       fireEvent.keyUp(slider(), { key: "ArrowRight" });
-      expect(sentOfType(view.posted, "seek")).toEqual([{ type: "seek", fraction: 0.3 }]);
+      expect(sentOfType(view.posted, "seek")).toEqual([{ type: "seek", fraction: 0.3, id: expect.any(Number) }]);
       expect(focus).not.toHaveBeenCalled();
     });
 

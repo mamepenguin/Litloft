@@ -8,7 +8,7 @@ declare global {
     __loads: number;
     __pwned?: string[];
     turn: (direction: string) => void;
-    seek: (fraction: number) => void;
+    seek: (fraction: number, id?: number) => void;
     setTheme: (theme: string) => void;
     setMode: (fullscreen: boolean) => void;
   }
@@ -564,6 +564,41 @@ test.describe("seek in a book with a cover and notes outside the reading order",
     // cover, c1, c2, c3, notes
     expect(at.index).toBe(3);
     expect(at.page).toBe(at.pages - 2);
+  });
+});
+
+test.describe("every seek is answered", () => {
+  test("including one that lands on the page already shown", async ({ page }) => {
+    await open(page, "horizontal.epub", 0.5);
+    const before = await where(page);
+    const [location] = (await messages(page, "location")).slice(-1);
+    await page.evaluate((f) => window.seek(f, 41), (location.fraction as number) + 0.0001);
+    await expect.poll(async () => messages(page, "seeked")).toEqual([{ type: "seeked", id: 41 }]);
+    expect(await where(page)).toEqual(before);
+    expect(await messages(page, "turned")).toEqual([]);
+  });
+
+  test("after the place it moved to is reported", async ({ page }) => {
+    await open(page, "horizontal.epub");
+    await page.evaluate(() => window.seek(0.6, 7));
+    await expect.poll(async () => (await messages(page, "seeked")).length).toBe(1);
+    const all = await page.evaluate(() => window.__msgs);
+    const answered = all.findIndex((m) => m.type === "seeked");
+    const lastBefore = all.slice(0, answered).filter((m) => m.type === "location").at(-1)!;
+    const [turned] = await messages(page, "turned");
+    expect(lastBefore.fraction).toBe(turned.fraction);
+  });
+
+  test("the last of several seeks sent together is answered", async ({ page }) => {
+    await open(page, "horizontal.epub");
+    await page.evaluate(() => {
+      window.seek(0.2, 1);
+      window.seek(0.4, 2);
+      window.seek(0.8, 3);
+    });
+    await expect
+      .poll(async () => (await messages(page, "seeked")).map((m) => m.id))
+      .toContain(3);
   });
 });
 

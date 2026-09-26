@@ -59,7 +59,12 @@ export const TOC_LABEL_MAX = 200;
 export const TOC_MAX = 1000;
 
 export const isValidSeek = (d) =>
-  typeof d.fraction === "number" && Number.isFinite(d.fraction) && d.fraction >= 0 && d.fraction <= 1;
+  typeof d.fraction === "number" &&
+  Number.isFinite(d.fraction) &&
+  d.fraction >= 0 &&
+  d.fraction <= 1 &&
+  Number.isInteger(d.id) &&
+  d.id >= 0;
 
 // Pre-order and unfiltered, so that an entry's position is the id foliate
 // gives the same item when it reports where the reader is.

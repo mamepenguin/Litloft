@@ -59,10 +59,15 @@ export function EpubPreview({ file }: EpubPreviewProps) {
   );
   const reader = useEpubReader(file.id, theme, onActivity);
   const ready = reader.status.kind === "ready";
-  const { setFullscreen, book, location } = reader;
+  const { setFullscreen, book, location, seeking } = reader;
   const toc = book?.toc ?? null;
-  const chapter = toc && location ? chapterOf(toc, location) : null;
   const labelAt = useCallback((f: number) => (toc ? chapterAt(toc, f) : null), [toc]);
+  // While a seek is under way the bar shows where it is going, not the
+  // pages the reader passes through on the way.
+  const place = seeking ?? location?.fraction ?? null;
+  const chapter =
+    seeking !== null ? labelAt(seeking) : toc && location ? chapterOf(toc, location) : null;
+  const pagesLeft = seeking !== null ? null : (location?.pagesLeft ?? null);
   const focusBook = useCallback(() => reader.frameRef.current?.contentWindow?.focus(), [reader.frameRef]);
 
   useEffect(() => {
@@ -202,10 +207,11 @@ export function EpubPreview({ file }: EpubPreviewProps) {
               }}
             >
               <EpubPositionBar
+                key={file.id}
                 className="h-10"
-                fraction={location?.fraction ?? null}
+                fraction={place}
                 chapter={chapter}
-                pagesLeft={location?.pagesLeft ?? null}
+                pagesLeft={pagesLeft}
                 dir={book?.dir ?? "ltr"}
                 chapterAt={labelAt}
                 onSeek={reader.seek}
@@ -216,10 +222,11 @@ export function EpubPreview({ file }: EpubPreviewProps) {
           </>
         ) : (
           <EpubPositionBar
+            key={file.id}
             className="h-10 shrink-0 border-t border-bg-border"
-            fraction={location?.fraction ?? null}
+            fraction={place}
             chapter={chapter}
-            pagesLeft={location?.pagesLeft ?? null}
+            pagesLeft={pagesLeft}
             dir={book?.dir ?? "ltr"}
             chapterAt={labelAt}
             onSeek={reader.seek}

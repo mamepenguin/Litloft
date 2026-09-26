@@ -204,11 +204,15 @@ const seekTarget = (fraction) => {
 };
 
 // A seek that arrives mid-turn waits for it; only the latest one is kept.
+// Each seek that runs is answered, even when it lands on the page already
+// shown and so reports no turn.
 const runPendingSeek = () => {
   if (state.turning || state.pendingSeek === null) return;
-  const fraction = state.pendingSeek;
+  const { fraction, id } = state.pendingSeek;
   state.pendingSeek = null;
-  turn((v) => v.renderer.goTo(seekTarget(fraction)));
+  turn((v) => v.renderer.goTo(seekTarget(fraction)))
+    .finally(() => post("seeked", { id }))
+    .catch(() => {});
 };
 
 // The fractions are the ones positions are reported in, so a chapter's
@@ -308,7 +312,7 @@ window.addEventListener("message", (e) => {
       return;
     case "seek":
       if (!state.ready || !isValidSeek(d)) return;
-      state.pendingSeek = d.fraction;
+      state.pendingSeek = { fraction: d.fraction, id: d.id };
       runPendingSeek();
       return;
     case "theme":
