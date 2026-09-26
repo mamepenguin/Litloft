@@ -563,7 +563,8 @@ describe("EpubPreview", () => {
         </ShortcutsProvider>,
       );
       expect(slider()).toBeDisabled();
-      expect(line()).toHaveTextContent("0%");
+      expect(slider()).toHaveValue("0");
+      expect(line()).toHaveTextContent(/^0%/);
     });
 
     it("a key that does not move the thumb commits nothing, and a moving key commits without leaving", async () => {
