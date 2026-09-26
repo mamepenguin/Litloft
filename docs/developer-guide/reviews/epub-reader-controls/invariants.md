@@ -30,3 +30,11 @@ six page turns inline and the full-screen chrome shown and then hidden:
   nothing is clipped at any size.
 - Not measured: whether a thumb drag on iOS / Android ends in `pointerup`
   (R-5, on a device).
+
+## After r3 (decided by the user)
+
+r3 found the bar's release state being patched (a copied `scrubbing` with a
+third exit, then a guessed `released` landing). The user assigned C and chose
+the reshape: the reader answers every seek by id (`seeked`), the hook holds the
+target until that answer and resets it with the book, and the bar keeps only
+its live drag and is remade per book. The invariants are unchanged.
