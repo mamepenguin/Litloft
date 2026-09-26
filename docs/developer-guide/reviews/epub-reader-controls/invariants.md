@@ -56,3 +56,12 @@ and sent it after the drag was committed. The fix removed that second writer:
 the row takes every pointer and the input is keyboard-only. That also removed
 r5 F2 (two seeks per release) and F4 (mouse and touch mapping apart). F3 and F5
 were test gaps and got tests.
+
+## After r6 (decided by the user)
+
+Not assigned C: the user judged the row taking over from the native range as
+converging on a finite custom slider. F1 and F5 came from the input's blur
+commit, which only a pointer needed and which was removed; F2 came from the
+press moving focus, now prevented. F4's hold tests now start the drag with a
+pointer on the row. F3 (no test that the input takes no pointer) is closed on
+the user's device check; jsdom does no hit testing.
