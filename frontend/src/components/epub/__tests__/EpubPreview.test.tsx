@@ -322,7 +322,7 @@ describe("EpubPreview", () => {
     ]);
   });
 
-  it("inline, the arrows are left alone once focus is somewhere else", async () => {
+  it("inline, the arrows are left alone while focus is somewhere else, and come back with it", async () => {
     const utils = render(
       <ShortcutsProvider>
         <EpubPreview file={FILE} />
@@ -339,6 +339,15 @@ describe("EpubPreview", () => {
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
     });
     expect(sentOfType(posted, "turn")).toEqual([]);
+
+    // Clicking blank page moves focus to body, which fires focusout alone.
+    act(() => {
+      screen.getByRole("button", { name: "Elsewhere on the page" }).blur();
+    });
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    });
+    expect(sentOfType(posted, "turn")).toEqual([{ type: "turn", direction: "right" }]);
   });
 
   it("in full screen the arrows turn pages instead of changing file", async () => {
