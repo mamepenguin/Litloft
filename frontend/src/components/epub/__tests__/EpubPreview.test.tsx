@@ -558,11 +558,8 @@ describe("EpubPreview", () => {
       expect(line()).toHaveTextContent(/^0%/);
     });
 
-    it.each([
-      ["ltr", 75, "750"],
-      ["rtl", 75, "250"],
-    ] as const)("in a %s book a finger anywhere on the row drags from where it lands", async (dir, x, value) => {
-      // jsdom has no PointerEvent, and without one fireEvent drops clientX.
+    // jsdom has no PointerEvent, and without one fireEvent drops clientX.
+    function stubPointerEvent() {
       vi.stubGlobal(
         "PointerEvent",
         class extends MouseEvent {
@@ -573,18 +570,53 @@ describe("EpubPreview", () => {
           }
         },
       );
+    }
+
+    function rowAt(left: number, width: number) {
+      const row = slider().parentElement!;
+      vi.spyOn(row, "getBoundingClientRect").mockReturnValue({
+        left, right: left + width, width, top: 0, bottom: 24, height: 24, x: left, y: 0, toJSON: () => ({}),
+      } as DOMRect);
+      return row;
+    }
+
+    it.each([
+      ["ltr", 95, "750", 0.2],
+      ["rtl", 95, "250", 0.8],
+    ] as const)("in a %s book a finger anywhere on the row drags from where it lands", async (dir, x, value, released) => {
+      stubPointerEvent();
       const view = await openBook(dir);
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
       vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
-      const row = slider().parentElement!;
-      vi.spyOn(row, "getBoundingClientRect").mockReturnValue({
-        left: 0, right: 100, width: 100, top: 0, bottom: 24, height: 24, x: 0, y: 0, toJSON: () => ({}),
-      } as DOMRect);
-      fireEvent.pointerDown(slider(), { clientX: x, pointerId: 1, buttons: 1 });
+      const row = rowAt(20, 100);
+      fireEvent.pointerDown(row, { clientX: x, pointerId: 1, buttons: 1 });
       expect(slider()).toHaveValue(value);
-      fireEvent.pointerMove(slider(), { clientX: 20, pointerId: 1, buttons: 1 });
-      fireEvent.pointerUp(slider(), { clientX: 20, pointerId: 1 });
-      expect(lastSeek(view.posted).fraction).toBe(dir === "ltr" ? 0.2 : 0.8);
+      fireEvent.pointerMove(row, { clientX: 40, pointerId: 1, buttons: 1 });
+      fireEvent.pointerUp(row, { clientX: 40, pointerId: 1 });
+      expect(sentOfType(view.posted, "seek")).toHaveLength(1);
+      expect(lastSeek(view.posted).fraction).toBe(released);
+    });
+
+    it("the knob and the filled part of the track follow the reading direction", async () => {
+      const view = await openBook("rtl");
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.25, tocIndex: 1, pagesLeft: 2 });
+      const fill = screen.getByTestId("epub-position-fill");
+      expect(fill.style.right).toBe("0px");
+      expect(fill.style.width).toBe("25%");
+      expect(screen.getByTestId("epub-position-knob").style.left).toContain("75%");
+    });
+
+    it("while the book is opening the bar sends nothing and shows no knob", async () => {
+      stubPointerEvent();
+      const view = await openBook();
+      expect(slider()).toBeDisabled();
+      expect(screen.queryByTestId("epub-position-knob")).toBeNull();
+      const row = rowAt(0, 100);
+      fireEvent.pointerDown(row, { clientX: 70, pointerId: 1, buttons: 1 });
+      fireEvent.pointerMove(row, { clientX: 60, pointerId: 1, buttons: 1 });
+      fireEvent.pointerUp(row, { clientX: 60, pointerId: 1 });
+      expect(sentOfType(view.posted, "seek")).toEqual([]);
+      expect(slider()).toHaveValue("0");
     });
 
     it("a key that does not move the thumb commits nothing, and a moving key commits without leaving", async () => {

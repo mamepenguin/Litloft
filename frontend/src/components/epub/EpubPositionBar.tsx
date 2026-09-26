@@ -17,9 +17,13 @@ const VALUE_KEYS = new Set([
   "PageDown",
 ]);
 
-/** The input covers the whole row and is never seen; the track and knob below are drawn. */
+/**
+ * The input is kept for the keyboard and assistive tech only. A pointer never
+ * reaches it: a native range moves its own value under a finger in ways the
+ * engines disagree on, and a second writer of the value undoes the first.
+ */
 const INPUT_CLASS =
-  "peer absolute inset-0 z-10 h-full w-full cursor-pointer touch-none appearance-none opacity-0 disabled:cursor-not-allowed";
+  "peer pointer-events-none absolute inset-0 h-full w-full appearance-none opacity-0";
 
 export interface EpubPositionBarProps {
   fraction: number | null;
@@ -71,7 +75,7 @@ export function EpubPositionBar({
     const along = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
     return Math.round((dir === "rtl" ? 1 - along : along) * SLIDER_STEPS);
   };
-  const dragTo = (e: PointerEvent<HTMLInputElement>) => {
+  const dragTo = (e: PointerEvent<HTMLDivElement>) => {
     const value = valueAt(e.clientX);
     if (value !== null) setDrag(value);
   };
@@ -86,7 +90,22 @@ export function EpubPositionBar({
 
   return (
     <div className={`flex min-w-0 flex-col justify-center px-3 ${className}`}>
-      <div ref={rowRef} data-player-scrub className="relative h-6 w-full">
+      <div
+        ref={rowRef}
+        data-player-scrub
+        className={`relative h-6 w-full touch-none ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+        onPointerDown={(e) => {
+          if (disabled) return;
+          e.currentTarget.setPointerCapture?.(e.pointerId);
+          dragTo(e);
+        }}
+        onPointerMove={(e) => {
+          if (drag !== null && e.buttons !== 0) dragTo(e);
+        }}
+        onPointerUp={() => commit(true)}
+        // A drag the system takes over ends without a pointerup.
+        onPointerCancel={() => setDrag(null)}
+      >
         <input
           type="range"
           min={0}
@@ -97,20 +116,10 @@ export function EpubPositionBar({
           disabled={disabled}
           aria-label={t("epubPosition")}
           aria-valuetext={`${percent}%`}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture?.(e.pointerId);
-            dragTo(e);
-          }}
-          onPointerMove={(e) => {
-            if (e.buttons !== 0) dragTo(e);
-          }}
           onChange={(e) => setDrag(Number(e.target.value))}
-          onPointerUp={() => commit(true)}
           onKeyUp={(e: KeyboardEvent) => {
             if (VALUE_KEYS.has(e.key)) commit(false);
           }}
-          // A drag the system takes over ends without a pointerup.
-          onPointerCancel={() => setDrag(null)}
           onBlur={() => commit(false)}
           className={INPUT_CLASS}
         />
@@ -121,12 +130,14 @@ export function EpubPositionBar({
           ].join(" ")}
         >
           <div
+            data-testid="epub-position-fill"
             className="absolute inset-y-0 rounded-full bg-accent"
             style={dir === "rtl" ? { right: 0, width: `${(1 - visual) * 100}%` } : { left: 0, width: `${visual * 100}%` }}
           />
         </div>
         {!disabled && (
           <div
+            data-testid="epub-position-knob"
             className="pointer-events-none absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent"
             style={{ left: `calc(${visual * 100}% + ${(0.5 - visual) * 16}px)` }}
           />
