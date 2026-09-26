@@ -67,7 +67,8 @@ export function horizontalBook(): Buffer {
       (_, i) =>
         `<p>Chapter ${n}, paragraph ${i}. This line exists so that the chapter spans several pages at the window sizes the tests use.</p>`,
     ).join("");
-    return `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${n}</title></head><body><h1>Chapter ${n}</h1>${paras}</body></html>`;
+    const link = n === 1 ? '<p><a id="to-three" href="c3.xhtml">Go to chapter 3</a></p>' : "";
+    return `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${n}</title></head><body><h1>Chapter ${n}</h1>${link}${paras}</body></html>`;
   });
   return book([NAV, ...items], items.map((i) => i.id));
 }
@@ -110,6 +111,8 @@ export function hostileBook(origin: string): Buffer {
     '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:xlink="http://www.w3.org/1999/xlink"><head><title>h</title>' +
     `<meta http-equiv="refresh" content="0;url=javascript:${PWN("meta")}"/>` +
     '<base href="https://example.com/"/>' +
+    `<link rel="stylesheet" href="${origin}/leak/link.css"/>` +
+    `<style>@import url("${origin}/leak/import.css"); p { background: url("${origin}/leak/bg.png"); }</style>` +
     `<script>${PWN("inline")}</script>` +
     '<script src="evil.js"></script>' +
     `<script src="${origin}/evil.js"></script>` +
@@ -118,6 +121,8 @@ export function hostileBook(origin: string): Buffer {
     `</head><body onload="${PWN("bodyonload")}">` +
     '<h1 id="marker">HOSTILE</h1>' +
     `<img src="x" onerror="${PWN("onerror")}"/>` +
+    `<img src="${origin}/leak/img.png"/>` +
+    `<svg xmlns="http://www.w3.org/2000/svg"><image href="${origin}/leak/svg-image.png"/></svg>` +
     `<a id="js" href="javascript:${PWN("href")}">js</a>` +
     `<a id="js2" href=" java&#9;script:${PWN("href-tab")}">js2</a>` +
     '<a id="ext" href="https://example.com/">external</a>' +
@@ -132,6 +137,15 @@ export function hostileBook(origin: string): Buffer {
     `<details open="open" ontoggle="${PWN("toggle")}"><summary>s</summary>d</details>` +
     `<form action="javascript:${PWN("form")}"><button id="submit" type="submit">go</button></form>` +
     "</body></html>";
+  // A well-formed section that makes both foliate and the sanitizer fall back
+  // to the HTML parser, carrying prefixed attributes the XML parser would
+  // have namespaced.
+  const fallback =
+    '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>p</title></head>' +
+    '<body><parsererror/><p>FALLBACK</p><svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">' +
+    `<a id="pfx" foo:href="javascript:${PWN("prefixed-href")}" xmlns:foo="http://www.w3.org/1999/xlink">` +
+    '<rect width="200" height="200"/></a>' +
+    `<g foo:onload="${PWN("prefixed-onload")}" xmlns:foo="http://www.w3.org/2000/svg"/></svg></body></html>`;
   const malformed =
     `<html><head><title>m</title></head><body><p>MALFORMED<br><script>${PWN("malformed")}</script>` +
     `<img src=x onerror="${PWN("malformed-onerror")}"></body></html>`;
@@ -145,10 +159,11 @@ export function hostileBook(origin: string): Buffer {
     NAV,
     { id: "c1", href: "c1.xhtml", type: "application/xhtml+xml", body: section1, properties: "scripted svg" },
     { id: "c2", href: "c2.xhtml", type: "application/xhtml+xml", body: malformed },
+    { id: "c6", href: "c6.xhtml", type: "application/xhtml+xml", body: fallback },
     { id: "c3", href: "c3.html", type: "text/html; charset=utf-8", body: mislabelled },
     { id: "c4", href: "c4.xhtml", type: "application/x-unknown", body: mislabelled },
     { id: "c5", href: "evil.svg", type: "image/svg+xml", body: svg },
     { id: "js", href: "evil.js", type: "application/javascript", body: PWN("manifest-js") },
   ];
-  return book(items, ["c1", "c2", "c3", "c4", "c5"]);
+  return book(items, ["c1", "c6", "c2", "c3", "c4", "c5"]);
 }

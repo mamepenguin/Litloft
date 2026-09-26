@@ -42,6 +42,18 @@ describe("restoreAnchor", () => {
     }
   });
 
+  it("a fraction from a narrower layout never lands past the last text page", () => {
+    for (let narrow = 2; narrow <= 12; narrow++) {
+      for (let wide = 2; wide <= 12; wide++) {
+        for (let page = 1; page <= narrow; page++) {
+          const anchor = restoreAnchor(reportedStart(page, narrow + 2), wide + 2);
+          expect(anchor).toBeLessThanOrEqual(1);
+          expect(placedPage(anchor, wide + 2)).toBeLessThanOrEqual(wide);
+        }
+      }
+    }
+  });
+
   it("a one-page section lands on its only page", () => {
     expect(restoreAnchor(0, 3)).toBe(0);
   });

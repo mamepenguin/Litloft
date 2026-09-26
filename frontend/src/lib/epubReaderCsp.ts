@@ -4,11 +4,13 @@
 const HOST_RE = /^(?:[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*|\[[0-9A-Fa-f:.]+\])(?::\d{1,5})?$/;
 
 export function epubReaderCsp(host: string | null): string {
-  const scriptSrc = host && HOST_RE.test(host) ? `${host}/epub-reader/` : "'none'";
+  const reader = host && HOST_RE.test(host) ? `${host}/epub-reader/` : null;
   return [
     "default-src 'none'",
-    `script-src ${scriptSrc}`,
-    "style-src 'self' 'unsafe-inline' blob:",
+    `script-src ${reader ?? "'none'"}`,
+    // Not 'self': a book's stylesheet link or @import to any same-origin path
+    // would be fetched with the viewer's cookie.
+    `style-src ${reader ? `${reader} ` : ""}'unsafe-inline' blob:`,
     "img-src blob: data:",
     "font-src blob: data:",
     "media-src blob:",
@@ -29,4 +31,15 @@ const READER_FILE_RE =
 
 export function isEpubReaderFile(rawPath: string): boolean {
   return READER_FILE_RE.test(rawPath);
+}
+
+/** Whether the path, decoded as CSP matching decodes it, is under /epub-reader/. */
+export function isUnderEpubReader(rawPath: string): boolean {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(rawPath);
+  } catch {
+    return rawPath.startsWith("/epub-reader");
+  }
+  return decoded.startsWith("/epub-reader/");
 }

@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { extname, join } from "node:path";
 import type { AddressInfo } from "node:net";
 
-import { epubReaderCsp, isEpubReaderFile } from "../src/lib/epubReaderCsp";
+import { epubReaderCsp, isEpubReaderFile, isUnderEpubReader } from "../src/lib/epubReaderCsp";
 import { fixedLayoutBook, horizontalBook, hostileBook, verticalBook } from "./fixtures/books";
 
 const PUBLIC_DIR = join(__dirname, "..", "public");
@@ -21,9 +21,21 @@ const TYPES: Record<string, string> = {
 
 export async function startServer(): Promise<{ server: Server; origin: string }> {
   const books = new Map<string, Buffer>();
+  const leaks: { path: string; test: string }[] = [];
   const server = createServer((req, res) => {
     const rawPath = (req.url ?? "/").split(/[?#]/, 1)[0];
-    if (rawPath.startsWith("/epub-reader/")) {
+    if (rawPath.startsWith("/leak/")) {
+      leaks.push({ path: rawPath, test: String(req.headers["x-e2e-test"] ?? "") });
+      res.writeHead(200, { "Content-Type": "text/css" }).end("");
+      return;
+    }
+    if (rawPath === "/leaks") {
+      const test = new URL(req.url ?? "/", "http://x").searchParams.get("test");
+      const mine = leaks.filter((l) => l.test === test).map((l) => l.path);
+      res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(mine));
+      return;
+    }
+    if (isUnderEpubReader(rawPath)) {
       if (!isEpubReaderFile(rawPath)) {
         res.writeHead(404).end();
         return;
@@ -33,6 +45,10 @@ export async function startServer(): Promise<{ server: Server; origin: string }>
         "Content-Security-Policy": epubReaderCsp(req.headers.host ?? null),
       });
       res.end(readFileSync(join(PUBLIC_DIR, rawPath)));
+      return;
+    }
+    if (rawPath === "/epub-reader-probe.js") {
+      res.writeHead(200, { "Content-Type": TYPES[".js"] }).end(readFileSync(join(PUBLIC_DIR, rawPath)));
       return;
     }
     if (rawPath === "/host.html") {

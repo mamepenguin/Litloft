@@ -2,8 +2,10 @@
 import { describe, it, expect } from "vitest";
 import { NextRequest } from "next/server";
 
-import { proxy } from "@/proxy";
-import { epubReaderCsp, isEpubReaderFile } from "../epubReaderCsp";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+
+import { config, proxy } from "@/proxy";
+import { epubReaderCsp, isEpubReaderFile, isUnderEpubReader } from "../epubReaderCsp";
 
 function directives(policy: string): Map<string, string[]> {
   return new Map(
@@ -20,7 +22,7 @@ describe("epubReaderCsp", () => {
     expect(Object.fromEntries(d)).toEqual({
       "default-src": ["'none'"],
       "script-src": ["litloft.lan:3000/epub-reader/"],
-      "style-src": ["'self'", "'unsafe-inline'", "blob:"],
+      "style-src": ["litloft.lan:3000/epub-reader/", "'unsafe-inline'", "blob:"],
       "img-src": ["blob:", "data:"],
       "font-src": ["blob:", "data:"],
       "media-src": ["blob:"],
@@ -51,8 +53,9 @@ describe("epubReaderCsp", () => {
     "host:3000:1",
     "*",
     "'unsafe-inline'",
-  ])("a host of %j closes script-src", (host) => {
+  ])("a host of %j closes script-src and names no style origin", (host) => {
     expect(directives(epubReaderCsp(host)).get("script-src")).toEqual(["'none'"]);
+    expect(directives(epubReaderCsp(host)).get("style-src")).toEqual(["'unsafe-inline'", "blob:"]);
   });
 });
 
@@ -119,5 +122,54 @@ describe("proxy", () => {
     "/epub-reader/vendor/LICENSE",
   ])("answers 404 for %s", (path) => {
     expect(proxy(request(path)).status).toBe(404);
+  });
+});
+
+const ENCODED_SPELLINGS = [
+  "/epub-reader/..%2fevil.js",
+  "/epub-reader/..%2Fevil.js",
+  "/%65pub-reader/..%2Fevil.js",
+  "/epub-reader%2F..%2Fevil.js",
+  "/epub-reader%2f%2e%2e%2fevil.js",
+  "/epub-reader/vendor/..%2f..%2fapi/drives",
+];
+
+describe("isUnderEpubReader", () => {
+  it.each([...ENCODED_SPELLINGS, "/epub-reader/reader.html", "/%65pub-reader/reader.js"])(
+    "%s is under the reader",
+    (path) => {
+      expect(isUnderEpubReader(path)).toBe(true);
+    },
+  );
+
+  it.each(["/", "/drive/x", "/epub-reader-probe.js", "/epub-readerx/a.js", "/api/files/x/stream"])(
+    "%s is not",
+    (path) => {
+      expect(isUnderEpubReader(path)).toBe(false);
+    },
+  );
+});
+
+describe("proxy", () => {
+  it.each(ENCODED_SPELLINGS)("answers 404 for %s", (path) => {
+    expect(proxy(new NextRequest(`http://h${path}`)).status).toBe(404);
+  });
+
+  it("leaves the rest of the app alone", () => {
+    const response = proxy(new NextRequest("http://h/drive/x"));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-security-policy")).toBeNull();
+  });
+
+  it.each([...ENCODED_SPELLINGS, "/epub-reader/reader.html", "/drive/x"])(
+    "runs for %s",
+    (path) => {
+      expect(unstable_doesMiddlewareMatch({ config, url: `http://h${path}` })).toBe(true);
+    },
+  );
+
+  it("does not run for Next's own assets or the API", () => {
+    expect(unstable_doesMiddlewareMatch({ config, url: "http://h/_next/static/a.js" })).toBe(false);
+    expect(unstable_doesMiddlewareMatch({ config, url: "http://h/api/drives" })).toBe(false);
   });
 });

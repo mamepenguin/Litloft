@@ -12,7 +12,10 @@ export const isValidOpen = (d) =>
 export const restoreAnchor = (inSection, pages) => {
   const textPages = pages - 2;
   if (!(textPages > 1)) return 0;
-  return Math.round(inSection * textPages) / (textPages - 1);
+  // A fraction taken in a narrower layout can round past the last text page
+  // onto the blank pad after it.
+  const page = Math.min(Math.round(inSection * textPages), textPages - 1);
+  return page / (textPages - 1);
 };
 
 const FORWARDED = {

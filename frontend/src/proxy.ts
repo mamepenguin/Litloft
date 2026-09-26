@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { epubReaderCsp, isEpubReaderFile } from "@/lib/epubReaderCsp";
+import { epubReaderCsp, isEpubReaderFile, isUnderEpubReader } from "@/lib/epubReaderCsp";
 
 export function proxy(request: NextRequest) {
-  if (!isEpubReaderFile(rawPath(request.url))) {
-    return new NextResponse(null, { status: 404 });
-  }
+  const raw = rawPath(request.url);
+  if (!isUnderEpubReader(raw)) return NextResponse.next();
+  if (!isEpubReaderFile(raw)) return new NextResponse(null, { status: 404 });
   const response = NextResponse.next();
   response.headers.set(
     "Content-Security-Policy",
@@ -19,6 +19,9 @@ function rawPath(url: string): string {
   return afterHost.split(/[?#]/, 1)[0];
 }
 
+// Broad on purpose: which encoded spellings a matcher sees depends on how the
+// server decodes before matching, so the decision is made in the proxy. A path
+// under /_next/ or /api/ cannot decode to one under /epub-reader/.
 export const config = {
-  matcher: "/epub-reader/:path*",
+  matcher: "/((?!_next/|api/).*)",
 };

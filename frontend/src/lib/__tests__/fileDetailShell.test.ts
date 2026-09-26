@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 
 import type { FileType } from "@/types";
-import { ridesFileDetailShell, usesDocumentShell } from "../fileDetailShell";
+import {
+  ridesFileDetailShell,
+  usesDocumentShell,
+  viewerTakesCanvasFloor,
+} from "../fileDetailShell";
 
 describe("usesDocumentShell", () => {
   it("sends Markdown to the shell when the drive allows the editor", () => {
@@ -186,5 +190,18 @@ describe("ridesFileDetailShell", () => {
     expect(canonical({})).toBe(false);
     expect(collection({})).toBe(false);
     expect(canonical({ mimeType: "application/pdf" })).toBe(false);
+  });
+});
+
+describe("viewerTakesCanvasFloor", () => {
+  it.each([
+    ["document", "application/pdf", true],
+    ["document", "application/epub+zip", true],
+    ["archive", "application/zip", true],
+    ["document", "text/plain", false],
+    ["document", "text/html", false],
+    ["image", "image/png", false],
+  ])("%s %s → %s", (fileType, mimeType, expected) => {
+    expect(viewerTakesCanvasFloor(fileType, mimeType)).toBe(expected);
   });
 });

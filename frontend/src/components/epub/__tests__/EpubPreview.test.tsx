@@ -115,7 +115,7 @@ describe("EpubPreview", () => {
     const open = sentOfType(posted, "open");
     expect(open).toHaveLength(1);
     expect(open[0]).toMatchObject({ type: "open", fraction: 0.4, theme: "light" });
-    const call = posted.mock.calls.find((c) => (c[0] as { type: string }).type === "open")!;
+    const call = posted.mock.calls.find((c) => (c[0] as { type: string }).type === "open") as unknown[];
     expect(call[1]).toBe(window.location.origin);
     expect(call[2]).toEqual([expect.any(ArrayBuffer)]);
   });
@@ -214,6 +214,103 @@ describe("EpubPreview", () => {
     );
     expect(view.container.querySelector("iframe")).toBe(view.iframe);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("moving to another book loads a new reader and opens the new book", async () => {
+    const view = renderPreview();
+    await fromReader(view.readerWindow, { type: "boot" });
+    await settle();
+
+    const next = { ...FILE, id: "Zz9Zz9Zz9Zz9", filename: "c.epub" };
+    view.rerender(
+      <ShortcutsProvider>
+        <FileNav onKey={view.onFileKey} />
+        <EpubPreview file={next} />
+      </ShortcutsProvider>,
+    );
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    const iframe = view.container.querySelector("iframe")!;
+    expect(iframe).not.toBe(view.iframe);
+    const readerWindow = iframe.contentWindow!;
+    const posted = vi.spyOn(readerWindow, "postMessage").mockImplementation(() => {});
+    await fromReader(readerWindow, { type: "boot" });
+    await settle();
+
+    expect(fetchMock.mock.calls.map((c) => c[0])).toEqual([
+      `/api/files/${FILE.id}/stream`,
+      `/api/files/${next.id}/stream`,
+    ]);
+    expect(sentOfType(posted, "open")).toHaveLength(1);
+  });
+
+  it("the toolbar button opens full screen, and closes it while open", async () => {
+    const view = renderPreview();
+    const open = screen.getByRole("button", { name: "Read full screen" });
+    expect(open).toBeDisabled();
+    await fromReader(view.readerWindow, { type: "ready", dir: "ltr", vertical: false });
+    act(() => open.click());
+    expect(toggle).toHaveBeenCalledTimes(1);
+
+    fullscreenState.isFullscreen = true;
+    fullscreenState.isPseudo = true;
+    view.rerender(
+      <ShortcutsProvider>
+        <FileNav onKey={view.onFileKey} />
+        <EpubPreview file={FILE} />
+      </ShortcutsProvider>,
+    );
+    act(() => screen.getByRole("button", { name: "Exit full screen" }).click());
+    expect(exit).toHaveBeenCalledTimes(1);
+  });
+
+  it("entering full screen hands focus to the reader", async () => {
+    fullscreenState.isFullscreen = true;
+    fullscreenState.isPseudo = true;
+    const utils = render(
+      <ShortcutsProvider>
+        <EpubPreview file={FILE} />
+      </ShortcutsProvider>,
+    );
+    const readerWindow = utils.container.querySelector("iframe")!.contentWindow!;
+    const focus = vi.spyOn(readerWindow, "focus").mockImplementation(() => {});
+    utils.rerender(
+      <ShortcutsProvider>
+        <EpubPreview file={FILE} />
+      </ShortcutsProvider>,
+    );
+    fullscreenState.isFullscreen = false;
+    utils.rerender(
+      <ShortcutsProvider>
+        <EpubPreview file={FILE} />
+      </ShortcutsProvider>,
+    );
+    fullscreenState.isFullscreen = true;
+    utils.rerender(
+      <ShortcutsProvider>
+        <EpubPreview file={FILE} />
+      </ShortcutsProvider>,
+    );
+    expect(focus).toHaveBeenCalled();
+  });
+
+  it("in full screen a key the reader does not use reaches nothing beneath it", async () => {
+    fullscreenState.isFullscreen = true;
+    fullscreenState.isPseudo = true;
+    const onFileKey = vi.fn();
+    function Beneath() {
+      useShortcuts("search", "Search", [{ key: "/", label: "search", handler: () => onFileKey("/") }]);
+      return null;
+    }
+    render(
+      <ShortcutsProvider>
+        <Beneath />
+        <EpubPreview file={FILE} />
+      </ShortcutsProvider>,
+    );
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "/", bubbles: true }));
+    });
+    expect(onFileKey).not.toHaveBeenCalled();
   });
 
   it("in full screen the arrows turn pages instead of changing file", async () => {

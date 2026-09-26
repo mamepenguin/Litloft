@@ -90,6 +90,18 @@ both could act as the page, including posting to it as the reader. Accepted:
 the parent listens only to its own reader frame and only to allowlisted keys
 and `http(s)` links.
 
+**Behind a reverse proxy that rewrites `Host`, an EPUB never opens.** The
+reader's `script-src` names the `Host` the request arrived with, so when that
+differs from the address in the browser, `reader.js` is refused and the page
+stays on "Loading the book..." with no download offered. It fails closed.
+
+**A page foliate moves by itself is not saved.** Extending a text selection
+past the edge of the page, or focus landing on something off the page, turns it
+without going through the reader's own turn, so that place is not recorded.
+
+**Paging back to the first page and leaving keeps the later place.** The first
+page is never written, so the book reopens where it was last saved.
+
 **An EPUB whose section is an SVG document stops turning pages there.**
 foliate-js reads the section's `body`, which an SVG document does not have,
 and its paginator stays locked.

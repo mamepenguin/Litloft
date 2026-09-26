@@ -164,6 +164,52 @@ describe("attributes", () => {
   });
 });
 
+describe("what the browser builds from the output", () => {
+  // Every attribute value in the tree an XHTML parser builds from the output.
+  function attributeValues(text: string, type: string): string[] {
+    const doc = parse(text, type);
+    return Array.from(doc.getElementsByTagName("*")).flatMap((el) =>
+      Array.from(el.attributes, (a) => `${a.name}=${a.value}`),
+    );
+  }
+
+  const vectors: [string, string][] = [
+    [
+      "an element named parsererror forcing the HTML fallback, then a prefixed attribute",
+      '<parsererror/><svg xmlns="http://www.w3.org/2000/svg"><a foo:href="javascript:x()" ' +
+        'xmlns:foo="http://www.w3.org/1999/xlink"><rect/></a></svg>',
+    ],
+    [
+      "a prefixed on-handler in the HTML fallback",
+      '<parsererror/><svg xmlns="http://www.w3.org/2000/svg" foo:onload="x()" xmlns:foo="http://www.w3.org/2000/svg"/>',
+    ],
+    [
+      "malformed markup with a prefixed href",
+      '<p>unclosed<svg><a xl:href="javascript:x()" xmlns:xl="http://www.w3.org/1999/xlink">a</a></svg>',
+    ],
+  ];
+
+  it("the declared set is the set tested", () => {
+    expect(vectors.length).toBe(3);
+  });
+
+  it.each(vectors)("%s leaves no script URL or handler", (_name, body) => {
+    const out = sanitizeMarkup(page(body), XHTML);
+    for (const value of attributeValues(out.text, out.type)) {
+      expect(value).not.toMatch(/javascript:/i);
+      expect(value).not.toMatch(/^([^=]*:)?on[a-z]+=/i);
+    }
+  });
+
+  it("sanitizing the output again changes nothing", () => {
+    for (const [, body] of vectors) {
+      const once = sanitizeMarkup(page(body), XHTML);
+      const twice = sanitizeMarkup(once.text, once.type);
+      expect(twice.text).toBe(once.text);
+    }
+  });
+});
+
 describe("isAllowedUrl", () => {
   it.each([
     ["blob:http://h/x", false, true],

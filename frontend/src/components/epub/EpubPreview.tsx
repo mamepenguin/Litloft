@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
-import { BookX } from "lucide-react";
+import { BookX, Maximize, X } from "lucide-react";
 import type { FileItem } from "@/types";
 import { EmptyState } from "@/components/EmptyState";
 import { useFullscreen } from "@/components/player/hooks/useFullscreen";
@@ -95,27 +95,53 @@ export function EpubPreview({ file }: EpubPreviewProps) {
         ref={frameBoxRef}
         data-testid="epub-frame"
         className={[
-          "overflow-hidden bg-bg-card",
+          "flex flex-col overflow-hidden bg-bg-card",
           fullscreen.isPseudo
             ? "fixed inset-0 z-50 rounded-none"
             : "relative flex-1 rounded-xl",
         ].join(" ")}
       >
-        <iframe
-          key={file.id}
-          ref={reader.frameRef}
-          src={EPUB_READER_URL}
-          title={t("epubReader", { title: file.title || file.filename })}
-          className="block h-full w-full border-0"
-        />
-        {!ready && (
-          <p
-            role="status"
-            className="absolute inset-0 flex items-center justify-center bg-bg-card text-sm text-text-muted"
-          >
-            {t("epubLoading")}
-          </p>
-        )}
+        <div className="flex h-10 shrink-0 items-center justify-end border-b border-bg-border px-2">
+          {fullscreen.isFullscreen ? (
+            <button
+              type="button"
+              onClick={fullscreen.exit}
+              aria-label={t("epubExitFullscreen")}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated"
+            >
+              <X size={16} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={fullscreen.toggle}
+              disabled={!ready}
+              aria-label={t("epubFullscreen")}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated disabled:opacity-30"
+            >
+              <Maximize size={16} />
+            </button>
+          )}
+        </div>
+        {/* Absolute rather than h-full: the area's height comes from flex, which
+            a percentage height does not resolve against. */}
+        <div className="relative min-h-0 flex-1">
+          <iframe
+            key={file.id}
+            ref={reader.frameRef}
+            src={EPUB_READER_URL}
+            title={t("epubReader", { title: file.title || file.filename })}
+            className="absolute inset-0 block h-full w-full border-0"
+          />
+          {!ready && (
+            <p
+              role="status"
+              className="absolute inset-0 flex items-center justify-center bg-bg-card text-sm text-text-muted"
+            >
+              {t("epubLoading")}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

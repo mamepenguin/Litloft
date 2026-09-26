@@ -16,9 +16,20 @@ const post = (type, payload = {}) => {
   if (parentWindow !== window) parentWindow.postMessage({ type, ...payload }, origin);
 };
 
-// A policy without 'unsafe-eval' makes the Function constructor throw, and one
-// without 'unsafe-inline' leaves an inserted inline script unrun.
-const cspIsActive = () => {
+// The policy must refuse eval, inline script and a same-origin script
+// outside /epub-reader/. The probe script exists, so an error means refused.
+const PROBE_SCRIPT = "/epub-reader-probe.js";
+
+const outsideScriptRefused = () =>
+  new Promise((resolve) => {
+    const probe = document.createElement("script");
+    probe.src = `${origin}${PROBE_SCRIPT}`;
+    probe.addEventListener("load", () => resolve(false));
+    probe.addEventListener("error", () => resolve(true));
+    document.head.append(probe);
+  });
+
+const cspIsActive = async () => {
   try {
     new Function("return 1");
     return false;
@@ -26,11 +37,12 @@ const cspIsActive = () => {
     // expected under the policy
   }
   window.__epubInlineProbe = false;
-  const probe = document.createElement("script");
-  probe.textContent = "window.__epubInlineProbe = true";
-  document.head.append(probe);
-  probe.remove();
-  return window.__epubInlineProbe === false;
+  const inline = document.createElement("script");
+  inline.textContent = "window.__epubInlineProbe = true";
+  document.head.append(inline);
+  inline.remove();
+  if (window.__epubInlineProbe !== false) return false;
+  return outsideScriptRefused();
 };
 
 const state = {
@@ -115,7 +127,9 @@ const installTouch = (win) => {
     const t = e.changedTouches[0];
     const from = start;
     start = null;
-    if (!from || !t || (window.visualViewport?.scale ?? 1) > 1) return;
+    // Pinch zoom happens on the page that holds the reader, not in it.
+    const zoom = (window.top?.visualViewport ?? window.visualViewport)?.scale ?? 1;
+    if (!from || !t || zoom > 1) return;
     const dx = t.clientX - from.x;
     const dy = t.clientY - from.y;
     const swipe = swipeAction(dx, dy);
@@ -212,11 +226,13 @@ window.addEventListener("message", (e) => {
     case "open":
       if (state.opened || !isValidOpen(d)) return;
       state.opened = true;
-      if (!cspIsActive()) {
-        post("error", { code: "isolation" });
-        return;
-      }
-      openBook(d).catch(() => post("error", { code: "parse" }));
+      cspIsActive().then((active) => {
+        if (!active) {
+          post("error", { code: "isolation" });
+          return;
+        }
+        openBook(d).catch(() => post("error", { code: "parse" }));
+      });
       return;
     case "turn":
       if (Object.hasOwn(MOVES, d.direction)) turn(MOVES[d.direction]);
