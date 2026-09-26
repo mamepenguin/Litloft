@@ -881,7 +881,12 @@ describe("EpubPreview", () => {
 
     it.each([
       ["Aa again", () => fireEvent.click(aa())],
-      ["a press on the book", () => fireEvent.click(screen.getByTestId("epub-typography-cover"))],
+      ["a press on the book", () => fireEvent.pointerDown(screen.getByTestId("epub-typography-cover"))],
+      ["a click on the book's cover from the keyboard", () => fireEvent.click(screen.getByTestId("epub-typography-cover"))],
+      ["a press and click on Aa", () => {
+        fireEvent.pointerDown(aa());
+        fireEvent.click(aa());
+      }],
       ["Escape", () => fireEvent.keyDown(document, { key: "Escape" })],
     ])("closes on %s, turns nothing, and hands the keys back to the book", async (_how, close) => {
       const view = await openReady();

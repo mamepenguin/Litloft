@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { useTranslations } from "next-intl";
 import { BookX, Maximize, X } from "lucide-react";
 import type { FileItem } from "@/types";
+import { DismissScrim } from "@/components/DismissScrim";
 import { EmptyState } from "@/components/EmptyState";
 import { useFullscreen } from "@/components/player/hooks/useFullscreen";
 import { useAutoHidingChrome } from "@/hooks/useAutoHidingChrome";
@@ -228,16 +229,14 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
               </p>
             )}
             {typographyOpen && (
-              <>
-                {/* The book is a frame whose presses never reach this page. */}
-                <button
-                  type="button"
-                  aria-label={t("epubCloseTypography")}
-                  tabIndex={-1}
-                  data-testid="epub-typography-cover"
-                  onClick={closeTypography}
-                  className="absolute inset-0 z-10 cursor-default"
-                />
+              // Over the book too: the book is a frame whose presses never
+              // reach this page.
+              <DismissScrim
+                onDismiss={closeTypography}
+                label={t("epubCloseTypography")}
+                className="absolute inset-0 z-10 cursor-default"
+                data-testid="epub-typography-cover"
+              >
                 <div
                   data-swipe-exempt
                   className="absolute inset-x-2 top-2 z-20 flex flex-col justify-end"
@@ -251,7 +250,7 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
                     onChange={reader.setTypography}
                   />
                 </div>
-              </>
+              </DismissScrim>
             )}
           </div>
         </div>

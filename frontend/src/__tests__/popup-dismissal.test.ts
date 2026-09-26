@@ -158,6 +158,10 @@ const POPUPS: Record<string, PopupEntry> = {
     dismissedIn: "frontend/src/components/archive/ArchiveToolbar.tsx",
     why: "the archive bar's … menu",
   },
+  "frontend/src/components/epub/EpubTypographyPanel.tsx": {
+    dismissedIn: "frontend/src/components/epub/EpubPreview.tsx",
+    why: "the EPUB reader's text settings, opened from the position bar",
+  },
   "frontend/src/components/folder/FilterField.tsx": {
     dismissedIn: "frontend/src/components/folder/FilterField.tsx",
     why: "the kind-filter menu, in both of the forms it draws",
