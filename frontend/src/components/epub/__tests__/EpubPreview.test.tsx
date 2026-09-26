@@ -158,11 +158,11 @@ describe("EpubPreview", () => {
     expect(mockSaveWatchProgress).not.toHaveBeenCalled();
   });
 
-  it("an arrow handed back by the reader moves to the previous or next file inline", async () => {
+  it("an arrow handed back by the reader does not move to another file", async () => {
     const { readerWindow, onFileKey } = renderPreview();
     await fromReader(readerWindow, { type: "key", key: "ArrowLeft" });
     await fromReader(readerWindow, { type: "key", key: "ArrowRight" });
-    expect(onFileKey.mock.calls).toEqual([["arrowleft"], ["arrowright"]]);
+    expect(onFileKey).not.toHaveBeenCalled();
   });
 
   it("a key outside the allowlist is not replayed", async () => {

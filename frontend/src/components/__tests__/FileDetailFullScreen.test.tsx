@@ -259,6 +259,7 @@ describe("FileDetailFullScreen", () => {
     const navCalls = vi.mocked(useFileNav).mock.calls;
     expect(navCalls.length).toBeGreaterThan(0);
     for (const [opts] of navCalls) expect(opts.sort).toBeUndefined();
+    expect(navCalls.at(-1)![0].mimeType).toBe("image/png");
     expect(imageGalleryProps.length).toBeGreaterThan(0);
     for (const props of imageGalleryProps) expect(props.sort).toBeUndefined();
   });

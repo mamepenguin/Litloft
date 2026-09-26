@@ -1,4 +1,4 @@
-export type ReaderKey = "ArrowLeft" | "ArrowRight" | "f" | "Escape";
+export type ReaderKey = "f" | "Escape";
 
 export type ReaderMessage =
   | { type: "boot" }
@@ -14,7 +14,7 @@ export type ReaderCommand =
   | { type: "theme"; theme: "light" | "dark" }
   | { type: "mode"; fullscreen: boolean };
 
-const KEYS: ReadonlySet<string> = new Set<ReaderKey>(["ArrowLeft", "ArrowRight", "f", "Escape"]);
+const KEYS: ReadonlySet<string> = new Set<ReaderKey>(["f", "Escape"]);
 const ERRORS: ReadonlySet<string> = new Set(["unsupported", "parse", "isolation"]);
 
 function isHttpUrl(value: unknown): value is string {

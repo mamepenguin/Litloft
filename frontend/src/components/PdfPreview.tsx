@@ -378,11 +378,6 @@ export function PdfPreview({
     };
   }, []);
 
-  /**
-   * Deliberately not `←` / `→`: `useFileNav` binds the arrows to the
-   * previous and next file in the folder whenever `playerKind` is null,
-   * which a PDF is.
-   */
   useShortcuts(
     "pdf-viewer",
     t("pdfShortcuts"),

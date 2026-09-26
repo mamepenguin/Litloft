@@ -19,7 +19,7 @@ export const restoreAnchor = (inSection, pages) => {
 };
 
 const FORWARDED = {
-  inline: new Set(["ArrowLeft", "ArrowRight", "f"]),
+  inline: new Set(["f"]),
   fullscreen: new Set(["f", "Escape"]),
 };
 

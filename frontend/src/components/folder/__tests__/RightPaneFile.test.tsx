@@ -91,7 +91,12 @@ const fileNavResult = {
   navigateNext: vi.fn(),
 };
 const useFileNavMock = vi.fn(
-  (_opts: { sort?: string; order?: string; countable?: boolean }) =>
+  (_opts: {
+    sort?: string;
+    order?: string;
+    countable?: boolean;
+    mimeType?: string | null;
+  }) =>
     fileNavResult,
 );
 vi.mock("@/hooks/useFileNav", () => ({
@@ -463,6 +468,7 @@ describe("RightPaneFile — the prev/next walk it publishes", () => {
     expect(call.sort).toBe("title");
     expect(call.order).toBe("asc");
     expect(call.countable).toBe(true);
+    expect(call.mimeType).toBe("image/jpeg");
 
     mockSearchParams.delete("sort");
     mockSearchParams.delete("order");

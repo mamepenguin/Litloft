@@ -62,14 +62,14 @@ Also works for YouTube videos imported with the media_import addon.
 
 Media keys on your keyboard and the lock screen also control playback.
 
-## File navigation (non-media files)
+## File navigation
 
 | Key | Action |
 |---|---|
 | `←` | Previous file in the folder |
 | `→` | Next file in the folder |
 
-On video and audio pages the arrows seek instead.
+On video and audio pages the arrows seek instead. On PDF and EPUB pages they do nothing; use the previous / next buttons to change file.
 
 ## PDF viewer
 
@@ -81,7 +81,7 @@ On video and audio pages the arrows seek instead.
 | `Esc` | Cancel the page number you typed |
 | `f` | Open full screen |
 
-`←` and `→` still go to the previous and next file. In full screen:
+In full screen:
 
 | Key | Action |
 |---|---|
@@ -101,7 +101,7 @@ Touch gestures are the same as in the image viewer below. A mouse selects text a
 | `Space` / `Shift+Space` | Next / previous page |
 | `f` | Open full screen |
 
-`←` and `→` still go to the previous and next file. In full screen:
+In full screen:
 
 | Key | Action |
 |---|---|
