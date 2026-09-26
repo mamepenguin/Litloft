@@ -83,11 +83,7 @@ def _cover_href(opf: ElementTree.Element) -> str | None:
 
 
 def read_cover_bytes(epub_path: str) -> bytes | None:
-    """The raw bytes of the declared cover, or None when there is none.
-
-    Raises EpubCoverError, zipfile.BadZipFile or OSError on a book that
-    cannot be read safely.
-    """
+    """The raw bytes of the declared cover, or None when there is none."""
     with zipfile.ZipFile(epub_path) as zf:
         entries = {decode_zip_filename(info): info for info in zf.infolist()}
 
