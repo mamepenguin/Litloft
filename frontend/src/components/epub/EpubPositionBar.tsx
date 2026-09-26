@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { useTranslations } from "next-intl";
 
 export const SLIDER_STEPS = 1000;
@@ -16,6 +16,10 @@ const VALUE_KEYS = new Set([
   "PageUp",
   "PageDown",
 ]);
+
+/** The input covers the whole row and is never seen; the track and knob below are drawn. */
+const INPUT_CLASS =
+  "peer absolute inset-0 z-10 h-full w-full cursor-pointer touch-none appearance-none opacity-0 disabled:cursor-not-allowed";
 
 export interface EpubPositionBarProps {
   fraction: number | null;
@@ -58,6 +62,21 @@ export function EpubPositionBar({
   const percent = Math.floor((shown / SLIDER_STEPS) * 100);
   const label = drag === null ? chapter : chapterAt(drag / SLIDER_STEPS);
 
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  // A finger only moves a native range when it lands on the thumb, so the
+  // value is taken from where it lands anywhere on the row.
+  const valueAt = (clientX: number): number | null => {
+    const rect = rowRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || !Number.isFinite(clientX)) return null;
+    const along = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
+    return Math.round((dir === "rtl" ? 1 - along : along) * SLIDER_STEPS);
+  };
+  const dragTo = (e: PointerEvent<HTMLInputElement>) => {
+    const value = valueAt(e.clientX);
+    if (value !== null) setDrag(value);
+  };
+  const visual = (dir === "rtl" ? SLIDER_STEPS - shown : shown) / SLIDER_STEPS;
+
   const commit = (byPointer: boolean) => {
     if (drag === null) return;
     setDrag(null);
@@ -66,28 +85,53 @@ export function EpubPositionBar({
   };
 
   return (
-    <div className={`flex min-w-0 flex-col justify-center gap-1 px-3 ${className}`}>
-      <input
-        type="range"
-        data-player-scrub
-        min={0}
-        max={SLIDER_STEPS}
-        step={1}
-        value={shown}
-        dir={dir}
-        disabled={disabled}
-        aria-label={t("epubPosition")}
-        aria-valuetext={`${percent}%`}
-        onChange={(e) => setDrag(Number(e.target.value))}
-        onPointerUp={() => commit(true)}
-        onKeyUp={(e: KeyboardEvent) => {
-          if (VALUE_KEYS.has(e.key)) commit(false);
-        }}
-        // A drag the system takes over ends without a pointerup.
-        onPointerCancel={() => setDrag(null)}
-        onBlur={() => commit(false)}
-        className="h-1 w-full min-w-0 cursor-pointer appearance-none rounded-full bg-bg-border accent-accent disabled:cursor-not-allowed disabled:opacity-40"
-      />
+    <div className={`flex min-w-0 flex-col justify-center px-3 ${className}`}>
+      <div ref={rowRef} data-player-scrub className="relative h-6 w-full">
+        <input
+          type="range"
+          min={0}
+          max={SLIDER_STEPS}
+          step={1}
+          value={shown}
+          dir={dir}
+          disabled={disabled}
+          aria-label={t("epubPosition")}
+          aria-valuetext={`${percent}%`}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture?.(e.pointerId);
+            dragTo(e);
+          }}
+          onPointerMove={(e) => {
+            if (e.buttons !== 0) dragTo(e);
+          }}
+          onChange={(e) => setDrag(Number(e.target.value))}
+          onPointerUp={() => commit(true)}
+          onKeyUp={(e: KeyboardEvent) => {
+            if (VALUE_KEYS.has(e.key)) commit(false);
+          }}
+          // A drag the system takes over ends without a pointerup.
+          onPointerCancel={() => setDrag(null)}
+          onBlur={() => commit(false)}
+          className={INPUT_CLASS}
+        />
+        <div
+          className={[
+            "pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-bg-border",
+            "peer-focus-visible:ring-2 peer-focus-visible:ring-focus-ring peer-disabled:opacity-40",
+          ].join(" ")}
+        >
+          <div
+            className="absolute inset-y-0 rounded-full bg-accent"
+            style={dir === "rtl" ? { right: 0, width: `${(1 - visual) * 100}%` } : { left: 0, width: `${visual * 100}%` }}
+          />
+        </div>
+        {!disabled && (
+          <div
+            className="pointer-events-none absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent"
+            style={{ left: `calc(${visual * 100}% + ${(0.5 - visual) * 16}px)` }}
+          />
+        )}
+      </div>
       <p
         data-testid="epub-position-line"
         className="flex min-w-0 items-baseline gap-2 whitespace-nowrap text-xs text-text-muted"

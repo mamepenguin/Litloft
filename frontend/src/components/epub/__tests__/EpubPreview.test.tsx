@@ -558,6 +558,35 @@ describe("EpubPreview", () => {
       expect(line()).toHaveTextContent(/^0%/);
     });
 
+    it.each([
+      ["ltr", 75, "750"],
+      ["rtl", 75, "250"],
+    ] as const)("in a %s book a finger anywhere on the row drags from where it lands", async (dir, x, value) => {
+      // jsdom has no PointerEvent, and without one fireEvent drops clientX.
+      vi.stubGlobal(
+        "PointerEvent",
+        class extends MouseEvent {
+          pointerId: number;
+          constructor(type: string, init: PointerEventInit = {}) {
+            super(type, init);
+            this.pointerId = init.pointerId ?? 0;
+          }
+        },
+      );
+      const view = await openBook(dir);
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+      const row = slider().parentElement!;
+      vi.spyOn(row, "getBoundingClientRect").mockReturnValue({
+        left: 0, right: 100, width: 100, top: 0, bottom: 24, height: 24, x: 0, y: 0, toJSON: () => ({}),
+      } as DOMRect);
+      fireEvent.pointerDown(slider(), { clientX: x, pointerId: 1, buttons: 1 });
+      expect(slider()).toHaveValue(value);
+      fireEvent.pointerMove(slider(), { clientX: 20, pointerId: 1, buttons: 1 });
+      fireEvent.pointerUp(slider(), { clientX: 20, pointerId: 1 });
+      expect(lastSeek(view.posted).fraction).toBe(dir === "ltr" ? 0.2 : 0.8);
+    });
+
     it("a key that does not move the thumb commits nothing, and a moving key commits without leaving", async () => {
       const view = await openBook();
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
