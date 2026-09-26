@@ -97,6 +97,20 @@ async function walkHostileBook(page: Page): Promise<number[]> {
   return [...reached].sort((a, b) => a - b);
 }
 
+/** Waits until foliate has loaded the section into its frame. */
+async function sectionLoaded(page: Page, section: string) {
+  const index = HOSTILE_SECTIONS.indexOf(section);
+  await page.waitForFunction((i) => {
+    const doc = (document.getElementById("reader") as HTMLIFrameElement).contentDocument!;
+    const view = doc.querySelector("foliate-view") as unknown as {
+      renderer: { getContents(): { index: number; doc: Document }[] };
+    };
+    const shown = view.renderer.getContents()[0];
+    return shown?.index === i && shown.doc.readyState === "complete";
+  }, index);
+  await clickEverything(page);
+}
+
 const upTo = (section: string) =>
   Array.from({ length: HOSTILE_SECTIONS.indexOf(section) + 1 }, (_, i) => i);
 
@@ -125,6 +139,7 @@ test.describe("a hostile book", () => {
     const id = `${info.project.name}:${info.testId}`;
     await page.setExtraHTTPHeaders({ "x-e2e-test": id });
     expect(await walkHostileBook(page)).toEqual(upTo("c4"));
+    await sectionLoaded(page, "c5-svg");
     expect(await page.evaluate(() => window.__pwned ?? null)).toBeNull();
     const leaks = await request.get(`${origin()}/leaks?test=${encodeURIComponent(id)}`);
     expect(await leaks.json()).toEqual([]);
@@ -161,6 +176,7 @@ test.describe("a hostile book", () => {
       await route.fulfill({ response, body: probeless });
     });
     expect(await walkHostileBook(page)).toEqual(upTo("c4"));
+    await sectionLoaded(page, "c5-svg");
     expect(await page.evaluate(() => window.__pwned ?? null)).toBeNull();
   });
 

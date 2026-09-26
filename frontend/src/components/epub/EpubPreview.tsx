@@ -11,6 +11,7 @@ import { getDownloadUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { useEpubReader, type ReaderTheme } from "./useEpubReader";
+import { useFillHeight } from "./useFillHeight";
 
 export const EPUB_READER_URL = "/epub-reader/reader.html";
 
@@ -34,7 +35,15 @@ export function EpubPreview({ file }: EpubPreviewProps) {
   const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "light" as const);
   const reader = useEpubReader(file.id, theme);
   const frameBoxRef = useRef<HTMLDivElement | null>(null);
-  const fullscreen = useFullscreen({ frameRef: frameBoxRef, autoRotateEnabled: false });
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const fillHeight = useFillHeight(rootRef);
+  // Not carried: the carry animates the frame's box, and the reader inside it
+  // reflows to every intermediate size, which reads as the frame sliding off.
+  const fullscreen = useFullscreen({
+    frameRef: frameBoxRef,
+    autoRotateEnabled: false,
+    animate: false,
+  });
   const ready = reader.status.kind === "ready";
   const { setFullscreen } = reader;
 
@@ -90,55 +99,24 @@ export function EpubPreview({ file }: EpubPreviewProps) {
   }
 
   return (
-    <div className="flex h-[60dvh] w-full flex-col md:h-auto md:min-h-[480px]">
+    <div
+      ref={rootRef}
+      className="flex w-full flex-col"
+      style={{ height: fillHeight ?? "60dvh" }}
+    >
       <div
         ref={frameBoxRef}
         data-testid="epub-frame"
         className={[
-          "flex flex-col overflow-hidden bg-bg-card",
+          "overflow-hidden bg-bg-card",
           fullscreen.isPseudo
             ? "fixed inset-0 z-50 rounded-none"
             : "relative flex-1 rounded-xl",
         ].join(" ")}
       >
-        <div
-          className="flex shrink-0 items-center justify-end border-b border-bg-border px-2"
-          style={
-            fullscreen.isPseudo
-              ? {
-                  // The pinned frame covers the whole screen, notch and
-                  // rounded corners included.
-                  minHeight: "calc(2.5rem + env(safe-area-inset-top, 0px))",
-                  paddingTop: "env(safe-area-inset-top, 0px)",
-                  paddingRight: "max(0.5rem, env(safe-area-inset-right, 0px))",
-                }
-              : { minHeight: "2.5rem" }
-          }
-        >
-          {fullscreen.isFullscreen ? (
-            <button
-              type="button"
-              onClick={fullscreen.exit}
-              aria-label={t("epubExitFullscreen")}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated"
-            >
-              <X size={16} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={fullscreen.toggle}
-              disabled={!ready}
-              aria-label={t("epubFullscreen")}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-bg-elevated disabled:opacity-30"
-            >
-              <Maximize size={16} />
-            </button>
-          )}
-        </div>
-        {/* Absolute rather than h-full: the area's height comes from flex, which
+        {/* Absolute rather than h-full: the box's height comes from flex, which
             a percentage height does not resolve against. */}
-        <div className="relative min-h-0 flex-1">
+        <div className="absolute inset-0">
           <iframe
             key={file.id}
             ref={reader.frameRef}
@@ -155,6 +133,25 @@ export function EpubPreview({ file }: EpubPreviewProps) {
             </p>
           )}
         </div>
+        <button
+          type="button"
+          onClick={fullscreen.isFullscreen ? fullscreen.exit : fullscreen.toggle}
+          disabled={!ready}
+          aria-label={fullscreen.isFullscreen ? t("epubExitFullscreen") : t("epubFullscreen")}
+          className="absolute z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-bg-card/80 text-text-muted hover:bg-bg-elevated disabled:opacity-30"
+          style={
+            fullscreen.isPseudo
+              ? {
+                  // The pinned frame covers the whole screen, notch and
+                  // rounded corners included.
+                  top: "calc(env(safe-area-inset-top, 0px) + 0.5rem)",
+                  right: "max(0.5rem, env(safe-area-inset-right, 0px))",
+                }
+              : { top: "0.5rem", right: "0.5rem" }
+          }
+        >
+          {fullscreen.isFullscreen ? <X size={16} /> : <Maximize size={16} />}
+        </button>
       </div>
     </div>
   );
