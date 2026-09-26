@@ -59,6 +59,9 @@ export const isHttpUrl = (href) => {
 export const TOC_LABEL_MAX = 200;
 export const TOC_MAX = 1000;
 
+export const isValidTocIndex = (index, hrefs) =>
+  Number.isInteger(index) && index >= 0 && index < hrefs.length && hrefs[index] !== null;
+
 export const isValidSeek = (d) =>
   typeof d.fraction === "number" &&
   Number.isFinite(d.fraction) &&
@@ -81,13 +84,15 @@ export const flattenToc = (toc, resolveIndex, sectionFractions) => {
     } catch {
       index = null;
     }
-    const fraction = Number.isInteger(index) ? sectionFractions[index] ?? null : null;
+    const raw = Number.isInteger(index) ? sectionFractions[index] ?? null : null;
+    const fraction = typeof raw === "number" && Number.isFinite(raw) ? raw : null;
     entries.push({
       label: String(item?.label ?? "").trim().slice(0, TOC_LABEL_MAX),
       depth,
-      fraction: typeof fraction === "number" && Number.isFinite(fraction) ? fraction : null,
+      fraction,
     });
-    hrefs.push(href);
+    // Selectable means the same on both sides: no target, no href.
+    hrefs.push(fraction === null ? null : href);
     if (Array.isArray(item?.subitems)) for (const sub of item.subitems) visit(sub, depth + 1);
   };
   if (Array.isArray(toc)) for (const item of toc) visit(item, 0);

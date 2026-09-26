@@ -8,6 +8,7 @@ import {
   isHttpUrl,
   isValidOpen,
   isValidSeek,
+  isValidTocIndex,
   readTypography,
   keyAction,
   restoreAnchor,
@@ -376,6 +377,12 @@ window.addEventListener("message", (e) => {
     case "turn":
       if (Object.hasOwn(MOVES, d.direction)) turn(MOVES[d.direction]);
       return;
+    case "goToToc": {
+      if (!state.ready || !isValidTocIndex(d.index, state.tocHrefs)) return;
+      const href = state.tocHrefs[d.index];
+      turn((v) => v.goTo(href));
+      return;
+    }
     case "seek":
       if (!state.ready || !isValidSeek(d)) return;
       state.pendingSeek = { fraction: d.fraction, id: d.id };
