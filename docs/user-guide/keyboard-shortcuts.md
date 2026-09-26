@@ -93,9 +93,25 @@ On video and audio pages the arrows seek instead.
 
 Touch gestures are the same as in the image viewer below. A mouse selects text and never turns the page.
 
+## EPUB reader
+
+| Key | Action |
+|---|---|
+| `PageUp` / `PageDown` | Previous / next page |
+| `Space` / `Shift+Space` | Next / previous page |
+| `f` | Open full screen |
+
+`←` and `→` still go to the previous and next file. In full screen:
+
+| Key | Action |
+|---|---|
+| `←` / `→` | Page to the left / right (follows the book's reading direction) |
+| `PageUp` / `PageDown` | Previous / next page |
+| `f` / `Esc` | Close |
+
 ## Image gallery and archive page-turner
 
-While a full-screen viewer (image, archive or PDF) is open, only its own keys work. Search and Quick Note wait until you close it.
+While a full-screen viewer (image, archive, PDF or EPUB) is open, only its own keys work. Search and Quick Note wait until you close it.
 
 | Key | Action |
 |---|---|

@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     "playwright-report/**",
     "blob-report/**",
     "e2e-components/.build/**",
+    "public/epub-reader/vendor/**",
 
     // Another repository's source, linked in by `setup-addons.sh`. Ignoring
     // it keeps core's required check from becoming the first thing that

@@ -55,3 +55,6 @@ next-env.d.ts
 
 # vitest blob reports (sharded runs)
 .vitest-reports/
+
+# foliate-js, copied from node_modules by scripts/copy-foliate.mjs
+/public/epub-reader/vendor/

@@ -191,7 +191,18 @@
     "pdfZoomMode_fit-width": "Fit width",
     "pdfZoomMode_fit-page": "Whole page",
     "pdfZoomMode_actual": "Actual size",
-    "pdfRenderTooLarge": "The page could not be drawn at this zoom. Try a smaller one."
+    "pdfRenderTooLarge": "The page could not be drawn at this zoom. Try a smaller one.",
+    "epubLoading": "Loading the book...",
+    "epubLoadFailed": "This book could not be opened. Download it and open it in another app.",
+    "epubUnsupported": "Fixed-layout books cannot be shown yet. Download it and open it in another app.",
+    "epubReader": "{title} (book)",
+    "epubShortcuts": "EPUB reader",
+    "epubNextPage": "Next page",
+    "epubPreviousPage": "Previous page",
+    "epubPageLeft": "Page to the left",
+    "epubPageRight": "Page to the right",
+    "epubFullscreen": "Read full screen",
+    "epubExitFullscreen": "Exit full screen"
   },
   "search": {
     "label": "Search",

@@ -82,6 +82,37 @@ page, which is the inline one when the inline page redrew last (after a window
 resize with full screen open). The page goes sharp, blurred, sharp; it is never
 blank. (PR #368 r2 N5.)
 
+**A book's script that got past both of the EPUB reader's defences would run
+as Litloft.** The reader document is on Litloft's origin because foliate-js
+needs same-origin section frames, so each book resource is sanitized and the
+reader's CSP allows scripts only from `/epub-reader/`. A script that defeated
+both could act as the page, including posting to it as the reader. Accepted:
+the parent listens only to its own reader frame and only to allowlisted keys
+and `http(s)` links.
+
+**Behind a reverse proxy that rewrites `Host`, an EPUB never opens.** The
+reader's `script-src` names the `Host` the request arrived with, so when that
+differs from the address in the browser, `reader.js` is refused and the page
+stays on "Loading the book..." with no download offered. It fails closed.
+
+**A page foliate moves by itself is not saved.** Extending a text selection
+past the edge of the page, or focus landing on something off the page, turns it
+without going through the reader's own turn, so that place is not recorded.
+
+**Paging back to the first page and leaving keeps the later place.** The first
+page is never written, so the book reopens where it was last saved.
+
+**On a phone, the full-screen button covers the top of the last character or two
+of an EPUB's first line** in horizontal books, outside full screen.
+
+**An EPUB chapter that is really encoded in Shift_JIS shows a blank page.**
+foliate-js unzips every section as UTF-8 before the reader sees it, so a
+chapter in another encoding cannot be recovered there.
+
+**An EPUB whose section is an SVG document stops turning pages there.**
+foliate-js reads the section's `body`, which an SVG document does not have,
+and its paginator stays locked.
+
 **A source file's card shows no excerpt.** A card draws the first lines of a
 file in place of a thumbnail only when the file is a Document, so the source
 files that are now Other lost it: `.c`, `.h`, `.py`, `.pl`, `.css`, `.js` and

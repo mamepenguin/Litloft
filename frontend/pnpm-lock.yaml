@@ -31,6 +31,9 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.13.24
         version: 3.13.24(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      foliate-js:
+        specifier: 1.0.1
+        version: 1.0.1
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
@@ -2187,6 +2190,9 @@ packages:
   confbox@0.1.8:
     resolution: {integrity: sha512-RMtmw0iFkeR4YV+fUOSucriAQNb9g8zFR52MWCtl+cCZOFRNL6zeB395vPzFhEjjn4fMxXudmELnl/KF/WrK6w==}
 
+  construct-style-sheets-polyfill@3.1.0:
+    resolution: {integrity: sha512-HBLKP0chz8BAY6rBdzda11c3wAZeCZ+kIG4weVC2NM3AXzxx09nhe8t0SQNdloAvg5GLuHwq/0SPOOSPvtCcKw==}
+
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
 
@@ -2723,6 +2729,9 @@ packages:
 
   flatted@3.4.2:
     resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
+
+  foliate-js@1.0.1:
+    resolution: {integrity: sha512-Cj4h2ub5aVA+yUgbhvVhCyxwi0GPF4pyNBa6Lw9+6WKY1ReBxipItn2kEBO6u7Vu/xYXjK711R74+t+yW/0u5w==}
 
   follow-redirects@1.15.11:
     resolution: {integrity: sha512-deG2P0JfjrTxl50XGCDyfI97ZGVCxIpfKYmfyrQ54n5FO/0gfIES8C/Psl6kWVDolizcaaxZJnTS0QSMxvnsBQ==}
@@ -6176,6 +6185,8 @@ snapshots:
 
   confbox@0.1.8: {}
 
+  construct-style-sheets-polyfill@3.1.0: {}
+
   convert-source-map@2.0.0: {}
 
   cose-base@1.0.3:
@@ -6896,6 +6907,10 @@ snapshots:
       keyv: 4.5.4
 
   flatted@3.4.2: {}
+
+  foliate-js@1.0.1:
+    dependencies:
+      construct-style-sheets-polyfill: 3.1.0
 
   follow-redirects@1.15.11: {}
 

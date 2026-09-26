@@ -1088,6 +1088,13 @@ pre mark.ask-citation-highlight {
   z-index: 10;
 }
 
+/* A book already fills the room it measures for itself, so nothing scrolls
+   under it; and a stuck box would report its stuck position as where the
+   book starts. */
+[data-sheet-snap] .media-detail-player:has([data-epub-reader]) {
+  position: static;
+}
+
 /* While a frame is pinned for pseudo-fullscreen, the box stops being sticky
    so that the frame is a plain fixed box in the root stacking context.
    Out-ranking the chrome from inside the sticky context is not enough: iOS

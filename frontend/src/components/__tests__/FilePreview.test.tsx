@@ -60,6 +60,12 @@ vi.mock("../HtmlPreview", () => ({
   ),
 }));
 
+vi.mock("../epub/EpubPreview", () => ({
+  EpubPreview: ({ file }: { file: { id: string } }) => (
+    <div data-testid="epub-preview">{file.id}</div>
+  ),
+}));
+
 vi.mock("../PdfPreview", () => ({
   PdfPreview: ({
     fileId,
@@ -202,6 +208,16 @@ describe("FilePreview", () => {
     const file = makeFile({ file_type: "document", mime_type: "application/pdf", filename: "doc.pdf" });
     render(<FilePreview file={file} initialPage={4} />);
     expect(await screen.findByTestId("pdf-preview")).toHaveTextContent("file-1:4");
+  });
+
+  it("renders the EPUB reader for an EPUB", async () => {
+    const file = makeFile({
+      file_type: "document",
+      mime_type: "application/epub+zip",
+      filename: "book.epub",
+    });
+    render(<FilePreview file={file} />);
+    expect(await screen.findByTestId("epub-preview")).toHaveTextContent("file-1");
   });
 
   it("renders ArchivePreview for archive files", () => {

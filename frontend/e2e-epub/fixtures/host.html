@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; }
+  #frame { width: 100%; height: 600px; }
+  #frame.fs { position: fixed; inset: 0; height: auto; }
+  iframe { display: block; width: 100%; height: 100%; border: 0; }
+</style>
+</head>
+<body>
+<div id="frame"><iframe id="reader" src="/epub-reader/reader.html"></iframe></div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const reader = document.getElementById("reader");
+  const send = (message, transfer) =>
+    reader.contentWindow.postMessage(message, location.origin, transfer);
+  window.__msgs = [];
+  window.__loads = 0;
+  reader.addEventListener("load", () => { window.__loads += 1; });
+  window.turn = (direction) => send({ type: "turn", direction });
+  window.setTheme = (theme) => send({ type: "theme", theme });
+  window.setMode = (fullscreen) => {
+    document.getElementById("frame").classList.toggle("fs", fullscreen);
+    send({ type: "mode", fullscreen });
+  };
+  window.addEventListener("message", async (event) => {
+    if (event.origin !== location.origin || event.source !== reader.contentWindow) return;
+    window.__msgs.push(event.data);
+    if (event.data.type !== "boot") return;
+    const res = await fetch("/books/" + params.get("book"));
+    const bytes = await res.arrayBuffer();
+    const f = params.get("f");
+    send({ type: "open", bytes, fraction: f === null ? null : Number(f), theme: "light" }, [bytes]);
+  });
+</script>
+</body>
+</html>
