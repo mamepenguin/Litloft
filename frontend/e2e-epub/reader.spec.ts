@@ -596,6 +596,9 @@ test.describe("activity", () => {
       for (const win of [doc.defaultView!, ...view.renderer.getContents().map((c) => c.doc.defaultView!)])
         win.addEventListener("pointermove", () => (host.__moves! += 1), { capture: true });
     });
+    // Past the reader's pointer throttle, which would otherwise drop these
+    // moves whether or not the reader is in full screen.
+    await page.waitForTimeout(300);
     await page.mouse.move(400, 300);
     await page.mouse.move(460, 340, { steps: 5 });
     expect(await seen()).toBeGreaterThan(0);
