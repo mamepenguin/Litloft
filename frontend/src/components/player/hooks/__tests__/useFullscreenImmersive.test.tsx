@@ -90,6 +90,7 @@ afterEach(() => {
   shell = null;
   delete document.documentElement.dataset.playerFullscreen;
   delete (document as { fullscreenElement?: Element | null }).fullscreenElement;
+  delete (document as { exitFullscreen?: unknown }).exitFullscreen;
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -220,6 +221,33 @@ describe("useFullscreen in an iOS shell that answers immersive requests", () => 
     expect(shell!.posted).toEqual([immersive(true), immersive(false)]);
   });
 
+  it("opens under StrictMode, which mounts the hook twice", async () => {
+    const { result } = renderHook(() => useFullscreen({ frameRef: { current: frame }, autoRotateEnabled: true }), {
+      wrapper: ShortcutsProvider,
+      reactStrictMode: true,
+    });
+
+    await act(async () => result.current.toggle());
+    await widen();
+
+    expect(shell!.posted).toEqual([immersive(true)]);
+    expect(result.current.isPseudo).toBe(true);
+  });
+
+  it("keeps a manual entry manual when the phone is turned while the shell widens", async () => {
+    const { result } = renderFullscreen();
+    await act(async () => result.current.toggle());
+    await flush();
+
+    rotate(true);
+    await flush();
+    await widen();
+    rotate(false);
+    await flush();
+
+    expect(result.current.isPseudo).toBe(true);
+  });
+
   it("lets go of the shell when unmounted while widening", async () => {
     const { result, unmount } = renderFullscreen();
     await act(async () => result.current.toggle());
@@ -262,6 +290,47 @@ describe("useFullscreen in an iOS shell that answers immersive requests", () => 
 });
 
 describe("useFullscreen where nothing answers immersive requests", () => {
+  it("opens under StrictMode in a browser", async () => {
+    const { result } = renderHook(() => useFullscreen({ frameRef: { current: frame }, autoRotateEnabled: true }), {
+      wrapper: ShortcutsProvider,
+      reactStrictMode: true,
+    });
+
+    await act(async () => result.current.toggle());
+
+    expect(result.current.isPseudo).toBe(true);
+  });
+
+  it("keeps a manual element fullscreen when the phone is turned and back", async () => {
+    let element: Element | null = null;
+    const exitFullscreen = vi.fn(() => {
+      element = null;
+      return Promise.resolve();
+    });
+    Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => element });
+    Object.defineProperty(document, "exitFullscreen", { configurable: true, value: exitFullscreen });
+    Object.defineProperty(frame, "requestFullscreen", {
+      configurable: true,
+      value: vi.fn(() => {
+        element = frame;
+        return Promise.resolve();
+      }),
+    });
+    const { result } = renderFullscreen();
+    await act(async () => result.current.toggle());
+    act(() => {
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+
+    rotate(true);
+    await flush();
+    rotate(false);
+    await flush();
+
+    expect(exitFullscreen).not.toHaveBeenCalled();
+    expect(result.current.isFullscreen).toBe(true);
+  });
+
   it("pins at once in a browser", async () => {
     const { result } = renderFullscreen();
 

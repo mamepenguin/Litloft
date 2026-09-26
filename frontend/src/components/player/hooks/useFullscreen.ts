@@ -148,12 +148,13 @@ export function useFullscreen({
   // React tears effects down in the order they were defined, and the
   // history effect needs to know it is unmounting rather than closing.
   const mountedRef = useRef(true);
-  useEffect(
-    () => () => {
+  // Set on every mount as well: StrictMode unmounts and mounts again.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
       mountedRef.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
 
   useEffect(() => {
     const sync = () =>
