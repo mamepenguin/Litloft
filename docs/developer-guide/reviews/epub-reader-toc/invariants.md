@@ -67,3 +67,13 @@ contents left `window.scrollY`, the frame box's `scrollTop` and `main`'s
 `scrollTop` unchanged (4); the current entry was inside the list's box with
 focus on it (8). The bar with the contents button and Aa fits at 320 px; a long
 chapter label is cut with an ellipsis, as designed.
+
+## After r1 (decided under the user's standing instruction to take the recommended option)
+
+Bucket A empty; no code change. F1: PageUp / PageDown (like ← / →, PR-2 r1 F7)
+turn the book behind an open contents list and save the place as any turn does
+— kept, for consistency with the text-settings panel. F2 and F3: test gaps,
+closed with a fragment several pages into its chapter and rows for the focus
+fallback and the list's edges (including that they raise no error). F4: the
+list-only scroll and `preventScroll` are held by the author's real-browser
+measurement, not by CI.
