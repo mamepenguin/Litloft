@@ -17,7 +17,7 @@ function whatSurvives(page: Page, text: string, type: string) {
       const moduleUrl = "/epub-reader/sanitize.js";
       const { sanitizeMarkup } = await import(moduleUrl);
       const out = sanitizeMarkup(text, type);
-      const doc = new DOMParser().parseFromString(out.text, out.type);
+      const doc = new DOMParser().parseFromString(out.text, out.type.split(";")[0]);
       const hits: string[] = [];
       for (const el of Array.from(doc.getElementsByTagName("*"))) {
         const name = el.localName.toLowerCase();
@@ -115,8 +115,14 @@ function renderedText(page: Page, text: string) {
     const moduleUrl = "/epub-reader/sanitize.js";
     const { sanitizeMarkup } = await import(moduleUrl);
     const out = sanitizeMarkup(text, "application/xhtml+xml");
-    const doc = new DOMParser().parseFromString(out.text, out.type);
-    return { type: out.type, text: doc.body?.textContent ?? "" };
+    // Loaded the way foliate loads a section: a blob of the served type.
+    const frame = document.createElement("iframe");
+    frame.src = URL.createObjectURL(new Blob([out.text], { type: out.type }));
+    document.body.append(frame);
+    await new Promise((resolve) => frame.addEventListener("load", resolve, { once: true }));
+    const rendered = frame.contentDocument?.body?.textContent ?? "";
+    frame.remove();
+    return { type: out.type, text: rendered };
   }, text);
 }
 
@@ -129,11 +135,16 @@ test.describe("a real book's mistakes are shown, not refused", () => {
     ["a vertical tab used as a line break", "<p>line one\u000bline two</p>"],
     ["a control character in an attribute", '<p title="a\u0001b">kept</p>'],
     ["a double hyphen inside a comment", "<!-- a -- b --><p>kept</p>"],
+    [
+      "a stale meta charset on a chapter that is really UTF-8",
+      '<meta charset="Shift_JIS"/><p>kept 縦書き\u000b</p>',
+    ],
   ] as const) {
     test(name, async ({ page }) => {
       const out = await renderedText(page, XHTML_PAGE(body));
-      expect(out.type).toBe("text/html");
+      expect(out.type).toBe("text/html; charset=utf-8");
       expect(out.text).toMatch(/kept|line one/);
+      if (name.includes("charset")) expect(out.text).toContain("縦書き");
     });
   }
 });

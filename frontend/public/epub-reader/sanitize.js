@@ -204,7 +204,10 @@ export const sanitizeMarkup = (text, type) => {
   const again = new DOMParser().parseFromString(once, first.type);
   if (first.type !== HTML && again.querySelector("parsererror")) return REFUSED;
   const twice = sanitizeDocument(again, first.type);
-  return twice === once ? { text: once, type: first.type } : REFUSED;
+  // The text is already decoded; a charset on the blob keeps a stale
+  // <meta charset> in the section from re-decoding it.
+  const served = first.type === HTML ? `${HTML}; charset=utf-8` : first.type;
+  return twice === once ? { text: once, type: served } : REFUSED;
 };
 
 const readText = async (data) =>

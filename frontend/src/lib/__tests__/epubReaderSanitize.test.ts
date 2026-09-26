@@ -29,7 +29,7 @@ function page(body: string, head = "") {
 }
 
 function parse(text: string, type: string) {
-  return new DOMParser().parseFromString(text, type as DOMParserSupportedType);
+  return new DOMParser().parseFromString(text, type.split(";")[0] as DOMParserSupportedType);
 }
 
 function sanitized(body: string, head = "") {
@@ -257,8 +257,8 @@ describe("document shape", () => {
       '<html><body><p id="m">m<br><img src=x onerror="x()"><script>x()</script></body></html>',
       XHTML,
     );
-    expect(out.type).toBe("text/html");
-    const doc = parse(out.text, out.type);
+    expect(out.type).toBe("text/html; charset=utf-8");
+    const doc = parse(out.text, "text/html");
     expect(doc.getElementsByTagName("script").length).toBe(0);
     expect(doc.querySelector("img")!.hasAttribute("onerror")).toBe(false);
   });

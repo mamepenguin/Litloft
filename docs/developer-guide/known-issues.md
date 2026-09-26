@@ -102,6 +102,10 @@ without going through the reader's own turn, so that place is not recorded.
 **Paging back to the first page and leaving keeps the later place.** The first
 page is never written, so the book reopens where it was last saved.
 
+**An EPUB chapter that is really encoded in Shift_JIS shows a blank page.**
+foliate-js unzips every section as UTF-8 before the reader sees it, so a
+chapter in another encoding cannot be recovered there.
+
 **An EPUB whose section is an SVG document stops turning pages there.**
 foliate-js reads the section's `body`, which an SVG document does not have,
 and its paginator stays locked.

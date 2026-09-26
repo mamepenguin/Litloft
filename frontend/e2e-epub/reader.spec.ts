@@ -71,8 +71,9 @@ function clickEverything(page: Page) {
 }
 
 /**
- * The hostile book's spine, in order. The SVG section is last and never shows
- * as reached: foliate cannot lay out an SVG document and stops there.
+ * The hostile book's spine, in order. The SVG section is last: foliate loads
+ * it, but its paginator cannot lay out a document without a body, so the walk
+ * cannot page into it and the walk opens it directly instead.
  */
 const HOSTILE_SECTIONS = ["c1", "c6", "c7", "c2", "c3", "c4", "c5-svg"];
 const LAID_OUT = HOSTILE_SECTIONS.length - 1;
@@ -95,6 +96,24 @@ async function walkHostileBook(page: Page, sections = LAID_OUT) {
   expect([...reached].sort((a, b) => a - b)).toEqual(
     Array.from({ length: sections }, (_, i) => i),
   );
+  if (sections === LAID_OUT) await openSvgSection(page);
+}
+
+async function openSvgSection(page: Page) {
+  const loaded = await page.evaluate(async (index) => {
+    const doc = (document.getElementById("reader") as HTMLIFrameElement).contentDocument!;
+    const view = doc.querySelector("foliate-view") as unknown as {
+      book: { sections: { load(): Promise<string> }[] };
+    };
+    const url = await view.book.sections[index].load();
+    const frame = doc.createElement("iframe");
+    frame.src = url;
+    doc.body.append(frame);
+    await new Promise((resolve) => frame.addEventListener("load", resolve, { once: true }));
+    return frame.contentDocument?.documentElement?.localName ?? null;
+  }, HOSTILE_SECTIONS.indexOf("c5-svg"));
+  expect(loaded).toBe("svg");
+  await page.waitForTimeout(300);
 }
 
 test.describe("the reader document", () => {
