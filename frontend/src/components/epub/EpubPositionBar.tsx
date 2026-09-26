@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent, type Ref } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { useTranslations } from "next-intl";
+import { List } from "lucide-react";
 
 export const SLIDER_STEPS = 1000;
 
@@ -39,10 +40,10 @@ export interface EpubPositionBarProps {
   onPointerCommit?: () => void;
   /** Whether a drag is under way, so the bar is not withdrawn mid-drag. */
   onScrubbingChange?: (scrubbing: boolean) => void;
-  /** The text-settings button, beside the scrub row so a press on it never seeks. */
-  typographyOpen: boolean;
-  onToggleTypography: () => void;
-  typographyButtonRef?: Ref<HTMLButtonElement>;
+  /** The panel buttons sit beside the scrub row so a press on one never seeks. */
+  openPanel: "typography" | "toc" | null;
+  onTogglePanel: (panel: "typography" | "toc") => void;
+  tocDisabled: boolean;
   className?: string;
 }
 
@@ -56,9 +57,9 @@ export function EpubPositionBar({
   onTurn,
   onPointerCommit,
   onScrubbingChange,
-  typographyOpen,
-  onToggleTypography,
-  typographyButtonRef,
+  openPanel,
+  onTogglePanel,
+  tocDisabled,
   className = "",
 }: EpubPositionBarProps) {
   const t = useTranslations("file");
@@ -101,14 +102,25 @@ export function EpubPositionBar({
   return (
     <div className={`flex min-w-0 items-stretch pr-3 ${className}`}>
       <button
-        ref={typographyButtonRef}
         type="button"
-        onClick={onToggleTypography}
+        onClick={() => onTogglePanel("toc")}
+        disabled={disabled || tocDisabled}
+        aria-expanded={openPanel === "toc"}
+        aria-label={t("epubContents")}
+        className={`flex w-11 shrink-0 items-center justify-center transition-colors disabled:opacity-30 ${
+          openPanel === "toc" ? "text-accent" : "text-text-muted hover:text-text-primary"
+        }`}
+      >
+        <List size={18} />
+      </button>
+      <button
+        type="button"
+        onClick={() => onTogglePanel("typography")}
         disabled={disabled}
-        aria-expanded={typographyOpen}
+        aria-expanded={openPanel === "typography"}
         aria-label={t("epubTypographyButton")}
         className={`flex w-11 shrink-0 items-center justify-center text-sm font-medium transition-colors disabled:opacity-30 ${
-          typographyOpen ? "text-accent" : "text-text-muted hover:text-text-primary"
+          openPanel === "typography" ? "text-accent" : "text-text-muted hover:text-text-primary"
         }`}
       >
         Aa

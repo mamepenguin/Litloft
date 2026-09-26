@@ -110,6 +110,15 @@ In full screen:
 | `PageUp` / `PageDown` | Previous / next page |
 | `f` / `Esc` | Close |
 
+In the contents list:
+
+| Key | Action |
+|---|---|
+| `↑` / `↓` | Previous / next entry |
+| `Home` / `End` | First / last entry |
+| `Enter` / `Space` | Go to the entry |
+| `Esc` | Close the list |
+
 ## Image gallery and archive page-turner
 
 While a full-screen viewer (image, archive, PDF or EPUB) is open, only its own keys work. Search and Quick Note wait until you close it.

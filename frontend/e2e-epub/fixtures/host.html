@@ -22,6 +22,7 @@
   window.turn = (direction) => send({ type: "turn", direction });
   let seekId = 0;
   window.seek = (fraction, id = ++seekId) => send({ type: "seek", fraction, id });
+  window.goToToc = (index) => send({ type: "goToToc", index });
   window.setTypography = (typography) => send({ type: "typography", typography });
   window.setTheme = (theme) => send({ type: "theme", theme });
   window.setMode = (fullscreen) => {
@@ -46,6 +47,8 @@
     };
     if (t !== null) open.typography = JSON.parse(t);
     send(open, [bytes]);
+    const early = params.get("early");
+    if (early !== null) send({ type: "goToToc", index: Number(early) });
   });
 </script>
 </body>
