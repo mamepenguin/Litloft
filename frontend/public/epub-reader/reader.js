@@ -211,10 +211,12 @@ const runPendingSeek = () => {
   turn((v) => v.renderer.goTo(seekTarget(fraction)));
 };
 
+// The fractions are the ones positions are reported in, so a chapter's
+// first page and the chapter's entry compare equal.
 const buildToc = (view) => {
   try {
     const resolveIndex = (href) => view.resolveNavigation(href)?.index ?? null;
-    return flattenToc(view.book.toc, resolveIndex, view.getSectionFractions());
+    return flattenToc(view.book.toc, resolveIndex, state.progress.sectionFractions);
   } catch {
     return { entries: [], hrefs: [] };
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { EpubPreview } from "../EpubPreview";
@@ -425,5 +425,122 @@ describe("EpubPreview", () => {
     await fromReader(readerWindow, { type: "boot" });
     await settle();
     expect(screen.getByText(/This book could not be opened/)).toBeInTheDocument();
+  });
+
+  describe("the position bar", () => {
+    const TOC = [
+      { label: "Cover", depth: 0, fraction: 0 },
+      { label: "<b>One</b>", depth: 0, fraction: 0.2 },
+      { label: "Two", depth: 0, fraction: 0.6 },
+    ];
+
+    async function openBook(dir: "ltr" | "rtl" = "ltr") {
+      const view = renderPreview();
+      await fromReader(view.readerWindow, { type: "boot" });
+      await settle();
+      await fromReader(view.readerWindow, { type: "ready", dir, vertical: false, toc: TOC });
+      return view;
+    }
+
+    const slider = () => screen.getByRole("slider");
+    const line = () => screen.getByTestId("epub-position-line");
+
+    it("is disabled until the reader says where it is", async () => {
+      const view = await openBook();
+      expect(slider()).toBeDisabled();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.25, tocIndex: 1, pagesLeft: 4 });
+      expect(slider()).toBeEnabled();
+      expect(slider()).toHaveValue("250");
+      expect(line()).toHaveTextContent("25%");
+      expect(line()).toHaveTextContent("left in chapter");
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.25, tocIndex: 1, pagesLeft: null });
+      expect(line()).not.toHaveTextContent("left in chapter");
+    });
+
+    it("ignores a place reported before the book is ready", async () => {
+      const view = renderPreview();
+      await fromReader(view.readerWindow, { type: "boot" });
+      await settle();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.5, tocIndex: 2, pagesLeft: 1 });
+      await fromReader(view.readerWindow, { type: "ready", dir: "ltr", vertical: false, toc: TOC });
+      expect(slider()).toBeDisabled();
+    });
+
+    it("shows a chapter title from the book as text", async () => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.25, tocIndex: 1, pagesLeft: 4 });
+      expect(line()).toHaveTextContent("<b>One</b>");
+      expect(line().querySelector("b")).toBeNull();
+    });
+
+    it("a drag moves only the label, and the release seeks once and hands the keys back to the book", async () => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      const focus = vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+
+      fireEvent.change(slider(), { target: { value: "700" } });
+      expect(line()).toHaveTextContent("70%");
+      expect(line()).toHaveTextContent("Two");
+      expect(sentOfType(view.posted, "seek")).toEqual([]);
+
+      fireEvent.pointerUp(slider());
+      expect(sentOfType(view.posted, "seek")).toEqual([{ type: "seek", fraction: 0.7 }]);
+      expect(focus).toHaveBeenCalled();
+    });
+
+    it("a key that does not move the thumb commits nothing, and a moving key commits without leaving", async () => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      const focus = vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+      fireEvent.change(slider(), { target: { value: "300" } });
+      fireEvent.keyUp(slider(), { key: "Tab" });
+      expect(sentOfType(view.posted, "seek")).toEqual([]);
+      fireEvent.keyUp(slider(), { key: "ArrowRight" });
+      expect(sentOfType(view.posted, "seek")).toEqual([{ type: "seek", fraction: 0.3 }]);
+      expect(focus).not.toHaveBeenCalled();
+    });
+
+    it("runs right to left for a right-to-left book", async () => {
+      await openBook("rtl");
+      expect(slider()).toHaveAttribute("dir", "rtl");
+    });
+
+    it("a new place from the reader does not write progress", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.8, tocIndex: 2, pagesLeft: 0 });
+      act(() => {
+        vi.advanceTimersByTime(EPUB_SAVE_DELAY_MS * 2);
+      });
+      expect(mockSaveWatchProgress).not.toHaveBeenCalled();
+    });
+
+    it("in full screen, a tap in the book toggles the bar and other activity brings it back", async () => {
+      const view = await openBook();
+      fullscreenState.isFullscreen = true;
+      fullscreenState.isPseudo = true;
+      view.rerender(
+        <ShortcutsProvider>
+          <FileNav onKey={view.onFileKey} />
+          <EpubPreview file={FILE} />
+        </ShortcutsProvider>,
+      );
+      const bottom = () => screen.getByTestId("epub-chrome-bottom");
+      expect(bottom()).not.toHaveAttribute("inert");
+      await fromReader(view.readerWindow, { type: "activity", kind: "tap" });
+      expect(bottom()).toHaveAttribute("inert");
+      await fromReader(view.readerWindow, { type: "activity", kind: "pointer" });
+      expect(bottom()).not.toHaveAttribute("inert");
+      await fromReader(view.readerWindow, { type: "activity", kind: "tap" });
+      await fromReader(view.readerWindow, { type: "activity", kind: "key" });
+      expect(bottom()).not.toHaveAttribute("inert");
+    });
+
+    it("inline, the bar never hides", async () => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "activity", kind: "tap" });
+      expect(slider().closest("[inert]")).toBeNull();
+      expect(screen.queryByTestId("epub-chrome-bottom")).toBeNull();
+    });
   });
 });

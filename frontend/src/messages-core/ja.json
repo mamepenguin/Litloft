@@ -202,7 +202,9 @@
     "epubPageLeft": "左のページ",
     "epubPageRight": "右のページ",
     "epubFullscreen": "全画面で読む",
-    "epubExitFullscreen": "全画面を閉じる"
+    "epubExitFullscreen": "全画面を閉じる",
+    "epubPosition": "読書位置",
+    "epubPagesLeft": "この章あと {count} ページ"
   },
   "search": {
     "label": "検索",

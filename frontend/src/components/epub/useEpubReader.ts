@@ -7,10 +7,20 @@ import {
   parseReaderMessage,
   postToReader,
   type ReaderCommand,
+  type ReaderMessage,
+  type TocEntry,
 } from "@/lib/epubReaderChannel";
 
 export type ReaderTheme = "light" | "dark";
 export type TurnDirection = Extract<ReaderCommand, { type: "turn" }>["direction"];
+
+export type ReaderLocation = Omit<Extract<ReaderMessage, { type: "location" }>, "type">;
+export type ReaderActivity = Extract<ReaderMessage, { type: "activity" }>["kind"];
+
+export interface ReaderBook {
+  dir: "ltr" | "rtl";
+  toc: TocEntry[];
+}
 
 export type ReaderStatus =
   | { kind: "loading" }
@@ -20,7 +30,12 @@ export type ReaderStatus =
 export interface EpubReader {
   frameRef: RefObject<HTMLIFrameElement | null>;
   status: ReaderStatus;
+  /** Set once the book is open. */
+  book: ReaderBook | null;
+  /** Null until the book is open and has laid out its first page. */
+  location: ReaderLocation | null;
   turn: (direction: TurnDirection) => void;
+  seek: (fraction: number) => void;
   setFullscreen: (fullscreen: boolean) => void;
 }
 
@@ -38,14 +53,23 @@ function replayKey(key: string): void {
   document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
 }
 
-export function useEpubReader(fileId: string, theme: ReaderTheme): EpubReader {
+export function useEpubReader(
+  fileId: string,
+  theme: ReaderTheme,
+  onActivity?: (kind: ReaderActivity) => void,
+): EpubReader {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [status, setStatus] = useState<ReaderStatus>({ kind: "loading" });
+  const [book, setBook] = useState<ReaderBook | null>(null);
+  const [location, setLocation] = useState<ReaderLocation | null>(null);
+  const onActivityRef = useRef(onActivity);
+  onActivityRef.current = onActivity;
   const { readSaved, turned } = useEpubProgress(fileId);
   const themeRef = useRef(theme);
   themeRef.current = theme;
   const bookRef = useRef<Promise<[ArrayBuffer, number | null]> | null>(null);
   const openedRef = useRef(false);
+  const readyRef = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,7 +78,10 @@ export function useEpubReader(fileId: string, theme: ReaderTheme): EpubReader {
     book.catch(() => {});
     bookRef.current = book;
     openedRef.current = false;
+    readyRef.current = false;
     setStatus({ kind: "loading" });
+    setBook(null);
+    setLocation(null);
     return () => {
       controller.abort();
       bookRef.current = null;
@@ -87,7 +114,18 @@ export function useEpubReader(fileId: string, theme: ReaderTheme): EpubReader {
           return;
         }
         case "ready":
+          readyRef.current = true;
+          setBook({ dir: message.dir, toc: message.toc });
           setStatus({ kind: "ready" });
+          return;
+        case "location": {
+          if (!readyRef.current) return;
+          const { fraction, tocIndex, pagesLeft } = message;
+          setLocation({ fraction, tocIndex, pagesLeft });
+          return;
+        }
+        case "activity":
+          onActivityRef.current?.(message.kind);
           return;
         case "turned":
           turned(message.fraction, message.atEnd);
@@ -116,11 +154,15 @@ export function useEpubReader(fileId: string, theme: ReaderTheme): EpubReader {
     postToReader(frameRef.current?.contentWindow ?? null, { type: "turn", direction });
   }, []);
 
+  const seek = useCallback((fraction: number) => {
+    postToReader(frameRef.current?.contentWindow ?? null, { type: "seek", fraction });
+  }, []);
+
   const setFullscreen = useCallback((fullscreen: boolean) => {
     const readerWindow = frameRef.current?.contentWindow ?? null;
     postToReader(readerWindow, { type: "mode", fullscreen });
     if (fullscreen) readerWindow?.focus();
   }, []);
 
-  return { frameRef, status, turn, setFullscreen };
+  return { frameRef, status, book, location, turn, seek, setFullscreen };
 }

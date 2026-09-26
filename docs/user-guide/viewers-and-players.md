@@ -116,6 +116,8 @@ With the [knowledge addon](../addons/knowledge.md) and its editor enabled for th
 - A book reflows to fit the page. A vertical Japanese book reads top to bottom, right to left.
 - `←` / `→` turn pages in the book's reading direction; `PageUp` / `PageDown` or `Space` turn to the next or previous page, and a swipe turns them on a touch screen.
 - **Full screen**: the button at the top right of the book, or `f`. The arrows, swipes and taps on the left or right edge turn pages in the book's reading direction. The same button, `f` or `Esc` closes it.
+- The bar under the book shows how far you are, the chapter, and how many pages are left in it. Drag it to jump anywhere in the book.
+- In full screen the bar hides while you read. Tap the middle of the page, or move the mouse, to bring it back.
 - Your place is kept, per profile, and the book reopens there. A book you left on its last page reopens at the start.
 - Fixed-layout books (pages laid out as pictures, common for technical and illustrated books) cannot be shown yet; the page offers **Download** instead.
 - Links to web pages open in a new tab. Scripts inside a book never run.

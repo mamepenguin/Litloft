@@ -487,6 +487,9 @@ test.describe("location", () => {
     const turned = (await messages(page, "turned")).at(-1)!;
     expect(location.tocIndex).toBe(2);
     expect(location.fraction).toBe(turned.fraction);
+    const [ready] = await messages(page, "ready");
+    const toc = ready.toc as { fraction: number | null }[];
+    expect(location.fraction).toBe(toc[2].fraction);
     const at = await where(page);
     expect(location.pagesLeft).toBe(at.pages - 2 - at.page);
   });
