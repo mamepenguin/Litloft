@@ -57,6 +57,7 @@ With the intelligence addon enabled for the drive, results found by meaning are 
 - The badges also show matches in **Transcript**, **Content**, **Visual**, **Thumbnail** and **Metadata**.
 - A match in speech or in a scene shows up to three timestamps. Click one to play from that moment. `+N` says how many more there were.
 - A match in a PDF lists the pages, as `p.N`. Click one to open the PDF at that page.
+- A match in an EPUB book lists the chapters by title. Click one to open the book at the start of that chapter.
 - A match in text shows one quote from the file. With the [Knowledge addon](../addons/knowledge.md), a button beside it adds the quote to the capture basket for a note.
 
 ### Scene search

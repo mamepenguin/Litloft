@@ -109,6 +109,33 @@ describe("buildMatchMeta", () => {
       }),
     );
     expect(meta.matched_pages).toEqual([2, 5]);
+    expect(meta.matched_sections).toBeUndefined();
+  });
+
+  it("collects matched sections in order, each with the first title it carries, and no pages", () => {
+    const meta = buildMatchMeta(
+      makeHit({
+        match_types: ["text_content"],
+        segments: [
+          {
+            time_range: null,
+            matches: [
+              { type: "text_content", score: 0.9, page: null, section: 3, section_title: null },
+              { type: "text_content", score: 0.8, page: null, section: 3, section_title: "Chapter Two" },
+              { type: "text_content_keyword", score: 0.7, page: null, section: 1, section_title: "Prologue" },
+              { type: "text_content", score: 0.6, page: null, section: 3, section_title: "Later" },
+              { type: "text_content", score: 0.5, page: null, section: 8, section_title: null },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(meta.matched_sections).toEqual([
+      { section: 1, title: "Prologue" },
+      { section: 3, title: "Chapter Two" },
+      { section: 8, title: null },
+    ]);
+    expect(meta.matched_pages).toBeUndefined();
   });
 
   it("keeps each content excerpt paired with its page and score", () => {

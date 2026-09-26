@@ -51,6 +51,7 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
   const badgeKeys = selectActiveBadgeKeys(meta);
   const { shown: timestamps, overflow } = collectMatchTimestamps(meta);
   const matchedPages = meta?.matched_pages ?? [];
+  const matchedSections = meta?.matched_sections ?? [];
   const subtitle = secondLine(file);
 
   return (
@@ -139,6 +140,33 @@ export function MergedResultItem({ file, onSelect, isSelected = false }: Props) 
                 className="cursor-pointer rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
               >
                 {t("matchedPages", { pages: page })}
+              </span>
+            ))}
+          </div>
+        )}
+        {matchedSections.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-0.5">
+            {matchedSections.map(({ section, title }) => (
+              <span
+                key={section}
+                role="button"
+                tabIndex={0}
+                title={title ?? undefined}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(`/files/${file.id}?section=${section}`);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onSelect(`/files/${file.id}?section=${section}`);
+                  }
+                }}
+                data-testid="match-section-pill"
+                className="max-w-[12rem] cursor-pointer truncate rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
+              >
+                {title ?? t("matchedSectionNumber", { section })}
               </span>
             ))}
           </div>

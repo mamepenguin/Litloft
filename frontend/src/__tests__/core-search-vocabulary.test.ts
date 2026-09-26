@@ -19,10 +19,10 @@ const CALLERS: Record<string, number> = {
   "app/drive/[name]/search/page.tsx": 2,
   "components/FolderBrowser.tsx": 1,
   "components/GlobalSearch.tsx": 9,
-  // One each: the badge words come from `MATCH_BADGES`, and `matchedPages`
-  // is the line that is not a badge.
-  "components/MatchOverlay.tsx": 1,
-  "components/search/MergedResultItem.tsx": 1,
+  // Two each: the badge words come from `MATCH_BADGES`, and `matchedPages`
+  // and `matchedSectionNumber` are the lines that are not a badge.
+  "components/MatchOverlay.tsx": 2,
+  "components/search/MergedResultItem.tsx": 2,
   "components/search/ScopedSearchParts.tsx": 6,
   "components/search/SearchEmptyState.tsx": 4,
   // None by name: the legend draws every word it shows out of
@@ -85,7 +85,7 @@ describe("the search vocabulary core draws", () => {
     ].sort();
     // The check below is true of no keys at all, so the population is
     // asserted first.
-    expect(used.length).toBe(39);
+    expect(used.length).toBe(40);
     const missing = used.filter((key) => !(key in namespaces[locale]));
     // Named, not counted: a failure should say which word is missing.
     expect(missing).toEqual([]);

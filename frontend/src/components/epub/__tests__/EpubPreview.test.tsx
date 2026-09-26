@@ -39,11 +39,11 @@ function FileNav({ onKey }: { onKey: (key: string) => void }) {
   return null;
 }
 
-function renderPreview(onFileKey = vi.fn()) {
+function renderPreview(onFileKey = vi.fn(), initialSection?: number | null) {
   const utils = render(
           <ShortcutsProvider>
         <FileNav onKey={onFileKey} />
-        <EpubPreview file={FILE} />
+        <EpubPreview file={FILE} initialSection={initialSection} />
       </ShortcutsProvider>,
   );
   const iframe = utils.container.querySelector("iframe")!;
@@ -129,9 +129,22 @@ describe("EpubPreview", () => {
     expect(sentOfType(posted, "open")).toHaveLength(1);
   });
 
-  it("opening and becoming ready write nothing; a turn writes", async () => {
+  it.each([
+    [undefined, null],
+    [1, 0],
+    [3, 2],
+    [0, null],
+    [1.5, null],
+  ])("initialSection %s opens the reader at section index %s", async (initialSection, want) => {
+    const { readerWindow, posted } = renderPreview(vi.fn(), initialSection);
+    await fromReader(readerWindow, { type: "boot" });
+    await settle();
+    expect(sentOfType(posted, "open")).toEqual([expect.objectContaining({ section: want })]);
+  });
+
+  it.each([undefined, 3])("opening at section %s and becoming ready write nothing; a turn writes", async (initialSection) => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const { readerWindow } = renderPreview();
+    const { readerWindow } = renderPreview(vi.fn(), initialSection);
     await fromReader(readerWindow, { type: "boot" });
     await settle();
     await fromReader(readerWindow, { type: "ready", dir: "ltr", vertical: false });

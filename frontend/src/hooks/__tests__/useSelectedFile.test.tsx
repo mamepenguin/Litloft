@@ -70,6 +70,19 @@ describe("useSelectedFile", () => {
     expect(target).toContain("file=xyz");
   });
 
+  it.each([
+    ["file=A&section=3&sort=name", "B", "/drive/work/Q1?file=B&sort=name"],
+    ["file=A&page=7&sort=name", "B", "/drive/work/Q1?file=B&sort=name"],
+    ["file=A&t=42&sort=name", "B", "/drive/work/Q1?file=B&sort=name"],
+    ["file=A&highlight=x&view=liked", "B", "/drive/work/Q1?file=B&highlight=x&view=liked"],
+    ["file=A&section=3&page=7&t=42", "A", "/drive/work/Q1?file=A&section=3&page=7&t=42"],
+  ])("from ?%s, selecting %s goes to %s", (query, id, want) => {
+    mockSearchParams = new URLSearchParams(query);
+    const { result } = renderHook(() => useSelectedFile());
+    act(() => result.current.selectFile(id));
+    expect(mockReplace).toHaveBeenCalledWith(want, { scroll: false });
+  });
+
   it("clearFile uses router.replace", () => {
     mockSearchParams = new URLSearchParams("file=abc&tag=foo");
     const { result } = renderHook(() => useSelectedFile());

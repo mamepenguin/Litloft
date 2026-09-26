@@ -75,12 +75,14 @@ export function MatchOverlay({
     collectMatchTimestamps(match);
 
   const matchedPages = match.matched_pages ?? [];
+  const matchedSections = match.matched_sections ?? [];
   const snippet = file ? buildSearchSnippet(file) : null;
 
   if (
     activeTypes.length === 0 &&
     timestampSegments.length === 0 &&
     matchedPages.length === 0 &&
+    matchedSections.length === 0 &&
     !snippet
   ) {
     return null;
@@ -124,6 +126,24 @@ export function MatchOverlay({
               className="rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
             >
               {t("matchedPages", { pages: page })}
+            </Link>
+          ))}
+        </div>
+      )}
+      {matchedSections.length > 0 && (
+        <div className="flex flex-wrap gap-0.5">
+          {matchedSections.map(({ section, title }) => (
+            <Link
+              key={section}
+              href={`/files/${fileId}?section=${section}`}
+              title={title ?? undefined}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              data-testid="match-section-pill"
+              className="max-w-[12rem] truncate rounded-lg px-1.5 py-0.5 text-[10px] font-medium text-text-muted transition-colors hover:bg-accent/10"
+            >
+              {title ?? t("matchedSectionNumber", { section })}
             </Link>
           ))}
         </div>

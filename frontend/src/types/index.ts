@@ -309,6 +309,14 @@ export interface MatchMeta {
   retrieval_keywords?: { score: number; matched?: string[] };
   /** Page references for paginated documents (PDF). */
   matched_pages?: number[];
+  /** Book sections (EPUB), in order. */
+  matched_sections?: MatchedSection[];
+}
+
+export interface MatchedSection {
+  /** 1-based, the number `?section=` takes. */
+  section: number;
+  title: string | null;
 }
 
 export interface FileItemWithMatch extends FileItem {

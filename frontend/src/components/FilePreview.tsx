@@ -57,6 +57,8 @@ interface FilePreviewProps {
   videoRef?: Ref<HTMLVideoElement>;
   initialTime?: number;
   initialPage?: number;
+  /** 1-based EPUB section number from `?section=`. */
+  initialSection?: number;
   highlight?: string;
   /**
    * Stable identity is the caller's responsibility (use a setState
@@ -85,6 +87,7 @@ export function FilePreview({
   videoRef,
   initialTime,
   initialPage,
+  initialSection,
   highlight,
   onMediaController,
   onDocumentCaptureController,
@@ -208,7 +211,14 @@ export function FilePreview({
   }
 
   if (file.mime_type === "application/epub+zip") {
-    return <EpubPreview file={file} />;
+    // The reader opens once per mount, so a new section needs a new one.
+    return (
+      <EpubPreview
+        key={`${file.id}:${initialSection ?? ""}`}
+        file={file}
+        initialSection={initialSection}
+      />
+    );
   }
 
   if (file.file_type === "archive") {

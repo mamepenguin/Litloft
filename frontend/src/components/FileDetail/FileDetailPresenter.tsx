@@ -43,6 +43,7 @@ export interface FileDetailPresenterProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   initialTime?: number;
   initialPage?: number;
+  initialSection?: number;
   highlight?: string;
   miniPlayerRoot?: Element | null;
   onScrollRootChange: (node: HTMLElement | null) => void;
@@ -88,6 +89,7 @@ export function FileDetailPresenter({
   videoRef,
   initialTime,
   initialPage,
+  initialSection,
   highlight,
   miniPlayerRoot,
   onScrollRootChange,
@@ -127,6 +129,7 @@ export function FileDetailPresenter({
         videoRef={videoRef}
         initialTime={initialTime}
         initialPage={initialPage}
+        initialSection={initialSection}
         highlight={highlight}
         miniPlayerRoot={miniPlayerRoot}
         onScrollRootChange={onScrollRootChange}
@@ -168,6 +171,7 @@ export function FileDetailPresenter({
       videoRef={videoRef}
       initialTime={initialTime}
       initialPage={initialPage}
+      initialSection={initialSection}
       highlight={highlight}
       onMediaController={onMediaController}
       onDocumentCaptureController={onDocumentCaptureController}

@@ -157,6 +157,7 @@ describe("FileDetailFullScreen", () => {
   it("forwards URL deep-link hints to FileDetailContent", async () => {
     mockSearchParams.set("t", "30");
     mockSearchParams.set("page", "7");
+    mockSearchParams.set("section", "2");
     mockSearchParams.set("highlight", "phrase");
     mockGetFile.mockResolvedValue(baseFile);
     render(<FileDetailFullScreen fileId="abc" />);
@@ -164,6 +165,7 @@ describe("FileDetailFullScreen", () => {
     const last = fileDetailContentProps[fileDetailContentProps.length - 1];
     expect(last.initialTime).toBe(30);
     expect(last.initialPage).toBe(7);
+    expect(last.initialSection).toBe(2);
     expect(last.highlight).toBe("phrase");
   });
 

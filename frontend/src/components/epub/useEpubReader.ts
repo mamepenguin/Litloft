@@ -59,6 +59,7 @@ export function useEpubReader(
   fileId: string,
   theme: ReaderTheme,
   onActivity?: (kind: ReaderActivity) => void,
+  initialSection: number | null = null,
 ): EpubReader {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const [status, setStatus] = useState<ReaderStatus>({ kind: "loading" });
@@ -71,6 +72,8 @@ export function useEpubReader(
   const { readSaved, turned } = useEpubProgress(fileId);
   const themeRef = useRef(theme);
   themeRef.current = theme;
+  const initialSectionRef = useRef(initialSection);
+  initialSectionRef.current = initialSection;
   const bookRef = useRef<Promise<[ArrayBuffer, number | null]> | null>(null);
   const openedRef = useRef(false);
   const readyRef = useRef(false);
@@ -106,9 +109,11 @@ export function useEpubReader(
           book.then(
             ([bytes, fraction]) => {
               if (bookRef.current !== book) return;
+              const n = initialSectionRef.current;
+              const section = n !== null && Number.isInteger(n) && n >= 1 ? n - 1 : null;
               postToReader(
                 readerWindow,
-                { type: "open", bytes, fraction, theme: themeRef.current },
+                { type: "open", bytes, fraction, section, theme: themeRef.current },
                 [bytes],
               );
             },

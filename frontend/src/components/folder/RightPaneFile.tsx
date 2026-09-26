@@ -85,6 +85,8 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   const pageParam = searchParams.get("page");
   const initialTime = tParam ? Number(tParam) : undefined;
   const initialPage = pageParam ? Number(pageParam) : undefined;
+  const sectionParam = searchParams.get("section");
+  const initialSection = sectionParam ? Number(sectionParam) : undefined;
   const highlight = searchParams.get("highlight") ?? undefined;
   const sortQuery = normalizeSortParam(searchParams.get("sort"));
   const orderQuery = searchParams.get("order") ?? undefined;
@@ -117,6 +119,7 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
             drive={drive}
             initialTime={initialTime}
             initialPage={initialPage}
+            initialSection={initialSection}
             highlight={highlight}
             miniPlayerRoot={scrollRoot}
             onRequestImageGallery={() => setGalleryOpen(true)}

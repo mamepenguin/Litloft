@@ -220,7 +220,7 @@ const getWatchHistory: LitloftTool = {
 const semanticSearch: LitloftTool = {
   name: "semantic_search",
   description:
-    "Rank files within a drive by relevance to a natural-language query. This is a hybrid search: it combines transcript/caption/embedding relevance with filename/title/folder-path/tag matching (so it's a superset of search_files, not just a semantic-only complement to it). Results include per-segment excerpts (with time ranges for video/audio, page numbers for documents) showing exactly what matched. Requires the intelligence addon's 'search' feature to be enabled for the drive.",
+    "Rank files within a drive by relevance to a natural-language query. This is a hybrid search: it combines transcript/caption/embedding relevance with filename/title/folder-path/tag matching (so it's a superset of search_files, not just a semantic-only complement to it). Results include per-segment excerpts (with time ranges for video/audio, page numbers for PDFs, and for an EPUB book a null page with a 1-based `section` and its `section_title`, the chapter title or null) showing exactly what matched. Requires the intelligence addon's 'search' feature to be enabled for the drive.",
   inputSchema: {
     drive: z.string().describe("Drive name"),
     q: z.string().min(1).describe("Natural-language search query"),

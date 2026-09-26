@@ -1,6 +1,7 @@
 import type {
   FileItem,
   FileItemWithMatch,
+  MatchedSection,
   MatchMeta,
   SortField,
   SortOrder,
@@ -19,6 +20,8 @@ export interface SemanticHit {
       type: string;
       score: number;
       page?: number | null;
+      section?: number | null;
+      section_title?: string | null;
       text?: string;
     }>;
   }>;
@@ -43,6 +46,7 @@ const CONTENT_TYPES = new Set(["content", "text_content", "text_content_keyword"
 export function buildMatchMeta(hit: SemanticHit): MatchMeta {
   const meta: MatchMeta = {};
   const pageSet = new Set<number>();
+  const sections = new Map<number, string | null>();
   const retrievalKwSet = new Set<string>();
   const upsertScore = (
     key: "metadata" | "content" | "clip_thumbnail",
@@ -92,6 +96,9 @@ export function buildMatchMeta(hit: SemanticHit): MatchMeta {
         upsertRetrievalKeywords(score, m.text);
       }
       if (typeof m.page === "number") pageSet.add(m.page);
+      if (typeof m.section === "number" && !sections.get(m.section)) {
+        sections.set(m.section, m.section_title || null);
+      }
     }
   }
 
@@ -121,6 +128,11 @@ export function buildMatchMeta(hit: SemanticHit): MatchMeta {
 
   if (pageSet.size > 0) {
     meta.matched_pages = [...pageSet].sort((a, b) => a - b);
+  }
+  if (sections.size > 0) {
+    meta.matched_sections = [...sections]
+      .sort(([a], [b]) => a - b)
+      .map(([section, title]): MatchedSection => ({ section, title }));
   }
   return meta;
 }

@@ -60,11 +60,23 @@ vi.mock("../HtmlPreview", () => ({
   ),
 }));
 
-vi.mock("../epub/EpubPreview", () => ({
-  EpubPreview: ({ file }: { file: { id: string } }) => (
-    <div data-testid="epub-preview">{file.id}</div>
-  ),
-}));
+const epubMounts = vi.hoisted(() => ({ count: 0 }));
+
+vi.mock("../epub/EpubPreview", async () => {
+  const { useEffect } = await import("react");
+  return {
+    EpubPreview: ({ file, initialSection }: { file: { id: string }; initialSection?: number | null }) => {
+      useEffect(() => {
+        epubMounts.count += 1;
+      }, []);
+      return (
+        <div data-testid="epub-preview">
+          {file.id}:{String(initialSection ?? null)}
+        </div>
+      );
+    },
+  };
+});
 
 vi.mock("../PdfPreview", () => ({
   PdfPreview: ({
@@ -217,7 +229,23 @@ describe("FilePreview", () => {
       filename: "book.epub",
     });
     render(<FilePreview file={file} />);
-    expect(await screen.findByTestId("epub-preview")).toHaveTextContent("file-1");
+    expect(await screen.findByTestId("epub-preview")).toHaveTextContent("file-1:null");
+  });
+
+  it("opens the EPUB reader at the requested section, and a new section remounts it", async () => {
+    const file = makeFile({
+      file_type: "document",
+      mime_type: "application/epub+zip",
+      filename: "book.epub",
+    });
+    epubMounts.count = 0;
+    const { rerender } = render(<FilePreview file={file} initialSection={3} />);
+    expect(await screen.findByTestId("epub-preview")).toHaveTextContent("file-1:3");
+    rerender(<FilePreview file={file} initialSection={3} />);
+    expect(epubMounts.count).toBe(1);
+    rerender(<FilePreview file={file} initialSection={5} />);
+    expect(screen.getByTestId("epub-preview")).toHaveTextContent("file-1:5");
+    expect(epubMounts.count).toBe(2);
   });
 
   it("renders ArchivePreview for archive files", () => {

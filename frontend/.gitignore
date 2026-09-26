@@ -53,6 +53,9 @@ next-env.d.ts
 # The component fixture's bundle (built by e2e-components/build-bundle.ts)
 /e2e-components/.build/
 
+# The EPUB preview page (built by e2e-epub/build-preview.ts)
+/e2e-epub/.build-preview/
+
 # vitest blob reports (sharded runs)
 .vitest-reports/
 

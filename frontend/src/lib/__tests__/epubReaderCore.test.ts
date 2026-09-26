@@ -16,15 +16,20 @@ describe("isValidOpen", () => {
   const bytes = new ArrayBuffer(4);
 
   it.each([
-    [{ bytes, fraction: null, theme: "light" }, true],
-    [{ bytes, fraction: 0.5, theme: "dark" }, true],
-    [{ bytes, fraction: 0, theme: "light" }, true],
-    [{ bytes: new Uint8Array(4), fraction: null, theme: "light" }, false],
-    [{ bytes, fraction: Number.NaN, theme: "light" }, false],
-    [{ bytes, fraction: Infinity, theme: "light" }, false],
-    [{ bytes, fraction: "0.5", theme: "light" }, false],
-    [{ bytes, fraction: null, theme: "sepia" }, false],
-    [{ bytes, theme: "light" }, false],
+    [{ bytes, fraction: null, section: null, theme: "light" }, true],
+    [{ bytes, fraction: 0.5, section: null, theme: "dark" }, true],
+    [{ bytes, fraction: 0, section: null, theme: "light" }, true],
+    [{ bytes, fraction: 0.5, section: 3, theme: "light" }, true],
+    [{ bytes, fraction: null, section: 0, theme: "light" }, true],
+    [{ bytes: new Uint8Array(4), fraction: null, section: null, theme: "light" }, false],
+    [{ bytes, fraction: Number.NaN, section: null, theme: "light" }, false],
+    [{ bytes, fraction: Infinity, section: null, theme: "light" }, false],
+    [{ bytes, fraction: "0.5", section: null, theme: "light" }, false],
+    [{ bytes, fraction: null, section: null, theme: "sepia" }, false],
+    [{ bytes, section: null, theme: "light" }, false],
+    [{ bytes, fraction: null, theme: "light" }, false],
+    [{ bytes, fraction: null, section: 1.5, theme: "light" }, false],
+    [{ bytes, fraction: null, section: "3", theme: "light" }, false],
   ])("%o → %s", (message, expected) => {
     expect(isValidOpen(message)).toBe(expected);
   });
