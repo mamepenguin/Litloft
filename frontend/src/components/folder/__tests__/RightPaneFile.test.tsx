@@ -91,7 +91,12 @@ const fileNavResult = {
   navigateNext: vi.fn(),
 };
 const useFileNavMock = vi.fn(
-  (_opts: { sort?: string; order?: string; countable?: boolean }) =>
+  (_opts: {
+    sort?: string;
+    order?: string;
+    countable?: boolean;
+    mimeType?: string | null;
+  }) =>
     fileNavResult,
 );
 vi.mock("@/hooks/useFileNav", () => ({
