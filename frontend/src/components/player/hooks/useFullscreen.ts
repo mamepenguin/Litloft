@@ -26,11 +26,11 @@ const PINCH_ENTER_RATIO = 1.25;
 const PINCH_EXIT_RATIO = 0.8;
 
 /**
- * Swipes that begin on the scrub bar are left alone: dragging it travels
- * vertically as often as not. Deliberately just the scrub bar, so a swipe
- * starting on the play button still works.
+ * Swipes that begin on the scrub bar, or on a panel that scrolls, are left
+ * alone: dragging either travels vertically as often as not. Not the whole
+ * control bar, so a swipe starting on the play button still works.
  */
-const SCRUB_SELECTOR = "[data-player-scrub]";
+const SCRUB_SELECTOR = "[data-player-scrub], [data-swipe-exempt]";
 
 interface TouchPoint {
   clientX: number;

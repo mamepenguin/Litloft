@@ -22,6 +22,7 @@
   window.turn = (direction) => send({ type: "turn", direction });
   let seekId = 0;
   window.seek = (fraction, id = ++seekId) => send({ type: "seek", fraction, id });
+  window.setTypography = (typography) => send({ type: "typography", typography });
   window.setTheme = (theme) => send({ type: "theme", theme });
   window.setMode = (fullscreen) => {
     document.getElementById("frame").classList.toggle("fs", fullscreen);
@@ -35,10 +36,16 @@
     const bytes = await res.arrayBuffer();
     const f = params.get("f");
     const s = params.get("s");
-    send(
-      { type: "open", bytes, fraction: f === null ? null : Number(f), section: s === null ? null : Number(s), theme: "light" },
-      [bytes],
-    );
+    const t = params.get("t");
+    const open = {
+      type: "open",
+      bytes,
+      fraction: f === null ? null : Number(f),
+      section: s === null ? null : Number(s),
+      theme: "light",
+    };
+    if (t !== null) open.typography = JSON.parse(t);
+    send(open, [bytes]);
   });
 </script>
 </body>

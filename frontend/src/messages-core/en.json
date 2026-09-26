@@ -204,7 +204,22 @@
     "epubFullscreen": "Read full screen",
     "epubExitFullscreen": "Exit full screen",
     "epubPosition": "Reading position",
-    "epubPagesLeft": "{count, plural, one {# page} other {# pages}} left in chapter"
+    "epubPagesLeft": "{count, plural, one {# page} other {# pages}} left in chapter",
+    "epubTypographyButton": "Text settings",
+    "epubTypography": "Text settings",
+    "epubTextSize": "Text size",
+    "epubTextSmaller": "Smaller text",
+    "epubTextLarger": "Larger text",
+    "epubLineSpacing": "Line spacing",
+    "epubMargins": "Margins",
+    "epubFont": "Font",
+    "epubOriginal": "Original",
+    "epubMargin_narrow": "Narrow",
+    "epubMargin_normal": "Normal",
+    "epubMargin_wide": "Wide",
+    "epubFont_serif": "Serif",
+    "epubFont_sans": "Sans-serif",
+    "epubCloseTypography": "Close text settings"
   },
   "search": {
     "label": "Search",

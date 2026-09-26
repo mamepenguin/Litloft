@@ -192,6 +192,31 @@ export function danglingBook(): Buffer {
   return book([NAV, ...items], ["c1", "ghost", "c2", "c3"]);
 }
 
+/**
+ * Three chapters whose stylesheet shrinks the root to 62.5 % and sizes text in
+ * rem, the way many converted books do; the second holds a highlighted code
+ * block.
+ */
+export function styledBook(): Buffer {
+  const items = chapters(3, (n) => {
+    const paras = Array.from(
+      { length: PARAGRAPHS },
+      (_, i) => `<p>Chapter ${n}, paragraph ${i}. A line of text long enough to wrap in the window the tests use.</p>`,
+    ).join("");
+    const code =
+      n === 2
+        ? '<pre><code id="code"><span id="codespan">let x = 1;</span></code></pre>' +
+          '<p id="inline">Call <code><span id="inlinespan">run()</span></code> first.</p>'
+        : "";
+    return (
+      `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${n}</title>` +
+      "<style>html { font-size: 62.5%; } body { font-size: 1.6rem; font-family: serif; } code { font-family: monospace; } .book p { line-height: 1.2; }</style>" +
+      `</head><body class="book"><h1>Chapter ${n}</h1>${code}${paras}</body></html>`
+    );
+  });
+  return book([NAV, ...items], items.map((i) => i.id));
+}
+
 export function fixedLayoutBook(): Buffer {
   const [item] = chapters(1, () =>
     '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>f</title></head><body><p>f</p></body></html>',

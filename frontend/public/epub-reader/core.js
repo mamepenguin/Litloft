@@ -93,3 +93,64 @@ export const flattenToc = (toc, resolveIndex, sectionFractions) => {
   if (Array.isArray(toc)) for (const item of toc) visit(item, 0);
   return { entries, hrefs };
 };
+
+export const FONT_SIZE_STEPS = [0.8, 0.9, 1, 1.15, 1.3, 1.6, 2];
+export const LINE_HEIGHTS = ["original", "1.6", "1.9"];
+export const MARGINS = ["narrow", "normal", "wide"];
+export const FONT_FAMILIES = ["original", "serif", "sans"];
+export const TYPOGRAPHY_DEFAULTS = {
+  fontSize: 2,
+  lineHeight: "original",
+  margin: "normal",
+  fontFamily: "original",
+};
+
+// Field by field, so one bad field does not throw away the others; anything
+// unreadable is the book's own setting.
+export const readTypography = (value) => {
+  const v = value && typeof value === "object" ? value : {};
+  const size = v.fontSize;
+  return {
+    fontSize:
+      Number.isInteger(size) && size >= 0 && size < FONT_SIZE_STEPS.length
+        ? size
+        : TYPOGRAPHY_DEFAULTS.fontSize,
+    lineHeight: LINE_HEIGHTS.includes(v.lineHeight) ? v.lineHeight : TYPOGRAPHY_DEFAULTS.lineHeight,
+    margin: MARGINS.includes(v.margin) ? v.margin : TYPOGRAPHY_DEFAULTS.margin,
+    fontFamily: FONT_FAMILIES.includes(v.fontFamily) ? v.fontFamily : TYPOGRAPHY_DEFAULTS.fontFamily,
+  };
+};
+
+const FONT_STACKS = {
+  // Latin face first: an English book gets a Latin face and a Japanese book
+  // falls through to the CJK one for its own characters.
+  serif:
+    'Georgia, "Times New Roman", "Hiragino Mincho ProN", "Yu Mincho", YuMincho, "Noto Serif CJK JP", "Noto Serif JP", serif',
+  sans:
+    '-apple-system, "Helvetica Neue", Helvetica, Arial, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", YuGothic, "Noto Sans CJK JP", "Noto Sans JP", sans-serif',
+};
+
+// Code keeps its face, and so does everything inside it (a highlighter's
+// spans); ruby text keeps the book's.
+const TEXT = ":is(body, body *):not(code, pre, kbd, samp, rt, code *, pre *, kbd *, samp *)";
+
+const GAPS = { narrow: "3%", normal: "6%", wide: "10%" };
+
+export const gapFor = (margin) => GAPS[margin] ?? GAPS.normal;
+
+// The book's own root size is read once per section document, before this
+// attribute is set, and kept on the document; the rule then scales that, so
+// a step never compounds on the one before it.
+export const OWN_ROOT_ATTR = "data-litloft-own-root";
+export const OWN_ROOT_VAR = "--litloft-own-root";
+
+export const typographyCss = (t) => {
+  const rules = [];
+  const step = FONT_SIZE_STEPS[t.fontSize];
+  if (step !== 1)
+    rules.push(`html[${OWN_ROOT_ATTR}] { font-size: calc(var(${OWN_ROOT_VAR}) * ${step}) !important; }`);
+  if (t.lineHeight !== "original") rules.push(`${TEXT} { line-height: ${t.lineHeight} !important; }`);
+  if (t.fontFamily !== "original")
+    rules.push(`${TEXT} { font-family: ${FONT_STACKS[t.fontFamily]} !important; }`);
+  return rules.join("\n");
+};

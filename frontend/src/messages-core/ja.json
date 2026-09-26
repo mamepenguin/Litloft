@@ -204,7 +204,22 @@
     "epubFullscreen": "全画面で読む",
     "epubExitFullscreen": "全画面を閉じる",
     "epubPosition": "読書位置",
-    "epubPagesLeft": "この章あと {count} ページ"
+    "epubPagesLeft": "この章あと {count} ページ",
+    "epubTypographyButton": "文字の設定",
+    "epubTypography": "文字の設定",
+    "epubTextSize": "文字サイズ",
+    "epubTextSmaller": "文字を小さく",
+    "epubTextLarger": "文字を大きく",
+    "epubLineSpacing": "行間",
+    "epubMargins": "余白",
+    "epubFont": "書体",
+    "epubOriginal": "オリジナル",
+    "epubMargin_narrow": "狭い",
+    "epubMargin_normal": "標準",
+    "epubMargin_wide": "広い",
+    "epubFont_serif": "明朝",
+    "epubFont_sans": "ゴシック",
+    "epubCloseTypography": "文字の設定を閉じる"
   },
   "search": {
     "label": "検索",
