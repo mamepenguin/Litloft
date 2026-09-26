@@ -495,15 +495,16 @@ def generate_epub_thumbnail(epub_path: str, output_path: str) -> bool:
     # ffmpeg never sees it: its demuxers follow playlists and concat lists to
     # other files and URLs.
     import io
-    import zipfile
 
     from PIL import Image
 
-    from app.services.epub_cover import EpubCoverError, read_cover_bytes
+    from app.services.epub_cover import read_cover_bytes
 
+    # Broad on purpose: zipfile and zlib raise a different type for every way
+    # an archive can be damaged, and one that escapes aborts the whole scan.
     try:
         cover = read_cover_bytes(epub_path)
-    except (EpubCoverError, zipfile.BadZipFile, OSError, RuntimeError, ValueError) as e:
+    except Exception as e:
         logger.warning("EPUB cover unreadable for %s: %s", epub_path, e)
         return False
     if cover is None:

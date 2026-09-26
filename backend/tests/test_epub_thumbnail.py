@@ -186,6 +186,56 @@ def _hostile(tmp_path, name, entries, container_opf="OEBPS/content.opf"):
     return make_epub(tmp_path / name, entries, container_opf=container_opf)
 
 
+def _rewrite_entry_headers(path, name: str, *, set_flags: int = 0, method: int | None = None):
+    """Edit an entry's local and central headers in place, the way a hand-made
+    or damaged archive would carry them."""
+    import struct
+
+    data = bytearray(path.read_bytes())
+    with zipfile.ZipFile(path) as z:
+        info = z.getinfo(name)
+    local = info.header_offset
+    flags = struct.unpack("<H", data[local + 6:local + 8])[0] | set_flags
+    data[local + 6:local + 8] = struct.pack("<H", flags)
+    if method is not None:
+        data[local + 8:local + 10] = struct.pack("<H", method)
+    i = data.find(b"PK\x01\x02")
+    while i != -1:
+        name_len = struct.unpack("<H", data[i + 28:i + 30])[0]
+        if data[i + 46:i + 46 + name_len] == name.encode():
+            flags = struct.unpack("<H", data[i + 8:i + 10])[0] | set_flags
+            data[i + 8:i + 10] = struct.pack("<H", flags)
+            if method is not None:
+                data[i + 10:i + 12] = struct.pack("<H", method)
+        i = data.find(b"PK\x01\x02", i + 1)
+    path.write_bytes(bytes(data))
+    return path
+
+
+def _corrupt_deflate(path, name: str):
+    data = bytearray(path.read_bytes())
+    with zipfile.ZipFile(path) as z:
+        info = z.getinfo(name)
+    start = info.header_offset + 30 + len(info.filename.encode()) + len(info.extra) + 5
+    for i in range(start, start + 20):
+        data[i] ^= 0xFF
+    path.write_bytes(bytes(data))
+    return path
+
+
+def _with_invalid_utf8_name(path):
+    good = "xé.png".encode("utf-8")
+    data = path.read_bytes().replace(good, b"x\xff\xfe.png"[: len(good)])
+    path.write_bytes(data)
+    return path
+
+
+def _no_container(path):
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("mimetype", "application/epub+zip")
+    return path
+
+
 def hostile_books(tmp_path):
     png = image_bytes()
     bomb = b"\0" * (11 * 1024 * 1024)
@@ -262,6 +312,31 @@ def hostile_books(tmp_path):
             "OEBPS/content.opf": EPUB3_COVER,
             "OEBPS/images/cover.png": png[: len(png) // 2],
         }),
+        "corrupt_deflate_cover": _corrupt_deflate(_hostile(tmp_path, "n.epub", {
+            "OEBPS/content.opf": EPUB3_COVER,
+            "OEBPS/images/cover.png": png,
+        }), "OEBPS/images/cover.png"),
+        "corrupt_deflate_opf": _corrupt_deflate(_hostile(tmp_path, "n2.epub", {
+            "OEBPS/content.opf": EPUB3_COVER,
+            "OEBPS/images/cover.png": png,
+        }), "OEBPS/content.opf"),
+        "encrypted_cover": _rewrite_entry_headers(_hostile(tmp_path, "o.epub", {
+            "OEBPS/content.opf": EPUB3_COVER,
+            "OEBPS/images/cover.png": png,
+        }), "OEBPS/images/cover.png", set_flags=0x1),
+        "unsupported_compression_opf": _rewrite_entry_headers(_hostile(tmp_path, "p.epub", {
+            "OEBPS/content.opf": EPUB3_COVER,
+            "OEBPS/images/cover.png": png,
+        }), "OEBPS/content.opf", method=99),
+        "invalid_utf8_entry_name": _with_invalid_utf8_name(_hostile(tmp_path, "q.epub", {
+            "OEBPS/content.opf": EPUB3_COVER,
+            "OEBPS/images/cover.png": png,
+            "xé.png": b"1",
+        })),
+        "opf_named_but_absent": _hostile(tmp_path, "r.epub", {
+            "OEBPS/images/cover.png": png,
+        }),
+        "container_absent": _no_container(tmp_path / "s.epub"),
     }
 
 
@@ -270,7 +345,9 @@ HOSTILE = [
     "no_container", "dotdot_href", "encoded_dotdot_href", "absolute_href",
     "url_href", "escaping_opf_path", "oversized_opf", "bomb_cover",
     "svg_cover", "svg_bytes_under_png_name", "bmp_cover", "huge_pixel_cover",
-    "truncated_cover",
+    "truncated_cover", "corrupt_deflate_cover", "corrupt_deflate_opf",
+    "encrypted_cover", "unsupported_compression_opf", "invalid_utf8_entry_name",
+    "opf_named_but_absent", "container_absent",
 ]
 
 
@@ -286,6 +363,49 @@ class TestHostileBooks:
             assert generate(tmp_path, epub) is None
         run.assert_not_called()
         assert _sha(epub) == before
+
+    def test_a_bomb_entry_is_never_decompressed_past_the_cap(self, tmp_path, monkeypatch):
+        from app.services import epub_cover
+
+        produced = []
+        real_read = zipfile.ZipExtFile.read
+
+        def counting_read(self, n=-1):
+            data = real_read(self, n)
+            produced.append(len(data))
+            return data
+
+        monkeypatch.setattr(zipfile.ZipExtFile, "read", counting_read)
+        assert generate(tmp_path, hostile_books(tmp_path)["bomb_cover"]) is None
+        assert max(produced) == epub_cover.COVER_MAX_BYTES + 1
+
+    def test_container_at_the_xml_cap_is_read(self, tmp_path):
+        container = CONTAINER.format(opf="OEBPS/content.opf")
+        padded = container + " " * (1024 * 1024 - len(container))
+        epub = make_epub(tmp_path / "b.epub", {
+            "META-INF/container.xml": padded,
+            "OEBPS/content.opf": EPUB3_COVER,
+            "OEBPS/images/cover.png": image_bytes(),
+        })
+        assert generate(tmp_path, epub) is not None
+
+    def test_container_one_byte_over_the_xml_cap_is_refused(self, tmp_path):
+        container = CONTAINER.format(opf="OEBPS/content.opf")
+        padded = container + " " * (1024 * 1024 - len(container) + 1)
+        epub = make_epub(tmp_path / "b.epub", {
+            "META-INF/container.xml": padded,
+            "OEBPS/content.opf": EPUB3_COVER,
+            "OEBPS/images/cover.png": image_bytes(),
+        })
+        assert generate(tmp_path, epub) is None
+
+    def test_opf_at_the_xml_cap_is_read(self, tmp_path):
+        padded = EPUB3_COVER.replace("<spine/>", "<spine/>" + " " * (1024 * 1024 - len(EPUB3_COVER)))
+        epub = make_epub(tmp_path / "b.epub", {
+            "OEBPS/content.opf": padded,
+            "OEBPS/images/cover.png": image_bytes(),
+        })
+        assert generate(tmp_path, epub) is not None
 
     def test_not_a_zip(self, tmp_path):
         path = tmp_path / "x.epub"
@@ -375,3 +495,26 @@ class TestScan:
         assert record.thumbnail_path is None
         assert record.missing_since is None and record.deleted_at is None
         assert _sha(book) == before
+
+    def test_a_book_that_cannot_be_read_does_not_stop_the_rest_of_the_drive(
+        self, tmp_path, db_session, monkeypatch
+    ):
+        from app.models import File
+        from app.services import scanner as scanner_module
+
+        drive_dir = self._drive(tmp_path, monkeypatch)
+        src = tmp_path / "src"
+        src.mkdir()
+        hostile = hostile_books(src)
+        for case in HOSTILE:
+            (drive_dir / f"{case}.epub").write_bytes(hostile[case].read_bytes())
+        epub3(drive_dir, name="good.epub")
+        (drive_dir / "notes.txt").write_text("hello")
+
+        scanner_module._scan_and_register(db_session, "test-drive")
+        db_session.commit()
+
+        rows = {r.file_path: r for r in db_session.query(File).all()}
+        assert sorted(rows) == sorted([f"{c}.epub" for c in HOSTILE] + ["good.epub", "notes.txt"])
+        assert rows["good.epub"].thumbnail_path is not None
+        assert all(rows[f"{c}.epub"].thumbnail_path is None for c in HOSTILE)

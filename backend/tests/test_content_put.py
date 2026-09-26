@@ -131,6 +131,24 @@ class TestPutContent:
         )
         assert r.status_code == 415
 
+    def test_rejects_an_epub_even_when_its_bytes_are_utf8(self, client):
+        from app.services.filetype import classify
+
+        api, session, drive_dir, _ = client
+        file = _seed_md(session, drive_dir, "books/b.epub", "plain utf-8 text")
+        file.file_type, file.mime_type = classify("b.epub")
+        session.commit()
+        r = api.put(
+            f"/api/files/{file.id}/content",
+            content=b"overwritten",
+            headers={
+                "Content-Type": "text/plain; charset=utf-8",
+                "If-Match": f'"{_etag_of("plain utf-8 text")}"',
+            },
+        )
+        assert r.status_code == 415
+        assert (drive_dir / "books/b.epub").read_text() == "plain utf-8 text"
+
     def test_404_for_deleted_file(self, client):
         from datetime import UTC, datetime
 
