@@ -191,7 +191,18 @@
     "pdfZoomMode_fit-width": "幅に合わせる",
     "pdfZoomMode_fit-page": "ページ全体",
     "pdfZoomMode_actual": "実寸",
-    "pdfRenderTooLarge": "この倍率ではページを描画できませんでした。倍率を下げてください。"
+    "pdfRenderTooLarge": "この倍率ではページを描画できませんでした。倍率を下げてください。",
+    "epubLoading": "本を読み込み中...",
+    "epubLoadFailed": "本を開けませんでした。ダウンロードして別のアプリで開いてください。",
+    "epubUnsupported": "固定レイアウトの本はまだ表示できません。ダウンロードして別のアプリで開いてください。",
+    "epubReader": "{title}（本）",
+    "epubShortcuts": "EPUB リーダー",
+    "epubNextPage": "次のページ",
+    "epubPreviousPage": "前のページ",
+    "epubPageLeft": "左のページ",
+    "epubPageRight": "右のページ",
+    "epubFullscreen": "全画面で読む",
+    "epubExitFullscreen": "全画面を閉じる"
   },
   "search": {
     "label": "検索",

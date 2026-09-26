@@ -30,6 +30,13 @@ import { ImageCanvas } from "./ImageCanvas";
  * module body evaluates. Node has no `DOMMatrix`, so a static import made
  * every `/drive/*` route throw during SSR and return HTTP 500.
  */
+// The reader document holds foliate; this side only fetches and posts, but it
+// is kept out of the first page load with the other document viewers.
+const EpubPreview = dynamic(
+  () => import("./epub/EpubPreview").then((m) => m.EpubPreview),
+  { ssr: false },
+);
+
 const PdfPreview = dynamic(
   () => import("./PdfPreview").then((m) => m.PdfPreview),
   {
@@ -198,6 +205,10 @@ export function FilePreview({
         }}
       />
     );
+  }
+
+  if (file.mime_type === "application/epub+zip") {
+    return <EpubPreview file={file} />;
   }
 
   if (file.file_type === "archive") {

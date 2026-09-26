@@ -13,6 +13,7 @@ export default defineConfig({
     exclude: [
       "e2e-layout/**",
       "e2e-components/**",
+      "e2e-epub/**",
       "node_modules/**",
     ],
     pool: "forks",

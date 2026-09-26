@@ -30,7 +30,10 @@ export type FileDetailSurface = "canonical" | "collection";
  * is not the document form — `text/plain` and `text/vtt` among them — and
  * would hand each of them a floor on the strength of the name alone.
  */
-const FLOORED_MIMES: ReadonlySet<string> = new Set(["application/pdf"]);
+const FLOORED_MIMES: ReadonlySet<string> = new Set([
+  "application/pdf",
+  "application/epub+zip",
+]);
 
 /**
  * A kind absent from here rides the shell and gets no floor, which is the

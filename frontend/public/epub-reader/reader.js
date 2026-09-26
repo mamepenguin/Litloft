@@ -1,0 +1,235 @@
+import { transformResource } from "./sanitize.js";
+import {
+  edgeAction,
+  isHttpUrl,
+  isValidOpen,
+  keyAction,
+  restoreAnchor,
+  swipeAction,
+} from "./core.js";
+
+const parentWindow = window.parent;
+const origin = location.origin;
+const TAP_SLOP_PX = 10;
+
+const post = (type, payload = {}) => {
+  if (parentWindow !== window) parentWindow.postMessage({ type, ...payload }, origin);
+};
+
+// A policy without 'unsafe-eval' makes the Function constructor throw, and one
+// without 'unsafe-inline' leaves an inserted inline script unrun.
+const cspIsActive = () => {
+  try {
+    new Function("return 1");
+    return false;
+  } catch {
+    // expected under the policy
+  }
+  window.__epubInlineProbe = false;
+  const probe = document.createElement("script");
+  probe.textContent = "window.__epubInlineProbe = true";
+  document.head.append(probe);
+  probe.remove();
+  return window.__epubInlineProbe === false;
+};
+
+const state = {
+  view: null,
+  progress: null,
+  lastRelocate: null,
+  fullscreen: false,
+  turning: false,
+  opened: false,
+};
+
+const THEMES = {
+  light: { fg: "#1f1f1f", bg: "#ffffff", link: "#1d4ed8" },
+  dark: { fg: "#e6e6e6", bg: "#161616", link: "#93c5fd" },
+};
+
+const themeCss = (name) => {
+  const t = THEMES[name];
+  return `
+    html { color-scheme: ${name}; }
+    html, body { background: ${t.bg} !important; color: ${t.fg} !important; }
+    a:link, a:visited { color: ${t.link} !important; }
+  `;
+};
+
+const applyTheme = (name) => {
+  document.documentElement.style.background = THEMES[name].bg;
+  state.view?.renderer?.setStyles?.(themeCss(name));
+};
+
+const locationKey = (loc) => (loc ? `${loc.index}:${loc.fraction}` : "");
+
+const startFraction = () => {
+  const loc = state.lastRelocate;
+  if (!loc || !state.progress) return null;
+  return state.progress.getProgress(loc.index, loc.fraction ?? 0, 0).fraction;
+};
+
+// Every reader action goes through here; restore and reflow do not.
+const turn = async (move) => {
+  if (!state.view || state.turning) return;
+  state.turning = true;
+  const before = locationKey(state.lastRelocate);
+  try {
+    await move(state.view);
+  } finally {
+    state.turning = false;
+  }
+  if (locationKey(state.lastRelocate) === before) return;
+  post("turned", { fraction: startFraction(), atEnd: !!state.view.renderer.atEnd });
+};
+
+const MOVES = {
+  next: (v) => v.next(),
+  prev: (v) => v.prev(),
+  left: (v) => v.goLeft(),
+  right: (v) => v.goRight(),
+};
+
+const onKeyDown = (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const action = keyAction(e.key, { shift: e.shiftKey, fullscreen: state.fullscreen });
+  if (!action) return;
+  e.preventDefault();
+  if (action.turn) turn(MOVES[action.turn]);
+  else post("key", { key: action.forward });
+};
+
+// The paginator's own touch handling is stopped at the window so that every
+// page turn is one of ours.
+const installTouch = (win) => {
+  let start = null;
+  const stop = (e) => e.stopImmediatePropagation();
+  win.addEventListener("touchstart", (e) => {
+    stop(e);
+    const t = e.changedTouches[0];
+    start = e.touches.length === 1 && t ? { x: t.clientX, y: t.clientY } : null;
+  }, { capture: true, passive: true });
+  win.addEventListener("touchmove", stop, { capture: true, passive: true });
+  win.addEventListener("touchend", (e) => {
+    stop(e);
+    const t = e.changedTouches[0];
+    const from = start;
+    start = null;
+    if (!from || !t || (window.visualViewport?.scale ?? 1) > 1) return;
+    const dx = t.clientX - from.x;
+    const dy = t.clientY - from.y;
+    const swipe = swipeAction(dx, dy);
+    if (swipe) {
+      turn(MOVES[swipe]);
+      return;
+    }
+    if (!state.fullscreen || Math.abs(dx) > TAP_SLOP_PX || Math.abs(dy) > TAP_SLOP_PX) return;
+    if (e.target?.closest?.("a[href]")) return;
+    const selection = win.document.getSelection?.();
+    if (selection && !selection.isCollapsed) return;
+    // A section document is laid out as one wide multi-column frame, so its
+    // own coordinates are not screen positions.
+    const x = t.clientX + (win.frameElement?.getBoundingClientRect().left ?? 0);
+    const edge = edgeAction(x, window.innerWidth);
+    if (edge) turn(MOVES[edge]);
+  }, { capture: true });
+};
+
+const firstLinearIndex = (book) => {
+  const i = book.sections.findIndex((s) => s.linear !== "no");
+  return i < 0 ? 0 : i;
+};
+
+const restore = async (fraction) => {
+  const { view, progress } = state;
+  if (fraction === null || fraction <= 0 || fraction >= 1) {
+    await view.renderer.goTo({ index: firstLinearIndex(view.book), anchor: 0 });
+    return;
+  }
+  const [index, inSection] = progress.getSection(fraction);
+  await view.renderer.goTo({
+    index,
+    anchor: () => restoreAnchor(inSection, view.renderer.pages),
+  });
+};
+
+const openBook = async ({ bytes, fraction, theme }) => {
+  const [{ makeBook }, { SectionProgress }] = await Promise.all([
+    import("./vendor/view.js"),
+    import("./vendor/progress.js"),
+  ]);
+  const file = new File([bytes], "book.epub", { type: "application/epub+zip" });
+  const book = await makeBook(file);
+  if (!book.transformTarget || book.rendition?.layout === "pre-paginated") {
+    post("error", { code: "unsupported" });
+    return;
+  }
+  book.transformTarget.addEventListener("data", (e) => transformResource(e.detail));
+
+  const view = document.createElement("foliate-view");
+  view.addEventListener("external-link", (e) => {
+    e.preventDefault();
+    if (isHttpUrl(e.detail.href)) post("link", { url: e.detail.href });
+  });
+  view.addEventListener("link", (e) => {
+    e.preventDefault();
+    const href = e.detail.href;
+    turn((v) => v.goTo(href));
+  });
+  view.addEventListener("load", (e) => {
+    const win = e.detail.doc.defaultView;
+    if (!win) return;
+    win.addEventListener("keydown", onKeyDown);
+    installTouch(win);
+  });
+  document.body.append(view);
+  await view.open(book);
+  state.view = view;
+  state.progress = new SectionProgress(book.sections, 1500, 1600);
+  view.renderer.addEventListener("relocate", (e) => {
+    state.lastRelocate = e.detail;
+  });
+  view.renderer.setAttribute("margin", "32px");
+  view.renderer.setAttribute("gap", "6%");
+  view.renderer.setAttribute("max-column-count", "2");
+  applyTheme(theme);
+
+  await restore(fraction);
+
+  const doc = view.renderer.getContents?.()[0]?.doc;
+  const writingMode = doc?.body ? doc.defaultView.getComputedStyle(doc.body).writingMode : "";
+  post("ready", {
+    dir: book.dir === "rtl" ? "rtl" : "ltr",
+    vertical: writingMode.startsWith("vertical"),
+  });
+};
+
+window.addEventListener("message", (e) => {
+  if (e.origin !== origin || e.source !== parentWindow) return;
+  const d = e.data;
+  if (!d || typeof d !== "object") return;
+  switch (d.type) {
+    case "open":
+      if (state.opened || !isValidOpen(d)) return;
+      state.opened = true;
+      if (!cspIsActive()) {
+        post("error", { code: "isolation" });
+        return;
+      }
+      openBook(d).catch(() => post("error", { code: "parse" }));
+      return;
+    case "turn":
+      if (Object.hasOwn(MOVES, d.direction)) turn(MOVES[d.direction]);
+      return;
+    case "theme":
+      if (d.theme === "light" || d.theme === "dark") applyTheme(d.theme);
+      return;
+    case "mode":
+      if (typeof d.fullscreen === "boolean") state.fullscreen = d.fullscreen;
+      return;
+  }
+});
+
+document.addEventListener("keydown", onKeyDown);
+installTouch(window);
+post("boot");

@@ -343,6 +343,16 @@ jobs:
         run: pnpm test:e2e:components
         working-directory: frontend
 
+      # The EPUB reader's defences are a sanitizer and a CSP that each engine
+      # enforces on its own, so this suite runs in WebKit as well.
+      - name: Install WebKit
+        run: pnpm exec playwright install --with-deps webkit
+        working-directory: frontend
+
+      - name: Test the EPUB reader in Chromium and WebKit
+        run: pnpm test:e2e:epub
+        working-directory: frontend
+
   mcp-server:
     name: mcp-server (vitest / tsc)
     runs-on: ubuntu-latest
