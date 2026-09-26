@@ -1,13 +1,18 @@
 import { transformResource } from "./sanitize.js";
 import {
+  OWN_ROOT_ATTR,
+  OWN_ROOT_VAR,
   edgeAction,
   flattenToc,
+  gapFor,
   isHttpUrl,
   isValidOpen,
   isValidSeek,
+  readTypography,
   keyAction,
   restoreAnchor,
   swipeAction,
+  typographyCss,
 } from "./core.js";
 
 const parentWindow = window.parent;
@@ -48,6 +53,13 @@ const state = {
   tocHrefs: [],
   pendingSeek: null,
   lastPointerActivity: 0,
+  theme: "light",
+  typography: readTypography(null),
+  pendingTypography: null,
+  // The place the reader chose (a move, the restore, a seek), kept apart from
+  // the places a reflow lands on, which start a little earlier each time.
+  readingPlace: null,
+  restyling: false,
 };
 
 const THEMES = {
@@ -64,9 +76,47 @@ const themeCss = (name) => {
   `;
 };
 
+const restyle = () => {
+  const renderer = state.view?.renderer;
+  if (!renderer) return;
+  renderer.setStyles?.(themeCss(state.theme) + typographyCss(state.typography));
+  renderer.setAttribute("gap", gapFor(state.typography.margin));
+};
+
 const applyTheme = (name) => {
+  state.theme = name;
   document.documentElement.style.background = THEMES[name].bg;
-  state.view?.renderer?.setStyles?.(themeCss(name));
+  restyle();
+};
+
+const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+
+// Not a reader action: it posts no turn, and moves wait for it.
+const applyTypography = async (t) => {
+  state.typography = t;
+  state.turning = true;
+  state.restyling = true;
+  try {
+    restyle();
+    await nextFrame();
+    const place = state.readingPlace;
+    if (place) await state.view.renderer.goTo({ index: place.index, anchor: place.range });
+    await nextFrame();
+  } finally {
+    state.restyling = false;
+    state.turning = false;
+  }
+  drainPending();
+};
+
+const drainPending = () => {
+  if (state.pendingTypography !== null) {
+    const t = state.pendingTypography;
+    state.pendingTypography = null;
+    applyTypography(t).catch(() => {});
+    return;
+  }
+  if (state.pendingSeek !== null) runPendingSeek();
 };
 
 const locationKey = (loc) => (loc ? `${loc.index}:${loc.fraction}` : "");
@@ -101,7 +151,7 @@ const turn = async (move) => {
   }
   if (locationKey(state.lastRelocate) !== before)
     post("turned", { fraction: startFraction(), atEnd: !!state.view.renderer.atEnd });
-  if (state.pendingSeek !== null) runPendingSeek();
+  drainPending();
 };
 
 const MOVES = {
@@ -230,7 +280,9 @@ const buildToc = (view) => {
   }
 };
 
-const openBook = async ({ bytes, fraction, section, theme }) => {
+const openBook = async ({ bytes, fraction, section, theme, typography }) => {
+  state.theme = theme;
+  state.typography = readTypography(typography);
   const [{ makeBook }, { SectionProgress }] = await Promise.all([
     import("./vendor/view.js"),
     import("./vendor/progress.js"),
@@ -259,6 +311,11 @@ const openBook = async ({ bytes, fraction, section, theme }) => {
     // foliate's column count applies to a horizontal book on a wide screen
     // (a spread) and to a vertical book on a tall one, where it would stack
     // two pages on top of each other; only the first is wanted.
+    const root = e.detail.doc.documentElement;
+    if (root && !root.hasAttribute(OWN_ROOT_ATTR)) {
+      root.style.setProperty(OWN_ROOT_VAR, win.getComputedStyle(root).fontSize);
+      root.setAttribute(OWN_ROOT_ATTR, "");
+    }
     const body = e.detail.doc.body;
     const vertical = !!body && win.getComputedStyle(body).writingMode.startsWith("vertical");
     const columns = vertical ? "1" : "2";
@@ -276,10 +333,11 @@ const openBook = async ({ bytes, fraction, section, theme }) => {
   // already this location's.
   view.renderer.addEventListener("relocate", (e) => {
     state.lastRelocate = e.detail;
+    if (!state.restyling && e.detail.reason !== "anchor" && e.detail.range)
+      state.readingPlace = { index: e.detail.index, range: e.detail.range };
     postLocation();
   });
   view.renderer.setAttribute("margin", "32px");
-  view.renderer.setAttribute("gap", "6%");
   applyTheme(theme);
 
   await restore(fraction, section);
@@ -319,6 +377,13 @@ window.addEventListener("message", (e) => {
       state.pendingSeek = { fraction: d.fraction, id: d.id };
       runPendingSeek();
       return;
+    case "typography": {
+      if (!state.ready) return;
+      const t = readTypography(d.typography);
+      if (state.turning) state.pendingTypography = t;
+      else applyTypography(t).catch(() => {});
+      return;
+    }
     case "theme":
       if (d.theme === "light" || d.theme === "dark") applyTheme(d.theme);
       return;

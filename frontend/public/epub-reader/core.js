@@ -138,11 +138,17 @@ const GAPS = { narrow: "3%", normal: "6%", wide: "10%" };
 
 export const gapFor = (margin) => GAPS[margin] ?? GAPS.normal;
 
-export const typographyCss = (t, ownRootPx) => {
+// The book's own root size is read once per section document, before this
+// attribute is set, and kept on the document; the rule then scales that, so
+// a step never compounds on the one before it.
+export const OWN_ROOT_ATTR = "data-litloft-own-root";
+export const OWN_ROOT_VAR = "--litloft-own-root";
+
+export const typographyCss = (t) => {
   const rules = [];
   const step = FONT_SIZE_STEPS[t.fontSize];
-  if (step !== 1 && typeof ownRootPx === "number" && ownRootPx > 0)
-    rules.push(`html { font-size: ${Math.round(ownRootPx * step * 100) / 100}px !important; }`);
+  if (step !== 1)
+    rules.push(`html[${OWN_ROOT_ATTR}] { font-size: calc(var(${OWN_ROOT_VAR}) * ${step}) !important; }`);
   if (t.lineHeight !== "original") rules.push(`${TEXT} { line-height: ${t.lineHeight} !important; }`);
   if (t.fontFamily !== "original")
     rules.push(`${TEXT} { font-family: ${FONT_STACKS[t.fontFamily]} !important; }`);

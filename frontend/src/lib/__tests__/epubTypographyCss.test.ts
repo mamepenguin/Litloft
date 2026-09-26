@@ -1,6 +1,9 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { typographyCss, gapFor, TYPOGRAPHY_DEFAULTS } from "../../../public/epub-reader/core.js";
 
+// Whether the root size lands in px is measured in a real browser (e2e-epub);
+// jsdom does not resolve calc() with a custom property.
+
 const BOOK =
   "<h1>Title</h1><p>Text <span id='s'>span</span> <em>em</em></p>" +
   "<pre><code><span id='codespan'>let x</span></code></pre><p><code id='inline'>x</code></p>" +
@@ -20,20 +23,17 @@ afterEach(() => {
 
 describe("typographyCss", () => {
   it("is empty for the book's own settings", () => {
-    expect(typographyCss(TYPOGRAPHY_DEFAULTS, 10)).toBe("");
+    expect(typographyCss(TYPOGRAPHY_DEFAULTS)).toBe("");
   });
 
-  it("scales the book's own root size", () => {
-    const { style } = render(typographyCss({ ...TYPOGRAPHY_DEFAULTS, fontSize: 4 }, 10));
-    expect(style("html").fontSize).toBe("13px");
-  });
-
-  it("sets no root size when the book's own size is not known", () => {
-    expect(typographyCss({ ...TYPOGRAPHY_DEFAULTS, fontSize: 4 }, null)).not.toMatch(/font-size/);
+  it("scales the book's own root size, only on a root whose size was read", () => {
+    expect(typographyCss({ ...TYPOGRAPHY_DEFAULTS, fontSize: 4 })).toBe(
+      "html[data-litloft-own-root] { font-size: calc(var(--litloft-own-root) * 1.3) !important; }",
+    );
   });
 
   it.each(["1.6", "1.9"])("sets line height %s on the text", (lineHeight) => {
-    const { style } = render(typographyCss({ ...TYPOGRAPHY_DEFAULTS, lineHeight }, 10));
+    const { style } = render(typographyCss({ ...TYPOGRAPHY_DEFAULTS, lineHeight }));
     expect(style("p").lineHeight).toBe(lineHeight);
   });
 
@@ -41,7 +41,7 @@ describe("typographyCss", () => {
     ["serif", /Georgia.*Mincho/],
     ["sans", /Helvetica.*Gothic/],
   ])("sets the %s family on text and leaves code and ruby text alone", (fontFamily, stack) => {
-    const { style } = render(typographyCss({ ...TYPOGRAPHY_DEFAULTS, fontFamily }, 10));
+    const { style } = render(typographyCss({ ...TYPOGRAPHY_DEFAULTS, fontFamily }));
     expect(style("p").fontFamily).toMatch(stack);
     expect(style("#s").fontFamily).toMatch(stack);
     expect(style("#codespan").fontFamily).not.toMatch(stack);

@@ -17,6 +17,7 @@ import {
   hostileBook,
   mixedBook,
   nonLinearBook,
+  styledBook,
   tocBook,
   verticalBook,
 } from "./fixtures/books";
@@ -111,6 +112,7 @@ export async function startServer(): Promise<{ server: Server; origin: string }>
   books.set("toc.epub", tocBook());
   books.set("nonlinear.epub", nonLinearBook());
   books.set("dangling.epub", danglingBook());
+  books.set("styled.epub", styledBook());
   books.set("hostile.epub", hostileBook(origin));
   return { server, origin };
 }
