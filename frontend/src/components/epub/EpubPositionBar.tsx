@@ -96,6 +96,8 @@ export function EpubPositionBar({
         className={`relative h-6 w-full touch-none ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
         onPointerDown={(e) => {
           if (disabled) return;
+          // Keeps the press from moving focus: focus goes back to the book on release.
+          e.preventDefault();
           e.currentTarget.setPointerCapture?.(e.pointerId);
           dragTo(e);
         }}
@@ -120,7 +122,6 @@ export function EpubPositionBar({
           onKeyUp={(e: KeyboardEvent) => {
             if (VALUE_KEYS.has(e.key)) commit(false);
           }}
-          onBlur={() => commit(false)}
           className={INPUT_CLASS}
         />
         <div

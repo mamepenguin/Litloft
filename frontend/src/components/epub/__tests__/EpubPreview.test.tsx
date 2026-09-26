@@ -597,6 +597,28 @@ describe("EpubPreview", () => {
       expect(lastSeek(view.posted).fraction).toBe(released);
     });
 
+    it("a pointer drag on a slider the keyboard left focused follows the pointer and seeks once", async () => {
+      stubPointerEvent();
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+      slider().focus();
+      const row = rowAt(0, 100);
+      fireEvent.pointerDown(row, { clientX: 80, pointerId: 1, buttons: 1 });
+      // What a browser does with focus on a press that is not prevented.
+      fireEvent.blur(slider());
+      fireEvent.pointerMove(row, { clientX: 20, pointerId: 1, buttons: 1 });
+      fireEvent.pointerUp(row, { clientX: 20, pointerId: 1 });
+      expect(sentOfType(view.posted, "seek").map((m) => (m as unknown as { fraction: number }).fraction)).toEqual([0.2]);
+    });
+
+    it("a press on the row leaves focus where it is, so release can hand the keys to the book", async () => {
+      stubPointerEvent();
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      expect(fireEvent.pointerDown(rowAt(0, 100), { clientX: 50, pointerId: 1, buttons: 1, cancelable: true })).toBe(false);
+    });
+
     it("the knob and the filled part of the track follow the reading direction", async () => {
       const view = await openBook("rtl");
       await fromReader(view.readerWindow, { type: "location", fraction: 0.25, tocIndex: 1, pagesLeft: 2 });
@@ -686,13 +708,15 @@ describe("EpubPreview", () => {
       rerenderFullscreen(view, true);
       const bottom = () => screen.getByTestId("epub-chrome-bottom");
 
-      fireEvent.change(slider(), { target: { value: "500" } });
+      stubPointerEvent();
+      const row = rowAt(0, 100);
+      fireEvent.pointerDown(row, { clientX: 50, pointerId: 1, buttons: 1 });
       act(() => {
         vi.advanceTimersByTime(5000);
       });
       expect(bottom()).not.toHaveAttribute("inert");
 
-      fireEvent.pointerUp(slider());
+      fireEvent.pointerUp(row, { clientX: 50, pointerId: 1 });
       act(() => {
         vi.advanceTimersByTime(5000);
       });
@@ -704,7 +728,8 @@ describe("EpubPreview", () => {
       const view = await openBook();
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
       rerenderFullscreen(view, true);
-      fireEvent.change(slider(), { target: { value: "500" } });
+      stubPointerEvent();
+      fireEvent.pointerDown(rowAt(0, 100), { clientX: 50, pointerId: 1, buttons: 1 });
       rerenderFullscreen(view, false);
       rerenderFullscreen(view, true);
       act(() => {
