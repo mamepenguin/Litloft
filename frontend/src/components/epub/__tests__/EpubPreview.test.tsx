@@ -668,14 +668,33 @@ describe("EpubPreview", () => {
       const view = await openBook(dir);
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
       expect(fireEvent.keyDown(slider(), { key, cancelable: true })).toBe(false);
-      expect(sentOfType(view.posted, "turn")).toEqual([{ type: "turn", direction }]);
+      expect(fireEvent.keyDown(slider(), { key, repeat: true, cancelable: true })).toBe(false);
+      expect(sentOfType(view.posted, "turn")).toEqual([
+        { type: "turn", direction },
+        { type: "turn", direction },
+      ]);
       expect(sentOfType(view.posted, "seek")).toEqual([]);
     });
 
-    it("an arrow with a modifier is left to the browser", async () => {
+    it("in full screen too, an arrow on the slider turns the page", async () => {
       const view = await openBook();
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
-      expect(fireEvent.keyDown(slider(), { key: "ArrowRight", altKey: true, cancelable: true })).toBe(true);
+      rerenderFullscreen(view, true);
+      fireEvent.keyDown(slider(), { key: "ArrowRight", cancelable: true });
+      expect(sentOfType(view.posted, "turn")).toEqual([{ type: "turn", direction: "right" }]);
+    });
+
+    it.each(["Home", "End", "PageUp", "PageDown"])("%s on the slider is left to the range, which seeks", async (key) => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      expect(fireEvent.keyDown(slider(), { key, cancelable: true })).toBe(true);
+      expect(sentOfType(view.posted, "turn")).toEqual([]);
+    });
+
+    it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"])("an arrow with %s is left to the browser", async (modifier) => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      expect(fireEvent.keyDown(slider(), { key: "ArrowRight", [modifier]: true, cancelable: true })).toBe(true);
       expect(sentOfType(view.posted, "turn")).toEqual([]);
     });
 
