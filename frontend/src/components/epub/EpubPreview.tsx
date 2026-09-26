@@ -158,7 +158,8 @@ export function EpubPreview({ file }: EpubPreviewProps) {
           style={
             fullscreen.isPseudo
               ? {
-                  top: `calc((${TOP_BAND} - 2rem) / 2)`,
+                  // Just below the band, over the book's own top margin.
+                  top: `calc(${TOP_BAND} + 0.25rem)`,
                   right: "max(0.5rem, env(safe-area-inset-right, 0px))",
                 }
               : { top: "0.5rem", right: "0.5rem" }
