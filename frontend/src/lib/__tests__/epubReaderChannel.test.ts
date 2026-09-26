@@ -78,10 +78,13 @@ describe("parseReaderMessage", () => {
       ["a fraction that is not a number", { label: "a", depth: 0, fraction: "0" }],
       ["a NaN fraction", { label: "a", depth: 0, fraction: Number.NaN }],
       ["not an object", "a"],
-    ])("drops an entry with %s and keeps the rest", (_name, bad) => {
+    ])("blanks an entry with %s, and the entries after it keep their places", (_name, bad) => {
       expect(ready([bad, { label: "ok", depth: 0, fraction: 0.5 }])).toMatchObject({
         type: "ready",
-        toc: [{ label: "ok", depth: 0, fraction: 0.5 }],
+        toc: [
+          { label: "", depth: 0, fraction: null },
+          { label: "ok", depth: 0, fraction: 0.5 },
+        ],
       });
     });
 

@@ -536,6 +536,67 @@ describe("EpubPreview", () => {
       expect(bottom()).not.toHaveAttribute("inert");
     });
 
+    function rerenderFullscreen(view: Awaited<ReturnType<typeof openBook>>, on: boolean) {
+      fullscreenState.isFullscreen = on;
+      fullscreenState.isPseudo = on;
+      view.rerender(
+        <ShortcutsProvider>
+          <FileNav onKey={view.onFileKey} />
+          <EpubPreview file={FILE} />
+        </ShortcutsProvider>,
+      );
+    }
+
+    it("in full screen, the bar stays up while the slider is dragged and hides once it is released", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+      rerenderFullscreen(view, true);
+      const bottom = () => screen.getByTestId("epub-chrome-bottom");
+
+      fireEvent.change(slider(), { target: { value: "500" } });
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(bottom()).not.toHaveAttribute("inert");
+
+      fireEvent.pointerUp(slider());
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(bottom()).toHaveAttribute("inert");
+    });
+
+    it("a drag cut short by leaving full screen does not keep the bar up the next time", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      rerenderFullscreen(view, true);
+      fireEvent.change(slider(), { target: { value: "500" } });
+      rerenderFullscreen(view, false);
+      rerenderFullscreen(view, true);
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByTestId("epub-chrome-bottom")).toHaveAttribute("inert");
+    });
+
+    it("another book starts with no place and no chapter from the last one", async () => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.25, tocIndex: 1, pagesLeft: 4 });
+      expect(slider()).toBeEnabled();
+      view.rerender(
+        <ShortcutsProvider>
+          <FileNav onKey={view.onFileKey} />
+          <EpubPreview file={{ ...FILE, id: "Other1234567" }} />
+        </ShortcutsProvider>,
+      );
+      expect(slider()).toBeDisabled();
+      expect(line()).not.toHaveTextContent("One");
+      expect(line()).toHaveTextContent("0%");
+    });
+
     it("inline, the bar never hides", async () => {
       const view = await openBook();
       await fromReader(view.readerWindow, { type: "activity", kind: "tap" });

@@ -505,18 +505,21 @@ test.describe("location", () => {
 
 for (const book of ["horizontal.epub", "vertical.epub"]) {
   test.describe(`seek in ${book}`, () => {
-    test("reports one turn, and lands where reopening at that place lands", async ({ page }) => {
-      await open(page, book);
-      await page.evaluate(() => window.seek(0.55));
-      await expect.poll(async () => (await messages(page, "turned")).length).toBe(1);
-      const landed = await where(page);
-      const [turned] = await messages(page, "turned");
-      expect(turned.fraction as number).toBeGreaterThan(0.4);
-      expect(turned.fraction as number).toBeLessThan(0.7);
+    test("reports one turn, and lands where opening at the same fraction lands", async ({ page }) => {
+      for (const fraction of [0.13, 0.37, 0.55, 0.71, 0.93]) {
+        await open(page, book);
+        await page.evaluate((f) => window.seek(f), fraction);
+        await expect.poll(async () => (await messages(page, "turned")).length).toBe(1);
+        const landed = await where(page);
 
-      await open(page, book, turned.fraction as number);
-      const back = await where(page);
-      expect({ index: back.index, page: back.page }).toEqual({ index: landed.index, page: landed.page });
+        await open(page, book, fraction);
+        const opened = await where(page);
+        expect({ fraction, index: landed.index, page: landed.page }).toEqual({
+          fraction,
+          index: opened.index,
+          page: opened.page,
+        });
+      }
     });
 
     test("to the end shows the last page", async ({ page }) => {
@@ -542,6 +545,28 @@ for (const book of ["horizontal.epub", "vertical.epub"]) {
   });
 }
 
+test.describe("seek in a book with a cover and notes outside the reading order", () => {
+  test("to the start lands where the book opens", async ({ page }) => {
+    await open(page, "nonlinear.epub");
+    const opened = await where(page);
+    await page.evaluate(() => window.seek(0.5));
+    await expect.poll(async () => (await messages(page, "turned")).length).toBe(1);
+    await page.evaluate(() => window.seek(0));
+    await expect.poll(async () => (await where(page)).index).toBe(opened.index);
+    expect((await where(page)).page).toBe(opened.page);
+  });
+
+  test("to the end lands on the last page of the last chapter, not the notes", async ({ page }) => {
+    await open(page, "nonlinear.epub");
+    await page.evaluate(() => window.seek(1));
+    await expect.poll(async () => (await messages(page, "turned")).length).toBe(1);
+    const at = await where(page);
+    // cover, c1, c2, c3, notes
+    expect(at.index).toBe(3);
+    expect(at.page).toBe(at.pages - 2);
+  });
+});
+
 test("a seek outside 0..1 does nothing", async ({ page }) => {
   await open(page, "horizontal.epub");
   const before = await where(page);
@@ -558,14 +583,28 @@ test("a seek outside 0..1 does nothing", async ({ page }) => {
 test.describe("activity", () => {
   test("a mouse moving over the book is reported only in full screen", async ({ page }) => {
     await open(page, "horizontal.epub");
+    // Counts the moves the book itself receives, so the inline half cannot
+    // pass on moves that never reached it.
+    const seen = () => page.evaluate(() => (window as Window & { __moves?: number }).__moves ?? 0);
+    await page.evaluate(() => {
+      const host = window as Window & { __moves?: number };
+      host.__moves = 0;
+      const doc = (document.getElementById("reader") as HTMLIFrameElement).contentDocument!;
+      const view = doc.querySelector("foliate-view") as unknown as {
+        renderer: { getContents(): { doc: Document }[] };
+      };
+      for (const win of [doc.defaultView!, ...view.renderer.getContents().map((c) => c.doc.defaultView!)])
+        win.addEventListener("pointermove", () => (host.__moves! += 1), { capture: true });
+    });
     await page.mouse.move(400, 300);
-    await page.mouse.move(420, 320);
+    await page.mouse.move(460, 340, { steps: 5 });
+    expect(await seen()).toBeGreaterThan(0);
     await page.waitForTimeout(300);
     expect(await messages(page, "activity")).toEqual([]);
+
     await page.evaluate(() => window.setMode(true));
     await page.waitForTimeout(300);
-    await page.mouse.move(500, 300);
-    await page.mouse.move(520, 320);
+    await page.mouse.move(500, 300, { steps: 5 });
     await expect.poll(async () => (await messages(page, "activity")).length).toBeGreaterThan(0);
     expect((await messages(page, "activity"))[0]).toEqual({ type: "activity", kind: "pointer" });
   });

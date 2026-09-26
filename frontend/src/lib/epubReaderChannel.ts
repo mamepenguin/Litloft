@@ -39,22 +39,25 @@ function isCount(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
+const BLANK_ENTRY: TocEntry = { label: "", depth: 0, fraction: null };
+
+function parseTocEntry(item: unknown): TocEntry {
+  if (!item || typeof item !== "object") return BLANK_ENTRY;
+  const { label, depth, fraction } = item as Record<string, unknown>;
+  if (typeof label !== "string" || label.length > TOC_LABEL_MAX) return BLANK_ENTRY;
+  if (!isCount(depth)) return BLANK_ENTRY;
+  if (fraction !== null && !isFraction(fraction)) return BLANK_ENTRY;
+  return { label, depth, fraction };
+}
+
 /**
  * A bad table of contents costs the reader its entries, never the book: a
- * dropped `ready` would leave the page loading for good.
+ * dropped `ready` would leave the page loading for good. A bad entry is
+ * blanked, not removed, because the reader names entries by position.
  */
 function parseToc(value: unknown): TocEntry[] {
   if (!Array.isArray(value)) return [];
-  const entries: TocEntry[] = [];
-  for (const item of value.slice(0, TOC_MAX)) {
-    if (!item || typeof item !== "object") continue;
-    const { label, depth, fraction } = item as Record<string, unknown>;
-    if (typeof label !== "string" || label.length > TOC_LABEL_MAX) continue;
-    if (!isCount(depth)) continue;
-    if (fraction !== null && !isFraction(fraction)) continue;
-    entries.push({ label, depth, fraction });
-  }
-  return entries;
+  return value.slice(0, TOC_MAX).map(parseTocEntry);
 }
 
 function isHttpUrl(value: unknown): value is string {

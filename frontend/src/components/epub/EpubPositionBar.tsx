@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslations } from "next-intl";
 
 export const SLIDER_STEPS = 1000;
@@ -49,6 +49,10 @@ export function EpubPositionBar({
     setDragState(value);
     onScrubbingChange?.(value !== null);
   };
+  const onScrubbingChangeRef = useRef(onScrubbingChange);
+  onScrubbingChangeRef.current = onScrubbingChange;
+  // Leaving full screen mid-drag unmounts the bar without a release.
+  useEffect(() => () => onScrubbingChangeRef.current?.(false), []);
   const disabled = fraction === null;
   const shown = drag ?? (fraction === null ? 0 : Math.round(fraction * SLIDER_STEPS));
   const percent = Math.floor((shown / SLIDER_STEPS) * 100);
