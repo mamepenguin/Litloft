@@ -215,6 +215,7 @@ export function EpubPreview({ file }: EpubPreviewProps) {
                 dir={book?.dir ?? "ltr"}
                 chapterAt={labelAt}
                 onSeek={reader.seek}
+                onTurn={reader.turn}
                 onPointerCommit={focusBook}
                 onScrubbingChange={setScrubbing}
               />
@@ -230,6 +231,7 @@ export function EpubPreview({ file }: EpubPreviewProps) {
             dir={book?.dir ?? "ltr"}
             chapterAt={labelAt}
             onSeek={reader.seek}
+            onTurn={reader.turn}
             onPointerCommit={focusBook}
             onScrubbingChange={setScrubbing}
           />

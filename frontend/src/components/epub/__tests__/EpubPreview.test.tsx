@@ -657,6 +657,28 @@ describe("EpubPreview", () => {
       expect(focus).not.toHaveBeenCalled();
     });
 
+    it.each([
+      ["ltr", "ArrowRight", "right"],
+      ["ltr", "ArrowLeft", "left"],
+      ["rtl", "ArrowRight", "right"],
+      ["rtl", "ArrowLeft", "left"],
+      ["ltr", "ArrowUp", "next"],
+      ["rtl", "ArrowDown", "prev"],
+    ] as const)("in a %s book, %s on the slider turns the page %s instead of stepping it", async (dir, key, direction) => {
+      const view = await openBook(dir);
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      expect(fireEvent.keyDown(slider(), { key, cancelable: true })).toBe(false);
+      expect(sentOfType(view.posted, "turn")).toEqual([{ type: "turn", direction }]);
+      expect(sentOfType(view.posted, "seek")).toEqual([]);
+    });
+
+    it("an arrow with a modifier is left to the browser", async () => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      expect(fireEvent.keyDown(slider(), { key: "ArrowRight", altKey: true, cancelable: true })).toBe(true);
+      expect(sentOfType(view.posted, "turn")).toEqual([]);
+    });
+
     it("in full screen, a change from the keyboard leaves nothing holding the bar up", async () => {
       vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
       const view = await openBook();

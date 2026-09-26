@@ -5,6 +5,19 @@ import { useTranslations } from "next-intl";
 
 export const SLIDER_STEPS = 1000;
 
+export type PageTurn = "left" | "right" | "next" | "prev";
+
+/**
+ * A step of the range is usually less than a page, and a seek that stays on
+ * the page shown lands back where it started; the arrows turn pages instead.
+ */
+const ARROW_TURNS: Record<string, PageTurn> = {
+  ArrowLeft: "left",
+  ArrowRight: "right",
+  ArrowUp: "next",
+  ArrowDown: "prev",
+};
+
 /**
  * The input is kept for the keyboard and assistive tech only. A pointer never
  * reaches it: a native range moves its own value under a finger in ways the
@@ -21,6 +34,7 @@ export interface EpubPositionBarProps {
   /** The chapter a dragged thumb would land in. */
   chapterAt: (fraction: number) => string | null;
   onSeek: (fraction: number) => void;
+  onTurn: (turn: PageTurn) => void;
   /** After a pointer drag, so the keys turn pages again instead of moving the thumb. */
   onPointerCommit?: () => void;
   /** Whether a drag is under way, so the bar is not withdrawn mid-drag. */
@@ -35,6 +49,7 @@ export function EpubPositionBar({
   dir,
   chapterAt,
   onSeek,
+  onTurn,
   onPointerCommit,
   onScrubbingChange,
   className = "",
@@ -106,6 +121,12 @@ export function EpubPositionBar({
           disabled={disabled}
           aria-label={t("epubPosition")}
           aria-valuetext={`${percent}%`}
+          onKeyDown={(e) => {
+            const turn = ARROW_TURNS[e.key];
+            if (!turn || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+            e.preventDefault();
+            onTurn(turn);
+          }}
           // A key or a screen reader's step has no release to wait for.
           onChange={(e) => onSeek(Number(e.target.value) / SLIDER_STEPS)}
           className={INPUT_CLASS}
