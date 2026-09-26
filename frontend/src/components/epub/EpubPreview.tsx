@@ -15,6 +15,8 @@ import { useFillHeight } from "./useFillHeight";
 
 export const EPUB_READER_URL = "/epub-reader/reader.html";
 
+const TOP_BAND = "max(env(safe-area-inset-top, 0px), 3rem)";
+
 function subscribeTheme(onChange: () => void): () => void {
   const observer = new MutationObserver(onChange);
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
@@ -116,7 +118,21 @@ export function EpubPreview({ file }: EpubPreviewProps) {
       >
         {/* Absolute rather than h-full: the box's height comes from flex, which
             a percentage height does not resolve against. */}
-        <div className="absolute inset-0">
+        <div
+          className="absolute inset-0"
+          style={
+            fullscreen.isPseudo
+              ? {
+                  // Pinned over the whole screen: the book stays inside the
+                  // safe area, and the band above it holds the close button.
+                  top: TOP_BAND,
+                  bottom: "env(safe-area-inset-bottom, 0px)",
+                  left: "env(safe-area-inset-left, 0px)",
+                  right: "env(safe-area-inset-right, 0px)",
+                }
+              : undefined
+          }
+        >
           <iframe
             key={file.id}
             ref={reader.frameRef}
@@ -142,9 +158,7 @@ export function EpubPreview({ file }: EpubPreviewProps) {
           style={
             fullscreen.isPseudo
               ? {
-                  // The pinned frame covers the whole screen, notch and
-                  // rounded corners included.
-                  top: "calc(env(safe-area-inset-top, 0px) + 0.5rem)",
+                  top: `calc((${TOP_BAND} - 2rem) / 2)`,
                   right: "max(0.5rem, env(safe-area-inset-right, 0px))",
                 }
               : { top: "0.5rem", right: "0.5rem" }

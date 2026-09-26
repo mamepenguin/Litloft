@@ -182,6 +182,14 @@ const openBook = async ({ bytes, fraction, theme }) => {
   view.addEventListener("load", (e) => {
     const win = e.detail.doc.defaultView;
     if (!win) return;
+    // foliate's column count applies to a horizontal book on a wide screen
+    // (a spread) and to a vertical book on a tall one, where it would stack
+    // two pages on top of each other; only the first is wanted.
+    const body = e.detail.doc.body;
+    const vertical = !!body && win.getComputedStyle(body).writingMode.startsWith("vertical");
+    const columns = vertical ? "1" : "2";
+    if (view.renderer.getAttribute("max-column-count") !== columns)
+      view.renderer.setAttribute("max-column-count", columns);
     win.addEventListener("keydown", onKeyDown);
     installTouch(win);
   });
@@ -194,7 +202,6 @@ const openBook = async ({ bytes, fraction, theme }) => {
   });
   view.renderer.setAttribute("margin", "32px");
   view.renderer.setAttribute("gap", "6%");
-  view.renderer.setAttribute("max-column-count", "2");
   applyTheme(theme);
 
   await restore(fraction);

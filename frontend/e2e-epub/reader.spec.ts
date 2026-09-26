@@ -275,6 +275,34 @@ test("a chapter with characters XML refuses is shown, and the book reads past it
   expect(await messages(page, "turned")).toHaveLength(2);
 });
 
+test.describe("columns", () => {
+  const columnCount = (page: Page) =>
+    page.evaluate(
+      () =>
+        (
+          (document.getElementById("reader") as HTMLIFrameElement).contentDocument!.querySelector(
+            "foliate-view",
+          ) as unknown as { renderer: { columnCount: number } }
+        ).renderer.columnCount,
+    );
+
+  test("a vertical book on a tall screen is one page, not two stacked", async ({ page }) => {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await open(page, "vertical.epub");
+    await page.evaluate(() => window.setMode(true));
+    await page.waitForTimeout(400);
+    expect(await columnCount(page)).toBe(1);
+  });
+
+  test("a horizontal book on a wide screen is a spread", async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 800 });
+    await open(page, "horizontal.epub");
+    await page.evaluate(() => window.setMode(true));
+    await page.waitForTimeout(400);
+    expect(await columnCount(page)).toBe(2);
+  });
+});
+
 test("a fixed-layout book is refused", async ({ page }) => {
   await open(page, "fixed.epub");
   expect(await messages(page, "error")).toEqual([{ type: "error", code: "unsupported" }]);
