@@ -187,7 +187,9 @@ listed at all.
 **Copying a file onto a name whose thumbnail slot is owned by a different file
 swaps that file's picture.** Slots are keyed by stem, so pasting `a.mp4` next to
 an existing `a.png` makes `a.png` show the video's frame, and purging the copy
-leaves `a.png` blank. The right fix is a lookup, not a `stat`. Written up in
+leaves `a.png` blank. Two such files need no copy to collide: a scan of a folder
+holding `book.pdf` and `book.epub` gives both rows `book.jpg`, so one shows the
+other's cover. The right fix is a lookup, not a `stat`. Written up in
 `docs/superpowers/specs/2026-09-14-thumbnail-slot-ownership.md`.
 
 **A thumbnail failure rolls back the file operation it belongs to.** In

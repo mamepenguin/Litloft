@@ -99,11 +99,12 @@ _EXTENSION_TABLE: dict[str, tuple[str, str]] = {
     ".org": ("document", "application/octet-stream"),
     ".rst": ("document", "text/x-rst"),
 
-    # --- document (38) ---
+    # --- document (39) ---
     ".csv": ("document", "text/csv"),
     ".doc": ("document", "application/msword"),
     ".docx": ("document", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
     ".dot": ("document", "application/msword"),
+    ".epub": ("document", "application/epub+zip"),
     ".etx": ("document", "text/x-setext"),
     ".htm": ("document", "text/html"),
     ".html": ("document", "text/html"),

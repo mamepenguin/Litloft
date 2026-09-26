@@ -160,4 +160,4 @@ def test_no_extension_is_written_twice():
 def test_the_table_holds_the_number_of_rows_it_is_declared_to():
     """A row removed from the table and from its declaration in the same edit
     is invisible to every comparison between the two."""
-    assert len(_EXTENSION_TABLE) == 194
+    assert len(_EXTENSION_TABLE) == 195

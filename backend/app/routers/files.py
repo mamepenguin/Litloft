@@ -89,6 +89,7 @@ from app.services.content_write import (
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
 from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
 from app.services.tagops import cleanup_orphan_tags
+from app.services.zip_names import decode_zip_filename
 
 logger = logging.getLogger(__name__)
 
@@ -221,34 +222,6 @@ def _is_macos_metadata(name: str) -> bool:
     if not parts:
         return False
     return parts[0] == "__MACOSX" or parts[-1] == ".DS_Store"
-
-
-def _decode_zip_filename(info: zipfile.ZipInfo) -> str:
-    """Decode ZIP entry filename, handling Shift_JIS encoded names.
-
-    ZIP files created on Japanese Windows encode filenames in Shift_JIS (CP932)
-    but don't set the UTF-8 flag. Python's zipfile decodes them as CP437,
-    producing garbled text. This function detects and re-decodes as CP932.
-    """
-    # If UTF-8 flag is set, Python already decoded correctly
-    if info.flag_bits & 0x800:
-        return info.filename
-
-    # Try re-encoding from CP437 back to bytes, then decode as CP932
-    try:
-        raw = info.filename.encode("cp437")
-    except UnicodeEncodeError:
-        return info.filename
-
-    # Pure ASCII is identical in both encodings — no need to re-decode
-    if all(b < 0x80 for b in raw):
-        return info.filename
-
-    try:
-        return raw.decode("cp932")
-    except UnicodeDecodeError:
-        # Not Shift_JIS — return as-is (original CP437 decode)
-        return info.filename
 
 
 _SAFE_INLINE_TYPES = frozenset({
@@ -1183,14 +1156,14 @@ def get_archive_contents(
         for info in zf.infolist():
             if len(entries) >= _MAX_ARCHIVE_ENTRIES:
                 break
-            if _is_macos_metadata(_decode_zip_filename(info)):
+            if _is_macos_metadata(decode_zip_filename(info)):
                 continue
             # Skip symlink entries
             if info.external_attr != 0:
                 mode = info.external_attr >> 16
                 if mode != 0 and (mode & 0o170000) == 0o120000:
                     continue
-            decoded_name = _decode_zip_filename(info)
+            decoded_name = decode_zip_filename(info)
             is_dir = info.is_dir()
             clean_path = decoded_name.rstrip("/") if is_dir else decoded_name
             entry_name = PurePosixPath(clean_path).name
@@ -1239,7 +1212,7 @@ async def get_archive_entry(
             # Look up entry by decoded name (handles Shift_JIS re-encoding)
             info = None
             for zi in zf.infolist():
-                if _decode_zip_filename(zi) == path:
+                if decode_zip_filename(zi) == path:
                     info = zi
                     break
             if info is None:
