@@ -39,6 +39,7 @@ import {
   PdfFullscreenViewer,
   type DocumentSlotProps,
 } from "@/components/pdf/PdfFullscreenViewer";
+import { useFocusScope } from "@/hooks/useFocusScope";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import {
   flattenOutline,
@@ -355,28 +356,8 @@ export function PdfPreview({
    * `ShortcutsProvider` calls `preventDefault` on every match, so an
    * unscoped page-key binding stops `PageDown` scrolling the inspector and
    * a page zoomed past the canvas box.
-   *
-   * Body counts as inside: a reader who has clicked nothing has focused
-   * nothing, and the viewer is what the page is for.
    */
-  const [inScope, setInScope] = useState(true);
-  useEffect(() => {
-    const update = () => {
-      const active = document.activeElement;
-      setInScope(
-        !active ||
-          active === document.body ||
-          rootRef.current?.contains(active) === true,
-      );
-    };
-    update();
-    document.addEventListener("focusin", update);
-    document.addEventListener("focusout", update);
-    return () => {
-      document.removeEventListener("focusin", update);
-      document.removeEventListener("focusout", update);
-    };
-  }, []);
+  const inScope = useFocusScope(rootRef);
 
   useShortcuts(
     "pdf-viewer",
@@ -389,6 +370,16 @@ export function PdfPreview({
       },
       {
         key: "pageup",
+        label: t("pdfPreviousPage"),
+        handler: () => movePage(-1),
+      },
+      {
+        key: "arrowright",
+        label: t("pdfNextPage"),
+        handler: () => movePage(1),
+      },
+      {
+        key: "arrowleft",
         label: t("pdfPreviousPage"),
         handler: () => movePage(-1),
       },

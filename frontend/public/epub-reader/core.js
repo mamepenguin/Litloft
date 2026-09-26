@@ -26,8 +26,9 @@ const FORWARDED = {
 export const keyAction = (key, { shift, fullscreen }) => {
   if (key === "PageDown" || (key === " " && !shift)) return { turn: "next" };
   if (key === "PageUp" || (key === " " && shift)) return { turn: "prev" };
-  if (fullscreen && key === "ArrowLeft") return { turn: "left" };
-  if (fullscreen && key === "ArrowRight") return { turn: "right" };
+  // Shift+arrow extends a text selection.
+  if (key === "ArrowLeft" && !shift) return { turn: "left" };
+  if (key === "ArrowRight" && !shift) return { turn: "right" };
   if (FORWARDED[fullscreen ? "fullscreen" : "inline"].has(key)) return { forward: key };
   return null;
 };

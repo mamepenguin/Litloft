@@ -106,7 +106,7 @@ With the [knowledge addon](../addons/knowledge.md) and its editor enabled for th
 
 - Select text as on any page. With the intelligence addon, Ask can quote the page you are on.
 - **Zoom mode**: **Fit width** (the default), **Whole page** or **Actual size**, plus zoom buttons. Choosing a mode resets the zoom to 100%.
-- **Page number**: type a page and press `Enter`. `PageUp` / `PageDown` turn pages.
+- **Page number**: type a page and press `Enter`. `PageUp` / `PageDown` and `←` / `→` turn pages.
 - **Pages** tab: the table of contents and page thumbnails. Click one to go there.
 - **Full screen**: the button beside **Open in new tab**, or `f`. It works like the [image viewer](#image-viewer), including **Spread** and zoom, but mouse clicks and drags select text instead of turning pages. A PDF that declares right-to-left reading opens that way. With the knowledge addon, the quote button is in the full-screen bar.
 - Links inside the PDF to its own pages work.
@@ -114,7 +114,7 @@ With the [knowledge addon](../addons/knowledge.md) and its editor enabled for th
 ## EPUB reader
 
 - A book reflows to fit the page. A vertical Japanese book reads top to bottom, right to left.
-- `PageUp` / `PageDown` or `Space` turn pages, and a swipe turns them on a touch screen.
+- `←` / `→` turn pages in the book's reading direction; `PageUp` / `PageDown` or `Space` turn to the next or previous page, and a swipe turns them on a touch screen.
 - **Full screen**: the button at the top right of the book, or `f`. The arrows, swipes and taps on the left or right edge turn pages in the book's reading direction. The same button, `f` or `Esc` closes it.
 - Your place is kept, per profile, and the book reopens there. A book you left on its last page reopens at the start.
 - Fixed-layout books (pages laid out as pictures, common for technical and illustrated books) cannot be shown yet; the page offers **Download** instead.

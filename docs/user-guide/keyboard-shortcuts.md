@@ -69,14 +69,14 @@ Media keys on your keyboard and the lock screen also control playback.
 | `←` | Previous file in the folder |
 | `→` | Next file in the folder |
 
-On video and audio pages the arrows seek instead. On PDF and EPUB pages they do nothing; use the previous / next buttons to change file.
+On video and audio pages the arrows seek instead. On PDF and EPUB pages they turn pages; use the previous / next buttons to change file.
 
 ## PDF viewer
 
 | Key | Action |
 |---|---|
-| `PageUp` | Previous page |
-| `PageDown` | Next page |
+| `PageUp` / `←` | Previous page |
+| `PageDown` / `→` | Next page |
 | `Enter` | Go to the page number you typed |
 | `Esc` | Cancel the page number you typed |
 | `f` | Open full screen |
@@ -97,6 +97,7 @@ Touch gestures are the same as in the image viewer below. A mouse selects text a
 
 | Key | Action |
 |---|---|
+| `←` / `→` | Page to the left / right (follows the book's reading direction) |
 | `PageUp` / `PageDown` | Previous / next page |
 | `Space` / `Shift+Space` | Next / previous page |
 | `f` | Open full screen |

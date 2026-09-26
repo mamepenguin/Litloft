@@ -244,17 +244,31 @@ test.describe("reader actions inside the book", () => {
     expect((await where(page)).page).toBe(before.page + 1);
   });
 
-  test("an arrow typed into the book inline is not handed to the page and turns nothing", async ({ page }) => {
+  test("an arrow typed into the book inline turns the page and is not handed to the page", async ({ page }) => {
     await open(page, "horizontal.epub");
     const win = await sectionWindow(page);
     await win.evaluate((w) => w.focus());
     const before = await where(page);
     await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("ArrowLeft");
+    await expect.poll(async () => (await messages(page, "turned")).length).toBe(1);
+    expect((await where(page)).page).toBe(before.page + 1);
     await page.keyboard.press("f");
     await expect.poll(() => messages(page, "key")).toEqual([{ type: "key", key: "f" }]);
-    expect(await messages(page, "turned")).toEqual([]);
-    expect(await where(page)).toEqual(before);
+  });
+
+  test("an arrow with a modifier typed into the book is left to the browser", async ({ page }) => {
+    await open(page, "horizontal.epub");
+    const win = await sectionWindow(page);
+    // Claimed keys are the ones the reader cancels; a turn is asynchronous and
+    // drops a second request while one runs, so the absence of `turned` proves nothing.
+    const claimed = await win.evaluate((w) =>
+      [{}, { shiftKey: true }, { altKey: true }, { ctrlKey: true }, { metaKey: true }].map((mods) => {
+        const e = new w.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true, ...mods });
+        w.document.dispatchEvent(e);
+        return e.defaultPrevented;
+      }),
+    );
+    expect(claimed).toEqual([true, false, false, false, false]);
   });
 
   test("a link inside the book moves there and reports", async ({ page }) => {
