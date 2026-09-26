@@ -167,17 +167,12 @@ test.describe("a change", () => {
 
   test("keeps the page's first text on screen when changes and relayouts alternate", async ({ page }) => {
     await open(page, "styled.epub", { fraction: 0.2 });
-    await turnTimes(page, 2);
+    await turnTimes(page, 3);
     await keepStart(page);
-    const sizes = [
-      { width: 800, height: 700 },
-      { width: 1000, height: 800 },
-      { width: 700, height: 650 },
-    ];
-    for (const [i, size] of sizes.entries()) {
-      await page.setViewportSize(size);
+    for (const [i, width] of [640, 1000, 760, 900, 580, 1000].entries()) {
+      await page.setViewportSize({ width, height: 800 });
       await page.waitForTimeout(SETTLE_MS);
-      await setTypography(page, { fontSize: i % 2 === 0 ? 5 : 3 });
+      await setTypography(page, i % 2 === 0 ? { fontSize: 5 } : {});
       expect(await startStillShown(page)).toBe(true);
     }
   });
