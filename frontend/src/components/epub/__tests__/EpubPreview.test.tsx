@@ -1054,6 +1054,24 @@ describe("EpubPreview", () => {
       expect(entry(focused)).toHaveFocus();
     });
 
+    it("puts focus on the first entry that can be pressed when the first one cannot", async () => {
+      await openWith([{ label: "Part", depth: 0, fraction: null }, ...TOC.slice(2)], { fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      fireEvent.click(contents());
+      expect(entry(0)).toHaveAttribute("aria-current", "true");
+      expect(entry(1)).toHaveFocus();
+    });
+
+    it.each([
+      ["ArrowDown on the last entry", "End", "ArrowDown", 5],
+      ["ArrowUp on the first entry", "Home", "ArrowUp", 0],
+    ])("%s stays there", async (_name, first, key, stays) => {
+      await openWith(TOC);
+      fireEvent.click(contents());
+      fireEvent.keyDown(document.activeElement!, { key: first });
+      fireEvent.keyDown(document.activeElement!, { key });
+      expect(entry(stays)).toHaveFocus();
+    });
+
     it("selecting an entry sends only its index, closes the panel and hands the keys back", async () => {
       const view = await openWith(TOC);
       fireEvent.click(contents());

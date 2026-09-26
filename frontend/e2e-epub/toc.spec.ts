@@ -10,7 +10,8 @@ declare global {
 const origin = () => process.env.EPUB_E2E_ORIGIN!;
 const SETTLE_MS = 700;
 
-// toc.epub: "", "Part" (no link), "Two", "Three" (c3.xhtml#s), "Gone" (not in
+// toc.epub: "", "Part" (no link), "Two", "Three" (c3.xhtml#late, several pages
+// into its chapter), "Gone" (not in
 // the book), "Four & bold".
 const THREE = 3;
 
@@ -48,7 +49,18 @@ test("an entry with a fragment lands in its section and is saved once", async ({
   await open(page);
   await page.evaluate((i) => window.goToToc(i), THREE);
   await page.waitForTimeout(SETTLE_MS);
-  expect((await where(page)).index).toBe(2);
+  const at = await where(page);
+  expect(at.index).toBe(2);
+  expect(at.page).toBeGreaterThan(2);
+  const shown = await page.evaluate(() => {
+    const doc = (document.getElementById("reader") as HTMLIFrameElement).contentDocument!;
+    const view = doc.querySelector("foliate-view") as unknown as { renderer: { getContents(): { doc: Document }[] } };
+    const target = view.renderer.getContents()[0].doc.getElementById("late")!;
+    const frame = target.ownerDocument.defaultView!.frameElement!;
+    const x = target.getClientRects()[0].left + frame.getBoundingClientRect().left;
+    return x >= 0 && x < doc.defaultView!.innerWidth;
+  });
+  expect(shown).toBe(true);
   expect(await messages(page, "turned")).toHaveLength(1);
 });
 

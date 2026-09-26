@@ -139,7 +139,8 @@ export function tocBook(): Buffer {
   const items = chapters(4, (n) => {
     const paras = Array.from(
       { length: PARAGRAPHS },
-      (_, i) => `<p>Chapter ${n}, paragraph ${i}. This line exists so that the chapter spans several pages.</p>`,
+      (_, i) =>
+        `<p${i === 45 ? ' id="late"' : ""}>Chapter ${n}, paragraph ${i}. This line exists so that the chapter spans several pages.</p>`,
     ).join("");
     return `<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${n}</title></head><body><h1 id="s">Chapter ${n}</h1>${paras}</body></html>`;
   });
@@ -149,7 +150,7 @@ export function tocBook(): Buffer {
       '<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">' +
       '<head><title>n</title></head><body><nav epub:type="toc"><ol>' +
       '<li><a href="c1.xhtml"><img src="cover.png" alt=""/></a></li>' +
-      '<li><span>Part</span><ol><li><a href="c2.xhtml">Two</a></li><li><a href="c3.xhtml#s">Three</a></li></ol></li>' +
+      '<li><span>Part</span><ol><li><a href="c2.xhtml">Two</a></li><li><a href="c3.xhtml#late">Three</a></li></ol></li>' +
       '<li><a href="missing.xhtml">Gone</a></li>' +
       '<li><a href="c4.xhtml">Four &amp; <b>bold</b></a></li>' +
       "</ol></nav></body></html>",
