@@ -65,3 +65,13 @@ commit, which only a pointer needed and which was removed; F2 came from the
 press moving focus, now prevented. F4's hold tests now start the drag with a
 pointer on the row. F3 (no test that the input takes no pointer) is closed on
 the user's device check; jsdom does no hit testing.
+
+## After r7 (decided by the user)
+
+Not assigned C. r7 F1: with the blur commit gone, a change with no value-key
+keyup after it (a screen reader's step; a key released after focus moved) was
+never committed and held the bar. Instead of restoring an exit on the drag
+state, the prediction that every keyboard change ends in a keyup was removed:
+a keyboard or assistive change now seeks at once, and only a pointer drag
+keeps a value until release. r7 F2's test, which sent a blur no browser sends
+any more, was rewritten around that.
