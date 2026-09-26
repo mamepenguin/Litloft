@@ -103,6 +103,7 @@ export function EpubPreview({ file }: EpubPreviewProps) {
   return (
     <div
       ref={rootRef}
+      data-epub-reader
       className="flex w-full flex-col"
       style={{ height: fillHeight ?? "60dvh" }}
     >

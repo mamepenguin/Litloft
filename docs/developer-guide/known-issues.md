@@ -102,11 +102,6 @@ without going through the reader's own turn, so that place is not recorded.
 **Paging back to the first page and leaving keeps the later place.** The first
 page is never written, so the book reopens where it was last saved.
 
-**On a phone, resizing the page while it is scrolled shrinks the EPUB reader.**
-The reader's height is measured from where it sits, and a stuck player box
-reports its stuck position, so the book stays short until the next resize at
-the top of the page.
-
 **On a phone, the full-screen button covers the top of the last character or two
 of an EPUB's first line** in horizontal books, outside full screen.
 

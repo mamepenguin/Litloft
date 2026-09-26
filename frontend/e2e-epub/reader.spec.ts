@@ -303,6 +303,17 @@ test.describe("columns", () => {
     await expect.poll(() => columnCount(page)).toBe(2);
   });
 
+  test("on a tall screen, a vertical section after a horizontal one is one page again", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 420, height: 900 });
+    await open(page, "mixed.epub");
+    await page.evaluate(() => window.setMode(true));
+    for (let i = 0; i < 20 && (await where(page)).index !== 2; i++) await turnAndSettle(page);
+    expect((await where(page)).index).toBe(2);
+    await expect.poll(() => columnCount(page)).toBe(1);
+  });
+
   test("a horizontal book on a wide screen is a spread", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 800 });
     await open(page, "horizontal.epub");
