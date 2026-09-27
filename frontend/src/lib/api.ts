@@ -63,8 +63,10 @@ export async function getDriveFiles(
     search?: string;
     favorite?: boolean;
     liked?: boolean;
-    tag?: string;
-    type?: FileKind;
+    /** Several tags: every one must be on the file. */
+    tag?: string | readonly string[];
+    /** Several kinds: the file may be any of them. */
+    type?: FileKind | readonly FileKind[];
     /**
      * `verified` / `unverified` select a tier; `unreviewed` is not a tier but
      * the review queue — files nobody has ruled on, which spans both.
@@ -83,8 +85,8 @@ export async function getDriveFiles(
   if (params.search) searchParams.set("search", params.search);
   if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
   if (params.liked !== undefined) searchParams.set("liked", String(params.liked));
-  if (params.tag) searchParams.set("tag", params.tag);
-  if (params.type) searchParams.set("type", params.type);
+  for (const tag of [params.tag ?? []].flat()) if (tag) searchParams.append("tag", tag);
+  for (const kind of [params.type ?? []].flat()) searchParams.append("type", kind);
   if (params.trust) searchParams.set("trust", params.trust);
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.order) searchParams.set("order", params.order);

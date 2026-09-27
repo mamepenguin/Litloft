@@ -638,6 +638,40 @@ describe("GlobalSearch with a scope", () => {
     });
   });
 
+  describe("with operators", () => {
+    it("lists the scope's kind narrowed by the operators", async () => {
+      shell(<ScopedScreen />);
+      openFromHeader();
+      await typeQuery("tag:draft review");
+
+      await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalledTimes(1));
+      expect(mockGetDriveFiles.mock.calls[0][1]).toEqual({
+        search: "review",
+        limit: 8,
+        type: "text",
+        tag: ["draft"],
+      });
+    });
+
+    it("requests nothing when a type: operator cannot hold inside the scope", async () => {
+      shell(<ScopedScreen />);
+      openFromHeader();
+      await typeQuery("type:video");
+      expect(mockGetDriveFiles).not.toHaveBeenCalled();
+    });
+
+    it("sends Enter and the see-all link to the core search page, keeping the scope's kind", async () => {
+      shell(<ScopedScreen />);
+      openFromHeader();
+      fireEvent.change(input(), { target: { value: "tag:draft" } });
+      const link = screen.getByRole("link", { name: /See all Notes/ });
+      expect(link).toHaveAttribute("href", "/drive/main/search?q=tag%3Adraft&type=text");
+
+      fireEvent.keyDown(input(), { key: "Enter" });
+      expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/search?q=tag%3Adraft&type=text");
+    });
+  });
+
   describe("on a phone", () => {
     beforeEach(() => answerMatchMedia(true));
 

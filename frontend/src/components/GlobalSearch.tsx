@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Search, X } from "lucide-react";
@@ -11,6 +11,8 @@ import { NESTED_OVERLAY_PRIORITY, OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 import { useTranslations } from "next-intl";
 import { useImeKeyGuard } from "@/lib/ime";
+import { parseSearchQuery } from "@/lib/searchQuery";
+import type { FileKind } from "@/types";
 import {
   browseFolderHref,
   browseKeyAction,
@@ -39,6 +41,11 @@ function isModified(e: React.KeyboardEvent): boolean {
   return e.metaKey || e.ctrlKey || e.altKey || e.shiftKey;
 }
 
+
+function searchPageHref(drive: string, term: string, type?: FileKind): string {
+  const base = `/drive/${encodeURIComponent(drive)}/search?q=${encodeURIComponent(term)}`;
+  return type ? `${base}&type=${type}` : base;
+}
 
 export function GlobalSearch() {
   const t = useTranslations("search");
@@ -248,17 +255,29 @@ export function GlobalSearch() {
 
 
   const navigateToSearchPage = useCallback(
-    (term: string) => {
+    (term: string, type?: FileKind) => {
       const normalized = term.trim();
       if (!normalized || !drive) return;
       record(normalized);
       closeSearch();
-      router.push(
-        `/drive/${encodeURIComponent(drive)}/search?q=${encodeURIComponent(normalized)}`,
-      );
+      router.push(searchPageHref(drive, normalized, type));
     },
     [drive, router, closeSearch, record],
   );
+
+  /**
+   * A scope's own page does not read operators, so a filtered scoped search
+   * goes to the core search page, still narrowed to the scope's kind.
+   */
+  const scopedSeeAll = useMemo(() => {
+    if (!scope?.seeAllHref || !drive) return scope;
+    const own = scope.seeAllHref;
+    return {
+      ...scope,
+      seeAllHref: (term: string) =>
+        parseSearchQuery(term).hasOperators ? searchPageHref(drive, term, scope.type) : own(term),
+    };
+  }, [scope, drive]);
 
   function handleSelect(url: string) {
     record(query);
@@ -299,8 +318,8 @@ export function GlobalSearch() {
 
   function handleSubmit(term: string) {
     const normalized = term.trim();
-    if (scope?.seeAllHref && normalized) {
-      handleSelect(scope.seeAllHref(normalized));
+    if (scopedSeeAll?.seeAllHref && normalized) {
+      handleSelect(scopedSeeAll.seeAllHref(normalized));
       return;
     }
     navigateToSearchPage(term);
@@ -521,7 +540,7 @@ export function GlobalSearch() {
 
   const footer = (mobile: boolean) =>
     scope ? (
-      <ScopedFooter scope={scope} query={query} mobile={mobile} onSeeAll={handleSelect} />
+      <ScopedFooter scope={scopedSeeAll ?? scope} query={query} mobile={mobile} onSeeAll={handleSelect} />
     ) : (
       <SearchFooter
         semanticPending={semanticPending}

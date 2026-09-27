@@ -6,9 +6,22 @@ import { getDriveFiles } from "@/lib/api";
 import { fetchSemanticHits, isSemanticSearchAvailable } from "@/lib/semanticSearch";
 import { mergeResults, sortMerged, type SemanticHit } from "@/lib/searchMerge";
 import { readSearchCache, writeSearchCache, type SearchCacheKey } from "@/lib/searchCache";
+import { parseSearchQuery, resolveKinds, type ParsedQuery } from "@/lib/searchQuery";
 import type { FileItemWithMatch, FileKind } from "@/types";
 
 const POPUP_LIMIT = 8;
+
+/** The listing call for a parsed query; a query without operators sends what it always did. */
+function listingParams(parsed: ParsedQuery, kinds: FileKind[]) {
+  return {
+    search: parsed.text,
+    limit: POPUP_LIMIT,
+    ...(kinds.length > 0 ? { type: kinds.length === 1 ? kinds[0] : kinds } : {}),
+    ...(parsed.tags.length > 0 ? { tag: parsed.tags } : {}),
+    ...(parsed.favorite ? { favorite: true } : {}),
+    ...(parsed.liked ? { liked: true } : {}),
+  };
+}
 
 interface FileSearchInput {
   open: boolean;
@@ -42,6 +55,14 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
     }
 
     const trimmed = query.trim();
+    const parsed = parseSearchQuery(trimmed);
+    const kinds = resolveKinds(scopeType, parsed.types);
+    if (kinds.impossible) {
+      setMerged([]);
+      setTotal(0);
+      return;
+    }
+    const nameMatched = parsed.text !== "";
     const cacheKey: SearchCacheKey = {
       drive,
       query: trimmed,
@@ -55,6 +76,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
         filenameMatches: cached.filenameMatches,
         semanticHits: cached.semanticHits,
         filenameTotal: cached.filenameTotal,
+        nameMatched,
       });
       const sorted = sortMerged(m.files, "relevance", "desc");
       setMerged(sorted.slice(0, POPUP_LIMIT));
@@ -82,6 +104,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
           filenameMatches: filenameRes.data,
           semanticHits,
           filenameTotal: filenameRes.meta.total,
+          nameMatched,
         });
         const sorted = sortMerged(m.files, "relevance", "desc");
         setMerged(sorted.slice(0, POPUP_LIMIT));
@@ -100,9 +123,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
 
       const filenameP = getDriveFiles(
         drive,
-        scopeType
-          ? { search: trimmed, limit: POPUP_LIMIT, type: scopeType }
-          : { search: trimmed, limit: POPUP_LIMIT },
+        listingParams(parsed, kinds.kinds),
         { signal: ctrl.signal },
       )
         .then((res) => {
@@ -114,9 +135,11 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
           if (!ctrl.signal.aborted) setLoading(false);
         });
 
-      // Semantic hits are not filtered by kind, so a scoped search has no
-      // second stage.
-      const semanticP = (scopeType ? Promise.resolve(false) : isSemanticSearchAvailable(drive))
+      // Semantic hits are not filtered by kind, tag or flag, so a scoped or
+      // filtered search has no second stage.
+      const semanticP = (scopeType || parsed.hasOperators
+        ? Promise.resolve(false)
+        : isSemanticSearchAvailable(drive))
         .then((available) => {
           if (!available || ctrl.signal.aborted) return [] as SemanticHit[];
           setSemanticPending(true);

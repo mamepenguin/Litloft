@@ -6,6 +6,7 @@ import { useCallback } from "react";
 
 import { FolderBrowser } from "@/components/FolderBrowser";
 import type { FileKind } from "@/types";
+import { parseSearchQuery } from "@/lib/searchQuery";
 
 // `subtitle` is not here for the reason it is not in the toolbar: nothing
 // registers a row for it. If this list falls behind the toolbar, the chip is
@@ -88,9 +89,11 @@ export default function SearchPage() {
 
   return (
     <>
-      <div className="px-4 pt-3 pb-1 flex items-center">
-        <SceneSearchToggle active={includeSceneClip} onToggle={handleToggle} />
-      </div>
+      {!parseSearchQuery(q).hasOperators && (
+        <div className="px-4 pt-3 pb-1 flex items-center">
+          <SceneSearchToggle active={includeSceneClip} onToggle={handleToggle} />
+        </div>
+      )}
       <FolderBrowser
         driveName={driveName}
         searchQuery={q}

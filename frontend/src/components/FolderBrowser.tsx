@@ -37,6 +37,7 @@ import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
 import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
 import { Button } from "@/components/Button";
+import { parseSearchQuery } from "@/lib/searchQuery";
 
 /**
  * How long scrolling must be idle before the list snapshot is
@@ -554,7 +555,7 @@ export function FolderBrowser({
                   typeFilter={typeFilter}
                   smartFolderId={smartFolderId ?? null}
                 />
-                <AddonSlot
+                {!parseSearchQuery(searchQuery ?? "").hasOperators && <AddonSlot
                   id="search-modes"
                   layout="stack"
                   props={{
@@ -563,7 +564,7 @@ export function FolderBrowser({
                     filter: typeFilter ?? "all",
                     onSelect: handleSemanticSelect,
                   }}
-                />
+                />}
               </>
             ) : undefined
           }
