@@ -125,9 +125,9 @@ describe("file-kind classifier, core vs the intelligence addon", () => {
     // the rows it exists for.
     // Sliced to the function, not the file: the first case-insensitive
     // filename sort added anywhere else in `drives.py` would satisfy a whole-file `toContain` while
-    // `_apply_kind_filter` had lost its fallback entirely.
+    // `_kind_predicate` had lost its fallback entirely.
     for (const [label, text, column] of [
-      ["core", functionBody(core, "_apply_kind_filter"), "File.filename"],
+      ["core", functionBody(core, "_kind_predicate"), "File.filename"],
       ["addon", functionBody(addon, "apply_kind_filter"), "IndexedFile.filename"],
     ] as const) {
       expect(text, `${label} stopped lower-casing the filename`).toContain(

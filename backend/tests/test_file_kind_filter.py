@@ -207,7 +207,9 @@ class TestTheVocabulary:
         query = "&".join(f"type={kind}" for kind in kinds)
         res = c.get(f"/api/drives/{TEST_DRIVE}/files?limit=100&{query}")
         assert res.status_code == 200, res.text
-        assert {item["filename"] for item in res.json()["data"]} == expected
+        body = res.json()
+        assert {item["filename"] for item in body["data"]} == expected
+        assert body["meta"]["total"] == len(expected)
 
     def test_no_filter_returns_everything(self, library):
         c, _, _ = library
