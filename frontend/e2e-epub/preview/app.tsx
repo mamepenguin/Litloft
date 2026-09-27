@@ -17,6 +17,8 @@ declare global {
 const params = new URLSearchParams(location.search);
 const bookId = params.get("book") ?? "";
 const s = params.get("s");
+const theme = params.get("theme");
+if (theme) document.documentElement.setAttribute("data-theme", theme);
 
 const FILE: FileItem = {
   id: bookId,

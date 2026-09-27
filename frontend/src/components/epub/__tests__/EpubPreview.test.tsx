@@ -81,13 +81,26 @@ beforeEach(() => {
   mockGetWatchProgress.mockResolvedValue({ position: 0.4, duration: 1 });
   fetchMock = vi.fn().mockResolvedValue({ ok: true, arrayBuffer: async () => BOOK.slice().buffer });
   vi.stubGlobal("fetch", fetchMock);
-  document.documentElement.setAttribute("data-theme", "light");
+  setAppTheme("light");
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
+
+// jsdom loads no stylesheet, so the tokens a theme switch would bring are set
+// by hand.
+const TOKENS = {
+  light: { "--bg-primary": "#ffffff", "--text-primary": "#211922", "--accent": "#d63031" },
+  dark: { "--bg-primary": "#1a0e10", "--text-primary": "#f5e6e8", "--accent": "#e85d5e" },
+};
+
+function setAppTheme(theme: keyof typeof TOKENS): void {
+  const root = document.documentElement;
+  for (const [name, value] of Object.entries(TOKENS[theme])) root.style.setProperty(name, value);
+  root.setAttribute("data-theme", theme);
+}
 
 describe("EpubPreview", () => {
   it("serves the reader document from the reader directory", () => {
@@ -114,7 +127,12 @@ describe("EpubPreview", () => {
 
     const open = sentOfType(posted, "open");
     expect(open).toHaveLength(1);
-    expect(open[0]).toMatchObject({ type: "open", fraction: 0.4, theme: "light" });
+    expect(open[0]).toMatchObject({
+      type: "open",
+      fraction: 0.4,
+      theme: "light",
+      colors: { bg: "#ffffff", fg: "#211922", link: "#d63031" },
+    });
     const call = posted.mock.calls.find((c) => (c[0] as { type: string }).type === "open") as unknown[];
     expect(call[1]).toBe(window.location.origin);
     expect(call[2]).toEqual([expect.any(ArrayBuffer)]);
@@ -403,10 +421,14 @@ describe("EpubPreview", () => {
     const { readerWindow, posted } = renderPreview();
     await fromReader(readerWindow, { type: "ready", dir: "ltr", vertical: false });
     await act(async () => {
-      document.documentElement.setAttribute("data-theme", "dark");
+      setAppTheme("dark");
       await Promise.resolve();
     });
-    expect(sentOfType(posted, "theme")).toContainEqual({ type: "theme", theme: "dark" });
+    expect(sentOfType(posted, "theme")).toContainEqual({
+      type: "theme",
+      theme: "dark",
+      colors: { bg: "#1a0e10", fg: "#f5e6e8", link: "#e85d5e" },
+    });
   });
 
   it("leaves the shared reading-direction preference alone", async () => {

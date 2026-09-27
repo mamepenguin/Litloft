@@ -24,6 +24,13 @@ export type ReaderMessage =
   | { type: "link"; url: string }
   | { type: "error"; code: "unsupported" | "parse" | "isolation" };
 
+/** The app's colour tokens as authored, `#rrggbb`; the reader rejects anything else. */
+export interface ReaderColors {
+  bg: string;
+  fg: string;
+  link: string;
+}
+
 export type ReaderCommand =
   | {
       type: "open";
@@ -32,13 +39,14 @@ export type ReaderCommand =
       /** foliate's 0-based section index; it outranks `fraction`. */
       section: number | null;
       theme: "light" | "dark";
+      colors: ReaderColors;
       typography: Typography;
     }
   | { type: "typography"; typography: Typography }
   | { type: "turn"; direction: "next" | "prev" | "left" | "right" }
   | { type: "seek"; fraction: number; id: number }
   | { type: "goToToc"; index: number }
-  | { type: "theme"; theme: "light" | "dark" }
+  | { type: "theme"; theme: "light" | "dark"; colors: ReaderColors }
   | { type: "mode"; fullscreen: boolean };
 
 const KEYS: ReadonlySet<string> = new Set<ReaderKey>(["f", "Escape"]);
