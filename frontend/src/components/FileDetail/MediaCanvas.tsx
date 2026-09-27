@@ -6,12 +6,13 @@ import { ChaptersPanel } from "../ChaptersPanel";
 import { FileDescription } from "./FileDescription";
 import { MediaPlayerBlock, type MediaPlayerBlockProps } from "./MediaPlayerBlock";
 import { mediaHostStyle } from "./mediaHostStyle";
+import { isDocumentViewer } from "@/lib/fileDetailShell";
 import type { CompanionMetrics } from "./hooks/useCompanionMetrics";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 
 interface MediaCanvasProps
-  extends Omit<MediaPlayerBlockProps, "playerWrapperRef" | "framed" | "layoutToggle"> {
+  extends Omit<MediaPlayerBlockProps, "playerWrapperRef" | "framed" | "bleed" | "layoutToggle"> {
   file: FileItem;
   fileId: string;
   metrics: CompanionMetrics;
@@ -69,6 +70,7 @@ export function MediaCanvas({
         miniPlayerRoot={miniPlayerRoot}
         playerWrapperRef={metrics.playerWrapperRef}
         framed={framed}
+        bleed={isDocumentViewer(file.mime_type)}
         // The shell puts the beside/below toggle in the page row, where
         // the confirmed layout has it — a control that decides what the
         // whole page looks like reads as chrome, not as a player action.

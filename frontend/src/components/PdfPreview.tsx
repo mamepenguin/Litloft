@@ -505,7 +505,7 @@ export function PdfPreview({
   );
 
   return (
-    <div ref={rootRef} className="w-full overflow-hidden rounded-xl bg-bg-card">
+    <div ref={rootRef} data-viewer-frame className="w-full overflow-hidden rounded-xl bg-bg-card">
       <div className="sticky top-0 z-10 flex flex-wrap items-center justify-center gap-2 border-b border-bg-border bg-bg-card px-3 py-2">
         <button
           type="button"

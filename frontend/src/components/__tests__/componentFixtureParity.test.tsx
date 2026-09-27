@@ -287,6 +287,11 @@ describe("the component fixture's page", () => {
       "code-viewer-many",
       "typography-panel-ja",
       "typography-panel-en",
+      "canvas-bleed",
+      "canvas-bleed-phone",
+      "canvas-no-bleed",
+      "epub-bar",
+      "epub-bar-loading",
     ]);
   });
 });

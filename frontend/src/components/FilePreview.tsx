@@ -43,6 +43,7 @@ const PdfPreview = dynamic(
     ssr: false,
     loading: () => (
       <div
+        data-viewer-frame
         className="h-96 w-full animate-pulse rounded-xl bg-bg-card"
         aria-hidden="true"
       />

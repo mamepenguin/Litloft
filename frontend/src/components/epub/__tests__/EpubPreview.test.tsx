@@ -232,6 +232,7 @@ describe("EpubPreview", () => {
         </ShortcutsProvider>,
     );
     expect(screen.getByTestId("epub-frame").className).toContain("fixed");
+    expect(screen.queryByRole("button", { name: "Read full screen" })).toBeNull();
     expect(view.container.querySelector("iframe")).toBe(view.iframe);
     expect(sentOfType(view.posted, "mode")).toContainEqual({ type: "mode", fullscreen: true });
 
@@ -454,6 +455,13 @@ describe("EpubPreview", () => {
     );
   });
 
+  it("marks the book's frame and its error card as the viewer's outer box", async () => {
+    const { readerWindow } = renderPreview();
+    expect(screen.getByTestId("epub-frame")).toHaveAttribute("data-viewer-frame");
+    await fromReader(readerWindow, { type: "error", code: "parse" });
+    expect(screen.getByRole("link", { name: "Download" }).closest("[data-viewer-frame]")).not.toBeNull();
+  });
+
   it("a book that cannot be fetched offers the download", async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 404, arrayBuffer: async () => new ArrayBuffer(0) });
     const { readerWindow } = renderPreview();
@@ -508,15 +516,20 @@ describe("EpubPreview", () => {
       expect(line().querySelector("b")).toBeNull();
     });
 
-    it("a drag moves only the label, and the release seeks once and hands the keys back to the book", async () => {
+    it("a drag shows where it is going above the thumb, keeps the place below, and the release seeks once and hands the keys back to the book", async () => {
       const view = await openBook();
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
       const focus = vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+      expect(screen.queryByTestId("epub-position-bubble")).toBeNull();
 
       const row = pressRow(100);
       fireEvent.pointerMove(row, { clientX: 700, pointerId: 1, buttons: 1 });
-      expect(line()).toHaveTextContent("70%");
-      expect(line()).toHaveTextContent("Two");
+      const bubble = screen.getByTestId("epub-position-bubble");
+      expect(bubble).toHaveTextContent("70%");
+      expect(bubble).toHaveTextContent("Two");
+      expect(line()).toHaveTextContent("10%");
+      expect(line()).toHaveTextContent("left in chapter");
+      expect(line()).not.toHaveTextContent("Two");
       expect(sentOfType(view.posted, "seek")).toEqual([]);
 
       fireEvent.pointerUp(row, { clientX: 700, pointerId: 1 });
@@ -658,6 +671,22 @@ describe("EpubPreview", () => {
       const view = await openBook();
       await fromReader(view.readerWindow, { type: "location", fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
       expect(fireEvent.pointerDown(rowAt(0, 100), { clientX: 50, pointerId: 1, buttons: 1, cancelable: true })).toBe(false);
+    });
+
+    it.each([
+      ["ltr", ["20%", "60%"]],
+      ["rtl", ["80%", "40%"]],
+    ] as const)("marks the chapters on the track, in the reading direction: %s", async (dir, expected) => {
+      const view = await openBook(dir);
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.25, tocIndex: 1, pagesLeft: 2 });
+      expect(screen.getAllByTestId("epub-position-mark").map((m) => m.style.left)).toEqual(expected);
+    });
+
+    it("carries the full-screen button in the bar, not over the book", async () => {
+      const view = await openBook();
+      await fromReader(view.readerWindow, { type: "location", fraction: 0.25, tocIndex: 1, pagesLeft: 2 });
+      const button = screen.getByRole("button", { name: "Read full screen" });
+      expect(line().parentElement!.contains(button)).toBe(true);
     });
 
     it("the knob and the filled part of the track follow the reading direction", async () => {

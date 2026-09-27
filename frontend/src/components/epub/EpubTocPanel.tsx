@@ -66,7 +66,7 @@ export const EpubTocPanel = forwardRef<HTMLDivElement, EpubTocPanelProps>(functi
       data-testid="epub-toc-panel"
       data-swipe-exempt
       style={style}
-      className={`flex flex-col rounded-xl border border-bg-border bg-bg-card py-2 shadow-lg ${className}`}
+      className={`flex flex-col bg-bg-card py-2 ${className}`}
     >
       <ol ref={listRef} onKeyDown={onKeyDown} className="min-h-0 flex-1 overflow-y-auto">
         {toc.map((entry, i) => {

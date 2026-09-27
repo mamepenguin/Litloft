@@ -142,6 +142,10 @@ const POPUPS: Record<string, PopupEntry> = {
     dismissedIn: "frontend/src/components/SelectionBar.tsx",
     why: "the selection bar's overflow menu, below 640px",
   },
+  "frontend/src/components/epub/EpubPositionBar.tsx": {
+    dismissedIn: null,
+    why: "the drag bubble above the slider thumb, shown only while the thumb is held",
+  },
   "frontend/src/components/SmartFolderSaveButton.tsx": {
     dismissedIn: "frontend/src/components/SmartFolderSaveButton.tsx",
     why: "the saved-search menu",

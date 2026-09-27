@@ -1160,6 +1160,23 @@ div:has(> .fixed[data-fullscreen-moving])::before {
   margin-top: 0;
 }
 
+/* A PDF or a book brings its own margin, so the canvas adds none around it.
+   On the wrapper, not the viewer: the viewers are `w-full`, and a full-width
+   box with negative margins moves instead of growing. */
+.media-detail-player[data-bleed="true"] {
+  margin-inline: -1rem;
+  margin-top: -1rem;
+}
+
+/* The phone host has no top padding to cancel (above). */
+[data-sheet-snap] .media-detail-player[data-bleed="true"] {
+  margin-top: 0;
+}
+
+.media-detail-player[data-bleed="true"] [data-viewer-frame] {
+  border-radius: 0;
+}
+
 /* `--player-avail` is derived from this element's own offset, which is a
    constant zero while it is stuck, so the cap would tighten as the reader
    scrolls. Dropping the cap instead is wrong: in phone landscape a sticky

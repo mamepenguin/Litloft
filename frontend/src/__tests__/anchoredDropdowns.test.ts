@@ -74,6 +74,7 @@ const DIRECTION_ROLES = {
   "frontend/src/components/folder/FolderToolbar.tsx": "takes-the-surface",
 
   "frontend/src/components/SelectionBar.tsx": "pinned",
+  "frontend/src/components/epub/EpubPositionBar.tsx": "pinned",
 
   "frontend/src/hooks/useAnchoredDirection.ts": "supplies",
 } as const;
@@ -110,7 +111,10 @@ describe("every anchored dropdown in core", () => {
     );
     for (const role of ROLES) expect(byRole[role].length).toBeGreaterThan(0);
 
-    expect(byRole.pinned).toEqual(["frontend/src/components/SelectionBar.tsx"]);
+    expect(byRole.pinned).toEqual([
+      "frontend/src/components/SelectionBar.tsx",
+      "frontend/src/components/epub/EpubPositionBar.tsx",
+    ]);
     expect(byRole.supplies).toEqual([
       "frontend/src/hooks/useAnchoredDirection.ts",
     ]);

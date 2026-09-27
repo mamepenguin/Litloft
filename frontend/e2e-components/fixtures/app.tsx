@@ -27,6 +27,7 @@ import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
 import { MarkdownViewModeToggle } from "@/components/MarkdownViewModeToggle";
 import { EpubTypographyPanel } from "@/components/epub/EpubTypographyPanel";
+import { EpubPositionBar } from "@/components/epub/EpubPositionBar";
 import { TYPOGRAPHY_DEFAULTS, type Typography } from "@/lib/epubTypography";
 import { EditableTitle } from "@/components/markdown/EditableTitle";
 import { SaveDot } from "@/components/markdown/SaveDot";
@@ -1291,6 +1292,68 @@ function FileDetailChromeArrangement(): ReactElement {
   );
 }
 
+/**
+ * The file page's canvas around a viewer, with the real stylesheet: `bleed`
+ * is what `MediaCanvas` sets for a PDF or a book.
+ */
+function CanvasHost({ bleed, phone }: { bleed: boolean; phone: boolean }): ReactElement {
+  const host = (
+    <div data-testid="canvas-host" className="media-detail-host w-full space-y-4 p-4">
+      <div className="media-detail-player" data-bleed={bleed ? "true" : undefined}>
+        <div data-testid="viewer" data-viewer-frame className="h-40 w-full rounded-xl bg-bg-card" />
+      </div>
+      <p data-testid="below">Below the viewer</p>
+    </div>
+  );
+  return <div className="bg-bg-primary">{phone ? <div data-sheet-snap="">{host}</div> : host}</div>;
+}
+
+/** The reader's bar at rest, a third of the way through a book with three chapters. */
+function EpubBarArrangement({ loading = false }: { loading?: boolean }): ReactElement {
+  const noop = () => {};
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="bg-bg-primary pt-16">
+        <EpubPositionBar
+          fraction={loading ? null : 0.3}
+          chapter="Chapter two"
+          pagesLeft={4}
+          dir="ltr"
+          marks={[0.25, 0.6]}
+          chapterAt={() => "A chapter whose name runs far longer than any bar can hold"}
+          onSeek={noop}
+          onTurn={noop}
+          openPanel={null}
+          onTogglePanel={noop}
+          tocDisabled={false}
+          onEnterFullscreen={noop}
+          enterFullscreenDisabled={loading}
+        />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+function EpubBarAtRest(): ReactElement {
+  return <EpubBarArrangement />;
+}
+
+function EpubBarLoading(): ReactElement {
+  return <EpubBarArrangement loading />;
+}
+
+function CanvasBleed(): ReactElement {
+  return <CanvasHost bleed phone={false} />;
+}
+
+function CanvasBleedPhone(): ReactElement {
+  return <CanvasHost bleed phone />;
+}
+
+function CanvasNoBleed(): ReactElement {
+  return <CanvasHost bleed={false} phone={false} />;
+}
+
 /** The text settings panel as the reader lays it out: full width, over the book. */
 function TypographyPanel({ locale }: { locale: "en" | "ja" }): ReactElement {
   const [typography, setTypography] = useState<Typography>({ ...TYPOGRAPHY_DEFAULTS, fontSize: 3 });
@@ -1788,6 +1851,11 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "code-viewer-many": CodeViewerMany,
   "typography-panel-ja": TypographyPanelJa,
   "typography-panel-en": TypographyPanelEn,
+  "canvas-bleed": CanvasBleed,
+  "canvas-bleed-phone": CanvasBleedPhone,
+  "canvas-no-bleed": CanvasNoBleed,
+  "epub-bar": EpubBarAtRest,
+  "epub-bar-loading": EpubBarLoading,
 };
 
 function App(): ReactElement {

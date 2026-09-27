@@ -502,6 +502,11 @@ rgba(33, 25, 34, 0.04)`; dark `0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0,
 edge-to-edge with **0px radius on mobile** (`<md`) to maximize the viewable frame;
 desktop keeps `rounded-xl`. Not thumbnails or cards listing media.
 
+**Document viewers on the file page** (PDF, EPUB) are edge-to-edge with 0px
+radius at **every** width: the page's desk or the book's own margins are the
+space around the content, so a gutter and a card around them would be a second
+frame. On the collection route, where nothing bleeds them, they stay cards.
+
 ---
 
 ## 6. Component Styling

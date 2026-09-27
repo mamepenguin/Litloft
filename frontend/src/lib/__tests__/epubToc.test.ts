@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { chapterAt, chapterOf, currentEntryIndex, hasSelectable, isSelectable } from "../epubToc";
+import { chapterAt, chapterMarks, chapterOf, currentEntryIndex, hasSelectable, isSelectable } from "../epubToc";
 
 const toc = [
   { label: "Cover", depth: 0, fraction: 0 },
@@ -75,5 +75,28 @@ describe("isSelectable and hasSelectable", () => {
     [[{ label: "Part", depth: 0, fraction: null }, { label: "One", depth: 1, fraction: 0 }], true],
   ])("%o → %s", (list, expected) => {
     expect(hasSelectable(list)).toBe(expected);
+  });
+});
+
+describe("chapterMarks", () => {
+  const top = (fraction: number | null, depth = 0) => ({ label: "x", depth, fraction });
+
+  it.each([
+    ["top-level entries, sorted", [top(0.5), top(0.25)], [0.25, 0.5]],
+    ["nested entries are not marked", [top(0.25), top(0.4, 1), top(0.6)], [0.25, 0.6]],
+    ["entries without a target are not marked", [top(null), top(0.5)], [0.5]],
+    ["nothing at the ends", [top(0), top(0.01), top(0.5), top(0.99), top(1)], [0.5]],
+    ["one mark for entries sharing a place", [top(0.5), top(0.5), top(0.51)], [0.5]],
+    ["a mark past the spacing is kept", [top(0.5), top(0.53)], [0.5, 0.53]],
+    ["spacing counts from the last kept mark", [top(0.5), top(0.515), top(0.53)], [0.5, 0.53]],
+    ["an empty table", [], []],
+  ] as const)("%s", (_name, toc, expected) => {
+    expect(chapterMarks(toc)).toEqual(expected);
+  });
+
+  it("draws none when more than 24 would remain, and all of 24", () => {
+    const at = (n: number) => Array.from({ length: n }, (_, i) => top((i + 1) / (n + 1)));
+    expect(chapterMarks(at(24))).toHaveLength(24);
+    expect(chapterMarks(at(25))).toEqual([]);
   });
 });
