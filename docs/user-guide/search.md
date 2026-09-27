@@ -51,7 +51,7 @@ Words of the form `name:value`, typed in the search window or on the search page
 
 `tag:trip type:image kyoto` finds images tagged `trip` whose name or folder contains "kyoto". Operators alone, such as `tag:trip`, list every file that passes them, newest first. A word that is not one of these operators, or a value that is not one of these values, is searched as ordinary text.
 
-While an operator is in the query, searching by meaning is off, and the **Go to** and **Folders** rows are not shown. The type chosen in the toolbar still applies, together with any `type:`.
+While an operator is in the query, searching by meaning is off. The type chosen in the toolbar still applies, together with any `type:`.
 
 ## Saving as a Smart Folder
 

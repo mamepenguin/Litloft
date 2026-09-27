@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 
 import { filterBrowseRows, type BrowseNode } from "@/lib/folderBrowse";
 import { matchFolders, matchJumps } from "@/lib/pageJump";
-import { parseSearchQuery } from "@/lib/searchQuery";
 import { pinHrefFor } from "../sidebar/libraryRowActive";
 import type { SearchScope } from "./GlobalSearchProvider";
 import type { FolderBrowse } from "./useFolderBrowse";
@@ -30,9 +29,7 @@ export function useLauncherRows(
 ): LauncherRows {
   const t = useTranslations("search");
   const browsing = browse.path !== null;
-  // Operators filter files; page and folder names are not filtered by them.
-  const filtering = useMemo(() => parseSearchQuery(query).hasOperators, [query]);
-  const off = !!scope || !drive || browsing || filtering;
+  const off = !!scope || !drive || browsing;
   const destinations = useJumpDestinations(open && !scope, drive);
   const folderIndex = useJumpFolders(open && !scope, drive);
   const pageJumps = useMemo(
