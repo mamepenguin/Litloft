@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
 import { SmartFolderSaveDialog } from "@/components/SmartFolderSaveDialog";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
+import { smartFolderHref } from "@/lib/driveViews";
 import type { SmartFolder } from "@/types/smartFolder";
 import { useSidebarSectionCollapsed } from "./useSidebarSectionCollapsed";
 import { useSidebarItemOrder } from "./useSidebarItemOrder";
@@ -55,14 +56,10 @@ export function SidebarSmartFoldersSection({
 
   const handleClick = useCallback(
     (sf: SmartFolder) => {
-      const params = new URLSearchParams();
-      params.set("q", sf.query);
-      if (sf.file_type) params.set("type", sf.file_type);
-      params.set("smart_folder_id", sf.id);
-      router.push(`/drive/${encodeURIComponent(drive)}/search?${params.toString()}`);
+      router.push(smartFolderHref(sf));
       close();
     },
-    [drive, router, close],
+    [router, close],
   );
 
   const openContextMenu = useCallback(
