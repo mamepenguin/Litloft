@@ -150,6 +150,13 @@ Purging the file afterwards sweeps the destination drive, so the source row is
 left attached to nothing. This crosses the drive boundary rather than only
 reading wrong. Reached by moving a tagged file between drives.
 
+**Bulk tagging skips a Markdown file it cannot rewrite without saying so.**
+For `.md` the tags live in the frontmatter, so a note whose frontmatter uses CRLF
+line endings, does not parse, or has a `tags:` that is not a list is refused and
+listed in the response's `errors[]`, which the selection bar does not show.
+Reached by selecting such a note with others and adding a tag: the others get
+it, that note does not.
+
 **Which bucket a source file lands in depends on the host's mime table.**
 `classify` asks `mimetypes`, which reads a table the image may or may not carry,
 so the answer is an accident of packaging rather than a decision: in the

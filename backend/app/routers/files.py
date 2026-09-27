@@ -71,6 +71,7 @@ from app.services.frontmatter import (
     ensure_id,
     extract_valid_aliases,
     extract_valid_tags,
+    has_unreadable_frontmatter,
     parse as parse_frontmatter,
 )
 from app.services.markdown_relations import (
@@ -424,7 +425,7 @@ async def batch_move(
 
 
 @router.put("/batch/tags")
-def batch_tags(
+async def batch_tags(
     body: BatchTagRequest,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
@@ -435,14 +436,21 @@ def batch_tags(
     for file_id in body.ids:
         try:
             file = _get_file_or_404(db, file_id, unlocked_groups)
-            merge_file_tags(db, file, body.tags)
+            if _is_markdown_file(file):
+                await _write_md_tags(db, file, body.tags, merge=True)
+            else:
+                merge_file_tags(db, file, body.tags)
+                db.commit()
             updated += 1
             updated_ids.append(file_id)
         except HTTPException as e:
             errors.append({"id": file_id, "error": e.detail})
-    db.commit()
+        except OSError:
+            db.rollback()
+            logger.exception("batch_tags: write failed for %s", file_id)
+            errors.append({"id": file_id, "error": "Could not write file"})
     if updated_ids:
-        event_hooks.emit_from_thread("files.updated", {"file_ids": updated_ids})
+        asyncio.create_task(event_hooks.emit("files.updated", {"file_ids": updated_ids}))
     return {"updated": updated, "errors": errors}
 
 
@@ -717,19 +725,93 @@ def toggle_favorite(
     return _to_response(file)
 
 
+def _merged_tag_list(existing: object, added: list[str]) -> list:
+    if existing is None:
+        existing = []
+    if not isinstance(existing, list):
+        raise HTTPException(status_code=422, detail="Frontmatter tags is not a list")
+    present = {str(t).lower() for t in existing if isinstance(t, (str, int))}
+    return existing + [t for t in added if t.lower() not in present]
+
+
+async def _write_md_tags(db: Session, file: File, tags: list[str], *, merge: bool) -> None:
+    """Write ``tags`` into a Markdown file's frontmatter and project ``File.tags``.
+
+    Never falls back to writing ``File.tags`` alone: the next content write
+    re-projects the frontmatter and would silently drop such tags.
+    """
+    drive_path = config.get_drive_path(file.drive)
+    file_path = _validate_path(str(drive_path / file.file_path), drive_path)
+
+    async with _text_write_locks[file.id]:
+        try:
+            current = file_path.read_bytes()
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail="File not found on disk")
+        if len(current) > _TEXT_WRITE_MAX_BYTES:
+            raise HTTPException(status_code=413, detail="Content exceeds size limit")
+        try:
+            text = current.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=422, detail="File is not valid UTF-8")
+        if has_unreadable_frontmatter(text):
+            raise HTTPException(status_code=422, detail="Frontmatter cannot be parsed")
+
+        parsed = parse_frontmatter(text)
+        metadata = dict(parsed.metadata)
+        new_tags = _merged_tag_list(metadata.get("tags"), tags) if merge else tags
+        if new_tags:
+            metadata["tags"] = new_tags
+        else:
+            metadata.pop("tags", None)
+        new_text = compose_frontmatter(metadata, parsed.body) if metadata else parsed.body
+        new_bytes = new_text.encode("utf-8")
+
+        if new_bytes != current:
+            if len(new_bytes) > _TEXT_WRITE_MAX_BYTES:
+                raise HTTPException(status_code=413, detail="Content exceeds size limit")
+            try:
+                write_text_content(
+                    db,
+                    file,
+                    file_path,
+                    new_bytes,
+                    expected_etag=_compute_text_etag(current),
+                    kind="auto",
+                    viewer_id=None,
+                    nickname=None,
+                )
+            except ContentMissingError:
+                raise HTTPException(status_code=404, detail="File not found on disk")
+            except ContentConflictError:
+                raise HTTPException(status_code=409, detail="File changed during tag write")
+
+        try:
+            replace_file_tags(db, file, extract_valid_tags(parse_frontmatter(new_text).metadata))
+            cleanup_orphan_tags(db, file.drive)
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception("tags: projection failed for %s", file.id)
+            raise HTTPException(status_code=500, detail="Tag projection failed")
+
+
 @router.put("/{file_id}/tags", response_model=FileResponse)
-def update_file_tags(
+async def update_file_tags(
     file_id: FileId,
     update: TagUpdate,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
-    replace_file_tags(db, file, update.tags)
-    cleanup_orphan_tags(db, file.drive)
-    db.commit()
+    if _is_markdown_file(file):
+        await _write_md_tags(db, file, update.tags, merge=False)
+    else:
+        replace_file_tags(db, file, update.tags)
+        cleanup_orphan_tags(db, file.drive)
+        db.commit()
     db.refresh(file)
-    event_hooks.emit_from_thread("files.updated", {"file_ids": [file_id]})
+    asyncio.create_task(event_hooks.emit("files.updated", {"file_ids": [file_id]}))
     return _to_response(file)
 
 
