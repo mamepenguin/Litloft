@@ -120,7 +120,6 @@ const SUGGESTION_LIMIT = 8;
 
 /** The operator whose value is being typed at the end of the query, if any. */
 export function activeOperatorValue(q: string): ActiveValue | null {
-  if (q === "" || /\s$/.test(q)) return null;
   const replaceFrom = Math.max(q.lastIndexOf(" "), q.lastIndexOf("　"), q.lastIndexOf("\t")) + 1;
   const match = PARTIAL.exec(q.slice(replaceFrom));
   const name = match?.[1].normalize("NFKC").toLowerCase();
