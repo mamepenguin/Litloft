@@ -18,6 +18,7 @@ vi.mock("../CurrentDriveProvider", () => ({
 
 const mockGetDriveFiles = vi.fn();
 const mockGetPins = vi.fn();
+const mockGetDriveTags = vi.fn();
 const mockGetFolderTree = vi.fn();
 const mockGetCollections = vi.fn();
 const mockGetSmartFolders = vi.fn();
@@ -27,6 +28,7 @@ vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: () => Promise.resolve([]),
   getFolderTree: (...args: unknown[]) => mockGetFolderTree(...args),
+  getDriveTags: (...args: unknown[]) => mockGetDriveTags(...args),
   getPins: (...args: unknown[]) => mockGetPins(...args),
   getCollections: (...args: unknown[]) => mockGetCollections(...args),
   getSmartFolders: (...args: unknown[]) => mockGetSmartFolders(...args),
@@ -108,6 +110,11 @@ const jumpLabels = () => Array.from(jumpRows()).map((row) => row.textContent);
 const folderRows = () =>
   screen.queryByText("Folders")?.parentElement?.querySelectorAll("[data-search-item] > button:first-child") ?? [];
 const folderLabels = () => Array.from(folderRows()).map((row) => row.textContent);
+const suggestionLabels = () =>
+  Array.from(
+    screen.queryByText("Suggestions")?.parentElement?.querySelectorAll("[data-search-item] > button:first-child") ?? [],
+    (row) => row.textContent,
+  );
 const folder = (path: string) => ({ kind: "folder", name: path.split("/").pop()!, path });
 
 async function openAndType(query: string) {
@@ -124,6 +131,7 @@ describe("GlobalSearch page jump", () => {
     driveState.current = "main";
     mockGetDriveFiles.mockResolvedValue(page([]));
     mockGetPins.mockResolvedValue([]);
+    mockGetDriveTags.mockResolvedValue([]);
     mockGetFolderTree.mockResolvedValue([]);
     mockGetCollections.mockResolvedValue([]);
     mockGetSmartFolders.mockResolvedValue([]);
@@ -283,6 +291,7 @@ describe("GlobalSearch folder jump", () => {
     driveState.current = "main";
     mockGetDriveFiles.mockResolvedValue(page([]));
     mockGetPins.mockResolvedValue([]);
+    mockGetDriveTags.mockResolvedValue([]);
     mockGetCollections.mockResolvedValue([]);
     mockGetSmartFolders.mockResolvedValue([]);
     mockGetDriveSummary.mockResolvedValue({ missing_count: 0 });
@@ -370,6 +379,7 @@ describe("GlobalSearch page jump with operators", () => {
     driveState.current = "main";
     mockGetDriveFiles.mockResolvedValue(page([]));
     mockGetPins.mockResolvedValue([]);
+    mockGetDriveTags.mockResolvedValue([]);
     mockGetCollections.mockResolvedValue([]);
     mockGetSmartFolders.mockResolvedValue([]);
     mockGetDriveSummary.mockResolvedValue({ missing_count: 0 });
@@ -382,5 +392,51 @@ describe("GlobalSearch page jump with operators", () => {
     await openAndType("tag:x");
     press("Enter");
     expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/search?q=tag%3Ax");
+  });
+});
+
+describe("GlobalSearch operator value suggestions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    driveState.current = "main";
+    mockGetDriveFiles.mockResolvedValue(page([]));
+    mockGetPins.mockResolvedValue([]);
+    mockGetCollections.mockResolvedValue([]);
+    mockGetSmartFolders.mockResolvedValue([]);
+    mockGetDriveSummary.mockResolvedValue({ missing_count: 0 });
+    mockGetAuthStatus.mockResolvedValue({ is_admin: false });
+    mockGetFolderTree.mockResolvedValue([]);
+    mockGetDriveTags.mockResolvedValue([
+      { name: "旅館", count: 3 },
+      { name: "旅行", count: 42 },
+      { name: "料理", count: 7 },
+    ]);
+  });
+
+  it("offers the drive's tags for the value being typed, most used first", async () => {
+    render(<GlobalSearch />);
+    await openAndType("京都 tag:旅");
+    await waitFor(() => expect(suggestionLabels()).toEqual(["旅行42", "旅館3"]));
+    expect(mockGetDriveTags).toHaveBeenCalledWith("main");
+  });
+
+  it("completes the token on Enter instead of leaving the modal", async () => {
+    render(<GlobalSearch />);
+    await openAndType("京都 tag:旅");
+    await waitFor(() => expect(suggestionLabels()).toHaveLength(2));
+    press("ArrowDown");
+    press("Enter");
+
+    expect((input() as HTMLInputElement).value).toBe("京都 tag:旅行 ");
+    expect(mockRouterPush).not.toHaveBeenCalled();
+    expect(localStorage.getItem("search-history:main")).toBeNull();
+  });
+
+  it("offers nothing once the value is finished with a space", async () => {
+    render(<GlobalSearch />);
+    await openAndType("tag:旅行 ");
+    await act(async () => {});
+    expect(suggestionLabels()).toEqual([]);
   });
 });

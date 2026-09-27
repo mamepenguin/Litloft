@@ -96,7 +96,7 @@ export function GlobalSearch() {
     drive,
     scopeType,
   );
-  const { pageJumps, folderJumps, jumps, browseRows } = useLauncherRows(
+  const { suggestions, pageJumps, folderJumps, jumps, browseRows } = useLauncherRows(
     open,
     scope,
     drive,
@@ -311,6 +311,11 @@ export function GlobalSearch() {
   }
 
   function openJump(jump: JumpDestination) {
+    if (jump.complete !== undefined) {
+      setQuery(jump.complete);
+      focusInput();
+      return;
+    }
     closeSearch();
     if (jump.overrideDrive) setOverrideDrive(jump.overrideDrive);
     router.push(jump.href);
@@ -475,6 +480,7 @@ export function GlobalSearch() {
       mobile={mobile}
       query={query}
       scope={scope}
+      suggestions={suggestions}
       pageJumps={pageJumps}
       folderJumps={folderJumps}
       merged={merged}

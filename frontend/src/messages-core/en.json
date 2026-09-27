@@ -1260,6 +1260,7 @@
     "browseLeave": "Stop browsing",
     "browseEmpty": "This folder is empty",
     "browseNoMatch": "Nothing here matches",
-    "browseUp": "Up one level"
+    "browseUp": "Up one level",
+    "suggestions": "Suggestions"
   }
 }

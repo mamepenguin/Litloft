@@ -16,6 +16,7 @@ interface SearchResultsListProps {
   mobile: boolean;
   query: string;
   scope: SearchScope | null;
+  suggestions: readonly JumpDestination[];
   pageJumps: readonly JumpDestination[];
   folderJumps: readonly JumpDestination[];
   merged: readonly FileItemWithMatch[];
@@ -34,6 +35,7 @@ export function SearchResultsList({
   mobile,
   query,
   scope,
+  suggestions,
   pageJumps,
   folderJumps,
   merged,
@@ -50,14 +52,26 @@ export function SearchResultsList({
   const tj = useTranslations("pageJump");
   const parsed = parseSearchQuery(query);
   const highlight = parsed.hasOperators ? parsed.text : query;
+  const launcherCount = suggestions.length + pageJumps.length + folderJumps.length;
 
   return (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
+      {suggestions.length > 0 && (
+        <JumpRows
+          heading={tj("suggestions")}
+          jumps={suggestions}
+          offset={0}
+          selectedIndex={selectedIndex}
+          mobile={mobile}
+          onOpen={onOpenJump}
+          onEnterFolder={onEnterFolder}
+        />
+      )}
       {pageJumps.length > 0 && (
         <JumpRows
           heading={tj("section")}
           jumps={pageJumps}
-          offset={0}
+          offset={suggestions.length}
           selectedIndex={selectedIndex}
           mobile={mobile}
           onOpen={onOpenJump}
@@ -68,7 +82,7 @@ export function SearchResultsList({
         <JumpRows
           heading={tj("folders")}
           jumps={folderJumps}
-          offset={pageJumps.length}
+          offset={suggestions.length + pageJumps.length}
           selectedIndex={selectedIndex}
           mobile={mobile}
           onOpen={onOpenJump}
@@ -84,11 +98,11 @@ export function SearchResultsList({
           {merged.length > 0 && scope && (
             <div className="py-1.5">
               {merged.map((file, idx) => (
-                <div key={file.id} data-search-item={pageJumps.length + folderJumps.length + idx}>
+                <div key={file.id} data-search-item={launcherCount + idx}>
                   <ScopedResultItem
                     file={file}
                     query={highlight}
-                    isSelected={selectedIndex === pageJumps.length + folderJumps.length + idx}
+                    isSelected={selectedIndex === launcherCount + idx}
                     onSelect={onSelect}
                   />
                 </div>
@@ -98,18 +112,18 @@ export function SearchResultsList({
           {merged.length > 0 && !scope && (
             <>
               {merged.map((file, idx) => (
-                <div key={file.id} data-search-item={pageJumps.length + folderJumps.length + idx}>
+                <div key={file.id} data-search-item={launcherCount + idx}>
                   <MergedResultItem
                     file={file}
                     onSelect={onSelect}
-                    isSelected={selectedIndex === pageJumps.length + folderJumps.length + idx}
+                    isSelected={selectedIndex === launcherCount + idx}
                   />
                 </div>
               ))}
               <button
-                data-search-item={pageJumps.length + folderJumps.length + merged.length}
+                data-search-item={launcherCount + merged.length}
                 onClick={() => onSubmit(query)}
-                className={`flex w-full items-center justify-between gap-3 border-t border-bg-border px-4 py-2.5 text-left transition-colors ${selectedIndex === pageJumps.length + folderJumps.length + merged.length ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
+                className={`flex w-full items-center justify-between gap-3 border-t border-bg-border px-4 py-2.5 text-left transition-colors ${selectedIndex === launcherCount + merged.length ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
               >
                 <span className="truncate text-sm font-medium text-accent">
                   {t("viewAllResults", { total })}

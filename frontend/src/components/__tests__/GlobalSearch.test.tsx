@@ -40,6 +40,7 @@ vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
   getFolderTree: () => Promise.resolve([]),
+  getDriveTags: () => Promise.resolve([]),
   getPins: () => Promise.resolve([]),
   getCollections: () => Promise.resolve([]),
   getSmartFolders: () => Promise.resolve([]),
