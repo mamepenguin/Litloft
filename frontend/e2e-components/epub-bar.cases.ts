@@ -33,4 +33,16 @@ export function epubBarCases(): void {
     if (m.coarse) expect(m.knobSize).toBe(8);
     expect(m.buttons).toEqual([m.coarse ? 44 : 32, m.coarse ? 44 : 32, m.coarse ? 44 : 32]);
   });
+
+  test("while the book opens, the bar's buttons are disabled in the disabled colour, not faded", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 400 });
+    await page.goto(`${FIXTURE}#epub-bar-loading`);
+    await expect(page.locator("body")).toHaveAttribute("data-ready", "1");
+    const buttons = page.locator('[data-testid="epub-position-bar"] button');
+    await expect(buttons).toHaveCount(3);
+    for (const i of [0, 1, 2]) {
+      await expect(buttons.nth(i)).toBeDisabled();
+      expect(await buttons.nth(i).evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+    }
+  });
 }

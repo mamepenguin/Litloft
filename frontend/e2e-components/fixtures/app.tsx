@@ -1309,13 +1309,13 @@ function CanvasHost({ bleed, phone }: { bleed: boolean; phone: boolean }): React
 }
 
 /** The reader's bar at rest, a third of the way through a book with three chapters. */
-function EpubBarArrangement(): ReactElement {
+function EpubBarArrangement({ loading = false }: { loading?: boolean }): ReactElement {
   const noop = () => {};
   return (
     <NextIntlClientProvider locale="en" messages={enMessages}>
       <div className="bg-bg-primary pt-16">
         <EpubPositionBar
-          fraction={0.3}
+          fraction={loading ? null : 0.3}
           chapter="Chapter two"
           pagesLeft={4}
           dir="ltr"
@@ -1327,10 +1327,15 @@ function EpubBarArrangement(): ReactElement {
           onTogglePanel={noop}
           tocDisabled={false}
           onEnterFullscreen={noop}
+          enterFullscreenDisabled={loading}
         />
       </div>
     </NextIntlClientProvider>
   );
+}
+
+function EpubBarLoading(): ReactElement {
+  return <EpubBarArrangement loading />;
 }
 
 function CanvasBleed(): ReactElement {
@@ -1846,6 +1851,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "canvas-bleed-phone": CanvasBleedPhone,
   "canvas-no-bleed": CanvasNoBleed,
   "epub-bar": EpubBarArrangement,
+  "epub-bar-loading": EpubBarLoading,
 };
 
 function App(): ReactElement {
