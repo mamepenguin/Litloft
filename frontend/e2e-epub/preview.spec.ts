@@ -70,9 +70,10 @@ for (const [from, to] of [
   test(`after a ${from} to ${to} switch, and again after a later render, the page and its margins are the app's page colour`, async ({
     page,
   }) => {
-    await page.addInitScript((theme) => document.documentElement.setAttribute("data-theme", theme), from);
-    await page.goto(`${origin()}/preview/index.html?book=horizontal`);
+    await page.goto(`${origin()}/preview/index.html?book=horizontal&theme=${from}`);
     await expect.poll(() => readerIndex(page)).not.toBeNull();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", from);
+    await expectPageColour(page);
 
     await page.evaluate((theme) => document.documentElement.setAttribute("data-theme", theme), to);
     await page.waitForTimeout(500);

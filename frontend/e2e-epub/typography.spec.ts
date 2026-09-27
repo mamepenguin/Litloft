@@ -232,6 +232,24 @@ test("a theme change keeps the typography, a typography change keeps the theme, 
   expect(at.inlineCodeFamily).toBe("monospace");
 });
 
+test("the book's text and links take the theme's text and accent colours", async ({ page }) => {
+  await open(page, "horizontal.epub");
+  const colours = () =>
+    page.evaluate(() => {
+      const doc = (document.getElementById("reader") as HTMLIFrameElement).contentDocument!;
+      const view = doc.querySelector("foliate-view") as unknown as {
+        renderer: { getContents(): { doc: Document }[] };
+      };
+      const section = view.renderer.getContents()[0].doc;
+      const style = (el: Element) => section.defaultView!.getComputedStyle(el).color;
+      return { text: style(section.body), link: style(section.getElementById("to-three")!) };
+    });
+  expect(await colours()).toEqual({ text: "rgb(33, 25, 34)", link: "rgb(214, 48, 49)" });
+  await page.evaluate(() => window.setTheme("dark"));
+  await page.waitForTimeout(SETTLE_MS);
+  expect(await colours()).toEqual({ text: "rgb(245, 230, 232)", link: "rgb(232, 93, 94)" });
+});
+
 test.describe("a theme whose colours cannot be read", () => {
   const good = { bg: "#1a0e10", fg: "#f5e6e8", link: "#e85d5e" };
   for (const colors of [

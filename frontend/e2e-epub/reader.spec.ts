@@ -9,7 +9,7 @@ declare global {
     __pwned?: string[];
     turn: (direction: string) => void;
     seek: (fraction: number, id?: number) => void;
-    setTheme: (theme: string) => void;
+    setTheme: (theme: string, colors?: unknown) => void;
     setMode: (fullscreen: boolean) => void;
   }
 }
