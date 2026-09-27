@@ -18,7 +18,7 @@ const SRC_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CALLERS: Record<string, number> = {
   "app/drive/[name]/search/page.tsx": 2,
   "components/FolderBrowser.tsx": 1,
-  "components/GlobalSearch.tsx": 9,
+  "components/GlobalSearch.tsx": 10,
   // Two each: the badge words come from `MATCH_BADGES`, and `matchedPages`
   // and `matchedSectionNumber` are the lines that are not a badge.
   "components/MatchOverlay.tsx": 2,

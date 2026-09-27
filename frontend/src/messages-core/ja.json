@@ -1254,6 +1254,7 @@
       "trash": "ごみばこ,削除,trash,bin",
       "missing": "行方不明,missing",
       "admin": "管理,設定,admin,dashboard,settings"
-    }
+    },
+    "folders": "フォルダ"
   }
 }
