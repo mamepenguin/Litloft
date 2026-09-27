@@ -37,13 +37,27 @@ Above the results:
 - **Filter** narrows by file type, as in a folder. **Document** includes text files and PDFs.
 - **Sort** offers **Relevance** (the default while searching) plus the usual folder orders.
 
-To filter by tag, use the sidebar instead. See [Tag filtering](#tag-filtering).
+To filter by tag, kind or favourite, type an operator; see [Operators](#operators). The sidebar's tags also filter a folder; see [Tag filtering](#tag-filtering).
+
+## Operators
+
+Words of the form `name:value`, typed in the search window or on the search page, filter the results instead of being searched for:
+
+| Operator | Keeps | Several |
+|---|---|---|
+| `tag:trip` | files with the tag `trip` | every tag must be on the file |
+| `type:video` | files of that kind: `video`, `image`, `audio`, `document`, `text`, `pdf`, `archive`, `other` | any of the kinds |
+| `is:favorite`, `is:liked` | favourites, liked files | both |
+
+`tag:trip type:image kyoto` finds images tagged `trip` whose name or folder contains "kyoto". Operators alone, such as `tag:trip`, list every file that passes them, newest first. A word that is not one of these operators, or a value that is not one of these values, is searched as ordinary text.
+
+While an operator is in the query, searching by meaning is off. The type chosen in the toolbar still applies, together with any `type:`.
 
 ## Saving as a Smart Folder
 
 Click **Save as Smart Folder** beside the results heading and give it a name. It appears under **Smart Folders** in the sidebar, and the button becomes **Saved:** followed by the name, with **Update**, **Rename** and **Delete**.
 
-- A Smart Folder keeps the query, the file type and the sort. It does not keep a tag.
+- A Smart Folder keeps the query, the file type and the sort. A tag is kept when it is written into the query as `tag:`.
 - It always shows the files that match now, not the ones that matched when you saved it.
 - Only the **Video**, **Image**, **Audio** and **Document** types can be saved. Use **Document** for Markdown and PDFs. Saving with another type shows an error.
 - Everyone who uses the drive sees the same Smart Folders.

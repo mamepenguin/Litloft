@@ -362,3 +362,25 @@ describe("GlobalSearch folder jump", () => {
     expect(folderLabels()).toEqual([]);
   });
 });
+
+describe("GlobalSearch page jump with operators", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    driveState.current = "main";
+    mockGetDriveFiles.mockResolvedValue(page([]));
+    mockGetPins.mockResolvedValue([]);
+    mockGetCollections.mockResolvedValue([]);
+    mockGetSmartFolders.mockResolvedValue([]);
+    mockGetDriveSummary.mockResolvedValue({ missing_count: 0 });
+    mockGetAuthStatus.mockResolvedValue({ is_admin: false });
+    mockGetFolderTree.mockResolvedValue([]);
+  });
+
+  it("opens the search page with the whole query on Enter", async () => {
+    render(<GlobalSearch />);
+    await openAndType("tag:x");
+    press("Enter");
+    expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/search?q=tag%3Ax");
+  });
+});

@@ -197,6 +197,8 @@ export interface MergeResultsParams {
   filenameMatches: FileItem[];
   semanticHits: SemanticHit[];
   filenameTotal: number;
+  /** False when the listing was narrowed by filters alone, with no text to match. */
+  nameMatched?: boolean;
 }
 
 export interface MergeResultsValue {
@@ -208,6 +210,7 @@ export function mergeResults({
   filenameMatches,
   semanticHits,
   filenameTotal,
+  nameMatched = true,
 }: MergeResultsParams): MergeResultsValue {
   const byId = new Map<string, FileItemWithMatch>();
   const filenameIds = new Set<string>();
@@ -217,7 +220,7 @@ export function mergeResults({
     // `match_source` is absent on non-search paths, which fall back to the
     // filename badge.
     const initialMeta: MatchMeta = {};
-    const src = f.match_source ?? "filename";
+    const src = nameMatched ? (f.match_source ?? "filename") : null;
     if (src === "filename" || src === "both") {
       initialMeta.filename = { score: 1 };
     }

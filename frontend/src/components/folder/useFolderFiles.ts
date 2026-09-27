@@ -14,6 +14,7 @@ import {
   sortMerged,
   type SemanticHit,
 } from "@/lib/searchMerge";
+import { parseSearchQuery, resolveKinds } from "@/lib/searchQuery";
 import {
   fetchSemanticHits,
   isSemanticSearchAvailable,
@@ -104,6 +105,11 @@ export function useFolderFiles({
   const { nickname } = useProfile();
   const hasProfile = nickname !== null;
   const isSearch = !!(searchQuery && searchQuery.trim());
+  const parsed = useMemo(() => parseSearchQuery(searchQuery?.trim() ?? ""), [searchQuery]);
+  const searchKinds = useMemo(
+    () => resolveKinds(typeFilter ?? null, parsed.types),
+    [typeFilter, parsed],
+  );
   const isFavorites = view === "favorites";
   const isRecent = view === "recent" && !isSearch;
   const isRecentAdded = view === "recent-added";
@@ -179,9 +185,14 @@ export function useFolderFiles({
         // `sortMerged` reorders by hybrid score on the client.
         const backendSort: SortField = sort === "relevance" ? "created_at" : sort;
         const backendOrder: SortOrder = sort === "relevance" ? "desc" : order;
+        if (searchKinds.impossible) return { data: [], total: 0 };
+        const kinds = searchKinds.kinds;
         const res = await getDriveFiles(driveName, {
-          search: searchQuery!.trim(),
-          type: typeFilter || undefined,
+          search: parsed.text,
+          type: kinds.length === 0 ? undefined : kinds.length === 1 ? kinds[0] : kinds,
+          tag: parsed.tags.length > 0 ? parsed.tags : undefined,
+          favorite: parsed.favorite ? true : undefined,
+          liked: parsed.liked ? true : undefined,
           trust: trustFilter || undefined,
           sort: backendSort,
           order: backendOrder,
@@ -210,7 +221,7 @@ export function useFolderFiles({
       });
       return { data: res.data, total: res.meta.total };
     },
-    [isSearch, searchQuery, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
+    [isSearch, parsed, searchKinds, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
   );
 
   const {
@@ -238,7 +249,9 @@ export function useFolderFiles({
   const [semanticLoading, setSemanticLoading] = useState(false);
 
   useEffect(() => {
-    if (!isSearch) {
+    // Semantic hits cannot be narrowed by tag, kind operator or flag, so a
+    // filtered search shows none, including any left from the previous query.
+    if (!isSearch || parsed.hasOperators) {
       setSemanticHits([]);
       setSemanticLoading(false);
       return;
@@ -268,7 +281,7 @@ export function useFolderFiles({
     return () => {
       ctrl.abort();
     };
-  }, [isSearch, searchQuery, driveName, typeFilter, includeSceneClip]);
+  }, [isSearch, parsed.hasOperators, searchQuery, driveName, typeFilter, includeSceneClip]);
 
   const [recentFiles, setRecentFiles] = useState<FileItem[]>([]);
   const [recentLoading, setRecentLoading] = useState(false);
@@ -302,6 +315,7 @@ export function useFolderFiles({
       filenameMatches: paginatedFiles,
       semanticHits,
       filenameTotal: paginatedTotal,
+      nameMatched: parsed.text !== "",
     });
     // The semantic source cannot take the `trust` parameter, so its hits
     // arrive unfiltered.
@@ -310,7 +324,7 @@ export function useFolderFiles({
       files: sortMerged(kept, sort, order),
       total: merged.total - (merged.files.length - kept.length),
     };
-  }, [isSearch, paginatedFiles, semanticHits, paginatedTotal, sort, order, trustFilter]);
+  }, [isSearch, parsed.text, paginatedFiles, semanticHits, paginatedTotal, sort, order, trustFilter]);
 
   const files: FileItemWithMatch[] = isRecent
     ? (recentFiles as FileItemWithMatch[])

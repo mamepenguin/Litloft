@@ -859,3 +859,91 @@ describe("useFolderFiles at the Library root", () => {
     });
   });
 });
+
+describe("useFolderFiles with search operators", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockReadSearchCache.mockReturnValue(null);
+    mockIsSemanticSearchAvailable.mockResolvedValue(true);
+    mockGetDriveFiles.mockResolvedValue({ data: [mockFile("f1")], meta: { total: 1, page: 1, limit: 30 } });
+  });
+
+  const search = (searchQuery: string, typeFilter: FileKind | null = null) =>
+    renderHook(() =>
+      useFolderFiles({
+        driveName: "main",
+        folderPath: "",
+        view: null,
+        tagFilter: null,
+        typeFilter,
+        sort: "relevance",
+        order: "desc",
+        refreshKey: 0,
+        searchQuery,
+      }),
+    );
+
+  it.each([
+    ["tags and text", "tag:旅行 tag:2024 京都", null, { search: "京都", tag: ["旅行", "2024"] }],
+    ["operators only", "is:favorite type:video type:image", null, { search: "", favorite: true, type: ["video", "image"] }],
+    ["the toolbar kind narrows the operators", "type:text type:video", "document", { search: "", type: "text" }],
+  ] as const)("sends %s to the listing and asks no semantic search", async (_, q, typeFilter, expected) => {
+    const { result } = search(q, typeFilter);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(mockGetDriveFiles).toHaveBeenCalledWith("main", expect.objectContaining(expected));
+    expect(mockIsSemanticSearchAvailable).not.toHaveBeenCalled();
+    expect(mockFetchSemanticHits).not.toHaveBeenCalled();
+  });
+
+  it("requests nothing when the toolbar kind and the operators cannot both hold", async () => {
+    const { result } = search("type:image", "video");
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(mockGetDriveFiles).not.toHaveBeenCalled();
+    expect(result.current.files).toEqual([]);
+  });
+
+  it("drops semantic hits left from the previous query once operators appear", async () => {
+    mockFetchSemanticHits.mockResolvedValue([
+      {
+        file_id: "s1",
+        drive: "main",
+        filename: "s1.mp4",
+        file_type: "video",
+        score: 0.9,
+        match_types: ["transcript"],
+        segments: [],
+        file: null,
+      },
+    ]);
+    const { result, rerender } = renderHook(
+      ({ q }: { q: string }) =>
+        useFolderFiles({
+          driveName: "main",
+          folderPath: "",
+          view: null,
+          tagFilter: null,
+          typeFilter: null,
+          sort: "relevance",
+          order: "desc",
+          refreshKey: 0,
+          searchQuery: q,
+        }),
+      { initialProps: { q: "kyoto" } },
+    );
+    await waitFor(() => expect(result.current.files.map((f) => f.id)).toContain("s1"));
+
+    rerender({ q: "kyoto tag:trip" });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.files.map((f) => f.id)).not.toContain("s1");
+  });
+
+  it("shows no filename badge when only operators narrowed the list", async () => {
+    const { result } = search("is:liked");
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.files[0].match_meta).toEqual({});
+  });
+});

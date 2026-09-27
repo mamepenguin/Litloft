@@ -6,6 +6,7 @@ import { useCallback } from "react";
 
 import { FolderBrowser } from "@/components/FolderBrowser";
 import type { FileKind } from "@/types";
+import { parseSearchQuery } from "@/lib/searchQuery";
 
 // `subtitle` is not here for the reason it is not in the toolbar: nothing
 // registers a row for it. If this list falls behind the toolbar, the chip is
@@ -70,6 +71,7 @@ export default function SearchPage() {
   const typeFilter = parseTypeFilter(searchParams.get("type"));
   const smartFolderId = searchParams.get("smart_folder_id");
   const includeSceneClip = searchParams.get("include_scene_clip") === "true";
+  const filtered = parseSearchQuery(q).hasOperators;
 
   const handleToggle = useCallback(
     (next: boolean) => {
@@ -88,9 +90,11 @@ export default function SearchPage() {
 
   return (
     <>
-      <div className="px-4 pt-3 pb-1 flex items-center">
-        <SceneSearchToggle active={includeSceneClip} onToggle={handleToggle} />
-      </div>
+      {!filtered && (
+        <div className="px-4 pt-3 pb-1 flex items-center">
+          <SceneSearchToggle active={includeSceneClip} onToggle={handleToggle} />
+        </div>
+      )}
       <FolderBrowser
         driveName={driveName}
         searchQuery={q}

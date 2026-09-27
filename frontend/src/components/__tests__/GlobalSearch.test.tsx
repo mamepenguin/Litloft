@@ -882,6 +882,32 @@ describe("GlobalSearch", () => {
       );
     });
 
+    it.each([
+      ["tags and text", "tag:旅行 京都", { search: "京都", limit: 8, tag: ["旅行"] }],
+      ["operators only", "is:favorite", { search: "", limit: 8, favorite: true }],
+    ])("with %s, lists through the filters and asks no semantic search", async (_, q, params) => {
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      await typeQuery(q);
+
+      await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalledTimes(1));
+      expect(mockGetDriveFiles.mock.calls[0][1]).toEqual(params);
+      expect(mockIsSemanticSearchAvailable).not.toHaveBeenCalled();
+      expect(mockFetchSemanticHits).not.toHaveBeenCalled();
+    });
+
+    it("shows no filename badge on rows only operators found", async () => {
+      mockGetDriveFiles.mockResolvedValue({
+        data: [makeFile({ id: "f1", title: "fav" })],
+        meta: { total: 1, page: 1, limit: 8 },
+      });
+      render(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      await typeQuery("is:favorite");
+      await waitFor(() => expect(screen.getAllByTestId("merged-result-item")).toHaveLength(1));
+      expect(screen.queryByText("Filename")).toBeNull();
+    });
+
     it("spends no accent fill, with badges and pills on screen", async () => {
       mockGetDriveFiles.mockResolvedValue({
         data: [makeFile({ id: "f1", title: "filename-hit" })],

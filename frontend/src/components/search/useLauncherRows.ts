@@ -29,14 +29,15 @@ export function useLauncherRows(
 ): LauncherRows {
   const t = useTranslations("search");
   const browsing = browse.path !== null;
+  const off = !!scope || !drive || browsing;
   const destinations = useJumpDestinations(open && !scope, drive);
   const folderIndex = useJumpFolders(open && !scope, drive);
   const pageJumps = useMemo(
-    () => (scope || !drive || browsing ? [] : matchJumps(destinations, query)),
-    [scope, drive, browsing, destinations, query],
+    () => (off ? [] : matchJumps(destinations, query)),
+    [off, destinations, query],
   );
   const folderJumps = useMemo<JumpDestination[]>(() => {
-    if (scope || !drive || browsing) return [];
+    if (off || !drive) return [];
     const driveBase = `/drive/${encodeURIComponent(drive)}`;
     const shown = new Set(pageJumps.map((jump) => jump.key));
     return matchFolders(folderIndex, query, shown).map((folder) => ({
@@ -50,7 +51,7 @@ export function useLauncherRows(
         ? folder.path.slice(0, folder.path.lastIndexOf("/"))
         : t("driveRoot"),
     }));
-  }, [scope, drive, browsing, folderIndex, pageJumps, query, t]);
+  }, [off, drive, folderIndex, pageJumps, query, t]);
   const browseRows = useMemo(
     () => (browsing ? filterBrowseRows(browse.nodes, query) : []),
     [browsing, browse.nodes, query],

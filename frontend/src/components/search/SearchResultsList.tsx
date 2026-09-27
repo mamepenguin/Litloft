@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { parseSearchQuery } from "@/lib/searchQuery";
 import type { FileItemWithMatch } from "@/types";
 import type { SearchScope } from "./GlobalSearchProvider";
 import { JumpRows } from "./JumpRows";
@@ -47,6 +48,8 @@ export function SearchResultsList({
 }: SearchResultsListProps): ReactElement {
   const t = useTranslations("search");
   const tj = useTranslations("pageJump");
+  const parsed = parseSearchQuery(query);
+  const highlight = parsed.hasOperators ? parsed.text : query;
 
   return (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
@@ -84,7 +87,7 @@ export function SearchResultsList({
                 <div key={file.id} data-search-item={pageJumps.length + folderJumps.length + idx}>
                   <ScopedResultItem
                     file={file}
-                    query={query}
+                    query={highlight}
                     isSelected={selectedIndex === pageJumps.length + folderJumps.length + idx}
                     onSelect={onSelect}
                   />
