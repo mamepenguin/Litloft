@@ -59,6 +59,7 @@ def _disk(drive_dir, path) -> str:
         ("---\ntitle: T\ntags:\n- old\n---\n\nbody\n", [], {"title": "T"}, "body\n"),
         ("---\ntags:\n- old\n---\n\nbody\n", [], {}, "body\n"),
         ("body\n", [], {}, "body\n"),
+        ("\ufeff---\ntags:\n- old\n---\n\nbody\n", [], {}, "body\n"),
         ("---\n---\nbody\n", ["a"], {"tags": ["a"]}, "body\n"),
     ],
 )
