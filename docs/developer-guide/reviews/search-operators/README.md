@@ -28,3 +28,8 @@ Invariant 1 held (old/new probe: params, cache keys, semantic calls, rows identi
 | F1 scoped query turning impossible left the spinner on | A | `setLoading(false)` on that return, with a row in the scope tests (`b7b79653e`) |
 | F3 unused `type` parameter | B | removed (`b7b79653e`) |
 | survivors on correct code (`is:liked` forwarding, `append` wire shape, search-modes slot hidden) | B | recorded, no tests |
+
+## PR 2 r2 (fix `b7b79653e`) — [pr2-r2.md](pr2-r2.md)
+
+No findings. `pnpm lint` exits 0; the spinner stops when a scoped query turns impossible, and the new
+row fails without the fix. Trajectory: the fix adds no branch, state or prediction.
