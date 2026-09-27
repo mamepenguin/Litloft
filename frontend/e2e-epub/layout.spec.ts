@@ -49,7 +49,16 @@ test("the slider is quiet at rest and shows its thumb on hover and while draggin
   expect(rest.scrub).toBe(20);
   expect(rest.controls).toBe(40);
   expect(rest.knobOpacity).toBe("0");
-  expect(rest.fill).not.toBe(await accent(page));
+  expect(rest.fill).toBe(
+    await page.evaluate(() => {
+      const probe = document.createElement("span");
+      probe.style.color = getComputedStyle(document.documentElement).getPropertyValue("--warm-silver").trim();
+      document.body.append(probe);
+      const rgb = getComputedStyle(probe).color;
+      probe.remove();
+      return rgb;
+    }),
+  );
 
   const row = (await page.locator("[data-player-scrub]").boundingBox())!;
   await page.mouse.move(row.x + row.width * 0.5, row.y + row.height / 2);
