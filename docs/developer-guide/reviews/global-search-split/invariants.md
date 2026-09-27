@@ -4,6 +4,7 @@
 
 - PR-1 (data): `frontend/src/components/GlobalSearch.tsx`; new `components/search/useFileSearch.ts`, `useRecentAndHistory.ts`, `useLauncherRows.ts`
 - `core-search-vocabulary.test.ts` gains `useLauncherRows.ts` as a caller (1 key)
+- PR-2 (render): `GlobalSearch.tsx`; new `components/search/SearchResultsList.tsx`, `SearchFooter.tsx`; the phone and desktop branches share one `body` and one `footer`; `core-search-vocabulary.test.ts` moves 4 keys to the two new callers
 - No backend, WS event, DB, i18n or doc change
 
 ## Invariants

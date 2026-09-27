@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Info, Search, X } from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { MatchLegend } from "@/components/search/MatchLegend";
 import { useShortcutsContext } from "@/components/ShortcutsProvider";
@@ -22,18 +22,18 @@ import {
 import { BrowseChip, BrowseRows } from "./search/BrowseRows";
 import { useFolderBrowse } from "./search/useFolderBrowse";
 import { useCurrentDrive, useSetOverrideDrive } from "./CurrentDriveProvider";
-import { JumpRows } from "./search/JumpRows";
 import type { JumpDestination } from "./search/useJumpDestinations";
 import { useFileSearch } from "./search/useFileSearch";
 import { useLauncherRows } from "./search/useLauncherRows";
 import { useRecentAndHistory } from "./search/useRecentAndHistory";
-import { MergedResultItem } from "./search/MergedResultItem";
+import { SearchFooter } from "./search/SearchFooter";
+import { SearchResultsList } from "./search/SearchResultsList";
 import { SearchEmptyState, type EmptyItem } from "./search/SearchEmptyState";
 import {
   useActiveSearchScope,
   useRegisterGlobalSearch,
 } from "./search/GlobalSearchProvider";
-import { ScopeChip, ScopedFooter, ScopedResultItem } from "./search/ScopedSearchParts";
+import { ScopeChip, ScopedFooter } from "./search/ScopedSearchParts";
 
 function isModified(e: React.KeyboardEvent): boolean {
   return e.metaKey || e.ctrlKey || e.altKey || e.shiftKey;
@@ -451,124 +451,23 @@ export function GlobalSearch() {
     />
   );
 
-  const searchProgress = () =>
-    semanticPending ? (
-      <span className="text-xs text-text-muted">{t("semanticPending")}</span>
-    ) : (
-      <span />
-    );
-
-  const legendEntry = () => (
-    <button
-      type="button"
-      onClick={() => setLegendOpen((v) => !v)}
-      aria-expanded={legendOpen}
-      className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
-    >
-      <Info size={13} className="shrink-0" />
-      {t("badgeLegend")}
-    </button>
-  );
-
-  // Outside the scroll area on purpose: the search resolves in two stages,
-  // and a row inside the list would slide the results down the page every
-  // time the second one lands.
-  const footer = () => (
-    <div className="flex items-center justify-between border-t border-bg-border px-4 py-2">
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={openShortcuts}
-          className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11"
-        >
-          <kbd className="rounded border border-bg-border px-1.5 py-0.5 font-sans text-[11px]">?</kbd>
-          {tsc("title")}
-        </button>
-        {legendEntry()}
-      </div>
-      {searchProgress()}
-    </div>
-  );
-
   const resultsList = (mobile: boolean) => (
-    <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {pageJumps.length > 0 && (
-        <JumpRows
-          heading={tj("section")}
-          jumps={pageJumps}
-          offset={0}
-          selectedIndex={selectedIndex}
-          mobile={mobile}
-          onOpen={openJump}
-          onEnterFolder={enterFolder}
-        />
-      )}
-      {folderJumps.length > 0 && (
-        <JumpRows
-          heading={tj("folders")}
-          jumps={folderJumps}
-          offset={pageJumps.length}
-          selectedIndex={selectedIndex}
-          mobile={mobile}
-          onOpen={openJump}
-          onEnterFolder={enterFolder}
-        />
-      )}
-      {loading && merged.length === 0 ? (
-        <div className={`flex items-center justify-center ${mobile ? "py-12" : "py-8"}`}>
-          <div className={`${mobile ? "h-6 w-6" : "h-5 w-5"} animate-spin rounded-full border-2 border-accent border-t-transparent`} />
-        </div>
-      ) : (
-        <>
-          {merged.length > 0 && scope && (
-            <div className="py-1.5">
-              {merged.map((file, idx) => (
-                <div key={file.id} data-search-item={jumps.length + idx}>
-                  <ScopedResultItem
-                    file={file}
-                    query={query}
-                    isSelected={selectedIndex === jumps.length + idx}
-                    onSelect={handleSelect}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-          {merged.length > 0 && !scope && (
-            <>
-              {merged.map((file, idx) => (
-                <div key={file.id} data-search-item={jumps.length + idx}>
-                  <MergedResultItem
-                    file={file}
-                    onSelect={handleSelect}
-                    isSelected={selectedIndex === jumps.length + idx}
-                  />
-                </div>
-              ))}
-              <button
-                data-search-item={jumps.length + merged.length}
-                onClick={() => handleSubmit(query)}
-                className={`flex w-full items-center justify-between gap-3 border-t border-bg-border px-4 py-2.5 text-left transition-colors ${selectedIndex === jumps.length + merged.length ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
-              >
-                <span className="truncate text-sm font-medium text-accent">
-                  {t("viewAllResults", { total })}
-                </span>
-                <ArrowRight size={16} className="flex-shrink-0 text-accent" />
-              </button>
-            </>
-          )}
-
-          {/* `semanticPending` belongs in this gate as much as `loading`
-              does: the phrase a semantic search exists for is exactly the
-              one no filename matches. */}
-          {!loading && !semanticPending && !hasResults && (
-            <div className={`text-center text-sm text-text-muted ${mobile ? "py-12" : "py-8"}`}>
-              {t("noResults")}
-            </div>
-          )}
-        </>
-      )}
-    </div>
+    <SearchResultsList
+      mobile={mobile}
+      query={query}
+      scope={scope}
+      pageJumps={pageJumps}
+      folderJumps={folderJumps}
+      merged={merged}
+      total={total}
+      loading={loading}
+      semanticPending={semanticPending}
+      selectedIndex={selectedIndex}
+      onOpenJump={openJump}
+      onEnterFolder={enterFolder}
+      onSelect={handleSelect}
+      onSubmit={handleSubmit}
+    />
   );
 
   const browseChip = browse.path !== null && (
@@ -593,6 +492,42 @@ export function GlobalSearch() {
         emptyText={query.trim() ? tj("browseNoMatch") : tj("browseEmpty")}
         onOpen={openBrowseRow}
         onEnterFolder={enterFolder}
+      />
+    );
+
+  const body = (mobile: boolean) =>
+    legendOpen ? (
+      <MatchLegend />
+    ) : !drive ? (
+      <div className={`${mobile ? "py-12" : "py-8"} text-center text-sm text-text-muted`}>
+        {t("goToDrive")}
+      </div>
+    ) : browsing ? (
+      browseList(mobile)
+    ) : showEmptyState ? (
+      <SearchEmptyState
+        items={emptyItems}
+        selectedIndex={selectedIndex}
+        recentFileCount={recentFileCount}
+        mobile={mobile}
+        onOpenFile={(file) => handleSelect(`/files/${file.id}`)}
+        onSubmitTerm={handleHistorySubmit}
+        onFillInput={handleFillInput}
+        onRemoveTerm={handleRemoveHistory}
+      />
+    ) : hasQuery ? (
+      resultsList(mobile)
+    ) : null;
+
+  const footer = (mobile: boolean) =>
+    scope ? (
+      <ScopedFooter scope={scope} query={query} mobile={mobile} onSeeAll={handleSelect} />
+    ) : (
+      <SearchFooter
+        semanticPending={semanticPending}
+        legendOpen={legendOpen}
+        onToggleLegend={() => setLegendOpen((v) => !v)}
+        onOpenShortcuts={openShortcuts}
       />
     );
 
@@ -641,35 +576,10 @@ export function GlobalSearch() {
           </div>
 
             <div className="flex-1 overflow-y-auto">
-              {legendOpen ? (
-                <MatchLegend />
-              ) : !drive ? (
-                <div className="py-12 text-center text-sm text-text-muted">
-                  {t("goToDrive")}
-                </div>
-              ) : browsing ? (
-                browseList(true)
-              ) : showEmptyState ? (
-                <SearchEmptyState
-                  items={emptyItems}
-                  selectedIndex={selectedIndex}
-                  recentFileCount={recentFileCount}
-                  mobile={true}
-                  onOpenFile={(file) => handleSelect(`/files/${file.id}`)}
-                  onSubmitTerm={handleHistorySubmit}
-                  onFillInput={handleFillInput}
-                  onRemoveTerm={handleRemoveHistory}
-                />
-              ) : hasQuery ? (
-                resultsList(true)
-              ) : null}
+              {body(true)}
             </div>
 
-            {scope ? (
-              <ScopedFooter scope={scope} query={query} mobile onSeeAll={handleSelect} />
-            ) : (
-              footer()
-            )}
+            {footer(true)}
           </div>,
           document.body
         )}
@@ -704,39 +614,9 @@ export function GlobalSearch() {
               </kbd>
             </div>
 
-            {legendOpen ? (
-              <MatchLegend />
-            ) : !drive ? (
-              <div className="py-8 text-center text-sm text-text-muted">
-                {t("goToDrive")}
-              </div>
-            ) : browsing ? (
-              browseList(false)
-            ) : showEmptyState ? (
-              <SearchEmptyState
-                  items={emptyItems}
-                  selectedIndex={selectedIndex}
-                  recentFileCount={recentFileCount}
-                  mobile={false}
-                  onOpenFile={(file) => handleSelect(`/files/${file.id}`)}
-                  onSubmitTerm={handleHistorySubmit}
-                  onFillInput={handleFillInput}
-                  onRemoveTerm={handleRemoveHistory}
-                />
-            ) : hasQuery ? (
-              resultsList(false)
-            ) : null}
+            {body(false)}
 
-            {scope ? (
-              <ScopedFooter
-                scope={scope}
-                query={query}
-                mobile={false}
-                onSeeAll={handleSelect}
-              />
-            ) : (
-              footer()
-            )}
+            {footer(false)}
           </div>
         </div>,
           document.body

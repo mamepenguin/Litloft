@@ -18,13 +18,15 @@ const SRC_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CALLERS: Record<string, number> = {
   "app/drive/[name]/search/page.tsx": 2,
   "components/FolderBrowser.tsx": 1,
-  "components/GlobalSearch.tsx": 10,
+  "components/GlobalSearch.tsx": 7,
   // Two each: the badge words come from `MATCH_BADGES`, and `matchedPages`
   // and `matchedSectionNumber` are the lines that are not a badge.
   "components/MatchOverlay.tsx": 2,
   "components/search/MergedResultItem.tsx": 2,
   "components/search/ScopedSearchParts.tsx": 6,
   "components/search/SearchEmptyState.tsx": 4,
+  "components/search/SearchFooter.tsx": 2,
+  "components/search/SearchResultsList.tsx": 2,
   "components/search/useLauncherRows.ts": 1,
   // None by name: the legend draws every word it shows out of
   // `MATCH_BADGES`.
