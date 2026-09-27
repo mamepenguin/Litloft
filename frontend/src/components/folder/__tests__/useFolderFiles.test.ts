@@ -649,6 +649,7 @@ describe("useFolderFiles at the Library root", () => {
     mockGetFolders.mockImplementation((_drive: string, path?: string) =>
       Promise.resolve(path === "" ? [mockFolder("photos")] : []),
     );
+    mockReadSearchCache.mockReturnValue(null);
   });
 
   const settle = async (props: {
