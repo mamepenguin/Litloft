@@ -161,7 +161,7 @@ public plugin.
 The agent never reads this README — it only sees what the MCP protocol
 exposes:
 
-- **`instructions`** (`src/index.ts`): a short server-level brief sent in
+- **`instructions`** (`src/server.ts`): a short server-level brief sent in
   the `initialize` response, describing the drive/file_id concepts, the
   trash-not-purge behavior, and the ETag-based content-edit workflow.
 - **Per-tool `description`, `inputSchema`, and safety annotations**
