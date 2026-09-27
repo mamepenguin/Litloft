@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { runTool } from "./runTool.js";
-import { textResult, type LitloftTool } from "./types.js";
+import { readOnlyAnnotations, textResult, type LitloftTool } from "./types.js";
 
 // Mirrors backend/app/routers/files.py _TEXT_WRITE_ALLOWED_MIMES /
 // _TEXT_WRITE_MAX_BYTES. get_file_content refuses non-text mimes so a call
@@ -30,6 +30,7 @@ const listDrives: LitloftTool = {
   description:
     "List drives visible to the current credentials. Locked/inaccessible drives are omitted entirely (never listed as locked).",
   inputSchema: {},
+  annotations: readOnlyAnnotations,
   handler: (_args, client) =>
     runTool(async () => textResult(await client.request("GET", "/api/drives"))),
 };
@@ -67,6 +68,7 @@ const listFolders: LitloftTool = {
         "How many levels deep to recurse (default 1, max 5). Depth >1 nests each folder's children under a `subfolders` field."
       ),
   },
+  annotations: readOnlyAnnotations,
   handler: (args, client) =>
     runTool(async () => {
       const drive = args.drive as string;
@@ -140,6 +142,7 @@ const searchFiles: LitloftTool = {
     limit: z.number().int().min(1).max(500).optional(),
     path: z.string().optional().describe("Folder path filter"),
   },
+  annotations: readOnlyAnnotations,
   handler: (args, client) =>
     runTool(async () => {
       const { drive, ...query } = args as { drive: string } & Record<string, unknown>;
@@ -155,6 +158,7 @@ const getFile: LitloftTool = {
   name: "get_file",
   description: "Get metadata for a single file by id.",
   inputSchema: { file_id: z.string().describe("12-character file id") },
+  annotations: readOnlyAnnotations,
   handler: (args, client) =>
     runTool(async () =>
       textResult(
@@ -171,6 +175,7 @@ const getFileContent: LitloftTool = {
   description:
     "Read the full text content of a small text/markdown file, plus the ETag required by update_file_content. Refuses non-text files without downloading them.",
   inputSchema: { file_id: z.string() },
+  annotations: readOnlyAnnotations,
   handler: (args, client) =>
     runTool(async () => {
       const fileId = args.file_id as string;
@@ -204,6 +209,7 @@ const getWatchHistory: LitloftTool = {
     limit: z.number().int().min(1).max(50).optional(),
     filter: z.enum(["unfinished", "all"]).optional(),
   },
+  annotations: readOnlyAnnotations,
   handler: (args, client) =>
     runTool(async () => {
       const { drive, ...query } = args as { drive: string } & Record<string, unknown>;
@@ -241,6 +247,7 @@ const semanticSearch: LitloftTool = {
       .optional()
       .describe("Include scene-level (not just representative-frame) image embeddings in the match"),
   },
+  annotations: readOnlyAnnotations,
   handler: (args, client) =>
     runTool(async () => {
       const { drive, ...query } = args as { drive: string } & Record<string, unknown>;
@@ -269,6 +276,7 @@ const getTranscript: LitloftTool = {
       .optional()
       .describe("Only return chunks starting before this time (seconds)"),
   },
+  annotations: readOnlyAnnotations,
   handler: (args, client) =>
     runTool(async () => {
       const drive = args.drive as string;
@@ -320,6 +328,7 @@ const listComments: LitloftTool = {
   name: "list_comments",
   description: "List comments on a file.",
   inputSchema: { file_id: z.string() },
+  annotations: readOnlyAnnotations,
   handler: (args, client) =>
     runTool(async () =>
       textResult(

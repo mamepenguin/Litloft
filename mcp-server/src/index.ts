@@ -75,7 +75,11 @@ function main() {
   for (const tool of allTools) {
     server.registerTool(
       tool.name,
-      { description: tool.description, inputSchema: tool.inputSchema },
+      {
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        annotations: tool.annotations,
+      },
       (args) => tool.handler(args, client)
     );
   }
