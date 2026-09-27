@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Info, Search, X } from "lucide-react";
@@ -23,8 +23,11 @@ import {
   writeSearchCache,
   type SearchCacheKey,
 } from "@/lib/searchCache";
+import { matchJumps } from "@/lib/pageJump";
 import type { FileItemWithMatch, WatchHistoryItem } from "@/types";
-import { useCurrentDrive } from "./CurrentDriveProvider";
+import { useCurrentDrive, useSetOverrideDrive } from "./CurrentDriveProvider";
+import { JumpRows } from "./search/JumpRows";
+import { useJumpDestinations, type JumpDestination } from "./search/useJumpDestinations";
 import { MergedResultItem } from "./search/MergedResultItem";
 import { SearchEmptyState, type EmptyItem } from "./search/SearchEmptyState";
 import { addToHistory, getHistory, removeFromHistory } from "./search/searchHistory";
@@ -77,6 +80,7 @@ export function GlobalSearch() {
   type Highlighted =
     | { kind: "none" }
     | { kind: "tail" }
+    | { kind: "jump"; key: string }
     | { kind: "file"; id: string };
   const highlightedRef = useRef<Highlighted>({ kind: "none" });
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -85,6 +89,12 @@ export function GlobalSearch() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drive = useCurrentDrive();
+  const setOverrideDrive = useSetOverrideDrive();
+  const destinations = useJumpDestinations(open && !scope, drive);
+  const jumps = useMemo(
+    () => (scope || !drive ? [] : matchJumps(destinations, query)),
+    [scope, drive, destinations, query],
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -233,19 +243,26 @@ export function GlobalSearch() {
   // run, including the one where the second stage came back with nothing to
   // add, so keying on the array would yank the highlight off a list that
   // never moved.
-  const mergedOrder = merged.map((f) => f.id).join("\u0000");
+  const rowOrder = [...jumps.map((j) => j.key), "", ...merged.map((f) => f.id)].join("\u0000");
   useEffect(() => {
     const held = highlightedRef.current;
     if (held.kind === "none") return;
     if (held.kind === "tail") {
-      setSelectedIndex(merged.length);
+      setSelectedIndex(jumps.length + merged.length);
       return;
     }
-    const next = merged.findIndex((file) => file.id === held.id);
-    if (next === -1) highlightedRef.current = { kind: "none" };
-    setSelectedIndex(next);
+    const next =
+      held.kind === "jump"
+        ? jumps.findIndex((jump) => jump.key === held.key)
+        : merged.findIndex((file) => file.id === held.id);
+    if (next === -1) {
+      highlightedRef.current = { kind: "none" };
+      setSelectedIndex(-1);
+      return;
+    }
+    setSelectedIndex(held.kind === "jump" ? next : jumps.length + next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mergedOrder]);
+  }, [rowOrder]);
 
   useEffect(() => {
     highlightedRef.current = { kind: "none" };
@@ -409,6 +426,12 @@ export function GlobalSearch() {
     router.push(url);
   }
 
+  function openJump(jump: JumpDestination) {
+    closeSearch();
+    if (jump.overrideDrive) setOverrideDrive(jump.overrideDrive);
+    router.push(jump.href);
+  }
+
   function handleSubmit(term: string) {
     const normalized = term.trim();
     if (scope?.seeAllHref && normalized) {
@@ -472,10 +495,12 @@ export function GlobalSearch() {
       const index = next(prev);
       if (showEmptyState || index < 0) {
         highlightedRef.current = { kind: "none" };
-      } else if (index >= merged.length) {
+      } else if (index < jumps.length) {
+        highlightedRef.current = { kind: "jump", key: jumps[index].key };
+      } else if (index >= jumps.length + merged.length) {
         highlightedRef.current = { kind: "tail" };
       } else {
-        highlightedRef.current = { kind: "file", id: merged[index].id };
+        highlightedRef.current = { kind: "file", id: merged[index - jumps.length].id };
       }
       return index;
     });
@@ -511,9 +536,9 @@ export function GlobalSearch() {
             ? emptyItems.length - 1
             : hasResults
               ? scope
-                ? merged.length - 1
-                : merged.length
-              : -1;
+                ? jumps.length + merged.length - 1
+                : jumps.length + merged.length
+              : jumps.length - 1;
           if (maxIdx >= 0) moveHighlight((prev) => Math.min(maxIdx, prev + 1));
         } else if (e.key === "ArrowUp") {
           e.preventDefault();
@@ -521,9 +546,12 @@ export function GlobalSearch() {
         } else if (e.key === "Enter") {
           if (selectedIndex >= 0 && showEmptyState) {
             activateEmptyItem(emptyItems[selectedIndex]);
+          } else if (selectedIndex >= 0 && selectedIndex < jumps.length) {
+            openJump(jumps[selectedIndex]);
           } else if (selectedIndex >= 0 && hasResults) {
-            if (selectedIndex < merged.length) {
-              handleSelect(`/files/${merged[selectedIndex].id}`);
+            const fileIndex = selectedIndex - jumps.length;
+            if (fileIndex < merged.length) {
+              handleSelect(`/files/${merged[fileIndex].id}`);
             } else {
               handleSubmit(query);
             }
@@ -583,6 +611,9 @@ export function GlobalSearch() {
 
   const resultsList = (mobile: boolean) => (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
+      {jumps.length > 0 && (
+        <JumpRows jumps={jumps} selectedIndex={selectedIndex} mobile={mobile} onOpen={openJump} />
+      )}
       {loading && merged.length === 0 ? (
         <div className={`flex items-center justify-center ${mobile ? "py-12" : "py-8"}`}>
           <div className={`${mobile ? "h-6 w-6" : "h-5 w-5"} animate-spin rounded-full border-2 border-accent border-t-transparent`} />
@@ -592,11 +623,11 @@ export function GlobalSearch() {
           {merged.length > 0 && scope && (
             <div className="py-1.5">
               {merged.map((file, idx) => (
-                <div key={file.id} data-search-item={idx}>
+                <div key={file.id} data-search-item={jumps.length + idx}>
                   <ScopedResultItem
                     file={file}
                     query={query}
-                    isSelected={selectedIndex === idx}
+                    isSelected={selectedIndex === jumps.length + idx}
                     onSelect={handleSelect}
                   />
                 </div>
@@ -606,18 +637,18 @@ export function GlobalSearch() {
           {merged.length > 0 && !scope && (
             <>
               {merged.map((file, idx) => (
-                <div key={file.id} data-search-item={idx}>
+                <div key={file.id} data-search-item={jumps.length + idx}>
                   <MergedResultItem
                     file={file}
                     onSelect={handleSelect}
-                    isSelected={selectedIndex === idx}
+                    isSelected={selectedIndex === jumps.length + idx}
                   />
                 </div>
               ))}
               <button
-                data-search-item={merged.length}
+                data-search-item={jumps.length + merged.length}
                 onClick={() => handleSubmit(query)}
-                className={`flex w-full items-center justify-between gap-3 border-t border-bg-border px-4 py-2.5 text-left transition-colors ${selectedIndex === merged.length ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
+                className={`flex w-full items-center justify-between gap-3 border-t border-bg-border px-4 py-2.5 text-left transition-colors ${selectedIndex === jumps.length + merged.length ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`}
               >
                 <span className="truncate text-sm font-medium text-accent">
                   {t("viewAllResults", { total })}

@@ -1240,5 +1240,20 @@
     "filterUnreviewed": "未判定のみ",
     "filterUnreviewedHint": "誰も判定していないもの（移行分を含む）",
     "filterLabel": "検証状態"
+  },
+  "pageJump": {
+    "section": "移動",
+    "aliases": {
+      "home": "ほーむ,home,start",
+      "library": "フォルダ,library,folders",
+      "favorites": "おきにいり,favorites,favourites,star",
+      "liked": "いいね,like,liked",
+      "recent": "履歴,さいきん,history,recently viewed",
+      "recentAdded": "新着,追加,さいきん,recently added,new",
+      "allFiles": "全て,すべて,全部,all,all files",
+      "trash": "ごみばこ,削除,trash,bin",
+      "missing": "行方不明,missing",
+      "admin": "管理,設定,admin,dashboard,settings"
+    }
   }
 }

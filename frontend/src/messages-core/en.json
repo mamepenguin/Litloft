@@ -1240,5 +1240,20 @@
     "filterUnreviewed": "Unjudged only",
     "filterUnreviewedHint": "Nobody has ruled on these, migrated files included",
     "filterLabel": "Verification"
+  },
+  "pageJump": {
+    "section": "Go to",
+    "aliases": {
+      "home": "start",
+      "library": "folders",
+      "favorites": "favourites,star,starred",
+      "liked": "like,thumbs up",
+      "recent": "history,recently viewed,viewed",
+      "recentAdded": "new,recently added,added",
+      "allFiles": "all,everything",
+      "trash": "bin,deleted,recycle",
+      "missing": "lost,missing",
+      "admin": "admin,settings,administration"
+    }
   }
 }
