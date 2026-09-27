@@ -12,3 +12,16 @@ No invariant break a user can reach. Triage, decided by the user:
 | F2 › left focus on body | fixed | entering a folder refocuses the field (`be63ea940`) |
 | F3 the history test could never fail | B (test) | the test types a filter first (`be63ea940`) |
 | F4–F10 correct code without a test, or unmeasured platform notes | B | closed without tests |
+
+## r2 (fix `be63ea940`) — [r2.md](r2.md)
+
+Trajectory answer: the fix added a branch and a prediction ("a composing input is never the /
+trigger"), and repairing its side effect would have added a state. Decided by the user, in the
+direction that removes:
+
+| Finding | Action |
+|---|---|
+| F1 a / typed through an IME never starts browsing | kept; documented that / works only when typed directly, → and › cover IME users |
+| F2 refocusing on › raises the on-screen keyboard | the refocus removed (`3632bdf97`); an iPad with a keyboard loses focus after ›, tap the field |
+| F3 no phone test for the refocus | moot |
+| F4 stale test title and unused value | deleted (`3632bdf97`) |
