@@ -5,6 +5,7 @@ import {
   MARGINS,
   FONT_FAMILIES,
   TYPOGRAPHY_DEFAULTS,
+  isDefaultTypography,
   TYPOGRAPHY_KEY,
   parseTypography,
   readStoredTypography,
@@ -83,5 +84,18 @@ describe("the stored typography", () => {
   it("is the defaults when the stored text is not JSON", () => {
     localStorage.setItem(TYPOGRAPHY_KEY, "{not json");
     expect(readStoredTypography()).toEqual(DEFAULTS);
+  });
+});
+
+describe("whether a typography is the defaults", () => {
+  it.each([
+    [{ ...TYPOGRAPHY_DEFAULTS }, true],
+    [JSON.parse(JSON.stringify(TYPOGRAPHY_DEFAULTS)), true],
+    [{ ...TYPOGRAPHY_DEFAULTS, fontSize: TYPOGRAPHY_DEFAULTS.fontSize + 1 }, false],
+    [{ ...TYPOGRAPHY_DEFAULTS, lineHeight: "1.9" }, false],
+    [{ ...TYPOGRAPHY_DEFAULTS, margin: "wide" }, false],
+    [{ ...TYPOGRAPHY_DEFAULTS, fontFamily: "serif" }, false],
+  ] as const)("%o → %s", (typography, expected) => {
+    expect(isDefaultTypography(typography)).toBe(expected);
   });
 });

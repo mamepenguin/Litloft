@@ -285,6 +285,8 @@ describe("the component fixture's page", () => {
       "citation-seams-prose",
       "code-viewer",
       "code-viewer-many",
+      "typography-panel-ja",
+      "typography-panel-en",
     ]);
   });
 });

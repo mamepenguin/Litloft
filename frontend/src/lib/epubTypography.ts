@@ -22,6 +22,15 @@ export const TYPOGRAPHY_DEFAULTS: Typography = {
   fontFamily: "original",
 };
 
+export function isDefaultTypography(t: Typography): boolean {
+  return (
+    t.fontSize === TYPOGRAPHY_DEFAULTS.fontSize &&
+    t.lineHeight === TYPOGRAPHY_DEFAULTS.lineHeight &&
+    t.margin === TYPOGRAPHY_DEFAULTS.margin &&
+    t.fontFamily === TYPOGRAPHY_DEFAULTS.fontFamily
+  );
+}
+
 function oneOf<T extends string>(list: readonly T[], value: unknown, fallback: T): T {
   return list.includes(value as T) ? (value as T) : fallback;
 }

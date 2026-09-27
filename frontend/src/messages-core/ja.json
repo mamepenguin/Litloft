@@ -222,7 +222,9 @@
     "epubCloseTypography": "文字の設定を閉じる",
     "epubContents": "目次",
     "epubCloseContents": "目次を閉じる",
-    "epubUntitled": "（無題）"
+    "epubUntitled": "（無題）",
+    "epubTypographyReset": "標準に戻す",
+    "markdownViewMode": "表示"
   },
   "search": {
     "label": "検索",

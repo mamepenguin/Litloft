@@ -26,6 +26,8 @@ import { ArchiveImageViewer } from "@/components/archive/ArchiveImageViewer";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
 import { MarkdownViewModeToggle } from "@/components/MarkdownViewModeToggle";
+import { EpubTypographyPanel } from "@/components/epub/EpubTypographyPanel";
+import { TYPOGRAPHY_DEFAULTS, type Typography } from "@/lib/epubTypography";
 import { EditableTitle } from "@/components/markdown/EditableTitle";
 import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
@@ -1289,6 +1291,26 @@ function FileDetailChromeArrangement(): ReactElement {
   );
 }
 
+/** The text settings panel as the reader lays it out: full width, over the book. */
+function TypographyPanel({ locale }: { locale: "en" | "ja" }): ReactElement {
+  const [typography, setTypography] = useState<Typography>({ ...TYPOGRAPHY_DEFAULTS, fontSize: 3 });
+  return (
+    <NextIntlClientProvider locale={locale} messages={locale === "ja" ? jaMessages : enMessages}>
+      <div className="relative bg-bg-primary p-2">
+        <EpubTypographyPanel typography={typography} onChange={setTypography} />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+function TypographyPanelJa(): ReactElement {
+  return <TypographyPanel locale="ja" />;
+}
+
+function TypographyPanelEn(): ReactElement {
+  return <TypographyPanel locale="en" />;
+}
+
 function FileDetailChromeNoteArrangement(): ReactElement {
   const noop = () => {};
   return (
@@ -1764,6 +1786,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "citation-seams-prose": CitationSeamsProse,
   "code-viewer": CodeViewer,
   "code-viewer-many": CodeViewerMany,
+  "typography-panel-ja": TypographyPanelJa,
+  "typography-panel-en": TypographyPanelEn,
 };
 
 function App(): ReactElement {

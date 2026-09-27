@@ -222,7 +222,9 @@
     "epubCloseTypography": "Close text settings",
     "epubContents": "Contents",
     "epubCloseContents": "Close contents",
-    "epubUntitled": "Untitled"
+    "epubUntitled": "Untitled",
+    "epubTypographyReset": "Reset",
+    "markdownViewMode": "View"
   },
   "search": {
     "label": "Search",

@@ -584,6 +584,12 @@ with a **border in the accent colour**, never a fill.
   selection.
 - **On a crowded bar, prefer a labelled menu** (`View: List view`). A border says
   which option is on but not what the options are.
+- **A set of options side by side is `SegmentedControl`**: an outlined
+  `rounded-2xl` group with no fill, `rounded-xl` segments inside it, the selected
+  one carrying the accent border. Text segments share the group's width; icon
+  segments are the 32px icon box. On a coarse pointer text segments are 44px
+  tall, and icon segments 44px wide with the height made up by an overhang, so
+  a toolbar row does not grow.
 
 ### Cards
 
