@@ -107,3 +107,29 @@ test("inline, the full-screen button is in the bar and nothing lies over the boo
   });
   expect(overBook).toBe("IFRAME");
 });
+
+test("a keyboard focus on the slider shows the thumb and the focus ring", async ({ page }) => {
+  await open(page, 1000);
+  await page.getByRole("slider").focus();
+  const m = await page.evaluate(() => ({
+    knob: getComputedStyle(document.querySelector('[data-testid="epub-position-knob"]')!).opacity,
+    ring: getComputedStyle(document.querySelector('[data-testid="epub-position-fill"]')!.parentElement!).boxShadow,
+  }));
+  expect(m.knob).toBe("1");
+  expect(m.ring).not.toBe("none");
+});
+
+for (const [width, shape] of [
+  [1000, "popover"],
+  [390, "sheet"],
+] as const) {
+  test(`in full screen at ${width}px the text settings open as a ${shape} above the bar`, async ({ page }) => {
+    await open(page, width);
+    await page.getByRole("button", { name: "Read full screen" }).click();
+    await expect(page.getByTestId("epub-chrome-bottom")).toBeVisible();
+    await page.getByRole("button", { name: "Text settings" }).click();
+    const panel = (await page.getByTestId("epub-typography-panel").boundingBox())!;
+    const chrome = (await page.getByTestId("epub-chrome-bottom").boundingBox())!;
+    expect(chrome.y - (panel.y + panel.height)).toBe(shape === "popover" ? 8 : 0);
+  });
+}

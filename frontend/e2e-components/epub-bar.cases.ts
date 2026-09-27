@@ -42,7 +42,54 @@ export function epubBarCases(): void {
     await expect(buttons).toHaveCount(3);
     for (const i of [0, 1, 2]) {
       await expect(buttons.nth(i)).toBeDisabled();
-      expect(await buttons.nth(i).evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+      const look = await buttons.nth(i).evaluate((el) => {
+        const probe = document.createElement("span");
+        probe.style.color = getComputedStyle(document.documentElement).getPropertyValue("--warm-silver").trim();
+        document.body.append(probe);
+        const silver = getComputedStyle(probe).color;
+        probe.remove();
+        return { opacity: getComputedStyle(el).opacity, colour: getComputedStyle(el).color, silver };
+      });
+      expect(look.opacity).toBe("1");
+      expect(look.colour).toBe(look.silver);
     }
+  });
+
+  test("while the thumb is held it grows and takes the accent, and the bubble stays in the bar", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 400 });
+    await page.goto(`${FIXTURE}#epub-bar`);
+    await expect(page.locator("body")).toHaveAttribute("data-ready", "1");
+    const row = (await page.locator("[data-player-scrub]").boundingBox())!;
+    await page.mouse.move(row.x + row.width * 0.5, row.y + row.height / 2);
+    await page.mouse.down();
+    const m = await page.evaluate(() => {
+      const tokenRgb = (name: string) => {
+        const probe = document.createElement("span");
+        probe.style.color = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        document.body.append(probe);
+        const rgb = getComputedStyle(probe).color;
+        probe.remove();
+        return rgb;
+      };
+      const knob = document.querySelector('[data-testid="epub-position-knob"]')!;
+      const bubble = document.querySelector('[data-testid="epub-position-bubble"]')!.getBoundingClientRect();
+      const row = document.querySelector("[data-player-scrub]")!.getBoundingClientRect();
+      return {
+        coarse: matchMedia("(pointer: coarse)").matches,
+        accent: tokenRgb("--accent"),
+        knobSize: knob.getBoundingClientRect().width,
+        knobColour: getComputedStyle(knob).backgroundColor,
+        fill: getComputedStyle(document.querySelector('[data-testid="epub-position-fill"]')!).backgroundColor,
+        bubble: { left: bubble.left, right: bubble.right, width: bubble.width },
+        row: { left: row.left, right: row.right },
+      };
+    });
+    await page.mouse.up();
+    expect(m.knobSize).toBe(m.coarse ? 20 : 14);
+    expect(m.knobColour).toBe(m.accent);
+    expect(m.fill).toBe(m.accent);
+    expect(m.bubble.width).toBeLessThanOrEqual(256);
+    expect(m.bubble.left).toBeGreaterThanOrEqual(m.row.left);
+    expect(m.bubble.right).toBeLessThanOrEqual(m.row.right);
   });
 }

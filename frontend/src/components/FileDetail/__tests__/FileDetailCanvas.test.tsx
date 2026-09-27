@@ -126,6 +126,14 @@ describe("FileDetailContent companion region (collection route)", () => {
     return utils;
   }
 
+  it.each([
+    ["a PDF", "application/pdf"],
+    ["an EPUB", "application/epub+zip"],
+  ])("keeps %s in its card: nothing bleeds it here", async (_name, mime_type) => {
+    const { container } = await renderFile(makeFile({ file_type: "document", mime_type }));
+    expect(container.querySelector("[data-bleed]")).toBeNull();
+  });
+
   it("renders nothing at all when no addon claims the slot", async () => {
     const { container } = await renderFile(makeFile());
 

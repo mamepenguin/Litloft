@@ -202,6 +202,11 @@ beforeEach(() => {
 });
 
 describe("PdfPreview", () => {
+  it("marks its outer box as the viewer's frame", () => {
+    const { container } = render(<PdfPreview fileId="pdf123456789" title="Paper" />);
+    expect(container.firstElementChild).toHaveAttribute("data-viewer-frame");
+  });
+
   it("publishes the current page as the non-OCR fallback", async () => {
     const onDocumentCaptureController = vi.fn();
     render(

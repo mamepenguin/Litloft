@@ -1320,7 +1320,7 @@ function EpubBarArrangement({ loading = false }: { loading?: boolean }): ReactEl
           pagesLeft={4}
           dir="ltr"
           marks={[0.25, 0.6]}
-          chapterAt={() => "Chapter two"}
+          chapterAt={() => "A chapter whose name runs far longer than any bar can hold"}
           onSeek={noop}
           onTurn={noop}
           openPanel={null}

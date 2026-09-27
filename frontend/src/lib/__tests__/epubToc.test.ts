@@ -88,6 +88,7 @@ describe("chapterMarks", () => {
     ["nothing at the ends", [top(0), top(0.01), top(0.5), top(0.99), top(1)], [0.5]],
     ["one mark for entries sharing a place", [top(0.5), top(0.5), top(0.51)], [0.5]],
     ["a mark past the spacing is kept", [top(0.5), top(0.53)], [0.5, 0.53]],
+    ["spacing counts from the last kept mark", [top(0.5), top(0.515), top(0.53)], [0.5, 0.53]],
     ["an empty table", [], []],
   ] as const)("%s", (_name, toc, expected) => {
     expect(chapterMarks(toc)).toEqual(expected);

@@ -232,6 +232,7 @@ describe("EpubPreview", () => {
         </ShortcutsProvider>,
     );
     expect(screen.getByTestId("epub-frame").className).toContain("fixed");
+    expect(screen.queryByRole("button", { name: "Read full screen" })).toBeNull();
     expect(view.container.querySelector("iframe")).toBe(view.iframe);
     expect(sentOfType(view.posted, "mode")).toContainEqual({ type: "mode", fullscreen: true });
 
@@ -454,6 +455,13 @@ describe("EpubPreview", () => {
     );
   });
 
+  it("marks the book's frame and its error card as the viewer's outer box", async () => {
+    const { readerWindow } = renderPreview();
+    expect(screen.getByTestId("epub-frame")).toHaveAttribute("data-viewer-frame");
+    await fromReader(readerWindow, { type: "error", code: "parse" });
+    expect(screen.getByRole("link", { name: "Download" }).closest("[data-viewer-frame]")).not.toBeNull();
+  });
+
   it("a book that cannot be fetched offers the download", async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 404, arrayBuffer: async () => new ArrayBuffer(0) });
     const { readerWindow } = renderPreview();
@@ -520,6 +528,7 @@ describe("EpubPreview", () => {
       expect(bubble).toHaveTextContent("70%");
       expect(bubble).toHaveTextContent("Two");
       expect(line()).toHaveTextContent("10%");
+      expect(line()).toHaveTextContent("left in chapter");
       expect(line()).not.toHaveTextContent("Two");
       expect(sentOfType(view.posted, "seek")).toEqual([]);
 

@@ -93,7 +93,10 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
   const chapter =
     seeking !== null ? labelAt(seeking) : toc && location ? chapterOf(toc, location) : null;
   const pagesLeft = seeking !== null ? null : (location?.pagesLeft ?? null);
-  const panelBase = { "--panel-base": fullscreen.isFullscreen ? "var(--epub-bar)" : "0px" } as CSSProperties;
+  // In full screen the bar lies over the book, with a 1px top border above its rows.
+  const panelBase = {
+    "--panel-base": fullscreen.isFullscreen ? "calc(var(--epub-bar) + 1px)" : "0px",
+  } as CSSProperties;
   const marks = useMemo(() => (toc ? chapterMarks(toc) : []), [toc]);
   const tocUsable = !!toc && hasSelectable(toc);
   const focusBook = useCallback(() => reader.frameRef.current?.contentWindow?.focus(), [reader.frameRef]);
@@ -200,7 +203,7 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
 
   if (reader.status.kind === "error") {
     return (
-      <div className="w-full rounded-xl bg-bg-card">
+      <div data-viewer-frame className="w-full rounded-xl bg-bg-card">
         <EmptyState
           icon={BookX}
           title={reader.status.code === "unsupported" ? t("epubUnsupported") : t("epubLoadFailed")}
