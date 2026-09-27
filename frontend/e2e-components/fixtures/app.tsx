@@ -1334,6 +1334,10 @@ function EpubBarArrangement({ loading = false }: { loading?: boolean }): ReactEl
   );
 }
 
+function EpubBarAtRest(): ReactElement {
+  return <EpubBarArrangement />;
+}
+
 function EpubBarLoading(): ReactElement {
   return <EpubBarArrangement loading />;
 }
@@ -1850,7 +1854,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "canvas-bleed": CanvasBleed,
   "canvas-bleed-phone": CanvasBleedPhone,
   "canvas-no-bleed": CanvasNoBleed,
-  "epub-bar": EpubBarArrangement,
+  "epub-bar": EpubBarAtRest,
   "epub-bar-loading": EpubBarLoading,
 };
 
