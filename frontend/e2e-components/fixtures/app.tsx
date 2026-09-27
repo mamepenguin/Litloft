@@ -29,6 +29,7 @@ import { MarkdownViewModeToggle } from "@/components/MarkdownViewModeToggle";
 import { EpubTypographyPanel } from "@/components/epub/EpubTypographyPanel";
 import { EpubPositionBar } from "@/components/epub/EpubPositionBar";
 import { TYPOGRAPHY_DEFAULTS, type Typography } from "@/lib/epubTypography";
+import { MEDIA_HOST_CLASS } from "@/components/FileDetail/MediaCanvas";
 import { EditableTitle } from "@/components/markdown/EditableTitle";
 import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
@@ -1296,13 +1297,27 @@ function FileDetailChromeArrangement(): ReactElement {
  * The file page's canvas around a viewer, with the real stylesheet: `bleed`
  * is what `MediaCanvas` sets for a PDF or a book.
  */
-function CanvasHost({ bleed, phone }: { bleed: boolean; phone: boolean }): ReactElement {
+function CanvasHost({
+  bleed,
+  phone,
+  below = true,
+}: {
+  bleed: boolean;
+  phone: boolean;
+  below?: boolean;
+}): ReactElement {
   const host = (
-    <div data-testid="canvas-host" className="media-detail-host w-full space-y-4 p-4">
+    <div data-testid="canvas-host" className={MEDIA_HOST_CLASS}>
       <div className="media-detail-player" data-bleed={bleed ? "true" : undefined}>
         <div data-testid="viewer" data-viewer-frame className="h-40 w-full rounded-xl bg-bg-card" />
       </div>
-      <p data-testid="below">Below the viewer</p>
+      <div className="empty:hidden" />
+      {below && (
+        <div className="empty:hidden">
+          <p data-testid="below">Below the viewer</p>
+        </div>
+      )}
+      <div className="empty:hidden" />
     </div>
   );
   return <div className="bg-bg-primary">{phone ? <div data-sheet-snap="">{host}</div> : host}</div>;
@@ -1352,6 +1367,18 @@ function CanvasBleedPhone(): ReactElement {
 
 function CanvasNoBleed(): ReactElement {
   return <CanvasHost bleed={false} phone={false} />;
+}
+
+function CanvasBleedAlone(): ReactElement {
+  return <CanvasHost bleed phone={false} below={false} />;
+}
+
+function CanvasBleedPhoneAlone(): ReactElement {
+  return <CanvasHost bleed phone below={false} />;
+}
+
+function CanvasNoBleedAlone(): ReactElement {
+  return <CanvasHost bleed={false} phone={false} below={false} />;
 }
 
 /** The text settings panel as the reader lays it out: full width, over the book. */
@@ -1854,6 +1881,9 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "canvas-bleed": CanvasBleed,
   "canvas-bleed-phone": CanvasBleedPhone,
   "canvas-no-bleed": CanvasNoBleed,
+  "canvas-bleed-alone": CanvasBleedAlone,
+  "canvas-no-bleed-alone": CanvasNoBleedAlone,
+  "canvas-bleed-phone-alone": CanvasBleedPhoneAlone,
   "epub-bar": EpubBarAtRest,
   "epub-bar-loading": EpubBarLoading,
 };

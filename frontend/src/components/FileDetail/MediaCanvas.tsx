@@ -42,6 +42,13 @@ interface MediaCanvasProps
   heavySummaries: ReactNode;
 }
 
+/**
+ * The space goes above each later child, not below the earlier one as
+ * `space-y` puts it: a hidden box after the player then takes no space. Not a
+ * flex `gap`: a flex host moves the pinned frame in pseudo full screen.
+ */
+export const MEDIA_HOST_CLASS = "media-detail-host w-full p-4 [&>*+*]:mt-4";
+
 export function MediaCanvas({
   file,
   fileId,
@@ -60,7 +67,7 @@ export function MediaCanvas({
 }: MediaCanvasProps) {
   return (
     <div
-      className="media-detail-host w-full space-y-4 p-4"
+      className={MEDIA_HOST_CLASS}
       style={mediaHostStyle(metrics, miniPlayerRoot)}
     >
       <MediaPlayerBlock

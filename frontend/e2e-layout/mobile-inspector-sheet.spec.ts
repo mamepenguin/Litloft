@@ -458,7 +458,7 @@ expect(PLAYER_CASES.filter((c) => c.outcome === "fallback")).toHaveLength(1);
  * reserves room under it for the resting strip.
  */
 const TRAVEL_PX: Record<string, number> = {
-  "667x375 × a framed player": 88,
+  "667x375 × a framed player": 72,
 };
 expect(Object.keys(TRAVEL_PX)).toHaveLength(1);
 
