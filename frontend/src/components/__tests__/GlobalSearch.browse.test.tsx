@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { GlobalSearch } from "../GlobalSearch";
@@ -70,42 +70,9 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function file(id: string, title: string): FileItem {
-  return {
-    image_width: null,
-    image_height: null,
-    id,
-    filename: `${title}.mp4`,
-    title,
-    description: "",
-    drive: "main",
-    folder_path: "",
-    file_type: "video",
-    mime_type: "video/mp4",
-    thumbnail_url: "",
-    has_thumbnail: true,
-    file_size: 1,
-    duration: 1,
-    liked_at: null,
-    is_favorite: false,
-    tags: [],
-    subtitles: [],
-    deleted_at: null,
-    missing_since: null,
-    trust_tier: "verified",
-    trust_reviewed_at: null,
-    created_at: "2026-01-01T00:00:00Z",
-    updated_at: "2026-01-01T00:00:00Z",
-  };
-}
-
 const page = (data: FileItem[]) => ({ data, meta: { total: data.length, page: 1, limit: 8 } });
 
 const input = () => screen.getAllByRole("textbox")[0];
-const press = (key: string) => fireEvent.keyDown(input(), { key });
-const jumpRows = () =>
-  screen.queryByText("Go to")?.parentElement?.querySelectorAll("[data-search-item] > button:first-child") ?? [];
-const jumpLabels = () => Array.from(jumpRows()).map((row) => row.textContent);
 const folderRows = () =>
   screen.queryByText("Folders")?.parentElement?.querySelectorAll("[data-search-item] > button:first-child") ?? [];
 const folderLabels = () => Array.from(folderRows()).map((row) => row.textContent);
