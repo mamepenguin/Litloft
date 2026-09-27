@@ -60,6 +60,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
     if (kinds.impossible) {
       setMerged([]);
       setTotal(0);
+      setLoading(false);
       return;
     }
     const nameMatched = parsed.text !== "";

@@ -71,6 +71,7 @@ export default function SearchPage() {
   const typeFilter = parseTypeFilter(searchParams.get("type"));
   const smartFolderId = searchParams.get("smart_folder_id");
   const includeSceneClip = searchParams.get("include_scene_clip") === "true";
+  const filtered = parseSearchQuery(q).hasOperators;
 
   const handleToggle = useCallback(
     (next: boolean) => {
@@ -89,7 +90,7 @@ export default function SearchPage() {
 
   return (
     <>
-      {!parseSearchQuery(q).hasOperators && (
+      {!filtered && (
         <div className="px-4 pt-3 pb-1 flex items-center">
           <SceneSearchToggle active={includeSceneClip} onToggle={handleToggle} />
         </div>

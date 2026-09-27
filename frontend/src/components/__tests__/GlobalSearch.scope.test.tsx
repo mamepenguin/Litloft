@@ -653,6 +653,17 @@ describe("GlobalSearch with a scope", () => {
       });
     });
 
+    it("stops loading when the query turns into one no file can match", async () => {
+      mockGetDriveFiles.mockReturnValue(new Promise(() => {}));
+      shell(<ScopedScreen />);
+      openFromHeader();
+      await typeQuery("foo type:vid");
+      expect(document.querySelector(".animate-spin")).not.toBeNull();
+
+      await typeQuery("foo type:video");
+      expect(document.querySelector(".animate-spin")).toBeNull();
+    });
+
     it("requests nothing when a type: operator cannot hold inside the scope", async () => {
       shell(<ScopedScreen />);
       openFromHeader();

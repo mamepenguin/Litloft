@@ -255,12 +255,12 @@ export function GlobalSearch() {
 
 
   const navigateToSearchPage = useCallback(
-    (term: string, type?: FileKind) => {
+    (term: string) => {
       const normalized = term.trim();
       if (!normalized || !drive) return;
       record(normalized);
       closeSearch();
-      router.push(searchPageHref(drive, normalized, type));
+      router.push(searchPageHref(drive, normalized));
     },
     [drive, router, closeSearch, record],
   );
