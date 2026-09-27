@@ -27,17 +27,20 @@ const ARROW_TURNS: Record<string, PageTurn> = {
 const INPUT_CLASS =
   "peer pointer-events-none absolute inset-0 h-full w-full appearance-none opacity-0";
 
-/** The slider stays a hairline until it is pointed at, focused or dragged. */
+/**
+ * The slider stays a hairline until it is pointed at, focused or dragged.
+ * The fill's colour is set here, on the input's sibling: `peer-*` does not
+ * reach the fill nested inside the track.
+ */
 const TRACK_CLASS = [
   "pointer-events-none absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-bg-border",
   "group-hover/scrub:h-1 peer-focus-visible:h-1 group-data-[dragging=true]/scrub:h-1",
   "peer-focus-visible:ring-2 peer-focus-visible:ring-focus-ring",
+  "[--scrub-fill:var(--color-warm-silver)] group-hover/scrub:[--scrub-fill:var(--color-accent)]",
+  "peer-focus-visible:[--scrub-fill:var(--color-accent)] group-data-[dragging=true]/scrub:[--scrub-fill:var(--color-accent)]",
 ].join(" ");
 
-const FILL_CLASS = [
-  "absolute inset-y-0 rounded-full bg-warm-silver",
-  "group-hover/scrub:bg-accent peer-focus-visible:bg-accent group-data-[dragging=true]/scrub:bg-accent",
-].join(" ");
+const FILL_CLASS = "absolute inset-y-0 rounded-full bg-[var(--scrub-fill)]";
 
 /** Without hover on a touch screen, a small neutral thumb says it can be dragged. */
 const KNOB_CLASS = [

@@ -114,9 +114,11 @@ test("a keyboard focus on the slider shows the thumb and the focus ring", async 
   const m = await page.evaluate(() => ({
     knob: getComputedStyle(document.querySelector('[data-testid="epub-position-knob"]')!).opacity,
     ring: getComputedStyle(document.querySelector('[data-testid="epub-position-fill"]')!.parentElement!).boxShadow,
+    fill: getComputedStyle(document.querySelector('[data-testid="epub-position-fill"]')!).backgroundColor,
   }));
   expect(m.knob).toBe("1");
   expect(m.ring).not.toBe("none");
+  expect(m.fill).toBe(await accent(page));
 });
 
 for (const [width, shape] of [
@@ -133,3 +135,20 @@ for (const [width, shape] of [
     expect(chrome.y - (panel.y + panel.height)).toBe(shape === "popover" ? 8 : 0);
   });
 }
+
+test.describe("on a touch screen", () => {
+  test.use({ hasTouch: true, isMobile: true });
+
+  test("in full screen the text settings sheet sits on the taller bar", async ({ page, browserName }) => {
+    // Playwright's desktop WebKit cannot emulate a mobile device.
+    test.skip(browserName === "webkit");
+    await open(page, 390);
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await page.getByRole("button", { name: "Read full screen" }).click();
+    await expect(page.getByTestId("epub-chrome-bottom")).toBeVisible();
+    await page.getByRole("button", { name: "Text settings" }).click();
+    const panel = (await page.getByTestId("epub-typography-panel").boundingBox())!;
+    const chrome = (await page.getByTestId("epub-chrome-bottom").boundingBox())!;
+    expect(chrome.y - (panel.y + panel.height)).toBe(0);
+  });
+});
