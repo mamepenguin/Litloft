@@ -37,7 +37,7 @@ function InspectorSkeleton() {
 
 function CanvasSkeleton() {
   return (
-    <div className="media-detail-host w-full space-y-4 p-4">
+    <div className="media-detail-host w-full p-4 [&>*+*]:mt-4">
       <div className="media-detail-player" data-framed="true">
         <Skeleton className="aspect-video w-full md:rounded-xl" />
       </div>

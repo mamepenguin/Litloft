@@ -1177,6 +1177,15 @@ div:has(> .fixed[data-fullscreen-moving])::before {
   border-radius: 0;
 }
 
+/* Nor below it, unless something with content follows. */
+.media-detail-host:has(> .media-detail-player[data-bleed="true"]) {
+  padding-bottom: 0;
+}
+
+.media-detail-host:has(> .media-detail-player[data-bleed="true"] ~ :not(:empty)) {
+  padding-bottom: 1rem;
+}
+
 /* `--player-avail` is derived from this element's own offset, which is a
    constant zero while it is stuck, so the cap would tighten as the reader
    scrolls. Dropping the cap instead is wrong: in phone landscape a sticky

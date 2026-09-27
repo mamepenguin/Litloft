@@ -42,6 +42,14 @@ interface MediaCanvasProps
   heavySummaries: ReactNode;
 }
 
+/**
+ * The space goes above each later child, not below the earlier one as
+ * `space-y` puts it: a hidden box after the player then takes no space. Block
+ * layout, not a flex `gap`: the sticky player and the framed player's aspect
+ * padding are laid out against a block host.
+ */
+export const MEDIA_HOST_CLASS = "media-detail-host w-full p-4 [&>*+*]:mt-4";
+
 export function MediaCanvas({
   file,
   fileId,
@@ -60,7 +68,7 @@ export function MediaCanvas({
 }: MediaCanvasProps) {
   return (
     <div
-      className="media-detail-host w-full space-y-4 p-4"
+      className={MEDIA_HOST_CLASS}
       style={mediaHostStyle(metrics, miniPlayerRoot)}
     >
       <MediaPlayerBlock
