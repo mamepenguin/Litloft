@@ -292,6 +292,7 @@ describe("the component fixture's page", () => {
       "canvas-no-bleed",
       "canvas-bleed-alone",
       "canvas-no-bleed-alone",
+      "canvas-bleed-phone-alone",
       "epub-bar",
       "epub-bar-loading",
     ]);

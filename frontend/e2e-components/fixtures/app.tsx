@@ -1312,7 +1312,11 @@ function CanvasHost({
         <div data-testid="viewer" data-viewer-frame className="h-40 w-full rounded-xl bg-bg-card" />
       </div>
       <div className="empty:hidden" />
-      {below && <p data-testid="below">Below the viewer</p>}
+      {below && (
+        <div className="empty:hidden">
+          <p data-testid="below">Below the viewer</p>
+        </div>
+      )}
       <div className="empty:hidden" />
     </div>
   );
@@ -1367,6 +1371,10 @@ function CanvasNoBleed(): ReactElement {
 
 function CanvasBleedAlone(): ReactElement {
   return <CanvasHost bleed phone={false} below={false} />;
+}
+
+function CanvasBleedPhoneAlone(): ReactElement {
+  return <CanvasHost bleed phone below={false} />;
 }
 
 function CanvasNoBleedAlone(): ReactElement {
@@ -1875,6 +1883,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "canvas-no-bleed": CanvasNoBleed,
   "canvas-bleed-alone": CanvasBleedAlone,
   "canvas-no-bleed-alone": CanvasNoBleedAlone,
+  "canvas-bleed-phone-alone": CanvasBleedPhoneAlone,
   "epub-bar": EpubBarAtRest,
   "epub-bar-loading": EpubBarLoading,
 };

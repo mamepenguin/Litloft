@@ -44,9 +44,8 @@ interface MediaCanvasProps
 
 /**
  * The space goes above each later child, not below the earlier one as
- * `space-y` puts it: a hidden box after the player then takes no space. Block
- * layout, not a flex `gap`: the sticky player and the framed player's aspect
- * padding are laid out against a block host.
+ * `space-y` puts it: a hidden box after the player then takes no space. Not a
+ * flex `gap`: a flex host moves the pinned frame in pseudo full screen.
  */
 export const MEDIA_HOST_CLASS = "media-detail-host w-full p-4 [&>*+*]:mt-4";
 

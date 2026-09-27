@@ -41,6 +41,8 @@ test("a bled viewer spans the canvas from its top edge, square, and what follows
 test("a bled viewer with nothing shown below it ends at the canvas's bottom", async ({ page }) => {
   const m = await measure(page, "canvas-bleed-alone");
   expect(m.host.bottom).toBe(m.viewer.bottom);
+  const phone = await measure(page, "canvas-bleed-phone-alone");
+  expect(phone.host.bottom).toBe(phone.viewer.bottom);
 });
 
 test("a viewer that does not bleed keeps one gap to what follows and the canvas's bottom padding", async ({
