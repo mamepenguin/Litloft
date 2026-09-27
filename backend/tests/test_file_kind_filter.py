@@ -193,6 +193,22 @@ class TestTheVocabulary:
         c, _, _ = library
         assert _listing_names(c, "document") == {"note.md", "doc.pdf", "sheet.xlsx"}
 
+    @pytest.mark.parametrize(
+        ("kinds", "expected"),
+        [
+            (["video", "pdf"], {"movie.mp4", "doc.pdf"}),
+            (["markdown", "image"], {"note.md", "pic.jpg"}),
+            (["text", "document"], {"note.md", "doc.pdf", "sheet.xlsx"}),
+            (["video", "video"], {"movie.mp4"}),
+        ],
+    )
+    def test_repeated_types_select_any_of_them(self, library, kinds, expected):
+        c, _, _ = library
+        query = "&".join(f"type={kind}" for kind in kinds)
+        res = c.get(f"/api/drives/{TEST_DRIVE}/files?limit=100&{query}")
+        assert res.status_code == 200, res.text
+        assert {item["filename"] for item in res.json()["data"]} == expected
+
     def test_no_filter_returns_everything(self, library):
         c, _, _ = library
         assert len(_listing_names(c)) == 8

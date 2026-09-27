@@ -218,11 +218,21 @@ def _apply_kind_filter(query, kind: FileKind | None):
     """
     if kind is None:
         return query
+    return query.filter(_kind_predicate(kind))
 
+
+def _apply_kinds_filter(query, kinds: list[FileKind]):
+    """Narrow ``query`` to any of several kinds, through the same predicate."""
+    if not kinds:
+        return query
+    return query.filter(or_(*(_kind_predicate(kind) for kind in kinds)))
+
+
+def _kind_predicate(kind: FileKind):
     mimes = _KIND_MIMES.get(kind)
     if mimes is None:
         # The six flat kinds are `file_type` itself.
-        return query.filter(File.file_type == kind)
+        return File.file_type == kind
 
     # A nested kind: recognised by mime, or by extension for rows whose
     # mime was never recorded.
@@ -235,11 +245,9 @@ def _apply_kind_filter(query, kind: FileKind | None):
     # it exists for: one whose mime was never recorded may well have
     # been given the wrong ``file_type`` by the same writer.
     suffixes = _KIND_SUFFIXES[kind]
-    return query.filter(
-        or_(
-            File.mime_type.in_(mimes),
-            *(func.lower(File.filename).like(f"%{suffix}") for suffix in suffixes),
-        )
+    return or_(
+        File.mime_type.in_(mimes),
+        *(func.lower(File.filename).like(f"%{suffix}") for suffix in suffixes),
     )
 
 
@@ -653,8 +661,8 @@ def list_drive_files(
     search: str | None = Query(None, max_length=200),
     favorite: bool | None = None,
     liked: bool | None = None,
-    tag: str | None = None,
-    type: FileKindParam | None = None,
+    tag: list[str] | None = Query(None),
+    type: list[FileKindParam] | None = Query(None),
     trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
     sort: str = Query(
         "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
@@ -703,9 +711,10 @@ def list_drive_files(
         query = query.filter(
             File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
         )
-    if tag:
-        query = query.filter(File.tags.any(func.lower(Tag.name) == tag.lower()))
-    query = _apply_kind_filter(query, _normalize_kind(type))
+    for name in tag or []:
+        if name:
+            query = query.filter(File.tags.any(func.lower(Tag.name) == name.lower()))
+    query = _apply_kinds_filter(query, [_normalize_kind(kind) for kind in type or []])
     if trust == "unreviewed":
         # Not a tier: the review queue is "nobody has ruled on this", which
         # spans both tiers. Bulk-migrated rows are verified but unjudged, and

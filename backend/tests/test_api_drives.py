@@ -629,6 +629,50 @@ class TestListDriveFilesRecursive:
         assert tagged.json()["data"][0]["folder_path"] == "recipes/nested"
 
 
+class TestRepeatedTags:
+    @pytest.fixture
+    def tagged(self, client):
+        from app.models import File, Tag
+
+        c, db, drive_dir, _ = client
+        trip = Tag(name="Trip", drive=TEST_DRIVE)
+        year = Tag(name="2024", drive=TEST_DRIVE)
+        db.add_all([trip, year])
+        for name, tags in [("both", [trip, year]), ("trip", [trip]), ("year", [year]), ("none", [])]:
+            (drive_dir / f"{name}.mp4").write_bytes(b"x")
+            f = File(
+                filename=f"{name}.mp4",
+                title=name,
+                drive=TEST_DRIVE,
+                folder_path="",
+                file_path=f"{name}.mp4",
+                file_size=1,
+                file_type="video",
+                mime_type="video/mp4",
+            )
+            f.tags.extend(tags)
+            db.add(f)
+        db.commit()
+        return c
+
+    @pytest.mark.parametrize(
+        ("query", "expected"),
+        [
+            ("tag=Trip", {"both", "trip"}),
+            ("tag=Trip&tag=2024", {"both"}),
+            ("tag=trip&tag=2024", {"both"}),
+            ("tag=Trip&tag=nowhere", set()),
+            ("tag=Trip&tag=", {"both", "trip"}),
+        ],
+    )
+    def test_every_tag_must_be_on_the_file(self, tagged, query, expected):
+        res = tagged.get(f"/api/drives/{TEST_DRIVE}/files?limit=100&{query}")
+        assert res.status_code == 200, res.text
+        body = res.json()
+        assert {item["title"] for item in body["data"]} == expected
+        assert body["meta"]["total"] == len(expected)
+
+
 class TestKindVocabularyParity:
     """The card's label and the Filter menu's option are one vocabulary.
 
