@@ -113,7 +113,8 @@ describe("advertised tool safety metadata", () => {
 
   it("discloses Ask's possible file-excerpt transfer to the configured LLM provider", () => {
     const ask = tools.find((tool) => tool.name === "ask");
-    expect(ask?.description).toContain("file excerpts");
-    expect(ask?.description).toContain("LLM provider configured in Litloft");
+    expect(ask?.description).toContain(
+      "Retrieved file excerpts may be sent to the LLM provider configured in Litloft Intelligence."
+    );
   });
 });
