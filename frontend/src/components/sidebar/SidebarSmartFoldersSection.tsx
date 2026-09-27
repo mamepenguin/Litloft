@@ -56,10 +56,10 @@ export function SidebarSmartFoldersSection({
 
   const handleClick = useCallback(
     (sf: SmartFolder) => {
-      router.push(smartFolderHref(sf));
+      router.push(smartFolderHref({ ...sf, drive }));
       close();
     },
-    [router, close],
+    [drive, router, close],
   );
 
   const openContextMenu = useCallback(

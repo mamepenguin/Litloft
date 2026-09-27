@@ -176,11 +176,12 @@ describe("GlobalSearch page jump", () => {
     render(<GlobalSearch />);
     await openAndType("trash");
     press("ArrowDown");
+    await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalled());
 
     await act(async () => {
       files.resolve(page([file("f1", "trash-notes")]));
     });
-    await waitFor(() => expect(screen.getByText("trash-notes")).toBeInTheDocument());
+    expect(screen.getByText("trash-notes")).toBeInTheDocument();
     press("Enter");
 
     expect(mockRouterPush).toHaveBeenCalledWith("/drive/main?view=trash");
