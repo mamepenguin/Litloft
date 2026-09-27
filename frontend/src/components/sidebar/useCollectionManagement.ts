@@ -11,6 +11,7 @@ import {
   updateCollection,
 } from "@/lib/api";
 import { useToast } from "@/components/ToastProvider";
+import { collectionHref } from "@/lib/driveViews";
 import type { CollectionSummary } from "@/types";
 
 interface UseCollectionManagementParams {
@@ -106,9 +107,7 @@ export function useCollectionManagement({
   const handleCollectionClick = useCallback((c: CollectionSummary) => {
     setOverrideDrive(c.drive);
     close();
-    router.push(
-      `/drive/${encodeURIComponent(c.drive)}/collections/${encodeURIComponent(c.id)}`,
-    );
+    router.push(collectionHref(c));
   }, [close, router, setOverrideDrive]);
 
   return {

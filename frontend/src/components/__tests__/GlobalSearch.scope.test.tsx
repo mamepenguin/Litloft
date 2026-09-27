@@ -23,14 +23,21 @@ const driveState = vi.hoisted(() => ({ current: "main" }));
 
 vi.mock("../CurrentDriveProvider", () => ({
   useCurrentDrive: () => driveState.current,
+  useSetOverrideDrive: () => () => {},
 }));
 
 const mockGetDriveFiles = vi.fn();
 const mockGetWatchHistory = vi.fn();
+const mockGetPins = vi.fn();
 
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
+  getPins: (...args: unknown[]) => mockGetPins(...args),
+  getCollections: () => Promise.resolve([]),
+  getSmartFolders: () => Promise.resolve([]),
+  getDriveSummary: () => Promise.resolve({ missing_count: 0 }),
+  getAuthStatus: () => Promise.resolve({ is_admin: false }),
 }));
 
 const mockFetchSemanticHits = vi.fn();
@@ -154,6 +161,7 @@ describe("GlobalSearch with a scope", () => {
     localStorage.clear();
     driveState.current = "main";
     mockGetWatchHistory.mockResolvedValue([]);
+    mockGetPins.mockResolvedValue([]);
     mockGetDriveFiles.mockResolvedValue(page([]));
     mockFetchSemanticHits.mockResolvedValue([]);
     mockIsSemanticSearchAvailable.mockResolvedValue(true);
@@ -216,6 +224,17 @@ describe("GlobalSearch with a scope", () => {
       expect(mockReadSearchCache).toHaveBeenCalledWith(
         expect.objectContaining({ query: "review", type: "text" }),
       );
+    });
+
+    it("offers no page jumps and loads no destinations", async () => {
+      mockGetPins.mockResolvedValue([{ path: "trash" }]);
+      shell(<ScopedScreen />);
+      openFromHeader();
+      await typeQuery("trash");
+
+      await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalledTimes(1));
+      expect(screen.queryByText("Go to")).toBeNull();
+      expect(mockGetPins).not.toHaveBeenCalled();
     });
 
     it("lists recent files of the scope's kind only", async () => {

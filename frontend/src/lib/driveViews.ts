@@ -79,3 +79,20 @@ export function routeHidesTree({
   }
   return false;
 }
+
+export function collectionHref(collection: { drive: string; id: string }): string {
+  return `/drive/${encodeURIComponent(collection.drive)}/collections/${encodeURIComponent(collection.id)}`;
+}
+
+export function smartFolderHref(folder: {
+  drive: string;
+  id: string;
+  query: string;
+  file_type: string | null;
+}): string {
+  const params = new URLSearchParams();
+  params.set("q", folder.query);
+  if (folder.file_type) params.set("type", folder.file_type);
+  params.set("smart_folder_id", folder.id);
+  return `/drive/${encodeURIComponent(folder.drive)}/search?${params.toString()}`;
+}

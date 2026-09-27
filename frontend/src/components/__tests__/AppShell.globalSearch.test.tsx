@@ -12,6 +12,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("../CurrentDriveProvider", () => ({
   useCurrentDrive: () => "main",
+  useSetOverrideDrive: () => () => {},
 }));
 
 vi.mock("../ProfileProvider", () => ({
@@ -25,6 +26,11 @@ vi.mock("../AddonSlot", () => ({ AddonSlot: () => null }));
 vi.mock("@/lib/api", () => ({
   getDriveFiles: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 8 } }),
   getWatchHistory: vi.fn().mockResolvedValue([]),
+  getPins: vi.fn().mockResolvedValue([]),
+  getCollections: vi.fn().mockResolvedValue([]),
+  getSmartFolders: vi.fn().mockResolvedValue([]),
+  getDriveSummary: vi.fn().mockResolvedValue({ missing_count: 0 }),
+  getAuthStatus: vi.fn().mockResolvedValue({ is_admin: false }),
 }));
 
 vi.mock("@/lib/semanticSearch", () => ({

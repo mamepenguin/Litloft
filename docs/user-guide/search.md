@@ -12,6 +12,8 @@ Before you type, the modal lists **Recent files** (the files you opened lately i
 
 Once you type, the modal shows the best matches and a **View all N results** row that opens the full search page. Use the arrow keys to pick a row and `Enter` to open it.
 
+Typing the name of a page, such as "all files" or "trash", or of a pin, collection or smart folder, also shows a **Go to** row above the files that takes you straight there. It is the first row the down arrow reaches; `Enter` with no row picked still opens the full search page.
+
 With the intelligence addon, the footer says **Also searching by meaning…** while the second set of results is on its way. When it arrives the list can reorder. The row you picked stays picked.
 
 ### Narrowed to one kind

@@ -30,6 +30,7 @@ const driveState = vi.hoisted(() => ({ current: "main" as string | null }));
 
 vi.mock("../CurrentDriveProvider", () => ({
   useCurrentDrive: () => driveState.current,
+  useSetOverrideDrive: () => () => {},
 }));
 
 const mockGetDriveFiles = vi.fn();
@@ -38,6 +39,11 @@ const mockGetWatchHistory = vi.fn();
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
+  getPins: () => Promise.resolve([]),
+  getCollections: () => Promise.resolve([]),
+  getSmartFolders: () => Promise.resolve([]),
+  getDriveSummary: () => Promise.resolve({ missing_count: 0 }),
+  getAuthStatus: () => Promise.resolve({ is_admin: false }),
 }));
 
 const mockFetchSemanticHits = vi.fn();
