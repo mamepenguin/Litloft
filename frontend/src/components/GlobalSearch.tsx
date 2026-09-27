@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Info, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Folder, Info, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { MatchLegend } from "@/components/search/MatchLegend";
 import { useShortcutsContext } from "@/components/ShortcutsProvider";
@@ -23,11 +23,16 @@ import {
   writeSearchCache,
   type SearchCacheKey,
 } from "@/lib/searchCache";
-import { matchJumps } from "@/lib/pageJump";
+import { matchFolders, matchJumps } from "@/lib/pageJump";
+import { pinHrefFor } from "./sidebar/libraryRowActive";
 import type { FileItemWithMatch, WatchHistoryItem } from "@/types";
 import { useCurrentDrive, useSetOverrideDrive } from "./CurrentDriveProvider";
 import { JumpRows } from "./search/JumpRows";
-import { useJumpDestinations, type JumpDestination } from "./search/useJumpDestinations";
+import {
+  useJumpDestinations,
+  useJumpFolders,
+  type JumpDestination,
+} from "./search/useJumpDestinations";
 import { MergedResultItem } from "./search/MergedResultItem";
 import { SearchEmptyState, type EmptyItem } from "./search/SearchEmptyState";
 import { addToHistory, getHistory, removeFromHistory } from "./search/searchHistory";
@@ -46,6 +51,7 @@ export function GlobalSearch() {
   const t = useTranslations("search");
   const tsc = useTranslations("shortcuts");
   const tc = useTranslations("common");
+  const tj = useTranslations("pageJump");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
@@ -91,10 +97,28 @@ export function GlobalSearch() {
   const drive = useCurrentDrive();
   const setOverrideDrive = useSetOverrideDrive();
   const destinations = useJumpDestinations(open && !scope, drive);
-  const jumps = useMemo(
+  const folderIndex = useJumpFolders(open && !scope, drive);
+  const pageJumps = useMemo(
     () => (scope || !drive ? [] : matchJumps(destinations, query)),
     [scope, drive, destinations, query],
   );
+  const folderJumps = useMemo<JumpDestination[]>(() => {
+    if (scope || !drive) return [];
+    const driveBase = `/drive/${encodeURIComponent(drive)}`;
+    const shown = new Set(pageJumps.map((jump) => jump.key));
+    return matchFolders(folderIndex, query, shown).map((folder) => ({
+      key: folder.key,
+      label: folder.name,
+      names: [],
+      href: pinHrefFor(driveBase, folder.path),
+      icon: Folder,
+      detail: folder.path.includes("/")
+        ? folder.path.slice(0, folder.path.lastIndexOf("/"))
+        : t("driveRoot"),
+    }));
+  }, [scope, drive, folderIndex, pageJumps, query, t]);
+  // One keyboard order across both blocks: page jumps, then folders.
+  const jumps = useMemo(() => [...pageJumps, ...folderJumps], [pageJumps, folderJumps]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -611,8 +635,25 @@ export function GlobalSearch() {
 
   const resultsList = (mobile: boolean) => (
     <div className={mobile ? "" : "max-h-[50vh] overflow-y-auto"}>
-      {jumps.length > 0 && (
-        <JumpRows jumps={jumps} selectedIndex={selectedIndex} mobile={mobile} onOpen={openJump} />
+      {pageJumps.length > 0 && (
+        <JumpRows
+          heading={tj("section")}
+          jumps={pageJumps}
+          offset={0}
+          selectedIndex={selectedIndex}
+          mobile={mobile}
+          onOpen={openJump}
+        />
+      )}
+      {folderJumps.length > 0 && (
+        <JumpRows
+          heading={tj("folders")}
+          jumps={folderJumps}
+          offset={pageJumps.length}
+          selectedIndex={selectedIndex}
+          mobile={mobile}
+          onOpen={openJump}
+        />
       )}
       {loading && merged.length === 0 ? (
         <div className={`flex items-center justify-center ${mobile ? "py-12" : "py-8"}`}>

@@ -18,6 +18,7 @@ vi.mock("../CurrentDriveProvider", () => ({
 
 const mockGetDriveFiles = vi.fn();
 const mockGetPins = vi.fn();
+const mockGetFolderTree = vi.fn();
 const mockGetCollections = vi.fn();
 const mockGetSmartFolders = vi.fn();
 const mockGetDriveSummary = vi.fn();
@@ -25,6 +26,7 @@ const mockGetAuthStatus = vi.fn();
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: () => Promise.resolve([]),
+  getFolderTree: (...args: unknown[]) => mockGetFolderTree(...args),
   getPins: (...args: unknown[]) => mockGetPins(...args),
   getCollections: (...args: unknown[]) => mockGetCollections(...args),
   getSmartFolders: (...args: unknown[]) => mockGetSmartFolders(...args),
@@ -103,6 +105,10 @@ const press = (key: string) => fireEvent.keyDown(input(), { key });
 const jumpRows = () =>
   screen.queryByText("Go to")?.parentElement?.querySelectorAll("button") ?? [];
 const jumpLabels = () => Array.from(jumpRows()).map((row) => row.textContent);
+const folderRows = () =>
+  screen.queryByText("Folders")?.parentElement?.querySelectorAll("button") ?? [];
+const folderLabels = () => Array.from(folderRows()).map((row) => row.textContent);
+const folder = (path: string) => ({ kind: "folder", name: path.split("/").pop()!, path });
 
 async function openAndType(query: string) {
   fireEvent.click(screen.getByLabelText("Search"));
@@ -118,6 +124,7 @@ describe("GlobalSearch page jump", () => {
     driveState.current = "main";
     mockGetDriveFiles.mockResolvedValue(page([]));
     mockGetPins.mockResolvedValue([]);
+    mockGetFolderTree.mockResolvedValue([]);
     mockGetCollections.mockResolvedValue([]);
     mockGetSmartFolders.mockResolvedValue([]);
     mockGetDriveSummary.mockResolvedValue({ missing_count: 0 });
@@ -266,5 +273,92 @@ describe("GlobalSearch page jump", () => {
     expect(mockRouterPush).toHaveBeenCalledWith(
       "/drive/main/search?q=cat&type=video&smart_folder_id=s1",
     );
+  });
+});
+
+describe("GlobalSearch folder jump", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    driveState.current = "main";
+    mockGetDriveFiles.mockResolvedValue(page([]));
+    mockGetPins.mockResolvedValue([]);
+    mockGetCollections.mockResolvedValue([]);
+    mockGetSmartFolders.mockResolvedValue([]);
+    mockGetDriveSummary.mockResolvedValue({ missing_count: 0 });
+    mockGetAuthStatus.mockResolvedValue({ is_admin: false });
+    mockGetFolderTree.mockResolvedValue([
+      folder("trips"),
+      folder("trips/kyoto"),
+      folder("a b"),
+      folder("a b/c#d"),
+    ]);
+  });
+
+  it("lists folders by their own name, with the parent path beside them", async () => {
+    render(<GlobalSearch />);
+    await openAndType("kyoto");
+    await waitFor(() => expect(folderLabels()).toEqual(["kyototrips"]));
+    expect(mockGetFolderTree).toHaveBeenCalledWith("main", { flat: true });
+  });
+
+  it("names the drive root as the parent of a top-level folder", async () => {
+    render(<GlobalSearch />);
+    await openAndType("trips");
+    await waitFor(() => expect(folderLabels()).toEqual(["tripsDrive root"]));
+  });
+
+  it("opens a folder with zero file results, without recording the query", async () => {
+    render(<GlobalSearch />);
+    await openAndType("c#d");
+    await waitFor(() => expect(folderLabels()).toHaveLength(1));
+
+    press("ArrowDown");
+    press("Enter");
+
+    expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/a%20b/c%23d");
+    expect(localStorage.getItem("search-history:main")).toBeNull();
+  });
+
+  it("still opens the search page on Enter with nothing highlighted", async () => {
+    render(<GlobalSearch />);
+    await openAndType("kyoto");
+    await waitFor(() => expect(folderLabels()).toHaveLength(1));
+
+    press("Enter");
+
+    expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/search?q=kyoto");
+  });
+
+  it("shows a pinned folder once, and keeps it highlighted when it moves to Go to", async () => {
+    const pins = deferred<{ path: string }[]>();
+    mockGetPins.mockReturnValue(pins.promise);
+    render(<GlobalSearch />);
+    await openAndType("kyoto");
+    await waitFor(() => expect(folderLabels()).toEqual(["kyototrips"]));
+    press("ArrowDown");
+
+    await act(async () => {
+      pins.resolve([{ path: "trips/kyoto" }]);
+    });
+    expect(jumpLabels()).toEqual(["kyoto"]);
+    expect(folderLabels()).toEqual([]);
+    press("Enter");
+
+    expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/trips/kyoto");
+  });
+
+  it("drops the previous drive's folders as soon as the drive changes", async () => {
+    mockGetFolderTree.mockImplementation((drive: string) =>
+      drive === "main" ? Promise.resolve([folder("trips")]) : new Promise(() => {}),
+    );
+    const { rerender } = render(<GlobalSearch />);
+    await openAndType("trips");
+    await waitFor(() => expect(folderLabels()).toHaveLength(1));
+
+    driveState.current = "other";
+    rerender(<GlobalSearch />);
+
+    expect(folderLabels()).toEqual([]);
   });
 });

@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { FIXED_JUMPS, JUMP_LIMIT, matchJumps, visibleFixedJumps } from "../pageJump";
+import {
+  FIXED_JUMPS,
+  FOLDER_LIMIT,
+  JUMP_LIMIT,
+  indexFolders,
+  matchFolders,
+  matchJumps,
+  visibleFixedJumps,
+} from "../pageJump";
 
 const dest = (key: string, ...names: string[]) => ({ key, names });
 
@@ -87,5 +95,66 @@ describe("FIXED_JUMPS hrefs", () => {
   ])("%s", (key, href) => {
     const jump = FIXED_JUMPS.find((j) => j.key === key);
     expect(jump?.href("my drive")).toBe(href);
+  });
+});
+
+describe("matchFolders", () => {
+  const index = indexFolders(
+    [
+      "photos",
+      "photos/2024",
+      "trips",
+      "trips/2024",
+      "trips/2024-spring",
+      "trips/kyoto/2024",
+      "archive/old-photos",
+      "a/b/c/d/e/2024x",
+      "2024",
+    ].map((path) => ({ kind: "folder" as const, name: path.split("/").pop()!, path })),
+  );
+  const paths = (query: string, exclude: ReadonlySet<string> = new Set()) =>
+    matchFolders(index, query, exclude).map((f) => f.path);
+
+  it("offers nothing for an empty query", () => {
+    expect(paths("  ")).toEqual([]);
+  });
+
+  it("matches the folder's own name, not a parent segment", () => {
+    expect(paths("trips")).toEqual(["trips"]);
+  });
+
+  it("orders prefix before substring, then shallower, then by path", () => {
+    expect(paths("photos")).toEqual(["photos", "archive/old-photos"]);
+  });
+
+  it(`offers at most ${FOLDER_LIMIT}, shallowest first`, () => {
+    expect(paths("2024")).toEqual([
+      "2024",
+      "photos/2024",
+      "trips/2024",
+      "trips/2024-spring",
+      "trips/kyoto/2024",
+    ]);
+  });
+
+  it("drops excluded folders before the cap", () => {
+    expect(paths("2024", new Set(["folder:2024", "folder:photos/2024"]))).toEqual([
+      "trips/2024",
+      "trips/2024-spring",
+      "trips/kyoto/2024",
+      "a/b/c/d/e/2024x",
+    ]);
+  });
+
+  it("ignores case and width", () => {
+    expect(paths("ＰＨＯＴＯＳ")).toEqual(["photos", "archive/old-photos"]);
+  });
+
+  it("keeps only folder nodes", () => {
+    const withFile = indexFolders([
+      { kind: "file", name: "2024.md", path: "2024.md" },
+      { kind: "folder", name: "2024", path: "2024" },
+    ]);
+    expect(matchFolders(withFile, "2024", new Set()).map((f) => f.path)).toEqual(["2024"]);
   });
 });

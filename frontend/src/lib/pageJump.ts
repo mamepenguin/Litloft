@@ -87,3 +87,60 @@ export function matchJumps<T extends { names: readonly string[] }>(
   }
   return [...prefix, ...substring].slice(0, JUMP_LIMIT);
 }
+
+export const FOLDER_LIMIT = 5;
+
+export interface IndexedFolder {
+  key: string;
+  name: string;
+  path: string;
+  depth: number;
+  normalisedName: string;
+}
+
+/** Built once per load so a keystroke only compares strings. */
+export function indexFolders(
+  nodes: readonly { kind: string; name: string; path: string }[],
+): IndexedFolder[] {
+  return nodes
+    .filter((node) => node.kind === "folder")
+    .map((node) => ({
+      key: folderJumpKey(node.path),
+      name: node.name,
+      path: node.path,
+      depth: node.path.split("/").length,
+      normalisedName: normalise(node.name),
+    }));
+}
+
+/** A folder's identity in the modal, shared by pin rows and folder rows. */
+export function folderJumpKey(path: string): string {
+  return `folder:${path}`;
+}
+
+/**
+ * Prefix matches first, then substring matches; within each, shallower
+ * folders first, then by path. `exclude` holds keys already on screen.
+ */
+export function matchFolders(
+  folders: readonly IndexedFolder[],
+  query: string,
+  exclude: ReadonlySet<string>,
+): IndexedFolder[] {
+  const needle = normalise(query.trim());
+  if (!needle) return [];
+
+  const ranked: { folder: IndexedFolder; rank: number }[] = [];
+  for (const folder of folders) {
+    if (exclude.has(folder.key)) continue;
+    if (folder.normalisedName.startsWith(needle)) ranked.push({ folder, rank: 0 });
+    else if (folder.normalisedName.includes(needle)) ranked.push({ folder, rank: 1 });
+  }
+  ranked.sort(
+    (a, b) =>
+      a.rank - b.rank ||
+      a.folder.depth - b.folder.depth ||
+      (a.folder.path < b.folder.path ? -1 : a.folder.path > b.folder.path ? 1 : 0),
+  );
+  return ranked.slice(0, FOLDER_LIMIT).map((r) => r.folder);
+}

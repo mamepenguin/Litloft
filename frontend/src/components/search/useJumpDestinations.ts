@@ -12,11 +12,17 @@ import {
   getAuthStatus,
   getCollections,
   getDriveSummary,
+  getFolderTree,
   getPins,
   getSmartFolders,
 } from "@/lib/api";
 import { collectionHref, smartFolderHref } from "@/lib/driveViews";
-import { visibleFixedJumps } from "@/lib/pageJump";
+import {
+  folderJumpKey,
+  indexFolders,
+  visibleFixedJumps,
+  type IndexedFolder,
+} from "@/lib/pageJump";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import type { CollectionSummary, PinnedFolder } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
@@ -29,6 +35,8 @@ export interface JumpDestination {
   icon: LucideIcon;
   /** Set for a collection, whose sidebar row pins the drive before navigating. */
   overrideDrive?: string;
+  /** A second, muted line of context, e.g. a folder's parent path. */
+  detail?: string;
 }
 
 const NO_PINS: PinnedFolder[] = [];
@@ -36,8 +44,13 @@ const NO_COLLECTIONS: CollectionSummary[] = [];
 const NO_SMART_FOLDERS: SmartFolder[] = [];
 const PLACEMENTS: readonly AddonNavPlacement[] = ["primary", "sources", "utility"];
 
+const NO_FOLDERS: IndexedFolder[] = [];
+
 const loadMissingCount = (drive: string) =>
   getDriveSummary(drive).then((summary) => summary.missing_count);
+
+const loadFolders = (drive: string) =>
+  getFolderTree(drive, { flat: true }).then(indexFolders);
 
 /**
  * The value is kept with the drive it was loaded for and is only returned
@@ -136,7 +149,7 @@ export function useJumpDestinations(active: boolean, drive: string | null): Jump
     const pinRows = pins.map<JumpDestination>((pin) => {
       const label = pin.path.split("/").pop() ?? pin.path;
       return {
-        key: `pin:${pin.path}`,
+        key: folderJumpKey(pin.path),
         label,
         names: [label],
         href: pinHrefFor(driveBase, pin.path),
@@ -163,4 +176,9 @@ export function useJumpDestinations(active: boolean, drive: string | null): Jump
 
     return [...fixed, ...addonRows, ...pinRows, ...collectionRows, ...smartRows];
   }, [t, drive, missingCount, isAdmin, addons, catalogueDrive, pins, collections, smartFolders]);
+}
+
+/** Every folder of the drive, indexed for matching. */
+export function useJumpFolders(active: boolean, drive: string | null): IndexedFolder[] {
+  return useDriveOwned(loadFolders, active, drive, NO_FOLDERS);
 }

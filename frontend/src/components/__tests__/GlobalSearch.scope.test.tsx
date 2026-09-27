@@ -29,10 +29,12 @@ vi.mock("../CurrentDriveProvider", () => ({
 const mockGetDriveFiles = vi.fn();
 const mockGetWatchHistory = vi.fn();
 const mockGetPins = vi.fn();
+const mockGetFolderTree = vi.fn();
 
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
+  getFolderTree: (...args: unknown[]) => mockGetFolderTree(...args),
   getPins: (...args: unknown[]) => mockGetPins(...args),
   getCollections: () => Promise.resolve([]),
   getSmartFolders: () => Promise.resolve([]),
@@ -162,6 +164,7 @@ describe("GlobalSearch with a scope", () => {
     driveState.current = "main";
     mockGetWatchHistory.mockResolvedValue([]);
     mockGetPins.mockResolvedValue([]);
+    mockGetFolderTree.mockResolvedValue([]);
     mockGetDriveFiles.mockResolvedValue(page([]));
     mockFetchSemanticHits.mockResolvedValue([]);
     mockIsSemanticSearchAvailable.mockResolvedValue(true);
@@ -235,6 +238,7 @@ describe("GlobalSearch with a scope", () => {
       await waitFor(() => expect(mockGetDriveFiles).toHaveBeenCalledTimes(1));
       expect(screen.queryByText("Go to")).toBeNull();
       expect(mockGetPins).not.toHaveBeenCalled();
+      expect(mockGetFolderTree).not.toHaveBeenCalled();
     });
 
     it("lists recent files of the scope's kind only", async () => {

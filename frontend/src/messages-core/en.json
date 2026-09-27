@@ -1254,6 +1254,7 @@
       "trash": "bin,deleted,recycle",
       "missing": "lost,missing",
       "admin": "admin,settings,administration"
-    }
+    },
+    "folders": "Folders"
   }
 }
