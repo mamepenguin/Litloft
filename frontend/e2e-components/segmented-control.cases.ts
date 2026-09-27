@@ -86,7 +86,7 @@ export function segmentedControlCases(): void {
           expect(s.fits).toBe(true);
           expect(s.height).toBe(isCoarse ? 44 : 32);
           expect(s.background).toBe("rgba(0, 0, 0, 0)");
-          expect(s.borderWidth).toBe(m.segments[0].borderWidth);
+          expect(s.borderWidth).toBe("1px");
           expect(s.borderColor).toBe(s.pressed ? m.accentRgb : "rgba(0, 0, 0, 0)");
         }
         expect(m.segments.filter((s) => s.pressed)).toHaveLength(3);
@@ -100,6 +100,10 @@ export function segmentedControlCases(): void {
           expect(box!.width).toBe(32);
           expect(await hits(page, sizeButtons, i, 5, 5)).toBe(isCoarse);
         }
+
+        const smaller = page.locator(sizeButtons).first();
+        while (await smaller.isEnabled()) await smaller.click();
+        expect(await smaller.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
       });
     }
   }

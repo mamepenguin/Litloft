@@ -82,6 +82,12 @@ describe("MarkdownDocumentLayout — chrome", () => {
     expect(screen.getByTestId("inspector-toggle")).toBeInTheDocument();
   });
 
+  it("names the mode toggle as a group", () => {
+    renderLayout();
+    const group = screen.getByRole("group", { name: "View" });
+    expect(group.contains(screen.getByTestId("view-mode-edit"))).toBe(true);
+  });
+
   it("renders a save-state dot (idle by default)", () => {
     renderLayout();
     const dot = screen.getByTestId("save-dot");
