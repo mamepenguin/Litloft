@@ -55,7 +55,7 @@ export const EpubTypographyPanel = forwardRef<HTMLDivElement, EpubTypographyPane
         data-testid="epub-typography-panel"
         data-swipe-exempt
         style={style}
-        className={`flex flex-col gap-3 overflow-y-auto rounded-xl border border-bg-border bg-bg-card p-3 shadow-lg outline-none ${className}`}
+        className={`flex flex-col gap-3 overflow-y-auto bg-bg-card p-3 outline-none ${className}`}
       >
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-semibold text-text-primary">{t("epubTypography")}</span>

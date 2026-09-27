@@ -44,6 +44,7 @@ export interface MediaPlayerBlockProps {
   /** Attach so the player's offset can be measured for `--player-avail`. */
   playerWrapperRef: RefObject<HTMLDivElement | null>;
   framed: boolean;
+  bleed?: boolean;
   /**
    * `null` means the toggle is not this block's to draw — the shell puts
    * it in the page row instead, where the confirmed layout has it.
@@ -70,6 +71,7 @@ export function MediaPlayerBlock({
   addonSlotProps,
   playerWrapperRef,
   framed,
+  bleed = false,
   layoutToggle,
 }: MediaPlayerBlockProps) {
   const { hasSlot } = useAddonSlots();
@@ -81,6 +83,7 @@ export function MediaPlayerBlock({
         ref={playerWrapperRef}
         className="media-detail-player"
         data-framed={framed ? "true" : undefined}
+        data-bleed={bleed ? "true" : undefined}
       >
         {/* `globals.css` decides where this sits — on a phone this
           wrapper is stuck to the top of the canvas. Nothing here is told

@@ -121,7 +121,7 @@ describe("a row action revealed by hover is revealed by focus too", () => {
   const reveals = hoverReveals();
 
   it("finds the reveals it is meant to be checking", () => {
-    expect(reveals.length).toBe(12);
+    expect(reveals.length).toBe(13);
     for (const named of [
       "frontend/src/components/trash/TrashFileGrid.tsx",
       "frontend/src/components/trash/TrashFileList.tsx",

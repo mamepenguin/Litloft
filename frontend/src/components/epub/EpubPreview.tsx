@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
-import { BookX, Maximize, X } from "lucide-react";
+import { BookX, X } from "lucide-react";
 import type { FileItem } from "@/types";
 import { DismissScrim } from "@/components/DismissScrim";
 import { EmptyState } from "@/components/EmptyState";
@@ -12,7 +12,7 @@ import { useFocusScope } from "@/hooks/useFocusScope";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { getDownloadUrl } from "@/lib/api";
 import { formatFileSize } from "@/lib/format";
-import { chapterAt, chapterOf, currentEntryIndex, hasSelectable } from "@/lib/epubToc";
+import { chapterAt, chapterMarks, chapterOf, currentEntryIndex, hasSelectable } from "@/lib/epubToc";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
 import { EpubPositionBar } from "./EpubPositionBar";
 import { EpubTocPanel } from "./EpubTocPanel";
@@ -23,6 +23,19 @@ import { useFillHeight } from "./useFillHeight";
 export const EPUB_READER_URL = "/epub-reader/reader.html";
 
 const TOP_BAND = "max(env(safe-area-inset-top, 0px), 3rem)";
+
+/**
+ * A sheet on a narrow frame, flush on the bar; a 320px popover beside the bar's
+ * buttons from 32rem (512px) of frame width. `--panel-base` is the bar's
+ * height where the bar lies over the book (full screen), and 0 where it sits
+ * below it.
+ */
+const PANEL_CLASS = [
+  "absolute inset-x-0 z-20 bottom-[var(--panel-base)] max-h-[calc(100%-var(--panel-base)-0.5rem)]",
+  "rounded-t-2xl border-t border-bg-border shadow-lg",
+  "@lg:inset-x-auto @lg:left-2 @lg:w-80 @lg:bottom-[calc(var(--panel-base)+0.5rem)]",
+  "@lg:max-h-[calc(100%-var(--panel-base)-1rem)] @lg:rounded-xl @lg:border",
+].join(" ");
 
 function subscribeTheme(onChange: () => void): () => void {
   const observer = new MutationObserver(onChange);
@@ -80,8 +93,8 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
   const chapter =
     seeking !== null ? labelAt(seeking) : toc && location ? chapterOf(toc, location) : null;
   const pagesLeft = seeking !== null ? null : (location?.pagesLeft ?? null);
-  const panelBottom = fullscreen.isFullscreen ? "calc(2.5rem + 0.5rem)" : "0.5rem";
-  const panelStyle = { bottom: panelBottom, maxHeight: `calc(100% - 0.5rem - ${panelBottom})` };
+  const panelBase = { "--panel-base": fullscreen.isFullscreen ? "var(--epub-bar)" : "0px" } as CSSProperties;
+  const marks = useMemo(() => (toc ? chapterMarks(toc) : []), [toc]);
   const tocUsable = !!toc && hasSelectable(toc);
   const focusBook = useCallback(() => reader.frameRef.current?.contentWindow?.focus(), [reader.frameRef]);
 
@@ -208,8 +221,9 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
       <div
         ref={frameBoxRef}
         data-testid="epub-frame"
+        data-viewer-frame
         className={[
-          "flex flex-col overflow-hidden bg-bg-primary",
+          "flex flex-col overflow-hidden bg-bg-primary [--epub-bar:3.75rem] pointer-coarse:[--epub-bar:5.5rem]",
           fullscreen.isPseudo
             ? "fixed inset-0 z-50 rounded-none"
             : "relative flex-1 rounded-xl",
@@ -251,11 +265,14 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
             {openPanel !== null && (
               // Over the book too: the book is a frame whose presses never
               // reach this page. The open panel must be the cover's next
-              // sibling, the one element DismissScrim spares.
+              // sibling, the one element DismissScrim spares. The size
+              // container holds no iframe: iOS Safari mislays an iframe inside
+              // one.
+              <div className="@container absolute inset-0 z-10" style={panelBase}>
               <DismissScrim
                 onDismiss={closePanel}
                 label={openPanel === "toc" ? t("epubCloseContents") : t("epubCloseTypography")}
-                className="absolute inset-0 z-10 cursor-default"
+                className="absolute inset-0 cursor-default"
                 data-testid="epub-panel-cover"
               >
                 {openPanel === "toc" ? (
@@ -263,19 +280,18 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
                     toc={toc ?? []}
                     currentIndex={toc && location ? currentEntryIndex(toc, location) : null}
                     onSelect={selectTocEntry}
-                    className="absolute inset-x-2 z-20"
-                    style={panelStyle}
+                    className={PANEL_CLASS}
                   />
                 ) : (
                   <EpubTypographyPanel
                     ref={typographyPanelRef}
                     typography={reader.typography}
                     onChange={reader.setTypography}
-                    className="absolute inset-x-2 z-20"
-                    style={panelStyle}
+                    className={PANEL_CLASS}
                   />
                 )}
               </DismissScrim>
+              </div>
             )}
           </div>
         </div>
@@ -302,11 +318,11 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
             >
               <EpubPositionBar
                 key={file.id}
-                className="h-10"
                 fraction={place}
                 chapter={chapter}
                 pagesLeft={pagesLeft}
                 dir={book?.dir ?? "ltr"}
+                marks={marks}
                 chapterAt={labelAt}
                 onSeek={reader.seek}
                 onTurn={reader.turn}
@@ -321,11 +337,12 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
         ) : (
           <EpubPositionBar
             key={file.id}
-            className="h-10 shrink-0 border-t border-bg-border"
+            className="shrink-0 border-t border-bg-border"
             fraction={place}
             chapter={chapter}
             pagesLeft={pagesLeft}
             dir={book?.dir ?? "ltr"}
+            marks={marks}
             chapterAt={labelAt}
             onSeek={reader.seek}
             onTurn={reader.turn}
@@ -334,14 +351,16 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
             openPanel={openPanel}
             onTogglePanel={togglePanel}
             tocDisabled={!tocUsable}
+            onEnterFullscreen={fullscreen.toggle}
+            enterFullscreenDisabled={!ready}
           />
         )}
+        {fullscreen.isFullscreen && (
         <button
           type="button"
-          onClick={fullscreen.isFullscreen ? fullscreen.exit : fullscreen.toggle}
-          disabled={!ready}
-          aria-label={fullscreen.isFullscreen ? t("epubExitFullscreen") : t("epubFullscreen")}
-          className="absolute z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-bg-card/80 text-text-muted hover:bg-bg-elevated disabled:opacity-30"
+          onClick={fullscreen.exit}
+          aria-label={t("epubExitFullscreen")}
+          className="absolute z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-bg-card/80 text-text-muted hover:bg-bg-elevated"
           style={
             fullscreen.isPseudo
               ? {
@@ -352,8 +371,9 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
               : { top: "0.5rem", right: "0.5rem" }
           }
         >
-          {fullscreen.isFullscreen ? <X size={16} /> : <Maximize size={16} />}
+          <X size={16} />
         </button>
+        )}
       </div>
     </div>
   );

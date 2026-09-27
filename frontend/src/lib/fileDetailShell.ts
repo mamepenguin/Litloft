@@ -32,6 +32,16 @@ export type FileDetailSurface = "canonical" | "collection";
  */
 const FLOORED_MIMES: ReadonlySet<string> = new Set(["application/pdf"]);
 
+const DOCUMENT_VIEWER_MIMES: ReadonlySet<string> = new Set([
+  "application/pdf",
+  "application/epub+zip",
+]);
+
+/** A viewer whose content brings its own margin, so the canvas adds none around it. */
+export function isDocumentViewer(mimeType: string | undefined): boolean {
+  return DOCUMENT_VIEWER_MIMES.has(mimeType ?? "");
+}
+
 /**
  * A kind absent from here rides the shell and gets no floor, which is the
  * safe half: a viewer that is a short panel keeps its own height.

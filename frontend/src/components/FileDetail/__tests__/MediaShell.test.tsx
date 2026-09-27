@@ -274,6 +274,19 @@ describe("media on the shell, beside", () => {
   });
 });
 
+describe("document viewers bleed to the canvas edges", () => {
+  it.each([
+    ["a PDF", { file_type: "document", mime_type: "application/pdf" }, "true"],
+    ["an EPUB", { file_type: "document", mime_type: "application/epub+zip" }, "true"],
+    ["a video", { file_type: "video", mime_type: "video/mp4" }, null],
+    ["an image", { file_type: "image", mime_type: "image/jpeg" }, null],
+    ["an archive", { file_type: "archive", mime_type: "application/zip" }, null],
+  ] as const)("%s", async (_name, kind, expected) => {
+    const { container } = await renderMediaAwaitingChrome(makeFile({ has_chapters: false, ...kind }));
+    expect(container.querySelector(".media-detail-player")!.getAttribute("data-bleed")).toBe(expected);
+  });
+});
+
 describe("an occupant with nothing for this file", () => {
   it("loses its tab but not its mount", async () => {
     withTranscript();
