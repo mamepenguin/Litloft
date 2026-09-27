@@ -31,3 +31,9 @@ direction that removes:
 The fix did what it claimed; no invariant broken. Trajectory: this round removes (the refocus and
 its test) and documents the IME limit instead of adding state. One pre-existing finding: the
 chip's ‹ still refocuses the field, raising the on-screen keyboard on phones.
+
+## r4 (fix `e03d75d67`) — [r4.md](r4.md)
+
+The chip's ‹ no longer refocuses, matching ›. Trajectory: two rounds in a row remove; converged.
+One B: on desktop, ‹ from a first-level folder removes the focused button, leaving focus on the
+page until the field is clicked — the same trade the user accepted for ›.
