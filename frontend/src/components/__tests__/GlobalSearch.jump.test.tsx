@@ -433,6 +433,14 @@ describe("GlobalSearch operator value suggestions", () => {
     expect(localStorage.getItem("search-history:main")).toBeNull();
   });
 
+  it("still opens the search page on Enter with nothing highlighted", async () => {
+    render(<GlobalSearch />);
+    await openAndType("tag:旅");
+    await waitFor(() => expect(suggestionLabels()).toHaveLength(2));
+    press("Enter");
+    expect(mockRouterPush).toHaveBeenCalledWith("/drive/main/search?q=tag%3A%E6%97%85");
+  });
+
   it("offers nothing once the value is finished with a space", async () => {
     render(<GlobalSearch />);
     await openAndType("tag:旅行 ");

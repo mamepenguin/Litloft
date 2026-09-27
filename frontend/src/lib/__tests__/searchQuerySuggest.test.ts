@@ -32,11 +32,12 @@ describe("suggestValues", () => {
     { name: "一人旅", count: 9 },
     { name: "空", count: 0 },
     { name: "料理", count: 7 },
+    { name: "trip", count: 5 },
   ];
 
   it.each([
     ["tags: prefix first, then by count; unused tags left out", "tag", "旅", [], ["旅行", "旅館", "一人旅"]],
-    ["tags already in the query are left out, case-insensitively", "tag", "", ["旅行"], ["一人旅", "料理", "旅館"]],
+    ["tags already in the query are left out, case-insensitively", "tag", "", ["旅行", "TRIP"], ["一人旅", "料理", "旅館"]],
     ["kinds: prefix first, then the vocabulary's order", "type", "d", [], ["document", "video", "audio", "pdf"]],
     ["kinds ignore case", "type", "IMA", [], ["image"]],
     ["flags", "is", "", [], ["favorite", "liked"]],
