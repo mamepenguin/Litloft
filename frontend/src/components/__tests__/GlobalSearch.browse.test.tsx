@@ -260,7 +260,52 @@ describe("GlobalSearch folder browse", () => {
     typeKey("Enter");
 
     expect(mockRouterPush).toHaveBeenCalledWith(href);
+  });
+
+  it.each([
+    ["a filtered row", 1, "/files/p1"],
+    ["the folder, with filter text and nothing highlighted", 0, "/drive/main"],
+  ])("does not record the filter text as a search when opening %s", async (_, downs, href) => {
+    render(<GlobalSearch />);
+    await openModal();
+    await typeSlash();
+    await waitFor(() => expect(rowNames()).toHaveLength(2));
+    await act(async () => {
+      fireEvent.change(input(), { target: { value: "read" } });
+    });
+    for (let i = 0; i < downs; i++) typeKey("ArrowDown");
+    typeKey("Enter");
+
+    expect(mockRouterPush).toHaveBeenCalledWith(downs ? "/files/r1" : href);
     expect(localStorage.getItem("search-history:main")).toBeNull();
+  });
+
+  it("does not start browsing on a / typed while composing", async () => {
+    render(<GlobalSearch />);
+    await openModal();
+    fireEvent.compositionStart(input());
+    await act(async () => {
+      fireEvent.input(input(), { target: { value: "/" }, isComposing: true });
+    });
+    expect(chip()).toBeNull();
+    expect(inputValue()).toBe("/");
+  });
+
+  it("keeps the keyboard in the field after entering a folder with its › button", async () => {
+    render(<GlobalSearch />);
+    await openModal();
+    // Let the focus the modal schedules on opening run first.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 80));
+    });
+    await typeSlash();
+    await waitFor(() => expect(rowNames()).toHaveLength(2));
+    const into = screen.getByLabelText("Browse trips");
+    into.focus();
+    fireEvent.click(into);
+
+    await waitFor(() => expect(chip()?.textContent).toBe("trips"));
+    expect(document.activeElement).toBe(input());
   });
 
   it("opens the Library for the drive root", async () => {

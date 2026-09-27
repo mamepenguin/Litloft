@@ -475,6 +475,7 @@ export function GlobalSearch() {
   function enterFolder(path: string) {
     browse.enter(path);
     setQuery("");
+    focusInput();
   }
 
   function openBrowseRow(row: BrowseNode | null) {
@@ -596,8 +597,12 @@ export function GlobalSearch() {
       value={query}
       onChange={(e) => {
         const next = e.target.value;
-        if (!browsing && !scope && drive && startsRootBrowse(query, next)) enterFolder("");
-        else setQuery(next);
+        const composing = (e.nativeEvent as InputEvent).isComposing === true;
+        if (!browsing && !scope && drive && !composing && startsRootBrowse(query, next)) {
+          enterFolder("");
+        } else {
+          setQuery(next);
+        }
       }}
       onCompositionEnd={ime.onCompositionEnd}
       onKeyDown={(e) => {
