@@ -1,12 +1,16 @@
 "use client";
 
-import { forwardRef, type CSSProperties } from "react";
+import { forwardRef, type CSSProperties, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/Button";
+import { SegmentedControl } from "@/components/SegmentedControl";
 import {
   FONT_FAMILIES,
   FONT_SIZE_STEPS,
   LINE_HEIGHTS,
   MARGINS,
+  TYPOGRAPHY_DEFAULTS,
+  isDefaultTypography,
   type Typography,
 } from "@/lib/epubTypography";
 
@@ -17,45 +21,14 @@ const SAMPLE_FACE: Record<Typography["fontFamily"], string | undefined> = {
   sans: '"Helvetica Neue", Arial, "Hiragino Sans", "Yu Gothic", sans-serif',
 };
 
-const SEGMENT =
-  "flex h-8 min-w-0 flex-1 items-center justify-center rounded-md px-1 text-xs transition-colors pointer-coarse:min-h-11";
-
-function Segments<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-  text,
-  face,
-}: {
-  label: string;
-  options: readonly T[];
-  value: T;
-  onChange: (value: T) => void;
-  text: (option: T) => string;
-  face?: (option: T) => string | undefined;
-}) {
+function Field({ label, aside, children }: { label: string; aside?: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="w-14 shrink-0 text-xs leading-tight text-text-muted">{label}</span>
-      <div role="group" aria-label={label} className="flex min-w-0 flex-1 gap-0.5 rounded-lg border border-bg-border p-0.5">
-        {options.map((option) => (
-          <button
-            key={option}
-            type="button"
-            aria-pressed={option === value}
-            onClick={() => onChange(option)}
-            style={face ? { fontFamily: face(option) } : undefined}
-            className={`${SEGMENT} ${
-              option === value
-                ? "bg-bg-elevated text-text-primary"
-                : "text-text-muted hover:text-text-primary"
-            }`}
-          >
-            <span className="truncate">{text(option)}</span>
-          </button>
-        ))}
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xs text-text-muted">{label}</span>
+        {aside}
       </div>
+      {children}
     </div>
   );
 }
@@ -84,54 +57,85 @@ export const EpubTypographyPanel = forwardRef<HTMLDivElement, EpubTypographyPane
         style={style}
         className={`flex flex-col gap-3 overflow-y-auto rounded-xl border border-bg-border bg-bg-card p-3 shadow-lg outline-none ${className}`}
       >
-        <div className="flex items-center gap-3">
-          <span className="w-14 shrink-0 text-xs leading-tight text-text-muted">{t("epubTextSize")}</span>
-          <div className="flex flex-1 items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => set({ fontSize: step - 1 })}
-              disabled={step === 0}
-              aria-label={t("epubTextSmaller")}
-              className={`${SEGMENT} max-w-14 border border-bg-border text-text-primary disabled:opacity-30`}
-            >
-              <span className="text-[11px]">A</span>
-            </button>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-semibold text-text-primary">{t("epubTypography")}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (!isDefaultTypography(typography)) onChange(TYPOGRAPHY_DEFAULTS);
+            }}
+          >
+            {t("epubTypographyReset")}
+          </Button>
+        </div>
+        <Field
+          label={t("epubTextSize")}
+          aside={
             <span className="text-xs tabular-nums text-text-primary" aria-live="polite">
               {percent}%
             </span>
-            <button
-              type="button"
+          }
+        >
+          <div className="flex items-center gap-3 pointer-coarse:min-h-11">
+            <Button
+              variant="ghost"
+              iconOnly
+              onClick={() => set({ fontSize: step - 1 })}
+              disabled={step === 0}
+              aria-label={t("epubTextSmaller")}
+            >
+              <span aria-hidden="true" className="text-[11px]">A</span>
+            </Button>
+            <div className="flex flex-1 items-center justify-between px-1" aria-hidden="true">
+              {FONT_SIZE_STEPS.map((_, i) => (
+                <span
+                  key={i}
+                  data-testid="epub-size-step"
+                  data-current={i === step}
+                  className={`h-1.5 w-1.5 rounded-full ${i === step ? "bg-text-primary" : "bg-sand-hover"}`}
+                />
+              ))}
+            </div>
+            <Button
+              variant="ghost"
+              iconOnly
               onClick={() => set({ fontSize: step + 1 })}
               disabled={step === FONT_SIZE_STEPS.length - 1}
               aria-label={t("epubTextLarger")}
-              className={`${SEGMENT} max-w-14 border border-bg-border text-text-primary disabled:opacity-30`}
             >
-              <span className="text-base">A</span>
-            </button>
+              <span aria-hidden="true" className="text-base">A</span>
+            </Button>
           </div>
-        </div>
-        <Segments
-          label={t("epubLineSpacing")}
-          options={LINE_HEIGHTS}
-          value={typography.lineHeight}
-          onChange={(lineHeight) => set({ lineHeight })}
-          text={(o) => (o === "original" ? t("epubOriginal") : o)}
-        />
-        <Segments
-          label={t("epubMargins")}
-          options={MARGINS}
-          value={typography.margin}
-          onChange={(margin) => set({ margin })}
-          text={(o) => t(`epubMargin_${o}`)}
-        />
-        <Segments
-          label={t("epubFont")}
-          options={FONT_FAMILIES}
-          value={typography.fontFamily}
-          onChange={(fontFamily) => set({ fontFamily })}
-          text={(o) => (o === "original" ? t("epubOriginal") : t(`epubFont_${o}`))}
-          face={(o) => SAMPLE_FACE[o]}
-        />
+        </Field>
+        <Field label={t("epubLineSpacing")}>
+          <SegmentedControl
+            label={t("epubLineSpacing")}
+            options={LINE_HEIGHTS.map((o) => ({ value: o, label: o === "original" ? t("epubOriginal") : o }))}
+            value={typography.lineHeight}
+            onChange={(lineHeight) => set({ lineHeight })}
+          />
+        </Field>
+        <Field label={t("epubMargins")}>
+          <SegmentedControl
+            label={t("epubMargins")}
+            options={MARGINS.map((o) => ({ value: o, label: t(`epubMargin_${o}`) }))}
+            value={typography.margin}
+            onChange={(margin) => set({ margin })}
+          />
+        </Field>
+        <Field label={t("epubFont")}>
+          <SegmentedControl
+            label={t("epubFont")}
+            options={FONT_FAMILIES.map((o) => ({
+              value: o,
+              label: o === "original" ? t("epubOriginal") : t(`epubFont_${o}`),
+              style: { fontFamily: SAMPLE_FACE[o] },
+            }))}
+            value={typography.fontFamily}
+            onChange={(fontFamily) => set({ fontFamily })}
+          />
+        </Field>
       </div>
     );
   },

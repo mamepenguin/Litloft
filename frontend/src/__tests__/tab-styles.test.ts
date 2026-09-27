@@ -178,3 +178,36 @@ describe("one tab style", () => {
     expect(owner.body).toMatch(/\bborder-b-2\b/);
   });
 });
+
+const SEGMENTED_OWNER = "frontend/src/components/SegmentedControl.tsx";
+
+/**
+ * The outlined group with bordered segments that `SegmentedControl` draws.
+ * `aria-pressed` is part of it: without it the same tokens are an ordinary
+ * bordered card holding bordered chips.
+ */
+const SEGMENTED_GROUP_TOKENS = ["rounded-2xl", "border", "border-bg-border", "p-0.5"];
+const SEGMENTED_SEGMENT_TOKENS = ["rounded-xl", "border"];
+
+function drawsOutlinedSegments(body: string): boolean {
+  const lists = classStrings(body).map((c) => new Set(c.split(/\s+/)));
+  const has = (tokens: string[]) => lists.some((set) => tokens.every((t) => set.has(t)));
+  return /\baria-pressed\b/.test(body) && has(SEGMENTED_GROUP_TOKENS) && has(SEGMENTED_SEGMENT_TOKENS);
+}
+
+describe("one segmented control", () => {
+  const files = sourceFiles();
+
+  it("keeps the owner drawing it", () => {
+    const owner = files.find((f) => f.rel === SEGMENTED_OWNER);
+    expect(owner, `${SEGMENTED_OWNER} is not in the population`).toBeDefined();
+    expect(drawsOutlinedSegments(owner!.body)).toBe(true);
+  });
+
+  it("is not written by hand anywhere else", () => {
+    const offenders = files
+      .filter((f) => f.rel !== SEGMENTED_OWNER && drawsOutlinedSegments(f.body))
+      .map((f) => f.rel);
+    expect(offenders).toEqual([]);
+  });
+});

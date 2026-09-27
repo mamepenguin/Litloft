@@ -1016,6 +1016,37 @@ describe("EpubPreview", () => {
       expect(screen.getByRole("button", { name: "Larger text" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Smaller text" })).toBeEnabled();
     });
+
+    it("resets to the defaults, sending and storing them", async () => {
+      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontSize: 5, margin: "wide", fontFamily: "sans" }));
+      const view = await openReady();
+      fireEvent.click(aa());
+      fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+      const sent = sentOfType(view.posted, "typography") as unknown as { typography: unknown }[];
+      const defaults = { fontSize: 2, lineHeight: "original", margin: "normal", fontFamily: "original" };
+      expect(sent.map((m) => m.typography)).toEqual([defaults]);
+      expect(JSON.parse(localStorage.getItem("epub-reader:typography")!)).toEqual(defaults);
+    });
+
+    it("does nothing on reset when the defaults already apply", async () => {
+      const view = await openReady();
+      fireEvent.click(aa());
+      const reset = screen.getByRole("button", { name: "Reset" });
+      expect(reset).toBeEnabled();
+      fireEvent.click(reset);
+      expect(sentOfType(view.posted, "typography")).toEqual([]);
+      expect(localStorage.getItem("epub-reader:typography")).toBeNull();
+    });
+
+    it.each([0, 3, 6])("marks only the current size step: %i", async (fontSize) => {
+      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontSize }));
+      await openReady();
+      fireEvent.click(aa());
+      const steps = screen.getAllByTestId("epub-size-step");
+      expect(steps.map((el) => el.dataset.current === "true")).toEqual(
+        Array.from({ length: 7 }, (_, i) => i === fontSize),
+      );
+    });
   });
 
   describe("table of contents", () => {
