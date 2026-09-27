@@ -475,7 +475,6 @@ export function GlobalSearch() {
   function enterFolder(path: string) {
     browse.enter(path);
     setQuery("");
-    focusInput();
   }
 
   function openBrowseRow(row: BrowseNode | null) {

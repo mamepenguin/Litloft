@@ -23,7 +23,7 @@ The search window also has a **Keyboard Shortcuts** button along its bottom edge
 | Key | Action |
 |---|---|
 | `→` | On a folder row, browse into the folder |
-| `/` | In an empty field, browse from the drive root |
+| `/` | In an empty field, browse from the drive root (typed directly, not through an input method) |
 | `←` or `Backspace` | While browsing, with the field empty: go up one level (from the drive root, stop browsing) |
 | `Enter` | While browsing, open the picked row, or the folder you are in when no row is picked |
 

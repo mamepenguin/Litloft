@@ -247,7 +247,7 @@ describe("GlobalSearch folder browse", () => {
     ["the highlighted file", 2, "/files/p1"],
     ["the highlighted folder", 1, "/drive/main/trips/kyoto"],
     ["the browsed folder with nothing highlighted", 0, "/drive/main/trips"],
-  ])("opens %s on Enter, without recording history", async (_, downs, href) => {
+  ])("opens %s on Enter", async (_, downs, href) => {
     render(<GlobalSearch />);
     await openModal();
     await typeSlash();
@@ -263,7 +263,7 @@ describe("GlobalSearch folder browse", () => {
   });
 
   it.each([
-    ["a filtered row", 1, "/files/p1"],
+    ["a filtered row", 1, "/files/r1"],
     ["the folder, with filter text and nothing highlighted", 0, "/drive/main"],
   ])("does not record the filter text as a search when opening %s", async (_, downs, href) => {
     render(<GlobalSearch />);
@@ -276,7 +276,7 @@ describe("GlobalSearch folder browse", () => {
     for (let i = 0; i < downs; i++) typeKey("ArrowDown");
     typeKey("Enter");
 
-    expect(mockRouterPush).toHaveBeenCalledWith(downs ? "/files/r1" : href);
+    expect(mockRouterPush).toHaveBeenCalledWith(href);
     expect(localStorage.getItem("search-history:main")).toBeNull();
   });
 
@@ -289,23 +289,6 @@ describe("GlobalSearch folder browse", () => {
     });
     expect(chip()).toBeNull();
     expect(inputValue()).toBe("/");
-  });
-
-  it("keeps the keyboard in the field after entering a folder with its › button", async () => {
-    render(<GlobalSearch />);
-    await openModal();
-    // Let the focus the modal schedules on opening run first.
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 80));
-    });
-    await typeSlash();
-    await waitFor(() => expect(rowNames()).toHaveLength(2));
-    const into = screen.getByLabelText("Browse trips");
-    into.focus();
-    fireEvent.click(into);
-
-    await waitFor(() => expect(chip()?.textContent).toBe("trips"));
-    expect(document.activeElement).toBe(input());
   });
 
   it("opens the Library for the drive root", async () => {
