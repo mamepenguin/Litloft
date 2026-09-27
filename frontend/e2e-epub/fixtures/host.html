@@ -24,7 +24,11 @@
   window.seek = (fraction, id = ++seekId) => send({ type: "seek", fraction, id });
   window.goToToc = (index) => send({ type: "goToToc", index });
   window.setTypography = (typography) => send({ type: "typography", typography });
-  window.setTheme = (theme) => send({ type: "theme", theme });
+  const COLORS = {
+    light: { bg: "#ffffff", fg: "#211922", link: "#d63031" },
+    dark: { bg: "#1a0e10", fg: "#f5e6e8", link: "#e85d5e" },
+  };
+  window.setTheme = (theme, colors = COLORS[theme]) => send({ type: "theme", theme, colors });
   window.setMode = (fullscreen) => {
     document.getElementById("frame").classList.toggle("fs", fullscreen);
     send({ type: "mode", fullscreen });
@@ -44,6 +48,7 @@
       fraction: f === null ? null : Number(f),
       section: s === null ? null : Number(s),
       theme: "light",
+      colors: COLORS.light,
     };
     if (t !== null) open.typography = JSON.parse(t);
     send(open, [bytes]);

@@ -11,12 +11,24 @@ import {
 import {
   parseReaderMessage,
   postToReader,
+  type ReaderColors,
   type ReaderCommand,
   type ReaderMessage,
   type TocEntry,
 } from "@/lib/epubReaderChannel";
 
 export type ReaderTheme = "light" | "dark";
+
+/** Read together, so the name and the colours sent with it cannot disagree. */
+function readAppearance(): { theme: ReaderTheme; colors: ReaderColors } {
+  const root = document.documentElement;
+  const style = getComputedStyle(root);
+  const token = (name: string) => style.getPropertyValue(name).trim();
+  return {
+    theme: root.getAttribute("data-theme") === "dark" ? "dark" : "light",
+    colors: { bg: token("--bg-primary"), fg: token("--text-primary"), link: token("--accent") },
+  };
+}
 export type TurnDirection = Extract<ReaderCommand, { type: "turn" }>["direction"];
 
 export type ReaderLocation = Omit<Extract<ReaderMessage, { type: "location" }>, "type">;
@@ -78,8 +90,6 @@ export function useEpubReader(
   const onActivityRef = useRef(onActivity);
   onActivityRef.current = onActivity;
   const { readSaved, turned } = useEpubProgress(fileId);
-  const themeRef = useRef(theme);
-  themeRef.current = theme;
   const initialSectionRef = useRef(initialSection);
   initialSectionRef.current = initialSection;
   const [typography, setTypographyState] = useState<Typography>(readStoredTypography);
@@ -129,7 +139,7 @@ export function useEpubReader(
                   bytes,
                   fraction,
                   section,
-                  theme: themeRef.current,
+                  ...readAppearance(),
                   typography: typographyRef.current,
                 },
                 [bytes],
@@ -180,7 +190,7 @@ export function useEpubReader(
 
   useEffect(() => {
     if (status.kind !== "ready") return;
-    postToReader(frameRef.current?.contentWindow ?? null, { type: "theme", theme });
+    postToReader(frameRef.current?.contentWindow ?? null, { type: "theme", ...readAppearance() });
   }, [theme, status.kind]);
 
   const turn = useCallback((direction: TurnDirection) => {

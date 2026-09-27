@@ -7,7 +7,7 @@ declare global {
     __msgs: { type: string; [key: string]: unknown }[];
     turn: (direction: string) => void;
     seek: (fraction: number, id?: number) => void;
-    setTheme: (theme: string) => void;
+    setTheme: (theme: string, colors?: unknown) => void;
     setTypography: (t: unknown) => void;
   }
 }
@@ -223,13 +223,50 @@ test("a theme change keeps the typography, a typography change keeps the theme, 
   await page.waitForTimeout(SETTLE_MS);
   let at = await where(page);
   expect(at.pFamily).toMatch(/Helvetica/);
-  expect(at.bodyBg).toBe("rgb(22, 22, 22)");
+  expect(at.bodyBg).toBe("rgb(26, 14, 16)");
   await setTypography(page, { fontFamily: "serif" });
   at = await where(page);
   expect(at.pFamily).toMatch(/Georgia/);
-  expect(at.bodyBg).toBe("rgb(22, 22, 22)");
+  expect(at.bodyBg).toBe("rgb(26, 14, 16)");
   expect(at.codeFamily).toBe("monospace");
   expect(at.inlineCodeFamily).toBe("monospace");
+});
+
+test.describe("a theme whose colours cannot be read", () => {
+  const good = { bg: "#1a0e10", fg: "#f5e6e8", link: "#e85d5e" };
+  for (const colors of [
+    { ...good, bg: "#000000} body{background:rgb(255,0,0)" },
+    { ...good, fg: "red" },
+    ["#1a0e10", "#f5e6e8", "#e85d5e"],
+    null,
+  ]) {
+    test(`shows the book in the theme's system colours: ${JSON.stringify(colors)}`, async ({ page }) => {
+      await open(page, "styled.epub");
+      await page.evaluate((c) => window.setTheme("dark", c), colors);
+      await page.waitForTimeout(SETTLE_MS);
+      const system = await page.evaluate(() => {
+        const doc = (document.getElementById("reader") as HTMLIFrameElement).contentDocument!;
+        const view = doc.querySelector("foliate-view") as unknown as {
+          renderer: { getContents(): { doc: Document }[] };
+        };
+        const section = view.renderer.getContents()[0].doc;
+        const probe = section.createElement("div");
+        probe.style.cssText = "color-scheme: dark; background: Canvas";
+        section.documentElement.append(probe);
+        const cs = section.defaultView!.getComputedStyle(probe);
+        const bg = cs.backgroundColor;
+        probe.remove();
+        return { bg };
+      });
+      const at = await where(page);
+      expect(at.bodyBg).toBe(system.bg);
+      expect(await messages(page, "error")).toEqual([]);
+
+      await page.evaluate(() => window.setTheme("dark"));
+      await page.waitForTimeout(SETTLE_MS);
+      expect((await where(page)).bodyBg).toBe("rgb(26, 14, 16)");
+    });
+  }
 });
 
 test("line spacing wins over the book's own class rules", async ({ page }) => {

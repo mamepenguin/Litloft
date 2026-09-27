@@ -7,6 +7,21 @@ export const isValidOpen = (d) =>
   (d.section === null || Number.isInteger(d.section)) &&
   (d.theme === "light" || d.theme === "dark");
 
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const isHex = (value) => typeof value === "string" && HEX.test(value);
+
+// Colours end up inside CSS injected into the book, so nothing but a plain
+// 6-digit hex gets through.
+export const readColors = (colors) =>
+  colors !== null &&
+  typeof colors === "object" &&
+  !Array.isArray(colors) &&
+  isHex(colors.bg) &&
+  isHex(colors.fg) &&
+  isHex(colors.link)
+    ? { bg: colors.bg, fg: colors.fg, link: colors.link }
+    : null;
+
 // foliate reports a page's start as (page - 1) / textPages but places a
 // fractional anchor at round(anchor * (textPages - 1)), so the anchor is
 // rescaled to land on the page the fraction was taken from.

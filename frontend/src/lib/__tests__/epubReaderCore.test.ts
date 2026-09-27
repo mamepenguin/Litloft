@@ -8,6 +8,7 @@ import {
   isValidTocIndex,
   isHttpUrl,
   isValidOpen,
+  readColors,
   keyAction,
   restoreAnchor,
   swipeAction,
@@ -33,8 +34,35 @@ describe("isValidOpen", () => {
     [{ bytes, fraction: null, section: "3", theme: "light" }, false],
     [{ bytes, fraction: null, section: null, theme: "light", typography: { fontSize: 99 } }, true],
     [{ bytes, fraction: null, section: null, theme: "light", typography: "garbage" }, true],
+    [{ bytes, fraction: null, section: null, theme: "dark", colors: "garbage" }, true],
   ])("%o → %s", (message, expected) => {
     expect(isValidOpen(message)).toBe(expected);
+  });
+});
+
+describe("readColors", () => {
+  const ok = { bg: "#1a0e10", fg: "#F5E6E8", link: "#e85d5e" };
+
+  it.each([
+    [ok, ok],
+    [{ ...ok, extra: "x" }, ok],
+    [undefined, null],
+    [null, null],
+    ["#1a0e10", null],
+    [["#1a0e10", "#ffffff", "#000000"], null],
+    [{ ...ok, bg: undefined }, null],
+    [{ ...ok, bg: "#fff" }, null],
+    [{ ...ok, bg: "#1a0e10ff" }, null],
+    [{ ...ok, bg: "rgb(26, 14, 16)" }, null],
+    [{ ...ok, bg: "Canvas" }, null],
+    [{ ...ok, bg: "#1a0e10;} body{background:url(x)" }, null],
+    [{ ...ok, bg: " #1a0e10" }, null],
+    [{ ...ok, bg: "#1a0e10\n" }, null],
+    [{ ...ok, fg: ["#1a0e10"] }, null],
+    [{ ...ok, link: 0x1a0e10 }, null],
+    [{ ...ok, link: { toString: () => "#1a0e10" } }, null],
+  ])("%o → %o", (colors, expected) => {
+    expect(readColors(colors)).toEqual(expected);
   });
 });
 

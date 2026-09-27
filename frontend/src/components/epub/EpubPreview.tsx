@@ -209,7 +209,7 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
         ref={frameBoxRef}
         data-testid="epub-frame"
         className={[
-          "flex flex-col overflow-hidden bg-bg-card",
+          "flex flex-col overflow-hidden bg-bg-primary",
           fullscreen.isPseudo
             ? "fixed inset-0 z-50 rounded-none"
             : "relative flex-1 rounded-xl",
@@ -243,7 +243,7 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
             {!ready && (
               <p
                 role="status"
-                className="absolute inset-0 flex items-center justify-center bg-bg-card text-sm text-text-muted"
+                className="absolute inset-0 flex items-center justify-center bg-bg-primary text-sm text-text-muted"
               >
                 {t("epubLoading")}
               </p>
@@ -283,7 +283,7 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
           <>
             <div
               data-testid="epub-chrome-top"
-              className="absolute inset-x-0 top-0 flex items-center bg-bg-card/95 pl-4 pr-12 transition-opacity duration-300"
+              className="absolute inset-x-0 top-0 flex items-center bg-bg-primary/95 pl-4 pr-12 transition-opacity duration-300"
               {...chrome.chromeProps}
               style={{ height: fullscreen.isPseudo ? TOP_BAND : "3rem", ...chrome.chromeProps.style }}
             >
@@ -291,7 +291,7 @@ export function EpubPreview({ file, initialSection = null }: EpubPreviewProps) {
             </div>
             <div
               data-testid="epub-chrome-bottom"
-              className="absolute inset-x-0 bottom-0 border-t border-bg-border bg-bg-card/95 transition-opacity duration-300"
+              className="absolute inset-x-0 bottom-0 border-t border-bg-border bg-bg-primary/95 transition-opacity duration-300"
               {...chrome.chromeProps}
               style={{
                 paddingBottom: "env(safe-area-inset-bottom, 0px)",

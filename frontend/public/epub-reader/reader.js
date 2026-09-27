@@ -9,6 +9,7 @@ import {
   isValidOpen,
   isValidSeek,
   isValidTocIndex,
+  readColors,
   readTypography,
   keyAction,
   restoreAnchor,
@@ -55,6 +56,7 @@ const state = {
   pendingSeek: null,
   lastPointerActivity: 0,
   theme: "light",
+  colors: null,
   typography: readTypography(null),
   pendingTypography: null,
   // The place the reader chose (a move, the restore, a seek), kept apart from
@@ -63,32 +65,36 @@ const state = {
   restyling: false,
 };
 
-const THEMES = {
-  light: { fg: "#1f1f1f", bg: "#ffffff", link: "#1d4ed8" },
-  dark: { fg: "#e6e6e6", bg: "#161616", link: "#93c5fd" },
-};
+const SYSTEM_COLORS = { bg: "Canvas", fg: "CanvasText", link: "LinkText" };
 
-const themeCss = (name) => {
-  const t = THEMES[name];
+// foliate paints the area around the text from the section's background as it
+// was when the section loaded, unless the root carries --theme-bg-color.
+const themeCss = (name, colors) => {
+  const c = colors ?? SYSTEM_COLORS;
   return `
-    html { color-scheme: ${name}; }
-    html, body { background: ${t.bg} !important; color: ${t.fg} !important; }
-    a:link, a:visited { color: ${t.link} !important; }
+    html { color-scheme: ${name}; --theme-bg-color: ${c.bg} !important; }
+    html, body { background: ${c.bg} !important; color: ${c.fg} !important; }
+    a:link, a:visited { color: ${c.link} !important; }
   `;
 };
 
 const restyle = () => {
   const renderer = state.view?.renderer;
   if (!renderer) return;
-  renderer.setStyles?.(themeCss(state.theme) + typographyCss(state.typography));
+  renderer.setStyles?.(themeCss(state.theme, state.colors) + typographyCss(state.typography));
   // foliate re-lays out on every set, even of the same value.
   const gap = gapFor(state.typography.margin);
   if (renderer.getAttribute("gap") !== gap) renderer.setAttribute("gap", gap);
 };
 
-const applyTheme = (name) => {
+// A re-layout rebuilds foliate's surround as transparent columns, so this
+// document's own background is what shows there.
+const applyTheme = (name, colors) => {
   state.theme = name;
-  document.documentElement.style.background = THEMES[name].bg;
+  state.colors = readColors(colors);
+  const root = document.documentElement;
+  root.style.colorScheme = name;
+  root.style.background = (state.colors ?? SYSTEM_COLORS).bg;
   restyle();
 };
 
@@ -283,8 +289,9 @@ const buildToc = (view) => {
   }
 };
 
-const openBook = async ({ bytes, fraction, section, theme, typography }) => {
+const openBook = async ({ bytes, fraction, section, theme, colors, typography }) => {
   state.theme = theme;
+  state.colors = readColors(colors);
   state.typography = readTypography(typography);
   const [{ makeBook }, { SectionProgress }] = await Promise.all([
     import("./vendor/view.js"),
@@ -343,7 +350,7 @@ const openBook = async ({ bytes, fraction, section, theme, typography }) => {
     postLocation();
   });
   view.renderer.setAttribute("margin", "32px");
-  applyTheme(theme);
+  applyTheme(theme, colors);
 
   await restore(fraction, section);
 
@@ -396,7 +403,7 @@ window.addEventListener("message", (e) => {
       return;
     }
     case "theme":
-      if (d.theme === "light" || d.theme === "dark") applyTheme(d.theme);
+      if (d.theme === "light" || d.theme === "dark") applyTheme(d.theme, d.colors);
       return;
     case "mode":
       if (typeof d.fullscreen === "boolean") state.fullscreen = d.fullscreen;
