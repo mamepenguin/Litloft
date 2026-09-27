@@ -2,6 +2,7 @@
 
 import type { ReactElement } from "react";
 
+import { LauncherRow } from "./LauncherRow";
 import type { JumpDestination } from "./useJumpDestinations";
 
 interface JumpRowsProps {
@@ -12,6 +13,7 @@ interface JumpRowsProps {
   selectedIndex: number;
   mobile: boolean;
   onOpen: (jump: JumpDestination) => void;
+  onEnterFolder: (path: string) => void;
 }
 
 export function JumpRows({
@@ -21,6 +23,7 @@ export function JumpRows({
   selectedIndex,
   mobile,
   onOpen,
+  onEnterFolder,
 }: JumpRowsProps): ReactElement {
   return (
     <div className="pb-1.5">
@@ -28,32 +31,20 @@ export function JumpRows({
         {heading}
       </div>
       {jumps.map((jump, row) => {
-        const idx = offset + row;
         const Icon = jump.icon;
+        const folderPath = jump.folderPath;
         return (
-          <button
+          <LauncherRow
             key={jump.key}
-            type="button"
-            data-search-item={idx}
-            onClick={() => onOpen(jump)}
-            className={`flex w-full items-center gap-3 px-4 text-left transition-colors ${
-              mobile
-                ? `py-3 ${selectedIndex === idx ? "bg-bg-elevated" : "active:bg-bg-elevated"}`
-                : `py-2.5 ${selectedIndex === idx ? "bg-bg-elevated" : "hover:bg-bg-elevated"}`
-            }`}
-          >
-            <Icon size={mobile ? 18 : 16} className="flex-shrink-0 text-text-muted" />
-            <span
-              className={`truncate text-sm text-text-primary ${
-                jump.detail === undefined ? "min-w-0 flex-1" : "max-w-full shrink-0"
-              }`}
-            >
-              {jump.label}
-            </span>
-            {jump.detail !== undefined && (
-              <span className="min-w-0 flex-1 truncate text-xs text-text-muted">{jump.detail}</span>
-            )}
-          </button>
+            index={offset + row}
+            selected={selectedIndex === offset + row}
+            mobile={mobile}
+            icon={<Icon size={mobile ? 18 : 16} className="flex-shrink-0 text-text-muted" />}
+            label={jump.label}
+            detail={jump.detail}
+            onOpen={() => onOpen(jump)}
+            onEnter={folderPath === undefined ? undefined : () => onEnterFolder(folderPath)}
+          />
         );
       })}
     </div>

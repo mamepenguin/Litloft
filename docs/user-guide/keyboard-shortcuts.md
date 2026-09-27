@@ -18,6 +18,15 @@ Press `?` on any page to see the shortcuts that work there. Single-key shortcuts
 
 The search window also has a **Keyboard Shortcuts** button along its bottom edge. See [search](search.md#the-search-modal).
 
+### In the search window
+
+| Key | Action |
+|---|---|
+| `→` | On a folder row, browse into the folder |
+| `/` | In an empty field, browse from the drive root (typed directly, not through an input method) |
+| `←` or `Backspace` | While browsing, with the field empty: go up one level (from the drive root, stop browsing) |
+| `Enter` | While browsing, open the picked row, or the folder you are in when no row is picked |
+
 ### Quick Note panel
 
 | Key | Action |

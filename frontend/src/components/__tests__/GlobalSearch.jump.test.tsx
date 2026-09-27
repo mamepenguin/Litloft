@@ -103,10 +103,10 @@ const page = (data: FileItem[]) => ({ data, meta: { total: data.length, page: 1,
 const input = () => screen.getAllByRole("textbox")[0];
 const press = (key: string) => fireEvent.keyDown(input(), { key });
 const jumpRows = () =>
-  screen.queryByText("Go to")?.parentElement?.querySelectorAll("button") ?? [];
+  screen.queryByText("Go to")?.parentElement?.querySelectorAll("[data-search-item] > button:first-child") ?? [];
 const jumpLabels = () => Array.from(jumpRows()).map((row) => row.textContent);
 const folderRows = () =>
-  screen.queryByText("Folders")?.parentElement?.querySelectorAll("button") ?? [];
+  screen.queryByText("Folders")?.parentElement?.querySelectorAll("[data-search-item] > button:first-child") ?? [];
 const folderLabels = () => Array.from(folderRows()).map((row) => row.textContent);
 const folder = (path: string) => ({ kind: "folder", name: path.split("/").pop()!, path });
 

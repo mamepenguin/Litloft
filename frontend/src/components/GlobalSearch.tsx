@@ -24,6 +24,17 @@ import {
   type SearchCacheKey,
 } from "@/lib/searchCache";
 import { matchFolders, matchJumps } from "@/lib/pageJump";
+import {
+  browseFolderHref,
+  browseKeyAction,
+  browseRowHref,
+  filterBrowseRows,
+  launchKeyAction,
+  startsRootBrowse,
+  type BrowseNode,
+} from "@/lib/folderBrowse";
+import { BrowseChip, BrowseRows } from "./search/BrowseRows";
+import { useFolderBrowse } from "./search/useFolderBrowse";
 import { pinHrefFor } from "./sidebar/libraryRowActive";
 import type { FileItemWithMatch, WatchHistoryItem } from "@/types";
 import { useCurrentDrive, useSetOverrideDrive } from "./CurrentDriveProvider";
@@ -44,6 +55,10 @@ import {
 import { ScopeChip, ScopedFooter, ScopedResultItem } from "./search/ScopedSearchParts";
 
 const POPUP_LIMIT = 8;
+
+function isModified(e: React.KeyboardEvent): boolean {
+  return e.metaKey || e.ctrlKey || e.altKey || e.shiftKey;
+}
 
 const RECENT_FILE_LIMIT = 8;
 
@@ -96,14 +111,16 @@ export function GlobalSearch() {
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drive = useCurrentDrive();
   const setOverrideDrive = useSetOverrideDrive();
+  const browse = useFolderBrowse(open, drive, !scope);
+  const browsing = browse.path !== null;
   const destinations = useJumpDestinations(open && !scope, drive);
   const folderIndex = useJumpFolders(open && !scope, drive);
   const pageJumps = useMemo(
-    () => (scope || !drive ? [] : matchJumps(destinations, query)),
-    [scope, drive, destinations, query],
+    () => (scope || !drive || browsing ? [] : matchJumps(destinations, query)),
+    [scope, drive, browsing, destinations, query],
   );
   const folderJumps = useMemo<JumpDestination[]>(() => {
-    if (scope || !drive) return [];
+    if (scope || !drive || browsing) return [];
     const driveBase = `/drive/${encodeURIComponent(drive)}`;
     const shown = new Set(pageJumps.map((jump) => jump.key));
     return matchFolders(folderIndex, query, shown).map((folder) => ({
@@ -112,11 +129,16 @@ export function GlobalSearch() {
       names: [],
       href: pinHrefFor(driveBase, folder.path),
       icon: Folder,
+      folderPath: folder.path,
       detail: folder.path.includes("/")
         ? folder.path.slice(0, folder.path.lastIndexOf("/"))
         : t("driveRoot"),
     }));
-  }, [scope, drive, folderIndex, pageJumps, query, t]);
+  }, [scope, drive, browsing, folderIndex, pageJumps, query, t]);
+  const browseRows = useMemo(
+    () => (browsing ? filterBrowseRows(browse.nodes, query) : []),
+    [browsing, browse.nodes, query],
+  );
   // One keyboard order across both blocks: page jumps, then folders.
   const jumps = useMemo(() => [...pageJumps, ...folderJumps], [pageJumps, folderJumps]);
 
@@ -291,13 +313,13 @@ export function GlobalSearch() {
   useEffect(() => {
     highlightedRef.current = { kind: "none" };
     setSelectedIndex(-1);
-  }, [query, open, scopeType]);
+  }, [query, open, scopeType, browse.path]);
 
   // A history reply landing after the reader arrowed onto a result would
   // otherwise take the highlight off a row that never moved.
   const queryIsEmpty = query.trim().length === 0;
   useEffect(() => {
-    if (!queryIsEmpty) return;
+    if (!queryIsEmpty || browsing) return;
     highlightedRef.current = { kind: "none" };
     setSelectedIndex(-1);
   }, [recentData, queryIsEmpty]);
@@ -309,7 +331,7 @@ export function GlobalSearch() {
   }, [selectedIndex]);
 
   useEffect(() => {
-    if (!open || !drive || !query.trim()) {
+    if (!open || !drive || browsing || !query.trim()) {
       setMerged([]);
       setTotal(0);
       return;
@@ -423,7 +445,7 @@ export function GlobalSearch() {
       setSemanticPending(false);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, open, drive, scopeType]);
+  }, [query, open, drive, scopeType, browsing]);
 
   const navigateToSearchPage = useCallback(
     (term: string) => {
@@ -448,6 +470,31 @@ export function GlobalSearch() {
     }
     closeSearch();
     router.push(url);
+  }
+
+  function enterFolder(path: string) {
+    browse.enter(path);
+    setQuery("");
+  }
+
+  function openBrowseRow(row: BrowseNode | null) {
+    if (!drive || browse.path === null) return;
+    const href = row ? browseRowHref(drive, row) : browseFolderHref(drive, browse.path);
+    closeSearch();
+    router.push(href);
+  }
+
+  function handleBrowseKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    const action = browseKeyAction(e.key, query, selectedIndex, browseRows);
+    if (action.kind === "none") return;
+    // Cmd+← and friends move the caret, and a held Backspace must not climb
+    // one level per repeat.
+    if ((action.kind === "up" || action.kind === "enter") && (isModified(e) || e.repeat)) return;
+    e.preventDefault();
+    if (action.kind === "move") setSelectedIndex(action.index);
+    else if (action.kind === "enter") enterFolder(action.path);
+    else if (action.kind === "up") browse.up();
+    else openBrowseRow(action.row);
   }
 
   function openJump(jump: JumpDestination) {
@@ -547,11 +594,27 @@ export function GlobalSearch() {
       ref={ref}
       type="text"
       value={query}
-      onChange={(e) => setQuery(e.target.value)}
+      onChange={(e) => {
+        const next = e.target.value;
+        const composing = (e.nativeEvent as InputEvent).isComposing === true;
+        if (!browsing && !scope && drive && !composing && startsRootBrowse(query, next)) {
+          enterFolder("");
+        } else {
+          setQuery(next);
+        }
+      }}
       onCompositionEnd={ime.onCompositionEnd}
       onKeyDown={(e) => {
         if (ime.isImeKeystroke(e)) return;
-        if (e.key === "Backspace" && scope && query === "") {
+        if (browsing) {
+          handleBrowseKey(e);
+          return;
+        }
+        const startAt = launchKeyAction(e.key, selectedIndex, jumps, !!scope || !drive);
+        if (startAt !== null && !isModified(e)) {
+          e.preventDefault();
+          enterFolder(startAt);
+        } else if (e.key === "Backspace" && scope && query === "") {
           e.preventDefault();
           removeScope();
         } else if (e.key === "ArrowDown") {
@@ -643,6 +706,7 @@ export function GlobalSearch() {
           selectedIndex={selectedIndex}
           mobile={mobile}
           onOpen={openJump}
+          onEnterFolder={enterFolder}
         />
       )}
       {folderJumps.length > 0 && (
@@ -653,6 +717,7 @@ export function GlobalSearch() {
           selectedIndex={selectedIndex}
           mobile={mobile}
           onOpen={openJump}
+          onEnterFolder={enterFolder}
         />
       )}
       {loading && merged.length === 0 ? (
@@ -712,6 +777,31 @@ export function GlobalSearch() {
     </div>
   );
 
+  const browseChip = browse.path !== null && (
+    <BrowseChip
+      label={browse.path || t("driveRoot")}
+      removeLabel={tj("browseLeave")}
+      upLabel={tj("browseUp")}
+      onUp={browse.path === "" ? undefined : browse.up}
+      onRemove={() => {
+        browse.leave();
+        focusInput();
+      }}
+    />
+  );
+
+  const browseList = (mobile: boolean) =>
+    browse.loading ? null : (
+      <BrowseRows
+        rows={browseRows}
+        selectedIndex={selectedIndex}
+        mobile={mobile}
+        emptyText={query.trim() ? tj("browseNoMatch") : tj("browseEmpty")}
+        onOpen={openBrowseRow}
+        onEnterFolder={enterFolder}
+      />
+    );
+
   const clearQuery = (focusRef?: React.RefObject<HTMLInputElement | null>) => {
     setQuery("");
     setMerged([]);
@@ -743,6 +833,7 @@ export function GlobalSearch() {
               <ArrowLeft size={20} />
             </button>
             {scope && <ScopeChip scope={scope} onRemove={removeScope} />}
+            {browseChip}
             <div className="relative flex-1">
               {searchInput(mobileInputRef, true)}
               {query && (
@@ -763,6 +854,8 @@ export function GlobalSearch() {
                 <div className="py-12 text-center text-sm text-text-muted">
                   {t("goToDrive")}
                 </div>
+              ) : browsing ? (
+                browseList(true)
               ) : showEmptyState ? (
                 <SearchEmptyState
                   items={emptyItems}
@@ -803,6 +896,7 @@ export function GlobalSearch() {
             <div className="flex items-center gap-3 border-b border-bg-border px-4 py-3">
               <Search size={18} className="flex-shrink-0 text-text-muted" />
               {scope && <ScopeChip scope={scope} onRemove={removeScope} />}
+              {browseChip}
               {searchInput(desktopInputRef, false)}
               {query && (
                 <button
@@ -823,6 +917,8 @@ export function GlobalSearch() {
               <div className="py-8 text-center text-sm text-text-muted">
                 {t("goToDrive")}
               </div>
+            ) : browsing ? (
+              browseList(false)
             ) : showEmptyState ? (
               <SearchEmptyState
                   items={emptyItems}

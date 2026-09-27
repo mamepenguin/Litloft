@@ -1255,6 +1255,11 @@
       "missing": "lost,missing",
       "admin": "admin,settings,administration"
     },
-    "folders": "Folders"
+    "folders": "Folders",
+    "browseInto": "Browse {name}",
+    "browseLeave": "Stop browsing",
+    "browseEmpty": "This folder is empty",
+    "browseNoMatch": "Nothing here matches",
+    "browseUp": "Up one level"
   }
 }
