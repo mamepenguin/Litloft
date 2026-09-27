@@ -764,7 +764,14 @@ async def _write_md_tags(db: Session, file: File, tags: list[str], *, merge: boo
             metadata["tags"] = new_tags
         else:
             metadata.pop("tags", None)
-        new_text = compose_frontmatter(metadata, parsed.body) if metadata else parsed.body
+        if metadata:
+            new_text = compose_frontmatter(metadata, parsed.body)
+        elif text.lstrip("\ufeff").startswith("---\n"):
+            # Dropping the block would let a body that opens with a `---` rule
+            # be read back as frontmatter.
+            new_text = "---\n---\n\n" + parsed.body
+        else:
+            new_text = text
         new_bytes = new_text.encode("utf-8")
 
         if new_bytes != current:

@@ -58,6 +58,7 @@ def _disk(drive_dir, path) -> str:
         ("---\ntitle: T\ntags:\n- old\n---\n\nbody\n", ["new"], {"title": "T", "tags": ["new"]}, "body\n"),
         ("---\ntitle: T\ntags:\n- old\n---\n\nbody\n", [], {"title": "T"}, "body\n"),
         ("---\ntags:\n- old\n---\n\nbody\n", [], {}, "body\n"),
+        ("body\n", [], {}, "body\n"),
         ("---\n---\nbody\n", ["a"], {"tags": ["a"]}, "body\n"),
     ],
 )
@@ -119,6 +120,7 @@ _BIG = "x" * (1024 * 1024 + 1)
         (b"---\ntags:\n- a\n---\n\xff\xfe body\n", 422),
         (_BIG.encode("utf-8"), 413),
         (("y" * (1024 * 1024 - 8)).encode("utf-8"), 413),
+        (("---\ntags:\n- new\n---\n\n" + "z" * (1024 * 1024)).encode("utf-8"), 413),
     ],
 )
 def test_put_tags_rejects_unwritable_md_and_changes_nothing(client, content, status):
@@ -235,3 +237,47 @@ def test_written_frontmatter_is_plain_yaml(client):
     text = _disk(drive_dir, "notes/n.md")
     assert text.startswith("---\n")
     assert yaml.safe_load(text.split("---\n")[1]) == {"tags": ["日本語"]}
+
+
+@pytest.mark.parametrize(
+    "body",
+    ["---\ntags:\n- hidden\n---\nrest\n", "---\n\nSection text\n\n---\nmore\n"],
+)
+def test_clearing_the_last_key_keeps_a_body_that_opens_with_a_rule(client, body):
+    c, db, drive_dir, _ = client
+    f = _seed(db, drive_dir, "notes/n.md", "---\ntags:\n- a\n---\n\n" + body)
+
+    r = c.put(f"/api/files/{f.id}/tags", json={"tags": []})
+
+    assert r.status_code == 200, r.text
+    parsed = parse(_disk(drive_dir, "notes/n.md"))
+    assert parsed.metadata == {}
+    assert parsed.body == body
+    assert _db_tags(db, f.id) == []
+
+
+def test_put_tags_refuses_a_md_symlinked_outside_the_drive(client):
+    c, db, drive_dir, _ = client
+    outside = drive_dir.parent / "outside.md"
+    outside.write_text("---\ntags:\n- secret\n---\n\nbody\n", encoding="utf-8")
+    (drive_dir / "notes").mkdir(parents=True, exist_ok=True)
+    (drive_dir / "notes/link.md").symlink_to(outside)
+    f = File(
+        filename="link.md",
+        title="link.md",
+        drive=TEST_DRIVE,
+        folder_path="notes",
+        file_path="notes/link.md",
+        file_size=10,
+        file_type="document",
+        mime_type="text/markdown",
+    )
+    db.add(f)
+    db.commit()
+
+    r = c.put(f"/api/files/{f.id}/tags", json={"tags": ["x"]})
+
+    assert r.status_code == 403
+    assert outside.read_text(encoding="utf-8") == "---\ntags:\n- secret\n---\n\nbody\n"
+    assert (drive_dir / "notes/link.md").is_symlink()
+    assert _db_tags(db, f.id) == []
