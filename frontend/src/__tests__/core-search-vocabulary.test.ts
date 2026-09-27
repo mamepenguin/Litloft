@@ -25,6 +25,7 @@ const CALLERS: Record<string, number> = {
   "components/search/MergedResultItem.tsx": 2,
   "components/search/ScopedSearchParts.tsx": 6,
   "components/search/SearchEmptyState.tsx": 4,
+  "components/search/useLauncherRows.ts": 1,
   // None by name: the legend draws every word it shows out of
   // `MATCH_BADGES`.
   "components/search/MatchLegend.tsx": 0,
