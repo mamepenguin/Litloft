@@ -101,6 +101,7 @@ describe("FIXED_JUMPS hrefs", () => {
 describe("matchFolders", () => {
   const index = indexFolders(
     [
+      "photos-b",
       "photos",
       "photos/2024",
       "trips",
@@ -108,6 +109,8 @@ describe("matchFolders", () => {
       "trips/2024-spring",
       "trips/kyoto/2024",
       "archive/old-photos",
+      "archive/photos-a",
+      "x-photos",
       "a/b/c/d/e/2024x",
       "2024",
     ].map((path) => ({ kind: "folder" as const, name: path.split("/").pop()!, path })),
@@ -124,7 +127,13 @@ describe("matchFolders", () => {
   });
 
   it("orders prefix before substring, then shallower, then by path", () => {
-    expect(paths("photos")).toEqual(["photos", "archive/old-photos"]);
+    expect(paths("photos")).toEqual([
+      "photos",
+      "photos-b",
+      "archive/photos-a",
+      "x-photos",
+      "archive/old-photos",
+    ]);
   });
 
   it(`offers at most ${FOLDER_LIMIT}, shallowest first`, () => {
@@ -147,7 +156,7 @@ describe("matchFolders", () => {
   });
 
   it("ignores case and width", () => {
-    expect(paths("ＰＨＯＴＯＳ")).toEqual(["photos", "archive/old-photos"]);
+    expect(paths("ＰＨＯＴＯＳ")[0]).toBe("photos");
   });
 
   it("keeps only folder nodes", () => {

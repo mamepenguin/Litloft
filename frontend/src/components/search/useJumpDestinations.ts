@@ -35,7 +35,6 @@ export interface JumpDestination {
   icon: LucideIcon;
   /** Set for a collection, whose sidebar row pins the drive before navigating. */
   overrideDrive?: string;
-  /** A second, muted line of context, e.g. a folder's parent path. */
   detail?: string;
 }
 
