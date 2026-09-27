@@ -5,6 +5,7 @@ import {
   edgeAction,
   flattenToc,
   isValidSeek,
+  isValidTocIndex,
   isHttpUrl,
   isValidOpen,
   keyAction,
@@ -170,12 +171,15 @@ describe("flattenToc", () => {
       { label: "  Heading  ", href: null, subitems: [{ label: "In", href: "missing.xhtml" }] },
       { label: "Last", href: "c2.xhtml" },
     ];
-    expect(flattenToc(toc, resolve, fractions).entries).toEqual([
+    const { entries, hrefs } = flattenToc(toc, resolve, fractions);
+    expect(entries).toEqual([
       { label: "", depth: 0, fraction: 0 },
       { label: "Heading", depth: 0, fraction: null },
       { label: "In", depth: 1, fraction: null },
       { label: "Last", depth: 0, fraction: 0.2 },
     ]);
+    // An entry the page cannot select keeps no target the reader could go to.
+    expect(hrefs).toEqual(["c1.xhtml", null, null, "c2.xhtml"]);
   });
 
   it("gives null to an entry whose resolver throws", () => {
@@ -228,5 +232,22 @@ describe("the caps", () => {
   it("are the ones the page accepts", async () => {
     const channel = await import("@/lib/epubReaderChannel");
     expect([TOC_LABEL_MAX, TOC_MAX]).toEqual([channel.TOC_LABEL_MAX, channel.TOC_MAX]);
+  });
+});
+
+describe("isValidTocIndex", () => {
+  const hrefs = ["c1.xhtml", null, "c3.xhtml#s"];
+  it.each([
+    [0, true],
+    [2, true],
+    [1, false],
+    [3, false],
+    [-1, false],
+    [1.5, false],
+    ["2", false],
+    [null, false],
+    [undefined, false],
+  ])("%o → %s", (index, expected) => {
+    expect(isValidTocIndex(index, hrefs)).toBe(expected);
   });
 });

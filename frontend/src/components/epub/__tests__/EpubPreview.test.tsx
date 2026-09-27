@@ -881,8 +881,8 @@ describe("EpubPreview", () => {
 
     it.each([
       ["Aa again", () => fireEvent.click(aa())],
-      ["a press on the book", () => fireEvent.pointerDown(screen.getByTestId("epub-typography-cover"))],
-      ["a click on the book's cover from the keyboard", () => fireEvent.click(screen.getByTestId("epub-typography-cover"))],
+      ["a press on the book", () => fireEvent.pointerDown(screen.getByTestId("epub-panel-cover"))],
+      ["a click on the book's cover from the keyboard", () => fireEvent.click(screen.getByTestId("epub-panel-cover"))],
       ["a press and click on Aa", () => {
         fireEvent.pointerDown(aa());
         fireEvent.click(aa());
@@ -893,7 +893,7 @@ describe("EpubPreview", () => {
       fireEvent.click(aa());
       close();
       expect(panel()).toBeNull();
-      expect(screen.queryByTestId("epub-typography-cover")).toBeNull();
+      expect(screen.queryByTestId("epub-panel-cover")).toBeNull();
       expect(view.focus).toHaveBeenCalled();
       expect(sentOfType(view.posted, "turn")).toEqual([]);
     });
@@ -954,7 +954,7 @@ describe("EpubPreview", () => {
       await openReady();
       fireEvent.click(aa());
       // DismissScrim spares only the element right after the cover.
-      expect(screen.getByTestId("epub-typography-cover").nextElementSibling).toBe(panel());
+      expect(screen.getByTestId("epub-panel-cover").nextElementSibling).toBe(panel());
     });
 
     it("hands the keys back to the book when leaving full screen closes it", async () => {
@@ -993,6 +993,169 @@ describe("EpubPreview", () => {
       fireEvent.click(aa());
       expect(screen.getByRole("button", { name: "Larger text" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Smaller text" })).toBeEnabled();
+    });
+  });
+
+  describe("table of contents", () => {
+    const TOC = [
+      { label: "Cover", depth: 0, fraction: 0 },
+      { label: "Part <b>one</b>", depth: 0, fraction: null },
+      { label: "One", depth: 1, fraction: 0.2 },
+      { label: "", depth: 1, fraction: 0.5 },
+      { label: "Gone", depth: 0, fraction: null },
+      { label: "Three", depth: 0, fraction: 0.7 },
+    ];
+
+    async function openWith(toc: unknown[], place = { fraction: 0.55, tocIndex: 3 as number | null, pagesLeft: 2 }) {
+      const view = renderPreview();
+      await fromReader(view.readerWindow, { type: "boot" });
+      await settle();
+      await fromReader(view.readerWindow, { type: "ready", dir: "ltr", vertical: false, toc });
+      await fromReader(view.readerWindow, { type: "location", ...place });
+      const focus = vi.spyOn(view.readerWindow, "focus").mockImplementation(() => {});
+      return { ...view, focus };
+    }
+
+    const contents = () => screen.getByRole("button", { name: "Contents" });
+    const aa = () => screen.getByRole("button", { name: "Text settings" });
+    const panel = () => screen.queryByTestId("epub-toc-panel");
+    const entry = (i: number) => panel()!.querySelector<HTMLButtonElement>(`[data-toc-index="${i}"]`)!;
+
+    beforeEach(() => localStorage.clear());
+
+    it.each([
+      ["an empty table of contents", []],
+      ["one whose entries have no target", [{ label: "Part", depth: 0, fraction: null }]],
+    ])("is disabled for %s", async (_name, toc) => {
+      await openWith(toc, { fraction: 0.1, tocIndex: null, pagesLeft: 2 });
+      expect(contents()).toBeDisabled();
+    });
+
+    it("lists the entries as text, indented, with the untitled and target-less ones marked", async () => {
+      await openWith(TOC);
+      fireEvent.click(contents());
+      expect(entry(1)).toHaveTextContent("Part <b>one</b>");
+      expect(panel()!.querySelector("b")).toBeNull();
+      expect(entry(3)).toHaveTextContent("Untitled");
+      expect(entry(1)).toBeDisabled();
+      expect(entry(4)).toBeDisabled();
+      expect(parseFloat(entry(2).style.paddingLeft)).toBeGreaterThan(parseFloat(entry(0).style.paddingLeft));
+    });
+
+    it.each([
+      ["the reported entry", { fraction: 0.55, tocIndex: 3, pagesLeft: 2 }, 3, 3],
+      ["the entry for the place when none is reported", { fraction: 0.75, tocIndex: null, pagesLeft: 2 }, 5, 5],
+      ["the first entry that can be pressed when the current one cannot", { fraction: 0.1, tocIndex: 1, pagesLeft: 2 }, 1, 0],
+    ])("marks %s and puts focus where it can", async (_name, place, marked, focused) => {
+      await openWith(TOC, place);
+      fireEvent.click(contents());
+      expect(panel()!.querySelectorAll("[aria-current]")).toHaveLength(1);
+      expect(entry(marked)).toHaveAttribute("aria-current", "true");
+      expect(entry(focused)).toHaveFocus();
+    });
+
+    it("puts focus on the first entry that can be pressed when the first one cannot", async () => {
+      await openWith([{ label: "Part", depth: 0, fraction: null }, ...TOC.slice(2)], { fraction: 0.1, tocIndex: 0, pagesLeft: 2 });
+      fireEvent.click(contents());
+      expect(entry(0)).toHaveAttribute("aria-current", "true");
+      expect(entry(1)).toHaveFocus();
+    });
+
+    it.each([
+      ["ArrowDown on the last entry", "End", "ArrowDown", 5],
+      ["ArrowUp on the first entry", "Home", "ArrowUp", 0],
+    ])("%s stays there, without an error", async (_name, first, key, stays) => {
+      await openWith(TOC);
+      fireEvent.click(contents());
+      const errors: unknown[] = [];
+      const onError = (e: ErrorEvent) => errors.push(e.error);
+      window.addEventListener("error", onError);
+      try {
+        fireEvent.keyDown(document.activeElement!, { key: first });
+        fireEvent.keyDown(document.activeElement!, { key });
+      } finally {
+        window.removeEventListener("error", onError);
+      }
+      expect(entry(stays)).toHaveFocus();
+      expect(errors).toEqual([]);
+    });
+
+    it("selecting an entry sends only its index, closes the panel and hands the keys back", async () => {
+      const view = await openWith(TOC);
+      fireEvent.click(contents());
+      fireEvent.click(entry(5));
+      expect(sentOfType(view.posted, "goToToc")).toEqual([{ type: "goToToc", index: 5 }]);
+      expect(panel()).toBeNull();
+      expect(view.focus).toHaveBeenCalled();
+    });
+
+    it.each([
+      ["ArrowDown", 3, 5],
+      ["ArrowUp", 3, 2],
+      ["Home", 3, 0],
+      ["End", 3, 5],
+    ])("%s moves between entries that can be pressed, and the page does not scroll", async (key, _from, to) => {
+      await openWith(TOC);
+      fireEvent.click(contents());
+      expect(fireEvent.keyDown(document.activeElement!, { key, cancelable: true })).toBe(false);
+      expect(entry(to)).toHaveFocus();
+    });
+
+    it("stays open once opened, and one panel replaces the other from the keyboard", async () => {
+      await openWith(TOC);
+      fireEvent.click(contents());
+      expect(panel()).not.toBeNull();
+      fireEvent.click(aa());
+      expect(panel()).toBeNull();
+      expect(screen.getByTestId("epub-typography-panel")).not.toBeNull();
+      expect(screen.getByTestId("epub-panel-cover").nextElementSibling).toBe(screen.getByTestId("epub-typography-panel"));
+      fireEvent.click(contents());
+      expect(screen.queryByTestId("epub-typography-panel")).toBeNull();
+      expect(screen.getByTestId("epub-panel-cover").nextElementSibling).toBe(panel());
+    });
+
+    it.each([
+      ["a press on the book", () => fireEvent.pointerDown(screen.getByTestId("epub-panel-cover"))],
+      ["its button", () => fireEvent.click(contents())],
+      ["Escape", () => fireEvent.keyDown(document, { key: "Escape" })],
+    ])("closes on %s, turns nothing and hands the keys back", async (_how, close) => {
+      const view = await openWith(TOC);
+      fireEvent.click(contents());
+      close();
+      expect(panel()).toBeNull();
+      expect(view.focus).toHaveBeenCalled();
+      expect(sentOfType(view.posted, "turn")).toEqual([]);
+      expect(sentOfType(view.posted, "goToToc")).toEqual([]);
+    });
+
+    it("closes and hands the keys back when full screen changes, holds the chrome, and sits where a swipe is ignored", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const view = await openWith(TOC);
+      const rerender = (on: boolean) => {
+        fullscreenState.isFullscreen = on;
+        fullscreenState.isPseudo = on;
+        view.rerender(
+          <ShortcutsProvider>
+            <FileNav onKey={view.onFileKey} />
+            <EpubPreview file={FILE} />
+          </ShortcutsProvider>,
+        );
+      };
+      rerender(true);
+      fireEvent.click(contents());
+      expect(panel()!.closest("[data-swipe-exempt]")).not.toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByTestId("epub-chrome-bottom")).not.toHaveAttribute("inert");
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(panel()).toBeNull();
+      expect(exit).not.toHaveBeenCalled();
+      fireEvent.click(contents());
+      view.focus.mockClear();
+      rerender(false);
+      expect(panel()).toBeNull();
+      expect(view.focus).toHaveBeenCalled();
     });
   });
 });

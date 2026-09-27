@@ -37,6 +37,7 @@ export type ReaderCommand =
   | { type: "typography"; typography: Typography }
   | { type: "turn"; direction: "next" | "prev" | "left" | "right" }
   | { type: "seek"; fraction: number; id: number }
+  | { type: "goToToc"; index: number }
   | { type: "theme"; theme: "light" | "dark" }
   | { type: "mode"; fullscreen: boolean };
 

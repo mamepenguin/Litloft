@@ -219,7 +219,10 @@
     "epubMargin_wide": "Wide",
     "epubFont_serif": "Serif",
     "epubFont_sans": "Sans-serif",
-    "epubCloseTypography": "Close text settings"
+    "epubCloseTypography": "Close text settings",
+    "epubContents": "Contents",
+    "epubCloseContents": "Close contents",
+    "epubUntitled": "Untitled"
   },
   "search": {
     "label": "Search",

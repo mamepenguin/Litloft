@@ -158,6 +158,10 @@ const POPUPS: Record<string, PopupEntry> = {
     dismissedIn: "frontend/src/components/archive/ArchiveToolbar.tsx",
     why: "the archive bar's … menu",
   },
+  "frontend/src/components/epub/EpubTocPanel.tsx": {
+    dismissedIn: "frontend/src/components/epub/EpubPreview.tsx",
+    why: "the EPUB reader's table of contents, opened from the position bar",
+  },
   "frontend/src/components/epub/EpubTypographyPanel.tsx": {
     dismissedIn: "frontend/src/components/epub/EpubPreview.tsx",
     why: "the EPUB reader's text settings, opened from the position bar",

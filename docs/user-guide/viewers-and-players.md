@@ -118,7 +118,8 @@ With the [knowledge addon](../addons/knowledge.md) and its editor enabled for th
 - **Full screen**: the button at the top right of the book, or `f`. The arrows, swipes and taps on the left or right edge turn pages in the book's reading direction. The same button, `f` or `Esc` closes it.
 - The bar under the book shows how far you are, the chapter, and how many pages are left in it. Drag it to jump anywhere in the book.
 - In full screen the bar hides while you read. Tap the middle of the page, or move the mouse, to bring it back.
-- **Aa**, at the left end of the bar, sets the text size, line spacing, margins and font. The setting is kept on this device and applies to every book. **Original** leaves the book's own style; the font it shows depends on whether the book carries one.
+- The contents button, at the left end of the bar, lists the book's chapters; pick one to go there. Headings without a page of their own are shown but cannot be picked.
+- **Aa**, beside it, sets the text size, line spacing, margins and font. The setting is kept on this device and applies to every book. **Original** leaves the book's own style; the font it shows depends on whether the book carries one.
 - Your place is kept, per profile, and the book reopens there. A book you left on its last page reopens at the start.
 - Fixed-layout books (pages laid out as pictures, common for technical and illustrated books) cannot be shown yet; the page offers **Download** instead.
 - Links to web pages open in a new tab. Scripts inside a book never run.
