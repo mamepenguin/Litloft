@@ -119,9 +119,13 @@ _BIG = "x" * (1024 * 1024 + 1)
         (b"---\n- a\n- b\n---\nbody\n", 422),
         ("﻿---\ntags: [a\n---\nbody\n".encode(), 422),
         (b"---\ntags:\n- a\n---\n\xff\xfe body\n", 422),
-        (_BIG.encode("utf-8"), 413),
-        (("y" * (1024 * 1024 - 8)).encode("utf-8"), 413),
-        (("---\ntags:\n- new\n---\n\n" + "z" * (1024 * 1024)).encode("utf-8"), 413),
+        pytest.param(_BIG.encode("utf-8"), 413, id="over-limit-before-write"),
+        pytest.param(("y" * (1024 * 1024 - 8)).encode("utf-8"), 413, id="over-limit-after-compose"),
+        pytest.param(
+            ("---\ntags:\n- new\n---\n\n" + "z" * (1024 * 1024)).encode("utf-8"),
+            413,
+            id="over-limit-tags-unchanged",
+        ),
     ],
 )
 def test_put_tags_rejects_unwritable_md_and_changes_nothing(client, content, status):
