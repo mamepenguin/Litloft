@@ -1,66 +1,44 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Folder, Info, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Info, Search, X } from "lucide-react";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { MatchLegend } from "@/components/search/MatchLegend";
 import { useShortcutsContext } from "@/components/ShortcutsProvider";
 import { NESTED_OVERLAY_PRIORITY, OVERLAY_PRIORITY } from "@/lib/shortcuts";
 
 import { useTranslations } from "next-intl";
-import { getDriveFiles, getWatchHistory } from "@/lib/api";
 import { useImeKeyGuard } from "@/lib/ime";
-import { fetchSemanticHits, isSemanticSearchAvailable } from "@/lib/semanticSearch";
-import {
-  mergeResults,
-  sortMerged,
-  type SemanticHit,
-} from "@/lib/searchMerge";
-import {
-  readSearchCache,
-  writeSearchCache,
-  type SearchCacheKey,
-} from "@/lib/searchCache";
-import { matchFolders, matchJumps } from "@/lib/pageJump";
 import {
   browseFolderHref,
   browseKeyAction,
   browseRowHref,
-  filterBrowseRows,
   launchKeyAction,
   startsRootBrowse,
   type BrowseNode,
 } from "@/lib/folderBrowse";
 import { BrowseChip, BrowseRows } from "./search/BrowseRows";
 import { useFolderBrowse } from "./search/useFolderBrowse";
-import { pinHrefFor } from "./sidebar/libraryRowActive";
-import type { FileItemWithMatch, WatchHistoryItem } from "@/types";
 import { useCurrentDrive, useSetOverrideDrive } from "./CurrentDriveProvider";
 import { JumpRows } from "./search/JumpRows";
-import {
-  useJumpDestinations,
-  useJumpFolders,
-  type JumpDestination,
-} from "./search/useJumpDestinations";
+import type { JumpDestination } from "./search/useJumpDestinations";
+import { useFileSearch } from "./search/useFileSearch";
+import { useLauncherRows } from "./search/useLauncherRows";
+import { useRecentAndHistory } from "./search/useRecentAndHistory";
 import { MergedResultItem } from "./search/MergedResultItem";
 import { SearchEmptyState, type EmptyItem } from "./search/SearchEmptyState";
-import { addToHistory, getHistory, removeFromHistory } from "./search/searchHistory";
 import {
   useActiveSearchScope,
   useRegisterGlobalSearch,
-  type SearchScope,
 } from "./search/GlobalSearchProvider";
 import { ScopeChip, ScopedFooter, ScopedResultItem } from "./search/ScopedSearchParts";
-
-const POPUP_LIMIT = 8;
 
 function isModified(e: React.KeyboardEvent): boolean {
   return e.metaKey || e.ctrlKey || e.altKey || e.shiftKey;
 }
 
-const RECENT_FILE_LIMIT = 8;
 
 export function GlobalSearch() {
   const t = useTranslations("search");
@@ -78,19 +56,6 @@ export function GlobalSearch() {
   const [scopeRemoved, setScopeRemoved] = useState(false);
   const scope = scopeRemoved ? null : registeredScope;
   const scopeType = scope?.type ?? null;
-  const [merged, setMerged] = useState<FileItemWithMatch[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [semanticPending, setSemanticPending] = useState(false);
-  const [historyData, setHistoryData] = useState<{
-    drive: string;
-    terms: string[];
-  } | null>(null);
-  const [recentData, setRecentData] = useState<{
-    drive: string;
-    type: SearchScope["type"] | null;
-    items: WatchHistoryItem[];
-  } | null>(null);
   const ime = useImeKeyGuard();
   const [selectedIndex, setSelectedIndex] = useState(-1);
   /**
@@ -107,40 +72,30 @@ export function GlobalSearch() {
   const [isMobileViewport, setIsMobileViewport] = useState(false);
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const desktopInputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drive = useCurrentDrive();
   const setOverrideDrive = useSetOverrideDrive();
   const browse = useFolderBrowse(open, drive, !scope);
   const browsing = browse.path !== null;
-  const destinations = useJumpDestinations(open && !scope, drive);
-  const folderIndex = useJumpFolders(open && !scope, drive);
-  const pageJumps = useMemo(
-    () => (scope || !drive || browsing ? [] : matchJumps(destinations, query)),
-    [scope, drive, browsing, destinations, query],
+  const { merged, total, loading, semanticPending, reset: resetResults } = useFileSearch({
+    open,
+    drive,
+    query,
+    scopeType,
+    browsing,
+  });
+  const { recentFiles, recentReply, history, record, forget } = useRecentAndHistory(
+    open,
+    drive,
+    scopeType,
   );
-  const folderJumps = useMemo<JumpDestination[]>(() => {
-    if (scope || !drive || browsing) return [];
-    const driveBase = `/drive/${encodeURIComponent(drive)}`;
-    const shown = new Set(pageJumps.map((jump) => jump.key));
-    return matchFolders(folderIndex, query, shown).map((folder) => ({
-      key: folder.key,
-      label: folder.name,
-      names: [],
-      href: pinHrefFor(driveBase, folder.path),
-      icon: Folder,
-      folderPath: folder.path,
-      detail: folder.path.includes("/")
-        ? folder.path.slice(0, folder.path.lastIndexOf("/"))
-        : t("driveRoot"),
-    }));
-  }, [scope, drive, browsing, folderIndex, pageJumps, query, t]);
-  const browseRows = useMemo(
-    () => (browsing ? filterBrowseRows(browse.nodes, query) : []),
-    [browsing, browse.nodes, query],
+  const { pageJumps, folderJumps, jumps, browseRows } = useLauncherRows(
+    open,
+    scope,
+    drive,
+    query,
+    browse,
   );
-  // One keyboard order across both blocks: page jumps, then folders.
-  const jumps = useMemo(() => [...pageJumps, ...folderJumps], [pageJumps, folderJumps]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -184,9 +139,8 @@ export function GlobalSearch() {
     setOpen(false);
     setLegendOpen(false);
     setQuery("");
-    setMerged([]);
-    setTotal(0);
-  }, []);
+    resetResults();
+  }, [resetResults]);
 
   /**
    * Two overlays at once make Escape ambiguous: the reader would press Escape
@@ -246,44 +200,6 @@ export function GlobalSearch() {
     NESTED_OVERLAY_PRIORITY,
   );
 
-  // `filter: "all"` is required — the default `unfinished` applies a 90%
-  // completion gate meant for continue-watching.
-  //
-  // The loaded files are stored with the drive they came from. GlobalSearch
-  // survives drive navigation, so a bare array would keep showing files from
-  // the drive they just left until the next request landed, and a drive is a
-  // security boundary.
-  useEffect(() => {
-    if (!open || !drive) {
-      setRecentData(null);
-      return;
-    }
-    let cancelled = false;
-    const request = scopeType
-      ? getWatchHistory(drive, RECENT_FILE_LIMIT, "all", scopeType)
-      : getWatchHistory(drive, RECENT_FILE_LIMIT, "all");
-    request
-      .then((items) => {
-        if (!cancelled) setRecentData({ drive, type: scopeType, items });
-      })
-      .catch(() => {
-        if (!cancelled) setRecentData({ drive, type: scopeType, items: [] });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, drive, scopeType]);
-
-  useEffect(() => {
-    if (open && drive) setHistoryData({ drive, terms: getHistory(drive) });
-  }, [open, drive]);
-
-  const history = historyData?.drive === drive ? historyData.terms : [];
-
-  const recentFiles =
-    recentData && recentData.drive === drive && recentData.type === scopeType
-      ? recentData.items
-      : [];
 
   // It is the *order*, not the array. `paint()` builds a fresh array every
   // run, including the one where the second stage came back with nothing to
@@ -322,7 +238,7 @@ export function GlobalSearch() {
     if (!queryIsEmpty || browsing) return;
     highlightedRef.current = { kind: "none" };
     setSelectedIndex(-1);
-  }, [recentData, queryIsEmpty]);
+  }, [recentReply, queryIsEmpty]);
 
   useEffect(() => {
     if (selectedIndex < 0) return;
@@ -330,144 +246,22 @@ export function GlobalSearch() {
     el?.scrollIntoView({ block: "nearest" });
   }, [selectedIndex]);
 
-  useEffect(() => {
-    if (!open || !drive || browsing || !query.trim()) {
-      setMerged([]);
-      setTotal(0);
-      return;
-    }
-
-    const trimmed = query.trim();
-    const cacheKey: SearchCacheKey = {
-      drive,
-      query: trimmed,
-      type: scopeType,
-      includeSceneClip: false,
-    };
-
-    const cached = readSearchCache(cacheKey);
-    if (cached) {
-      const m = mergeResults({
-        filenameMatches: cached.filenameMatches,
-        semanticHits: cached.semanticHits,
-        filenameTotal: cached.filenameTotal,
-      });
-      const sorted = sortMerged(m.files, "relevance", "desc");
-      setMerged(sorted.slice(0, POPUP_LIMIT));
-      setTotal(m.total);
-    }
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    const ctrl = new AbortController();
-
-    debounceRef.current = setTimeout(() => {
-      setLoading(true);
-
-      // `ctrl.signal.aborted` is the whole generation guard. The cleanup
-      // below aborts synchronously when the query, the drive or `open`
-      // changes, so a stage belonging to an older query cannot reach
-      // `setMerged` however the two stages interleave.
-      let filenameRes: Awaited<ReturnType<typeof getDriveFiles>> | null = null;
-      let semanticHits: SemanticHit[] = [];
-
-      const paint = () => {
-        // If semantic search is the faster of the two, its hits wait here
-        // rather than rendering a list with no name matches in it.
-        if (ctrl.signal.aborted || !filenameRes) return;
-        const m = mergeResults({
-          filenameMatches: filenameRes.data,
-          semanticHits,
-          filenameTotal: filenameRes.meta.total,
-        });
-        const sorted = sortMerged(m.files, "relevance", "desc");
-        setMerged(sorted.slice(0, POPUP_LIMIT));
-        setTotal(m.total);
-      };
-
-      const onStageFailure = () => {
-        // Stale-while-revalidate: keep the cached snapshot rendered
-        // when revalidation fails on a transient network blip. Only
-        // wipe state when there was nothing cached to fall back on.
-        if (!ctrl.signal.aborted && !cached && !filenameRes) {
-          setMerged([]);
-          setTotal(0);
-        }
-      };
-
-      const filenameP = getDriveFiles(
-        drive,
-        scopeType
-          ? { search: trimmed, limit: POPUP_LIMIT, type: scopeType }
-          : { search: trimmed, limit: POPUP_LIMIT },
-        { signal: ctrl.signal },
-      )
-        .then((res) => {
-          filenameRes = res;
-          paint();
-        })
-        .catch(onStageFailure)
-        .finally(() => {
-          if (!ctrl.signal.aborted) setLoading(false);
-        });
-
-      // Semantic hits are not filtered by kind, so a scoped search has no
-      // second stage.
-      const semanticP = (scopeType ? Promise.resolve(false) : isSemanticSearchAvailable(drive))
-        .then((available) => {
-          if (!available || ctrl.signal.aborted) return [] as SemanticHit[];
-          setSemanticPending(true);
-          return fetchSemanticHits(trimmed, drive, {
-            limit: POPUP_LIMIT,
-            signal: ctrl.signal,
-          });
-        })
-        .then((hits) => {
-          semanticHits = hits;
-          paint();
-        })
-        .catch(onStageFailure)
-        .finally(() => {
-          if (!ctrl.signal.aborted) setSemanticPending(false);
-        });
-
-      void Promise.all([filenameP, semanticP]).then(() => {
-        if (ctrl.signal.aborted || !filenameRes) return;
-        writeSearchCache(cacheKey, {
-          filenameMatches: filenameRes.data,
-          filenameTotal: filenameRes.meta.total,
-          semanticHits,
-        });
-      });
-    }, 300);
-
-    return () => {
-      ctrl.abort();
-      setSemanticPending(false);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, open, drive, scopeType, browsing]);
 
   const navigateToSearchPage = useCallback(
     (term: string) => {
       const normalized = term.trim();
       if (!normalized || !drive) return;
-      try {
-        setHistoryData({ drive, terms: addToHistory(drive, normalized) });
-      } catch {
-      }
+      record(normalized);
       closeSearch();
       router.push(
         `/drive/${encodeURIComponent(drive)}/search?q=${encodeURIComponent(normalized)}`,
       );
     },
-    [drive, router, closeSearch],
+    [drive, router, closeSearch, record],
   );
 
   function handleSelect(url: string) {
-    try {
-      if (drive) setHistoryData({ drive, terms: addToHistory(drive, query) });
-    } catch {
-    }
+    record(query);
     closeSearch();
     router.push(url);
   }
@@ -532,7 +326,7 @@ export function GlobalSearch() {
       if (removedIndex === selectedIndex) setSelectedIndex(-1);
       else if (removedIndex < selectedIndex) setSelectedIndex(selectedIndex - 1);
     }
-    setHistoryData({ drive, terms: removeFromHistory(drive, term) });
+    forget(term);
   }
 
   function handleFillInput(term: string, e: React.MouseEvent) {
@@ -804,8 +598,7 @@ export function GlobalSearch() {
 
   const clearQuery = (focusRef?: React.RefObject<HTMLInputElement | null>) => {
     setQuery("");
-    setMerged([]);
-    setTotal(0);
+    resetResults();
     focusRef?.current?.focus();
   };
 
