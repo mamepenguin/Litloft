@@ -25,3 +25,9 @@ direction that removes:
 | F2 refocusing on › raises the on-screen keyboard | the refocus removed (`3632bdf97`); an iPad with a keyboard loses focus after ›, tap the field |
 | F3 no phone test for the refocus | moot |
 | F4 stale test title and unused value | deleted (`3632bdf97`) |
+
+## r3 (fix `3632bdf97`) — [r3.md](r3.md)
+
+The fix did what it claimed; no invariant broken. Trajectory: this round removes (the refocus and
+its test) and documents the IME limit instead of adding state. One pre-existing finding: the
+chip's ‹ still refocuses the field, raising the on-screen keyboard on phones.
