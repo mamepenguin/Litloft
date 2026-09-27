@@ -143,6 +143,30 @@ def parse(content: str) -> ParsedMarkdown:
     return ParsedMarkdown(metadata=metadata, body=body)
 
 
+def has_unreadable_frontmatter(content: str) -> bool:
+    """Whether ``content`` opens a frontmatter block that ``parse`` cannot read.
+
+    ``parse`` reports a CRLF block, an unclosed block, broken YAML and a
+    non-mapping block all as "no frontmatter", so composing over its result
+    would stack a second block in front of the first or drop the block's text.
+    """
+    stripped = content.lstrip("﻿")
+    first_line, sep, rest = stripped.partition("\n")
+    if first_line.rstrip("\r") != _DELIM:
+        return False
+    if first_line != _DELIM or not sep:
+        return True
+    lines = rest.split("\n")
+    close_idx = next((i for i, line in enumerate(lines) if line.strip() == _DELIM), None)
+    if close_idx is None:
+        return True
+    try:
+        loaded = yaml.safe_load("\n".join(lines[:close_idx]))
+    except Exception:
+        return True
+    return loaded is not None and not isinstance(loaded, dict)
+
+
 def strip(content: str) -> str:
     """Return the body of a Markdown document, discarding frontmatter."""
     return parse(content).body

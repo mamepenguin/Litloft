@@ -59,6 +59,7 @@ class TestInternalFileTagsReplace:
         db.expire_all()
         refreshed = db.query(File).filter(File.id == f.id).one()
         assert {t.name for t in refreshed.tags} == {"cooking", "japanese"}
+        assert (drive_dir / "notes/hello.md").read_text(encoding="utf-8") == "body\n"
 
     def test_replaces_tags_with_matching_secret(self, client):
         c, db, drive_dir, _ = client

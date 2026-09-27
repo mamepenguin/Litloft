@@ -150,6 +150,19 @@ Purging the file afterwards sweeps the destination drive, so the source row is
 left attached to nothing. This crosses the drive boundary rather than only
 reading wrong. Reached by moving a tagged file between drives.
 
+**Bulk tagging skips a Markdown file it cannot rewrite without saying so.**
+For `.md` the tags live in the frontmatter, so a note whose frontmatter uses CRLF
+line endings, does not parse, or has a `tags:` that is not a list is refused and
+listed in the response's `errors[]`, which the selection bar does not show.
+Reached by selecting such a note with others and adding a tag: the others get
+it, that note does not.
+
+**Removing a note's last tag in the tag chips can turn the top of its body into frontmatter.**
+When `tags:` is the only frontmatter key, the web editor writes the body back
+without a frontmatter block, so a body that opens with a `---` line is read as a
+new block: its text disappears from the preview and any `tags:` in it become the
+note's tags. Reached by clearing all tags on such a note in the web UI.
+
 **Which bucket a source file lands in depends on the host's mime table.**
 `classify` asks `mimetypes`, which reads a table the image may or may not carry,
 so the answer is an accident of packaging rather than a decision: in the
