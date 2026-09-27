@@ -1255,6 +1255,11 @@
       "missing": "行方不明,missing",
       "admin": "管理,設定,admin,dashboard,settings"
     },
-    "folders": "フォルダ"
+    "folders": "フォルダ",
+    "browseInto": "{name} の中を見る",
+    "browseLeave": "フォルダの閲覧をやめる",
+    "browseEmpty": "このフォルダは空です",
+    "browseNoMatch": "一致する項目はありません",
+    "browseUp": "1 つ上へ"
   }
 }

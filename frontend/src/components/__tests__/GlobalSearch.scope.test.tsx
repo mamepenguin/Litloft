@@ -241,6 +241,14 @@ describe("GlobalSearch with a scope", () => {
       expect(mockGetFolderTree).not.toHaveBeenCalled();
     });
 
+    it("types / as text instead of browsing", async () => {
+      shell(<ScopedScreen />);
+      openFromHeader();
+      await typeQuery("/");
+      expect((input() as HTMLInputElement).value).toBe("/");
+      expect(mockGetFolderTree).not.toHaveBeenCalled();
+    });
+
     it("lists recent files of the scope's kind only", async () => {
       shell(<ScopedScreen />);
       openFromHeader();

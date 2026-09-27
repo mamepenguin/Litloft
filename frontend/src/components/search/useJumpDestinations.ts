@@ -36,6 +36,8 @@ export interface JumpDestination {
   /** Set for a collection, whose sidebar row pins the drive before navigating. */
   overrideDrive?: string;
   detail?: string;
+  /** Set for a folder, which can be browsed into. */
+  folderPath?: string;
 }
 
 const NO_PINS: PinnedFolder[] = [];
@@ -152,6 +154,7 @@ export function useJumpDestinations(active: boolean, drive: string | null): Jump
         label,
         names: [label],
         href: pinHrefFor(driveBase, pin.path),
+        folderPath: pin.path,
         icon: Folder,
       };
     });

@@ -63,7 +63,7 @@ export function visibleFixedJumps(ctx: FixedJumpContext): FixedJump[] {
   return FIXED_JUMPS.filter((jump) => jump.visible?.(ctx) ?? true);
 }
 
-function normalise(text: string): string {
+export function normalise(text: string): string {
   return text.normalize("NFKC").toLowerCase();
 }
 
