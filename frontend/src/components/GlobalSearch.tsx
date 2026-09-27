@@ -782,10 +782,7 @@ export function GlobalSearch() {
       label={browse.path || t("driveRoot")}
       removeLabel={tj("browseLeave")}
       upLabel={tj("browseUp")}
-      onUp={browse.path === "" ? undefined : () => {
-        browse.up();
-        focusInput();
-      }}
+      onUp={browse.path === "" ? undefined : browse.up}
       onRemove={() => {
         browse.leave();
         focusInput();
