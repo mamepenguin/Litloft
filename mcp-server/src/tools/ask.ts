@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { runTool } from "./runTool.js";
-import { textResult, type LitloftTool } from "./types.js";
+import { textResult, writeAnnotations, type LitloftTool } from "./types.js";
 
 const ASK_TIMEOUT_MS = 120_000;
 const ASK_MAX_SSE_EVENTS = 4096;
@@ -8,13 +8,18 @@ const ASK_MAX_SSE_EVENTS = 4096;
 const ask: LitloftTool = {
   name: "ask",
   description:
-    "Ask Litloft Intelligence a question within one drive and return the synthesized answer with source events.",
+    "Ask Litloft Intelligence a question within one drive and return the synthesized answer with source events. Retrieved file excerpts may be sent to the LLM provider configured in Litloft Intelligence.",
   inputSchema: {
     drive: z.string(),
     query: z.string().min(1).max(1000),
     top_k: z.number().int().min(1).max(20).optional(),
     file_type: z.string().optional(),
   },
+  annotations: writeAnnotations({
+    destructive: false,
+    idempotent: false,
+    openWorld: true,
+  }),
   handler: (args, client) =>
     runTool(async () => {
       const { drive, ...body } = args as { drive: string } & Record<string, unknown>;

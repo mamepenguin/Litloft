@@ -80,20 +80,98 @@ Example for Claude Desktop (`claude_desktop_config.json`):
 
 Restart the client after editing its config.
 
+### Connect ChatGPT through Secure MCP Tunnel
+
+[Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)
+lets ChatGPT reach this stdio server without exposing Litloft or an MCP HTTP
+endpoint to the public internet. The tunnel is transport only: the
+`LITLOFT_API_TOKEN` still determines which drives and actions are available.
+
+Run `tunnel-client` on the Litloft host and connect to Litloft over loopback when
+possible. A different always-on host is suitable only when it reaches Litloft
+through an encrypted trusted path such as HTTPS, mTLS, or a VPN; a plain HTTP
+request over the LAN exposes the bearer token in transit. The integration is
+unavailable whenever Litloft, `tunnel-client`, or that host is offline, so a
+laptop that routinely sleeps is a poor location.
+
+You need:
+
+- ChatGPT developer mode and permission to use plugins in the target account or
+  workspace;
+- a tunnel associated with that ChatGPT workspace and its `tunnel_id`;
+- a runtime API key allowed to use the tunnel; and
+- the `tunnel-client` binary downloaded from Platform tunnel settings or the
+  latest official release.
+
+Build this package and obtain a Litloft token as described above. For a first
+test, omit `remember: true` when unlocking so the token expires after 24 hours.
+After the connection is proven, a remembered token lasts 365 days.
+
+Export the MCP process environment on the host that runs the tunnel. Keep these
+values in the host's service manager or secret store; do not commit them:
+
+```bash
+export CONTROL_PLANE_API_KEY="<OpenAI runtime API key>"
+export LITLOFT_BASE_URL="http://127.0.0.1:3000"
+export LITLOFT_API_TOKEN="<Litloft token>"
+export LITLOFT_VIEWER="<nickname for comments and clips>"
+```
+
+If the tunnel runs on another host, set `LITLOFT_BASE_URL` to the HTTPS or
+VPN-reachable Litloft address. Use Litloft's frontend port, not the
+Docker-internal backend port.
+
+Create and validate a named stdio profile:
+
+```bash
+tunnel-client init \
+  --sample sample_mcp_stdio_local \
+  --profile litloft \
+  --tunnel-id <tunnel_id> \
+  --mcp-command "node /absolute/path/to/mcp-server/dist/index.js"
+
+tunnel-client doctor --profile litloft --explain
+tunnel-client run --profile litloft
+```
+
+Keep the final command running under the host's normal service manager. The
+tunnel client also exposes loopback-only `/healthz`, `/readyz`, `/metrics`, and
+`/ui` endpoints for local diagnosis.
+
+In ChatGPT, enable developer mode under **Settings → Security and login**. Open
+**Plugins**, create a developer-mode app, choose **Tunnel** as the connection,
+and select the tunnel or enter its `tunnel_id`. Review the discovered Litloft
+tools before installing the app. Once the app is available to the account, it
+can be used from ChatGPT on the web, desktop, and mobile; creation and connection
+management are best done on the web or desktop.
+
+Use a Litloft password whose groups include only the drives ChatGPT should
+access. Every person allowed to use this ChatGPT app shares the access carried
+by that one token. Removing the password later does not revoke an already issued
+JWT; use a short-lived token or rotate Litloft's JWT signing secret if immediate
+revocation is required. Rotating the signing secret signs out every Litloft
+session.
+
+Secure MCP Tunnel is intended here for a private developer-mode connection. It
+does not satisfy the stable public HTTPS endpoint requirement for publishing a
+public plugin.
+
 ## How the agent discovers what it can do
 
 The agent never reads this README — it only sees what the MCP protocol
 exposes:
 
-- **`instructions`** (`src/index.ts`): a short server-level brief sent in
+- **`instructions`** (`src/server.ts`): a short server-level brief sent in
   the `initialize` response, describing the drive/file_id concepts, the
   trash-not-purge behavior, and the ETag-based content-edit workflow.
-- **Per-tool `description` and `inputSchema`** (`src/tools/read.ts`,
-  `src/tools/write.ts`): sent via `tools/list`. This is the only
-  documentation an MCP client's model has for each individual tool, so
-  tool descriptions carry the actual usage rules (e.g.
+- **Per-tool `description`, `inputSchema`, and safety annotations**
+  (`src/tools/read.ts`, `src/tools/write.ts`): sent via `tools/list`. This is
+  the only documentation an MCP client's model has for each individual tool,
+  so tool descriptions carry the actual usage rules (e.g.
   `update_file_content`'s description explains the 412-conflict retry
-  flow) rather than assuming the agent has read anything else.
+  flow) rather than assuming the agent has read anything else. The annotations
+  distinguish read-only, additive, destructive, idempotent, and open-world
+  operations so the client can apply suitable confirmation behavior.
 
 When adding a new tool, put agent-facing behavior notes in its
 `description`, not just in this file.

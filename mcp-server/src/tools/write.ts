@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { runTool } from "./runTool.js";
-import { textResult, type LitloftTool } from "./types.js";
+import { textResult, writeAnnotations, type LitloftTool } from "./types.js";
 
 // All writes mirror the public /api/* surface the Litloft frontend itself
 // uses — no bypass of existing validation or drive access control.
@@ -27,6 +27,7 @@ const renameFile: LitloftTool = {
   name: "rename_file",
   description: "Rename a file (change its filename, not its folder).",
   inputSchema: { file_id: z.string(), new_filename: z.string() },
+  annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
     runTool(async () =>
       textResult(
@@ -47,6 +48,7 @@ const moveFile: LitloftTool = {
     target_folder_path: z.string(),
     target_drive: z.string().optional(),
   },
+  annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
     runTool(async () => {
       const { file_id, ...body } = args as { file_id: string } & Record<string, unknown>;
@@ -63,6 +65,7 @@ const trashFile: LitloftTool = {
   description:
     "Move a file to trash (soft delete). Recoverable for 30 days via restore_file; this does not permanently delete anything.",
   inputSchema: { file_id: z.string() },
+  annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
     runTool(async () =>
       textResult(
@@ -78,6 +81,7 @@ const restoreFile: LitloftTool = {
   name: "restore_file",
   description: "Restore a file out of trash.",
   inputSchema: { file_id: z.string() },
+  annotations: writeAnnotations({ destructive: false, idempotent: true }),
   handler: (args, client) =>
     runTool(async () =>
       textResult(
@@ -94,6 +98,7 @@ const updateTags: LitloftTool = {
   description:
     "Replace the full tag list on a file (max 10 tags). This overwrites existing tags rather than appending to them.",
   inputSchema: { file_id: z.string(), tags: z.array(z.string()).max(10) },
+  annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
     runTool(async () =>
       textResult(
@@ -111,6 +116,7 @@ const updateFileContent: LitloftTool = {
   description:
     "Overwrite a text/markdown file's content. `content` is plain text, not base64 (unlike upload_file's content_base64). Requires the current ETag (from get_file_content) as an optimistic-lock guard; a 412 conflict means the file changed since you last read it, so call get_file_content again before retrying.",
   inputSchema: { file_id: z.string(), content: z.string(), etag: z.string() },
+  annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
     runTool(async () => {
       const res = await client.requestRaw(
@@ -136,6 +142,7 @@ const createPlaylist: LitloftTool = {
     name: z.string(),
     description: z.string().optional(),
   },
+  annotations: writeAnnotations({ destructive: false, idempotent: false }),
   handler: (args, client) =>
     runTool(async () => {
       const { drive, ...body } = args as { drive: string } & Record<string, unknown>;
@@ -158,6 +165,7 @@ const addToPlaylist: LitloftTool = {
     collection_id: z.string(),
     file_ids: z.array(z.string()),
   },
+  annotations: writeAnnotations({ destructive: false, idempotent: false }),
   handler: (args, client) =>
     runTool(async () => {
       const { drive, collection_id, file_ids } = args as {
@@ -199,6 +207,7 @@ const uploadFile: LitloftTool = {
       .optional()
       .describe("Destination folder path within the drive; omit for the drive root"),
   },
+  annotations: writeAnnotations({ destructive: false, idempotent: false }),
   handler: (args, client) =>
     runTool(async () => {
       const drive = args.drive as string;
@@ -272,6 +281,7 @@ const addComment: LitloftTool = {
   description:
     "Post a comment on a file. Requires LITLOFT_VIEWER so the comment has a profile nickname.",
   inputSchema: { file_id: z.string(), body: z.string().min(1).max(1000) },
+  annotations: writeAnnotations({ destructive: false, idempotent: false }),
   handler: (args, client) =>
     runTool(async () => {
       const error = requireViewer(client);
@@ -298,6 +308,11 @@ const clipUrl: LitloftTool = {
     subfolder: z.string().optional(),
     title: z.string().optional(),
   },
+  annotations: writeAnnotations({
+    destructive: false,
+    idempotent: false,
+    openWorld: true,
+  }),
   handler: (args, client) =>
     runTool(async () => {
       const error = requireViewer(client);
@@ -325,6 +340,7 @@ const clipPasted: LitloftTool = {
     subfolder: z.string().optional(),
     title: z.string().optional(),
   },
+  annotations: writeAnnotations({ destructive: false, idempotent: false }),
   handler: (args, client) =>
     runTool(async () => {
       const error = requireViewer(client);
