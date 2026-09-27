@@ -19,6 +19,7 @@ vi.mock("../CurrentDriveProvider", () => ({
 
 const mockGetDriveFiles = vi.fn();
 const mockGetPins = vi.fn();
+const mockGetDriveTags = vi.fn();
 const mockGetFolderTree = vi.fn();
 const mockGetCollections = vi.fn();
 const mockGetSmartFolders = vi.fn();
@@ -28,6 +29,7 @@ vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: () => Promise.resolve([]),
   getFolderTree: (...args: unknown[]) => mockGetFolderTree(...args),
+  getDriveTags: (...args: unknown[]) => mockGetDriveTags(...args),
   getPins: (...args: unknown[]) => mockGetPins(...args),
   getCollections: (...args: unknown[]) => mockGetCollections(...args),
   getSmartFolders: (...args: unknown[]) => mockGetSmartFolders(...args),
@@ -114,6 +116,7 @@ describe("GlobalSearch folder browse", () => {
     driveState.current = "main";
     mockGetDriveFiles.mockResolvedValue(page([]));
     mockGetPins.mockResolvedValue([]);
+    mockGetDriveTags.mockResolvedValue([]);
     mockGetCollections.mockResolvedValue([]);
     mockGetSmartFolders.mockResolvedValue([]);
     mockGetDriveSummary.mockResolvedValue({ missing_count: 0 });

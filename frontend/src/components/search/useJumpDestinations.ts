@@ -12,6 +12,7 @@ import {
   getAuthStatus,
   getCollections,
   getDriveSummary,
+  getDriveTags,
   getFolderTree,
   getPins,
   getSmartFolders,
@@ -24,7 +25,7 @@ import {
   type IndexedFolder,
 } from "@/lib/pageJump";
 import { slotEntryLabel } from "@/lib/slotLabel";
-import type { CollectionSummary, PinnedFolder } from "@/types";
+import type { CollectionSummary, PinnedFolder, Tag } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 
 export interface JumpDestination {
@@ -38,6 +39,8 @@ export interface JumpDestination {
   detail?: string;
   /** Set for a folder, which can be browsed into. */
   folderPath?: string;
+  /** Set for a value suggestion: the query to put in the field instead of navigating. */
+  complete?: string;
 }
 
 const NO_PINS: PinnedFolder[] = [];
@@ -49,6 +52,10 @@ const NO_FOLDERS: IndexedFolder[] = [];
 
 const loadMissingCount = (drive: string) =>
   getDriveSummary(drive).then((summary) => summary.missing_count);
+
+const NO_TAGS: Tag[] = [];
+
+const loadTags = (drive: string) => getDriveTags(drive);
 
 const loadFolders = (drive: string) =>
   getFolderTree(drive, { flat: true }).then(indexFolders);
@@ -183,4 +190,9 @@ export function useJumpDestinations(active: boolean, drive: string | null): Jump
 /** Every folder of the drive, indexed for matching. */
 export function useJumpFolders(active: boolean, drive: string | null): IndexedFolder[] {
   return useDriveOwned(loadFolders, active, drive, NO_FOLDERS);
+}
+
+/** The drive's tags, for the values offered after `tag:`. */
+export function useDriveTagNames(active: boolean, drive: string | null): Tag[] {
+  return useDriveOwned(loadTags, active, drive, NO_TAGS);
 }

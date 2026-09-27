@@ -1,20 +1,32 @@
 "use client";
 
 import { useMemo } from "react";
-import { Folder } from "lucide-react";
+import { Folder, Hash, ListFilter } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { filterBrowseRows, type BrowseNode } from "@/lib/folderBrowse";
 import { matchFolders, matchJumps } from "@/lib/pageJump";
+import {
+  activeOperatorValue,
+  completeOperator,
+  parseSearchQuery,
+  suggestValues,
+} from "@/lib/searchQuery";
 import { pinHrefFor } from "../sidebar/libraryRowActive";
 import type { SearchScope } from "./GlobalSearchProvider";
 import type { FolderBrowse } from "./useFolderBrowse";
-import { useJumpDestinations, useJumpFolders, type JumpDestination } from "./useJumpDestinations";
+import {
+  useDriveTagNames,
+  useJumpDestinations,
+  useJumpFolders,
+  type JumpDestination,
+} from "./useJumpDestinations";
 
 export interface LauncherRows {
+  suggestions: JumpDestination[];
   pageJumps: JumpDestination[];
   folderJumps: JumpDestination[];
-  /** Page jumps then folders: the order the keyboard walks them. */
+  /** Suggestions, page jumps, then folders: the order the keyboard walks them. */
   jumps: JumpDestination[];
   browseRows: BrowseNode[];
 }
@@ -32,6 +44,21 @@ export function useLauncherRows(
   const off = !!scope || !drive || browsing;
   const destinations = useJumpDestinations(open && !scope, drive);
   const folderIndex = useJumpFolders(open && !scope, drive);
+  const tags = useDriveTagNames(open, drive);
+  const suggestions = useMemo<JumpDestination[]>(() => {
+    const active = browsing || !drive ? null : activeOperatorValue(query);
+    if (!active) return [];
+    const used = parseSearchQuery(query.slice(0, active.replaceFrom)).tags;
+    return suggestValues(active, tags, used).map(({ value, count }) => ({
+      key: `suggest:${active.operator}:${value}`,
+      label: value,
+      names: [],
+      href: "",
+      icon: active.operator === "tag" ? Hash : ListFilter,
+      detail: count === undefined ? undefined : String(count),
+      complete: completeOperator(query, active, value),
+    }));
+  }, [browsing, drive, query, tags]);
   const pageJumps = useMemo(
     () => (off ? [] : matchJumps(destinations, query)),
     [off, destinations, query],
@@ -56,7 +83,10 @@ export function useLauncherRows(
     () => (browsing ? filterBrowseRows(browse.nodes, query) : []),
     [browsing, browse.nodes, query],
   );
-  const jumps = useMemo(() => [...pageJumps, ...folderJumps], [pageJumps, folderJumps]);
+  const jumps = useMemo(
+    () => [...suggestions, ...pageJumps, ...folderJumps],
+    [suggestions, pageJumps, folderJumps],
+  );
 
-  return { pageJumps, folderJumps, jumps, browseRows };
+  return { suggestions, pageJumps, folderJumps, jumps, browseRows };
 }

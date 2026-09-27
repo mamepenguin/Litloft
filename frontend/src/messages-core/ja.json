@@ -1260,6 +1260,7 @@
     "browseLeave": "フォルダの閲覧をやめる",
     "browseEmpty": "このフォルダは空です",
     "browseNoMatch": "一致する項目はありません",
-    "browseUp": "1 つ上へ"
+    "browseUp": "1 つ上へ",
+    "suggestions": "候補"
   }
 }

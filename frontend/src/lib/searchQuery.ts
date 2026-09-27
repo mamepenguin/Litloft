@@ -103,3 +103,66 @@ export function resolveKinds(
   }
   return { kinds, impossible: kinds.length === 0 };
 }
+
+export type ValueOperator = "tag" | "type" | "is";
+
+export interface ActiveValue {
+  operator: ValueOperator;
+  /** What has been typed of the value so far. */
+  partial: string;
+  /** Where the token being typed starts in the query. */
+  replaceFrom: number;
+}
+
+const PARTIAL = /^([^\s:：]+)[:：](\S*)$/;
+const VALUE_OPERATORS: readonly ValueOperator[] = ["tag", "type", "is"];
+const SUGGESTION_LIMIT = 8;
+
+/** The operator whose value is being typed at the end of the query, if any. */
+export function activeOperatorValue(q: string): ActiveValue | null {
+  const replaceFrom = Math.max(q.lastIndexOf(" "), q.lastIndexOf("　"), q.lastIndexOf("\t")) + 1;
+  const match = PARTIAL.exec(q.slice(replaceFrom));
+  const name = match?.[1].normalize("NFKC").toLowerCase();
+  if (!match || !VALUE_OPERATORS.includes(name as ValueOperator)) return null;
+  return { operator: name as ValueOperator, partial: match[2], replaceFrom };
+}
+
+export function completeOperator(q: string, active: ActiveValue, value: string): string {
+  return `${q.slice(0, active.replaceFrom)}${active.operator}:${value} `;
+}
+
+export interface ValueSuggestion {
+  value: string;
+  count?: number;
+}
+
+/** Prefix matches first, then substring matches; tags by count within each. */
+export function suggestValues(
+  active: ActiveValue,
+  tags: readonly { name: string; count: number }[],
+  usedTags: readonly string[],
+): ValueSuggestion[] {
+  const needle = active.partial.normalize("NFKC").toLowerCase();
+  const rank = (word: string) => {
+    const w = word.normalize("NFKC").toLowerCase();
+    return w.startsWith(needle) ? 0 : w.includes(needle) ? 1 : -1;
+  };
+  const ranked = <T extends ValueSuggestion>(items: T[]) =>
+    items
+      .map((item) => ({ item, r: rank(item.value) }))
+      .filter(({ r }) => r >= 0)
+      .sort((a, b) => a.r - b.r || (b.item.count ?? 0) - (a.item.count ?? 0))
+      .map(({ item }) => item)
+      .slice(0, SUGGESTION_LIMIT);
+
+  if (active.operator === "tag") {
+    const used = new Set(usedTags.map((tag) => tag.toLowerCase()));
+    return ranked(
+      tags
+        .filter((tag) => tag.count > 0 && !used.has(tag.name.toLowerCase()))
+        .map((tag) => ({ value: tag.name, count: tag.count })),
+    );
+  }
+  if (active.operator === "type") return ranked(KINDS.map((kind) => ({ value: kind })));
+  return ranked([{ value: "favorite" }, { value: "liked" }]);
+}

@@ -26,6 +26,7 @@ vi.mock("../AddonSlot", () => ({ AddonSlot: () => null }));
 vi.mock("@/lib/api", () => ({
   getDriveFiles: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 8 } }),
   getWatchHistory: vi.fn().mockResolvedValue([]),
+  getDriveTags: vi.fn().mockResolvedValue([]),
   getPins: vi.fn().mockResolvedValue([]),
   getCollections: vi.fn().mockResolvedValue([]),
   getSmartFolders: vi.fn().mockResolvedValue([]),

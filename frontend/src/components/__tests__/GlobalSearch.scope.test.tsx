@@ -29,12 +29,14 @@ vi.mock("../CurrentDriveProvider", () => ({
 const mockGetDriveFiles = vi.fn();
 const mockGetWatchHistory = vi.fn();
 const mockGetPins = vi.fn();
+const mockGetDriveTags = vi.fn();
 const mockGetFolderTree = vi.fn();
 
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
   getFolderTree: (...args: unknown[]) => mockGetFolderTree(...args),
+  getDriveTags: (...args: unknown[]) => mockGetDriveTags(...args),
   getPins: (...args: unknown[]) => mockGetPins(...args),
   getCollections: () => Promise.resolve([]),
   getSmartFolders: () => Promise.resolve([]),
@@ -164,6 +166,7 @@ describe("GlobalSearch with a scope", () => {
     driveState.current = "main";
     mockGetWatchHistory.mockResolvedValue([]);
     mockGetPins.mockResolvedValue([]);
+    mockGetDriveTags.mockResolvedValue([]);
     mockGetFolderTree.mockResolvedValue([]);
     mockGetDriveFiles.mockResolvedValue(page([]));
     mockFetchSemanticHits.mockResolvedValue([]);
@@ -662,6 +665,15 @@ describe("GlobalSearch with a scope", () => {
 
       await typeQuery("foo type:video");
       expect(document.querySelector(".animate-spin")).toBeNull();
+    });
+
+    it("offers tag values inside a scope too", async () => {
+      mockGetDriveTags.mockResolvedValue([{ name: "draft", count: 2 }]);
+      shell(<ScopedScreen />);
+      openFromHeader();
+      await typeQuery("tag:dr");
+      await waitFor(() => expect(screen.getByText("Suggestions")).toBeInTheDocument());
+      expect(screen.getByText("draft")).toBeInTheDocument();
     });
 
     it("requests nothing when a type: operator cannot hold inside the scope", async () => {
