@@ -72,11 +72,21 @@ export function segmentedControlCases(): void {
             };
           });
           const textPrimary = tokenRgb("--text-primary");
-          const dots = [...document.querySelectorAll('[data-testid="epub-size-step"]')].map(
-            (el) => getComputedStyle(el).backgroundColor,
-          );
+          const size = document.querySelector('[data-testid="epub-size-value"]')!;
+          const sizeBox = size.getBoundingClientRect();
+          const smaller = size.previousElementSibling!.getBoundingClientRect();
+          const larger = size.nextElementSibling!.getBoundingClientRect();
           const panel = document.querySelector('[data-testid="epub-typography-panel"]')!.getBoundingClientRect();
-          return { accentRgb, segments, dots, textPrimary, panelHeight: panel.height, panelRight: panel.right };
+          return {
+            accentRgb,
+            segments,
+            textPrimary,
+            size: {
+              text: size.textContent,
+              color: getComputedStyle(size).color,
+              centreOffset: Math.abs((sizeBox.left + sizeBox.right) / 2 - (smaller.right + larger.left) / 2),
+            },
+            panelHeight: panel.height, panelRight: panel.right };
         });
 
         test.info().annotations.push({ type: "panel height", description: `${m.panelHeight}px` });
@@ -90,8 +100,9 @@ export function segmentedControlCases(): void {
           expect(s.borderColor).toBe(s.pressed ? m.accentRgb : "rgba(0, 0, 0, 0)");
         }
         expect(m.segments.filter((s) => s.pressed)).toHaveLength(3);
-        expect(m.dots).toHaveLength(7);
-        expect(m.dots.filter((c) => c === m.textPrimary)).toHaveLength(1);
+        expect(m.size.text).toBe("115%");
+        expect(m.size.color).toBe(m.textPrimary);
+        expect(m.size.centreOffset).toBeLessThanOrEqual(1);
 
         const sizeButtons = 'button[aria-label="Smaller text"], button[aria-label="Larger text"], button[aria-label="文字を小さく"], button[aria-label="文字を大きく"]';
         expect(await page.locator(sizeButtons).count()).toBe(2);

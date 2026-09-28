@@ -27,8 +27,19 @@ describe("typographyCss", () => {
   });
 
   it("scales the book's own root size, only on a root whose size was read", () => {
-    expect(typographyCss({ ...TYPOGRAPHY_DEFAULTS, fontSize: 4 })).toBe(
-      "html[data-litloft-own-root] { font-size: calc(var(--litloft-own-root) * 1.3) !important; }",
+    expect(typographyCss({ ...TYPOGRAPHY_DEFAULTS, fontPercent: 115 })).toBe(
+      "html[data-litloft-own-root] { font-size: calc(var(--litloft-own-root) * 1.15) !important; }",
+    );
+  });
+
+  it.each([
+    [80, "0.8"],
+    [95, "0.95"],
+    [105, "1.05"],
+    [200, "2"],
+  ])("scales %i%% as a factor of %s", (fontPercent, factor) => {
+    expect(typographyCss({ ...TYPOGRAPHY_DEFAULTS, fontPercent })).toBe(
+      `html[data-litloft-own-root] { font-size: calc(var(--litloft-own-root) * ${factor}) !important; }`,
     );
   });
 

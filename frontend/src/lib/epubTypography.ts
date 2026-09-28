@@ -2,21 +2,22 @@ import { readStored, writeStored } from "./safeStorage";
 
 export const TYPOGRAPHY_KEY = "epub-reader:typography";
 
-export const FONT_SIZE_STEPS = [0.8, 0.9, 1, 1.15, 1.3, 1.6, 2] as const;
+export const FONT_PERCENT_MIN = 80;
+export const FONT_PERCENT_MAX = 200;
+export const FONT_PERCENT_STEP = 5;
 export const LINE_HEIGHTS = ["original", "1.6", "1.9"] as const;
 export const MARGINS = ["narrow", "normal", "wide"] as const;
 export const FONT_FAMILIES = ["original", "serif", "sans"] as const;
 
 export interface Typography {
-  /** An index into FONT_SIZE_STEPS. */
-  fontSize: number;
+  fontPercent: number;
   lineHeight: (typeof LINE_HEIGHTS)[number];
   margin: (typeof MARGINS)[number];
   fontFamily: (typeof FONT_FAMILIES)[number];
 }
 
 export const TYPOGRAPHY_DEFAULTS: Typography = {
-  fontSize: 2,
+  fontPercent: 100,
   lineHeight: "original",
   margin: "normal",
   fontFamily: "original",
@@ -24,7 +25,7 @@ export const TYPOGRAPHY_DEFAULTS: Typography = {
 
 export function isDefaultTypography(t: Typography): boolean {
   return (
-    t.fontSize === TYPOGRAPHY_DEFAULTS.fontSize &&
+    t.fontPercent === TYPOGRAPHY_DEFAULTS.fontPercent &&
     t.lineHeight === TYPOGRAPHY_DEFAULTS.lineHeight &&
     t.margin === TYPOGRAPHY_DEFAULTS.margin &&
     t.fontFamily === TYPOGRAPHY_DEFAULTS.fontFamily
@@ -35,14 +36,31 @@ function oneOf<T extends string>(list: readonly T[], value: unknown, fallback: T
   return list.includes(value as T) ? (value as T) : fallback;
 }
 
+function isFontPercent(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= FONT_PERCENT_MIN &&
+    value <= FONT_PERCENT_MAX &&
+    value % FONT_PERCENT_STEP === 0
+  );
+}
+
+/** Sizes once stored as an index (`fontSize`) into this table. */
+const LEGACY_FONT_PERCENTS = [80, 90, 100, 115, 130, 160, 200];
+
+function readFontPercent(v: Record<string, unknown>): number {
+  if ("fontPercent" in v) return isFontPercent(v.fontPercent) ? v.fontPercent : TYPOGRAPHY_DEFAULTS.fontPercent;
+  const index = v.fontSize;
+  return typeof index === "number" && Number.isInteger(index) && index >= 0 && index < LEGACY_FONT_PERCENTS.length
+    ? LEGACY_FONT_PERCENTS[index]
+    : TYPOGRAPHY_DEFAULTS.fontPercent;
+}
+
 export function parseTypography(value: unknown): Typography {
   const v = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-  const size = v.fontSize;
   return {
-    fontSize:
-      typeof size === "number" && Number.isInteger(size) && size >= 0 && size < FONT_SIZE_STEPS.length
-        ? size
-        : TYPOGRAPHY_DEFAULTS.fontSize,
+    fontPercent: readFontPercent(v),
     lineHeight: oneOf(LINE_HEIGHTS, v.lineHeight, TYPOGRAPHY_DEFAULTS.lineHeight),
     margin: oneOf(MARGINS, v.margin, TYPOGRAPHY_DEFAULTS.margin),
     fontFamily: oneOf(FONT_FAMILIES, v.fontFamily, TYPOGRAPHY_DEFAULTS.fontFamily),

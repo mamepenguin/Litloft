@@ -114,12 +114,14 @@ export const flattenToc = (toc, resolveIndex, sectionFractions) => {
   return { entries, hrefs };
 };
 
-export const FONT_SIZE_STEPS = [0.8, 0.9, 1, 1.15, 1.3, 1.6, 2];
+export const FONT_PERCENT_MIN = 80;
+export const FONT_PERCENT_MAX = 200;
+export const FONT_PERCENT_STEP = 5;
 export const LINE_HEIGHTS = ["original", "1.6", "1.9"];
 export const MARGINS = ["narrow", "normal", "wide"];
 export const FONT_FAMILIES = ["original", "serif", "sans"];
 export const TYPOGRAPHY_DEFAULTS = {
-  fontSize: 2,
+  fontPercent: 100,
   lineHeight: "original",
   margin: "normal",
   fontFamily: "original",
@@ -129,12 +131,15 @@ export const TYPOGRAPHY_DEFAULTS = {
 // unreadable is the book's own setting.
 export const readTypography = (value) => {
   const v = value && typeof value === "object" ? value : {};
-  const size = v.fontSize;
+  const size = v.fontPercent;
   return {
-    fontSize:
-      Number.isInteger(size) && size >= 0 && size < FONT_SIZE_STEPS.length
+    fontPercent:
+      Number.isInteger(size) &&
+      size >= FONT_PERCENT_MIN &&
+      size <= FONT_PERCENT_MAX &&
+      size % FONT_PERCENT_STEP === 0
         ? size
-        : TYPOGRAPHY_DEFAULTS.fontSize,
+        : TYPOGRAPHY_DEFAULTS.fontPercent,
     lineHeight: LINE_HEIGHTS.includes(v.lineHeight) ? v.lineHeight : TYPOGRAPHY_DEFAULTS.lineHeight,
     margin: MARGINS.includes(v.margin) ? v.margin : TYPOGRAPHY_DEFAULTS.margin,
     fontFamily: FONT_FAMILIES.includes(v.fontFamily) ? v.fontFamily : TYPOGRAPHY_DEFAULTS.fontFamily,
@@ -166,9 +171,10 @@ export const OWN_ROOT_VAR = "--litloft-own-root";
 
 export const typographyCss = (t) => {
   const rules = [];
-  const step = FONT_SIZE_STEPS[t.fontSize];
-  if (step !== 1)
-    rules.push(`html[${OWN_ROOT_ATTR}] { font-size: calc(var(${OWN_ROOT_VAR}) * ${step}) !important; }`);
+  if (t.fontPercent !== 100)
+    rules.push(
+      `html[${OWN_ROOT_ATTR}] { font-size: calc(var(${OWN_ROOT_VAR}) * ${t.fontPercent / 100}) !important; }`,
+    );
   if (t.lineHeight !== "original") rules.push(`${TEXT} { line-height: ${t.lineHeight} !important; }`);
   if (t.fontFamily !== "original")
     rules.push(`${TEXT} { font-family: ${FONT_STACKS[t.fontFamily]} !important; }`);

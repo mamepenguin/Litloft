@@ -6,7 +6,9 @@ import { Button } from "@/components/Button";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import {
   FONT_FAMILIES,
-  FONT_SIZE_STEPS,
+  FONT_PERCENT_MAX,
+  FONT_PERCENT_MIN,
+  FONT_PERCENT_STEP,
   LINE_HEIGHTS,
   MARGINS,
   TYPOGRAPHY_DEFAULTS,
@@ -21,13 +23,10 @@ const SAMPLE_FACE: Record<Typography["fontFamily"], string | undefined> = {
   sans: '"Helvetica Neue", Arial, "Hiragino Sans", "Yu Gothic", sans-serif',
 };
 
-function Field({ label, aside, children }: { label: string; aside?: ReactNode; children: ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-xs text-text-muted">{label}</span>
-        {aside}
-      </div>
+      <span className="text-xs text-text-muted">{label}</span>
       {children}
     </div>
   );
@@ -44,8 +43,7 @@ export const EpubTypographyPanel = forwardRef<HTMLDivElement, EpubTypographyPane
   function EpubTypographyPanel({ typography, onChange, className = "", style }, ref) {
     const t = useTranslations("file");
     const set = (patch: Partial<Typography>) => onChange({ ...typography, ...patch });
-    const step = typography.fontSize;
-    const percent = Math.round(FONT_SIZE_STEPS[step] * 100);
+    const percent = typography.fontPercent;
     return (
       <div
         ref={ref}
@@ -69,39 +67,29 @@ export const EpubTypographyPanel = forwardRef<HTMLDivElement, EpubTypographyPane
             {t("epubTypographyReset")}
           </Button>
         </div>
-        <Field
-          label={t("epubTextSize")}
-          aside={
-            <span className="text-xs tabular-nums text-text-primary" aria-live="polite">
-              {percent}%
-            </span>
-          }
-        >
+        <Field label={t("epubTextSize")}>
           <div className="flex items-center gap-3 pointer-coarse:min-h-11">
             <Button
               variant="ghost"
               iconOnly
-              onClick={() => set({ fontSize: step - 1 })}
-              disabled={step === 0}
+              onClick={() => set({ fontPercent: percent - FONT_PERCENT_STEP })}
+              disabled={percent <= FONT_PERCENT_MIN}
               aria-label={t("epubTextSmaller")}
             >
               <span aria-hidden="true" className="text-[11px]">A</span>
             </Button>
-            <div className="flex flex-1 items-center justify-between px-1" aria-hidden="true">
-              {FONT_SIZE_STEPS.map((_, i) => (
-                <span
-                  key={i}
-                  data-testid="epub-size-step"
-                  data-current={i === step}
-                  className={`h-1.5 w-1.5 rounded-full ${i === step ? "bg-text-primary" : "bg-sand-hover"}`}
-                />
-              ))}
-            </div>
+            <span
+              data-testid="epub-size-value"
+              aria-live="polite"
+              className="flex-1 text-center text-sm tabular-nums text-text-primary"
+            >
+              {percent}%
+            </span>
             <Button
               variant="ghost"
               iconOnly
-              onClick={() => set({ fontSize: step + 1 })}
-              disabled={step === FONT_SIZE_STEPS.length - 1}
+              onClick={() => set({ fontPercent: percent + FONT_PERCENT_STEP })}
+              disabled={percent >= FONT_PERCENT_MAX}
               aria-label={t("epubTextLarger")}
             >
               <span aria-hidden="true" className="text-base">A</span>
