@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-type Typography = { fontSize?: number; lineHeight?: string; margin?: string; fontFamily?: string };
+type Typography = { fontPercent?: number; lineHeight?: string; margin?: string; fontFamily?: string };
 
 declare global {
   interface Window {
@@ -13,7 +13,7 @@ declare global {
 }
 
 const origin = () => process.env.EPUB_E2E_ORIGIN!;
-const ORIGINAL = { fontSize: 2, lineHeight: "original", margin: "normal", fontFamily: "original" };
+const ORIGINAL = { fontPercent: 100, lineHeight: "original", margin: "normal", fontFamily: "original" };
 const SETTLE_MS = 700;
 
 async function open(page: Page, book: string, { fraction, typography }: { fraction?: number; typography?: unknown } = {}) {
@@ -108,25 +108,38 @@ test("with nothing set, the book's own styles and today's gap are kept", async (
 
 test.describe("font size", () => {
   test("scales the book's own root size in every chapter, after any sequence of steps", async ({ page }) => {
-    await open(page, "styled.epub", { typography: { ...ORIGINAL, fontSize: 4 } });
+    await open(page, "styled.epub", { typography: { ...ORIGINAL, fontPercent: 130 } });
     expect((await where(page)).rootSize).toBe("13px");
-    await setTypography(page, { fontSize: 5 });
-    await setTypography(page, { fontSize: 4 });
+    await setTypography(page, { fontPercent: 160 });
+    await setTypography(page, { fontPercent: 130 });
     expect((await where(page)).rootSize).toBe("13px");
     await page.evaluate(() => window.seek(0.9));
     await page.waitForTimeout(SETTLE_MS);
     const third = await where(page);
     expect(third.index).toBe(2);
     expect(third.rootSize).toBe("13px");
-    await setTypography(page, { fontSize: 2 });
+    await setTypography(page, { fontPercent: 100 });
     expect((await where(page)).rootSize).toBe("10px");
   });
+
+  for (const [fontPercent, rootSize] of [
+    [80, "8px"],
+    [95, "9.5px"],
+    [105, "10.5px"],
+    [115, "11.5px"],
+  ] as const) {
+    test(`${fontPercent}% sets the root to ${rootSize}`, async ({ page }) => {
+      await open(page, "styled.epub");
+      await setTypography(page, { fontPercent });
+      expect((await where(page)).rootSize).toBe(rootSize);
+    });
+  }
 });
 
 test.describe("a change", () => {
   test("posts no turn", async ({ page }) => {
     await open(page, "styled.epub", { fraction: 0.4 });
-    await setTypography(page, { fontSize: 5, lineHeight: "1.9", margin: "wide", fontFamily: "sans" });
+    await setTypography(page, { fontPercent: 160, lineHeight: "1.9", margin: "wide", fontFamily: "sans" });
     expect(await messages(page, "turned")).toEqual([]);
   });
 
@@ -134,7 +147,7 @@ test.describe("a change", () => {
     await open(page, "styled.epub");
     await page.evaluate((ms) => {
       window.seek(0.7, 5);
-      setTimeout(() => window.setTypography({ fontSize: 5, lineHeight: "original", margin: "normal", fontFamily: "original" }), ms);
+      setTimeout(() => window.setTypography({ fontPercent: 160, lineHeight: "original", margin: "normal", fontFamily: "original" }), ms);
     }, delay);
     await expect.poll(async () => (await messages(page, "seeked")).length).toBe(1);
     await page.waitForTimeout(SETTLE_MS * 2);
@@ -158,7 +171,7 @@ test.describe("a change", () => {
       await open(page, "styled.epub", { fraction: 0.2 });
       await prepare(page);
       await keepStart(page);
-      for (const t of [{ fontSize: 6 }, { margin: "wide" }, { lineHeight: "1.9" }, { fontFamily: "sans" }, {}] as Typography[]) {
+      for (const t of [{ fontPercent: 200 }, { margin: "wide" }, { lineHeight: "1.9" }, { fontFamily: "sans" }, {}] as Typography[]) {
         await setTypography(page, t);
         expect(await startStillShown(page)).toBe(true);
       }
@@ -172,7 +185,7 @@ test.describe("a change", () => {
     for (const [i, width] of [640, 1000, 760, 900, 580, 1000].entries()) {
       await page.setViewportSize({ width, height: 800 });
       await page.waitForTimeout(SETTLE_MS);
-      await setTypography(page, i % 2 === 0 ? { fontSize: 5 } : {});
+      await setTypography(page, i % 2 === 0 ? { fontPercent: 160 } : {});
       expect(await startStillShown(page)).toBe(true);
     }
   });
@@ -181,15 +194,48 @@ test.describe("a change", () => {
     await open(page, "styled.epub", { fraction: 0.2 });
     await turnTimes(page, 2);
     const before = await where(page);
-    await setTypography(page, { fontSize: 6 });
+    await setTypography(page, { fontPercent: 200 });
     await setTypography(page, {});
     const after = await where(page);
     expect({ index: after.index, page: after.page }).toEqual({ index: before.index, page: before.page });
   });
 });
 
+test.describe("five-percent presses", () => {
+  test("up and back down the same number show the page shown before", async ({ page }) => {
+    await open(page, "styled.epub", { fraction: 0.2 });
+    await turnTimes(page, 2);
+    const before = await where(page);
+    const turnedBefore = (await messages(page, "turned")).length;
+    for (const fontPercent of [105, 110, 115, 120, 125, 130, 125, 120, 115, 110, 105, 100]) {
+      await setTypography(page, { fontPercent });
+    }
+    const after = await where(page);
+    expect({ index: after.index, page: after.page, rootSize: after.rootSize }).toEqual({
+      index: before.index,
+      page: before.page,
+      rootSize: "10px",
+    });
+    expect(await messages(page, "turned")).toHaveLength(turnedBefore);
+  });
+
+  test("in a burst end at the last one pressed", async ({ page }) => {
+    await open(page, "styled.epub", { fraction: 0.2 });
+    await keepStart(page);
+    const locationsBefore = (await messages(page, "location")).length;
+    await page.evaluate((original) => {
+      for (const fontPercent of [105, 110, 115, 120, 125, 130]) window.setTypography({ ...original, fontPercent });
+    }, ORIGINAL);
+    await page.waitForTimeout(SETTLE_MS * 2);
+    expect((await messages(page, "location")).length - locationsBefore).toBeLessThanOrEqual(6);
+    expect((await where(page)).rootSize).toBe("13px");
+    expect(await startStillShown(page)).toBe(true);
+    expect(await messages(page, "turned")).toEqual([]);
+  });
+});
+
 test("opening with a setting lands where a seek to the same place lands under it", async ({ page }) => {
-  const typography = { ...ORIGINAL, fontSize: 6, margin: "wide" };
+  const typography = { ...ORIGINAL, fontPercent: 200, margin: "wide" };
   await open(page, "styled.epub", { fraction: 0.45, typography });
   const opened = await where(page);
   await open(page, "styled.epub", { typography });
@@ -200,7 +246,7 @@ test("opening with a setting lands where a seek to the same place lands under it
 });
 
 test.describe("an open with a typography that cannot be read", () => {
-  for (const typography of ["garbage", { fontSize: 99, margin: "huge" }, null]) {
+  for (const typography of ["garbage", { fontPercent: 99, margin: "huge" }, { fontSize: 4 }, null]) {
     test(`opens with the book's own styles: ${JSON.stringify(typography)}`, async ({ page }) => {
       await open(page, "styled.epub", { typography });
       expect(await messages(page, "error")).toEqual([]);

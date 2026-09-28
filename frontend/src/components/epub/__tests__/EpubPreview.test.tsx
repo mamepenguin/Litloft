@@ -900,13 +900,16 @@ describe("EpubPreview", () => {
 
     beforeEach(() => localStorage.clear());
 
-    it("opens the book with the setting stored on this device", async () => {
-      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontSize: 5, margin: "wide" }));
+    it.each([
+      ["a percent", { fontPercent: 145, margin: "wide" }, 145],
+      ["a legacy size index", { fontSize: 5, margin: "wide" }, 160],
+    ])("opens the book with the setting stored on this device as %s", async (_name, stored, fontPercent) => {
+      localStorage.setItem("epub-reader:typography", JSON.stringify(stored));
       const view = renderPreview();
       await fromReader(view.readerWindow, { type: "boot" });
       await settle();
       expect(sentOfType(view.posted, "open")[0]).toMatchObject({
-        typography: { fontSize: 5, lineHeight: "original", margin: "wide", fontFamily: "original" },
+        typography: { fontPercent, lineHeight: "original", margin: "wide", fontFamily: "original" },
       });
     });
 
@@ -925,7 +928,7 @@ describe("EpubPreview", () => {
       fireEvent.click(screen.getByRole("button", { name: "Larger text" }));
       fireEvent.click(within(screen.getByRole("group", { name: "Font" })).getByRole("button", { name: "Serif" }));
       const sent = sentOfType(view.posted, "typography") as unknown as { typography: unknown }[];
-      expect(sent.at(-1)!.typography).toEqual({ fontSize: 3, lineHeight: "original", margin: "normal", fontFamily: "serif" });
+      expect(sent.at(-1)!.typography).toEqual({ fontPercent: 105, lineHeight: "original", margin: "normal", fontFamily: "serif" });
       expect(JSON.parse(localStorage.getItem("epub-reader:typography")!)).toEqual(sent.at(-1)!.typography);
       expect(sentOfType(view.posted, "turn")).toEqual([]);
     });
@@ -1033,13 +1036,13 @@ describe("EpubPreview", () => {
     });
 
     it("stops at the smallest and the largest size", async () => {
-      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontSize: 0 }));
+      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontPercent: 80 }));
       const small = await openReady();
       fireEvent.click(aa());
       expect(screen.getByRole("button", { name: "Smaller text" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Larger text" })).toBeEnabled();
       small.unmount();
-      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontSize: 6 }));
+      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontPercent: 200 }));
       await openReady();
       fireEvent.click(aa());
       expect(screen.getByRole("button", { name: "Larger text" })).toBeDisabled();
@@ -1047,12 +1050,12 @@ describe("EpubPreview", () => {
     });
 
     it("resets to the defaults, sending and storing them", async () => {
-      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontSize: 5, margin: "wide", fontFamily: "sans" }));
+      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontPercent: 160, margin: "wide", fontFamily: "sans" }));
       const view = await openReady();
       fireEvent.click(aa());
       fireEvent.click(screen.getByRole("button", { name: "Reset" }));
       const sent = sentOfType(view.posted, "typography") as unknown as { typography: unknown }[];
-      const defaults = { fontSize: 2, lineHeight: "original", margin: "normal", fontFamily: "original" };
+      const defaults = { fontPercent: 100, lineHeight: "original", margin: "normal", fontFamily: "original" };
       expect(sent.map((m) => m.typography)).toEqual([defaults]);
       expect(JSON.parse(localStorage.getItem("epub-reader:typography")!)).toEqual(defaults);
     });
@@ -1067,14 +1070,33 @@ describe("EpubPreview", () => {
       expect(localStorage.getItem("epub-reader:typography")).toBeNull();
     });
 
-    it.each([0, 3, 6])("marks only the current size step: %i", async (fontSize) => {
-      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontSize }));
+    it.each([
+      ["Smaller text", 115, 110],
+      ["Larger text", 115, 120],
+      ["Smaller text", 85, 80],
+      ["Larger text", 195, 200],
+    ])("%s from %i%% goes to %i%%, shown between the buttons", async (button, from, to) => {
+      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontPercent: from }));
+      const view = await openReady();
+      fireEvent.click(aa());
+      expect(screen.getByTestId("epub-size-value")).toHaveTextContent(`${from}%`);
+      fireEvent.click(screen.getByRole("button", { name: button }));
+      const sent = sentOfType(view.posted, "typography") as unknown as { typography: { fontPercent: number } }[];
+      expect(sent.map((m) => m.typography.fontPercent)).toEqual([to]);
+      expect(screen.getByTestId("epub-size-value")).toHaveTextContent(`${to}%`);
+    });
+
+    it("stores a legacy size index back as a percent on the first change", async () => {
+      localStorage.setItem("epub-reader:typography", JSON.stringify({ fontSize: 4, margin: "wide" }));
       await openReady();
       fireEvent.click(aa());
-      const steps = screen.getAllByTestId("epub-size-step");
-      expect(steps.map((el) => el.dataset.current === "true")).toEqual(
-        Array.from({ length: 7 }, (_, i) => i === fontSize),
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Larger text" }));
+      expect(JSON.parse(localStorage.getItem("epub-reader:typography")!)).toEqual({
+        fontPercent: 135,
+        lineHeight: "original",
+        margin: "wide",
+        fontFamily: "original",
+      });
     });
   });
 

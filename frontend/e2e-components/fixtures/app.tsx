@@ -1383,7 +1383,7 @@ function CanvasNoBleedAlone(): ReactElement {
 
 /** The text settings panel as the reader lays it out: full width, over the book. */
 function TypographyPanel({ locale }: { locale: "en" | "ja" }): ReactElement {
-  const [typography, setTypography] = useState<Typography>({ ...TYPOGRAPHY_DEFAULTS, fontSize: 3 });
+  const [typography, setTypography] = useState<Typography>({ ...TYPOGRAPHY_DEFAULTS, fontPercent: 115 });
   return (
     <NextIntlClientProvider locale={locale} messages={locale === "ja" ? jaMessages : enMessages}>
       <div className="relative bg-bg-primary p-2">
