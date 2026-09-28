@@ -60,13 +60,36 @@ describe("fileAiActions", () => {
     expect(ids("f3")()).toEqual([]);
   });
 
-  it("keeps an offer listed while another mount of it remains", () => {
-    const first = offer({ fileId: "f1", id: "same", order: 10 });
-    offer({ fileId: "f1", id: "same", order: 10 });
-    const read = ids("f1");
-    expect(read()).toEqual(["same"]);
-    first.unmount();
-    expect(read()).toEqual(["same"]);
+  it.each(["first", "second"] as const)(
+    "keeps an offer listed when the %s of two mounts unmounts",
+    (which) => {
+      const first = offer({ fileId: "f1", id: "same", order: 10 });
+      const second = offer({ fileId: "f1", id: "same", order: 10 });
+      const read = ids("f1");
+      expect(read()).toEqual(["same"]);
+      (which === "first" ? first : second).unmount();
+      expect(read()).toEqual(["same"]);
+    },
+  );
+
+  it("moves an offer to the file its offerer is re-rendered with", () => {
+    const mounted = offer({ fileId: "f1", id: "one", order: 10 });
+    const readF1 = ids("f1");
+    const readF2 = ids("f2");
+    mounted.rerender({ fileId: "f2", id: "one", order: 10 });
+    expect(readF1()).toEqual([]);
+    expect(readF2()).toEqual(["one"]);
+  });
+
+  it("reads the file its reader is re-rendered with", () => {
+    offer({ fileId: "f1", id: "one", order: 10 });
+    offer({ fileId: "f2", id: "two", order: 10 });
+    const { result, rerender } = renderHook(
+      ({ fileId }: { fileId: string }) => useFileAiActions(fileId),
+      { initialProps: { fileId: "f1" } },
+    );
+    rerender({ fileId: "f2" });
+    expect(result.current.map((action) => action.id)).toEqual(["two"]);
   });
 
   it("withdraws an offer when it stops being active", () => {
@@ -77,33 +100,27 @@ describe("fileAiActions", () => {
     expect(read()).toEqual([]);
   });
 
-  it("carries the offer's label, icon and busy flag, and updates them", () => {
-    const mounted = offer({
+  it.each([
+    ["label", { label: "Transcribe" }],
+    ["icon", { icon: Captions }],
+    ["busy", { busy: true }],
+  ] as const)("republishes when the offer's %s changes", (_name, change) => {
+    const base = {
       fileId: "f1",
       id: "one",
       label: "Summarise",
       icon: BookOpen,
       order: 10,
-    });
+    };
+    const mounted = offer(base);
     const { result } = renderHook(() => useFileAiActions("f1"));
     expect(result.current[0]).toMatchObject({
       label: "Summarise",
       icon: BookOpen,
       busy: false,
     });
-    mounted.rerender({
-      fileId: "f1",
-      id: "one",
-      label: "Transcribe",
-      icon: Captions,
-      order: 10,
-      busy: true,
-    });
-    expect(result.current[0]).toMatchObject({
-      label: "Transcribe",
-      icon: Captions,
-      busy: true,
-    });
+    mounted.rerender({ ...base, ...change });
+    expect(result.current[0]).toMatchObject(change);
   });
 
   it("runs the offerer's latest callback", () => {
