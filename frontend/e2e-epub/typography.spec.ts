@@ -222,10 +222,12 @@ test.describe("five-percent presses", () => {
   test("in a burst end at the last one pressed", async ({ page }) => {
     await open(page, "styled.epub", { fraction: 0.2 });
     await keepStart(page);
+    const locationsBefore = (await messages(page, "location")).length;
     await page.evaluate((original) => {
       for (const fontPercent of [105, 110, 115, 120, 125, 130]) window.setTypography({ ...original, fontPercent });
     }, ORIGINAL);
     await page.waitForTimeout(SETTLE_MS * 2);
+    expect((await messages(page, "location")).length - locationsBefore).toBeLessThanOrEqual(6);
     expect((await where(page)).rootSize).toBe("13px");
     expect(await startStillShown(page)).toBe(true);
     expect(await messages(page, "turned")).toEqual([]);
