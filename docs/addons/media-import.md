@@ -85,9 +85,14 @@ In the [iOS app](../user-guide/ios-app.md), the YouTube player's settings have *
 The addon adds a panel under the player with:
 
 - the channel name, publication date and the start of the description;
-- **Refresh metadata**, which fetches the metadata and captions again;
-- **Generate captions with speech-to-text**, which downloads the audio for the intelligence addon to transcribe;
 - the caption status, for example **YouTube has no captions for this video**. When a download failed, click the status to try again.
+
+Two actions for a `.loft` are in the file's menus:
+
+- **Refresh metadata**, in the `...` menu, fetches the metadata and captions again.
+- **Generate captions with speech-to-text**, in the **AI** menu, downloads the audio for the intelligence addon to transcribe. The AI menu is part of the intelligence addon.
+
+Both show their result as a notification.
 
 ## Search and Ask
 

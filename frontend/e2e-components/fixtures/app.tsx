@@ -273,14 +273,16 @@ function ActionRow({ up, alignLeft }: { up: boolean; alignLeft: boolean }): Reac
               up ? "bottom-full mb-1" : "top-full mt-1"
             } ${alignLeft ? "left-0" : "right-0"}`}
           >
-            {/* One row per `FileAiActionKind`: the menu's height at its
-                largest, which is what the vertical decision is made on. */}
+            {/* One row per offer the installed addons can make: the menu's
+                height at its largest, which is what the vertical decision is
+                made on. */}
             {[
-              "tags",
-              "summary",
-              "detailedSummary",
-              "chapters",
-              "visualDescription",
+              "intelligence.tags",
+              "intelligence.summary",
+              "intelligence.detailedSummary",
+              "intelligence.chapters",
+              "intelligence.visualDescription",
+              "media_import.transcribe",
             ].map((row) => (
               <button key={row} type="button" role="menuitem" className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm">
                 {row}

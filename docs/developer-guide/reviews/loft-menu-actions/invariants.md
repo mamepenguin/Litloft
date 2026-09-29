@@ -41,7 +41,7 @@ Media Import:
 
 7. On a non-`.loft` file, Media Import offers nothing and its `⋮` entry renders
    nothing.
-8. On a `.loft`, the panel offers "Transcribe from audio" whether or not its
+8. On a `.loft`, the panel offers `media_import.transcribe` whether or not its
    metadata has loaded; choosing it calls `POST /link/{id}/stt` once, toasts
    the result, and `busy` is false again once the request settles.
 9. On a `.loft`, choosing "Refresh metadata" in the `⋮` menu calls
@@ -52,5 +52,10 @@ Media Import:
 
 Joined path (checked by hand in the running app after the pointer bump; no
 single repo's CI runs both addons): on a `.loft` the "AI" menu shows
-"Transcribe from audio" after every intelligence entry, including when
+the `media_import.transcribe` entry after every intelligence entry, including when
 intelligence has nothing left to offer.
+
+## Revisions
+
+- Phase 3 round 1 (F6), approved by the user: invariant 8 and the joined-path
+  check name the offer by its id instead of a label the UI does not use.
