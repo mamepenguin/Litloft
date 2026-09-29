@@ -890,6 +890,36 @@ not leave the menu stuck.
 - Return `null` when the entry does not apply. The host drops the separator
   when the slot is empty.
 
+### Offering an action to the file "AI" menu
+
+The intelligence addon draws an **AI** menu in the file action row. Any addon
+can add an entry to it from a component already mounted on the file page,
+through `@/lib/fileAiActions`:
+
+```tsx
+import { useOfferFileAiAction } from "@/lib/fileAiActions";
+
+useOfferFileAiAction({
+  fileId,
+  id: "your_addon.action",   // unique across addons; prefix it with your addon
+  label: t("yourLabel"),     // already translated
+  icon: SomeLucideIcon,
+  order: 100,                // ascending; intelligence uses 10-50
+  active: true,              // offered while true
+  busy: requestInFlight,     // disables the entry and pulses the AI icon
+  run: handleRun,
+});
+```
+
+- Call it above your component's early returns, so the offer exists before
+  your data has loaded.
+- The menu closes when an entry is chosen. Report the outcome with a toast
+  (`useToast`) or in your own component, not in the menu.
+- Set `busy` only while your request is in flight; a `busy` that never clears
+  leaves the icon pulsing until the page reloads.
+- With no intelligence addon installed there is no menu, and the offer is not
+  shown anywhere.
+
 ### Contributing to the add menu
 
 `folder-actions-menu` follows the file actions menu's contract: render
@@ -1240,4 +1270,5 @@ Slot entries each addon declares, for reference when designing your own.
 | `knowledge` | `active-summary-view` | `knowledge-active-summary` |
 | `media_import` | `loft-metadata` | `loft-metadata` |
 | `media_import` | `folder-actions-menu` | `media-import-url` |
+| `media_import` | `file-actions-menu` | `loft-refresh` |
 | `cloud-sync` | `dashboard-widgets` | `cloud-sync` |
