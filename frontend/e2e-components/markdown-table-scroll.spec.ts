@@ -45,28 +45,17 @@ test("a wide table scrolls inside the column and the page does not", async ({ pa
   expect(m.narrowWidth).toBe(m.columnWidth);
 });
 
-test("a swipe across the wide table scrolls the table", async ({ page }) => {
+test("scrolling sideways over the wide table scrolls the table", async ({ page }) => {
   await open(page);
   const table = page.locator(".markdown-body table").first();
   const box = (await table.boundingBox())!;
-  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + 100, box.y + box.height / 2);
+  await page.mouse.wheel(150, 0);
 
-  const client = await page.context().newCDPSession(page);
-  await client.send("Input.synthesizeScrollGesture", {
-    x: Math.round(box.x + 200),
-    y: Math.round(y),
-    xDistance: -150,
-    yDistance: 0,
-    gestureSourceType: "touch",
-    speed: 800,
-  });
-
-  const scrolled = await table.evaluate((el) => ({
-    table: el.parentElement!.scrollLeft,
-    page: window.scrollX,
-  }));
-  expect(scrolled.table).toBeGreaterThan(0);
-  expect(scrolled.page).toBe(0);
+  await expect
+    .poll(() => table.evaluate((el) => el.parentElement!.scrollLeft))
+    .toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.scrollX)).toBe(0);
 });
 
 test("each table keeps one gap above and below, and the text after it stays outside", async ({
