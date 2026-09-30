@@ -69,6 +69,8 @@ Choose **Download** from a file's right-click menu or in the viewer. Downloads c
 
 You cannot download several files at once, or a folder as a ZIP.
 
+If you open Litloft over plain `http://` at an address other than `localhost` (a LAN IP or host name), Chromium-based browsers hold every download as insecure until you allow it. The file keeps a temporary name such as `Unconfirmed 123456.crdownload` and never finishes, even though all of it has arrived. Chrome shows a warning with a **Keep** button in its download list. Arc shows no warning at all, so the download just looks stuck. Serving Litloft over HTTPS removes the hold.
+
 ## ZIP files
 
 Open a `.zip` file to browse what is inside, like a folder. Other archive types, such as TAR or RAR, are not opened.
