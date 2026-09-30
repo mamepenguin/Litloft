@@ -295,6 +295,7 @@ describe("the component fixture's page", () => {
       "canvas-bleed-phone-alone",
       "epub-bar",
       "epub-bar-loading",
+      "markdown-tables",
     ]);
   });
 });

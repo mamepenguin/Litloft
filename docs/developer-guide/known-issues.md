@@ -391,6 +391,12 @@ intelligence addon's XML check does not know either encoding, so it skips the
 chapter; the rest of the book is indexed. Reached with older Japanese books
 whose chapter files declare a legacy encoding.
 
+**A wide table in a detailed summary is clipped instead of scrolling.** The
+intelligence addon's `DetailedSummarySection` builds its tables itself rather
+than through `MarkdownPreview`, so they do not get the horizontal scroll
+container core notes have. Reached on a phone with a detailed summary whose
+table is wider than the screen.
+
 **A note made from an Ask citation of a book links to the book, not the
 chapter.** The capture basket keeps the chapter title as the citation's label
 but has no place for the section number, so the note's link opens the book

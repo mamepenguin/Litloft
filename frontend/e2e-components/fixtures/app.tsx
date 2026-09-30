@@ -1,3 +1,4 @@
+import "../stubs/buffer-global";
 import {
   useEffect,
   useLayoutEffect,
@@ -31,6 +32,7 @@ import { EpubPositionBar } from "@/components/epub/EpubPositionBar";
 import { TYPOGRAPHY_DEFAULTS, type Typography } from "@/lib/epubTypography";
 import { MEDIA_HOST_CLASS } from "@/components/FileDetail/MediaCanvas";
 import { EditableTitle } from "@/components/markdown/EditableTitle";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
 import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
@@ -1325,6 +1327,31 @@ function CanvasHost({
   return <div className="bg-bg-primary">{phone ? <div data-sheet-snap="">{host}</div> : host}</div>;
 }
 
+/** A note with a table wider than a phone, and one narrower than it. */
+const WIDE_TABLE_NOTE = [
+  "Before the tables.",
+  "",
+  "| Column one | Column two | Column three | Column four | Column five | Column six |",
+  "|---|---|---|---|---|---|",
+  "| https://example.com/a-long-unbreakable-reference | 2026-09-30T12:00:00Z | value | value | value | value |",
+  "",
+  "| Key | Value |",
+  "|---|---|",
+  "| a | b |",
+  "",
+  "After the tables.",
+].join("\n");
+
+function MarkdownTables(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="bg-bg-primary">
+        <MarkdownPreview source={WIDE_TABLE_NOTE} chrome />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
 /** The reader's bar at rest, a third of the way through a book with three chapters. */
 function EpubBarArrangement({ loading = false }: { loading?: boolean }): ReactElement {
   const noop = () => {};
@@ -1888,6 +1915,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "canvas-bleed-phone-alone": CanvasBleedPhoneAlone,
   "epub-bar": EpubBarAtRest,
   "epub-bar-loading": EpubBarLoading,
+  "markdown-tables": MarkdownTables,
 };
 
 function App(): ReactElement {
