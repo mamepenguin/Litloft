@@ -492,7 +492,7 @@ export function MarkdownPreview({
   return (
     <div className="w-full overflow-hidden rounded-xl bg-bg-card">
       {showFrontmatter && (
-        <div className="bg-bg-card px-4 pt-4 pb-4">
+        <div className="reading-measure mx-auto px-6 pt-6">
           <PropertiesPanel
             frontmatter={frontmatter}
             editable={editable}

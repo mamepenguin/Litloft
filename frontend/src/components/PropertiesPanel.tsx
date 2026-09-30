@@ -437,11 +437,11 @@ export function PropertiesPanel({
   if (entries.length === 0) return null;
 
   return (
-    <dl className="overflow-hidden rounded-xl border border-bg-border bg-bg-elevated text-sm">
+    <dl className="border-b border-bg-border pb-5 text-sm">
       {entries.map((entry) => (
         <div
           key={entry.key}
-          className="grid grid-cols-[minmax(80px,auto)_1fr] gap-x-4 px-4 py-2.5"
+          className="grid grid-cols-[minmax(64px,auto)_1fr] gap-x-4 py-1"
         >
           <dt className="self-start pt-0.5 text-xs uppercase tracking-wide text-text-muted">
             {entry.label}
