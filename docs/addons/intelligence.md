@@ -9,7 +9,7 @@ The `intelligence` addon adds meaning-based search, Ask (question answering over
 | **Indexing** | Extracts text, transcripts and video frames, and builds embeddings | on | no |
 | **Semantic search** | Mixes meaning-based results into the search page | on | no |
 | **Auto-tags** | Tag candidates you approve one by one | manual | no (better with one) |
-| **AI summaries** | A one-sentence and a one-paragraph summary per file | manual | yes |
+| **AI summaries** | A one-sentence summary and a short list of key points per file | manual | yes |
 | **Detailed summaries** | Long Markdown summary with source citations | off | yes |
 | **AI chapter candidates** | Timestamped chapters for audio and video, applied only when you approve | off | yes |
 | **Ask** | Answers questions from your files, with citations | on | yes |
