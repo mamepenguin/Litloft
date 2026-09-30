@@ -938,19 +938,22 @@ row are not headings and may keep `uppercase`.
 
 A note's frontmatter, above the rendered body, as a label-value table.
 
-- **Container** `rounded-xl overflow-hidden border border-bg-border
-  bg-bg-elevated` — the same as a code block, its sibling in §3.3's content-block
-  family.
-- **No row dividers**: `py-2.5` padding alone separates rows.
+- **No container fill.** No background, frame or radius: a panel of six or more
+  rows painted as a block is a large grey slab above the body. The only colour
+  comes from the chips inside it. A single `border-b border-bg-border` with
+  `pb-5` separates it from the body.
+- **Aligned with the body**: the panel sits in the body's own column
+  (`reading-measure mx-auto px-6`), so labels start at the body's left edge.
+- **No row dividers**: `py-1` padding alone separates rows.
 - **Row**: a label column (`text-xs uppercase tracking-wide text-text-muted`) and a
-  value column (`text-sm text-text-primary break-anywhere`), `gap-x-4 px-4`.
+  value column (`text-sm text-text-primary break-anywhere`), `gap-x-4`.
 - **Empty frontmatter renders nothing.** Known keys get typed renderers; unknown
   keys are plain text.
 - **Truncate values, never the Panel.**
 - **Origin badge** `rounded-full`: web clip `--accent`, generated summary
   `--accent-teal`, manual the muted elevated fill.
-- **Internal radius**: Panel `rounded-xl`, inner chips and cards `rounded-lg`, tag
-  and origin chips `rounded-full`.
+- **Internal radius**: inner chips and cards `rounded-lg`, tag and origin chips
+  `rounded-full`.
 - **Hover** uses warm neutrals (`hover:border-warm-silver/60`), never
   `hover:border-accent`.
 
