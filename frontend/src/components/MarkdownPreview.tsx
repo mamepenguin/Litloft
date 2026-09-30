@@ -234,6 +234,11 @@ function createMarkdownRenderer({ withMermaid }: { withMermaid: boolean }): Mark
     return self.renderToken(tokens, idx, options);
   };
 
+  md.renderer.rules.table_open = (tokens, idx, options, _env, self) =>
+    `<div class="markdown-table-scroll">${self.renderToken(tokens, idx, options)}`;
+  md.renderer.rules.table_close = (tokens, idx, options, _env, self) =>
+    `${self.renderToken(tokens, idx, options)}</div>\n`;
+
   // Mermaid blocks are only emitted as hydratable placeholders when the caller
   // opts in. Untrusted sources (e.g. LLM answers) run with withMermaid=false so
   // mermaid's securityLevel:"loose" click directives can't bypass DOMPurify via

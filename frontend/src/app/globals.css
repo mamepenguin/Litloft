@@ -407,6 +407,11 @@ dd {
 
 .markdown-body a:hover { color: var(--accent-hover); }
 
+.markdown-body .markdown-table-scroll {
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
 /* border-collapse: separate so individual cells can carry their own
    border-left accent without colliding with neighbour cell borders. */
 .markdown-body table {
@@ -416,6 +421,8 @@ dd {
   margin: 1em 0;
   font-size: 0.95em;
 }
+
+.markdown-body .markdown-table-scroll > table { margin: 0; }
 
 .markdown-body th,
 .markdown-body td {
