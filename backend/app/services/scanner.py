@@ -18,6 +18,7 @@ from app.services.filetype import (
     classify,
     is_hidden,
     is_probeable_media,
+    probe_outcomes,
     refine_classification_with_probe,
 )
 from app.services.frontmatter import compose as compose_frontmatter
@@ -118,6 +119,26 @@ def get_scan_status(drive_name: str) -> dict:
 
 PROGRESS_BATCH_SIZE = 50
 PROGRESS_INTERVAL = 1.0  # seconds
+
+
+def _unchanged_probe_result(
+    file_record: File | None, item: Path, file_type: str, mime_type: str
+) -> tuple[str, str] | None:
+    """The stored classification, when probing again could not change it.
+
+    Size is the content-change signal, as in ``_refresh_file_identity``.
+    """
+    if file_record is None or file_record.file_size is None:
+        return None
+    stored = (file_record.file_type, file_record.mime_type)
+    if stored not in probe_outcomes(file_type, mime_type):
+        return None
+    try:
+        if item.stat().st_size != file_record.file_size:
+            return None
+    except OSError:
+        return None
+    return stored
 
 
 def _get_folder_path(file_path: Path, base_dir: Path) -> str:
@@ -394,7 +415,15 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         found_paths.add(relative_path)
         folder_path = unicodedata.normalize("NFC", _get_folder_path(item, drive_path))
         file_type, mime_type = classify(item.name)
-        file_type, mime_type = refine_classification_with_probe(item, file_type, mime_type)
+        stored = _unchanged_probe_result(
+            existing.get(relative_path), item, file_type, mime_type
+        )
+        if stored is not None:
+            file_type, mime_type = stored
+        else:
+            file_type, mime_type = refine_classification_with_probe(
+                item, file_type, mime_type
+            )
 
         nfc_name = unicodedata.normalize("NFC", item.name)
         nfc_stem = Path(nfc_name).stem

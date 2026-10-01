@@ -13,7 +13,11 @@ import app.config as config
 from app.models import TRUST_UNVERIFIED, File
 from app.services.atomic_write import replacing_file
 from app.services.chapters import probe_file_chapters
-from app.services.filetype import classify, is_probeable_media
+from app.services.filetype import (
+    classify,
+    is_probeable_media,
+    refine_classification_with_probe,
+)
 from app.services.image_dimensions import read_image_dimensions
 from app.services.tagops import cleanup_orphan_tags
 from app.services.fileops import (
@@ -215,7 +219,9 @@ def complete_upload(upload_id: str, db: Session) -> tuple[File, bool]:
     shutil.rmtree(session.temp_dir, ignore_errors=True)
     del _upload_sessions[upload_id]
 
-    file_type, mime_type = classify(session.filename)
+    file_type, mime_type = refine_classification_with_probe(
+        target_full, *classify(session.filename)
+    )
 
     duration = None
     if is_probeable_media(file_type, mime_type):
