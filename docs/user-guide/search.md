@@ -90,6 +90,8 @@ To find a moment inside a video (*the part where the cat jumps off the table*), 
 
 **Find**, the tab beside Ask, returns a list of files for your question instead of a written answer. While you are searching, the **Find** chip in the search page header sends your query there.
 
+When more than one model is available, a select beside the **Ask** button picks the model for your questions; **Auto** uses the one the administrator assigned. It goes back to **Auto** when you reopen the page or switch drives. AI summaries have the same choice under the **▾** beside **Create again**.
+
 Ask sends parts of your files to the language model. An administrator can use a local model, or turn Ask off for a drive. See the [intelligence addon](../addons/intelligence.md#ask-rag).
 
 ## Duplicate files
