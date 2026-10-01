@@ -126,7 +126,7 @@ Read once when the intelligence container starts, from `SEARCH_CONFIG_PATH` (def
 | Section | What it configures |
 |---|---|
 | `features` | Per-feature enable/mode flags |
-| `llm` | LLM provider, model, retries, timeouts, vision model |
+| `llm` | LLM provider, model, retries, timeouts, vision model; `profiles` and `routing` for [several models](../addons/intelligence.md#llm-profiles-and-routing) |
 | `summaries` | Summary lengths, citation thresholds, section anchoring |
 | `rag` | Top-k, context budgets, retrieval options, personal history |
 | `models` | Whisper, text embedding, CLIP, BLIP model IDs |
@@ -136,7 +136,7 @@ Read once when the intelligence container starts, from `SEARCH_CONFIG_PATH` (def
 | `workers` | Concurrency and batch sizes |
 | `memory` | Idle-unload thresholds for Whisper and BLIP |
 
-The intelligence sections of `/admin/settings` save JSON override files in its data directory for `features`, `llm`, `rag`, the embedding model, and the transcription provider. They are merged over the yaml. `LLM_API_KEY` from the environment wins over both.
+The intelligence sections of `/admin/settings` save JSON override files in its data directory for `features`, `llm`, `rag`, the embedding model, and the transcription provider. They are merged over the yaml. LLM profiles and routing saved there replace `llm.profiles` and `llm.routing` in the yaml as a whole and apply without a restart. Keys come only from the environment (`LLM_API_KEY`, `LLM_API_KEY_<NAME>`).
 
 The full key list with defaults is on the [intelligence page](../addons/intelligence.md#configuration-reference).
 

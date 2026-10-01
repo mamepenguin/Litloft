@@ -26,7 +26,7 @@ The LLM itself ships disabled (`llm.provider: "disabled"`), so a new install mak
 
 The addon can send your file content to outside services. Whether it does depends on:
 
-- `llm.provider`: `"ollama"` or another model on your own network keeps content at home. `"openai_compatible"` pointed at a remote API sends it out.
+- Which [LLM profile](#llm-profiles-and-routing) a feature uses. A profile on your own machine (ollama, or another model on your network) keeps content at home. A profile marked **External server** sends it to that server, and only on drives that allow it (`llm_cloud` below).
 - **Ask** (`features.rag`) sends transcripts and text of the files it retrieves on every question.
 - Vision describe and the visual index send image bytes (and, for the visual index, nearby transcript text) to the vision model.
 - `transcription.provider`: `"whisper_local"` keeps audio local; every other provider sends audio to the cloud.
@@ -59,8 +59,9 @@ Each drive can switch features off in its `addons.intelligence` entry in `drives
 | `vision_describe` | No image descriptions; existing ones are deleted at the next addon start |
 | `video_visual_index` | No visual index; existing ones are deleted at the next addon start |
 | `transcription_cloud` | The drive uses `whisper_local` even when a cloud provider is configured |
+| `llm_cloud` | No content from the drive goes to an **External server** profile. A feature routed to one uses the local fallback profile instead, or does not run when there is none |
 
-A missing key means on. The [settings GUI](../admin-guide/settings-gui.md#addon-policy) shows only `transcription_cloud` and `chapter_suggestions`; set the others by editing `drives.json`. A change saved in the GUI reaches this addon within about 30 seconds; a hand edit of `drives.json` needs a backend restart.
+A missing key means on. The [settings GUI](../admin-guide/settings-gui.md#addon-policy) shows only `transcription_cloud`, `chapter_suggestions` and `llm_cloud`; set the others by editing `drives.json`. A change saved in the GUI reaches this addon within about 30 seconds; a hand edit of `drives.json` needs a backend restart.
 
 ## Installation
 
@@ -129,12 +130,12 @@ The first start downloads the ML models (Whisper, CLIP, text embeddings, BLIP) i
 An administrator can change most settings at **Settings** → **Intelligence** (`/admin/settings`):
 
 - **Feature toggles**: every `features.*` flag. The three-way flags read **Off**, **Manual only** and **Auto (on index)**.
-- **LLM provider**: provider, base URL, text model, vision model and output language. The API key comes only from the `LLM_API_KEY` environment variable.
+- **LLM profiles**: the models the addon can use, which one each feature uses (**Routing**), the local fallback for drives that do not allow external servers, and the output language. See [LLM profiles and routing](#llm-profiles-and-routing).
 - **Text embedding model**: see [re-generating indexes](#re-generating-indexes).
 - **Transcription provider**: provider, language hint and hotwords. Cloud providers need their API key in the environment.
 - **Ask (question answering) behaviour**: **Use viewing history** and **Expand semantic categories**.
 
-Settings saved here are stored in `data/addons/intelligence/*-overrides.json` and take priority over `search-config.yml`. **Reset screen settings** removes them, so the file applies again. Every change needs a container restart.
+Settings saved here are stored in `data/addons/intelligence/*-overrides.json` and take priority over `search-config.yml`. **Reset screen settings** removes them, so the file applies again. LLM profiles and routing apply to the next job as soon as they are saved; every other change, including the output language, needs a container restart. Each section marks which of its settings apply at once.
 
 ## Features in detail
 
@@ -368,6 +369,8 @@ llm:
                                       #   context_window: 128000
 ```
 
+Without `profiles`, this whole section is one profile named `default`, used by every feature, and treated as an **External server** unless it says `offhost: false`. That is how an install from before profiles keeps working unchanged; see [LLM profiles and routing](#llm-profiles-and-routing) to split it.
+
 - `"ollama"`: uses ollama's own API and always asks the model not to reason (`think: false`).
 - `"openai_compatible"`: OpenAI, DeepSeek, vLLM, LM Studio, or ollama's `/v1` endpoint.
 - `"disabled"`: no LLM features. Indexing, search and local tag candidates still work.
@@ -375,6 +378,45 @@ llm:
 `max_tokens` is an upper limit, not a reservation. Providers bill only the tokens the model writes, so a high value costs nothing, and a low one cuts long answers off. Chapter candidates for a long video need the room. An existing `search-config.yml` keeps the value it was created with; raise it there if it is lower.
 
 About `reasoning`: a reasoning model spends `max_tokens` on thinking before it answers, and can come back empty. `"disabled"` asks the provider to skip the thinking. A provider that rejects the request field gets it once, and the addon stops sending it for the rest of the run. `"auto"` never sends the field. Some providers reason anyway; the log says so.
+
+### LLM profiles and routing
+
+Several models can be configured side by side, and each feature picks one:
+
+```yaml
+llm:
+  temperature: 0.3                    # tuning knobs here are inherited by every profile
+  profiles:
+    local:
+      provider: ollama
+      base_url: "http://host.docker.internal:11434"
+      model: "qwen3:14b"
+      vision_model: "gemma3:12b"
+      offhost: false                  # runs on this machine
+    claude:
+      provider: openai_compatible
+      base_url: "https://openrouter.ai/api/v1"
+      model: "anthropic/claude-sonnet-5"
+      api_key_env: LLM_API_KEY_CLAUDE # the key's environment variable
+      offhost: true                   # an external server
+      agentic: true                   # may run the multi-step Ask
+  routing:
+    default: local                    # features not listed below
+    local_fallback: local             # used on drives with llm_cloud: false
+    features:
+      rag: claude
+      summaries: claude
+```
+
+- A profile names its own endpoint and model; only tuning knobs (`temperature`, `max_tokens`, retries, timeouts, `reasoning`, vision limits) are inherited from the top of `llm`. The output language is global and cannot be set per profile.
+- `offhost` says the model runs on a server outside this machine. A profile without it counts as one. Such a profile is used only on drives whose `llm_cloud` policy is on; elsewhere the feature runs on `local_fallback`, or does not run. If the policy cannot be read, nothing is sent and the job is picked up again later.
+- `api_key_env` must be `LLM_API_KEY` or `LLM_API_KEY_<NAME>`. Leave it out for a profile that needs no key. Add the variable to the `intelligence` service in `docker-compose.override.yml`; a new variable needs a container restart.
+- Features: `rag` (Ask and Find), `summaries`, `detailed_summaries`, `auto_tags`, `transcript_refine`, `retrieval_keywords`, `chapter_suggestions`, `vision_describe`, `video_visual_index`. A vision feature needs a profile with a `vision_model`.
+- The multi-step Ask runs on a profile with `agentic: true`, or, for the single `default` profile, a model listed in `agentic_models`. `agentic_mode: "off"` stops it for every profile.
+- A mistake in `profiles` or `routing` (an unknown profile or feature, a fallback that is an external server, an invalid key variable) turns every LLM feature off and shows the reason in the settings page.
+- Generated summaries, tags, chapters and descriptions record the model that produced them; the file page shows it. Changing the routing does not regenerate anything.
+
+Once profiles are saved from the settings page they replace `profiles` and `routing` in `search-config.yml` entirely. A key written directly as `llm.api_key` in the yaml is not carried into saved profiles; move it to `LLM_API_KEY` first.
 
 ### Summaries
 
@@ -621,6 +663,8 @@ Changing `models.clip` rebuilds CLIP embeddings at restart only if the new model
 | Every intelligence request fails and the core logs `SLOW REQUEST` | The addon is hung. See [Operational notes](#operational-notes) |
 | Container runs out of memory while indexing | Add memory, lower `whisper_idle_unload` and `blip_idle_unload` (e.g. 60), or lower `TRANSCRIPTION_MAX_INPUT_MEMORY_BYTES` |
 | The LLM returns 429 | Set `llm.min_request_interval_ms: 1000` or raise `llm.retry_max_delay` |
+| LLM features do nothing on one drive | The drive has `llm_cloud` off and the feature's profile is an external server with no local fallback. Mark a local profile `offhost: false`, or set **Use instead on drives without cloud** |
+| Every LLM feature stopped after editing `search-config.yml` | The settings page shows the error in `profiles` or `routing`. Fix the yaml and restart, or save from the page |
 
 ## See also
 

@@ -43,7 +43,7 @@ A new or deleted password applies from the next unlock. Viewers who already unlo
 
 ## Addon policy
 
-A table of drives against addons. Each switch turns an addon **On** or **Off** for one drive and saves at once. When an addon declares finer switches, for example the intelligence addon's `transcription_cloud` and `chapter_suggestions`, they appear as extra rows under the drive while the addon is on for it. What each one does is explained under the table.
+A table of drives against addons. Each switch turns an addon **On** or **Off** for one drive and saves at once. When an addon declares finer switches, for example the intelligence addon's `transcription_cloud`, `chapter_suggestions` and `llm_cloud` (**Allow sending to cloud LLMs**), they appear as extra rows under the drive while the addon is on for it. What each one does is explained under the table.
 
 A switch that was never saved counts as on. How a disabled addon behaves is described in the [addon overview](../addons/overview.md#per-drive-policy).
 

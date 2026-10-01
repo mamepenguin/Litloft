@@ -153,7 +153,12 @@ Rules:
 
 ## LLM features (intelligence addon)
 
-- Use the OpenAI-compatible client. Configuration is the `llm` section in `search-config.yml` plus `LLM_API_KEY`.
+- Configuration is the `llm` section in `search-config.yml` (or its GUI override), with named `profiles` and a `routing` that picks one per feature. Without `profiles` the section is one profile named `default`.
+- **Every LLM call resolves its client through `app.llm_routing.resolve(drive, feature)` with the drive of the file or Ask it serves.** Nothing else builds a client or chooses a model; `tests/test_llm_caller_inventory.py` pins that. Ask binds the resolved profile for the request so its helpers use the same client.
+- **A profile marked `offhost` (an external server; the default when undeclared) is used only when the drive's `llm_cloud` policy answers allowed.** Denied → `routing.local_fallback`, or the job does nothing. A policy that cannot be read → nothing is sent and nothing is written; the job is picked up again by a later sweep or request. Never fall back to local on a lookup failure, and never substitute a profile the user chose explicitly.
+- A profile's key comes only from `LLM_API_KEY` or `LLM_API_KEY_<NAME>` named by its `api_key_env`. Any other variable could hand a container secret to the profile's `base_url`.
+- Profile and routing changes saved from the GUI apply to the next job without a restart; a job already running keeps its client. `output_language` is global (not per profile) and still needs a restart.
+- Stored LLM outputs record the model that produced them. "Already generated" never compares against the current routing, so a routing change regenerates nothing.
 - `auto_tags` / `summaries` / `detailed_summaries` / `transcript_refine` each have three modes (`"false"` / `"manual"` / `"on_index"`). Defaults differ per feature and are declared on `FeaturesConfig` in `addons/intelligence/app/config.py` — currently `"manual"` for `auto_tags` and `summaries`, `"false"` for `detailed_summaries` and `transcript_refine`. Read that dataclass rather than assuming a uniform default.
 - Ask is a bool flag (internally `features.rag`), and it is **enabled by default** — runtime still needs an LLM provider, so it stays inert until one is configured. Stateless: it does not write to the core DB or to the addon DB.
 - `auto_tags` follows a Suggest → Approve/Dismiss workflow. It is never auto-applied.
