@@ -1,5 +1,6 @@
 import io
 import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -386,7 +387,10 @@ class TestAssemblyIsAtomic:
 
 
 class TestAudioOnlyMp4Upload:
-    def test_lands_as_audio_and_stays_audio_after_a_scan(self, client, tmp_path):
+    @pytest.mark.parametrize("over_missing_video_row", [False, True], ids=["new", "revive"])
+    def test_lands_as_audio_and_stays_audio_after_a_scan(
+        self, client, tmp_path, over_missing_video_row
+    ):
         http, db, drive_dir, _ = client
         source = tmp_path / "source.mp4"
         result = subprocess.run(
@@ -400,11 +404,25 @@ class TestAudioOnlyMp4Upload:
         assert result.returncode == 0, "ffmpeg fixture generation failed"
         body = source.read_bytes()
 
+        missing_id = None
+        if over_missing_video_row:
+            missing = File(
+                filename="talk.mp4", title="talk", drive=TEST_DRIVE,
+                folder_path="", file_path="talk.mp4", file_size=len(body),
+                file_type="video", mime_type="video/mp4",
+                missing_since=datetime.now(UTC),
+            )
+            db.add(missing)
+            db.commit()
+            missing_id = missing.id
+
         session = upload_service.init_upload(
             TEST_DRIVE, "talk.mp4", len(body), "", len(body),
         )
         upload_service.receive_chunk(session.upload_id, 0, body)
         record, _ = upload_service.complete_upload(session.upload_id, db)
+        if missing_id is not None:
+            assert record.id == missing_id
         assert (record.file_type, record.mime_type) == ("audio", "audio/mp4")
 
         scanner_module._scan_and_register(db, TEST_DRIVE)
