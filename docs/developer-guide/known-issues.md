@@ -577,3 +577,14 @@ second time.** The first request is still waiting for a later attempt.
 **Two tabs saving the LLM settings overwrite each other.** The later save wins
 whole, including profiles the other tab added. Reached with `/admin/settings`
 open in two tabs.
+
+**A file with no AI summary cannot get one on another model.** The model choice
+sits beside **Create again**, which appears only once a summary exists; a first
+summary comes from the AI menu, which uses the routing. Reached on a drive where
+the routing serves nothing (an external server assigned, `llm_cloud` off, no
+local fallback).
+
+**Tabbing out of an open "Regenerate with…" menu leaves its keys bound.** While
+it is open, arrows, Home, End and Escape move or close the menu from anywhere,
+including a text field; with both summary menus open, closing one unbinds the
+other's keys. Reached only with the keyboard, by tabbing away from an open menu.

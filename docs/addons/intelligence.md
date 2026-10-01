@@ -183,6 +183,8 @@ Modes (`features.auto_tags`):
 
 A point gets a citation only when the best matching passage scores at least `summaries.citation_threshold` (default 0.55). A citation with a weaker match is marked **Needs review - weaker source match**. The other `summaries.citation_*` keys tune how the passage is found; the comments in `search-config.yml.example` explain them.
 
+With two or more profiles the drive can use, the **▾** beside **Create again** lists them, so one summary can be made on another model. The plain button uses the routing. See [Choosing a model for one request](#choosing-a-model-for-one-request).
+
 `features.summaries` and `features.detailed_summaries` take the same three modes as auto-tags. `summaries` defaults to `"manual"`, `detailed_summaries` to `"false"`.
 
 ### AI chapter candidates
@@ -415,6 +417,15 @@ llm:
 - The multi-step Ask runs on a profile with `agentic: true`, or, for the single `default` profile, a model listed in `agentic_models`. `agentic_mode: "off"` stops it for every profile.
 - A mistake in `profiles` or `routing` (an unknown profile or feature, a fallback that is an external server, an invalid key variable) turns every LLM feature off and shows the reason in the settings page.
 - Generated summaries, tags, chapters and descriptions record the model that produced them; the file page shows it. Changing the routing does not regenerate anything.
+
+#### Choosing a model for one request
+
+A viewer can pick the profile for one AI summary, one AI detailed summary or one Ask: the **▾** beside the regenerate button, and the model select beside the **Ask** button on the Ask page. Anyone who can press the button can choose; nothing is saved, and the Ask page goes back to **Auto** when it is reopened or the drive changes.
+
+- The list holds only profiles the drive can use: an external server appears only where `llm_cloud` is on, and a profile without a working client or key does not appear. It is shown when there are two or more, or one when the routing serves nothing on that drive.
+- A chosen profile is never replaced: if it cannot be used when the request arrives, the request fails (`400 profile_unavailable`) instead of running on the routing or `local_fallback`.
+- Indexing, folder actions and the other AI features always use the routing.
+- `GET /api/addons/intelligence/llm/choices/{summaries|detailed_summaries|rag}` returns `{auto, choices: [{name, model, offhost}]}` for the `X-Lit-Drive` drive; the regenerate endpoints and `POST /ask` take an optional `profile`.
 
 Once profiles are saved from the settings page they replace `profiles` and `routing` in `search-config.yml` entirely. A key written directly as `llm.api_key` in the yaml is not carried into saved profiles; move it to `LLM_API_KEY` first.
 
