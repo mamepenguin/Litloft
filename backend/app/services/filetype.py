@@ -283,6 +283,15 @@ _SNIFF_AUDIO_DOWNGRADE = {
 }
 
 
+def probe_outcomes(file_type: str, mime_type: str) -> set[tuple[str, str]]:
+    """Every classification ``refine_classification_with_probe`` can return
+    for this extension classification, or empty when it would not probe."""
+    target_mime = _SNIFF_AUDIO_DOWNGRADE.get(mime_type)
+    if target_mime is None:
+        return set()
+    return {(file_type, mime_type), ("audio", target_mime)}
+
+
 def refine_classification_with_probe(
     file_path: Path,
     file_type: str,

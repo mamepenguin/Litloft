@@ -455,3 +455,115 @@ class TestLetterboxedThumbnailReplacement:
 
         assert stored.read_bytes() == served
         assert stored.stat().st_size > 0
+
+
+class TestRescanSkipsTheSniffForUnchangedFiles:
+    def _drive(self, tmp_path, monkeypatch):
+        drive_dir = tmp_path / "drive"
+        drive_dir.mkdir()
+        drives_json = tmp_path / "drives.json"
+        drives_json.write_text(
+            json.dumps([{"name": "test-drive", "path": str(drive_dir)}])
+        )
+        monkeypatch.setattr(config, "DRIVES_CONFIG", drives_json)
+        monkeypatch.setattr(config, "_drives_cache", None)
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        monkeypatch.setattr(config, "DATA_DIR", data_dir)
+        monkeypatch.setattr(config, "THUMBNAILS_DIR", data_dir / "thumbnails")
+        return drive_dir
+
+    def _mp4(self, path, *, video, seconds=1):
+        sources = ["-f", "lavfi", "-i", f"sine=frequency=440:duration={seconds}"]
+        if video:
+            sources += ["-f", "lavfi", "-i", f"color=c=blue:s=64x64:d={seconds}"]
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-v", "quiet", *sources, "-c:a", "aac", str(path)],
+            check=False,
+        )
+        assert result.returncode == 0, "ffmpeg fixture generation failed"
+
+    def _count_probes(self, monkeypatch):
+        from app.services import thumbnail
+
+        probed: list[str] = []
+        real = thumbnail.probe_stream_kinds
+
+        def counting(media_path):
+            probed.append(Path(media_path).name)
+            return real(media_path)
+
+        monkeypatch.setattr(thumbnail, "probe_stream_kinds", counting)
+        return probed
+
+    def _row(self, db_session, name):
+        db_session.expire_all()
+        return db_session.query(File).filter(File.filename == name).one()
+
+    def test_an_unchanged_audio_only_mp4_stays_audio_without_a_probe(
+        self, tmp_path, db_session, monkeypatch
+    ):
+        drive_dir = self._drive(tmp_path, monkeypatch)
+        self._mp4(drive_dir / "podcast.mp4", video=False)
+        scanner_module._scan_and_register(db_session, "test-drive")
+        db_session.commit()
+        assert self._row(db_session, "podcast.mp4").mime_type == "audio/mp4"
+
+        probed = self._count_probes(monkeypatch)
+        scanner_module._scan_and_register(db_session, "test-drive")
+        db_session.commit()
+
+        row = self._row(db_session, "podcast.mp4")
+        assert (row.file_type, row.mime_type) == ("audio", "audio/mp4")
+        assert probed == []
+
+    def test_an_unchanged_video_mp4_is_not_probed(
+        self, tmp_path, db_session, monkeypatch
+    ):
+        drive_dir = self._drive(tmp_path, monkeypatch)
+        self._mp4(drive_dir / "clip.mp4", video=True)
+        scanner_module._scan_and_register(db_session, "test-drive")
+        db_session.commit()
+
+        probed = self._count_probes(monkeypatch)
+        scanner_module._scan_and_register(db_session, "test-drive")
+        db_session.commit()
+
+        row = self._row(db_session, "clip.mp4")
+        assert (row.file_type, row.mime_type) == ("video", "video/mp4")
+        assert probed == []
+
+    def test_a_resized_mp4_is_probed_and_reclassified(
+        self, tmp_path, db_session, monkeypatch
+    ):
+        drive_dir = self._drive(tmp_path, monkeypatch)
+        target = drive_dir / "podcast.mp4"
+        self._mp4(target, video=False)
+        scanner_module._scan_and_register(db_session, "test-drive")
+        db_session.commit()
+        before = target.stat().st_size
+
+        self._mp4(target, video=True, seconds=2)
+        assert target.stat().st_size != before
+        probed = self._count_probes(monkeypatch)
+        scanner_module._scan_and_register(db_session, "test-drive")
+        db_session.commit()
+
+        row = self._row(db_session, "podcast.mp4")
+        assert (row.file_type, row.mime_type) == ("video", "video/mp4")
+        assert "podcast.mp4" in probed
+
+    def test_a_new_mp4_is_probed(self, tmp_path, db_session, monkeypatch):
+        drive_dir = self._drive(tmp_path, monkeypatch)
+        self._mp4(drive_dir / "clip.mp4", video=True)
+        scanner_module._scan_and_register(db_session, "test-drive")
+        db_session.commit()
+
+        self._mp4(drive_dir / "podcast.mp4", video=False)
+        probed = self._count_probes(monkeypatch)
+        scanner_module._scan_and_register(db_session, "test-drive")
+        db_session.commit()
+
+        row = self._row(db_session, "podcast.mp4")
+        assert (row.file_type, row.mime_type) == ("audio", "audio/mp4")
+        assert probed == ["podcast.mp4"]
