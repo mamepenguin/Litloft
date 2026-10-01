@@ -118,7 +118,11 @@ A normal deployment needs none of these. The `/api/*` rewrite always targets `ht
 
 ### `LLM_API_KEY`
 - **Default**: empty
-- API key for the LLM provider set in `search-config.yml` `llm.provider`. Overrides `llm.api_key` in the yaml and in the settings GUI. Not needed for ollama or other local providers.
+- API key for the LLM. Without `llm.profiles` it is the key of the single profile and overrides `llm.api_key` in the yaml. With profiles, a profile reads it only when its `api_key_env` is `LLM_API_KEY`. Not needed for ollama or other local providers.
+
+### `LLM_API_KEY_<NAME>`
+- **Default**: unset
+- A key for one [LLM profile](../addons/intelligence.md#llm-profiles-and-routing), named by that profile's `api_key_env` (for example `LLM_API_KEY_CLAUDE`). `<NAME>` is upper-case letters, digits and `_`. No other variable can be named as a profile's key. Pass it to the `intelligence` service in `docker-compose.override.yml`; adding one needs a container restart.
 
 ### `DRIVE_MOUNTS`
 - **Default**: empty
@@ -254,6 +258,7 @@ A normal deployment needs none of these. The `/api/*` rewrite always targets `ht
 | `SEARCH_WEBHOOK_SECRET` | backend and intelligence | Unset, intelligence webhooks are not checked |
 | `KNOWLEDGE_WEBHOOK_SECRET` | backend and knowledge | Unset, knowledge webhooks are not checked |
 | `LLM_API_KEY` | intelligence | Needed for cloud LLM providers |
+| `LLM_API_KEY_<NAME>` | intelligence | A key for one LLM profile, when profiles use different services |
 | `LITLOFT_PORT` | `.env` only | When port 3000 is taken |
 
 `.env` template:

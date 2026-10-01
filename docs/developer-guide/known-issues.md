@@ -541,3 +541,39 @@ choice is already stored when the file opens, the saved "off" is not applied at
 all and the track set's own default stands. The browser's captions menu never
 writes `captionsPreferred`, so nothing on that surface records the viewer's
 choice, and asserting a stored one there would undo what they just chose.
+
+**A numeric `llm.api_key` in `search-config.yml` is ignored.** A key written
+without quotes that YAML reads as a number is treated as absent, so the
+provider answers 401. Quote the key, or use `LLM_API_KEY`.
+
+**A YAML profile whose `api_key_env` is not `LLM_API_KEY` or `LLM_API_KEY_<NAME>`
+turns routing off.** The intelligence addon rejects the whole profile set and
+every LLM feature stays unavailable until the name is fixed. Reached on upgrade
+by a hand-written profile that points at any other variable.
+
+**Editing a detailed summary while its short summary is being generated loses
+the edit.** The generation writes over the row and leaves an *Edited* badge on
+text that is no longer the user's. Reached by editing a detailed summary right
+after pressing Generate on the short one.
+
+**A file with only a detailed summary is reported as having a short summary.**
+`GET /summary` and the batch run treat the row as present, so the batch skips
+the file and the panel shows an empty short summary.
+
+**Short summaries off with detailed summaries on still sends a short summary
+request.** Generating a detailed summary also asks the LLM for the short one.
+
+**AI image description shows as available when no vision profile is routed.**
+The button appears whenever some profile has a vision model; pressing it
+answers 409 when the feature is routed to a profile without one.
+
+**A manual video visual index removed before it runs stays "in progress".** No
+event is sent when the job is dropped, so the panel shows it in flight until
+the page is reloaded.
+
+**Pressing Generate twice while the drive policy cannot be read answers 409 the
+second time.** The first request is still waiting for a later attempt.
+
+**Two tabs saving the LLM settings overwrite each other.** The later save wins
+whole, including profiles the other tab added. Reached with `/admin/settings`
+open in two tabs.
