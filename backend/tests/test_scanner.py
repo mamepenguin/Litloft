@@ -533,25 +533,60 @@ class TestRescanSkipsTheSniffForUnchangedFiles:
         assert (row.file_type, row.mime_type) == ("video", "video/mp4")
         assert probed == []
 
+    @pytest.mark.parametrize(
+        ("before_video", "before_seconds", "after_video", "after_seconds", "expected"),
+        [
+            (False, 1, True, 2, ("video", "video/mp4")),
+            (True, 2, False, 1, ("audio", "audio/mp4")),
+        ],
+        ids=["grows", "shrinks"],
+    )
     def test_a_resized_mp4_is_probed_and_reclassified(
-        self, tmp_path, db_session, monkeypatch
+        self,
+        tmp_path,
+        db_session,
+        monkeypatch,
+        before_video,
+        before_seconds,
+        after_video,
+        after_seconds,
+        expected,
     ):
         drive_dir = self._drive(tmp_path, monkeypatch)
         target = drive_dir / "podcast.mp4"
-        self._mp4(target, video=False)
+        self._mp4(target, video=before_video, seconds=before_seconds)
         scanner_module._scan_and_register(db_session, "test-drive")
         db_session.commit()
         before = target.stat().st_size
 
-        self._mp4(target, video=True, seconds=2)
+        self._mp4(target, video=after_video, seconds=after_seconds)
         assert target.stat().st_size != before
         probed = self._count_probes(monkeypatch)
         scanner_module._scan_and_register(db_session, "test-drive")
         db_session.commit()
 
         row = self._row(db_session, "podcast.mp4")
-        assert (row.file_type, row.mime_type) == ("video", "video/mp4")
+        assert (row.file_type, row.mime_type) == expected
         assert "podcast.mp4" in probed
+
+    def test_a_stored_pair_no_probe_could_produce_is_probed(
+        self, tmp_path, db_session, monkeypatch
+    ):
+        drive_dir = self._drive(tmp_path, monkeypatch)
+        self._mp4(drive_dir / "podcast.mov", video=False)
+        scanner_module._scan_and_register(db_session, "test-drive")
+        db_session.commit()
+        row = self._row(db_session, "podcast.mov")
+        row.file_type, row.mime_type = "other", "application/octet-stream"
+        db_session.commit()
+
+        probed = self._count_probes(monkeypatch)
+        scanner_module._scan_and_register(db_session, "test-drive")
+        db_session.commit()
+
+        row = self._row(db_session, "podcast.mov")
+        assert (row.file_type, row.mime_type) == ("audio", "audio/mp4")
+        assert probed == ["podcast.mov"]
 
     def test_a_new_mp4_is_probed(self, tmp_path, db_session, monkeypatch):
         drive_dir = self._drive(tmp_path, monkeypatch)

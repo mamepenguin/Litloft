@@ -1,9 +1,12 @@
 import io
+import subprocess
 from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
 
+from app.models import File
+from app.services import scanner as scanner_module
 from app.services import upload as upload_service
 
 from tests.conftest import TEST_DRIVE
@@ -380,3 +383,32 @@ class TestAssemblyIsAtomic:
         assert (drive_dir / "whole.bin").read_bytes() == body
         assert record.file_size == len(body)
         assert list((drive_dir).glob(".*")) == []
+
+
+class TestAudioOnlyMp4Upload:
+    def test_lands_as_audio_and_stays_audio_after_a_scan(self, client, tmp_path):
+        http, db, drive_dir, _ = client
+        source = tmp_path / "source.mp4"
+        result = subprocess.run(
+            [
+                "ffmpeg", "-y", "-v", "quiet",
+                "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+                "-c:a", "aac", str(source),
+            ],
+            check=False,
+        )
+        assert result.returncode == 0, "ffmpeg fixture generation failed"
+        body = source.read_bytes()
+
+        session = upload_service.init_upload(
+            TEST_DRIVE, "talk.mp4", len(body), "", len(body),
+        )
+        upload_service.receive_chunk(session.upload_id, 0, body)
+        record, _ = upload_service.complete_upload(session.upload_id, db)
+        assert (record.file_type, record.mime_type) == ("audio", "audio/mp4")
+
+        scanner_module._scan_and_register(db, TEST_DRIVE)
+        db.commit()
+        db.expire_all()
+        row = db.query(File).filter(File.filename == "talk.mp4").one()
+        assert (row.file_type, row.mime_type) == ("audio", "audio/mp4")
