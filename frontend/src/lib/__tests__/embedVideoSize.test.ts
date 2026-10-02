@@ -92,6 +92,29 @@ describe("useEmbedVideoSize", () => {
     expect(result.current()).toBeNull();
   });
 
+  it("does not let the video it was asked about before keep reporting into the one it is asked about now", async () => {
+    shell = installShellStub(4);
+    const { useEmbedVideoSize } = await load();
+    const { result, rerender } = renderHook(({ id }) => useEmbedVideoSize(id), {
+      initialProps: { id: sample.videoId as string | null },
+    });
+
+    rerender({ id: "M7lc1UVf-VE" });
+    deliver(sample);
+
+    expect(result.current()).toBeNull();
+  });
+
+  it("ignores any message that is not about an embed's size, whatever fields it carries", async () => {
+    shell = installShellStub(4);
+    const { useEmbedVideoSize } = await load();
+    const { result } = renderHook(() => useEmbedVideoSize(sample.videoId));
+
+    deliver({ ...sample, type: "page.immersive.applied", active: true });
+
+    expect(result.current()).toBeNull();
+  });
+
   it("forgets the size when it is asked about another video", async () => {
     shell = installShellStub(4);
     const { useEmbedVideoSize } = await load();
