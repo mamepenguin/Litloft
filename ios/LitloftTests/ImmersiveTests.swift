@@ -41,6 +41,18 @@ struct ImmersiveTests {
         #expect(model.immersive == false)
     }
 
+    @Test("a page replaced by another, or whose process died, leaves no landscape lock")
+    func pageEndsLandscapeLock() {
+        let (coordinator, model, webView) = coordinator()
+        model.setImmersive(true, landscape: true)
+        coordinator.webView(webView, didCommit: nil)
+        #expect(!model.landscapeLocked)
+
+        model.setImmersive(true, landscape: true)
+        coordinator.webViewWebContentProcessDidTerminate(webView)
+        #expect(!model.landscapeLocked)
+    }
+
     @Test("a page whose process died leaves the shell not immersive")
     func terminationEndsImmersive() {
         let (coordinator, model, webView) = coordinator()
@@ -112,9 +124,10 @@ struct ImmersiveTests {
         (view as? WKWebView).map { [$0] } ?? view.subviews.flatMap(webViews(in:))
     }
 
-    private func ask(_ active: Bool, of webView: WKWebView) async throws {
+    private func ask(_ active: Bool, landscape: Bool = false, of webView: WKWebView) async throws {
+        let extra = landscape ? ", landscape: true" : ""
         _ = try await webView.evaluateJavaScript(
-            "webkit.messageHandlers.litloft.postMessage({type: 'page.immersive', active: \(active)}); 0"
+            "webkit.messageHandlers.litloft.postMessage({type: 'page.immersive', active: \(active)\(extra)}); 0"
         )
     }
 
@@ -227,6 +240,34 @@ struct ImmersiveTests {
         #expect(webView.convert(webView.bounds, to: window) == before)
     }
 
+    @Test("a request for landscape turns the app sideways and is answered at the rotated size, and going back undoes it")
+    func landscapeRequest() async throws {
+        let hosted = try await host()
+        let (window, webView) = (hosted.window, hosted.webView)
+        let scene = try #require(window.windowScene)
+        defer {
+            OrientationPolicy.isLocked = false
+            scene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+            hosted.restore()
+        }
+        try #require(scene.interfaceOrientation.isPortrait)
+
+        try await ask(true, landscape: true, of: webView)
+        let wide = try #require(await acknowledged(1, in: webView))
+
+        #expect(scene.interfaceOrientation.isLandscape)
+        let width = try #require(wide["width"] as? Double)
+        let height = try #require(wide["height"] as? Double)
+        #expect(width > height, "answered before the rotation: \(width)x\(height)")
+        #expect(width == Double(webView.bounds.width))
+
+        try await ask(false, of: webView)
+        let narrow = try #require(await acknowledged(2, in: webView))
+        #expect(await waitUntil { scene.interfaceOrientation.isPortrait })
+        #expect(narrow["active"] as? Bool == false)
+        #expect(!OrientationPolicy.isLocked)
+    }
+
     @Test("moving between the app's own pages keeps the shell immersive")
     func spaNavigationKeepsImmersive() async throws {
         let hosted = try await host()
@@ -248,7 +289,7 @@ struct ImmersiveTests {
     /// next update today; UIKit or WebKit could.
     private func askWithAnEarlyLayout(_ active: Bool, of webView: WKWebView) throws {
         let coordinator = try #require(webView.navigationDelegate as? Litloft.WebView.Coordinator)
-        coordinator.bridge.onPageImmersive?(active)
+        coordinator.bridge.onPageImmersive?(active, false)
         webView.setNeedsLayout()
         webView.layoutIfNeeded()
     }

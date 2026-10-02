@@ -64,8 +64,9 @@ struct ContractTests {
             red: 0x1A / 255, green: 0x0E / 255, blue: 0x10 / 255
         )))
         #expect(try route("embedFullscreen") == .embedFullscreen(videoId: "dQw4w9WgXcQ"))
-        #expect(try route("immersiveOn") == .pageImmersive(true))
-        #expect(try route("immersiveOff") == .pageImmersive(false))
+        #expect(try route("immersiveOn") == .pageImmersive(true, landscape: false))
+        #expect(try route("immersiveOff") == .pageImmersive(false, landscape: false))
+        #expect(try route("immersiveLandscape") == .pageImmersive(true, landscape: true))
     }
 
     @MainActor
@@ -85,7 +86,7 @@ struct ContractTests {
         #expect(Set(names) == [
             "load", "play", "pause", "seek", "unload", "setRate", "setVolume",
             "surfaceDocument", "surfaceSticky", "surfaceFixed", "surfaceGone", "pip", "pageBackground",
-            "embedFullscreen", "immersiveOn", "immersiveOff"
+            "embedFullscreen", "immersiveOn", "immersiveOff", "immersiveLandscape"
         ])
     }
 
