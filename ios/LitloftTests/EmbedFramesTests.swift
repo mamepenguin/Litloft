@@ -47,6 +47,24 @@ struct EmbedFramesTests {
         #expect(videoId(main: main, scheme: scheme, host: host, url: url) == nil)
     }
 
+    @Test("a size is two finite, positive numbers no larger than 16384, and nothing else")
+    func sizeIsValidated() {
+        #expect(EmbedFrames.size(from: ["w": 360, "h": 640]) == CGSize(width: 360, height: 640))
+        #expect(EmbedFrames.size(from: ["w": 16384, "h": 16384]) == CGSize(width: 16384, height: 16384))
+        #expect(EmbedFrames.size(from: ["w": 360.5, "h": 640.25]) == CGSize(width: 360.5, height: 640.25))
+
+        let refused: [Any] = [
+            ["w": 0, "h": 640], ["w": 360, "h": 0], ["w": -360, "h": 640], ["w": 360, "h": -1],
+            ["w": 16385, "h": 640], ["w": 360, "h": 16385],
+            ["w": Double.nan, "h": 640], ["w": 360, "h": Double.infinity],
+            ["w": "360", "h": 640], ["w": true, "h": 640], ["w": NSNull(), "h": 640],
+            ["w": 360], ["h": 640], [String: Any](), [360, 640], "360x640", NSNull()
+        ]
+        for body in refused {
+            #expect(EmbedFrames.size(from: body) == nil, "\(body)")
+        }
+    }
+
     @Test("a video id is exactly eleven of YouTube's own characters", arguments: [
         ("dQw4w9WgXcQ", true),
         ("a-b_c1D2e3F", true),

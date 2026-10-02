@@ -102,13 +102,24 @@ struct ContractTests {
     @Test("every other report in the shared sample is checked here")
     func everyReportIsCovered() throws {
         let names = try #require(try SharedContract.load()["reports"]).keys
-        #expect(Set(names) == ["immersiveApplied"])
+        #expect(Set(names) == ["immersiveApplied", "embedSize"])
     }
 
     @Test("the immersive acknowledgement is spelled as the web side reads it")
     func immersiveApplied() throws {
         let sample = try #require(try SharedContract.load()["reports"]?["immersiveApplied"])
         let report = ImmersiveApplied(active: true, size: CGSize(width: 402, height: 874))
+        let encoded = try #require(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as? [String: Any]
+        )
+
+        #expect(NSDictionary(dictionary: encoded).isEqual(to: sample), "\(encoded) vs \(sample)")
+    }
+
+    @Test("the size of an embed's picture is spelled as the web side reads it")
+    func embedSize() throws {
+        let sample = try #require(try SharedContract.load()["reports"]?["embedSize"])
+        let report = EmbedSize(videoId: "dQw4w9WgXcQ", size: CGSize(width: 1280, height: 720))
         let encoded = try #require(
             JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as? [String: Any]
         )

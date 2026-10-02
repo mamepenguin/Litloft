@@ -25,6 +25,7 @@ final class EmbedFrames: NSObject, WKScriptMessageHandler {
     }
 
     let provider: Provider
+    var onSize: ((String, CGSize) -> Void)?
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Litloft", category: "embeds")
     private weak var webView: WKWebView?
     private var frames: [String: WKFrameInfo] = [:]
@@ -37,7 +38,7 @@ final class EmbedFrames: NSObject, WKScriptMessageHandler {
         let controller = configuration.userContentController
         controller.add(self, contentWorld: Self.world, name: Self.handlerName)
         controller.addUserScript(WKUserScript(
-            source: "window.webkit.messageHandlers.\(Self.handlerName).postMessage(null);",
+            source: Self.script,
             injectionTime: .atDocumentStart,
             forMainFrameOnly: false,
             in: Self.world
@@ -47,6 +48,21 @@ final class EmbedFrames: NSObject, WKScriptMessageHandler {
     func attach(to webView: WKWebView) {
         self.webView = webView
     }
+
+    /// Announces the frame, and reports the picture's size whenever a video in
+    /// it learns or changes it. Media events do not bubble, so they are caught
+    /// on the way down.
+    private static let script = """
+        const handler = window.webkit.messageHandlers.\(handlerName);
+        handler.postMessage(null);
+        const report = (event) => {
+            const video = event.target;
+            if (!(video instanceof HTMLVideoElement)) return;
+            if (!(video.videoWidth > 0) || !(video.videoHeight > 0)) return;
+            handler.postMessage({ w: video.videoWidth, h: video.videoHeight });
+        };
+        for (const type of ["loadedmetadata", "resize"]) document.addEventListener(type, report, true);
+        """
 
     func userContentController(
         _ userContentController: WKUserContentController,
@@ -61,8 +77,30 @@ final class EmbedFrames: NSObject, WKScriptMessageHandler {
             url: frame.request.url,
             provider: provider
         ) else { return }
+        if let size = Self.size(from: message.body) {
+            onSize?(videoId, size)
+            return
+        }
         log.info("embed frame for \(videoId, privacy: .public)")
         frames[videoId] = frame
+    }
+
+    /// What a frame's script says about its picture, which is YouTube's frame
+    /// talking: two finite numbers inside a sane range, or nothing.
+    nonisolated static func size(from body: Any) -> CGSize? {
+        guard let body = body as? [String: Any],
+              let width = number(body["w"]), let height = number(body["h"]),
+              width > 0, height > 0, width <= maxPictureSide, height <= maxPictureSide
+        else { return nil }
+        return CGSize(width: width, height: height)
+    }
+
+    private nonisolated static let maxPictureSide = 16_384.0
+
+    private nonisolated static func number(_ value: Any?) -> Double? {
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+        let double = number.doubleValue
+        return double.isFinite ? double : nil
     }
 
     /// The video a frame embeds, or nil for any frame that is not an embed.

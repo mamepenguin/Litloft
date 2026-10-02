@@ -173,6 +173,24 @@ struct ImmersiveApplied: Encodable, Equatable {
     }
 }
 
+/// The size of the picture inside a YouTube embed, which only the shell can see.
+struct EmbedSize: Encodable, Equatable {
+    let videoId: String
+    let size: CGSize
+
+    private enum CodingKeys: String, CodingKey {
+        case type, videoId, width, height
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode("embed.size", forKey: .type)
+        try container.encode(videoId, forKey: .videoId)
+        try container.encode(Double(size.width), forKey: .width)
+        try container.encode(Double(size.height), forKey: .height)
+    }
+}
+
 enum ShellMessageType {
     static let ping = "ping"
     static let pong = "pong"

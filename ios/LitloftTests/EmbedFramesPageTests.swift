@@ -69,6 +69,7 @@ private final class Page {
     let webView: WKWebView
     let bridge: ShellBridge
     private let embeds = EmbedServer()
+    private(set) var sizes: [(videoId: String, size: CGSize)] = []
 
     init() {
         let configuration = WKWebViewConfiguration()
@@ -80,6 +81,7 @@ private final class Page {
         bridge.install(in: configuration)
         webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 600), configuration: configuration)
         bridge.attach(to: webView)
+        bridge.embeds.onSize = { [weak self] id, size in self?.sizes.append((id, size)) }
         UIApplication.shared.connectedScenes
             .compactMap { ($0 as? UIWindowScene)?.windows.first }
             .first?
@@ -231,6 +233,49 @@ extension SharedMediaState {
             try await page.askForFullscreen(first)
 
             #expect(!(await page.waitFor("fullscreen:/embed/\(first)", seconds: 2)), "acted on a foreign frame")
+            await page.close()
+        }
+
+        @Test("the size of an embed's picture is reported once the video has metadata")
+        func sizeIsReported() async throws {
+            try #require(video != nil)
+            let page = Page()
+            page.open(first)
+            #expect(await page.waitFor("ready:/embed/\(first)"))
+            let deadline = Date().addingTimeInterval(5)
+            while page.sizes.isEmpty, Date() < deadline { try await Task.sleep(for: .milliseconds(100)) }
+
+            #expect(page.sizes.count >= 1)
+            #expect(page.sizes.first?.videoId == first)
+            #expect(page.sizes.first?.size == CGSize(width: 64, height: 36))
+            await page.close()
+        }
+
+        @Test("a video with nothing to show reports no size")
+        func blankReportsNothing() async throws {
+            let page = Page()
+            page.open(blank)
+            #expect(await page.waitFor("handler-undefined:/embed/\(blank)"))
+            try await Task.sleep(for: .seconds(1))
+
+            #expect(page.sizes.isEmpty)
+            await page.close()
+        }
+
+        @Test("a frame that is not a YouTube embed reports no size", arguments: [
+            "\(provider.scheme)://other.test/embed/\(first)",
+            "\(otherScheme)://frames.test/embed/\(first)"
+        ])
+        func foreignFrameReportsNothing(address: String) async throws {
+            try #require(video != nil)
+            let page = Page()
+            page.open(blank)
+            #expect(await page.waitFor("handler-undefined:/embed/\(blank)"))
+            try await page.move(blank, to: address)
+            #expect(await page.waitFor("ready:/embed/\(first)"))
+            try await Task.sleep(for: .seconds(1))
+
+            #expect(page.sizes.isEmpty, "reported \(page.sizes)")
             await page.close()
         }
 

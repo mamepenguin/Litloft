@@ -67,7 +67,8 @@
     "immersiveLandscape": { "type": "page.immersive", "active": true, "landscape": true }
   },
   "reports": {
-    "immersiveApplied": { "type": "page.immersive.applied", "active": true, "width": 402, "height": 874 }
+    "immersiveApplied": { "type": "page.immersive.applied", "active": true, "width": 402, "height": 874 },
+    "embedSize": { "type": "embed.size", "videoId": "dQw4w9WgXcQ", "width": 1280, "height": 720 }
   },
   "states": {
     "loading": {
