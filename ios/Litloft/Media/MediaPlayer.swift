@@ -342,7 +342,9 @@ extension MediaPlayer {
             ended: ended,
             waiting: waiting,
             pip: surface.isPictureInPictureActive,
-            pipPossible: surface.isPictureInPicturePossible
+            pipPossible: surface.isPictureInPicturePossible,
+            videoWidth: Double(player.currentItem?.presentationSize.width ?? 0),
+            videoHeight: Double(player.currentItem?.presentationSize.height ?? 0)
         )
     }
 

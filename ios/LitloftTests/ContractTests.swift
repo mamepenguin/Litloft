@@ -119,40 +119,47 @@ struct ContractTests {
         ("loading", MediaState(
             loadId: "load-1", status: .loading, seekId: nil,
             time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false,
-            pip: false, pipPossible: false
+            pip: false, pipPossible: false,
+            videoWidth: 0, videoHeight: 0
         )),
         ("readyWhilePaused", MediaState(
             loadId: "load-1", status: .ready, seekId: nil,
             time: 0, duration: 180, paused: true, rate: 1, volume: 1, buffered: 12, ended: false, waiting: false,
-            pip: false, pipPossible: true
+            pip: false, pipPossible: true,
+            videoWidth: 1920, videoHeight: 1080
         )),
         ("seekLanded", MediaState(
             loadId: "load-1", status: .ready, seekId: "seek-1",
             time: 42.5, duration: 180, paused: false, rate: 1.5, volume: 0.25, buffered: 60,
             ended: false, waiting: false,
-            pip: false, pipPossible: true
+            pip: false, pipPossible: true,
+            videoWidth: 1080, videoHeight: 1920
         )),
         ("failed", MediaState(
             loadId: "load-1", status: .failed, seekId: nil,
             time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false,
-            pip: false, pipPossible: false
+            pip: false, pipPossible: false,
+            videoWidth: 0, videoHeight: 0
         )),
         ("waitingWhilePlaying", MediaState(
             loadId: "load-1", status: .ready, seekId: nil,
             time: 11.5, duration: 180, paused: false, rate: 1, volume: 1, buffered: 11.5,
             ended: false, waiting: true,
-            pip: false, pipPossible: true
+            pip: false, pipPossible: true,
+            videoWidth: 0, videoHeight: 0
         )),
         ("inPictureInPicture", MediaState(
             loadId: "load-1", status: .ready, seekId: nil,
             time: 42.5, duration: 180, paused: false, rate: 1.5, volume: 0.25, buffered: 60,
             ended: false, waiting: false,
-            pip: true, pipPossible: true
+            pip: true, pipPossible: true,
+            videoWidth: 1920, videoHeight: 1080
         )),
         ("nothingLoaded", MediaState(
             loadId: nil, status: .loading, seekId: nil,
             time: 0, duration: 0, paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false,
-            pip: false, pipPossible: false
+            pip: false, pipPossible: false,
+            videoWidth: 0, videoHeight: 0
         ))
     ])
     func states(name: String, state: MediaState) throws {
