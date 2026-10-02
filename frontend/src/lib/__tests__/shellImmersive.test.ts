@@ -88,6 +88,37 @@ describe("holding the shell immersive", () => {
     expect(posted).toEqual([contract.commands.immersiveOn, contract.commands.immersiveOff]);
   });
 
+  it("asks for landscape only when the first holder does", async () => {
+    const posted = installShell(4);
+    const { holdImmersive } = await load();
+
+    const first = holdImmersive({ landscape: true });
+    holdImmersive();
+    expect(posted).toStrictEqual([{ ...(contract.commands.immersiveOn as object), landscape: true }]);
+
+    first.release();
+    expect(posted).toStrictEqual([{ ...(contract.commands.immersiveOn as object), landscape: true }]);
+  });
+
+  it("does not let a later holder change what the first asked for", async () => {
+    const posted = installShell(4);
+    const { holdImmersive } = await load();
+
+    holdImmersive();
+    holdImmersive({ landscape: true });
+
+    expect(posted).toStrictEqual([contract.commands.immersiveOn]);
+  });
+
+  it("leaves the key out when no one asked for landscape, never sending false", async () => {
+    const posted = installShell(4);
+    const { holdImmersive } = await load();
+
+    holdImmersive({ landscape: false }).release();
+
+    expect(posted).toStrictEqual([contract.commands.immersiveOn, contract.commands.immersiveOff]);
+  });
+
   it("asks again after everything has let go", async () => {
     const posted = installShell(4);
     const { holdImmersive } = await load();

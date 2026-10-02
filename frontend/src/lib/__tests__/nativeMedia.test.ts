@@ -126,7 +126,12 @@ describe("the wire", () => {
       pip: false,
       pipPossible: true,
       status: "ready",
+      videoWidth: 1920,
+      videoHeight: 1080,
     });
+
+    deliver(contract.states.seekLanded);
+    expect(channel.read()).toMatchObject({ videoWidth: 1080, videoHeight: 1920 });
 
     deliver(contract.states.inPictureInPicture);
     expect(channel.read()).toMatchObject({ pip: true, pipPossible: true });
@@ -220,6 +225,8 @@ describe("the media channel", () => {
       pip: false,
       pipPossible: true,
       status: "ready",
+      videoWidth: 1920,
+      videoHeight: 1080,
     });
   });
 
