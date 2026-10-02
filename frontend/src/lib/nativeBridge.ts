@@ -120,7 +120,15 @@ export interface ImmersiveApplied {
   height: number;
 }
 
-export type InboundMessage = { type: "pong"; seq: number } | MediaState | ImmersiveApplied;
+/** The picture inside a YouTube embed, which only the shell can see into. */
+export interface EmbedSize {
+  type: "embed.size";
+  videoId: string;
+  width: number;
+  height: number;
+}
+
+export type InboundMessage = { type: "pong"; seq: number } | MediaState | ImmersiveApplied | EmbedSize;
 
 interface ShellMessageHandler {
   postMessage(body: unknown): void;

@@ -69,6 +69,7 @@ private final class Page {
     let webView: WKWebView
     let bridge: ShellBridge
     private let embeds = EmbedServer()
+    private(set) var sizes: [(videoId: String, size: CGSize)] = []
 
     init() {
         let configuration = WKWebViewConfiguration()
@@ -80,6 +81,7 @@ private final class Page {
         bridge.install(in: configuration)
         webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 600), configuration: configuration)
         bridge.attach(to: webView)
+        bridge.embeds.onSize = { [weak self] id, size in self?.sizes.append((id, size)) }
         UIApplication.shared.connectedScenes
             .compactMap { ($0 as? UIWindowScene)?.windows.first }
             .first?
@@ -124,6 +126,16 @@ private final class Page {
         return false
     }
 
+    func waitUntilVideoKnowsItsSize(seconds: Double = 10) async -> Bool {
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            let width = try? await run("document.querySelector('video')?.videoWidth ?? 0") as? Int
+            if (width ?? 0) > 0 { return true }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return false
+    }
+
     func tell(_ frame: String, _ message: String) async throws {
         _ = try await run("document.getElementById('\(frame)').contentWindow.postMessage('\(message)', '*'); 0")
     }
@@ -146,6 +158,11 @@ private final class Page {
             document.body.append(frame);
             0
             """)
+    }
+
+    /// The embed's own address as the page itself, which no embed ever is.
+    func openAsMainFrame(_ videoId: String) {
+        webView.load(URLRequest(url: URL(string: "\(provider.scheme)://frames.test/embed/\(videoId)")!))
     }
 
     func close() async {
@@ -231,6 +248,93 @@ extension SharedMediaState {
             try await page.askForFullscreen(first)
 
             #expect(!(await page.waitFor("fullscreen:/embed/\(first)", seconds: 2)), "acted on a foreign frame")
+            await page.close()
+        }
+
+        @Test("the size of an embed's picture is reported once the video has metadata")
+        func sizeIsReported() async throws {
+            try #require(video != nil)
+            let page = Page()
+            page.open(first)
+            #expect(await page.waitFor("ready:/embed/\(first)"))
+            let deadline = Date().addingTimeInterval(5)
+            while page.sizes.isEmpty, Date() < deadline { try await Task.sleep(for: .milliseconds(100)) }
+
+            #expect(!page.sizes.isEmpty)
+            #expect(page.sizes.allSatisfy { $0.videoId == first && $0.size == CGSize(width: 64, height: 36) })
+            await page.close()
+        }
+
+        @Test("a page that merely has an embed's address is not an embed and reports no size")
+        func mainFrameReportsNothing() async throws {
+            try #require(video != nil)
+            let page = Page()
+            page.openAsMainFrame(first)
+            let loaded = await page.waitUntilVideoKnowsItsSize()
+            try await Task.sleep(for: .seconds(1))
+
+            #expect(loaded, "the video never loaded, so this proves nothing")
+            #expect(page.sizes.isEmpty, "reported \(page.sizes)")
+            await page.close()
+        }
+
+        @Test("what the frames report reaches the page as the shared sample spells it")
+        func theBridgeDeliversWhatTheFramesReport() async throws {
+            let bridge = ShellBridge(server: server)
+            let webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
+            bridge.attach(to: webView)
+            webView.loadHTMLString(
+                "<script>window.got = []; window.__litloft = { receive(m) { got.push(m); } };</script>",
+                baseURL: server
+            )
+            var ready = false
+            let started = Date()
+            while !ready, Date().timeIntervalSince(started) < 10 {
+                ready = (try? await webView.evaluateJavaScript("typeof window.got")) as? String == "object"
+                if !ready { try await Task.sleep(for: .milliseconds(50)) }
+            }
+            try #require(ready)
+
+            bridge.embeds.onSize?(second, CGSize(width: 1280, height: 720))
+            var received: [[String: Any]] = []
+            while received.isEmpty, Date().timeIntervalSince(started) < 10 {
+                try await Task.sleep(for: .milliseconds(50))
+                let json = try await webView.evaluateJavaScript("JSON.stringify(got)") as? String
+                received = (json.flatMap { try? JSONSerialization.jsonObject(with: Data($0.utf8)) } as? [[String: Any]]) ?? []
+            }
+
+            #expect(received.count == 1)
+            #expect(received.first?["type"] as? String == "embed.size")
+            #expect(received.first?["videoId"] as? String == second)
+            #expect(received.first?["width"] as? Double == 1280)
+            #expect(received.first?["height"] as? Double == 720)
+        }
+
+        @Test("a video with nothing to show reports no size")
+        func blankReportsNothing() async throws {
+            let page = Page()
+            page.open(blank)
+            #expect(await page.waitFor("handler-undefined:/embed/\(blank)"))
+            try await Task.sleep(for: .seconds(1))
+
+            #expect(page.sizes.isEmpty)
+            await page.close()
+        }
+
+        @Test("a frame that is not a YouTube embed reports no size", arguments: [
+            "\(provider.scheme)://other.test/embed/\(first)",
+            "\(otherScheme)://frames.test/embed/\(first)"
+        ])
+        func foreignFrameReportsNothing(address: String) async throws {
+            try #require(video != nil)
+            let page = Page()
+            page.open(blank)
+            #expect(await page.waitFor("handler-undefined:/embed/\(blank)"))
+            try await page.move(blank, to: address)
+            #expect(await page.waitFor("ready:/embed/\(first)"))
+            try await Task.sleep(for: .seconds(1))
+
+            #expect(page.sizes.isEmpty, "reported \(page.sizes)")
             await page.close()
         }
 

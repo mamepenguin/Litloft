@@ -27,6 +27,10 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     init(server: URL, embeds: EmbedFrames = EmbedFrames()) {
         self.server = server
         self.embeds = embeds
+        super.init()
+        embeds.onSize = { [weak self] videoId, size in
+            self?.deliver(EmbedSize(videoId: videoId, size: size))
+        }
     }
     private let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Litloft", category: "bridge")
 
@@ -268,6 +272,10 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
 
     func deliver(_ report: ImmersiveApplied) {
         send(report, describedAs: "page.immersive.applied")
+    }
+
+    func deliver(_ report: EmbedSize) {
+        send(report, describedAs: "embed.size")
     }
 
     private func deliver(_ message: ShellMessage) {
