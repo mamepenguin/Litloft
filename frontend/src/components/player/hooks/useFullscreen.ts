@@ -69,6 +69,12 @@ export interface UseFullscreenOptions {
    * picture is not drawn by the page and so cannot follow the frame.
    */
   animate?: boolean;
+  /**
+   * Whether the video is known to be landscape, asked when a press opens
+   * fullscreen. Only a press the viewer made asks the iOS shell to turn the
+   * app sideways; a fullscreen that rotation opened is left by rotating back.
+   */
+  isLandscape?: () => boolean;
 }
 
 export interface FullscreenState {
@@ -109,6 +115,7 @@ export function useFullscreen({
   autoRotateEnabled,
   suppressSwipe = false,
   animate = true,
+  isLandscape = () => false,
 }: UseFullscreenOptions): FullscreenState {
   const [nativeActive, setNativeActive] = useState(false);
   // "closing" keeps the frame pinned while it is carried back to its slot;
@@ -203,6 +210,10 @@ export function useFullscreen({
   useEffect(() => {
     isFullscreenRef.current = isFullscreen;
   }, [isFullscreen]);
+  const isLandscapeRef = useRef(isLandscape);
+  useEffect(() => {
+    isLandscapeRef.current = isLandscape;
+  }, [isLandscape]);
 
   const pin = useCallback(
     (reason: EntryReason) => {
@@ -248,7 +259,7 @@ export function useFullscreen({
           // the pseudo path while this refusal was on its way.
           if (!mountedRef.current || phaseRef.current !== "off") return;
           entryReasonRef.current = reason;
-          const hold = holdImmersive();
+          const hold = holdImmersive({ landscape: reason === "manual" && isLandscapeRef.current() });
           immersiveRef.current = hold;
           if (!shellAnswersImmersive()) {
             pin(reason);

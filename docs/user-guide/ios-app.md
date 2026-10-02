@@ -28,6 +28,7 @@ The controls, gestures and chapters are the same as in a browser.
 
 - Leaving the app moves the video into a picture-in-picture window, where it keeps playing. Coming back puts it back in the page.
 - **Picture-in-Picture** in the settings sheet opens that window without leaving the app.
+- **Full screen** on a landscape video turns the app sideways even when the phone's rotation lock is on, and keeps it sideways until you close full screen. Portrait videos and YouTube Shorts stay upright.
 - Locking the screen keeps the sound but stops the picture.
 - The mini player is not used in the app; picture in picture takes its place.
 

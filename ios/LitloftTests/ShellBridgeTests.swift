@@ -112,6 +112,18 @@ struct ShellBridgeTests {
         }
     }
 
+    @Test("landscape is asked for by a boolean true and nothing else")
+    func landscapeNeedsABoolean() {
+        let values: [(Any, Bool)] = [
+            (true, true), (false, false), (NSNumber(value: 1), false), ("true", false), (NSNull(), false)
+        ]
+        for (value, asked) in values {
+            let body: [String: Any] = ["type": "page.immersive", "active": true, "landscape": value]
+            #expect(route(body) == .pageImmersive(true, landscape: asked), "\(value)")
+        }
+        #expect(route(["type": "page.immersive", "active": true]) == .pageImmersive(true, landscape: false))
+    }
+
     @Test("an unknown message type asks for nothing")
     func unknownTypeIsIgnored() {
         for type in ["pong", "media.state", "media.tick", "seek", ""] {

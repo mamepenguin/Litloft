@@ -45,8 +45,8 @@ function setViewport({ width, height }: { width: number; height: number }) {
 let frame: HTMLDivElement;
 let shell: ReturnType<typeof installShellStub> | null = null;
 
-function renderFullscreen(autoRotateEnabled = true) {
-  return renderHook(() => useFullscreen({ frameRef: { current: frame }, autoRotateEnabled }), {
+function renderFullscreen(autoRotateEnabled = true, isLandscape?: () => boolean) {
+  return renderHook(() => useFullscreen({ frameRef: { current: frame }, autoRotateEnabled, isLandscape }), {
     wrapper: ShortcutsProvider,
   });
 }
@@ -116,6 +116,49 @@ describe("useFullscreen in an iOS shell that answers immersive requests", () => 
     expect(result.current.isFullscreen).toBe(true);
     expect(pinned()).toBe(true);
     expect(marked()).toBe(true);
+  });
+
+  it("asks for landscape when a manual press finds the video landscape", async () => {
+    const { result } = renderFullscreen(true, () => true);
+
+    await act(async () => result.current.toggle());
+    await flush();
+
+    expect(shell!.posted).toStrictEqual([immersive(true, { landscape: true })]);
+  });
+
+  it("asks for nothing more when the video is not landscape, or its size is not known", async () => {
+    const { result } = renderFullscreen(true, () => false);
+    await act(async () => result.current.toggle());
+    await flush();
+    expect(shell!.posted).toStrictEqual([immersive(true)]);
+
+    await act(async () => result.current.exit());
+    await flush();
+    const unspecified = renderFullscreen();
+    await act(async () => unspecified.result.current.toggle());
+    await flush();
+    expect(shell!.posted.at(-1)).toStrictEqual(immersive(true));
+  });
+
+  it("reads whether the video is landscape at the press, not when it last rendered", async () => {
+    let landscape = false;
+    const { result } = renderFullscreen(true, () => landscape);
+    landscape = true;
+
+    await act(async () => result.current.toggle());
+    await flush();
+
+    expect(shell!.posted).toStrictEqual([immersive(true, { landscape: true })]);
+  });
+
+  it("does not ask for landscape when the device itself was turned", async () => {
+    renderFullscreen(true, () => true);
+
+    rotate(true);
+    await flush();
+
+    expect(shell!.posted).toStrictEqual([immersive(true)]);
   });
 
   it("lets go of the shell only once the frame is back in its slot", async () => {

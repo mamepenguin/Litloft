@@ -22,7 +22,7 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     /// arrives early is dropped rather than queued.
     var onMediaCommand: ((MediaCommand, String?) -> Void)?
     var onPageBackground: ((PageColor) -> Void)?
-    var onPageImmersive: ((Bool) -> Void)?
+    var onPageImmersive: ((_ active: Bool, _ landscape: Bool) -> Void)?
 
     init(server: URL, embeds: EmbedFrames = EmbedFrames()) {
         self.server = server
@@ -63,8 +63,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
             onPageBackground?(color)
         case .embedFullscreen(let videoId):
             embeds.enterFullscreen(videoId: videoId)
-        case .pageImmersive(let active):
-            onPageImmersive?(active)
+        case .pageImmersive(let active, let landscape):
+            onPageImmersive?(active, landscape)
         case .unreadable(let loadId):
             log.error("a command about \(loadId, privacy: .public) was not readable")
             deliver(MediaState.unreadable(loadId: loadId))
@@ -95,7 +95,8 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
                 .flatMap { EmbedFrames.isVideoId($0) ? ShellAction.embedFullscreen(videoId: $0) : nil }
         }
         if type == "page.immersive" {
-            return boolean(body["active"]).map(ShellAction.pageImmersive)
+            guard let active = boolean(body["active"]) else { return nil }
+            return .pageImmersive(active, landscape: boolean(body["landscape"]) ?? false)
         }
         return mediaAction(type, body, server: server)
     }

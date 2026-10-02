@@ -327,3 +327,32 @@ describe("VideoPlayer in a browser", () => {
     expect(mockSetupBackgroundPiP).toHaveBeenCalled();
   });
 });
+
+describe("VideoPlayer full screen inside the shell", () => {
+  beforeEach(() => {
+    (window as StubbedWindow).__litloftShell = { version: 4 };
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("pointer: coarse"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+  });
+
+  it.each([
+    ["a landscape video asks for landscape", { videoWidth: 1920, videoHeight: 1080 }, true],
+    ["a portrait video does not", { videoWidth: 1080, videoHeight: 1920 }, false],
+    ["a video whose size is not known does not", { videoWidth: 0, videoHeight: 0 }, false],
+  ])("%s, with autoplay off", async (_, size, landscape) => {
+    render(<VideoPlayer videoId="vid-1" title="A film" />);
+    act(() => report({ paused: true, ...size }));
+
+    fireEvent.click(await screen.findByRole("button", { name: "Full screen" }));
+
+    await waitFor(() => expect(posted.some((m) => m.type === "page.immersive")).toBe(true));
+    const request = posted.find((m) => m.type === "page.immersive");
+    expect(request).toStrictEqual(
+      landscape ? { type: "page.immersive", active: true, landscape: true } : { type: "page.immersive", active: true },
+    );
+  });
+});

@@ -63,7 +63,8 @@
     "pageBackground": { "type": "page.background", "color": "#1a0e10" },
     "embedFullscreen": { "type": "embed.fullscreen", "videoId": "dQw4w9WgXcQ" },
     "immersiveOn": { "type": "page.immersive", "active": true },
-    "immersiveOff": { "type": "page.immersive", "active": false }
+    "immersiveOff": { "type": "page.immersive", "active": false },
+    "immersiveLandscape": { "type": "page.immersive", "active": true, "landscape": true }
   },
   "reports": {
     "immersiveApplied": { "type": "page.immersive.applied", "active": true, "width": 402, "height": 874 }
@@ -83,7 +84,9 @@
       "ended": false,
       "waiting": false,
       "pip": false,
-      "pipPossible": false
+      "pipPossible": false,
+      "videoWidth": 0,
+      "videoHeight": 0
     },
     "readyWhilePaused": {
       "type": "media.state",
@@ -99,7 +102,9 @@
       "ended": false,
       "waiting": false,
       "pip": false,
-      "pipPossible": true
+      "pipPossible": true,
+      "videoWidth": 1920,
+      "videoHeight": 1080
     },
     "seekLanded": {
       "type": "media.state",
@@ -115,7 +120,9 @@
       "ended": false,
       "waiting": false,
       "pip": false,
-      "pipPossible": true
+      "pipPossible": true,
+      "videoWidth": 1080,
+      "videoHeight": 1920
     },
     "failed": {
       "type": "media.state",
@@ -131,7 +138,9 @@
       "ended": false,
       "waiting": false,
       "pip": false,
-      "pipPossible": false
+      "pipPossible": false,
+      "videoWidth": 0,
+      "videoHeight": 0
     },
     "waitingWhilePlaying": {
       "type": "media.state",
@@ -147,7 +156,9 @@
       "ended": false,
       "waiting": true,
       "pip": false,
-      "pipPossible": true
+      "pipPossible": true,
+      "videoWidth": 0,
+      "videoHeight": 0
     },
     "inPictureInPicture": {
       "type": "media.state",
@@ -163,7 +174,9 @@
       "ended": false,
       "waiting": false,
       "pip": true,
-      "pipPossible": true
+      "pipPossible": true,
+      "videoWidth": 1920,
+      "videoHeight": 1080
     },
     "nothingLoaded": {
       "type": "media.state",
@@ -179,7 +192,9 @@
       "ended": false,
       "waiting": false,
       "pip": false,
-      "pipPossible": false
+      "pipPossible": false,
+      "videoWidth": 0,
+      "videoHeight": 0
     }
   }
 }

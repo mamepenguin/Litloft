@@ -108,6 +108,10 @@ function Controls({
     // The picture is a native layer over the page: it would trail the frame
     // and ignore its clip, over a page the shell has hidden.
     animate: false,
+    isLandscape: () => {
+      const size = channel?.read();
+      return size !== undefined && size.videoWidth > size.videoHeight;
+    },
   });
 
   useEffect(() => {

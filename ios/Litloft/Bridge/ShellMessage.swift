@@ -33,10 +33,14 @@ struct MediaState: Encodable, Equatable {
     let pip: Bool
     /// Whether picture in picture can start for what is loaded now.
     let pipPossible: Bool
+    /// The picture's size in points with its transform applied; zero until
+    /// known, and for audio.
+    let videoWidth: Double
+    let videoHeight: Double
 
     private enum CodingKeys: String, CodingKey {
         case type, loadId, status, seekId, time, duration, paused, rate, volume, buffered, ended, waiting
-        case pip, pipPossible
+        case pip, pipPossible, videoWidth, videoHeight
     }
 
     /// Absent ids are sent as null rather than left out, as the web side reads them.
@@ -56,6 +60,8 @@ struct MediaState: Encodable, Equatable {
         try container.encode(waiting, forKey: .waiting)
         try container.encode(pip, forKey: .pip)
         try container.encode(pipPossible, forKey: .pipPossible)
+        try container.encode(videoWidth, forKey: .videoWidth)
+        try container.encode(videoHeight, forKey: .videoHeight)
     }
 }
 
@@ -70,7 +76,7 @@ extension MediaState {
         MediaState(
             loadId: loadId, status: .failed, seekId: nil, time: 0, duration: 0,
             paused: true, rate: 1, volume: 1, buffered: 0, ended: false, waiting: false,
-            pip: false, pipPossible: false
+            pip: false, pipPossible: false, videoWidth: 0, videoHeight: 0
         )
     }
 }
@@ -141,7 +147,7 @@ enum ShellAction: Equatable {
     case media(MediaCommand, loadId: String?)
     case pageBackground(PageColor)
     case embedFullscreen(videoId: String)
-    case pageImmersive(Bool)
+    case pageImmersive(Bool, landscape: Bool)
     /// A command about a file this shell cannot read, from a page built
     /// against another version of the contract. Reported rather than dropped,
     /// or the page waits for a load that will never happen.

@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 @MainActor
 @Observable
@@ -19,19 +20,39 @@ final class WebViewModel {
     /// `immersive` by at least one update.
     @ObservationIgnored private(set) var laidOutImmersive = false
     @ObservationIgnored var onImmersiveLaidOut: (() -> Void)?
+    /// The app is held landscape for what the page has full screen. Never set on
+    /// an iPad, so nothing waits for a rotation that will not come.
+    private(set) var landscapeLocked = false
+    @ObservationIgnored var onLandscapeLockChange: ((Bool) -> Void)?
 
     let serverURL: URL
+    private let idiom: UIUserInterfaceIdiom
 
-    init(serverURL: URL) {
+    init(serverURL: URL, idiom: UIUserInterfaceIdiom = UIDevice.current.userInterfaceIdiom) {
         self.serverURL = serverURL
+        self.idiom = idiom
     }
 
     func setPageColor(_ color: PageColor) {
         pageColor = color
     }
 
-    func setImmersive(_ immersive: Bool) {
+    func setImmersive(_ immersive: Bool, landscape: Bool = false) {
+        setLandscapeLocked(immersive && landscape && idiom == .phone)
         self.immersive = immersive
+    }
+
+    /// The system refused to rotate. The page is still owed its answer, at the
+    /// size it has.
+    func refuseLandscape() {
+        setLandscapeLocked(false)
+        onImmersiveLaidOut?()
+    }
+
+    private func setLandscapeLocked(_ locked: Bool) {
+        guard landscapeLocked != locked else { return }
+        landscapeLocked = locked
+        onLandscapeLockChange?(locked)
     }
 
     func laidOut(immersive: Bool) {

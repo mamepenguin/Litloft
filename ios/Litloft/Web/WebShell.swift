@@ -4,6 +4,7 @@ struct WebShell: View {
     let onChangeServer: () -> Void
 
     @State private var model: WebViewModel
+    @State private var orientation: OrientationController
 
     init(serverURL: URL, onChangeServer: @escaping () -> Void) {
         self.init(model: WebViewModel(serverURL: serverURL), onChangeServer: onChangeServer)
@@ -11,7 +12,15 @@ struct WebShell: View {
 
     init(model: WebViewModel, onChangeServer: @escaping () -> Void) {
         self.onChangeServer = onChangeServer
+        let orientation = OrientationController()
+        Self.connect(model, to: orientation)
         _model = State(initialValue: model)
+        _orientation = State(initialValue: orientation)
+    }
+
+    static func connect(_ model: WebViewModel, to orientation: OrientationController) {
+        model.onLandscapeLockChange = { [weak orientation] locked in orientation?.apply(locked: locked) }
+        orientation.onRefused = { [weak model] in model?.refuseLandscape() }
     }
 
     var body: some View {

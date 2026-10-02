@@ -384,6 +384,12 @@ Dynamic Island.** The app hides the status bar and lets the page reach the top
 edge while something is full screen. Litloft's controls move below the island,
 but the title YouTube draws inside its iframe cannot be moved from the page.
 
+**A Short opened from a `youtu.be` link, or a portrait video at a `/watch`
+address, is turned sideways in full screen.** The app asks for landscape for
+every `.loft` YouTube file except one whose address is a `/shorts/` one, because
+the page cannot read the picture's shape inside the embed. Closing full screen
+turns the app back.
+
 ## Addons
 
 **An EPUB chapter encoded in Shift_JIS or EUC-JP is not searchable.** The

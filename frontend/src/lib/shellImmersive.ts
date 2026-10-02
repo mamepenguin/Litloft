@@ -52,14 +52,19 @@ function waitForWidening(): Promise<void> {
   });
 }
 
-/** In a browser this does nothing and is ready at once. */
-export function holdImmersive(): ImmersiveHold {
+/**
+ * In a browser this does nothing and is ready at once. `landscape` is read only
+ * from the holder that takes the shell out of its normal layout.
+ */
+export function holdImmersive({ landscape = false }: { landscape?: boolean } = {}): ImmersiveHold {
   if (!isNativeShell()) return { ready: Promise.resolve(), release: () => {} };
 
   holders += 1;
   if (holders === 1) {
     const ready = shellAnswersImmersive() ? waitForWidening() : Promise.resolve();
-    postToShell({ type: "page.immersive", active: true });
+    postToShell(
+      landscape ? { type: "page.immersive", active: true, landscape: true } : { type: "page.immersive", active: true },
+    );
     widened = ready;
   }
 

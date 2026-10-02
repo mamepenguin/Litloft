@@ -111,8 +111,8 @@ struct WebView: UIViewRepresentable {
                 model?.setPageColor(color)
                 player?.surface.setPageColor(color)
             }
-            bridge.onPageImmersive = { [weak self] active in
-                self?.pageAsked(immersive: active)
+            bridge.onPageImmersive = { [weak self] active, landscape in
+                self?.pageAsked(immersive: active, landscape: landscape)
             }
             model.onImmersiveLaidOut = { [weak webView] in webView?.setNeedsLayout() }
         }
@@ -122,14 +122,24 @@ struct WebView: UIViewRepresentable {
         /// Requests that arrive before a layout are answered together, for the
         /// last one. SwiftUI lays a change out before it sets the web view's
         /// frame, so the answer waits for the web view's own layout after that.
-        private func pageAsked(immersive: Bool) {
+        private func pageAsked(immersive: Bool, landscape: Bool) {
             answerOwed = true
-            model.setImmersive(immersive)
+            model.setImmersive(immersive, landscape: landscape)
             webView?.setNeedsLayout()
         }
 
+        /// A request for landscape is answered at the size the rotation ends in.
+        static func rotationSettled(locked: Bool, size: CGSize) -> Bool {
+            !locked || size.width > size.height
+        }
+
+        private var rotationSettled: Bool {
+            guard let size = webView?.bounds.size else { return true }
+            return Self.rotationSettled(locked: model.landscapeLocked, size: size)
+        }
+
         func webViewDidLayout() {
-            guard answerOwed, model.laidOutImmersive == model.immersive else { return }
+            guard answerOwed, model.laidOutImmersive == model.immersive, rotationSettled else { return }
             answerOwed = false
             answer(immersive: model.immersive)
         }

@@ -74,7 +74,7 @@ export type OutboundMessage =
   /** A YouTube embed's video, which only the shell can reach, into the system's fullscreen player. */
   | { type: "embed.fullscreen"; videoId: string }
   /** Something on the page is full screen: the shell hides the status bar and widens the web view. */
-  | { type: "page.immersive"; active: boolean };
+  | { type: "page.immersive"; active: boolean; landscape?: true };
 
 export type MediaStatus = "loading" | "ready" | "failed";
 
@@ -103,6 +103,9 @@ export interface MediaState {
   pip: boolean;
   /** Whether picture in picture can start for what is loaded now. */
   pipPossible: boolean;
+  /** The picture's size in points; zero until known, and for audio. */
+  videoWidth: number;
+  videoHeight: number;
 }
 
 export function reportPageBackground(color: string): void {

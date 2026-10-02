@@ -29,6 +29,8 @@ export interface MediaShadow {
   pip: boolean;
   pipPossible: boolean;
   status: MediaStatus;
+  videoWidth: number;
+  videoHeight: number;
 }
 
 const INITIAL: MediaShadow = Object.freeze({
@@ -43,6 +45,8 @@ const INITIAL: MediaShadow = Object.freeze({
   pip: false,
   pipPossible: false,
   status: "loading",
+  videoWidth: 0,
+  videoHeight: 0,
 });
 
 /**
@@ -190,6 +194,8 @@ export class MediaChannel {
       pip: state.pip,
       pipPossible: state.pipPossible,
       status: state.status,
+      videoWidth: state.videoWidth,
+      videoHeight: state.videoHeight,
     };
 
     if (!this.readySent && state.status === "ready") {

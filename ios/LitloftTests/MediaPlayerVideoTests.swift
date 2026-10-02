@@ -18,6 +18,13 @@ private func onScreen(_ rig: PlayerRig) -> WKWebView {
     return webView
 }
 
+private let tinyVideo = MediaSource(
+    url: URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .appendingPathComponent("Fixtures/tiny.mp4"),
+    title: "Tiny", artist: nil, artworkURL: nil, kind: .video
+)
+
 private func video(_ source: MediaSource) -> MediaSource {
     MediaSource(url: source.url, title: source.title, artist: nil, artworkURL: nil, kind: .video)
 }
@@ -39,6 +46,28 @@ extension SharedMediaState {
             #expect(rig.player.surface.view.frame.minY == 50)
             await rig.player.apply(.unload, loadId: "a").value
             #expect(rig.player.surface.view.isHidden, "still shown after the file went")
+        }
+
+        @Test("a video that is ready has already reported its size")
+        func readyVideoReportsItsSize() async throws {
+            let rig = PlayerRig()
+            await rig.load(tinyVideo, as: "a")
+            #expect(await rig.waitFor { rig.last?.status == .ready })
+
+            #expect(rig.last?.videoWidth == 64)
+            #expect(rig.last?.videoHeight == 36)
+            await rig.player.apply(.unload, loadId: "a").value
+        }
+
+        @Test("audio reports no size")
+        func audioReportsNoSize() async throws {
+            let rig = PlayerRig()
+            await rig.load(try tone(seconds: 3), as: "a")
+            #expect(await rig.waitFor { rig.last?.status == .ready })
+
+            #expect(rig.last?.videoWidth == 0)
+            #expect(rig.last?.videoHeight == 0)
+            await rig.player.apply(.unload, loadId: "a").value
         }
 
         @Test("audio has nothing to show, whatever the page says")

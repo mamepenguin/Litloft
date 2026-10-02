@@ -20,4 +20,8 @@ export function installShellStub(version: number): { posted: unknown[]; remove()
   };
 }
 
-export const immersive = (active: boolean) => ({ type: "page.immersive", active });
+export const immersive = (active: boolean, options: { landscape?: true } = {}) => ({
+  type: "page.immersive",
+  active,
+  ...options,
+});
