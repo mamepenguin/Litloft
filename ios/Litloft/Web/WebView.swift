@@ -129,9 +129,13 @@ struct WebView: UIViewRepresentable {
         }
 
         /// A request for landscape is answered at the size the rotation ends in.
+        static func rotationSettled(locked: Bool, size: CGSize) -> Bool {
+            !locked || size.width > size.height
+        }
+
         private var rotationSettled: Bool {
-            guard model.landscapeLocked, let size = webView?.bounds.size else { return true }
-            return size.width > size.height
+            guard let size = webView?.bounds.size else { return true }
+            return Self.rotationSettled(locked: model.landscapeLocked, size: size)
         }
 
         func webViewDidLayout() {

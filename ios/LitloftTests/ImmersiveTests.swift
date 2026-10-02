@@ -31,6 +31,18 @@ struct ImmersiveTests {
         return (coordinator, model, webView)
     }
 
+    @Test("an answer to a request for landscape waits for landscape bounds, and others do not")
+    func rotationSettled() {
+        let portrait = CGSize(width: 402, height: 874)
+        let landscape = CGSize(width: 874, height: 402)
+        let settled = Litloft.WebView.Coordinator.rotationSettled
+
+        #expect(settled(true, portrait) == false)
+        #expect(settled(true, landscape))
+        #expect(settled(false, portrait))
+        #expect(settled(false, landscape))
+    }
+
     @Test("a page replaced by another leaves the shell not immersive")
     func commitEndsImmersive() {
         let (coordinator, model, webView) = coordinator()
