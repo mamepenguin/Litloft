@@ -1,6 +1,6 @@
 # R-0 invariants — measuring a YouTube embed's picture in the iOS shell
 
-Awaiting the user's approval (2026-10-02). Branch `feat/ios-embed-video-size`,
+Approved by the user 2026-10-02. Branch `feat/ios-embed-video-size`,
 stacked on #426.
 
 ## Touch points
@@ -30,9 +30,13 @@ stacked on #426.
    and the handler exists only in the shell's own content world.
 6. A size report never opens or closes full screen, never posts
    `page.immersive`, and never touches playback state or watch progress.
-7. With an older shell, no `embed.size` arrives and `.loft` behaves as in #426.
-   With an older page, `embed.size` is ignored.
+7. With an older shell, no `embed.size` arrives and `.loft` asks for nothing
+   (the core of #426, which never asks for landscape from `.loft`). With an
+   older page, `embed.size` is ignored.
 
 ## Revisions
 
-None yet.
+- After round 1 (the user approved, 2026-10-02): invariant 7 said an older shell
+  "behaves as in #426", which a reviewer read as the unmerged addon commit
+  `d80dc2a` (a URL rule that PR #31 proposed and never shipped). It now says what
+  #426's core does: `.loft` asks for nothing.
