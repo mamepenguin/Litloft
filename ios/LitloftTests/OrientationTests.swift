@@ -34,6 +34,42 @@ struct OrientationPolicyTests {
 
 @MainActor
 @Suite(.serialized)
+struct OrientationWiringTests {
+    @Test("the app asks the policy which orientations it supports")
+    func theApplicationDelegateAnswersFromThePolicy() throws {
+        let delegate = try #require(UIApplication.shared.delegate)
+        let ask = { delegate.application?(UIApplication.shared, supportedInterfaceOrientationsFor: nil) }
+        defer { OrientationPolicy.isLocked = false }
+
+        OrientationPolicy.isLocked = true
+        #expect(ask() == .landscape)
+
+        OrientationPolicy.isLocked = false
+        #expect(ask() == [.portrait, .landscapeLeft, .landscapeRight])
+    }
+
+    @Test("a request for landscape reaches the scene, and a refusal reaches the model and its layout")
+    func modelAndControllerAreJoined() {
+        OrientationPolicy.isLocked = false
+        let scene = FakeScene()
+        let model = WebViewModel(serverURL: URL(string: "http://litloft.local:3000/")!, idiom: .phone)
+        let controller = OrientationController(scene: scene)
+        var laidOut = 0
+        model.onImmersiveLaidOut = { laidOut += 1 }
+        WebShell.connect(model, to: controller)
+
+        model.setImmersive(true, landscape: true)
+        #expect(scene.requests == [.landscape])
+
+        scene.refuse()
+        #expect(!model.landscapeLocked)
+        #expect(laidOut == 1)
+        #expect(!OrientationPolicy.isLocked)
+    }
+}
+
+@MainActor
+@Suite(.serialized)
 struct OrientationControllerTests {
     private func rig(portrait: Bool = true) -> (OrientationController, FakeScene) {
         OrientationPolicy.isLocked = false

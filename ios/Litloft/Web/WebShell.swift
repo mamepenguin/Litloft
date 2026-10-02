@@ -13,10 +13,14 @@ struct WebShell: View {
     init(model: WebViewModel, onChangeServer: @escaping () -> Void) {
         self.onChangeServer = onChangeServer
         let orientation = OrientationController()
-        model.onLandscapeLockChange = { [weak orientation] locked in orientation?.apply(locked: locked) }
-        orientation.onRefused = { [weak model] in model?.refuseLandscape() }
+        Self.connect(model, to: orientation)
         _model = State(initialValue: model)
         _orientation = State(initialValue: orientation)
+    }
+
+    static func connect(_ model: WebViewModel, to orientation: OrientationController) {
+        model.onLandscapeLockChange = { [weak orientation] locked in orientation?.apply(locked: locked) }
+        orientation.onRefused = { [weak model] in model?.refuseLandscape() }
     }
 
     var body: some View {
