@@ -3,5 +3,12 @@
 LITLOFT_BUNDLE_ID = com.mamepenguin.Litloft
 LITLOFT_DEVELOPMENT_TEAM =
 
+// Debug builds install beside Release as a separate app: its own bundle id
+// means its own server address, session and data.
+LITLOFT_BUNDLE_ID_SUFFIX =
+LITLOFT_BUNDLE_ID_SUFFIX[config=Debug] = .dev
+LITLOFT_DISPLAY_NAME = Litloft
+LITLOFT_DISPLAY_NAME[config=Debug] = Litloft Dev
+
 // Optional, and not tracked. Copy Local.xcconfig.example to create it.
 #include? "Local.xcconfig"
