@@ -109,17 +109,21 @@ Implementation starts only after a human approves the spec. The spec file then c
 line:
 
 ```
-Approval: <commit sha> <approver> <date>
+Approval: sha256:<64 hex> <approver> <date>
 ```
 
-The sha is the first field and the date the last; the approver's name between them is
-`git config user.name` of the clone that records it and may contain spaces.
+The hash is the first field and the date the last; the approver's name between them is
+`git config user.name` of the clone that records it and may contain spaces. The hash is
+what `scripts/process/spec-hash.sh <spec>` prints: the sha256 of the spec file with every
+CR removed and every line that starts with `Approval:` removed. It names the content the
+human approved, not a commit, so it survives a squash merge.
 
 The ledger row for the spec moves to
 an approved state at the same time.
 
-`check-traceability` checks that the record exists and that the sha is an ancestor of the
-head, for every ledger row at an approved or later state. It does not check who wrote the
+`check-traceability` recomputes the hash from the current spec file and compares it with
+the `Approval` line and with the ledger's `Approval` column, for every ledger row at an
+approved or later state. A spec edited after approval fails. It does not check who wrote the
 line or whether that person is who they claim to be. The gate for a human decision is the
 platform's required review by someone other than the author; see `limitations.md`.
 

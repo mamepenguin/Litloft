@@ -33,12 +33,15 @@ lines; if it exists, add any missing line. Fill only the R-5 fields and never wr
 
 decision:
 ran_in_app: yes | no | not-applicable
+at: <full commit sha R-5 ran against>
 by: agent
 evidence: <steps, what was seen, screenshot or recording paths>
 pending: <parts left to a human, or none>
 ```
 
-`ran_in_app: no` with the reason when the application could not be run.
+`ran_in_app: no` with the reason when the application could not be run. `at:` is the
+output of `git rev-parse HEAD` in the tree you ran; `review.sh` lists the files changed
+after it.
 
 ## Report
 

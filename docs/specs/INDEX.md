@@ -14,5 +14,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 
 | ID | State | Spec file | Approval |
 |---|---|---|---|
-| SPEC-CORE-001 | implemented | docs/specs/justified-hold-last-line.md | 59dc2e5f90d09804504e52a618b86d67105e8c26 |
-| SPEC-CORE-002 | implemented | docs/specs/justified-hold-last-line.md | 59dc2e5f90d09804504e52a618b86d67105e8c26 |
+| SPEC-CORE-001 | implemented | docs/specs/justified-hold-last-line.md | sha256:9dbf1b7e1bc182e39da30e263df5d53c91e72ac5435d98bd71be31180790c8c7 |
+| SPEC-CORE-002 | implemented | docs/specs/justified-hold-last-line.md | sha256:9dbf1b7e1bc182e39da30e263df5d53c91e72ac5435d98bd71be31180790c8c7 |

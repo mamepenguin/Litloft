@@ -46,6 +46,12 @@ Show the user `triage.md` from the run directory. Show every finding block as wr
 claim, impact, evidence, repro, introduced, both buckets, and the proposed fix. Do not
 condense findings into remedies, change a severity or drop a finding.
 
+Show its `## Warnings` section, when there is one, as written. A warning does not change
+the verdict. When a warning says files changed since R-5 ran, or that the R-5 commit is
+unknown, and the verdict would let the change ship, offer to launch the `r5-runner` agent
+before the user ships; do not judge on the user's behalf that the files change nothing a
+user sees.
+
 ## 5. Say what is needed
 
 - **PASS**: no decision is needed. Leave `decision:` empty.

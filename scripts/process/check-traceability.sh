@@ -2,13 +2,14 @@
 # check-traceability.sh [--root <dir>] [--ledger <file>] [--conf <process.conf>]
 #
 # Checks the spec ledger (docs/specs/INDEX.md, columns: ID | State | Spec file | Approval)
-# against process.conf, the spec files, git history and the test directories.
-# It checks that an Approval record exists, not who wrote it.
+# against process.conf, the spec files and the test directories.
+# It checks that an Approval record matches the spec's content, not who wrote it.
 # Exit: 0 when every row passes (or there is no ledger), 1 when a row fails, 2 on a usage
 # or unreadable-file error.
 
 set -uf
 
+HERE="$(cd "$(dirname "$0")" && pwd)"
 die() { printf 'check-traceability: %s\n' "$1" >&2; exit 2; }
 
 trim() {
@@ -100,14 +101,15 @@ while IFS= read -r raw || [ -n "$raw" ]; do
 
   spec="$ROOT/$specfile"
   if [ -z "$specfile" ] || [ ! -f "$spec" ]; then fail "$id" "spec file not found: $specfile"; continue; fi
-  sha="$(tr -d '\r' < "$spec" | grep -E '^Approval: ' | tail -n 1 | awk '{print $2}')"
-  [ -n "$sha" ] || { fail "$id" "no Approval line (commit sha, name, date) in $specfile"; continue; }
-  printf '%s\n' "$sha" | grep -Eq '^([0-9a-f]{40}|[0-9a-f]{64})$' \
-    || { fail "$id" "Approval is not a full commit id (40 or 64 hex digits): $sha"; continue; }
-  git -C "$ROOT" merge-base --is-ancestor "$sha" HEAD >/dev/null 2>&1 \
-    || { fail "$id" "Approval sha $sha is not an ancestor of HEAD"; continue; }
-  [ -z "$approval" ] || [ "$approval" = "$sha" ] \
-    || fail "$id" "ledger Approval $approval differs from $specfile ($sha)"
+  rec="$(tr -d '\r' < "$spec" | grep -E '^Approval: ' | tail -n 1 | awk '{print $2}')"
+  [ -n "$rec" ] || { fail "$id" "no Approval line (sha256:<hash>, name, date) in $specfile"; continue; }
+  printf '%s\n' "$rec" | grep -Eq '^sha256:[0-9a-f]{64}$' \
+    || { fail "$id" "Approval is not sha256:<64 hex digits>: $rec"; continue; }
+  cur="$(bash "$HERE/spec-hash.sh" "$spec")" || die "cannot hash $specfile"
+  [ "$rec" = "$cur" ] \
+    || { fail "$id" "$specfile changed after approval: Approval $rec, content $cur"; continue; }
+  [ -z "$approval" ] || [ "$approval" = "$rec" ] \
+    || fail "$id" "ledger Approval $approval differs from $specfile ($rec)"
 
   [ "$state" = implemented ] || continue
   referenced "$id" "$TEST_DIRS" || fail "$id" "not referenced under test_dirs ($TEST_DIRS)"

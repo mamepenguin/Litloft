@@ -76,6 +76,17 @@ untracked_paths() {
   git ls-files -z --others --exclude-standard | tr '\0' '\n' \
     | awk '!/^docs\/process\/reviews\// && !/^\.process\/runs(\/|$)/'
 }
+norm_path() {
+  local s="$1" prev=""
+  while [ "$s" != "$prev" ]; do
+    prev="$s"
+    s="${s//\/\///}"
+    s="${s//\/.\///}"
+    case "$s" in ./*) s="${s#./}" ;; esac
+    case "$s" in */.) s="${s%/.}" ;; */) s="${s%/}" ;; esac
+  done
+  printf '%s' "$s"
+}
 sha256() { if command -v sha256sum >/dev/null 2>&1; then sha256sum | cut -d' ' -f1; else shasum -a 256 | cut -d' ' -f1; fi; }
 
 # ------------------------------------------------------------------ reviewers.conf
@@ -311,17 +322,18 @@ build_context() {
 
 # later_revisions <spec>: each `<SPEC-ID> I<N>. <sentence>` line under `## Revises` in another
 # approved spec that names one of this spec's SPEC-IDs, as `I<N>. (<that spec>) <sentence>`,
-# in the order of the approval commits so that the newest approval comes last.
+# oldest Approval date first and then by file name. A spec is approved when the hash on its
+# Approval line matches its content.
 later_revisions() {
-  local ids f sha
+  local ids f rec
   ids="$(sed -n 's/^SPEC-ID:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$1" | tr '\n' ' ')"
   [ -n "$ids" ] || return 0
   for f in docs/specs/*.md; do
     [ -f "$f" ] && [ "$f" != "$1" ] || continue
-    sha="$(sed -n 's/^Approval: \([0-9a-f]\{40\}\).*/\1/p' "$f" | tail -n 1)"
-    [ -n "$sha" ] || continue
-    printf '%s\t%s\n' "$(git log -1 --format=%ct "$sha" 2>/dev/null || echo 0)" "$f"
-  done | sort -n -k1,1 | cut -f2- | while IFS= read -r f; do
+    rec="$(tr -d '\r' <"$f" | grep -E '^Approval: ' | tail -n 1)"
+    [ "$(printf '%s\n' "$rec" | awk '{print $2}')" = "$(bash "$HERE/spec-hash.sh" "$f")" ] || continue
+    printf '%s\t%s\n' "$(printf '%s\n' "$rec" | awk '{print $NF}')" "$f"
+  done | LC_ALL=C sort -t "$(printf '\t')" -k1,1 -k2,2 | cut -f2- | while IFS= read -r f; do
     awk -v ids="$ids" -v src="$f" '/^## / { on = ($0 ~ /^## Revises[[:space:]]*$/); next }
       on && index(" " ids, " " $1 " ") && match($2, /^I[0-9]+[.:]$/) {
         rest = $0; sub(/^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]*/, "", rest)
@@ -416,6 +428,56 @@ run_reviewer() {
   cp "$W/$id.cand" "$rundir/$id.json"
 }
 
+# ------------------------------------------------------------------ warnings
+# Each line of $W/warnings.txt informs the user; none changes the verdict or the exit code.
+warn() { printf '%s\n' "$1" >>"$W/warnings.txt"; }
+
+check_hooks_path() {
+  local hp
+  hp="$(norm_path "$(git config --get core.hooksPath 2>/dev/null)")"
+  case "$hp" in .githooks|"$ROOT/.githooks"|"$(pwd -P)/.githooks") return 0 ;; esac
+  warn "core.hooksPath is '${hp:-unset}', so the pre-push hook in .githooks does not run in this clone; fix: git config core.hooksPath .githooks"
+}
+
+# decision_field <name>: the trimmed value of the first `<name>:` line of decisions.md.
+decision_field() {
+  [ -f "$RD/decisions.md" ] || return 0
+  trim "$(tr -d '\r' <"$RD/decisions.md" | sed -n "s/^$1:\\(.*\\)\$/\\1/p" | head -n 1)"
+}
+
+# check_r5: the paths changed since the commit R-5 ran at, except specs, review records,
+# runner state and the test_dirs of process.conf.
+check_r5() {
+  local at sha dirs d n
+  [ "$(decision_field ran_in_app)" = yes ] || return 0
+  at="$(decision_field at)"
+  if [ -z "$at" ] || ! sha="$(git rev-parse --verify -q "$at^{commit}")"; then
+    warn "ran_in_app is yes but the R-5 commit is unknown (no usable at: in $RD/decisions.md); run R-5 again if this change alters what a user sees"
+    return 0
+  fi
+  dirs="docs/specs docs/process/reviews .process/runs"
+  [ ! -f process/process.conf ] || dirs="$dirs $(tr -d '\r' <process/process.conf \
+    | sed -n 's/^[[:space:]]*test_dirs[[:space:]]*=//p' | tail -n 1)"
+  gdiff --name-only -z "$sha" "$HEAD_SHA" | tr '\0' '\n' >"$W/r5.all"
+  for d in $dirs; do printf '%s/\n' "$(norm_path "$d")"; done >"$W/r5.dirs"
+  awk 'NR == FNR { if ($0 != "/") ex[++k] = $0; next }
+    { for (i = 1; i <= k; i++) if (index($0, ex[i]) == 1) next; print }' "$W/r5.dirs" "$W/r5.all" >"$W/r5.changed"
+  n="$(awk 'NF' "$W/r5.changed" | wc -l | tr -d ' ')"
+  [ "$n" -gt 0 ] || return 0
+  warn "R-5 ran at $sha, and these files changed since: $(awk 'NF && NR <= 5 { printf "%s%s", (NR > 1 ? ", " : ""), $0 }' "$W/r5.changed")$([ "$n" -le 5 ] || printf ' and %s more' "$((n - 5))"); run R-5 again if any of them changes what a user sees"
+}
+
+# show_warnings: on stderr, and as a section after the title of triage.md so that a reader of
+# triage.md alone sees them; TOTAL stays the last line.
+show_warnings() {
+  [ -s "$W/warnings.txt" ] || return 0
+  sed 's/^/review: warning: /' "$W/warnings.txt" >&2
+  [ -f "$RUN/triage.md" ] || return 0
+  awk -v wf="$W/warnings.txt" 'NR == 2 { print; print "## Warnings"; print ""
+      while ((getline l < wf) > 0) print "- " l
+      print ""; next } { print }' "$RUN/triage.md" >"$W/triage.md" && cp "$W/triage.md" "$RUN/triage.md"
+}
+
 # ------------------------------------------------------------------ main
 parse_conf
 parse_process_conf
@@ -467,7 +529,7 @@ jq -n --arg s "$FP_START" --arg e "$FP_END" '{start: $s, end: $e}' >"$RUN/finger
 jq -s --argjson t "$([ "$TRUNC" -eq 1 ] && echo true || echo false)" 'add + {diff_truncated: $t}' "$W/usage.parts" >"$RUN/usage.json"
 
 if [ ! -e "$RD/decisions.md" ]; then
-  printf '# Decisions\n\ndecision:\nran_in_app:\nby:\nevidence:\n' >"$RD/decisions.md"
+  printf '# Decisions\n\ndecision:\nran_in_app:\nat:\nby:\nevidence:\n' >"$RD/decisions.md"
 fi
 
 set -- "$ROOT/$RUN"
@@ -485,6 +547,11 @@ if ! /bin/bash "$RENDER" "$@" >/dev/null 2>"$W/render.err"; then
   echo "review: triage.md was not written: $(head -n 3 "$W/render.err" | tr '\n' ' ')" >&2
   [ "$mcode" -ne 0 ] || mcode=1
 fi
+
+: >"$W/warnings.txt"
+check_hooks_path
+check_r5
+show_warnings
 
 verdict="$(jq -r '.verdict // "unknown"' "$RUN/verdict.json" 2>/dev/null)"
 printf 'run directory: %s\nverdict: %s\ntriage: %s\n' "$ROOT/$RUN" "$verdict" "$ROOT/$RUN/triage.md"

@@ -39,4 +39,4 @@ What the kit does not do. Read this before relying on it.
 - **Acceptance-test isolation is prose.** That tests are written from the spec alone is
   a rule the agent is asked to follow, not one a script checks.
 - **`core.hooksPath` is per clone.** The pre-push hook is active only in clones where the
-  install has set it.
+  install has set it. `review.sh` warns when the clone it runs in has another value.
