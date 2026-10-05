@@ -86,7 +86,8 @@ For contributors and addon authors.
 - [Testing](developer-guide/testing.md)
 - [Contributing](developer-guide/contributing.md)
 - [Known issues](developer-guide/known-issues.md)
-- [Review findings](developer-guide/reviews/)
+- [Development process](process/)
+- [Review findings](developer-guide/reviews/), and from the process kit on, `docs/process/reviews/<topic>/`
 
 ---
 

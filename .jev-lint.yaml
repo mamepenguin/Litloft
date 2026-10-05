@@ -1,8 +1,8 @@
 # The question eslint, ruff and tsc cannot answer: does the comment, the
 # docstring, the name or the test title still describe the code under it?
-# `.claude/rules/comments.md` says a false sentence is deleted rather than
-# reworded, and `review-workflow.md` R-3 keeps prose off the review loop. This
-# is where that check happens instead.
+# `docs/process/testing-and-comments.md` says a false sentence is deleted
+# rather than reworded, and `docs/process/review.md` R-3 keeps prose off the
+# review loop. This is where that check happens instead.
 #
 # Answers come from a model, so they move between runs. `scripts/jev-lint.sh`
 # pins the tool version; nothing here gates a merge.
@@ -37,8 +37,8 @@ exclude:
 # The markdown rules are left out because they grade prose style rather than
 # compare a document against the code it describes, and `docs/` is absent from
 # `files` for the same reason. `git/commit-message-describes-diff` is out
-# because `comments.md` puts commit messages and PR bodies outside precision
-# review. The remaining shipped rules judge design and coverage instead of
+# because `testing-and-comments.md` puts commit messages and PR bodies outside
+# precision review. The remaining shipped rules judge design and coverage instead of
 # whether a claim is true, so a finding from one is an opinion to argue with,
 # not a sentence to delete.
 rules:

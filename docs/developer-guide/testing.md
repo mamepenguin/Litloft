@@ -226,7 +226,7 @@ pnpm test:e2e:layout
 Use it for anything about a box's size, position, overflow, stickiness or
 transition. jsdom lays nothing out, and matching the text of a stylesheet cannot
 verify a layout (see
-[`.claude/rules/review-workflow.md`](../../.claude/rules/review-workflow.md)).
+[`docs/process/testing-and-comments.md`](../process/testing-and-comments.md)).
 
 Its fixtures hand-write the markup they measure, so a fixture can drift from the
 component. `justified-grid` is held to its components by
@@ -480,8 +480,8 @@ rendered yet, so pair it with a positive one in the same `waitFor`.
 
 ## See also
 
-- [`.claude/rules/review-workflow.md`](../../.claude/rules/review-workflow.md):
-  detector rules, and how a change is reviewed.
+- [`docs/process/prohibited.md`](../process/prohibited.md): detector rules.
+- [`docs/process/review.md`](../process/review.md): how a change is reviewed.
 - [Backend development](backend-dev.md)
 - [Frontend development](frontend-dev.md)
 - [Contributing](contributing.md)

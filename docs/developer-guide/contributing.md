@@ -24,7 +24,7 @@ Litloft is developed mainly for personal use, but pull requests are welcome. Rev
 
 ## Pull requests
 
-The description says what changed and why, links the issue if there is one, and says how it was verified. Keep it short (see `.claude/rules/comments.md`).
+The description says what changed and why, links the issue if there is one, and says how it was verified. Keep it short (see `docs/process/testing-and-comments.md`).
 
 ## Checks
 
@@ -57,7 +57,7 @@ Every pull request includes tests for the behaviour it changes:
 
 ## Comments
 
-Follow `.claude/rules/comments.md`: comment only what a reader could get wrong after reading the code. `scripts/jev-lint.sh` asks a model whether the comments, names and test titles on your branch still match the code:
+Follow `docs/process/testing-and-comments.md`: comment only what a reader could get wrong after reading the code. `scripts/jev-lint.sh` asks a model whether the comments, names and test titles on your branch still match the code:
 
 ```bash
 scripts/jev-lint.sh                                # diff against origin/develop
