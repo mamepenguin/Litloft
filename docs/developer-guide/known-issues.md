@@ -3,20 +3,21 @@
 Defects that are known, deliberately open, and reachable by a user or an
 addon.
 
-What goes here: bucket B and C findings from `.claude/rules/review-workflow.md`
-R-4 that somebody can actually hit: something that breaks no declared invariant
+What goes here: bucket B and C findings (`docs/process/review.md`, Buckets and
+scope) that somebody can actually hit: something that breaks no declared invariant
 but is wrong on screen or in the data, and any pre-existing defect a change
 surfaced but did not introduce.
 
 What does not go here: anything that breaks a declared invariant, which is fixed
 before the change merges; and anything nobody can reach, such as a gap in test
-coverage over correct behaviour. Those stay in the findings files under
-`docs/developer-guide/reviews/<pr>/`, which are the record. A ledger that
+coverage over correct behaviour. Those stay in the review records under
+`docs/process/reviews/<topic>/` (earlier ones in
+`docs/developer-guide/reviews/<pr>/`), which are the record. A ledger that
 collects every closed finding stops being read.
 
 One line each, plus how it is reached. A reader must be able to decide
 whether they have hit it. No investigation notes: those belong to a spec under
-`docs/superpowers/specs/` or to the commit that eventually fixes it.
+`docs/specs/` or to the commit that eventually fixes it.
 
 Remove the row when it is fixed.
 

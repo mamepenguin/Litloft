@@ -226,7 +226,7 @@ pnpm test:e2e:layout
 Use it for anything about a box's size, position, overflow, stickiness or
 transition. jsdom lays nothing out, and matching the text of a stylesheet cannot
 verify a layout (see
-[`.claude/rules/review-workflow.md`](../../.claude/rules/review-workflow.md)).
+[`docs/process/testing-and-comments.md`](../process/testing-and-comments.md)).
 
 Its fixtures hand-write the markup they measure, so a fixture can drift from the
 component. `justified-grid` is held to its components by
@@ -246,14 +246,13 @@ node scripts/merge-addon-messages.mjs
 pnpm test && pnpm exec tsc --noEmit && pnpm lint
 ```
 
-`deploy/pre-push` runs exactly that when the push touches `frontend/` or an
-addon's `frontend/`. It is opt-in:
+The `.githooks/pre-push` hook runs `scripts/process/precheck.sh`, whose
+frontend gate runs exactly that when the change touches `frontend/` or an
+addon's `frontend/`. Enable it once per clone:
 
 ```bash
-ln -s ../../deploy/pre-push .git/hooks/pre-push
+git config core.hooksPath .githooks
 ```
-
-`git push --no-verify` skips it for one push.
 
 ## Coverage
 
@@ -480,8 +479,8 @@ rendered yet, so pair it with a positive one in the same `waitFor`.
 
 ## See also
 
-- [`.claude/rules/review-workflow.md`](../../.claude/rules/review-workflow.md):
-  detector rules, and how a change is reviewed.
+- [`docs/process/prohibited.md`](../process/prohibited.md): detector rules.
+- [`docs/process/review.md`](../process/review.md): how a change is reviewed.
 - [Backend development](backend-dev.md)
 - [Frontend development](frontend-dev.md)
 - [Contributing](contributing.md)

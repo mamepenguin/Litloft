@@ -1,0 +1,280 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Review result artifact",
+  "description": "One reviewer's result for one review. validate-artifact.sh enforces this shape with jq.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "reviewer",
+    "role",
+    "risk",
+    "findings",
+    "specification_compliance",
+    "unspecified_behavior_found",
+    "potential_unspecified_behavior",
+    "regression_risks",
+    "test_coverage",
+    "not_verified",
+    "confidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "reviewer": {
+      "$ref": "#/definitions/text"
+    },
+    "role": {
+      "enum": [
+        "read",
+        "mutate",
+        "verify"
+      ]
+    },
+    "risk": {
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/finding"
+      }
+    },
+    "verification": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/verification_record"
+      }
+    },
+    "mutation": {},
+    "specification_compliance": {
+      "$ref": "#/definitions/strings"
+    },
+    "unspecified_behavior_found": {
+      "type": "boolean"
+    },
+    "potential_unspecified_behavior": {
+      "$ref": "#/definitions/strings"
+    },
+    "regression_risks": {
+      "$ref": "#/definitions/strings"
+    },
+    "test_coverage": {
+      "$ref": "#/definitions/strings"
+    },
+    "not_verified": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/strings"
+        },
+        {
+          "type": "array",
+          "minItems": 1
+        }
+      ]
+    },
+    "confidence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "perspectives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "notes"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "trajectory": {
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "strings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/text"
+      }
+    },
+    "text": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "finding": {
+      "type": "object",
+      "required": [
+        "id",
+        "origin",
+        "claim",
+        "impact",
+        "evidence",
+        "repro",
+        "introduced",
+        "bucket_proposal",
+        "severity"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/text"
+        },
+        "origin": {
+          "enum": [
+            "reviewer",
+            "verifier"
+          ]
+        },
+        "claim": {
+          "$ref": "#/definitions/text"
+        },
+        "impact": {
+          "$ref": "#/definitions/text"
+        },
+        "evidence": {
+          "$ref": "#/definitions/text"
+        },
+        "repro": {
+          "$ref": "#/definitions/text"
+        },
+        "introduced": {
+          "enum": [
+            "introduced",
+            "pre-existing",
+            "unverified"
+          ]
+        },
+        "bucket_proposal": {
+          "type": "object",
+          "required": [
+            "bucket",
+            "reason",
+            "invariant_ref"
+          ],
+          "properties": {
+            "bucket": {
+              "enum": [
+                "A",
+                "B",
+                "C"
+              ]
+            },
+            "reason": {
+              "$ref": "#/definitions/text"
+            },
+            "invariant_ref": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "severity": {
+          "enum": [
+            "BLOCKER",
+            "HIGH",
+            "MEDIUM",
+            "LOW",
+            "INFO"
+          ]
+        },
+        "proposed_fix": {
+          "type": "string"
+        }
+      }
+    },
+    "verification_record": {
+      "type": "object",
+      "required": [
+        "source_reviewer",
+        "source_finding_id",
+        "status",
+        "note"
+      ],
+      "properties": {
+        "source_reviewer": {
+          "$ref": "#/definitions/text"
+        },
+        "source_finding_id": {
+          "$ref": "#/definitions/text"
+        },
+        "status": {
+          "enum": [
+            "confirmed",
+            "rejected_with_evidence",
+            "needs_human"
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "mutation": {
+      "type": "object",
+      "required": [
+        "status",
+        "baseline_green",
+        "mutants"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ok",
+            "INVALID"
+          ]
+        },
+        "baseline_green": {
+          "type": "boolean"
+        },
+        "mutants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "change",
+              "want",
+              "result"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/text"
+              },
+              "change": {
+                "$ref": "#/definitions/text"
+              },
+              "want": {
+                "enum": [
+                  "kill",
+                  "live"
+                ]
+              },
+              "result": {
+                "enum": [
+                  "killed",
+                  "survived"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

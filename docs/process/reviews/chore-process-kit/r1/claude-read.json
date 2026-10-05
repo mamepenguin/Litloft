@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "Deleting deploy/pre-push leaves the documented `.git/hooks/pre-push -> ../../deploy/pre-push` symlink dangling in any clone that installed it, and git then skips the hook without a message until the user also runs `git config core.hooksPath .githooks`.",
+      "impact": "On the developer's existing clone, pushes that touch frontend/ stop running vitest/tsc/eslint with no warning, so a frontend break reaches CI that the old hook would have caught locally. The check passes silently.",
+      "evidence": "The commit deletes deploy/pre-push. The old install instruction removed from docs/developer-guide/testing.md was `ln -s ../../deploy/pre-push .git/hooks/pre-push`. The replacement (.githooks/pre-push) runs only once core.hooksPath is set (docs/process/limitations.md: '`core.hooksPath` is per clone'). Nothing in the change removes the old symlink or warns about it.",
+      "repro": "not_reproduced (read-only reviewer). Expected: in a clone with the old symlink and no core.hooksPath, change a frontend file and run `git push`. No hook output appears and the push goes through.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. This is a one-time migration gap in the user's own clone, not a code path that breaks a declared property.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Tell the user to run `git config core.hooksPath .githooks` (and remove the stale .git/hooks/pre-push symlink) when this lands, for example in the PR body."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "`test_dirs` in process/process.conf includes non-test source trees (`frontend/src`, `mcp-server/src`, `addons`), so check-traceability treats a SPEC-ID that appears anywhere in production source or an addon as a test citation.",
+      "impact": "An `implemented` ledger row can pass traceability because the ID appears in a source comment or constant, even when no test cites it. The traceability check then passes without a test.",
+      "evidence": "process/process.conf:9 `test_dirs=backend/tests tests frontend/src ... mcp-server/src ... addons`. In scripts/process/check-traceability.sh, `referenced()` greps those directories recursively with no filter on test file names.",
+      "repro": "not_reproduced. Expected: add an `implemented` row SPEC-CORE-001 with a valid Approval, put `// SPEC-CORE-001` in a non-test file under frontend/src/, and run check-traceability. It prints `ok`.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The ledger is empty today, so no row can be affected yet. The vitest tests are colocated in frontend/src, which makes the directory choice understandable.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file exists for this change. It installs the process kit and adapts the project conf. There is no spec to check against."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The new pre-push hook also runs classify-risk, which needs jq and a resolvable origin/develop. A clone without jq will have pushes blocked with 'failed: classification'. That failure is loud, not silent.",
+    "The frontend gate decides whether to run from the working tree, including untracked files, not from the pushed commits. This is the same as the old hook.",
+    "Setting core.hooksPath to .githooks turns off any other hooks a clone had in .git/hooks."
+  ],
+  "test_coverage": [
+    "The change adds no tests for scripts/process-gates/frontend.sh, the gates.conf expect_regex, or the conf values. The expect_regex `^frontend-gate: skipped|Tests +[1-9][0-9]* passed` with NO_COLOR=1 matches vitest's summary line, and a vitest run that collects no tests fails it."
+  ],
+  "not_verified": [
+    "The part of review.sh after the 200000-byte truncation, and validate-artifact.sh.",
+    "No script was run: precheck, secret-scan, classify-risk, the hook and the workflow were all checked only by reading.",
+    "Whether the secret scan flags existing content in this branch's diff, which would block pushes or CI.",
+    "Whether ci.yml still covers the frontend checks the CI profile leaves out."
+  ],
+  "confidence": 75
+}
