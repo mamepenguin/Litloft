@@ -1272,9 +1272,13 @@ div:has(> .fixed[data-fullscreen-moving])::before {
 
 /* The reduced-motion rule gives every element a 0.01ms duration, and the
    initial `transition-property` is `all`, so without this `visibility`
-   would transition too. The `play` rule below sets its own. */
-.justified-grid > .justified-grid-cell {
-  transition-property: none;
+   would transition too. In `base` so that a cell's own transition utility
+   (the archive grid's `transition-colors`) and the `play` rule below both
+   win over it. */
+@layer base {
+  .justified-grid > .justified-grid-cell {
+    transition-property: none;
+  }
 }
 
 /* The hook takes its marks off after a delay of its own, so a longer
