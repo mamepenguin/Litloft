@@ -54,6 +54,12 @@ docker-compose.override.yml          # user config (not tracked by git)
 drives.json          # drive configuration (not tracked by git)
 passwords.json       # access-control configuration (not tracked by git)
 data/                # SQLite DB + thumbnails + cache + setup_completed sentinel + restart_pending flag (not tracked by git)
+
+process/             # process-kit configuration: gates, risk zones, reviewers
+scripts/process/     # process-kit scripts (kit-owned; updated by the kit's update.sh)
+scripts/process-gates/  # Litloft's own gates, run by precheck
+docs/process/        # the process; PROJECT.md holds Litloft's facts, reviews/<topic>/ the review records
+docs/specs/          # committed specs and the INDEX.md ledger
 ```
 
 ## Git
@@ -118,36 +124,36 @@ the rule you relied on when a review finding comes from one.
 | `backend/` | `.claude/rules/backend-conventions.md` |
 | `frontend/`, `addons/*/frontend/` | `.claude/rules/frontend-conventions.md` |
 | `backend/app/routers/internal.py` (adding, removing, or changing an endpoint) | `.claude/rules/internal-api-policy.md` |
-| Sending a change to review, or reviewing one (code or security) | `.claude/rules/review-workflow.md` |
-| Writing a comment, a docstring, or prose in a workflow or config file | `.claude/rules/comments.md` |
-| Writing a test, or deciding whether one stays | `.claude/rules/tests.md` |
+| Writing a spec, sending a change to review, or reviewing one (code or security) | `.claude/rules/process.md`, then `docs/process/` and `docs/process/PROJECT.md` |
+| Writing a comment, a docstring, a test, or prose in a workflow or config file | `docs/process/testing-and-comments.md` |
 
 `AGENTS.md` is a symlink to this file, so Codex and Claude Code read the same
 project instructions. Agent-specific guidance does not belong here: it goes in
 `AGENTS.override.md` (Codex reads it ahead of `AGENTS.md`) or under `.claude/`.
 
-### Specs are pre-implementation only, and are not committed
+### Specs are written before implementation
 
-`docs/superpowers/specs/` holds design documents written *before* the work
-starts. They quote the code as it stood at design time, so they go stale the
-moment the branch merges. `docs/superpowers/` is gitignored on purpose:
-specs are local working material, not a repository artifact. Do not `git add`
-one, and do not send a reader to a spec to learn how the system behaves today.
+A spec is a design document written *before* the work starts. New specs live in
+`docs/specs/` and are committed, with the ledger in `docs/specs/INDEX.md` and
+the human's `Approval:` line in the spec (`docs/process/spec-and-design.md`).
+`docs/superpowers/specs/` is the legacy archive: gitignored local working
+material from before the process kit. Leave it as it is, and do not `git add`
+it.
 
-A spec is finished when the implementation merges. Nothing is expected to
-update it afterwards, so its `Status` line is the author's own bookkeeping and
-carries no authority — **verify behaviour against the code, never against a
-spec.**
+A spec quotes the code as it stood at design time, so it goes stale the moment
+the branch merges, and nothing updates it afterwards. Do not send a reader to a
+spec to learn how the system behaves today: **verify behaviour against the
+code, never against a spec.**
 
-That warning is aimed at readers asking how the system behaves *today*. It does
-not apply while the branch is still open: a spec is the design document for the
-work under review, and reviewing a change is exactly when to read it. Specs are
+That warning is aimed at readers asking how the system behaves *today*. While
+the branch is still open, the spec is the design document for the work under
+review, and reviewing a change is exactly when to read it. A legacy spec is
 named `docs/superpowers/specs/YYYY-MM-DD-topic.md`, so match the topic against
 the branch name. `## Checked, no action` lists what the author considered and
 deliberately skipped — read it before flagging an omission. Where the code has
-moved away from the spec, ask whether the change was intentional rather than
-calling it a defect: the design is allowed to evolve during implementation, and
-nothing updates the spec when it does.
+moved away from a legacy spec, ask whether the change was intentional rather
+than calling it a defect: the design was allowed to evolve during
+implementation.
 
 ### Shipped behaviour is documented under `docs/`
 
@@ -178,3 +184,15 @@ edit.
 Purely internal refactors that change no observable behaviour need no doc
 change. If a change is user-visible and no page fits it, add one rather than
 leaving it undocumented.
+
+<!-- process-kit:begin -->
+## Process
+
+This repository follows a development process. The rules are in `.claude/rules/process.md`
+and the detail is in `docs/process/`. Read them before changing code.
+
+- New behavior starts at `/spec` and needs human approval before implementation begins.
+- Project facts (commands, risk zones, what an agent cannot verify) are in
+  `docs/process/PROJECT.md`.
+- Never loosen a check: do not delete or skip a test, weaken an assertion or bypass a hook.
+<!-- process-kit:end -->
