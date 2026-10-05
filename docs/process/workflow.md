@@ -64,17 +64,18 @@ and there is no verdict. See `review.md`.
 | Change | Skipped | Never skipped |
 |---|---|---|
 | Docs-only, outside protected paths | `/spec` and review | secret scan, lint gates |
+| Kit update: only `update.sh` wrote the change (`update.sh --status` is clean and nothing outside the lock's paths and `.process-kit.lock` changed) | `/spec` and review; the kit was tested in its own repository | gates |
 | Behavior-preserving refactor | new SPEC (existing ID carried); existing tests must be green | review |
 | Bug fix | the spec design review and the approval; the correct behavior is stated as a SPEC or UNSPEC | review |
 
-New user-visible behavior and any protected path are never skipped. Prose that defines
+New user-visible behavior and any protected path are never skipped, except a kit update as defined above. Prose that defines
 the process (agents, brief, rules) is a protected path, so "docs-only" does not apply to
 it.
 
 Review is skipped only for a docs-only change outside protected paths, and for a change
 simple enough that tests and error checks (type check, lint, build) complete its
 verification. A refactor or a bug fix is not simple by category, and a protected path is
-never exempt.
+never exempt except in a kit update.
 
 ## The ten generic spec items
 

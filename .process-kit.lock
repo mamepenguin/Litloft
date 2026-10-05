@@ -1,4 +1,4 @@
-version 0.2.2
+version 0.2.3
 fa02d83c3b9b0f65f7c76865ac14afe5a93ea3bbba6e1bb6d8cb3417cbe78032  .claude/agents/acceptance-test-writer.md
 1958d8e5f229ccdf934d2e2e5483665be01b69d83bbd8e935d2a0f931787b9cd  .claude/agents/r5-runner.md
 059467a07a3ce282038f19a1e4af2e2a0d13a8b50e1858faf0f61499af5a7572  .claude/agents/spec-design-reviewer.md
@@ -15,7 +15,7 @@ e0faab4c4fa0283562e0abb95ae9ed44dc31f852a8a93866b19511352bcaf227  .github/workfl
 276e574c266af9616957795dba6c8c78735bbbf7c2f1ce9994cf0a89fc475973  docs/process/risk-and-human-review.md
 e8c9065ef0938146093c4b526539f58face734e94c27ce4bbe0bba2c3ac761d0  docs/process/spec-and-design.md
 8821393ef96610e09bc1906b7549e1f9bc95cd2462b0ea1d0cf0b5680aae4b88  docs/process/testing-and-comments.md
-9c2faeff6fe9318f0c920f7ba6d13a4fdffe1a3ea04ad6269e12b25da999e5bd  docs/process/workflow.md
+162e18953efd92b10b2b524a27181a3e3ac7d2dc3a5cbd43b2aa32d4dd567119  docs/process/workflow.md
 ff9ef452603d5bc131dafc1982fa870bb9c3c82fc9f9e39a520751291441cba4  scripts/process/check-traceability.sh
 6d1bfaede3e80036e829b2dbfee040228dfb8a608cc6e790f5d5cdaf0ba2a184  scripts/process/ci-report.sh
 9c0fd965daa62652cc98116886db09d7944befc6ef9ffff89b9666300b081e55  scripts/process/classify-risk.sh
