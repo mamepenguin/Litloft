@@ -408,6 +408,16 @@ test.describe("the FLIP transition", () => {
   });
 });
 
+test("leaves a cell's own colour transition to its utilities", async ({ page }) => {
+  // The archive grid's openable cell eases its hover background through
+  // `transition-colors`; the grid's own rules must not take that away.
+  await layout(page, { ratios: [1, 1], width: 900, shapes: ["archiveOpenable", "archiveOpenable"] });
+  const property = await page.evaluate(
+    () => getComputedStyle(document.querySelector(".justified-grid-cell")!).transitionProperty,
+  );
+  expect(property).toContain("background-color");
+});
+
 test("every generated case was registered", () => {
   // Rebuilt from the tables, so it does not follow a loop that has been
   // walked back.

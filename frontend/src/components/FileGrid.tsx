@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { FileItem, FileItemWithMatch } from "@/types";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useJustifiedFlip } from "@/hooks/useJustifiedFlip";
+import { useJustifiedHold } from "@/hooks/useJustifiedHold";
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 import { deriveListMeta } from "@/lib/listMeta";
 import { FileCard } from "./FileCard";
@@ -13,6 +14,7 @@ import { MatchOverlay } from "./MatchOverlay";
 
 export function FileGrid({
   files,
+  moreMayFollow = false,
   onFavoriteToggle,
   onRefresh,
   selectable,
@@ -27,6 +29,8 @@ export function FileGrid({
   onDragEnd,
 }: {
   files: FileItemWithMatch[];
+  /** Whether a later page may still be appended to `files`. */
+  moreMayFollow?: boolean;
   onFavoriteToggle?: (file: FileItem) => void;
   onRefresh?: () => void;
   selectable?: boolean;
@@ -56,6 +60,8 @@ export function FileGrid({
   // ref is null on every render that takes the card branch, and the hook
   // does nothing then.
   useJustifiedFlip(justifiedRef);
+  // After the flip, which reads the hold this commit replaces.
+  useJustifiedHold(justifiedRef, moreMayFollow);
 
   const { showExtensionBadge, justifyThumbnails } = useMemo(
     () => deriveListMeta(files),

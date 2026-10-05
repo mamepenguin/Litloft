@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I10: frontend/src/hooks/useInfiniteScroll.ts:171 passes `root: scrollContainer?.current ?? null` and `rootMargin: \"0px 0px 400px 0px\"`; scrollContainer comes from useScrollContainer() at :63, so outside a provider root is null.",
+    "I1/I7: frontend/src/hooks/useJustifiedHold.ts:85-93 holds the cells that share the last cell's offsetTop, and only when the first cell's offsetTop differs (two or more lines) and moreMayFollow is true.",
+    "I6: frontend/src/components/FileGrid.tsx:17 defaults moreMayFollow to false. FolderContent.tsx:244 passes `hasMore && !filter.isActive`. The hold hook is a no-op in card mode because justifiedRef is null there (FileGrid.tsx:62-64, 124).",
+    "I2: globals.css:1269-1271 sets `visibility: hidden` on [data-held]. That removes hit-testing and Tab focus for the subtree, because no descendant in JustifiedFileCell.tsx sets visibility: visible. useJustifiedHold.ts:96-120 moves focus that sits inside a newly held cell (including the FavoriteButton) to the nearest earlier painted [data-file-thumb], synchronously in a layout effect or a ResizeObserver callback.",
+    "I3: visibility keeps the flex box, so the layout of the lines above and the grid height do not change.",
+    "I8: the hold is re-decided when the signature of key order plus --jg-ratio changes (useJustifiedHold.ts:57-60), or on a width change through ResizeObserver (:42-47). --jg-row-h depends only on container width (globals.css:1233-1237), so it is covered by the width path.",
+    "I9: an unchanged signature skips applyHold (:58). The attribute is written imperatively, not rendered, so a memoised cell re-render cannot drop it.",
+    "I4/I5: useJustifiedFlip.ts:164 reads wasHeld before the hold hook runs, because the hook order in FileGrid.tsx:62-64 puts flip first. Held cells are excluded from inversion (:227). Released cells fade only when the change is an append and reduced motion is off (:207); every other release paints at once. Cells above a held last line keep their box on an append because greedy flex-wrap leaves earlier lines unchanged, so they get no transform."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A non-prefix change that also releases held cells, such as a revalidation that reloads with different ordering, releases them in place with no fade. This matches I5's 'any other release' wording, but users may notice it.",
+    "Cells that enter as new in an append and are held in the same commit still get the inline opacity fade from useJustifiedFlip while hidden. This is harmless, but it is extra work."
+  ],
+  "regression_risks": [
+    "Hook order in FileGrid.tsx is load-bearing: if useJustifiedHold were declared before useJustifiedFlip, wasHeld would read the new hold and break I4/I5.",
+    "Suites that mock IntersectionObserver may assert root === null; with a provider the root is now the container element."
+  ],
+  "test_coverage": [
+    "frontend/src/hooks/__tests__/useJustifiedHold.test.tsx exists for the hold branching.",
+    "frontend/src/hooks/__tests__/useJustifiedFlip.test.tsx exists.",
+    "frontend/e2e-components/justified-hold-desktop.spec.ts exists as a browser test (contents not inspected in detail)."
+  ],
+  "not_verified": [
+    "I did not run any test suite or browser test; all checks were static reading.",
+    "I did not read the test files' contents to confirm which branches they cover.",
+    "I did not inspect TrashView/MissingView or the snapshotScroll test mocks for a non-null root.",
+    "Real-browser timing of ResizeObserver relative to paint, which I8 depends on on a width change, was not observed."
+  ],
+  "confidence": 78
+}

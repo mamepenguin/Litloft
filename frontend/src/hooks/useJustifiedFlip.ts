@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
+import { HELD_ATTR } from "./useJustifiedHold";
 
 /**
  * Which changes are carried is decided by the guards below, not by naming
@@ -64,6 +65,14 @@ interface Snapshot {
   rects: Map<string, Rect>;
 }
 
+function isPrefix(prefix: readonly string[], of: readonly string[]): boolean {
+  if (prefix.length >= of.length) return false;
+  for (let i = 0; i < prefix.length; i += 1) {
+    if (prefix[i] !== of[i]) return false;
+  }
+  return true;
+}
+
 function sameOrder(a: readonly string[], b: readonly string[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i += 1) {
@@ -125,7 +134,13 @@ export function useJustifiedFlip(gridRef: RefObject<HTMLElement | null>): void {
     const gridRect = grid.getBoundingClientRect();
     const width = Math.round(gridRect.width);
     const rects = new Map<string, Rect>();
-    const measured: { cell: HTMLElement; key: string; rect: Rect; onScreen: boolean }[] = [];
+    const measured: {
+      cell: HTMLElement;
+      key: string;
+      rect: Rect;
+      onScreen: boolean;
+      wasHeld: boolean;
+    }[] = [];
 
     for (let i = 0; i < cells.length; i += 1) {
       const cell = cells[i];
@@ -144,6 +159,9 @@ export function useJustifiedFlip(gridRef: RefObject<HTMLElement | null>): void {
         onScreen:
           box.bottom > -VIEWPORT_MARGIN_PX &&
           box.top < window.innerHeight + VIEWPORT_MARGIN_PX,
+        // Must be read before `useJustifiedHold` re-decides this commit,
+        // which is why FileGrid declares this hook first.
+        wasHeld: cell.hasAttribute(HELD_ATTR),
       });
     }
 
@@ -152,21 +170,61 @@ export function useJustifiedFlip(gridRef: RefObject<HTMLElement | null>): void {
     };
 
     if (!before) return store();
+    const appended = isPrefix(before.keys, keys);
+    const reduced = prefersReducedMotion();
+
+    const play = (inverted: { cell: HTMLElement; transform: string }[], entering: HTMLElement[]) => {
+      if (inverted.length === 0 && entering.length === 0) return;
+      for (const { cell, transform } of inverted) {
+        cell.setAttribute(FLIP_ATTR, "invert");
+        cell.style.transform = transform;
+        inFlight.current.add(cell);
+      }
+      for (const cell of entering) {
+        cell.setAttribute(FLIP_ATTR, "invert");
+        cell.style.opacity = "0";
+        inFlight.current.add(cell);
+      }
+
+      // The start of a transition has to be a style the browser has
+      // resolved, or setting the end value in the same pass is not a change
+      // for it to interpolate. One read covers every cell.
+      void grid.offsetWidth;
+
+      for (const cell of inFlight.current) {
+        cell.setAttribute(FLIP_ATTR, "play");
+        cell.style.transform = "";
+        cell.style.opacity = "";
+      }
+      timer.current = setTimeout(settle, FLIP_SETTLE_MS);
+    };
+
+    // A held cell was never painted at its previous rect, so it has nowhere
+    // to be carried from: it is released either as part of an append, where
+    // it arrives with the new cells, or in place. Its fade reads no previous
+    // rect, so it survives the guards below that exist to protect one. Not
+    // limited to the viewport band: a held line is one line, not a page.
+    const released = appended && !reduced ? measured.filter((m) => m.wasHeld).map((m) => m.cell) : [];
+
     // A width change is a resize, and a resize is a drag, not a discrete
     // state change: following it would animate every frame of it. The
     // same guard is what keeps a stale measurement — the grid reflowed
     // with no commit in between — from being played as if it were one.
-    if (before.width !== width) return store();
-    if (prefersReducedMotion()) return store();
+    if (before.width !== width) {
+      store();
+      return play([], released);
+    }
+    if (reduced) return store();
     // No cell in common is a different listing rather than a change to
     // this one, so every cell would be "new" and the whole grid would
     // fade in on a folder change.
     if (!measured.some((m) => m.key !== "" && before.rects.has(m.key))) return store();
 
     const inverted: { cell: HTMLElement; transform: string }[] = [];
-    const entering: HTMLElement[] = [];
+    const entering: HTMLElement[] = [...released];
 
     for (const m of measured) {
+      if (m.wasHeld) continue;
       if (!m.onScreen) continue;
       const first = m.key === "" ? undefined : before.rects.get(m.key);
       if (!first) {
@@ -192,30 +250,7 @@ export function useJustifiedFlip(gridRef: RefObject<HTMLElement | null>): void {
     }
 
     store();
-    if (inverted.length === 0 && entering.length === 0) return;
-
-    for (const { cell, transform } of inverted) {
-      cell.setAttribute(FLIP_ATTR, "invert");
-      cell.style.transform = transform;
-      inFlight.current.add(cell);
-    }
-    for (const cell of entering) {
-      cell.setAttribute(FLIP_ATTR, "invert");
-      cell.style.opacity = "0";
-      inFlight.current.add(cell);
-    }
-
-    // The start of a transition has to be a style the browser has
-    // resolved, or setting the end value in the same pass is not a change
-    // for it to interpolate. One read covers every cell.
-    void grid.offsetWidth;
-
-    for (const cell of inFlight.current) {
-      cell.setAttribute(FLIP_ATTR, "play");
-      cell.style.transform = "";
-      cell.style.opacity = "";
-    }
-    timer.current = setTimeout(settle, FLIP_SETTLE_MS);
+    play(inverted, entering);
   });
 
   useEffect(() => settle, [settle]);

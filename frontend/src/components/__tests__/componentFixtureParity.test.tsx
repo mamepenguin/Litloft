@@ -281,6 +281,7 @@ describe("the component fixture's page", () => {
       "player-transition-same-render",
       "folder-push",
       "open-ghost",
+      "justified-hold",
       "citation-seams",
       "citation-seams-prose",
       "code-viewer",
