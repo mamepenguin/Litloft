@@ -349,6 +349,28 @@ test.describe("SPEC-CORE-002 an append under the hold", () => {
   }
 });
 
+test("SPEC-CORE-002 I5: an append after the grid resized with no commit still fades the released line in", async ({ page }) => {
+  // A sidebar animating after mount narrows the grid without re-rendering it.
+  await open(page, { width: 900 });
+  const { wasHeld, frames } = await page.evaluate(async () => {
+    const w = window as unknown as { __probe: Probe; __jg: { append(n: number): void } };
+    document.getElementById("jg-host")!.style.width = "860px";
+    await w.__probe.painted();
+    const before = w.__probe.snap();
+    const wasHeld = before.cells.filter((c) => c.vis === "hidden").map((c) => c.key);
+    w.__jg.append(20);
+    return { wasHeld, frames: await w.__probe.frames(400) };
+  });
+
+  expect(wasHeld.length, "a line was held before the append").toBeGreaterThan(0);
+  const first = byKey(frames[1].s).get(wasHeld[0])!;
+  expect(first.vis).toBe("visible");
+  expect(first.op).toBeLessThan(1);
+  expect(first.compT).toBe("none");
+  const late = frames.find(({ t }) => t >= 300)!;
+  expect(byKey(late.s).get(wasHeld[0])!.op).toBe(1);
+});
+
 test.describe("SPEC-CORE-002 the held set follows the layout", () => {
   test("SPEC-CORE-002 I8: after a width change the held set is the new last line in the first painted frame", async ({ page }) => {
     await open(page, { width: 900 });
