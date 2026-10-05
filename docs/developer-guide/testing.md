@@ -246,14 +246,13 @@ node scripts/merge-addon-messages.mjs
 pnpm test && pnpm exec tsc --noEmit && pnpm lint
 ```
 
-`deploy/pre-push` runs exactly that when the push touches `frontend/` or an
-addon's `frontend/`. It is opt-in:
+The `.githooks/pre-push` hook runs `scripts/process/precheck.sh`, whose
+frontend gate runs exactly that when the change touches `frontend/` or an
+addon's `frontend/`. Enable it once per clone:
 
 ```bash
-ln -s ../../deploy/pre-push .git/hooks/pre-push
+git config core.hooksPath .githooks
 ```
-
-`git push --no-verify` skips it for one push.
 
 ## Coverage
 
