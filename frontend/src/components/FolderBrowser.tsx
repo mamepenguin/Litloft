@@ -141,7 +141,7 @@ export function FolderBrowser({
   const order = isFolderAnchored ? folderSort.order : localOrder;
 
   const {
-    files, folders, total, loading, loadingMore, pagesLoaded, sentinelRef,
+    files, folders, total, loading, loadingMore, hasMore, pagesLoaded, sentinelRef,
     reset, setFiles, setPaginatedTotal, isRecent, hasProfile,
     snapshotKey, hydratedScrollY,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
@@ -676,6 +676,7 @@ export function FolderBrowser({
         viewMode={viewMode}
         loading={loading}
         loadingMore={loadingMore}
+        hasMore={hasMore}
         isRecent={isRecent}
         hasProfile={hasProfile}
         isFavorites={isFavorites}

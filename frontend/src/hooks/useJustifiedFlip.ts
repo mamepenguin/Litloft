@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
+import { HELD_ATTR } from "./useJustifiedHold";
 
 /**
  * Which changes are carried is decided by the guards below, not by naming
@@ -64,6 +65,14 @@ interface Snapshot {
   rects: Map<string, Rect>;
 }
 
+function isPrefix(prefix: readonly string[], of: readonly string[]): boolean {
+  if (prefix.length >= of.length) return false;
+  for (let i = 0; i < prefix.length; i += 1) {
+    if (prefix[i] !== of[i]) return false;
+  }
+  return true;
+}
+
 function sameOrder(a: readonly string[], b: readonly string[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i += 1) {
@@ -125,7 +134,13 @@ export function useJustifiedFlip(gridRef: RefObject<HTMLElement | null>): void {
     const gridRect = grid.getBoundingClientRect();
     const width = Math.round(gridRect.width);
     const rects = new Map<string, Rect>();
-    const measured: { cell: HTMLElement; key: string; rect: Rect; onScreen: boolean }[] = [];
+    const measured: {
+      cell: HTMLElement;
+      key: string;
+      rect: Rect;
+      onScreen: boolean;
+      wasHeld: boolean;
+    }[] = [];
 
     for (let i = 0; i < cells.length; i += 1) {
       const cell = cells[i];
@@ -144,6 +159,9 @@ export function useJustifiedFlip(gridRef: RefObject<HTMLElement | null>): void {
         onScreen:
           box.bottom > -VIEWPORT_MARGIN_PX &&
           box.top < window.innerHeight + VIEWPORT_MARGIN_PX,
+        // Must be read before `useJustifiedHold` re-decides this commit,
+        // which is why FileGrid declares this hook first.
+        wasHeld: cell.hasAttribute(HELD_ATTR),
       });
     }
 
@@ -165,8 +183,17 @@ export function useJustifiedFlip(gridRef: RefObject<HTMLElement | null>): void {
 
     const inverted: { cell: HTMLElement; transform: string }[] = [];
     const entering: HTMLElement[] = [];
+    const appended = isPrefix(before.keys, keys);
 
     for (const m of measured) {
+      // A held cell was never painted at its previous rect, so it has
+      // nowhere to be carried from. It is released either as part of an
+      // append, where it arrives with the new cells, or in place. Ahead of
+      // the viewport band: a held line is one line, not a page.
+      if (m.wasHeld) {
+        if (appended) entering.push(m.cell);
+        continue;
+      }
       if (!m.onScreen) continue;
       const first = m.key === "" ? undefined : before.rects.get(m.key);
       if (!first) {

@@ -1264,6 +1264,19 @@ div:has(> .fixed[data-fullscreen-moving])::before {
   height: 0;
 }
 
+/* `visibility`, not `display`: the held line keeps its box, so the lines
+   above it are laid out as if it were painted. */
+.justified-grid-cell[data-held] {
+  visibility: hidden;
+}
+
+/* The reduced-motion rule gives every element a 0.01ms duration, and the
+   initial `transition-property` is `all`, so without this `visibility`
+   would transition too. The `play` rule below sets its own. */
+.justified-grid > .justified-grid-cell {
+  transition-property: none;
+}
+
 /* The hook takes its marks off after a delay of its own, so a longer
    duration here would cut every play short. */
 .justified-grid-cell[data-flip="invert"] {

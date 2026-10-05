@@ -60,6 +60,7 @@ interface FolderContentProps {
   viewMode: ViewMode;
   loading: boolean;
   loadingMore: boolean;
+  hasMore?: boolean;
   isRecent: boolean;
   hasProfile: boolean;
   isFavorites: boolean;
@@ -90,7 +91,7 @@ interface FolderContentProps {
 }
 
 export function FolderContent({
-  files, folders, driveName, viewMode, loading, loadingMore,
+  files, folders, driveName, viewMode, loading, loadingMore, hasMore = false,
   isRecent, hasProfile, isFavorites, isLiked, isRecentAdded, isSearch, selectable, sortQuery,
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
   selectedIds, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
@@ -239,6 +240,8 @@ export function FolderContent({
       ) : viewMode === "grid" ? (
         <FileGrid
           files={filteredFiles}
+          // A filter shows every match; holding its last line would hide some.
+          moreMayFollow={hasMore && !filter.isActive}
           onFavoriteToggle={onFavoriteToggle}
           onRefresh={onRefresh}
           selectable={selectable}
