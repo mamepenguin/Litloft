@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# pre-push: precheck, risk classification, and (for a protected branch) traceability.
+# Reads git's ref lines on stdin. Every step runs; any failure blocks the push.
+# Commands can be replaced with PROCESS_PRECHECK_CMD, PROCESS_CLASSIFY_CMD and
+# PROCESS_TRACE_CMD; the defaults are the installed scripts under scripts/process/.
+
+set -uf
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "pre-push: not in a git repository" >&2; exit 1; }
+cd "$ROOT" || exit 1
+
+PRECHECK="${PROCESS_PRECHECK_CMD:-scripts/process/precheck.sh}"
+CLASSIFY="${PROCESS_CLASSIFY_CMD:-scripts/process/classify-risk.sh}"
+TRACE="${PROCESS_TRACE_CMD:-scripts/process/check-traceability.sh}"
+
+PROTECTED="main develop"
+if [ -f process/process.conf ]; then
+  v="$(tr -d '\r' < process/process.conf | sed -n 's/^[[:space:]]*protected_branches[[:space:]]*=//p' | tail -n 1 | tr ',' ' ')"
+  case "$v" in *[![:space:]]*) PROTECTED="$v" ;; esac
+fi
+
+PROTECTED_PUSH=0
+while read -r _ _ remote_ref _; do
+  branch="${remote_ref#refs/heads/}"
+  [ "$branch" != "$remote_ref" ] || continue
+  case " $PROTECTED " in *" $branch "*) PROTECTED_PUSH=1 ;; esac
+done
+
+FAILED=""
+$PRECHECK --profile local || FAILED="$FAILED precheck"
+
+$CLASSIFY >/dev/null || FAILED="$FAILED classification"
+
+if [ "$PROTECTED_PUSH" -eq 1 ]; then
+  $TRACE || FAILED="$FAILED traceability"
+fi
+
+if [ -n "$FAILED" ]; then
+  printf 'pre-push: blocked, failed:%s\n' "$FAILED" >&2
+  echo "pre-push: to push anyway use 'git push --no-verify', and record it in docs/process/EXCEPTIONS.md" >&2
+  exit 1
+fi
