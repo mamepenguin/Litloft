@@ -3,7 +3,7 @@
 SPEC-ID: SPEC-CORE-001
 SPEC-ID: SPEC-CORE-002
 
-Approval:
+Approval: 59dc2e5f90d09804504e52a618b86d67105e8c26 Yuichi Senga 2026-10-05
 
 ## Summary
 
