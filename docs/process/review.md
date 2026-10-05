@@ -263,4 +263,5 @@ review, so the next run neither takes its fix commits from it nor becomes a late
 because of it. `decisions.md` holds `decision:` (filled only when the verdict was
 HUMAN_REVIEW_REQUIRED) and the R-5 fields (see `workflow.md`); whoever first needs it
 (the R-5 agent or `review.sh`) creates it with the fields empty; `review.sh` creates it
-only if absent and never overwrites it. No script fills a value and no check reads them.
+only if absent and never overwrites it. No script fills a value. `review.sh` reads `ran_in_app:` and `at:` only to warn when files
+changed after the commit R-5 ran at; the warning does not change the verdict.

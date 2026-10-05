@@ -103,5 +103,6 @@ is a bug: the author fixes it and R-5 runs again. R-5 also runs again when a fix
 whoever checks a pending part updates the record. A test run or a report is not R-5.
 
 The R-5 agent creates `decisions.md` if it is absent and writes the record in it: `ran_in_app: yes|no|not-applicable`,
+`at:` the commit it ran against,
 `by: agent|human|both`, the evidence (steps, screenshots, a recording path), and the
 pending parts.
