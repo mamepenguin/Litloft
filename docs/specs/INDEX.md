@@ -14,3 +14,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 
 | ID | State | Spec file | Approval |
 |---|---|---|---|
+| SPEC-CORE-001 | draft | docs/specs/justified-hold-last-line.md | |
+| SPEC-CORE-002 | draft | docs/specs/justified-hold-last-line.md | |
