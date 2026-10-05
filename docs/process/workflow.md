@@ -15,7 +15,7 @@ requirement
      ├ ten generic required items + touch points + invariants (R-0)
      ├ spec design review (fresh reviewer)
      └ HUMAN APPROVAL: implementation before this is discarded
-         ├ spec file records Approval: <sha> <name> <date>; ledger row; SPEC-ID
+         ├ spec file records Approval: sha256:<hash> <name> <date>; ledger row; SPEC-ID
          ├ acceptance tests written from the spec only
          └ implementation (agent named in process.conf)
              ├ R-5: an agent other than the author uses the changed path in the running application

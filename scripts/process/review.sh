@@ -322,17 +322,18 @@ build_context() {
 
 # later_revisions <spec>: each `<SPEC-ID> I<N>. <sentence>` line under `## Revises` in another
 # approved spec that names one of this spec's SPEC-IDs, as `I<N>. (<that spec>) <sentence>`,
-# in the order of the approval commits so that the newest approval comes last.
+# oldest Approval date first and then by file name. A spec is approved when the hash on its
+# Approval line matches its content.
 later_revisions() {
-  local ids f sha
+  local ids f rec
   ids="$(sed -n 's/^SPEC-ID:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$1" | tr '\n' ' ')"
   [ -n "$ids" ] || return 0
   for f in docs/specs/*.md; do
     [ -f "$f" ] && [ "$f" != "$1" ] || continue
-    sha="$(sed -n 's/^Approval: \([0-9a-f]\{40\}\).*/\1/p' "$f" | tail -n 1)"
-    [ -n "$sha" ] || continue
-    printf '%s\t%s\n' "$(git log -1 --format=%ct "$sha" 2>/dev/null || echo 0)" "$f"
-  done | sort -n -k1,1 | cut -f2- | while IFS= read -r f; do
+    rec="$(tr -d '\r' <"$f" | grep -E '^Approval: ' | tail -n 1)"
+    [ "$(printf '%s\n' "$rec" | awk '{print $2}')" = "$(bash "$HERE/spec-hash.sh" "$f")" ] || continue
+    printf '%s\t%s\n' "$(printf '%s\n' "$rec" | awk '{print $NF}')" "$f"
+  done | LC_ALL=C sort -t "$(printf '\t')" -k1,1 -k2,2 | cut -f2- | while IFS= read -r f; do
     awk -v ids="$ids" -v src="$f" '/^## / { on = ($0 ~ /^## Revises[[:space:]]*$/); next }
       on && index(" " ids, " " $1 " ") && match($2, /^I[0-9]+[.:]$/) {
         rest = $0; sub(/^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]*/, "", rest)
