@@ -67,6 +67,7 @@ import { useContextMenu } from "@/hooks/useContextMenu";
 import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
 import { folderTransitionKind } from "@/lib/folderTransition";
 import { showOpenGhost } from "@/lib/openGhost";
+import { JustifiedHoldArrangement } from "./justifiedHold";
 import {
   navigateWithTransition,
   notifyNavigationCommit,
@@ -1901,6 +1902,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "player-transition-same-render": PlayerTransitionSameRender,
   "folder-push": FolderPushArrangement,
   "open-ghost": OpenGhostArrangement,
+  "justified-hold": JustifiedHoldArrangement,
   "citation-seams": CitationSeams,
   "citation-seams-prose": CitationSeamsProse,
   "code-viewer": CodeViewer,

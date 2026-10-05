@@ -1,14 +1,17 @@
 import { renderHook, render, act, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createElement } from "react";
+import { createElement, type RefObject } from "react";
 import { useInfiniteScroll, type UseInfiniteScrollReturn } from "../useInfiniteScroll";
+import { ScrollContainerContext } from "@/lib/scrollContainer";
 
 class MockIntersectionObserver {
   private cb: IntersectionObserverCallback;
+  readonly options: IntersectionObserverInit | undefined;
   static instances: MockIntersectionObserver[] = [];
 
-  constructor(cb: IntersectionObserverCallback) {
+  constructor(cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
     this.cb = cb;
+    this.options = options;
     MockIntersectionObserver.instances.push(this);
   }
   observe() {}
@@ -172,5 +175,71 @@ describe("useInfiniteScroll", () => {
     act(() => result.current.reset());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.hasMore).toBe(true);
+  });
+
+  describe("SPEC-CORE-001 the observer's root", () => {
+    const PREFETCH_MARGIN = "0px 0px 400px 0px";
+
+    function mountSentinel(
+      container: RefObject<HTMLElement | null> | null,
+      fetchPage = vi.fn().mockResolvedValue({ data: makeItems(["more"]), total: 90 }),
+    ) {
+      function Sentinel() {
+        const hook = useInfiniteScroll<{ id: string }>({
+          fetchPage,
+          limit: 30,
+          initial: {
+            items: makeItems(Array.from({ length: 30 }, (_, i) => `init-${i}`)),
+            total: 90,
+            page: 1,
+          },
+        });
+        return createElement("div", { ref: hook.sentinelRef });
+      }
+      const tree =
+        container === null
+          ? createElement(Sentinel)
+          : createElement(ScrollContainerContext.Provider, { value: container }, createElement(Sentinel));
+      render(tree);
+      return fetchPage;
+    }
+
+    const latest = () =>
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1];
+
+    it("SPEC-CORE-001 I10: observes inside a scroll container with that element as root and the 400px margin", async () => {
+      const scroller = document.createElement("section");
+      mountSentinel({ current: scroller });
+
+      await waitFor(() => expect(MockIntersectionObserver.instances.length).toBeGreaterThan(0));
+      expect(latest().options?.root).toBe(scroller);
+      expect(latest().options?.rootMargin).toBe(PREFETCH_MARGIN);
+    });
+
+    it("SPEC-CORE-001 I10: observes outside any provider with the viewport as root and the same margin", async () => {
+      mountSentinel(null);
+
+      await waitFor(() => expect(MockIntersectionObserver.instances.length).toBeGreaterThan(0));
+      expect(latest().options?.root ?? null).toBeNull();
+      expect(latest().options?.rootMargin).toBe(PREFETCH_MARGIN);
+    });
+
+    it("SPEC-CORE-001: a container ref still null falls back to the viewport, and the next observer takes the element", async () => {
+      const ref: { current: HTMLElement | null } = { current: null };
+      mountSentinel(ref);
+
+      await waitFor(() => expect(MockIntersectionObserver.instances.length).toBeGreaterThan(0));
+      const first = latest();
+      expect(first.options?.root ?? null).toBeNull();
+      expect(first.options?.rootMargin).toBe(PREFETCH_MARGIN);
+
+      const scroller = document.createElement("section");
+      ref.current = scroller;
+      act(() => first.fire(true));
+
+      await waitFor(() => expect(latest()).not.toBe(first));
+      await waitFor(() => expect(latest().options?.root).toBe(scroller));
+      expect(latest().options?.rootMargin).toBe(PREFETCH_MARGIN);
+    });
   });
 });

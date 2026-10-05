@@ -12,6 +12,7 @@ export const DESKTOP_ONLY = [
   "**/code-viewer-desktop.spec.ts",
   "**/segmented-control-desktop.spec.ts",
   "**/epub-bar-desktop.spec.ts",
+  "**/justified-hold-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */
