@@ -6,7 +6,7 @@
 # triage.md. Exit 0 PASS, 1 FAIL, 2 HUMAN_REVIEW_REQUIRED or a refusal to run, 64 usage error.
 # --print-brief prints one reviewer's brief and runs nothing.
 #
-# Environment: PROCESS_BASE_REF (default origin/main); PROCESS_CLASSIFY_CMD,
+# Environment: PROCESS_BASE_REF (default: `base_ref` in process/process.conf, else origin/main); PROCESS_CLASSIFY_CMD,
 # PROCESS_VALIDATE_CMD, PROCESS_MERGE_CMD, PROCESS_RENDER_CMD (default: the sibling scripts,
 # run with bash). The reviewer id is exported to each child as PROCESS_REVIEWER_ID.
 
@@ -18,6 +18,13 @@ CLASSIFY="${PROCESS_CLASSIFY_CMD:-$HERE/classify-risk.sh}"
 VALIDATE="${PROCESS_VALIDATE_CMD:-$HERE/validate-artifact.sh}"
 MERGE="${PROCESS_MERGE_CMD:-$HERE/merge-reviews.sh}"
 RENDER="${PROCESS_RENDER_CMD:-$HERE/render-triage.sh}"
+
+# The last `base_ref = <ref>` in <root>/process/process.conf, trimmed; empty when there is none.
+conf_base_ref() {
+  [ -f "$1/process/process.conf" ] || return 0
+  tr -d '\r' < "$1/process/process.conf" | sed -n 's/^[[:space:]]*base_ref[[:space:]]*=//p' | tail -n 1 \
+    | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'
+}
 
 die_usage() { printf 'review: %s\n' "$1" >&2; exit 64; }
 die() { printf 'review: %s\n' "$1" >&2; exit 2; }
@@ -55,7 +62,7 @@ persp="$(printf '%s' "$persp" | tr -d '[:space:]')"
 case "$persp" in *[!A-Za-z0-9_,-]*) die_usage "invalid --perspective: $persp" ;; esac
 
 RD="docs/process/reviews/$topic"
-BASE="${PROCESS_BASE_REF:-origin/main}"
+BASE="${PROCESS_BASE_REF:-$(conf_base_ref "$ROOT")}"; BASE="${BASE:-origin/main}"
 W="$(mktemp -d)" || die "cannot create a temporary directory"
 trap 'rm -rf "$W"' EXIT
 

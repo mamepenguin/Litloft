@@ -6,13 +6,22 @@
 # (docs/process/reviews/<topic>/r<N>/verdict.json) and prints
 # {"label": bool, "comment": markdown, "runs": [run directories]}. The label is true when any listed run's verdict is HUMAN_REVIEW_REQUIRED; the comment is that run's
 # "## Needs a human" section of triage.md.
+# The base is --base, else PROCESS_BASE_REF, else `base_ref` in process/process.conf, else
+# origin/main.
 # Exit: 0, or 2 on a usage error, an unreadable base or a malformed verdict.json.
 
 set -u
 
 die() { printf 'ci-report: %s\n' "$1" >&2; exit 2; }
 
-ROOT=""; BASE="origin/main"
+# The last `base_ref = <ref>` in <root>/process/process.conf, trimmed; empty when there is none.
+conf_base_ref() {
+  [ -f "$1/process/process.conf" ] || return 0
+  tr -d '\r' < "$1/process/process.conf" | sed -n 's/^[[:space:]]*base_ref[[:space:]]*=//p' | tail -n 1 \
+    | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'
+}
+
+ROOT=""; BASE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --root|--base)
@@ -25,6 +34,8 @@ done
 
 [ -n "$ROOT" ] || ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 [ -d "$ROOT" ] || die "root is not a directory: $ROOT"
+[ -n "$BASE" ] || BASE="${PROCESS_BASE_REF:-$(conf_base_ref "$ROOT")}"
+[ -n "$BASE" ] || BASE=origin/main
 
 DIFF="$(mktemp)" || die "cannot create a temporary file"
 trap 'rm -f "$DIFF"' EXIT

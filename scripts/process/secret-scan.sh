@@ -5,14 +5,21 @@
 #
 # Exit: 0 clean, 1 finding, 2 usage or allowlist error.
 # Change set: with --changed-files, every line of each listed file; otherwise the lines
-# added since the merge base with ${PROCESS_BASE_REF:-origin/main}, including uncommitted
-# changes and untracked files. Findings print the first four characters of the value, never
+# added since the merge base with the base ref (PROCESS_BASE_REF, else `base_ref` in
+# process/process.conf, else origin/main), including uncommitted changes and untracked files. Findings print the first four characters of the value, never
 # more. An allowlist entry's pattern is matched against the matched value, and its path glob
 # follows bash `case` rules, so `*` also matches `/`.
 
 set -u
 
 die() { printf 'secret-scan: %s\n' "$1" >&2; exit 2; }
+
+# The last `base_ref = <ref>` in <root>/process/process.conf, trimmed; empty when there is none.
+conf_base_ref() {
+  [ -f "$1/process/process.conf" ] || return 0
+  tr -d '\r' < "$1/process/process.conf" | sed -n 's/^[[:space:]]*base_ref[[:space:]]*=//p' | tail -n 1 \
+    | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'
+}
 
 trim() {
   local s="$1"
@@ -92,16 +99,16 @@ if [ -n "$CHANGED" ]; then
     add_whole_file "$p"
   done < "$CHANGED"
 else
-  ref="${PROCESS_BASE_REF:-origin/main}"
+  ref="${PROCESS_BASE_REF:-$(conf_base_ref "$ROOT")}"; ref="${ref:-origin/main}"
   git -C "$ROOT" rev-parse --verify --quiet "$ref^{commit}" >/dev/null \
-    || die "base ref '$ref' not found; set PROCESS_BASE_REF"
+    || die "base ref '$ref' not found; set PROCESS_BASE_REF or base_ref in process/process.conf"
   base="$(git -C "$ROOT" merge-base "$ref" HEAD)" || die "no merge base with $ref"
   git -C "$ROOT" -c core.quotepath=off diff --name-only --diff-filter=ACMR "$base" -- >> "$TMP/names" \
     || die "git diff failed"
   git -C "$ROOT" diff -U0 --no-color --no-prefix --no-ext-diff --diff-filter=ACMR "$base" -- \
     | awk -v dir="$TMP/chunks" -v idx="$TMP/index" '
         /^diff --git / { hdr = 1; next }
-        hdr && /^\+\+\+ / { if (out != "") close(out); n++; out = dir "/" n; print substr($0, 5) >> idx; close(idx); next }
+        hdr && /^\+\+\+ / { if (out != "") close(out); n++; out = dir "/" n; printf "" > out; print substr($0, 5) >> idx; close(idx); next }
         /^@@/      { hdr = 0; s = $3; sub(/^\+/, "", s); ln = s + 0; next }
         !hdr && /^\+/ { print ln "\t" substr($0, 2) > out; ln++ }
       '
@@ -148,13 +155,35 @@ report() { # <path> <line> <rule> <shown>
   printf '%s:%s: %s (value starts with "%s")\n' "$1" "$2" "$3" "$4"
 }
 
-shown_of() { # <rule> <matched text>
+value_of() { # <rule> <matched text>
   local v="$2"
   if [ "$1" = assigned-secret ]; then
     v="$(trim "${v#*[:=]}")"
     v="${v#[\"\']}"
   fi
+  printf '%s' "$v"
+}
+
+shown_of() { # <rule> <matched text>
+  local v
+  v="$(value_of "$1" "$2")"
   printf '%s' "${v:0:4}"
+}
+
+# An assigned value made only of letters, dashes and underscores is an identifier (an i18n
+# key, a storage key, a header name), not a secret.
+is_identifier() { # <rule> <matched text>
+  [ "$1" = assigned-secret ] || return 1
+  case "$(value_of "$1" "$2")" in *[!A-Za-z_-]*) return 1 ;; esac
+}
+
+first_hit() { # <rule index> <grep flags> <line text>: the first match that is not an identifier
+  local m
+  while IFS= read -r m; do
+    is_identifier "${R_NAME[$1]}" "$m" && continue
+    printf '%s' "$m"; return 0
+  done < <(printf '%s\n' "$3" | grep -o $2 -- "${R_RE[$1]}")
+  return 1
 }
 
 while IFS= read -r p; do
@@ -175,7 +204,7 @@ while [ "$i" -le "$CH_N" ]; do
     while IFS= read -r hit; do
       [ -n "$hit" ] || continue
       ln="${hit%%$'\t'*}"; text="${hit#*$'\t'}"
-      m="$(printf '%s\n' "$text" | grep -o $flags -- "${R_RE[$r]}" | head -1)"
+      m="$(first_hit "$r" "$flags" "$text")" || continue
       allowed "$p" "$m" && continue
       report "$p" "$ln" "${R_NAME[$r]}" "$(shown_of "${R_NAME[$r]}" "$m")"
     done < <(grep $flags -- "${R_RE[$r]}" "$chunk")

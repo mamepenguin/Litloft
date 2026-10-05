@@ -36,7 +36,7 @@
 #
 # Changed lines are the `+` and `-` lines inside hunks of a `diff --git` style diff.
 # Without --changed-files and --diff the diff is `git diff <base>...HEAD`; the base is
-# --base, else $PROCESS_BASE_REF, else origin/main, and --root must be the repository's
+# --base, else $PROCESS_BASE_REF, else `base_ref` in process/process.conf, else origin/main, and --root must be the repository's
 # top-level directory. With only one of the two files, the other half is derived from it
 # (paths from the diff headers) or is empty (no lines).
 #
@@ -47,6 +47,13 @@
 set -uf
 
 die() { echo "classify-risk: $*" >&2; exit 2; }
+
+# The last `base_ref = <ref>` in <root>/process/process.conf, trimmed; empty when there is none.
+conf_base_ref() {
+  [ -f "$1/process/process.conf" ] || return 0
+  tr -d '\r' < "$1/process/process.conf" | sed -n 's/^[[:space:]]*base_ref[[:space:]]*=//p' | tail -n 1 \
+    | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'
+}
 
 UNSCORED_RE='^(docs/process/reviews|[.]process/runs)/'
 
@@ -240,7 +247,8 @@ if [ -n "$CHANGED_FILE" ] || [ -n "$DIFF_FILE" ]; then
   [ "$BASE_EXPLICIT" -eq 0 ] || resolve_base
 else
   GIT_MODE=1
-  [ -n "$BASE_REF" ] || BASE_REF="${PROCESS_BASE_REF:-origin/main}"
+  [ -n "$BASE_REF" ] || BASE_REF="${PROCESS_BASE_REF:-$(conf_base_ref "$ROOT")}"
+  [ -n "$BASE_REF" ] || BASE_REF=origin/main
   resolve_base
   g diff --name-only --no-renames "$MB" HEAD > "$W/names" 2>/dev/null || die "cannot read the diff against $BASE_REF"
   LC_ALL=C sort -u "$W/names" | grep -v '^$' > "$W/paths" || true
