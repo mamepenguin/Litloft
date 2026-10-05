@@ -1,0 +1,88 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/justified-hold-last-line.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/justifiedHold.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/justified-hold-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileGrid.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FolderBrowser.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.hasMore.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/FolderContent.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/FolderContent.moreMayFollow.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useInfiniteScroll.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useInfiniteScroll.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useJustifiedFlip.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useJustifiedHold.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}
