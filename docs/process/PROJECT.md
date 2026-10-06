@@ -138,8 +138,9 @@ Every change also respects `.claude/rules/design-decisions.md`.
 
 Domains: `CORE` (backend, frontend, `mcp-server/`), `ADDON` (a core change made for an
 addon, such as an Internal API endpoint, or an addon's own behavior when its repository
-has no spec location) and `IOS` (the iOS app). The process workflow does not check out
-the submodules, so a SPEC-ADDON row cited only by an addon's tests stays `approved`.
+has no spec location) and `IOS` (the iOS app). A SPEC-ADDON row cited by an addon's tests
+counts only once the core pins the addon commit that carries the citation, so it becomes
+`implemented` with the pointer bump, not with the addon's own merge.
 
 The specs in `docs/superpowers/specs/` predate this and are a local, gitignored archive.
 
