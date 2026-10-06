@@ -89,7 +89,7 @@ If step 4 fails, the backup is incomplete.
 
 ## Drive contents off-site
 
-The [cloud-sync addon](../addons/cloud-sync.md) copies drive directories to an rclone remote on a schedule. It does not copy `data/` or the config files, so combine it with the backup above.
+The [cloud-sync addon](../addons/cloud-sync.md) copies drives, or folders inside them, to an rclone remote on a schedule. It does not copy `data/` or the config files, so combine it with the backup above.
 
 ## Encryption
 
