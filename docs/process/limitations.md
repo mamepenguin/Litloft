@@ -40,3 +40,12 @@ What the kit does not do. Read this before relying on it.
   a rule the agent is asked to follow, not one a script checks.
 - **`core.hooksPath` is per clone.** The pre-push hook is active only in clones where the
   install has set it. `review.sh` warns when the clone it runs in has another value.
+- **Submodules are read one level deep.** A gitlink inside a submodule is not followed by
+  `check-traceability` or `review.sh`.
+- **`classify-risk` and `secret-scan` do not read submodule content.** They see a
+  submodule as one path, and a submodule set to `ignore=all` (or
+  `diff.ignoreSubmodules=all`) drops out of their path lists altogether. Its risk and its
+  secrets belong to its own repository.
+- **CI checks out submodules with the workflow's default token.** A private submodule that
+  token cannot read fails the checkout, and `process.yml` is a kit file, so credentials
+  added to it are lost on the next update.

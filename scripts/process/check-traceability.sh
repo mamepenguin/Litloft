@@ -66,15 +66,83 @@ fi
 FAILED=0
 fail() { printf 'FAIL %s: %s\n' "$1" "$2" >&2; FAILED=1; }
 
-# referenced <id> <dirs>: succeeds when a file under one of the directories contains the ID
-# as a whole token; letters, digits, '_' and '-' extend a token.
-referenced() {
-  local d esc
-  esc="$(printf '%s' "$1" | sed 's#[]\\[*.^$(){}?+|/]#\\&#g')"
-  for d in $2; do
-    [ -d "$ROOT/$d" ] || continue
-    grep -rqE -- "(^|[^A-Za-z0-9_-])${esc}([^A-Za-z0-9_-]|\$)" "$ROOT/$d" 2>/dev/null && return 0
+W_SUBS="$(mktemp -d)" || die "cannot create a temporary directory"
+trap 'rm -rf "$W_SUBS"' EXIT
+
+norm_path() {
+  local s="$1" prev=""
+  while [ "$s" != "$prev" ]; do
+    prev="$s"
+    s="${s//\/\///}"
+    s="${s//\/.\///}"
+    case "$s" in ./*) s="${s#./}" ;; esac
+    case "$s" in */.) s="${s%/.}" ;; */) s="${s%/}" ;; esac
   done
+  [ -n "$s" ] || s=.
+  printf '%s' "$s"
+}
+# below <path> <dir>: <path> is at or below <dir>, by whole segments; a <dir> of `.` holds all.
+below() { [ "$2" = . ] || [ "$1" = "$2" ] || case "$1" in "$2"/*) true ;; *) false ;; esac; }
+
+# SUBS_ALL: the gitlink paths of HEAD and the index. SUBS_PIN: `<path>\t<sha>` for those in
+# HEAD. The working tree at or below any of them is never evidence.
+SUBS_ALL="$W_SUBS/all"; SUBS_PIN="$W_SUBS/pin"
+git -C "$ROOT" -c core.quotepath=off ls-tree -r HEAD 2>/dev/null \
+  | awk -F'\t' '$1 ~ /^160000 / { split($1, f, " "); print $2 "\t" f[3] }' | LC_ALL=C sort >"$SUBS_PIN"
+{ cut -f1 "$SUBS_PIN"
+  git -C "$ROOT" -c core.quotepath=off ls-files -s 2>/dev/null | awk -F'\t' '$1 ~ /^160000 / { print $2 }'
+} | awk 'NF' | LC_ALL=C sort -u >"$SUBS_ALL"
+
+# initialised <path>: the submodule's own repository answers there, not the superproject's.
+initialised() {
+  local top phys
+  phys="$(cd "$ROOT/$1" 2>/dev/null && pwd -P)" || return 1
+  top="$(git -C "$ROOT/$1" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  [ "$top" = "$phys" ]
+}
+in_sub() {
+  local s
+  while IFS= read -r s; do below "$1" "$s" && return 0; done <"$SUBS_ALL"
+  return 1
+}
+
+# referenced <id> <dirs>: succeeds when a file under one of the directories contains the ID
+# as a whole token; letters, digits, '_' and '-' extend a token. Inside a submodule only the
+# superproject's pinned commit is searched. UNREADABLE is set to `<path> at <sha>` for each
+# reached submodule that cannot be read at its pin, comma-separated, in path order.
+referenced() {
+  local d nd esc re s sha part f
+  UNREADABLE=""
+  esc="$(printf '%s' "$1" | sed 's#[]\\[*.^$(){}?+|/]#\\&#g')"
+  re="(^|[^A-Za-z0-9_-])${esc}([^A-Za-z0-9_-]|\$)"
+  if [ ! -s "$SUBS_ALL" ]; then
+    for d in $2; do
+      [ -d "$ROOT/$d" ] || continue
+      grep -rqE -- "$re" "$ROOT/$d" 2>/dev/null && return 0
+    done
+    return 1
+  fi
+  for d in $2; do
+    nd="$(norm_path "$d")"
+    [ -d "$ROOT/$nd" ] || continue
+    in_sub "$nd" && continue
+    while IFS= read -r f; do
+      in_sub "${f#./}" || return 0
+    done < <(cd "$ROOT" && grep -rlE -- "$re" "$nd" 2>/dev/null)
+  done
+  while IFS="$(printf '\t')" read -r s sha; do
+    for d in $2; do
+      nd="$(norm_path "$d")"
+      if below "$s" "$nd"; then part=.
+      elif below "$nd" "$s"; then part="${nd#"$s"/}"
+      else continue; fi
+      if initialised "$s" && git -C "$ROOT/$s" cat-file -e "$sha^{commit}" 2>/dev/null; then
+        git -C "$ROOT/$s" grep -qE -e "$re" "$sha" -- "$part" 2>/dev/null && return 0
+      else
+        case ", $UNREADABLE," in *", $s at $sha,"*) ;; *) UNREADABLE="${UNREADABLE:+$UNREADABLE, }$s at $sha" ;; esac
+      fi
+    done
+  done <"$SUBS_PIN"
   return 1
 }
 
@@ -112,7 +180,8 @@ while IFS= read -r raw || [ -n "$raw" ]; do
     || fail "$id" "ledger Approval $approval differs from $specfile ($rec)"
 
   [ "$state" = implemented ] || continue
-  referenced "$id" "$TEST_DIRS" || fail "$id" "not referenced under test_dirs ($TEST_DIRS)"
+  referenced "$id" "$TEST_DIRS" \
+    || fail "$id" "not referenced under test_dirs ($TEST_DIRS)${UNREADABLE:+; cannot read submodule $UNREADABLE}"
 done < "$LEDGER"
 
 [ "$FAILED" -eq 0 ] && echo "check-traceability: ok"

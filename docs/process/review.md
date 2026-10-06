@@ -62,8 +62,16 @@ author free. If a push is unavoidable, tell the reviewer the SHA changed.
 On the script path `review.sh` records a fingerprint before and after: the HEAD sha and a
 hash of tracked changes and untracked files, excluding everything under
 `docs/process/reviews/` except `invariants.md`, and excluding `.process/runs`, plus the
-content of the spec `invariants.md` names, which `.gitignore` may hide. A difference
-is FAIL. Reviewing a clean-tree commit is the default; `--working` is the exception.
+content of the spec `invariants.md` names, which `.gitignore` may hide, plus each
+submodule's HEAD, tracked changes and untracked files. A difference is FAIL. Reviewing a
+clean-tree commit is the default; `--working` is the exception. Without `--working` the run
+refuses to start while the tree, or any submodule, has changes; a submodule's `ignore=`
+setting does not hide them.
+
+When a submodule's pin moves, the diff the reviewers get shows the superproject's own
+changes first and then each submodule's file changes between the two pins. A submodule
+diff that cannot be produced (the submodule is not initialised, or lacks a pinned commit)
+is a warning in `triage.md`, and the reviewers did not see that code.
 
 ## R-2: The terminator lives in the artifact
 
