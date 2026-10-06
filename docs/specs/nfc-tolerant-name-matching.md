@@ -44,11 +44,12 @@ Spec IDs:
   both when indexing and when deciding to re-index.
 - **SPEC-ADDON-002** — Media Import writes new `.loft` and `.vtt` names in NFC, and its own
   sidecar lookups (downloaded captions, speech-to-text temp audio) match by
-  NFC-normalized name, not by glob.
-- **SPEC-CORE-003** — The core's batch rename treats two names that differ only in
-  normalization (and case, as today) as the same name when checking for an existing file,
-  and a batch in which one file takes another batch file's current name (a renumbering
-  chain or a swap) renames every file without overwriting any.
+  NFC-normalized literal name, not by glob.
+- **SPEC-CORE-003** — The core's batch rename never overwrites a file. A target name
+  that equals an existing name in the same folder, after NFC and `str.lower` on both
+  sides, is refused with 409 unless that existing name is the renamed file's own; this
+  includes the current name of another file in the same batch (a renumbering chain or a
+  swap).
 
 The domains follow the user's decision of 2026-10-06: the addon repositories have no spec
 location, so this spec lives in the core and the addon behaviors take `ADDON` ids.
@@ -64,20 +65,22 @@ SPEC-ADDON-001, indexing a `.loft`:
 
 1. The indexer picks up a `.loft` whose `whisper_indexed` is false.
 2. The worker finds the **matching `.vtt` files**: the entries of the `.loft`'s directory
-   for which `Path.is_file()` is true (symlinks followed, as `glob` + the existing code
-   do), whose on-disk name ends in `.vtt` (case-sensitive, as `glob` on Linux), and whose
-   NFC name starts with the NFC stem of the `.loft`. The stem is compared as literal
-   text, never as a pattern. This is today's `glob(f"{stem}*.vtt")` with two differences
-   only: normalization is ignored, and `[ ] * ?` in the stem are literal.
+   for which `Path.is_file()` is true (symlinks followed, as today), whose on-disk name
+   ends in `.vtt` (case-sensitive, as `glob` on Linux), and whose NFC name starts with
+   the NFC stem of the `.loft`. The stem is compared as literal text, never as a
+   pattern. This is today's `glob(f"{stem}*.vtt")` with two differences only:
+   normalization is ignored, and `[ ] * ?` in the stem are literal.
 3. If one of them is exactly `<stem>.vtt` after NFC it is used; otherwise the first in
-   sorted order of the on-disk names, as today.
+   sorted order of the on-disk names, as today. The chosen file is opened through its
+   on-disk entry, not through a path rebuilt from the NFC name.
 4. Cues are parsed; chunks, embeddings, FTS rows and TF-IDF keywords are written, as
    today. No word rows are written (the `.vtt` path never writes them).
 
 SPEC-ADDON-001, the reconcile pass:
 
-1. For each active `.loft` with `whisper_indexed` true and no transcript chunk, the pass
-   looks for matching `.vtt` files exactly as in step 2 above (the same function).
+1. For each active `.loft` with `whisper_indexed` true, the temp-audio check runs first,
+   as today. Then, for a `.loft` with no transcript chunk, the pass looks for matching
+   `.vtt` files exactly as in step 2 above (the same function).
 2. If anything matches, `whisper_indexed` is set to false and the file is queued again.
 3. On the first pass after deployment this re-queues the 117 files measured above, with
    no manual step.
@@ -85,8 +88,11 @@ SPEC-ADDON-001, the reconcile pass:
 SPEC-ADDON-002, import:
 
 1. A link import or a subscription import receives a title.
-2. The title is sanitized as today and then NFC-normalized; the `.loft` is written under
-   that name (with ` (N)` added on a clash, as today).
+2. `_sanitize_filename` NFC-normalizes the title first, then replaces the forbidden
+   characters, strips and truncates to 200 code points as today. Normalizing first keeps
+   a base character and its combining mark from being cut apart. Both copies of the
+   function (`service.py`, `subscription/manager.py`) behave identically. The `.loft` is
+   written under that name, with ` (N)` added on a clash as today.
 3. A subscription transcript is written as `<that stem>.vtt`, so both share one form.
 4. Caption download by yt-dlp and speech-to-text temp audio use the stored NFC stem, as
    today. The files they produce are found by listing the directory instead of `glob()`.
@@ -95,30 +101,32 @@ SPEC-ADDON-002, import:
    today's pattern after `{stem}` with `fnmatch` semantics. So:
    - `_download_captions_sync`: rest matches `.*.vtt`
    - `_cleanup_stt_temp` and `_cleanup_stale_stt_temp_files`: rest matches `.stt_temp.*`
+     (the stale cleanup keeps its 24-hour age gate)
    - `_download_stt_audio_sync`: rest matches `.stt_temp.*.part`, then `.stt_temp.*`
    The match set is identical to today's for any stem without glob metacharacters whose
-   on-disk form is NFC, so no site deletes or renames a file it would not have touched
-   before, other than the file it was failing to find.
-5. Every name Media Import derives from a `.loft`'s stem (link-import `<stem>.vtt`,
+   on-disk form is NFC.
+5. After selection, every equality or exclusion test between names at these sites
+   (`best.name != vtt_path.name`, `c != vtt_path`, `p.name != final_path.name`) compares
+   NFC names, so an NFD spelling of the target is treated as the target itself and is
+   never renamed onto itself or unlinked as "another candidate".
+6. Every name Media Import derives from a `.loft`'s stem (link-import `<stem>.vtt`,
    `<stem>.stt_temp.*`) is built from the stored NFC stem, which after step 2 is also the
    `.loft`'s own on-disk stem.
 
 SPEC-CORE-003, batch rename:
 
 1. The user renames several files at once.
-2. For each target, the duplicate check lists the folder and compares
-   `NFC(name).lower()` on both sides (`str.lower`, as today, not `casefold`); the "is
-   this a file in the batch" test compares NFC names.
-3. A clash returns 409 as today.
-4. Otherwise every file whose name changes is first renamed to a temporary name in its
-   own folder that collides with nothing, then each is renamed to its new name. A file
-   may therefore take a name that another file of the same batch holds when the batch
-   starts (`1.mp4 → 2.mp4`, `2.mp4 → 3.mp4`; or a swap), and no file's content is lost.
-   Today the renames run one by one in order, so the first one replaces the second file
-   on disk before that file has moved.
-5. If any step fails, the files already moved are moved back to their original names
-   (from the temporary or the final name), the DB is rolled back, and the error is
-   returned, as today.
+2. For each file whose name changes, the duplicate check lists that file's folder. An
+   entry clashes when `NFC(entry).lower() == NFC(new_name).lower()` (`str.lower`, as
+   today, not `casefold`) and the entry is not the file itself, that is
+   `NFC(entry).lower() != NFC(file.filename).lower()`. The test is per folder: a file in
+   another folder never counts as "itself".
+3. Consequently a new name equal to the current name of another file in the same batch
+   and folder is a clash. A renumbering chain (`1.mp4 → 2.mp4`, `2.mp4 → 3.mp4`) or a
+   swap is refused with 409 before anything moves; the user renames in two steps.
+4. The existing in-batch check (two files given the same new name) is unchanged.
+5. A clash returns 409 `File already exists: <name>` as today. Otherwise the renames
+   proceed one by one, with today's rollback.
 
 ### 2. Failure cases
 
@@ -136,14 +144,14 @@ SPEC-CORE-003, batch rename:
 - A title becomes a name that already exists after NFC: the existing ` (N)` loop finds it
   (`exists()` sees through normalization on the host), unchanged.
 - Batch rename where the folder cannot be listed: unchanged (no siblings considered).
-- Batch rename fails between the two phases (a file vanished, permission): every file
-  is returned to its original name and the DB is unchanged, as with today's rollback.
+- Batch rename fails partway: today's rollback, unchanged.
 
 ### 3. States
 
 No new state. `IndexedFile.whisper_indexed` keeps its two values; this change only alters
 which files the existing transition `true → false` (reconcile) applies to, and which
-`.vtt` the existing `false → true` (indexing) reads.
+`.vtt` the existing `false → true` (indexing) reads. The batch rename gains no
+intermediate state; it only refuses more plans.
 
 ### 4. Data read and written
 
@@ -158,18 +166,20 @@ which files the existing transition `true → false` (reconcile) applies to, and
   does for every transcribed file (see item 5).
 - Core DB `files`: read by the batch rename, unchanged; written by Media Import's
   registration through the core, unchanged (it was already NFC).
-- Files on disk: new `.loft` and `.vtt` names are NFC. Existing files are not renamed.
+- Files on disk: new `.loft` and `.vtt` names are NFC. Existing files are not renamed,
+  except by Media Import's own cleanup and caption steps as stated in I10.
 
 ### 5. External services
 
-No new kind of call. The one-time burst below was accepted by the user on 2026-10-06. The `.vtt` path itself calls no speech-to-text provider and no
-LLM; it runs the embedding model. But a successful index triggers the existing
-`requeue_after_whisper`, so for every feature in `on_index` mode the recovered files get
-the same LLM jobs any other transcribed `.loft` got. Production on 2026-10-06 has
-`summaries` and `auto_tags` in `on_index`: deploying this change enqueues up to 117
-summary jobs and 117 auto-tag jobs once, routed and gated by each drive's `llm_cloud`
-policy exactly as for other files. A slow or failing LLM leaves those jobs to the
-existing retry and sweep; it does not affect the transcripts.
+No new kind of call. The one-time burst below was accepted by the user on 2026-10-06.
+The `.vtt` path itself calls no speech-to-text provider and no LLM; it runs the
+embedding model. But a successful index triggers the existing `requeue_after_whisper`,
+so for every feature in `on_index` mode the recovered files get the same LLM jobs any
+other transcribed `.loft` got. Production on 2026-10-06 has `summaries` and `auto_tags`
+in `on_index`: deploying this change enqueues up to 117 summary jobs and 117 auto-tag
+jobs once, routed and gated by each drive's `llm_cloud` policy exactly as for other
+files. A slow or failing LLM leaves those jobs to the existing retry and sweep; it does
+not affect the transcripts.
 
 ### 6. Authorization
 
@@ -185,22 +195,26 @@ access checks. No new endpoint.
   mode run when the user asks, as today.
 - `.vtt` sidecar selection in Intelligence changes from glob to listing: a stem with
   `[...]` now matches, which is the intended effect.
-- The `stem*` prefix rule is kept: a `.loft` named `Title` with no `.vtt` of its own still
-  takes `Title (1).vtt`, as today (see Checked, no action).
+- The prefix rule is kept: a `.loft` named `Title` with no `.vtt` of its own still takes
+  `Title (1).vtt`, as today (see Checked, no action).
 - Media Import thumbnails already use the NFC stem (`_save_loft_thumbnail`), so NFC
-  `.loft` names do not change thumbnail paths.
+  `.loft` names do not change thumbnail paths. The `filename` that `create_loft_sync`
+  returns to API callers is the NFC name.
 - The core subtitle detection for local videos (`services/subtitle.py`) already compares
   NFC to NFC and is unchanged.
-- Batch rename: a rename that today silently overwrites an NFD-named sibling is refused
-  with 409, and a renumbering chain or swap inside one batch, which today overwrites a
-  file, now succeeds. Watch history, tags and comments stay with the file they belonged
-  to, because each DB row follows its own file.
+- Batch rename: a rename that today silently overwrites an NFD-named sibling, a file in
+  the batch that a cross-folder "self" match let through, or another batch file in a
+  chain or swap, is refused with 409. Batches without such a clash rename exactly as
+  today, thumbnails included.
 
 ### 8. Error behavior
 
-No new user-visible error. The batch rename's existing 409 `File already exists` message
-is returned in the newly detected case. An unlistable directory in the reconcile pass is
-logged at WARNING with the file id and the error, once per pass per file.
+- Batch rename: the backend returns its existing 409 `File already exists: <name>` in
+  the newly refused cases. The batch-rename dialog shows its existing generic failure
+  message for every failure, as today; it is not changed.
+- Intelligence logs: one WARNING per file from the indexer when a `.loft`'s directory
+  cannot be listed; one WARNING per reconcile pass with the count of such files.
+- No other new message.
 
 ### 9. User-visible behavior
 
@@ -213,9 +227,9 @@ logged at WARNING with the file id and the error, once per pass per file.
   Finder and in Litloft the name looks the same.
 - A batch rename onto a name held by a file whose on-disk name is NFD is refused, as it is
   for an NFC one.
-- A batch rename that renumbers files onto each other's names (for example sequential
-  numbering started one higher than the current numbers) completes, and each file keeps
-  its own content.
+- A batch rename that would renumber files onto each other's current names now fails
+  with the dialog's generic error and changes nothing, where today it silently loses
+  files. Renaming in two steps (for example to a temporary prefix first) works.
 
 ### 10. Non-functional
 
@@ -226,22 +240,26 @@ logged at WARNING with the file id and the error, once per pass per file.
 
 ## Touch points
 
-- `addons/intelligence/app/workers/whisper.py` — `_index_loft_vtt` (`.vtt` lookup and the
-  `<stem>.vtt` preference).
-- `addons/intelligence/app/indexer.py` — `_reset_loft_refs_with_new_vtt` (`.vtt` lookup).
-- `addons/intelligence/tests/` — new tests, and an inventory test that pins every
-  directory-listing call in `app/` (see I7).
+- `addons/intelligence/app/sidecar_match.py` (new) — the NFC-literal sibling matcher for
+  Intelligence. It cannot import the core's copy (separate container); the two are kept
+  in sync by review, like `frontmatter.py`.
+- `addons/intelligence/app/workers/whisper.py` — `_index_loft_vtt` (`.vtt` lookup, the
+  `<stem>.vtt` preference, WARNING on an unlistable directory).
+- `addons/intelligence/app/indexer.py` — `_reset_loft_refs_with_new_vtt` (`.vtt` lookup,
+  per-pass WARNING count).
+- `addons/intelligence/tests/` — new tests, and the inventory test (I7).
+- `backend/app/services/sidecar_match.py` (new) — the same matcher in the core, used by
+  Media Import, which runs in-process and may import the core.
 - `addons/media_import/backend/service.py` — `_sanitize_filename`, `create_loft_sync`,
   `_download_captions_sync`, `_cleanup_stt_temp`, `_download_stt_audio_sync`,
   `_cleanup_stale_stt_temp_files`.
 - `addons/media_import/backend/subscription/manager.py` — `_sanitize_filename`,
   `_allocate_loft_path`, `_save_vtt`.
-- `addons/media_import/backend/tests/` — new tests and the same kind of inventory test.
+- `addons/media_import/backend/tests/` — new tests, a test that both `_sanitize_filename`
+  copies give the same output, and the inventory test (I7).
 - `backend/app/services/fileops.py` — `_validate_no_duplicates` (batch rename). A HIGH
   risk zone (`docs/process/PROJECT.md`, data the filesystem cannot regenerate).
-- `backend/app/services/fileops.py` — `batch_rename` and `_rollback_fs_renames`
-  (two-phase rename and its rollback).
-- `backend/tests/` — batch-rename tests and an inventory test over `backend/app`.
+- `backend/tests/` — batch-rename tests and the inventory test over `backend/app` (I7).
 - `.github/workflows/process.yml` — `submodules: recursive` on the checkout, as in
   `ci.yml`. CRITICAL zone and a protected path; edited with the user's decision of
   2026-10-06.
@@ -253,9 +271,9 @@ logged at WARNING with the file id and the error, once per pass per file.
 - Submodule pointers `addons/intelligence` and `addons/media_import` in the core
   repository (CLAUDE.md, Git).
 - Rules passed through: `.claude/rules/design-decisions.md` (drive boundary; missing
-  files; addons must not need core changes for their own behavior — none is added here),
+  files; no core-to-addon dependency — the core helper names no addon),
   `.claude/rules/backend-conventions.md` (no language-dependent rules: NFC normalization
-  is script-independent).
+  is script-independent; `import app.config as config`).
 - `docs/specs/INDEX.md` — three rows.
 - No endpoint, WebSocket event, configuration key or user-guide page changes. The
   protected paths edited are `process.yml` and `PROJECT.md`, listed above.
@@ -263,19 +281,19 @@ logged at WARNING with the file id and the error, once per pass per file.
 ## Invariants
 
 I1. A `.loft` gets transcript chunks from an adjacent `.vtt` whose name, after NFC on both sides, starts with the `.loft`'s stem and ends in `.vtt`, whatever the normalization (NFC, NFD or mixed) of either the stored path or the on-disk names.
-I2. The `.loft`'s stem is matched as literal text: a stem containing `[`, `]`, `*` or `?` is indexed from its adjacent `.vtt` like any other, and those characters never widen the match.
+I2. The `.loft`'s stem is matched as literal text: a stem containing `[`, `]`, `*` or `?` is indexed from its adjacent `.vtt` like any other, and those characters never widen the match (a sibling `Titlex.vtt` does not match the stem `Title[x]`).
 I3. When `<stem>.vtt` (compared after NFC) exists beside other matching `.vtt` files, Intelligence indexes `<stem>.vtt`.
 I4. The reconcile pass sets `whisper_indexed` to false for an active `.loft` with no transcript chunk exactly when a `.vtt` matching I1–I2 exists beside it; a `.loft` that already has chunks and no speech-to-text temp audio is not re-queued.
 I5. Every `.loft` and subscription `.vtt` Media Import creates after this change has an NFC file name, and the `.vtt`'s stem equals the `.loft`'s stem byte for byte.
-I11. Every file Media Import names from a `.loft`'s stem (link-import `<stem>.vtt`, `<stem>.stt_temp.*`) has a stem byte-identical to the stored NFC stem, so Intelligence's exact-path lookup of `<stem>.stt_temp.m4a` finds it.
-I12. For a stem without glob metacharacters whose on-disk form is NFC, each Media Import listing site (captions, temp-audio cleanup, stale cleanup, temp-audio download) selects the same set of files as its current `glob` pattern.
 I6. Media Import's caption download reports success and leaves `<stem>.vtt` on disk when yt-dlp wrote a `<stem>.<lang>.vtt`, also when the stem contains `[`, `]`, `*` or `?`.
-I7. In each of `addons/intelligence/app`, `addons/media_import/backend` (tests excluded) and `backend/app`, an AST-based inventory test finds every call to `Path.glob`, `Path.rglob`, `Path.iterdir`, `Path.walk`, `glob.glob`, `glob.iglob`, `os.listdir`, `os.scandir`, `os.walk`, `fnmatch.fnmatch`, `fnmatch.fnmatchcase` and `fnmatch.filter` (attribute calls are matched by method name, whatever the receiver), keys each by (file path, enclosing function's qualified name, call name) with a count, and compares the result with a table in which each key carries one category: `stored-name` (compares against a name not taken from the same listing, and goes through the NFC-literal helper) or `listing-only` (does not). A call added, removed or moved fails the test until the table is updated.
-I8. A batch rename to a name that equals an existing sibling's on-disk name after NFC and `str.lower` returns 409 and moves no file.
-I9. A batch rename whose new names do not collide with any sibling after NFC and `str.lower` behaves as before: every file is renamed, and a file renamed to a case or normalization variant of its own name is not reported as a clash.
-I10. No existing file on a drive is renamed, moved or deleted by deploying this change.
-I13. A batch rename in which a file's new name equals the current name of another file in the same batch (a chain or a swap) leaves every file under its new name with its own original bytes, and each DB row's `file_path` points at the file whose content it described before.
-I14. A batch rename that fails partway leaves every file under its original name with its original bytes and the DB unchanged.
+I7. In each of `addons/intelligence/app`, `addons/media_import/backend` (tests excluded) and `backend/app`, an AST-based inventory test finds every call to `Path.glob`, `Path.rglob`, `Path.iterdir`, `Path.walk`, `glob.glob`, `glob.iglob`, `os.listdir`, `os.scandir`, `os.walk`, `fnmatch.fnmatch`, `fnmatch.fnmatchcase` and `fnmatch.filter` (attribute calls matched by method name whatever the receiver; bare names matched when imported from `os`, `glob` or `fnmatch`), keys each by (file path, enclosing function's qualified name, call name) with a count, and compares the result with a table in which each key carries a category. A key in category `stored-name` (it compares listed names against a name not taken from the same listing) fails the test unless its enclosing function calls the repository's sidecar matcher or `unicodedata.normalize`; category `listing-only` carries no such check. A call added, removed or moved fails the test until the table is updated.
+I8. A batch rename whose new name equals, after NFC and `str.lower`, the on-disk name of another entry in the same folder (an unrelated file, or another file of the batch) returns 409 and moves no file and changes no DB row.
+I9. A batch rename with no such clash behaves as before: every file is renamed, and a file renamed to a case or normalization variant of its own name is not reported as a clash.
+I10. Deploying this change renames, moves or deletes no existing file on a drive, except that Media Import may delete its own stale `<stem>.stt_temp.*` files and rename a downloaded `<stem>.<lang>.vtt` to `<stem>.vtt` for stems its glob used to miss (accepted by the user on 2026-10-06).
+I11. Every file Media Import names from a `.loft`'s stem (link-import `<stem>.vtt`, `<stem>.stt_temp.*`) has a stem byte-identical to the stored NFC stem, so Intelligence's exact-path lookup of `<stem>.stt_temp.m4a` finds it.
+I12. For a stem without glob metacharacters whose on-disk form is NFC, each Media Import listing site (captions, temp-audio cleanup, stale cleanup, temp-audio download) selects the same set of files as its current `glob` pattern; `.*.vtt` never selects `<stem>.vtt` itself, and `.stt_temp.*` still selects `.part` files.
+I13. `_sanitize_filename` in `service.py` and in `subscription/manager.py` return the same NFC string for the same title, and never end in a lone combining mark.
+I14. On a pull request, the process workflow's `check-traceability` reads `addons/*/tests` at the pinned submodule commits: an `implemented` SPEC-ADDON row cited only by an addon test passes.
 
 ## Checked, no action
 
@@ -285,19 +303,26 @@ I14. A batch rename that fails partway leaves every file under its original name
   `Title (1).vtt`. This is an existing behavior, it is not caused by normalization, and
   narrowing it changes which files get a transcript. Out of scope; kept as is (I3 only
   guarantees the exact name wins when present).
+- **Letting a renumbering chain or swap succeed.** That needs a two-phase rename on disk,
+  in the DB (the `(drive, file_path)` UNIQUE constraint is checked per row on flush) and
+  for video thumbnails, with its own rollback. The user chose to refuse such batches
+  instead (2026-10-06); succeeding is a separate spec if it is ever wanted.
+- **Two files in different folders given the same new name in one batch.** Refused by the
+  existing in-batch check, which is not folder-aware. A false 409, not data loss; kept.
 - **`folder_path` is not NFC-normalized** in upload, `move_file`, `copy_file`,
   `move_folder` (`fileops.validate_path_safe`) and Media Import's folder argument. This
   stores a non-NFC folder path in the DB, which is a different defect (DB form, not
   listing comparison). Folder names typed in a browser are NFC in practice. Recorded for a
   separate change.
-- **`backend/app/services/subtitle.py` `detect_subtitles`.** Already compares NFC to NFC.
+- **`backend/app/services/subtitle.py` `detect_subtitles`.** Already compares NFC to NFC;
+  classified `stored-name` in the inventory and passes its check.
 - **Single-file rename, move, copy and other direct opens** (`exists()`, `open()`,
   `rename()` on a path built from the DB). The host resolves them through normalization;
   they are not affected.
 - **`clip.py` frame listing, scanner listing, upload temp dirs, addon registry,
-  `drive_seed`, `markdown_image_import`, admin listing.** They list a directory without
-  comparing against a stored name, or normalize the listed name already. They are
-  classified in the inventory test (I7), not changed.
+  `drive_seed`, `markdown_image_import`, admin listing, eval loaders.** They list a
+  directory without comparing against a stored name, or normalize the listed name
+  already. They are classified in the inventory test (I7), not changed.
 - **frontend and mcp-server.** No server-side directory-listing name match.
 - **Media Import's `{stem}.*.vtt` caption pattern also matches another title's
   sidecar** (`Title.Part2.vtt` for `Title`), which `_download_captions_sync` may then
@@ -305,5 +330,7 @@ I14. A batch rename that fails partway leaves every file under its original name
   language code risks missing yt-dlp's language variants and needs its own measurement.
   The user chose to keep it out of this change (2026-10-06); recorded in
   `docs/developer-guide/known-issues.md`. I12 keeps the match set as it is.
+- **The batch-rename dialog's generic error.** It discards the response body for every
+  failure today; showing the 409 reason is a UI change outside this fix.
 - **Byte-exact filesystems holding both an NFC and an NFD name.** Not a production case
   (APFS cannot hold both); first in sorted order wins.
