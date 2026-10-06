@@ -19,3 +19,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-001 | approved | docs/specs/nfc-tolerant-name-matching.md | sha256:1811edf305fbf39b2e77f979c1443d32946b0e2be702bac326f376f01e7767bf |
 | SPEC-ADDON-002 | approved | docs/specs/nfc-tolerant-name-matching.md | sha256:1811edf305fbf39b2e77f979c1443d32946b0e2be702bac326f376f01e7767bf |
 | SPEC-CORE-003 | implemented | docs/specs/nfc-tolerant-name-matching.md | sha256:1811edf305fbf39b2e77f979c1443d32946b0e2be702bac326f376f01e7767bf |
+| SPEC-ADDON-003 | draft | docs/specs/cloud-sync-folder-mappings.md | |
+| SPEC-ADDON-004 | draft | docs/specs/cloud-sync-folder-mappings.md | |
