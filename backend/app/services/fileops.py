@@ -979,6 +979,10 @@ def _compute_new_filename(file: File, mode: str, index: int, **kwargs) -> str:
     return new_stem + ext
 
 
+def _fold_name(name: str) -> str:
+    return unicodedata.normalize("NFC", name).lower()
+
+
 def _validate_no_duplicates(rename_plan: list[tuple[File, str]], drive_path: Path) -> None:
     new_names = [name for _, name in rename_plan]
     seen: set[str] = set()
@@ -990,28 +994,30 @@ def _validate_no_duplicates(rename_plan: list[tuple[File, str]], drive_path: Pat
             )
         seen.add(lower)
 
-    ids_in_batch = {f.id for f, _ in rename_plan}
+    # Replays the renames in the order batch_rename runs them, so a name freed
+    # by an earlier rename may be taken by a later one, and nothing is ever
+    # renamed onto a file that is still there.
+    held_by_folder: dict[str, set[str]] = {}
     for file, new_name in rename_plan:
-        if new_name == file.filename:
+        folder_key = unicodedata.normalize("NFC", file.folder_path or "")
+        if folder_key not in held_by_folder:
+            folder_dir = drive_path / file.folder_path if file.folder_path else drive_path
+            held_by_folder[folder_key] = (
+                {_fold_name(p.name) for p in folder_dir.iterdir() if p.is_file()}
+                if folder_dir.exists()
+                else set()
+            )
+        held = held_by_folder[folder_key]
+        old, new = _fold_name(file.filename), _fold_name(new_name)
+        if new == old:
             continue
-        folder_dir = drive_path / file.folder_path if file.folder_path else drive_path
-        siblings = (
-            (folder_dir / p.name)
-            for p in folder_dir.iterdir()
-            if p.is_file()
-        ) if folder_dir.exists() else iter([])
-        for sibling_path in siblings:
-            sibling_name = sibling_path.name
-            if sibling_name.lower() == new_name.lower():
-                is_self = any(
-                    f.filename == sibling_name and f.id in ids_in_batch
-                    for f, _ in rename_plan
-                )
-                if not is_self:
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"File already exists: {new_name}",
-                    )
+        if new in held:
+            raise HTTPException(
+                status_code=409,
+                detail=f"File already exists: {new_name}",
+            )
+        held.discard(old)
+        held.add(new)
 
 
 def _rollback_fs_renames(completed: list[tuple[Path, Path]]) -> None:
@@ -1072,6 +1078,9 @@ def batch_rename(
             completed_fs.append((new_full, old_full))
 
             _update_file_after_rename(file, new_name, new_rel, drive_path)
+            # The (drive, file_path) UNIQUE check has to see the rows change in
+            # the same order the files moved, not in primary-key order.
+            db.flush()
             results.append({"id": file.id, "old_name": old_name, "new_name": new_name})
 
         db.commit()

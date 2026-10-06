@@ -44,6 +44,8 @@ Select files and choose **Rename** in the selection bar. The dialog previews eve
 - **Regex**: a pattern and a replacement.
 - **Prefix / Suffix**: add or remove text at the start or end.
 
+Files are renamed in the order you selected them. A file cannot take a name that another file in the folder still holds at that point, so swapping two names, or numbering files upward onto each other, is refused and nothing changes; rename through a temporary name first.
+
 ## Editing text
 
 To edit a Markdown or text file in the browser you need the [Knowledge addon](../addons/knowledge.md). On the file's page, press **Open editor**. Without the addon, text files are read-only in the browser. See [notes](notes.md).

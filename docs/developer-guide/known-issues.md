@@ -594,3 +594,9 @@ local fallback).
 it is open, arrows, Home, End and Escape move or close the menu from anywhere,
 including a text field; with both summary menus open, closing one unbinds the
 other's keys. Reached only with the keyboard, by tabbing away from an open menu.
+
+**Refreshing a video's captions can take another video's subtitle file.** Media
+Import looks for the file yt-dlp wrote as `<title>.*.vtt`, which also matches
+`<title>.<anything>.vtt` belonging to a different video, and may rename it to
+`<title>.vtt` or delete it. Reached when one folder holds an import named
+`Title` and another named `Title.<something>`.
