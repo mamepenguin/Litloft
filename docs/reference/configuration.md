@@ -159,11 +159,12 @@ The full key list with defaults is on the [intelligence page](../addons/intellig
 | `schedule` | cron string or `null` | Automatic sync schedule. `null` or absent turns the scheduler off. An invalid expression is logged and the scheduler does not start. |
 | `max_delete` | integer ≥ 1 | Most files one sync may delete from the remote (rclone `--max-delete`). Default `200`. A value below 1 makes the file unparseable. |
 | `mappings[].drive` | string | Drive name from `drives.json`. A drive turned off for `cloud-sync` in `drives.json` `addons` is not synced. |
+| `mappings[].path` | string or `null` | Optional folder inside the drive, relative to its root. Absent, `""` or `null` is the whole drive. A drive may have several mappings with different paths. |
 | `mappings[].remote` | string | rclone remote target. Must contain `:` and must not start with `-`. |
 
 A missing or unparseable file is logged and treated as having no mappings.
 
-See [cloud-sync addon](../addons/cloud-sync.md).
+A duplicate drive and path, a `path` that starts with `/` or contains `..`, or two remotes that are equal or nested makes the whole file unparseable. The rules are on the [cloud-sync addon](../addons/cloud-sync.md#sync-configjson) page.
 
 ---
 
