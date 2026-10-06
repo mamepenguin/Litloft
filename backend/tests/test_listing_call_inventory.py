@@ -37,7 +37,7 @@ _MODULE_FUNCS = {
     "os": {"listdir", "scandir", "walk"},
     "fnmatch": {"fnmatch", "fnmatchcase", "filter"},
 }
-_NORMALIZERS = {"match_siblings", "normalize"}
+_NORMALIZERS = {"match_siblings", "unicodedata.normalize"}
 
 
 def _listing_call(call: ast.Call, bare: dict[str, str]) -> str | None:
@@ -61,6 +61,8 @@ def _called_names(node: ast.AST) -> set[str]:
         if isinstance(sub, ast.Call):
             if isinstance(sub.func, ast.Attribute):
                 names.add(sub.func.attr)
+                if isinstance(sub.func.value, ast.Name):
+                    names.add(f"{sub.func.value.id}.{sub.func.attr}")
             elif isinstance(sub.func, ast.Name):
                 names.add(sub.func.id)
     return names

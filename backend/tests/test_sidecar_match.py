@@ -79,6 +79,10 @@ CASES = [
         nfc(CAFE), ".stt_temp.*.part", [nfd(CAFE) + ".stt_temp.webm.part"],
         id="part-pattern-mixed-forms",
     ),
+    pytest.param(
+        ["f.vtt", nfd("é") + "z.vtt"], "", "*.vtt", [nfd("é") + "z.vtt", "f.vtt"],
+        id="sorted-by-on-disk-bytes-not-nfc",
+    ),
     pytest.param([], "Clip", "*.vtt", [], id="empty-directory"),
     pytest.param(["a.vtt", "b.vtt"], "", "*.vtt", ["a.vtt", "b.vtt"], id="empty-stem"),
 ]
