@@ -137,8 +137,9 @@ Every change also respects `.claude/rules/design-decisions.md`.
 `docs/specs/INDEX.md`. Change this only together with `process/process.conf`.
 
 Domains: `CORE` (backend, frontend, `mcp-server/`), `ADDON` (a core change made for an
-addon, such as an Internal API endpoint) and `IOS` (the iOS app). An addon's own
-behavior is specified in the addon's repository.
+addon, such as an Internal API endpoint, or an addon's own behavior when its repository
+has no spec location) and `IOS` (the iOS app). The process workflow does not check out
+the submodules, so a SPEC-ADDON row cited only by an addon's tests stays `approved`.
 
 The specs in `docs/superpowers/specs/` predate this and are a local, gitignored archive.
 

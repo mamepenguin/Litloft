@@ -1,0 +1,56 @@
+{
+  "risk": "CRITICAL",
+  "score": 11,
+  "base": 3,
+  "zone_max": "HIGH",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "backend/app/services/fileops.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/sidecar_match.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_batch_rename_clash.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_listing_call_inventory.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_sidecar_match.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/known-issues.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/process/PROJECT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/nfc-tolerant-name-matching.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/upload-and-fileops.md",
+      "level": "LOW"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)"
+  ]
+}
