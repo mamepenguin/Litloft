@@ -138,6 +138,8 @@ platform's required review by someone other than the author; see `limitations.md
   approved, implemented, superseded).
 - Tests cite the id they verify, in the directories `process.conf` names in `test_dirs`.
   `check-traceability` reads those citations; an `implemented` row needs one.
+  Inside a git submodule a citation counts only in the commit the superproject's `HEAD`
+  pins, not in the submodule's working tree or a commit past the pin.
 - A behavior-preserving refactor carries the existing id and needs no new spec. A bug fix
   states the correct behavior as a SPEC id, or as an unspecified-behavior entry when no spec
   covered it.

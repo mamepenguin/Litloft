@@ -156,6 +156,120 @@ expected_set() { # reads rev.dat, needs RISK
   [ "$nread" -gt 0 ] || die "no read reviewer is in the expected set at risk $RISK"
 }
 
+# ------------------------------------------------------------------ submodules
+# Submodules are listed from the trees, never from `git diff` or `git status`, which honour
+# `ignore=` and would hide them. Paths with a tab or a newline are not supported.
+TAB="$(printf '\t')"
+# gitlinks <commit>: `<path>\t<sha>` for each gitlink in the commit's tree, in path order.
+gitlinks() {
+  git -c core.quotepath=off ls-tree -r "$1" 2>/dev/null \
+    | awk -F'\t' '$1 ~ /^160000 / { split($1, f, " "); print $2 "\t" f[3] }' | LC_ALL=C sort
+}
+# sub_paths: the gitlink paths of HEAD and the index, in path order.
+sub_paths() {
+  { gitlinks HEAD | cut -f1
+    git -c core.quotepath=off ls-files -s 2>/dev/null | awk -F'\t' '$1 ~ /^160000 / { print $2 }'
+  } | awk 'NF' | LC_ALL=C sort -u
+}
+pin_of() { gitlinks HEAD | awk -F'\t' -v p="$1" '$1 == p { print $2 }'; }
+# initialised <path>: the submodule's own repository answers there; in an empty directory
+# git would answer for the superproject.
+initialised() {
+  local top phys
+  phys="$(cd "$ROOT/$1" 2>/dev/null && pwd -P)" || return 1
+  top="$(git -C "$ROOT/$1" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  [ "$top" = "$phys" ]
+}
+sub_head() { git -C "$1" rev-parse -q --verify HEAD 2>/dev/null; }
+# sub_changed <path>: an initialised submodule whose HEAD is off its pin, or that has tracked
+# changes or untracked files.
+sub_changed() {
+  initialised "$1" || return 1
+  [ "$(sub_head "$1")" = "$(pin_of "$1")" ] || return 0
+  [ -n "$(git -C "$1" status --porcelain --untracked-files=all --ignore-submodules=none 2>/dev/null)" ]
+}
+sub_untracked() { git -C "$1" ls-files -z --others --exclude-standard 2>/dev/null | tr '\0' '\n' | awk 'NF'; }
+sub_hash() {
+  local f
+  { git -C "$1" diff HEAD --binary --no-color --no-ext-diff --ignore-submodules=none 2>/dev/null
+    sub_untracked "$1" >"$W/sh.list"
+    while IFS= read -r f; do printf '%s %s\n' "$f" "$(git -C "$1" hash-object -- "$f")"; done <"$W/sh.list"
+  } | sha256
+}
+
+# The review diff of a repository with a submodule: pinned options, so that no user setting
+# changes what the reviewers read.
+HAS_SUB=0
+rdiff() {
+  if [ "$HAS_SUB" -eq 1 ]; then
+    git -c core.quotepath=off -c diff.submodule=short diff --no-color --no-ext-diff \
+      --ignore-submodules=none --src-prefix=a/ --dst-prefix=b/ "$@"
+  else gdiff "$@"; fi
+}
+rshow() {
+  if [ "$HAS_SUB" -eq 1 ]; then
+    git -c core.quotepath=off -c diff.submodule=short show --no-color --no-ext-diff \
+      --ignore-submodules=none --src-prefix=a/ --dst-prefix=b/ "$@"
+  else gshow "$@"; fi
+}
+# sdiff <path> <diff args>: a diff inside the submodule with the superproject's paths. git
+# writes rename and copy lines without the prefixes, so the path is added to those.
+sdiff() {
+  local p="$1"; shift
+  git -C "$p" -c core.quotepath=off -c diff.submodule=short diff --no-color --no-ext-diff \
+    --ignore-submodules=none --src-prefix="a/$p/" --dst-prefix="b/$p/" "$@" \
+    | sp="$p" awk '/^(rename|copy) (from|to) / { n = index($0, " "); n += index(substr($0, n + 1), " ")
+        print substr($0, 1, n) ENVIRON["sp"] "/" substr($0, n + 1); next } { print }'
+}
+sub_note() { # <path> <reason> <note line>
+  printf '%s\n' "$3"
+  printf 'the diff of submodule %s could not be produced: %s\n' "$1" "$2" >>"$W/subwarn.txt"
+}
+# sub_block <path> <from> <to>: the submodule's file diff from <from> to <to>, `-` meaning
+# its working tree, or a note when it cannot be produced.
+sub_block() {
+  local c
+  initialised "$1" || { sub_note "$1" "not initialised" "(not initialised)"; return 0; }
+  for c in "$2" "$3"; do
+    [ "$c" != - ] || continue
+    git -C "$1" cat-file -e "$c^{tree}" 2>/dev/null \
+      || { sub_note "$1" "commit $c not present" "(commit $c not present in $1)"; return 0; }
+  done
+  if [ "$3" = - ]; then sdiff "$1" "$2"; else sdiff "$1" "$2" "$3"; fi
+}
+# sub_moves <old commit> <new commit> <label>: a block for each gitlink that differs.
+sub_moves() {
+  local p old new list="$W/sm.list"
+  { gitlinks "$1" | sed "s/^/o$TAB/"; gitlinks "$2" | sed "s/^/n$TAB/"; } | awk -F'\t' '
+    { k[$2] = 1; if ($1 == "o") o[$2] = $3; else n[$2] = $3 }
+    END { for (p in k) print p "\t" (p in o ? o[p] : "-") "\t" (p in n ? n[p] : "-") }' \
+    | LC_ALL=C sort >"$list"
+  while IFS="$TAB" read -r p old new; do
+    [ "$old" != "$new" ] || continue
+    if [ "$old" = - ]; then printf '\nSubmodule %s%s: added at %s\n' "$p" "$3" "$new"
+    elif [ "$new" = - ]; then printf '\nSubmodule %s%s: removed, was %s\n' "$p" "$3" "$old"
+    else printf '\nSubmodule %s%s: %s..%s\n' "$p" "$3" "$old" "$new"; sub_block "$p" "$old" "$new"; fi
+  done <"$list"
+}
+# sub_working <cap>: a working block for each submodule that has changes.
+sub_working() {
+  local p pin f
+  sub_paths >"$W/sw.list"
+  while IFS= read -r p; do
+    sub_changed "$p" || continue
+    pin="$(pin_of "$p")"
+    printf '\nSubmodule %s (working): %s..%s\n' "$p" "${pin:-none}" "$(sub_head "$p")"
+    sub_block "$p" "${pin:-$(git hash-object -t tree /dev/null)}" -
+    sub_untracked "$p" >"$W/su.list"
+    while IFS= read -r f; do
+      (cd "$p" && git -c core.quotepath=off diff --no-color --no-ext-diff --no-index \
+        --src-prefix="a/$p/" --dst-prefix="b/$p/" -- /dev/null "$f") >"$W/su.diff" 2>/dev/null
+      cap_file "$W/su.diff" "$1" "untracked file"
+      printf '\nUntracked file: %s/%s\n' "$p" "$f"; cat "$W/su.diff"
+    done <"$W/su.list"
+  done <"$W/sw.list"
+}
+
 # ------------------------------------------------------------------ fingerprint
 # status_lines <fp|dirty>: `XY path` for each changed or untracked path, NUL-separated by git
 # so no path is quoted. `fp` leaves out what the review directory holds except its invariants
@@ -187,6 +301,11 @@ fingerprint() {
     done
     # git status does not list a spec that .gitignore covers.
     [ -z "$SPEC_FILE" ] || [ ! -f "$SPEC_FILE" ] || printf 'spec %s %s\n' "$SPEC_FILE" "$(git hash-object -- "$SPEC_FILE")"
+    sub_paths >"$W/fp.subs"
+    while IFS= read -r p; do
+      if initialised "$p"; then printf 'sub %s %s %s\n' "$p" "$(sub_head "$p")" "$(sub_hash "$p")"
+      else printf 'sub %s none\n' "$p"; fi
+    done <"$W/fp.subs"
   } | sha256
 }
 
@@ -228,7 +347,7 @@ reviewed() {
 
 # Sets N, LATER, PREV_HEAD, TRUNC and writes the material of the briefs under $W/ctx.
 build_context() {
-  local d m mn h prev="" later=0 maxn=0 cap first=1 q p
+  local d m mn h prev="" later=0 maxn=0 cap first=1 q p mb
   mkdir -p "$W/ctx"; TRUNC=0
   : >"$W/ctx/runs.tsv"
   for d in "$RD"/r*; do
@@ -260,26 +379,42 @@ build_context() {
       || die "cannot list the commits since the previous run ($PREV_HEAD)"
   fi
 
-  # the diff against the base
-  { gdiff "$BASE...$HEAD_SHA" -- . ':(exclude)docs/process/reviews' 2>/dev/null || echo "(the diff against $BASE could not be produced)"
+  mb="$(git merge-base "$BASE" "$HEAD_SHA" 2>/dev/null)" || mb=""
+  HAS_SUB=0
+  [ -z "$(sub_paths)" ] && { [ -z "$mb" ] || [ -z "$(gitlinks "$mb")" ]; } || HAS_SUB=1
+  q=$((cap / 4))
+
+  # the diff against the base: the superproject's changes, then each submodule's
+  { rdiff "$BASE...$HEAD_SHA" -- . ':(exclude)docs/process/reviews' 2>/dev/null || echo "(the diff against $BASE could not be produced)"
     if [ "$working" -eq 1 ]; then
-      echo; echo "Uncommitted changes:"; gdiff HEAD -- . ':(exclude)docs/process/reviews'
-      q=$((cap / 4))
+      echo; echo "Uncommitted changes:"; rdiff HEAD -- . ':(exclude)docs/process/reviews'
       untracked_paths >"$W/ctx/untracked.txt"
       while IFS= read -r p; do
         [ -n "$p" ] || continue
-        gdiff --no-index -- /dev/null "$p" >"$W/ctx/u.diff" 2>/dev/null
+        rdiff --no-index -- /dev/null "$p" >"$W/ctx/u.diff" 2>/dev/null
         cap_file "$W/ctx/u.diff" "$q" "untracked file"
         printf '\nUntracked file: %s\n' "$p"; cat "$W/ctx/u.diff"
       done <"$W/ctx/untracked.txt"
     fi
+    if [ "$HAS_SUB" -eq 1 ]; then
+      if [ -n "$mb" ]; then sub_moves "$mb" "$HEAD_SHA" ""
+      else
+        printf '\n(submodule changes against %s could not be produced)\n' "$BASE"
+        printf 'submodule changes against %s could not be produced\n' "$BASE" >>"$W/subwarn.txt"
+      fi
+      [ "$working" -eq 0 ] || sub_working "$q"
+    fi
   } >"$W/ctx/base.diff"
   cap_file "$W/ctx/base.diff" "$cap" "diff"
 
-  # the fix commits of this run
+  # the fix commits of this run: every commit's own diff, then each one's submodule moves
   : >"$W/ctx/fixes.diff"
   while IFS= read -r h; do
-    [ -z "$h" ] || gshow --first-parent -m "$h" -- . ':(exclude)docs/process/reviews' >>"$W/ctx/fixes.diff"
+    [ -z "$h" ] || rshow --first-parent -m "$h" -- . ':(exclude)docs/process/reviews' >>"$W/ctx/fixes.diff"
+  done <"$W/ctx/fixes.txt"
+  while IFS= read -r h; do
+    [ -n "$h" ] && p="$(git rev-parse -q --verify "$h^1" 2>/dev/null)" || continue
+    sub_moves "$p" "$h" " in $h" >>"$W/ctx/fixes.diff"
   done <"$W/ctx/fixes.txt"
   cap_file "$W/ctx/fixes.diff" "$cap" "set of fix diffs"
   [ -s "$W/ctx/fixes.diff" ] || echo "(none)" >"$W/ctx/fixes.diff"
@@ -497,8 +632,13 @@ fi
 
 if [ "$working" -eq 0 ]; then
   dirty="$(status_lines dirty)"
-  if [ -n "$dirty" ]; then
-    printf 'review: the tree has changes besides the review outputs (commit them or use --working):\n%s\n' "$dirty" >&2
+  sub_paths >"$W/rf.subs"
+  subdirty="$(while IFS= read -r p; do sub_changed "$p" && printf 'submodule %s has changes\n' "$p"; done <"$W/rf.subs")"
+  if [ -n "$dirty$subdirty" ]; then
+    { echo 'review: the tree has changes besides the review outputs (commit them or use --working):'
+      [ -z "$dirty" ] || printf '%s\n' "$dirty"
+      [ -z "$subdirty" ] || printf '%s\n' "$subdirty"
+    } >&2
     exit 2
   fi
 fi
@@ -549,6 +689,7 @@ if ! /bin/bash "$RENDER" "$@" >/dev/null 2>"$W/render.err"; then
 fi
 
 : >"$W/warnings.txt"
+[ ! -s "$W/subwarn.txt" ] || cat "$W/subwarn.txt" >>"$W/warnings.txt"
 check_hooks_path
 check_r5
 show_warnings
