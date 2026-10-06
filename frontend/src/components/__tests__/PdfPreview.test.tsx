@@ -30,6 +30,17 @@ vi.mock("@/lib/api", async (importOriginal) => ({
 
 vi.mock("../ProfileProvider", () => ({ useProfile: vi.fn() }));
 
+/**
+ * Answers a task later, never in the same turn as the page is drawn. Which of
+ * the two lands first otherwise depends on the runner's load, so a test that
+ * acts on the page before the document is ready passes on a fast machine and
+ * fails on a busy one; here it fails every time. Wait with `documentReady()`.
+ */
+const preferencesAfterATask = () =>
+  new Promise<unknown>((resolve) =>
+    setTimeout(() => resolve(pdfDoc.viewerPreferences), 0),
+  );
+
 const pdfDoc = {
   numPages: 8,
   outline: null as unknown,
@@ -38,7 +49,7 @@ const pdfDoc = {
   getPageIndex: async (ref: unknown) => (ref as { index: number }).index,
   getPage: async (n: number) => ({ getViewport: () => ({ ...boxOf(n) }) }),
   viewerPreferences: null as unknown,
-  getViewerPreferences: async () => pdfDoc.viewerPreferences,
+  getViewerPreferences: preferencesAfterATask,
   destinations: {} as Record<string, unknown>,
 };
 
@@ -177,6 +188,17 @@ function reportSize(rect: {
   });
 }
 
+/**
+ * The page is drawn before the document's preferences have been read, and
+ * full screen, its `f` key, the fetched page sizes and prefetching all wait
+ * on those.
+ */
+async function documentReady() {
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
+  );
+}
+
 beforeEach(() => {
   resizeCallbacks = [];
   resizeTargets = [];
@@ -185,7 +207,7 @@ beforeEach(() => {
   pdfDoc.outline = null;
   pdfDoc.destinations = {};
   pdfDoc.viewerPreferences = null;
-  pdfDoc.getViewerPreferences = async () => pdfDoc.viewerPreferences;
+  pdfDoc.getViewerPreferences = preferencesAfterATask;
   pdfDoc.getOutline = async () => pdfDoc.outline;
   pageRenders = [];
   pageWidths = [];
@@ -934,6 +956,7 @@ describe("PdfPreview full screen", () => {
   it("opens on the page in view and hands back the page it closed on", async () => {
     renderViewer();
     await screen.findByText("Selectable page 3");
+    await documentReady();
 
     fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
     const dialog = await screen.findByRole("dialog");
@@ -959,9 +982,7 @@ describe("PdfPreview full screen", () => {
   it("opens with f", async () => {
     renderViewer();
     await screen.findByText("Selectable page 3");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
     await act(async () => {});
     fireEvent.keyDown(document, { key: "f" });
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
@@ -970,6 +991,7 @@ describe("PdfPreview full screen", () => {
   it("closes when the file changes, and stays closed on the next one", async () => {
     const { rerender } = renderViewer();
     await screen.findByText("Selectable page 3");
+    await documentReady();
     fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     rerender(
@@ -992,6 +1014,7 @@ describe("PdfPreview full screen", () => {
     await screen.findByText("Selectable page 3");
     act(() => itemClick!({ pageNumber: 5 }));
     expect(pageBox().value).toBe("5");
+    await documentReady();
 
     fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
     const dialog = await screen.findByRole("dialog");
@@ -1009,6 +1032,7 @@ describe("PdfPreview full screen", () => {
   it("follows a link inline again after the full-screen viewer has closed", async () => {
     renderViewer();
     await screen.findByText("Selectable page 3");
+    await documentReady();
     fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
     await screen.findByRole("dialog");
     fireEvent.keyDown(document, { key: "Escape" });
@@ -1022,9 +1046,7 @@ describe("PdfPreview full screen", () => {
     window.localStorage.setItem("image-viewer:spread-mode", "true");
     renderViewer();
     await screen.findByText("Selectable page 3");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
     fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Reading direction" })).toHaveTextContent("RTL");
@@ -1072,9 +1094,7 @@ describe("PdfPreview full screen", () => {
       pdfDoc.getViewerPreferences = failing as () => Promise<unknown>;
       const { unmount } = renderViewer();
       await screen.findByText("Selectable page 3");
-      await waitFor(() =>
-        expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-      );
+      await documentReady();
       unmount();
     }
   });
@@ -1142,6 +1162,7 @@ describe("PdfPreview raster cache", () => {
     const want = vi.spyOn(PdfRasterCache.prototype, "want");
     renderViewer({ initialPage: 3 });
     await screen.findByText("Selectable page 3");
+    await documentReady();
     reportSize({ width: 800, height: 600 });
     await act(async () => {});
     await turnAndCompare(want, 3);
@@ -1151,6 +1172,7 @@ describe("PdfPreview raster cache", () => {
     const want = vi.spyOn(PdfRasterCache.prototype, "want");
     renderViewer({ initialPage: 3 });
     await screen.findByText("Selectable page 3");
+    await documentReady();
     reportSize({ width: 800, height: 600 });
     await act(async () => {});
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
@@ -1165,6 +1187,7 @@ describe("PdfPreview raster cache", () => {
     const want = vi.spyOn(PdfRasterCache.prototype, "want");
     renderViewer({ initialPage: 3 });
     await screen.findByText("Selectable page 3");
+    await documentReady();
     reportSize({ width: 800, height: 600 });
     await act(async () => {});
     try {
@@ -1180,6 +1203,7 @@ describe("PdfPreview raster cache", () => {
     const want = vi.spyOn(PdfRasterCache.prototype, "want");
     renderViewer({ initialPage: 3 });
     await screen.findByText("Selectable page 3");
+    await documentReady();
     reportSize({ width: 800, height: 600 });
     await act(async () => {});
     try {
@@ -1194,9 +1218,7 @@ describe("PdfPreview raster cache", () => {
     const want = vi.spyOn(PdfRasterCache.prototype, "want");
     renderViewer({ initialPage: 3 });
     await screen.findByText("Selectable page 3");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
 
     fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
     await screen.findByRole("dialog");
@@ -1209,9 +1231,7 @@ describe("PdfPreview raster cache", () => {
     const clear = vi.spyOn(PdfRasterCache.prototype, "clear");
     const { unmount } = renderViewer();
     await screen.findByText("Selectable page 1");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
     unmount();
     expect(clear).toHaveBeenCalled();
   });
@@ -1333,9 +1353,7 @@ describe("PdfPreview resume", () => {
     seed();
     const { unmount } = renderPreview();
     await screen.findByText("Selectable page 1");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
     fireEvent.click(screen.getByRole("button", { name: "Full screen" }));
     const dialog = await screen.findByRole("dialog");
     act(() => {
@@ -1374,9 +1392,7 @@ describe("PdfPreview resume", () => {
     seed();
     renderPreview();
     await screen.findByText("Selectable page 1");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
     const dialog = openFullscreen();
     await act(async () => {});
     fireEvent.keyDown(document, { key: "ArrowRight" });
@@ -1403,9 +1419,7 @@ describe("PdfPreview resume", () => {
     );
     renderPreview();
     await screen.findByText("Selectable page 1");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
     const dialog = openFullscreen();
     await act(async () => {});
 
@@ -1456,9 +1470,7 @@ describe("PdfPreview resume", () => {
     const resolveRead = withSlowRead();
     const { unmount } = renderPreview();
     await screen.findByText("Selectable page 1");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
     const dialog = openFullscreen();
     await act(async () => {});
 
@@ -1474,9 +1486,7 @@ describe("PdfPreview resume", () => {
     const resolveRead = withSlowRead();
     const { unmount } = renderPreview();
     await screen.findByText("Selectable page 1");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
     fireEvent.keyDown(document, { key: "PageDown" });
     await screen.findByText("Selectable page 2");
     const dialog = openFullscreen();
@@ -1562,9 +1572,7 @@ describe("PdfPreview resume", () => {
     seed();
     const { unmount } = renderPreview();
     await screen.findByText("Selectable page 1");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
     const dialog = openFullscreen();
     await act(async () => {});
     act(() => itemClick!({ pageNumber: 6 }));
@@ -1579,9 +1587,7 @@ describe("PdfPreview resume", () => {
     const resolveRead = withSlowRead();
     renderPreview();
     await screen.findByText("Selectable page 1");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
     const dialog = openFullscreen();
     await act(async () => {});
     act(() => itemClick!({ pageNumber: 1 }));
@@ -1594,9 +1600,7 @@ describe("PdfPreview resume", () => {
     const resolveRead = withSlowRead();
     renderPreview();
     await screen.findByText("Selectable page 1");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Full screen" })).toBeEnabled(),
-    );
+    await documentReady();
     openFullscreen();
     await act(async () => {});
     fireEvent.keyDown(document, { key: "Escape" });
