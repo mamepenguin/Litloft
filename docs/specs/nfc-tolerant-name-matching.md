@@ -46,10 +46,15 @@ Spec IDs:
   sidecar lookups (downloaded captions, speech-to-text temp audio) match by
   NFC-normalized name, not by glob.
 - **SPEC-CORE-003** — The core's batch rename treats two names that differ only in
-  normalization (and case, as today) as the same name when checking for an existing file.
+  normalization (and case, as today) as the same name when checking for an existing file,
+  and a batch in which one file takes another batch file's current name (a renumbering
+  chain or a swap) renames every file without overwriting any.
 
 The domains follow the user's decision of 2026-10-06: the addon repositories have no spec
 location, so this spec lives in the core and the addon behaviors take `ADDON` ids.
+`docs/process/PROJECT.md` is updated to say so, and `process.yml` checks out the
+submodules so `check-traceability` sees the addon tests that cite these ids (user
+decision of 2026-10-06).
 
 ## Required items
 
@@ -104,7 +109,16 @@ SPEC-CORE-003, batch rename:
 2. For each target, the duplicate check lists the folder and compares
    `NFC(name).lower()` on both sides (`str.lower`, as today, not `casefold`); the "is
    this a file in the batch" test compares NFC names.
-3. A clash returns 409 as today; otherwise the renames proceed as today.
+3. A clash returns 409 as today.
+4. Otherwise every file whose name changes is first renamed to a temporary name in its
+   own folder that collides with nothing, then each is renamed to its new name. A file
+   may therefore take a name that another file of the same batch holds when the batch
+   starts (`1.mp4 → 2.mp4`, `2.mp4 → 3.mp4`; or a swap), and no file's content is lost.
+   Today the renames run one by one in order, so the first one replaces the second file
+   on disk before that file has moved.
+5. If any step fails, the files already moved are moved back to their original names
+   (from the temporary or the final name), the DB is rolled back, and the error is
+   returned, as today.
 
 ### 2. Failure cases
 
@@ -122,6 +136,8 @@ SPEC-CORE-003, batch rename:
 - A title becomes a name that already exists after NFC: the existing ` (N)` loop finds it
   (`exists()` sees through normalization on the host), unchanged.
 - Batch rename where the folder cannot be listed: unchanged (no siblings considered).
+- Batch rename fails between the two phases (a file vanished, permission): every file
+  is returned to its original name and the DB is unchanged, as with today's rollback.
 
 ### 3. States
 
@@ -146,7 +162,7 @@ which files the existing transition `true → false` (reconcile) applies to, and
 
 ### 5. External services
 
-No new kind of call. The `.vtt` path itself calls no speech-to-text provider and no
+No new kind of call. The one-time burst below was accepted by the user on 2026-10-06. The `.vtt` path itself calls no speech-to-text provider and no
 LLM; it runs the embedding model. But a successful index triggers the existing
 `requeue_after_whisper`, so for every feature in `on_index` mode the recovered files get
 the same LLM jobs any other transcribed `.loft` got. Production on 2026-10-06 has
@@ -176,7 +192,9 @@ access checks. No new endpoint.
 - The core subtitle detection for local videos (`services/subtitle.py`) already compares
   NFC to NFC and is unchanged.
 - Batch rename: a rename that today silently overwrites an NFD-named sibling is refused
-  with 409.
+  with 409, and a renumbering chain or swap inside one batch, which today overwrites a
+  file, now succeeds. Watch history, tags and comments stay with the file they belonged
+  to, because each DB row follows its own file.
 
 ### 8. Error behavior
 
@@ -195,6 +213,9 @@ logged at WARNING with the file id and the error, once per pass per file.
   Finder and in Litloft the name looks the same.
 - A batch rename onto a name held by a file whose on-disk name is NFD is refused, as it is
   for an NFC one.
+- A batch rename that renumbers files onto each other's names (for example sequential
+  numbering started one higher than the current numbers) completes, and each file keeps
+  its own content.
 
 ### 10. Non-functional
 
@@ -218,7 +239,17 @@ logged at WARNING with the file id and the error, once per pass per file.
 - `addons/media_import/backend/tests/` — new tests and the same kind of inventory test.
 - `backend/app/services/fileops.py` — `_validate_no_duplicates` (batch rename). A HIGH
   risk zone (`docs/process/PROJECT.md`, data the filesystem cannot regenerate).
-- `backend/tests/` — batch-rename test and an inventory test over `backend/app`.
+- `backend/app/services/fileops.py` — `batch_rename` and `_rollback_fs_renames`
+  (two-phase rename and its rollback).
+- `backend/tests/` — batch-rename tests and an inventory test over `backend/app`.
+- `.github/workflows/process.yml` — `submodules: recursive` on the checkout, as in
+  `ci.yml`. CRITICAL zone and a protected path; edited with the user's decision of
+  2026-10-06.
+- `docs/process/PROJECT.md` — "Where specs live": an addon behavior with no spec
+  location in its own repository is specified in the core with an `ADDON` id. A
+  protected path (process prose).
+- `docs/developer-guide/known-issues.md` — the dotted-title caption overlap (Checked, no
+  action).
 - Submodule pointers `addons/intelligence` and `addons/media_import` in the core
   repository (CLAUDE.md, Git).
 - Rules passed through: `.claude/rules/design-decisions.md` (drive boundary; missing
@@ -226,8 +257,8 @@ logged at WARNING with the file id and the error, once per pass per file.
   `.claude/rules/backend-conventions.md` (no language-dependent rules: NFC normalization
   is script-independent).
 - `docs/specs/INDEX.md` — three rows.
-- No endpoint, WebSocket event, configuration key or user-guide page changes. No protected
-  path is edited.
+- No endpoint, WebSocket event, configuration key or user-guide page changes. The
+  protected paths edited are `process.yml` and `PROJECT.md`, listed above.
 
 ## Invariants
 
@@ -243,6 +274,8 @@ I7. In each of `addons/intelligence/app`, `addons/media_import/backend` (tests e
 I8. A batch rename to a name that equals an existing sibling's on-disk name after NFC and `str.lower` returns 409 and moves no file.
 I9. A batch rename whose new names do not collide with any sibling after NFC and `str.lower` behaves as before: every file is renamed, and a file renamed to a case or normalization variant of its own name is not reported as a clash.
 I10. No existing file on a drive is renamed, moved or deleted by deploying this change.
+I13. A batch rename in which a file's new name equals the current name of another file in the same batch (a chain or a swap) leaves every file under its new name with its own original bytes, and each DB row's `file_path` points at the file whose content it described before.
+I14. A batch rename that fails partway leaves every file under its original name with its original bytes and the DB unchanged.
 
 ## Checked, no action
 
@@ -266,5 +299,11 @@ I10. No existing file on a drive is renamed, moved or deleted by deploying this 
   comparing against a stored name, or normalize the listed name already. They are
   classified in the inventory test (I7), not changed.
 - **frontend and mcp-server.** No server-side directory-listing name match.
+- **Media Import's `{stem}.*.vtt` caption pattern also matches another title's
+  sidecar** (`Title.Part2.vtt` for `Title`), which `_download_captions_sync` may then
+  rename or delete. Existing behavior, not caused by normalization; narrowing it to the
+  language code risks missing yt-dlp's language variants and needs its own measurement.
+  The user chose to keep it out of this change (2026-10-06); recorded in
+  `docs/developer-guide/known-issues.md`. I12 keeps the match set as it is.
 - **Byte-exact filesystems holding both an NFC and an NFD name.** Not a production case
   (APFS cannot hold both); first in sorted order wins.
