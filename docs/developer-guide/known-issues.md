@@ -600,3 +600,9 @@ Import looks for the file yt-dlp wrote as `<title>.*.vtt`, which also matches
 `<title>.<anything>.vtt` belonging to a different video, and may rename it to
 `<title>.vtt` or delete it. Reached when one folder holds an import named
 `Title` and another named `Title.<something>`.
+
+**Renaming a file to a different case of its own name changes only the
+listing.** Litloft shows the new name, but on a Docker Desktop bind mount of a
+case-insensitive macOS volume the file on disk keeps its old case, because a
+rename that differs only in case does nothing inside the container. The file
+still opens. Reached with `Foo.txt → foo.txt`, single or batch rename.
