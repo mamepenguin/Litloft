@@ -4,7 +4,7 @@ SPEC-ID: SPEC-ADDON-005
 SPEC-ID: SPEC-ADDON-006
 SPEC-ID: SPEC-ADDON-007
 
-Approval:
+Approval: sha256:0c74f206e754bee2ca119e7326ff05b1991ac79cb8cd3876289aebfbd8849ce1 Yuichi Senga 2026-10-07
 
 <!--
 Leave the Approval line empty. After a human approves this spec, the approval step
