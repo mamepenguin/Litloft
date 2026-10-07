@@ -24,6 +24,7 @@ const SUMMARY = join(FRONTEND, "coverage", "coverage-summary.json");
  * to contain" cannot notice a file dropping out for some other reason.
  */
 const NO_INSTRUMENTABLE_CODE = [
+  "src/addons/cloud-sync/CloudSyncSettings/index.ts",
   "src/addons/media_import/watch/index.ts",
   "src/components/loft/types.ts",
   "src/components/player/MediaControls/index.ts",
