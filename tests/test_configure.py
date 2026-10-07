@@ -456,3 +456,20 @@ def test_intelligence_disabled_still_no_search_config_rewrite(base, tmp_path):
 
     override = (base / "docker-compose.override.yml").read_text()
     assert "./data/thumbnails:/data/thumbnails:ro" not in override
+
+
+# SPEC-ADDON-005 (I1): cloud-sync is configured from the app, so its old file is never mounted.
+def test_cloud_sync_config_file_is_never_mounted(base, tmp_path):
+    cloud_sync = base / "addons" / "cloud-sync"
+    (cloud_sync / "backend").mkdir(parents=True)
+    (cloud_sync / "sync-config.json").write_text('{"mappings": []}')
+    (cloud_sync / "sync-config.json.example").write_text('{"mappings": []}')
+
+    host = tmp_path / "media"
+    host.mkdir()
+    answers = ["1", str(host), "media", "3000"] + ["y"] * 8
+    proc = _run_configure(base, answers)
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+
+    override = (base / "docker-compose.override.yml").read_text()
+    assert "sync-config.json" not in override
