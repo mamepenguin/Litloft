@@ -1,0 +1,67 @@
+{
+  "risk": "CRITICAL",
+  "score": 12,
+  "base": 3,
+  "zone_max": "HIGH",
+  "modifiers": [
+    "concurrency"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".cmux/setup",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "addons/cloud-sync",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "configure.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/cloud-sync.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/admin-guide/backup-restore.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/admin-guide/settings-gui.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/configuration.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/cloud-sync-settings-gui.md",
+      "level": "LOW"
+    },
+    {
+      "path": "tests/test_configure.py",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)",
+    "modifiers: concurrency"
+  ]
+}

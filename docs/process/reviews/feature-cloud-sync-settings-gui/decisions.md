@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (human, 2026-10-07, after r1 HUMAN_REVIEW_REQUIRED: pin tzdata and answer 422 if SyncConfig rejects a body settings.py accepted)
 ran_in_app: yes
 at: 1c45eec9077ee8c6369ef2ab7ef96968817917df
 by: agent
