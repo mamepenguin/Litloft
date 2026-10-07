@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-10-08, after r1 HUMAN_REVIEW_REQUIRED for unspecified_behavior on the UNSPEC bug fix; CR-1, no invariants.md, accepted as is)
 ran_in_app: yes
 at: 6a04eeb6d8df628d24d49ce23cf65946ef02633d
 by: agent

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the tree. Glob of docs/process/reviews/fix-backend-image-addons-dir/** returns only decisions.md and r1/{head.txt,expected.txt,classification.json,fixes.txt}. There is no invariants.md, while other topics such as feature-cloud-sync-settings-gui do have one. r1/classification.json:8-17 lists backend/Dockerfile as CRITICAL and tests/test_backend_dockerfile.py as MEDIUM. backend/Dockerfile:9-10 has the comment and `mkdir -p addons &&`. tests/test_backend_dockerfile.py exists, and its docstring at lines 8-10 labels the behaviour UNSPEC. With no spec and no invariants file, neither touched path appears in a declared touch-point list. The finding's only claim is that the list is missing. It does not show that the code is wrong."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants.md is declared for this topic. The tested behaviour is marked UNSPEC in tests/test_backend_dockerfile.py:8-10 and points to docs/addons/cloud-sync.md (Installation)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The rule that a backend addon is included in the image whether or not backend/addons/ exists on the host is backed only by an UNSPEC test, not by a declared invariant."
+  ],
+  "regression_risks": [
+    "Before this change, the cleanup at backend/Dockerfile:10 (`find addons ... -delete`) failed silently when addons/ was absent. `mkdir -p` now guarantees that addons/ exists before the loop runs."
+  ],
+  "test_coverage": [
+    "tests/test_backend_dockerfile.py runs the copy step's shell script both with and without a host addons dir. It covers an addon that sorts first, has a backend and has no manifest (cloud-sync)."
+  ],
+  "not_verified": [
+    "Did not run the tests or a docker build, because only Read/Glob/Grep were available.",
+    "Did not check whether the process kit requires an invariants.md for a CRITICAL change that has no spec."
+  ],
+  "confidence": 90
+}

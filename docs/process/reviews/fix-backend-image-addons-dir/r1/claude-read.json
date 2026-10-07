@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "The change reaches backend/Dockerfile and tests/test_backend_dockerfile.py, but this change declares no invariants file, so neither place appears in a declared touch-point list.",
+      "impact": "No user-visible defect. Without an invariants file, a later reviewer cannot check whether the change stayed inside its planned scope, and bucket A is unavailable for this CRITICAL-zone change. The code change itself looks correct: `mkdir -p addons` lets the first-sorting backend-only addon (cloud-sync) be copied when the host has no backend/addons/.",
+      "evidence": "docs/process/reviews/fix-backend-image-addons-dir/ contains only decisions.md and r1/{head.txt,expected.txt,classification.json,fixes.txt}, with no invariants.md. r1/classification.json:8-17 lists zones_touched backend/Dockerfile (CRITICAL) and tests/test_backend_dockerfile.py (MEDIUM). backend/Dockerfile:9-10 adds the comment and `mkdir -p addons &&`. tests/test_backend_dockerfile.py is a new file.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant exists to break. This is a process-scope observation, not a code defect, and it is outside what the threat model treats as a user-facing failure.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "If the process requires invariants for CRITICAL changes, add docs/process/reviews/fix-backend-image-addons-dir/invariants.md with backend/Dockerfile and tests/test_backend_dockerfile.py as touch points. Otherwise accept the change as it is."
+    }
+  ],
+  "specification_compliance": [
+    "The UNSPEC in tests/test_backend_dockerfile.py:7-10 says an addon under addons/ with a backend/ directory is in the image whether or not backend/addons/ exists on the host. backend/Dockerfile:10 (`mkdir -p addons`) satisfies it: without that line, `cp -r <addon>/backend addons/cloud-sync` fails because addons/ does not exist yet. The loop then continues, and a later manifest addon's `mkdir -p addons/<name>` creates addons/ silently, so cloud-sync is dropped without failing the build.",
+    "decisions.md records R-5 ran_in_app: yes at 6a04eeb6, with the backend log showing 'Addon loaded: cloud-sync' while backend/addons/ was absent on the host."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "`mkdir -p addons && find ...; for ...`: if mkdir failed, find would be skipped, but the loop still runs because of the `;`. mkdir -p under WORKDIR /app cannot fail in practice."
+  ],
+  "regression_risks": [
+    "Low. With a host backend/addons/, mkdir -p is a no-op, and the symlink deletion and copy behave as before. The test case with host_addons_dir=True covers this path."
+  ],
+  "test_coverage": [
+    "I mutated the code in my head by removing `mkdir -p addons &&` from backend/Dockerfile:10. In test_backend_dockerfile.py's no-host-dir case, cp for cloud-sync fails, and sh still exits 0 because the last loop iteration's `if` returns 0. The assertion `(addons / 'cloud-sync' / '__init__.py').is_file()` then fails, so the mutant is killed.",
+    "The root tests/ directory is run in CI (.github/workflows/ci.yml:458 `python -m pytest tests -v`), so the new test is collected.",
+    "The test extracts the RUN line by its STAGING substring and requires exactly one match, so a later split or rename of the step fails the test loudly instead of passing silently.",
+    "No test covers the subsequent RUN steps (addons/__init__.py creation, requirements, install.sh). They are not changed by this diff."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not check which files commit 29e60485 touches on its own (its subject suggests only decisions.md). I reviewed the supplied diff instead.",
+    "I did not run the test or a docker build.",
+    "I did not check whether the host's `sh` (dash vs bash/zsh on macOS) changes the loop's exit status in the test."
+  ],
+  "confidence": 85
+}
