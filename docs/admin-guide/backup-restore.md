@@ -11,7 +11,7 @@ Litloft has no backup command. All of its state is in files on the host, so you 
 | `passwords.json` | Passwords and groups | Access control |
 | `.env` | Setup token, API keys, addon secrets | Addon access to the backend and to providers |
 | `docker-compose.override.yml` | Mounts, port, addon services | A record of how the stack was wired |
-| `addons/intelligence/search-config.yml`, `addons/cloud-sync/sync-config.json` | Addon settings | Addon configuration |
+| `addons/intelligence/search-config.yml` | Addon settings | Addon configuration |
 | Drive directories | Your files | Your files |
 
 Drive directories are wherever `docker-compose.override.yml` mounts them, not under `data/`. If they live on a NAS with its own snapshots, you may only need to back up the rest.
@@ -35,8 +35,7 @@ Then archive everything:
 ```bash
 tar -czf litloft-backup-$(date +%Y%m%d).tar.gz \
   data/ drives.json passwords.json .env docker-compose.override.yml \
-  addons/intelligence/search-config.yml \
-  addons/cloud-sync/sync-config.json
+  addons/intelligence/search-config.yml
 ```
 
 Leave out the config files you do not have. When you restore, use `data.db.bak` as `data.db`.

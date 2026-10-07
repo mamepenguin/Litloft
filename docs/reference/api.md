@@ -248,6 +248,7 @@ Examples:
 - `POST /api/addons/intelligence/refine/files/{id}`
 - `POST /api/addons/knowledge/clips`
 - `GET /api/addons/cloud-sync/status`
+- `GET /api/addons/cloud-sync/config`, `PUT /api/addons/cloud-sync/config`
 - `POST /api/addons/media_import/link`
 
 Each addon's page under [`docs/addons/`](../addons/) documents its endpoints.

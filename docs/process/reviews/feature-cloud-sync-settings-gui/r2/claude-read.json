@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R2-1",
+      "origin": "reviewer",
+      "claim": "The tzdata requirement the fix commit calls 'pinned' has only a lower bound (`tzdata>=2024.1`), so each image rebuild can still pull a newer tzdata.",
+      "impact": "Which zone names the backend accepts (is_valid_timezone, used by load and save) can still change from one rebuild to the next. Today tzdata only adds zones, so a user is unlikely to hit this. A future tzdata that drops a zone would turn a stored file `invalid` at startup, with no mappings and no schedule.",
+      "evidence": "addons/cloud-sync/backend/requirements.txt:3 reads `tzdata>=2024.1`; line 1 reads `croniter>=2.0,<4.0`, which has an upper bound. The commit subject says 'the pinned tzdata'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The commit's wording ('pinned') overstates what the requirement line does.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add an upper bound (for example `tzdata>=2024.1,<2100`), or accept the floor as intended. The commit text needs no change."
+    }
+  ],
+  "specification_compliance": [
+    "The fix commit 2a4d3f500 changes only the addons/cloud-sync gitlink. Inside the submodule it touches backend/requirements.txt, backend/service.py and tests/test_settings_config.py.",
+    "service.py:701-707 wraps `checked.to_config()` in `except ValidationError` and raises `ConfigRefused([ConfigError('body','invalid_body',...)])`. The router (router.py put_config) turns ConfigRefused into a 422 with the `{errors}` shape. That closes the 500 path r1 described for I3. The raise comes before `_write_config` and `replace_scheduler`, so the file and the scheduler stay as they were.",
+    "The new test test_a_body_that_only_syncconfig_refuses_is_still_a_422 patches `service.check_body`. service.py imports `check_body` by name, so the patch reaches save_config. The test passes a row with remote `gdrive:`, which gets past _environment_errors (Photos/a exists from _valid_world, and `gdrive:` is listed) and is then refused by SyncMapping's root rule. It asserts a 422, the `{errors}` key set, unchanged file bytes, and no stray files. If the try/except is removed, the ValidationError reaches the router's `except Exception` and the answer is a 500, so the test fails: the mutation is killed.",
+    "The spec's item 10 still says 'No new dependency' while requirements.txt adds tzdata. This is a disagreement in prose, not a code defect."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "If settings.py and SyncConfig drift apart, the refusal comes back as a single `invalid_body` error on field `body`. The section then shows 'The settings could not be sent. Reload the page and try again.' rather than a message on the row at fault. This is acceptable as a fallback, but the advice to reload is misleading for this case."
+  ],
+  "regression_risks": [
+    "The validation rules are still duplicated between schemas.py and settings.py. The fix makes a drift between them fail safely but does not remove it."
+  ],
+  "test_coverage": [
+    "The 422-on-drift branch is covered by a direct test that also checks I3's 'byte-for-byte unchanged' and 'no temporary file' parts.",
+    "No test checks that tzdata is installed or that the version floor is honoured. The Asia/Calcutta tests depend on it only indirectly."
+  ],
+  "not_verified": [
+    "I did not run the tests. Whether the new test passes was reasoned from the code.",
+    "Whether python:3.12-slim's system zoneinfo lacks Asia/Calcutta without the tzdata package.",
+    "Any code in the truncated part of the branch diff that the fix commit did not touch.",
+    "Whether the frontend tests still pass with the submodule pointer at 9d2f397."
+  ],
+  "confidence": 82,
+  "trajectory": "There has been one fix round (2a4d3f500), and no earlier round exists to repeat. It adds one branch: `except ValidationError` in save_config, which maps a disagreement between settings.py and SyncConfig to a 422 `invalid_body`. It also tightens a dependency line (tzdata gets a lower bound). The branch handles a state that r1 predicted (the two copies of the rules drifting apart) instead of removing that state by validating in one place. This is a defensive patch on a duplicated design rather than a redesign. Because it is the first round, it does not yet show a pattern of the design being patched. The round removes no branch or state."
+}

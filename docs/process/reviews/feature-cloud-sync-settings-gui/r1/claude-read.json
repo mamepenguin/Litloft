@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The change adds a new runtime dependency (`tzdata`, unpinned) to `addons/cloud-sync/backend/requirements.txt`, a file the touch-point list does not name, and the spec it implements says the change adds no new dependency.",
+      "impact": "Every backend image build now installs an extra, unpinned package from PyPI (backend/Dockerfile:21-23 pip-installs every addon requirements.txt). Its version moves with each rebuild. Zone acceptance (`is_valid_timezone`, which the I2/I6/I9 behaviour relies on, including the `Asia/Calcutta` alias the tests expect) now depends on that package instead of the image's system tzdata. Nobody planned or reviewed this as a build-surface change.",
+      "evidence": "addons/cloud-sync/backend/requirements.txt: `+# Keeps legacy zone names (Asia/Calcutta) that browsers report and slim tzdata drops.` `+tzdata`. backend/Dockerfile:21-23 installs it into the backend image. The spec's item 10 says: 'No new dependency: `zoneinfo` and `croniter` are already available in the backend image'. The touch-point list names backend/schemas.py, service.py and router.py, and does not name requirements.txt.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. This is a path outside the declared touch points that also contradicts the spec's non-functional item 10, so the plan needs to be revised to name it (and to decide whether to pin it).",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `backend/requirements.txt` (tzdata) to the touch points and correct the spec's 'No new dependency' line, or drop the package if the system zoneinfo is enough. Consider pinning a version range, as croniter is pinned."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The PUT body validation was put in a new module, `addons/cloud-sync/backend/settings.py`, which the touch-point list does not name; the list places that validation in `backend/schemas.py`.",
+      "impact": "The load-time rules now exist twice: once in the `SyncConfig`/`SyncMapping` validators (schemas.py) and once in settings.py (`_check_row`, `_check_cross_rows`, `_check_schedule`, and so on). If a later rule change touches only one copy, PUT and load disagree. A body that settings.py accepts but `SyncConfig` rejects raises inside `checked.to_config()` (service.py save_config) and answers 500 instead of the 422 `{errors}` shape. The file is still not written in that case, so I3's 'unchanged file' part holds, but its '422 in the {errors} shape' part would not.",
+      "evidence": "New file addons/cloud-sync/backend/settings.py (208 lines: `check_body`, `BodyCheck.to_config`). It is imported in service.py as `from .settings import ConfigError, check_body`. The touch-point list says: '`backend/schemas.py`: ... the PUT body validation that collects every error'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken today: both copies of the rules currently agree, as far as I read them. This is a path outside the declared touch points, and it carries a drift risk.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `backend/settings.py` to the touch points."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "Three new frontend modules sit outside the settings-section component and are not the listed `api.ts`: `frontend/settingsApi.ts` (the GET/PUT /config client), `frontend/settingsDraft.ts` (remote split/join, zone choice) and `frontend/scheduleForm.ts` (cron/preset round trip).",
+      "impact": "These modules carry the I9 round-trip logic (scheduleToCron/cronToSchedule, splitRemote and the join in toBody, initialZone). The touch-point list names `api.ts` for the API client and a Container/Presenter component for the section. A reviewer who follows that list would look for the /config client and the round-trip logic in the wrong files.",
+      "evidence": "New files in the diff: addons/cloud-sync/frontend/settingsApi.ts, settingsDraft.ts and scheduleForm.ts. `api.ts` changes only `SyncStatusResponse.timezone`. The touch points say: '`frontend/`: a new settings section component (Container/Presenter ...), `slots.ts`, `api.ts`, ...'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. These paths are not in the declared touch points.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List settingsApi.ts, settingsDraft.ts and scheduleForm.ts in the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "All core-repository paths in the diff are in the touch-point list: .cmux/setup, the addons/cloud-sync gitlink, configure.py, tests/test_configure.py, docs/ADDON-DEVELOPMENT.md, docs/addons/cloud-sync.md, docs/admin-guide/backup-restore.md, docs/admin-guide/settings-gui.md, docs/reference/api.md and docs/reference/configuration.md. This matches zones_touched in r1/classification.json. docs/specs/* and docs/process/reviews/* are implicit touch points.",
+    "These addon paths are in the list: README.md, backend/router.py, schemas.py and service.py, frontend/slots.ts, api.ts, CloudSyncWidget.tsx, messages/*.json, the CloudSyncSettings/ component directory, frontend tests, backend tests (mapping_world.py, settings_world.py, test_settings_*.py), and the removed sync-config.json.example.",
+    "These addon paths are not in the list: backend/requirements.txt (TP-1), backend/settings.py (TP-2), and frontend/settingsApi.ts, settingsDraft.ts and scheduleForm.ts (TP-3).",
+    "Reverse direction, outside the question: frontend/SyncDriveCard.tsx is listed but its file mtime suggests it was not changed. The delete_limit wording change was made in messages/en.json and messages/ja.json instead.",
+    "The docs/reference/api.md diff adds the /config routes but does not mention `timezone` in /status, although the touch-point entry for that file lists it. That is a documentation gap only."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "`tzdata` from PyPI now decides which zone names the backend accepts. Item 10 of the spec assumed only the image's system zoneinfo.",
+    "If `SyncConfig` rejects a body that settings.py accepted, PUT answers 500 instead of 422. This can only happen if the two copies of the rules drift apart."
+  ],
+  "regression_risks": [
+    "The unpinned tzdata changes with each image rebuild.",
+    "The cron, remote-root, path and overlap rules are duplicated between schemas.py and settings.py and can drift apart."
+  ],
+  "test_coverage": [
+    "Backend tests (test_settings_config.py, test_settings_apply.py) exercise settings.py through the routes, so the module is covered even though it is not in the plan.",
+    "The Asia/Calcutta alias tests (backend and frontend) depend on the tzdata dependency, but no test asserts that the package is installed in the image."
+  ],
+  "not_verified": [
+    "Whether commit 230fc0b on its own (subject 'docs: record R-5') touches only docs/process/reviews. I could not run git, so I reviewed the branch diff that was supplied.",
+    "The truncated tail of the diff (after test_settings_config.py), which may touch further addon files such as .gitignore, test_router.py or test_preflight.py.",
+    "Whether python:3.12-slim's system zoneinfo already includes Asia/Calcutta, which would decide whether tzdata is needed at all."
+  ],
+  "confidence": 78
+}
