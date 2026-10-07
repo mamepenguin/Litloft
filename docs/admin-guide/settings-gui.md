@@ -47,9 +47,13 @@ A table of drives against addons. Each switch turns an addon **On** or **Off** f
 
 A switch that was never saved counts as on. How a disabled addon behaves is described in the [addon overview](../addons/overview.md#per-drive-policy).
 
+## Cloud Sync
+
+When the cloud-sync addon is installed, a **Cloud Sync** section sets its schedule, time zone, deletion limit and mappings. Its **Save** applies at once and needs no restart. See the [cloud-sync addon](../addons/cloud-sync.md#settings) page.
+
 ## Restarting
 
-Every save on this page shows **Pending changes — restart required** at the top of the admin pages, with a **Copy** button for the command:
+Every save in the Drives, Passwords and Addon policy sections shows **Pending changes — restart required** at the top of the admin pages, with a **Copy** button for the command:
 
 ```bash
 docker compose restart backend

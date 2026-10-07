@@ -26,7 +26,7 @@ git config --file .gitmodules --get-regexp '^submodule\..*\.path$' |
 git submodule update --init --recursive
 
 # addon-local gitignored config (must run after the submodules are checked out)
-for f in addons/intelligence/search-config.yml addons/cloud-sync/sync-config.json; do
+for f in addons/intelligence/search-config.yml; do
   [ -e "$REPO_ROOT/$f" ] && ln -sfn "$REPO_ROOT/$f" "$f"
 done
 

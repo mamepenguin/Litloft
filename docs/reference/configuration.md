@@ -9,7 +9,7 @@ Every configuration file Litloft reads, with its keys, defaults and validation. 
 | `.env` | Secrets and variables Compose interpolates | `configure.py`, then by hand |
 | `docker-compose.override.yml` | Mounts, ports, addon services | `configure.py`, or by hand from the example |
 | `addons/intelligence/search-config.yml` | AI features | `configure.py` copies the example; then by hand, or `/admin/settings` for some sections |
-| `addons/cloud-sync/sync-config.json` | Backup schedule | By hand |
+| `data/addons/cloud-sync/sync-config.json` | Backup schedule and mappings | `/admin/settings` |
 | `event-hooks.json` | Webhooks to addons | `configure.py` (from addon manifests), then by hand |
 
 `configure.py` only writes container wiring: `docker-compose.override.yml`, `.env`, empty `drives.json` and `passwords.json`, `event-hooks.json`, and a copy of `search-config.yml` when intelligence is enabled. Drive names, passwords, access groups and addon policy are set in `/setup` and `/admin/settings`.
@@ -142,29 +142,23 @@ The full key list with defaults is on the [intelligence page](../addons/intellig
 
 ---
 
-## addons/cloud-sync/sync-config.json
+## data/addons/cloud-sync/sync-config.json
+
+Written by the **Cloud Sync** section of `/admin/settings`; edit it there. The settings and the rules a save must pass are on the [cloud-sync addon](../addons/cloud-sync.md#settings) page.
 
 ```json
 {
-  "schedule": "0 */6 * * *",
+  "schema_version": 1,
+  "schedule": "0 3 * * *",
+  "timezone": "Asia/Tokyo",
   "max_delete": 200,
   "mappings": [
-    { "drive": "Movies", "remote": "gdrive:litloft/movies" }
+    { "drive": "Movies", "path": "", "remote": "gdrive:litloft/movies" }
   ]
 }
 ```
 
-| Field | Type | What it does |
-|---|---|---|
-| `schedule` | cron string or `null` | Automatic sync schedule. `null` or absent turns the scheduler off. An invalid expression is logged and the scheduler does not start. |
-| `max_delete` | integer ≥ 1 | Most files one sync may delete from the remote (rclone `--max-delete`). Default `200`. A value below 1 makes the file unparseable. |
-| `mappings[].drive` | string | Drive name from `drives.json`. A drive turned off for `cloud-sync` in `drives.json` `addons` is not synced. |
-| `mappings[].path` | string or `null` | Optional folder inside the drive, relative to its root. Absent, `""` or `null` is the whole drive. A drive may have several mappings with different paths. |
-| `mappings[].remote` | string | rclone remote target. Must contain `:` and must not start with `-`. |
-
-A missing or unparseable file is logged and treated as having no mappings.
-
-A duplicate drive and path, a `path` that starts with `/` or contains `..`, or two remotes that are equal or nested makes the whole file unparseable. The rules are on the [cloud-sync addon](../addons/cloud-sync.md#sync-configjson) page.
+A file the addon cannot read (not JSON, a `schema_version` other than `1`, or a value that breaks a rule) is logged and treated as having no mappings and no schedule until the settings are saved again. `addons/cloud-sync/sync-config.json`, beside the addon, is not read.
 
 ---
 
