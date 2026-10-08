@@ -188,7 +188,7 @@ still send `response_format={"type": "json_object"}`.
 I9. A JSON call whose request carried no `response_format` and was answered 200 with an empty
 body sends no further request and returns `FAILURE_EMPTY`.
 I10. With `retry_attempts=0`, a 400 with `response_format` is still followed by one resend
-without it; and a 400, then a 503 on the resend, then a 200 latches, with neither the
+without it; and with `retry_attempts` of 1 or more, a 400, then a 503 on the resend, then a 200 latches, with neither the
 resend nor the retry carrying `response_format`.
 ## Checked, no action
 
