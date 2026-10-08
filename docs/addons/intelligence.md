@@ -374,12 +374,12 @@ llm:
 Without `profiles`, this whole section is one profile named `default`, used by every feature, and treated as an **External server** unless it says `offhost: false`. That is how an install from before profiles keeps working unchanged; see [LLM profiles and routing](#llm-profiles-and-routing) to split it.
 
 - `"ollama"`: uses ollama's own API and always asks the model not to reason (`think: false`).
-- `"openai_compatible"`: OpenAI, DeepSeek, vLLM, LM Studio, or ollama's `/v1` endpoint.
+- `"openai_compatible"`: OpenAI, DeepSeek, vLLM, LM Studio, or ollama's `/v1` endpoint, or Anthropic's OpenAI-compatible endpoint (`https://api.anthropic.com/v1`).
 - `"disabled"`: no LLM features. Indexing, search and local tag candidates still work.
 
 `max_tokens` is an upper limit, not a reservation. Providers bill only the tokens the model writes, so a high value costs nothing, and a low one cuts long answers off. Chapter candidates for a long video need the room. An existing `search-config.yml` keeps the value it was created with; raise it there if it is lower.
 
-About `reasoning`: a reasoning model spends `max_tokens` on thinking before it answers, and can come back empty. `"disabled"` asks the provider to skip the thinking. A provider that rejects the request field gets it once, and the addon stops sending it for the rest of the run. `"auto"` never sends the field. Some providers reason anyway; the log says so.
+About `reasoning`: a reasoning model spends `max_tokens` on thinking before it answers, and can come back empty. `"disabled"` asks the provider to skip the thinking. A provider that rejects the request field gets it once, and the addon stops sending it for the rest of the run. JSON mode (`response_format`) is handled the same way: a provider that rejects it, as Anthropic's endpoint does, gets the request again without it, and once that answer comes back the addon stops asking for JSON mode for the rest of the run. The prompts still ask for JSON in words. `"auto"` never sends the field. Some providers reason anyway; the log says so.
 
 ### LLM profiles and routing
 
