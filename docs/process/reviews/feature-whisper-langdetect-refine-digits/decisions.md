@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue — user, 2026-10-10: "その進め方でお願いします。#442はマージしました" (merge #442, rebase onto develop so SPEC-ADDON-008 leaves the diff, add a direct splits_number test, review again)
 ran_in_app: yes
 at: 6a6e24382ac6a5b6c9c6ab22461921bc7bd9652b
 by: agent

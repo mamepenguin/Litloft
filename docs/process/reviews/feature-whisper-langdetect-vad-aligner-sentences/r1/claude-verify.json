@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Confirmed. addons/intelligence/app/llm.py:356 defines _JSON_OBJECT_FORMAT, :468 adds the per-client latch _json_mode_rejected, :577-581 leaves response_format out once the latch is set, :608-614 sets the latch after a resend succeeds, and :650-668 resends without response_format after a 400 with `continue`, so no retry attempt is used up. Neither spec's touch-point list names llm.py or test_llm.py (docs/specs/whisper-langdetect-refine-digits.md:235-252, docs/specs/whisper-langdetect-vad-aligner-sentences.md:193-204). A grep for SPEC-ADDON-008 across the repository finds it only in addons/intelligence/tests/test_llm.py (lines 1494-1984, citing I1..I10 and failure cases). docs/ has no spec for it: the docs specs cover ADDON-001..007 and 009..014. One small error in the claim: the string SPEC-ADDON-008 does not appear in app/llm.py. I could not run git, so I did not independently check that llm.py is in the diff range. I relied on the code being present and cited by no spec in this topic."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "rejected_with_evidence",
+      "note": "The code facts hold: whisper.py:199 (_ensure_loaded batch_size), :381 (_transcribe_file), :1770 (.loft path) read settings.transcription.whisper_local, and whisper.py:631-634 _is_break uses is_digit_separator. These are not out of scope, though. The diff against origin/develop also carries SPEC-ADDON-009/010/011, and the touch points of that spec list them: docs/specs/whisper-langdetect-refine-digits.md:237-239 names 'the three reads of settings.indexing.whisper (011); _build_chunks_from_words (010)' in whisper.py. 011 Normal flow step 1 (:70-73) requires the same change. docs/specs/whisper-langdetect-vad-aligner-sentences.md:202-203 says this work is reviewed under the same topic together with 009/010/011. The claim judges them against 012's touch points alone and leaves out the companion spec, which declares them."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "rejected_with_evidence",
+      "note": "The code facts hold: subtitle_builder.py:233 is `_safe_break_between(prev, nxt, before=None)` with an is_digit_separator check at :247, and build_cues at :355 excludes digit separators from punctuation. Both are declared in SPEC-ADDON-010: docs/specs/whisper-langdetect-refine-digits.md:240-241 lists 'subtitle_builder.py: the punctuation-end and safe-break tests in build_cues (010)', and Normal flow step 6 (:106-108) requires that a digit separator neither ends a cue nor counts as a safe break. 010 is reviewed in the same topic (vad-aligner-sentences.md:202-203), so these changes are in scope."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "rejected_with_evidence",
+      "note": "All three files are touch points of the companion spec reviewed in the same topic. docs/specs/whisper-langdetect-refine-digits.md:242-243 lists search-config.yml.example and docs/addons/intelligence.md for removing the `transcription.whisper_local.model` line (011, Normal flow step 3 at :79-81). :244 lists app/prompts/refine/system.jinja2 for the 010 line. :248-249 lists docs/addons/intelligence.md for the refine digits / keyword-search sentence. The claim compares them only with 012-014's touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "Confirmed as a scope observation. addons/intelligence/app/digit_separator.py:9 holds is_digit_separator (010) and :27-45 holds the public splits_number, which implements 014 step 3's 'inside a number' rule. splits_number is imported at subtitle_builder.py:19 and used at :502, :510 and :526/:531 (_number_edge). The 010 touch points (refine-digits.md:235-252) do not name a new module, and 014's touch point (vad-aligner-sentences.md:198-199) only says _balance_two_lines 'may reuse' it, which assumes it already exists and does not cover adding a function. I traced splits_number's behavior by hand against step 3 (digit before a digit; digit+sep before a digit; digit+sep+space before a digit; a sep between digits) and found no mismatch. This is a touch-point gap, not a functional defect."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-ADDON-014 step 3 / I7: I hand-traced splits_number (digit_separator.py:27-45) on `だいたい3.3キロ`. Position 5 ('.') is inside the number, and _number_edge walks back to position 4, so the line breaks immediately before `3.3` as I7 requires.",
+    "SPEC-ADDON-014 step 5 / I8: the CJK soft-punctuation scan at subtitle_builder.py:498-504 skips a ',' or '.' when splits_number(text, i+1) is true, so for `1,500` it moves on to a later '、'.",
+    "SPEC-ADDON-014 step 4: the space-separated path (subtitle_builder.py:477-496) joins words across a digit separator before the greedy split, and the cue stays on one line when no split has words on both lines."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "app/llm.py JSON-mode fallback (latch, resend without response_format, not charged to retry_attempts) cites SPEC-ADDON-008, which has no spec under docs/specs.",
+    "digit_separator.splits_number is a new public helper that neither spec's touch points name."
+  ],
+  "regression_risks": [
+    "The llm.py JSON-mode latch changes request shape for every JSON caller after a single 400 on a client; it is reviewed against no approved spec."
+  ],
+  "test_coverage": [
+    "tests/test_llm.py holds about 20 test blocks commented SPEC-ADDON-008 (lines 1494-1984), covering the latch, the resend and logging."
+  ],
+  "not_verified": [
+    "Whether app/llm.py and tests/test_llm.py are actually in the origin/develop..a4d2aecb2 diff range; I could not run git and relied on the code being present.",
+    "Whether whisper.py:1396 (_persist_transcript reading settings.transcription.whisper_local) is pre-existing or new in this diff.",
+    "Whether digit_separator.py exists on origin/develop.",
+    "No tests were run; behavior was traced by reading only.",
+    "aligner.align_segment (013) and _detect_language/_speech_seconds (012) were not reviewed in depth, since no finding concerned them."
+  ],
+  "confidence": 82
+}
