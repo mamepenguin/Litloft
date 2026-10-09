@@ -31,3 +31,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-009 | approved | docs/specs/whisper-langdetect-refine-digits.md | sha256:8be8731afa3c6953b4f50a38c4d0aa9881c527cdbea7a71b7f20c9c47ca07c8b |
 | SPEC-ADDON-010 | approved | docs/specs/whisper-langdetect-refine-digits.md | sha256:8be8731afa3c6953b4f50a38c4d0aa9881c527cdbea7a71b7f20c9c47ca07c8b |
 | SPEC-ADDON-011 | approved | docs/specs/whisper-langdetect-refine-digits.md | sha256:8be8731afa3c6953b4f50a38c4d0aa9881c527cdbea7a71b7f20c9c47ca07c8b |
+| SPEC-ADDON-012 | draft | docs/specs/whisper-langdetect-vad-aligner-sentences.md | |
+| SPEC-ADDON-013 | draft | docs/specs/whisper-langdetect-vad-aligner-sentences.md | |
+| SPEC-ADDON-014 | draft | docs/specs/whisper-langdetect-vad-aligner-sentences.md | |
