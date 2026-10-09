@@ -1,6 +1,6 @@
 # Decisions
 
-decision: continue — user, 2026-10-10: "その進め方でお願いします。#442はマージしました" (merge #442, rebase onto develop so SPEC-ADDON-008 leaves the diff, add a direct splits_number test, review again)
+decision: ship — user, 2026-10-10: "ship ok" (r2: the colon-in-time line split and r7: the admin whisper_local model display go to a follow-up spec)
 ran_in_app: yes
 at: bcb8231f50e0079ce8585eafb337e487efd500dc
 by: agent

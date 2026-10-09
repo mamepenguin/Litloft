@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Traced by hand at the commit. addons/intelligence/app/subtitle_builder.py:47 puts ':' and '：' in _PUNCT_SOFT. In the CJK path, subtitle_builder.py:498-504 accepts the first soft punctuation at or past soft_width//2 unless splits_number(text, i+1) is true. digit_separator.py:37-45: for text[i+1]='3' in '...12:30...', the code reaches line 41; before[-1] is ':', which is not a digit, so it goes to line 45. before[-1]=':' is not in _SEPARATORS ('.,' at line 5), so the function returns False. The cue therefore becomes '...12:' / '30...'. The cue-boundary path does the same: is_digit_separator (lines 19-20) returns False for a trailing ':', so subtitle_builder.py:355-361 marks the word ends_soft and records a safe break. The claim holds as described. Scope note for triage: the spec explicitly defines a number as digits joined only by '.' or ','. See docs/specs/whisper-langdetect-vad-aligner-sentences.md:88-91, which I7 cites as '014 step 3'. A colon time is therefore outside the I7 definition and is not an I7 violation. _PUNCT_SOFT containing ':' looks pre-existing, but I could not check git history to confirm that."
+    }
+  ],
+  "specification_compliance": [
+    "I7 (as defined by spec step 3, lines 85-91): splits_number covers digit runs and single '.'/',' between digits, including the 'separator + space' form. The CJK soft-punctuation scan (subtitle_builder.py:502) and the midpoint fallback (510-513 via _number_edge) both use it. The space path merges separator-joined words via is_digit_separator (480-481). This is consistent by reading; I did not execute it.",
+    "Colon-separated times are not part of the spec's number definition, so F1 is not a violation of a declared invariant."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Times written in digits with a colon (12:30, 12：30) can be split across lines or across cues, because ':' and '：' are soft punctuation and are not treated as part of a number."
+  ],
+  "regression_risks": [
+    "If ':' were later added to _SEPARATORS to fix F1, is_digit_separator would also change cue-boundary behaviour in build_cues (lines 247, 355). It is shared with 010."
+  ],
+  "test_coverage": [
+    "I did not check whether any test exercises a colon-between-digits cue."
+  ],
+  "not_verified": [
+    "I did not execute any code or tests; the reproduction is a manual trace only.",
+    "I did not confirm through git history whether ':' in _PUNCT_SOFT predates this branch.",
+    "I did not verify invariants I1-I6 (whisper.py, aligner.py).",
+    "I did not check the janome boundary path with colon times."
+  ],
+  "confidence": 85
+}

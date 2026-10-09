@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "admin-shows-unused-whisper-local-model",
+      "origin": "reviewer",
+      "claim": "The admin GUI's read-only sub-config summary reports `transcription.whisper_local.model` as the whisper_local model. The whisper worker never reads that field; it loads `models.whisper`. This change removes the key from the docs and the example config, so an operator can no longer see where the displayed value comes from.",
+      "impact": "An operator who sets `models.whisper` to a different model still sees `openai/whisper-large-v3-turbo` (the dataclass default) in the admin GUI as the local Whisper model, and could think the setting did not take effect. Display only; transcription is unaffected.",
+      "evidence": "addons/intelligence/app/routers/admin.py:268 returns `base.whisper_local.model`. addons/intelligence/app/config.py:130 gives `WhisperLocalConfig.model` the default \"openai/whisper-large-v3-turbo\". config.py:34 holds `models.whisper`, which is what `_ensure_loaded` uses (spec 011 step 3). The diff removes the `model:` line from search-config.yml.example and docs/addons/intelligence.md but leaves the field and the admin read in place.",
+      "repro": "not_reproduced",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers the admin summary. The display was wrong before this change; removing the documented key makes the displayed value harder to trace but does not change any behaviour.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Have the admin summary show `settings.models.whisper` for whisper_local, or drop the entry."
+    }
+  ],
+  "specification_compliance": [
+    "I1/I4: `_transcribe_file` reads `settings.transcription.whisper_local` (whisper.py:381) and runs `_detect_language` only without an override (whisper.py:395). The sequential and batched paths are both parametrised in TestTranscribeFilePrompt and TestSpeechGateTranscribe.",
+    "Revised I2: `_decode_detection_sample` runs ffmpeg with `-t 120` before `-i`, mono, at `model.feature_extractor.sampling_rate`, f32le, timeout 60 (whisper.py:294-307). `detect_language(audio=audio, vad_filter=True)` is called at whisper.py:341. A 130 s tone test asserts at most 120 s of samples and vad_filter=True.",
+    "I3: one WARNING through the single `except` around decode, VAD and detect. Empty samples return None with INFO before VAD and detection.",
+    "I5: all three reads (whisper.py:199, 381, 1770) now use `transcription.whisper_local`. The documented, legacy and default runs are compared per key, including batch_size and the segment durations.",
+    "I6/I7: system.jinja2 inserts the numbers line verbatim between `{{ punctuation_instruction }}` and 'Do not add words other than punctuation.'. The test checks the full line list for ja, en and fr, and checks byte-for-byte storage.",
+    "I8: `_is_break` (whisper.py:631-645) excludes digit separators from the hard and soft punctuation breaks. The silence gap (line 641) and the max_duration flush (line 678) are untouched.",
+    "I9: in build_cues (subtitle_builder.py:355-370) `punctuation` excludes digit separators from ends_hard and ends_soft. `_safe_break_between` refuses a digit-separator boundary in recording, the safe-break rewind and the backward scan. The test runs on the janome-regrouped `words` (line 276).",
+    "Since r6: the llm.py JSON-mode change (SPEC-ADDON-008) is now on the base through 7918959, so it is no longer in this diff. aligner.py, `_balance_two_lines`/`_number_edge`/`splits_number` and the VAD gate now fall under the approved SPEC-ADDON-012/013/014. invariants.md still carries only the revised I2 from that spec, so the declared set does not cover the speech gate, the aligner or the line split (already raised in r6)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A media file with no audio stream makes ffmpeg exit non-zero, so it is logged as a detection WARNING rather than the 'no samples' INFO. This is consistent with the spec's failure bullet, but an operator may read it as a real failure.",
+    "In build_cues, a digit separator followed by a silence gap of at least `silence_gap` still ends the cue through hard_boundary, but it is no longer recorded as a safe break for the rewind. This matches I9's wording, but it is a second-order change to how width rewinds behave around such rows."
+  ],
+  "regression_risks": [
+    "`is_digit_separator` is shared by the chunker, cue ends, safe breaks and the space path of `_balance_two_lines`. A change to it moves chunk boundaries (embeddings, search excerpts) and cue layout at the same time.",
+    "Detection now runs Silero VAD and decodes up to 120 s per file, piece and retry. The real `_speech_seconds` is never run against faster-whisper in the suite (it is stubbed), so a signature drift in `get_speech_timestamps` would surface only as a WARNING and a missing prompt, not as a test failure.",
+    "Every new whisper_local transcript now gets a built-in prompt, which changes the chunk shape. The effect is accepted in spec item 7 but is visible on re-index."
+  ],
+  "test_coverage": [
+    "Chunker: token-row and character-row separators, a non-separator `.` (`a.`, `2024.` before a letter), a silence gap at `5.`, and the max_duration bound over a run of separators.",
+    "Cues: removing the digit-separator check in `_safe_break_between` would be caught by the en-comma width case. Without recorded candidates, the backward scan would otherwise break after `1,`.",
+    "Detection: decode length at two sampling rates, the probability threshold, garbage input, a missing ffmpeg, the 60 s timeout, detect raising, empty WAV, the speech gate at 0.0, 0.5, 0.99, 1.0 and 1.5 s, VAD raising, and override or prior-text skipping verified by an ffmpeg spy.",
+    "`splits_number` has direct unit tests (added in 9db9b28), and `_balance_two_lines` is swept over soft widths 4–39, with and without the fake janome.",
+    "Gap: no test runs the real `faster_whisper.vad.get_speech_timestamps`. The real-model path is left to R-5."
+  ],
+  "not_verified": [
+    "I did not run any test or mutation. The kill and survive reasoning above is from reading only.",
+    "I did not check that faster-whisper 1.1.0's `get_speech_timestamps` accepts `sampling_rate=` as a keyword, or that its chunks are in samples. I relied on the spec's R-5 measurements.",
+    "I did not read `_regroup_ja_with_janome` to see how real janome groups `3` `.` `3` before the digit-separator test.",
+    "I did not check whether removing the `punctuation` guard from `ends_soft` in build_cues alone would be caught, because I did not check CueConfig's default min_duration.",
+    "I did not check the git history to confirm that 7918959 is reachable from origin/develop; I inferred it from the diff base 6bc45be."
+  ],
+  "confidence": 78,
+  "trajectory": "The design is being patched. Round 27fce07 added the first code: a decode branch and a 'no samples' skip branch in `_detect_language` (30 s), and the `is_digit_separator` prediction in the chunker and the cue builder. Round 0521918 added a second skip branch on top of round 1's in the same function: the VAD speech gate with a new threshold state, `_LANG_DETECT_MIN_SPEECH_S`. It also widened the decode window. It extended round 1's 'a ./, between digits is not a break' prediction to a second predicate (`splits_number`) and a new fallback function, `_number_edge`, with its own branches in `_balance_two_lines`. That round also fixed an unrelated, pre-existing aligner bug. Round 9db9b28 added no code branch or state; it adds only a unit test for `splits_number` and drops stale draft rows from INDEX.md. No round removed a branch. The llm.py JSON-mode change that r6 flagged has left this diff because it landed on the base (7918959), not because it was removed."
+}
