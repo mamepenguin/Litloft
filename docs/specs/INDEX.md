@@ -25,3 +25,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-006 | implemented | docs/specs/cloud-sync-settings-gui.md | sha256:0c74f206e754bee2ca119e7326ff05b1991ac79cb8cd3876289aebfbd8849ce1 |
 | SPEC-ADDON-007 | implemented | docs/specs/cloud-sync-settings-gui.md | sha256:0c74f206e754bee2ca119e7326ff05b1991ac79cb8cd3876289aebfbd8849ce1 |
 | SPEC-ADDON-008 | implemented | docs/specs/json-mode-fallback.md | sha256:19de2e5a5c56a8cceebbe27b623b2df92d1c80a4ff28b0225637ee9dd4522bfd |
+| SPEC-ADDON-009 | draft | docs/specs/whisper-langdetect-refine-digits.md | |
+| SPEC-ADDON-010 | draft | docs/specs/whisper-langdetect-refine-digits.md | |
+| SPEC-ADDON-011 | draft | docs/specs/whisper-langdetect-refine-digits.md | |
