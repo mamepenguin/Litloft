@@ -22,8 +22,11 @@ vad_filter=True)` on the first 120 s returns `ja 0.999` for that clip, and `ja 0
 `en 1.0` for the plain Japanese and English clips, unchanged. When VAD finds no speech at
 all, faster-whisper 1.1.0 still answers, with `en 0.615` for silence, noise and a pure music
 excerpt alike, so a file whose first 120 s hold no speech must not reach `detect_language`.
-After this change detection decodes the first 120 s, skips when VAD finds no speech, and
-otherwise detects with VAD on.
+A VAD false positive of a fraction of a second inside an opening would reach it on almost
+nothing; measured 2026-10-10 on the three R-5 clips, 0.5 s or more of real speech after the
+music opening is detected correctly (`ja 0.899`–`0.999`, `en 0.995`–`0.999`), and with 1 s
+or more every clip gave ≥ 0.959. After this change detection decodes the first 120 s, skips
+when VAD finds less than 1 s of speech in total, and otherwise detects with VAD on.
 
 **SPEC-ADDON-013.** `aligner.align_segment` keeps only `segments[0]` of `whisperx.align()`'s
 result. WhisperX 3.3.1 splits the text it aligns into sentences (NLTK Punkt) and returns one
@@ -55,8 +58,13 @@ SPEC-ADDON-012 (replaces 009 Normal flow step 2):
 2. `_detect_language` decodes **the first 120 seconds** of the file's audio with `ffmpeg`
    (`-t 120`, mono, float32, at `model.feature_extractor.sampling_rate`), with the same 60 s
    timeout.
-3. It runs faster-whisper's Silero VAD (`faster_whisper.vad.get_speech_timestamps`, default
-   options) on those samples. When it finds no speech, detection stops (failure cases).
+3. It runs faster-whisper's Silero VAD on those samples through a module-level helper in
+   `whisper.py`, `_speech_seconds(audio, sampling_rate) -> float`, which imports
+   `faster_whisper.vad.get_speech_timestamps` inside the function (as `_ensure_loaded`
+   imports faster-whisper), calls it with default options and returns the total length of
+   the speech it finds, in seconds. The helper is the seam the tests replace; `tests/conftest.py`
+   is not changed. When the total is below `_LANG_DETECT_MIN_SPEECH_S` = 1.0 s, detection
+   stops (failure cases).
 4. Otherwise it calls `model.detect_language(audio=<samples>, vad_filter=True)`; faster-whisper
    removes the non-speech parts and detects on the first 30 s of what remains.
 5. 009 steps 3–4 follow unchanged: probability ≥ 0.5 picks the built-in prompt.
@@ -74,17 +82,29 @@ SPEC-ADDON-014:
 
 1. `build_cues` hands each cue to `_balance_two_lines`, as today.
 2. A cue within the soft width is returned unchanged, as today.
-3. A candidate split position is **inside a number** when the characters on both sides of it
-   belong to one number written in digits: a run of `0`–`9`, possibly with single `.` or `,`
-   characters each between two digits (`2025`, `3.3`, `1,500`), where a space between a row
-   that ends in such a separator and a row that starts with a digit (`3.` `3km`, token rows
-   joined by a space) also counts as inside.
-4. In the space-separated path, a space inside a number is not used; the split moves to the
-   nearest space that is not, or the cue stays on one line if there is none.
-5. In the CJK path, a soft-punctuation character that is a digit separator is not used as the
-   split, and a midpoint (janome or fallback) that falls inside a number moves to the nearer
-   end of that number; if that end is the start or the end of the text, the other end is
-   used, and if both are, the cue stays on one line.
+3. A split position `p` in the cue text (the line break goes between `text[p-1]` and
+   `text[p]`) is **inside a number** when `text[p]` is a digit `0`–`9` and the text before
+   `p` ends with a digit, or with a digit followed by `.` or `,`, or with a digit, `.` or
+   `,`, and one space; or when `text[p]` is `.` or `,`, `text[p-1]` is a digit and
+   `text[p+1]` is a digit. Digits are `0`–`9` only. This agrees with
+   `is_digit_separator`: `3.3`, `3. 3km`, `1,500` and `2025` are numbers; `Yes, 3 people`
+   (no digit before the comma) is not.
+4. In the space-separated path, the greedy width split is unchanged except that a space at
+   a position inside a number is not a candidate: the words on either side of it are
+   treated as one word. If that leaves no split with words on both lines, the cue stays on
+   one line.
+5. In the CJK path:
+   - the soft-punctuation scan skips a `,` or `.` that is inside a number (its split
+     position `i + 1` is inside one) and continues to the next soft punctuation, as it
+     would past any other character;
+   - when the scan finds nothing, the position is chosen as today (janome, then
+     `_adjust_cjk_break`), and **then**, if it is inside a number, it moves to the start of
+     that number, so the number stays with what follows it (R-5 cue 107 becomes
+     `だいたい` / `3.3キロくらい…`). If the start is position 0, it moves to the end of the
+     number instead, unless the character there is in `_NO_BREAK_BEFORE` or the end is the
+     end of the text; in those cases the cue stays on one line. The katakana and janome
+     rules are not re-checked after the move.
+6. A position that is not inside a number is chosen exactly as today.
 
 ### 2. Failure cases
 
@@ -93,9 +113,10 @@ SPEC-ADDON-012:
 - `ffmpeg` fails, cannot start or times out, VAD raises, or `detect_language` raises: one
   WARNING, `None`, transcription without a prompt — as 009.
 - No samples in the first 120 s: one INFO, `None`, neither VAD nor `detect_language` runs.
-- VAD finds no speech in the first 120 s (silence, music, noise; an opening longer than
-  120 s): one INFO, `None`, `detect_language` is not called, no prompt. Whisper's own
-  detection still chooses the transcription language, as before 009.
+- VAD finds less than 1 s of speech in the first 120 s (silence, music, noise, a stray
+  false positive; an opening longer than about 119 s): exactly one INFO, `None`,
+  `detect_language` is not called, no prompt. Whisper's own detection still chooses the
+  transcription language, as before 009.
 - Probability below 0.5: as 009.
 
 SPEC-ADDON-013:
@@ -187,19 +208,28 @@ None. No endpoint, permission or policy changes.
 I1. With no override and no caller prior text, `_detect_language` passes `detect_language`
 a numpy array of at most 120 s of decoded audio at `model.feature_extractor.sampling_rate`
 and `vad_filter=True`, never a path.
-I2. When VAD finds no speech in the decoded samples, `_detect_language` returns `None`
-without calling `detect_language`, and the file is transcribed with `initial_prompt=None`.
-I3. When VAD finds speech and `detect_language` reports `ja` with probability ≥ 0.5, the file
+I2. When `_speech_seconds` reports less than 1.0 s of speech in the decoded samples,
+`_detect_language` returns `None`, logs exactly one INFO and no WARNING, does not call
+`detect_language`, and the file is transcribed with `initial_prompt=None`, in both the
+sequential and the batched path.
+I3. When `_speech_seconds` raises, `_detect_language` returns `None`, logs exactly one
+WARNING, does not call `detect_language`, and the file is still transcribed, with
+`initial_prompt=None`.
+I4. When `_speech_seconds` reports 1.0 s or more and `detect_language` reports `ja` with probability ≥ 0.5, the file
 is transcribed with `DEFAULT_INITIAL_PROMPTS["ja"]`, in both the sequential and the batched
 path.
-I4. When `align_segment` receives a WhisperX result with several segments, it returns the
+I5. When `align_segment` receives a WhisperX result with several segments, it returns the
 rows of every segment, in segment order, each row's text unchanged; a text of N
 space-separated words in a word-level language yields N rows when every word is timed.
-I5. A WhisperX result whose first segment is empty but whose later segments hold rows still
+I6. A WhisperX result whose first segment is empty but whose later segments hold rows still
 yields those rows; a result with no rows in any segment yields `None`.
-I6. `_balance_two_lines` never returns a cue whose line break falls inside a number written
-in digits as defined in 014 step 3, for the space-separated and the CJK path.
-I7. `_balance_two_lines` still splits a cue over the soft width at the same position as
+I7. `_balance_two_lines` never returns a cue whose line break falls inside a number written
+in digits as defined in 014 step 3, for the space-separated and the CJK path, with janome
+available and without it; a CJK cue whose midpoint falls inside `3.3` in `だいたい3.3キロ…`
+breaks immediately before the `3.3`.
+I8. In the CJK path, a cue holding `1,500` past half the soft width and a later `、` splits
+after that `、`.
+I9. `_balance_two_lines` still splits a cue over the soft width at the same position as
 today when that position is not inside a number, and returns a cue within the soft width
 unchanged.
 
@@ -221,5 +251,13 @@ SPEC-ADDON-009 I2. `_detect_language` passes a numpy array of decoded samples, n
   transcripts were refined; Japanese ones did not lose text.
 - **Splitting cues (not lines) differently for 014.** Cue boundaries are already covered by
   010; only the line layout is wrong.
+- **Re-checking the katakana and janome rules after the number move (014).** The move goes
+  to a digit/non-digit boundary, which janome already treats as a token boundary; a second
+  pass would add a loop for no observed case.
+- **Blocking a split at `in 2020, 50 people` or `1, 2, 3` (014).** These count as numbers by
+  step 3, as they do for cue boundaries in 010; such a cue may stay on one wider line.
+- **Interpolation across a segment boundary (013).** Untimed tokens at a sentence edge now
+  interpolate between the previous sentence's last timed row and the next one's first,
+  which is the gap they sit in; the existing clamp still bounds them to the chunk window.
 - **Removing the 30 s wording from 009's Normal flow and failure text.** The earlier spec
   stays as approved; this spec states the new behaviour and revises 009 I2.
