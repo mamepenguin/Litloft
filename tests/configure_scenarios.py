@@ -94,3 +94,33 @@ def read_outputs(base: Path, host: Path) -> dict[str, str | None]:
         path = base / rel
         out[rel] = path.read_text().replace(str(host), HOST_PLACEHOLDER) if path.exists() else None
     return out
+
+
+def run_events(base: Path, answers: list[str], monkeypatch) -> list[tuple[str, str]]:
+    """Like `run`, but returns prompts and printed lines interleaved as
+    ``("prompt", text)`` / ``("print", line)`` in the order they happened."""
+    src = Path(__file__).resolve().parent.parent / "configure.py"
+    if not (base / "configure.py").exists():
+        shutil.copy2(src, base / "configure.py")
+    spec = importlib.util.spec_from_file_location(f"configure_ev_{id(base)}", base / "configure.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    queue = list(answers)
+    events: list[tuple[str, str]] = []
+
+    def fake_input(prompt: str = "") -> str:
+        events.append(("prompt", prompt.strip()))
+        if not queue:
+            raise EOFError
+        return queue.pop(0)
+
+    def fake_print(*a, **_k) -> None:
+        for line in " ".join(map(str, a)).splitlines() or [""]:
+            events.append(("print", line))
+
+    monkeypatch.setattr(builtins, "input", fake_input)
+    monkeypatch.setattr(builtins, "print", fake_print)
+    monkeypatch.setattr(shutil, "which", lambda _name: None)
+    module.main()
+    return events
