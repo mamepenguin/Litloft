@@ -29,12 +29,17 @@ SPEC-ADDON-017:
 2. When the cue reaches `max_duration` or `max_width`, `flush_with_rewind(word_end)` runs as
    today.
 3. If the flush left words in the current cue (a tail), the tail's duration (`word_end` minus
-   the tail's first `timestamp_start`) and display width are computed, and the boundary tests
-   of the normal path are applied to them unchanged:
+   the tail's first `timestamp_start`) and display width are computed, the width exactly as the
+   normal path computes `current_width` (`_display_width` of the stripped, non-empty tokens
+   joined by `_join_for_language`), and the boundary tests of the normal path are applied to
+   them unchanged, with `ends_hard`, `ends_soft` and the gap as computed in step 1:
    - hard: tail duration ≥ `min_duration` and (`ends_hard` or gap ≥ `silence_gap`);
    - soft: tail duration ≥ `min_duration`, `ends_soft`, and tail width ≥ `max_width * 0.75`.
    If either holds, the whole tail is emitted as a cue ending at `word_end`, and the next word
-   starts a new cue.
+   starts a new cue. This applies whatever the tail's own width or duration, so a tail still
+   over a limit that ends a sentence is ended there too.
+   "Word" here and below is a word as `build_cues` sees it: for `ja`/`jp`, after
+   `_regroup_ja_with_janome` (which returns the input unchanged when janome is unavailable).
 4. If the flush emitted everything, or neither test holds, nothing more happens, as today.
 5. The path where the cue did not reach a limit is unchanged.
 
@@ -43,8 +48,12 @@ SPEC-ADDON-017:
 - A tail shorter than `min_duration` that ends a sentence still carries into the next cue, as
   any cue under `min_duration` does today. Accepted: the existing rule exists to avoid
   flashing cues, and this change does not relax it.
-- A tail that is itself still over `max_width` (a single very long word): unchanged; the next
-  word triggers another flush as today.
+- A tail that is itself still over `max_width` (a single very long word) and does not pass the
+  boundary tests: unchanged; the next word triggers another flush as today. If it passes them,
+  step 3 ends it.
+- The tail cue may end before a word that `_safe_break_between` would reject (a word starting
+  with `」`, `ー` or small kana), exactly as the normal path's sentence-end emit does today.
+  Accepted: such a word after a sentence end or a silence is not observed.
 
 ### 3. States
 
@@ -111,10 +120,16 @@ I3. A tail ending with `、` is ended there only when its width is at least `max
 and its duration at least `min_duration`; otherwise it carries forward.
 I4. A tail whose duration is under `min_duration` carries forward even when it ends a sentence.
 I5. A tail ending with a digit separator (`3.` before `3`, `12：` before `30`) carries forward.
-I6. For any input, the cues' texts joined in order contain every input word once, in order,
-and each cue's `end` is not before its `start`.
-I7. Every expected output in the existing `build_cues` tests (including SPEC-ADDON-010 and
+I6. For any input, with `\n` in cue texts replaced by a space (`en`) or removed (`ja`), the cue
+texts joined in order (by a space for `en`, by nothing for `ja`) equal the stripped, non-empty
+input texts joined the same way, and each cue's `end` is not before its `start`.
+I7. In the cases of I1 and I2, the cue before the tail is the rewind head, with the same text
+and the same `end` as before this change.
+I8. A cue that never reaches `max_width` or `max_duration` ends at the first word that passes
+the hard or soft test, exactly as before this change.
+I9. Every expected output in the existing `build_cues` tests (including SPEC-ADDON-010 and
 SPEC-ADDON-015 cue tests) is unchanged.
+I1 to I5 hold for `en`, and for `ja` both with janome available and without it.
 
 ## Checked, no action
 
