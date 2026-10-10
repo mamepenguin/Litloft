@@ -65,7 +65,7 @@ A missing key means on. The [settings GUI](../admin-guide/settings-gui.md#addon-
 
 ## Installation
 
-The addon is a Git submodule under `addons/intelligence/`. Answer yes when `configure.py` asks to enable it. It writes the service into `docker-compose.override.yml`, mounts your drives read-only, copies `search-config.yml.example` to `search-config.yml`, and generates `SEARCH_WEBHOOK_SECRET` in `.env`. Then:
+The addon is a Git submodule under `addons/intelligence/`. Answer yes when `configure.py` asks to enable it. It writes the service into `docker-compose.override.yml`, mounts your drives read-only, copies `search-config.yml.example` to `search-config.yml` if it does not exist yet, and generates `SEARCH_WEBHOOK_SECRET` in `.env`. Then:
 
 ```bash
 docker compose up -d --build

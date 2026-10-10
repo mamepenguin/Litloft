@@ -1,0 +1,72 @@
+{
+  "risk": "CRITICAL",
+  "score": 11,
+  "base": 3,
+  "zone_max": "HIGH",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".claude/rules/design-decisions.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "CLAUDE.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "configure.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/admin-guide/docker-compose.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/admin-guide/settings-gui.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/known-issues.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/getting-started/installation.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/configuration.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/configure-keeps-gui-config.md",
+      "level": "LOW"
+    },
+    {
+      "path": "tests/configure_scenarios.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "tests/test_configure_keeps_gui_config.py",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)"
+  ]
+}

@@ -43,7 +43,7 @@ The slug is a path identifier, not the display name. On a fresh install the back
 
 ## Passwords file
 
-`configure.py` always creates `passwords.json` as `[]` and mounts it read-write:
+`configure.py` creates `passwords.json` as `[]` when it does not exist, never overwrites an existing one, and mounts it read-write:
 
 ```yaml
 services:

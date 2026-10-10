@@ -4,15 +4,15 @@ Every configuration file Litloft reads, with its keys, defaults and validation. 
 
 | File | What it configures | Edited by |
 |---|---|---|
-| `drives.json` | Drives and per-drive addon policy | `configure.py` writes `[]`; the backend seeds it from mounts; then `/setup`, `/admin/settings`, or by hand |
-| `passwords.json` | Access groups | `configure.py` writes `[]`; then `/setup`, `/admin/settings`, or by hand |
+| `drives.json` | Drives and per-drive addon policy | `configure.py` writes `[]` when absent; the backend seeds it from mounts; then `/setup`, `/admin/settings`, or by hand |
+| `passwords.json` | Access groups | `configure.py` writes `[]` when absent; then `/setup`, `/admin/settings`, or by hand |
 | `.env` | Secrets and variables Compose interpolates | `configure.py`, then by hand |
 | `docker-compose.override.yml` | Mounts, ports, addon services | `configure.py`, or by hand from the example |
 | `addons/intelligence/search-config.yml` | AI features | `configure.py` copies the example; then by hand, or `/admin/settings` for some sections |
 | `data/addons/cloud-sync/sync-config.json` | Backup schedule and mappings | `/admin/settings` |
 | `event-hooks.json` | Webhooks to addons | `configure.py` (from addon manifests), then by hand |
 
-`configure.py` only writes container wiring: `docker-compose.override.yml`, `.env`, empty `drives.json` and `passwords.json`, `event-hooks.json`, and a copy of `search-config.yml` when intelligence is enabled. Drive names, passwords, access groups and addon policy are set in `/setup` and `/admin/settings`.
+`configure.py` only writes container wiring: `docker-compose.override.yml`, `.env`, empty `drives.json` and `passwords.json`, `event-hooks.json`, and a copy of `search-config.yml` when intelligence is enabled. On a re-run it never overwrites an existing `passwords.json`; once `/setup` has been completed it also keeps an existing `drives.json` and `search-config.yml` without asking. Drive names, passwords, access groups and addon policy are set in `/setup` and `/admin/settings`.
 
 ### Never delete a mounted file
 

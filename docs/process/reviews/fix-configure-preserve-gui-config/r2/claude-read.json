@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R2-unplanned-new-test-file-still-open",
+      "origin": "reviewer",
+      "claim": "The acceptance tests are in tests/test_configure_keeps_gui_config.py. That file is still missing from the spec's touch-point list, and the files the list does name (tests/test_configure.py, tests/test_configure_presentation.py, tests/fixtures/configure/) are unchanged.",
+      "impact": "No user impact. Someone reading the touch points to find the SPEC-CORE-004/005 scenarios would look in the wrong files. r1 raised the same mismatch, and nothing since then has changed the spec or moved the tests.",
+      "evidence": "r2/classification.json:57-59 lists tests/test_configure_keeps_gui_config.py as touched. The Touch points section of docs/specs/configure-keeps-gui-config.md (identical in the diff) names only tests/test_configure.py, tests/test_configure_presentation.py, tests/configure_scenarios.py and tests/fixtures/configure/. None of the fix commits since r1 edits the spec's Touch points.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The touch-point list and the diff disagree. No declared invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add tests/test_configure_keeps_gui_config.py to the touch-point list, or record a decision that it stays unlisted."
+    }
+  ],
+  "specification_compliance": [
+    "I1/I4: keep_passwords = kept_without_asking(passwords_file, True) (configure.py:304), so an existing passwords.json skips check_overwrite in every state (configure.py:569-573). No passwords.json prompt is reachable.",
+    "I2/I3/I4: keep_drives and keep_sc require setup_completed and the file existing (configure.py:303,305). When true, the write blocks print the kept line and skip check_overwrite (configure.py:555-558, 580-582).",
+    "I5: an absent file makes kept_without_asking false, and check_overwrite then returns True without a prompt, so the file is written as `[]` or copied from the example.",
+    "I6: before setup, the drives.json and search-config.yml prompts still go through check_overwrite → ask_yn(..., 'n') (configure.py:68-71).",
+    "I7/I8: the summary branches are at configure.py:409-416 and the kept lines at configure.py:556, 570, 581. The drives note at configure.py:557 names Drives and /admin/settings.",
+    "I9: configure.py only checks data/setup_completed with .exists() and never writes or removes it.",
+    "I10: the override still emits `- ./passwords.json:/app/passwords.json` unconditionally (configure.py:455).",
+    "I11: path.exists() is true for a directory, so a directory in a keep cell is skipped with no write.",
+    "r1 finding R1 (submodule bump) no longer applies: r2/classification.json no longer lists addons/intelligence. SPEC-ADDON-015 and its pin reached develop through a080f55 (#444), so the branch diff against origin/develop no longer moves the gitlink.",
+    "The reviewed commit 56121bd8 only records review run r1 under docs/process/reviews/ and does not change code."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The keep decisions are computed once at the start of main() (configure.py:303-305), before the interactive questions. A file created or deleted during the run is judged by its earlier state. This needs out-of-band action during a run, which is outside normal use."
+  ],
+  "test_coverage": [
+    "Mental mutations and whether a test kills them. Gating keep_passwords on setup_completed is killed by the before-setup yes/enter tests. Dropping the summary kept branches is killed by the summary fullmatch tests. Replacing exists() with is_file() is killed by the directory cases. Deleting the drives info note is killed because no other line printed after 'Generate files?' contains 'Drives' (configure.py:557 is the only print with it). Ungating keep_drives (True instead of setup_completed) is killed by the before-setup yes test.",
+    "MISSING_CASES still has no before-setup run with passwords.json absent while the other files exist. The existing fresh-run test in tests/test_configure.py partly covers I5 for that cell."
+  ],
+  "not_verified": [
+    "I did not run the test suite because I cannot execute commands.",
+    "I did not confirm with git that a080f55 is an ancestor of origin/develop. That conclusion rests on the r2 classification no longer listing addons/intelligence.",
+    "I did not read tests/test_configure.py to check that the existing fixtures are still byte-identical."
+  ],
+  "confidence": 82,
+  "trajectory": "The commits listed as fixes since r1 do not add a branch, a state or a prediction to configure.py. a080f55 is the SPEC-ADDON-015 merge (#444), which is now on develop. The other commits (45d6eb2, db920b1, 65b702d, 8de4284, 9e4195f, 56121bd) re-apply the same spec, tests and configure.py change on top of it, plus the review records. The keep logic, the summary branches and the test file match what r1 reviewed. r1's submodule finding went away because the branch now sits on top of develop, not because of a code change. r1's touch-point finding for the new test file was not acted on. Nothing points to the design being patched round after round."
+}
