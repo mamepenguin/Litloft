@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The addon pointer bump still edits addons/intelligence/search-config.yml.example by removing the comment '# Default: openai/whisper-small'. The spec's touch points do not name this file and say 'Docs: none'.",
+      "impact": "Minor. The removed comment was wrong, because the ModelConfig default is openai/whisper-large-v3-turbo. The edit fixes misleading text, but the declared scope does not cover it.",
+      "evidence": "In the diff of search-config.yml.example around line 385, the line '# Default: openai/whisper-small (244M, ~500MB int8 RAM)' is removed. The spec's touch points (docs/specs/whisper-local-model-display.md, Touch points) do not list the example config. This is carried over unchanged from r6 R2.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The edit is an undeclared touch point, and the content change itself is correct.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add search-config.yml.example to the spec's touch-point list, or accept the edit as it is."
+    }
+  ],
+  "specification_compliance": [
+    "The base now contains a080f55 (SPEC-ADDON-015 merged with its spec and INDEX row). The submodule range under review is 1f33822..fe978f8, so the colon-separator change from r6 R1 is no longer part of this diff.",
+    "admin.py:268-270 returns {\"models.whisper\": config.settings.models.whisper} for whisper_local. The other five entries are unchanged (I1, I2, I4).",
+    "workers/whisper.py:187 passes settings.models.whisper to _resolve_model_size. The summary reads the same field from config.settings, and use_settings patches both (I3).",
+    "No code in app/ reads transcription.whisper_local.model. whisper_local.py, refine.py and whisper.py read only other whisper_local fields such as batch_size (I5).",
+    "describeSubconfig (AdminTranscriptionSettingsSection.tsx:106-114) renders key=value, so the line reads models.whisper=<value> (I6)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "If an external script reads search_config_summary.whisper_local.model, it would now get nothing. A grep finds no other consumer in the repository."
+  ],
+  "test_coverage": [
+    "Changing admin.py back to base.whisper_local.model would fail the I1, I3 (both-keys) and I2 tests, because the key name and the value both differ.",
+    "A mutant that re-reads settings from disk would fail test_spec_addon_016_reads_the_loaded_settings_not_the_file_on_disk.",
+    "The I3 test spies on _resolve_model_size inside a real _ensure_loaded with a fake faster_whisper, so a change to the field the worker reads would be caught.",
+    "The frontend I6 test checks both that models.whisper=openai/whisper-small is shown and that no model= text appears."
+  ],
+  "not_verified": [
+    "I did not run the backend or frontend tests.",
+    "I did not confirm that the GET /admin/transcription route exists unauthenticated when mounted bare, as the tests assume. I relied on the tests asserting status 200.",
+    "I did not walk the addon commit graph to confirm that 1f33822 is the develop pointer. This is taken from the a080f55 diff."
+  ],
+  "confidence": 88,
+  "trajectory": "The fix rounds since r6 add no new branch, state or prediction to the SPEC-ADDON-016 code. a080f55 merges SPEC-ADDON-015 (its spec, INDEX row and addon pin) into develop. This takes the colon-separator change out of this review's diff and so resolves r6 R1 by moving it to its own reviewed spec, not by patching it here. The SPEC-ADDON-016 commits (draft, approve, pin, record) leave the admin.py, frontend and test changes the same as in r6. The only r6 item still open is the undeclared comment edit in search-config.yml.example (R2), which is unchanged. The design is not being patched."
+}
