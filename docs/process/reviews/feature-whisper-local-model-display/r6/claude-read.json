@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The addons/intelligence submodule bump (ba49803..fe978f8) ships a SPEC-ADDON-015 behavior change outside the SPEC-ADDON-016 touch points: app/digit_separator.py now treats ':' and '：' between digits as part of a number, which changes how transcripts are split into chunks, cue breaks and two-line subtitle splits. No SPEC-ADDON-015 spec or INDEX.md row exists in this tree.",
+      "impact": "After this pointer bump, the operator gets different Whisper chunk boundaries and subtitle cue and line breaks for every transcript with a digit:digit sequence (e.g. '12:30', 'Chapter 1: 2 items', '1：0'). Neither the spec under review nor the ledger declares or reviews this. A reviewer checking only SPEC-ADDON-016's invariants would let it through.",
+      "evidence": "addons/intelligence/app/digit_separator.py:5 `_SEPARATORS = frozenset(\".,:：\")` (was \".,\"). It is used by is_digit_separator (line 19) and splits_number (lines 37, 45). New tests cite SPEC-ADDON-015 in addons/intelligence/tests/test_digit_separator_breaks.py (class TestColonSeparator) and tests/test_subtitle_line_split_numbers.py (test_spec_addon_015_*). A grep for SPEC-ADDON-015 outside addons/ and outside addons/intelligence/tests finds no match. docs/specs/INDEX.md jumps from SPEC-ADDON-014 to SPEC-ADDON-016. The touch-point list names only admin.py, AdminTranscriptionSettingsSection.tsx/.test.tsx and the new SPEC-ADDON-016 tests.",
+      "repro": "Compare the touch-point list with the submodule diff ba498037..fe978f81: app/digit_separator.py, tests/test_digit_separator_breaks.py and tests/test_subtitle_line_split_numbers.py change and none of them is listed. For behavior: is_digit_separator(None, \"12:\", \"30\") now returns True (it was False), so _build_chunks_from_words no longer ends a chunk at '12:'.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This breaks no SPEC-ADDON-016 invariant. It is an unplanned reach: the commit carries an unrelated, undeclared transcription behavior change (SPEC-ADDON-015) with no spec or ledger entry in the core repo.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Pin the submodule to an addon commit that contains only the SPEC-ADDON-016 change. Alternatively, add SPEC-ADDON-015's spec and INDEX row and name the digit_separator change as a touch point before this bump lands."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "The diff edits addons/intelligence/search-config.yml.example (it removes the comment '# Default: openai/whisper-small'), but the touch-point list says 'Docs: none' and does not name the example config.",
+      "impact": "Minor. The removed comment was wrong: the ModelConfig default is openai/whisper-large-v3-turbo (app/config.py:34). The edit is correct, but it is undeclared.",
+      "evidence": "search-config.yml.example around line 385, where the hunk drops '# Default: openai/whisper-small (244M, ~500MB int8 RAM)'. app/config.py:34 `whisper: str = \"openai/whisper-large-v3-turbo\"`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This breaks no invariant. It is an undeclared touch point; the content change itself is a correct fix of misleading prose.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add search-config.yml.example to the touch-point list, or move the edit into its own commit."
+    }
+  ],
+  "specification_compliance": [
+    "The admin.py change makes whisper_local return {\"models.whisper\": config.settings.models.whisper}, which matches I1/I2.",
+    "The frontend type and test fixture change as the touch points declare; the I6 test exists.",
+    "The tests in test_admin_whisper_model_summary.py cover I1-I5 through GET /admin/transcription and a spy on _resolve_model_size."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "':' and '：' between digits are now number separators for chunking, cue breaking and two-line splitting (SPEC-ADDON-015, not specified in the core repo)."
+  ],
+  "regression_risks": [
+    "Chunk and cue boundaries change for transcripts containing digit:digit patterns, such as times, ratios or scores, after this pointer bump."
+  ],
+  "test_coverage": [
+    "The SPEC-ADDON-016 invariants are covered by new backend tests and one frontend test.",
+    "The SPEC-ADDON-015 colon behavior has its own tests in the addon, but there is no spec to check them against."
+  ],
+  "not_verified": [
+    "I did not run any test.",
+    "I did not inspect the addon repository history between ba49803 and fe978f8 to see whether SPEC-ADDON-015 was reviewed elsewhere.",
+    "I did not check whether a SPEC-ADDON-015 spec exists on another core branch."
+  ],
+  "confidence": 85
+}
