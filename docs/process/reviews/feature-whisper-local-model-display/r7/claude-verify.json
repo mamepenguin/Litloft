@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "In this worktree, addons/intelligence/search-config.yml.example:384-393 (models: block) has no '# Default: openai/whisper-small (244M, ~500MB int8 RAM)' line. Other checkouts of the same file still carry it at that spot, for example /Users/libre/Sources/video_share-epub-controls/addons/intelligence/search-config.yml.example:386 between the 'Whisper model for audio transcription' comment and 'Alternatives'. So the pointed-to addon tree removes it. docs/specs/whisper-local-model-display.md:85-101 (Touch points) does not name search-config.yml.example and says 'Docs: none'. The removal itself is correct: app/config.py:34 sets the default to openai/whisper-large-v3-turbo, so the old comment was wrong. The edit is undeclared but harmless."
+    }
+  ],
+  "specification_compliance": [
+    "Touch points (spec lines 85-101) do not list addons/intelligence/search-config.yml.example, yet the addon tree at this pointer changes it: the stale default comment is removed."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "None from the comment-only edit in search-config.yml.example; it does not change any parsed value."
+  ],
+  "test_coverage": [
+    "Not applicable to R1: a comment-only change in the example config needs no test."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not read the real diff between the base and head addon pointers. The removal was inferred by comparing the working tree with other local checkouts of the same file.",
+    "I did not check invariants I1-I6 or the admin.py / frontend changes beyond what R1 needed.",
+    "I did not run any tests."
+  ],
+  "confidence": 85
+}
