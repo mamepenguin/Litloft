@@ -44,7 +44,7 @@ Press Enter to accept the default shown in brackets. It asks for:
 It then writes:
 
 - `docker-compose.override.yml`: drive mounts, port, addon services.
-- `drives.json` and `passwords.json`, both empty (`[]`).
+- `drives.json` and `passwords.json`, both empty (`[]`). A re-run never overwrites an existing `passwords.json`, and after `/setup` it keeps an existing `drives.json` and `search-config.yml` without asking.
 - `.env`: the setup token, plus the port, addon secrets and `LLM_API_KEY` when they apply.
 - `event-hooks.json`, when an addon service is enabled.
 - `addons/intelligence/search-config.yml`, a copy of the example, when intelligence is enabled.

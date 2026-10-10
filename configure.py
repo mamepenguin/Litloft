@@ -6,13 +6,15 @@ passwords, per-drive addon policy, or AI feature modes. Those are logical
 settings owned by the first-run wizard at ``/setup`` and the running-app
 editor at ``/admin/settings``.
 
-drives.json and passwords.json are always written as an empty ``[]``. The
-single-file bind-mounts ``./drives.json:/app/drives.json`` and
+drives.json and passwords.json are written as an empty ``[]`` when absent.
+The single-file bind-mounts ``./drives.json:/app/drives.json`` and
 ``./passwords.json:/app/passwords.json`` mean an absent host file makes
 Docker create a *directory* there, which the backend cannot read or
 write. Writing ``[]`` keeps each a real, writable file; the backend seeds
 logical drive entries from the mount directories on startup, and the
-wizard / admin settings own passwords from then on. An empty
+wizard / admin settings own their contents from then on. An existing
+passwords.json is never overwritten; once ``data/setup_completed`` exists,
+neither is an existing drives.json or search-config.yml. An empty
 ``passwords.json`` is semantically identical to "no passwords" (every
 drive public, graceful degradation). The override.yml mounts
 passwords.json **read-write** (``:ro`` is incompatible with GUI writes).
@@ -67,6 +69,15 @@ def check_overwrite(path):
     if path.exists():
         return ask_yn(f"{YELLOW}{path.name}{RESET} already exists. Overwrite?", 'n')
     return True
+
+
+def kept_without_asking(path: Path, protected: bool) -> bool:
+    """An existing file whose contents belong to /setup and /admin/settings.
+
+    Only the bind-mount footgun guard needs configure.py to write these, and
+    an absent file is all that guard covers.
+    """
+    return protected and path.exists()
 
 def addon_declares_secret_env(base: Path, addon_name: str, var: str) -> bool:
     """Does this addon's manifest ask core to send `var` as X-Webhook-Secret?
@@ -281,6 +292,17 @@ def main():
     base = Path(__file__).parent
     ensure_submodules_initialized(base)
     ex = ExistingConfig(base)
+    setup_completed = (base / 'data' / 'setup_completed').exists()
+
+    drives_file    = base / 'drives.json'
+    passwords_file = base / 'passwords.json'
+    sc_file        = base / 'addons/intelligence/search-config.yml'
+    # Before setup, re-running configure.py to reset drives.json is how the
+    # documented first-run flow reseeds changed mounts. No flow resets
+    # passwords.json, so it is kept in every state.
+    keep_drives    = kept_without_asking(drives_file, setup_completed)
+    keep_passwords = kept_without_asking(passwords_file, True)
+    keep_sc        = kept_without_asking(sc_file, setup_completed)
 
     if ex.drives:
         info(f"Existing wiring loaded ({len(ex.drives)} drive mount(s))")
@@ -384,10 +406,14 @@ def main():
     heading("Summary")
     print("  Files to generate:")
     print("    docker-compose.override.yml")
-    print("    drives.json     (empty — drives are named at /setup)")
-    print("    passwords.json  (empty — passwords are set at /setup)")
+    if keep_drives:           print("    drives.json     (kept — edited in /admin/settings)")
+    else:                     print("    drives.json     (empty — drives are named at /setup)")
+    if keep_passwords:        print("    passwords.json  (kept — edited in /admin/settings)")
+    else:                     print("    passwords.json  (empty — passwords are set at /setup)")
     if port != '3000':        print(f"    .env  (LITLOFT_PORT={port})")
-    if has_intelligence:      print("    addons/intelligence/search-config.yml")
+    if has_intelligence and keep_sc:
+        print("    addons/intelligence/search-config.yml  (kept)")
+    elif has_intelligence:    print("    addons/intelligence/search-config.yml")
     if has_intelligence or has_knowledge: print("    event-hooks.json")
     if has_knowledge:         print("    .env  (secrets)")
     if llm_api_key:           print("    .env  (LLM_API_KEY)")
@@ -526,8 +552,10 @@ def main():
     # Logical drive entries are seeded by the backend on startup and then
     # owned by /setup + /admin/settings.
 
-    drives_file = base / 'drives.json'
-    if check_overwrite(drives_file):
+    if keep_drives:
+        ok("drives.json  (kept — edited in /admin/settings)")
+        info("Added, removed or renamed a mount? Change that drive under Drives in /admin/settings.")
+    elif check_overwrite(drives_file):
         drives_file.write_text('[]\n')
         ok("drives.json  (empty — named at /setup)")
 
@@ -538,8 +566,9 @@ def main():
     # (all drives public, graceful degradation). Passwords are configured
     # later at /setup + /admin/settings.
 
-    passwords_file = base / 'passwords.json'
-    if check_overwrite(passwords_file):
+    if keep_passwords:
+        ok("passwords.json  (kept — edited in /admin/settings)")
+    elif check_overwrite(passwords_file):
         passwords_file.write_text('[]\n')
         ok("passwords.json  (empty — set at /setup)")
 
@@ -547,9 +576,10 @@ def main():
     # exists (an absent bind-mount target would become a directory).
 
     if has_intelligence:
-        sc_file  = base / 'addons/intelligence/search-config.yml'
         ex_file  = base / 'addons/intelligence/search-config.yml.example'
-        if check_overwrite(sc_file):
+        if keep_sc:
+            ok("addons/intelligence/search-config.yml  (kept)")
+        elif check_overwrite(sc_file):
             if not ex_file.exists():
                 # Belt-and-suspenders: the override.yml mount has already
                 # been written for this run, so silently skipping would
@@ -583,7 +613,7 @@ def main():
     url = f"http://localhost:{port}"
     # The wizard is only reachable while the sentinel is absent, so an install
     # that has already been through it is sent to the app instead.
-    first_run = not (base / 'data' / 'setup_completed').exists()
+    first_run = not setup_completed
     open_url = f"{url}/setup?token={setup_token}" if first_run else url
 
     if not shutil.which('docker'):

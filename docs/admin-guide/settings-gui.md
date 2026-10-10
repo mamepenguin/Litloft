@@ -18,7 +18,7 @@ Settings cannot mount a new host directory. To add one:
 
 1. Re-run `python3 configure.py`, raise the drive count, enter the new path, and let it overwrite `docker-compose.override.yml`. (Or add `- /host/path:/app/drives/<slug>` under the backend's `volumes:` yourself.)
 2. Run `docker compose up -d --build`.
-3. Press **Add drive** and enter `/app/drives/<slug>` as the path.
+3. Press **Add drive** and enter `/app/drives/<slug>` as the path. The re-run keeps `drives.json`, so a drive whose mount you removed or renamed stays listed until you change or remove it here.
 
 **How to add a new drive** on the page repeats these steps.
 
