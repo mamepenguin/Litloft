@@ -86,8 +86,8 @@ One pass over the cues; no measurable cost.
 
 ## Touch points
 
-- `addons/intelligence/app/subtitle_builder.py`: `build_cues` (after the word loop, before
-  `_balance_two_lines`).
+- `addons/intelligence/app/subtitle_builder.py`: `build_cues` (after the trailing `emit` of the
+  last cue, before `_balance_two_lines`).
 - Read, not changed: `to_webvtt`, `build_vtt`, the word rows in `transcript_words`;
   `addons/intelligence/frontend/TranscriptSection.tsx` (reads the WebVTT; its highlight and
   capture follow the clamped ends).
