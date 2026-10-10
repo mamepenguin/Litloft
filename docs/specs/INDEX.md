@@ -31,3 +31,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-012 | implemented | docs/specs/whisper-langdetect-vad-aligner-sentences.md | sha256:19351a069b5b1fd71deb6c77dd9f96c268c72df7de55411c04f42956fac35509 |
 | SPEC-ADDON-013 | implemented | docs/specs/whisper-langdetect-vad-aligner-sentences.md | sha256:19351a069b5b1fd71deb6c77dd9f96c268c72df7de55411c04f42956fac35509 |
 | SPEC-ADDON-014 | implemented | docs/specs/whisper-langdetect-vad-aligner-sentences.md | sha256:19351a069b5b1fd71deb6c77dd9f96c268c72df7de55411c04f42956fac35509 |
+| SPEC-ADDON-015 | draft | docs/specs/digit-colon-times.md | |
