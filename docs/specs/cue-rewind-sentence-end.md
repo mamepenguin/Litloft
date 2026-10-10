@@ -129,7 +129,7 @@ I8. A cue that never reaches `max_width` or `max_duration` ends at the first wor
 the hard or soft test, exactly as before this change.
 I9. Every expected output in the existing `build_cues` tests (including SPEC-ADDON-010 and
 SPEC-ADDON-015 cue tests) is unchanged.
-I1 to I5 hold for `en`, and for `ja` both with janome available and without it.
+I10. I1 to I5 hold for `en`, and for `ja` both with janome available and without it.
 
 ## Checked, no action
 
