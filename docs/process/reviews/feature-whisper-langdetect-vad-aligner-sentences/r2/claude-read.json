@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "A time written in digits with a colon (`12:30`) is still split by the CJK line splitter and by cue boundaries, because `:`/`：` are in `_PUNCT_SOFT` and neither `splits_number` nor `is_digit_separator` treats a colon between digits as part of a number.",
+      "impact": "A Japanese cue such as `午後12:30に集合しましょう…` that crosses half the soft width at the colon is rendered `午後12:` / `30に集合…` on two lines, and in character-row transcripts `build_cues` can end a cue at `12:`. This is the same visual defect R-5 reported for `3.3`. It becomes more frequent now that SPEC-ADDON-010's prompt asks the LLM to write times in Arabic digits.",
+      "evidence": "addons/intelligence/app/subtitle_builder.py:47 `_PUNCT_SOFT = frozenset(\",、;:：；\")`. In subtitle_builder.py:498-504 the soft-punctuation scan skips a position only when `splits_number(text, i + 1)` is true, and addons/intelligence/app/digit_separator.py:5 limits `_SEPARATORS` to `.,`, so a `:` at i with digits on both sides is accepted as the split.",
+      "repro": "not_reproduced. Traced by hand: `_balance_two_lines({'text': 'あいうえお12:30かきくけこさしすせ', ...}, 14)`. The scan reaches ':' at index 7, where `_display_width(text[:8]) >= 7`; `splits_number(text, 8)` returns False because text[8]='3' and before[-1]=':' is not in `_SEPARATORS`. The result is `あいうえお12:` / `30かきくけこさしすせ`.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "014 step 3 defines a number as digits with `.` or `,` only, so no declared invariant is broken. This is a nearby user-visible gap of the same kind, not a violation.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "If a person decides it is in scope, treat a `:` between two digits as inside a number in both `splits_number` and `is_digit_separator`, or leave it to a separate spec."
+    }
+  ],
+  "specification_compliance": [
+    "The reviewed commit 9db9b28d8 changes no code. It adds `test_spec_addon_014_splits_number`, which pins `digit_separator.splits_number` directly, and removes the duplicate draft rows for 009-011 from docs/specs/INDEX.md, so each SPEC-ID now appears once. This answers r1 F5, which noted that `splits_number` had no direct test.",
+    "r1 F1 (the llm.py JSON-mode fallback had no spec) is resolved. SPEC-ADDON-008 was specified, approved and merged into develop separately (79189595), and the submodule base for this diff is now 6bc45be, which already contains it. llm.py no longer appears in the change against its base.",
+    "I1: whisper.py `_decode_detection_sample` uses `-t 120` at `model.feature_extractor.sampling_rate` and returns an np.float32 array; `_detect_language` calls `detect_language(audio=audio, vad_filter=True)`. Consistent with I1.",
+    "I2/I3: `_speech_seconds` is called inside the try. A value below `_LANG_DETECT_MIN_SPEECH_S` logs one INFO and returns None before `detect_language`; an exception falls into the single WARNING. Consistent with I2 and I3.",
+    "I5/I6: aligner.py:166-171 flattens every dict segment's `words`/`chars` in order before the existing passes, and returns `units or None`. Consistent with I5 and I6.",
+    "I7/I8: subtitle_builder.py:498-514 skips soft punctuation inside a number and moves a midpoint inside a number with `_number_edge` (start, else end unless `_NO_BREAK_BEFORE` or end of text, else one line). Hand-traced `だいたい3.3キロくらい` and `…1,500円くけこ、…`: both match.",
+    "I9: in the space path, merging words across a digit separator changes the greedy result only where the old split fell between the merged words, which is inside a number. Other splits keep the same accumulated width, so the position is unchanged."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A colon between digits (`12:30`) is still treated as soft punctuation for line splits and cue ends (F1); the spec defines numbers with `.`/`,` only."
+  ],
+  "regression_risks": [
+    "`_speech_seconds` calls `faster_whisper.vad.get_speech_timestamps(audio, sampling_rate=...)`. If the installed faster-whisper does not take `sampling_rate` as a keyword, every detection raises and is logged as a WARNING, and the file falls back to no prompt. Tests stub this call, so they would not catch it.",
+    "Out-of-order rows across WhisperX segments now feed the interpolation pass, so an untimed token can get a midpoint that is not monotonic with its neighbours. This is accepted in 013's failure cases."
+  ],
+  "test_coverage": [
+    "The new `test_spec_addon_014_splits_number` would catch these mutants: dropping the space handling (`3. 3km`, 3), dropping `before[-2] in _DIGITS` (`a.3`, 2), dropping the next-digit check in the separator branch (`3.a`, 1), and dropping the `pos >= len(text)` guard (`3.3`, 3).",
+    "test_whisper_language_detection.py covers I1-I4 through the `_speech_seconds` seam in both the sequential and the batched path, and covers `_speech_seconds` summing chunk lengths against a fake VAD module.",
+    "test_refine_aligner_sentences.py covers I5 and I6: several sentences, an empty first segment, all segments empty, out-of-order rows, the clamp, and an untimed token at a sentence edge.",
+    "test_subtitle_line_split_numbers.py runs the I7 check with the fake janome and without it, over soft widths 4-39. It uses its own copy of the step 3 rule as the reference, so the check does not depend on `splits_number`. No test covers `:` between digits (F1)."
+  ],
+  "not_verified": [
+    "Did not run any test; read-only review.",
+    "Could not confirm that faster-whisper 1.1.0's `get_speech_timestamps` accepts `sampling_rate` as a keyword; the package is not installed in the repository tree.",
+    "Did not check how real janome tokenizes `3.3` or `1,500`; the post-move check is position-based, so I assumed the tokenization does not matter.",
+    "Did not read refine.py to confirm that no other caller still assumes a single WhisperX segment."
+  ],
+  "confidence": 80,
+  "trajectory": "Reading the record in order: 79189595 removed r1's C finding by moving the llm.py JSON-mode fallback into its own approved spec (SPEC-ADDON-008) and merging it to develop. That shrank the diff and added no new branch. On language detection, each round has added another gate to the same path. 009 added the decode and the 'no samples' INFO skip. The 012 draft added a VAD 'no speech' skip. The spec review then turned that into a threshold (`_LANG_DETECT_MIN_SPEECH_S` = 1.0 s), and 052191802 implemented it with the window raised from 30 s to 120 s and `vad_filter=True`. That is a second prediction (speech below 1 s gives an unreliable answer) stacked on the first (the opening 30 s is speech). So the detection design is being patched round by round. For number splitting, 010 added the `is_digit_separator` rule for cue ends; 014 added a second rule (`splits_number`) and a fallback chain in `_number_edge` (start, then end, then one line) for line splits, again a patch on the same idea. The reviewed commit 9db9b28d8 adds no branch or state: it only adds a direct `splits_number` test and removes the stale duplicate INDEX rows."
+}

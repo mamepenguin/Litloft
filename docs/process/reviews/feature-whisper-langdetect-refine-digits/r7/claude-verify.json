@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "admin-shows-unused-whisper-local-model",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. addons/intelligence/app/routers/admin.py:268 returns base.whisper_local.model in _frozen_subconfig_summary. config.py:130 defaults WhisperLocalConfig.model to 'openai/whisper-large-v3-turbo'. The worker loads settings.models.whisper (workers/whisper.py:187,190; config.py:34). No other code under app/ reads whisper_local.model, and that includes workers/transcription/whisper_local.py. search-config.yml.example:465-468 no longer lists a model key under whisper_local. If an operator sets models.whisper to a non-default model, the admin summary still shows the WhisperLocalConfig default (or a stale value from the file), which is a wrong display in normal use. The admin read and the config field predate this change. The change only removed the documented key that tied the displayed value to the config file."
+    }
+  ],
+  "specification_compliance": [
+    "Spec 011 says the whisper worker reads models.whisper for the model. That holds at workers/whisper.py:187."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The admin GUI sub-config summary can show a whisper_local model that the worker does not use."
+  ],
+  "test_coverage": [
+    "No admin test asserting the whisper_local model summary was checked."
+  ],
+  "not_verified": [
+    "Whether the admin frontend actually renders the whisper_local.model field.",
+    "docs/addons/intelligence.md contents after the change.",
+    "Any tests that assert the admin summary payload."
+  ],
+  "confidence": 88
+}
