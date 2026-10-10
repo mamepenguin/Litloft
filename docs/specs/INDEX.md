@@ -35,4 +35,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-016 | implemented | docs/specs/whisper-local-model-display.md | sha256:741a2972be1d7b7e4713e71ac74430b0d93c17672feeb99f544e00f19849c188 |
 | SPEC-CORE-004 | implemented | docs/specs/configure-keeps-gui-config.md | sha256:8cffd22588fc80b7cfbc03ab254337bb6f3510d09ca75cf980941b0316a84426 |
 | SPEC-CORE-005 | implemented | docs/specs/configure-keeps-gui-config.md | sha256:8cffd22588fc80b7cfbc03ab254337bb6f3510d09ca75cf980941b0316a84426 |
-| SPEC-ADDON-017 | approved | docs/specs/cue-rewind-sentence-end.md | sha256:39488e91f639e7e4d98d9cdad703de2b7ca80bec3c6646935868010308811895 |
+| SPEC-ADDON-017 | implemented | docs/specs/cue-rewind-sentence-end.md | sha256:39488e91f639e7e4d98d9cdad703de2b7ca80bec3c6646935868010308811895 |

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "SPEC-ADDON-017 step 3 is implemented at addons/intelligence/app/subtitle_builder.py:381-389. After flush_with_rewind(word_end) runs, a non-empty tail is measured. Its duration is word_end - cue_start, and emit() (line 302) has just reset cue_start to the tail's first timestamp_start. Its width uses the same _display_width/_join_for_language over stripped, non-empty tokens as current_width (lines 344-346). The tail then goes through at_boundary(), the same closure the elif path uses (lines 372-379, 390), with ends_hard, ends_soft and the gap computed once for the word in step 1. If at_boundary() holds, the whole tail is emitted ending at word_end.",
+    "Step 4 holds. When the fallback emit(len(current), fallback_end) at line 334 empties current, the `if current` guard at line 385 skips the new code.",
+    "Step 5 / I8 holds: the elif at_boundary(duration, current_width) branch at line 390 is equivalent to the old inline hard/soft test.",
+    "I1/I2: the tail always ends with the current word, because flush_with_rewind only ever emits a strict prefix current[:cand] with cand < len(current), or everything. So the boundary tests apply to the tail's last word.",
+    "I3: the soft test requires tail_width >= max_width*0.75 and duration >= min_duration.",
+    "I4: both the hard and soft tests require duration >= min_duration.",
+    "I5: punctuation is False when is_digit_separator(...) holds (line 355), so ends_hard and ends_soft are False for a separator. A separator followed by a gap >= silence_gap still ends a tail, as it ends a cue on the non-flush path; this is consistent with the spec's 'boundary tests unchanged'.",
+    "I6: emit only partitions current into head and tail, so no word is dropped or duplicated. The tail emit's end is word_end and its start is the tail's first timestamp_start. at_boundary requires word_end - cue_start >= min_duration, so end >= start whenever min_duration >= 0.",
+    "I7: the rewind head is emitted by flush_with_rewind, which is unchanged, before the new code runs, so its text and end are as before the change."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Tail cues can overlap the next cue in time when the input word rows overlap. A tail ends at word_end, and the next word's timestamp_start may precede it. decisions.md reports 217 such new overlaps. The non-flush sentence-end emit already behaves this way, and the spec does not address overlap.",
+    "If min_duration were configured negative, the I6 property 'end not before start' would rest on the input timestamps alone. The configuration is user-authored and the default is 0.6, so this is outside the threat model."
+  ],
+  "regression_risks": [
+    "Cue timing changes for every cue that follows a width or duration flush whose tail ends a sentence or a silence. This is intended. decisions.md reports 74/113 files and 2356 regions changed, with joined text identical."
+  ],
+  "test_coverage": [
+    "tests/test_cue_rewind_sentence_end.py covers I1 (over/exactly min_duration), I2 (silence over/exactly silence_gap, duration flush with full stop and with silence), I3 (wide comma over/exactly 0.75, narrow comma, wide comma under min_duration), I4, I5 (12: and 12：), I7 via the expected head cue, and I10 via the en / ja-without-janome / ja-with-janome parametrization. I6 is covered by a 40-seed randomized property test.",
+    "I5 is tested only with a colon separator (12:/12：). The '3.' before '3' case named in I5 is not exercised directly by a dedicated test, although '3.' is in EN_VOCAB for the random test.",
+    "I8 has no dedicated new test. It relies on the existing test_subtitle_builder.py and test_digit_separator_breaks.py tests. By reading, those use either no punctuation with gaps under silence_gap, or bounds-only assertions, so their outcomes should be unchanged (I9)."
+  ],
+  "not_verified": [
+    "I did not run any test (pytest), so I9 rests on reading the existing assertions only.",
+    "I did not check the git diff of the addon submodule against its parent commit. I assumed that the only code change in build_cues is lines 381-389, based on the spec and the code comments.",
+    "I did not check the in-app evidence in decisions.md (the VTT before/after comparison) independently.",
+    "I did not check behaviour with real janome tokenization; the tests stub the tokenizer."
+  ],
+  "confidence": 85
+}
