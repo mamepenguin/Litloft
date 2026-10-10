@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R1-unplanned-submodule-bump",
+      "origin": "reviewer",
+      "claim": "The diff moves the addons/intelligence gitlink from ba498037 to fe978f81, which is not in the touch-point list and carries addon behaviour changes for SPEC-ADDON-015 and SPEC-ADDON-016 that have no spec or ledger entry in this repository.",
+      "impact": "Merging this configure.py fix also ships unrelated intelligence-addon changes. Transcript chunking and cue or line breaking now treat ASCII and fullwidth colons between digits as part of a number, the admin transcription summary key changes from whisper_local.model to whisper_local['models.whisper'], and search-config.yml.example changes, which is the file configure.py copies under I5. None of these is declared or reviewed against this change's invariants. docs/specs/INDEX.md has no SPEC-ADDON-015/016 rows.",
+      "evidence": "In the diff, addons/intelligence goes from Subproject commit ba498037d573ed99960cdca2f1df1645af118968 to fe978f81f21769de4787eb11bf1803e0d4e64c54. The submodule diff changes app/digit_separator.py (_SEPARATORS now includes ':' and the fullwidth colon), app/routers/admin.py (_frozen_subconfig_summary), frontend/AdminTranscriptionSettingsSection.tsx and search-config.yml.example, and adds tests/test_admin_whisper_model_summary.py. docs/process/reviews/fix-configure-preserve-gui-config/r1/classification.json lists addons/intelligence as a touched zone (MEDIUM). The Touch points section of docs/specs/configure-keeps-gui-config.md does not name it. CLAUDE.md:72-79 and docs/process/PROJECT.md:81 treat a pointer bump as a tracked edit. Grep for SPEC-ADDON-01[56] under docs/ returns no files.",
+      "repro": "Compare the changed paths in the diff with the spec's Touch points list: addons/intelligence is changed and not listed. Grep 'SPEC-ADDON-01[56]' in docs/ finds nothing.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers the addon pointer. This is undeclared scope that brings in changes to user-visible addon behaviour without a spec. Whether it belongs in this change is for a person to decide.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Restore the addons/intelligence gitlink to the develop pin in this branch and land the SPEC-ADDON-015/016 bump in its own change with its spec and ledger rows. Alternatively, add addons/intelligence to the touch points with a reason."
+    },
+    {
+      "id": "R2-unplanned-new-test-file",
+      "origin": "reviewer",
+      "claim": "The diff adds tests/test_configure_keeps_gui_config.py, which the touch-point list does not name. The list names tests/test_configure.py, tests/test_configure_presentation.py, tests/configure_scenarios.py and tests/fixtures/configure/.",
+      "impact": "No user impact. The acceptance tests for I1 to I11 sit in a file the plan did not declare, while the declared test files and fixtures are untouched. A reader of the touch points would look for the new scenarios in the wrong place.",
+      "evidence": "The diff adds a new file, tests/test_configure_keeps_gui_config.py (272 lines). r1/classification.json lists it under zones_touched (MEDIUM). Nothing under tests/test_configure.py, tests/test_configure_presentation.py or tests/fixtures/configure/ changes in the diff.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a mismatch between the touch-point list and the diff. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add tests/test_configure_keeps_gui_config.py to the touch-point list."
+    }
+  ],
+  "specification_compliance": [
+    "Inside the declared touch points, configure.py implements the state table. keep_passwords is kept_without_asking(passwords_file, True), so passwords.json is kept whenever it exists (I1, I4). keep_drives and keep_sc are gated on data/setup_completed (I2, I3, I6). The kept lines and summary lines are added (I7), and the drives note names Drives in /admin/settings (I8).",
+    "I11: kept_without_asking uses path.exists(), which is true for a directory, so a directory in a keep cell is skipped without a write.",
+    "Every listed documentation file (CLAUDE.md, .claude/rules/design-decisions.md, docs/reference/configuration.md, docs/admin-guide/docker-compose.md, docs/admin-guide/settings-gui.md, docs/getting-started/installation.md, docs/addons/intelligence.md, docs/developer-guide/known-issues.md) is in the diff.",
+    "Listed but untouched: tests/test_configure.py, tests/test_configure_presentation.py and tests/fixtures/configure/. This matches 'existing fixtures stay byte-identical', because no existing scenario pre-creates passwords.json (build_tree writes only .env and the addon trees)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The addons/intelligence pointer bump changes the addon's chunk and cue splitting at colons between digits, the admin transcription summary key, and search-config.yml.example. No spec in this repository declares any of these."
+  ],
+  "regression_risks": [
+    "The submodule bump pairs core with a newer intelligence commit. If develop's addon pin is meant to move separately, merging this branch moves it implicitly."
+  ],
+  "test_coverage": [
+    "The new tests cover after-setup keep with yes and no answers, the kept lines, the drives note, the summary lines, the before-setup prompt with yes and Enter for both 'no data dir' and 'data dir without marker', missing-file writes, directory cases and an aborted run. A mutation that gates keep_passwords on setup_completed would be caught by the before-setup tests.",
+    "MISSING_CASES does not include a before-setup run with a missing passwords.json while the other files exist. The existing test_minimal_run_writes_empty_passwords_json covers the plain fresh case."
+  ],
+  "not_verified": [
+    "Did not run any tests; I had no command execution.",
+    "Did not inspect the addon submodule's working tree or confirm that fe978f81 is merged on the addon's main branch.",
+    "Did not confirm that the diff shown equals commit 076d601ee alone rather than the branch against origin/develop."
+  ],
+  "confidence": 80
+}
