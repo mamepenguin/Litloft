@@ -31,13 +31,23 @@ SPEC-ADDON-019:
 2. In that same write block, after the window's chunk rows are updated, the file's rows in
    `fts_transcripts` and `fts_transcripts_word` are replaced with one row per
    `transcript_chunks` row of the file whose text is not blank (after stripping
-   whitespace): `(file_id, chunk_index, text)` as stored in the chunk row. This is the
-   shape the transcription path writes (`upsert_fts_transcripts`).
+   whitespace): `file_id`, `chunk_index` written as the decimal string of the chunk row's
+   integer `chunk_index` (`3` → `'3'`), and `text` as stored in the chunk row. This is
+   the shape the transcription path writes (`upsert_fts_transcripts`). The chunk rows are
+   read after the window's edits are flushed, so the window's refined text is what is
+   indexed.
 3. When the job re-chunks (`rechunk_from_words`, after all windows, when something was
    refined), the same replacement runs in the re-chunk write block, after the new chunk
    rows exist, so the keyword index carries the new `chunk_index` values.
 4. Embeddings are recomputed afterwards as today; the keyword index does not wait for
    them.
+
+What is indexed is the chunk text as stored, not the LLM's output as such. Re-chunking
+rebuilds chunk text from the word rows, and where forced alignment did not run (no audio,
+or the aligner returned nothing) the word rows keep the transcription's words
+(`.claude/rules/design-decisions.md`, Transcript Refine), so that span's chunk text, and
+its keyword rows, are the pre-refine words. The keyword index follows the stored
+transcript; it does not change what refine stores.
 
 ### 2. Failure cases
 
@@ -47,6 +57,10 @@ SPEC-ADDON-019:
   `intelligence.refine.failed` as any other exception in the job does today. Windows
   committed earlier keep their chunks and matching keyword rows.
 - A window where the LLM refined nothing: no write block runs, nothing changes.
+- The re-chunk write block raises (in `rechunk_from_words` or in the keyword write): it
+  rolls back as a whole, so the chunk rows as committed by the last window and their
+  keyword rows from that window's step 2 remain, and the job ends with
+  `intelligence.refine.failed`.
 - Re-chunking produces no chunks (the file has no non-blank word rows): no re-chunk write
   happens; the keyword index already matches the chunks from step 2.
 - The job fails or the process stops between windows: the keyword index matches the
@@ -97,15 +111,21 @@ None new: a failure surfaces as the existing `intelligence.refine.failed` event 
 
 ### 9. User-visible behavior
 
-For a file refined after this change, keyword search finds the words as refine wrote them,
-no longer finds words refine replaced, and a hit opens at the timestamp of the chunk that
-contains it. `docs/addons/intelligence.md` says so instead of stating the gap.
+For a file refined after this change, keyword search matches the transcript text stored
+after refine (in the usual case, the words as refine wrote them), no longer matches words
+that are in no stored chunk, and a hit opens at the timestamp of the chunk that contains
+it. `docs/addons/intelligence.md` says that keyword search matches the refined transcript
+instead of stating the gap.
 
 ### 10. Non-functional
 
-One delete and one insert per non-blank chunk, per table, per window and once more after
-re-chunking; a few hundred rows for a long video, inside the write lock that refine already
-holds for that block. No LLM or embedding cost.
+Each write rewrites the file's whole keyword rows, in both tables: once per refined window
+(`WINDOW_SIZE` 10 chunks) and once after re-chunking, inside the write lock that refine
+already holds for that block. Measured 2026-10-11 on a copy of this machine's DB (45,265
+keyword rows): for the largest transcript (2,308 chunks) one rewrite of both tables takes
+about 126 ms, so each window holds the lock about 0.13 s longer, released between windows
+during the LLM call; over the job's ~231 windows that adds about 29 s of lock time in
+total. Accepted: other writers wait at most one window's write. No LLM or embedding cost.
 
 ## Touch points
 
@@ -128,12 +148,14 @@ holds for that block. No LLM or embedding cost.
 
 I1. After a refine job that refined at least one chunk completes, the file's rows in
 `fts_transcripts` are exactly one row per non-blank `transcript_chunks` row of the file,
-with the same `chunk_index` and `text`; the same holds for `fts_transcripts_word`.
-I2. After such a job, keyword search for a word that appears only in the refined text
-returns that file, with the hit's timestamps equal to those of the chunk row whose text
-contains the word.
-I3. After such a job, keyword search for a word that appeared only in the pre-refine text
-no longer returns that file from the transcript index.
+with `chunk_index` equal to the decimal string of the chunk's `chunk_index` and the same
+`text`; the same holds for `fts_transcripts_word`.
+I2. After such a job, keyword search for a word that appears in a stored chunk's text and
+not in the file's pre-refine chunks returns that file, with the hit's timestamps equal to
+those of the stored chunk row whose text contains the word.
+I3. After such a job, keyword search for a word that appeared in the file's pre-refine
+chunks and appears in no stored chunk's text no longer returns that file from the
+transcript index.
 I4. When re-chunking produces no chunks, I1 still holds after the job, with the chunks'
 refined text.
 I5. A refine job that refines no chunk leaves the file's keyword rows unchanged.
@@ -141,6 +163,9 @@ I6. When writing the keyword rows raises inside a window's write block, that win
 chunk text and the file's keyword rows are both what they were before the window.
 I7. Keyword rows of other files, and the rows of `fts_files`, `fts_text_content`,
 `fts_text_content_word` and `fts_retrieval_keywords`, are unchanged by a refine job.
+I8. When a job fails in window k after earlier windows committed refined text, or when its
+re-chunk write block raises, the file's keyword rows equal its chunk rows as last
+committed (by I1's comparison), including the refined text of the committed windows.
 
 ## Checked, no action
 
@@ -153,7 +178,7 @@ I7. Keyword rows of other files, and the rows of `fts_files`, `fts_text_content`
   listed it beside the keyword index; it is left to its own spec.
 - **Writing the keyword rows once at the end of the job only.** The per-window write keeps
   the index equal to the chunks at every commit, including when the job fails part way or
-  re-chunking produces nothing (I4, I6).
+  re-chunking produces nothing (I4, I8).
 - **Updating only the changed rows** instead of replacing the file's rows. The file's
   `chunk_index` values all change at re-chunk, and the transcription path already
   replaces per file; one shape for both.
