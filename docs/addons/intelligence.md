@@ -250,7 +250,7 @@ Modes (`features.retrieval_keywords`):
 
 **Clean up with AI** in the transcript asks the LLM to fix punctuation, homophones and names, chunk by chunk. The words are then re-timed against the audio and the embeddings rebuilt. If re-timing fails (audio missing, language not supported, out of memory), the old word timings stay.
 
-Refine writes numbers as digits (`2025年`, `1万5000円`) whichever engine transcribed the file. It does not update keyword search, which keeps matching the text from before refine; semantic search, the transcript and subtitles use the refined text.
+Refine writes numbers as digits (`2025年`, `1万5000円`) whichever engine transcribed the file. Keyword search, semantic search, the transcript and subtitles use the refined text. A file refined by an earlier version, before refine updated keyword search, keeps matching its text from before refine in keyword search until it is transcribed again.
 
 Refine replaces the transcript text, and there is no undo. To get the original back, transcribe the file again: **Index details** → **Regenerate** on the `whisper` task.
 
