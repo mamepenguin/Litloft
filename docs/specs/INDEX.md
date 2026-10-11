@@ -36,4 +36,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-004 | implemented | docs/specs/configure-keeps-gui-config.md | sha256:8cffd22588fc80b7cfbc03ab254337bb6f3510d09ca75cf980941b0316a84426 |
 | SPEC-CORE-005 | implemented | docs/specs/configure-keeps-gui-config.md | sha256:8cffd22588fc80b7cfbc03ab254337bb6f3510d09ca75cf980941b0316a84426 |
 | SPEC-ADDON-017 | implemented | docs/specs/cue-rewind-sentence-end.md | sha256:39488e91f639e7e4d98d9cdad703de2b7ca80bec3c6646935868010308811895 |
-| SPEC-ADDON-018 | approved | docs/specs/cue-no-overlap.md | sha256:70a699fb5c763d7902f57440762de93eb51aefa9484736a312394d24661dd85c |
+| SPEC-ADDON-018 | implemented | docs/specs/cue-no-overlap.md | sha256:70a699fb5c763d7902f57440762de93eb51aefa9484736a312394d24661dd85c |
