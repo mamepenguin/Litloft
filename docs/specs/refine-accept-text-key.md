@@ -25,7 +25,9 @@ SPEC-ADDON-020:
 
 1. Refine sends the window and receives the response exactly as today.
 2. `_parse_llm_response` reads each item's refined text from `text_refined` when the item
-   has that key, and otherwise from `text`. An item that has both uses `text_refined`.
+   has that key, and otherwise from `text`. Presence of the key decides: an item that has
+   `text_refined` uses it even when its value is not a string (and is then rejected by
+   step 3), and an item that has both uses `text_refined`.
 3. Everything else about the parse is unchanged: the `{"items": [...]}` wrapper or a bare
    list, `id` coerced to int, the value must be a string, and the set of ids must equal the
    window's ids exactly.
@@ -37,8 +39,13 @@ SPEC-ADDON-020:
 - An item with neither `text_refined` nor `text`, or whose chosen value is not a string:
   the window is rejected and its chunks keep their text, as today.
 - A model that echoes the input unchanged under `text`: the chunk is stored with the same
-  text and stamped as refined. Measured responses changed the text (punctuation added);
-  an unchanged echo is not worse than today's rejection, which leaves the same text.
+  text and stamped as refined (`text_refined_at`, `refined_model`), the words are realigned,
+  and the file is re-chunked and re-embedded. The transcript panel then marks those lines
+  as refined, chunk boundaries may move, the text reads as before, and the
+  `intelligence.refine.completed` event counts the chunks as refined. Nothing tells the
+  user the model changed nothing. Accepted: measured responses changed the text
+  (punctuation added), and the words a viewer reads are the same as after today's
+  rejection.
 - Ids missing or extra: the window is rejected, as today.
 
 ### 3. States
@@ -66,8 +73,11 @@ Unchanged: refine's feature gate and drive policy check.
 - Refine with a model that answers with `text` now changes transcripts. Refine is
   destructive with no undo (`.claude/rules/design-decisions.md`, Transcript Refine); this
   is the behaviour the operator asked for by choosing that model.
-- With `features.transcript_refine: "on_index"` and such a model, newly indexed files are
-  now refined automatically. This machine has `"manual"`; the shipped default is `"false"`.
+- Refine runs only on a request: one file (`POST /refine/files/{id}`, **Clean up with AI**)
+  or a folder (`POST /refine/folders`, the folder action, up to `MAX_FOLDER_FILES` files).
+  No indexing path starts it, whatever `features.transcript_refine` says. A folder request
+  with such a model now rewrites every transcript in it, with no undo; that is what the
+  operator asks for by pressing it.
 - No other caller uses `_parse_llm_response`.
 
 ### 8. Error behavior
@@ -77,8 +87,9 @@ None new. A rejected window is logged as today
 
 ### 9. User-visible behavior
 
-With a local model that answers with `text`, **Clean up with AI** now corrects the
-transcript (punctuation, names, digits) instead of finishing with nothing changed.
+With a local model that answers with `text`, **Clean up with AI** on a file, and the
+folder refine action on every transcript in the folder, now correct the transcript
+(punctuation, names, digits) instead of finishing with nothing changed.
 
 ### 10. Non-functional
 
@@ -102,16 +113,22 @@ were wasted are now used.
 I1. An item with a string `text_refined` yields that value, whether or not it also has
 `text`.
 I2. An item without `text_refined` and with a string `text` yields that `text` value.
-I3. A window is rejected (its chunks keep their text and are not stamped) when any item
-has neither key, or when the value of the key it uses is not a string.
+I3. A window is rejected (its chunks keep their text and are not stamped, and the job
+counts them as skipped) when any item has neither key, when an item's `text_refined` is
+present but not a string (even if it also has a string `text`), or when an item without
+`text_refined` has a `text` that is not a string.
 I4. A window whose ids differ from the window's ids, by a missing or an extra id, is
 rejected, whichever key the items use.
 I5. A window whose items mix the two keys is accepted when every item has a string under
 one of them.
 I6. Given the response shape measured from the local model (`{"items": [{"id", "text"}]}`
-with every id), `_run_refine_job` stores each item's text in its chunk with
-`text_refined_at` set and `refined_model` equal to the profile's model.
-I7. The system and user prompts sent to the LLM are byte-identical to before this change.
+with every id) for a file with no word rows (so re-chunking produces nothing),
+`_run_refine_job` leaves each chunk holding its item's text, with `text_refined_at` set and
+`refined_model` equal to the profile's model, and the `intelligence.refine.completed`
+event reports `refined_count` equal to the number of chunks.
+I7. This change edits neither `app/prompts/refine/*.jinja2` nor `_PUNCTUATION_INSTRUCTIONS`,
+`_build_system_prompt` or `_build_user_prompt` in `workers/refine.py`, so the prompts sent
+to the LLM are those the measurement used (a review check).
 
 ## Checked, no action
 
