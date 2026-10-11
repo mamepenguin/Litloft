@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: addons/intelligence/app/workers/refine.py:117 picks 'text_refined' whenever that key is present, and lines 124-127 store its value only when it is a str. Tested by test_spec_addon_020_text_refined_wins_over_text and by the mixed-keys test.",
+    "I2: refine.py:117 falls back to 'text' when 'text_refined' is absent. Tested by test_spec_addon_020_items_under_text_are_applied (with and without the items wrapper), the single-item test and the string-id test.",
+    "I3: an item with neither key fails at line 118 (key='text' is not in the entry). An item with 'text_refined' that is not a str fails at line 125 even when it also has a string 'text', because the key is already fixed to 'text_refined'. An item whose 'text' is not a str fails at line 125. In each case refine_chunks (lines 174-181) adds the whole window to skipped and leaves its chunks unchanged. All seven variants are parametrized in test_spec_addon_020_window_with_unusable_item_is_rejected, which also checks that the next window is still applied.",
+    "I4: refine.py:129 compares the set of parsed ids with expected_ids, whichever key the items use. Tested for missing and extra ids under both keys.",
+    "I5: the key is chosen for each item separately (line 117), so a window that mixes the keys is accepted. Tested by test_spec_addon_020_mixed_keys_in_one_window_are_accepted.",
+    "I6: test_spec_addon_020_job_applies_measured_text_key_response runs _run_refine_job against a real SQLite database with the measured response shape. It asserts each chunk's text, the text_refined_at stamp, refined_model equal to the profile model, and refined_count == 3 in the completed event.",
+    "I7: _build_system_prompt and _build_user_prompt are called unchanged at refine.py:161-164. I could not diff the prompts against base because I have no git access."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Duplicate ids in a response are still allowed, as before this change: by_id at refine.py:127 keeps the last value for an id, and the set comparison at line 129 does not notice the duplicate. The invariants do not cover this, and the behaviour is not new."
+  ],
+  "regression_risks": [
+    "Some responses used to be rejected because they carried only 'text', which may have been an unchanged echo of the input. These are now accepted and stamped as refined. The spec calls this an accepted failure case and test_spec_addon_020_unchanged_echo_under_text_is_stamped_refined covers it."
+  ],
+  "test_coverage": [
+    "addons/intelligence/tests/test_refine_accept_text_key.py has at least one test for every invariant from I1 to I6, and each test cites SPEC-ADDON-020.",
+    "I7 is a review check and has no test."
+  ],
+  "not_verified": [
+    "I did not run the tests because I cannot execute commands.",
+    "I7 was not checked with a diff against origin/develop: I could not confirm that app/prompts/refine/*.jinja2 and _PUNCTUATION_INSTRUCTIONS are unchanged.",
+    "I did not check whether the addons/intelligence submodule checked out in this worktree matches the pointer recorded in commit f5dddfaaa."
+  ],
+  "confidence": 85
+}
