@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/test_refine_job_model.py:16 imports `text` from sqlalchemy, and lines 29-33 create the FTS5 virtual tables fts_transcripts and fts_transcripts_word. The test predates this change: its docstring (line 1) covers the model stamp, and it does not cite SPEC-ADDON-019. The only file that cites SPEC-ADDON-019 is tests/test_refine_fts_reindex.py:1. The fixture is needed because _reindex_keywords (refine.py:410-427, called at refine.py:792 and :822) calls upsert_fts_transcripts against those tables. The edit is therefore a test-fixture adjustment outside the declared touch points ('new tests citing SPEC-ADDON-019'). It is not a behavioural defect. I could not run git, so I confirmed from the file state in the worktree and did not view the diff hunks themselves."
+    }
+  ],
+  "specification_compliance": [
+    "The touch points name only new tests that cite SPEC-ADDON-019. Changing the fixture of the existing test_refine_job_model.py goes beyond that list, though it follows directly from the new _reindex_keywords call."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Any other existing test that runs _run_refine_job against a database without the FTS5 transcript tables would now fail in the write block. I did not check every such test."
+  ],
+  "test_coverage": [
+    "tests/test_refine_fts_reindex.py is the new test that cites SPEC-ADDON-019. I did not check how well it covers each invariant."
+  ],
+  "not_verified": [
+    "The commit's actual diff hunks (git is unavailable), so I could not tell whether lines 16 and 29-33 were added by this exact commit or were already in the base.",
+    "Whether the test suite passes.",
+    "Other existing tests that may need the same FTS fixture."
+  ],
+  "confidence": 85
+}
