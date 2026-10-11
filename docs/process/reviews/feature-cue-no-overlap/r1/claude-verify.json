@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1/I2: addons/intelligence/app/subtitle_builder.py:399-411 `_clamp_to_next_start` sets end to nxt.start when cue.start < nxt.start < cue.end. It compares each cue against the next cue's unchanged start, so the second-to-last cue is clamped against the last cue.",
+    "I3: the else branch keeps the cue's end. The last cue gets nxt=None, so it keeps its end.",
+    "I4: the clamp copies with {**cue, 'end': ...} and changes nothing but end. The list has the same length (zip over cues with cues[1:]+[None]). _balance_two_lines runs after the clamp and changes only text, the same as before.",
+    "I5: a clamped end equals nxt.start, which is strictly greater than cue.start, so the end is after the start. Cues that are not clamped are unchanged.",
+    "I6: the condition needs cue.start < nxt.start, so a next cue that starts at or before this cue's start leaves the end unchanged.",
+    "I7: the clamp builds new dicts and never touches the input word dicts. test_cue_no_overlap.py:170-175 checks the words with a deepcopy.",
+    "Touch point: the clamp is placed after the trailing emit (line 393-394) and before _balance_two_lines (line 396), as the spec requires.",
+    "I8: TranscriptSection.test.tsx:2426-2470 checks that the highlight moves to the next row exactly at 13.695 for back-to-back cues."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A cue whose end was already before its start before this change (the last word's timestamp_end is earlier than the first word's timestamp_start, from overlapping or out-of-order rows) is not clamped and keeps its inverted end. This is pre-existing. The property test skips these cues on purpose, and I5 is arguably about the clamp only."
+  ],
+  "regression_risks": [
+    "build_vtt (subtitle_builder.py:598) is the only caller of build_cues, so the shortened ends reach only the WebVTT output and the frontend that reads it."
+  ],
+  "test_coverage": [
+    "tests/test_cue_no_overlap.py covers I1-I4 with fixed examples, the chained clamp, and I6 next to a clamp. It also checks WebVTT serialisation and runs a randomized property test of I1-I7 on overlapping and out-of-order rows in en and ja, asserting that at least one cue was clamped.",
+    "The frontend test covers I8 for back-to-back cues."
+  ],
+  "not_verified": [
+    "I did not run the Python or frontend tests (I had no shell).",
+    "I did not check that the core repository's addons/intelligence submodule pointer matches the addon commit that contains this change.",
+    "I did not check the TranscriptSection.tsx highlight logic beyond what the test asserts.",
+    "I did not inspect the janome regrouping path (the tests disable it), apart from noting that the clamp runs after it."
+  ],
+  "confidence": 85
+}
