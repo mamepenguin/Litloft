@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "Every path the diff touches is in the touch-point list or is an implicit touch point. That covers the addons/intelligence submodule pointer bump, addons/intelligence/app/workers/refine.py, the new addons/intelligence/tests/test_refine_accept_text_key.py, and the implicit docs/specs/refine-accept-text-key.md, docs/specs/INDEX.md and docs/process/reviews/fix-refine-response-key/.",
+    "Within refine.py the hunk is confined to _parse_llm_response (lines 115-124). _PUNCTUATION_INSTRUCTIONS, _build_system_prompt, _build_user_prompt and app/prompts/refine/*.jinja2 are unchanged, consistent with I7.",
+    "The code at refine.py:117 picks text_refined when that key is present and text otherwise. It rejects a missing key or a non-string value (lines 118, 125) and keeps the exact id-set check (line 129), consistent with I1-I5.",
+    "The new test imports tests/llm_helpers.resolved_with, which already exists (tests/llm_helpers.py:9). It is read, not changed."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "An item whose id appears twice in one response (once under text, once under text_refined) gets last-wins behaviour in by_id. The id-set check still passes. This was the same before the change and needs malformed model output."
+  ],
+  "regression_risks": [
+    "Responses that were rejected before because they used the text key are now applied, and refine is destructive with no undo. This is intended by the spec."
+  ],
+  "test_coverage": [
+    "The parametrised tests cover I1 to I5. Rejection cases check that the first window stays unstamped while the second is applied, so a mutation that drops the key fallback or rejects every window would be caught.",
+    "I6 is covered by test_spec_addon_020_job_applies_measured_text_key_response through _run_refine_job on a real SQLite schema."
+  ],
+  "not_verified": [
+    "I could not run git, so I could not list the files in the submodule commit range e307500..35146d1 myself. I relied on the diff as presented, which shows only refine.py and the new test file.",
+    "I did not run the tests.",
+    "I did not check that the INDEX.md sha256 matches the spec file content."
+  ],
+  "confidence": 85
+}
