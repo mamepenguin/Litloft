@@ -125,6 +125,8 @@ Why the data directory is mounted this way: [read-only mounts for addons](../adm
 
 The first start downloads the ML models (Whisper, CLIP, text embeddings, BLIP) into `data/addons/intelligence/models/`. Expect 1 to 3 GB.
 
+The first start after an upgrade that changes how keywords are counted tokenizes every file once in the background, which takes minutes on a large library. Until it finishes, keyword-based tag suggestions are missing or less precise. Pausing the index queue also pauses this work.
+
 ## Settings in the browser
 
 An administrator can change most settings at **Settings** → **Intelligence** (`/admin/settings`):
