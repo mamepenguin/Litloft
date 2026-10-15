@@ -39,4 +39,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-018 | implemented | docs/specs/cue-no-overlap.md | sha256:70a699fb5c763d7902f57440762de93eb51aefa9484736a312394d24661dd85c |
 | SPEC-ADDON-019 | implemented | docs/specs/refine-fts-reindex.md | sha256:404a815720c48d1f31237699add7f8a2240bbeb1a69365375f128a5d49803eb3 |
 | SPEC-ADDON-020 | implemented | docs/specs/refine-accept-text-key.md | sha256:9b99bd8f515d55ac40051950f2dc19e5c97cd207eb3d2aed3551aa5db7335508 |
-| SPEC-ADDON-021 | approved | docs/specs/idf-term-table.md | sha256:e0e13a033f22fdd8ea39013ff1448838f79596b0214ffa4256604ac09e60dd5a |
+| SPEC-ADDON-021 | implemented | docs/specs/idf-term-table.md | sha256:e0e13a033f22fdd8ea39013ff1448838f79596b0214ffa4256604ac09e60dd5a |

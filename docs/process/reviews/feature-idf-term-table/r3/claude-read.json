@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "R2-1 (I6, a child spawned after cancellation survives shutdown) is closed by the fix. `_Tokenizer.term_sets` (idf_backfill.py:228-234) now starts the child and then calls `_register_child` (:200-211), which checks `stop` and stores `_current_child` under `_state_lock`. The cancel handler sets `stop` before `_terminate_current_child` (:214-218) takes the same lock. Either the cancel path reads the registered child and terminates it, or `_register_child` sees `stop`, terminates the child itself (:232) and raises `TokenizerChildFailed`. In both orderings no registered-or-unregistered child is left running.",
+    "After the refused registration, `_run_batch` sees `stop` set and returns without the one-at-a-time retry, and `run_idf_backfill_pass` breaks at `_wait_while_paused(stop)`. No later child is spawned and nothing is written, so the file stays false (I6, spec step 10).",
+    "Retry children after a batch failure go through the same `_register_child` path, because `close()` resets `self._child` to None (:244-248). The fresh-child window that R2-1 also named is covered.",
+    "If the cancel path terminates a registered child before `term_sets` sends, `send` or `poll`/`recv` raises OSError/EOFError, which tfidf.py:626-627 converts to `TokenizerChildFailed`. The pass thread then exits through the stop checks.",
+    "The new test `cancelling_the_loop_before_its_child_starts_leaves_no_child` holds `_get_transcript_text` inside `_read_docs`, cancels, then releases. Reverting the fix lets the child spawn and block on GATEWORD (no `release` file is ever created, so it waits 60 s), and `no_children(timeout=5)` after the 2 s sleep then fails. The mutant that reverts the fix is killed."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "When registration is refused, the child is still spawned and then terminated. The cost is one Python interpreter start-up during shutdown, with no lasting effect.",
+    "`_terminate_current_child` calls `stop_process` outside the lock on the event-loop thread, while the pass thread may call `close()` → `terminate()` on the same child concurrently. Two threads then call `is_alive`/`join`/`kill` on one `multiprocessing.Process`. CPython's popen handles ProcessLookupError, so I expect no failure, but the code does not serialize it. This was already present before this round."
+  ],
+  "regression_risks": [
+    "The new test depends on wall-clock timing (a 2 s sleep plus a 5 s `no_children` wait) and on spawn start-up time, so it may be flaky on a slow host.",
+    "The pass thread can outlive the lifespan's 5 s wait while `_read_docs` is still reading a large batch. It spawns no lasting child, but process exit waits for that thread."
+  ],
+  "test_coverage": [
+    "The pre-spawn cancellation window (during `_read_docs`) is now pinned by `test_spec_addon_021_cancelling_the_loop_before_its_child_starts_leaves_no_child`.",
+    "No test pins the narrower interleaving where cancellation lands between `TokenizerChild()` returning and `_register_child` taking the lock. The lock argument covers it, but a mutant that checks `stop` without the lock would survive the test suite. Such a mutant is only racy, not deterministically wrong.",
+    "No test cancels during a one-at-a-time retry before its fresh child registers. The code path is the same as for the first child."
+  ],
+  "not_verified": [
+    "I did not run any tests. Whether the new loop test passes, or is flaky, on this machine is unverified.",
+    "I did not re-read the loop's cancel handler at its current line numbers beyond the diff, which shows `stop.set()` before `_terminate_current_child()`.",
+    "I did not check concurrent `Process.join`/`kill` from two threads against the CPython version in use.",
+    "I did not re-check invariants I1-I5 and I7-I10 in depth. This round changes only idf_backfill.py child registration and adds one test.",
+    "I did not re-read the .claude/rules documents in full for this round."
+  ],
+  "confidence": 82,
+  "trajectory": "There are two fix rounds. The r1 round (4042e2344) added only tests and no production branch, state or prediction. The r2 round (79cc8e7d3) adds one production branch: `_register_child` checks `stop` under `_state_lock` and refuses to register the child, and `_Tokenizer` now carries `stop`. The earlier round added no branch of this kind, so no round repeats the previous round's addition, and the design is not being patched in a loop. No round removed a branch or state. This round also adds one test for the pre-spawn cancellation window.",
+  "perspectives": [
+    {
+      "name": "fix-effectiveness",
+      "notes": "I traced both orderings of `stop.set()` plus `_terminate_current_child` against `_register_child` under the shared lock. Neither ordering leaves a child alive."
+    },
+    {
+      "name": "test-kills-revert",
+      "notes": "Reverting to unconditional `_set_child` leaves a GATEWORD-blocked child alive for 60 s, and the test's `no_children` check fails."
+    }
+  ]
+}
