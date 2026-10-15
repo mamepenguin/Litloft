@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (human, 2026-10-16, after r1 HUMAN_REVIEW_REQUIRED). The human answered "続ける" and "2点は今のままでよい": keep the process-global after_commit/after_rollback listeners (inert on sessions without the mark) and the removal of the "Rebuilding corpus IDF" INFO line as they are; add the tests for the detection gaps the mutation review found (F1-F7). The one-off SIGBUS in R-5 (10) is attributed by the author to host-side sqlite3 polling of the WAL database across the Docker VM bind mount, which production never does; not reproduced.
 ran_in_app: yes
 at: 964f005f74cb2ee8e01672b2156a0fcff282c8ff
 by: agent

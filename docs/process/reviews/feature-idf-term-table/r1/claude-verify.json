@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/idf_backfill.py holds request_idf_backfill (43), mark_idf_terms_stale (59), the after_commit/after_rollback listeners (76-84), run_idf_backfill_pass (323) and idf_backfill_loop (368). indexer.py:30, workers/whisper.py:32 and workers/refine.py:37 import from it, and main.py:374 starts the loop from it. database.py contains check_idf_term_rules (1025), but the module has no event listener. The touch-point list does not name this module."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "idf_backfill.py:20 imports Session from sqlalchemy.orm, and lines 76/82 register listeners on that global class. They therefore fire for every session, including the _HomevaultSession sessionmaker created at database.py:1956. The effect is benign: the listeners only act when session.info carries the key, and only mark_idf_terms_stale (line 73) sets it. Still, the claim about scope is accurate."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "indexer.py:248-250 defines is_paused(), which returns `not self._pause_event.is_set()`. The only caller is idf_backfill.py:114, so the method exists for the backfill. I could not run git to diff against the base, but no other reference exists."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "The shared `index` fixture in test_z_auto_tag_drive_scope.py:139-158 patches app.database._search_engine, app.database._SearchSession and app.dependencies._index_manager (147-151) for every test in the file. tests/idf_doubles.py defines MarkerTokenizer (35) and ExplodingTokenizer (59). tests/idf_backfill_api.py and tests/idf_term_db.py exist as helper modules. test_idf_term_marks.py:17-24 imports private helpers from tests.test_refine_fts_reindex."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "tfidf.py:729-743 `_rebuild` contains no logger.info call. A grep for 'Rebuilding corpus IDF', _count_document_frequencies, _load_child_tokenizer and _tokenizer_process under addons/intelligence returns no match. _get_corpus_idf (681-726) keeps its caching and single-flight structure."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point deviations TP-1 to TP-5 are confirmed. They concern where the code lives and what it covers. None shows a functional violation of I1-I10."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Session event listeners are process-global and also fire on core-DB sessions. They are inert unless mark_idf_terms_stale sets the session.info key."
+  ],
+  "regression_risks": [
+    "The INFO log line for a corpus IDF rebuild was removed, so operators no longer see when a rebuild starts."
+  ],
+  "test_coverage": [
+    "Did not run tests. Confirmed only that the helper modules and the cross-test imports exist."
+  ],
+  "not_verified": [
+    "Could not diff against origin/develop (no git or shell access), so I did not prove that is_paused, the fixture changes and the idf_doubles additions are new in this commit rather than already in the base.",
+    "Did not run the test suite.",
+    "Did not verify invariants I1-I10 beyond what the five findings touch."
+  ],
+  "confidence": 85
+}
