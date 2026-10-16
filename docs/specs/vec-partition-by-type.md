@@ -50,7 +50,9 @@ SPEC-ADDON-022 (storage and migration):
 1. `_create_vec_tables` creates
    `vec_text` / `vec_clip` as
    `vec0(embedding_id TEXT PRIMARY KEY, embedding_type TEXT PARTITION KEY, vector float[N])`.
-   `N` comes from the same configuration as today.
+   `N` comes from the same configuration as today. The DDL keeps `vector float[N]`, which
+   `_migrate_vec_clip_if_needed` and `_probe_vec_text_dim` parse to detect a dimension
+   change.
 2. Every insert into either table writes the `embedding_type` column. Its value equals the
    `embedding_type` of the `embeddings` row with the same id. The insert sites are:
    - `metadata._store_embedding` (`metadata`, `text_content`);
@@ -86,6 +88,28 @@ SPEC-ADDON-022 (storage and migration):
    deletes at startup today. The migration does not copy it.
 5. The migration logs one INFO line when it starts and one when it ends. The end line
    carries each table's copied row count, the orphans dropped and the elapsed seconds.
+   After the commit it runs `PRAGMA wal_checkpoint(TRUNCATE)`, which returns the WAL's
+   several GB to the disk. The pages freed inside `search.db` are kept, and later
+   inserts reuse them. There is no VACUUM (the user's decision).
+5a. The `main.py` lifespan runs `init_search_db` through `await asyncio.to_thread(...)`.
+   Today it runs on the event-loop thread, where a multi-minute migration trips the
+   `LoopWatchdog` started just before it: an ERROR "Event loop has not run a
+   callback" with a stack dump at 120 s. That is the symptom
+   `docs/addons/intelligence.md` tells the operator to answer with a restart, and a
+   restart would roll the migration back. HTTP is still not served until the lifespan
+   finishes, as today.
+5b. At every start, the startup cleanup that already runs off the loop
+   (`asyncio.to_thread`, beside `cleanup_orphaned_embeddings`) repairs vec rows whose
+   partition value is NULL. Addon code older than this change writes such rows when it
+   runs on a partitioned table: sqlite-vec accepts the insert without the partition
+   column and stores NULL (measured), and a type-constrained KNN never returns it.
+   - Each such row that has an `embeddings` row is deleted and re-inserted with that
+     row's type and the same vector bytes.
+   - Each such row without an `embeddings` row is deleted.
+   - The repair logs one INFO line with the counts, only when it changed something.
+
+   The scan costs about 0.46 s per 200,000 rows (measured), so about 2-3 s on
+   production. Decided by the user.
 6. `_migrate_image_clip_to_clip_thumbnail` rewrites `embeddings.embedding_type` from
    `clip` to `clip_thumbnail`, one transaction per chunk of 500 files. It is the only
    code that changes an existing embedding's type.
@@ -128,7 +152,7 @@ SPEC-ADDON-023 (similar-files KNN):
     the source, **before** the quality filters (0.999, 0.70, gap, margin, CV) run.
     Today the drive and active filter runs after them, so files of other drives take
     part in the gap, margin and CV decisions. After this change the filters judge only
-    the candidates the viewer can be shown.
+    the candidates the viewer can be shown. Decided by the user.
 12. The rest of `find_similar` is unchanged: the merge and its normalisation, the
     keyword bags, and the cache.
 
@@ -151,6 +175,8 @@ SPEC-ADDON-023 (similar-files KNN):
 - A vec table is either unpartitioned (before the migration) or partitioned (after).
   The only transition is unpartitioned → partitioned, done atomically by the migration.
   Nothing moves a table back.
+- A partitioned table can hold rows with a NULL partition value, if older addon code
+  ran on it (a rollback). The next start of this code repairs them (step 5b).
 - A dimension or model migration (`_migrate_vec_clip_if_needed`,
   `_migrate_vec_text_if_needed`) drops the table. `_create_vec_tables` then recreates it
   partitioned and empty, and the partition migration finds nothing to do.
@@ -229,14 +255,24 @@ because the partition is by type, not by drive.
   The tests pin I4-I6, not equality with today's results.
 - Operator: the first start after the upgrade rebuilds both vector tables before the
   addon answers. Estimated at about 5 minutes on production (48 s per 200,000 768-dim
-  rows measured locally). One sentence goes into `docs/addons/intelligence.md` beside
-  the existing first-start notes.
+  rows measured locally). `docs/addons/intelligence.md` gets one sentence beside the
+  existing first-start notes. It says:
+  - that the start takes minutes;
+  - which INFO line marks the start and which marks the end;
+  - that `unhealthy` during it is expected;
+  - that a restart starts the copy over;
+  - the free disk needed.
 
 ### 10. Non-functional
 
-- Disk: during the migration, the plain copy, the new table and the WAL coexist with the
-  old table. Roughly the vec tables' size again is needed transiently (several GB on
-  production).
+- Disk, measured on 200,000 768-dim rows (600 MB of vectors):
+  - Before commit, the WAL reached 1,392 MB.
+  - After the commit and checkpoint, `search.db` grew from 604 to 1,390 MB, of which
+    786 MB are free pages, and the WAL was truncated to 0.
+
+  Scaled to production's 3.3 GB of vectors, that is about 8 GB of WAL at the peak and
+  about +4.3 GB of `search.db` afterwards, mostly free pages. Production has 75 GB
+  free. The docs sentence asks for 4x the vector data free.
 - Time: the migration blocks addon startup once, about 5 minutes on production.
 - Memory: `INSERT ... SELECT` streams rows, so the migration does not load the tables
   into Python.
@@ -257,6 +293,10 @@ because the partition is by type, not by drive.
   - `addons/intelligence/app/workers/vision.py` (`_embed_and_store`);
   - `addons/intelligence/app/workers/video_visual.py` (`_embed_scene`);
   - `addons/intelligence/app/workers/clip.py` (`_store_clip_embedding`).
+- `addons/intelligence/app/main.py`: the lifespan awaits `init_search_db` in a thread,
+  and runs the NULL-partition repair in the existing off-loop startup cleanup.
+- `addons/intelligence/app/indexer.py` or `database.py`: the NULL-partition repair
+  function, beside `cleanup_orphaned_embeddings`.
 - `addons/intelligence/app/search.py`: `_find_similar_by_embedding` (the KNN constraint,
   the widening check, and the drive and active filter moved before the quality
   filters).
@@ -324,8 +364,11 @@ I4. The KNN in `_find_similar_by_embedding` returns only rows of the requested
 I5. `find_similar` never returns the source file, a file of another drive than the
 requested one, or an inactive file.
 
-I6. Suppose the requested drive holds at least `limit` active files other than the
-source with an embedding of the requested type, and they lie within the nearest
+I6. Let `limit` be the `limit` argument of `_find_similar_by_embedding` (which
+`find_similar` calls with twice its own), and let "source rows" be the number of the
+source's `embeddings` rows of the requested type. Suppose the requested drive holds at
+least `limit` active files other than the source with an embedding of that type, and
+they lie within the nearest
 `min((source rows + limit + 20) × 16, _NEIGHBOUR_FETCH_MAX)` rows of that type's
 partition. Then the rows the loop finally fetches contain `limit` such files. Rows of
 other drives, of inactive files and of the source do not count toward it, and do not
@@ -337,6 +380,13 @@ the same rows and distances as on the unpartitioned table. Every DELETE by
 
 I8. The migration ends with one INFO line carrying, for each table, the copied row count,
 the dropped orphan count and the elapsed time.
+
+I9. After a start of this code, no vec row has a NULL partition value. A NULL row with
+an `embeddings` row is re-inserted with that row's type and byte-identical vector bytes,
+and a type-constrained KNN of that type can return it.
+
+I10. While the migration runs, the event loop keeps running callbacks: the
+`LoopWatchdog` logs no stall ERROR during a migration that outlasts its threshold.
 
 ## Checked, no action
 
