@@ -1,0 +1,35 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 2,
+  "zone_max": "MEDIUM",
+  "modifiers": [
+    "schema"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/vec-partition-by-type.md",
+      "level": "LOW"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)",
+    "modifiers: schema"
+  ]
+}

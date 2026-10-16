@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I4: search.py:2059-2068 adds `AND embedding_type = :type` to the vec0 MATCH, so the KNN scans only the requested type's partition. tests/test_vec_partition_similar.py:80-92 puts more than _NEIGHBOUR_FETCH_MAX nearer rows of the sibling type into both tables and checks that the result is unchanged.",
+    "I5/I6/I11: search.py:2056-2091 widens the fetch through _NEIGHBOUR_FETCH_FACTORS (1, 4, 16), capped at _NEIGHBOUR_FETCH_MAX=4096 (search.py:1583-1586). The stop check counts only rows that pass _visible_neighbours (type, not the source, active, drive; search.py:1940-1952), and the quality filters see only those neighbours. The final IndexedFile query filters active and drive again (search.py:2180-2185).",
+    "I6 cap: I traced test_spec_addon_023_the_cap_ends_the_widening_and_what_was_found_is_returned (test_vec_partition_similar.py:125-141) by hand. The source, 4087 other-drive rows and c0-c2 fill 4091 of the 4096 slots, so the files inside the cap come back and the 'far' files beyond it do not. This matches the invariant's bound.",
+    "I1/I2: vec_partition.py:124-190 rebuilds every pending table inside one BEGIN IMMEDIATE ... COMMIT on an autocommit raw connection. The staging copy is an inner JOIN with embeddings, so orphans are dropped and the vector bytes are copied, not recomputed. On any BaseException it runs ROLLBACK and then a checkpoint. Tables that are already partitioned are skipped before anything is written, and the free-space refusal raises before BEGIN.",
+    "I8: start and done INFO lines (vec_partition.py:141-166) carry, per table, copied=, orphans_dropped= and the elapsed time. wal_checkpoint(TRUNCATE) runs after both commit and rollback. The repair logs one line only when it rekeyed or dropped a row (vec_partition.py:244-247).",
+    "I9: repair_unkeyed_rows re-keys each NULL row with delete+insert in a per-batch transaction and keeps the original bytes (vec_partition.py:64-81, 208-248). A raised batch rolls back, so its NULL rows stay for the next start."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "When the free-space check refuses, _migrate has already run a wal_checkpoint(TRUNCATE) (vec_partition.py:129) before it raises. That is a checkpoint, not a row write, so it does not break I2's 'nothing is written'. It does touch the -wal file."
+  ],
+  "regression_risks": [
+    "The widening re-runs the KNN up to three times per similar-files call when the drive or active filter discards many neighbours. Latency on a large production partition was not measured here; the decisions.md pending list notes this too."
+  ],
+  "test_coverage": [
+    "The commit under review (190890b7a) bumps the intelligence submodule for similar-files test gaps. At this checkout, test_vec_partition_similar.py covers I4 on both legs (clip_thumbnail vs scene clip, tfidf_keywords vs whisper). For I6/I11 it covers six noise shapes: other drive, inactive, inactive on another drive, one near other-drive neighbour, and a fill of the fourth fetch. It also covers the cap, I5 through find_similar, and a source with several rows. Each test first checks that a baseline returns LIMIT candidates, so a test cannot pass by returning nothing.",
+    "test_vec_partition_migration.py, _repair.py, _startup.py and _writers.py exist alongside it. I did not read them in this pass."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not diff 190890b7a against its parent or origin/develop. I read the working tree as it is at this checkout.",
+    "I did not run any test.",
+    "I did not read test_vec_partition_migration.py, _repair.py, _startup.py, _writers.py or tests/vec_partition_db.py in this pass.",
+    "I did not check the six insert-site workers or the lifespan thread offload in main.py against I3 and I10.",
+    "I did not check the sqlite-vec version for its behaviour on partition-key DELETE+INSERT or on NULL partition values."
+  ],
+  "confidence": 78
+}
