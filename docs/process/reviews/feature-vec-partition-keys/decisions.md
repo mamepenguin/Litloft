@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (user: "間違えました。続ける。" — after first saying "出荷する"; an extra review with mutation runs before shipping)
 ran_in_app: yes
 at: e56d7b2a43e7521090bc44b5622deafa8bc5fe3a
 by: agent

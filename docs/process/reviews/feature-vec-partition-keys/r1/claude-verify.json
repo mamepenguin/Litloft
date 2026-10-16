@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/vec_partition.py exists (248 lines). It holds vec_table_ddl (38-45), insert_vector_sql (48-53), rekey_vector (64-81), migrate_if_needed/_migrate with BEGIN IMMEDIATE/ROLLBACK (89-157) and repair_unkeyed_rows (208-248). It is imported by database.py:24-26 (wrapper at 807-815), indexer.py:34, and the workers metadata.py:18, whisper.py:29, refine.py:36, vision.py:47, video_visual.py:37 and clip.py:21. Grep of docs/ finds no mention of vec_partition.py, so the touch-point list does not name it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "search.py:1928-1952 defines the module-level _visible_neighbours, which filters by type, source, active flag and drive. Its callers are search.py:2079 and search.py:2089. The touch points name only _find_similar_by_embedding, and docs/ has no mention of _visible_neighbours."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "tests/vec_partition_db.py exists, with the search_index fixture (254-255), the Authorizer class (277) and the authorizer fixture (309-310). It is imported by test_vec_partition_{migration,repair,similar,startup,writers}.py. It is not in the touch-point test list, and docs/ does not mention it."
+    }
+  ],
+  "specification_compliance": [
+    "All three findings are touch-point omissions: new production and test modules or helpers that the declared touch-point list does not name. Each was confirmed by file existence and import sites at HEAD."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The migration and repair logic lives in vec_partition.py, outside the touch-point surface, so a review scoped to the touch points alone would miss it."
+  ],
+  "test_coverage": [
+    "New SPEC-ADDON-022/023 tests exist in tests/test_vec_partition_{migration,repair,similar,startup,writers}.py and share tests/vec_partition_db.py."
+  ],
+  "not_verified": [
+    "I could not run git diff, so I did not prove that the files are new in this commit relative to origin/develop. I inferred it from their absence in the docs and their role in the change.",
+    "I did not check the exact line counts the reviewer cited for vec_partition_db.py (1-318), or that its downgrade and KNN reader helpers exist.",
+    "I did not check the correctness of the migration and repair logic against invariants I1-I11.",
+    "I did not run the tests."
+  ],
+  "confidence": 88
+}
