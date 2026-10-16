@@ -72,7 +72,16 @@ SPEC-ADDON-022 (storage and migration):
    model or dimension migration recreated one), only the unpartitioned one is touched.
    The work runs inside one explicit transaction (a SAVEPOINT through
    `conn.begin_nested()`, as `_migrate_vec_text_if_needed` does), because pysqlite
-   otherwise autocommits each DDL statement. For each table to migrate:
+   otherwise autocommits each DDL statement.
+
+   Before anything is written, it checks the free space on the volume holding
+   `search.db` (`shutil.disk_usage`). It estimates the vector bytes to migrate as the
+   sum of rows × dimension × 4 over the tables to migrate. If less than 4x that is free,
+   it raises with an ERROR naming both numbers, and the addon does not start. This
+   protects core, whose `data/` usually shares the volume, from a WAL that would fill
+   it. On the next start the check runs again.
+
+   For each table to migrate, inside that one SAVEPOINT:
    1. Copy `embedding_id`, the joined `embeddings.embedding_type` and `vector` into a
       plain table `<table>_migrate`. This is an inner join on
       `embeddings.id = embedding_id`.
@@ -80,7 +89,9 @@ SPEC-ADDON-022 (storage and migration):
    3. Create the partitioned table at the same dimension.
    4. Insert every copied row.
    5. Drop the plain table.
-   6. Commit.
+
+   After the last table, the SAVEPOINT is released and the transaction commits once.
+   Either both tables are migrated or neither is.
 
    A table that is already partitioned is left alone, so the migration runs once. The
    schema is its own marker: nothing is recorded in `index_meta`.
@@ -89,7 +100,9 @@ SPEC-ADDON-022 (storage and migration):
 5. The migration logs one INFO line when it starts and one when it ends. The end line
    carries each table's copied row count, the orphans dropped and the elapsed seconds.
    After the commit it runs `PRAGMA wal_checkpoint(TRUNCATE)`, which returns the WAL's
-   several GB to the disk. The pages freed inside `search.db` are kept, and later
+   several GB to the disk. The pragma reports a busy result instead of raising. In that
+   case the migration logs a WARNING carrying the result and continues: the data is
+   committed, and a later checkpoint truncates the WAL. The pages freed inside `search.db` are kept, and later
    inserts reuse them. There is no VACUUM (the user's decision).
 5a. The `main.py` lifespan runs `init_search_db` through `await asyncio.to_thread(...)`.
    Today it runs on the event-loop thread, where a multi-minute migration trips the
@@ -98,9 +111,12 @@ SPEC-ADDON-022 (storage and migration):
    `docs/addons/intelligence.md` tells the operator to answer with a restart, and a
    restart would roll the migration back. HTTP is still not served until the lifespan
    finishes, as today.
-5b. At every start, the startup cleanup that already runs off the loop
-   (`asyncio.to_thread`, beside `cleanup_orphaned_embeddings`) repairs vec rows whose
-   partition value is NULL. Addon code older than this change writes such rows when it
+5b. At every start, a new function `repair_unkeyed_vec_rows` in `app/indexer.py` repairs
+   vec rows whose partition value is NULL. It sits beside
+   `cleanup_orphaned_embeddings`, and the lifespan calls it through `asyncio.to_thread`
+   right after that function. If it raises, the lifespan logs an ERROR with the
+   traceback and continues starting, as it does for `fail_orphaned_running_jobs`. The
+   rows it could not repair are retried on the next start. Addon code older than this change writes such rows when it
    runs on a partitioned table: sqlite-vec accepts the insert without the partition
    column and stores NULL (measured), and a type-constrained KNN never returns it.
    - Each such row that has an `embeddings` row is deleted and re-inserted with that
@@ -234,6 +250,13 @@ because the partition is by type, not by drive.
   - The healthcheck may report unhealthy.
 
   All of this ends when the migration finishes.
+- Core's event hooks (file events, scan-complete) sent during the migration fail to
+  connect. Core sends each one once and logs the failure at DEBUG ("Event hook failed
+  ... listener may be down"), so these events are lost. The addon's reconciliation
+  worker runs `reconcile()` as soon as the addon starts, and that repairs the index for
+  them, as after any downtime of the addon. Nothing new is added for it.
+- Not enough free disk (step 3): ERROR with the free and required bytes, and the addon
+  does not start. Nothing is written.
 - `find_similar` errors are unchanged (500 "Similar search failed").
 
 ### 9. User-visible behavior
@@ -295,8 +318,8 @@ because the partition is by type, not by drive.
   - `addons/intelligence/app/workers/clip.py` (`_store_clip_embedding`).
 - `addons/intelligence/app/main.py`: the lifespan awaits `init_search_db` in a thread,
   and runs the NULL-partition repair in the existing off-loop startup cleanup.
-- `addons/intelligence/app/indexer.py` or `database.py`: the NULL-partition repair
-  function, beside `cleanup_orphaned_embeddings`.
+- `addons/intelligence/app/indexer.py`: new `repair_unkeyed_vec_rows`, beside
+  `cleanup_orphaned_embeddings`.
 - `addons/intelligence/app/search.py`: `_find_similar_by_embedding` (the KNN constraint,
   the widening check, and the drive and active filter moved before the quality
   filters).
@@ -349,7 +372,8 @@ I2. If the migration raises or the process dies at any point before it commits, 
 tables keep their pre-migration schema and every row, and no `*_migrate` table remains.
 This includes a failure after the old table was dropped. A later start migrates from
 that state. A start whose tables are already partitioned copies nothing and changes no
-row. When only one table is unpartitioned, the other table's rows are unchanged.
+row. When only one table is unpartitioned, the other table's rows are unchanged. When the
+free-space check refuses, nothing is written.
 
 I3. After any insert path in the touch points writes an embedding, or
 `_migrate_image_clip_to_clip_thumbnail` rewrites one, its vec row's partition value
@@ -366,20 +390,26 @@ requested one, or an inactive file.
 
 I6. Let `limit` be the `limit` argument of `_find_similar_by_embedding` (which
 `find_similar` calls with twice its own), and let "source rows" be the number of the
-source's `embeddings` rows of the requested type. Suppose the requested drive holds at
-least `limit` active files other than the source with an embedding of that type, and
-they lie within the nearest
-`min((source rows + limit + 20) × 16, _NEIGHBOUR_FETCH_MAX)` rows of that type's
-partition. Then the rows the loop finally fetches contain `limit` such files. Rows of
-other drives, of inactive files and of the source do not count toward it, and do not
-take part in the quality filters' decisions.
+source's `embeddings` rows of the requested type. Take an index where:
+- the requested drive holds at least `limit` active files other than the source, each
+  with an embedding of that type that passes every quality filter;
+- those files lie within the nearest
+  `min((source rows + limit + 20) × 16, _NEIGHBOUR_FETCH_MAX)` rows of that type's
+  partition;
+- rows of other drives, of inactive files and of the source are nearer than all of
+  them and fill more than the first fetch.
+
+Then `_find_similar_by_embedding` returns `limit` files of the requested drive.
 
 I7. For the same index contents, every KNN outside `_find_similar_by_embedding` returns
 the same rows and distances as on the unpartitioned table. Every DELETE by
 `embedding_id` removes the vec row.
 
-I8. The migration ends with one INFO line carrying, for each table, the copied row count,
-the dropped orphan count and the elapsed time.
+I8. The migration logs one INFO line when it starts and one when it ends. The end line
+carries, for each table, the copied row count, the dropped orphan count and the elapsed
+time. When it has run on a database with no other open connection, the `-wal` file is
+0 bytes afterwards. The NULL-partition repair logs one INFO line with its counts when it
+changed a row, and none when it did not.
 
 I9. After a start of this code, no vec row has a NULL partition value. A NULL row with
 an `embeddings` row is re-inserted with that row's type and byte-identical vector bytes,
@@ -387,6 +417,11 @@ and a type-constrained KNN of that type can return it.
 
 I10. While the migration runs, the event loop keeps running callbacks: the
 `LoopWatchdog` logs no stall ERROR during a migration that outlasts its threshold.
+
+I11. Within that bound, adding rows of other drives or of inactive files to the index
+does not change what `_find_similar_by_embedding` returns for a drive. In particular, a
+nearer neighbour of another drive no longer makes the gap, margin or CV check discard the
+drive's own candidates.
 
 ## Checked, no action
 
