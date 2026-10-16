@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R2-1",
+      "origin": "reviewer",
+      "claim": "A tokenizer child that the pass spawns after the loop has been cancelled is never terminated. `stop` is not checked between the pre-batch pause check and the spawn, and `_set_child` runs only after the child has started, so `_terminate_current_child` sees no child in that window.",
+      "impact": "The window covers the first batch of a pass and each fresh child after a failure. If shutdown lands in it, the lifespan returns after its 5 s wait while the child keeps tokenizing a batch of up to 200 files for up to 300 s. Process exit is held back by the to_thread worker until the batch finishes, and a container stop can end in SIGKILL. Nothing is written, because `_write_all` checks `stop`, so no data is wrong.",
+      "evidence": "addons/intelligence/app/idf_backfill.py:213-221: `_Tokenizer.term_sets` constructs `tfidf.TokenizerChild()` (which starts the process), calls `_set_child` and then `self._child.term_sets(..., 300)`. None of these steps checks `stop`. :200-204: `_terminate_current_child` reads `_current_child` once under the lock and does nothing when it is None. :258 and the per-batch loop in `run_idf_backfill_pass` check `stop` only before `_read_docs`, which runs a DB read of up to 200 transcripts first (:278). The loop's cancel handler (idf_backfill.py ~:403-407) sets `stop`, terminates and waits 5 s, and does not re-check for a child that appears later.",
+      "repro": "not_reproduced. Thought experiment: cancel the loop task while the pass thread is inside `_read_docs` of the first batch. `_current_child` is None, so nothing is terminated. The thread then spawns a child and blocks in `poll(300)`. The lifespan returns with `multiprocessing.active_children()` non-empty. The r2 tests cancel only after the GATEWORD child has signalled `entered`, which is after `_set_child`, so they do not cover this window.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I6 states that no tokenizer child outlives the addon's shutdown. In this window a child spawned after the cancel survives the lifespan's shutdown.",
+        "invariant_ref": "I6"
+      },
+      "severity": "LOW",
+      "proposed_fix": "In `_Tokenizer.term_sets`, register the child under `_state_lock` and, under the same lock, refuse to start (or stop at once) when `stop` is set. Alternatively, check `stop` right after `_set_child` and terminate the child if it is set."
+    }
+  ],
+  "specification_compliance": [
+    "The fix commit 4042e2344 changes only tests and the submodule pointer. No production code under addons/intelligence/app changed between r1 (15de2e8) and r2 (dc0134b), according to the recorded diff.",
+    "The new test `a_change_committed_while_the_inputs_are_read_is_not_written_as_current` targets I3. It patches `tfidf._get_transcript_text`, which `_read_docs` reaches through the module attribute, and it would catch a reordering of the generation read after the transcript read, provided each SELECT runs in its own snapshot.",
+    "The new test `a_paused_queue_holds_the_one_file_at_a_time_retry` targets I6 (pause before a single-file retry). It would kill a mutant that removes `_wait_while_paused` from `_tokenize_one_at_a_time` (idf_backfill.py:258).",
+    "The new test `cancelling_the_loop_mid_pass_starts_no_later_batch` targets I6 and spec step 10. It uses batch size 1 and counts spawns, which kills a mutant that drops the stop check before later batches.",
+    "The new test `startup_checks_the_rules_first_and_shutdown_ends_the_backfill` targets I8 and I6. If the loop started before the check, the startup pass would collect nothing, and no request follows the reset, so the gate would never be entered and the test would fail. The ordering mutant is therefore killed.",
+    "The parametrized `failing_rule_version_check` test adds a fault in the flag reset, which kills a mutant that writes the version and the reset in separate transactions in either order (I8).",
+    "The r1 findings TP-1 to TP-5 (unlisted module idf_backfill.py, process-global Session listeners, `is_paused`, test fixture reach, removed rebuild INFO line) are not addressed by this fix. The code they describe is unchanged."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "After a batch failure, the single-file retry reuses one child across files that succeed and replaces it only after a failure (idf_backfill.py:213-230). It does not use a fresh child per file. There is no visible effect because the tokenizer is stateless.",
+    "`_terminate_current_child` runs `stop_process` on the event loop thread, which can block it for up to 10 s (join 5 + 5) during shutdown."
+  ],
+  "regression_risks": [
+    "The new loop tests depend on wall-clock sleeps (2.0 s, 0.5 s) and on spawn start-up time. On a slow CI host they may be flaky rather than wrong.",
+    "`test_spec_addon_021_the_loop_goes_idle_after_the_pass_a_request_caused` samples `request_pending()` once after 0.5 s. A mutant that always re-requests is killed only with high probability, not deterministically."
+  ],
+  "test_coverage": [
+    "No test cancels the loop before the pass's first child is registered (between the pause check / `_read_docs` and `_set_child`). The shutdown tests all cancel after GATEWORD signals `entered`.",
+    "The I3 test relies on each SELECT in `get_search_db_read` running in its own snapshot. If the read session held one snapshot, reordering the reads in `_read_docs` would not be detectable by any test, though it would also not be a defect.",
+    "The pause-during-retry test pins pause before a retry. Pause before a batch is pinned by the loop test `a_paused_queue_holds_the_backfill`."
+  ],
+  "not_verified": [
+    "Did not run any test. Whether the four new r2 tests are green or flaky on this machine is unverified.",
+    "Did not confirm the SQLite isolation behavior of `get_search_db_read` (whether pysqlite autocommits each SELECT), on which the I3 test's power to detect a mutant depends.",
+    "Did not read the full `idf_backfill_loop` cancel handler at its exact line numbers, nor main.py's lifespan shutdown ordering beyond the diff.",
+    "Did not re-read .claude/rules documents in full for this round."
+  ],
+  "confidence": 76,
+  "trajectory": "Only one fix round (4042e2344) exists since r1. It adds no production branch, state or prediction: the addon code under app/ is unchanged between 15de2e8 and dc0134b. It only adds tests: an I3 read-ordering test, a pause-during-retry test, a cancel-mid-pass test, a loop-goes-idle test, a lifespan ordering/shutdown test, and a second fault case for the rule-version check. Nothing was removed. The design is not being patched. The round responds to coverage gaps rather than to the r1 touch-point findings, which remain open as they were."
+}
