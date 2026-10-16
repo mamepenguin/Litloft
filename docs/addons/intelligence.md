@@ -127,6 +127,8 @@ The first start downloads the ML models (Whisper, CLIP, text embeddings, BLIP) i
 
 The first start after an upgrade that changes how keywords are counted tokenizes every file once in the background, which takes minutes on a large library. Until it finishes, keyword-based tag suggestions are missing or less precise. Pausing the index queue also pauses this work.
 
+The first start after the upgrade that splits the vector tables by embedding type rebuilds both tables before the addon answers. On a large library this takes several minutes. The log shows `vec partition migration: start` when the rebuild begins and `vec partition migration: done` when it ends. `docker compose ps` may show the addon `unhealthy` until then. Do not restart it: a restart throws the rebuild away and starts it over. The rebuild needs free disk of four times the vector data, and the addon refuses to start with `not enough free disk` when less is free. Most of it returns once the rebuild ends. `search.db` stays larger by about the size of the vectors, and later indexing reuses that space.
+
 ## Settings in the browser
 
 An administrator can change most settings at **Settings** → **Intelligence** (`/admin/settings`):
