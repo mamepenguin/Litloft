@@ -72,12 +72,18 @@ SPEC-ADDON-022 (storage and migration):
    model or dimension migration recreated one), only the unpartitioned one is touched.
    The work runs inside one explicit transaction (a SAVEPOINT through
    `conn.begin_nested()`, as `_migrate_vec_text_if_needed` does), because pysqlite
-   otherwise autocommits each DDL statement.
+   otherwise autocommits each DDL statement. It runs on its own connection, opened after
+   the earlier vec migrations have committed, so no earlier `commit()` on a shared
+   connection can end its transaction early.
 
-   Before anything is written, it checks the free space on the volume holding
+   It first runs `PRAGMA wal_checkpoint(TRUNCATE)`, so a WAL left behind by an earlier
+   failed attempt is returned to the disk before the measurement. Then, before anything
+   is written, it checks the free space on the volume holding
    `search.db` (`shutil.disk_usage`). It estimates the vector bytes to migrate as the
    sum of rows × dimension × 4 over the tables to migrate. If less than 4x that is free,
-   it raises with an ERROR naming both numbers, and the addon does not start. This
+   it logs the ERROR
+   `vec partition migration: not enough free disk: free=<bytes> required=<bytes>` and
+   raises, and the addon does not start. This
    protects core, whose `data/` usually shares the volume, from a WAL that would fill
    it. On the next start the check runs again.
 
@@ -91,14 +97,22 @@ SPEC-ADDON-022 (storage and migration):
    5. Drop the plain table.
 
    After the last table, the SAVEPOINT is released and the transaction commits once.
-   Either both tables are migrated or neither is.
+   Either both tables are migrated or neither is. If anything raises, the transaction
+   rolls back, the migration runs `PRAGMA wal_checkpoint(TRUNCATE)` once more so the
+   rolled-back pages do not keep the WAL at its peak size, and re-raises.
 
    A table that is already partitioned is left alone, so the migration runs once. The
    schema is its own marker: nothing is recorded in `index_meta`.
 4. A vec row with no `embeddings` row is an orphan, which `cleanup_orphaned_embeddings`
    deletes at startup today. The migration does not copy it.
-5. The migration logs one INFO line when it starts and one when it ends. The end line
-   carries each table's copied row count, the orphans dropped and the elapsed seconds.
+5. When at least one table needs migrating, the migration logs, after the free-space
+   check:
+   - one INFO line at the start,
+     `vec partition migration: start tables=<names> estimated_bytes=<n>`;
+   - one INFO line at the end, `vec partition migration: done <per migrated table:
+     name copied=<n> orphans_dropped=<n>> elapsed=<s>`.
+
+   A start with nothing to migrate logs neither line.
    After the commit it runs `PRAGMA wal_checkpoint(TRUNCATE)`, which returns the WAL's
    several GB to the disk. The pragma reports a busy result instead of raising. In that
    case the migration logs a WARNING carrying the result and continues: the data is
@@ -122,6 +136,9 @@ SPEC-ADDON-022 (storage and migration):
    - Each such row that has an `embeddings` row is deleted and re-inserted with that
      row's type and the same vector bytes.
    - Each such row without an `embeddings` row is deleted.
+   - Each row's delete and re-insert commit together, in transactions of up to 500
+     rows. A failure rolls back only the current transaction, so no vector is ever
+     deleted without its re-insert.
    - The repair logs one INFO line with the counts, only when it changed something.
 
    The scan costs about 0.46 s per 200,000 rows (measured), so about 2-3 s on
@@ -372,8 +389,10 @@ I2. If the migration raises or the process dies at any point before it commits, 
 tables keep their pre-migration schema and every row, and no `*_migrate` table remains.
 This includes a failure after the old table was dropped. A later start migrates from
 that state. A start whose tables are already partitioned copies nothing and changes no
-row. When only one table is unpartitioned, the other table's rows are unchanged. When the
-free-space check refuses, nothing is written.
+row and logs no migration line. When only one table is unpartitioned, the other table's
+rows are unchanged. When the free-space check refuses, nothing is written. After
+`init_search_db` on a fresh database, or after a dimension or model migration rebuilt a
+table, both tables are partitioned and the partition migration copied nothing.
 
 I3. After any insert path in the touch points writes an embedding, or
 `_migrate_image_clip_to_clip_thumbnail` rewrites one, its vec row's partition value
@@ -402,16 +421,21 @@ source's `embeddings` rows of the requested type. Take an index where:
 Then `_find_similar_by_embedding` returns `limit` files of the requested drive.
 
 I7. For the same index contents, every KNN outside `_find_similar_by_embedding` returns
-the same rows and distances as on the unpartitioned table. Every DELETE by
+the same rows (for distinct distances; the order among rows at exactly equal distance,
+such as duplicate files, may differ) and distances as on the unpartitioned table. Every DELETE by
 `embedding_id` removes the vec row.
 
 I8. The migration logs one INFO line when it starts and one when it ends. The end line
 carries, for each table, the copied row count, the dropped orphan count and the elapsed
-time. When it has run on a database with no other open connection, the `-wal` file is
-0 bytes afterwards. The NULL-partition repair logs one INFO line with its counts when it
+time. Measured right after `_migrate_vec_partition_if_needed` returns, on a database
+with no other connection holding a read transaction (idle pooled connections do not
+count), the `-wal` file is 0 bytes. This holds after a migration that committed and
+after one that rolled back. The NULL-partition repair logs one INFO line with its counts when it
 changed a row, and none when it did not.
 
-I9. After a start of this code, no vec row has a NULL partition value. A NULL row with
+I9. After a start of this code whose repair did not raise, no vec row has a NULL
+partition value. A repair that raises loses no vector bytes: every NULL row it had not
+re-inserted is still present, and the next start repairs it. A NULL row with
 an `embeddings` row is re-inserted with that row's type and byte-identical vector bytes,
 and a type-constrained KNN of that type can return it.
 
