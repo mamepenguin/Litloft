@@ -40,3 +40,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-019 | implemented | docs/specs/refine-fts-reindex.md | sha256:404a815720c48d1f31237699add7f8a2240bbeb1a69365375f128a5d49803eb3 |
 | SPEC-ADDON-020 | implemented | docs/specs/refine-accept-text-key.md | sha256:9b99bd8f515d55ac40051950f2dc19e5c97cd207eb3d2aed3551aa5db7335508 |
 | SPEC-ADDON-021 | implemented | docs/specs/idf-term-table.md | sha256:e0e13a033f22fdd8ea39013ff1448838f79596b0214ffa4256604ac09e60dd5a |
+| SPEC-ADDON-022 | implemented | docs/specs/vec-partition-by-type.md | sha256:30ce87b0571ed03c78aa9ccbee528588e57fd80f544c25e83cef4c947814cef8 |
+| SPEC-ADDON-023 | implemented | docs/specs/vec-partition-by-type.md | sha256:30ce87b0571ed03c78aa9ccbee528588e57fd80f544c25e83cef4c947814cef8 |

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Commit 190890b7 changes only addons/intelligence/tests/test_vec_partition_similar.py, through the submodule bump 100d7fb..4a2be69. No production code changes, so I1-I11 hold or fail exactly as they did at r1.",
+    "New NOISE param `other-drive-fills-part-of-first-fetch` (n=22, test_vec_partition_similar.py:103). With LIMIT=6 and one source row, base_limit is 27. The first fetch is the source, 22 other-drive rows and c0..c3, so it holds 4 usable files. The widening must continue to 108, which returns all 33 rows. Hand-traced at search.py:2056-2084: a mutant of the stop check `len(usable) >= limit` to `len(usable) > 0` or `>= 1` stops with 4 files, and the result differs from the 6-file baseline. The existing n=40 param lets that mutant survive, because its first fetch holds 0 usable files. The new param also kills the pre-change behaviour of counting other-drive files in the stop check: 26 files counted, early stop, 4 results. This pins I6.",
+    "New test `a_source_with_several_rows_is_never_its_own_neighbour` (test_vec_partition_similar.py:167). The three source rows sit at L2 0.08 from unit(0) on axes 2-4. Their normalized average has cosine of about 0.9979 to each row, below the 0.999 cut at search.py:2107-2109, so only `Embedding.file_id != source_file_id` in `_visible_neighbours` (search.py:1948) keeps `src` out. Hand trace: removing that filter puts `src` first, because top_score is about 0.998 ≥ 0.85, which skips the gap and CV checks, and the margin keeps it. The `src not in got` assertion fails. Earlier single-row tests could not catch this mutant: the source sat at distance 0, scored 1.0 and was dropped by the 0.999 filter. This pins I5 for `_find_similar_by_embedding`.",
+    "Both added tests assert a non-empty or 6-file baseline before the property, so neither can pass vacuously by returning nothing.",
+    "This round does not address the r1 findings TP-1..TP-3, which are touch-point list omissions (bucket B). Neither commit changes the touch-point list."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The several-rows test relies on the source's mean vector scoring below 0.999 against each source row, about 0.9979 here. If the source rows were placed closer together, for example under 0.045 apart, the 0.999 filter would hide a missing source exclusion again, and the test would silently stop guarding I5. The constant 0.08 is load-bearing and has no comment that says so.",
+    "Candidates c1-c3 share axes 2-4 with the source rows, so their scores differ slightly from the 1 - d^2/2 values in the module docstring. The test asserts only non-empty and no `src`, so this does not matter now. A future exact-score assertion would be wrong."
+  ],
+  "test_coverage": [
+    "Traced by hand as live (expected): removing `Embedding.embedding_type == embedding_type` from `_visible_neighbours`. The spec calls it a no-op guard when partitions are correct.",
+    "Traced by hand as live (expected): removing the active and drive filter in the final IndexedFile query at search.py:2180-2185. `_visible_neighbours` already applies it upstream.",
+    "Traced by hand as killed: the stop-check mutants `>= 1` and `> 0` (by the new n=22 param), the source-exclusion removal (by the new several-rows test), and the drive or active removal in `_visible_neighbours` (by the existing `one-near-other-drive-neighbour` and `inactive-fills-first-fetch` params, which move top_score and the margin cut).",
+    "I7 still has no dedicated test for KNNs outside `_find_similar_by_embedding` on partitioned tables, unchanged since r1."
+  ],
+  "not_verified": [
+    "I ran no tests. I traced the mutants by hand, not by execution.",
+    "I did not confirm the configured vec_text dimension. The axis arithmetic in `at_distance` assumes dim > 11.",
+    "I did not re-review commit 9766e50d6 beyond its docs-only scope (decisions.md).",
+    "I did not recheck the rest of the r1-era change (migration, repair, writers). It is unchanged by this commit."
+  ],
+  "confidence": 85,
+  "trajectory": "There are two fix commits since r1. 9766e50d6 is docs only: it records the user's decision to continue in decisions.md. 190890b7 adds one parametrized case and one test to test_vec_partition_similar.py. Neither touches production code, and neither adds a branch, state or prediction to the implementation. The new tests close two mutant gaps: a stop check of `usable > 0` instead of `>= limit`, and a missing source-file exclusion that the 0.999 filter used to hide. No earlier round added the same kind of thing, so the design is not being patched. Nothing was removed. The r1 findings (TP-1..3, touch-point list omissions) are not addressed by either commit."
+}

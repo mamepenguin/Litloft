@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new production module, addons/intelligence/app/vec_partition.py, which the touch-point list does not name. It holds the vec DDL, the shared INSERT SQL, the row re-key, the whole partition migration and the NULL-partition repair.",
+      "impact": "The touch points place the migration in database.py (`_migrate_vec_partition_if_needed`) and the repair in indexer.py (`repair_unkeyed_vec_rows`). In the code, both are one-line wrappers. A reader who checks the listed places for I1, I2, I8 or I9 finds no logic there. The real transaction handling is in an unlisted file: a raw DBAPI connection in autocommit with `BEGIN IMMEDIATE` and `ROLLBACK`, not the `begin_nested()` SAVEPOINT the touch-point text implies. The free-disk check, the checkpoints and the repair batching are there too. All eight insert sites also depend on this file through `insert_vector_sql`.",
+      "evidence": "addons/intelligence/app/vec_partition.py:1-248 (new file). It is imported by app/database.py:24-29, app/indexer.py:34, app/workers/{metadata,whisper,refine,vision,video_visual,clip}.py. The wrappers are app/database.py:807-815 (`_migrate_vec_partition_if_needed` → `_vec_partition_migrate`) and app/indexer.py `repair_unkeyed_vec_rows` → `repair_unkeyed_rows`. The migration transaction is vec_partition.py `_migrate`: `conn.execute(\"BEGIN IMMEDIATE\")` / `ROLLBACK`.",
+      "repro": "not_reproduced (I compared the diff's file list with the touch-point list)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Moving the logic into a helper module breaks no invariant. The plan's list of places is incomplete, so the review scope it defines does not include the file where the migration and repair actually live.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `addons/intelligence/app/vec_partition.py` (DDL, insert SQL, rekey, migrate_if_needed, repair_unkeyed_rows) to the touch points, and review I1/I2/I8/I9 against it."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "search.py gains a new module-level helper, `_visible_neighbours`. The touch points name only `_find_similar_by_embedding` in search.py.",
+      "impact": "This helper now decides I4/I5/I6/I11 for both the widening stop check and the quality-filter input: the type filter, the source exclusion, `active` and drive. It is a separate unlisted function, so a later edit to it, or another caller reusing it, falls outside what the plan says this change touches.",
+      "evidence": "addons/intelligence/app/search.py:1928-1952 (new `_visible_neighbours`). Its callers are search.py:2079 (widening check) and search.py:2089 (neighbour lookup before the quality filters).",
+      "repro": "not_reproduced (I compared the diff with the touch-point list)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Extracting a helper breaks no invariant. The touch-point list just does not name it.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name `_visible_neighbours` in the search.py touch point."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff adds a shared test support module, addons/intelligence/tests/vec_partition_db.py, which is not named in the touch points. It holds the `search_index` and `authorizer` fixtures, the `Authorizer` kill/deny hook, `downgrade`, and the KNN and keyed-row readers. Every new SPEC-ADDON-022/023 test depends on it.",
+      "impact": "Whether the new tests pin I1-I11 depends on this module. Examples: `downgrade` rebuilds the pre-change schema, `keyed` asserts no duplicate ids, `put_vector(partition=\"omit\")` simulates old writers, and the fixture snapshots and restores `app.database` module globals. It is not a test that cites the spec ids, and the list names `idf_term_db.py` as a helper but not this one, so it is outside the listed scope.",
+      "evidence": "addons/intelligence/tests/vec_partition_db.py:1-318 (new). It is imported by tests/test_vec_partition_{migration,repair,similar,startup,writers}.py.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a scope-list gap for test infrastructure. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List `tests/vec_partition_db.py` among the test touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Every other file the addon diff reaches is in the touch-point list: database.py, indexer.py, main.py, search.py, the six worker modules, the four updated test_z_* stand-ins and test_pdf_indexing_e2e.py, plus the new test_vec_partition_*.py files that cite SPEC-ADDON-022/023. The core side reaches docs/addons/intelligence.md, the submodule pointer, the spec and INDEX.md, all of which are listed or implicit.",
+    "No insert into vec_text/vec_clip exists in app/, scripts/ or evals/ beyond the eight listed sites and vec_partition.py (grep for INSERT INTO vec_/CREATE VIRTUAL TABLE). The list of writers is therefore complete.",
+    "routers/similar.py is listed as 'no code change', and the diff does not touch it."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The migration transaction uses a raw DBAPI connection with isolation_level=None and BEGIN IMMEDIATE, not the begin_nested() SAVEPOINT on its own connection that the touch-point text describes. The code is authoritative, so this is noted only to say where to review I2.",
+    "repair_unkeyed_rows reads the NULL id list on one connection and repairs on later transactions. A row re-keyed concurrently in between is not expected at startup."
+  ],
+  "regression_risks": [
+    "Many listed test files are not changed by the diff, yet they still create plain vec_text stand-ins without an embedding_type column: test_provider_failure_handling.py:257, test_whisper_skip_jobrecord.py:52, test_loft_vtt_sidecar.py:47, test_epub_indexing_e2e.py:36, test_vision_purge.py:103, idf_term_db.py:49, test_startup_running_jobs.py:64, test_z_pickup_profile.py:539, test_embeddings_chunk_index_migration.py:52. The writers now INSERT (embedding_id, embedding_type, vector). Where a writer swallows insert errors (vision, video_visual, refine, and possibly the whisper per-chunk try blocks), a test on such a stand-in can pass while no vector is written.",
+    "test_z_auto_tag_drive_scope.py:61 and test_z_pickup_retrieval.py are listed but unchanged. They are unaffected only if they exercise readers outside _find_similar_by_embedding; I did not confirm this."
+  ],
+  "test_coverage": [
+    "New tests run real vec0 tables built by init_search_db (tests/vec_partition_db.py). They cover migration (I1, I2 including drop-then-fail and a killed process, free disk, I8 logs and WAL), repair (I9, including a mid-batch failure), writers per insert site (I3), similar-files isolation/widening/filter order (I4-I6, I11), and lifespan off-loop/repair-error handling (I10, 5b).",
+    "I7 (unchanged results for KNNs outside find_similar on partitioned tables) has no dedicated new test in the diff."
+  ],
+  "not_verified": [
+    "I did not run any test. I cannot tell whether the unchanged listed tests with old stand-ins pass or fail under the new INSERT SQL.",
+    "I did not read the full bodies of test_z_auto_tag_drive_scope.py, test_z_pickup_retrieval.py or test_z_image_clip_migration.py to confirm they need no change.",
+    "I did not check the core repository side beyond the diff shown, or the addon's Dockerfile sqlite-vec version.",
+    "I did not check the semantic correctness of the migration and repair beyond the touch-point scope question."
+  ],
+  "confidence": 85
+}
